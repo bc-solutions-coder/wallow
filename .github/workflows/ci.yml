@@ -11,15 +11,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '10.0.x'
 
       - name: Cache NuGet packages
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('Directory.Packages.props', '**/*.csproj') }}
@@ -40,15 +40,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '10.0.x'
 
       - name: Cache NuGet packages
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('Directory.Packages.props', '**/*.csproj') }}
@@ -63,7 +63,7 @@ jobs:
 
       - name: Upload unit test coverage
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-unit
           path: ./TestResults/**/coverage.cobertura.xml
@@ -110,15 +110,15 @@ jobs:
           --health-retries 5
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '10.0.x'
 
       - name: Cache NuGet packages
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('Directory.Packages.props', '**/*.csproj') }}
@@ -137,7 +137,7 @@ jobs:
 
       - name: Upload integration test coverage
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-integration
           path: ./TestResults/**/coverage.cobertura.xml
@@ -151,14 +151,14 @@ jobs:
 
     steps:
       - name: Download unit test coverage
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: coverage-unit
           path: ./coverage/unit
         continue-on-error: true
 
       - name: Download integration test coverage
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: coverage-integration
           path: ./coverage/integration
@@ -199,7 +199,7 @@ jobs:
 
       - name: Upload merged coverage report
         if: steps.check-coverage.outputs.has_coverage == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-report
           path: ./coverage/merged
