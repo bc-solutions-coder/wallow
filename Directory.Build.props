@@ -33,7 +33,7 @@
   <!-- Build configuration -->
   <PropertyGroup>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <NoWarn>$(NoWarn);CS1591</NoWarn> <!-- Missing XML comments -->
+    <NoWarn>$(NoWarn);CS1591;DAP005</NoWarn> <!-- Missing XML comments; Dapper AOT not used -->
   </PropertyGroup>
 
   <!-- Code Analysis Configuration -->

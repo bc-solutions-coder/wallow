@@ -34,7 +34,7 @@ jobs:
 
       - name: Determine version
         id: gitversion
-        uses: gittools/actions/gitversion/execute@v3.1.11
+        uses: gittools/actions/gitversion/execute@v4.3.3
 
       - name: Tag version
         run: |

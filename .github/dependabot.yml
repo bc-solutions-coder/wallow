@@ -8,15 +8,23 @@ updates:
     labels:
       - dependencies
       - .net
+    groups:
+      all-nuget:
+        patterns:
+          - "*"
 
   - package-ecosystem: docker
-    directory: /docker
+    directory: /
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
     labels:
       - dependencies
       - docker
+    groups:
+      all-docker:
+        patterns:
+          - "*"
 
   - package-ecosystem: github-actions
     directory: /
@@ -26,3 +34,7 @@ updates:
     labels:
       - dependencies
       - ci
+    groups:
+      all-actions:
+        patterns:
+          - "*"
