@@ -26,8 +26,8 @@ This guide covers deploying Foundry to a Hetzner server with automated CI/CD and
 ┌─────────────────────────────────────────────────────────────────┐
 │  GitHub                                                         │
 │  ┌─────────────┐    ┌─────────────────────────────────────────┐│
-│  │ Push to dev │───>│ Build Docker Image → Push to GHCR      ││
-│  │ Push tag    │    │ SSH to Server → Run deploy.sh          ││
+│  │ Push v* tag │───>│ Build Docker Image → Push to GHCR      ││
+│  │             │    │ Create GitHub Release                  ││
 │  └─────────────┘    └─────────────────────────────────────────┘│
 └─────────────────────────────────────────────────────────────────┘
                               │
@@ -53,11 +53,10 @@ This guide covers deploying Foundry to a Hetzner server with automated CI/CD and
 
 ### CI/CD Triggers
 
-| Trigger | Environment | Docker Tag | Server Path |
-|---------|-------------|------------|-------------|
-| Push to `dev` branch | development | `dev`, `dev-<sha>` | `/opt/foundry/dev` |
-| Push to `main` branch | staging | `staging`, `staging-<sha>` | `/opt/foundry/staging` |
-| Push version tag (`v*`) | production | `<version>`, `latest` | `/opt/foundry/prod` |
+| Trigger | Action | Docker Tags |
+|---------|--------|-------------|
+| PR to `main` | CI: build + test | *(none)* |
+| Push version tag (`v*`) | Publish: Docker image + GitHub Release | `<version>`, `<major>.<minor>`, `latest`, `<sha>` |
 
 ---
 
@@ -274,11 +273,6 @@ auth.yourdomain.com {
     reverse_proxy localhost:8180
 }
 
-# Development API (port 8081 per deploy.sh)
-api-dev.yourdomain.com {
-    reverse_proxy localhost:8081
-}
-
 # Staging API (port 8082 per deploy.sh)
 api-staging.yourdomain.com {
     reverse_proxy localhost:8082
@@ -318,10 +312,8 @@ For each environment, add these secrets:
 
 The repository includes these workflows in `.github/workflows/`:
 
-- `ci.yml` - Runs on PRs to `dev` or `main` branches (build + test)
-- `deploy-dev.yml` - Deploys on push to `dev` branch
-- `deploy-staging.yml` - Deploys on push to `main` branch
-- `deploy-prod.yml` - Deploys on push of version tags (`v*`)
+- `ci.yml` - Runs on PRs to `main` branch (build + test)
+- `publish.yml` - Builds Docker image and creates GitHub Release on version tag push (`v*`)
 
 ---
 
@@ -349,12 +341,6 @@ For production, create and push a version tag:
 ```bash
 git tag v0.1.0
 git push origin v0.1.0
-```
-
-For development:
-
-```bash
-git push origin dev
 ```
 
 ### 5.3 Monitor Deployment
@@ -816,9 +802,6 @@ docker compose -f docker-compose.base.yml -f docker-compose.prod.yml up -d
 ```bash
 # Deploy to production
 git tag v1.0.0 && git push origin v1.0.0
-
-# Deploy to dev
-git push origin dev
 
 # Manual deploy
 ssh deploy@SERVER "bash /opt/foundry/scripts/deploy.sh prod v1.0.0"

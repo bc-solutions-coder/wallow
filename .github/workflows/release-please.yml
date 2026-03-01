@@ -1,0 +1,28 @@
+# Release Please - creates and maintains a release PR based on conventional commits
+#
+# As PRs merge to main, release-please updates a "release PR" with changelog
+# and version bump. Merging that PR creates a GitHub Release and git tag.
+# The publish workflow then triggers on the tag to build and push the Docker image.
+
+name: Release Please
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}

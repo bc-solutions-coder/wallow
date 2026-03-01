@@ -1,14 +1,15 @@
 # Publish - builds and pushes Docker image to GitHub Container Registry
 #
-# Triggered on push to main (after PR merge) or manually.
-# Images are tagged with semver (via GitVersion), latest, and git SHA.
+# Triggered when release-please creates a GitHub Release (via tag push)
+# or manually via workflow_dispatch.
+# Images are tagged with semver, latest, and git SHA.
 # Pull with: docker pull ghcr.io/<owner>/foundry:<tag>
 
 name: Publish
 
 on:
   push:
-    branches: [main]
+    tags: ['v*']
   workflow_dispatch:
 
 env:
@@ -19,32 +20,20 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
       packages: write
 
     steps:
       - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '10.0.x'
 
-      - name: Setup GitVersion
-        uses: gittools/actions/gitversion/setup@v4.3.3
-        with:
-          versionSpec: '6.0.x'
-
-      - name: Determine version
-        id: gitversion
-        uses: gittools/actions/gitversion/execute@v4.3.3
-
-      - name: Tag version
-        run: |
-          git tag "v${{ steps.gitversion.outputs.fullSemVer }}"
-          git push origin "v${{ steps.gitversion.outputs.fullSemVer }}"
+      - name: Extract version from tag
+        id: version
+        run: echo "semver=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -62,8 +51,8 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=semver,pattern={{version}},value=v${{ steps.gitversion.outputs.fullSemVer }}
-            type=semver,pattern={{major}}.{{minor}},value=v${{ steps.gitversion.outputs.fullSemVer }}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest
             type=sha,prefix=
 
@@ -75,6 +64,6 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            VERSION=${{ steps.gitversion.outputs.fullSemVer }}
+            VERSION=${{ steps.version.outputs.semver }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

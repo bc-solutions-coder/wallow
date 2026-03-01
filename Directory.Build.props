@@ -26,8 +26,8 @@
     <Company>Foundry</Company>
     <Product>Foundry</Product>
     <Copyright>Copyright © Foundry $([System.DateTime]::Now.Year)</Copyright>
-    <!-- CI overrides this via /p:Version -->
-    <Version>0.0.0-local</Version>
+    <!-- Managed by release-please; CI overrides via /p:Version -->
+    <Version>0.1.0</Version>
   </PropertyGroup>
 
   <!-- Build configuration -->

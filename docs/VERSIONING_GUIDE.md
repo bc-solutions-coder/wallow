@@ -1,6 +1,6 @@
 # Versioning Guide
 
-Foundry uses automated semantic versioning driven by [Conventional Commits](https://www.conventionalcommits.org/) and [GitVersion](https://gitversion.net/). Versions flow through assemblies, Docker images, and git tags with zero manual intervention.
+Foundry uses automated semantic versioning driven by [Conventional Commits](https://www.conventionalcommits.org/) and [release-please](https://github.com/googleapis/release-please). Versions flow through assemblies, Docker images, and git tags with zero manual intervention.
 
 ## Commit Message Format
 
@@ -21,14 +21,13 @@ All commits must follow the Conventional Commits specification:
 | `fix` | Patch (0.0.X) | `fix: resolve null reference in tenant resolver` |
 | `feat` | Minor (0.X.0) | `feat: add file upload to Storage module` |
 | `feat!` | **Major (X.0.0)** | `feat!: redesign authentication flow` |
-| `chore` | Patch | `chore: update NuGet packages` |
-| `refactor` | Patch | `refactor: extract base entity class` |
-| `docs` | Patch | `docs: add caching guide` |
-| `test` | Patch | `test: add billing integration tests` |
-| `ci` | Patch | `ci: add Docker build step` |
-| `style` | Patch | `style: apply formatting rules` |
-| `perf` | Patch | `perf: optimize tenant query with index` |
-| `build` | Patch | `build: pin SDK version in global.json` |
+| `chore` | *(no release)* | `chore: update NuGet packages` |
+| `refactor` | *(no release)* | `refactor: extract base entity class` |
+| `docs` | *(no release)* | `docs: add caching guide` |
+| `test` | *(no release)* | `test: add billing integration tests` |
+| `ci` | *(no release)* | `ci: add Docker build step` |
+
+> **Note:** release-please only creates releases for `fix:` (patch) and `feat:` (minor) commits. Other types appear in the changelog but don't trigger a version bump on their own.
 
 A `BREAKING CHANGE` footer in any commit body also triggers a major bump:
 
@@ -51,94 +50,61 @@ chore(deps): bump Wolverine to 3.x
 ## Version Flow
 
 ```
-feature branch ──► dev branch ──► main branch ──► production
-   (no version)    (pre-release)   (release)       (deploy)
+feature branch ──PR──► main branch ──release PR──► tag + GitHub Release
+                        (accumulates)               (publishes)
 ```
 
-- **Feature branches** — No versioning. CI builds and runs tests only.
-- **Merge to dev** — Pre-release version, e.g. `0.2.0-dev.3`.
-- **Merge to main** — Clean release version, e.g. `0.2.0`.
-- **Tag push** — Triggers production deployment.
-
-## Pre-release Versions
-
-Dev builds carry a `-dev.{height}` suffix. Height is the number of commits since the last version-bumping merge.
+1. **Feature branches** — Develop and PR into main. CI runs tests.
+2. **Merge to main** — release-please analyzes commits and creates/updates a **Release PR** with changelog and version bump.
+3. **Merge the Release PR** — release-please creates a git tag (`v0.2.0`) and GitHub Release.
+4. **Tag triggers publish** — The publish workflow builds a Docker image and pushes to GHCR.
 
 ### Example Sequence
 
 ```
-1. feat: add payments     → merge to dev  → 0.2.0-dev.1
-2. fix: typo in handler   → commit on dev → 0.2.0-dev.2
-3. chore: update deps     → commit on dev → 0.2.0-dev.3
-4. merge dev to main      →               → 0.2.0
-5. fix: billing edge case → merge to dev  → 0.2.1-dev.1
-6. feat: add invoices     → merge to dev  → 0.3.0-dev.1
+1. feat: add payments       → merge to main → Release PR updated (0.1.0 → 0.2.0)
+2. fix: billing edge case   → merge to main → Release PR updated (0.1.0 → 0.2.0)
+3. merge Release PR         →               → v0.2.0 tag + GitHub Release + Docker image
+4. fix: tenant resolver     → merge to main → new Release PR (0.2.0 → 0.2.1)
 ```
 
 ## How to Trigger Version Bumps
 
-**Patch** — Use any of: `fix`, `chore`, `refactor`, `docs`, `test`, `ci`, `style`, `perf`, `build`.
+**Patch** — Use `fix:` prefix.
 
-**Minor** — Use `feat`.
+**Minor** — Use `feat:` prefix.
 
-**Major** — Use `feat!` or include `BREAKING CHANGE` in the commit body.
+**Major** — Use `feat!:` or `fix!:`, or include `BREAKING CHANGE` in the commit body.
 
-> **Note:** The project starts at `0.x.y`. Moving to `1.0.0` is an intentional decision — push a commit with `feat!: release v1.0.0` or `BREAKING CHANGE` when ready.
+> **Note:** The project starts at `0.x.y`. Moving to `1.0.0` is an intentional decision — merge a commit with `feat!: release v1.0.0` when ready.
 
-## GitVersion Configuration
+## release-please Configuration
 
-Configuration lives at `GitVersion.yml` in the repository root.
+Configuration lives in two files at the repository root:
 
-```yaml
-mode: ContinuousDeployment
-tag-prefix: 'v'
-```
+- **`release-please-config.json`** — Release type, extra files to version-bump
+- **`.release-please-manifest.json`** — Tracks the current version
 
-Branch configs:
-
-| Branch | Mode | Tag | Increment | Source |
-|--------|------|-----|-----------|--------|
-| `main` | ContinuousDelivery | *(none)* | Patch | develop |
-| `dev` / `develop` | ContinuousDeployment | `dev` | Minor | — |
-| `feature/*`, `fix/*`, etc. | ContinuousDeployment | branch name | Inherit | develop, main |
+release-please automatically updates `Directory.Build.props` with the new version via the `extra-files` config.
 
 ## What Gets Stamped
 
 | Artifact | How | Example |
 |----------|-----|---------|
-| Assembly version | CI passes `/p:Version={semver}` to `dotnet build` | `0.2.0` |
-| Docker image tag | Semver tag + rolling branch tag | `0.2.0-dev.3`, `dev` |
-| Git tags | Pushed by CI on main merges | `v0.2.0` |
-| GitHub Releases | Created from main tags (future) | `v0.2.0` |
+| `Directory.Build.props` | Updated by release-please in the Release PR | `<Version>0.2.0</Version>` |
+| Docker image tag | Publish workflow on tag push | `0.2.0`, `0.2`, `latest` |
+| Git tags | Created by release-please on Release PR merge | `v0.2.0` |
+| GitHub Releases | Created by release-please with auto-generated changelog | `v0.2.0` |
 
 ## Local Development
 
-Local builds use `0.0.0-local` as the default version, set in `Directory.Build.props`:
-
-```xml
-<!-- CI overrides this via /p:Version -->
-<Version>0.0.0-local</Version>
-```
-
-GitVersion only runs in CI. You do not need GitVersion installed locally.
-
-## Bootstrapping
-
-For new forks, tag the initial commit to give GitVersion a starting point:
-
-```bash
-git tag v0.1.0
-git push origin v0.1.0
-```
-
-All subsequent versions are computed automatically from this baseline.
+Local builds use the version from `Directory.Build.props`. The publish workflow overrides this with the tag version via `/p:Version` build arg.
 
 ## Troubleshooting
 
 | Problem | Solution |
 |---------|----------|
-| GitVersion reports wrong version | Check `GitVersion.yml` branch configs match your branch naming. Run `dotnet gitversion` locally to debug. |
-| CI gets `0.0.1` or unexpected version | Ensure `fetch-depth: 0` in your checkout action. GitVersion needs full git history. |
-| Want to force a specific version | Push a manual tag: `git tag v1.0.0 && git push origin v1.0.0`. Next commits compute from that tag. |
-| Pre-release height resets unexpectedly | Height resets after each merge to main. This is expected behavior. |
-| Local build shows `0.0.0-local` | Normal. CI overrides this with the computed version via `/p:Version`. |
+| Release PR not appearing | Ensure commits use conventional format (`feat:`, `fix:`). `chore:` alone won't trigger a release. |
+| Want to force a specific version | Edit `.release-please-manifest.json` to the desired version and merge to main. |
+| Release PR has wrong version | Check the manifest file matches the last released version. |
+| Docker image not built | Verify the publish workflow triggers on `v*` tags and the Release PR was merged (not just closed). |
