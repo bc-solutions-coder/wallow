@@ -1,7 +1,7 @@
 using Asp.Versioning;
 using Foundry.Configuration.Api.Contracts.Requests;
 using Foundry.Configuration.Api.Contracts.Responses;
-using Foundry.Configuration.Api.Extensions;
+using Foundry.Shared.Api.Extensions;
 using Foundry.Configuration.Api.Mappings;
 using Foundry.Configuration.Application.FeatureFlags.Commands.CreateFeatureFlag;
 using Foundry.Configuration.Application.FeatureFlags.Commands.CreateOverride;
@@ -14,6 +14,7 @@ using Foundry.Configuration.Application.FeatureFlags.Queries.GetAllFlags;
 using Foundry.Configuration.Application.FeatureFlags.Queries.GetOverridesForFlag;
 using Foundry.Shared.Kernel.Identity.Authorization;
 using Foundry.Shared.Kernel.MultiTenancy;
+using Foundry.Shared.Kernel.Services;
 using Foundry.Shared.Kernel.Results;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -34,15 +35,18 @@ public class FeatureFlagsController : ControllerBase
     private readonly IMessageBus _bus;
     private readonly ITenantContext _tenantContext;
     private readonly IFeatureFlagService _featureFlagService;
+    private readonly ICurrentUserService _currentUserService;
 
     public FeatureFlagsController(
         IMessageBus bus,
         ITenantContext tenantContext,
-        IFeatureFlagService featureFlagService)
+        IFeatureFlagService featureFlagService,
+        ICurrentUserService currentUserService)
     {
         _bus = bus;
         _tenantContext = tenantContext;
         _featureFlagService = featureFlagService;
+        _currentUserService = currentUserService;
     }
 
     /// <summary>
@@ -213,24 +217,11 @@ public class FeatureFlagsController : ControllerBase
     public async Task<IActionResult> Evaluate(CancellationToken cancellationToken)
     {
         Guid tenantId = _tenantContext.TenantId.Value;
-        Guid? userId = GetCurrentUserId();
+        Guid? userId = _currentUserService.GetCurrentUserId();
 
         Dictionary<string, object> flags = await _featureFlagService.GetAllFlagsAsync(tenantId, userId, cancellationToken);
 
         return Ok(flags);
-    }
-
-    private Guid? GetCurrentUserId()
-    {
-        string? userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
-            ?? User.FindFirst("sub")?.Value;
-
-        if (userIdClaim is not null && Guid.TryParse(userIdClaim, out Guid userId))
-        {
-            return userId;
-        }
-
-        return null;
     }
 
     private static FeatureFlagResponse ToFeatureFlagResponse(FeatureFlagDto dto) => new(

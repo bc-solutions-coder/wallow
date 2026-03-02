@@ -81,8 +81,6 @@ public sealed class NotificationConfiguration : IEntityTypeConfiguration<Notific
             .HasDefaultValue(false)
             .IsRequired();
 
-        builder.Ignore(n => n.IsExpired);
-
         builder.HasIndex(n => n.UserId);
         builder.HasIndex(n => n.CreatedAt);
 

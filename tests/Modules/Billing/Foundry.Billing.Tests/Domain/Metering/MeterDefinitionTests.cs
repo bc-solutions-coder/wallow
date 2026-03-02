@@ -116,13 +116,7 @@ public class MeterDefinitionUpdateTests
         MeterDefinition meter = MeterDefinition.Create("api.calls", "API Calls", "requests", MeterAggregation.Sum, true);
         Guid userId = Guid.NewGuid();
 
-        meter.Update(
-            "API Requests",
-            "calls",
-            MeterAggregation.Max,
-            false,
-            "new:pattern",
-            userId);
+        meter.Update("API Requests", "calls", MeterAggregation.Max, false, "new:pattern", userId);
 
         meter.DisplayName.Should().Be("API Requests");
         meter.Unit.Should().Be("calls");

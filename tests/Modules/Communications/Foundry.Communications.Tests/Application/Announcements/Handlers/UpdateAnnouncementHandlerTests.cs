@@ -16,13 +16,13 @@ public class UpdateAnnouncementHandlerTests
     public UpdateAnnouncementHandlerTests()
     {
         _repository = Substitute.For<IAnnouncementRepository>();
-        _handler = new UpdateAnnouncementHandler(_repository);
+        _handler = new UpdateAnnouncementHandler(_repository, TimeProvider.System);
     }
 
     [Fact]
     public async Task Handle_WhenAnnouncementExists_UpdatesAndReturnsSuccess()
     {
-        Announcement announcement = Announcement.Create("Old Title", "Old Content", AnnouncementType.Feature);
+        Announcement announcement = Announcement.Create("Old Title", "Old Content", AnnouncementType.Feature, TimeProvider.System);
 
         _repository.GetByIdAsync(Arg.Any<AnnouncementId>(), Arg.Any<CancellationToken>())
             .Returns(announcement);
@@ -61,7 +61,7 @@ public class UpdateAnnouncementHandlerTests
     [Fact]
     public async Task Handle_WhenAnnouncementExists_CallsUpdateOnRepository()
     {
-        Announcement announcement = Announcement.Create("Title", "Content", AnnouncementType.Feature);
+        Announcement announcement = Announcement.Create("Title", "Content", AnnouncementType.Feature, TimeProvider.System);
 
         _repository.GetByIdAsync(Arg.Any<AnnouncementId>(), Arg.Any<CancellationToken>())
             .Returns(announcement);

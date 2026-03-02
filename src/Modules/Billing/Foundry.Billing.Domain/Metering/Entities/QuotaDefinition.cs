@@ -60,7 +60,7 @@ public sealed class QuotaDefinition : AuditableEntity<QuotaDefinitionId>, ITenan
         Limit = limit;
         Period = period;
         OnExceeded = onExceeded;
-        SetCreated(createdByUserId);
+        SetCreated(DateTimeOffset.UtcNow, createdByUserId);
     }
 
     public static QuotaDefinition CreatePlanQuota(
@@ -152,6 +152,6 @@ public sealed class QuotaDefinition : AuditableEntity<QuotaDefinitionId>, ITenan
 
         Limit = limit;
         OnExceeded = onExceeded;
-        SetUpdated(updatedByUserId);
+        SetUpdated(DateTimeOffset.UtcNow, updatedByUserId);
     }
 }

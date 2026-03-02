@@ -5,16 +5,16 @@ using Wolverine;
 
 namespace Foundry.Billing.Application.EventHandlers;
 
-public sealed partial class PaymentReceivedDomainEventHandler
+public sealed partial class PaymentCreatedDomainEventHandler
 {
     public static async Task HandleAsync(
-        PaymentReceivedDomainEvent domainEvent,
+        PaymentCreatedDomainEvent domainEvent,
         IMessageBus bus,
         ITenantContext tenantContext,
-        ILogger<PaymentReceivedDomainEventHandler> logger,
+        ILogger<PaymentCreatedDomainEventHandler> logger,
         CancellationToken _)
     {
-        LogHandlingPaymentReceived(logger, domainEvent.PaymentId);
+        LogHandlingPaymentCreated(logger, domainEvent.PaymentId);
 
         await bus.PublishAsync(new Foundry.Shared.Contracts.Billing.Events.PaymentReceivedEvent
         {
@@ -32,8 +32,8 @@ public sealed partial class PaymentReceivedDomainEventHandler
         LogPublishedPaymentReceived(logger, domainEvent.PaymentId);
     }
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Handling PaymentReceivedDomainEvent for Payment {PaymentId}")]
-    private static partial void LogHandlingPaymentReceived(ILogger logger, Guid paymentId);
+    [LoggerMessage(Level = LogLevel.Information, Message = "Handling PaymentCreatedDomainEvent for Payment {PaymentId}")]
+    private static partial void LogHandlingPaymentCreated(ILogger logger, Guid paymentId);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Published PaymentReceivedEvent for Payment {PaymentId}")]
     private static partial void LogPublishedPaymentReceived(ILogger logger, Guid paymentId);

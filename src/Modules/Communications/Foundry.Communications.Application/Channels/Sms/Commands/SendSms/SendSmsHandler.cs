@@ -9,7 +9,8 @@ namespace Foundry.Communications.Application.Channels.Sms.Commands.SendSms;
 public sealed class SendSmsHandler(
     ISmsMessageRepository smsMessageRepository,
     ISmsProvider smsProvider,
-    ITenantContext tenantContext)
+    ITenantContext tenantContext,
+    TimeProvider timeProvider)
 {
     public async Task<Result> Handle(
         SendSmsCommand command,
@@ -18,7 +19,7 @@ public sealed class SendSmsHandler(
         PhoneNumber to = PhoneNumber.Create(command.To);
         PhoneNumber? from = command.From is not null ? PhoneNumber.Create(command.From) : null;
 
-        SmsMessage smsMessage = SmsMessage.Create(tenantContext.TenantId, to, from, command.Body);
+        SmsMessage smsMessage = SmsMessage.Create(tenantContext.TenantId, to, from, command.Body, timeProvider);
         smsMessageRepository.Add(smsMessage);
         await smsMessageRepository.SaveChangesAsync(cancellationToken);
 
@@ -31,16 +32,16 @@ public sealed class SendSmsHandler(
 
             if (deliveryResult.Success)
             {
-                smsMessage.MarkAsSent();
+                smsMessage.MarkAsSent(timeProvider);
             }
             else
             {
-                smsMessage.MarkAsFailed(deliveryResult.ErrorMessage ?? "Unknown error");
+                smsMessage.MarkAsFailed(deliveryResult.ErrorMessage ?? "Unknown error", timeProvider);
             }
         }
         catch (Exception ex)
         {
-            smsMessage.MarkAsFailed(ex.Message);
+            smsMessage.MarkAsFailed(ex.Message, timeProvider);
         }
 
         await smsMessageRepository.SaveChangesAsync(cancellationToken);

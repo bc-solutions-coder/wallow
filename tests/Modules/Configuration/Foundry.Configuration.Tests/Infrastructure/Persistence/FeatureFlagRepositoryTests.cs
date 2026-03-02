@@ -21,7 +21,7 @@ public class FeatureFlagRepositoryTests : DbContextIntegrationTestBase<Configura
     public async Task AddAsync_And_GetByIdAsync_ReturnsFlag()
     {
         FeatureFlagRepository repository = CreateRepository();
-        FeatureFlag flag = FeatureFlag.CreateBoolean($"test_{Guid.NewGuid():N}", "Test Feature", true);
+        FeatureFlag flag = FeatureFlag.CreateBoolean($"test_{Guid.NewGuid():N}", "Test Feature", true, TimeProvider.System);
 
         await repository.AddAsync(flag);
 
@@ -47,7 +47,7 @@ public class FeatureFlagRepositoryTests : DbContextIntegrationTestBase<Configura
     {
         FeatureFlagRepository repository = CreateRepository();
         string key = $"key_{Guid.NewGuid():N}";
-        FeatureFlag flag = FeatureFlag.CreateBoolean(key, "Keyed Feature", false);
+        FeatureFlag flag = FeatureFlag.CreateBoolean(key, "Keyed Feature", false, TimeProvider.System);
 
         await repository.AddAsync(flag);
 
@@ -72,11 +72,11 @@ public class FeatureFlagRepositoryTests : DbContextIntegrationTestBase<Configura
     {
         FeatureFlagRepository repository = CreateRepository();
         string key = $"key_{Guid.NewGuid():N}";
-        FeatureFlag flag = FeatureFlag.CreateBoolean(key, "Flag with Override", true);
+        FeatureFlag flag = FeatureFlag.CreateBoolean(key, "Flag with Override", true, TimeProvider.System);
         await repository.AddAsync(flag);
 
         // Add an override via a separate path
-        FeatureFlagOverride over = FeatureFlagOverride.CreateForTenant(flag.Id, Guid.NewGuid(), false);
+        FeatureFlagOverride over = FeatureFlagOverride.CreateForTenant(flag.Id, Guid.NewGuid(), false, TimeProvider.System);
         DbContext.FeatureFlagOverrides.Add(over);
         await DbContext.SaveChangesAsync();
 
@@ -92,8 +92,8 @@ public class FeatureFlagRepositoryTests : DbContextIntegrationTestBase<Configura
         FeatureFlagRepository repository = CreateRepository();
         string key1 = $"aaa_{Guid.NewGuid():N}";
         string key2 = $"zzz_{Guid.NewGuid():N}";
-        FeatureFlag flag1 = FeatureFlag.CreateBoolean(key1, "First", true);
-        FeatureFlag flag2 = FeatureFlag.CreateBoolean(key2, "Second", false);
+        FeatureFlag flag1 = FeatureFlag.CreateBoolean(key1, "First", true, TimeProvider.System);
+        FeatureFlag flag2 = FeatureFlag.CreateBoolean(key2, "Second", false, TimeProvider.System);
 
         await repository.AddAsync(flag1);
         await repository.AddAsync(flag2);
@@ -112,10 +112,10 @@ public class FeatureFlagRepositoryTests : DbContextIntegrationTestBase<Configura
     {
         FeatureFlagRepository repository = CreateRepository();
         string key = $"upd_{Guid.NewGuid():N}";
-        FeatureFlag flag = FeatureFlag.CreateBoolean(key, "Original", true);
+        FeatureFlag flag = FeatureFlag.CreateBoolean(key, "Original", true, TimeProvider.System);
         await repository.AddAsync(flag);
 
-        flag.Update("Updated Name", "Updated desc", false);
+        flag.Update("Updated Name", "Updated desc", false, TimeProvider.System);
         await repository.UpdateAsync(flag);
 
         FeatureFlag? result = await repository.GetByIdAsync(flag.Id);
@@ -131,7 +131,7 @@ public class FeatureFlagRepositoryTests : DbContextIntegrationTestBase<Configura
     {
         FeatureFlagRepository repository = CreateRepository();
         string key = $"del_{Guid.NewGuid():N}";
-        FeatureFlag flag = FeatureFlag.CreateBoolean(key, "To Delete", true);
+        FeatureFlag flag = FeatureFlag.CreateBoolean(key, "To Delete", true, TimeProvider.System);
         await repository.AddAsync(flag);
 
         await repository.DeleteAsync(flag);

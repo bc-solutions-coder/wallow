@@ -10,5 +10,5 @@ public record ServiceAccountDto(
     string? Description,
     ServiceAccountStatus Status,
     IReadOnlyList<string> Scopes,
-    DateTime CreatedAt,
-    DateTime? LastUsedAt);
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? LastUsedAt);

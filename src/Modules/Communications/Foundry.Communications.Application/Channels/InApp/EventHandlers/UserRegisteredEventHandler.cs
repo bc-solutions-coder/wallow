@@ -14,6 +14,7 @@ public sealed partial class UserRegisteredEventHandler
         INotificationRepository notificationRepository,
         INotificationService notificationService,
         ITenantContext tenantContext,
+        TimeProvider timeProvider,
         ILogger<UserRegisteredEventHandler> logger,
         CancellationToken cancellationToken)
     {
@@ -27,7 +28,8 @@ public sealed partial class UserRegisteredEventHandler
             integrationEvent.UserId,
             NotificationType.SystemAlert,
             title,
-            message);
+            message,
+            timeProvider);
 
         notificationRepository.Add(notification);
         await notificationRepository.SaveChangesAsync(cancellationToken);

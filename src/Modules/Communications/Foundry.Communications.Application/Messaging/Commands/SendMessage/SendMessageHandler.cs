@@ -5,7 +5,9 @@ using Foundry.Shared.Kernel.Results;
 
 namespace Foundry.Communications.Application.Messaging.Commands.SendMessage;
 
-public sealed class SendMessageHandler(IConversationRepository conversationRepository)
+public sealed class SendMessageHandler(
+    IConversationRepository conversationRepository,
+    TimeProvider timeProvider)
 {
     public async Task<Result<Guid>> Handle(
         SendMessageCommand command,
@@ -20,7 +22,7 @@ public sealed class SendMessageHandler(IConversationRepository conversationRepos
             return Result.Failure<Guid>(Error.NotFound("Conversation", command.ConversationId));
         }
 
-        conversation.SendMessage(command.SenderId, command.Body);
+        conversation.SendMessage(command.SenderId, command.Body, timeProvider);
 
         await conversationRepository.SaveChangesAsync(cancellationToken);
 

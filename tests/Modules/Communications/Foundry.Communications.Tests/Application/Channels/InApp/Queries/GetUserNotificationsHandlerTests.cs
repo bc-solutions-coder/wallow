@@ -17,7 +17,7 @@ public class GetUserNotificationsHandlerTests
     public GetUserNotificationsHandlerTests()
     {
         _repository = Substitute.For<INotificationRepository>();
-        _handler = new GetUserNotificationsHandler(_repository);
+        _handler = new GetUserNotificationsHandler(_repository, TimeProvider.System);
     }
 
     [Fact]
@@ -28,8 +28,8 @@ public class GetUserNotificationsHandlerTests
 
         List<Notification> notifications = new()
         {
-            Notification.Create(tenantId, userId, NotificationType.SystemAlert, "Title 1", "Message 1"),
-            Notification.Create(tenantId, userId, NotificationType.TaskAssigned, "Title 2", "Message 2")
+            Notification.Create(tenantId, userId, NotificationType.SystemAlert, "Title 1", "Message 1", TimeProvider.System),
+            Notification.Create(tenantId, userId, NotificationType.TaskAssigned, "Title 2", "Message 2", TimeProvider.System)
         };
 
         _repository.GetByUserIdPagedAsync(userId, 1, 20, Arg.Any<CancellationToken>())
@@ -82,7 +82,7 @@ public class GetUserNotificationsHandlerTests
         Guid userId = Guid.NewGuid();
         TenantId tenantId = TenantId.Create(Guid.NewGuid());
 
-        Notification notification = Notification.Create(tenantId, userId, NotificationType.Mention, "Test Title", "Test Message");
+        Notification notification = Notification.Create(tenantId, userId, NotificationType.Mention, "Test Title", "Test Message", TimeProvider.System);
 
         _repository.GetByUserIdPagedAsync(userId, 1, 20, Arg.Any<CancellationToken>())
             .Returns((new List<Notification> { notification }, 1));
@@ -105,9 +105,9 @@ public class GetUserNotificationsHandlerTests
         Guid userId = Guid.NewGuid();
         TenantId tenantId = TenantId.Create(Guid.NewGuid());
 
-        Notification activeNotification = Notification.Create(tenantId, userId, NotificationType.SystemAlert, "Active", "Active message");
-        Notification archivedNotification = Notification.Create(tenantId, userId, NotificationType.SystemAlert, "Archived", "Archived message");
-        archivedNotification.Archive();
+        Notification activeNotification = Notification.Create(tenantId, userId, NotificationType.SystemAlert, "Active", "Active message", TimeProvider.System);
+        Notification archivedNotification = Notification.Create(tenantId, userId, NotificationType.SystemAlert, "Archived", "Archived message", TimeProvider.System);
+        archivedNotification.Archive(TimeProvider.System);
 
         List<Notification> notifications = new() { activeNotification, archivedNotification };
 
@@ -129,10 +129,8 @@ public class GetUserNotificationsHandlerTests
         Guid userId = Guid.NewGuid();
         TenantId tenantId = TenantId.Create(Guid.NewGuid());
 
-        Notification activeNotification = Notification.Create(tenantId, userId, NotificationType.SystemAlert, "Active", "Active message");
-        Notification expiredNotification = Notification.Create(
-            tenantId, userId, NotificationType.SystemAlert, "Expired", "Expired message",
-            expiresAt: DateTime.UtcNow.AddHours(-1));
+        Notification activeNotification = Notification.Create(tenantId, userId, NotificationType.SystemAlert, "Active", "Active message", TimeProvider.System);
+        Notification expiredNotification = Notification.Create(tenantId, userId, NotificationType.SystemAlert, "Expired", "Expired message", TimeProvider.System, expiresAt: DateTime.UtcNow.AddHours(-1));
 
         List<Notification> notifications = new() { activeNotification, expiredNotification };
 
@@ -154,10 +152,8 @@ public class GetUserNotificationsHandlerTests
         Guid userId = Guid.NewGuid();
         TenantId tenantId = TenantId.Create(Guid.NewGuid());
 
-        Notification notification1 = Notification.Create(tenantId, userId, NotificationType.SystemAlert, "Alert", "Alert message");
-        Notification notification2 = Notification.Create(
-            tenantId, userId, NotificationType.TaskAssigned, "Task", "Task message",
-            expiresAt: DateTime.UtcNow.AddHours(1));
+        Notification notification1 = Notification.Create(tenantId, userId, NotificationType.SystemAlert, "Alert", "Alert message", TimeProvider.System);
+        Notification notification2 = Notification.Create(tenantId, userId, NotificationType.TaskAssigned, "Task", "Task message", TimeProvider.System, expiresAt: DateTime.UtcNow.AddHours(1));
 
         List<Notification> notifications = new() { notification1, notification2 };
 

@@ -17,7 +17,7 @@ public class InvoiceCreateTests
         Guid userId = Guid.NewGuid();
         Guid createdBy = Guid.NewGuid();
 
-        Invoice invoice = Invoice.Create(userId, "INV-001", "USD", createdBy);
+        Invoice invoice = Invoice.Create(userId, "INV-001", "USD", createdBy, TimeProvider.System);
 
         invoice.UserId.Should().Be(userId);
         invoice.InvoiceNumber.Should().Be("INV-001");
@@ -34,7 +34,7 @@ public class InvoiceCreateTests
     {
         DateTime dueDate = DateTime.UtcNow.AddDays(30);
 
-        Invoice invoice = Invoice.Create(Guid.NewGuid(), "INV-001", "USD", Guid.NewGuid(), dueDate);
+        Invoice invoice = Invoice.Create(Guid.NewGuid(), "INV-001", "USD", Guid.NewGuid(), TimeProvider.System, dueDate);
 
         invoice.DueDate.Should().BeCloseTo(dueDate, TimeSpan.FromSeconds(1));
     }
@@ -44,7 +44,7 @@ public class InvoiceCreateTests
     {
         Guid userId = Guid.NewGuid();
 
-        Invoice invoice = Invoice.Create(userId, "INV-001", "USD", Guid.NewGuid());
+        Invoice invoice = Invoice.Create(userId, "INV-001", "USD", Guid.NewGuid(), TimeProvider.System);
 
         invoice.DomainEvents.Should().ContainSingle()
             .Which.Should().BeOfType<InvoiceCreatedDomainEvent>()
@@ -57,7 +57,7 @@ public class InvoiceCreateTests
     [InlineData(null)]
     public void Create_WithEmptyInvoiceNumber_ThrowsBusinessRuleException(string? invoiceNumber)
     {
-        Func<Invoice> act = () => Invoice.Create(Guid.NewGuid(), invoiceNumber!, "USD", Guid.NewGuid());
+        Func<Invoice> act = () => Invoice.Create(Guid.NewGuid(), invoiceNumber!, "USD", Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>()
             .Where(e => e.Code == "Billing.InvoiceNumberRequired");
@@ -66,7 +66,7 @@ public class InvoiceCreateTests
     [Fact]
     public void Create_WithEmptyUserId_ThrowsBusinessRuleException()
     {
-        Func<Invoice> act = () => Invoice.Create(Guid.Empty, "INV-001", "USD", Guid.NewGuid());
+        Func<Invoice> act = () => Invoice.Create(Guid.Empty, "INV-001", "USD", Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>()
             .Where(e => e.Code == "Billing.UserIdRequired");
@@ -80,7 +80,7 @@ public class InvoiceLineItemTests
     {
         Invoice invoice = InvoiceBuilder.Create().Build();
 
-        invoice.AddLineItem("Consulting", Money.Create(500, "USD"), 2, Guid.NewGuid());
+        invoice.AddLineItem("Consulting", Money.Create(500, "USD"), 2, Guid.NewGuid(), TimeProvider.System);
 
         invoice.LineItems.Should().ContainSingle();
         invoice.TotalAmount.Amount.Should().Be(1000); // 500 * 2
@@ -91,8 +91,8 @@ public class InvoiceLineItemTests
     {
         Invoice invoice = InvoiceBuilder.Create().Build();
 
-        invoice.AddLineItem("Service A", Money.Create(100, "USD"), 1, Guid.NewGuid());
-        invoice.AddLineItem("Service B", Money.Create(200, "USD"), 2, Guid.NewGuid());
+        invoice.AddLineItem("Service A", Money.Create(100, "USD"), 1, Guid.NewGuid(), TimeProvider.System);
+        invoice.AddLineItem("Service B", Money.Create(200, "USD"), 2, Guid.NewGuid(), TimeProvider.System);
 
         invoice.LineItems.Should().HaveCount(2);
         invoice.TotalAmount.Amount.Should().Be(500); // 100 + (200 * 2)
@@ -106,7 +106,7 @@ public class InvoiceLineItemTests
             .AsIssued()
             .Build();
 
-        Action act = () => invoice.AddLineItem("Extra", Money.Create(100, "USD"), 1, Guid.NewGuid());
+        Action act = () => invoice.AddLineItem("Extra", Money.Create(100, "USD"), 1, Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<InvalidInvoiceException>()
             .WithMessage("*draft*");
@@ -120,7 +120,7 @@ public class InvoiceLineItemTests
     {
         Invoice invoice = InvoiceBuilder.Create().Build();
 
-        Action act = () => invoice.AddLineItem("Item", Money.Create(100, "USD"), quantity, Guid.NewGuid());
+        Action act = () => invoice.AddLineItem("Item", Money.Create(100, "USD"), quantity, Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>()
             .Where(e => e.Code == "Billing.InvalidQuantity");
@@ -135,7 +135,7 @@ public class InvoiceLineItemTests
             .Build();
         InvoiceLineItem itemToRemove = invoice.LineItems.First();
 
-        invoice.RemoveLineItem(itemToRemove.Id, Guid.NewGuid());
+        invoice.RemoveLineItem(itemToRemove.Id, Guid.NewGuid(), TimeProvider.System);
 
         invoice.LineItems.Should().ContainSingle();
         invoice.TotalAmount.Amount.Should().Be(200);
@@ -150,7 +150,7 @@ public class InvoiceLineItemTests
             .Build();
         InvoiceLineItemId itemId = invoice.LineItems.First().Id;
 
-        Action act = () => invoice.RemoveLineItem(itemId, Guid.NewGuid());
+        Action act = () => invoice.RemoveLineItem(itemId, Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<InvalidInvoiceException>()
             .WithMessage("*draft*");
@@ -163,9 +163,7 @@ public class InvoiceLineItemTests
             .WithDefaultLineItem()
             .Build();
 
-        Action act = () => invoice.RemoveLineItem(
-            Foundry.Billing.Domain.Identity.InvoiceLineItemId.New(),
-            Guid.NewGuid());
+        Action act = () => invoice.RemoveLineItem(Foundry.Billing.Domain.Identity.InvoiceLineItemId.New(), Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>()
             .Where(e => e.Code == "Billing.LineItemNotFound");
@@ -181,7 +179,7 @@ public class InvoiceIssueTests
             .WithLineItem("Service", 500)
             .Build();
 
-        invoice.Issue(Guid.NewGuid());
+        invoice.Issue(Guid.NewGuid(), TimeProvider.System);
 
         invoice.Status.Should().Be(InvoiceStatus.Issued);
     }
@@ -191,7 +189,7 @@ public class InvoiceIssueTests
     {
         Invoice invoice = InvoiceBuilder.Create().Build();
 
-        Action act = () => invoice.Issue(Guid.NewGuid());
+        Action act = () => invoice.Issue(Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<InvalidInvoiceException>()
             .WithMessage("*no line items*");
@@ -205,7 +203,7 @@ public class InvoiceIssueTests
             .AsIssued()
             .Build();
 
-        Action act = () => invoice.Issue(Guid.NewGuid());
+        Action act = () => invoice.Issue(Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<InvalidInvoiceException>()
             .WithMessage("*draft*");
@@ -219,7 +217,7 @@ public class InvoiceIssueTests
             .AsPaid()
             .Build();
 
-        Action act = () => invoice.Issue(Guid.NewGuid());
+        Action act = () => invoice.Issue(Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<InvalidInvoiceException>();
     }
@@ -237,7 +235,7 @@ public class InvoiceMarkAsPaidTests
         Guid paymentId = Guid.NewGuid();
         DateTime beforePaid = DateTime.UtcNow;
 
-        invoice.MarkAsPaid(paymentId, Guid.NewGuid());
+        invoice.MarkAsPaid(paymentId, Guid.NewGuid(), TimeProvider.System);
 
         invoice.Status.Should().Be(InvoiceStatus.Paid);
         invoice.PaidAt.Should().NotBeNull();
@@ -252,7 +250,7 @@ public class InvoiceMarkAsPaidTests
             .AsOverdue()
             .Build();
 
-        invoice.MarkAsPaid(Guid.NewGuid(), Guid.NewGuid());
+        invoice.MarkAsPaid(Guid.NewGuid(), Guid.NewGuid(), TimeProvider.System);
 
         invoice.Status.Should().Be(InvoiceStatus.Paid);
     }
@@ -266,7 +264,7 @@ public class InvoiceMarkAsPaidTests
             .Build();
         Guid paymentId = Guid.NewGuid();
 
-        invoice.MarkAsPaid(paymentId, Guid.NewGuid());
+        invoice.MarkAsPaid(paymentId, Guid.NewGuid(), TimeProvider.System);
 
         invoice.DomainEvents.Should().ContainSingle()
             .Which.Should().BeOfType<InvoicePaidDomainEvent>()
@@ -280,7 +278,7 @@ public class InvoiceMarkAsPaidTests
             .WithDefaultLineItem()
             .Build();
 
-        Action act = () => invoice.MarkAsPaid(Guid.NewGuid(), Guid.NewGuid());
+        Action act = () => invoice.MarkAsPaid(Guid.NewGuid(), Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<InvalidInvoiceException>()
             .WithMessage("*issued or overdue*");
@@ -294,7 +292,7 @@ public class InvoiceMarkAsPaidTests
             .AsPaid()
             .Build();
 
-        Action act = () => invoice.MarkAsPaid(Guid.NewGuid(), Guid.NewGuid());
+        Action act = () => invoice.MarkAsPaid(Guid.NewGuid(), Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<InvalidInvoiceException>();
     }
@@ -310,7 +308,7 @@ public class InvoiceMarkAsOverdueTests
             .AsIssued()
             .Build();
 
-        invoice.MarkAsOverdue(Guid.NewGuid());
+        invoice.MarkAsOverdue(Guid.NewGuid(), TimeProvider.System);
 
         invoice.Status.Should().Be(InvoiceStatus.Overdue);
     }
@@ -323,7 +321,7 @@ public class InvoiceMarkAsOverdueTests
             .AsIssued()
             .Build();
 
-        invoice.MarkAsOverdue(Guid.NewGuid());
+        invoice.MarkAsOverdue(Guid.NewGuid(), TimeProvider.System);
 
         invoice.DomainEvents.Should().ContainSingle()
             .Which.Should().BeOfType<InvoiceOverdueDomainEvent>();
@@ -336,7 +334,7 @@ public class InvoiceMarkAsOverdueTests
             .WithDefaultLineItem()
             .Build();
 
-        Action act = () => invoice.MarkAsOverdue(Guid.NewGuid());
+        Action act = () => invoice.MarkAsOverdue(Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<InvalidInvoiceException>()
             .WithMessage("*issued*");
@@ -350,7 +348,7 @@ public class InvoiceMarkAsOverdueTests
             .AsPaid()
             .Build();
 
-        Action act = () => invoice.MarkAsOverdue(Guid.NewGuid());
+        Action act = () => invoice.MarkAsOverdue(Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<InvalidInvoiceException>();
     }
@@ -365,7 +363,7 @@ public class InvoiceCancelTests
             .WithDefaultLineItem()
             .Build();
 
-        invoice.Cancel(Guid.NewGuid());
+        invoice.Cancel(Guid.NewGuid(), TimeProvider.System);
 
         invoice.Status.Should().Be(InvoiceStatus.Cancelled);
     }
@@ -378,7 +376,7 @@ public class InvoiceCancelTests
             .AsIssued()
             .Build();
 
-        invoice.Cancel(Guid.NewGuid());
+        invoice.Cancel(Guid.NewGuid(), TimeProvider.System);
 
         invoice.Status.Should().Be(InvoiceStatus.Cancelled);
     }
@@ -391,7 +389,7 @@ public class InvoiceCancelTests
             .AsOverdue()
             .Build();
 
-        invoice.Cancel(Guid.NewGuid());
+        invoice.Cancel(Guid.NewGuid(), TimeProvider.System);
 
         invoice.Status.Should().Be(InvoiceStatus.Cancelled);
     }
@@ -404,7 +402,7 @@ public class InvoiceCancelTests
             .AsPaid()
             .Build();
 
-        Action act = () => invoice.Cancel(Guid.NewGuid());
+        Action act = () => invoice.Cancel(Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<InvalidInvoiceException>()
             .WithMessage("*paid*");

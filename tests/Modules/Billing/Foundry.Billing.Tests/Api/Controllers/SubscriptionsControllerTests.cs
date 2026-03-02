@@ -7,6 +7,7 @@ using Foundry.Billing.Application.DTOs;
 using Foundry.Billing.Application.Queries.GetSubscriptionById;
 using Foundry.Billing.Application.Queries.GetSubscriptionsByUserId;
 using Foundry.Shared.Kernel.Results;
+using Foundry.Shared.Kernel.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Wolverine;
@@ -16,13 +17,16 @@ namespace Foundry.Billing.Tests.Api.Controllers;
 public class SubscriptionsControllerTests
 {
     private readonly IMessageBus _bus;
+    private readonly ICurrentUserService _currentUserService;
     private readonly SubscriptionsController _controller;
     private readonly Guid _userId = Guid.NewGuid();
 
     public SubscriptionsControllerTests()
     {
         _bus = Substitute.For<IMessageBus>();
-        _controller = new SubscriptionsController(_bus);
+        _currentUserService = Substitute.For<ICurrentUserService>();
+        _currentUserService.GetCurrentUserId().Returns(_userId);
+        _controller = new SubscriptionsController(_bus, _currentUserService);
 
         ClaimsPrincipal user = new ClaimsPrincipal(new ClaimsIdentity(new[]
         {
@@ -253,24 +257,16 @@ public class SubscriptionsControllerTests
     }
 
     [Fact]
-    public async Task Create_WithNoUserClaims_PassesEmptyGuidAsUserId()
+    public async Task Create_WithNoUserClaims_ReturnsUnauthorized()
     {
-        _controller.ControllerContext = new ControllerContext
-        {
-            HttpContext = new DefaultHttpContext
-            {
-                User = new ClaimsPrincipal(new ClaimsIdentity())
-            }
-        };
+        _currentUserService.GetCurrentUserId().Returns((Guid?)null);
         CreateSubscriptionRequest request = new("Pro", 29.99m, "USD", DateTime.UtcNow, DateTime.UtcNow.AddMonths(1));
-        SubscriptionDto dto = CreateSubscriptionDto();
-        _bus.InvokeAsync<Result<SubscriptionDto>>(Arg.Any<CreateSubscriptionCommand>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success(dto));
 
-        await _controller.Create(request, CancellationToken.None);
+        IActionResult result = await _controller.Create(request, CancellationToken.None);
 
-        await _bus.Received(1).InvokeAsync<Result<SubscriptionDto>>(
-            Arg.Is<CreateSubscriptionCommand>(c => c.UserId == Guid.Empty),
+        result.Should().BeOfType<UnauthorizedResult>();
+        await _bus.DidNotReceive().InvokeAsync<Result<SubscriptionDto>>(
+            Arg.Any<CreateSubscriptionCommand>(),
             Arg.Any<CancellationToken>());
     }
 

@@ -21,7 +21,7 @@ public sealed class Notification : AggregateRoot<NotificationId>, ITenantScoped
     public DateTime? ExpiresAt { get; private set; }
     public bool IsArchived { get; private set; }
 
-    public bool IsExpired => ExpiresAt < DateTime.UtcNow;
+    public bool IsExpired(TimeProvider timeProvider) => ExpiresAt < timeProvider.GetUtcNow().UtcDateTime;
 
     private Notification() { }
 
@@ -33,7 +33,8 @@ public sealed class Notification : AggregateRoot<NotificationId>, ITenantScoped
         string message,
         string? actionUrl,
         string? sourceModule,
-        DateTime? expiresAt)
+        DateTime? expiresAt,
+        TimeProvider timeProvider)
         : base(NotificationId.New())
     {
         TenantId = tenantId;
@@ -46,7 +47,7 @@ public sealed class Notification : AggregateRoot<NotificationId>, ITenantScoped
         ActionUrl = actionUrl;
         SourceModule = sourceModule;
         ExpiresAt = expiresAt;
-        SetCreated();
+        SetCreated(timeProvider.GetUtcNow());
 
         RaiseDomainEvent(new NotificationCreatedDomainEvent(
             Id.Value,
@@ -61,27 +62,28 @@ public sealed class Notification : AggregateRoot<NotificationId>, ITenantScoped
         NotificationType type,
         string title,
         string message,
+        TimeProvider timeProvider,
         string? actionUrl = null,
         string? sourceModule = null,
         DateTime? expiresAt = null)
     {
-        return new Notification(tenantId, userId, type, title, message, actionUrl, sourceModule, expiresAt);
+        return new Notification(tenantId, userId, type, title, message, actionUrl, sourceModule, expiresAt, timeProvider);
     }
 
-    public void MarkAsRead()
+    public void MarkAsRead(TimeProvider timeProvider)
     {
         IsRead = true;
-        ReadAt = DateTime.UtcNow;
-        SetUpdated();
+        ReadAt = timeProvider.GetUtcNow().UtcDateTime;
+        SetUpdated(timeProvider.GetUtcNow());
 
         RaiseDomainEvent(new NotificationReadDomainEvent(
             Id.Value,
             UserId));
     }
 
-    public void Archive()
+    public void Archive(TimeProvider timeProvider)
     {
         IsArchived = true;
-        SetUpdated();
+        SetUpdated(timeProvider.GetUtcNow());
     }
 }

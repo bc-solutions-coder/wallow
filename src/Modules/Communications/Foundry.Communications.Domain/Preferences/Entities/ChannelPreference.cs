@@ -20,25 +20,27 @@ public sealed class ChannelPreference : AggregateRoot<ChannelPreferenceId>, ITen
         Guid userId,
         ChannelType channelType,
         string notificationType,
-        bool isEnabled)
+        bool isEnabled,
+        TimeProvider timeProvider)
         : base(ChannelPreferenceId.New())
     {
         UserId = userId;
         ChannelType = channelType;
         NotificationType = notificationType;
         IsEnabled = isEnabled;
-        SetCreated();
+        SetCreated(timeProvider.GetUtcNow());
     }
 
     public static ChannelPreference Create(
         Guid userId,
         ChannelType channelType,
         string notificationType,
+        TimeProvider timeProvider,
         bool isEnabled = true)
     {
         ArgumentException.ThrowIfNullOrEmpty(notificationType);
 
-        ChannelPreference preference = new(userId, channelType, notificationType, isEnabled);
+        ChannelPreference preference = new(userId, channelType, notificationType, isEnabled, timeProvider);
 
         preference.RaiseDomainEvent(new ChannelPreferenceCreatedEvent(
             preference.Id,
@@ -50,21 +52,21 @@ public sealed class ChannelPreference : AggregateRoot<ChannelPreferenceId>, ITen
         return preference;
     }
 
-    public void Enable()
+    public void Enable(TimeProvider timeProvider)
     {
         IsEnabled = true;
-        SetUpdated();
+        SetUpdated(timeProvider.GetUtcNow());
     }
 
-    public void Disable()
+    public void Disable(TimeProvider timeProvider)
     {
         IsEnabled = false;
-        SetUpdated();
+        SetUpdated(timeProvider.GetUtcNow());
     }
 
-    public void Toggle()
+    public void Toggle(TimeProvider timeProvider)
     {
         IsEnabled = !IsEnabled;
-        SetUpdated();
+        SetUpdated(timeProvider.GetUtcNow());
     }
 }

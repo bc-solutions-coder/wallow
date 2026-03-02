@@ -15,12 +15,12 @@ public class FeatureFlagOverrideRepositoryTests : DbContextIntegrationTestBase<C
 
     protected override bool UseMigrateAsync => true;
 
-    private FeatureFlagOverrideRepository CreateOverrideRepository() => new(DbContext);
+    private FeatureFlagOverrideRepository CreateOverrideRepository() => new(DbContext, TimeProvider.System);
 
     private async Task<FeatureFlag> CreateAndSaveFlagAsync(string? key = null)
     {
         key ??= $"flag_{Guid.NewGuid():N}";
-        FeatureFlag flag = FeatureFlag.CreateBoolean(key, "Test Flag", true);
+        FeatureFlag flag = FeatureFlag.CreateBoolean(key, "Test Flag", true, TimeProvider.System);
         DbContext.FeatureFlags.Add(flag);
         await DbContext.SaveChangesAsync();
         return flag;
@@ -32,7 +32,7 @@ public class FeatureFlagOverrideRepositoryTests : DbContextIntegrationTestBase<C
         FeatureFlagOverrideRepository repository = CreateOverrideRepository();
         FeatureFlag flag = await CreateAndSaveFlagAsync();
         Guid tenantId = Guid.NewGuid();
-        FeatureFlagOverride over = FeatureFlagOverride.CreateForTenant(flag.Id, tenantId, true);
+        FeatureFlagOverride over = FeatureFlagOverride.CreateForTenant(flag.Id, tenantId, true, TimeProvider.System);
 
         await repository.AddAsync(over);
 
@@ -58,8 +58,7 @@ public class FeatureFlagOverrideRepositoryTests : DbContextIntegrationTestBase<C
     {
         FeatureFlagOverrideRepository repository = CreateOverrideRepository();
         FeatureFlag flag = await CreateAndSaveFlagAsync();
-        FeatureFlagOverride expired = FeatureFlagOverride.CreateForTenant(
-            flag.Id, Guid.NewGuid(), true, expiresAt: DateTime.UtcNow.AddMinutes(-10));
+        FeatureFlagOverride expired = FeatureFlagOverride.CreateForTenant(flag.Id, Guid.NewGuid(), true, TimeProvider.System, expiresAt: DateTime.UtcNow.AddMinutes(-10));
 
         await repository.AddAsync(expired);
 
@@ -73,9 +72,8 @@ public class FeatureFlagOverrideRepositoryTests : DbContextIntegrationTestBase<C
     {
         FeatureFlagOverrideRepository repository = CreateOverrideRepository();
         FeatureFlag flag = await CreateAndSaveFlagAsync();
-        FeatureFlagOverride activeOver = FeatureFlagOverride.CreateForTenant(flag.Id, Guid.NewGuid(), true);
-        FeatureFlagOverride expiredOver = FeatureFlagOverride.CreateForTenant(
-            flag.Id, Guid.NewGuid(), false, expiresAt: DateTime.UtcNow.AddMinutes(-10));
+        FeatureFlagOverride activeOver = FeatureFlagOverride.CreateForTenant(flag.Id, Guid.NewGuid(), true, TimeProvider.System);
+        FeatureFlagOverride expiredOver = FeatureFlagOverride.CreateForTenant(flag.Id, Guid.NewGuid(), false, TimeProvider.System, expiresAt: DateTime.UtcNow.AddMinutes(-10));
 
         await repository.AddAsync(activeOver);
         await repository.AddAsync(expiredOver);
@@ -93,7 +91,7 @@ public class FeatureFlagOverrideRepositoryTests : DbContextIntegrationTestBase<C
         FeatureFlag flag = await CreateAndSaveFlagAsync();
         Guid tenantId = Guid.NewGuid();
         Guid userId = Guid.NewGuid();
-        FeatureFlagOverride over = FeatureFlagOverride.CreateForTenantUser(flag.Id, tenantId, userId, true);
+        FeatureFlagOverride over = FeatureFlagOverride.CreateForTenantUser(flag.Id, tenantId, userId, true, TimeProvider.System);
 
         await repository.AddAsync(over);
 
@@ -120,7 +118,7 @@ public class FeatureFlagOverrideRepositoryTests : DbContextIntegrationTestBase<C
         FeatureFlagOverrideRepository repository = CreateOverrideRepository();
         FeatureFlag flag = await CreateAndSaveFlagAsync();
         Guid tenantId = Guid.NewGuid();
-        FeatureFlagOverride tenantOver = FeatureFlagOverride.CreateForTenant(flag.Id, tenantId, true);
+        FeatureFlagOverride tenantOver = FeatureFlagOverride.CreateForTenant(flag.Id, tenantId, true, TimeProvider.System);
 
         await repository.AddAsync(tenantOver);
 
@@ -136,8 +134,8 @@ public class FeatureFlagOverrideRepositoryTests : DbContextIntegrationTestBase<C
         FeatureFlag flag = await CreateAndSaveFlagAsync();
         Guid tenantId = Guid.NewGuid();
         Guid userId = Guid.NewGuid();
-        FeatureFlagOverride tenantOver = FeatureFlagOverride.CreateForTenant(flag.Id, tenantId, true);
-        FeatureFlagOverride userOver = FeatureFlagOverride.CreateForUser(flag.Id, userId, false);
+        FeatureFlagOverride tenantOver = FeatureFlagOverride.CreateForTenant(flag.Id, tenantId, true, TimeProvider.System);
+        FeatureFlagOverride userOver = FeatureFlagOverride.CreateForUser(flag.Id, userId, false, TimeProvider.System);
 
         await repository.AddAsync(tenantOver);
         await repository.AddAsync(userOver);
@@ -153,7 +151,7 @@ public class FeatureFlagOverrideRepositoryTests : DbContextIntegrationTestBase<C
     {
         FeatureFlagOverrideRepository repository = CreateOverrideRepository();
         FeatureFlag flag = await CreateAndSaveFlagAsync();
-        FeatureFlagOverride over = FeatureFlagOverride.CreateForTenant(flag.Id, Guid.NewGuid(), true);
+        FeatureFlagOverride over = FeatureFlagOverride.CreateForTenant(flag.Id, Guid.NewGuid(), true, TimeProvider.System);
         await repository.AddAsync(over);
 
         await repository.DeleteAsync(over);

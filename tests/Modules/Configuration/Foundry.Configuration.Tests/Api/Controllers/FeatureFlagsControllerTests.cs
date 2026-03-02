@@ -15,6 +15,7 @@ using Foundry.Configuration.Application.FeatureFlags.Queries.GetOverridesForFlag
 using Foundry.Configuration.Domain.Enums;
 using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.MultiTenancy;
+using Foundry.Shared.Kernel.Services;
 using Foundry.Shared.Kernel.Results;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -27,6 +28,7 @@ public class FeatureFlagsControllerTests
     private readonly IMessageBus _bus;
     private readonly ITenantContext _tenantContext;
     private readonly IFeatureFlagService _featureFlagService;
+    private readonly ICurrentUserService _currentUserService;
     private readonly FeatureFlagsController _controller;
     private readonly Guid _tenantId = Guid.NewGuid();
     private readonly Guid _userId = Guid.NewGuid();
@@ -36,10 +38,12 @@ public class FeatureFlagsControllerTests
         _bus = Substitute.For<IMessageBus>();
         _tenantContext = Substitute.For<ITenantContext>();
         _featureFlagService = Substitute.For<IFeatureFlagService>();
+        _currentUserService = Substitute.For<ICurrentUserService>();
+        _currentUserService.GetCurrentUserId().Returns(_userId);
 
         _tenantContext.TenantId.Returns(new TenantId(_tenantId));
 
-        _controller = new FeatureFlagsController(_bus, _tenantContext, _featureFlagService);
+        _controller = new FeatureFlagsController(_bus, _tenantContext, _featureFlagService, _currentUserService);
 
         ClaimsPrincipal user = new ClaimsPrincipal(new ClaimsIdentity(new[]
         {
@@ -570,6 +574,7 @@ public class FeatureFlagsControllerTests
                 User = new ClaimsPrincipal(new ClaimsIdentity())
             }
         };
+        _currentUserService.GetCurrentUserId().Returns((Guid?)null);
         _featureFlagService.GetAllFlagsAsync(Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>())
             .Returns(new Dictionary<string, object>());
 
@@ -595,6 +600,7 @@ public class FeatureFlagsControllerTests
                 }, "TestAuth"))
             }
         };
+        _currentUserService.GetCurrentUserId().Returns(subUserId);
         _featureFlagService.GetAllFlagsAsync(Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>())
             .Returns(new Dictionary<string, object>());
 
@@ -619,6 +625,7 @@ public class FeatureFlagsControllerTests
                 }, "TestAuth"))
             }
         };
+        _currentUserService.GetCurrentUserId().Returns((Guid?)null);
         _featureFlagService.GetAllFlagsAsync(Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>())
             .Returns(new Dictionary<string, object>());
 

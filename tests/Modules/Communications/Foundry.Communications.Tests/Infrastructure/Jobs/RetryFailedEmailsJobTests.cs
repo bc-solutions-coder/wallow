@@ -17,7 +17,7 @@ public class RetryFailedEmailsJobTests
 
     public RetryFailedEmailsJobTests()
     {
-        _sut = new RetryFailedEmailsJob(_emailMessageRepository, _emailService, _logger);
+        _sut = new RetryFailedEmailsJob(_emailMessageRepository, _emailService, TimeProvider.System, _logger);
     }
 
     [Fact]
@@ -82,8 +82,8 @@ public class RetryFailedEmailsJobTests
         EmailAddress to = EmailAddress.Create("test@example.com");
         EmailAddress from = EmailAddress.Create("sender@example.com");
         EmailContent content = EmailContent.Create("Test Subject", "Test Body");
-        EmailMessage message = EmailMessage.Create(to, from, content);
-        message.MarkAsFailed("Transient error");
+        EmailMessage message = EmailMessage.Create(to, from, content, TimeProvider.System);
+        message.MarkAsFailed("Transient error", TimeProvider.System);
         return message;
     }
 }

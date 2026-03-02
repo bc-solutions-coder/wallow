@@ -8,7 +8,8 @@ using Foundry.Shared.Kernel.Results;
 namespace Foundry.Billing.Application.Commands.CancelSubscription;
 
 public sealed class CancelSubscriptionHandler(
-    ISubscriptionRepository subscriptionRepository)
+    ISubscriptionRepository subscriptionRepository,
+    TimeProvider timeProvider)
 {
     public async Task<Result<SubscriptionDto>> Handle(
         CancelSubscriptionCommand command,
@@ -23,7 +24,7 @@ public sealed class CancelSubscriptionHandler(
                 Error.NotFound("Subscription", command.SubscriptionId));
         }
 
-        subscription.Cancel(command.CancelledByUserId);
+        subscription.Cancel(command.CancelledByUserId, timeProvider);
         await subscriptionRepository.SaveChangesAsync(cancellationToken);
 
         return Result.Success(subscription.ToDto());

@@ -67,7 +67,7 @@ public sealed class EmailMessageRepositoryTests : IDisposable
     {
         EmailMessage pending = CreateEmailMessage();
         EmailMessage sent = CreateEmailMessage();
-        sent.MarkAsSent();
+        sent.MarkAsSent(TimeProvider.System);
 
         await _dbContext.EmailMessages.AddRangeAsync(pending, sent);
         await _dbContext.SaveChangesAsync();
@@ -109,7 +109,7 @@ public sealed class EmailMessageRepositoryTests : IDisposable
         EmailAddress to = EmailAddress.Create("recipient@test.com");
         EmailAddress from = EmailAddress.Create("sender@test.com");
         EmailContent content = EmailContent.Create("Test Subject", "<p>Test Body</p>");
-        EmailMessage email = EmailMessage.Create(to, from, content);
+        EmailMessage email = EmailMessage.Create(to, from, content, TimeProvider.System);
         email.TenantId = _tenantId;
         return email;
     }

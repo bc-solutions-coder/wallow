@@ -7,6 +7,7 @@ using Foundry.Communications.Application.Announcements.Queries.GetActiveAnnounce
 using Foundry.Shared.Kernel.Identity.Authorization;
 using Foundry.Shared.Kernel.MultiTenancy;
 using Foundry.Shared.Kernel.Results;
+using Foundry.Shared.Kernel.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -24,11 +25,13 @@ public class AnnouncementsController : ControllerBase
 {
     private readonly IMessageBus _bus;
     private readonly ITenantContext _tenantContext;
+    private readonly ICurrentUserService _currentUserService;
 
-    public AnnouncementsController(IMessageBus bus, ITenantContext tenantContext)
+    public AnnouncementsController(IMessageBus bus, ITenantContext tenantContext, ICurrentUserService currentUserService)
     {
         _bus = bus;
         _tenantContext = tenantContext;
+        _currentUserService = currentUserService;
     }
 
     /// <summary>
@@ -40,7 +43,7 @@ public class AnnouncementsController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> GetAnnouncements(CancellationToken ct)
     {
-        Guid? userId = GetCurrentUserId();
+        Guid? userId = _currentUserService.GetCurrentUserId();
         if (userId is null)
         {
             return Unauthorized();
@@ -72,7 +75,7 @@ public class AnnouncementsController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> DismissAnnouncement(Guid id, CancellationToken ct)
     {
-        Guid? userId = GetCurrentUserId();
+        Guid? userId = _currentUserService.GetCurrentUserId();
         if (userId is null)
         {
             return Unauthorized();
@@ -83,19 +86,6 @@ public class AnnouncementsController : ControllerBase
             ct);
 
         return result.ToNoContentResult();
-    }
-
-    private Guid? GetCurrentUserId()
-    {
-        string? userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
-            ?? User.FindFirst("sub")?.Value;
-
-        if (userIdClaim is null || !Guid.TryParse(userIdClaim, out Guid userId))
-        {
-            return null;
-        }
-
-        return userId;
     }
 
     private List<string> GetUserRoles()

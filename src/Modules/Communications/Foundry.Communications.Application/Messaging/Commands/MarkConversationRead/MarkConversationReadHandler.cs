@@ -5,7 +5,9 @@ using Foundry.Shared.Kernel.Results;
 
 namespace Foundry.Communications.Application.Messaging.Commands.MarkConversationRead;
 
-public sealed class MarkConversationReadHandler(IConversationRepository conversationRepository)
+public sealed class MarkConversationReadHandler(
+    IConversationRepository conversationRepository,
+    TimeProvider timeProvider)
 {
     public async Task<Result> Handle(
         MarkConversationReadCommand command,
@@ -20,7 +22,7 @@ public sealed class MarkConversationReadHandler(IConversationRepository conversa
             return Result.Failure(Error.NotFound("Conversation", command.ConversationId));
         }
 
-        conversation.MarkReadBy(command.UserId);
+        conversation.MarkReadBy(command.UserId, timeProvider);
         await conversationRepository.SaveChangesAsync(cancellationToken);
 
         return Result.Success();

@@ -1,3 +1,4 @@
+using Foundry.Communications.Domain.Exceptions;
 using Foundry.Communications.Domain.Messaging.Entities;
 using Foundry.Communications.Domain.Messaging.Enums;
 using Foundry.Communications.Domain.Messaging.Events;
@@ -14,7 +15,7 @@ public class ConversationTests
     [Fact]
     public void CreateDirect_ReturnsConversationWithTwoParticipants_IsGroupFalse_NoSubject()
     {
-        Conversation conversation = Conversation.CreateDirect(_tenantId, _userId1, _userId2);
+        Conversation conversation = Conversation.CreateDirect(_tenantId, _userId1, _userId2, TimeProvider.System);
 
         conversation.Participants.Should().HaveCount(2);
         conversation.IsGroup.Should().BeFalse();
@@ -28,7 +29,7 @@ public class ConversationTests
         Guid member1 = Guid.NewGuid();
         Guid member2 = Guid.NewGuid();
 
-        Conversation conversation = Conversation.CreateGroup(_tenantId, _userId1, "Team Chat", [member1, member2]);
+        Conversation conversation = Conversation.CreateGroup(_tenantId, _userId1, "Team Chat", [member1, member2], TimeProvider.System);
 
         conversation.Participants.Should().HaveCount(3);
         conversation.IsGroup.Should().BeTrue();
@@ -39,10 +40,10 @@ public class ConversationTests
     [Fact]
     public void SendMessage_OnActiveConversation_RaisesMessageSentDomainEvent()
     {
-        Conversation conversation = Conversation.CreateDirect(_tenantId, _userId1, _userId2);
+        Conversation conversation = Conversation.CreateDirect(_tenantId, _userId1, _userId2, TimeProvider.System);
         conversation.ClearDomainEvents();
 
-        conversation.SendMessage(_userId1, "Hello");
+        conversation.SendMessage(_userId1, "Hello", TimeProvider.System);
 
         conversation.DomainEvents.Should().ContainSingle()
             .Which.Should().BeOfType<MessageSentDomainEvent>();
@@ -51,31 +52,31 @@ public class ConversationTests
     [Fact]
     public void SendMessage_FromNonParticipant_ThrowsInvalidOperationException()
     {
-        Conversation conversation = Conversation.CreateDirect(_tenantId, _userId1, _userId2);
+        Conversation conversation = Conversation.CreateDirect(_tenantId, _userId1, _userId2, TimeProvider.System);
         Guid outsider = Guid.NewGuid();
 
-        Action act = () => conversation.SendMessage(outsider, "Hello");
+        Action act = () => conversation.SendMessage(outsider, "Hello", TimeProvider.System);
 
-        act.Should().Throw<InvalidOperationException>();
+        act.Should().Throw<ConversationException>();
     }
 
     [Fact]
     public void SendMessage_OnArchivedConversation_ThrowsInvalidOperationException()
     {
-        Conversation conversation = Conversation.CreateDirect(_tenantId, _userId1, _userId2);
-        conversation.Archive();
+        Conversation conversation = Conversation.CreateDirect(_tenantId, _userId1, _userId2, TimeProvider.System);
+        conversation.Archive(TimeProvider.System);
 
-        Action act = () => conversation.SendMessage(_userId1, "Hello");
+        Action act = () => conversation.SendMessage(_userId1, "Hello", TimeProvider.System);
 
-        act.Should().Throw<InvalidOperationException>();
+        act.Should().Throw<ConversationException>();
     }
 
     [Fact]
     public void MarkReadBy_UpdatesParticipantLastReadAt()
     {
-        Conversation conversation = Conversation.CreateDirect(_tenantId, _userId1, _userId2);
+        Conversation conversation = Conversation.CreateDirect(_tenantId, _userId1, _userId2, TimeProvider.System);
 
-        conversation.MarkReadBy(_userId1);
+        conversation.MarkReadBy(_userId1, TimeProvider.System);
 
         Participant participant = conversation.Participants.First(p => p.UserId == _userId1);
         participant.LastReadAt.Should().NotBeNull();
@@ -85,11 +86,11 @@ public class ConversationTests
     [Fact]
     public void AddParticipant_OnGroupConversation_RaisesParticipantAddedDomainEvent()
     {
-        Conversation conversation = Conversation.CreateGroup(_tenantId, _userId1, "Group", [_userId2]);
+        Conversation conversation = Conversation.CreateGroup(_tenantId, _userId1, "Group", [_userId2], TimeProvider.System);
         conversation.ClearDomainEvents();
         Guid newUser = Guid.NewGuid();
 
-        conversation.AddParticipant(newUser);
+        conversation.AddParticipant(newUser, TimeProvider.System);
 
         conversation.DomainEvents.Should().ContainSingle()
             .Which.Should().BeOfType<ParticipantAddedDomainEvent>();
@@ -99,20 +100,20 @@ public class ConversationTests
     [Fact]
     public void AddParticipant_OnDirectConversation_ThrowsInvalidOperationException()
     {
-        Conversation conversation = Conversation.CreateDirect(_tenantId, _userId1, _userId2);
+        Conversation conversation = Conversation.CreateDirect(_tenantId, _userId1, _userId2, TimeProvider.System);
         Guid newUser = Guid.NewGuid();
 
-        Action act = () => conversation.AddParticipant(newUser);
+        Action act = () => conversation.AddParticipant(newUser, TimeProvider.System);
 
-        act.Should().Throw<InvalidOperationException>();
+        act.Should().Throw<ConversationException>();
     }
 
     [Fact]
     public void Archive_SetsStatusToArchived()
     {
-        Conversation conversation = Conversation.CreateDirect(_tenantId, _userId1, _userId2);
+        Conversation conversation = Conversation.CreateDirect(_tenantId, _userId1, _userId2, TimeProvider.System);
 
-        conversation.Archive();
+        conversation.Archive(TimeProvider.System);
 
         conversation.Status.Should().Be(ConversationStatus.Archived);
     }

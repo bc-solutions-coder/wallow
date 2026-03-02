@@ -15,7 +15,7 @@ public class MarkAllNotificationsReadHandlerTests
     public MarkAllNotificationsReadHandlerTests()
     {
         _repository = Substitute.For<INotificationRepository>();
-        _handler = new MarkAllNotificationsReadHandler(_repository);
+        _handler = new MarkAllNotificationsReadHandler(_repository, TimeProvider.System);
     }
 
     [Fact]
@@ -26,9 +26,9 @@ public class MarkAllNotificationsReadHandlerTests
 
         List<Notification> notifications = new()
         {
-            Notification.Create(tenantId, userId, NotificationType.SystemAlert, "Title 1", "Message 1"),
-            Notification.Create(tenantId, userId, NotificationType.TaskAssigned, "Title 2", "Message 2"),
-            Notification.Create(tenantId, userId, NotificationType.Mention, "Title 3", "Message 3")
+            Notification.Create(tenantId, userId, NotificationType.SystemAlert, "Title 1", "Message 1", TimeProvider.System),
+            Notification.Create(tenantId, userId, NotificationType.TaskAssigned, "Title 2", "Message 2", TimeProvider.System),
+            Notification.Create(tenantId, userId, NotificationType.Mention, "Title 3", "Message 3", TimeProvider.System)
         };
 
         _repository.GetUnreadByUserIdAsync(userId, Arg.Any<CancellationToken>())

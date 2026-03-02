@@ -18,7 +18,7 @@ public class SendEmailHandlerTests
     {
         _repository = Substitute.For<IEmailMessageRepository>();
         _emailService = Substitute.For<IEmailService>();
-        _handler = new SendEmailHandler(_repository, _emailService);
+        _handler = new SendEmailHandler(_repository, _emailService, TimeProvider.System);
     }
 
     [Fact]

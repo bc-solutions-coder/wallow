@@ -8,6 +8,7 @@ using Foundry.Communications.Application.Channels.Email.DTOs;
 using Foundry.Communications.Application.Channels.Email.Queries.GetEmailPreferences;
 using Foundry.Shared.Kernel.Results;
 using Foundry.Shared.Kernel.Identity.Authorization;
+using Foundry.Shared.Kernel.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -25,10 +26,12 @@ namespace Foundry.Communications.Api.Controllers;
 public class EmailPreferencesController : ControllerBase
 {
     private readonly IMessageBus _bus;
+    private readonly ICurrentUserService _currentUserService;
 
-    public EmailPreferencesController(IMessageBus bus)
+    public EmailPreferencesController(IMessageBus bus, ICurrentUserService currentUserService)
     {
         _bus = bus;
+        _currentUserService = currentUserService;
     }
 
     /// <summary>
@@ -40,7 +43,7 @@ public class EmailPreferencesController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> GetPreferences(CancellationToken cancellationToken)
     {
-        Guid? userId = GetCurrentUserId();
+        Guid? userId = _currentUserService.GetCurrentUserId();
         if (userId is null)
         {
             return Unauthorized();
@@ -64,7 +67,7 @@ public class EmailPreferencesController : ControllerBase
         [FromBody] UpdateEmailPreferenceRequest request,
         CancellationToken cancellationToken)
     {
-        Guid? userId = GetCurrentUserId();
+        Guid? userId = _currentUserService.GetCurrentUserId();
         if (userId is null)
         {
             return Unauthorized();
@@ -83,19 +86,6 @@ public class EmailPreferencesController : ControllerBase
         }
 
         return NoContent();
-    }
-
-    private Guid? GetCurrentUserId()
-    {
-        string? userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
-            ?? User.FindFirst("sub")?.Value;
-
-        if (userIdClaim is null || !Guid.TryParse(userIdClaim, out Guid userId))
-        {
-            return null;
-        }
-
-        return userId;
     }
 
     private static EmailPreferenceResponse ToResponse(EmailPreferenceDto dto) => new(

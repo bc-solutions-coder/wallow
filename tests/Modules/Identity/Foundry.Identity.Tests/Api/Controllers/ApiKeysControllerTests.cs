@@ -15,6 +15,7 @@ public class ApiKeysControllerTests
     private static readonly string[] _twoScopes = ["invoices.read", "payments.write"];
     private readonly IApiKeyService _apiKeyService;
     private readonly ITenantContext _tenantContext;
+    private readonly Foundry.Shared.Kernel.Services.ICurrentUserService _currentUserService;
     private readonly ApiKeysController _controller;
     private readonly Guid _userId = Guid.NewGuid();
     private readonly Guid _tenantId = Guid.NewGuid();
@@ -24,8 +25,10 @@ public class ApiKeysControllerTests
         _apiKeyService = Substitute.For<IApiKeyService>();
         _tenantContext = Substitute.For<ITenantContext>();
         _tenantContext.TenantId.Returns(new Shared.Kernel.Identity.TenantId(_tenantId));
+        _currentUserService = Substitute.For<Foundry.Shared.Kernel.Services.ICurrentUserService>();
+        _currentUserService.GetCurrentUserId().Returns(_userId);
 
-        _controller = new ApiKeysController(_apiKeyService, _tenantContext);
+        _controller = new ApiKeysController(_apiKeyService, _tenantContext, _currentUserService);
 
         ClaimsPrincipal user = new ClaimsPrincipal(new ClaimsIdentity(new[]
         {
@@ -93,6 +96,7 @@ public class ApiKeysControllerTests
                 User = new ClaimsPrincipal(new ClaimsIdentity())
             }
         };
+        _currentUserService.GetCurrentUserId().Returns((Guid?)null);
         CreateApiKeyRequest request = new("Key", null, null);
 
         IActionResult result = await _controller.CreateApiKey(request, CancellationToken.None);
@@ -167,6 +171,7 @@ public class ApiKeysControllerTests
             }
         };
 
+        _currentUserService.GetCurrentUserId().Returns((Guid?)null);
         IActionResult result = await _controller.ListApiKeys(CancellationToken.None);
 
         result.Should().BeOfType<UnauthorizedResult>();
@@ -234,6 +239,7 @@ public class ApiKeysControllerTests
             }
         };
 
+        _currentUserService.GetCurrentUserId().Returns((Guid?)null);
         IActionResult result = await _controller.RevokeApiKey("key-1", CancellationToken.None);
 
         result.Should().BeOfType<UnauthorizedResult>();
@@ -253,6 +259,7 @@ public class ApiKeysControllerTests
                 }, "TestAuth"))
             }
         };
+        _currentUserService.GetCurrentUserId().Returns(subUserId);
         _apiKeyService.RevokeApiKeyAsync(Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(true);
 
@@ -275,6 +282,7 @@ public class ApiKeysControllerTests
                 }, "TestAuth"))
             }
         };
+        _currentUserService.GetCurrentUserId().Returns(subUserId);
         CreateApiKeyRequest request = new("Key", null, null);
         ApiKeyCreateResult createResult = new(true, "id", "key", "pfx", null);
         _apiKeyService.CreateApiKeyAsync(
@@ -302,6 +310,7 @@ public class ApiKeysControllerTests
                 }, "TestAuth"))
             }
         };
+        _currentUserService.GetCurrentUserId().Returns((Guid?)null);
         CreateApiKeyRequest request = new("Key", null, null);
 
         IActionResult result = await _controller.CreateApiKey(request, CancellationToken.None);

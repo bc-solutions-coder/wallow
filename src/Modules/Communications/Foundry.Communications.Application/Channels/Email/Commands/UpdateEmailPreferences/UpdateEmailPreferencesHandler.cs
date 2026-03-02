@@ -6,7 +6,9 @@ using Foundry.Shared.Kernel.Results;
 
 namespace Foundry.Communications.Application.Channels.Email.Commands.UpdateEmailPreferences;
 
-public sealed class UpdateEmailPreferencesHandler(IEmailPreferenceRepository preferenceRepository)
+public sealed class UpdateEmailPreferencesHandler(
+    IEmailPreferenceRepository preferenceRepository,
+    TimeProvider timeProvider)
 {
     public async Task<Result<EmailPreferenceDto>> Handle(
         UpdateEmailPreferencesCommand command,
@@ -22,7 +24,8 @@ public sealed class UpdateEmailPreferencesHandler(IEmailPreferenceRepository pre
             preference = EmailPreference.Create(
                 command.UserId,
                 command.NotificationType,
-                command.IsEnabled);
+                command.IsEnabled,
+                timeProvider);
 
             preferenceRepository.Add(preference);
         }
@@ -30,11 +33,11 @@ public sealed class UpdateEmailPreferencesHandler(IEmailPreferenceRepository pre
         {
             if (command.IsEnabled)
             {
-                preference.Enable();
+                preference.Enable(timeProvider);
             }
             else
             {
-                preference.Disable();
+                preference.Disable(timeProvider);
             }
         }
 

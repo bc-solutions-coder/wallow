@@ -8,7 +8,9 @@ using Foundry.Shared.Kernel.Results;
 
 namespace Foundry.Billing.Application.Commands.AddLineItem;
 
-public sealed class AddLineItemHandler(IInvoiceRepository invoiceRepository)
+public sealed class AddLineItemHandler(
+    IInvoiceRepository invoiceRepository,
+    TimeProvider timeProvider)
 {
     public async Task<Result<InvoiceDto>> Handle(
         AddLineItemCommand command,
@@ -28,7 +30,8 @@ public sealed class AddLineItemHandler(IInvoiceRepository invoiceRepository)
             command.Description,
             unitPrice,
             command.Quantity,
-            command.UpdatedByUserId);
+            command.UpdatedByUserId,
+            timeProvider);
 
         await invoiceRepository.SaveChangesAsync(cancellationToken);
 

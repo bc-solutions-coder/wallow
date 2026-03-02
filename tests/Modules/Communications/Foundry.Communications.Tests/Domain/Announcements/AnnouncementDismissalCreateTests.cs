@@ -13,7 +13,7 @@ public class AnnouncementDismissalCreateTests
         UserId userId = UserId.New();
         DateTime before = DateTime.UtcNow;
 
-        AnnouncementDismissal dismissal = AnnouncementDismissal.Create(announcementId, userId);
+        AnnouncementDismissal dismissal = AnnouncementDismissal.Create(announcementId, userId, TimeProvider.System);
 
         dismissal.AnnouncementId.Should().Be(announcementId);
         dismissal.UserId.Should().Be(userId);
@@ -27,8 +27,8 @@ public class AnnouncementDismissalCreateTests
         AnnouncementId announcementId = AnnouncementId.New();
         UserId userId = UserId.New();
 
-        AnnouncementDismissal first = AnnouncementDismissal.Create(announcementId, userId);
-        AnnouncementDismissal second = AnnouncementDismissal.Create(announcementId, userId);
+        AnnouncementDismissal first = AnnouncementDismissal.Create(announcementId, userId, TimeProvider.System);
+        AnnouncementDismissal second = AnnouncementDismissal.Create(announcementId, userId, TimeProvider.System);
 
         first.Id.Should().NotBe(second.Id);
     }

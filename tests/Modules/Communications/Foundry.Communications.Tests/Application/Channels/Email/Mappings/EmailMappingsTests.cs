@@ -15,7 +15,7 @@ public class EmailMappingsTests
         EmailAddress from = EmailAddress.Create("from@example.com");
         EmailContent content = EmailContent.Create("Subject", "Body");
 
-        EmailMessage emailMessage = EmailMessage.Create(to, from, content);
+        EmailMessage emailMessage = EmailMessage.Create(to, from, content, TimeProvider.System);
 
         EmailDto dto = emailMessage.ToDto();
 
@@ -36,7 +36,7 @@ public class EmailMappingsTests
         EmailAddress to = EmailAddress.Create("to@example.com");
         EmailContent content = EmailContent.Create("Subject", "Body");
 
-        EmailMessage emailMessage = EmailMessage.Create(to, null, content);
+        EmailMessage emailMessage = EmailMessage.Create(to, null, content, TimeProvider.System);
 
         EmailDto dto = emailMessage.ToDto();
 
@@ -49,8 +49,8 @@ public class EmailMappingsTests
         EmailAddress to = EmailAddress.Create("to@example.com");
         EmailContent content = EmailContent.Create("Subject", "Body");
 
-        EmailMessage emailMessage = EmailMessage.Create(to, null, content);
-        emailMessage.MarkAsSent();
+        EmailMessage emailMessage = EmailMessage.Create(to, null, content, TimeProvider.System);
+        emailMessage.MarkAsSent(TimeProvider.System);
 
         EmailDto dto = emailMessage.ToDto();
 
@@ -64,8 +64,8 @@ public class EmailMappingsTests
         EmailAddress to = EmailAddress.Create("to@example.com");
         EmailContent content = EmailContent.Create("Subject", "Body");
 
-        EmailMessage emailMessage = EmailMessage.Create(to, null, content);
-        emailMessage.MarkAsFailed("Connection timeout");
+        EmailMessage emailMessage = EmailMessage.Create(to, null, content, TimeProvider.System);
+        emailMessage.MarkAsFailed("Connection timeout", TimeProvider.System);
 
         EmailDto dto = emailMessage.ToDto();
 

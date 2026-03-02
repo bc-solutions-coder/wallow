@@ -17,7 +17,7 @@ public class AnnouncementTargetingEdgeCaseTests
     {
         _announcementRepository = Substitute.For<IAnnouncementRepository>();
         _dismissalRepository = Substitute.For<IAnnouncementDismissalRepository>();
-        _service = new AnnouncementTargetingService(_announcementRepository, _dismissalRepository);
+        _service = new AnnouncementTargetingService(_announcementRepository, _dismissalRepository, TimeProvider.System);
     }
 
     [Fact]
@@ -155,12 +155,8 @@ public class AnnouncementTargetingEdgeCaseTests
     [Fact]
     public async Task GetActiveAnnouncementsForUserAsync_MapsAllDtoFields()
     {
-        Announcement announcement = Announcement.Create(
-            "Test Title", "Test Content", AnnouncementType.Alert,
-            AnnouncementTarget.All, null, DateTime.UtcNow.AddHours(1),
-            DateTime.UtcNow.AddDays(7), true, true,
-            "https://example.com", "Click Here", "https://example.com/image.png");
-        announcement.Publish();
+        Announcement announcement = Announcement.Create("Test Title", "Test Content", AnnouncementType.Alert, TimeProvider.System, AnnouncementTarget.All, null, DateTime.UtcNow.AddHours(1), DateTime.UtcNow.AddDays(7), true, true, "https://example.com", "Click Here", "https://example.com/image.png");
+        announcement.Publish(TimeProvider.System);
 
         _announcementRepository.GetPublishedAsync(Arg.Any<CancellationToken>())
             .Returns(new List<Announcement> { announcement });
@@ -235,11 +231,8 @@ public class AnnouncementTargetingEdgeCaseTests
         string? targetValue = null,
         DateTime? expiresAt = null)
     {
-        Announcement announcement = Announcement.Create(
-            title, "Content", AnnouncementType.Feature,
-            target, targetValue, null, expiresAt,
-            false, true);
-        announcement.Publish();
+        Announcement announcement = Announcement.Create(title, "Content", AnnouncementType.Feature, TimeProvider.System, target, targetValue, null, expiresAt, false, true);
+        announcement.Publish(TimeProvider.System);
         return announcement;
     }
 }

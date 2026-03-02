@@ -22,7 +22,7 @@ public class InvoiceRepositoryTests : DbContextIntegrationTestBase<BillingDbCont
     public async Task Add_And_GetByIdAsync_ReturnsInvoice()
     {
         InvoiceRepository repository = CreateRepository();
-        Invoice invoice = Invoice.Create(TestUserId, "INV-REPO-001", "USD", TestUserId);
+        Invoice invoice = Invoice.Create(TestUserId, "INV-REPO-001", "USD", TestUserId, TimeProvider.System);
 
         repository.Add(invoice);
         await repository.SaveChangesAsync();
@@ -37,8 +37,8 @@ public class InvoiceRepositoryTests : DbContextIntegrationTestBase<BillingDbCont
     public async Task GetByIdWithLineItemsAsync_ReturnsInvoiceWithLineItems()
     {
         InvoiceRepository repository = CreateRepository();
-        Invoice invoice = Invoice.Create(TestUserId, "INV-REPO-002", "USD", TestUserId);
-        invoice.AddLineItem("Test Service", Money.Create(100m, "USD"), 2, TestUserId);
+        Invoice invoice = Invoice.Create(TestUserId, "INV-REPO-002", "USD", TestUserId, TimeProvider.System);
+        invoice.AddLineItem("Test Service", Money.Create(100m, "USD"), 2, TestUserId, TimeProvider.System);
 
         repository.Add(invoice);
         await repository.SaveChangesAsync();
@@ -55,9 +55,9 @@ public class InvoiceRepositoryTests : DbContextIntegrationTestBase<BillingDbCont
     {
         InvoiceRepository repository = CreateRepository();
         Guid userId = Guid.NewGuid();
-        Invoice invoice1 = Invoice.Create(userId, "INV-REPO-003", "USD", TestUserId);
-        Invoice invoice2 = Invoice.Create(userId, "INV-REPO-004", "USD", TestUserId);
-        Invoice otherInvoice = Invoice.Create(Guid.NewGuid(), "INV-REPO-005", "USD", TestUserId);
+        Invoice invoice1 = Invoice.Create(userId, "INV-REPO-003", "USD", TestUserId, TimeProvider.System);
+        Invoice invoice2 = Invoice.Create(userId, "INV-REPO-004", "USD", TestUserId, TimeProvider.System);
+        Invoice otherInvoice = Invoice.Create(Guid.NewGuid(), "INV-REPO-005", "USD", TestUserId, TimeProvider.System);
 
         repository.Add(invoice1);
         repository.Add(invoice2);
@@ -74,8 +74,8 @@ public class InvoiceRepositoryTests : DbContextIntegrationTestBase<BillingDbCont
     public async Task GetAllAsync_ReturnsAllInvoicesForTenant()
     {
         InvoiceRepository repository = CreateRepository();
-        Invoice invoice1 = Invoice.Create(TestUserId, "INV-REPO-006", "USD", TestUserId);
-        Invoice invoice2 = Invoice.Create(TestUserId, "INV-REPO-007", "EUR", TestUserId);
+        Invoice invoice1 = Invoice.Create(TestUserId, "INV-REPO-006", "USD", TestUserId, TimeProvider.System);
+        Invoice invoice2 = Invoice.Create(TestUserId, "INV-REPO-007", "EUR", TestUserId, TimeProvider.System);
 
         repository.Add(invoice1);
         repository.Add(invoice2);
@@ -90,7 +90,7 @@ public class InvoiceRepositoryTests : DbContextIntegrationTestBase<BillingDbCont
     public async Task ExistsByInvoiceNumberAsync_WhenExists_ReturnsTrue()
     {
         InvoiceRepository repository = CreateRepository();
-        Invoice invoice = Invoice.Create(TestUserId, "INV-REPO-008", "USD", TestUserId);
+        Invoice invoice = Invoice.Create(TestUserId, "INV-REPO-008", "USD", TestUserId, TimeProvider.System);
         repository.Add(invoice);
         await repository.SaveChangesAsync();
 
@@ -113,12 +113,12 @@ public class InvoiceRepositoryTests : DbContextIntegrationTestBase<BillingDbCont
     public async Task Update_ModifiesExistingInvoice()
     {
         InvoiceRepository repository = CreateRepository();
-        Invoice invoice = Invoice.Create(TestUserId, "INV-REPO-009", "USD", TestUserId);
-        invoice.AddLineItem("Item", Money.Create(100m, "USD"), 1, TestUserId);
+        Invoice invoice = Invoice.Create(TestUserId, "INV-REPO-009", "USD", TestUserId, TimeProvider.System);
+        invoice.AddLineItem("Item", Money.Create(100m, "USD"), 1, TestUserId, TimeProvider.System);
         repository.Add(invoice);
         await repository.SaveChangesAsync();
 
-        invoice.Issue(TestUserId);
+        invoice.Issue(TestUserId, TimeProvider.System);
         repository.Update(invoice);
         await repository.SaveChangesAsync();
 
@@ -131,7 +131,7 @@ public class InvoiceRepositoryTests : DbContextIntegrationTestBase<BillingDbCont
     public async Task Remove_DeletesInvoice()
     {
         InvoiceRepository repository = CreateRepository();
-        Invoice invoice = Invoice.Create(TestUserId, "INV-REPO-010", "USD", TestUserId);
+        Invoice invoice = Invoice.Create(TestUserId, "INV-REPO-010", "USD", TestUserId, TimeProvider.System);
         repository.Add(invoice);
         await repository.SaveChangesAsync();
 

@@ -15,7 +15,7 @@ public class MarkConversationReadHandlerTests
     public MarkConversationReadHandlerTests()
     {
         _repository = Substitute.For<IConversationRepository>();
-        _handler = new MarkConversationReadHandler(_repository);
+        _handler = new MarkConversationReadHandler(_repository, TimeProvider.System);
     }
 
     [Fact]
@@ -23,7 +23,7 @@ public class MarkConversationReadHandlerTests
     {
         Guid userId = Guid.NewGuid();
         TenantId tenantId = TenantId.Create(Guid.NewGuid());
-        Conversation conversation = Conversation.CreateDirect(tenantId, userId, Guid.NewGuid());
+        Conversation conversation = Conversation.CreateDirect(tenantId, userId, Guid.NewGuid(), TimeProvider.System);
 
         _repository.GetByIdAsync(Arg.Any<ConversationId>(), Arg.Any<CancellationToken>())
             .Returns(conversation);
@@ -57,7 +57,7 @@ public class MarkConversationReadHandlerTests
         Guid userId = Guid.NewGuid();
         Guid otherUserId = Guid.NewGuid();
         TenantId tenantId = TenantId.Create(Guid.NewGuid());
-        Conversation conversation = Conversation.CreateDirect(tenantId, userId, otherUserId);
+        Conversation conversation = Conversation.CreateDirect(tenantId, userId, otherUserId, TimeProvider.System);
 
         _repository.GetByIdAsync(Arg.Any<ConversationId>(), Arg.Any<CancellationToken>())
             .Returns(conversation);

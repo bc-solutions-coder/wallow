@@ -16,19 +16,14 @@ public class ArchiveNotificationHandlerTests
     public ArchiveNotificationHandlerTests()
     {
         _repository = Substitute.For<INotificationRepository>();
-        _handler = new ArchiveNotificationHandler(_repository);
+        _handler = new ArchiveNotificationHandler(_repository, TimeProvider.System);
     }
 
     [Fact]
     public async Task Handle_WhenNotificationExists_ArchivesAndReturnsSuccess()
     {
         TenantId tenantId = TenantId.Create(Guid.NewGuid());
-        Notification notification = Notification.Create(
-            tenantId,
-            Guid.NewGuid(),
-            NotificationType.SystemAlert,
-            "Title",
-            "Message");
+        Notification notification = Notification.Create(tenantId, Guid.NewGuid(), NotificationType.SystemAlert, "Title", "Message", TimeProvider.System);
 
         _repository.GetByIdAsync(Arg.Any<NotificationId>(), Arg.Any<CancellationToken>())
             .Returns(notification);
@@ -64,12 +59,7 @@ public class ArchiveNotificationHandlerTests
     {
         TenantId ownerTenant = TenantId.Create(Guid.NewGuid());
         TenantId differentTenant = TenantId.Create(Guid.NewGuid());
-        Notification notification = Notification.Create(
-            ownerTenant,
-            Guid.NewGuid(),
-            NotificationType.SystemAlert,
-            "Title",
-            "Message");
+        Notification notification = Notification.Create(ownerTenant, Guid.NewGuid(), NotificationType.SystemAlert, "Title", "Message", TimeProvider.System);
 
         _repository.GetByIdAsync(Arg.Any<NotificationId>(), Arg.Any<CancellationToken>())
             .Returns(notification);
@@ -88,12 +78,7 @@ public class ArchiveNotificationHandlerTests
     {
         using CancellationTokenSource cts = new();
         TenantId tenantId = TenantId.Create(Guid.NewGuid());
-        Notification notification = Notification.Create(
-            tenantId,
-            Guid.NewGuid(),
-            NotificationType.SystemAlert,
-            "Title",
-            "Message");
+        Notification notification = Notification.Create(tenantId, Guid.NewGuid(), NotificationType.SystemAlert, "Title", "Message", TimeProvider.System);
 
         _repository.GetByIdAsync(Arg.Any<NotificationId>(), Arg.Any<CancellationToken>())
             .Returns(notification);

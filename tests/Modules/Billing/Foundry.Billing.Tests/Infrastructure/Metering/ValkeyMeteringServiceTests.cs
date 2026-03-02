@@ -6,6 +6,7 @@ using Foundry.Billing.Infrastructure.Services;
 using Foundry.Shared.Contracts.Billing;
 using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.MultiTenancy;
+using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
 using Wolverine;
 
@@ -39,14 +40,8 @@ public class ValkeyMeteringServiceTests
         _tenantContext.TenantId.Returns(_testTenantId);
         _redis.GetDatabase(Arg.Any<int>(), Arg.Any<object>()).Returns(_database);
 
-        _service = new ValkeyMeteringService(
-            _redis,
-            _tenantContext,
-            _quotaRepository,
-            _usageRepository,
-            _meterRepository,
-            _messageBus,
-            _subscriptionQueryService);
+        ILogger<ValkeyMeteringService> logger = Substitute.For<ILogger<ValkeyMeteringService>>();
+        _service = new ValkeyMeteringService(_redis, _tenantContext, _quotaRepository, _usageRepository, _meterRepository, _messageBus, _subscriptionQueryService, logger);
     }
 
     [Fact]

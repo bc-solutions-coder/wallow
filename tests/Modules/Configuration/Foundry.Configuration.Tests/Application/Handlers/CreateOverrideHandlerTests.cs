@@ -19,7 +19,7 @@ public class CreateOverrideHandlerTests
         _flagRepo = Substitute.For<IFeatureFlagRepository>();
         _overrideRepo = Substitute.For<IFeatureFlagOverrideRepository>();
         _cache = Substitute.For<IDistributedCache>();
-        _handler = new CreateOverrideHandler(_flagRepo, _overrideRepo, _cache);
+        _handler = new CreateOverrideHandler(_flagRepo, _overrideRepo, _cache, TimeProvider.System);
     }
 
     [Fact]
@@ -27,7 +27,7 @@ public class CreateOverrideHandlerTests
     {
         Guid flagId = Guid.NewGuid();
         Guid tenantId = Guid.NewGuid();
-        FeatureFlag flag = FeatureFlag.CreateBoolean("dark_mode", "Dark Mode", true);
+        FeatureFlag flag = FeatureFlag.CreateBoolean("dark_mode", "Dark Mode", true, TimeProvider.System);
 
         _flagRepo.GetByIdAsync(Arg.Any<FeatureFlagId>(), Arg.Any<CancellationToken>())
             .Returns(flag);
@@ -48,7 +48,7 @@ public class CreateOverrideHandlerTests
     {
         Guid flagId = Guid.NewGuid();
         Guid userId = Guid.NewGuid();
-        FeatureFlag flag = FeatureFlag.CreateBoolean("beta", "Beta", false);
+        FeatureFlag flag = FeatureFlag.CreateBoolean("beta", "Beta", false, TimeProvider.System);
 
         _flagRepo.GetByIdAsync(Arg.Any<FeatureFlagId>(), Arg.Any<CancellationToken>())
             .Returns(flag);
@@ -69,7 +69,7 @@ public class CreateOverrideHandlerTests
         Guid flagId = Guid.NewGuid();
         Guid tenantId = Guid.NewGuid();
         Guid userId = Guid.NewGuid();
-        FeatureFlag flag = FeatureFlag.CreateBoolean("feature", "Feature", true);
+        FeatureFlag flag = FeatureFlag.CreateBoolean("feature", "Feature", true, TimeProvider.System);
 
         _flagRepo.GetByIdAsync(Arg.Any<FeatureFlagId>(), Arg.Any<CancellationToken>())
             .Returns(flag);
@@ -105,7 +105,7 @@ public class CreateOverrideHandlerTests
     public async Task Handle_WithNoTenantOrUser_ReturnsValidationFailure()
     {
         Guid flagId = Guid.NewGuid();
-        FeatureFlag flag = FeatureFlag.CreateBoolean("key", "Name", true);
+        FeatureFlag flag = FeatureFlag.CreateBoolean("key", "Name", true, TimeProvider.System);
 
         _flagRepo.GetByIdAsync(Arg.Any<FeatureFlagId>(), Arg.Any<CancellationToken>())
             .Returns(flag);
@@ -124,9 +124,8 @@ public class CreateOverrideHandlerTests
     {
         Guid flagId = Guid.NewGuid();
         Guid tenantId = Guid.NewGuid();
-        FeatureFlag flag = FeatureFlag.CreateBoolean("key", "Name", true);
-        FeatureFlagOverride existing = FeatureFlagOverride.CreateForTenant(
-            FeatureFlagId.Create(flagId), tenantId, true);
+        FeatureFlag flag = FeatureFlag.CreateBoolean("key", "Name", true, TimeProvider.System);
+        FeatureFlagOverride existing = FeatureFlagOverride.CreateForTenant(FeatureFlagId.Create(flagId), tenantId, true, TimeProvider.System);
 
         _flagRepo.GetByIdAsync(Arg.Any<FeatureFlagId>(), Arg.Any<CancellationToken>())
             .Returns(flag);
@@ -146,7 +145,7 @@ public class CreateOverrideHandlerTests
     {
         Guid flagId = Guid.NewGuid();
         Guid tenantId = Guid.NewGuid();
-        FeatureFlag flag = FeatureFlag.CreateBoolean("cached_flag", "Cached", true);
+        FeatureFlag flag = FeatureFlag.CreateBoolean("cached_flag", "Cached", true, TimeProvider.System);
 
         _flagRepo.GetByIdAsync(Arg.Any<FeatureFlagId>(), Arg.Any<CancellationToken>())
             .Returns(flag);

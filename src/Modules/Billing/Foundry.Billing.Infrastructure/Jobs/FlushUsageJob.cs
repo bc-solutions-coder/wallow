@@ -19,6 +19,7 @@ public sealed partial class FlushUsageJob
     private readonly IUsageRecordRepository _usageRepository;
     private readonly IMessageBus _messageBus;
     private readonly ITenantContextFactory _tenantContextFactory;
+    private readonly TimeProvider _timeProvider;
     private readonly ILogger<FlushUsageJob> _logger;
 
     public FlushUsageJob(
@@ -26,12 +27,14 @@ public sealed partial class FlushUsageJob
         IUsageRecordRepository usageRepository,
         IMessageBus messageBus,
         ITenantContextFactory tenantContextFactory,
+        TimeProvider timeProvider,
         ILogger<FlushUsageJob> logger)
     {
         _redis = redis;
         _usageRepository = usageRepository;
         _messageBus = messageBus;
         _tenantContextFactory = tenantContextFactory;
+        _timeProvider = timeProvider;
         _logger = logger;
     }
 
@@ -69,7 +72,7 @@ public sealed partial class FlushUsageJob
 
             if (flushedCount > 0)
             {
-                await _messageBus.PublishAsync(new UsageFlushedEvent(DateTime.UtcNow, flushedCount));
+                await _messageBus.PublishAsync(new UsageFlushedEvent(_timeProvider.GetUtcNow().UtcDateTime, flushedCount));
             }
 
             LogFlushCompleted(_logger, flushedCount);
@@ -126,7 +129,7 @@ public sealed partial class FlushUsageJob
 
                 if (existing is not null)
                 {
-                    existing.AddValue(value);
+                    existing.AddValue(value, _timeProvider);
                     _usageRepository.Update(existing);
                 }
                 else
@@ -136,7 +139,8 @@ public sealed partial class FlushUsageJob
                         meterCode,
                         periodStart,
                         periodEnd,
-                        value);
+                        value,
+                        _timeProvider);
 
                     _usageRepository.Add(record);
                 }

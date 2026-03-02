@@ -27,7 +27,8 @@ public sealed class SmsMessage : AggregateRoot<SmsMessageId>, ITenantScoped
         TenantId tenantId,
         PhoneNumber to,
         PhoneNumber? from,
-        string body)
+        string body,
+        TimeProvider timeProvider)
         : base(SmsMessageId.New())
     {
         TenantId = tenantId;
@@ -36,14 +37,15 @@ public sealed class SmsMessage : AggregateRoot<SmsMessageId>, ITenantScoped
         Body = body;
         Status = SmsStatus.Pending;
         RetryCount = 0;
-        SetCreated();
+        SetCreated(timeProvider.GetUtcNow());
     }
 
     public static SmsMessage Create(
         TenantId tenantId,
         PhoneNumber to,
         PhoneNumber? from,
-        string body)
+        string body,
+        TimeProvider timeProvider)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(body);
 
@@ -52,33 +54,33 @@ public sealed class SmsMessage : AggregateRoot<SmsMessageId>, ITenantScoped
             throw new ArgumentException($"SMS body cannot exceed {MaxBodyLength} characters.", nameof(body));
         }
 
-        return new SmsMessage(tenantId, to, from, body);
+        return new SmsMessage(tenantId, to, from, body, timeProvider);
     }
 
-    public void MarkAsSent()
+    public void MarkAsSent(TimeProvider timeProvider)
     {
         Status = SmsStatus.Sent;
-        SentAt = DateTime.UtcNow;
-        SetUpdated();
+        SentAt = timeProvider.GetUtcNow().UtcDateTime;
+        SetUpdated(timeProvider.GetUtcNow());
 
         RaiseDomainEvent(new SmsSentDomainEvent(Id));
     }
 
-    public void MarkAsFailed(string reason)
+    public void MarkAsFailed(string reason, TimeProvider timeProvider)
     {
         Status = SmsStatus.Failed;
         FailureReason = reason;
         RetryCount++;
-        SetUpdated();
+        SetUpdated(timeProvider.GetUtcNow());
 
         RaiseDomainEvent(new SmsFailedDomainEvent(Id, reason));
     }
 
-    public void ResetForRetry()
+    public void ResetForRetry(TimeProvider timeProvider)
     {
         Status = SmsStatus.Pending;
         FailureReason = null;
-        SetUpdated();
+        SetUpdated(timeProvider.GetUtcNow());
     }
 
     public bool CanRetry(int maxRetries = 3) => RetryCount < maxRetries;

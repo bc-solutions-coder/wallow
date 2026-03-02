@@ -1,4 +1,5 @@
 using Foundry.Configuration.Domain.Enums;
+using Foundry.Configuration.Domain.Exceptions;
 using Foundry.Configuration.Domain.Identity;
 using Foundry.Configuration.Domain.ValueObjects;
 using Foundry.Shared.Kernel.Domain;
@@ -37,7 +38,7 @@ public sealed class FeatureFlag : Entity<FeatureFlagId>
 
     private FeatureFlag() { } // EF Core
 
-    public static FeatureFlag CreateBoolean(string key, string name, bool defaultEnabled, string? description = null)
+    public static FeatureFlag CreateBoolean(string key, string name, bool defaultEnabled, TimeProvider timeProvider, string? description = null)
     {
         return new FeatureFlag
         {
@@ -47,11 +48,11 @@ public sealed class FeatureFlag : Entity<FeatureFlagId>
             Description = description,
             FlagType = FlagType.Boolean,
             DefaultEnabled = defaultEnabled,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = timeProvider.GetUtcNow().UtcDateTime
         };
     }
 
-    public static FeatureFlag CreatePercentage(string key, string name, int percentage, string? description = null)
+    public static FeatureFlag CreatePercentage(string key, string name, int percentage, TimeProvider timeProvider, string? description = null)
     {
         if (percentage < 0 || percentage > 100)
         {
@@ -67,11 +68,11 @@ public sealed class FeatureFlag : Entity<FeatureFlagId>
             FlagType = FlagType.Percentage,
             DefaultEnabled = percentage > 0,
             RolloutPercentage = percentage,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = timeProvider.GetUtcNow().UtcDateTime
         };
     }
 
-    public static FeatureFlag CreateVariant(string key, string name, IReadOnlyList<VariantWeight> variants, string defaultVariant, string? description = null)
+    public static FeatureFlag CreateVariant(string key, string name, IReadOnlyList<VariantWeight> variants, string defaultVariant, TimeProvider timeProvider, string? description = null)
     {
         if (variants.Count == 0)
         {
@@ -92,26 +93,26 @@ public sealed class FeatureFlag : Entity<FeatureFlagId>
             FlagType = FlagType.Variant,
             DefaultEnabled = true,
             DefaultVariant = defaultVariant,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = timeProvider.GetUtcNow().UtcDateTime
         };
 
         flag._variants.AddRange(variants);
         return flag;
     }
 
-    public void Update(string name, string? description, bool defaultEnabled)
+    public void Update(string name, string? description, bool defaultEnabled, TimeProvider timeProvider)
     {
         Name = name;
         Description = description;
         DefaultEnabled = defaultEnabled;
-        UpdatedAt = DateTime.UtcNow;
+        UpdatedAt = timeProvider.GetUtcNow().UtcDateTime;
     }
 
-    public void UpdatePercentage(int percentage)
+    public void UpdatePercentage(int percentage, TimeProvider timeProvider)
     {
         if (FlagType != FlagType.Percentage)
         {
-            throw new InvalidOperationException("Can only update percentage on Percentage flags");
+            throw new FeatureFlagException("Can only update percentage on Percentage flags");
         }
 
         if (percentage < 0 || percentage > 100)
@@ -121,14 +122,14 @@ public sealed class FeatureFlag : Entity<FeatureFlagId>
 
         RolloutPercentage = percentage;
         DefaultEnabled = percentage > 0;
-        UpdatedAt = DateTime.UtcNow;
+        UpdatedAt = timeProvider.GetUtcNow().UtcDateTime;
     }
 
-    public void SetVariants(IReadOnlyList<VariantWeight> variants)
+    public void SetVariants(IReadOnlyList<VariantWeight> variants, TimeProvider timeProvider)
     {
         if (FlagType != FlagType.Variant)
         {
-            throw new InvalidOperationException("Can only set variants on Variant flags.");
+            throw new FeatureFlagException("Can only set variants on Variant flags.");
         }
 
         if (variants.Count == 0)
@@ -143,6 +144,6 @@ public sealed class FeatureFlag : Entity<FeatureFlagId>
 
         _variants.Clear();
         _variants.AddRange(variants);
-        UpdatedAt = DateTime.UtcNow;
+        UpdatedAt = timeProvider.GetUtcNow().UtcDateTime;
     }
 }

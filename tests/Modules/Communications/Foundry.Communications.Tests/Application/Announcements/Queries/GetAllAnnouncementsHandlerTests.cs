@@ -23,8 +23,8 @@ public class GetAllAnnouncementsHandlerTests
     {
         List<Announcement> announcements = new()
         {
-            Announcement.Create("Title 1", "Content 1", AnnouncementType.Feature),
-            Announcement.Create("Title 2", "Content 2", AnnouncementType.Alert)
+            Announcement.Create("Title 1", "Content 1", AnnouncementType.Feature, TimeProvider.System),
+            Announcement.Create("Title 2", "Content 2", AnnouncementType.Alert, TimeProvider.System)
         };
 
         _repository.GetAllAsync(Arg.Any<CancellationToken>())
@@ -55,10 +55,7 @@ public class GetAllAnnouncementsHandlerTests
     [Fact]
     public async Task Handle_MapsFieldsCorrectly()
     {
-        Announcement announcement = Announcement.Create(
-            "Feature Title", "Feature Content", AnnouncementType.Feature,
-            AnnouncementTarget.Role, "Admin", null, null, true, false,
-            "https://example.com", "Learn More", "https://example.com/img.png");
+        Announcement announcement = Announcement.Create("Feature Title", "Feature Content", AnnouncementType.Feature, TimeProvider.System, AnnouncementTarget.Role, "Admin", null, null, true, false, "https://example.com", "Learn More", "https://example.com/img.png");
 
         _repository.GetAllAsync(Arg.Any<CancellationToken>())
             .Returns(new List<Announcement> { announcement });

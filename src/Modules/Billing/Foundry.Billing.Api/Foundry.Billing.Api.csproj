@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Foundry.Billing.Application\Foundry.Billing.Application.csproj" />
+    <ProjectReference Include="..\..\..\Shared\Foundry.Shared.Api\Foundry.Shared.Api.csproj" />
   </ItemGroup>
 
 </Project>

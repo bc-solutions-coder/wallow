@@ -25,8 +25,8 @@ public class DeleteOverrideHandlerTests
     [Fact]
     public async Task Handle_WithExistingOverride_DeletesAndReturnsSuccess()
     {
-        FeatureFlag flag = FeatureFlag.CreateBoolean("test_flag", "Test", true);
-        FeatureFlagOverride over = FeatureFlagOverride.CreateForTenant(flag.Id, Guid.NewGuid(), true);
+        FeatureFlag flag = FeatureFlag.CreateBoolean("test_flag", "Test", true, TimeProvider.System);
+        FeatureFlagOverride over = FeatureFlagOverride.CreateForTenant(flag.Id, Guid.NewGuid(), true, TimeProvider.System);
 
         _overrideRepo.GetByIdAsync(Arg.Any<FeatureFlagOverrideId>(), Arg.Any<CancellationToken>())
             .Returns(over);
@@ -59,8 +59,8 @@ public class DeleteOverrideHandlerTests
     [Fact]
     public async Task Handle_WhenFlagExists_InvalidatesCache()
     {
-        FeatureFlag flag = FeatureFlag.CreateBoolean("cached_flag", "Cached", true);
-        FeatureFlagOverride over = FeatureFlagOverride.CreateForTenant(flag.Id, Guid.NewGuid(), true);
+        FeatureFlag flag = FeatureFlag.CreateBoolean("cached_flag", "Cached", true, TimeProvider.System);
+        FeatureFlagOverride over = FeatureFlagOverride.CreateForTenant(flag.Id, Guid.NewGuid(), true, TimeProvider.System);
 
         _overrideRepo.GetByIdAsync(Arg.Any<FeatureFlagOverrideId>(), Arg.Any<CancellationToken>())
             .Returns(over);
@@ -79,8 +79,8 @@ public class DeleteOverrideHandlerTests
     [Fact]
     public async Task Handle_WhenFlagNotFound_DoesNotInvalidateCache()
     {
-        FeatureFlag flag = FeatureFlag.CreateBoolean("flag", "Flag", true);
-        FeatureFlagOverride over = FeatureFlagOverride.CreateForTenant(flag.Id, Guid.NewGuid(), true);
+        FeatureFlag flag = FeatureFlag.CreateBoolean("flag", "Flag", true, TimeProvider.System);
+        FeatureFlagOverride over = FeatureFlagOverride.CreateForTenant(flag.Id, Guid.NewGuid(), true, TimeProvider.System);
 
         _overrideRepo.GetByIdAsync(Arg.Any<FeatureFlagOverrideId>(), Arg.Any<CancellationToken>())
             .Returns(over);

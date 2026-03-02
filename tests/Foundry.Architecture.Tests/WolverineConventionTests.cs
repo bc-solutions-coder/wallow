@@ -95,7 +95,7 @@ public class WolverineConventionTests
 
             followsPastTense.Should().BeTrue(
                 $"Domain event {domainEvent.FullName} should use past-tense naming " +
-                "(e.g., InvoiceCreatedDomainEvent, PaymentReceivedDomainEvent)");
+                "(e.g., InvoiceCreatedDomainEvent, PaymentCreatedDomainEvent)");
         }
     }
 

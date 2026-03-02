@@ -15,23 +15,24 @@ public sealed class Participant : Entity<ParticipantId>
 
     private Participant(
         Guid userId,
-        ConversationId conversationId)
+        ConversationId conversationId,
+        TimeProvider timeProvider)
         : base(ParticipantId.New())
     {
         UserId = userId;
         ConversationId = conversationId;
-        JoinedAt = DateTimeOffset.UtcNow;
+        JoinedAt = timeProvider.GetUtcNow();
         IsActive = true;
     }
 
-    public static Participant Create(Guid userId, ConversationId conversationId)
+    public static Participant Create(Guid userId, ConversationId conversationId, TimeProvider timeProvider)
     {
-        return new Participant(userId, conversationId);
+        return new Participant(userId, conversationId, timeProvider);
     }
 
-    public void MarkRead()
+    public void MarkRead(TimeProvider timeProvider)
     {
-        LastReadAt = DateTimeOffset.UtcNow;
+        LastReadAt = timeProvider.GetUtcNow();
     }
 
     public void Leave()

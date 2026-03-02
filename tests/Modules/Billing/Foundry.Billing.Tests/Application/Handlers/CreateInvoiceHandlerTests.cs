@@ -14,7 +14,7 @@ public class CreateInvoiceHandlerTests
     public CreateInvoiceHandlerTests()
     {
         _repository = Substitute.For<IInvoiceRepository>();
-        _handler = new CreateInvoiceHandler(_repository);
+        _handler = new CreateInvoiceHandler(_repository, TimeProvider.System);
     }
 
     [Fact]

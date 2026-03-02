@@ -82,7 +82,7 @@ public sealed partial class CustomFieldDefinition : AggregateRoot<CustomFieldDef
             IsActive = true
         };
 
-        definition.SetCreated(createdBy);
+        definition.SetCreated(DateTimeOffset.UtcNow, createdBy);
         definition.RaiseDomainEvent(new CustomFieldDefinitionCreatedEvent(
             definition.Id.Value, tenantId.Value, entityType, fieldKey, displayName, fieldType));
 
@@ -93,19 +93,19 @@ public sealed partial class CustomFieldDefinition : AggregateRoot<CustomFieldDef
     {
         ValidateDisplayName(displayName);
         DisplayName = displayName;
-        SetUpdated(updatedBy);
+        SetUpdated(DateTimeOffset.UtcNow, updatedBy);
     }
 
     public void UpdateDescription(string? description, Guid updatedBy)
     {
         Description = description;
-        SetUpdated(updatedBy);
+        SetUpdated(DateTimeOffset.UtcNow, updatedBy);
     }
 
     public void SetRequired(bool isRequired, Guid updatedBy)
     {
         IsRequired = isRequired;
-        SetUpdated(updatedBy);
+        SetUpdated(DateTimeOffset.UtcNow, updatedBy);
     }
 
     public void SetDisplayOrder(int order, Guid updatedBy)
@@ -116,7 +116,7 @@ public sealed partial class CustomFieldDefinition : AggregateRoot<CustomFieldDef
         }
 
         DisplayOrder = order;
-        SetUpdated(updatedBy);
+        SetUpdated(DateTimeOffset.UtcNow, updatedBy);
     }
 
     public void SetValidationRules(FieldValidationRules? rules, Guid updatedBy)
@@ -127,7 +127,7 @@ public sealed partial class CustomFieldDefinition : AggregateRoot<CustomFieldDef
         }
 
         ValidationRulesJson = rules == null ? null : JsonSerializer.Serialize(rules, _jsonOptions);
-        SetUpdated(updatedBy);
+        SetUpdated(DateTimeOffset.UtcNow, updatedBy);
     }
 
     public FieldValidationRules? GetValidationRules()
@@ -154,7 +154,7 @@ public sealed partial class CustomFieldDefinition : AggregateRoot<CustomFieldDef
         {
             OptionsJson = null;
         }
-        SetUpdated(updatedBy);
+        SetUpdated(DateTimeOffset.UtcNow, updatedBy);
     }
 
     public IReadOnlyList<CustomFieldOption> GetOptions()
@@ -172,7 +172,7 @@ public sealed partial class CustomFieldDefinition : AggregateRoot<CustomFieldDef
         }
 
         IsActive = false;
-        SetUpdated(deactivatedBy);
+        SetUpdated(DateTimeOffset.UtcNow, deactivatedBy);
         RaiseDomainEvent(new CustomFieldDefinitionDeactivatedEvent(Id.Value, TenantId.Value, EntityType, FieldKey));
     }
 
@@ -184,7 +184,7 @@ public sealed partial class CustomFieldDefinition : AggregateRoot<CustomFieldDef
         }
 
         IsActive = true;
-        SetUpdated(activatedBy);
+        SetUpdated(DateTimeOffset.UtcNow, activatedBy);
     }
 
     private static void ValidateEntityType(string entityType)

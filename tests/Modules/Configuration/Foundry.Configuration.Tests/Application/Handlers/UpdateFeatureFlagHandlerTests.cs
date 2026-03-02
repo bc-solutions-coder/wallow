@@ -20,13 +20,13 @@ public class UpdateFeatureFlagHandlerTests
         _repository = Substitute.For<IFeatureFlagRepository>();
         _cache = Substitute.For<IDistributedCache>();
         _bus = Substitute.For<IMessageBus>();
-        _handler = new UpdateFeatureFlagHandler(_repository, _cache, _bus);
+        _handler = new UpdateFeatureFlagHandler(_repository, _cache, _bus, TimeProvider.System);
     }
 
     [Fact]
     public async Task Handle_WithValidCommand_UpdatesAndReturnsSuccess()
     {
-        FeatureFlag flag = FeatureFlag.CreateBoolean("dark_mode", "Dark Mode", true);
+        FeatureFlag flag = FeatureFlag.CreateBoolean("dark_mode", "Dark Mode", true, TimeProvider.System);
 
         _repository.GetByIdAsync(Arg.Any<FeatureFlagId>(), Arg.Any<CancellationToken>())
             .Returns(flag);
@@ -60,7 +60,7 @@ public class UpdateFeatureFlagHandlerTests
     [Fact]
     public async Task Handle_WithPercentageFlag_UpdatesRolloutPercentage()
     {
-        FeatureFlag flag = FeatureFlag.CreatePercentage("rollout", "Rollout", 10);
+        FeatureFlag flag = FeatureFlag.CreatePercentage("rollout", "Rollout", 10, TimeProvider.System);
 
         _repository.GetByIdAsync(Arg.Any<FeatureFlagId>(), Arg.Any<CancellationToken>())
             .Returns(flag);
@@ -76,7 +76,7 @@ public class UpdateFeatureFlagHandlerTests
     [Fact]
     public async Task Handle_WithBooleanFlag_IgnoresRolloutPercentage()
     {
-        FeatureFlag flag = FeatureFlag.CreateBoolean("bool_flag", "Bool Flag", true);
+        FeatureFlag flag = FeatureFlag.CreateBoolean("bool_flag", "Bool Flag", true, TimeProvider.System);
 
         _repository.GetByIdAsync(Arg.Any<FeatureFlagId>(), Arg.Any<CancellationToken>())
             .Returns(flag);
@@ -92,7 +92,7 @@ public class UpdateFeatureFlagHandlerTests
     [Fact]
     public async Task Handle_AfterSuccess_InvalidatesCacheAndPublishesEvent()
     {
-        FeatureFlag flag = FeatureFlag.CreateBoolean("cached_flag", "Cached", true);
+        FeatureFlag flag = FeatureFlag.CreateBoolean("cached_flag", "Cached", true, TimeProvider.System);
 
         _repository.GetByIdAsync(Arg.Any<FeatureFlagId>(), Arg.Any<CancellationToken>())
             .Returns(flag);

@@ -11,6 +11,6 @@ public sealed record PaymentDto(
     string? TransactionReference,
     string? FailureReason,
     DateTime? CompletedAt,
-    DateTime CreatedAt,
-    DateTime? UpdatedAt,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? UpdatedAt,
     Dictionary<string, object>? CustomFields);

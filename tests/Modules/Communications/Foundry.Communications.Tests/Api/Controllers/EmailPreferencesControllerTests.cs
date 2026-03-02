@@ -8,6 +8,7 @@ using Foundry.Communications.Application.Channels.Email.DTOs;
 using Foundry.Communications.Application.Channels.Email.Queries.GetEmailPreferences;
 using Foundry.Communications.Domain.Channels.Email.Enums;
 using Foundry.Shared.Kernel.Results;
+using Foundry.Shared.Kernel.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Wolverine;
@@ -17,13 +18,16 @@ namespace Foundry.Communications.Tests.Api.Controllers;
 public class EmailPreferencesControllerTests
 {
     private readonly IMessageBus _bus;
+    private readonly ICurrentUserService _currentUserService;
     private readonly EmailPreferencesController _controller;
     private readonly Guid _userId = Guid.NewGuid();
 
     public EmailPreferencesControllerTests()
     {
         _bus = Substitute.For<IMessageBus>();
-        _controller = new EmailPreferencesController(_bus);
+        _currentUserService = Substitute.For<ICurrentUserService>();
+        _currentUserService.GetCurrentUserId().Returns(_userId);
+        _controller = new EmailPreferencesController(_bus, _currentUserService);
 
         ClaimsPrincipal user = new ClaimsPrincipal(new ClaimsIdentity(new[]
         {
@@ -61,6 +65,7 @@ public class EmailPreferencesControllerTests
             HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity()) }
         };
 
+        _currentUserService.GetCurrentUserId().Returns((Guid?)null);
         IActionResult result = await _controller.GetPreferences(CancellationToken.None);
 
         result.Should().BeOfType<UnauthorizedResult>();
@@ -137,6 +142,7 @@ public class EmailPreferencesControllerTests
         {
             HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity()) }
         };
+        _currentUserService.GetCurrentUserId().Returns((Guid?)null);
         UpdateEmailPreferenceRequest request = new(ApiNotificationType.TaskAssigned, true);
 
         IActionResult result = await _controller.UpdatePreference(request, CancellationToken.None);

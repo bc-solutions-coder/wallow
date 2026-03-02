@@ -22,7 +22,9 @@ public sealed record UpdateAnnouncementCommand(
     string? ActionLabel,
     string? ImageUrl);
 
-public sealed class UpdateAnnouncementHandler(IAnnouncementRepository repository)
+public sealed class UpdateAnnouncementHandler(
+    IAnnouncementRepository repository,
+    TimeProvider timeProvider)
 {
     public async Task<Result<AnnouncementDto>> Handle(UpdateAnnouncementCommand command, CancellationToken ct)
     {
@@ -44,7 +46,8 @@ public sealed class UpdateAnnouncementHandler(IAnnouncementRepository repository
             command.IsDismissible,
             command.ActionUrl,
             command.ActionLabel,
-            command.ImageUrl);
+            command.ImageUrl,
+            timeProvider);
 
         await repository.UpdateAsync(announcement, ct);
 

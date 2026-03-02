@@ -34,8 +34,7 @@ public sealed class NotificationRepositoryTests : IDisposable
     public async Task Add_AddsNotificationToDatabase()
     {
         Guid userId = Guid.NewGuid();
-        Notification notification = Notification.Create(
-            _tenantId, userId, InAppNotificationType.SystemAlert, "Title", "Message");
+        Notification notification = Notification.Create(_tenantId, userId, InAppNotificationType.SystemAlert, "Title", "Message", TimeProvider.System);
 
         _repository.Add(notification);
         await _dbContext.SaveChangesAsync();
@@ -48,8 +47,7 @@ public sealed class NotificationRepositoryTests : IDisposable
     public async Task GetByIdAsync_WhenExists_ReturnsNotification()
     {
         Guid userId = Guid.NewGuid();
-        Notification notification = Notification.Create(
-            _tenantId, userId, InAppNotificationType.TaskAssigned, "Task", "Assigned to you");
+        Notification notification = Notification.Create(_tenantId, userId, InAppNotificationType.TaskAssigned, "Task", "Assigned to you", TimeProvider.System);
         await _dbContext.Notifications.AddAsync(notification);
         await _dbContext.SaveChangesAsync();
 
@@ -73,9 +71,9 @@ public sealed class NotificationRepositoryTests : IDisposable
         Guid userId = Guid.NewGuid();
         Guid otherUserId = Guid.NewGuid();
 
-        Notification n1 = Notification.Create(_tenantId, userId, InAppNotificationType.SystemAlert, "N1", "M1");
-        Notification n2 = Notification.Create(_tenantId, userId, InAppNotificationType.TaskComment, "N2", "M2");
-        Notification other = Notification.Create(_tenantId, otherUserId, InAppNotificationType.SystemAlert, "Other", "M3");
+        Notification n1 = Notification.Create(_tenantId, userId, InAppNotificationType.SystemAlert, "N1", "M1", TimeProvider.System);
+        Notification n2 = Notification.Create(_tenantId, userId, InAppNotificationType.TaskComment, "N2", "M2", TimeProvider.System);
+        Notification other = Notification.Create(_tenantId, otherUserId, InAppNotificationType.SystemAlert, "Other", "M3", TimeProvider.System);
 
         await _dbContext.Notifications.AddRangeAsync(n1, n2, other);
         await _dbContext.SaveChangesAsync();
@@ -91,8 +89,7 @@ public sealed class NotificationRepositoryTests : IDisposable
         Guid userId = Guid.NewGuid();
         for (int i = 0; i < 5; i++)
         {
-            Notification n = Notification.Create(
-                _tenantId, userId, InAppNotificationType.SystemAlert, $"N{i}", $"M{i}");
+            Notification n = Notification.Create(_tenantId, userId, InAppNotificationType.SystemAlert, $"N{i}", $"M{i}", TimeProvider.System);
             await _dbContext.Notifications.AddAsync(n);
         }
         await _dbContext.SaveChangesAsync();
@@ -109,8 +106,7 @@ public sealed class NotificationRepositoryTests : IDisposable
         Guid userId = Guid.NewGuid();
         for (int i = 0; i < 5; i++)
         {
-            Notification n = Notification.Create(
-                _tenantId, userId, InAppNotificationType.SystemAlert, $"N{i}", $"M{i}");
+            Notification n = Notification.Create(_tenantId, userId, InAppNotificationType.SystemAlert, $"N{i}", $"M{i}", TimeProvider.System);
             await _dbContext.Notifications.AddAsync(n);
         }
         await _dbContext.SaveChangesAsync();
@@ -125,10 +121,10 @@ public sealed class NotificationRepositoryTests : IDisposable
     public async Task GetUnreadCountAsync_ReturnsCountOfUnreadNotifications()
     {
         Guid userId = Guid.NewGuid();
-        Notification unread1 = Notification.Create(_tenantId, userId, InAppNotificationType.SystemAlert, "U1", "M1");
-        Notification unread2 = Notification.Create(_tenantId, userId, InAppNotificationType.TaskComment, "U2", "M2");
-        Notification read = Notification.Create(_tenantId, userId, InAppNotificationType.Mention, "R1", "M3");
-        read.MarkAsRead();
+        Notification unread1 = Notification.Create(_tenantId, userId, InAppNotificationType.SystemAlert, "U1", "M1", TimeProvider.System);
+        Notification unread2 = Notification.Create(_tenantId, userId, InAppNotificationType.TaskComment, "U2", "M2", TimeProvider.System);
+        Notification read = Notification.Create(_tenantId, userId, InAppNotificationType.Mention, "R1", "M3", TimeProvider.System);
+        read.MarkAsRead(TimeProvider.System);
 
         await _dbContext.Notifications.AddRangeAsync(unread1, unread2, read);
         await _dbContext.SaveChangesAsync();
@@ -142,9 +138,9 @@ public sealed class NotificationRepositoryTests : IDisposable
     public async Task GetUnreadByUserIdAsync_ReturnsOnlyUnreadNotifications()
     {
         Guid userId = Guid.NewGuid();
-        Notification unread = Notification.Create(_tenantId, userId, InAppNotificationType.SystemAlert, "Unread", "M1");
-        Notification read = Notification.Create(_tenantId, userId, InAppNotificationType.TaskComment, "Read", "M2");
-        read.MarkAsRead();
+        Notification unread = Notification.Create(_tenantId, userId, InAppNotificationType.SystemAlert, "Unread", "M1", TimeProvider.System);
+        Notification read = Notification.Create(_tenantId, userId, InAppNotificationType.TaskComment, "Read", "M2", TimeProvider.System);
+        read.MarkAsRead(TimeProvider.System);
 
         await _dbContext.Notifications.AddRangeAsync(unread, read);
         await _dbContext.SaveChangesAsync();
@@ -159,8 +155,7 @@ public sealed class NotificationRepositoryTests : IDisposable
     public async Task SaveChangesAsync_PersistsChanges()
     {
         Guid userId = Guid.NewGuid();
-        Notification notification = Notification.Create(
-            _tenantId, userId, InAppNotificationType.SystemAlert, "Title", "Message");
+        Notification notification = Notification.Create(_tenantId, userId, InAppNotificationType.SystemAlert, "Title", "Message", TimeProvider.System);
         _repository.Add(notification);
 
         await _repository.SaveChangesAsync();

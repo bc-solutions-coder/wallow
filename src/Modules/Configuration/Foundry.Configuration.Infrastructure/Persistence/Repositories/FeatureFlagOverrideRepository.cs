@@ -8,10 +8,12 @@ namespace Foundry.Configuration.Infrastructure.Persistence.Repositories;
 public sealed class FeatureFlagOverrideRepository : IFeatureFlagOverrideRepository
 {
     private readonly ConfigurationDbContext _context;
+    private readonly TimeProvider _timeProvider;
 
-    public FeatureFlagOverrideRepository(ConfigurationDbContext context)
+    public FeatureFlagOverrideRepository(ConfigurationDbContext context, TimeProvider timeProvider)
     {
         _context = context;
+        _timeProvider = timeProvider;
     }
 
     public Task<FeatureFlagOverride?> GetByIdAsync(FeatureFlagOverrideId id, CancellationToken ct = default)
@@ -70,5 +72,8 @@ public sealed class FeatureFlagOverrideRepository : IFeatureFlagOverrideReposito
 
     // ExpiresAt == null means no expiration (always active)
     private IQueryable<FeatureFlagOverride> ActiveOverrides()
-        => _context.FeatureFlagOverrides.Where(o => o.ExpiresAt == null || o.ExpiresAt > DateTime.UtcNow);
+    {
+        DateTime utcNow = _timeProvider.GetUtcNow().UtcDateTime;
+        return _context.FeatureFlagOverrides.Where(o => o.ExpiresAt == null || o.ExpiresAt > utcNow);
+    }
 }

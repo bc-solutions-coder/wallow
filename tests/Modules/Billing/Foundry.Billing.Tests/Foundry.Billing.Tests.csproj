@@ -31,6 +31,7 @@
     <ProjectReference Include="..\..\..\..\src\Modules\Billing\Foundry.Billing.Application\Foundry.Billing.Application.csproj" />
     <ProjectReference Include="..\..\..\..\src\Modules\Billing\Foundry.Billing.Infrastructure\Foundry.Billing.Infrastructure.csproj" />
     <ProjectReference Include="..\..\..\..\src\Modules\Billing\Foundry.Billing.Api\Foundry.Billing.Api.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Shared\Foundry.Shared.Api\Foundry.Shared.Api.csproj" />
     <ProjectReference Include="..\..\..\Foundry.Tests.Common\Foundry.Tests.Common.csproj" />
   </ItemGroup>
 </Project>

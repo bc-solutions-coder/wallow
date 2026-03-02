@@ -274,9 +274,9 @@ public class DapperQueryTests : DbContextIntegrationTestBase<BillingDbContext>
         DateTime toDate = DateTime.UtcNow.AddDays(1);
         DateTime dueDate = DateTime.UtcNow.AddDays(30);
 
-        Invoice invoice = Invoice.Create(TestUserId, "INV-DETAILS-2", "GBP", TestUserId, dueDate);
-        invoice.AddLineItem("Service", Money.Create(75m, "GBP"), 2, TestUserId);
-        invoice.Issue(TestUserId);
+        Invoice invoice = Invoice.Create(TestUserId, "INV-DETAILS-2", "GBP", TestUserId, TimeProvider.System, dueDate);
+        invoice.AddLineItem("Service", Money.Create(75m, "GBP"), 2, TestUserId, TimeProvider.System);
+        invoice.Issue(TestUserId, TimeProvider.System);
 
         await DbContext.Invoices.AddAsync(invoice);
         await DbContext.SaveChangesAsync();
@@ -321,10 +321,10 @@ public class DapperQueryTests : DbContextIntegrationTestBase<BillingDbContext>
         DateTime toDate = DateTime.UtcNow;
 
         Invoice invoice1 = CreateAndIssueInvoiceAtTime("INV-REV1", 1000m, "USD", fromDate.AddDays(1));
-        invoice1.MarkAsPaid(Guid.NewGuid(), TestUserId);
+        invoice1.MarkAsPaid(Guid.NewGuid(), TestUserId, TimeProvider.System);
 
         Invoice invoice2 = CreateAndIssueInvoiceAtTime("INV-REV2", 500m, "USD", fromDate.AddDays(3));
-        invoice2.MarkAsPaid(Guid.NewGuid(), TestUserId);
+        invoice2.MarkAsPaid(Guid.NewGuid(), TestUserId, TimeProvider.System);
 
         Invoice invoice3 = CreateAndIssueInvoiceAtTime("INV-REV3", 200m, "USD", fromDate.AddDays(5));
 
@@ -376,12 +376,12 @@ public class DapperQueryTests : DbContextIntegrationTestBase<BillingDbContext>
         DateTime toDate = DateTime.UtcNow.AddDays(1);
 
         Invoice paidInvoice = CreateAndIssueInvoiceAtTime("INV-PAID", 500m, "USD", fromDate.AddDays(1));
-        paidInvoice.MarkAsPaid(Guid.NewGuid(), TestUserId);
+        paidInvoice.MarkAsPaid(Guid.NewGuid(), TestUserId, TimeProvider.System);
 
         Invoice issuedInvoice = CreateAndIssueInvoiceAtTime("INV-ISSUED-2", 300m, "USD", fromDate.AddDays(2));
 
         Invoice overdueInvoice = CreateAndIssueInvoiceAtTime("INV-OVERDUE", 200m, "USD", fromDate.AddDays(3));
-        overdueInvoice.MarkAsOverdue(TestUserId);
+        overdueInvoice.MarkAsOverdue(TestUserId, TimeProvider.System);
 
         await DbContext.Invoices.AddRangeAsync(paidInvoice, issuedInvoice, overdueInvoice);
         await DbContext.SaveChangesAsync();
@@ -454,22 +454,22 @@ public class DapperQueryTests : DbContextIntegrationTestBase<BillingDbContext>
 
     private Invoice CreateInvoice(string invoiceNumber, decimal amount, string currency)
     {
-        Invoice invoice = Invoice.Create(TestUserId, invoiceNumber, currency, TestUserId);
-        invoice.AddLineItem("Test Item", Money.Create(amount, currency), 1, TestUserId);
+        Invoice invoice = Invoice.Create(TestUserId, invoiceNumber, currency, TestUserId, TimeProvider.System);
+        invoice.AddLineItem("Test Item", Money.Create(amount, currency), 1, TestUserId, TimeProvider.System);
         return invoice;
     }
 
     private Invoice CreateAndIssueInvoice(string invoiceNumber, decimal amount, string currency)
     {
         Invoice invoice = CreateInvoice(invoiceNumber, amount, currency);
-        invoice.Issue(TestUserId);
+        invoice.Issue(TestUserId, TimeProvider.System);
         return invoice;
     }
 
     private Invoice CreateAndIssueInvoiceAtTime(string invoiceNumber, decimal amount, string currency, DateTime createdAt)
     {
         Invoice invoice = CreateInvoice(invoiceNumber, amount, currency);
-        invoice.Issue(TestUserId);
+        invoice.Issue(TestUserId, TimeProvider.System);
 
         PropertyInfo? createdAtProperty = typeof(Invoice).GetProperty("CreatedAt");
         createdAtProperty?.SetValue(invoice, createdAt);
@@ -479,14 +479,9 @@ public class DapperQueryTests : DbContextIntegrationTestBase<BillingDbContext>
 
     private Payment CreateAndCompletePayment(Invoice invoice, decimal amount, PaymentMethod method, DateTime completedAt)
     {
-        Payment payment = Payment.Create(
-            invoice.Id,
-            invoice.UserId,
-            Money.Create(amount, invoice.TotalAmount.Currency),
-            method,
-            TestUserId);
+        Payment payment = Payment.Create(invoice.Id, invoice.UserId, Money.Create(amount, invoice.TotalAmount.Currency), method, TestUserId, TimeProvider.System);
 
-        payment.Complete("txn-" + Guid.NewGuid().ToString(), TestUserId);
+        payment.Complete("txn-" + Guid.NewGuid().ToString(), TestUserId, TimeProvider.System);
 
         PropertyInfo? completedAtProperty = typeof(Payment).GetProperty("CompletedAt");
         completedAtProperty?.SetValue(payment, completedAt);
@@ -499,15 +494,10 @@ public class DapperQueryTests : DbContextIntegrationTestBase<BillingDbContext>
 
     private Payment CreateAndRefundPayment(Invoice invoice, decimal amount, PaymentMethod method, DateTime refundedAt)
     {
-        Payment payment = Payment.Create(
-            invoice.Id,
-            invoice.UserId,
-            Money.Create(amount, invoice.TotalAmount.Currency),
-            method,
-            TestUserId);
+        Payment payment = Payment.Create(invoice.Id, invoice.UserId, Money.Create(amount, invoice.TotalAmount.Currency), method, TestUserId, TimeProvider.System);
 
-        payment.Complete("txn-" + Guid.NewGuid().ToString(), TestUserId);
-        payment.Refund(TestUserId);
+        payment.Complete("txn-" + Guid.NewGuid().ToString(), TestUserId, TimeProvider.System);
+        payment.Refund(TestUserId, TimeProvider.System);
 
         PropertyInfo? createdAtProperty = typeof(Payment).GetProperty("CreatedAt");
         createdAtProperty?.SetValue(payment, refundedAt);

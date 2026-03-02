@@ -13,6 +13,7 @@ public class InvoiceBuilder
     private string _currency = "USD";
     private Guid _createdBy = Guid.NewGuid();
     private DateTime? _dueDate;
+    private TimeProvider _timeProvider = TimeProvider.System;
     private readonly List<(string Description, decimal Amount, int Quantity)> _lineItems = [];
     private bool _issued;
     private bool _paid;
@@ -52,6 +53,12 @@ public class InvoiceBuilder
     public InvoiceBuilder WithDueDateInDays(int days)
     {
         _dueDate = DateTime.UtcNow.AddDays(days);
+        return this;
+    }
+
+    public InvoiceBuilder WithTimeProvider(TimeProvider timeProvider)
+    {
+        _timeProvider = timeProvider;
         return this;
     }
 
@@ -95,12 +102,12 @@ public class InvoiceBuilder
 
     public Invoice Build()
     {
-        Invoice invoice = Invoice.Create(_userId, _invoiceNumber, _currency, _createdBy, _dueDate);
+        Invoice invoice = Invoice.Create(_userId, _invoiceNumber, _currency, _createdBy, _timeProvider, _dueDate);
 
         // Add line items
         foreach ((string? description, decimal amount, int quantity) in _lineItems)
         {
-            invoice.AddLineItem(description, Money.Create(amount, _currency), quantity, _createdBy);
+            invoice.AddLineItem(description, Money.Create(amount, _currency), quantity, _createdBy, _timeProvider);
         }
 
         // Apply state transitions
@@ -109,24 +116,24 @@ public class InvoiceBuilder
             // Must have at least one line item to issue
             if (_lineItems.Count == 0)
             {
-                invoice.AddLineItem("Default Item", Money.Create(100, _currency), 1, _createdBy);
+                invoice.AddLineItem("Default Item", Money.Create(100, _currency), 1, _createdBy, _timeProvider);
             }
-            invoice.Issue(_createdBy);
+            invoice.Issue(_createdBy, _timeProvider);
         }
 
         if (_overdue)
         {
-            invoice.MarkAsOverdue(_createdBy);
+            invoice.MarkAsOverdue(_createdBy, _timeProvider);
         }
 
         if (_paid)
         {
-            invoice.MarkAsPaid(Guid.NewGuid(), _createdBy);
+            invoice.MarkAsPaid(Guid.NewGuid(), _createdBy, _timeProvider);
         }
 
         if (_cancelled)
         {
-            invoice.Cancel(_createdBy);
+            invoice.Cancel(_createdBy, _timeProvider);
         }
 
         // Clear domain events from setup so tests can assert on their own events

@@ -35,7 +35,8 @@ public sealed class Payment : AggregateRoot<PaymentId>, ITenantScoped, IHasCusto
         Guid userId,
         Money amount,
         PaymentMethod method,
-        Guid createdByUserId)
+        Guid createdByUserId,
+        TimeProvider timeProvider)
     {
         Id = PaymentId.New();
         InvoiceId = invoiceId;
@@ -43,7 +44,7 @@ public sealed class Payment : AggregateRoot<PaymentId>, ITenantScoped, IHasCusto
         Amount = amount;
         Method = method;
         Status = PaymentStatus.Pending;
-        SetCreated(createdByUserId);
+        SetCreated(timeProvider.GetUtcNow(), createdByUserId);
     }
 
     public static Payment Create(
@@ -52,17 +53,28 @@ public sealed class Payment : AggregateRoot<PaymentId>, ITenantScoped, IHasCusto
         Money amount,
         PaymentMethod method,
         Guid createdByUserId,
+        TimeProvider timeProvider,
         Dictionary<string, object>? customFields = null)
     {
+        if (userId == Guid.Empty)
+        {
+            throw new BusinessRuleException("Billing.UserIdRequired", "User ID is required");
+        }
+
+        if (invoiceId.Value == Guid.Empty)
+        {
+            throw new BusinessRuleException("Billing.InvoiceIdRequired", "Invoice ID is required");
+        }
+
         if (amount.Amount <= 0)
         {
             throw new InvalidPaymentException("Payment amount must be greater than zero");
         }
 
-        Payment payment = new Payment(invoiceId, userId, amount, method, createdByUserId);
+        Payment payment = new Payment(invoiceId, userId, amount, method, createdByUserId, timeProvider);
         payment.CustomFields = customFields;
 
-        payment.RaiseDomainEvent(new PaymentReceivedDomainEvent(
+        payment.RaiseDomainEvent(new PaymentCreatedDomainEvent(
             payment.Id.Value,
             invoiceId.Value,
             amount.Amount,
@@ -72,7 +84,7 @@ public sealed class Payment : AggregateRoot<PaymentId>, ITenantScoped, IHasCusto
         return payment;
     }
 
-    public void Complete(string transactionReference, Guid updatedByUserId)
+    public void Complete(string transactionReference, Guid updatedByUserId, TimeProvider timeProvider)
     {
         if (Status != PaymentStatus.Pending)
         {
@@ -82,11 +94,11 @@ public sealed class Payment : AggregateRoot<PaymentId>, ITenantScoped, IHasCusto
 
         Status = PaymentStatus.Completed;
         TransactionReference = transactionReference;
-        CompletedAt = DateTime.UtcNow;
-        SetUpdated(updatedByUserId);
+        CompletedAt = timeProvider.GetUtcNow().UtcDateTime;
+        SetUpdated(timeProvider.GetUtcNow(), updatedByUserId);
     }
 
-    public void Fail(string reason, Guid updatedByUserId)
+    public void Fail(string reason, Guid updatedByUserId, TimeProvider timeProvider)
     {
         if (Status != PaymentStatus.Pending)
         {
@@ -96,7 +108,7 @@ public sealed class Payment : AggregateRoot<PaymentId>, ITenantScoped, IHasCusto
 
         Status = PaymentStatus.Failed;
         FailureReason = reason;
-        SetUpdated(updatedByUserId);
+        SetUpdated(timeProvider.GetUtcNow(), updatedByUserId);
 
         RaiseDomainEvent(new PaymentFailedDomainEvent(
             Id.Value,
@@ -105,7 +117,7 @@ public sealed class Payment : AggregateRoot<PaymentId>, ITenantScoped, IHasCusto
             UserId));
     }
 
-    public void Refund(Guid updatedByUserId)
+    public void Refund(Guid updatedByUserId, TimeProvider timeProvider)
     {
         if (Status != PaymentStatus.Completed)
         {
@@ -114,6 +126,6 @@ public sealed class Payment : AggregateRoot<PaymentId>, ITenantScoped, IHasCusto
         }
 
         Status = PaymentStatus.Refunded;
-        SetUpdated(updatedByUserId);
+        SetUpdated(timeProvider.GetUtcNow(), updatedByUserId);
     }
 }

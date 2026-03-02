@@ -14,7 +14,7 @@ public class SignalRNotificationServiceTests
     {
         _dispatcher = Substitute.For<IRealtimeDispatcher>();
         ILogger<SignalRNotificationService> logger = Substitute.For<ILogger<SignalRNotificationService>>();
-        _service = new SignalRNotificationService(_dispatcher, logger);
+        _service = new SignalRNotificationService(_dispatcher, TimeProvider.System, logger);
     }
 
     [Fact]

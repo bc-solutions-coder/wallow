@@ -16,14 +16,14 @@ public class AddLineItemHandlerTests
     public AddLineItemHandlerTests()
     {
         _repository = Substitute.For<IInvoiceRepository>();
-        _handler = new AddLineItemHandler(_repository);
+        _handler = new AddLineItemHandler(_repository, TimeProvider.System);
     }
 
     [Fact]
     public async Task Handle_WithValidCommand_AddsLineItemAndReturnsSuccess()
     {
         Guid userId = Guid.NewGuid();
-        Invoice invoice = Invoice.Create(userId, "INV-001", "USD", userId);
+        Invoice invoice = Invoice.Create(userId, "INV-001", "USD", userId, TimeProvider.System);
 
         _repository.GetByIdWithLineItemsAsync(Arg.Any<InvoiceId>(), Arg.Any<CancellationToken>())
             .Returns(invoice);
@@ -70,8 +70,8 @@ public class AddLineItemHandlerTests
     public async Task Handle_WithMultipleLineItems_AccumulatesCorrectly()
     {
         Guid userId = Guid.NewGuid();
-        Invoice invoice = Invoice.Create(userId, "INV-002", "USD", userId);
-        invoice.AddLineItem("First Item", Money.Create(100m, "USD"), 1, userId);
+        Invoice invoice = Invoice.Create(userId, "INV-002", "USD", userId, TimeProvider.System);
+        invoice.AddLineItem("First Item", Money.Create(100m, "USD"), 1, userId, TimeProvider.System);
 
         _repository.GetByIdWithLineItemsAsync(Arg.Any<InvoiceId>(), Arg.Any<CancellationToken>())
             .Returns(invoice);

@@ -4,7 +4,9 @@ using Foundry.Shared.Kernel.Results;
 
 namespace Foundry.Communications.Application.Channels.InApp.Commands.MarkAllNotificationsRead;
 
-public sealed class MarkAllNotificationsReadHandler(INotificationRepository notificationRepository)
+public sealed class MarkAllNotificationsReadHandler(
+    INotificationRepository notificationRepository,
+    TimeProvider timeProvider)
 {
     public async Task<Result> Handle(
         MarkAllNotificationsReadCommand command,
@@ -16,7 +18,7 @@ public sealed class MarkAllNotificationsReadHandler(INotificationRepository noti
 
         foreach (Notification notification in unreadNotifications)
         {
-            notification.MarkAsRead();
+            notification.MarkAsRead(timeProvider);
         }
 
         await notificationRepository.SaveChangesAsync(cancellationToken);

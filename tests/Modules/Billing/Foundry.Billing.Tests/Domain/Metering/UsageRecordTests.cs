@@ -13,7 +13,7 @@ public class UsageRecordCreateTests
         DateTime periodStart = new(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc);
         DateTime periodEnd = new(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc);
 
-        UsageRecord record = UsageRecord.Create(tenantId, "api.calls", periodStart, periodEnd, 1500);
+        UsageRecord record = UsageRecord.Create(tenantId, "api.calls", periodStart, periodEnd, 1500, TimeProvider.System);
 
         record.TenantId.Should().Be(tenantId);
         record.MeterCode.Should().Be("api.calls");
@@ -33,7 +33,7 @@ public class UsageRecordCreateTests
         DateTime periodStart = new(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc);
         DateTime periodEnd = new(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc);
 
-        Action act = () => UsageRecord.Create(tenantId, meterCode!, periodStart, periodEnd, 1500);
+        Action act = () => UsageRecord.Create(tenantId, meterCode!, periodStart, periodEnd, 1500, TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>()
             .Where(e => e.Code == "Metering.MeterCodeRequired");
@@ -46,7 +46,7 @@ public class UsageRecordCreateTests
         DateTime periodStart = new(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc);
         DateTime periodEnd = new(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc);
 
-        Action act = () => UsageRecord.Create(tenantId, "api.calls", periodStart, periodEnd, 1500);
+        Action act = () => UsageRecord.Create(tenantId, "api.calls", periodStart, periodEnd, 1500, TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>()
             .Where(e => e.Code == "Metering.InvalidPeriod");
@@ -59,7 +59,7 @@ public class UsageRecordCreateTests
         DateTime periodStart = new(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc);
         DateTime periodEnd = periodStart;
 
-        Action act = () => UsageRecord.Create(tenantId, "api.calls", periodStart, periodEnd, 1500);
+        Action act = () => UsageRecord.Create(tenantId, "api.calls", periodStart, periodEnd, 1500, TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>()
             .Where(e => e.Code == "Metering.InvalidPeriod");
@@ -72,7 +72,7 @@ public class UsageRecordCreateTests
         DateTime periodStart = new(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc);
         DateTime periodEnd = new(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc);
 
-        Action act = () => UsageRecord.Create(tenantId, "api.calls", periodStart, periodEnd, -100);
+        Action act = () => UsageRecord.Create(tenantId, "api.calls", periodStart, periodEnd, -100, TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>()
             .Where(e => e.Code == "Metering.InvalidValue");
@@ -87,9 +87,9 @@ public class UsageRecordAddValueTests
         TenantId tenantId = TenantId.Create(Guid.NewGuid());
         DateTime periodStart = new(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc);
         DateTime periodEnd = new(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc);
-        UsageRecord record = UsageRecord.Create(tenantId, "api.calls", periodStart, periodEnd, 1000);
+        UsageRecord record = UsageRecord.Create(tenantId, "api.calls", periodStart, periodEnd, 1000, TimeProvider.System);
 
-        record.AddValue(500);
+        record.AddValue(500, TimeProvider.System);
 
         record.Value.Should().Be(1500);
     }
@@ -100,11 +100,11 @@ public class UsageRecordAddValueTests
         TenantId tenantId = TenantId.Create(Guid.NewGuid());
         DateTime periodStart = new(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc);
         DateTime periodEnd = new(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc);
-        UsageRecord record = UsageRecord.Create(tenantId, "api.calls", periodStart, periodEnd, 1000);
+        UsageRecord record = UsageRecord.Create(tenantId, "api.calls", periodStart, periodEnd, 1000, TimeProvider.System);
         DateTime originalFlushedAt = record.FlushedAt;
 
         await Task.Delay(10);
-        record.AddValue(500);
+        record.AddValue(500, TimeProvider.System);
 
         record.FlushedAt.Should().BeAfter(originalFlushedAt);
     }
@@ -115,9 +115,9 @@ public class UsageRecordAddValueTests
         TenantId tenantId = TenantId.Create(Guid.NewGuid());
         DateTime periodStart = new(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc);
         DateTime periodEnd = new(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc);
-        UsageRecord record = UsageRecord.Create(tenantId, "api.calls", periodStart, periodEnd, 1000);
+        UsageRecord record = UsageRecord.Create(tenantId, "api.calls", periodStart, periodEnd, 1000, TimeProvider.System);
 
-        record.AddValue(0);
+        record.AddValue(0, TimeProvider.System);
 
         record.Value.Should().Be(1000);
     }
@@ -128,9 +128,9 @@ public class UsageRecordAddValueTests
         TenantId tenantId = TenantId.Create(Guid.NewGuid());
         DateTime periodStart = new(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc);
         DateTime periodEnd = new(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc);
-        UsageRecord record = UsageRecord.Create(tenantId, "api.calls", periodStart, periodEnd, 1000);
+        UsageRecord record = UsageRecord.Create(tenantId, "api.calls", periodStart, periodEnd, 1000, TimeProvider.System);
 
-        Action act = () => record.AddValue(-100);
+        Action act = () => record.AddValue(-100, TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>()
             .Where(e => e.Code == "Metering.InvalidValue");

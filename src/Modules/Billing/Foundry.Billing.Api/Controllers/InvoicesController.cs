@@ -1,6 +1,6 @@
 using Asp.Versioning;
 using Foundry.Billing.Api.Contracts.Invoices;
-using Foundry.Billing.Api.Extensions;
+using Foundry.Shared.Api.Extensions;
 using Foundry.Billing.Application.Commands.AddLineItem;
 using Foundry.Billing.Application.Commands.CancelInvoice;
 using Foundry.Billing.Application.Commands.CreateInvoice;
@@ -11,6 +11,7 @@ using Foundry.Billing.Application.Queries.GetInvoiceById;
 using Foundry.Billing.Application.Queries.GetInvoicesByUserId;
 using Foundry.Shared.Kernel.Results;
 using Foundry.Shared.Kernel.Identity.Authorization;
+using Foundry.Shared.Kernel.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -28,10 +29,12 @@ namespace Foundry.Billing.Api.Controllers;
 public class InvoicesController : ControllerBase
 {
     private readonly IMessageBus _bus;
+    private readonly ICurrentUserService _currentUserService;
 
-    public InvoicesController(IMessageBus bus)
+    public InvoicesController(IMessageBus bus, ICurrentUserService currentUserService)
     {
         _bus = bus;
+        _currentUserService = currentUserService;
     }
 
     /// <summary>
@@ -92,10 +95,14 @@ public class InvoicesController : ControllerBase
         [FromBody] CreateInvoiceRequest request,
         CancellationToken cancellationToken)
     {
-        Guid userId = GetCurrentUserId();
+        Guid? currentUserId = _currentUserService.GetCurrentUserId();
+        if (currentUserId is null)
+        {
+            return Unauthorized();
+        }
 
         CreateInvoiceCommand command = new CreateInvoiceCommand(
-            userId,
+            currentUserId.Value,
             request.InvoiceNumber,
             request.Currency,
             request.DueDate);
@@ -119,14 +126,18 @@ public class InvoicesController : ControllerBase
         [FromBody] AddLineItemRequest request,
         CancellationToken cancellationToken)
     {
-        Guid userId = GetCurrentUserId();
+        Guid? currentUserId = _currentUserService.GetCurrentUserId();
+        if (currentUserId is null)
+        {
+            return Unauthorized();
+        }
 
         AddLineItemCommand command = new AddLineItemCommand(
             id,
             request.Description,
             request.UnitPrice,
             request.Quantity,
-            userId);
+            currentUserId.Value);
 
         Result<InvoiceDto> result = await _bus.InvokeAsync<Result<InvoiceDto>>(command, cancellationToken);
 
@@ -143,9 +154,13 @@ public class InvoicesController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Issue(Guid id, CancellationToken cancellationToken)
     {
-        Guid userId = GetCurrentUserId();
+        Guid? currentUserId = _currentUserService.GetCurrentUserId();
+        if (currentUserId is null)
+        {
+            return Unauthorized();
+        }
 
-        IssueInvoiceCommand command = new IssueInvoiceCommand(id, userId);
+        IssueInvoiceCommand command = new IssueInvoiceCommand(id, currentUserId.Value);
 
         Result<InvoiceDto> result = await _bus.InvokeAsync<Result<InvoiceDto>>(command, cancellationToken);
 
@@ -162,9 +177,13 @@ public class InvoicesController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Cancel(Guid id, CancellationToken cancellationToken)
     {
-        Guid userId = GetCurrentUserId();
+        Guid? currentUserId = _currentUserService.GetCurrentUserId();
+        if (currentUserId is null)
+        {
+            return Unauthorized();
+        }
 
-        CancelInvoiceCommand command = new CancelInvoiceCommand(id, userId);
+        CancelInvoiceCommand command = new CancelInvoiceCommand(id, currentUserId.Value);
 
         Result result = await _bus.InvokeAsync<Result>(command, cancellationToken);
 
@@ -174,19 +193,6 @@ public class InvoicesController : ControllerBase
         }
 
         return result.ToActionResult();
-    }
-
-    private Guid GetCurrentUserId()
-    {
-        string? userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
-            ?? User.FindFirst("sub")?.Value;
-
-        if (userIdClaim is not null && Guid.TryParse(userIdClaim, out Guid userId))
-        {
-            return userId;
-        }
-
-        return Guid.Empty;
     }
 
     private static InvoiceResponse ToInvoiceResponse(InvoiceDto dto) => new(

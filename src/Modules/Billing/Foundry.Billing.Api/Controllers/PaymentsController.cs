@@ -1,12 +1,13 @@
 using Asp.Versioning;
 using Foundry.Billing.Api.Contracts.Payments;
-using Foundry.Billing.Api.Extensions;
+using Foundry.Shared.Api.Extensions;
 using Foundry.Billing.Application.Commands.ProcessPayment;
 using Foundry.Billing.Application.DTOs;
 using Foundry.Billing.Application.Queries.GetPaymentById;
 using Foundry.Billing.Application.Queries.GetPaymentsByInvoiceId;
 using Foundry.Shared.Kernel.Results;
 using Foundry.Shared.Kernel.Identity.Authorization;
+using Foundry.Shared.Kernel.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -24,10 +25,12 @@ namespace Foundry.Billing.Api.Controllers;
 public class PaymentsController : ControllerBase
 {
     private readonly IMessageBus _bus;
+    private readonly ICurrentUserService _currentUserService;
 
-    public PaymentsController(IMessageBus bus)
+    public PaymentsController(IMessageBus bus, ICurrentUserService currentUserService)
     {
         _bus = bus;
+        _currentUserService = currentUserService;
     }
 
     /// <summary>
@@ -74,11 +77,15 @@ public class PaymentsController : ControllerBase
         [FromBody] ProcessPaymentRequest request,
         CancellationToken cancellationToken)
     {
-        Guid userId = GetCurrentUserId();
+        Guid? currentUserId = _currentUserService.GetCurrentUserId();
+        if (currentUserId is null)
+        {
+            return Unauthorized();
+        }
 
         ProcessPaymentCommand command = new ProcessPaymentCommand(
             invoiceId,
-            userId,
+            currentUserId.Value,
             request.Amount,
             request.Currency,
             request.PaymentMethod);
@@ -87,19 +94,6 @@ public class PaymentsController : ControllerBase
 
         return result.Map(ToPaymentResponse)
             .ToCreatedResult($"/api/billing/payments/{result.Value?.Id}");
-    }
-
-    private Guid GetCurrentUserId()
-    {
-        string? userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
-            ?? User.FindFirst("sub")?.Value;
-
-        if (userIdClaim is not null && Guid.TryParse(userIdClaim, out Guid userId))
-        {
-            return userId;
-        }
-
-        return Guid.Empty;
     }
 
     private static PaymentResponse ToPaymentResponse(PaymentDto dto) => new(

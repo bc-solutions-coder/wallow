@@ -38,7 +38,7 @@ public class FlushUsageJobAdditionalTests
 
         _tenantContextFactory.CreateScope(Arg.Any<TenantId>()).Returns(Substitute.For<IDisposable>());
 
-        _job = new FlushUsageJob(_redis, _usageRepository, _messageBus, _tenantContextFactory, _logger);
+        _job = new FlushUsageJob(_redis, _usageRepository, _messageBus, _tenantContextFactory, TimeProvider.System, _logger);
     }
 
     [Fact]

@@ -47,7 +47,7 @@ public class MessageSentEventHandlerTests
         Guid senderId = Guid.NewGuid();
         Guid recipientId = Guid.NewGuid();
         TenantId tenantId = TenantId.Create(Guid.NewGuid());
-        Conversation conversation = Conversation.CreateDirect(tenantId, senderId, recipientId);
+        Conversation conversation = Conversation.CreateDirect(tenantId, senderId, recipientId, TimeProvider.System);
 
         _repository.GetByIdAsync(Arg.Any<ConversationId>(), Arg.Any<CancellationToken>())
             .Returns(conversation);
@@ -73,7 +73,7 @@ public class MessageSentEventHandlerTests
         Guid member1 = Guid.NewGuid();
         Guid member2 = Guid.NewGuid();
         TenantId tenantId = TenantId.Create(Guid.NewGuid());
-        Conversation conversation = Conversation.CreateGroup(tenantId, senderId, "Team Chat", [member1, member2]);
+        Conversation conversation = Conversation.CreateGroup(tenantId, senderId, "Team Chat", [member1, member2], TimeProvider.System);
 
         _repository.GetByIdAsync(Arg.Any<ConversationId>(), Arg.Any<CancellationToken>())
             .Returns(conversation);
@@ -102,7 +102,7 @@ public class MessageSentEventHandlerTests
         Guid senderId = Guid.NewGuid();
         Guid recipientId = Guid.NewGuid();
         TenantId tenantId = TenantId.Create(Guid.NewGuid());
-        Conversation conversation = Conversation.CreateGroup(tenantId, senderId, "Project Alpha", [recipientId]);
+        Conversation conversation = Conversation.CreateGroup(tenantId, senderId, "Project Alpha", [recipientId], TimeProvider.System);
 
         _repository.GetByIdAsync(Arg.Any<ConversationId>(), Arg.Any<CancellationToken>())
             .Returns(conversation);

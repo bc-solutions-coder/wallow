@@ -1,13 +1,14 @@
 using Foundry.Shared.Kernel.Results;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Foundry.Api.Extensions;
+namespace Foundry.Shared.Api.Extensions;
 
 /// <summary>
 /// Extension methods for converting Result objects to ActionResult responses.
 /// Uses Problem Details format (RFC 7807) for errors.
 /// </summary>
-internal static class ResultExtensions
+public static class ResultExtensions
 {
     public static IActionResult ToActionResult(this Result result)
     {

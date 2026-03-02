@@ -12,7 +12,7 @@ public class FeatureFlagMappingsTests
     [Fact]
     public void ToDto_BooleanFlag_MapsAllFields()
     {
-        FeatureFlag flag = FeatureFlag.CreateBoolean("dark_mode", "Dark Mode", true, "Enable dark mode");
+        FeatureFlag flag = FeatureFlag.CreateBoolean("dark_mode", "Dark Mode", true, TimeProvider.System, "Enable dark mode");
 
         FeatureFlagDto dto = flag.ToDto();
 
@@ -31,7 +31,7 @@ public class FeatureFlagMappingsTests
     [Fact]
     public void ToDto_PercentageFlag_MapsRolloutPercentage()
     {
-        FeatureFlag flag = FeatureFlag.CreatePercentage("rollout", "Rollout", 50);
+        FeatureFlag flag = FeatureFlag.CreatePercentage("rollout", "Rollout", 50, TimeProvider.System);
 
         FeatureFlagDto dto = flag.ToDto();
 
@@ -47,7 +47,7 @@ public class FeatureFlagMappingsTests
             new VariantWeight("control", 50),
             new VariantWeight("treatment", 50)
         ];
-        FeatureFlag flag = FeatureFlag.CreateVariant("ab_test", "A/B Test", variants, "control");
+        FeatureFlag flag = FeatureFlag.CreateVariant("ab_test", "A/B Test", variants, "control", TimeProvider.System);
 
         FeatureFlagDto dto = flag.ToDto();
 
@@ -66,7 +66,7 @@ public class FeatureFlagMappingsTests
         FeatureFlagId flagId = FeatureFlagId.New();
         Guid tenantId = Guid.NewGuid();
         DateTime expiresAt = DateTime.UtcNow.AddDays(7);
-        FeatureFlagOverride over = FeatureFlagOverride.CreateForTenant(flagId, tenantId, true, "variant_a", expiresAt);
+        FeatureFlagOverride over = FeatureFlagOverride.CreateForTenant(flagId, tenantId, true, TimeProvider.System, "variant_a", expiresAt);
 
         FeatureFlagOverrideDto dto = over.ToDto();
 
@@ -85,7 +85,7 @@ public class FeatureFlagMappingsTests
     {
         FeatureFlagId flagId = FeatureFlagId.New();
         Guid userId = Guid.NewGuid();
-        FeatureFlagOverride over = FeatureFlagOverride.CreateForUser(flagId, userId, false);
+        FeatureFlagOverride over = FeatureFlagOverride.CreateForUser(flagId, userId, false, TimeProvider.System);
 
         FeatureFlagOverrideDto dto = over.ToDto();
 
@@ -100,7 +100,7 @@ public class FeatureFlagMappingsTests
         FeatureFlagId flagId = FeatureFlagId.New();
         Guid tenantId = Guid.NewGuid();
         Guid userId = Guid.NewGuid();
-        FeatureFlagOverride over = FeatureFlagOverride.CreateForTenantUser(flagId, tenantId, userId, true);
+        FeatureFlagOverride over = FeatureFlagOverride.CreateForTenantUser(flagId, tenantId, userId, true, TimeProvider.System);
 
         FeatureFlagOverrideDto dto = over.ToDto();
 

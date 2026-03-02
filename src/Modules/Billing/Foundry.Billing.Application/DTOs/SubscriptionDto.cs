@@ -12,6 +12,6 @@ public sealed record SubscriptionDto(
     DateTime CurrentPeriodStart,
     DateTime CurrentPeriodEnd,
     DateTime? CancelledAt,
-    DateTime CreatedAt,
-    DateTime? UpdatedAt,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? UpdatedAt,
     Dictionary<string, object>? CustomFields);

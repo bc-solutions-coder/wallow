@@ -22,7 +22,7 @@ public class SendNotificationHandlerTests
         _notificationService = Substitute.For<INotificationService>();
         _tenantContext = Substitute.For<ITenantContext>();
         _tenantContext.TenantId.Returns(TenantId.Create(Guid.NewGuid()));
-        _handler = new SendNotificationHandler(_repository, _notificationService, _tenantContext);
+        _handler = new SendNotificationHandler(_repository, _notificationService, _tenantContext, TimeProvider.System);
     }
 
     [Fact]

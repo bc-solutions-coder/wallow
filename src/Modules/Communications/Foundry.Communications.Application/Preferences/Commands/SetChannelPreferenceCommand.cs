@@ -13,7 +13,9 @@ public sealed record SetChannelPreferenceCommand(
     string NotificationType,
     bool IsEnabled);
 
-public sealed class SetChannelPreferenceHandler(IChannelPreferenceRepository preferenceRepository)
+public sealed class SetChannelPreferenceHandler(
+    IChannelPreferenceRepository preferenceRepository,
+    TimeProvider timeProvider)
 {
     public async Task<Result<ChannelPreferenceDto>> Handle(
         SetChannelPreferenceCommand command,
@@ -31,6 +33,7 @@ public sealed class SetChannelPreferenceHandler(IChannelPreferenceRepository pre
                 command.UserId,
                 command.ChannelType,
                 command.NotificationType,
+                timeProvider,
                 command.IsEnabled);
 
             preferenceRepository.Add(preference);
@@ -39,11 +42,11 @@ public sealed class SetChannelPreferenceHandler(IChannelPreferenceRepository pre
         {
             if (command.IsEnabled)
             {
-                preference.Enable();
+                preference.Enable(timeProvider);
             }
             else
             {
-                preference.Disable();
+                preference.Disable(timeProvider);
             }
         }
 

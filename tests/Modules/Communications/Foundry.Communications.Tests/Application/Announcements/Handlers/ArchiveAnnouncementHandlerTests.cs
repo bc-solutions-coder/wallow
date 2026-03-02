@@ -15,13 +15,13 @@ public class ArchiveAnnouncementHandlerTests
     public ArchiveAnnouncementHandlerTests()
     {
         _repository = Substitute.For<IAnnouncementRepository>();
-        _handler = new ArchiveAnnouncementHandler(_repository);
+        _handler = new ArchiveAnnouncementHandler(_repository, TimeProvider.System);
     }
 
     [Fact]
     public async Task Handle_WhenAnnouncementExists_ArchivesAndReturnsSuccess()
     {
-        Announcement announcement = Announcement.Create("Title", "Content", AnnouncementType.Feature);
+        Announcement announcement = Announcement.Create("Title", "Content", AnnouncementType.Feature, TimeProvider.System);
 
         _repository.GetByIdAsync(Arg.Any<AnnouncementId>(), Arg.Any<CancellationToken>())
             .Returns(announcement);
@@ -65,7 +65,7 @@ public class ArchiveAnnouncementHandlerTests
     public async Task Handle_PassesCancellationToken()
     {
         using CancellationTokenSource cts = new();
-        Announcement announcement = Announcement.Create("Title", "Content", AnnouncementType.Feature);
+        Announcement announcement = Announcement.Create("Title", "Content", AnnouncementType.Feature, TimeProvider.System);
 
         _repository.GetByIdAsync(Arg.Any<AnnouncementId>(), Arg.Any<CancellationToken>())
             .Returns(announcement);

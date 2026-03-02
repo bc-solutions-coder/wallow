@@ -20,7 +20,7 @@ public class SubscriptionCreateTests
         DateTime periodEnd = startDate.AddMonths(1);
         Guid createdBy = Guid.NewGuid();
 
-        Subscription subscription = Subscription.Create(userId, planName, price, startDate, periodEnd, createdBy);
+        Subscription subscription = Subscription.Create(userId, planName, price, startDate, periodEnd, createdBy, TimeProvider.System);
 
         subscription.UserId.Should().Be(userId);
         subscription.PlanName.Should().Be(planName);
@@ -42,7 +42,7 @@ public class SubscriptionCreateTests
         DateTime startDate = DateTime.UtcNow;
         DateTime periodEnd = startDate.AddMonths(1);
 
-        Subscription subscription = Subscription.Create(userId, planName, price, startDate, periodEnd, Guid.NewGuid());
+        Subscription subscription = Subscription.Create(userId, planName, price, startDate, periodEnd, Guid.NewGuid(), TimeProvider.System);
 
         subscription.DomainEvents.Should().ContainSingle()
             .Which.Should().BeOfType<SubscriptionCreatedDomainEvent>()
@@ -60,13 +60,7 @@ public class SubscriptionCreateTests
     [InlineData(null)]
     public void Create_WithEmptyPlanName_ThrowsBusinessRuleException(string? planName)
     {
-        Func<Subscription> act = () => Subscription.Create(
-            Guid.NewGuid(),
-            planName!,
-            Money.Create(50, "USD"),
-            DateTime.UtcNow,
-            DateTime.UtcNow.AddMonths(1),
-            Guid.NewGuid());
+        Func<Subscription> act = () => Subscription.Create(Guid.NewGuid(), planName!, Money.Create(50, "USD"), DateTime.UtcNow, DateTime.UtcNow.AddMonths(1), Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>()
             .Where(e => e.Code == "Billing.PlanNameRequired");
@@ -81,14 +75,7 @@ public class SubscriptionCreateTests
             { "subscriptionId", "sub_123" }
         };
 
-        Subscription subscription = Subscription.Create(
-            Guid.NewGuid(),
-            "Basic Plan",
-            Money.Create(9.99m, "USD"),
-            DateTime.UtcNow,
-            DateTime.UtcNow.AddMonths(1),
-            Guid.NewGuid(),
-            customFields);
+        Subscription subscription = Subscription.Create(Guid.NewGuid(), "Basic Plan", Money.Create(9.99m, "USD"), DateTime.UtcNow, DateTime.UtcNow.AddMonths(1), Guid.NewGuid(), TimeProvider.System, customFields);
 
         subscription.CustomFields.Should().NotBeNull();
         subscription.CustomFields.Should().ContainKey("paymentProvider");
@@ -106,7 +93,7 @@ public class SubscriptionRenewTests
         DateTime newPeriodEnd = originalPeriodEnd.AddMonths(1);
         Guid updatedBy = Guid.NewGuid();
 
-        subscription.Renew(newPeriodEnd, updatedBy);
+        subscription.Renew(newPeriodEnd, updatedBy, TimeProvider.System);
 
         subscription.CurrentPeriodStart.Should().Be(originalPeriodEnd);
         subscription.CurrentPeriodEnd.Should().Be(newPeriodEnd);
@@ -117,9 +104,9 @@ public class SubscriptionRenewTests
     public void Renew_PastDueSubscription_ThrowsInvalidSubscriptionStatusTransitionException()
     {
         Subscription subscription = CreateActiveSubscription();
-        subscription.MarkPastDue(Guid.NewGuid());
+        subscription.MarkPastDue(Guid.NewGuid(), TimeProvider.System);
 
-        Action act = () => subscription.Renew(DateTime.UtcNow.AddMonths(1), Guid.NewGuid());
+        Action act = () => subscription.Renew(DateTime.UtcNow.AddMonths(1), Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<InvalidSubscriptionStatusTransitionException>();
     }
@@ -128,9 +115,9 @@ public class SubscriptionRenewTests
     public void Renew_CancelledSubscription_ThrowsInvalidSubscriptionStatusTransitionException()
     {
         Subscription subscription = CreateActiveSubscription();
-        subscription.Cancel(Guid.NewGuid());
+        subscription.Cancel(Guid.NewGuid(), TimeProvider.System);
 
-        Action act = () => subscription.Renew(DateTime.UtcNow.AddMonths(1), Guid.NewGuid());
+        Action act = () => subscription.Renew(DateTime.UtcNow.AddMonths(1), Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<InvalidSubscriptionStatusTransitionException>();
     }
@@ -139,9 +126,9 @@ public class SubscriptionRenewTests
     public void Renew_ExpiredSubscription_ThrowsInvalidSubscriptionStatusTransitionException()
     {
         Subscription subscription = CreateActiveSubscription();
-        subscription.Expire(Guid.NewGuid());
+        subscription.Expire(Guid.NewGuid(), TimeProvider.System);
 
-        Action act = () => subscription.Renew(DateTime.UtcNow.AddMonths(1), Guid.NewGuid());
+        Action act = () => subscription.Renew(DateTime.UtcNow.AddMonths(1), Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<InvalidSubscriptionStatusTransitionException>();
     }
@@ -155,7 +142,7 @@ public class SubscriptionMarkPastDueTests
         Subscription subscription = CreateActiveSubscription();
         Guid updatedBy = Guid.NewGuid();
 
-        subscription.MarkPastDue(updatedBy);
+        subscription.MarkPastDue(updatedBy, TimeProvider.System);
 
         subscription.Status.Should().Be(SubscriptionStatus.PastDue);
     }
@@ -164,9 +151,9 @@ public class SubscriptionMarkPastDueTests
     public void MarkPastDue_PastDueSubscription_ThrowsInvalidSubscriptionStatusTransitionException()
     {
         Subscription subscription = CreateActiveSubscription();
-        subscription.MarkPastDue(Guid.NewGuid());
+        subscription.MarkPastDue(Guid.NewGuid(), TimeProvider.System);
 
-        Action act = () => subscription.MarkPastDue(Guid.NewGuid());
+        Action act = () => subscription.MarkPastDue(Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<InvalidSubscriptionStatusTransitionException>();
     }
@@ -175,9 +162,9 @@ public class SubscriptionMarkPastDueTests
     public void MarkPastDue_CancelledSubscription_ThrowsInvalidSubscriptionStatusTransitionException()
     {
         Subscription subscription = CreateActiveSubscription();
-        subscription.Cancel(Guid.NewGuid());
+        subscription.Cancel(Guid.NewGuid(), TimeProvider.System);
 
-        Action act = () => subscription.MarkPastDue(Guid.NewGuid());
+        Action act = () => subscription.MarkPastDue(Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<InvalidSubscriptionStatusTransitionException>();
     }
@@ -186,9 +173,9 @@ public class SubscriptionMarkPastDueTests
     public void MarkPastDue_ExpiredSubscription_ThrowsInvalidSubscriptionStatusTransitionException()
     {
         Subscription subscription = CreateActiveSubscription();
-        subscription.Expire(Guid.NewGuid());
+        subscription.Expire(Guid.NewGuid(), TimeProvider.System);
 
-        Action act = () => subscription.MarkPastDue(Guid.NewGuid());
+        Action act = () => subscription.MarkPastDue(Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<InvalidSubscriptionStatusTransitionException>();
     }
@@ -203,7 +190,7 @@ public class SubscriptionCancelTests
         Guid cancelledBy = Guid.NewGuid();
         DateTime beforeCancel = DateTime.UtcNow;
 
-        subscription.Cancel(cancelledBy);
+        subscription.Cancel(cancelledBy, TimeProvider.System);
 
         subscription.Status.Should().Be(SubscriptionStatus.Cancelled);
         subscription.CancelledAt.Should().NotBeNull();
@@ -214,9 +201,9 @@ public class SubscriptionCancelTests
     public void Cancel_PastDueSubscription_ChangesStatusToCancelled()
     {
         Subscription subscription = CreateActiveSubscription();
-        subscription.MarkPastDue(Guid.NewGuid());
+        subscription.MarkPastDue(Guid.NewGuid(), TimeProvider.System);
 
-        subscription.Cancel(Guid.NewGuid());
+        subscription.Cancel(Guid.NewGuid(), TimeProvider.System);
 
         subscription.Status.Should().Be(SubscriptionStatus.Cancelled);
     }
@@ -227,7 +214,7 @@ public class SubscriptionCancelTests
         Subscription subscription = CreateActiveSubscription();
         Guid cancelledBy = Guid.NewGuid();
 
-        subscription.Cancel(cancelledBy);
+        subscription.Cancel(cancelledBy, TimeProvider.System);
 
         subscription.DomainEvents.Should().ContainSingle()
             .Which.Should().BeOfType<SubscriptionCancelledDomainEvent>()
@@ -241,9 +228,9 @@ public class SubscriptionCancelTests
     public void Cancel_CancelledSubscription_ThrowsInvalidSubscriptionStatusTransitionException()
     {
         Subscription subscription = CreateActiveSubscription();
-        subscription.Cancel(Guid.NewGuid());
+        subscription.Cancel(Guid.NewGuid(), TimeProvider.System);
 
-        Action act = () => subscription.Cancel(Guid.NewGuid());
+        Action act = () => subscription.Cancel(Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<InvalidSubscriptionStatusTransitionException>();
     }
@@ -252,9 +239,9 @@ public class SubscriptionCancelTests
     public void Cancel_ExpiredSubscription_ThrowsInvalidSubscriptionStatusTransitionException()
     {
         Subscription subscription = CreateActiveSubscription();
-        subscription.Expire(Guid.NewGuid());
+        subscription.Expire(Guid.NewGuid(), TimeProvider.System);
 
-        Action act = () => subscription.Cancel(Guid.NewGuid());
+        Action act = () => subscription.Cancel(Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<InvalidSubscriptionStatusTransitionException>();
     }
@@ -269,7 +256,7 @@ public class SubscriptionExpireTests
         Guid updatedBy = Guid.NewGuid();
         DateTime beforeExpire = DateTime.UtcNow;
 
-        subscription.Expire(updatedBy);
+        subscription.Expire(updatedBy, TimeProvider.System);
 
         subscription.Status.Should().Be(SubscriptionStatus.Expired);
         subscription.EndDate.Should().NotBeNull();
@@ -280,9 +267,9 @@ public class SubscriptionExpireTests
     public void Expire_PastDueSubscription_ChangesStatusToExpired()
     {
         Subscription subscription = CreateActiveSubscription();
-        subscription.MarkPastDue(Guid.NewGuid());
+        subscription.MarkPastDue(Guid.NewGuid(), TimeProvider.System);
 
-        subscription.Expire(Guid.NewGuid());
+        subscription.Expire(Guid.NewGuid(), TimeProvider.System);
 
         subscription.Status.Should().Be(SubscriptionStatus.Expired);
     }
@@ -291,9 +278,9 @@ public class SubscriptionExpireTests
     public void Expire_CancelledSubscription_ThrowsInvalidSubscriptionStatusTransitionException()
     {
         Subscription subscription = CreateActiveSubscription();
-        subscription.Cancel(Guid.NewGuid());
+        subscription.Cancel(Guid.NewGuid(), TimeProvider.System);
 
-        Action act = () => subscription.Expire(Guid.NewGuid());
+        Action act = () => subscription.Expire(Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<InvalidSubscriptionStatusTransitionException>();
     }
@@ -302,9 +289,9 @@ public class SubscriptionExpireTests
     public void Expire_ExpiredSubscription_ThrowsInvalidSubscriptionStatusTransitionException()
     {
         Subscription subscription = CreateActiveSubscription();
-        subscription.Expire(Guid.NewGuid());
+        subscription.Expire(Guid.NewGuid(), TimeProvider.System);
 
-        Action act = () => subscription.Expire(Guid.NewGuid());
+        Action act = () => subscription.Expire(Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<InvalidSubscriptionStatusTransitionException>();
     }
@@ -314,13 +301,7 @@ internal static class SubscriptionTestHelpers
 {
     public static Subscription CreateActiveSubscription()
     {
-        Subscription subscription = Subscription.Create(
-            Guid.NewGuid(),
-            "Test Plan",
-            Money.Create(19.99m, "USD"),
-            DateTime.UtcNow,
-            DateTime.UtcNow.AddMonths(1),
-            Guid.NewGuid());
+        Subscription subscription = Subscription.Create(Guid.NewGuid(), "Test Plan", Money.Create(19.99m, "USD"), DateTime.UtcNow, DateTime.UtcNow.AddMonths(1), Guid.NewGuid(), TimeProvider.System);
         subscription.ClearDomainEvents();
         return subscription;
     }

@@ -35,7 +35,7 @@ public sealed class ScimConfiguration : AggregateRoot<ScimConfigurationId>, ITen
         TokenExpiresAt = tokenExpiresAt;
         AutoActivateUsers = true;
         DeprovisionOnDelete = false;
-        SetCreated(createdByUserId);
+        SetCreated(DateTimeOffset.UtcNow, createdByUserId);
     }
 
     public static (ScimConfiguration Config, string PlainTextToken) Create(
@@ -64,7 +64,7 @@ public sealed class ScimConfiguration : AggregateRoot<ScimConfigurationId>, ITen
         BearerToken = HashToken(token);
         TokenPrefix = prefix;
         TokenExpiresAt = DateTime.UtcNow.AddYears(1);
-        SetUpdated(updatedByUserId);
+        SetUpdated(DateTimeOffset.UtcNow, updatedByUserId);
 
         return plainTextToken;
     }
@@ -79,7 +79,7 @@ public sealed class ScimConfiguration : AggregateRoot<ScimConfigurationId>, ITen
         }
 
         IsEnabled = true;
-        SetUpdated(updatedByUserId);
+        SetUpdated(DateTimeOffset.UtcNow, updatedByUserId);
     }
 
     public void Disable(Guid updatedByUserId)
@@ -92,7 +92,7 @@ public sealed class ScimConfiguration : AggregateRoot<ScimConfigurationId>, ITen
         }
 
         IsEnabled = false;
-        SetUpdated(updatedByUserId);
+        SetUpdated(DateTimeOffset.UtcNow, updatedByUserId);
     }
 
     public void UpdateSettings(
@@ -104,13 +104,13 @@ public sealed class ScimConfiguration : AggregateRoot<ScimConfigurationId>, ITen
         AutoActivateUsers = autoActivateUsers;
         DefaultRole = defaultRole;
         DeprovisionOnDelete = deprovisionOnDelete;
-        SetUpdated(updatedByUserId);
+        SetUpdated(DateTimeOffset.UtcNow, updatedByUserId);
     }
 
     public void RecordSync(Guid updatedByUserId)
     {
         LastSyncAt = DateTime.UtcNow;
-        SetUpdated(updatedByUserId);
+        SetUpdated(DateTimeOffset.UtcNow, updatedByUserId);
     }
 
     public bool IsTokenValid()

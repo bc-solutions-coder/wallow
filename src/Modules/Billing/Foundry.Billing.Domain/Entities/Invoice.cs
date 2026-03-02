@@ -68,6 +68,7 @@ public sealed class Invoice : AggregateRoot<InvoiceId>, ITenantScoped, IHasCusto
         string invoiceNumber,
         string currency,
         Guid createdByUserId,
+        TimeProvider timeProvider,
         DateTime? dueDate = null,
         Dictionary<string, object>? customFields = null)
     {
@@ -83,7 +84,7 @@ public sealed class Invoice : AggregateRoot<InvoiceId>, ITenantScoped, IHasCusto
 
         Invoice invoice = new Invoice(userId, invoiceNumber, currency, dueDate);
         invoice.CustomFields = customFields;
-        invoice.SetCreated(createdByUserId);
+        invoice.SetCreated(timeProvider.GetUtcNow(), createdByUserId);
 
         invoice.RaiseDomainEvent(new InvoiceCreatedDomainEvent(
             invoice.Id.Value, userId, 0m, currency));
@@ -91,7 +92,7 @@ public sealed class Invoice : AggregateRoot<InvoiceId>, ITenantScoped, IHasCusto
         return invoice;
     }
 
-    public void AddLineItem(string description, Money unitPrice, int quantity, Guid updatedByUserId)
+    public void AddLineItem(string description, Money unitPrice, int quantity, Guid updatedByUserId, TimeProvider timeProvider)
     {
         if (Status != InvoiceStatus.Draft)
         {
@@ -106,10 +107,10 @@ public sealed class Invoice : AggregateRoot<InvoiceId>, ITenantScoped, IHasCusto
         InvoiceLineItem lineItem = InvoiceLineItem.Create(Id, description, unitPrice, quantity);
         _lineItems.Add(lineItem);
         RecalculateTotal();
-        SetUpdated(updatedByUserId);
+        SetUpdated(timeProvider.GetUtcNow(), updatedByUserId);
     }
 
-    public void RemoveLineItem(InvoiceLineItemId lineItemId, Guid updatedByUserId)
+    public void RemoveLineItem(InvoiceLineItemId lineItemId, Guid updatedByUserId, TimeProvider timeProvider)
     {
         if (Status != InvoiceStatus.Draft)
         {
@@ -124,10 +125,10 @@ public sealed class Invoice : AggregateRoot<InvoiceId>, ITenantScoped, IHasCusto
 
         _lineItems.Remove(item);
         RecalculateTotal();
-        SetUpdated(updatedByUserId);
+        SetUpdated(timeProvider.GetUtcNow(), updatedByUserId);
     }
 
-    public void Issue(Guid issuedByUserId)
+    public void Issue(Guid issuedByUserId, TimeProvider timeProvider)
     {
         if (Status != InvoiceStatus.Draft)
         {
@@ -140,10 +141,10 @@ public sealed class Invoice : AggregateRoot<InvoiceId>, ITenantScoped, IHasCusto
         }
 
         Status = InvoiceStatus.Issued;
-        SetUpdated(issuedByUserId);
+        SetUpdated(timeProvider.GetUtcNow(), issuedByUserId);
     }
 
-    public void MarkAsPaid(Guid paymentId, Guid updatedByUserId)
+    public void MarkAsPaid(Guid paymentId, Guid updatedByUserId, TimeProvider timeProvider)
     {
         if (Status != InvoiceStatus.Issued && Status != InvoiceStatus.Overdue)
         {
@@ -151,13 +152,13 @@ public sealed class Invoice : AggregateRoot<InvoiceId>, ITenantScoped, IHasCusto
         }
 
         Status = InvoiceStatus.Paid;
-        PaidAt = DateTime.UtcNow;
-        SetUpdated(updatedByUserId);
+        PaidAt = timeProvider.GetUtcNow().UtcDateTime;
+        SetUpdated(timeProvider.GetUtcNow(), updatedByUserId);
 
         RaiseDomainEvent(new InvoicePaidDomainEvent(Id.Value, paymentId, PaidAt.Value));
     }
 
-    public void MarkAsOverdue(Guid updatedByUserId)
+    public void MarkAsOverdue(Guid updatedByUserId, TimeProvider timeProvider)
     {
         if (Status != InvoiceStatus.Issued)
         {
@@ -165,12 +166,12 @@ public sealed class Invoice : AggregateRoot<InvoiceId>, ITenantScoped, IHasCusto
         }
 
         Status = InvoiceStatus.Overdue;
-        SetUpdated(updatedByUserId);
+        SetUpdated(timeProvider.GetUtcNow(), updatedByUserId);
 
-        RaiseDomainEvent(new InvoiceOverdueDomainEvent(Id.Value, UserId, DueDate ?? DateTime.UtcNow));
+        RaiseDomainEvent(new InvoiceOverdueDomainEvent(Id.Value, UserId, DueDate ?? timeProvider.GetUtcNow().UtcDateTime));
     }
 
-    public void Cancel(Guid cancelledByUserId)
+    public void Cancel(Guid cancelledByUserId, TimeProvider timeProvider)
     {
         if (Status == InvoiceStatus.Paid)
         {
@@ -178,7 +179,7 @@ public sealed class Invoice : AggregateRoot<InvoiceId>, ITenantScoped, IHasCusto
         }
 
         Status = InvoiceStatus.Cancelled;
-        SetUpdated(cancelledByUserId);
+        SetUpdated(timeProvider.GetUtcNow(), cancelledByUserId);
     }
 
     private void RecalculateTotal()

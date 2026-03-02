@@ -13,7 +13,7 @@ public class MessageCreateTests
         Guid senderId = Guid.NewGuid();
         string body = "Hello, world!";
 
-        Message message = Message.Create(conversationId, senderId, body);
+        Message message = Message.Create(conversationId, senderId, body, TimeProvider.System);
 
         message.ConversationId.Should().Be(conversationId);
         message.SenderId.Should().Be(senderId);

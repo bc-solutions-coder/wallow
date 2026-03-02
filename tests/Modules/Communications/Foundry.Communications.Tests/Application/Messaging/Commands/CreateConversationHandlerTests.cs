@@ -18,7 +18,7 @@ public class CreateConversationHandlerTests
         _repository = Substitute.For<IConversationRepository>();
         _tenantContext = Substitute.For<ITenantContext>();
         _tenantContext.TenantId.Returns(TenantId.Create(Guid.NewGuid()));
-        _handler = new CreateConversationHandler(_repository, _tenantContext);
+        _handler = new CreateConversationHandler(_repository, _tenantContext, TimeProvider.System);
     }
 
     [Fact]

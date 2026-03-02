@@ -14,13 +14,13 @@ public class PublishChangelogEntryHandlerTests
     public PublishChangelogEntryHandlerTests()
     {
         _repository = Substitute.For<IChangelogRepository>();
-        _handler = new PublishChangelogEntryHandler(_repository);
+        _handler = new PublishChangelogEntryHandler(_repository, TimeProvider.System);
     }
 
     [Fact]
     public async Task Handle_WhenEntryExists_PublishesAndReturnsSuccess()
     {
-        ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "Release", "Content", DateTime.UtcNow);
+        ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "Release", "Content", DateTime.UtcNow, TimeProvider.System);
 
         _repository.GetByIdAsync(Arg.Any<ChangelogEntryId>(), Arg.Any<CancellationToken>())
             .Returns(entry);
@@ -65,7 +65,7 @@ public class PublishChangelogEntryHandlerTests
     public async Task Handle_PassesCancellationToken()
     {
         using CancellationTokenSource cts = new();
-        ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "Release", "Content", DateTime.UtcNow);
+        ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "Release", "Content", DateTime.UtcNow, TimeProvider.System);
 
         _repository.GetByIdAsync(Arg.Any<ChangelogEntryId>(), Arg.Any<CancellationToken>())
             .Returns(entry);

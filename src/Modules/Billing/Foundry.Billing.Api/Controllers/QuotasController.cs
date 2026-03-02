@@ -1,5 +1,5 @@
 using Asp.Versioning;
-using Foundry.Billing.Api.Extensions;
+using Foundry.Shared.Api.Extensions;
 using Foundry.Billing.Application.Metering.Commands.RemoveQuotaOverride;
 using Foundry.Billing.Application.Metering.Commands.SetQuotaOverride;
 using Foundry.Billing.Application.Metering.DTOs;

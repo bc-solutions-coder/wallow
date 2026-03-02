@@ -16,9 +16,9 @@ public class ChangelogMappingTests
         IChangelogRepository repository = Substitute.For<IChangelogRepository>();
         GetChangelogHandler handler = new(repository);
 
-        ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "Release", "Content", DateTime.UtcNow);
-        entry.AddItem("Added login feature", ChangeType.Feature);
-        entry.AddItem("Fixed crash on startup", ChangeType.Fix);
+        ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "Release", "Content", DateTime.UtcNow, TimeProvider.System);
+        entry.AddItem("Added login feature", ChangeType.Feature, TimeProvider.System);
+        entry.AddItem("Fixed crash on startup", ChangeType.Fix, TimeProvider.System);
 
         repository.GetPublishedAsync(50, Arg.Any<CancellationToken>())
             .Returns(new List<ChangelogEntry> { entry });
@@ -39,11 +39,11 @@ public class ChangelogMappingTests
         IChangelogRepository repository = Substitute.For<IChangelogRepository>();
         GetChangelogByVersionHandler handler = new(repository);
 
-        ChangelogEntry entry = ChangelogEntry.Create("2.0.0", "Major Release", "Content", DateTime.UtcNow);
-        entry.AddItem("Breaking API change", ChangeType.Breaking);
-        entry.AddItem("Security patch", ChangeType.Security);
-        entry.AddItem("Deprecated old endpoint", ChangeType.Deprecated);
-        entry.Publish();
+        ChangelogEntry entry = ChangelogEntry.Create("2.0.0", "Major Release", "Content", DateTime.UtcNow, TimeProvider.System);
+        entry.AddItem("Breaking API change", ChangeType.Breaking, TimeProvider.System);
+        entry.AddItem("Security patch", ChangeType.Security, TimeProvider.System);
+        entry.AddItem("Deprecated old endpoint", ChangeType.Deprecated, TimeProvider.System);
+        entry.Publish(TimeProvider.System);
 
         repository.GetByVersionAsync("2.0.0", Arg.Any<CancellationToken>())
             .Returns(entry);
@@ -63,9 +63,9 @@ public class ChangelogMappingTests
         IChangelogRepository repository = Substitute.For<IChangelogRepository>();
         GetLatestChangelogHandler handler = new(repository);
 
-        ChangelogEntry entry = ChangelogEntry.Create("3.0.0", "Latest", "Content", DateTime.UtcNow);
-        entry.AddItem("Performance improvement", ChangeType.Improvement);
-        entry.Publish();
+        ChangelogEntry entry = ChangelogEntry.Create("3.0.0", "Latest", "Content", DateTime.UtcNow, TimeProvider.System);
+        entry.AddItem("Performance improvement", ChangeType.Improvement, TimeProvider.System);
+        entry.Publish(TimeProvider.System);
 
         repository.GetLatestPublishedAsync(Arg.Any<CancellationToken>())
             .Returns(entry);
@@ -84,7 +84,7 @@ public class ChangelogMappingTests
         IChangelogRepository repository = Substitute.For<IChangelogRepository>();
         GetChangelogHandler handler = new(repository);
 
-        ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "Release", "Content", DateTime.UtcNow);
+        ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "Release", "Content", DateTime.UtcNow, TimeProvider.System);
 
         repository.GetPublishedAsync(50, Arg.Any<CancellationToken>())
             .Returns(new List<ChangelogEntry> { entry });
@@ -102,8 +102,8 @@ public class ChangelogMappingTests
         GetChangelogByVersionHandler handler = new(repository);
 
         DateTime releasedAt = DateTime.UtcNow.AddDays(-1);
-        ChangelogEntry entry = ChangelogEntry.Create("1.5.0", "Minor Release", "Bug fixes and improvements", releasedAt);
-        entry.Publish();
+        ChangelogEntry entry = ChangelogEntry.Create("1.5.0", "Minor Release", "Bug fixes and improvements", releasedAt, TimeProvider.System);
+        entry.Publish(TimeProvider.System);
 
         repository.GetByVersionAsync("1.5.0", Arg.Any<CancellationToken>())
             .Returns(entry);
@@ -126,8 +126,8 @@ public class ChangelogMappingTests
         GetLatestChangelogHandler handler = new(repository);
 
         DateTime releasedAt = DateTime.UtcNow;
-        ChangelogEntry entry = ChangelogEntry.Create("4.0.0", "Latest Major", "Breaking changes", releasedAt);
-        entry.Publish();
+        ChangelogEntry entry = ChangelogEntry.Create("4.0.0", "Latest Major", "Breaking changes", releasedAt, TimeProvider.System);
+        entry.Publish(TimeProvider.System);
 
         repository.GetLatestPublishedAsync(Arg.Any<CancellationToken>())
             .Returns(entry);

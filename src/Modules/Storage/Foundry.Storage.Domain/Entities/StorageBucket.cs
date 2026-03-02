@@ -12,7 +12,7 @@ namespace Foundry.Storage.Domain.Entities;
 /// Logical grouping of files with shared settings.
 /// Tenant-scoped to ensure proper isolation.
 /// </summary>
-public sealed class StorageBucket : Entity<StorageBucketId>, ITenantScoped
+public sealed class StorageBucket : AggregateRoot<StorageBucketId>, ITenantScoped
 {
     public TenantId TenantId { get; set; }
     public string Name { get; private set; } = null!;
@@ -22,7 +22,6 @@ public sealed class StorageBucket : Entity<StorageBucketId>, ITenantScoped
     public string? AllowedContentTypes { get; private set; }
     public RetentionPolicy? Retention { get; private set; }
     public bool Versioning { get; private set; }
-    public DateTime CreatedAt { get; private set; }
 
     private StorageBucket() { }
 
@@ -48,8 +47,7 @@ public sealed class StorageBucket : Entity<StorageBucketId>, ITenantScoped
                 ? null
                 : JsonSerializer.Serialize(allowedContentTypes.ToList()),
             Retention = retention,
-            Versioning = versioning,
-            CreatedAt = DateTime.UtcNow
+            Versioning = versioning
         };
     }
 

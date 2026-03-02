@@ -60,7 +60,8 @@ public sealed class Subscription : AggregateRoot<SubscriptionId>, ITenantScoped,
         Money price,
         DateTime startDate,
         DateTime periodEnd,
-        Guid createdByUserId)
+        Guid createdByUserId,
+        TimeProvider timeProvider)
     {
         Id = SubscriptionId.New();
         UserId = userId;
@@ -70,7 +71,7 @@ public sealed class Subscription : AggregateRoot<SubscriptionId>, ITenantScoped,
         StartDate = startDate;
         CurrentPeriodStart = startDate;
         CurrentPeriodEnd = periodEnd;
-        SetCreated(createdByUserId);
+        SetCreated(timeProvider.GetUtcNow(), createdByUserId);
     }
 
     public static Subscription Create(
@@ -80,8 +81,14 @@ public sealed class Subscription : AggregateRoot<SubscriptionId>, ITenantScoped,
         DateTime startDate,
         DateTime periodEnd,
         Guid createdByUserId,
+        TimeProvider timeProvider,
         Dictionary<string, object>? customFields = null)
     {
+        if (userId == Guid.Empty)
+        {
+            throw new BusinessRuleException("Billing.UserIdRequired", "User ID is required");
+        }
+
         if (string.IsNullOrWhiteSpace(planName))
         {
             throw new BusinessRuleException(
@@ -89,7 +96,7 @@ public sealed class Subscription : AggregateRoot<SubscriptionId>, ITenantScoped,
                 "Subscription plan name cannot be empty");
         }
 
-        Subscription subscription = new Subscription(userId, planName, price, startDate, periodEnd, createdByUserId);
+        Subscription subscription = new Subscription(userId, planName, price, startDate, periodEnd, createdByUserId, timeProvider);
         subscription.CustomFields = customFields;
 
         subscription.RaiseDomainEvent(new SubscriptionCreatedDomainEvent(
@@ -102,7 +109,7 @@ public sealed class Subscription : AggregateRoot<SubscriptionId>, ITenantScoped,
         return subscription;
     }
 
-    public void Renew(DateTime newPeriodEnd, Guid updatedByUserId)
+    public void Renew(DateTime newPeriodEnd, Guid updatedByUserId, TimeProvider timeProvider)
     {
         if (Status != SubscriptionStatus.Active)
         {
@@ -113,10 +120,10 @@ public sealed class Subscription : AggregateRoot<SubscriptionId>, ITenantScoped,
 
         CurrentPeriodStart = CurrentPeriodEnd;
         CurrentPeriodEnd = newPeriodEnd;
-        SetUpdated(updatedByUserId);
+        SetUpdated(timeProvider.GetUtcNow(), updatedByUserId);
     }
 
-    public void MarkPastDue(Guid updatedByUserId)
+    public void MarkPastDue(Guid updatedByUserId, TimeProvider timeProvider)
     {
         if (Status != SubscriptionStatus.Active)
         {
@@ -126,10 +133,10 @@ public sealed class Subscription : AggregateRoot<SubscriptionId>, ITenantScoped,
         }
 
         Status = SubscriptionStatus.PastDue;
-        SetUpdated(updatedByUserId);
+        SetUpdated(timeProvider.GetUtcNow(), updatedByUserId);
     }
 
-    public void Cancel(Guid cancelledByUserId)
+    public void Cancel(Guid cancelledByUserId, TimeProvider timeProvider)
     {
         if (Status is SubscriptionStatus.Cancelled or SubscriptionStatus.Expired)
         {
@@ -139,8 +146,8 @@ public sealed class Subscription : AggregateRoot<SubscriptionId>, ITenantScoped,
         }
 
         Status = SubscriptionStatus.Cancelled;
-        CancelledAt = DateTime.UtcNow;
-        SetUpdated(cancelledByUserId);
+        CancelledAt = timeProvider.GetUtcNow().UtcDateTime;
+        SetUpdated(timeProvider.GetUtcNow(), cancelledByUserId);
 
         RaiseDomainEvent(new SubscriptionCancelledDomainEvent(
             Id.Value,
@@ -148,7 +155,7 @@ public sealed class Subscription : AggregateRoot<SubscriptionId>, ITenantScoped,
             CancelledAt.Value));
     }
 
-    public void Expire(Guid updatedByUserId)
+    public void Expire(Guid updatedByUserId, TimeProvider timeProvider)
     {
         if (Status is not (SubscriptionStatus.Active or SubscriptionStatus.PastDue))
         {
@@ -158,7 +165,7 @@ public sealed class Subscription : AggregateRoot<SubscriptionId>, ITenantScoped,
         }
 
         Status = SubscriptionStatus.Expired;
-        EndDate = DateTime.UtcNow;
-        SetUpdated(updatedByUserId);
+        EndDate = timeProvider.GetUtcNow().UtcDateTime;
+        SetUpdated(timeProvider.GetUtcNow(), updatedByUserId);
     }
 }

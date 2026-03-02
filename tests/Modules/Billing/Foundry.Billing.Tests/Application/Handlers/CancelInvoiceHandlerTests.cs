@@ -16,14 +16,14 @@ public class CancelInvoiceHandlerTests
     public CancelInvoiceHandlerTests()
     {
         _repository = Substitute.For<IInvoiceRepository>();
-        _handler = new CancelInvoiceHandler(_repository);
+        _handler = new CancelInvoiceHandler(_repository, TimeProvider.System);
     }
 
     [Fact]
     public async Task Handle_WithExistingInvoice_CancelsAndReturnsSuccess()
     {
         Guid userId = Guid.NewGuid();
-        Invoice invoice = Invoice.Create(userId, "INV-001", "USD", userId);
+        Invoice invoice = Invoice.Create(userId, "INV-001", "USD", userId, TimeProvider.System);
 
         _repository.GetByIdAsync(Arg.Any<InvoiceId>(), Arg.Any<CancellationToken>())
             .Returns(invoice);
@@ -60,9 +60,9 @@ public class CancelInvoiceHandlerTests
     public async Task Handle_WithIssuedInvoice_CancelsSuccessfully()
     {
         Guid userId = Guid.NewGuid();
-        Invoice invoice = Invoice.Create(userId, "INV-002", "USD", userId);
-        invoice.AddLineItem("Service", Money.Create(100m, "USD"), 1, userId);
-        invoice.Issue(userId);
+        Invoice invoice = Invoice.Create(userId, "INV-002", "USD", userId, TimeProvider.System);
+        invoice.AddLineItem("Service", Money.Create(100m, "USD"), 1, userId, TimeProvider.System);
+        invoice.Issue(userId, TimeProvider.System);
 
         _repository.GetByIdAsync(Arg.Any<InvoiceId>(), Arg.Any<CancellationToken>())
             .Returns(invoice);

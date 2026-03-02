@@ -15,7 +15,7 @@ public class CreateAnnouncementHandlerTests
     public CreateAnnouncementHandlerTests()
     {
         _repository = Substitute.For<IAnnouncementRepository>();
-        _handler = new CreateAnnouncementHandler(_repository);
+        _handler = new CreateAnnouncementHandler(_repository, TimeProvider.System);
     }
 
     [Fact]

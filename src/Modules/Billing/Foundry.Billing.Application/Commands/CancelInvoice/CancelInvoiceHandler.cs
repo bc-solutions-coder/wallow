@@ -8,7 +8,8 @@ using Foundry.Shared.Kernel.Results;
 namespace Foundry.Billing.Application.Commands.CancelInvoice;
 
 public sealed class CancelInvoiceHandler(
-    IInvoiceRepository invoiceRepository)
+    IInvoiceRepository invoiceRepository,
+    TimeProvider timeProvider)
 {
     public async Task<Result<InvoiceDto>> Handle(
         CancelInvoiceCommand command,
@@ -23,7 +24,7 @@ public sealed class CancelInvoiceHandler(
                 Error.NotFound("Invoice", command.InvoiceId));
         }
 
-        invoice.Cancel(command.CancelledByUserId);
+        invoice.Cancel(command.CancelledByUserId, timeProvider);
         await invoiceRepository.SaveChangesAsync(cancellationToken);
 
         return Result.Success(invoice.ToDto());

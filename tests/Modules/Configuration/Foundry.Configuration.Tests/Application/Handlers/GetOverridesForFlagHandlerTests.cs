@@ -23,8 +23,8 @@ public class GetOverridesForFlagHandlerTests
     {
         FeatureFlagId flagId = FeatureFlagId.New();
         Guid tenantId = Guid.NewGuid();
-        FeatureFlagOverride over1 = FeatureFlagOverride.CreateForTenant(flagId, tenantId, true);
-        FeatureFlagOverride over2 = FeatureFlagOverride.CreateForUser(flagId, Guid.NewGuid(), false);
+        FeatureFlagOverride over1 = FeatureFlagOverride.CreateForTenant(flagId, tenantId, true, TimeProvider.System);
+        FeatureFlagOverride over2 = FeatureFlagOverride.CreateForUser(flagId, Guid.NewGuid(), false, TimeProvider.System);
 
         _repository.GetOverridesForFlagAsync(Arg.Any<FeatureFlagId>(), Arg.Any<CancellationToken>())
             .Returns(new List<FeatureFlagOverride> { over1, over2 });
@@ -56,7 +56,7 @@ public class GetOverridesForFlagHandlerTests
     {
         FeatureFlagId flagId = FeatureFlagId.New();
         Guid tenantId = Guid.NewGuid();
-        FeatureFlagOverride over = FeatureFlagOverride.CreateForTenant(flagId, tenantId, true, "variant_a");
+        FeatureFlagOverride over = FeatureFlagOverride.CreateForTenant(flagId, tenantId, true, TimeProvider.System, "variant_a");
 
         _repository.GetOverridesForFlagAsync(Arg.Any<FeatureFlagId>(), Arg.Any<CancellationToken>())
             .Returns(new List<FeatureFlagOverride> { over });

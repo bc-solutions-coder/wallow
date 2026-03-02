@@ -22,7 +22,7 @@ public class GetInvoiceByIdHandlerTests
     public async Task Handle_WhenInvoiceExists_ReturnsInvoiceDto()
     {
         Guid userId = Guid.NewGuid();
-        Invoice invoice = Invoice.Create(userId, "INV-001", "USD", userId);
+        Invoice invoice = Invoice.Create(userId, "INV-001", "USD", userId, TimeProvider.System);
 
         _repository.GetByIdWithLineItemsAsync(Arg.Any<InvoiceId>(), Arg.Any<CancellationToken>())
             .Returns(invoice);

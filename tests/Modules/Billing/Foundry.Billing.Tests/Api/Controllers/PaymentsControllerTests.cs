@@ -6,6 +6,7 @@ using Foundry.Billing.Application.DTOs;
 using Foundry.Billing.Application.Queries.GetPaymentById;
 using Foundry.Billing.Application.Queries.GetPaymentsByInvoiceId;
 using Foundry.Shared.Kernel.Results;
+using Foundry.Shared.Kernel.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Wolverine;
@@ -15,13 +16,16 @@ namespace Foundry.Billing.Tests.Api.Controllers;
 public class PaymentsControllerTests
 {
     private readonly IMessageBus _bus;
+    private readonly ICurrentUserService _currentUserService;
     private readonly PaymentsController _controller;
     private readonly Guid _userId = Guid.NewGuid();
 
     public PaymentsControllerTests()
     {
         _bus = Substitute.For<IMessageBus>();
-        _controller = new PaymentsController(_bus);
+        _currentUserService = Substitute.For<ICurrentUserService>();
+        _currentUserService.GetCurrentUserId().Returns(_userId);
+        _controller = new PaymentsController(_bus, _currentUserService);
 
         ClaimsPrincipal user = new ClaimsPrincipal(new ClaimsIdentity(new[]
         {
@@ -262,26 +266,15 @@ public class PaymentsControllerTests
     }
 
     [Fact]
-    public async Task ProcessPayment_WithNoUserClaims_PassesEmptyGuidAsUserId()
+    public async Task ProcessPayment_WithNoUserClaims_ReturnsUnauthorized()
     {
-        _controller.ControllerContext = new ControllerContext
-        {
-            HttpContext = new DefaultHttpContext
-            {
-                User = new ClaimsPrincipal(new ClaimsIdentity())
-            }
-        };
+        _currentUserService.GetCurrentUserId().Returns((Guid?)null);
         Guid invoiceId = Guid.NewGuid();
         ProcessPaymentRequest request = new(100.00m, "USD", "CreditCard");
-        PaymentDto dto = CreatePaymentDto(invoiceId: invoiceId);
-        _bus.InvokeAsync<Result<PaymentDto>>(Arg.Any<ProcessPaymentCommand>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success(dto));
 
-        await _controller.ProcessPayment(invoiceId, request, CancellationToken.None);
+        IActionResult result = await _controller.ProcessPayment(invoiceId, request, CancellationToken.None);
 
-        await _bus.Received(1).InvokeAsync<Result<PaymentDto>>(
-            Arg.Is<ProcessPaymentCommand>(c => c.UserId == Guid.Empty),
-            Arg.Any<CancellationToken>());
+        result.Should().BeOfType<UnauthorizedResult>();
     }
 
     #endregion

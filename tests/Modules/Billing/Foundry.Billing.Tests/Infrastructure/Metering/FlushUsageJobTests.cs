@@ -40,7 +40,7 @@ public class FlushUsageJobTests
 
         _tenantContextFactory.CreateScope(Arg.Any<TenantId>()).Returns(Substitute.For<IDisposable>());
 
-        _job = new FlushUsageJob(_redis, _usageRepository, _messageBus, _tenantContextFactory, _logger);
+        _job = new FlushUsageJob(_redis, _usageRepository, _messageBus, _tenantContextFactory, TimeProvider.System, _logger);
     }
 
     [Fact]
@@ -153,12 +153,7 @@ public class FlushUsageJobTests
         _database.StringGetSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<CommandFlags>())
             .Returns(new RedisValue("100"));
 
-        UsageRecord existingRecord = UsageRecord.Create(
-            tenantId,
-            "api.calls",
-            new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc),
-            new DateTime(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc),
-            500);
+        UsageRecord existingRecord = UsageRecord.Create(tenantId, "api.calls", new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc), new DateTime(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc), 500, TimeProvider.System);
 
         _usageRepository.GetForPeriodAsync(
                 "api.calls",

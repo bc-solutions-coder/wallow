@@ -11,6 +11,7 @@ using Foundry.Communications.Application.Messaging.Queries.GetMessages;
 using Foundry.Communications.Application.Messaging.Queries.GetUnreadConversationCount;
 using Foundry.Shared.Infrastructure.Services;
 using Foundry.Shared.Kernel.Results;
+using Foundry.Shared.Kernel.Services;
 using Foundry.Shared.Kernel.Identity.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -30,11 +31,13 @@ public class ConversationsController : ControllerBase
 {
     private readonly IMessageBus _bus;
     private readonly IHtmlSanitizationService _sanitizer;
+    private readonly ICurrentUserService _currentUserService;
 
-    public ConversationsController(IMessageBus bus, IHtmlSanitizationService sanitizer)
+    public ConversationsController(IMessageBus bus, IHtmlSanitizationService sanitizer, ICurrentUserService currentUserService)
     {
         _bus = bus;
         _sanitizer = sanitizer;
+        _currentUserService = currentUserService;
     }
 
     [HttpPost]
@@ -46,7 +49,7 @@ public class ConversationsController : ControllerBase
         [FromBody] CreateConversationRequest request,
         CancellationToken cancellationToken)
     {
-        Guid? userId = GetCurrentUserId();
+        Guid? userId = _currentUserService.GetCurrentUserId();
         if (userId is null)
         {
             return Unauthorized();
@@ -76,7 +79,7 @@ public class ConversationsController : ControllerBase
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        Guid? userId = GetCurrentUserId();
+        Guid? userId = _currentUserService.GetCurrentUserId();
         if (userId is null)
         {
             return Unauthorized();
@@ -100,7 +103,7 @@ public class ConversationsController : ControllerBase
         [FromQuery] int pageSize = 50,
         CancellationToken cancellationToken = default)
     {
-        Guid? userId = GetCurrentUserId();
+        Guid? userId = _currentUserService.GetCurrentUserId();
         if (userId is null)
         {
             return Unauthorized();
@@ -129,7 +132,7 @@ public class ConversationsController : ControllerBase
         [FromBody] SendMessageRequest request,
         CancellationToken cancellationToken)
     {
-        Guid? userId = GetCurrentUserId();
+        Guid? userId = _currentUserService.GetCurrentUserId();
         if (userId is null)
         {
             return Unauthorized();
@@ -150,7 +153,7 @@ public class ConversationsController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> MarkAsRead(Guid id, CancellationToken cancellationToken)
     {
-        Guid? userId = GetCurrentUserId();
+        Guid? userId = _currentUserService.GetCurrentUserId();
         if (userId is null)
         {
             return Unauthorized();
@@ -168,7 +171,7 @@ public class ConversationsController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> GetUnreadCount(CancellationToken cancellationToken)
     {
-        Guid? userId = GetCurrentUserId();
+        Guid? userId = _currentUserService.GetCurrentUserId();
         if (userId is null)
         {
             return Unauthorized();
@@ -178,19 +181,6 @@ public class ConversationsController : ControllerBase
             new GetUnreadConversationCountQuery(userId.Value), cancellationToken);
 
         return result.Map(count => new UnreadCountResponse(count)).ToActionResult();
-    }
-
-    private Guid? GetCurrentUserId()
-    {
-        string? userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
-            ?? User.FindFirst("sub")?.Value;
-
-        if (userIdClaim is null || !Guid.TryParse(userIdClaim, out Guid userId))
-        {
-            return null;
-        }
-
-        return userId;
     }
 
     private static ConversationResponse ToConversationResponse(ConversationDto dto) => new(

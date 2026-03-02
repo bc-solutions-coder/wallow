@@ -25,8 +25,8 @@ public class GetUsageHistoryHandlerTests
         DateTime to = DateTime.UtcNow;
         TenantId tenantId = TenantId.Create(Guid.NewGuid());
 
-        UsageRecord record1 = UsageRecord.Create(tenantId, "api.calls", from, from.AddDays(1), 100);
-        UsageRecord record2 = UsageRecord.Create(tenantId, "api.calls", from.AddDays(1), from.AddDays(2), 200);
+        UsageRecord record1 = UsageRecord.Create(tenantId, "api.calls", from, from.AddDays(1), 100, TimeProvider.System);
+        UsageRecord record2 = UsageRecord.Create(tenantId, "api.calls", from.AddDays(1), from.AddDays(2), 200, TimeProvider.System);
 
         _usageRepository.GetHistoryAsync("api.calls", from, to, Arg.Any<CancellationToken>())
             .Returns(new[] { record1, record2 });
@@ -83,7 +83,7 @@ public class GetUsageHistoryHandlerTests
         DateTime to = DateTime.UtcNow;
         TenantId tenantId = TenantId.Create(Guid.NewGuid());
 
-        UsageRecord record = UsageRecord.Create(tenantId, "api.calls", from, to, 500);
+        UsageRecord record = UsageRecord.Create(tenantId, "api.calls", from, to, 500, TimeProvider.System);
 
         _usageRepository.GetHistoryAsync("api.calls", from, to, Arg.Any<CancellationToken>())
             .Returns(new[] { record });

@@ -24,13 +24,16 @@ public sealed class AnnouncementTargetingService : IAnnouncementTargetingService
 {
     private readonly IAnnouncementRepository _announcementRepository;
     private readonly IAnnouncementDismissalRepository _dismissalRepository;
+    private readonly TimeProvider _timeProvider;
 
     public AnnouncementTargetingService(
         IAnnouncementRepository announcementRepository,
-        IAnnouncementDismissalRepository dismissalRepository)
+        IAnnouncementDismissalRepository dismissalRepository,
+        TimeProvider timeProvider)
     {
         _announcementRepository = announcementRepository;
         _dismissalRepository = dismissalRepository;
+        _timeProvider = timeProvider;
     }
 
     public async Task<IReadOnlyList<AnnouncementDto>> GetActiveAnnouncementsForUserAsync(
@@ -41,7 +44,7 @@ public sealed class AnnouncementTargetingService : IAnnouncementTargetingService
         IReadOnlyList<AnnouncementDismissal> dismissals = await _dismissalRepository.GetByUserIdAsync(userContext.UserId, ct);
         HashSet<AnnouncementId> dismissedIds = dismissals.Select(d => d.AnnouncementId).ToHashSet();
 
-        DateTime now = DateTime.UtcNow;
+        DateTime now = _timeProvider.GetUtcNow().UtcDateTime;
 
         return announcements
             .Where(a => IsActiveAndNotExpired(a, now))

@@ -10,6 +10,7 @@ using Foundry.Shared.Kernel.Pagination;
 using Foundry.Shared.Kernel.Results;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Foundry.Shared.Kernel.Services;
 using Wolverine;
 
 namespace Foundry.Communications.Tests.Api.Controllers;
@@ -17,13 +18,16 @@ namespace Foundry.Communications.Tests.Api.Controllers;
 public class NotificationsControllerTests
 {
     private readonly IMessageBus _bus;
+    private readonly ICurrentUserService _currentUserService;
     private readonly NotificationsController _controller;
     private readonly Guid _userId = Guid.NewGuid();
 
     public NotificationsControllerTests()
     {
         _bus = Substitute.For<IMessageBus>();
-        _controller = new NotificationsController(_bus);
+        _currentUserService = Substitute.For<ICurrentUserService>();
+        _currentUserService.GetCurrentUserId().Returns(_userId);
+        _controller = new NotificationsController(_bus, _currentUserService);
 
         ClaimsPrincipal user = new ClaimsPrincipal(new ClaimsIdentity(new[]
         {
@@ -63,6 +67,7 @@ public class NotificationsControllerTests
             HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity()) }
         };
 
+        _currentUserService.GetCurrentUserId().Returns((Guid?)null);
         IActionResult result = await _controller.GetNotifications(cancellationToken: CancellationToken.None);
 
         result.Should().BeOfType<UnauthorizedResult>();
@@ -131,6 +136,7 @@ public class NotificationsControllerTests
             }
         };
 
+        _currentUserService.GetCurrentUserId().Returns((Guid?)null);
         IActionResult result = await _controller.GetNotifications(cancellationToken: CancellationToken.None);
 
         result.Should().BeOfType<UnauthorizedResult>();
@@ -150,6 +156,7 @@ public class NotificationsControllerTests
                 }, "TestAuth"))
             }
         };
+        _currentUserService.GetCurrentUserId().Returns(subUserId);
         PagedResult<NotificationDto> pagedResult = new(new List<NotificationDto>(), 0, 1, 20);
         _bus.InvokeAsync<Result<PagedResult<NotificationDto>>>(Arg.Any<GetUserNotificationsQuery>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(pagedResult));
@@ -186,6 +193,7 @@ public class NotificationsControllerTests
             HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity()) }
         };
 
+        _currentUserService.GetCurrentUserId().Returns((Guid?)null);
         IActionResult result = await _controller.GetUnreadCount(CancellationToken.None);
 
         result.Should().BeOfType<UnauthorizedResult>();
@@ -241,6 +249,7 @@ public class NotificationsControllerTests
             HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity()) }
         };
 
+        _currentUserService.GetCurrentUserId().Returns((Guid?)null);
         IActionResult result = await _controller.MarkAsRead(Guid.NewGuid(), CancellationToken.None);
 
         result.Should().BeOfType<UnauthorizedResult>();
@@ -283,6 +292,7 @@ public class NotificationsControllerTests
             HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity()) }
         };
 
+        _currentUserService.GetCurrentUserId().Returns((Guid?)null);
         IActionResult result = await _controller.MarkAllAsRead(CancellationToken.None);
 
         result.Should().BeOfType<UnauthorizedResult>();

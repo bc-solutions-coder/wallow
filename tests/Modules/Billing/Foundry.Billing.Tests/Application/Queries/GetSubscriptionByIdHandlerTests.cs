@@ -23,13 +23,7 @@ public class GetSubscriptionByIdHandlerTests
     public async Task Handle_WhenSubscriptionExists_ReturnsSubscriptionDto()
     {
         Guid userId = Guid.NewGuid();
-        Subscription subscription = Subscription.Create(
-            userId,
-            "Pro Plan",
-            Money.Create(29.99m, "USD"),
-            DateTime.UtcNow,
-            DateTime.UtcNow.AddMonths(1),
-            userId);
+        Subscription subscription = Subscription.Create(userId, "Pro Plan", Money.Create(29.99m, "USD"), DateTime.UtcNow, DateTime.UtcNow.AddMonths(1), userId, TimeProvider.System);
 
         _repository.GetByIdAsync(Arg.Any<SubscriptionId>(), Arg.Any<CancellationToken>())
             .Returns(subscription);

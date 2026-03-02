@@ -20,7 +20,9 @@ public sealed record CreateAnnouncementCommand(
     string? ActionLabel,
     string? ImageUrl);
 
-public sealed class CreateAnnouncementHandler(IAnnouncementRepository repository)
+public sealed class CreateAnnouncementHandler(
+    IAnnouncementRepository repository,
+    TimeProvider timeProvider)
 {
     public async Task<Result<AnnouncementDto>> Handle(CreateAnnouncementCommand command, CancellationToken ct)
     {
@@ -28,6 +30,7 @@ public sealed class CreateAnnouncementHandler(IAnnouncementRepository repository
             command.Title,
             command.Content,
             command.Type,
+            timeProvider,
             command.Target,
             command.TargetValue,
             command.PublishAt,

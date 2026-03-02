@@ -11,7 +11,7 @@ public class FeatureFlagOverrideCreateForTenantTests
         FeatureFlagId flagId = FeatureFlagId.New();
         Guid tenantId = Guid.NewGuid();
 
-        FeatureFlagOverride overrideEntity = FeatureFlagOverride.CreateForTenant(flagId, tenantId, true);
+        FeatureFlagOverride overrideEntity = FeatureFlagOverride.CreateForTenant(flagId, tenantId, true, TimeProvider.System);
 
         overrideEntity.FlagId.Should().Be(flagId);
         overrideEntity.TenantId.Should().Be(tenantId);
@@ -28,7 +28,7 @@ public class FeatureFlagOverrideCreateForTenantTests
         FeatureFlagId flagId = FeatureFlagId.New();
         Guid tenantId = Guid.NewGuid();
 
-        FeatureFlagOverride overrideEntity = FeatureFlagOverride.CreateForTenant(flagId, tenantId, false);
+        FeatureFlagOverride overrideEntity = FeatureFlagOverride.CreateForTenant(flagId, tenantId, false, TimeProvider.System);
 
         overrideEntity.IsEnabled.Should().BeFalse();
     }
@@ -39,8 +39,7 @@ public class FeatureFlagOverrideCreateForTenantTests
         FeatureFlagId flagId = FeatureFlagId.New();
         Guid tenantId = Guid.NewGuid();
 
-        FeatureFlagOverride overrideEntity = FeatureFlagOverride.CreateForTenant(
-            flagId, tenantId, null, variant: "treatment");
+        FeatureFlagOverride overrideEntity = FeatureFlagOverride.CreateForTenant(flagId, tenantId, null, TimeProvider.System, variant: "treatment");
 
         overrideEntity.IsEnabled.Should().BeNull();
         overrideEntity.Variant.Should().Be("treatment");
@@ -53,8 +52,7 @@ public class FeatureFlagOverrideCreateForTenantTests
         Guid tenantId = Guid.NewGuid();
         DateTime expiresAt = DateTime.UtcNow.AddDays(7);
 
-        FeatureFlagOverride overrideEntity = FeatureFlagOverride.CreateForTenant(
-            flagId, tenantId, true, expiresAt: expiresAt);
+        FeatureFlagOverride overrideEntity = FeatureFlagOverride.CreateForTenant(flagId, tenantId, true, TimeProvider.System, expiresAt: expiresAt);
 
         overrideEntity.ExpiresAt.Should().BeCloseTo(expiresAt, TimeSpan.FromSeconds(1));
     }
@@ -68,7 +66,7 @@ public class FeatureFlagOverrideCreateForUserTests
         FeatureFlagId flagId = FeatureFlagId.New();
         Guid userId = Guid.NewGuid();
 
-        FeatureFlagOverride overrideEntity = FeatureFlagOverride.CreateForUser(flagId, userId, true);
+        FeatureFlagOverride overrideEntity = FeatureFlagOverride.CreateForUser(flagId, userId, true, TimeProvider.System);
 
         overrideEntity.FlagId.Should().Be(flagId);
         overrideEntity.TenantId.Should().BeNull();
@@ -82,8 +80,7 @@ public class FeatureFlagOverrideCreateForUserTests
         FeatureFlagId flagId = FeatureFlagId.New();
         Guid userId = Guid.NewGuid();
 
-        FeatureFlagOverride overrideEntity = FeatureFlagOverride.CreateForUser(
-            flagId, userId, null, variant: "control");
+        FeatureFlagOverride overrideEntity = FeatureFlagOverride.CreateForUser(flagId, userId, null, TimeProvider.System, variant: "control");
 
         overrideEntity.Variant.Should().Be("control");
         overrideEntity.UserId.Should().Be(userId);
@@ -99,8 +96,7 @@ public class FeatureFlagOverrideCreateForTenantUserTests
         Guid tenantId = Guid.NewGuid();
         Guid userId = Guid.NewGuid();
 
-        FeatureFlagOverride overrideEntity = FeatureFlagOverride.CreateForTenantUser(
-            flagId, tenantId, userId, true);
+        FeatureFlagOverride overrideEntity = FeatureFlagOverride.CreateForTenantUser(flagId, tenantId, userId, true, TimeProvider.System);
 
         overrideEntity.FlagId.Should().Be(flagId);
         overrideEntity.TenantId.Should().Be(tenantId);
@@ -116,8 +112,7 @@ public class FeatureFlagOverrideCreateForTenantUserTests
         Guid userId = Guid.NewGuid();
         DateTime expiresAt = DateTime.UtcNow.AddHours(24);
 
-        FeatureFlagOverride overrideEntity = FeatureFlagOverride.CreateForTenantUser(
-            flagId, tenantId, userId, null, variant: "treatment_b", expiresAt: expiresAt);
+        FeatureFlagOverride overrideEntity = FeatureFlagOverride.CreateForTenantUser(flagId, tenantId, userId, null, TimeProvider.System, variant: "treatment_b", expiresAt: expiresAt);
 
         overrideEntity.Variant.Should().Be("treatment_b");
         overrideEntity.ExpiresAt.Should().BeCloseTo(expiresAt, TimeSpan.FromSeconds(1));
@@ -133,10 +128,9 @@ public class FeatureFlagOverrideExpirationTests
         FeatureFlagId flagId = FeatureFlagId.New();
         DateTime pastExpiration = DateTime.UtcNow.AddMinutes(-1);
 
-        FeatureFlagOverride overrideEntity = FeatureFlagOverride.CreateForTenant(
-            flagId, Guid.NewGuid(), true, expiresAt: pastExpiration);
+        FeatureFlagOverride overrideEntity = FeatureFlagOverride.CreateForTenant(flagId, Guid.NewGuid(), true, TimeProvider.System, expiresAt: pastExpiration);
 
-        overrideEntity.IsExpired.Should().BeTrue();
+        overrideEntity.IsExpired(TimeProvider.System).Should().BeTrue();
     }
 
     [Fact]
@@ -145,10 +139,9 @@ public class FeatureFlagOverrideExpirationTests
         FeatureFlagId flagId = FeatureFlagId.New();
         DateTime futureExpiration = DateTime.UtcNow.AddDays(7);
 
-        FeatureFlagOverride overrideEntity = FeatureFlagOverride.CreateForTenant(
-            flagId, Guid.NewGuid(), true, expiresAt: futureExpiration);
+        FeatureFlagOverride overrideEntity = FeatureFlagOverride.CreateForTenant(flagId, Guid.NewGuid(), true, TimeProvider.System, expiresAt: futureExpiration);
 
-        overrideEntity.IsExpired.Should().BeFalse();
+        overrideEntity.IsExpired(TimeProvider.System).Should().BeFalse();
     }
 
     [Fact]
@@ -156,10 +149,9 @@ public class FeatureFlagOverrideExpirationTests
     {
         FeatureFlagId flagId = FeatureFlagId.New();
 
-        FeatureFlagOverride overrideEntity = FeatureFlagOverride.CreateForTenant(
-            flagId, Guid.NewGuid(), true);
+        FeatureFlagOverride overrideEntity = FeatureFlagOverride.CreateForTenant(flagId, Guid.NewGuid(), true, TimeProvider.System);
 
-        overrideEntity.IsExpired.Should().BeFalse();
+        overrideEntity.IsExpired(TimeProvider.System).Should().BeFalse();
     }
 }
 
@@ -170,8 +162,8 @@ public class FeatureFlagOverrideIdGenerationTests
     {
         FeatureFlagId flagId = FeatureFlagId.New();
 
-        FeatureFlagOverride override1 = FeatureFlagOverride.CreateForTenant(flagId, Guid.NewGuid(), true);
-        FeatureFlagOverride override2 = FeatureFlagOverride.CreateForUser(flagId, Guid.NewGuid(), false);
+        FeatureFlagOverride override1 = FeatureFlagOverride.CreateForTenant(flagId, Guid.NewGuid(), true, TimeProvider.System);
+        FeatureFlagOverride override2 = FeatureFlagOverride.CreateForUser(flagId, Guid.NewGuid(), false, TimeProvider.System);
 
         override1.Id.Should().NotBe(override2.Id);
     }

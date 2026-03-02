@@ -12,16 +12,16 @@ public sealed class AnnouncementDismissal : Entity<AnnouncementDismissalId>
 
     private AnnouncementDismissal() { }
 
-    private AnnouncementDismissal(AnnouncementId announcementId, UserId userId)
+    private AnnouncementDismissal(AnnouncementId announcementId, UserId userId, TimeProvider timeProvider)
         : base(AnnouncementDismissalId.New())
     {
         AnnouncementId = announcementId;
         UserId = userId;
-        DismissedAt = DateTime.UtcNow;
+        DismissedAt = timeProvider.GetUtcNow().UtcDateTime;
     }
 
-    public static AnnouncementDismissal Create(AnnouncementId announcementId, UserId userId)
+    public static AnnouncementDismissal Create(AnnouncementId announcementId, UserId userId, TimeProvider timeProvider)
     {
-        return new AnnouncementDismissal(announcementId, userId);
+        return new AnnouncementDismissal(announcementId, userId, timeProvider);
     }
 }

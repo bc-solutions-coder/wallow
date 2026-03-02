@@ -17,7 +17,7 @@ public sealed class ChangelogEntry : AggregateRoot<ChangelogEntryId>
 
     private ChangelogEntry() { }
 
-    private ChangelogEntry(string version, string title, string content, DateTime releasedAt)
+    private ChangelogEntry(string version, string title, string content, DateTime releasedAt, TimeProvider timeProvider)
         : base(ChangelogEntryId.New())
     {
         Version = version;
@@ -25,19 +25,19 @@ public sealed class ChangelogEntry : AggregateRoot<ChangelogEntryId>
         Content = content;
         ReleasedAt = releasedAt;
         IsPublished = false;
-        SetCreated();
+        SetCreated(timeProvider.GetUtcNow());
     }
 
-    public static ChangelogEntry Create(string version, string title, string content, DateTime releasedAt)
+    public static ChangelogEntry Create(string version, string title, string content, DateTime releasedAt, TimeProvider timeProvider)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(version);
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
         ArgumentException.ThrowIfNullOrWhiteSpace(content);
 
-        return new ChangelogEntry(version, title, content, releasedAt);
+        return new ChangelogEntry(version, title, content, releasedAt, timeProvider);
     }
 
-    public void Update(string version, string title, string content, DateTime releasedAt)
+    public void Update(string version, string title, string content, DateTime releasedAt, TimeProvider timeProvider)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(version);
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
@@ -47,36 +47,36 @@ public sealed class ChangelogEntry : AggregateRoot<ChangelogEntryId>
         Title = title;
         Content = content;
         ReleasedAt = releasedAt;
-        SetUpdated();
+        SetUpdated(timeProvider.GetUtcNow());
     }
 
-    public void Publish()
+    public void Publish(TimeProvider timeProvider)
     {
         IsPublished = true;
-        SetUpdated();
+        SetUpdated(timeProvider.GetUtcNow());
     }
 
-    public void Unpublish()
+    public void Unpublish(TimeProvider timeProvider)
     {
         IsPublished = false;
-        SetUpdated();
+        SetUpdated(timeProvider.GetUtcNow());
     }
 
-    public ChangelogItem AddItem(string description, ChangeType type)
+    public ChangelogItem AddItem(string description, ChangeType type, TimeProvider timeProvider)
     {
         ChangelogItem item = ChangelogItem.Create(Id, description, type);
         _items.Add(item);
-        SetUpdated();
+        SetUpdated(timeProvider.GetUtcNow());
         return item;
     }
 
-    public void RemoveItem(ChangelogItemId itemId)
+    public void RemoveItem(ChangelogItemId itemId, TimeProvider timeProvider)
     {
         ChangelogItem? item = _items.FirstOrDefault(i => i.Id == itemId);
         if (item is not null)
         {
             _items.Remove(item);
-            SetUpdated();
+            SetUpdated(timeProvider.GetUtcNow());
         }
     }
 }

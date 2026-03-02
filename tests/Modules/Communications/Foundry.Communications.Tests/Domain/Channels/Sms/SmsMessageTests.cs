@@ -14,7 +14,7 @@ public class SmsMessageCreateTests
         TenantId tenantId = TenantId.New();
         PhoneNumber to = PhoneNumber.Create("+14155551234");
 
-        SmsMessage message = SmsMessage.Create(tenantId, to, null, "Hello");
+        SmsMessage message = SmsMessage.Create(tenantId, to, null, "Hello", TimeProvider.System);
 
         message.TenantId.Should().Be(tenantId);
         message.To.Should().Be(to);
@@ -31,7 +31,7 @@ public class SmsMessageSendingTests
     {
         SmsMessage message = CreateTestMessage();
 
-        message.MarkAsSent();
+        message.MarkAsSent(TimeProvider.System);
 
         message.Status.Should().Be(SmsStatus.Sent);
     }
@@ -41,7 +41,7 @@ public class SmsMessageSendingTests
     {
         SmsMessage message = CreateTestMessage();
 
-        message.MarkAsSent();
+        message.MarkAsSent(TimeProvider.System);
 
         message.DomainEvents.Should().ContainSingle()
             .Which.Should().BeOfType<SmsSentDomainEvent>()
@@ -53,7 +53,7 @@ public class SmsMessageSendingTests
     {
         SmsMessage message = CreateTestMessage();
 
-        message.MarkAsFailed("Provider timeout");
+        message.MarkAsFailed("Provider timeout", TimeProvider.System);
 
         message.Status.Should().Be(SmsStatus.Failed);
         message.RetryCount.Should().Be(1);
@@ -64,7 +64,7 @@ public class SmsMessageSendingTests
     {
         SmsMessage message = CreateTestMessage();
 
-        message.MarkAsFailed("Provider timeout");
+        message.MarkAsFailed("Provider timeout", TimeProvider.System);
 
         message.DomainEvents.Should().ContainSingle()
             .Which.Should().BeOfType<SmsFailedDomainEvent>()
@@ -72,7 +72,7 @@ public class SmsMessageSendingTests
     }
 
     private static SmsMessage CreateTestMessage() =>
-        SmsMessage.Create(TenantId.New(), PhoneNumber.Create("+14155551234"), null, "Test body");
+        SmsMessage.Create(TenantId.New(), PhoneNumber.Create("+14155551234"), null, "Test body", TimeProvider.System);
 }
 
 public class SmsMessageRetryTests
@@ -84,10 +84,10 @@ public class SmsMessageRetryTests
             TenantId.New(),
             PhoneNumber.Create("+14155551234"),
             null,
-            "Test body");
-        message.MarkAsFailed("Error");
+            "Test body", TimeProvider.System);
+        message.MarkAsFailed("Error", TimeProvider.System);
 
-        message.ResetForRetry();
+        message.ResetForRetry(TimeProvider.System);
 
         message.Status.Should().Be(SmsStatus.Pending);
     }
@@ -99,10 +99,10 @@ public class SmsMessageRetryTests
             TenantId.New(),
             PhoneNumber.Create("+14155551234"),
             null,
-            "Test body");
+            "Test body", TimeProvider.System);
 
-        message.MarkAsFailed("Error 1");
-        message.MarkAsFailed("Error 2");
+        message.MarkAsFailed("Error 1", TimeProvider.System);
+        message.MarkAsFailed("Error 2", TimeProvider.System);
 
         message.RetryCount.Should().Be(2);
     }

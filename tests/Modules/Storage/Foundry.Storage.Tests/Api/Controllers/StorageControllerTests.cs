@@ -3,6 +3,7 @@ using Foundry.Shared.Contracts.Storage;
 using Foundry.Shared.Contracts.Storage.Commands;
 using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.MultiTenancy;
+using Foundry.Shared.Kernel.Services;
 using Foundry.Shared.Kernel.Results;
 using Foundry.Storage.Api.Contracts.Requests;
 using Foundry.Storage.Api.Contracts.Responses;
@@ -27,6 +28,7 @@ public class StorageControllerTests
 {
     private readonly IMessageBus _bus;
     private readonly ITenantContext _tenantContext;
+    private readonly ICurrentUserService _currentUserService;
     private readonly StorageController _controller;
     private readonly Guid _tenantId = Guid.NewGuid();
     private readonly Guid _userId = Guid.NewGuid();
@@ -36,8 +38,10 @@ public class StorageControllerTests
         _bus = Substitute.For<IMessageBus>();
         _tenantContext = Substitute.For<ITenantContext>();
         _tenantContext.TenantId.Returns(TenantId.Create(_tenantId));
+        _currentUserService = Substitute.For<ICurrentUserService>();
+        _currentUserService.GetCurrentUserId().Returns(_userId);
 
-        _controller = new StorageController(_bus, _tenantContext);
+        _controller = new StorageController(_bus, _tenantContext, _currentUserService);
 
         ClaimsPrincipal user = new ClaimsPrincipal(new ClaimsIdentity(new[]
         {
@@ -459,25 +463,14 @@ public class StorageControllerTests
     }
 
     [Fact]
-    public async Task Upload_WithNoUserClaims_PassesEmptyGuidAsUserId()
+    public async Task Upload_WithNoUserClaims_ReturnsUnauthorized()
     {
-        _controller.ControllerContext = new ControllerContext
-        {
-            HttpContext = new DefaultHttpContext
-            {
-                User = new ClaimsPrincipal(new ClaimsIdentity())
-            }
-        };
+        _currentUserService.GetCurrentUserId().Returns((Guid?)null);
         IFormFile file = CreateMockFormFile("test.txt", "text/plain", 100);
-        UploadResult uploadResult = new(Guid.NewGuid(), "test.txt", "key", 100, "text/plain", DateTime.UtcNow);
-        _bus.InvokeAsync<Result<UploadResult>>(Arg.Any<UploadFileCommand>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success(uploadResult));
 
-        await _controller.Upload(file, "test-bucket", cancellationToken: CancellationToken.None);
+        IActionResult result = await _controller.Upload(file, "test-bucket", cancellationToken: CancellationToken.None);
 
-        await _bus.Received(1).InvokeAsync<Result<UploadResult>>(
-            Arg.Is<UploadFileCommand>(c => c.UserId == Guid.Empty),
-            Arg.Any<CancellationToken>());
+        result.Should().BeOfType<UnauthorizedResult>();
     }
 
     [Fact]
@@ -494,6 +487,7 @@ public class StorageControllerTests
                 }, "TestAuth"))
             }
         };
+        _currentUserService.GetCurrentUserId().Returns(subUserId);
         IFormFile file = CreateMockFormFile("test.txt", "text/plain", 100);
         UploadResult uploadResult = new(Guid.NewGuid(), "test.txt", "key", 100, "text/plain", DateTime.UtcNow);
         _bus.InvokeAsync<Result<UploadResult>>(Arg.Any<UploadFileCommand>(), Arg.Any<CancellationToken>())
@@ -507,28 +501,14 @@ public class StorageControllerTests
     }
 
     [Fact]
-    public async Task Upload_WithNonGuidUserClaim_PassesEmptyGuidAsUserId()
+    public async Task Upload_WithNonGuidUserClaim_ReturnsUnauthorized()
     {
-        _controller.ControllerContext = new ControllerContext
-        {
-            HttpContext = new DefaultHttpContext
-            {
-                User = new ClaimsPrincipal(new ClaimsIdentity(new[]
-                {
-                    new Claim(ClaimTypes.NameIdentifier, "not-a-guid")
-                }, "TestAuth"))
-            }
-        };
+        _currentUserService.GetCurrentUserId().Returns((Guid?)null);
         IFormFile file = CreateMockFormFile("test.txt", "text/plain", 100);
-        UploadResult uploadResult = new(Guid.NewGuid(), "test.txt", "key", 100, "text/plain", DateTime.UtcNow);
-        _bus.InvokeAsync<Result<UploadResult>>(Arg.Any<UploadFileCommand>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success(uploadResult));
 
-        await _controller.Upload(file, "test-bucket", cancellationToken: CancellationToken.None);
+        IActionResult result = await _controller.Upload(file, "test-bucket", cancellationToken: CancellationToken.None);
 
-        await _bus.Received(1).InvokeAsync<Result<UploadResult>>(
-            Arg.Is<UploadFileCommand>(c => c.UserId == Guid.Empty),
-            Arg.Any<CancellationToken>());
+        result.Should().BeOfType<UnauthorizedResult>();
     }
 
     #endregion

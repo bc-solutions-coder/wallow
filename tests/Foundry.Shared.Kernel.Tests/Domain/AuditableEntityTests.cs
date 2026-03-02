@@ -10,10 +10,11 @@ public class AuditableEntityTests
     {
         Guid userId = Guid.NewGuid();
         TestAuditableEntity entity = new(TestAuditableEntityId.New());
+        DateTimeOffset timestamp = DateTimeOffset.UtcNow;
 
-        entity.SetCreated(userId);
+        entity.SetCreated(timestamp, userId);
 
-        entity.CreatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
+        entity.CreatedAt.Should().Be(timestamp.UtcDateTime);
         entity.CreatedBy.Should().Be(userId);
     }
 
@@ -21,10 +22,11 @@ public class AuditableEntityTests
     public void SetCreated_WithoutUserId_SetsCreatedAtAndNullCreatedBy()
     {
         TestAuditableEntity entity = new(TestAuditableEntityId.New());
+        DateTimeOffset timestamp = DateTimeOffset.UtcNow;
 
-        entity.SetCreated();
+        entity.SetCreated(timestamp);
 
-        entity.CreatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
+        entity.CreatedAt.Should().Be(timestamp.UtcDateTime);
         entity.CreatedBy.Should().BeNull();
     }
 
@@ -33,10 +35,11 @@ public class AuditableEntityTests
     {
         Guid userId = Guid.NewGuid();
         TestAuditableEntity entity = new(TestAuditableEntityId.New());
+        DateTimeOffset timestamp = DateTimeOffset.UtcNow;
 
-        entity.SetUpdated(userId);
+        entity.SetUpdated(timestamp, userId);
 
-        entity.UpdatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
+        entity.UpdatedAt.Should().Be(timestamp.UtcDateTime);
         entity.UpdatedBy.Should().Be(userId);
     }
 
@@ -44,10 +47,11 @@ public class AuditableEntityTests
     public void SetUpdated_WithoutUserId_SetsUpdatedAtAndNullUpdatedBy()
     {
         TestAuditableEntity entity = new(TestAuditableEntityId.New());
+        DateTimeOffset timestamp = DateTimeOffset.UtcNow;
 
-        entity.SetUpdated();
+        entity.SetUpdated(timestamp);
 
-        entity.UpdatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
+        entity.UpdatedAt.Should().Be(timestamp.UtcDateTime);
         entity.UpdatedBy.Should().BeNull();
     }
 
@@ -66,13 +70,14 @@ public class AuditableEntityTests
     }
 
     [Fact]
-    public void SetUpdated_WithNull_SetsUpdatedAtButLeavesUpdatedByNull()
+    public void SetUpdated_WithNullUserId_SetsUpdatedAtButLeavesUpdatedByNull()
     {
         TestAuditableEntity entity = new(TestAuditableEntityId.New());
+        DateTimeOffset timestamp = DateTimeOffset.UtcNow;
 
-        entity.SetUpdated(null);
+        entity.SetUpdated(timestamp, null);
 
-        entity.UpdatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
+        entity.UpdatedAt.Should().Be(timestamp.UtcDateTime);
         entity.UpdatedBy.Should().BeNull();
     }
 

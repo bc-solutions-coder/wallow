@@ -102,6 +102,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Communications", "Communica
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Foundry.Communications.Tests", "tests\Modules\Communications\Foundry.Communications.Tests\Foundry.Communications.Tests.csproj", "{AFF55514-1F01-4187-ADDE-894DA8739389}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Foundry.Shared.Api", "src\Shared\Foundry.Shared.Api\Foundry.Shared.Api.csproj", "{5FBE5292-E587-4AF0-AAC7-FF998D799134}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -544,6 +546,18 @@ Global
 		{AFF55514-1F01-4187-ADDE-894DA8739389}.Release|x64.Build.0 = Release|Any CPU
 		{AFF55514-1F01-4187-ADDE-894DA8739389}.Release|x86.ActiveCfg = Release|Any CPU
 		{AFF55514-1F01-4187-ADDE-894DA8739389}.Release|x86.Build.0 = Release|Any CPU
+		{5FBE5292-E587-4AF0-AAC7-FF998D799134}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5FBE5292-E587-4AF0-AAC7-FF998D799134}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5FBE5292-E587-4AF0-AAC7-FF998D799134}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{5FBE5292-E587-4AF0-AAC7-FF998D799134}.Debug|x64.Build.0 = Debug|Any CPU
+		{5FBE5292-E587-4AF0-AAC7-FF998D799134}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{5FBE5292-E587-4AF0-AAC7-FF998D799134}.Debug|x86.Build.0 = Debug|Any CPU
+		{5FBE5292-E587-4AF0-AAC7-FF998D799134}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5FBE5292-E587-4AF0-AAC7-FF998D799134}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5FBE5292-E587-4AF0-AAC7-FF998D799134}.Release|x64.ActiveCfg = Release|Any CPU
+		{5FBE5292-E587-4AF0-AAC7-FF998D799134}.Release|x64.Build.0 = Release|Any CPU
+		{5FBE5292-E587-4AF0-AAC7-FF998D799134}.Release|x86.ActiveCfg = Release|Any CPU
+		{5FBE5292-E587-4AF0-AAC7-FF998D799134}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -598,5 +612,6 @@ Global
 		{1C373D88-4C08-44C8-A934-F1CAF8AA9484} = {786F9D16-09BD-75CC-F087-67E6593D2CF6}
 		{17FAF682-7EF8-22E1-9C6A-58E0F43F25C2} = {D7DC9B74-6BC4-2470-2038-1E57C2DCB73B}
 		{AFF55514-1F01-4187-ADDE-894DA8739389} = {17FAF682-7EF8-22E1-9C6A-58E0F43F25C2}
+		{5FBE5292-E587-4AF0-AAC7-FF998D799134} = {C8E42992-5E42-0C2B-DBFE-AA848D06431C}
 	EndGlobalSection
 EndGlobal

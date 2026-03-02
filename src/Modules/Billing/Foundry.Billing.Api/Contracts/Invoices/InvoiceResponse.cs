@@ -9,8 +9,8 @@ public sealed record InvoiceResponse(
     string Currency,
     DateTime? DueDate,
     DateTime? PaidAt,
-    DateTime CreatedAt,
-    DateTime? UpdatedAt,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? UpdatedAt,
     IReadOnlyList<InvoiceLineItemResponse> LineItems);
 
 public sealed record InvoiceLineItemResponse(

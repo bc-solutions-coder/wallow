@@ -21,7 +21,7 @@ public class CreateFeatureFlagHandlerTests
         _repository = Substitute.For<IFeatureFlagRepository>();
         _cache = Substitute.For<IDistributedCache>();
         _bus = Substitute.For<IMessageBus>();
-        _handler = new CreateFeatureFlagHandler(_repository, _cache, _bus);
+        _handler = new CreateFeatureFlagHandler(_repository, _cache, _bus, TimeProvider.System);
     }
 
     [Fact]
@@ -52,7 +52,7 @@ public class CreateFeatureFlagHandlerTests
     [Fact]
     public async Task Handle_WithDuplicateKey_ReturnsConflictFailure()
     {
-        FeatureFlag existing = FeatureFlag.CreateBoolean("dark_mode", "Dark Mode", true);
+        FeatureFlag existing = FeatureFlag.CreateBoolean("dark_mode", "Dark Mode", true, TimeProvider.System);
 
         CreateFeatureFlagCommand command = new(
             Key: "dark_mode",

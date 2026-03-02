@@ -17,7 +17,7 @@ public class AnnouncementTargetingServiceTests
     {
         _announcementRepository = Substitute.For<IAnnouncementRepository>();
         _dismissalRepository = Substitute.For<IAnnouncementDismissalRepository>();
-        _service = new AnnouncementTargetingService(_announcementRepository, _dismissalRepository);
+        _service = new AnnouncementTargetingService(_announcementRepository, _dismissalRepository, TimeProvider.System);
     }
 
     [Fact]
@@ -61,7 +61,7 @@ public class AnnouncementTargetingServiceTests
         Announcement announcement = CreatePublishedAnnouncement("Dismissible", AnnouncementTarget.All, isDismissible: true);
 
         UserId userId = UserId.Create(Guid.NewGuid());
-        AnnouncementDismissal dismissal = AnnouncementDismissal.Create(announcement.Id, userId);
+        AnnouncementDismissal dismissal = AnnouncementDismissal.Create(announcement.Id, userId, TimeProvider.System);
 
         _announcementRepository.GetPublishedAsync(Arg.Any<CancellationToken>())
             .Returns(new List<Announcement> { announcement });
@@ -266,11 +266,8 @@ public class AnnouncementTargetingServiceTests
         bool isPinned = false,
         bool isDismissible = true)
     {
-        Announcement announcement = Announcement.Create(
-            title, "Content", AnnouncementType.Feature,
-            target, targetValue, null, expiresAt,
-            isPinned, isDismissible);
-        announcement.Publish();
+        Announcement announcement = Announcement.Create(title, "Content", AnnouncementType.Feature, TimeProvider.System, target, targetValue, null, expiresAt, isPinned, isDismissible);
+        announcement.Publish(TimeProvider.System);
         return announcement;
     }
 

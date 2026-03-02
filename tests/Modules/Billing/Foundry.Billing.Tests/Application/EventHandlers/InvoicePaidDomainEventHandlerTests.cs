@@ -35,18 +35,9 @@ public class InvoicePaidDomainEventHandlerTests
         Guid tenantId = Guid.NewGuid();
         DateTime paidAt = DateTime.UtcNow;
 
-        Invoice invoice = Invoice.Create(
-            userId,
-            "INV-001",
-            "USD",
-            userId,
-            DateTime.UtcNow.AddDays(30));
+        Invoice invoice = Invoice.Create(userId, "INV-001", "USD", userId, TimeProvider.System, DateTime.UtcNow.AddDays(30));
 
-        invoice.AddLineItem(
-            "Test Item",
-            Money.Create(100m, "USD"),
-            1,
-            userId);
+        invoice.AddLineItem("Test Item", Money.Create(100m, "USD"), 1, userId, TimeProvider.System);
 
         InvoicePaidDomainEvent domainEvent = new InvoicePaidDomainEvent(
             invoiceId,
@@ -132,12 +123,7 @@ public class InvoicePaidDomainEventHandlerTests
             Guid.NewGuid(),
             DateTime.UtcNow);
 
-        Invoice invoice = Invoice.Create(
-            Guid.NewGuid(),
-            "INV-001",
-            "USD",
-            Guid.NewGuid(),
-            DateTime.UtcNow.AddDays(30));
+        Invoice invoice = Invoice.Create(Guid.NewGuid(), "INV-001", "USD", Guid.NewGuid(), TimeProvider.System, DateTime.UtcNow.AddDays(30));
 
         _invoiceRepository.GetByIdAsync(InvoiceId.Create(invoiceId), Arg.Any<CancellationToken>())
             .Returns(invoice);
@@ -163,12 +149,7 @@ public class InvoicePaidDomainEventHandlerTests
             Guid.NewGuid(),
             DateTime.UtcNow);
 
-        Invoice invoice = Invoice.Create(
-            Guid.NewGuid(),
-            "INV-001",
-            "USD",
-            Guid.NewGuid(),
-            DateTime.UtcNow.AddDays(30));
+        Invoice invoice = Invoice.Create(Guid.NewGuid(), "INV-001", "USD", Guid.NewGuid(), TimeProvider.System, DateTime.UtcNow.AddDays(30));
 
         _invoiceRepository.GetByIdAsync(Arg.Any<InvoiceId>(), Arg.Any<CancellationToken>())
             .Returns(invoice);
@@ -196,12 +177,7 @@ public class InvoicePaidDomainEventHandlerTests
             Guid.NewGuid(),
             DateTime.UtcNow);
 
-        Invoice invoice = Invoice.Create(
-            Guid.NewGuid(),
-            "INV-001",
-            "USD",
-            Guid.NewGuid(),
-            DateTime.UtcNow.AddDays(30));
+        Invoice invoice = Invoice.Create(Guid.NewGuid(), "INV-001", "USD", Guid.NewGuid(), TimeProvider.System, DateTime.UtcNow.AddDays(30));
 
         _invoiceRepository.GetByIdAsync(Arg.Any<InvoiceId>(), Arg.Any<CancellationToken>())
             .Returns(invoice);

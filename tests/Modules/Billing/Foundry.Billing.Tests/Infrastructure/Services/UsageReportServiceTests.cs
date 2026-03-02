@@ -36,10 +36,8 @@ public class UsageReportServiceTests
             "api.calls", "API Calls", "requests", MeterAggregation.Sum, true);
         dbContext.MeterDefinitions.Add(meter);
 
-        UsageRecord record1 = UsageRecord.Create(
-            _tenantId, "api.calls", periodStart, periodEnd, 100);
-        UsageRecord record2 = UsageRecord.Create(
-            _tenantId, "api.calls", periodStart, periodEnd, 50);
+        UsageRecord record1 = UsageRecord.Create(_tenantId, "api.calls", periodStart, periodEnd, 100, TimeProvider.System);
+        UsageRecord record2 = UsageRecord.Create(_tenantId, "api.calls", periodStart, periodEnd, 50, TimeProvider.System);
         dbContext.UsageRecords.AddRange(record1, record2);
         await dbContext.SaveChangesAsync();
 
@@ -80,14 +78,8 @@ public class UsageReportServiceTests
             "storage.bytes", "Storage", "bytes", MeterAggregation.Sum, true);
         dbContext.MeterDefinitions.Add(meter);
 
-        UsageRecord inside = UsageRecord.Create(
-            _tenantId, "storage.bytes",
-            new DateTime(2026, 2, 15, 0, 0, 0, DateTimeKind.Utc),
-            new DateTime(2026, 2, 16, 0, 0, 0, DateTimeKind.Utc), 500);
-        UsageRecord outside = UsageRecord.Create(
-            _tenantId, "storage.bytes",
-            new DateTime(2026, 1, 15, 0, 0, 0, DateTimeKind.Utc),
-            new DateTime(2026, 1, 16, 0, 0, 0, DateTimeKind.Utc), 300);
+        UsageRecord inside = UsageRecord.Create(_tenantId, "storage.bytes", new DateTime(2026, 2, 15, 0, 0, 0, DateTimeKind.Utc), new DateTime(2026, 2, 16, 0, 0, 0, DateTimeKind.Utc), 500, TimeProvider.System);
+        UsageRecord outside = UsageRecord.Create(_tenantId, "storage.bytes", new DateTime(2026, 1, 15, 0, 0, 0, DateTimeKind.Utc), new DateTime(2026, 1, 16, 0, 0, 0, DateTimeKind.Utc), 300, TimeProvider.System);
         dbContext.UsageRecords.AddRange(inside, outside);
         await dbContext.SaveChangesAsync();
 
@@ -111,10 +103,7 @@ public class UsageReportServiceTests
             "api.requests", "API Requests", "requests", MeterAggregation.Sum, true);
         dbContext.MeterDefinitions.Add(meter);
 
-        UsageRecord record = UsageRecord.Create(
-            _tenantId, "api.requests",
-            new DateTime(2026, 2, 15, 0, 0, 0, DateTimeKind.Utc),
-            new DateTime(2026, 2, 16, 0, 0, 0, DateTimeKind.Utc), 200);
+        UsageRecord record = UsageRecord.Create(_tenantId, "api.requests", new DateTime(2026, 2, 15, 0, 0, 0, DateTimeKind.Utc), new DateTime(2026, 2, 16, 0, 0, 0, DateTimeKind.Utc), 200, TimeProvider.System);
         dbContext.UsageRecords.Add(record);
         await dbContext.SaveChangesAsync();
 

@@ -46,12 +46,8 @@ public class MeteringQueryServiceTests
 
         List<UsageRecord> records = new()
         {
-            UsageRecord.Create(tenantIdTyped, "api.calls",
-                new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc),
-                new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc), 300),
-            UsageRecord.Create(tenantIdTyped, "api.calls",
-                new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc),
-                new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc), 200)
+            UsageRecord.Create(tenantIdTyped, "api.calls", new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc), new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc), 300, TimeProvider.System),
+            UsageRecord.Create(tenantIdTyped, "api.calls", new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc), new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc), 200, TimeProvider.System)
         };
 
         _usageRecordRepository.GetHistoryAsync(
@@ -81,9 +77,7 @@ public class MeteringQueryServiceTests
 
         List<UsageRecord> records = new()
         {
-            UsageRecord.Create(tenantIdTyped, "api.calls",
-                new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc),
-                new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc), 150)
+            UsageRecord.Create(tenantIdTyped, "api.calls", new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc), new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc), 150, TimeProvider.System)
         };
 
         _usageRecordRepository.GetHistoryAsync(

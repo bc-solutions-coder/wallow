@@ -41,7 +41,7 @@ public class UserRegisteredInAppEventHandlerTests
 
         await UserRegisteredEventHandler.HandleAsync(
             evt, _notificationRepository, _notificationService,
-            _tenantContext, _logger, CancellationToken.None);
+            _tenantContext, TimeProvider.System, _logger, CancellationToken.None);
 
         _notificationRepository.Received(1).Add(Arg.Is<Notification>(n =>
             n.UserId == userId &&
@@ -65,7 +65,7 @@ public class UserRegisteredInAppEventHandlerTests
 
         await UserRegisteredEventHandler.HandleAsync(
             evt, _notificationRepository, _notificationService,
-            _tenantContext, _logger, CancellationToken.None);
+            _tenantContext, TimeProvider.System, _logger, CancellationToken.None);
 
         await _notificationService.Received(1).SendToUserAsync(
             userId,
@@ -89,7 +89,7 @@ public class UserRegisteredInAppEventHandlerTests
 
         await UserRegisteredEventHandler.HandleAsync(
             evt, _notificationRepository, _notificationService,
-            _tenantContext, _logger, CancellationToken.None);
+            _tenantContext, TimeProvider.System, _logger, CancellationToken.None);
 
         await _notificationService.Received(1).SendToUserAsync(
             Arg.Any<Guid>(),
@@ -114,7 +114,7 @@ public class UserRegisteredInAppEventHandlerTests
 
         await UserRegisteredEventHandler.HandleAsync(
             evt, _notificationRepository, _notificationService,
-            _tenantContext, _logger, cts.Token);
+            _tenantContext, TimeProvider.System, _logger, cts.Token);
 
         await _notificationRepository.Received(1).SaveChangesAsync(cts.Token);
         await _notificationService.Received(1).SendToUserAsync(

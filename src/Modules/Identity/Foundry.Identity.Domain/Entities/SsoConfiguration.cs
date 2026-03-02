@@ -89,7 +89,7 @@ public sealed class SsoConfiguration : AggregateRoot<SsoConfigurationId>, ITenan
         EnforceForAllUsers = false;
         AutoProvisionUsers = true;
         SyncGroupsAsRoles = false;
-        SetCreated(createdByUserId);
+        SetCreated(DateTimeOffset.UtcNow, createdByUserId);
     }
 
     public static SsoConfiguration Create(
@@ -163,7 +163,7 @@ public sealed class SsoConfiguration : AggregateRoot<SsoConfigurationId>, ITenan
         }
 
         Status = SsoStatus.Active;
-        SetUpdated(updatedByUserId);
+        SetUpdated(DateTimeOffset.UtcNow, updatedByUserId);
 
         RaiseDomainEvent(new SsoConfigurationActivatedEvent(
             Id.Value,
@@ -182,7 +182,7 @@ public sealed class SsoConfiguration : AggregateRoot<SsoConfigurationId>, ITenan
         }
 
         Status = SsoStatus.Disabled;
-        SetUpdated(updatedByUserId);
+        SetUpdated(DateTimeOffset.UtcNow, updatedByUserId);
     }
 
     public void UpdateSamlConfig(
@@ -233,7 +233,7 @@ public sealed class SsoConfiguration : AggregateRoot<SsoConfigurationId>, ITenan
         SamlSloUrl = sloUrl;
         SamlCertificate = certificate;
         SamlNameIdFormat = nameIdFormat;
-        SetUpdated(updatedByUserId);
+        SetUpdated(DateTimeOffset.UtcNow, updatedByUserId);
     }
 
     public void UpdateOidcConfig(
@@ -282,7 +282,7 @@ public sealed class SsoConfiguration : AggregateRoot<SsoConfigurationId>, ITenan
         OidcClientId = clientId;
         OidcClientSecret = clientSecret;
         OidcScopes = scopes;
-        SetUpdated(updatedByUserId);
+        SetUpdated(DateTimeOffset.UtcNow, updatedByUserId);
     }
 
     public void UpdateBehaviorSettings(
@@ -305,13 +305,13 @@ public sealed class SsoConfiguration : AggregateRoot<SsoConfigurationId>, ITenan
         DefaultRole = defaultRole;
         SyncGroupsAsRoles = syncGroupsAsRoles;
         GroupsAttribute = groupsAttribute;
-        SetUpdated(updatedByUserId);
+        SetUpdated(DateTimeOffset.UtcNow, updatedByUserId);
     }
 
     public void SetKeycloakIdpAlias(string alias, Guid updatedByUserId)
     {
         KeycloakIdpAlias = alias;
-        SetUpdated(updatedByUserId);
+        SetUpdated(DateTimeOffset.UtcNow, updatedByUserId);
     }
 
     public void MoveToTesting(Guid updatedByUserId)
@@ -324,6 +324,6 @@ public sealed class SsoConfiguration : AggregateRoot<SsoConfigurationId>, ITenan
         }
 
         Status = SsoStatus.Testing;
-        SetUpdated(updatedByUserId);
+        SetUpdated(DateTimeOffset.UtcNow, updatedByUserId);
     }
 }

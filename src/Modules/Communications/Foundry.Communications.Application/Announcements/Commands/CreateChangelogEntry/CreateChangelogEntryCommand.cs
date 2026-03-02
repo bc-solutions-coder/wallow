@@ -11,7 +11,9 @@ public sealed record CreateChangelogEntryCommand(
     string Content,
     DateTime ReleasedAt);
 
-public sealed class CreateChangelogEntryHandler(IChangelogRepository repository)
+public sealed class CreateChangelogEntryHandler(
+    IChangelogRepository repository,
+    TimeProvider timeProvider)
 {
     public async Task<Result<ChangelogEntryDto>> Handle(CreateChangelogEntryCommand command, CancellationToken ct)
     {
@@ -19,7 +21,8 @@ public sealed class CreateChangelogEntryHandler(IChangelogRepository repository)
             command.Version,
             command.Title,
             command.Content,
-            command.ReleasedAt);
+            command.ReleasedAt,
+            timeProvider);
 
         await repository.AddAsync(entry, ct);
 

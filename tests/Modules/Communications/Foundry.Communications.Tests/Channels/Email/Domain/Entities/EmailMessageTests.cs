@@ -14,7 +14,7 @@ public class EmailMessageCreateTests
         EmailAddress from = EmailAddress.Create("sender@example.com");
         EmailContent content = EmailContent.Create("Test Subject", "Test Body");
 
-        EmailMessage message = EmailMessage.Create(to, from, content);
+        EmailMessage message = EmailMessage.Create(to, from, content, TimeProvider.System);
 
         message.To.Should().Be(to);
         message.From.Should().Be(from);
@@ -29,7 +29,7 @@ public class EmailMessageCreateTests
         EmailAddress to = EmailAddress.Create("test@example.com");
         EmailContent content = EmailContent.Create("Subject", "Body");
 
-        EmailMessage message = EmailMessage.Create(to, null, content);
+        EmailMessage message = EmailMessage.Create(to, null, content, TimeProvider.System);
 
         message.From.Should().BeNull();
     }
@@ -43,9 +43,9 @@ public class EmailMessageSendingTests
         EmailMessage message = EmailMessage.Create(
             EmailAddress.Create("test@example.com"),
             null,
-            EmailContent.Create("Subject", "Body"));
+            EmailContent.Create("Subject", "Body"), TimeProvider.System);
 
-        message.MarkAsSent();
+        message.MarkAsSent(TimeProvider.System);
 
         message.Status.Should().Be(EmailStatus.Sent);
         message.SentAt.Should().NotBeNull();
@@ -55,9 +55,9 @@ public class EmailMessageSendingTests
     public void MarkAsSent_RaisesEmailSentEvent()
     {
         EmailAddress to = EmailAddress.Create("test@example.com");
-        EmailMessage message = EmailMessage.Create(to, null, EmailContent.Create("Subject", "Body"));
+        EmailMessage message = EmailMessage.Create(to, null, EmailContent.Create("Subject", "Body"), TimeProvider.System);
 
-        message.MarkAsSent();
+        message.MarkAsSent(TimeProvider.System);
 
         message.DomainEvents.Should().ContainSingle()
             .Which.Should().BeOfType<EmailSentDomainEvent>()
@@ -70,9 +70,9 @@ public class EmailMessageSendingTests
         EmailMessage message = EmailMessage.Create(
             EmailAddress.Create("test@example.com"),
             null,
-            EmailContent.Create("Subject", "Body"));
+            EmailContent.Create("Subject", "Body"), TimeProvider.System);
 
-        message.MarkAsFailed("SMTP connection failed");
+        message.MarkAsFailed("SMTP connection failed", TimeProvider.System);
 
         message.Status.Should().Be(EmailStatus.Failed);
         message.FailureReason.Should().Be("SMTP connection failed");
@@ -85,9 +85,9 @@ public class EmailMessageSendingTests
         EmailMessage message = EmailMessage.Create(
             EmailAddress.Create("test@example.com"),
             null,
-            EmailContent.Create("Subject", "Body"));
+            EmailContent.Create("Subject", "Body"), TimeProvider.System);
 
-        message.MarkAsFailed("SMTP error");
+        message.MarkAsFailed("SMTP error", TimeProvider.System);
 
         message.DomainEvents.Should().ContainSingle()
             .Which.Should().BeOfType<EmailFailedDomainEvent>();
@@ -102,10 +102,10 @@ public class EmailMessageRetryTests
         EmailMessage message = EmailMessage.Create(
             EmailAddress.Create("test@example.com"),
             null,
-            EmailContent.Create("Subject", "Body"));
-        message.MarkAsFailed("Error");
+            EmailContent.Create("Subject", "Body"), TimeProvider.System);
+        message.MarkAsFailed("Error", TimeProvider.System);
 
-        message.ResetForRetry();
+        message.ResetForRetry(TimeProvider.System);
 
         message.Status.Should().Be(EmailStatus.Pending);
         message.FailureReason.Should().BeNull();
@@ -117,9 +117,9 @@ public class EmailMessageRetryTests
         EmailMessage message = EmailMessage.Create(
             EmailAddress.Create("test@example.com"),
             null,
-            EmailContent.Create("Subject", "Body"));
-        message.MarkAsFailed("Error 1");
-        message.MarkAsFailed("Error 2");
+            EmailContent.Create("Subject", "Body"), TimeProvider.System);
+        message.MarkAsFailed("Error 1", TimeProvider.System);
+        message.MarkAsFailed("Error 2", TimeProvider.System);
 
         bool canRetry = message.CanRetry(maxRetries: 3);
 
@@ -133,10 +133,10 @@ public class EmailMessageRetryTests
         EmailMessage message = EmailMessage.Create(
             EmailAddress.Create("test@example.com"),
             null,
-            EmailContent.Create("Subject", "Body"));
-        message.MarkAsFailed("Error 1");
-        message.MarkAsFailed("Error 2");
-        message.MarkAsFailed("Error 3");
+            EmailContent.Create("Subject", "Body"), TimeProvider.System);
+        message.MarkAsFailed("Error 1", TimeProvider.System);
+        message.MarkAsFailed("Error 2", TimeProvider.System);
+        message.MarkAsFailed("Error 3", TimeProvider.System);
 
         bool canRetry = message.CanRetry(maxRetries: 3);
 

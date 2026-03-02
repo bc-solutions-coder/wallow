@@ -22,8 +22,8 @@ public class GetSubscriptionsByUserIdHandlerTests
     public async Task Handle_WhenSubscriptionsExist_ReturnsUserSubscriptions()
     {
         Guid userId = Guid.NewGuid();
-        Subscription sub1 = Subscription.Create(userId, "Pro Plan", Money.Create(29.99m, "USD"), DateTime.UtcNow, DateTime.UtcNow.AddMonths(1), userId);
-        Subscription sub2 = Subscription.Create(userId, "Enterprise Plan", Money.Create(99.99m, "USD"), DateTime.UtcNow, DateTime.UtcNow.AddMonths(1), userId);
+        Subscription sub1 = Subscription.Create(userId, "Pro Plan", Money.Create(29.99m, "USD"), DateTime.UtcNow, DateTime.UtcNow.AddMonths(1), userId, TimeProvider.System);
+        Subscription sub2 = Subscription.Create(userId, "Enterprise Plan", Money.Create(99.99m, "USD"), DateTime.UtcNow, DateTime.UtcNow.AddMonths(1), userId, TimeProvider.System);
 
         _repository.GetByUserIdAsync(userId, Arg.Any<CancellationToken>())
             .Returns(new List<Subscription> { sub1, sub2 });

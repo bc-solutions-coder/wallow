@@ -15,8 +15,8 @@ public sealed record CustomFieldDefinitionDto
     public required bool IsActive { get; init; }
     public FieldValidationRules? ValidationRules { get; init; }
     public IReadOnlyList<CustomFieldOption>? Options { get; init; }
-    public required DateTime CreatedAt { get; init; }
-    public required DateTime? UpdatedAt { get; init; }
+    public required DateTimeOffset CreatedAt { get; init; }
+    public required DateTimeOffset? UpdatedAt { get; init; }
 }
 
 public sealed record EntityTypeDto(string EntityType, string Module, string Description);

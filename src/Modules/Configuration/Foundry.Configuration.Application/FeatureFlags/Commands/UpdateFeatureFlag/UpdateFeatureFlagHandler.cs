@@ -12,7 +12,8 @@ namespace Foundry.Configuration.Application.FeatureFlags.Commands.UpdateFeatureF
 public sealed class UpdateFeatureFlagHandler(
     IFeatureFlagRepository repository,
     IDistributedCache cache,
-    IMessageBus bus)
+    IMessageBus bus,
+    TimeProvider timeProvider)
 {
     public async Task<Result> Handle(UpdateFeatureFlagCommand cmd, CancellationToken ct)
     {
@@ -24,11 +25,11 @@ public sealed class UpdateFeatureFlagHandler(
             return Result.Failure(Error.NotFound("FeatureFlag", cmd.Id));
         }
 
-        flag.Update(cmd.Name, cmd.Description, cmd.DefaultEnabled);
+        flag.Update(cmd.Name, cmd.Description, cmd.DefaultEnabled, timeProvider);
 
         if (flag.FlagType == FlagType.Percentage && cmd.RolloutPercentage.HasValue)
         {
-            flag.UpdatePercentage(cmd.RolloutPercentage.Value);
+            flag.UpdatePercentage(cmd.RolloutPercentage.Value, timeProvider);
         }
 
         await repository.UpdateAsync(flag, ct);

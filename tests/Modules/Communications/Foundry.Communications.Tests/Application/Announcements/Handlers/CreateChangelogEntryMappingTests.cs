@@ -13,7 +13,7 @@ public class CreateChangelogEntryMappingTests
     public CreateChangelogEntryMappingTests()
     {
         _repository = Substitute.For<IChangelogRepository>();
-        _handler = new CreateChangelogEntryHandler(_repository);
+        _handler = new CreateChangelogEntryHandler(_repository, TimeProvider.System);
     }
 
     [Fact]

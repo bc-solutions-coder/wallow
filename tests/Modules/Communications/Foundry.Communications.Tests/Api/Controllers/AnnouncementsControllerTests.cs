@@ -10,6 +10,7 @@ using Foundry.Shared.Kernel.MultiTenancy;
 using Foundry.Shared.Kernel.Results;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Foundry.Shared.Kernel.Services;
 using Wolverine;
 
 namespace Foundry.Communications.Tests.Api.Controllers;
@@ -17,6 +18,7 @@ namespace Foundry.Communications.Tests.Api.Controllers;
 public class AnnouncementsControllerTests
 {
     private readonly IMessageBus _bus;
+    private readonly ICurrentUserService _currentUserService;
     private readonly ITenantContext _tenantContext;
     private readonly AnnouncementsController _controller;
     private readonly Guid _userId = Guid.NewGuid();
@@ -27,8 +29,10 @@ public class AnnouncementsControllerTests
         _bus = Substitute.For<IMessageBus>();
         _tenantContext = Substitute.For<ITenantContext>();
         _tenantContext.TenantId.Returns(TenantId.Create(_tenantId));
+        _currentUserService = Substitute.For<ICurrentUserService>();
+        _currentUserService.GetCurrentUserId().Returns(_userId);
 
-        _controller = new AnnouncementsController(_bus, _tenantContext);
+        _controller = new AnnouncementsController(_bus, _tenantContext, _currentUserService);
 
         ClaimsPrincipal user = new ClaimsPrincipal(new ClaimsIdentity(new[]
         {
@@ -69,6 +73,7 @@ public class AnnouncementsControllerTests
             HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity()) }
         };
 
+        _currentUserService.GetCurrentUserId().Returns((Guid?)null);
         IActionResult result = await _controller.GetAnnouncements(CancellationToken.None);
 
         result.Should().BeOfType<UnauthorizedResult>();
@@ -190,6 +195,7 @@ public class AnnouncementsControllerTests
             HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity()) }
         };
 
+        _currentUserService.GetCurrentUserId().Returns((Guid?)null);
         IActionResult result = await _controller.DismissAnnouncement(Guid.NewGuid(), CancellationToken.None);
 
         result.Should().BeOfType<UnauthorizedResult>();

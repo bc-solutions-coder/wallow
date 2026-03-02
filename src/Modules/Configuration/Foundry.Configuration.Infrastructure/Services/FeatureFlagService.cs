@@ -13,11 +13,13 @@ public sealed class FeatureFlagService : IFeatureFlagService
 {
     private readonly IFeatureFlagRepository _repository;
     private readonly IMessageBus _messageBus;
+    private readonly TimeProvider _timeProvider;
 
-    public FeatureFlagService(IFeatureFlagRepository repository, IMessageBus messageBus)
+    public FeatureFlagService(IFeatureFlagRepository repository, IMessageBus messageBus, TimeProvider timeProvider)
     {
         _repository = repository;
         _messageBus = messageBus;
+        _timeProvider = timeProvider;
     }
 
     public async Task<bool> IsEnabledAsync(string key, Guid tenantId, Guid? userId = null, CancellationToken ct = default)
@@ -107,9 +109,9 @@ public sealed class FeatureFlagService : IFeatureFlagService
         return results;
     }
 
-    private static FeatureFlagOverride? ResolveOverride(FeatureFlag flag, Guid tenantId, Guid? userId)
+    private FeatureFlagOverride? ResolveOverride(FeatureFlag flag, Guid tenantId, Guid? userId)
     {
-        List<FeatureFlagOverride> active = flag.Overrides.Where(o => !o.IsExpired).ToList();
+        List<FeatureFlagOverride> active = flag.Overrides.Where(o => !o.IsExpired(_timeProvider)).ToList();
 
         // Priority: user+tenant > user-only > tenant-only > none
         if (userId.HasValue)

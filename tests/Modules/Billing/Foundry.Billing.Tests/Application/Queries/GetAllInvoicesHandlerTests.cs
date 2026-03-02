@@ -21,8 +21,8 @@ public class GetAllInvoicesHandlerTests
     public async Task Handle_WhenInvoicesExist_ReturnsAllInvoices()
     {
         Guid userId = Guid.NewGuid();
-        Invoice invoice1 = Invoice.Create(userId, "INV-001", "USD", userId);
-        Invoice invoice2 = Invoice.Create(userId, "INV-002", "EUR", userId);
+        Invoice invoice1 = Invoice.Create(userId, "INV-001", "USD", userId, TimeProvider.System);
+        Invoice invoice2 = Invoice.Create(userId, "INV-002", "EUR", userId, TimeProvider.System);
 
         _repository.GetAllAsync(Arg.Any<CancellationToken>())
             .Returns(new List<Invoice> { invoice1, invoice2 });

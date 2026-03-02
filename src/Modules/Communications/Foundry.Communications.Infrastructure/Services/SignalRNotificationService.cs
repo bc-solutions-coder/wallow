@@ -8,13 +8,16 @@ namespace Foundry.Communications.Infrastructure.Services;
 public sealed partial class SignalRNotificationService : INotificationService
 {
     private readonly IRealtimeDispatcher _dispatcher;
+    private readonly TimeProvider _timeProvider;
     private readonly ILogger<SignalRNotificationService> _logger;
 
     public SignalRNotificationService(
         IRealtimeDispatcher dispatcher,
+        TimeProvider timeProvider,
         ILogger<SignalRNotificationService> logger)
     {
         _dispatcher = dispatcher;
+        _timeProvider = timeProvider;
         _logger = logger;
     }
 
@@ -30,7 +33,7 @@ public sealed partial class SignalRNotificationService : INotificationService
             Title = title,
             Message = message,
             Type = type,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = _timeProvider.GetUtcNow().UtcDateTime
         };
 
         RealtimeEnvelope envelope = RealtimeEnvelope.Create("Notifications", "NotificationCreated", payload);
@@ -51,7 +54,7 @@ public sealed partial class SignalRNotificationService : INotificationService
             Title = title,
             Message = message,
             Type = type,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = _timeProvider.GetUtcNow().UtcDateTime
         };
 
         RealtimeEnvelope envelope = RealtimeEnvelope.Create("Notifications", "AnnouncementPublished", payload);

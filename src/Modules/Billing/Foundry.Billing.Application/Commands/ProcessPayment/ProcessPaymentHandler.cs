@@ -11,7 +11,8 @@ namespace Foundry.Billing.Application.Commands.ProcessPayment;
 
 public sealed class ProcessPaymentHandler(
     IPaymentRepository paymentRepository,
-    IInvoiceRepository invoiceRepository)
+    IInvoiceRepository invoiceRepository,
+    TimeProvider timeProvider)
 {
     public async Task<Result<PaymentDto>> Handle(
         ProcessPaymentCommand command,
@@ -39,6 +40,7 @@ public sealed class ProcessPaymentHandler(
             amount,
             method,
             command.UserId,
+            timeProvider,
             command.CustomFields);
 
         paymentRepository.Add(payment);

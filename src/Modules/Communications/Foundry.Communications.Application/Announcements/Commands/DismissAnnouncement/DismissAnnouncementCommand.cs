@@ -10,7 +10,8 @@ public sealed record DismissAnnouncementCommand(Guid AnnouncementId, Guid UserId
 
 public sealed class DismissAnnouncementHandler(
     IAnnouncementRepository announcementRepository,
-    IAnnouncementDismissalRepository dismissalRepository)
+    IAnnouncementDismissalRepository dismissalRepository,
+    TimeProvider timeProvider)
 {
     public async Task<Result> Handle(DismissAnnouncementCommand command, CancellationToken ct)
     {
@@ -35,7 +36,7 @@ public sealed class DismissAnnouncementHandler(
             return Result.Success();
         }
 
-        AnnouncementDismissal dismissal = AnnouncementDismissal.Create(announcementId, userId);
+        AnnouncementDismissal dismissal = AnnouncementDismissal.Create(announcementId, userId, timeProvider);
         await dismissalRepository.AddAsync(dismissal, ct);
 
         return Result.Success();

@@ -24,7 +24,8 @@ public sealed class EmailMessage : AggregateRoot<EmailMessageId>, ITenantScoped
     private EmailMessage(
         EmailAddress to,
         EmailAddress? from,
-        EmailContent content)
+        EmailContent content,
+        TimeProvider timeProvider)
         : base(EmailMessageId.New())
     {
         To = to;
@@ -32,22 +33,23 @@ public sealed class EmailMessage : AggregateRoot<EmailMessageId>, ITenantScoped
         Content = content;
         Status = EmailStatus.Pending;
         RetryCount = 0;
-        SetCreated();
+        SetCreated(timeProvider.GetUtcNow());
     }
 
     public static EmailMessage Create(
         EmailAddress to,
         EmailAddress? from,
-        EmailContent content)
+        EmailContent content,
+        TimeProvider timeProvider)
     {
-        return new EmailMessage(to, from, content);
+        return new EmailMessage(to, from, content, timeProvider);
     }
 
-    public void MarkAsSent()
+    public void MarkAsSent(TimeProvider timeProvider)
     {
         Status = EmailStatus.Sent;
-        SentAt = DateTime.UtcNow;
-        SetUpdated();
+        SentAt = timeProvider.GetUtcNow().UtcDateTime;
+        SetUpdated(timeProvider.GetUtcNow());
 
         RaiseDomainEvent(new EmailSentDomainEvent(
             Id.Value,
@@ -55,12 +57,12 @@ public sealed class EmailMessage : AggregateRoot<EmailMessageId>, ITenantScoped
             Content.Subject));
     }
 
-    public void MarkAsFailed(string reason)
+    public void MarkAsFailed(string reason, TimeProvider timeProvider)
     {
         Status = EmailStatus.Failed;
         FailureReason = reason;
         RetryCount++;
-        SetUpdated();
+        SetUpdated(timeProvider.GetUtcNow());
 
         RaiseDomainEvent(new EmailFailedDomainEvent(
             Id.Value,
@@ -69,11 +71,11 @@ public sealed class EmailMessage : AggregateRoot<EmailMessageId>, ITenantScoped
             RetryCount));
     }
 
-    public void ResetForRetry()
+    public void ResetForRetry(TimeProvider timeProvider)
     {
         Status = EmailStatus.Pending;
         FailureReason = null;
-        SetUpdated();
+        SetUpdated(timeProvider.GetUtcNow());
     }
 
     public bool CanRetry(int maxRetries = 3) => RetryCount < maxRetries;

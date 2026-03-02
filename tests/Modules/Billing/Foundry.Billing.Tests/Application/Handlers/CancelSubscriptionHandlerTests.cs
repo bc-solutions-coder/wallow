@@ -16,7 +16,7 @@ public class CancelSubscriptionHandlerTests
     public CancelSubscriptionHandlerTests()
     {
         _repository = Substitute.For<ISubscriptionRepository>();
-        _handler = new CancelSubscriptionHandler(_repository);
+        _handler = new CancelSubscriptionHandler(_repository, TimeProvider.System);
     }
 
     [Fact]
@@ -24,13 +24,7 @@ public class CancelSubscriptionHandlerTests
     {
         // Arrange
         Guid subscriptionId = Guid.NewGuid();
-        Subscription subscription = Subscription.Create(
-            Guid.NewGuid(),
-            "Pro Plan",
-            Money.Create(29.99m, "USD"),
-            DateTime.UtcNow.AddMonths(-1),
-            DateTime.UtcNow.AddDays(30),
-            Guid.NewGuid());
+        Subscription subscription = Subscription.Create(Guid.NewGuid(), "Pro Plan", Money.Create(29.99m, "USD"), DateTime.UtcNow.AddMonths(-1), DateTime.UtcNow.AddDays(30), Guid.NewGuid(), TimeProvider.System);
 
         _repository.GetByIdAsync(Arg.Any<SubscriptionId>(), Arg.Any<CancellationToken>())
             .Returns(subscription);

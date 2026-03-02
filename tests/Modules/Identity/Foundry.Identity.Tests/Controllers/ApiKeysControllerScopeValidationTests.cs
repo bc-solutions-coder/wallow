@@ -12,6 +12,7 @@ public class ApiKeysControllerScopeValidationTests
 {
     private readonly IApiKeyService _apiKeyService;
     private readonly ITenantContext _tenantContext;
+    private readonly Foundry.Shared.Kernel.Services.ICurrentUserService _currentUserService;
     private readonly ApiKeysController _controller;
     private readonly Guid _userId = Guid.NewGuid();
     private readonly Guid _tenantId = Guid.NewGuid();
@@ -21,8 +22,10 @@ public class ApiKeysControllerScopeValidationTests
         _apiKeyService = Substitute.For<IApiKeyService>();
         _tenantContext = Substitute.For<ITenantContext>();
         _tenantContext.TenantId.Returns(new Shared.Kernel.Identity.TenantId(_tenantId));
+        _currentUserService = Substitute.For<Foundry.Shared.Kernel.Services.ICurrentUserService>();
+        _currentUserService.GetCurrentUserId().Returns(_userId);
 
-        _controller = new ApiKeysController(_apiKeyService, _tenantContext);
+        _controller = new ApiKeysController(_apiKeyService, _tenantContext, _currentUserService);
 
         ClaimsPrincipal user = new ClaimsPrincipal(new ClaimsIdentity(new[]
         {

@@ -2,7 +2,7 @@ using Foundry.Shared.Kernel.Domain;
 
 namespace Foundry.Billing.Domain.Events;
 
-public sealed record PaymentReceivedDomainEvent(
+public sealed record PaymentCreatedDomainEvent(
     Guid PaymentId,
     Guid InvoiceId,
     decimal Amount,

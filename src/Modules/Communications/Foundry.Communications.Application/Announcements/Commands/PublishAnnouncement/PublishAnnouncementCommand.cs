@@ -9,7 +9,10 @@ namespace Foundry.Communications.Application.Announcements.Commands.PublishAnnou
 
 public sealed record PublishAnnouncementCommand(Guid Id);
 
-public sealed class PublishAnnouncementHandler(IAnnouncementRepository repository, IMessageBus bus)
+public sealed class PublishAnnouncementHandler(
+    IAnnouncementRepository repository,
+    IMessageBus bus,
+    TimeProvider timeProvider)
 {
     public async Task<Result> Handle(PublishAnnouncementCommand command, CancellationToken ct)
     {
@@ -19,7 +22,7 @@ public sealed class PublishAnnouncementHandler(IAnnouncementRepository repositor
             return Result.Failure(Error.NotFound("Announcement.NotFound", "Announcement not found"));
         }
 
-        announcement.Publish();
+        announcement.Publish(timeProvider);
         await repository.UpdateAsync(announcement, ct);
 
         // Publish integration event for cross-module communication

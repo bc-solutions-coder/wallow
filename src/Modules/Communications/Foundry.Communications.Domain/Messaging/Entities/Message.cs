@@ -14,18 +14,18 @@ public sealed class Message : Entity<MessageId>
 
     private Message() { }
 
-    private Message(ConversationId conversationId, Guid senderId, string body)
+    private Message(ConversationId conversationId, Guid senderId, string body, TimeProvider timeProvider)
         : base(MessageId.New())
     {
         ConversationId = conversationId;
         SenderId = senderId;
         Body = body;
-        SentAt = DateTimeOffset.UtcNow;
+        SentAt = timeProvider.GetUtcNow();
         Status = MessageStatus.Sent;
     }
 
-    public static Message Create(ConversationId conversationId, Guid senderId, string body)
+    public static Message Create(ConversationId conversationId, Guid senderId, string body, TimeProvider timeProvider)
     {
-        return new Message(conversationId, senderId, body);
+        return new Message(conversationId, senderId, body, timeProvider);
     }
 }

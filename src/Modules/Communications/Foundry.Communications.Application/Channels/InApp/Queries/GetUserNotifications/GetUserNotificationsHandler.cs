@@ -6,7 +6,9 @@ using Foundry.Shared.Kernel.Results;
 
 namespace Foundry.Communications.Application.Channels.InApp.Queries.GetUserNotifications;
 
-public sealed class GetUserNotificationsHandler(INotificationRepository notificationRepository)
+public sealed class GetUserNotificationsHandler(
+    INotificationRepository notificationRepository,
+    TimeProvider timeProvider)
 {
     public async Task<Result<PagedResult<NotificationDto>>> Handle(
         GetUserNotificationsQuery query,
@@ -18,7 +20,7 @@ public sealed class GetUserNotificationsHandler(INotificationRepository notifica
             query.PageSize,
             cancellationToken);
 
-        DateTime utcNow = DateTime.UtcNow;
+        DateTime utcNow = timeProvider.GetUtcNow().UtcDateTime;
         List<NotificationDto> dtos = notifications
             .Where(n => !n.IsArchived && (n.ExpiresAt == null || n.ExpiresAt > utcNow))
             .Select(n => n.ToDto())

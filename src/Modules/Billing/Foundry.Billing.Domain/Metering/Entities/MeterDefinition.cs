@@ -58,7 +58,7 @@ public sealed class MeterDefinition : AuditableEntity<MeterDefinitionId>
         Aggregation = aggregation;
         IsBillable = isBillable;
         ValkeyKeyPattern = valkeyKeyPattern;
-        SetCreated(createdByUserId);
+        SetCreated(DateTimeOffset.UtcNow, createdByUserId);
     }
 
     public static MeterDefinition Create(
@@ -128,6 +128,6 @@ public sealed class MeterDefinition : AuditableEntity<MeterDefinitionId>
         Aggregation = aggregation;
         IsBillable = isBillable;
         ValkeyKeyPattern = valkeyKeyPattern;
-        SetUpdated(updatedByUserId);
+        SetUpdated(DateTimeOffset.UtcNow, updatedByUserId);
     }
 }

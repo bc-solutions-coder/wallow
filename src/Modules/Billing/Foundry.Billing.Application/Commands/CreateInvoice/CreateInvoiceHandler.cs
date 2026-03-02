@@ -9,7 +9,8 @@ using Foundry.Shared.Kernel.Results;
 namespace Foundry.Billing.Application.Commands.CreateInvoice;
 
 public sealed class CreateInvoiceHandler(
-    IInvoiceRepository invoiceRepository)
+    IInvoiceRepository invoiceRepository,
+    TimeProvider timeProvider)
 {
     public async Task<Result<InvoiceDto>> Handle(
         CreateInvoiceCommand command,
@@ -34,6 +35,7 @@ public sealed class CreateInvoiceHandler(
                 command.InvoiceNumber,
                 command.Currency,
                 command.UserId,
+                timeProvider,
                 command.DueDate,
                 command.CustomFields);
 

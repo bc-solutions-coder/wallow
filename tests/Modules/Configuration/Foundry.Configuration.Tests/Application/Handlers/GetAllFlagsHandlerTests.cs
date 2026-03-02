@@ -20,8 +20,8 @@ public class GetAllFlagsHandlerTests
     [Fact]
     public async Task Handle_WithFlags_ReturnsSuccessWithDtos()
     {
-        FeatureFlag flag1 = FeatureFlag.CreateBoolean("flag_a", "Flag A", true);
-        FeatureFlag flag2 = FeatureFlag.CreateBoolean("flag_b", "Flag B", false);
+        FeatureFlag flag1 = FeatureFlag.CreateBoolean("flag_a", "Flag A", true, TimeProvider.System);
+        FeatureFlag flag2 = FeatureFlag.CreateBoolean("flag_b", "Flag B", false, TimeProvider.System);
 
         _repository.GetAllAsync(Arg.Any<CancellationToken>())
             .Returns(new List<FeatureFlag> { flag1, flag2 });
@@ -53,7 +53,7 @@ public class GetAllFlagsHandlerTests
     [Fact]
     public async Task Handle_MapsDtoFieldsCorrectly()
     {
-        FeatureFlag flag = FeatureFlag.CreateBoolean("dark_mode", "Dark Mode", true, "Enable dark mode");
+        FeatureFlag flag = FeatureFlag.CreateBoolean("dark_mode", "Dark Mode", true, TimeProvider.System, "Enable dark mode");
 
         _repository.GetAllAsync(Arg.Any<CancellationToken>())
             .Returns(new List<FeatureFlag> { flag });

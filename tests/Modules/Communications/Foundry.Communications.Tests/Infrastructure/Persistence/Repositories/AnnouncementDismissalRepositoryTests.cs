@@ -31,7 +31,7 @@ public sealed class AnnouncementDismissalRepositoryTests : IDisposable
     {
         AnnouncementId announcementId = AnnouncementId.New();
         UserId userId = UserId.Create(Guid.NewGuid());
-        AnnouncementDismissal dismissal = AnnouncementDismissal.Create(announcementId, userId);
+        AnnouncementDismissal dismissal = AnnouncementDismissal.Create(announcementId, userId, TimeProvider.System);
 
         await _repository.AddAsync(dismissal);
 
@@ -45,9 +45,9 @@ public sealed class AnnouncementDismissalRepositoryTests : IDisposable
         UserId userId = UserId.Create(Guid.NewGuid());
         UserId otherUserId = UserId.Create(Guid.NewGuid());
 
-        AnnouncementDismissal dismissal1 = AnnouncementDismissal.Create(AnnouncementId.New(), userId);
-        AnnouncementDismissal dismissal2 = AnnouncementDismissal.Create(AnnouncementId.New(), userId);
-        AnnouncementDismissal other = AnnouncementDismissal.Create(AnnouncementId.New(), otherUserId);
+        AnnouncementDismissal dismissal1 = AnnouncementDismissal.Create(AnnouncementId.New(), userId, TimeProvider.System);
+        AnnouncementDismissal dismissal2 = AnnouncementDismissal.Create(AnnouncementId.New(), userId, TimeProvider.System);
+        AnnouncementDismissal other = AnnouncementDismissal.Create(AnnouncementId.New(), otherUserId, TimeProvider.System);
 
         await _dbContext.AnnouncementDismissals.AddRangeAsync(dismissal1, dismissal2, other);
         await _dbContext.SaveChangesAsync();
@@ -62,7 +62,7 @@ public sealed class AnnouncementDismissalRepositoryTests : IDisposable
     {
         AnnouncementId announcementId = AnnouncementId.New();
         UserId userId = UserId.Create(Guid.NewGuid());
-        AnnouncementDismissal dismissal = AnnouncementDismissal.Create(announcementId, userId);
+        AnnouncementDismissal dismissal = AnnouncementDismissal.Create(announcementId, userId, TimeProvider.System);
 
         await _dbContext.AnnouncementDismissals.AddAsync(dismissal);
         await _dbContext.SaveChangesAsync();

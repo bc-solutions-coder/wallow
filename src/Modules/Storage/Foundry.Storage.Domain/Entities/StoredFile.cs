@@ -9,7 +9,7 @@ namespace Foundry.Storage.Domain.Entities;
 /// Metadata for a stored file. Actual bytes live in the storage backend.
 /// Tenant-scoped to ensure proper isolation.
 /// </summary>
-public sealed class StoredFile : Entity<StoredFileId>, ITenantScoped
+public sealed class StoredFile : AggregateRoot<StoredFileId>, ITenantScoped
 {
     public TenantId TenantId { get; set; }
     public StorageBucketId BucketId { get; private set; }

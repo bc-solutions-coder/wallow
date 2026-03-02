@@ -76,6 +76,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Shared\Foundry.Shared.Api\Foundry.Shared.Api.csproj" />
     <ProjectReference Include="..\Shared\Foundry.Shared.Kernel\Foundry.Shared.Kernel.csproj" />
     <ProjectReference Include="..\Shared\Foundry.Shared.Contracts\Foundry.Shared.Contracts.csproj" />
     <ProjectReference Include="..\Shared\Foundry.Shared.Infrastructure\Foundry.Shared.Infrastructure.csproj" />

@@ -8,6 +8,7 @@ using Foundry.Communications.Application.Channels.InApp.Queries.GetUnreadCount;
 using Foundry.Communications.Application.Channels.InApp.Queries.GetUserNotifications;
 using Foundry.Shared.Kernel.Pagination;
 using Foundry.Shared.Kernel.Results;
+using Foundry.Shared.Kernel.Services;
 using Foundry.Shared.Kernel.Identity.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -26,10 +27,12 @@ namespace Foundry.Communications.Api.Controllers;
 public class NotificationsController : ControllerBase
 {
     private readonly IMessageBus _bus;
+    private readonly ICurrentUserService _currentUserService;
 
-    public NotificationsController(IMessageBus bus)
+    public NotificationsController(IMessageBus bus, ICurrentUserService currentUserService)
     {
         _bus = bus;
+        _currentUserService = currentUserService;
     }
 
     /// <summary>
@@ -44,7 +47,7 @@ public class NotificationsController : ControllerBase
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        Guid? userId = GetCurrentUserId();
+        Guid? userId = _currentUserService.GetCurrentUserId();
         if (userId is null)
         {
             return Unauthorized();
@@ -73,7 +76,7 @@ public class NotificationsController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> GetUnreadCount(CancellationToken cancellationToken)
     {
-        Guid? userId = GetCurrentUserId();
+        Guid? userId = _currentUserService.GetCurrentUserId();
         if (userId is null)
         {
             return Unauthorized();
@@ -95,7 +98,7 @@ public class NotificationsController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> MarkAsRead(Guid id, CancellationToken cancellationToken)
     {
-        Guid? userId = GetCurrentUserId();
+        Guid? userId = _currentUserService.GetCurrentUserId();
         if (userId is null)
         {
             return Unauthorized();
@@ -121,7 +124,7 @@ public class NotificationsController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> MarkAllAsRead(CancellationToken cancellationToken)
     {
-        Guid? userId = GetCurrentUserId();
+        Guid? userId = _currentUserService.GetCurrentUserId();
         if (userId is null)
         {
             return Unauthorized();
@@ -136,19 +139,6 @@ public class NotificationsController : ControllerBase
         }
 
         return NoContent();
-    }
-
-    private Guid? GetCurrentUserId()
-    {
-        string? userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
-            ?? User.FindFirst("sub")?.Value;
-
-        if (userIdClaim is null || !Guid.TryParse(userIdClaim, out Guid userId))
-        {
-            return null;
-        }
-
-        return userId;
     }
 
     private static NotificationResponse ToResponse(NotificationDto dto) => new(

@@ -20,8 +20,8 @@ public class GetChangelogHandlerTests
     [Fact]
     public async Task Handle_ReturnsPublishedEntries()
     {
-        ChangelogEntry entry1 = ChangelogEntry.Create("1.0.0", "Release 1", "Content 1", DateTime.UtcNow);
-        ChangelogEntry entry2 = ChangelogEntry.Create("2.0.0", "Release 2", "Content 2", DateTime.UtcNow);
+        ChangelogEntry entry1 = ChangelogEntry.Create("1.0.0", "Release 1", "Content 1", DateTime.UtcNow, TimeProvider.System);
+        ChangelogEntry entry2 = ChangelogEntry.Create("2.0.0", "Release 2", "Content 2", DateTime.UtcNow, TimeProvider.System);
 
         _repository.GetPublishedAsync(50, Arg.Any<CancellationToken>())
             .Returns(new List<ChangelogEntry> { entry1, entry2 });
@@ -65,7 +65,7 @@ public class GetChangelogHandlerTests
     public async Task Handle_MapsFieldsCorrectly()
     {
         DateTime releasedAt = DateTime.UtcNow;
-        ChangelogEntry entry = ChangelogEntry.Create("1.2.3", "Patch Release", "Bug fixes", releasedAt);
+        ChangelogEntry entry = ChangelogEntry.Create("1.2.3", "Patch Release", "Bug fixes", releasedAt, TimeProvider.System);
 
         _repository.GetPublishedAsync(50, Arg.Any<CancellationToken>())
             .Returns(new List<ChangelogEntry> { entry });

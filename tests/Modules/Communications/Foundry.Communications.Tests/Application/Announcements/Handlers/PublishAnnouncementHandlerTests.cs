@@ -19,13 +19,13 @@ public class PublishAnnouncementHandlerTests
     {
         _repository = Substitute.For<IAnnouncementRepository>();
         _messageBus = Substitute.For<IMessageBus>();
-        _handler = new PublishAnnouncementHandler(_repository, _messageBus);
+        _handler = new PublishAnnouncementHandler(_repository, _messageBus, TimeProvider.System);
     }
 
     [Fact]
     public async Task Handle_WhenAnnouncementExists_PublishesAndReturnsSuccess()
     {
-        Announcement announcement = Announcement.Create("Title", "Content", AnnouncementType.Feature);
+        Announcement announcement = Announcement.Create("Title", "Content", AnnouncementType.Feature, TimeProvider.System);
 
         _repository.GetByIdAsync(Arg.Any<AnnouncementId>(), Arg.Any<CancellationToken>())
             .Returns(announcement);
@@ -55,9 +55,7 @@ public class PublishAnnouncementHandlerTests
     [Fact]
     public async Task Handle_PublishesIntegrationEvent()
     {
-        Announcement announcement = Announcement.Create(
-            "Test Title", "Test Content", AnnouncementType.Alert,
-            AnnouncementTarget.All, null, null, null, true, true);
+        Announcement announcement = Announcement.Create("Test Title", "Test Content", AnnouncementType.Alert, TimeProvider.System, AnnouncementTarget.All, null, null, null, true, true);
 
         _repository.GetByIdAsync(Arg.Any<AnnouncementId>(), Arg.Any<CancellationToken>())
             .Returns(announcement);

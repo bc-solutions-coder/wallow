@@ -20,7 +20,7 @@ public class GetFlagByKeyHandlerTests
     [Fact]
     public async Task Handle_WhenFlagExists_ReturnsSuccessWithDto()
     {
-        FeatureFlag flag = FeatureFlag.CreateBoolean("dark_mode", "Dark Mode", true, "desc");
+        FeatureFlag flag = FeatureFlag.CreateBoolean("dark_mode", "Dark Mode", true, TimeProvider.System, "desc");
 
         _repository.GetByKeyAsync("dark_mode", Arg.Any<CancellationToken>())
             .Returns(flag);
@@ -51,7 +51,7 @@ public class GetFlagByKeyHandlerTests
     [Fact]
     public async Task Handle_MapsAllDtoFields()
     {
-        FeatureFlag flag = FeatureFlag.CreatePercentage("rollout", "Rollout Feature", 75, "75% rollout");
+        FeatureFlag flag = FeatureFlag.CreatePercentage("rollout", "Rollout Feature", 75, TimeProvider.System, "75% rollout");
 
         _repository.GetByKeyAsync("rollout", Arg.Any<CancellationToken>())
             .Returns(flag);

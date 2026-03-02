@@ -23,9 +23,7 @@ public class SubscriptionRepositoryTests : DbContextIntegrationTestBase<BillingD
     public async Task Add_And_GetByIdAsync_ReturnsSubscription()
     {
         SubscriptionRepository repository = CreateRepository();
-        Subscription subscription = Subscription.Create(
-            TestUserId, "pro", Money.Create(29.99m, "USD"),
-            DateTime.UtcNow, DateTime.UtcNow.AddMonths(1), TestUserId);
+        Subscription subscription = Subscription.Create(TestUserId, "pro", Money.Create(29.99m, "USD"), DateTime.UtcNow, DateTime.UtcNow.AddMonths(1), TestUserId, TimeProvider.System);
 
         repository.Add(subscription);
         await repository.SaveChangesAsync();
@@ -41,12 +39,8 @@ public class SubscriptionRepositoryTests : DbContextIntegrationTestBase<BillingD
     {
         SubscriptionRepository repository = CreateRepository();
         Guid userId = Guid.NewGuid();
-        Subscription sub1 = Subscription.Create(
-            userId, "free", Money.Create(0m, "USD"),
-            DateTime.UtcNow.AddMonths(-2), DateTime.UtcNow.AddMonths(-1), TestUserId);
-        Subscription sub2 = Subscription.Create(
-            userId, "pro", Money.Create(29.99m, "USD"),
-            DateTime.UtcNow, DateTime.UtcNow.AddMonths(1), TestUserId);
+        Subscription sub1 = Subscription.Create(userId, "free", Money.Create(0m, "USD"), DateTime.UtcNow.AddMonths(-2), DateTime.UtcNow.AddMonths(-1), TestUserId, TimeProvider.System);
+        Subscription sub2 = Subscription.Create(userId, "pro", Money.Create(29.99m, "USD"), DateTime.UtcNow, DateTime.UtcNow.AddMonths(1), TestUserId, TimeProvider.System);
 
         repository.Add(sub1);
         repository.Add(sub2);
@@ -61,9 +55,7 @@ public class SubscriptionRepositoryTests : DbContextIntegrationTestBase<BillingD
     public async Task GetAllAsync_ReturnsAllSubscriptions()
     {
         SubscriptionRepository repository = CreateRepository();
-        Subscription subscription = Subscription.Create(
-            TestUserId, "enterprise", Money.Create(99.99m, "USD"),
-            DateTime.UtcNow, DateTime.UtcNow.AddMonths(1), TestUserId);
+        Subscription subscription = Subscription.Create(TestUserId, "enterprise", Money.Create(99.99m, "USD"), DateTime.UtcNow, DateTime.UtcNow.AddMonths(1), TestUserId, TimeProvider.System);
 
         repository.Add(subscription);
         await repository.SaveChangesAsync();
@@ -78,9 +70,7 @@ public class SubscriptionRepositoryTests : DbContextIntegrationTestBase<BillingD
     {
         SubscriptionRepository repository = CreateRepository();
         Guid userId = Guid.NewGuid();
-        Subscription activeSubscription = Subscription.Create(
-            userId, "pro", Money.Create(29.99m, "USD"),
-            DateTime.UtcNow, DateTime.UtcNow.AddMonths(1), TestUserId);
+        Subscription activeSubscription = Subscription.Create(userId, "pro", Money.Create(29.99m, "USD"), DateTime.UtcNow, DateTime.UtcNow.AddMonths(1), TestUserId, TimeProvider.System);
 
         repository.Add(activeSubscription);
         await repository.SaveChangesAsync();
@@ -97,10 +87,8 @@ public class SubscriptionRepositoryTests : DbContextIntegrationTestBase<BillingD
     {
         SubscriptionRepository repository = CreateRepository();
         Guid userId = Guid.NewGuid();
-        Subscription cancelled = Subscription.Create(
-            userId, "free", Money.Create(0m, "USD"),
-            DateTime.UtcNow, DateTime.UtcNow.AddMonths(1), TestUserId);
-        cancelled.Cancel(TestUserId);
+        Subscription cancelled = Subscription.Create(userId, "free", Money.Create(0m, "USD"), DateTime.UtcNow, DateTime.UtcNow.AddMonths(1), TestUserId, TimeProvider.System);
+        cancelled.Cancel(TestUserId, TimeProvider.System);
 
         repository.Add(cancelled);
         await repository.SaveChangesAsync();
@@ -114,14 +102,12 @@ public class SubscriptionRepositoryTests : DbContextIntegrationTestBase<BillingD
     public async Task Update_ModifiesSubscription()
     {
         SubscriptionRepository repository = CreateRepository();
-        Subscription subscription = Subscription.Create(
-            TestUserId, "pro", Money.Create(29.99m, "USD"),
-            DateTime.UtcNow, DateTime.UtcNow.AddMonths(1), TestUserId);
+        Subscription subscription = Subscription.Create(TestUserId, "pro", Money.Create(29.99m, "USD"), DateTime.UtcNow, DateTime.UtcNow.AddMonths(1), TestUserId, TimeProvider.System);
 
         repository.Add(subscription);
         await repository.SaveChangesAsync();
 
-        subscription.Cancel(TestUserId);
+        subscription.Cancel(TestUserId, TimeProvider.System);
         repository.Update(subscription);
         await repository.SaveChangesAsync();
 

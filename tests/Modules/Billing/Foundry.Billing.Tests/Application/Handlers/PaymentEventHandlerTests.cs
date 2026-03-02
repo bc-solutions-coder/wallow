@@ -19,7 +19,7 @@ public class PaymentEventHandlerTests
     private readonly IMessageBus _messageBus;
     private readonly ITenantContext _tenantContext;
     private readonly ILogger<InvoicePaidDomainEventHandler> _invoicePaidLogger;
-    private readonly ILogger<PaymentReceivedDomainEventHandler> _paymentReceivedLogger;
+    private readonly ILogger<PaymentCreatedDomainEventHandler> _paymentReceivedLogger;
 
     public PaymentEventHandlerTests()
     {
@@ -27,7 +27,7 @@ public class PaymentEventHandlerTests
         _messageBus = Substitute.For<IMessageBus>();
         _tenantContext = Substitute.For<ITenantContext>();
         _invoicePaidLogger = NullLogger<InvoicePaidDomainEventHandler>.Instance;
-        _paymentReceivedLogger = NullLogger<PaymentReceivedDomainEventHandler>.Instance;
+        _paymentReceivedLogger = NullLogger<PaymentCreatedDomainEventHandler>.Instance;
 
         TenantId tenantId = TenantId.New();
         _tenantContext.TenantId.Returns(tenantId);
@@ -40,10 +40,10 @@ public class PaymentEventHandlerTests
     {
         // Arrange
         Guid userId = Guid.NewGuid();
-        Invoice invoice = Invoice.Create(userId, "INV-001", "USD", userId, DateTime.UtcNow.AddDays(30));
-        invoice.AddLineItem("Service", Money.Create(100m, "USD"), 1, userId);
-        invoice.Issue(userId);
-        invoice.MarkAsPaid(Guid.NewGuid(), userId);
+        Invoice invoice = Invoice.Create(userId, "INV-001", "USD", userId, TimeProvider.System, DateTime.UtcNow.AddDays(30));
+        invoice.AddLineItem("Service", Money.Create(100m, "USD"), 1, userId, TimeProvider.System);
+        invoice.Issue(userId, TimeProvider.System);
+        invoice.MarkAsPaid(Guid.NewGuid(), userId, TimeProvider.System);
 
         InvoicePaidDomainEvent domainEvent = new InvoicePaidDomainEvent(
             invoice.Id.Value,
@@ -91,10 +91,10 @@ public class PaymentEventHandlerTests
     {
         // Arrange
         Guid userId = Guid.NewGuid();
-        Invoice invoice = Invoice.Create(userId, "INV-DUP", "USD", userId, DateTime.UtcNow.AddDays(30));
-        invoice.AddLineItem("Service", Money.Create(50m, "USD"), 2, userId);
-        invoice.Issue(userId);
-        invoice.MarkAsPaid(Guid.NewGuid(), userId);
+        Invoice invoice = Invoice.Create(userId, "INV-DUP", "USD", userId, TimeProvider.System, DateTime.UtcNow.AddDays(30));
+        invoice.AddLineItem("Service", Money.Create(50m, "USD"), 2, userId, TimeProvider.System);
+        invoice.Issue(userId, TimeProvider.System);
+        invoice.MarkAsPaid(Guid.NewGuid(), userId, TimeProvider.System);
 
         InvoicePaidDomainEvent domainEvent = new InvoicePaidDomainEvent(
             invoice.Id.Value,
@@ -114,7 +114,7 @@ public class PaymentEventHandlerTests
         await _messageBus.Received(2).PublishAsync(Arg.Any<InvoicePaidEvent>());
     }
 
-    // --- PaymentReceivedDomainEventHandler Tests ---
+    // --- PaymentCreatedDomainEventHandler Tests ---
 
     [Fact]
     public async Task PaymentReceived_WithValidEvent_PublishesIntegrationEvent()
@@ -124,11 +124,11 @@ public class PaymentEventHandlerTests
         Guid invoiceId = Guid.NewGuid();
         Guid userId = Guid.NewGuid();
 
-        PaymentReceivedDomainEvent domainEvent = new PaymentReceivedDomainEvent(
+        PaymentCreatedDomainEvent domainEvent = new PaymentCreatedDomainEvent(
             paymentId, invoiceId, 250.00m, "EUR", userId);
 
         // Act
-        await PaymentReceivedDomainEventHandler.HandleAsync(
+        await PaymentCreatedDomainEventHandler.HandleAsync(
             domainEvent, _messageBus, _tenantContext, _paymentReceivedLogger, CancellationToken.None);
 
         // Assert
@@ -145,11 +145,11 @@ public class PaymentEventHandlerTests
     public async Task PaymentReceived_SetsEmptyDefaults_ForEmailAndPaymentMethod()
     {
         // Arrange
-        PaymentReceivedDomainEvent domainEvent = new PaymentReceivedDomainEvent(
+        PaymentCreatedDomainEvent domainEvent = new PaymentCreatedDomainEvent(
             Guid.NewGuid(), Guid.NewGuid(), 100m, "USD", Guid.NewGuid());
 
         // Act
-        await PaymentReceivedDomainEventHandler.HandleAsync(
+        await PaymentCreatedDomainEventHandler.HandleAsync(
             domainEvent, _messageBus, _tenantContext, _paymentReceivedLogger, CancellationToken.None);
 
         // Assert
@@ -162,13 +162,13 @@ public class PaymentEventHandlerTests
     public async Task PaymentReceived_CalledTwiceWithSameEvent_PublishesTwice()
     {
         // Arrange
-        PaymentReceivedDomainEvent domainEvent = new PaymentReceivedDomainEvent(
+        PaymentCreatedDomainEvent domainEvent = new PaymentCreatedDomainEvent(
             Guid.NewGuid(), Guid.NewGuid(), 75m, "GBP", Guid.NewGuid());
 
         // Act
-        await PaymentReceivedDomainEventHandler.HandleAsync(
+        await PaymentCreatedDomainEventHandler.HandleAsync(
             domainEvent, _messageBus, _tenantContext, _paymentReceivedLogger, CancellationToken.None);
-        await PaymentReceivedDomainEventHandler.HandleAsync(
+        await PaymentCreatedDomainEventHandler.HandleAsync(
             domainEvent, _messageBus, _tenantContext, _paymentReceivedLogger, CancellationToken.None);
 
         // Assert - handler is stateless, duplicate calls publish again

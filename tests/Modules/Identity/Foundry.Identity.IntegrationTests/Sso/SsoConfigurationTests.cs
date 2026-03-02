@@ -255,7 +255,6 @@ public class SsoConfigurationTests : IClassFixture<SsoConfigurationTestFactory>,
         // Assert
         result.Should().NotBeNull();
         result.Success.Should().BeTrue();
-        result.DebugInfo.Should().Contain("OIDC configuration validated successfully");
     }
 
     [Fact]

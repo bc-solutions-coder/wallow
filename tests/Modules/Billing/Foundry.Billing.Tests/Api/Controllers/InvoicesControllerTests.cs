@@ -10,6 +10,7 @@ using Foundry.Billing.Application.Queries.GetAllInvoices;
 using Foundry.Billing.Application.Queries.GetInvoiceById;
 using Foundry.Billing.Application.Queries.GetInvoicesByUserId;
 using Foundry.Shared.Kernel.Results;
+using Foundry.Shared.Kernel.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Wolverine;
@@ -19,13 +20,16 @@ namespace Foundry.Billing.Tests.Api.Controllers;
 public class InvoicesControllerTests
 {
     private readonly IMessageBus _bus;
+    private readonly ICurrentUserService _currentUserService;
     private readonly InvoicesController _controller;
     private readonly Guid _userId = Guid.NewGuid();
 
     public InvoicesControllerTests()
     {
         _bus = Substitute.For<IMessageBus>();
-        _controller = new InvoicesController(_bus);
+        _currentUserService = Substitute.For<ICurrentUserService>();
+        _currentUserService.GetCurrentUserId().Returns(_userId);
+        _controller = new InvoicesController(_bus, _currentUserService);
 
         ClaimsPrincipal user = new ClaimsPrincipal(new ClaimsIdentity(new[]
         {
@@ -476,25 +480,14 @@ public class InvoicesControllerTests
     #region User Claims
 
     [Fact]
-    public async Task Create_WithNoUserClaims_PassesEmptyGuidAsUserId()
+    public async Task Create_WithNoUserClaims_ReturnsUnauthorized()
     {
-        _controller.ControllerContext = new ControllerContext
-        {
-            HttpContext = new DefaultHttpContext
-            {
-                User = new ClaimsPrincipal(new ClaimsIdentity())
-            }
-        };
+        _currentUserService.GetCurrentUserId().Returns((Guid?)null);
         CreateInvoiceRequest request = new("INV-001", "USD", null);
-        InvoiceDto dto = CreateInvoiceDto("INV-001");
-        _bus.InvokeAsync<Result<InvoiceDto>>(Arg.Any<CreateInvoiceCommand>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success(dto));
 
-        await _controller.Create(request, CancellationToken.None);
+        IActionResult result = await _controller.Create(request, CancellationToken.None);
 
-        await _bus.Received(1).InvokeAsync<Result<InvoiceDto>>(
-            Arg.Is<CreateInvoiceCommand>(c => c.UserId == Guid.Empty),
-            Arg.Any<CancellationToken>());
+        result.Should().BeOfType<UnauthorizedResult>();
     }
 
     [Fact]
@@ -511,6 +504,7 @@ public class InvoicesControllerTests
                 }, "TestAuth"))
             }
         };
+        _currentUserService.GetCurrentUserId().Returns(subUserId);
         CreateInvoiceRequest request = new("INV-001", "USD", null);
         InvoiceDto dto = CreateInvoiceDto("INV-001");
         _bus.InvokeAsync<Result<InvoiceDto>>(Arg.Any<CreateInvoiceCommand>(), Arg.Any<CancellationToken>())
@@ -524,28 +518,14 @@ public class InvoicesControllerTests
     }
 
     [Fact]
-    public async Task Create_WithNonGuidUserClaim_PassesEmptyGuidAsUserId()
+    public async Task Create_WithNonGuidUserClaim_ReturnsUnauthorized()
     {
-        _controller.ControllerContext = new ControllerContext
-        {
-            HttpContext = new DefaultHttpContext
-            {
-                User = new ClaimsPrincipal(new ClaimsIdentity(new[]
-                {
-                    new Claim(ClaimTypes.NameIdentifier, "not-a-guid")
-                }, "TestAuth"))
-            }
-        };
+        _currentUserService.GetCurrentUserId().Returns((Guid?)null);
         CreateInvoiceRequest request = new("INV-001", "USD", null);
-        InvoiceDto dto = CreateInvoiceDto("INV-001");
-        _bus.InvokeAsync<Result<InvoiceDto>>(Arg.Any<CreateInvoiceCommand>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success(dto));
 
-        await _controller.Create(request, CancellationToken.None);
+        IActionResult result = await _controller.Create(request, CancellationToken.None);
 
-        await _bus.Received(1).InvokeAsync<Result<InvoiceDto>>(
-            Arg.Is<CreateInvoiceCommand>(c => c.UserId == Guid.Empty),
-            Arg.Any<CancellationToken>());
+        result.Should().BeOfType<UnauthorizedResult>();
     }
 
     #endregion

@@ -16,7 +16,7 @@ public class FeatureFlagServiceTests
     {
         _repository = Substitute.For<IFeatureFlagRepository>();
         _messageBus = Substitute.For<IMessageBus>();
-        _sut = new FeatureFlagService(_repository, _messageBus);
+        _sut = new FeatureFlagService(_repository, _messageBus, TimeProvider.System);
     }
 
     #region IsEnabledAsync - Boolean flags
@@ -35,7 +35,7 @@ public class FeatureFlagServiceTests
     [Fact]
     public async Task IsEnabledAsync_BooleanFlagEnabled_ReturnsTrue()
     {
-        FeatureFlag flag = FeatureFlag.CreateBoolean("feature-x", "Feature X", defaultEnabled: true);
+        FeatureFlag flag = FeatureFlag.CreateBoolean("feature-x", "Feature X", defaultEnabled: true, TimeProvider.System);
         _repository.GetByKeyAsync("feature-x", Arg.Any<CancellationToken>()).Returns(flag);
 
         bool result = await _sut.IsEnabledAsync("feature-x", Guid.NewGuid());
@@ -46,7 +46,7 @@ public class FeatureFlagServiceTests
     [Fact]
     public async Task IsEnabledAsync_BooleanFlagDisabled_ReturnsFalse()
     {
-        FeatureFlag flag = FeatureFlag.CreateBoolean("feature-x", "Feature X", defaultEnabled: false);
+        FeatureFlag flag = FeatureFlag.CreateBoolean("feature-x", "Feature X", defaultEnabled: false, TimeProvider.System);
         _repository.GetByKeyAsync("feature-x", Arg.Any<CancellationToken>()).Returns(flag);
 
         bool result = await _sut.IsEnabledAsync("feature-x", Guid.NewGuid());
@@ -62,8 +62,8 @@ public class FeatureFlagServiceTests
     public async Task IsEnabledAsync_WithTenantOverrideEnabled_ReturnsTrue()
     {
         Guid tenantId = Guid.NewGuid();
-        FeatureFlag flag = FeatureFlag.CreateBoolean("feature-x", "Feature X", defaultEnabled: false);
-        AddOverride(flag, FeatureFlagOverride.CreateForTenant(flag.Id, tenantId, isEnabled: true));
+        FeatureFlag flag = FeatureFlag.CreateBoolean("feature-x", "Feature X", defaultEnabled: false, TimeProvider.System);
+        AddOverride(flag, FeatureFlagOverride.CreateForTenant(flag.Id, tenantId, isEnabled: true, TimeProvider.System));
         _repository.GetByKeyAsync("feature-x", Arg.Any<CancellationToken>()).Returns(flag);
 
         bool result = await _sut.IsEnabledAsync("feature-x", tenantId);
@@ -76,9 +76,9 @@ public class FeatureFlagServiceTests
     {
         Guid tenantId = Guid.NewGuid();
         Guid userId = Guid.NewGuid();
-        FeatureFlag flag = FeatureFlag.CreateBoolean("feature-x", "Feature X", defaultEnabled: false);
-        AddOverride(flag, FeatureFlagOverride.CreateForTenant(flag.Id, tenantId, isEnabled: true));
-        AddOverride(flag, FeatureFlagOverride.CreateForUser(flag.Id, userId, isEnabled: false));
+        FeatureFlag flag = FeatureFlag.CreateBoolean("feature-x", "Feature X", defaultEnabled: false, TimeProvider.System);
+        AddOverride(flag, FeatureFlagOverride.CreateForTenant(flag.Id, tenantId, isEnabled: true, TimeProvider.System));
+        AddOverride(flag, FeatureFlagOverride.CreateForUser(flag.Id, userId, isEnabled: false, TimeProvider.System));
         _repository.GetByKeyAsync("feature-x", Arg.Any<CancellationToken>()).Returns(flag);
 
         bool result = await _sut.IsEnabledAsync("feature-x", tenantId, userId);
@@ -91,9 +91,9 @@ public class FeatureFlagServiceTests
     {
         Guid tenantId = Guid.NewGuid();
         Guid userId = Guid.NewGuid();
-        FeatureFlag flag = FeatureFlag.CreateBoolean("feature-x", "Feature X", defaultEnabled: false);
-        AddOverride(flag, FeatureFlagOverride.CreateForUser(flag.Id, userId, isEnabled: false));
-        AddOverride(flag, FeatureFlagOverride.CreateForTenantUser(flag.Id, tenantId, userId, isEnabled: true));
+        FeatureFlag flag = FeatureFlag.CreateBoolean("feature-x", "Feature X", defaultEnabled: false, TimeProvider.System);
+        AddOverride(flag, FeatureFlagOverride.CreateForUser(flag.Id, userId, isEnabled: false, TimeProvider.System));
+        AddOverride(flag, FeatureFlagOverride.CreateForTenantUser(flag.Id, tenantId, userId, isEnabled: true, TimeProvider.System));
         _repository.GetByKeyAsync("feature-x", Arg.Any<CancellationToken>()).Returns(flag);
 
         bool result = await _sut.IsEnabledAsync("feature-x", tenantId, userId);
@@ -105,9 +105,8 @@ public class FeatureFlagServiceTests
     public async Task IsEnabledAsync_WithExpiredOverride_IgnoresOverride()
     {
         Guid tenantId = Guid.NewGuid();
-        FeatureFlag flag = FeatureFlag.CreateBoolean("feature-x", "Feature X", defaultEnabled: false);
-        AddOverride(flag, FeatureFlagOverride.CreateForTenant(
-            flag.Id, tenantId, isEnabled: true, expiresAt: DateTime.UtcNow.AddDays(-1)));
+        FeatureFlag flag = FeatureFlag.CreateBoolean("feature-x", "Feature X", defaultEnabled: false, TimeProvider.System);
+        AddOverride(flag, FeatureFlagOverride.CreateForTenant(flag.Id, tenantId, isEnabled: true, TimeProvider.System, expiresAt: DateTime.UtcNow.AddDays(-1)));
         _repository.GetByKeyAsync("feature-x", Arg.Any<CancellationToken>()).Returns(flag);
 
         bool result = await _sut.IsEnabledAsync("feature-x", tenantId);
@@ -122,7 +121,7 @@ public class FeatureFlagServiceTests
     [Fact]
     public async Task IsEnabledAsync_PercentageFlag100_ReturnsTrue()
     {
-        FeatureFlag flag = FeatureFlag.CreatePercentage("pct-flag", "PCT Flag", 100);
+        FeatureFlag flag = FeatureFlag.CreatePercentage("pct-flag", "PCT Flag", 100, TimeProvider.System);
         _repository.GetByKeyAsync("pct-flag", Arg.Any<CancellationToken>()).Returns(flag);
 
         bool result = await _sut.IsEnabledAsync("pct-flag", Guid.NewGuid(), Guid.NewGuid());
@@ -133,7 +132,7 @@ public class FeatureFlagServiceTests
     [Fact]
     public async Task IsEnabledAsync_PercentageFlag0_ReturnsFalse()
     {
-        FeatureFlag flag = FeatureFlag.CreatePercentage("pct-flag", "PCT Flag", 0);
+        FeatureFlag flag = FeatureFlag.CreatePercentage("pct-flag", "PCT Flag", 0, TimeProvider.System);
         _repository.GetByKeyAsync("pct-flag", Arg.Any<CancellationToken>()).Returns(flag);
 
         bool result = await _sut.IsEnabledAsync("pct-flag", Guid.NewGuid(), Guid.NewGuid());
@@ -144,7 +143,7 @@ public class FeatureFlagServiceTests
     [Fact]
     public async Task IsEnabledAsync_PercentageFlag_ConsistentForSameUser()
     {
-        FeatureFlag flag = FeatureFlag.CreatePercentage("pct-flag", "PCT Flag", 50);
+        FeatureFlag flag = FeatureFlag.CreatePercentage("pct-flag", "PCT Flag", 50, TimeProvider.System);
         _repository.GetByKeyAsync("pct-flag", Arg.Any<CancellationToken>()).Returns(flag);
         Guid tenantId = Guid.NewGuid();
         Guid userId = Guid.NewGuid();
@@ -158,7 +157,7 @@ public class FeatureFlagServiceTests
     [Fact]
     public async Task IsEnabledAsync_PercentageFlagNoUser_ReturnsTrueWhenPercentagePositive()
     {
-        FeatureFlag flag = FeatureFlag.CreatePercentage("pct-flag", "PCT Flag", 50);
+        FeatureFlag flag = FeatureFlag.CreatePercentage("pct-flag", "PCT Flag", 50, TimeProvider.System);
         _repository.GetByKeyAsync("pct-flag", Arg.Any<CancellationToken>()).Returns(flag);
 
         // With no userId, percentage > 0 returns true
@@ -191,9 +190,8 @@ public class FeatureFlagServiceTests
             new VariantWeight("A", 50),
             new VariantWeight("B", 50)
         };
-        FeatureFlag flag = FeatureFlag.CreateVariant("ab-test", "AB Test", variants, "A");
-        AddOverride(flag, FeatureFlagOverride.CreateForTenant(
-            flag.Id, tenantId, isEnabled: null, variant: "B"));
+        FeatureFlag flag = FeatureFlag.CreateVariant("ab-test", "AB Test", variants, "A", TimeProvider.System);
+        AddOverride(flag, FeatureFlagOverride.CreateForTenant(flag.Id, tenantId, isEnabled: null, TimeProvider.System, variant: "B"));
         _repository.GetByKeyAsync("ab-test", Arg.Any<CancellationToken>()).Returns(flag);
 
         string? result = await _sut.GetVariantAsync("ab-test", tenantId);
@@ -209,7 +207,7 @@ public class FeatureFlagServiceTests
             new VariantWeight("A", 50),
             new VariantWeight("B", 50)
         };
-        FeatureFlag flag = FeatureFlag.CreateVariant("ab-test", "AB Test", variants, "A");
+        FeatureFlag flag = FeatureFlag.CreateVariant("ab-test", "AB Test", variants, "A", TimeProvider.System);
         _repository.GetByKeyAsync("ab-test", Arg.Any<CancellationToken>()).Returns(flag);
 
         string? result = await _sut.GetVariantAsync("ab-test", Guid.NewGuid(), Guid.NewGuid());
@@ -225,7 +223,7 @@ public class FeatureFlagServiceTests
             new VariantWeight("A", 50),
             new VariantWeight("B", 50)
         };
-        FeatureFlag flag = FeatureFlag.CreateVariant("ab-test", "AB Test", variants, "A");
+        FeatureFlag flag = FeatureFlag.CreateVariant("ab-test", "AB Test", variants, "A", TimeProvider.System);
         _repository.GetByKeyAsync("ab-test", Arg.Any<CancellationToken>()).Returns(flag);
         Guid tenantId = Guid.NewGuid();
         Guid userId = Guid.NewGuid();
@@ -239,7 +237,7 @@ public class FeatureFlagServiceTests
     [Fact]
     public async Task GetVariantAsync_NonVariantFlag_ReturnsDefaultVariant()
     {
-        FeatureFlag flag = FeatureFlag.CreateBoolean("bool-flag", "Bool Flag", defaultEnabled: true);
+        FeatureFlag flag = FeatureFlag.CreateBoolean("bool-flag", "Bool Flag", defaultEnabled: true, TimeProvider.System);
         _repository.GetByKeyAsync("bool-flag", Arg.Any<CancellationToken>()).Returns(flag);
 
         string? result = await _sut.GetVariantAsync("bool-flag", Guid.NewGuid());
@@ -261,8 +259,8 @@ public class FeatureFlagServiceTests
             new VariantWeight("A", 50),
             new VariantWeight("B", 50)
         };
-        FeatureFlag boolFlag = FeatureFlag.CreateBoolean("bool-flag", "Bool", defaultEnabled: true);
-        FeatureFlag variantFlag = FeatureFlag.CreateVariant("var-flag", "Var", variants, "A");
+        FeatureFlag boolFlag = FeatureFlag.CreateBoolean("bool-flag", "Bool", defaultEnabled: true, TimeProvider.System);
+        FeatureFlag variantFlag = FeatureFlag.CreateVariant("var-flag", "Var", variants, "A", TimeProvider.System);
         _repository.GetAllAsync(Arg.Any<CancellationToken>())
             .Returns(new List<FeatureFlag> { boolFlag, variantFlag });
         _repository.GetByKeyAsync("bool-flag", Arg.Any<CancellationToken>()).Returns(boolFlag);
@@ -294,7 +292,7 @@ public class FeatureFlagServiceTests
     [Fact]
     public async Task IsEnabledAsync_PublishesEvaluationEvent()
     {
-        FeatureFlag flag = FeatureFlag.CreateBoolean("feature-x", "Feature X", defaultEnabled: true);
+        FeatureFlag flag = FeatureFlag.CreateBoolean("feature-x", "Feature X", defaultEnabled: true, TimeProvider.System);
         _repository.GetByKeyAsync("feature-x", Arg.Any<CancellationToken>()).Returns(flag);
 
         await _sut.IsEnabledAsync("feature-x", Guid.NewGuid());
@@ -309,7 +307,7 @@ public class FeatureFlagServiceTests
         {
             new VariantWeight("A", 100)
         };
-        FeatureFlag flag = FeatureFlag.CreateVariant("ab-test", "AB Test", variants, "A");
+        FeatureFlag flag = FeatureFlag.CreateVariant("ab-test", "AB Test", variants, "A", TimeProvider.System);
         _repository.GetByKeyAsync("ab-test", Arg.Any<CancellationToken>()).Returns(flag);
 
         await _sut.GetVariantAsync("ab-test", Guid.NewGuid());

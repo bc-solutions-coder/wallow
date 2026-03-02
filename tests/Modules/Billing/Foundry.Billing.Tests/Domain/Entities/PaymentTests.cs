@@ -18,7 +18,7 @@ public class PaymentCreateTests
         Money amount = Money.Create(100, "USD");
         Guid createdBy = Guid.NewGuid();
 
-        Payment payment = Payment.Create(invoiceId, userId, amount, PaymentMethod.CreditCard, createdBy);
+        Payment payment = Payment.Create(invoiceId, userId, amount, PaymentMethod.CreditCard, createdBy, TimeProvider.System);
 
         payment.InvoiceId.Should().Be(invoiceId);
         payment.UserId.Should().Be(userId);
@@ -31,17 +31,17 @@ public class PaymentCreateTests
     }
 
     [Fact]
-    public void Create_RaisesPaymentReceivedDomainEvent()
+    public void Create_RaisesPaymentCreatedDomainEvent()
     {
         InvoiceId invoiceId = InvoiceId.New();
         Guid userId = Guid.NewGuid();
         Money amount = Money.Create(250, "EUR");
 
-        Payment payment = Payment.Create(invoiceId, userId, amount, PaymentMethod.BankTransfer, Guid.NewGuid());
+        Payment payment = Payment.Create(invoiceId, userId, amount, PaymentMethod.BankTransfer, Guid.NewGuid(), TimeProvider.System);
 
         payment.DomainEvents.Should().ContainSingle()
-            .Which.Should().BeOfType<PaymentReceivedDomainEvent>()
-            .Which.Should().Match<PaymentReceivedDomainEvent>(e =>
+            .Which.Should().BeOfType<PaymentCreatedDomainEvent>()
+            .Which.Should().Match<PaymentCreatedDomainEvent>(e =>
                 e.InvoiceId == invoiceId.Value &&
                 e.UserId == userId &&
                 e.Amount == 250 &&
@@ -51,12 +51,7 @@ public class PaymentCreateTests
     [Fact]
     public void Create_WithZeroAmount_ThrowsInvalidPaymentException()
     {
-        Func<Payment> act = () => Payment.Create(
-            InvoiceId.New(),
-            Guid.NewGuid(),
-            Money.Create(0, "USD"),
-            PaymentMethod.CreditCard,
-            Guid.NewGuid());
+        Func<Payment> act = () => Payment.Create(InvoiceId.New(), Guid.NewGuid(), Money.Create(0, "USD"), PaymentMethod.CreditCard, Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<InvalidPaymentException>()
             .WithMessage("*greater than zero*");
@@ -71,13 +66,7 @@ public class PaymentCreateTests
             { "reference", "pay_123" }
         };
 
-        Payment payment = Payment.Create(
-            InvoiceId.New(),
-            Guid.NewGuid(),
-            Money.Create(100, "USD"),
-            PaymentMethod.CreditCard,
-            Guid.NewGuid(),
-            customFields);
+        Payment payment = Payment.Create(InvoiceId.New(), Guid.NewGuid(), Money.Create(100, "USD"), PaymentMethod.CreditCard, Guid.NewGuid(), TimeProvider.System, customFields);
 
         payment.CustomFields.Should().NotBeNull();
         payment.CustomFields.Should().ContainKey("gateway");
@@ -95,7 +84,7 @@ public class PaymentCompleteTests
         Guid updatedBy = Guid.NewGuid();
         DateTime beforeComplete = DateTime.UtcNow;
 
-        payment.Complete(transactionRef, updatedBy);
+        payment.Complete(transactionRef, updatedBy, TimeProvider.System);
 
         payment.Status.Should().Be(PaymentStatus.Completed);
         payment.TransactionReference.Should().Be(transactionRef);
@@ -107,9 +96,9 @@ public class PaymentCompleteTests
     public void Complete_CompletedPayment_ThrowsInvalidPaymentException()
     {
         Payment payment = CreatePendingPayment();
-        payment.Complete("txn_1", Guid.NewGuid());
+        payment.Complete("txn_1", Guid.NewGuid(), TimeProvider.System);
 
-        Action act = () => payment.Complete("txn_2", Guid.NewGuid());
+        Action act = () => payment.Complete("txn_2", Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<InvalidPaymentException>()
             .WithMessage("*Pending*");
@@ -119,9 +108,9 @@ public class PaymentCompleteTests
     public void Complete_FailedPayment_ThrowsInvalidPaymentException()
     {
         Payment payment = CreatePendingPayment();
-        payment.Fail("Card declined", Guid.NewGuid());
+        payment.Fail("Card declined", Guid.NewGuid(), TimeProvider.System);
 
-        Action act = () => payment.Complete("txn_1", Guid.NewGuid());
+        Action act = () => payment.Complete("txn_1", Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<InvalidPaymentException>()
             .WithMessage("*Pending*");
@@ -131,10 +120,10 @@ public class PaymentCompleteTests
     public void Complete_RefundedPayment_ThrowsInvalidPaymentException()
     {
         Payment payment = CreatePendingPayment();
-        payment.Complete("txn_1", Guid.NewGuid());
-        payment.Refund(Guid.NewGuid());
+        payment.Complete("txn_1", Guid.NewGuid(), TimeProvider.System);
+        payment.Refund(Guid.NewGuid(), TimeProvider.System);
 
-        Action act = () => payment.Complete("txn_2", Guid.NewGuid());
+        Action act = () => payment.Complete("txn_2", Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<InvalidPaymentException>()
             .WithMessage("*Pending*");
@@ -150,7 +139,7 @@ public class PaymentFailTests
         string reason = "Insufficient funds";
         Guid updatedBy = Guid.NewGuid();
 
-        payment.Fail(reason, updatedBy);
+        payment.Fail(reason, updatedBy, TimeProvider.System);
 
         payment.Status.Should().Be(PaymentStatus.Failed);
         payment.FailureReason.Should().Be(reason);
@@ -163,7 +152,7 @@ public class PaymentFailTests
         string reason = "Card expired";
         payment.ClearDomainEvents();
 
-        payment.Fail(reason, Guid.NewGuid());
+        payment.Fail(reason, Guid.NewGuid(), TimeProvider.System);
 
         payment.DomainEvents.Should().ContainSingle()
             .Which.Should().BeOfType<PaymentFailedDomainEvent>()
@@ -178,9 +167,9 @@ public class PaymentFailTests
     public void Fail_CompletedPayment_ThrowsInvalidPaymentException()
     {
         Payment payment = CreatePendingPayment();
-        payment.Complete("txn_1", Guid.NewGuid());
+        payment.Complete("txn_1", Guid.NewGuid(), TimeProvider.System);
 
-        Action act = () => payment.Fail("Some reason", Guid.NewGuid());
+        Action act = () => payment.Fail("Some reason", Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<InvalidPaymentException>()
             .WithMessage("*Pending*");
@@ -190,9 +179,9 @@ public class PaymentFailTests
     public void Fail_FailedPayment_ThrowsInvalidPaymentException()
     {
         Payment payment = CreatePendingPayment();
-        payment.Fail("First failure", Guid.NewGuid());
+        payment.Fail("First failure", Guid.NewGuid(), TimeProvider.System);
 
-        Action act = () => payment.Fail("Second failure", Guid.NewGuid());
+        Action act = () => payment.Fail("Second failure", Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<InvalidPaymentException>()
             .WithMessage("*Pending*");
@@ -205,10 +194,10 @@ public class PaymentRefundTests
     public void Refund_CompletedPayment_ChangesStatusToRefunded()
     {
         Payment payment = CreatePendingPayment();
-        payment.Complete("txn_1", Guid.NewGuid());
+        payment.Complete("txn_1", Guid.NewGuid(), TimeProvider.System);
         Guid updatedBy = Guid.NewGuid();
 
-        payment.Refund(updatedBy);
+        payment.Refund(updatedBy, TimeProvider.System);
 
         payment.Status.Should().Be(PaymentStatus.Refunded);
     }
@@ -218,7 +207,7 @@ public class PaymentRefundTests
     {
         Payment payment = CreatePendingPayment();
 
-        Action act = () => payment.Refund(Guid.NewGuid());
+        Action act = () => payment.Refund(Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<InvalidPaymentException>()
             .WithMessage("*Completed*");
@@ -228,9 +217,9 @@ public class PaymentRefundTests
     public void Refund_FailedPayment_ThrowsInvalidPaymentException()
     {
         Payment payment = CreatePendingPayment();
-        payment.Fail("Card declined", Guid.NewGuid());
+        payment.Fail("Card declined", Guid.NewGuid(), TimeProvider.System);
 
-        Action act = () => payment.Refund(Guid.NewGuid());
+        Action act = () => payment.Refund(Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<InvalidPaymentException>()
             .WithMessage("*Completed*");
@@ -240,10 +229,10 @@ public class PaymentRefundTests
     public void Refund_AlreadyRefunded_ThrowsInvalidPaymentException()
     {
         Payment payment = CreatePendingPayment();
-        payment.Complete("txn_1", Guid.NewGuid());
-        payment.Refund(Guid.NewGuid());
+        payment.Complete("txn_1", Guid.NewGuid(), TimeProvider.System);
+        payment.Refund(Guid.NewGuid(), TimeProvider.System);
 
-        Action act = () => payment.Refund(Guid.NewGuid());
+        Action act = () => payment.Refund(Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<InvalidPaymentException>()
             .WithMessage("*Completed*");
@@ -254,12 +243,7 @@ internal static class PaymentTestHelpers
 {
     public static Payment CreatePendingPayment()
     {
-        Payment payment = Payment.Create(
-            InvoiceId.New(),
-            Guid.NewGuid(),
-            Money.Create(100, "USD"),
-            PaymentMethod.CreditCard,
-            Guid.NewGuid());
+        Payment payment = Payment.Create(InvoiceId.New(), Guid.NewGuid(), Money.Create(100, "USD"), PaymentMethod.CreditCard, Guid.NewGuid(), TimeProvider.System);
         payment.ClearDomainEvents();
         return payment;
     }

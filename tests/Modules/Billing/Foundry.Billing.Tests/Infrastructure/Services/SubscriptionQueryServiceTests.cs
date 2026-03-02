@@ -23,13 +23,7 @@ public class SubscriptionQueryServiceTests
     public async Task GetActivePlanCodeAsync_WithActiveSubscription_ReturnsPlanName()
     {
         Guid tenantId = Guid.NewGuid();
-        Subscription subscription = Subscription.Create(
-            tenantId,
-            "pro",
-            Money.Create(29.99m, "USD"),
-            DateTime.UtcNow,
-            DateTime.UtcNow.AddMonths(1),
-            Guid.NewGuid());
+        Subscription subscription = Subscription.Create(tenantId, "pro", Money.Create(29.99m, "USD"), DateTime.UtcNow, DateTime.UtcNow.AddMonths(1), Guid.NewGuid(), TimeProvider.System);
 
         _subscriptionRepository.GetActiveByUserIdAsync(tenantId, Arg.Any<CancellationToken>())
             .Returns(subscription);

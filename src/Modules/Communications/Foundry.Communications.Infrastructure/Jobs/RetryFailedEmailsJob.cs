@@ -9,15 +9,18 @@ public sealed partial class RetryFailedEmailsJob
 {
     private readonly IEmailMessageRepository _emailMessageRepository;
     private readonly IEmailService _emailService;
+    private readonly TimeProvider _timeProvider;
     private readonly ILogger<RetryFailedEmailsJob> _logger;
 
     public RetryFailedEmailsJob(
         IEmailMessageRepository emailMessageRepository,
         IEmailService emailService,
+        TimeProvider timeProvider,
         ILogger<RetryFailedEmailsJob> logger)
     {
         _emailMessageRepository = emailMessageRepository;
         _emailService = emailService;
+        _timeProvider = timeProvider;
         _logger = logger;
     }
 
@@ -40,7 +43,7 @@ public sealed partial class RetryFailedEmailsJob
 
                 try
                 {
-                    message.ResetForRetry();
+                    message.ResetForRetry(_timeProvider);
 
                     await _emailService.SendAsync(
                         message.To.Value,
@@ -49,13 +52,13 @@ public sealed partial class RetryFailedEmailsJob
                         message.Content.Body,
                         cancellationToken);
 
-                    message.MarkAsSent();
+                    message.MarkAsSent(_timeProvider);
                     retriedCount++;
                     LogEmailRetrySucceeded(_logger, message.Id.Value);
                 }
                 catch (Exception ex)
                 {
-                    message.MarkAsFailed(ex.Message);
+                    message.MarkAsFailed(ex.Message, _timeProvider);
                     LogEmailRetryFailed(_logger, ex, message.Id.Value);
                 }
             }

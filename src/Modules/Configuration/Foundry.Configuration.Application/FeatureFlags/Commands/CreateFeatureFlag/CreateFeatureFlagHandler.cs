@@ -12,7 +12,8 @@ namespace Foundry.Configuration.Application.FeatureFlags.Commands.CreateFeatureF
 public sealed class CreateFeatureFlagHandler(
     IFeatureFlagRepository repository,
     IDistributedCache cache,
-    IMessageBus bus)
+    IMessageBus bus,
+    TimeProvider timeProvider)
 {
     public async Task<Result<Guid>> Handle(CreateFeatureFlagCommand cmd, CancellationToken ct)
     {
@@ -24,12 +25,12 @@ public sealed class CreateFeatureFlagHandler(
 
         FeatureFlag flag = cmd.FlagType switch
         {
-            FlagType.Boolean => FeatureFlag.CreateBoolean(cmd.Key, cmd.Name, cmd.DefaultEnabled, cmd.Description),
-            FlagType.Percentage => FeatureFlag.CreatePercentage(cmd.Key, cmd.Name, cmd.RolloutPercentage ?? 0, cmd.Description),
+            FlagType.Boolean => FeatureFlag.CreateBoolean(cmd.Key, cmd.Name, cmd.DefaultEnabled, timeProvider, cmd.Description),
+            FlagType.Percentage => FeatureFlag.CreatePercentage(cmd.Key, cmd.Name, cmd.RolloutPercentage ?? 0, timeProvider, cmd.Description),
             FlagType.Variant => FeatureFlag.CreateVariant(
                 cmd.Key, cmd.Name,
                 cmd.Variants?.Select(v => new VariantWeight(v.Name, v.Weight)).ToList() ?? [],
-                cmd.DefaultVariant ?? "", cmd.Description),
+                cmd.DefaultVariant ?? "", timeProvider, cmd.Description),
             _ => throw new ArgumentOutOfRangeException(nameof(cmd), cmd.FlagType, $"Unsupported flag type: {cmd.FlagType}")
         };
 

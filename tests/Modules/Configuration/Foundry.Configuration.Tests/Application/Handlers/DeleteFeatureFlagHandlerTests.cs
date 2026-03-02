@@ -26,7 +26,7 @@ public class DeleteFeatureFlagHandlerTests
     [Fact]
     public async Task Handle_WithExistingFlag_DeletesAndReturnsSuccess()
     {
-        FeatureFlag flag = FeatureFlag.CreateBoolean("to_delete", "To Delete", true);
+        FeatureFlag flag = FeatureFlag.CreateBoolean("to_delete", "To Delete", true, TimeProvider.System);
 
         _repository.GetByIdAsync(Arg.Any<FeatureFlagId>(), Arg.Any<CancellationToken>())
             .Returns(flag);
@@ -57,7 +57,7 @@ public class DeleteFeatureFlagHandlerTests
     [Fact]
     public async Task Handle_AfterSuccess_InvalidatesCacheAndPublishesEvent()
     {
-        FeatureFlag flag = FeatureFlag.CreateBoolean("cached_flag", "Cached", true);
+        FeatureFlag flag = FeatureFlag.CreateBoolean("cached_flag", "Cached", true, TimeProvider.System);
 
         _repository.GetByIdAsync(Arg.Any<FeatureFlagId>(), Arg.Any<CancellationToken>())
             .Returns(flag);

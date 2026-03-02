@@ -18,21 +18,16 @@ public class ProcessPaymentHandlerTests
     {
         _paymentRepository = Substitute.For<IPaymentRepository>();
         _invoiceRepository = Substitute.For<IInvoiceRepository>();
-        _handler = new ProcessPaymentHandler(_paymentRepository, _invoiceRepository);
+        _handler = new ProcessPaymentHandler(_paymentRepository, _invoiceRepository, TimeProvider.System);
     }
 
     [Fact]
     public async Task Handle_WithValidPayment_ProcessesIt()
     {
         // Arrange
-        Invoice invoice = Invoice.Create(
-            Guid.NewGuid(),
-            "INV-001",
-            "USD",
-            Guid.NewGuid(),
-            DateTime.UtcNow.AddDays(30));
-        invoice.AddLineItem("Test Item", Money.Create(100m, "USD"), 1, Guid.NewGuid());
-        invoice.Issue(Guid.NewGuid());
+        Invoice invoice = Invoice.Create(Guid.NewGuid(), "INV-001", "USD", Guid.NewGuid(), TimeProvider.System, DateTime.UtcNow.AddDays(30));
+        invoice.AddLineItem("Test Item", Money.Create(100m, "USD"), 1, Guid.NewGuid(), TimeProvider.System);
+        invoice.Issue(Guid.NewGuid(), TimeProvider.System);
 
         _invoiceRepository.GetByIdAsync(Arg.Any<InvoiceId>(), Arg.Any<CancellationToken>())
             .Returns(invoice);
@@ -82,14 +77,9 @@ public class ProcessPaymentHandlerTests
     public async Task Handle_WithInvalidPaymentMethod_ReturnsValidationError()
     {
         // Arrange
-        Invoice invoice = Invoice.Create(
-            Guid.NewGuid(),
-            "INV-001",
-            "USD",
-            Guid.NewGuid(),
-            DateTime.UtcNow.AddDays(30));
-        invoice.AddLineItem("Test Item", Money.Create(100m, "USD"), 1, Guid.NewGuid());
-        invoice.Issue(Guid.NewGuid());
+        Invoice invoice = Invoice.Create(Guid.NewGuid(), "INV-001", "USD", Guid.NewGuid(), TimeProvider.System, DateTime.UtcNow.AddDays(30));
+        invoice.AddLineItem("Test Item", Money.Create(100m, "USD"), 1, Guid.NewGuid(), TimeProvider.System);
+        invoice.Issue(Guid.NewGuid(), TimeProvider.System);
 
         _invoiceRepository.GetByIdAsync(Arg.Any<InvoiceId>(), Arg.Any<CancellationToken>())
             .Returns(invoice);
@@ -113,14 +103,9 @@ public class ProcessPaymentHandlerTests
     public async Task Handle_WhenExecutedTwiceWithSameCommand_CreatesMultiplePayments()
     {
         // Arrange
-        Invoice invoice = Invoice.Create(
-            Guid.NewGuid(),
-            "INV-001",
-            "USD",
-            Guid.NewGuid(),
-            DateTime.UtcNow.AddDays(30));
-        invoice.AddLineItem("Test Item", Money.Create(100m, "USD"), 1, Guid.NewGuid());
-        invoice.Issue(Guid.NewGuid());
+        Invoice invoice = Invoice.Create(Guid.NewGuid(), "INV-001", "USD", Guid.NewGuid(), TimeProvider.System, DateTime.UtcNow.AddDays(30));
+        invoice.AddLineItem("Test Item", Money.Create(100m, "USD"), 1, Guid.NewGuid(), TimeProvider.System);
+        invoice.Issue(Guid.NewGuid(), TimeProvider.System);
 
         _invoiceRepository.GetByIdAsync(Arg.Any<InvoiceId>(), Arg.Any<CancellationToken>())
             .Returns(invoice);
@@ -148,14 +133,9 @@ public class ProcessPaymentHandlerTests
     public async Task Handle_WhenExecutedConcurrentlyForSameInvoice_ProcessesAllPayments()
     {
         // Arrange
-        Invoice invoice = Invoice.Create(
-            Guid.NewGuid(),
-            "INV-001",
-            "USD",
-            Guid.NewGuid(),
-            DateTime.UtcNow.AddDays(30));
-        invoice.AddLineItem("Test Item", Money.Create(300m, "USD"), 1, Guid.NewGuid());
-        invoice.Issue(Guid.NewGuid());
+        Invoice invoice = Invoice.Create(Guid.NewGuid(), "INV-001", "USD", Guid.NewGuid(), TimeProvider.System, DateTime.UtcNow.AddDays(30));
+        invoice.AddLineItem("Test Item", Money.Create(300m, "USD"), 1, Guid.NewGuid(), TimeProvider.System);
+        invoice.Issue(Guid.NewGuid(), TimeProvider.System);
 
         _invoiceRepository.GetByIdAsync(Arg.Any<InvoiceId>(), Arg.Any<CancellationToken>())
             .Returns(invoice);

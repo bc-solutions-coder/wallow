@@ -4,7 +4,9 @@ using Foundry.Shared.Kernel.Results;
 
 namespace Foundry.Communications.Application.Channels.InApp.Commands.ArchiveNotification;
 
-public sealed class ArchiveNotificationHandler(INotificationRepository notificationRepository)
+public sealed class ArchiveNotificationHandler(
+    INotificationRepository notificationRepository,
+    TimeProvider timeProvider)
 {
     public async Task<Result> Handle(
         ArchiveNotificationCommand command,
@@ -24,7 +26,7 @@ public sealed class ArchiveNotificationHandler(INotificationRepository notificat
             return Result.Failure(Error.Unauthorized("Unauthorized access to notification"));
         }
 
-        notification.Archive();
+        notification.Archive(timeProvider);
         await notificationRepository.SaveChangesAsync(cancellationToken);
 
         return Result.Success();

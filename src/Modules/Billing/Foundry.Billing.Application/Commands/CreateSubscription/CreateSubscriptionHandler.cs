@@ -8,7 +8,8 @@ using Foundry.Shared.Kernel.Results;
 namespace Foundry.Billing.Application.Commands.CreateSubscription;
 
 public sealed class CreateSubscriptionHandler(
-    ISubscriptionRepository subscriptionRepository)
+    ISubscriptionRepository subscriptionRepository,
+    TimeProvider timeProvider)
 {
     public async Task<Result<SubscriptionDto>> Handle(
         CreateSubscriptionCommand command,
@@ -22,6 +23,7 @@ public sealed class CreateSubscriptionHandler(
             command.StartDate,
             command.PeriodEnd,
             command.UserId,
+            timeProvider,
             command.CustomFields);
 
         subscriptionRepository.Add(subscription);

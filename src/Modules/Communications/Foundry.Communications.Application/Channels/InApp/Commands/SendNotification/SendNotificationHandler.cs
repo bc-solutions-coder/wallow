@@ -10,7 +10,8 @@ namespace Foundry.Communications.Application.Channels.InApp.Commands.SendNotific
 public sealed class SendNotificationHandler(
     INotificationRepository notificationRepository,
     INotificationService notificationService,
-    ITenantContext tenantContext)
+    ITenantContext tenantContext,
+    TimeProvider timeProvider)
 {
     public async Task<Result<NotificationDto>> Handle(
         SendNotificationCommand command,
@@ -21,7 +22,8 @@ public sealed class SendNotificationHandler(
             command.UserId,
             command.Type,
             command.Title,
-            command.Message);
+            command.Message,
+            timeProvider);
 
         notificationRepository.Add(notification);
         await notificationRepository.SaveChangesAsync(cancellationToken);

@@ -1,4 +1,4 @@
-using Foundry.Identity.Api.Extensions;
+using Foundry.Shared.Api.Extensions;
 using Foundry.Shared.Kernel.Results;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;

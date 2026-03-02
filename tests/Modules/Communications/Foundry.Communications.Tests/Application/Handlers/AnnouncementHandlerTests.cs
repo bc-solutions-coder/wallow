@@ -24,9 +24,9 @@ public class AnnouncementHandlerTests
     {
         _repository = Substitute.For<IAnnouncementRepository>();
         _messageBus = Substitute.For<IMessageBus>();
-        _createHandler = new CreateAnnouncementHandler(_repository);
-        _publishHandler = new PublishAnnouncementHandler(_repository, _messageBus);
-        _archiveHandler = new ArchiveAnnouncementHandler(_repository);
+        _createHandler = new CreateAnnouncementHandler(_repository, TimeProvider.System);
+        _publishHandler = new PublishAnnouncementHandler(_repository, _messageBus, TimeProvider.System);
+        _archiveHandler = new ArchiveAnnouncementHandler(_repository, TimeProvider.System);
     }
 
     // --- CreateAnnouncement ---
@@ -90,7 +90,7 @@ public class AnnouncementHandlerTests
     [Fact]
     public async Task Publish_WhenAnnouncementExists_ReturnsSuccessAndUpdatesRepository()
     {
-        Announcement announcement = Announcement.Create("Title", "Content", AnnouncementType.Feature);
+        Announcement announcement = Announcement.Create("Title", "Content", AnnouncementType.Feature, TimeProvider.System);
         _repository.GetByIdAsync(Arg.Any<AnnouncementId>(), Arg.Any<CancellationToken>())
             .Returns(announcement);
 
@@ -119,9 +119,7 @@ public class AnnouncementHandlerTests
     [Fact]
     public async Task Publish_SendsIntegrationEvent()
     {
-        Announcement announcement = Announcement.Create(
-            "Test Title", "Test Content", AnnouncementType.Alert,
-            AnnouncementTarget.All, null, null, null, true, true);
+        Announcement announcement = Announcement.Create("Test Title", "Test Content", AnnouncementType.Alert, TimeProvider.System, AnnouncementTarget.All, null, null, null, true, true);
         _repository.GetByIdAsync(Arg.Any<AnnouncementId>(), Arg.Any<CancellationToken>())
             .Returns(announcement);
 
@@ -155,7 +153,7 @@ public class AnnouncementHandlerTests
     [Fact]
     public async Task Archive_WhenAnnouncementExists_ArchivesAndReturnsSuccess()
     {
-        Announcement announcement = Announcement.Create("Title", "Content", AnnouncementType.Feature);
+        Announcement announcement = Announcement.Create("Title", "Content", AnnouncementType.Feature, TimeProvider.System);
         _repository.GetByIdAsync(Arg.Any<AnnouncementId>(), Arg.Any<CancellationToken>())
             .Returns(announcement);
 
@@ -209,7 +207,7 @@ public class AnnouncementHandlerTests
         createResult.IsSuccess.Should().BeTrue();
         createResult.Value.Status.Should().Be(AnnouncementStatus.Draft);
 
-        Announcement announcement = Announcement.Create("Lifecycle Test", "Content", AnnouncementType.Update);
+        Announcement announcement = Announcement.Create("Lifecycle Test", "Content", AnnouncementType.Update, TimeProvider.System);
         _repository.GetByIdAsync(Arg.Any<AnnouncementId>(), Arg.Any<CancellationToken>())
             .Returns(announcement);
 

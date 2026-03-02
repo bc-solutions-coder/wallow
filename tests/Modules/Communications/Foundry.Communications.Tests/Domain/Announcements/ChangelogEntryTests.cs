@@ -11,7 +11,7 @@ public class ChangelogEntryCreateTests
     {
         DateTime releasedAt = DateTime.UtcNow;
 
-        ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "Initial Release", "First version", releasedAt);
+        ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "Initial Release", "First version", releasedAt, TimeProvider.System);
 
         entry.Version.Should().Be("1.0.0");
         entry.Title.Should().Be("Initial Release");
@@ -27,7 +27,7 @@ public class ChangelogEntryCreateTests
     [InlineData("   ")]
     public void Create_WithInvalidVersion_ThrowsArgumentException(string? version)
     {
-        Action act = () => ChangelogEntry.Create(version!, "Title", "Content", DateTime.UtcNow);
+        Action act = () => ChangelogEntry.Create(version!, "Title", "Content", DateTime.UtcNow, TimeProvider.System);
 
         act.Should().Throw<ArgumentException>();
     }
@@ -38,7 +38,7 @@ public class ChangelogEntryCreateTests
     [InlineData("   ")]
     public void Create_WithInvalidTitle_ThrowsArgumentException(string? title)
     {
-        Action act = () => ChangelogEntry.Create("1.0.0", title!, "Content", DateTime.UtcNow);
+        Action act = () => ChangelogEntry.Create("1.0.0", title!, "Content", DateTime.UtcNow, TimeProvider.System);
 
         act.Should().Throw<ArgumentException>();
     }
@@ -49,7 +49,7 @@ public class ChangelogEntryCreateTests
     [InlineData("   ")]
     public void Create_WithInvalidContent_ThrowsArgumentException(string? content)
     {
-        Action act = () => ChangelogEntry.Create("1.0.0", "Title", content!, DateTime.UtcNow);
+        Action act = () => ChangelogEntry.Create("1.0.0", "Title", content!, DateTime.UtcNow, TimeProvider.System);
 
         act.Should().Throw<ArgumentException>();
     }
@@ -59,7 +59,7 @@ public class ChangelogEntryCreateTests
     {
         DateTime before = DateTime.UtcNow;
 
-        ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "Title", "Content", DateTime.UtcNow);
+        ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "Title", "Content", DateTime.UtcNow, TimeProvider.System);
 
         entry.CreatedAt.Should().BeOnOrAfter(before);
     }
@@ -70,10 +70,10 @@ public class ChangelogEntryUpdateTests
     [Fact]
     public void Update_WithValidData_UpdatesAllProperties()
     {
-        ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "Title", "Content", DateTime.UtcNow);
+        ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "Title", "Content", DateTime.UtcNow, TimeProvider.System);
         DateTime newReleasedAt = DateTime.UtcNow.AddDays(1);
 
-        entry.Update("2.0.0", "Updated Title", "Updated Content", newReleasedAt);
+        entry.Update("2.0.0", "Updated Title", "Updated Content", newReleasedAt, TimeProvider.System);
 
         entry.Version.Should().Be("2.0.0");
         entry.Title.Should().Be("Updated Title");
@@ -87,9 +87,9 @@ public class ChangelogEntryUpdateTests
     [InlineData("   ")]
     public void Update_WithInvalidVersion_ThrowsArgumentException(string? version)
     {
-        ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "Title", "Content", DateTime.UtcNow);
+        ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "Title", "Content", DateTime.UtcNow, TimeProvider.System);
 
-        Action act = () => entry.Update(version!, "Title", "Content", DateTime.UtcNow);
+        Action act = () => entry.Update(version!, "Title", "Content", DateTime.UtcNow, TimeProvider.System);
 
         act.Should().Throw<ArgumentException>();
     }
@@ -100,9 +100,9 @@ public class ChangelogEntryUpdateTests
     [InlineData("   ")]
     public void Update_WithInvalidTitle_ThrowsArgumentException(string? title)
     {
-        ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "Title", "Content", DateTime.UtcNow);
+        ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "Title", "Content", DateTime.UtcNow, TimeProvider.System);
 
-        Action act = () => entry.Update("1.0.0", title!, "Content", DateTime.UtcNow);
+        Action act = () => entry.Update("1.0.0", title!, "Content", DateTime.UtcNow, TimeProvider.System);
 
         act.Should().Throw<ArgumentException>();
     }
@@ -113,9 +113,9 @@ public class ChangelogEntryUpdateTests
     [InlineData("   ")]
     public void Update_WithInvalidContent_ThrowsArgumentException(string? content)
     {
-        ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "Title", "Content", DateTime.UtcNow);
+        ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "Title", "Content", DateTime.UtcNow, TimeProvider.System);
 
-        Action act = () => entry.Update("1.0.0", "Title", content!, DateTime.UtcNow);
+        Action act = () => entry.Update("1.0.0", "Title", content!, DateTime.UtcNow, TimeProvider.System);
 
         act.Should().Throw<ArgumentException>();
     }
@@ -123,10 +123,10 @@ public class ChangelogEntryUpdateTests
     [Fact]
     public void Update_SetsUpdatedAtTimestamp()
     {
-        ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "Title", "Content", DateTime.UtcNow);
+        ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "Title", "Content", DateTime.UtcNow, TimeProvider.System);
         DateTime before = DateTime.UtcNow;
 
-        entry.Update("2.0.0", "New Title", "New Content", DateTime.UtcNow);
+        entry.Update("2.0.0", "New Title", "New Content", DateTime.UtcNow, TimeProvider.System);
 
         entry.UpdatedAt.Should().NotBeNull();
         entry.UpdatedAt.Should().BeOnOrAfter(before);
@@ -138,9 +138,9 @@ public class ChangelogEntryPublishTests
     [Fact]
     public void Publish_SetsIsPublishedToTrue()
     {
-        ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "Title", "Content", DateTime.UtcNow);
+        ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "Title", "Content", DateTime.UtcNow, TimeProvider.System);
 
-        entry.Publish();
+        entry.Publish(TimeProvider.System);
 
         entry.IsPublished.Should().BeTrue();
     }
@@ -148,10 +148,10 @@ public class ChangelogEntryPublishTests
     [Fact]
     public void Unpublish_SetsIsPublishedToFalse()
     {
-        ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "Title", "Content", DateTime.UtcNow);
-        entry.Publish();
+        ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "Title", "Content", DateTime.UtcNow, TimeProvider.System);
+        entry.Publish(TimeProvider.System);
 
-        entry.Unpublish();
+        entry.Unpublish(TimeProvider.System);
 
         entry.IsPublished.Should().BeFalse();
     }
@@ -159,10 +159,10 @@ public class ChangelogEntryPublishTests
     [Fact]
     public void Publish_SetsUpdatedAtTimestamp()
     {
-        ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "Title", "Content", DateTime.UtcNow);
+        ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "Title", "Content", DateTime.UtcNow, TimeProvider.System);
         DateTime before = DateTime.UtcNow;
 
-        entry.Publish();
+        entry.Publish(TimeProvider.System);
 
         entry.UpdatedAt.Should().NotBeNull();
         entry.UpdatedAt.Should().BeOnOrAfter(before);
@@ -171,11 +171,11 @@ public class ChangelogEntryPublishTests
     [Fact]
     public void Unpublish_SetsUpdatedAtTimestamp()
     {
-        ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "Title", "Content", DateTime.UtcNow);
-        entry.Publish();
+        ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "Title", "Content", DateTime.UtcNow, TimeProvider.System);
+        entry.Publish(TimeProvider.System);
         DateTime before = DateTime.UtcNow;
 
-        entry.Unpublish();
+        entry.Unpublish(TimeProvider.System);
 
         entry.UpdatedAt.Should().NotBeNull();
         entry.UpdatedAt.Should().BeOnOrAfter(before);
@@ -187,9 +187,9 @@ public class ChangelogEntryItemTests
     [Fact]
     public void AddItem_AddsItemToCollection()
     {
-        ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "Title", "Content", DateTime.UtcNow);
+        ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "Title", "Content", DateTime.UtcNow, TimeProvider.System);
 
-        ChangelogItem item = entry.AddItem("Added dark mode", ChangeType.Feature);
+        ChangelogItem item = entry.AddItem("Added dark mode", ChangeType.Feature, TimeProvider.System);
 
         entry.Items.Should().ContainSingle();
         entry.Items.Should().Contain(item);
@@ -201,11 +201,11 @@ public class ChangelogEntryItemTests
     [Fact]
     public void AddItem_MultipleItems_AddsAll()
     {
-        ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "Title", "Content", DateTime.UtcNow);
+        ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "Title", "Content", DateTime.UtcNow, TimeProvider.System);
 
-        entry.AddItem("Feature A", ChangeType.Feature);
-        entry.AddItem("Fix B", ChangeType.Fix);
-        entry.AddItem("Security C", ChangeType.Security);
+        entry.AddItem("Feature A", ChangeType.Feature, TimeProvider.System);
+        entry.AddItem("Fix B", ChangeType.Fix, TimeProvider.System);
+        entry.AddItem("Security C", ChangeType.Security, TimeProvider.System);
 
         entry.Items.Should().HaveCount(3);
     }
@@ -213,10 +213,10 @@ public class ChangelogEntryItemTests
     [Fact]
     public void AddItem_SetsUpdatedAtTimestamp()
     {
-        ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "Title", "Content", DateTime.UtcNow);
+        ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "Title", "Content", DateTime.UtcNow, TimeProvider.System);
         DateTime before = DateTime.UtcNow;
 
-        entry.AddItem("New feature", ChangeType.Feature);
+        entry.AddItem("New feature", ChangeType.Feature, TimeProvider.System);
 
         entry.UpdatedAt.Should().NotBeNull();
         entry.UpdatedAt.Should().BeOnOrAfter(before);
@@ -225,10 +225,10 @@ public class ChangelogEntryItemTests
     [Fact]
     public void RemoveItem_ExistingItem_RemovesFromCollection()
     {
-        ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "Title", "Content", DateTime.UtcNow);
-        ChangelogItem item = entry.AddItem("Feature", ChangeType.Feature);
+        ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "Title", "Content", DateTime.UtcNow, TimeProvider.System);
+        ChangelogItem item = entry.AddItem("Feature", ChangeType.Feature, TimeProvider.System);
 
-        entry.RemoveItem(item.Id);
+        entry.RemoveItem(item.Id, TimeProvider.System);
 
         entry.Items.Should().BeEmpty();
     }
@@ -236,10 +236,10 @@ public class ChangelogEntryItemTests
     [Fact]
     public void RemoveItem_NonExistentItem_DoesNothing()
     {
-        ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "Title", "Content", DateTime.UtcNow);
-        entry.AddItem("Feature", ChangeType.Feature);
+        ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "Title", "Content", DateTime.UtcNow, TimeProvider.System);
+        entry.AddItem("Feature", ChangeType.Feature, TimeProvider.System);
 
-        entry.RemoveItem(ChangelogItemId.New());
+        entry.RemoveItem(ChangelogItemId.New(), TimeProvider.System);
 
         entry.Items.Should().HaveCount(1);
     }
@@ -247,11 +247,11 @@ public class ChangelogEntryItemTests
     [Fact]
     public void RemoveItem_ExistingItem_SetsUpdatedAtTimestamp()
     {
-        ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "Title", "Content", DateTime.UtcNow);
-        ChangelogItem item = entry.AddItem("Feature", ChangeType.Feature);
+        ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "Title", "Content", DateTime.UtcNow, TimeProvider.System);
+        ChangelogItem item = entry.AddItem("Feature", ChangeType.Feature, TimeProvider.System);
         DateTime before = DateTime.UtcNow;
 
-        entry.RemoveItem(item.Id);
+        entry.RemoveItem(item.Id, TimeProvider.System);
 
         entry.UpdatedAt.Should().NotBeNull();
         entry.UpdatedAt.Should().BeOnOrAfter(before);

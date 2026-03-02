@@ -16,10 +16,7 @@ public class ChannelPreferenceTests
     {
         Guid userId = Guid.NewGuid();
 
-        ChannelPreference preference = ChannelPreference.Create(
-            userId,
-            channelType,
-            NotificationTypes.TaskAssigned);
+        ChannelPreference preference = ChannelPreference.Create(userId, channelType, NotificationTypes.TaskAssigned, TimeProvider.System);
 
         preference.UserId.Should().Be(userId);
         preference.ChannelType.Should().Be(channelType);
@@ -30,10 +27,7 @@ public class ChannelPreferenceTests
     [Fact]
     public void Create_WithDefaultIsEnabled_DefaultsToTrue()
     {
-        ChannelPreference preference = ChannelPreference.Create(
-            Guid.NewGuid(),
-            ChannelType.Email,
-            NotificationTypes.BillingInvoice);
+        ChannelPreference preference = ChannelPreference.Create(Guid.NewGuid(), ChannelType.Email, NotificationTypes.BillingInvoice, TimeProvider.System);
 
         preference.IsEnabled.Should().BeTrue();
     }
@@ -41,11 +35,7 @@ public class ChannelPreferenceTests
     [Fact]
     public void Create_WithIsEnabledFalse_SetsIsEnabledToFalse()
     {
-        ChannelPreference preference = ChannelPreference.Create(
-            Guid.NewGuid(),
-            ChannelType.Email,
-            NotificationTypes.SystemAlert,
-            isEnabled: false);
+        ChannelPreference preference = ChannelPreference.Create(Guid.NewGuid(), ChannelType.Email, NotificationTypes.SystemAlert, TimeProvider.System, isEnabled: false);
 
         preference.IsEnabled.Should().BeFalse();
     }
@@ -55,10 +45,7 @@ public class ChannelPreferenceTests
     {
         Guid userId = Guid.NewGuid();
 
-        ChannelPreference preference = ChannelPreference.Create(
-            userId,
-            ChannelType.InApp,
-            NotificationTypes.UserMention);
+        ChannelPreference preference = ChannelPreference.Create(userId, ChannelType.InApp, NotificationTypes.UserMention, TimeProvider.System);
 
         preference.DomainEvents.Should().ContainSingle()
             .Which.Should().BeOfType<ChannelPreferenceCreatedEvent>()
@@ -77,10 +64,7 @@ public class ChannelPreferenceTests
     [InlineData("")]
     public void Create_WithNullOrEmptyNotificationType_ThrowsArgumentException(string? notificationType)
     {
-        Action act = () => ChannelPreference.Create(
-            Guid.NewGuid(),
-            ChannelType.Email,
-            notificationType!);
+        Action act = () => ChannelPreference.Create(Guid.NewGuid(), ChannelType.Email, notificationType!, TimeProvider.System);
 
         act.Should().Throw<ArgumentException>();
     }

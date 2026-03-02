@@ -15,7 +15,7 @@ public class SignalRNotificationServiceEdgeCaseTests
         _dispatcher = Substitute.For<IRealtimeDispatcher>();
         ILogger<SignalRNotificationService> logger = Substitute.For<ILogger<SignalRNotificationService>>();
         logger.IsEnabled(Arg.Any<LogLevel>()).Returns(true);
-        _service = new SignalRNotificationService(_dispatcher, logger);
+        _service = new SignalRNotificationService(_dispatcher, TimeProvider.System, logger);
     }
 
     [Fact]

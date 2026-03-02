@@ -9,10 +9,12 @@ namespace Foundry.Communications.Infrastructure.Persistence.Repositories;
 public sealed class AnnouncementRepository : IAnnouncementRepository
 {
     private readonly CommunicationsDbContext _context;
+    private readonly TimeProvider _timeProvider;
 
-    public AnnouncementRepository(CommunicationsDbContext context)
+    public AnnouncementRepository(CommunicationsDbContext context, TimeProvider timeProvider)
     {
         _context = context;
+        _timeProvider = timeProvider;
     }
 
     public Task<Announcement?> GetByIdAsync(AnnouncementId id, CancellationToken ct = default)
@@ -22,7 +24,7 @@ public sealed class AnnouncementRepository : IAnnouncementRepository
 
     public async Task<IReadOnlyList<Announcement>> GetPublishedAsync(CancellationToken ct = default)
     {
-        DateTime now = DateTime.UtcNow;
+        DateTime now = _timeProvider.GetUtcNow().UtcDateTime;
         return await _context.Announcements
             .Where(a => a.Status == AnnouncementStatus.Published
                 && (a.PublishAt == null || a.PublishAt <= now)

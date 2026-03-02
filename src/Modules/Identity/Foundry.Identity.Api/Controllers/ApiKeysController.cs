@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using Asp.Versioning;
 using Foundry.Identity.Api.Contracts.Requests;
 using Foundry.Identity.Api.Contracts.Responses;
@@ -9,6 +8,7 @@ using Foundry.Shared.Kernel.Identity.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using ICurrentUserService = Foundry.Shared.Kernel.Services.ICurrentUserService;
 
 namespace Foundry.Identity.Api.Controllers;
 
@@ -23,13 +23,16 @@ public sealed class ApiKeysController : ControllerBase
 {
     private readonly IApiKeyService _apiKeyService;
     private readonly ITenantContext _tenantContext;
+    private readonly ICurrentUserService _currentUserService;
 
     public ApiKeysController(
         IApiKeyService apiKeyService,
-        ITenantContext tenantContext)
+        ITenantContext tenantContext,
+        ICurrentUserService currentUserService)
     {
         _apiKeyService = apiKeyService;
         _tenantContext = tenantContext;
+        _currentUserService = currentUserService;
     }
 
     /// <summary>
@@ -68,7 +71,7 @@ public sealed class ApiKeysController : ControllerBase
             });
         }
 
-        Guid? userId = GetCurrentUserId();
+        Guid? userId = _currentUserService.GetCurrentUserId();
         if (userId == null)
         {
             return Unauthorized();
@@ -143,7 +146,7 @@ public sealed class ApiKeysController : ControllerBase
     [ProducesResponseType(typeof(List<ApiKeyResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> ListApiKeys(CancellationToken ct)
     {
-        Guid? userId = GetCurrentUserId();
+        Guid? userId = _currentUserService.GetCurrentUserId();
         if (userId == null)
         {
             return Unauthorized();
@@ -176,7 +179,7 @@ public sealed class ApiKeysController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> RevokeApiKey(string keyId, CancellationToken ct)
     {
-        Guid? userId = GetCurrentUserId();
+        Guid? userId = _currentUserService.GetCurrentUserId();
         if (userId == null)
         {
             return Unauthorized();
@@ -197,16 +200,4 @@ public sealed class ApiKeysController : ControllerBase
         return NoContent();
     }
 
-    private Guid? GetCurrentUserId()
-    {
-        string? userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
-            ?? User.FindFirst("sub")?.Value;
-
-        if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out Guid userId))
-        {
-            return null;
-        }
-
-        return userId;
-    }
 }

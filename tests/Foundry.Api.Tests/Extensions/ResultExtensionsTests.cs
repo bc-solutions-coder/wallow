@@ -1,4 +1,4 @@
-using Foundry.Api.Extensions;
+using Foundry.Shared.Api.Extensions;
 using Foundry.Shared.Kernel.Results;
 using Microsoft.AspNetCore.Mvc;
 

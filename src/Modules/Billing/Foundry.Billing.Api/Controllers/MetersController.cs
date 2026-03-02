@@ -1,5 +1,5 @@
 using Asp.Versioning;
-using Foundry.Billing.Api.Extensions;
+using Foundry.Shared.Api.Extensions;
 using Foundry.Billing.Application.Metering.DTOs;
 using Foundry.Billing.Application.Metering.Queries.GetMeterDefinitions;
 using Foundry.Shared.Kernel.Results;

@@ -7,7 +7,9 @@ namespace Foundry.Communications.Application.Announcements.Commands.ArchiveAnnou
 
 public sealed record ArchiveAnnouncementCommand(Guid Id);
 
-public sealed class ArchiveAnnouncementHandler(IAnnouncementRepository repository)
+public sealed class ArchiveAnnouncementHandler(
+    IAnnouncementRepository repository,
+    TimeProvider timeProvider)
 {
     public async Task<Result> Handle(ArchiveAnnouncementCommand command, CancellationToken ct)
     {
@@ -17,7 +19,7 @@ public sealed class ArchiveAnnouncementHandler(IAnnouncementRepository repositor
             return Result.Failure(Error.NotFound("Announcement.NotFound", "Announcement not found"));
         }
 
-        announcement.Archive();
+        announcement.Archive(timeProvider);
         await repository.UpdateAsync(announcement, ct);
 
         return Result.Success();

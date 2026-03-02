@@ -13,6 +13,7 @@ public class ConversationBuilder
     private readonly List<Guid> _additionalMembers = [];
     private readonly List<string> _messages = [];
     private bool _archived;
+    private TimeProvider _timeProvider = TimeProvider.System;
 
     public ConversationBuilder WithTenantId(TenantId tenantId)
     {
@@ -57,6 +58,12 @@ public class ConversationBuilder
         return this;
     }
 
+    public ConversationBuilder WithTimeProvider(TimeProvider timeProvider)
+    {
+        _timeProvider = timeProvider;
+        return this;
+    }
+
     public Conversation Build()
     {
         Conversation conversation = _isGroup
@@ -64,17 +71,18 @@ public class ConversationBuilder
                 _tenantId,
                 _initiatorId,
                 _subject,
-                [_recipientId, .. _additionalMembers])
-            : Conversation.CreateDirect(_tenantId, _initiatorId, _recipientId);
+                [_recipientId, .. _additionalMembers],
+                _timeProvider)
+            : Conversation.CreateDirect(_tenantId, _initiatorId, _recipientId, _timeProvider);
 
         foreach (string body in _messages)
         {
-            conversation.SendMessage(_initiatorId, body);
+            conversation.SendMessage(_initiatorId, body, _timeProvider);
         }
 
         if (_archived)
         {
-            conversation.Archive();
+            conversation.Archive(_timeProvider);
         }
 
         conversation.ClearDomainEvents();

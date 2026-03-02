@@ -9,7 +9,8 @@ namespace Foundry.Configuration.Application.FeatureFlags.Commands.CreateOverride
 public sealed class CreateOverrideHandler(
     IFeatureFlagRepository flagRepo,
     IFeatureFlagOverrideRepository overrideRepo,
-    IDistributedCache cache)
+    IDistributedCache cache,
+    TimeProvider timeProvider)
 {
     public async Task<Result<Guid>> Handle(CreateOverrideCommand cmd, CancellationToken ct)
     {
@@ -38,19 +39,19 @@ public sealed class CreateOverrideHandler(
         {
             over = FeatureFlagOverride.CreateForTenantUser(
                 flagId, cmd.TenantId.Value, cmd.UserId.Value,
-                cmd.IsEnabled, cmd.Variant, cmd.ExpiresAt);
+                cmd.IsEnabled, timeProvider, cmd.Variant, cmd.ExpiresAt);
         }
         else if (cmd.UserId.HasValue)
         {
             over = FeatureFlagOverride.CreateForUser(
                 flagId, cmd.UserId.Value,
-                cmd.IsEnabled, cmd.Variant, cmd.ExpiresAt);
+                cmd.IsEnabled, timeProvider, cmd.Variant, cmd.ExpiresAt);
         }
         else
         {
             over = FeatureFlagOverride.CreateForTenant(
                 flagId, cmd.TenantId!.Value,
-                cmd.IsEnabled, cmd.Variant, cmd.ExpiresAt);
+                cmd.IsEnabled, timeProvider, cmd.Variant, cmd.ExpiresAt);
         }
 
         await overrideRepo.AddAsync(over, ct);

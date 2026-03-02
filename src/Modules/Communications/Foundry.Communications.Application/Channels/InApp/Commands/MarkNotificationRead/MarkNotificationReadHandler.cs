@@ -5,7 +5,9 @@ using Foundry.Shared.Kernel.Results;
 
 namespace Foundry.Communications.Application.Channels.InApp.Commands.MarkNotificationRead;
 
-public sealed class MarkNotificationReadHandler(INotificationRepository notificationRepository)
+public sealed class MarkNotificationReadHandler(
+    INotificationRepository notificationRepository,
+    TimeProvider timeProvider)
 {
     public async Task<Result> Handle(
         MarkNotificationReadCommand command,
@@ -25,7 +27,7 @@ public sealed class MarkNotificationReadHandler(INotificationRepository notifica
             return Result.Failure(Error.Unauthorized("Unauthorized access to notification"));
         }
 
-        notification.MarkAsRead();
+        notification.MarkAsRead(timeProvider);
         await notificationRepository.SaveChangesAsync(cancellationToken);
 
         return Result.Success();

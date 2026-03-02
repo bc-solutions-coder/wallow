@@ -14,7 +14,7 @@ public class CreateSubscriptionHandlerTests
     public CreateSubscriptionHandlerTests()
     {
         _repository = Substitute.For<ISubscriptionRepository>();
-        _handler = new CreateSubscriptionHandler(_repository);
+        _handler = new CreateSubscriptionHandler(_repository, TimeProvider.System);
     }
 
     [Fact]

@@ -34,7 +34,8 @@ public sealed class Announcement : AggregateRoot<AnnouncementId>
         bool isDismissible,
         string? actionUrl,
         string? actionLabel,
-        string? imageUrl)
+        string? imageUrl,
+        TimeProvider timeProvider)
         : base(AnnouncementId.New())
     {
         Title = title;
@@ -50,13 +51,14 @@ public sealed class Announcement : AggregateRoot<AnnouncementId>
         ActionLabel = actionLabel;
         ImageUrl = imageUrl;
         Status = publishAt.HasValue ? AnnouncementStatus.Scheduled : AnnouncementStatus.Draft;
-        SetCreated();
+        SetCreated(timeProvider.GetUtcNow());
     }
 
     public static Announcement Create(
         string title,
         string content,
         AnnouncementType type,
+        TimeProvider timeProvider,
         AnnouncementTarget target = AnnouncementTarget.All,
         string? targetValue = null,
         DateTime? publishAt = null,
@@ -73,7 +75,7 @@ public sealed class Announcement : AggregateRoot<AnnouncementId>
         return new Announcement(
             title, content, type, target, targetValue,
             publishAt, expiresAt, isPinned, isDismissible,
-            actionUrl, actionLabel, imageUrl);
+            actionUrl, actionLabel, imageUrl, timeProvider);
     }
 
     public void Update(
@@ -88,7 +90,8 @@ public sealed class Announcement : AggregateRoot<AnnouncementId>
         bool isDismissible,
         string? actionUrl,
         string? actionLabel,
-        string? imageUrl)
+        string? imageUrl,
+        TimeProvider timeProvider)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
         ArgumentException.ThrowIfNullOrWhiteSpace(content);
@@ -105,10 +108,10 @@ public sealed class Announcement : AggregateRoot<AnnouncementId>
         ActionUrl = actionUrl;
         ActionLabel = actionLabel;
         ImageUrl = imageUrl;
-        SetUpdated();
+        SetUpdated(timeProvider.GetUtcNow());
     }
 
-    public void Publish()
+    public void Publish(TimeProvider timeProvider)
     {
         if (Status == AnnouncementStatus.Published)
         {
@@ -116,19 +119,19 @@ public sealed class Announcement : AggregateRoot<AnnouncementId>
         }
 
         Status = AnnouncementStatus.Published;
-        PublishAt = DateTime.UtcNow;
-        SetUpdated();
+        PublishAt = timeProvider.GetUtcNow().UtcDateTime;
+        SetUpdated(timeProvider.GetUtcNow());
     }
 
-    public void Expire()
+    public void Expire(TimeProvider timeProvider)
     {
         Status = AnnouncementStatus.Expired;
-        SetUpdated();
+        SetUpdated(timeProvider.GetUtcNow());
     }
 
-    public void Archive()
+    public void Archive(TimeProvider timeProvider)
     {
         Status = AnnouncementStatus.Archived;
-        SetUpdated();
+        SetUpdated(timeProvider.GetUtcNow());
     }
 }

@@ -7,7 +7,9 @@ namespace Foundry.Communications.Application.Announcements.Commands.PublishChang
 
 public sealed record PublishChangelogEntryCommand(Guid Id);
 
-public sealed class PublishChangelogEntryHandler(IChangelogRepository repository)
+public sealed class PublishChangelogEntryHandler(
+    IChangelogRepository repository,
+    TimeProvider timeProvider)
 {
     public async Task<Result> Handle(PublishChangelogEntryCommand command, CancellationToken ct)
     {
@@ -17,7 +19,7 @@ public sealed class PublishChangelogEntryHandler(IChangelogRepository repository
             return Result.Failure(Error.NotFound("Changelog", command.Id));
         }
 
-        entry.Publish();
+        entry.Publish(timeProvider);
         await repository.UpdateAsync(entry, ct);
 
         return Result.Success();

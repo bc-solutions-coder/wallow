@@ -34,6 +34,7 @@ public sealed class FeatureFlagOverride : Entity<FeatureFlagOverrideId>
         FeatureFlagId flagId,
         Guid tenantId,
         bool? isEnabled,
+        TimeProvider timeProvider,
         string? variant = null,
         DateTime? expiresAt = null)
     {
@@ -46,7 +47,7 @@ public sealed class FeatureFlagOverride : Entity<FeatureFlagOverrideId>
             IsEnabled = isEnabled,
             Variant = variant,
             ExpiresAt = expiresAt,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = timeProvider.GetUtcNow().UtcDateTime
         };
     }
 
@@ -54,6 +55,7 @@ public sealed class FeatureFlagOverride : Entity<FeatureFlagOverrideId>
         FeatureFlagId flagId,
         Guid userId,
         bool? isEnabled,
+        TimeProvider timeProvider,
         string? variant = null,
         DateTime? expiresAt = null)
     {
@@ -66,7 +68,7 @@ public sealed class FeatureFlagOverride : Entity<FeatureFlagOverrideId>
             IsEnabled = isEnabled,
             Variant = variant,
             ExpiresAt = expiresAt,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = timeProvider.GetUtcNow().UtcDateTime
         };
     }
 
@@ -75,6 +77,7 @@ public sealed class FeatureFlagOverride : Entity<FeatureFlagOverrideId>
         Guid tenantId,
         Guid userId,
         bool? isEnabled,
+        TimeProvider timeProvider,
         string? variant = null,
         DateTime? expiresAt = null)
     {
@@ -87,9 +90,9 @@ public sealed class FeatureFlagOverride : Entity<FeatureFlagOverrideId>
             IsEnabled = isEnabled,
             Variant = variant,
             ExpiresAt = expiresAt,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = timeProvider.GetUtcNow().UtcDateTime
         };
     }
 
-    public bool IsExpired => ExpiresAt < DateTime.UtcNow;
+    public bool IsExpired(TimeProvider timeProvider) => ExpiresAt < timeProvider.GetUtcNow().UtcDateTime;
 }

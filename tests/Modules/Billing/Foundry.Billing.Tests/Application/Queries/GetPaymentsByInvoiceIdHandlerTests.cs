@@ -25,8 +25,8 @@ public class GetPaymentsByInvoiceIdHandlerTests
     {
         Guid userId = Guid.NewGuid();
         InvoiceId invoiceId = InvoiceId.New();
-        Payment payment1 = Payment.Create(invoiceId, userId, Money.Create(100m, "USD"), PaymentMethod.CreditCard, userId);
-        Payment payment2 = Payment.Create(invoiceId, userId, Money.Create(200m, "USD"), PaymentMethod.BankTransfer, userId);
+        Payment payment1 = Payment.Create(invoiceId, userId, Money.Create(100m, "USD"), PaymentMethod.CreditCard, userId, TimeProvider.System);
+        Payment payment2 = Payment.Create(invoiceId, userId, Money.Create(200m, "USD"), PaymentMethod.BankTransfer, userId, TimeProvider.System);
 
         _repository.GetByInvoiceIdAsync(Arg.Any<InvoiceId>(), Arg.Any<CancellationToken>())
             .Returns(new List<Payment> { payment1, payment2 });

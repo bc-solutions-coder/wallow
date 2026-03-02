@@ -38,7 +38,6 @@ public class StorageBucketCreateTests
         bucket.Retention.Should().NotBeNull();
         bucket.Retention!.Days.Should().Be(30);
         bucket.Retention.Action.Should().Be(RetentionAction.Delete);
-        bucket.CreatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
     }
 
     [Fact]

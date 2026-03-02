@@ -12,5 +12,5 @@ public sealed record SubscriptionResponse(
     DateTime CurrentPeriodStart,
     DateTime CurrentPeriodEnd,
     DateTime? CancelledAt,
-    DateTime CreatedAt,
-    DateTime? UpdatedAt);
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? UpdatedAt);

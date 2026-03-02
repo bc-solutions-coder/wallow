@@ -10,7 +10,8 @@ namespace Foundry.Communications.Application.Channels.Email.Commands.SendEmail;
 
 public sealed class SendEmailHandler(
     IEmailMessageRepository emailMessageRepository,
-    IEmailService emailService)
+    IEmailService emailService,
+    TimeProvider timeProvider)
 {
     public async Task<Result<EmailDto>> Handle(
         SendEmailCommand command,
@@ -22,7 +23,7 @@ public sealed class SendEmailHandler(
             : EmailAddress.Create(command.From);
         EmailContent content = EmailContent.Create(command.Subject, command.Body);
 
-        EmailMessage emailMessage = EmailMessage.Create(to, from, content);
+        EmailMessage emailMessage = EmailMessage.Create(to, from, content, timeProvider);
         emailMessageRepository.Add(emailMessage);
         await emailMessageRepository.SaveChangesAsync(cancellationToken);
 
@@ -35,11 +36,11 @@ public sealed class SendEmailHandler(
                 command.Body,
                 cancellationToken);
 
-            emailMessage.MarkAsSent();
+            emailMessage.MarkAsSent(timeProvider);
         }
         catch (Exception ex)
         {
-            emailMessage.MarkAsFailed(ex.Message);
+            emailMessage.MarkAsFailed(ex.Message, timeProvider);
         }
 
         await emailMessageRepository.SaveChangesAsync(cancellationToken);

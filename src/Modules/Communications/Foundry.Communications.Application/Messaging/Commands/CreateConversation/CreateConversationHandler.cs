@@ -7,7 +7,8 @@ namespace Foundry.Communications.Application.Messaging.Commands.CreateConversati
 
 public sealed class CreateConversationHandler(
     IConversationRepository conversationRepository,
-    ITenantContext tenantContext)
+    ITenantContext tenantContext,
+    TimeProvider timeProvider)
 {
     public async Task<Result<Guid>> Handle(
         CreateConversationCommand command,
@@ -18,12 +19,14 @@ public sealed class CreateConversationHandler(
             "Direct" => Conversation.CreateDirect(
                 tenantContext.TenantId,
                 command.InitiatorId,
-                command.RecipientId!.Value),
+                command.RecipientId!.Value,
+                timeProvider),
             "Group" => Conversation.CreateGroup(
                 tenantContext.TenantId,
                 command.InitiatorId,
                 command.Name!,
-                command.MemberIds!),
+                command.MemberIds!,
+                timeProvider),
             _ => throw new ArgumentException($"Unknown conversation type: {command.Type}", nameof(command))
         };
 

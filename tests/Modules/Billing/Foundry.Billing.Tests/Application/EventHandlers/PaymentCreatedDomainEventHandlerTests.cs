@@ -10,18 +10,18 @@ using static Foundry.Tests.Common.Helpers.LoggerAssertionExtensions;
 
 namespace Foundry.Billing.Application.Tests.EventHandlers;
 
-public class PaymentReceivedDomainEventHandlerTests
+public class PaymentCreatedDomainEventHandlerTests
 {
     private readonly IMessageBus _messageBus;
     private readonly ITenantContext _tenantContext;
-    private readonly ILogger<PaymentReceivedDomainEventHandler> _logger;
+    private readonly ILogger<PaymentCreatedDomainEventHandler> _logger;
 
-    public PaymentReceivedDomainEventHandlerTests()
+    public PaymentCreatedDomainEventHandlerTests()
     {
         _messageBus = Substitute.For<IMessageBus>();
         _tenantContext = Substitute.For<ITenantContext>();
         _tenantContext.TenantId.Returns(TenantId.Create(Guid.NewGuid()));
-        _logger = Substitute.For<ILogger<PaymentReceivedDomainEventHandler>>();
+        _logger = Substitute.For<ILogger<PaymentCreatedDomainEventHandler>>();
         _logger.IsEnabled(Arg.Any<LogLevel>()).Returns(true);
     }
 
@@ -32,14 +32,14 @@ public class PaymentReceivedDomainEventHandlerTests
         Guid invoiceId = Guid.NewGuid();
         Guid userId = Guid.NewGuid();
 
-        PaymentReceivedDomainEvent domainEvent = new PaymentReceivedDomainEvent(
+        PaymentCreatedDomainEvent domainEvent = new PaymentCreatedDomainEvent(
             paymentId,
             invoiceId,
             500.00m,
             "USD",
             userId);
 
-        await PaymentReceivedDomainEventHandler.HandleAsync(
+        await PaymentCreatedDomainEventHandler.HandleAsync(
             domainEvent,
             _messageBus,
             _tenantContext,
@@ -58,7 +58,7 @@ public class PaymentReceivedDomainEventHandlerTests
     [Fact]
     public async Task HandleAsync_PassesCancellationToken()
     {
-        PaymentReceivedDomainEvent domainEvent = new PaymentReceivedDomainEvent(
+        PaymentCreatedDomainEvent domainEvent = new PaymentCreatedDomainEvent(
             Guid.NewGuid(),
             Guid.NewGuid(),
             100m,
@@ -67,7 +67,7 @@ public class PaymentReceivedDomainEventHandlerTests
 
         using CancellationTokenSource cts = new CancellationTokenSource();
 
-        await PaymentReceivedDomainEventHandler.HandleAsync(
+        await PaymentCreatedDomainEventHandler.HandleAsync(
             domainEvent,
             _messageBus,
             _tenantContext,
@@ -81,14 +81,14 @@ public class PaymentReceivedDomainEventHandlerTests
     public async Task HandleAsync_LogsInformation()
     {
         Guid paymentId = Guid.NewGuid();
-        PaymentReceivedDomainEvent domainEvent = new PaymentReceivedDomainEvent(
+        PaymentCreatedDomainEvent domainEvent = new PaymentCreatedDomainEvent(
             paymentId,
             Guid.NewGuid(),
             100m,
             "USD",
             Guid.NewGuid());
 
-        await PaymentReceivedDomainEventHandler.HandleAsync(
+        await PaymentCreatedDomainEventHandler.HandleAsync(
             domainEvent,
             _messageBus,
             _tenantContext,
@@ -107,14 +107,14 @@ public class PaymentReceivedDomainEventHandlerTests
     public async Task HandleAsync_PublishesBothLogMessages()
     {
         Guid paymentId = Guid.NewGuid();
-        PaymentReceivedDomainEvent domainEvent = new PaymentReceivedDomainEvent(
+        PaymentCreatedDomainEvent domainEvent = new PaymentCreatedDomainEvent(
             paymentId,
             Guid.NewGuid(),
             100m,
             "USD",
             Guid.NewGuid());
 
-        await PaymentReceivedDomainEventHandler.HandleAsync(
+        await PaymentCreatedDomainEventHandler.HandleAsync(
             domainEvent,
             _messageBus,
             _tenantContext,

@@ -24,14 +24,13 @@ public sealed class AnnouncementRepositoryTests : IDisposable
         tenantContext.TenantId.Returns(TenantId.Create(Guid.NewGuid()));
 
         _dbContext = new CommunicationsDbContext(options, tenantContext);
-        _repository = new AnnouncementRepository(_dbContext);
+        _repository = new AnnouncementRepository(_dbContext, TimeProvider.System);
     }
 
     [Fact]
     public async Task AddAsync_AddsAnnouncementToDatabase()
     {
-        Announcement announcement = Announcement.Create(
-            "Test", "Content", AnnouncementType.Feature);
+        Announcement announcement = Announcement.Create("Test", "Content", AnnouncementType.Feature, TimeProvider.System);
 
         await _repository.AddAsync(announcement);
 
@@ -43,8 +42,7 @@ public sealed class AnnouncementRepositoryTests : IDisposable
     [Fact]
     public async Task GetByIdAsync_WhenExists_ReturnsAnnouncement()
     {
-        Announcement announcement = Announcement.Create(
-            "Existing", "Content", AnnouncementType.Alert);
+        Announcement announcement = Announcement.Create("Existing", "Content", AnnouncementType.Alert, TimeProvider.System);
         await _dbContext.Announcements.AddAsync(announcement);
         await _dbContext.SaveChangesAsync();
 
@@ -65,17 +63,13 @@ public sealed class AnnouncementRepositoryTests : IDisposable
     [Fact]
     public async Task GetPublishedAsync_ReturnsOnlyPublishedNonExpired()
     {
-        Announcement published = Announcement.Create(
-            "Published", "Content", AnnouncementType.Feature);
-        published.Publish();
+        Announcement published = Announcement.Create("Published", "Content", AnnouncementType.Feature, TimeProvider.System);
+        published.Publish(TimeProvider.System);
 
-        Announcement draft = Announcement.Create(
-            "Draft", "Content", AnnouncementType.Feature);
+        Announcement draft = Announcement.Create("Draft", "Content", AnnouncementType.Feature, TimeProvider.System);
 
-        Announcement expired = Announcement.Create(
-            "Expired", "Content", AnnouncementType.Feature,
-            expiresAt: DateTime.UtcNow.AddDays(-1));
-        expired.Publish();
+        Announcement expired = Announcement.Create("Expired", "Content", AnnouncementType.Feature, TimeProvider.System, expiresAt: DateTime.UtcNow.AddDays(-1));
+        expired.Publish(TimeProvider.System);
 
         await _dbContext.Announcements.AddRangeAsync(published, draft, expired);
         await _dbContext.SaveChangesAsync();
@@ -89,8 +83,8 @@ public sealed class AnnouncementRepositoryTests : IDisposable
     [Fact]
     public async Task GetAllAsync_ReturnsAllAnnouncementsOrderedByCreatedAt()
     {
-        Announcement first = Announcement.Create("First", "Content", AnnouncementType.Feature);
-        Announcement second = Announcement.Create("Second", "Content", AnnouncementType.Alert);
+        Announcement first = Announcement.Create("First", "Content", AnnouncementType.Feature, TimeProvider.System);
+        Announcement second = Announcement.Create("Second", "Content", AnnouncementType.Alert, TimeProvider.System);
 
         await _dbContext.Announcements.AddRangeAsync(first, second);
         await _dbContext.SaveChangesAsync();
@@ -103,13 +97,12 @@ public sealed class AnnouncementRepositoryTests : IDisposable
     [Fact]
     public async Task UpdateAsync_UpdatesAnnouncementInDatabase()
     {
-        Announcement announcement = Announcement.Create(
-            "Original", "Content", AnnouncementType.Feature);
+        Announcement announcement = Announcement.Create("Original", "Content", AnnouncementType.Feature, TimeProvider.System);
         await _dbContext.Announcements.AddAsync(announcement);
         await _dbContext.SaveChangesAsync();
 
         announcement.Update("Updated", "New Content", AnnouncementType.Alert,
-            AnnouncementTarget.All, null, null, null, false, true, null, null, null);
+            AnnouncementTarget.All, null, null, null, false, true, null, null, null, TimeProvider.System);
         await _repository.UpdateAsync(announcement);
 
         Announcement? found = await _dbContext.Announcements.FindAsync(announcement.Id);
@@ -119,8 +112,7 @@ public sealed class AnnouncementRepositoryTests : IDisposable
     [Fact]
     public async Task DeleteAsync_RemovesAnnouncementFromDatabase()
     {
-        Announcement announcement = Announcement.Create(
-            "ToDelete", "Content", AnnouncementType.Feature);
+        Announcement announcement = Announcement.Create("ToDelete", "Content", AnnouncementType.Feature, TimeProvider.System);
         await _dbContext.Announcements.AddAsync(announcement);
         await _dbContext.SaveChangesAsync();
 

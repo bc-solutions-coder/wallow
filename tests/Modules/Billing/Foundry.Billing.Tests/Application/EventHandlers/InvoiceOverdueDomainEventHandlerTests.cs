@@ -33,8 +33,8 @@ public class InvoiceOverdueDomainEventHandlerTests
         Guid userId = Guid.NewGuid();
         DateTime dueDate = DateTime.UtcNow.AddDays(-5);
 
-        Invoice invoice = Invoice.Create(userId, "INV-001", "USD", userId, dueDate);
-        invoice.AddLineItem("Service", Money.Create(500m, "USD"), 1, userId);
+        Invoice invoice = Invoice.Create(userId, "INV-001", "USD", userId, TimeProvider.System, dueDate);
+        invoice.AddLineItem("Service", Money.Create(500m, "USD"), 1, userId, TimeProvider.System);
 
         InvoiceOverdueDomainEvent domainEvent = new(invoiceId, userId, dueDate);
 
@@ -107,7 +107,7 @@ public class InvoiceOverdueDomainEventHandlerTests
         Guid invoiceId = Guid.NewGuid();
         InvoiceOverdueDomainEvent domainEvent = new(invoiceId, Guid.NewGuid(), DateTime.UtcNow);
 
-        Invoice invoice = Invoice.Create(Guid.NewGuid(), "INV-001", "USD", Guid.NewGuid());
+        Invoice invoice = Invoice.Create(Guid.NewGuid(), "INV-001", "USD", Guid.NewGuid(), TimeProvider.System);
 
         _invoiceRepository.GetByIdAsync(InvoiceId.Create(invoiceId), Arg.Any<CancellationToken>())
             .Returns(invoice);
@@ -130,7 +130,7 @@ public class InvoiceOverdueDomainEventHandlerTests
         Guid invoiceId = Guid.NewGuid();
         InvoiceOverdueDomainEvent domainEvent = new(invoiceId, Guid.NewGuid(), DateTime.UtcNow);
 
-        Invoice invoice = Invoice.Create(Guid.NewGuid(), "INV-001", "USD", Guid.NewGuid());
+        Invoice invoice = Invoice.Create(Guid.NewGuid(), "INV-001", "USD", Guid.NewGuid(), TimeProvider.System);
 
         _invoiceRepository.GetByIdAsync(Arg.Any<InvoiceId>(), Arg.Any<CancellationToken>())
             .Returns(invoice);

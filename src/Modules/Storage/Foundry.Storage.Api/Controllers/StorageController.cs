@@ -5,7 +5,7 @@ using Foundry.Shared.Kernel.MultiTenancy;
 using Foundry.Shared.Kernel.Results;
 using Foundry.Storage.Api.Contracts.Requests;
 using Foundry.Storage.Api.Contracts.Responses;
-using Foundry.Storage.Api.Extensions;
+using Foundry.Shared.Api.Extensions;
 using Foundry.Storage.Application.Commands.CreateBucket;
 using Foundry.Storage.Application.Commands.DeleteBucket;
 using Foundry.Storage.Application.Commands.DeleteFile;
@@ -21,6 +21,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Foundry.Shared.Kernel.Identity.Authorization;
+using Foundry.Shared.Kernel.Services;
 using Wolverine;
 
 namespace Foundry.Storage.Api.Controllers;
@@ -35,11 +36,13 @@ public sealed class StorageController : ControllerBase
 {
     private readonly IMessageBus _bus;
     private readonly ITenantContext _tenantContext;
+    private readonly ICurrentUserService _currentUserService;
 
-    public StorageController(IMessageBus bus, ITenantContext tenantContext)
+    public StorageController(IMessageBus bus, ITenantContext tenantContext, ICurrentUserService currentUserService)
     {
         _bus = bus;
         _tenantContext = tenantContext;
+        _currentUserService = currentUserService;
     }
 
     #region Bucket Operations
@@ -153,11 +156,17 @@ public sealed class StorageController : ControllerBase
             });
         }
 
+        Guid? userId = _currentUserService.GetCurrentUserId();
+        if (userId is null)
+        {
+            return Unauthorized();
+        }
+
         await using Stream stream = file.OpenReadStream();
 
         UploadFileCommand command = new UploadFileCommand(
             _tenantContext.TenantId.Value,
-            GetCurrentUserId(),
+            userId.Value,
             bucket,
             file.FileName,
             file.ContentType,
@@ -308,19 +317,6 @@ public sealed class StorageController : ControllerBase
     #endregion
 
     #region Helpers
-
-    private Guid GetCurrentUserId()
-    {
-        string? userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
-                          ?? User.FindFirst("sub")?.Value;
-
-        if (userIdClaim is not null && Guid.TryParse(userIdClaim, out Guid userId))
-        {
-            return userId;
-        }
-
-        return Guid.Empty;
-    }
 
     private static BucketResponse ToBucketResponse(BucketDto dto) => new(
         dto.Id,

@@ -29,9 +29,9 @@ public class NotificationHandlerTests
         _tenantContext = Substitute.For<ITenantContext>();
         _tenantId = TenantId.Create(Guid.NewGuid());
         _tenantContext.TenantId.Returns(_tenantId);
-        _sendHandler = new SendNotificationHandler(_repository, _notificationService, _tenantContext);
-        _markReadHandler = new MarkNotificationReadHandler(_repository);
-        _markAllReadHandler = new MarkAllNotificationsReadHandler(_repository);
+        _sendHandler = new SendNotificationHandler(_repository, _notificationService, _tenantContext, TimeProvider.System);
+        _markReadHandler = new MarkNotificationReadHandler(_repository, TimeProvider.System);
+        _markAllReadHandler = new MarkAllNotificationsReadHandler(_repository, TimeProvider.System);
     }
 
     // --- SendNotification ---
@@ -110,7 +110,7 @@ public class NotificationHandlerTests
     public async Task MarkRead_WhenNotificationExistsAndUserMatches_ReturnsSuccess()
     {
         Guid userId = Guid.NewGuid();
-        Notification notification = Notification.Create(_tenantId, userId, NotificationType.SystemAlert, "Title", "Message");
+        Notification notification = Notification.Create(_tenantId, userId, NotificationType.SystemAlert, "Title", "Message", TimeProvider.System);
 
         _repository.GetByIdAsync(Arg.Any<NotificationId>(), Arg.Any<CancellationToken>())
             .Returns(notification);
@@ -144,7 +144,7 @@ public class NotificationHandlerTests
     {
         Guid ownerId = Guid.NewGuid();
         Guid differentUserId = Guid.NewGuid();
-        Notification notification = Notification.Create(_tenantId, ownerId, NotificationType.SystemAlert, "Title", "Message");
+        Notification notification = Notification.Create(_tenantId, ownerId, NotificationType.SystemAlert, "Title", "Message", TimeProvider.System);
 
         _repository.GetByIdAsync(Arg.Any<NotificationId>(), Arg.Any<CancellationToken>())
             .Returns(notification);
@@ -167,9 +167,9 @@ public class NotificationHandlerTests
         Guid userId = Guid.NewGuid();
         List<Notification> notifications = new()
         {
-            Notification.Create(_tenantId, userId, NotificationType.SystemAlert, "Title 1", "Message 1"),
-            Notification.Create(_tenantId, userId, NotificationType.TaskAssigned, "Title 2", "Message 2"),
-            Notification.Create(_tenantId, userId, NotificationType.Mention, "Title 3", "Message 3")
+            Notification.Create(_tenantId, userId, NotificationType.SystemAlert, "Title 1", "Message 1", TimeProvider.System),
+            Notification.Create(_tenantId, userId, NotificationType.TaskAssigned, "Title 2", "Message 2", TimeProvider.System),
+            Notification.Create(_tenantId, userId, NotificationType.Mention, "Title 3", "Message 3", TimeProvider.System)
         };
 
         _repository.GetUnreadByUserIdAsync(userId, Arg.Any<CancellationToken>())
@@ -227,7 +227,7 @@ public class NotificationHandlerTests
     {
         Guid userId = Guid.NewGuid();
         List<Notification> notifications = Enumerable.Range(0, 50)
-            .Select(_ => Notification.Create(_tenantId, userId, NotificationType.SystemAlert, "Title", "Message"))
+            .Select(_ => Notification.Create(_tenantId, userId, NotificationType.SystemAlert, "Title", "Message", TimeProvider.System))
             .ToList();
 
         _repository.GetUnreadByUserIdAsync(userId, Arg.Any<CancellationToken>())
@@ -255,7 +255,7 @@ public class NotificationHandlerTests
         sendResult.IsSuccess.Should().BeTrue();
         sendResult.Value.IsRead.Should().BeFalse();
 
-        Notification notification = Notification.Create(_tenantId, userId, NotificationType.SystemAlert, "Alert", "Check this");
+        Notification notification = Notification.Create(_tenantId, userId, NotificationType.SystemAlert, "Alert", "Check this", TimeProvider.System);
         _repository.GetByIdAsync(Arg.Any<NotificationId>(), Arg.Any<CancellationToken>())
             .Returns(notification);
 

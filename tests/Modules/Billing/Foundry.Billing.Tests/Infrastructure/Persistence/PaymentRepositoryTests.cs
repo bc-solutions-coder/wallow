@@ -21,9 +21,9 @@ public class PaymentRepositoryTests : DbContextIntegrationTestBase<BillingDbCont
 
     private Invoice CreateIssuedInvoice(string invoiceNumber)
     {
-        Invoice invoice = Invoice.Create(TestUserId, invoiceNumber, "USD", TestUserId);
-        invoice.AddLineItem("Service", Money.Create(100m, "USD"), 1, TestUserId);
-        invoice.Issue(TestUserId);
+        Invoice invoice = Invoice.Create(TestUserId, invoiceNumber, "USD", TestUserId, TimeProvider.System);
+        invoice.AddLineItem("Service", Money.Create(100m, "USD"), 1, TestUserId, TimeProvider.System);
+        invoice.Issue(TestUserId, TimeProvider.System);
         return invoice;
     }
 
@@ -35,7 +35,7 @@ public class PaymentRepositoryTests : DbContextIntegrationTestBase<BillingDbCont
         DbContext.Invoices.Add(invoice);
         await DbContext.SaveChangesAsync();
 
-        Payment payment = Payment.Create(invoice.Id, TestUserId, Money.Create(100m, "USD"), PaymentMethod.CreditCard, TestUserId);
+        Payment payment = Payment.Create(invoice.Id, TestUserId, Money.Create(100m, "USD"), PaymentMethod.CreditCard, TestUserId, TimeProvider.System);
         repository.Add(payment);
         await repository.SaveChangesAsync();
 
@@ -53,8 +53,8 @@ public class PaymentRepositoryTests : DbContextIntegrationTestBase<BillingDbCont
         DbContext.Invoices.Add(invoice);
         await DbContext.SaveChangesAsync();
 
-        Payment payment1 = Payment.Create(invoice.Id, TestUserId, Money.Create(50m, "USD"), PaymentMethod.CreditCard, TestUserId);
-        Payment payment2 = Payment.Create(invoice.Id, TestUserId, Money.Create(50m, "USD"), PaymentMethod.BankTransfer, TestUserId);
+        Payment payment1 = Payment.Create(invoice.Id, TestUserId, Money.Create(50m, "USD"), PaymentMethod.CreditCard, TestUserId, TimeProvider.System);
+        Payment payment2 = Payment.Create(invoice.Id, TestUserId, Money.Create(50m, "USD"), PaymentMethod.BankTransfer, TestUserId, TimeProvider.System);
         repository.Add(payment1);
         repository.Add(payment2);
         await repository.SaveChangesAsync();
@@ -72,7 +72,7 @@ public class PaymentRepositoryTests : DbContextIntegrationTestBase<BillingDbCont
         DbContext.Invoices.Add(invoice);
         await DbContext.SaveChangesAsync();
 
-        Payment payment = Payment.Create(invoice.Id, TestUserId, Money.Create(100m, "USD"), PaymentMethod.CreditCard, TestUserId);
+        Payment payment = Payment.Create(invoice.Id, TestUserId, Money.Create(100m, "USD"), PaymentMethod.CreditCard, TestUserId, TimeProvider.System);
         repository.Add(payment);
         await repository.SaveChangesAsync();
 
@@ -90,7 +90,7 @@ public class PaymentRepositoryTests : DbContextIntegrationTestBase<BillingDbCont
         DbContext.Invoices.Add(invoice);
         await DbContext.SaveChangesAsync();
 
-        Payment payment = Payment.Create(invoice.Id, TestUserId, Money.Create(100m, "USD"), PaymentMethod.CreditCard, TestUserId);
+        Payment payment = Payment.Create(invoice.Id, TestUserId, Money.Create(100m, "USD"), PaymentMethod.CreditCard, TestUserId, TimeProvider.System);
         repository.Add(payment);
         await repository.SaveChangesAsync();
 
@@ -107,11 +107,11 @@ public class PaymentRepositoryTests : DbContextIntegrationTestBase<BillingDbCont
         DbContext.Invoices.Add(invoice);
         await DbContext.SaveChangesAsync();
 
-        Payment payment = Payment.Create(invoice.Id, TestUserId, Money.Create(100m, "USD"), PaymentMethod.CreditCard, TestUserId);
+        Payment payment = Payment.Create(invoice.Id, TestUserId, Money.Create(100m, "USD"), PaymentMethod.CreditCard, TestUserId, TimeProvider.System);
         repository.Add(payment);
         await repository.SaveChangesAsync();
 
-        payment.Complete("txn-123", TestUserId);
+        payment.Complete("txn-123", TestUserId, TimeProvider.System);
         repository.Update(payment);
         await repository.SaveChangesAsync();
 

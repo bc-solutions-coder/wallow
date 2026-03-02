@@ -22,33 +22,18 @@ public abstract class AuditableEntity<TId> : Entity<TId>
     /// <summary>
     /// Sets the creation audit fields. Call this when creating a new entity.
     /// </summary>
-    public void SetCreated(Guid? userId = null)
+    public void SetCreated(DateTimeOffset timestamp, Guid? userId = null)
     {
-        CreatedAt = DateTime.UtcNow;
+        CreatedAt = timestamp.UtcDateTime;
         CreatedBy = userId;
     }
 
     /// <summary>
     /// Sets the update audit fields. Call this when modifying an entity.
     /// </summary>
-    public void SetUpdated(Guid? userId = null)
+    public void SetUpdated(DateTimeOffset timestamp, Guid? userId = null)
     {
-        UpdatedAt = DateTime.UtcNow;
+        UpdatedAt = timestamp.UtcDateTime;
         UpdatedBy = userId;
     }
-}
-
-/// <summary>
-/// Interface for entities that can be audited.
-/// Used by infrastructure to automatically set audit fields.
-/// </summary>
-public interface IAuditableEntity
-{
-    DateTime CreatedAt { get; }
-    DateTime? UpdatedAt { get; }
-    Guid? CreatedBy { get; }
-    Guid? UpdatedBy { get; }
-
-    void SetCreated(Guid? userId = null);
-    void SetUpdated(Guid? userId = null);
 }

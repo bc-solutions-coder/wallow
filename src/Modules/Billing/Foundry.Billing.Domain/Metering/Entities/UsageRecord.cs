@@ -48,7 +48,8 @@ public sealed class UsageRecord : Entity<UsageRecordId>, ITenantScoped
         string meterCode,
         DateTime periodStart,
         DateTime periodEnd,
-        decimal value)
+        decimal value,
+        TimeProvider timeProvider)
     {
         Id = UsageRecordId.New();
         TenantId = tenantId;
@@ -56,7 +57,7 @@ public sealed class UsageRecord : Entity<UsageRecordId>, ITenantScoped
         PeriodStart = periodStart;
         PeriodEnd = periodEnd;
         Value = value;
-        FlushedAt = DateTime.UtcNow;
+        FlushedAt = timeProvider.GetUtcNow().UtcDateTime;
     }
 
     public static UsageRecord Create(
@@ -64,7 +65,8 @@ public sealed class UsageRecord : Entity<UsageRecordId>, ITenantScoped
         string meterCode,
         DateTime periodStart,
         DateTime periodEnd,
-        decimal value)
+        decimal value,
+        TimeProvider timeProvider)
     {
         if (string.IsNullOrWhiteSpace(meterCode))
         {
@@ -87,13 +89,13 @@ public sealed class UsageRecord : Entity<UsageRecordId>, ITenantScoped
                 "Usage value must be non-negative");
         }
 
-        return new UsageRecord(tenantId, meterCode, periodStart, periodEnd, value);
+        return new UsageRecord(tenantId, meterCode, periodStart, periodEnd, value, timeProvider);
     }
 
     /// <summary>
     /// Adds value to an existing usage record (for upsert operations).
     /// </summary>
-    public void AddValue(decimal additionalValue)
+    public void AddValue(decimal additionalValue, TimeProvider timeProvider)
     {
         if (additionalValue < 0)
         {
@@ -103,6 +105,6 @@ public sealed class UsageRecord : Entity<UsageRecordId>, ITenantScoped
         }
 
         Value += additionalValue;
-        FlushedAt = DateTime.UtcNow;
+        FlushedAt = timeProvider.GetUtcNow().UtcDateTime;
     }
 }

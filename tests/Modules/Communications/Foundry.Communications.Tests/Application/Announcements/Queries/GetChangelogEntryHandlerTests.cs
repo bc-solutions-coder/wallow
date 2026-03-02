@@ -20,8 +20,8 @@ public class GetChangelogByVersionHandlerTests
     [Fact]
     public async Task Handle_WhenPublishedEntryExists_ReturnsSuccess()
     {
-        ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "Release", "Content", DateTime.UtcNow);
-        entry.Publish();
+        ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "Release", "Content", DateTime.UtcNow, TimeProvider.System);
+        entry.Publish(TimeProvider.System);
 
         _repository.GetByVersionAsync("1.0.0", Arg.Any<CancellationToken>())
             .Returns(entry);
@@ -52,7 +52,7 @@ public class GetChangelogByVersionHandlerTests
     [Fact]
     public async Task Handle_WhenEntryIsNotPublished_ReturnsNotFound()
     {
-        ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "Release", "Content", DateTime.UtcNow);
+        ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "Release", "Content", DateTime.UtcNow, TimeProvider.System);
         // Not published
 
         _repository.GetByVersionAsync("1.0.0", Arg.Any<CancellationToken>())
@@ -95,8 +95,8 @@ public class GetLatestChangelogHandlerTests
     [Fact]
     public async Task Handle_WhenLatestExists_ReturnsSuccess()
     {
-        ChangelogEntry entry = ChangelogEntry.Create("2.0.0", "Latest", "Content", DateTime.UtcNow);
-        entry.Publish();
+        ChangelogEntry entry = ChangelogEntry.Create("2.0.0", "Latest", "Content", DateTime.UtcNow, TimeProvider.System);
+        entry.Publish(TimeProvider.System);
 
         _repository.GetLatestPublishedAsync(Arg.Any<CancellationToken>())
             .Returns(entry);

@@ -8,8 +8,7 @@ public class AnnouncementUpdateTests
     [Fact]
     public void Update_WithValidData_UpdatesAllProperties()
     {
-        Announcement announcement = Announcement.Create(
-            "Original Title", "Original Content", AnnouncementType.Feature);
+        Announcement announcement = Announcement.Create("Original Title", "Original Content", AnnouncementType.Feature, TimeProvider.System);
         DateTime expiresAt = DateTime.UtcNow.AddDays(30);
 
         announcement.Update(
@@ -24,7 +23,8 @@ public class AnnouncementUpdateTests
             false,
             "https://updated.com",
             "Click Here",
-            "https://updated.com/img.png");
+            "https://updated.com/img.png",
+            TimeProvider.System);
 
         announcement.Title.Should().Be("Updated Title");
         announcement.Content.Should().Be("Updated Content");
@@ -46,12 +46,11 @@ public class AnnouncementUpdateTests
     [InlineData("   ")]
     public void Update_WithInvalidTitle_ThrowsArgumentException(string? title)
     {
-        Announcement announcement = Announcement.Create(
-            "Title", "Content", AnnouncementType.Feature);
+        Announcement announcement = Announcement.Create("Title", "Content", AnnouncementType.Feature, TimeProvider.System);
 
         Action act = () => announcement.Update(
             title!, "Content", AnnouncementType.Feature,
-            AnnouncementTarget.All, null, null, null, false, true, null, null, null);
+            AnnouncementTarget.All, null, null, null, false, true, null, null, null, TimeProvider.System);
 
         act.Should().Throw<ArgumentException>();
     }
@@ -62,12 +61,11 @@ public class AnnouncementUpdateTests
     [InlineData("   ")]
     public void Update_WithInvalidContent_ThrowsArgumentException(string? content)
     {
-        Announcement announcement = Announcement.Create(
-            "Title", "Content", AnnouncementType.Feature);
+        Announcement announcement = Announcement.Create("Title", "Content", AnnouncementType.Feature, TimeProvider.System);
 
         Action act = () => announcement.Update(
             "Title", content!, AnnouncementType.Feature,
-            AnnouncementTarget.All, null, null, null, false, true, null, null, null);
+            AnnouncementTarget.All, null, null, null, false, true, null, null, null, TimeProvider.System);
 
         act.Should().Throw<ArgumentException>();
     }
@@ -75,13 +73,12 @@ public class AnnouncementUpdateTests
     [Fact]
     public void Update_SetsUpdatedAtTimestamp()
     {
-        Announcement announcement = Announcement.Create(
-            "Title", "Content", AnnouncementType.Feature);
+        Announcement announcement = Announcement.Create("Title", "Content", AnnouncementType.Feature, TimeProvider.System);
         DateTime before = DateTime.UtcNow;
 
         announcement.Update(
             "New Title", "New Content", AnnouncementType.Feature,
-            AnnouncementTarget.All, null, null, null, false, true, null, null, null);
+            AnnouncementTarget.All, null, null, null, false, true, null, null, null, TimeProvider.System);
 
         announcement.UpdatedAt.Should().NotBeNull();
         announcement.UpdatedAt.Should().BeOnOrAfter(before);

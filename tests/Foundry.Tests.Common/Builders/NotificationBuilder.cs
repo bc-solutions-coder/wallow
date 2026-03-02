@@ -16,6 +16,7 @@ public class NotificationBuilder
     private DateTime? _expiresAt;
     private bool _read;
     private bool _archived;
+    private TimeProvider _timeProvider = TimeProvider.System;
 
     public NotificationBuilder WithTenantId(TenantId tenantId)
     {
@@ -77,6 +78,12 @@ public class NotificationBuilder
         return this;
     }
 
+    public NotificationBuilder WithTimeProvider(TimeProvider timeProvider)
+    {
+        _timeProvider = timeProvider;
+        return this;
+    }
+
     public Notification Build()
     {
         Notification notification = Notification.Create(
@@ -85,18 +92,19 @@ public class NotificationBuilder
             _type,
             _title,
             _message,
+            _timeProvider,
             _actionUrl,
             _sourceModule,
             _expiresAt);
 
         if (_read)
         {
-            notification.MarkAsRead();
+            notification.MarkAsRead(_timeProvider);
         }
 
         if (_archived)
         {
-            notification.Archive();
+            notification.Archive(_timeProvider);
         }
 
         notification.ClearDomainEvents();

@@ -64,7 +64,7 @@ public sealed class ServiceAccountMetadata : AuditableEntity<ServiceAccountMetad
         Description = description;
         Status = ServiceAccountStatus.Active;
         _scopes.AddRange(scopes);
-        SetCreated(createdByUserId);
+        SetCreated(DateTimeOffset.UtcNow, createdByUserId);
     }
 
     public static ServiceAccountMetadata Create(
@@ -119,7 +119,7 @@ public sealed class ServiceAccountMetadata : AuditableEntity<ServiceAccountMetad
         }
 
         Status = ServiceAccountStatus.Revoked;
-        SetUpdated(updatedByUserId);
+        SetUpdated(DateTimeOffset.UtcNow, updatedByUserId);
     }
 
     /// <summary>
@@ -136,7 +136,7 @@ public sealed class ServiceAccountMetadata : AuditableEntity<ServiceAccountMetad
 
         _scopes.Clear();
         _scopes.AddRange(scopes);
-        SetUpdated(updatedByUserId);
+        SetUpdated(DateTimeOffset.UtcNow, updatedByUserId);
     }
 
     /// <summary>
@@ -160,6 +160,6 @@ public sealed class ServiceAccountMetadata : AuditableEntity<ServiceAccountMetad
 
         Name = name;
         Description = description;
-        SetUpdated(updatedByUserId);
+        SetUpdated(DateTimeOffset.UtcNow, updatedByUserId);
     }
 }

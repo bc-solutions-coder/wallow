@@ -15,7 +15,7 @@ public class UpdateEmailPreferencesHandlerTests
     public UpdateEmailPreferencesHandlerTests()
     {
         _repository = Substitute.For<IEmailPreferenceRepository>();
-        _handler = new UpdateEmailPreferencesHandler(_repository);
+        _handler = new UpdateEmailPreferencesHandler(_repository, TimeProvider.System);
     }
 
     [Fact]

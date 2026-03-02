@@ -13,6 +13,7 @@ public class SmsMessageBuilder
     private bool _sent;
     private bool _failed;
     private string _failureReason = "Delivery failed";
+    private TimeProvider _timeProvider = TimeProvider.System;
 
     public SmsMessageBuilder WithTenantId(TenantId tenantId)
     {
@@ -51,18 +52,24 @@ public class SmsMessageBuilder
         return this;
     }
 
+    public SmsMessageBuilder WithTimeProvider(TimeProvider timeProvider)
+    {
+        _timeProvider = timeProvider;
+        return this;
+    }
+
     public SmsMessage Build()
     {
-        SmsMessage smsMessage = SmsMessage.Create(_tenantId, _to, _from, _body);
+        SmsMessage smsMessage = SmsMessage.Create(_tenantId, _to, _from, _body, _timeProvider);
 
         if (_sent)
         {
-            smsMessage.MarkAsSent();
+            smsMessage.MarkAsSent(_timeProvider);
         }
 
         if (_failed)
         {
-            smsMessage.MarkAsFailed(_failureReason);
+            smsMessage.MarkAsFailed(_failureReason, _timeProvider);
         }
 
         smsMessage.ClearDomainEvents();

@@ -19,8 +19,8 @@ public class InvoiceRepositoryExtensionsTests : DbContextIntegrationTestBase<Bil
     [Fact]
     public async Task FindByCustomFieldAsync_ReturnsMatchingInvoices()
     {
-        Invoice invoice = Invoice.Create(TestUserId, $"INV-CF-{Guid.NewGuid():N}", "USD", TestUserId);
-        invoice.AddLineItem("Service", Money.Create(100m, "USD"), 1, TestUserId);
+        Invoice invoice = Invoice.Create(TestUserId, $"INV-CF-{Guid.NewGuid():N}", "USD", TestUserId, TimeProvider.System);
+        invoice.AddLineItem("Service", Money.Create(100m, "USD"), 1, TestUserId, TimeProvider.System);
         invoice.SetCustomFields(new Dictionary<string, object>
         {
             ["department"] = "engineering",
@@ -47,8 +47,8 @@ public class InvoiceRepositoryExtensionsTests : DbContextIntegrationTestBase<Bil
     [Fact]
     public async Task FindByCustomFieldsAsync_ReturnsMatchingInvoices()
     {
-        Invoice invoice = Invoice.Create(TestUserId, $"INV-CFS-{Guid.NewGuid():N}", "USD", TestUserId);
-        invoice.AddLineItem("Service", Money.Create(100m, "USD"), 1, TestUserId);
+        Invoice invoice = Invoice.Create(TestUserId, $"INV-CFS-{Guid.NewGuid():N}", "USD", TestUserId, TimeProvider.System);
+        invoice.AddLineItem("Service", Money.Create(100m, "USD"), 1, TestUserId, TimeProvider.System);
         invoice.SetCustomFields(new Dictionary<string, object>
         {
             ["region"] = "us-east",
@@ -73,8 +73,8 @@ public class InvoiceRepositoryExtensionsTests : DbContextIntegrationTestBase<Bil
     public async Task CustomFieldValueExistsAsync_WhenExists_ReturnsTrue()
     {
         string uniqueValue = Guid.NewGuid().ToString("N");
-        Invoice invoice = Invoice.Create(TestUserId, $"INV-CFE-{Guid.NewGuid():N}", "USD", TestUserId);
-        invoice.AddLineItem("Service", Money.Create(100m, "USD"), 1, TestUserId);
+        Invoice invoice = Invoice.Create(TestUserId, $"INV-CFE-{Guid.NewGuid():N}", "USD", TestUserId, TimeProvider.System);
+        invoice.AddLineItem("Service", Money.Create(100m, "USD"), 1, TestUserId, TimeProvider.System);
         invoice.SetCustomFields(new Dictionary<string, object>
         {
             ["externalId"] = uniqueValue

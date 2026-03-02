@@ -23,7 +23,7 @@ public class SendSmsHandlerTests
         _smsProvider.SendAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(new SmsDeliveryResult(true, "test-sid", null));
 
-        _handler = new SendSmsHandler(_repository, _smsProvider, _tenantContext);
+        _handler = new SendSmsHandler(_repository, _smsProvider, _tenantContext, TimeProvider.System);
     }
 
     [Fact]

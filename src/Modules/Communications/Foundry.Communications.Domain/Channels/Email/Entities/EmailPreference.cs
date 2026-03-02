@@ -18,38 +18,40 @@ public sealed class EmailPreference : AggregateRoot<EmailPreferenceId>, ITenantS
     private EmailPreference(
         Guid userId,
         NotificationType notificationType,
-        bool isEnabled)
+        bool isEnabled,
+        TimeProvider timeProvider)
         : base(EmailPreferenceId.New())
     {
         UserId = userId;
         NotificationType = notificationType;
         IsEnabled = isEnabled;
-        SetCreated();
+        SetCreated(timeProvider.GetUtcNow());
     }
 
     public static EmailPreference Create(
         Guid userId,
         NotificationType notificationType,
-        bool isEnabled = true)
+        bool isEnabled = true,
+        TimeProvider? timeProvider = null)
     {
-        return new EmailPreference(userId, notificationType, isEnabled);
+        return new EmailPreference(userId, notificationType, isEnabled, timeProvider ?? TimeProvider.System);
     }
 
-    public void Enable()
+    public void Enable(TimeProvider timeProvider)
     {
         IsEnabled = true;
-        SetUpdated();
+        SetUpdated(timeProvider.GetUtcNow());
     }
 
-    public void Disable()
+    public void Disable(TimeProvider timeProvider)
     {
         IsEnabled = false;
-        SetUpdated();
+        SetUpdated(timeProvider.GetUtcNow());
     }
 
-    public void Toggle()
+    public void Toggle(TimeProvider timeProvider)
     {
         IsEnabled = !IsEnabled;
-        SetUpdated();
+        SetUpdated(timeProvider.GetUtcNow());
     }
 }

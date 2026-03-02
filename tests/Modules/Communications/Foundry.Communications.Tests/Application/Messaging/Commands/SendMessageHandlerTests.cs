@@ -15,7 +15,7 @@ public class SendMessageHandlerTests
     public SendMessageHandlerTests()
     {
         _repository = Substitute.For<IConversationRepository>();
-        _handler = new SendMessageHandler(_repository);
+        _handler = new SendMessageHandler(_repository, TimeProvider.System);
     }
 
     [Fact]
@@ -23,7 +23,7 @@ public class SendMessageHandlerTests
     {
         Guid senderId = Guid.NewGuid();
         TenantId tenantId = TenantId.New();
-        Conversation conversation = Conversation.CreateDirect(tenantId, senderId, Guid.NewGuid());
+        Conversation conversation = Conversation.CreateDirect(tenantId, senderId, Guid.NewGuid(), TimeProvider.System);
         _repository.GetByIdAsync(Arg.Any<ConversationId>(), Arg.Any<CancellationToken>())
             .Returns(conversation);
 
@@ -40,7 +40,7 @@ public class SendMessageHandlerTests
     {
         Guid senderId = Guid.NewGuid();
         TenantId tenantId = TenantId.New();
-        Conversation conversation = Conversation.CreateDirect(tenantId, senderId, Guid.NewGuid());
+        Conversation conversation = Conversation.CreateDirect(tenantId, senderId, Guid.NewGuid(), TimeProvider.System);
         _repository.GetByIdAsync(Arg.Any<ConversationId>(), Arg.Any<CancellationToken>())
             .Returns(conversation);
 
@@ -70,7 +70,7 @@ public class SendMessageHandlerTests
     {
         Guid senderId = Guid.NewGuid();
         TenantId tenantId = TenantId.New();
-        Conversation conversation = Conversation.CreateDirect(tenantId, senderId, Guid.NewGuid());
+        Conversation conversation = Conversation.CreateDirect(tenantId, senderId, Guid.NewGuid(), TimeProvider.System);
         using CancellationTokenSource cts = new();
         _repository.GetByIdAsync(Arg.Any<ConversationId>(), Arg.Any<CancellationToken>())
             .Returns(conversation);

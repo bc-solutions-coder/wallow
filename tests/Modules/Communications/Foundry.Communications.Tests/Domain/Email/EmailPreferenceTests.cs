@@ -54,7 +54,7 @@ public class EmailPreferenceStateTests
     {
         EmailPreference preference = EmailPreference.Create(Guid.NewGuid(), NotificationType.TaskAssigned, isEnabled: false);
 
-        preference.Enable();
+        preference.Enable(TimeProvider.System);
 
         preference.IsEnabled.Should().BeTrue();
     }
@@ -65,7 +65,7 @@ public class EmailPreferenceStateTests
         EmailPreference preference = EmailPreference.Create(Guid.NewGuid(), NotificationType.TaskAssigned, isEnabled: false);
         DateTime before = DateTime.UtcNow;
 
-        preference.Enable();
+        preference.Enable(TimeProvider.System);
 
         preference.UpdatedAt.Should().NotBeNull();
         preference.UpdatedAt.Should().BeOnOrAfter(before);
@@ -76,7 +76,7 @@ public class EmailPreferenceStateTests
     {
         EmailPreference preference = EmailPreference.Create(Guid.NewGuid(), NotificationType.TaskAssigned);
 
-        preference.Disable();
+        preference.Disable(TimeProvider.System);
 
         preference.IsEnabled.Should().BeFalse();
     }
@@ -87,7 +87,7 @@ public class EmailPreferenceStateTests
         EmailPreference preference = EmailPreference.Create(Guid.NewGuid(), NotificationType.TaskAssigned);
         DateTime before = DateTime.UtcNow;
 
-        preference.Disable();
+        preference.Disable(TimeProvider.System);
 
         preference.UpdatedAt.Should().NotBeNull();
         preference.UpdatedAt.Should().BeOnOrAfter(before);
@@ -98,7 +98,7 @@ public class EmailPreferenceStateTests
     {
         EmailPreference preference = EmailPreference.Create(Guid.NewGuid(), NotificationType.TaskAssigned);
 
-        preference.Toggle();
+        preference.Toggle(TimeProvider.System);
 
         preference.IsEnabled.Should().BeFalse();
     }
@@ -108,7 +108,7 @@ public class EmailPreferenceStateTests
     {
         EmailPreference preference = EmailPreference.Create(Guid.NewGuid(), NotificationType.TaskAssigned, isEnabled: false);
 
-        preference.Toggle();
+        preference.Toggle(TimeProvider.System);
 
         preference.IsEnabled.Should().BeTrue();
     }
@@ -119,7 +119,7 @@ public class EmailPreferenceStateTests
         EmailPreference preference = EmailPreference.Create(Guid.NewGuid(), NotificationType.TaskAssigned);
         DateTime before = DateTime.UtcNow;
 
-        preference.Toggle();
+        preference.Toggle(TimeProvider.System);
 
         preference.UpdatedAt.Should().NotBeNull();
         preference.UpdatedAt.Should().BeOnOrAfter(before);
@@ -130,8 +130,8 @@ public class EmailPreferenceStateTests
     {
         EmailPreference preference = EmailPreference.Create(Guid.NewGuid(), NotificationType.TaskAssigned);
 
-        preference.Toggle();
-        preference.Toggle();
+        preference.Toggle(TimeProvider.System);
+        preference.Toggle(TimeProvider.System);
 
         preference.IsEnabled.Should().BeTrue();
     }

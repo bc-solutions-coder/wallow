@@ -16,7 +16,7 @@ public class MarkNotificationReadHandlerTests
     public MarkNotificationReadHandlerTests()
     {
         _repository = Substitute.For<INotificationRepository>();
-        _handler = new MarkNotificationReadHandler(_repository);
+        _handler = new MarkNotificationReadHandler(_repository, TimeProvider.System);
     }
 
     [Fact]
@@ -28,7 +28,7 @@ public class MarkNotificationReadHandlerTests
             userId,
             NotificationType.SystemAlert,
             "Title",
-            "Message");
+            "Message", TimeProvider.System);
 
         _repository.GetByIdAsync(Arg.Any<NotificationId>(), Arg.Any<CancellationToken>())
             .Returns(notification);
@@ -66,7 +66,7 @@ public class MarkNotificationReadHandlerTests
             ownerId,
             NotificationType.SystemAlert,
             "Title",
-            "Message");
+            "Message", TimeProvider.System);
 
         _repository.GetByIdAsync(Arg.Any<NotificationId>(), Arg.Any<CancellationToken>())
             .Returns(notification);
@@ -90,7 +90,7 @@ public class MarkNotificationReadHandlerTests
             userId,
             NotificationType.SystemAlert,
             "Title",
-            "Message");
+            "Message", TimeProvider.System);
 
         _repository.GetByIdAsync(Arg.Any<NotificationId>(), Arg.Any<CancellationToken>())
             .Returns(notification);

@@ -14,7 +14,7 @@ public class NotificationMappingsTests
         Guid userId = Guid.NewGuid();
         TenantId tenantId = TenantId.Create(Guid.NewGuid());
 
-        Notification notification = Notification.Create(tenantId, userId, NotificationType.TaskAssigned, "Task Title", "Task Message");
+        Notification notification = Notification.Create(tenantId, userId, NotificationType.TaskAssigned, "Task Title", "Task Message", TimeProvider.System);
 
         NotificationDto dto = notification.ToDto();
 
@@ -35,9 +35,9 @@ public class NotificationMappingsTests
             Guid.NewGuid(),
             NotificationType.SystemAlert,
             "Title",
-            "Message");
+            "Message", TimeProvider.System);
 
-        notification.MarkAsRead();
+        notification.MarkAsRead(TimeProvider.System);
 
         NotificationDto dto = notification.ToDto();
 

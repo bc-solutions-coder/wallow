@@ -16,22 +16,17 @@ public class IssueInvoiceHandlerTests
     public IssueInvoiceHandlerTests()
     {
         _repository = Substitute.For<IInvoiceRepository>();
-        _handler = new IssueInvoiceHandler(_repository);
+        _handler = new IssueInvoiceHandler(_repository, TimeProvider.System);
     }
 
     [Fact]
     public async Task Handle_WithDraftInvoiceWithLineItems_IssuesIt()
     {
         // Arrange
-        Invoice invoice = Invoice.Create(
-            Guid.NewGuid(),
-            "INV-001",
-            "USD",
-            Guid.NewGuid(),
-            DateTime.UtcNow.AddDays(30));
+        Invoice invoice = Invoice.Create(Guid.NewGuid(), "INV-001", "USD", Guid.NewGuid(), TimeProvider.System, DateTime.UtcNow.AddDays(30));
 
         // Add a line item so the invoice can be issued
-        invoice.AddLineItem("Test Item", Money.Create(100m, "USD"), 1, Guid.NewGuid());
+        invoice.AddLineItem("Test Item", Money.Create(100m, "USD"), 1, Guid.NewGuid(), TimeProvider.System);
 
         _repository.GetByIdWithLineItemsAsync(Arg.Any<InvoiceId>(), Arg.Any<CancellationToken>())
             .Returns(invoice);
