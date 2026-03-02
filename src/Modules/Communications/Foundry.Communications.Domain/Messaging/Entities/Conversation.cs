@@ -67,11 +67,15 @@ public sealed class Conversation : AggregateRoot<ConversationId>, ITenantScoped
     public void SendMessage(Guid senderId, string body)
     {
         if (Status == ConversationStatus.Archived)
+        {
             throw new InvalidOperationException("Cannot send messages to an archived conversation.");
+        }
 
         Participant? sender = _participants.FirstOrDefault(p => p.UserId == senderId && p.IsActive);
         if (sender is null)
+        {
             throw new InvalidOperationException("Sender is not an active participant in this conversation.");
+        }
 
         Message message = Message.Create(Id, senderId, body);
         _messages.Add(message);
@@ -87,7 +91,9 @@ public sealed class Conversation : AggregateRoot<ConversationId>, ITenantScoped
     public void AddParticipant(Guid userId)
     {
         if (!IsGroup)
+        {
             throw new InvalidOperationException("Cannot add participants to a direct conversation.");
+        }
 
         Participant participant = Participant.Create(userId, Id);
         _participants.Add(participant);
