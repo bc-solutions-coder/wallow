@@ -1,5 +1,6 @@
 using Foundry.Communications.Application.Announcements.Interfaces;
 using Foundry.Communications.Application.Channels.Email.Interfaces;
+using Foundry.Communications.Application.Messaging.Interfaces;
 using Foundry.Communications.Application.Preferences.Interfaces;
 using Foundry.Communications.Application.Channels.InApp.Interfaces;
 using Foundry.Communications.Application.Channels.Sms.Interfaces;
@@ -62,6 +63,12 @@ public static partial class CommunicationsModuleExtensions
         services.AddScoped<IAnnouncementRepository, AnnouncementRepository>();
         services.AddScoped<IChangelogRepository, ChangelogRepository>();
         services.AddScoped<IAnnouncementDismissalRepository, AnnouncementDismissalRepository>();
+
+        // Messaging repositories
+        services.AddScoped<IConversationRepository, ConversationRepository>();
+
+        // Messaging query services
+        services.AddScoped<IMessagingQueryService, MessagingQueryService>();
 
         return services;
     }

@@ -27,7 +27,7 @@ public sealed class SmsPreferenceConfiguration : IEntityTypeConfiguration<SmsPre
             .HasColumnName("user_id")
             .IsRequired();
 
-        builder.ComplexProperty(e => e.PhoneNumber, phone =>
+        builder.OwnsOne(e => e.PhoneNumber, phone =>
         {
             phone.Property(p => p.Value)
                 .HasColumnName("phone_number")

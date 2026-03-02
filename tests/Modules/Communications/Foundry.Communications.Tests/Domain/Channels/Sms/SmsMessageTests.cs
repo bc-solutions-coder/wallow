@@ -14,7 +14,7 @@ public class SmsMessageCreateTests
         TenantId tenantId = TenantId.New();
         PhoneNumber to = PhoneNumber.Create("+14155551234");
 
-        SmsMessage message = SmsMessage.Create(tenantId, to, "Hello");
+        SmsMessage message = SmsMessage.Create(tenantId, to, null, "Hello");
 
         message.TenantId.Should().Be(tenantId);
         message.To.Should().Be(to);
@@ -72,7 +72,7 @@ public class SmsMessageSendingTests
     }
 
     private static SmsMessage CreateTestMessage() =>
-        SmsMessage.Create(TenantId.New(), PhoneNumber.Create("+14155551234"), "Test body");
+        SmsMessage.Create(TenantId.New(), PhoneNumber.Create("+14155551234"), null, "Test body");
 }
 
 public class SmsMessageRetryTests
@@ -83,6 +83,7 @@ public class SmsMessageRetryTests
         SmsMessage message = SmsMessage.Create(
             TenantId.New(),
             PhoneNumber.Create("+14155551234"),
+            null,
             "Test body");
         message.MarkAsFailed("Error");
 
@@ -97,6 +98,7 @@ public class SmsMessageRetryTests
         SmsMessage message = SmsMessage.Create(
             TenantId.New(),
             PhoneNumber.Create("+14155551234"),
+            null,
             "Test body");
 
         message.MarkAsFailed("Error 1");

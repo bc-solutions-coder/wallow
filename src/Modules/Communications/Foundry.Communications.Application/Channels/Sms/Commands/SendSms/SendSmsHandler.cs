@@ -16,8 +16,9 @@ public sealed class SendSmsHandler(
         CancellationToken cancellationToken)
     {
         PhoneNumber to = PhoneNumber.Create(command.To);
+        PhoneNumber? from = command.From is not null ? PhoneNumber.Create(command.From) : null;
 
-        SmsMessage smsMessage = SmsMessage.Create(tenantContext.TenantId, to, command.Body);
+        SmsMessage smsMessage = SmsMessage.Create(tenantContext.TenantId, to, from, command.Body);
         smsMessageRepository.Add(smsMessage);
         await smsMessageRepository.SaveChangesAsync(cancellationToken);
 
