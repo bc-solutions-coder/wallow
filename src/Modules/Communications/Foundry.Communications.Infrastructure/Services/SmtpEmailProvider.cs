@@ -1,6 +1,6 @@
 using System.Diagnostics;
+using Foundry.Communications.Application.Channels.Email.Interfaces;
 using Foundry.Communications.Application.Channels.Email.Telemetry;
-using Foundry.Shared.Contracts.Communications.Email;
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using Microsoft.Extensions.Logging;
@@ -9,40 +9,53 @@ using MimeKit;
 
 namespace Foundry.Communications.Infrastructure.Services;
 
-public sealed partial class SmtpEmailService : IEmailService
+public sealed partial class SmtpEmailProvider(
+    IOptions<SmtpSettings> settings,
+    ILogger<SmtpEmailProvider> logger) : IEmailProvider
 {
-    private readonly SmtpSettings _settings;
-    private readonly ILogger<SmtpEmailService> _logger;
+    private readonly SmtpSettings _settings = settings.Value;
 
-    public SmtpEmailService(IOptions<SmtpSettings> settings, ILogger<SmtpEmailService> logger)
+    public async Task<EmailDeliveryResult> SendAsync(EmailDeliveryRequest request, CancellationToken cancellationToken = default)
     {
-        _settings = settings.Value;
-        _logger = logger;
+        using MimeMessage message = request.Attachment.HasValue
+            ? BuildMessageWithAttachment(request)
+            : BuildMessage(request);
+
+        try
+        {
+            await SendWithRetryAsync(message, cancellationToken);
+            return new EmailDeliveryResult(true, null);
+        }
+        catch (Exception ex)
+        {
+            return new EmailDeliveryResult(false, ex.Message);
+        }
     }
 
-    public async Task SendAsync(
-        string to,
-        string? from,
-        string subject,
-        string body,
-        CancellationToken cancellationToken = default)
+    private MimeMessage BuildMessage(EmailDeliveryRequest request)
     {
-        using MimeMessage message = BuildMessage(to, from, subject, body);
+        MimeMessage message = new MimeMessage();
 
-        await SendWithRetryAsync(message, cancellationToken);
+        message.From.Add(string.IsNullOrWhiteSpace(request.From)
+            ? new MailboxAddress(_settings.DefaultFromName, _settings.DefaultFromAddress)
+            : MailboxAddress.Parse(request.From));
+
+        message.To.Add(MailboxAddress.Parse(request.To));
+        message.Subject = request.Subject;
+
+        message.Body = new TextPart("html")
+        {
+            Text = request.Body
+        };
+
+        return message;
     }
 
-    public async Task SendWithAttachmentAsync(
-        string to,
-        string? from,
-        string subject,
-        string body,
-        byte[] attachment,
-        string attachmentName,
-        string attachmentContentType = "application/octet-stream",
-        CancellationToken cancellationToken = default)
+    private MimeMessage BuildMessageWithAttachment(EmailDeliveryRequest request)
     {
         const int maxAttachmentSizeBytes = 10 * 1024 * 1024; // 10MB
+
+        ReadOnlyMemory<byte> attachment = request.Attachment!.Value;
 
         if (attachment.Length > maxAttachmentSizeBytes)
         {
@@ -50,54 +63,24 @@ public sealed partial class SmtpEmailService : IEmailService
                 $"Attachment size ({attachment.Length / 1024 / 1024}MB) exceeds maximum allowed size (10MB)");
         }
 
-        using MimeMessage message = BuildMessageWithAttachment(to, from, subject, body, attachment, attachmentName, attachmentContentType);
-
-        await SendWithRetryAsync(message, cancellationToken);
-    }
-
-    private MimeMessage BuildMessage(string to, string? from, string subject, string body)
-    {
         MimeMessage message = new MimeMessage();
 
-        message.From.Add(string.IsNullOrWhiteSpace(from)
+        message.From.Add(string.IsNullOrWhiteSpace(request.From)
             ? new MailboxAddress(_settings.DefaultFromName, _settings.DefaultFromAddress)
-            : MailboxAddress.Parse(from));
+            : MailboxAddress.Parse(request.From));
 
-        message.To.Add(MailboxAddress.Parse(to));
-        message.Subject = subject;
-
-        message.Body = new TextPart("html")
-        {
-            Text = body
-        };
-
-        return message;
-    }
-
-    private MimeMessage BuildMessageWithAttachment(
-        string to,
-        string? from,
-        string subject,
-        string body,
-        byte[] attachment,
-        string attachmentName,
-        string attachmentContentType)
-    {
-        MimeMessage message = new MimeMessage();
-
-        message.From.Add(string.IsNullOrWhiteSpace(from)
-            ? new MailboxAddress(_settings.DefaultFromName, _settings.DefaultFromAddress)
-            : MailboxAddress.Parse(from));
-
-        message.To.Add(MailboxAddress.Parse(to));
-        message.Subject = subject;
+        message.To.Add(MailboxAddress.Parse(request.To));
+        message.Subject = request.Subject;
 
         BodyBuilder builder = new BodyBuilder
         {
-            HtmlBody = body
+            HtmlBody = request.Body
         };
 
-        builder.Attachments.Add(attachmentName, attachment, ContentType.Parse(attachmentContentType));
+        builder.Attachments.Add(
+            request.AttachmentName ?? "attachment",
+            attachment.ToArray(),
+            ContentType.Parse(request.AttachmentContentType));
 
         message.Body = builder.ToMessageBody();
 
@@ -137,7 +120,7 @@ public sealed partial class SmtpEmailService : IEmailService
                 await client.DisconnectAsync(true, cancellationToken);
 
                 string recipients = message.To.ToString();
-                LogEmailSent(_logger, recipients, message.Subject, attempt);
+                LogEmailSent(logger, recipients, message.Subject, attempt);
 
                 return;
             }
@@ -145,7 +128,7 @@ public sealed partial class SmtpEmailService : IEmailService
             {
                 lastException = ex;
 
-                LogEmailAttemptFailed(_logger, ex, message.To.ToString(), attempt, _settings.MaxRetries);
+                LogEmailAttemptFailed(logger, ex, message.To.ToString(), attempt, _settings.MaxRetries);
 
                 if (attempt < _settings.MaxRetries)
                 {
@@ -155,7 +138,7 @@ public sealed partial class SmtpEmailService : IEmailService
             }
         }
 
-        LogEmailAllAttemptsFailed(_logger, lastException, message.To.ToString(), _settings.MaxRetries);
+        LogEmailAllAttemptsFailed(logger, lastException, message.To.ToString(), _settings.MaxRetries);
 
         activity?.SetStatus(ActivityStatusCode.Error, lastException?.Message ?? "All retry attempts failed");
         if (lastException is not null)
