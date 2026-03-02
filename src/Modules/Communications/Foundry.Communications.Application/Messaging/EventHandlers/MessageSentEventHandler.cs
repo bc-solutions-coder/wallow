@@ -3,7 +3,9 @@ using Foundry.Communications.Application.Messaging.Interfaces;
 using Foundry.Communications.Domain.Messaging.Entities;
 using Foundry.Communications.Domain.Messaging.Events;
 using Foundry.Communications.Domain.Messaging.Identity;
+using Foundry.Shared.Contracts.Communications.Messaging.Events;
 using Microsoft.Extensions.Logging;
+using Wolverine;
 
 namespace Foundry.Communications.Application.Messaging.EventHandlers;
 
@@ -13,6 +15,7 @@ public sealed partial class MessageSentEventHandler
         MessageSentDomainEvent domainEvent,
         IConversationRepository conversationRepository,
         INotificationService notificationService,
+        IMessageBus bus,
         ILogger<MessageSentEventHandler> logger,
         CancellationToken cancellationToken)
     {
@@ -46,6 +49,22 @@ public sealed partial class MessageSentEventHandler
         }
 
         LogNotificationsSent(logger, domainEvent.MessageId, domainEvent.ConversationId);
+
+        Message? message = conversation.Messages
+            .FirstOrDefault(m => m.Id == new MessageId(domainEvent.MessageId));
+
+        if (message is not null)
+        {
+            await bus.PublishAsync(new MessageSentIntegrationEvent
+            {
+                ConversationId = domainEvent.ConversationId,
+                MessageId = domainEvent.MessageId,
+                SenderId = domainEvent.SenderId,
+                Content = message.Body,
+                SentAt = message.SentAt,
+                TenantId = domainEvent.TenantId
+            });
+        }
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Handling MessageSentDomainEvent for Message {MessageId} in Conversation {ConversationId}")]

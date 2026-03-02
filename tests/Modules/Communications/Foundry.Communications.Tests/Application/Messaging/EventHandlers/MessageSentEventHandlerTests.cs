@@ -6,6 +6,7 @@ using Foundry.Communications.Domain.Messaging.Events;
 using Foundry.Communications.Domain.Messaging.Identity;
 using Foundry.Shared.Kernel.Identity;
 using Microsoft.Extensions.Logging;
+using Wolverine;
 
 namespace Foundry.Communications.Tests.Application.Messaging.EventHandlers;
 
@@ -13,12 +14,14 @@ public class MessageSentEventHandlerTests
 {
     private readonly IConversationRepository _repository;
     private readonly INotificationService _notificationService;
+    private readonly IMessageBus _bus;
     private readonly ILogger<MessageSentEventHandler> _logger;
 
     public MessageSentEventHandlerTests()
     {
         _repository = Substitute.For<IConversationRepository>();
         _notificationService = Substitute.For<INotificationService>();
+        _bus = Substitute.For<IMessageBus>();
         _logger = Substitute.For<ILogger<MessageSentEventHandler>>();
     }
 
@@ -31,7 +34,7 @@ public class MessageSentEventHandlerTests
         MessageSentDomainEvent domainEvent = new(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
 
         await MessageSentEventHandler.HandleAsync(
-            domainEvent, _repository, _notificationService, _logger, CancellationToken.None);
+            domainEvent, _repository, _notificationService, _bus, _logger, CancellationToken.None);
 
         await _notificationService.DidNotReceive().SendToUserAsync(
             Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<string>(),
@@ -52,7 +55,7 @@ public class MessageSentEventHandlerTests
         MessageSentDomainEvent domainEvent = new(conversation.Id.Value, Guid.NewGuid(), senderId, tenantId.Value);
 
         await MessageSentEventHandler.HandleAsync(
-            domainEvent, _repository, _notificationService, _logger, CancellationToken.None);
+            domainEvent, _repository, _notificationService, _bus, _logger, CancellationToken.None);
 
         await _notificationService.Received(1).SendToUserAsync(
             recipientId, "New message", "You have a new message.", "Message",
@@ -78,7 +81,7 @@ public class MessageSentEventHandlerTests
         MessageSentDomainEvent domainEvent = new(conversation.Id.Value, Guid.NewGuid(), senderId, tenantId.Value);
 
         await MessageSentEventHandler.HandleAsync(
-            domainEvent, _repository, _notificationService, _logger, CancellationToken.None);
+            domainEvent, _repository, _notificationService, _bus, _logger, CancellationToken.None);
 
         await _notificationService.Received(1).SendToUserAsync(
             member1, "New message in Team Chat", "You have a new message.", "Message",
@@ -107,7 +110,7 @@ public class MessageSentEventHandlerTests
         MessageSentDomainEvent domainEvent = new(conversation.Id.Value, Guid.NewGuid(), senderId, tenantId.Value);
 
         await MessageSentEventHandler.HandleAsync(
-            domainEvent, _repository, _notificationService, _logger, CancellationToken.None);
+            domainEvent, _repository, _notificationService, _bus, _logger, CancellationToken.None);
 
         await _notificationService.Received(1).SendToUserAsync(
             recipientId, "New message in Project Alpha", "You have a new message.", "Message",
