@@ -13,7 +13,7 @@ namespace Foundry.Identity.Domain.Entities;
 /// </summary>
 public sealed class ServiceAccountMetadata : AuditableEntity<ServiceAccountMetadataId>, ITenantScoped
 {
-    public TenantId TenantId { get; set; }
+    public TenantId TenantId { get; init; }
 
     /// <summary>
     /// Keycloak client ID (e.g., "sa-tenant123-production").

@@ -5,9 +5,26 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10
+    groups:
+      actions:
+        patterns:
+          - "*"
 
   - package-ecosystem: "nuget"
     directory: "/"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10
+    groups:
+      microsoft-packages:
+        patterns:
+          - "microsoft-*"
+          - "aspnet-*"
+      ef-core:
+        patterns:
+          - "*entityframework*"
+      test-packages:
+        patterns:
+          - "xunit*"
+          - "coverlet*"
+          - "moq*"

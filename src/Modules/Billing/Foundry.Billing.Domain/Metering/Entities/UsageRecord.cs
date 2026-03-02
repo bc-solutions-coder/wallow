@@ -14,7 +14,7 @@ public sealed class UsageRecord : Entity<UsageRecordId>, ITenantScoped
     /// <summary>
     /// The tenant this usage belongs to.
     /// </summary>
-    public TenantId TenantId { get; set; }
+    public TenantId TenantId { get; init; }
 
     /// <summary>
     /// The meter code this usage is for.

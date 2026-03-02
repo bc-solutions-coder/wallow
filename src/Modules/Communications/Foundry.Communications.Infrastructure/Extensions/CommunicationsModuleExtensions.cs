@@ -43,6 +43,11 @@ public static partial class CommunicationsModuleExtensions
             options.UseNpgsql(connectionString, npgsql =>
             {
                 npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "communications");
+                npgsql.EnableRetryOnFailure(
+                    maxRetryCount: 5,
+                    maxRetryDelay: TimeSpan.FromSeconds(30),
+                    errorCodesToAdd: null);
+                npgsql.CommandTimeout(30);
             });
             options.AddInterceptors(sp.GetRequiredService<TenantSaveChangesInterceptor>());
         });
@@ -96,7 +101,8 @@ public static partial class CommunicationsModuleExtensions
         string? twilioAccountSid = configuration["TwilioSettings:AccountSid"];
         if (!string.IsNullOrEmpty(twilioAccountSid))
         {
-            services.AddHttpClient<TwilioSmsProvider>();
+            services.AddHttpClient<TwilioSmsProvider>()
+                .AddStandardResilienceHandler();
             services.AddScoped<ISmsProvider, TwilioSmsProvider>();
         }
         else
@@ -117,19 +123,11 @@ public static partial class CommunicationsModuleExtensions
                 services.AddScoped<IEmailProvider, SmtpEmailProvider>();
                 break;
             default:
-                using (ServiceProvider sp = services.BuildServiceProvider())
-                {
-                    ILogger logger = sp.GetRequiredService<ILoggerFactory>()
-                        .CreateLogger("CommunicationsModule");
-                    LogUnrecognizedEmailProvider(logger, provider);
-                }
+                Console.WriteLine($"Warning: Unrecognized email provider '{provider}'. Defaulting to Smtp.");
                 services.AddScoped<IEmailProvider, SmtpEmailProvider>();
                 break;
         }
     }
-
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Unrecognized email provider '{Provider}'. Defaulting to Smtp.")]
-    private static partial void LogUnrecognizedEmailProvider(ILogger logger, string provider);
 
     public static async Task<WebApplication> InitializeCommunicationsModuleAsync(
         this WebApplication app)

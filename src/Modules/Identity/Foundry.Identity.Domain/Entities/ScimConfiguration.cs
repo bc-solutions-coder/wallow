@@ -8,7 +8,7 @@ namespace Foundry.Identity.Domain.Entities;
 
 public sealed class ScimConfiguration : AggregateRoot<ScimConfigurationId>, ITenantScoped
 {
-    public TenantId TenantId { get; set; }
+    public TenantId TenantId { get; init; }
     public bool IsEnabled { get; private set; }
     public string BearerToken { get; private set; } = string.Empty;
     public string TokenPrefix { get; private set; } = string.Empty;

@@ -10,7 +10,7 @@ public class TenantQueryExtensionsTests
     {
         public int Id { get; set; }
         public string Name { get; set; } = string.Empty;
-        public TenantId TenantId { get; set; }
+        public TenantId TenantId { get; init; }
     }
 
     private sealed class TestDbContext : DbContext

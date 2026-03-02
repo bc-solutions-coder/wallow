@@ -34,7 +34,7 @@ namespace Foundry.Billing.Domain.Entities;
 /// </remarks>
 public sealed class Invoice : AggregateRoot<InvoiceId>, ITenantScoped, IHasCustomFields
 {
-    public TenantId TenantId { get; set; }
+    public TenantId TenantId { get; init; }
     public Guid UserId { get; private set; }
     public string InvoiceNumber { get; private set; } = string.Empty;
     public InvoiceStatus Status { get; private set; }

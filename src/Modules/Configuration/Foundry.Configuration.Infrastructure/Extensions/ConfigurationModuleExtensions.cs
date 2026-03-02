@@ -36,6 +36,11 @@ public static partial class ConfigurationModuleExtensions
             options.UseNpgsql(connectionString, npgsql =>
             {
                 npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "configuration");
+                npgsql.EnableRetryOnFailure(
+                    maxRetryCount: 5,
+                    maxRetryDelay: TimeSpan.FromSeconds(30),
+                    errorCodesToAdd: null);
+                npgsql.CommandTimeout(30);
             });
             options.AddInterceptors(sp.GetRequiredService<TenantSaveChangesInterceptor>());
         });

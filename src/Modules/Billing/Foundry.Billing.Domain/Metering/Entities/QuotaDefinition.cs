@@ -25,7 +25,7 @@ public sealed class QuotaDefinition : AuditableEntity<QuotaDefinitionId>, ITenan
     /// <summary>
     /// Tenant for tenant-specific overrides. Takes precedence over plan.
     /// </summary>
-    public TenantId TenantId { get; set; }
+    public TenantId TenantId { get; init; }
 
     /// <summary>
     /// The usage limit for this period.

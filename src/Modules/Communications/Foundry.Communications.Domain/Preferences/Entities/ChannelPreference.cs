@@ -8,7 +8,7 @@ namespace Foundry.Communications.Domain.Preferences.Entities;
 
 public sealed class ChannelPreference : AggregateRoot<ChannelPreferenceId>, ITenantScoped
 {
-    public TenantId TenantId { get; set; }
+    public TenantId TenantId { get; init; }
     public Guid UserId { get; private set; }
     public ChannelType ChannelType { get; private set; }
     public string NotificationType { get; private set; } = string.Empty;

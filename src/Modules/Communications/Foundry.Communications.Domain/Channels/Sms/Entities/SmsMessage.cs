@@ -10,7 +10,7 @@ namespace Foundry.Communications.Domain.Channels.Sms.Entities;
 
 public sealed class SmsMessage : AggregateRoot<SmsMessageId>, ITenantScoped
 {
-    public TenantId TenantId { get; set; }
+    public TenantId TenantId { get; init; }
     public PhoneNumber To { get; private set; } = null!;
     public PhoneNumber? From { get; private set; }
     public string Body { get; private set; } = null!;

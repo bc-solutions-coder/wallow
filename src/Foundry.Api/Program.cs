@@ -180,9 +180,12 @@ try
             }
         }
 
-        // Durable outbox on all sending endpoints (skip in Testing environment)
+        // Durable inbox/outbox on all endpoints (skip in Testing environment)
+        // Inbox: guarantees at-least-once delivery with automatic deduplication (idempotency)
+        // Outbox: guarantees messages are sent only after the transaction commits
         if (!builder.Environment.IsEnvironment("Testing"))
         {
+            opts.Policies.UseDurableInboxOnAllListeners();
             opts.Policies.UseDurableOutboxOnAllSendingEndpoints();
         }
     }, ExtensionDiscovery.ManualOnly);

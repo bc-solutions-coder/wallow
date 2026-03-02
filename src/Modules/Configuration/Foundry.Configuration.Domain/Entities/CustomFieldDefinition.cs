@@ -18,7 +18,7 @@ public sealed partial class CustomFieldDefinition : AggregateRoot<CustomFieldDef
     [System.Text.RegularExpressions.GeneratedRegex(@"^[a-z][a-z0-9_]*$", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
     private static partial Regex FieldKeyPattern();
 
-    public TenantId TenantId { get; set; }
+    public TenantId TenantId { get; init; }
 
     /// <summary>Entity type this field belongs to (e.g., "Invoice", "Payment")</summary>
     public string EntityType { get; private set; } = string.Empty;

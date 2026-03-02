@@ -26,4 +26,42 @@ services:
         limits:
           memory: 512M
 
+  valkey:
+    image: valkey/valkey:8.1-alpine
+    command: valkey-server --requirepass ${VALKEY_PASSWORD} --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports: !reset []
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  keycloak:
+    command: start --optimized
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: ${KC_DB_URL}
+      KC_DB_USERNAME: ${KC_DB_USERNAME}
+      KC_DB_PASSWORD: ${KC_DB_PASSWORD}
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
+      KC_HOSTNAME: ${KC_HOSTNAME}
+      KC_HTTPS_CERTIFICATE_FILE: /opt/keycloak/certs/tls.crt
+      KC_HTTPS_CERTIFICATE_KEY_FILE: /opt/keycloak/certs/tls.key
+    ports: !reset []
+    volumes:
+      - keycloak_certs:/opt/keycloak/certs:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+
   # No Mailpit in production - use real SMTP service
+
+volumes:
+  keycloak_certs:

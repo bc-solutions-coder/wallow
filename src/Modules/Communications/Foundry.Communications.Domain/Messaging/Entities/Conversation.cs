@@ -10,7 +10,7 @@ namespace Foundry.Communications.Domain.Messaging.Entities;
 
 public sealed class Conversation : AggregateRoot<ConversationId>, ITenantScoped
 {
-    public TenantId TenantId { get; set; }
+    public TenantId TenantId { get; init; }
     public string? Subject { get; private set; }
     public bool IsGroup { get; private set; }
     public ConversationStatus Status { get; private set; }

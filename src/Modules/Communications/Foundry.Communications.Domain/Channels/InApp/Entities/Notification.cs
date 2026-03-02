@@ -9,7 +9,7 @@ namespace Foundry.Communications.Domain.Channels.InApp.Entities;
 
 public sealed class Notification : AggregateRoot<NotificationId>, ITenantScoped
 {
-    public TenantId TenantId { get; set; }
+    public TenantId TenantId { get; init; }
     public Guid UserId { get; private set; }
     public NotificationType Type { get; private set; }
     public string Title { get; private set; } = null!;

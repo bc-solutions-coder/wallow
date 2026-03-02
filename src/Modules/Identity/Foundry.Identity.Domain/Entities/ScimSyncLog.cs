@@ -9,7 +9,7 @@ namespace Foundry.Identity.Domain.Entities;
 
 public sealed class ScimSyncLog : AggregateRoot<ScimSyncLogId>, ITenantScoped
 {
-    public TenantId TenantId { get; set; }
+    public TenantId TenantId { get; init; }
     public ScimOperation Operation { get; private set; }
     public ScimResourceType ResourceType { get; private set; }
     public string ExternalId { get; private set; } = string.Empty;

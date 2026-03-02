@@ -41,7 +41,7 @@ public class TenantSaveChangesInterceptor : SaveChangesInterceptor
 
         foreach (EntityEntry<ITenantScoped>? entry in entries)
         {
-            entry.Entity.TenantId = _tenantContext.TenantId;
+            entry.Property(nameof(ITenantScoped.TenantId)).CurrentValue = _tenantContext.TenantId;
         }
 
         IEnumerable<EntityEntry<ITenantScoped>> modified = context.ChangeTracker

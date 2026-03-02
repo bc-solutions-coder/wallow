@@ -31,7 +31,7 @@ services:
   # EMAIL (Development)
   # ============================================
   mailpit:
-    image: axllent/mailpit:latest
+    image: axllent/mailpit:v1.22
     container_name: ${COMPOSE_PROJECT_NAME:-foundry}-mailpit
     ports:
       - "1025:1025"
@@ -107,7 +107,7 @@ services:
   # OTEL_SERVICE_NAME           — logical service name shown in traces/metrics
   # ============================================
   grafana-lgtm:
-    image: grafana/otel-lgtm:latest
+    image: grafana/otel-lgtm:0.8.1
     container_name: ${COMPOSE_PROJECT_NAME:-foundry}-grafana-lgtm
     ports:
       - "3000:3000"   # Grafana UI
