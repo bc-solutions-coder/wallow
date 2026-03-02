@@ -7,6 +7,7 @@ using Foundry.Communications.Application.Channels.Email.Commands.UpdateEmailPref
 using Foundry.Communications.Application.Channels.Email.DTOs;
 using Foundry.Communications.Application.Channels.Email.Queries.GetEmailPreferences;
 using Foundry.Shared.Kernel.Results;
+using Foundry.Shared.Kernel.Identity.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -34,6 +35,7 @@ public class EmailPreferencesController : ControllerBase
     /// Get the current user's email preferences.
     /// </summary>
     [HttpGet]
+    [HasPermission(PermissionType.EmailPreferenceManage)]
     [ProducesResponseType(typeof(IReadOnlyList<EmailPreferenceResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> GetPreferences(CancellationToken cancellationToken)
@@ -54,6 +56,7 @@ public class EmailPreferencesController : ControllerBase
     /// Update the current user's email preference for a specific notification type.
     /// </summary>
     [HttpPut]
+    [HasPermission(PermissionType.EmailPreferenceManage)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]

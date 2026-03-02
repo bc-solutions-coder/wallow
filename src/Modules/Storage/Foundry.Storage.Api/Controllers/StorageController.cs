@@ -20,6 +20,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Foundry.Shared.Kernel.Identity.Authorization;
 using Wolverine;
 
 namespace Foundry.Storage.Api.Controllers;
@@ -47,6 +48,7 @@ public sealed class StorageController : ControllerBase
     /// Create a new storage bucket.
     /// </summary>
     [HttpPost("buckets")]
+    [HasPermission(PermissionType.StorageWrite)]
     [ProducesResponseType(typeof(BucketResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
@@ -85,6 +87,7 @@ public sealed class StorageController : ControllerBase
     /// Get bucket by name.
     /// </summary>
     [HttpGet("buckets/{name}")]
+    [HasPermission(PermissionType.StorageRead)]
     [ProducesResponseType(typeof(BucketResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetBucket(string name, CancellationToken cancellationToken)
@@ -99,6 +102,7 @@ public sealed class StorageController : ControllerBase
     /// Delete a bucket.
     /// </summary>
     [HttpDelete("buckets/{name}")]
+    [HasPermission(PermissionType.StorageWrite)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -126,6 +130,7 @@ public sealed class StorageController : ControllerBase
     /// Upload a file.
     /// </summary>
     [HttpPost("upload")]
+    [HasPermission(PermissionType.StorageWrite)]
     [EnableRateLimiting("upload")]
     [RequestSizeLimit(100 * 1024 * 1024)] // 100MB
     [Consumes("multipart/form-data")]
@@ -171,6 +176,7 @@ public sealed class StorageController : ControllerBase
     /// Get file metadata by ID.
     /// </summary>
     [HttpGet("files/{id:guid}")]
+    [HasPermission(PermissionType.StorageRead)]
     [ProducesResponseType(typeof(FileMetadataResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetFile(Guid id, CancellationToken cancellationToken)
@@ -185,6 +191,7 @@ public sealed class StorageController : ControllerBase
     /// Download a file (redirects to presigned URL).
     /// </summary>
     [HttpGet("files/{id:guid}/download")]
+    [HasPermission(PermissionType.StorageRead)]
     [ProducesResponseType(StatusCodes.Status302Found)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Download(Guid id, CancellationToken cancellationToken)
@@ -204,6 +211,7 @@ public sealed class StorageController : ControllerBase
     /// Delete a file.
     /// </summary>
     [HttpDelete("files/{id:guid}")]
+    [HasPermission(PermissionType.StorageWrite)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
@@ -223,6 +231,7 @@ public sealed class StorageController : ControllerBase
     /// List files in a bucket.
     /// </summary>
     [HttpGet("files")]
+    [HasPermission(PermissionType.StorageRead)]
     [ProducesResponseType(typeof(IReadOnlyList<FileMetadataResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> ListFiles(
@@ -246,6 +255,7 @@ public sealed class StorageController : ControllerBase
     /// Get a presigned URL for direct upload to storage.
     /// </summary>
     [HttpPost("presigned-upload")]
+    [HasPermission(PermissionType.StorageWrite)]
     [ProducesResponseType(typeof(PresignedUploadResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -276,6 +286,7 @@ public sealed class StorageController : ControllerBase
     /// Get a presigned URL for downloading a file.
     /// </summary>
     [HttpGet("files/{id:guid}/presigned-url")]
+    [HasPermission(PermissionType.StorageRead)]
     [ProducesResponseType(typeof(PresignedUrlResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetPresignedDownloadUrl(

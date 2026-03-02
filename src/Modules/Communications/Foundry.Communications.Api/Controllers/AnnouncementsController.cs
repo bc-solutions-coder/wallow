@@ -4,6 +4,7 @@ using Foundry.Communications.Api.Extensions;
 using Foundry.Communications.Application.Announcements.Commands.DismissAnnouncement;
 using Foundry.Communications.Application.Announcements.DTOs;
 using Foundry.Communications.Application.Announcements.Queries.GetActiveAnnouncements;
+using Foundry.Shared.Kernel.Identity.Authorization;
 using Foundry.Shared.Kernel.MultiTenancy;
 using Foundry.Shared.Kernel.Results;
 using Microsoft.AspNetCore.Authorization;
@@ -34,6 +35,7 @@ public class AnnouncementsController : ControllerBase
     /// Get active announcements for the current user.
     /// </summary>
     [HttpGet]
+    [HasPermission(PermissionType.AnnouncementRead)]
     [ProducesResponseType(typeof(IReadOnlyList<AnnouncementResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> GetAnnouncements(CancellationToken ct)

@@ -5,6 +5,7 @@ using Foundry.Identity.Api.Contracts.Responses;
 using Foundry.Identity.Application.Constants;
 using Foundry.Identity.Application.Interfaces;
 using Foundry.Shared.Kernel.MultiTenancy;
+using Foundry.Shared.Kernel.Identity.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -50,6 +51,7 @@ public sealed class ApiKeysController : ControllerBase
     /// ```
     /// </remarks>
     [HttpPost]
+    [HasPermission(PermissionType.ApiKeyManage)]
     [ProducesResponseType(typeof(ApiKeyCreatedResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> CreateApiKey(
@@ -137,6 +139,7 @@ public sealed class ApiKeysController : ControllerBase
     /// The actual key values are not returned - only the prefix for identification.
     /// </remarks>
     [HttpGet]
+    [HasPermission(PermissionType.ApiKeyManage)]
     [ProducesResponseType(typeof(List<ApiKeyResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> ListApiKeys(CancellationToken ct)
     {
@@ -168,6 +171,7 @@ public sealed class ApiKeysController : ControllerBase
     /// Any requests using this key will be rejected immediately.
     /// </remarks>
     [HttpDelete("{keyId}")]
+    [HasPermission(PermissionType.ApiKeyManage)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> RevokeApiKey(string keyId, CancellationToken ct)

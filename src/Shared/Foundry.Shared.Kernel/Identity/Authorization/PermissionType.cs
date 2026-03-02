@@ -61,5 +61,21 @@ public enum PermissionType
     SystemSettings = 901,
 
     // Configuration
-    ConfigurationManage = 950
+    ConfigurationManage = 950,
+
+    // Communications
+    NotificationRead = 800,
+    EmailPreferenceManage = 801,
+    MessagingAccess = 802,
+    AnnouncementRead = 803,
+
+    // Storage
+    StorageRead = 300,
+    StorageWrite = 301,
+
+    // API Key management
+    ApiKeyManage = 704,
+
+    // Scope management
+    ScopeRead = 710
 }

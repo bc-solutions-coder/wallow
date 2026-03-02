@@ -115,15 +115,14 @@ public sealed partial class KeycloakIdpService
         // Validate SAML SSO URL is reachable
         if (string.IsNullOrWhiteSpace(config.SamlSsoUrl))
         {
-            return new SsoTestResult(false, "SAML SSO URL not configured", null);
+            return new SsoTestResult(false, "SAML SSO URL not configured");
         }
 
         HttpResponseMessage response = await _externalHttpClient.GetAsync(config.SamlSsoUrl, ct);
         if (!response.IsSuccessStatusCode)
         {
             return new SsoTestResult(false,
-                $"SAML SSO URL returned {response.StatusCode}",
-                $"URL: {config.SamlSsoUrl}");
+                $"SAML SSO URL returned {response.StatusCode}");
         }
 
         // Validate certificate
@@ -136,26 +135,24 @@ public sealed partial class KeycloakIdpService
                 if (cert.NotAfter < DateTime.UtcNow)
                 {
                     return new SsoTestResult(false,
-                        $"Certificate expired on {cert.NotAfter:yyyy-MM-dd}",
-                        null);
+                        $"Certificate expired on {cert.NotAfter:yyyy-MM-dd}");
                 }
             }
             catch (Exception ex)
             {
                 return new SsoTestResult(false,
-                    $"Invalid certificate: {ex.Message}",
-                    null);
+                    $"Invalid certificate: {ex.Message}");
             }
         }
 
-        return new SsoTestResult(true, null, "SAML configuration validated successfully");
+        return new SsoTestResult(true, null);
     }
 
     public async Task<SsoTestResult> TestOidcConnectionAsync(SsoConfiguration config, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(config.OidcIssuer))
         {
-            return new SsoTestResult(false, "OIDC Issuer not configured", null);
+            return new SsoTestResult(false, "OIDC Issuer not configured");
         }
 
         // Test OIDC discovery endpoint
@@ -166,25 +163,22 @@ public sealed partial class KeycloakIdpService
             if (!response.IsSuccessStatusCode)
             {
                 return new SsoTestResult(false,
-                    $"OIDC discovery endpoint returned {response.StatusCode}",
-                    $"URL: {discoveryUrl}");
+                    $"OIDC discovery endpoint returned {response.StatusCode}");
             }
 
             OidcDiscoveryDocument? discovery = await response.Content.ReadFromJsonAsync<OidcDiscoveryDocument>(ct);
             if (discovery?.Issuer != config.OidcIssuer)
             {
                 return new SsoTestResult(false,
-                    "OIDC issuer mismatch in discovery document",
-                    $"Expected: {config.OidcIssuer}, Got: {discovery?.Issuer}");
+                    "OIDC issuer mismatch in discovery document");
             }
 
-            return new SsoTestResult(true, null, "OIDC configuration validated successfully");
+            return new SsoTestResult(true, null);
         }
         catch (Exception ex)
         {
             return new SsoTestResult(false,
-                $"Failed to fetch OIDC discovery: {ex.Message}",
-                discoveryUrl);
+                $"Failed to fetch OIDC discovery: {ex.Message}");
         }
     }
 

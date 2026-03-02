@@ -61,7 +61,6 @@ public class KeycloakSsoServiceGapTests
         SsoTestResult result = await service.TestConnectionAsync();
 
         result.Success.Should().BeFalse();
-        result.DebugInfo.Should().NotBeNullOrEmpty();
     }
 
     [Fact]

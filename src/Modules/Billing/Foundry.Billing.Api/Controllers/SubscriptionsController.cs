@@ -7,6 +7,7 @@ using Foundry.Billing.Application.DTOs;
 using Foundry.Billing.Application.Queries.GetSubscriptionById;
 using Foundry.Billing.Application.Queries.GetSubscriptionsByUserId;
 using Foundry.Shared.Kernel.Results;
+using Foundry.Shared.Kernel.Identity.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -34,7 +35,7 @@ public class SubscriptionsController : ControllerBase
     /// Get a specific subscription by ID.
     /// </summary>
     [HttpGet("{id:guid}")]
-    [Authorize("SubscriptionsRead")]
+    [HasPermission(PermissionType.SubscriptionsRead)]
     [ProducesResponseType(typeof(SubscriptionResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
@@ -49,7 +50,7 @@ public class SubscriptionsController : ControllerBase
     /// Get all subscriptions for a specific user.
     /// </summary>
     [HttpGet("user/{userId:guid}")]
-    [Authorize("SubscriptionsRead")]
+    [HasPermission(PermissionType.SubscriptionsRead)]
     [ProducesResponseType(typeof(IReadOnlyList<SubscriptionResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetByUserId(Guid userId, CancellationToken cancellationToken)
     {
@@ -65,7 +66,7 @@ public class SubscriptionsController : ControllerBase
     /// Create a new subscription.
     /// </summary>
     [HttpPost]
-    [Authorize("SubscriptionsWrite")]
+    [HasPermission(PermissionType.SubscriptionsWrite)]
     [ProducesResponseType(typeof(SubscriptionResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Create(
@@ -92,7 +93,7 @@ public class SubscriptionsController : ControllerBase
     /// Cancel a subscription.
     /// </summary>
     [HttpDelete("{id:guid}")]
-    [Authorize("SubscriptionsWrite")]
+    [HasPermission(PermissionType.SubscriptionsWrite)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
