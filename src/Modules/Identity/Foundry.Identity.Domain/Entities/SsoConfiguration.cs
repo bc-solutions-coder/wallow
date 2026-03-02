@@ -34,7 +34,7 @@ namespace Foundry.Identity.Domain.Entities;
 /// </remarks>
 public sealed class SsoConfiguration : AggregateRoot<SsoConfigurationId>, ITenantScoped
 {
-    public TenantId TenantId { get; set; }
+    public TenantId TenantId { get; init; }
     public string DisplayName { get; private set; } = string.Empty;
     public SsoProtocol Protocol { get; private set; }
     public SsoStatus Status { get; private set; }

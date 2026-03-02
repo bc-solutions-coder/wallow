@@ -11,7 +11,7 @@ namespace Foundry.Storage.Domain.Entities;
 /// </summary>
 public sealed class StoredFile : AggregateRoot<StoredFileId>, ITenantScoped
 {
-    public TenantId TenantId { get; set; }
+    public TenantId TenantId { get; init; }
     public StorageBucketId BucketId { get; private set; }
     public string FileName { get; private set; } = null!;
     public string ContentType { get; private set; } = null!;

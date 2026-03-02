@@ -118,7 +118,7 @@ public sealed class EmailPreferenceRepositoryTests : IDisposable
     private EmailPreference CreatePreference(Guid userId, EmailNotificationType type)
     {
         EmailPreference preference = EmailPreference.Create(userId, type);
-        preference.TenantId = _tenantId;
+        _dbContext.Entry(preference).Property(nameof(ITenantScoped.TenantId)).CurrentValue = _tenantId;
         return preference;
     }
 

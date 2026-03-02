@@ -33,6 +33,11 @@ public static class BillingInfrastructureExtensions
             options.UseNpgsql(connectionString, npgsql =>
             {
                 npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "billing");
+                npgsql.EnableRetryOnFailure(
+                    maxRetryCount: 5,
+                    maxRetryDelay: TimeSpan.FromSeconds(30),
+                    errorCodesToAdd: null);
+                npgsql.CommandTimeout(30);
             });
             options.AddInterceptors(sp.GetRequiredService<TenantSaveChangesInterceptor>());
         });

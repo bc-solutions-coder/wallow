@@ -110,7 +110,7 @@ public sealed class EmailMessageRepositoryTests : IDisposable
         EmailAddress from = EmailAddress.Create("sender@test.com");
         EmailContent content = EmailContent.Create("Test Subject", "<p>Test Body</p>");
         EmailMessage email = EmailMessage.Create(to, from, content, TimeProvider.System);
-        email.TenantId = _tenantId;
+        _dbContext.Entry(email).Property(nameof(ITenantScoped.TenantId)).CurrentValue = _tenantId;
         return email;
     }
 

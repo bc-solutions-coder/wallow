@@ -35,7 +35,7 @@ namespace Foundry.Billing.Domain.Entities;
 /// </remarks>
 public sealed class Subscription : AggregateRoot<SubscriptionId>, ITenantScoped, IHasCustomFields
 {
-    public TenantId TenantId { get; set; }
+    public TenantId TenantId { get; init; }
     public Guid UserId { get; private set; }
     public string PlanName { get; private set; } = string.Empty;
     public Money Price { get; private set; } = null!;

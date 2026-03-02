@@ -67,7 +67,7 @@ public class TenantSaveChangesInterceptorTests
         dbContext.SaveChanges();
 
         TestTenantEntity entity = dbContext.TenantEntities.Single();
-        entity.TenantId = TenantId.New();
+        dbContext.Entry(entity).Property(nameof(ITenantScoped.TenantId)).CurrentValue = TenantId.New();
         entity.Name = "Updated";
         dbContext.SaveChanges();
 
@@ -122,7 +122,7 @@ public class TenantSaveChangesInterceptorTests
     {
         public int Id { get; set; }
         public string Name { get; set; } = string.Empty;
-        public TenantId TenantId { get; set; }
+        public TenantId TenantId { get; init; }
     }
 
     private sealed class TestNonTenantEntity

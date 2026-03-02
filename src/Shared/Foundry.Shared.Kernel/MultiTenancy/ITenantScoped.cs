@@ -4,5 +4,5 @@ namespace Foundry.Shared.Kernel.MultiTenancy;
 
 public interface ITenantScoped
 {
-    TenantId TenantId { get; set; }
+    TenantId TenantId { get; init; }
 }

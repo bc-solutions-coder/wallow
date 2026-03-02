@@ -96,7 +96,7 @@ public sealed class TenantAwareDbContextTests : IDisposable
     {
         public Guid Id { get; set; }
         public string Name { get; set; } = string.Empty;
-        public TenantId TenantId { get; set; }
+        public TenantId TenantId { get; init; }
     }
 
     private sealed class NonTenantEntity

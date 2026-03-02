@@ -8,7 +8,7 @@ namespace Foundry.Communications.Domain.Channels.Email.Entities;
 
 public sealed class EmailPreference : AggregateRoot<EmailPreferenceId>, ITenantScoped
 {
-    public TenantId TenantId { get; set; }
+    public TenantId TenantId { get; init; }
     public Guid UserId { get; private set; }
     public NotificationType NotificationType { get; private set; }
     public bool IsEnabled { get; private set; }

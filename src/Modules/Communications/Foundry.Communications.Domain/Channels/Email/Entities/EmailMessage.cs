@@ -10,7 +10,7 @@ namespace Foundry.Communications.Domain.Channels.Email.Entities;
 
 public sealed class EmailMessage : AggregateRoot<EmailMessageId>, ITenantScoped
 {
-    public TenantId TenantId { get; set; }
+    public TenantId TenantId { get; init; }
     public EmailAddress To { get; private set; } = null!;
     public EmailAddress? From { get; private set; }
     public EmailContent Content { get; private set; } = null!;

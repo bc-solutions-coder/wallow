@@ -8,7 +8,7 @@ namespace Foundry.Communications.Domain.Channels.Sms.Entities;
 
 public sealed class SmsPreference : Entity<SmsPreferenceId>, ITenantScoped
 {
-    public TenantId TenantId { get; set; }
+    public TenantId TenantId { get; init; }
     public Guid UserId { get; private set; }
     public PhoneNumber PhoneNumber { get; private set; } = null!;
     public bool IsOptedIn { get; private set; }

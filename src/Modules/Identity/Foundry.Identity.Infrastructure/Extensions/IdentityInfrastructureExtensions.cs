@@ -32,7 +32,14 @@ public static class IdentityInfrastructureExtensions
         {
             string? connectionString = sp.GetRequiredService<IConfiguration>().GetConnectionString("DefaultConnection");
             options.UseNpgsql(connectionString, npgsqlOptions =>
-                npgsqlOptions.MigrationsHistoryTable("__EFMigrationsHistory", "identity"));
+            {
+                npgsqlOptions.MigrationsHistoryTable("__EFMigrationsHistory", "identity");
+                npgsqlOptions.EnableRetryOnFailure(
+                    maxRetryCount: 5,
+                    maxRetryDelay: TimeSpan.FromSeconds(30),
+                    errorCodesToAdd: null);
+                npgsqlOptions.CommandTimeout(30);
+            });
         });
 
         services.AddScoped<IServiceAccountRepository, ServiceAccountRepository>();
@@ -71,10 +78,10 @@ public static class IdentityInfrastructureExtensions
         services.AddHttpClient("KeycloakAdminClient", client =>
         {
             client.BaseAddress = new Uri(authServerUrl);
-        });
+        }).AddStandardResilienceHandler();
 
         // Token service for auth proxy (no auth required on this client)
-        services.AddHttpClient("KeycloakTokenClient");
+        services.AddHttpClient("KeycloakTokenClient").AddStandardResilienceHandler();
 
         services.AddMemoryCache();
         services.AddScoped<IKeycloakAdminService, KeycloakAdminService>();
