@@ -33,7 +33,7 @@ public class GetUserNotificationsHandlerTests
         };
 
         _repository.GetByUserIdPagedAsync(userId, 1, 20, Arg.Any<CancellationToken>())
-            .Returns((notifications, 2));
+            .Returns(new PagedResult<Notification>(notifications, 2, 1, 20));
 
         GetUserNotificationsQuery query = new(userId);
 
@@ -51,7 +51,7 @@ public class GetUserNotificationsHandlerTests
     {
         Guid userId = Guid.NewGuid();
         _repository.GetByUserIdPagedAsync(userId, 3, 10, Arg.Any<CancellationToken>())
-            .Returns((new List<Notification>(), 0));
+            .Returns(new PagedResult<Notification>(new List<Notification>(), 0, 3, 10));
 
         GetUserNotificationsQuery query = new(userId, PageNumber: 3, PageSize: 10);
 
@@ -65,7 +65,7 @@ public class GetUserNotificationsHandlerTests
     {
         Guid userId = Guid.NewGuid();
         _repository.GetByUserIdPagedAsync(userId, 1, 20, Arg.Any<CancellationToken>())
-            .Returns((new List<Notification>(), 0));
+            .Returns(new PagedResult<Notification>(new List<Notification>(), 0, 1, 20));
 
         GetUserNotificationsQuery query = new(userId);
 
@@ -85,7 +85,7 @@ public class GetUserNotificationsHandlerTests
         Notification notification = Notification.Create(tenantId, userId, NotificationType.Mention, "Test Title", "Test Message", TimeProvider.System);
 
         _repository.GetByUserIdPagedAsync(userId, 1, 20, Arg.Any<CancellationToken>())
-            .Returns((new List<Notification> { notification }, 1));
+            .Returns(new PagedResult<Notification>(new List<Notification> { notification }, 1, 1, 20));
 
         GetUserNotificationsQuery query = new(userId);
 
@@ -112,7 +112,7 @@ public class GetUserNotificationsHandlerTests
         List<Notification> notifications = new() { activeNotification, archivedNotification };
 
         _repository.GetByUserIdPagedAsync(userId, 1, 20, Arg.Any<CancellationToken>())
-            .Returns((notifications, 2));
+            .Returns(new PagedResult<Notification>(notifications, 2, 1, 20));
 
         GetUserNotificationsQuery query = new(userId);
 
@@ -135,7 +135,7 @@ public class GetUserNotificationsHandlerTests
         List<Notification> notifications = new() { activeNotification, expiredNotification };
 
         _repository.GetByUserIdPagedAsync(userId, 1, 20, Arg.Any<CancellationToken>())
-            .Returns((notifications, 2));
+            .Returns(new PagedResult<Notification>(notifications, 2, 1, 20));
 
         GetUserNotificationsQuery query = new(userId);
 
@@ -158,7 +158,7 @@ public class GetUserNotificationsHandlerTests
         List<Notification> notifications = new() { notification1, notification2 };
 
         _repository.GetByUserIdPagedAsync(userId, 1, 20, Arg.Any<CancellationToken>())
-            .Returns((notifications, 2));
+            .Returns(new PagedResult<Notification>(notifications, 2, 1, 20));
 
         GetUserNotificationsQuery query = new(userId);
 

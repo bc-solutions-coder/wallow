@@ -29,6 +29,7 @@ public sealed partial class ValkeyMeteringService : IMeteringService
     private readonly ILogger<ValkeyMeteringService> _logger;
 
     private static readonly TimeSpan _keyExpiration = TimeSpan.FromDays(90);
+    private const string MeterIndexKey = "meter:__index";
     private static readonly int[] _thresholds = [80, 90, 100];
 
     public ValkeyMeteringService(
@@ -70,6 +71,14 @@ public sealed partial class ValkeyMeteringService : IMeteringService
         Task expireTask = db.KeyExpireAsync(key, _keyExpiration, ExpireWhen.HasNoExpiry, CommandFlags.FireAndForget);
         _ = expireTask.ContinueWith(
             t => LogMeteringExpireFailed(_logger, t.Exception!, key),
+            CancellationToken.None,
+            TaskContinuationOptions.OnlyOnFaulted,
+            TaskScheduler.Default);
+
+        // Track this meter key in the index Set for efficient flush enumeration
+        Task indexTask = db.SetAddAsync(MeterIndexKey, key, CommandFlags.FireAndForget);
+        _ = indexTask.ContinueWith(
+            t => LogMeteringIndexAddFailed(_logger, t.Exception!, key),
             CancellationToken.None,
             TaskContinuationOptions.OnlyOnFaulted,
             TaskScheduler.Default);
@@ -199,4 +208,7 @@ public sealed partial class ValkeyMeteringService : IMeteringService
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Fire-and-forget metering key expiry failed for key {Key}")]
     private static partial void LogMeteringExpireFailed(ILogger logger, Exception ex, string key);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Fire-and-forget metering index add failed for key {Key}")]
+    private static partial void LogMeteringIndexAddFailed(ILogger logger, Exception ex, string key);
 }

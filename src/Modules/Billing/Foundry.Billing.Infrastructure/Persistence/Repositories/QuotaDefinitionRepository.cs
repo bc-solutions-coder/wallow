@@ -20,7 +20,9 @@ public sealed class QuotaDefinitionRepository : IQuotaDefinitionRepository
 
     public Task<QuotaDefinition?> GetByIdAsync(QuotaDefinitionId id, CancellationToken cancellationToken = default)
     {
-        return _context.QuotaDefinitions.FindAsync([id], cancellationToken).AsTask();
+        return _context.QuotaDefinitions
+            .AsTracking()
+            .FirstOrDefaultAsync(q => q.Id == id, cancellationToken);
     }
 
     public async Task<QuotaDefinition?> GetEffectiveQuotaAsync(
@@ -40,6 +42,7 @@ public sealed class QuotaDefinitionRepository : IQuotaDefinitionRepository
         {
             TenantId systemTenantId = TenantId.Create(Guid.Empty);
             return await _context.QuotaDefinitions
+                .AsTracking()
                 .IgnoreQueryFilters()
                 .FirstOrDefaultAsync(q =>
                     q.MeterCode == meterCode &&
@@ -57,6 +60,7 @@ public sealed class QuotaDefinitionRepository : IQuotaDefinitionRepository
     {
         TenantId tenantId = _tenantContext.TenantId;
         return _context.QuotaDefinitions
+            .AsTracking()
             .FirstOrDefaultAsync(q =>
                 q.TenantId == tenantId &&
                 q.MeterCode == meterCode &&

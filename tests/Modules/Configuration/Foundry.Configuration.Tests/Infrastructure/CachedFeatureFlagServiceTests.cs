@@ -179,12 +179,24 @@ public class CachedFeatureFlagServiceGetAllFlagsTests
 public class CachedFeatureFlagServiceInvalidateTests
 {
     [Fact]
-    public async Task InvalidateAsync_RemovesCacheKey()
+    public async Task InvalidateAsync_RemovesTrackedCacheKeys()
     {
+        IFeatureFlagService inner = Substitute.For<IFeatureFlagService>();
         IDistributedCache cache = Substitute.For<IDistributedCache>();
+        CachedFeatureFlagService service = new(inner, cache);
 
-        await CachedFeatureFlagService.InvalidateAsync(cache, "my_flag");
+        Guid tenantId = Guid.NewGuid();
+        string flagKey = $"invalidate_test_{tenantId}";
 
-        await cache.Received(1).RemoveAsync("ff:my_flag", Arg.Any<CancellationToken>());
+        // Trigger a cache lookup to track the key
+        cache.GetAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns((byte[]?)null);
+        inner.IsEnabledAsync(flagKey, tenantId, null, Arg.Any<CancellationToken>()).Returns(true);
+        await service.IsEnabledAsync(flagKey, tenantId);
+
+        // Now invalidate should remove the tracked cache key
+        await CachedFeatureFlagService.InvalidateAsync(cache, flagKey);
+
+        string expectedCacheKey = $"ff:{flagKey}:{tenantId}:";
+        await cache.Received().RemoveAsync(expectedCacheKey, Arg.Any<CancellationToken>());
     }
 }

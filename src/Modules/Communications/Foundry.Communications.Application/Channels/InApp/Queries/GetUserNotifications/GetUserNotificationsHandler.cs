@@ -14,19 +14,19 @@ public sealed class GetUserNotificationsHandler(
         GetUserNotificationsQuery query,
         CancellationToken cancellationToken)
     {
-        (IReadOnlyList<Domain.Channels.InApp.Entities.Notification>? notifications, int totalCount) = await notificationRepository.GetByUserIdPagedAsync(
+        PagedResult<Domain.Channels.InApp.Entities.Notification> pagedNotifications = await notificationRepository.GetByUserIdPagedAsync(
             query.UserId,
             query.PageNumber,
             query.PageSize,
             cancellationToken);
 
         DateTime utcNow = timeProvider.GetUtcNow().UtcDateTime;
-        List<NotificationDto> dtos = notifications
+        List<NotificationDto> dtos = pagedNotifications.Items
             .Where(n => !n.IsArchived && (n.ExpiresAt == null || n.ExpiresAt > utcNow))
             .Select(n => n.ToDto())
             .ToList();
 
-        int filteredTotalCount = totalCount - (notifications.Count - dtos.Count);
+        int filteredTotalCount = pagedNotifications.TotalCount - (pagedNotifications.Items.Count - dtos.Count);
 
         PagedResult<NotificationDto> pagedResult = new(
             dtos,

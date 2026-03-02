@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using Foundry.Identity.Infrastructure.Services;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
 #pragma warning disable CA2000 // HttpClient/HttpMessageHandler lifetime is managed by test framework
@@ -10,6 +11,7 @@ namespace Modules.Identity.Tests.Infrastructure;
 public class UserQueryServiceTests
 {
     private readonly ILogger<UserQueryService> _logger = Substitute.For<ILogger<UserQueryService>>();
+    private readonly IMemoryCache _cache = Substitute.For<IMemoryCache>();
 
     [Fact]
     public async Task GetNewUsersCountAsync_WithMembersInRange_ReturnsCount()
@@ -154,7 +156,7 @@ public class UserQueryServiceTests
         httpClient.BaseAddress = new Uri("https://keycloak.test/");
         httpClientFactory.CreateClient("KeycloakAdminClient").Returns(httpClient);
 
-        return new UserQueryService(httpClientFactory, _logger);
+        return new UserQueryService(httpClientFactory, _cache, _logger);
     }
 
     private sealed class MockHttpHandler : HttpMessageHandler

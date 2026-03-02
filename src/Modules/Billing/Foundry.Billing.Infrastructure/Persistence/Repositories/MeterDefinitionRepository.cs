@@ -16,12 +16,15 @@ public sealed class MeterDefinitionRepository : IMeterDefinitionRepository
 
     public Task<MeterDefinition?> GetByIdAsync(MeterDefinitionId id, CancellationToken cancellationToken = default)
     {
-        return _context.MeterDefinitions.FindAsync([id], cancellationToken).AsTask();
+        return _context.MeterDefinitions
+            .AsTracking()
+            .FirstOrDefaultAsync(m => m.Id == id, cancellationToken);
     }
 
     public Task<MeterDefinition?> GetByCodeAsync(string code, CancellationToken cancellationToken = default)
     {
         return _context.MeterDefinitions
+            .AsTracking()
             .FirstOrDefaultAsync(m => m.Code == code, cancellationToken);
     }
 

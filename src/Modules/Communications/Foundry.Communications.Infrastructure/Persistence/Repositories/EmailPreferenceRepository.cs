@@ -22,12 +22,15 @@ public sealed class EmailPreferenceRepository : IEmailPreferenceRepository
 
     public Task<EmailPreference?> GetByIdAsync(EmailPreferenceId id, CancellationToken cancellationToken = default)
     {
-        return _context.EmailPreferences.FindAsync([id], cancellationToken).AsTask();
+        return _context.EmailPreferences
+            .AsTracking()
+            .FirstOrDefaultAsync(ep => ep.Id == id, cancellationToken);
     }
 
     public Task<EmailPreference?> GetByUserAndTypeAsync(Guid userId, NotificationType notificationType, CancellationToken cancellationToken = default)
     {
         return _context.EmailPreferences
+            .AsTracking()
             .FirstOrDefaultAsync(
                 ep => ep.UserId == userId && ep.NotificationType == notificationType,
                 cancellationToken);

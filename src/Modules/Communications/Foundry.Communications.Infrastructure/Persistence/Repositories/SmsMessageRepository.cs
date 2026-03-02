@@ -22,12 +22,15 @@ public sealed class SmsMessageRepository : ISmsMessageRepository
 
     public Task<SmsMessage?> GetByIdAsync(SmsMessageId id, CancellationToken cancellationToken = default)
     {
-        return _context.SmsMessages.FindAsync([id], cancellationToken).AsTask();
+        return _context.SmsMessages
+            .AsTracking()
+            .FirstOrDefaultAsync(m => m.Id == id, cancellationToken);
     }
 
     public async Task<IReadOnlyList<SmsMessage>> GetPendingAsync(int limit, CancellationToken cancellationToken = default)
     {
         return await _context.SmsMessages
+            .AsTracking()
             .Where(e => e.Status == SmsStatus.Pending)
             .OrderBy(e => e.CreatedAt)
             .Take(limit)

@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using Foundry.Shared.Contracts.Identity;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
 namespace Foundry.Identity.Infrastructure.Services;
@@ -7,37 +8,46 @@ namespace Foundry.Identity.Infrastructure.Services;
 public sealed partial class UserQueryService : IUserQueryService
 {
     private readonly HttpClient _httpClient;
+    private readonly IMemoryCache _cache;
     private readonly ILogger<UserQueryService> _logger;
     private const string Realm = "foundry";
+    private static readonly TimeSpan _cacheDuration = TimeSpan.FromSeconds(60);
 
     public UserQueryService(
         IHttpClientFactory httpClientFactory,
+        IMemoryCache cache,
         ILogger<UserQueryService> logger)
     {
         _httpClient = httpClientFactory.CreateClient("KeycloakAdminClient");
+        _cache = cache;
         _logger = logger;
     }
 
     public async Task<int> GetNewUsersCountAsync(Guid tenantId, DateTime from, DateTime to, CancellationToken ct = default)
     {
+        string cacheKey = $"new-users-count:{tenantId}:{from:O}:{to:O}";
         try
         {
-            List<UserMemberRepresentation>? members = await GetOrganizationMembersAsync(tenantId, ct);
-            if (members == null || members.Count == 0)
+            int count = await _cache.GetOrCreateAsync(cacheKey, async entry =>
             {
-                return 0;
-            }
+                entry.AbsoluteExpirationRelativeToNow = _cacheDuration;
 
-            long fromTimestamp = new DateTimeOffset(from).ToUnixTimeMilliseconds();
-            long toTimestamp = new DateTimeOffset(to).ToUnixTimeMilliseconds();
+                List<UserMemberRepresentation>? members = await GetOrganizationMembersAsync(tenantId, ct);
+                if (members == null || members.Count == 0)
+                {
+                    return 0;
+                }
 
-            int newUsersCount = members.Count(m =>
-                m.CreatedTimestamp >= fromTimestamp &&
-                m.CreatedTimestamp.Value < toTimestamp);
+                long fromTimestamp = new DateTimeOffset(from).ToUnixTimeMilliseconds();
+                long toTimestamp = new DateTimeOffset(to).ToUnixTimeMilliseconds();
 
-            LogNewUsersCount(newUsersCount, tenantId, from, to);
+                return members.Count(m =>
+                    m.CreatedTimestamp >= fromTimestamp &&
+                    m.CreatedTimestamp.Value < toTimestamp);
+            });
 
-            return newUsersCount;
+            LogNewUsersCount(count, tenantId, from, to);
+            return count;
         }
         catch (Exception ex)
         {
@@ -48,23 +58,28 @@ public sealed partial class UserQueryService : IUserQueryService
 
     public async Task<int> GetActiveUsersCountAsync(Guid tenantId, CancellationToken ct = default)
     {
+        string cacheKey = $"active-users-count:{tenantId}";
         try
         {
-            List<UserMemberRepresentation>? members = await GetOrganizationMembersAsync(tenantId, ct);
-            if (members == null || members.Count == 0)
+            int count = await _cache.GetOrCreateAsync(cacheKey, async entry =>
             {
-                return 0;
-            }
+                entry.AbsoluteExpirationRelativeToNow = _cacheDuration;
 
-            long thirtyDaysAgo = DateTimeOffset.UtcNow.AddDays(-30).ToUnixTimeMilliseconds();
+                List<UserMemberRepresentation>? members = await GetOrganizationMembersAsync(tenantId, ct);
+                if (members == null || members.Count == 0)
+                {
+                    return 0;
+                }
 
-            int activeUsersCount = members.Count(m =>
-                m.Enabled == true &&
-                (!m.CreatedTimestamp.HasValue || m.CreatedTimestamp.Value >= thirtyDaysAgo));
+                long thirtyDaysAgo = DateTimeOffset.UtcNow.AddDays(-30).ToUnixTimeMilliseconds();
 
-            LogActiveUsersCount(activeUsersCount, tenantId);
+                return members.Count(m =>
+                    m.Enabled == true &&
+                    (!m.CreatedTimestamp.HasValue || m.CreatedTimestamp.Value >= thirtyDaysAgo));
+            });
 
-            return activeUsersCount;
+            LogActiveUsersCount(count, tenantId);
+            return count;
         }
         catch (Exception ex)
         {
@@ -75,14 +90,19 @@ public sealed partial class UserQueryService : IUserQueryService
 
     public async Task<int> GetTotalUsersCountAsync(Guid tenantId, CancellationToken ct = default)
     {
+        string cacheKey = $"total-users-count:{tenantId}";
         try
         {
-            List<UserMemberRepresentation>? members = await GetOrganizationMembersAsync(tenantId, ct);
-            int totalCount = members?.Count ?? 0;
+            int count = await _cache.GetOrCreateAsync(cacheKey, async entry =>
+            {
+                entry.AbsoluteExpirationRelativeToNow = _cacheDuration;
 
-            LogTotalUsersCount(totalCount, tenantId);
+                List<UserMemberRepresentation>? members = await GetOrganizationMembersAsync(tenantId, ct);
+                return members?.Count ?? 0;
+            });
 
-            return totalCount;
+            LogTotalUsersCount(count, tenantId);
+            return count;
         }
         catch (Exception ex)
         {

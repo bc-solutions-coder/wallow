@@ -1,6 +1,7 @@
 using Foundry.Communications.Application.Channels.InApp.Interfaces;
 using Foundry.Communications.Domain.Channels.InApp.Entities;
 using Foundry.Communications.Domain.Channels.InApp.Identity;
+using Foundry.Shared.Kernel.Pagination;
 using Microsoft.EntityFrameworkCore;
 
 namespace Foundry.Communications.Infrastructure.Persistence.Repositories;
@@ -22,6 +23,7 @@ public sealed class NotificationRepository : INotificationRepository
     public Task<Notification?> GetByIdAsync(NotificationId id, CancellationToken cancellationToken = default)
     {
         return _context.Notifications
+            .AsTracking()
             .FirstOrDefaultAsync(n => n.Id == id, cancellationToken);
     }
 
@@ -33,20 +35,20 @@ public sealed class NotificationRepository : INotificationRepository
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<(IReadOnlyList<Notification> Items, int TotalCount)> GetByUserIdPagedAsync(
-        Guid userId, int pageNumber, int pageSize, CancellationToken cancellationToken = default)
+    public async Task<PagedResult<Notification>> GetByUserIdPagedAsync(
+        Guid userId, int page, int pageSize, CancellationToken cancellationToken = default)
     {
-        IOrderedQueryable<Notification> query = _context.Notifications
+        IQueryable<Notification> query = _context.Notifications
             .Where(n => n.UserId == userId)
             .OrderByDescending(n => n.CreatedAt);
 
         int totalCount = await query.CountAsync(cancellationToken);
         List<Notification> items = await query
-            .Skip((pageNumber - 1) * pageSize)
+            .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        return (items, totalCount);
+        return new PagedResult<Notification>(items, totalCount, page, pageSize);
     }
 
     public Task<int> GetUnreadCountAsync(Guid userId, CancellationToken cancellationToken = default)
@@ -62,6 +64,22 @@ public sealed class NotificationRepository : INotificationRepository
             .Where(n => n.UserId == userId && !n.IsRead)
             .OrderByDescending(n => n.CreatedAt)
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<PagedResult<Notification>> GetUnreadByUserIdPagedAsync(
+        Guid userId, int page, int pageSize, CancellationToken cancellationToken = default)
+    {
+        IQueryable<Notification> query = _context.Notifications
+            .Where(n => n.UserId == userId && !n.IsRead)
+            .OrderByDescending(n => n.CreatedAt);
+
+        int totalCount = await query.CountAsync(cancellationToken);
+        List<Notification> items = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return new PagedResult<Notification>(items, totalCount, page, pageSize);
     }
 
     public async Task SaveChangesAsync(CancellationToken cancellationToken = default)

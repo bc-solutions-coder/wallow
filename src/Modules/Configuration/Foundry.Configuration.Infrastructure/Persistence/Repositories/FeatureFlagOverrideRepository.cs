@@ -19,6 +19,7 @@ public sealed class FeatureFlagOverrideRepository : IFeatureFlagOverrideReposito
     public Task<FeatureFlagOverride?> GetByIdAsync(FeatureFlagOverrideId id, CancellationToken ct = default)
     {
         return ActiveOverrides()
+            .AsTracking()
             .FirstOrDefaultAsync(o => o.Id == id, ct);
     }
 
@@ -38,6 +39,7 @@ public sealed class FeatureFlagOverrideRepository : IFeatureFlagOverrideReposito
         CancellationToken ct = default)
     {
         return ActiveOverrides()
+            .AsTracking()
             .Where(o => o.FlagId == flagId
                         && o.TenantId == tenantId
                         && o.UserId == userId)

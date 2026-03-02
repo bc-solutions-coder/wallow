@@ -16,6 +16,7 @@ public sealed class IdentityDbContext : TenantAwareDbContext<IdentityDbContext>
     public IdentityDbContext(DbContextOptions<IdentityDbContext> options, ITenantContext tenantContext)
         : base(options, tenantContext)
     {
+        ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

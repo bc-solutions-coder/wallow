@@ -17,12 +17,15 @@ public sealed class ChannelPreferenceRepository : IChannelPreferenceRepository
 
     public Task<ChannelPreference?> GetByIdAsync(ChannelPreferenceId id, CancellationToken cancellationToken = default)
     {
-        return _context.ChannelPreferences.FindAsync([id], cancellationToken).AsTask();
+        return _context.ChannelPreferences
+            .AsTracking()
+            .FirstOrDefaultAsync(cp => cp.Id == id, cancellationToken);
     }
 
     public Task<ChannelPreference?> GetByUserAndChannelAsync(Guid userId, ChannelType channelType, CancellationToken cancellationToken = default)
     {
         return _context.ChannelPreferences
+            .AsTracking()
             .FirstOrDefaultAsync(
                 cp => cp.UserId == userId && cp.ChannelType == channelType,
                 cancellationToken);
@@ -31,6 +34,7 @@ public sealed class ChannelPreferenceRepository : IChannelPreferenceRepository
     public Task<ChannelPreference?> GetByUserChannelAndNotificationTypeAsync(Guid userId, ChannelType channelType, string notificationType, CancellationToken cancellationToken = default)
     {
         return _context.ChannelPreferences
+            .AsTracking()
             .FirstOrDefaultAsync(
                 cp => cp.UserId == userId && cp.ChannelType == channelType && cp.NotificationType == notificationType,
                 cancellationToken);

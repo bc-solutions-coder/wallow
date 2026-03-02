@@ -17,7 +17,9 @@ public sealed class StoredFileRepository : IStoredFileRepository
 
     public Task<StoredFile?> GetByIdAsync(StoredFileId id, CancellationToken cancellationToken = default)
     {
-        return _context.Files.FindAsync([id], cancellationToken).AsTask();
+        return _context.Files
+            .AsTracking()
+            .FirstOrDefaultAsync(f => f.Id == id, cancellationToken);
     }
 
     public async Task<IReadOnlyList<StoredFile>> GetByBucketIdAsync(

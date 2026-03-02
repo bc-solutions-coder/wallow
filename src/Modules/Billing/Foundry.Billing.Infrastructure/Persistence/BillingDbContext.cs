@@ -19,6 +19,7 @@ public sealed class BillingDbContext : TenantAwareDbContext<BillingDbContext>
     public BillingDbContext(DbContextOptions<BillingDbContext> options, ITenantContext tenantContext)
         : base(options, tenantContext)
     {
+        ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

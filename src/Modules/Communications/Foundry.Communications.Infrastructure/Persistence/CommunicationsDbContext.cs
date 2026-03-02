@@ -41,6 +41,7 @@ public sealed class CommunicationsDbContext : TenantAwareDbContext<Communication
         DbContextOptions<CommunicationsDbContext> options,
         ITenantContext tenantContext) : base(options, tenantContext)
     {
+        ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

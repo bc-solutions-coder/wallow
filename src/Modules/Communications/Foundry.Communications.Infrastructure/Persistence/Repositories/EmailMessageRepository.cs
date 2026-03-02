@@ -22,12 +22,15 @@ public sealed class EmailMessageRepository : IEmailMessageRepository
 
     public Task<EmailMessage?> GetByIdAsync(EmailMessageId id, CancellationToken cancellationToken = default)
     {
-        return _context.EmailMessages.FindAsync([id], cancellationToken).AsTask();
+        return _context.EmailMessages
+            .AsTracking()
+            .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
     }
 
     public async Task<IReadOnlyList<EmailMessage>> GetPendingAsync(int limit, CancellationToken cancellationToken = default)
     {
         return await _context.EmailMessages
+            .AsTracking()
             .Where(e => e.Status == EmailStatus.Pending)
             .OrderBy(e => e.CreatedAt)
             .Take(limit)
@@ -37,6 +40,7 @@ public sealed class EmailMessageRepository : IEmailMessageRepository
     public async Task<IReadOnlyList<EmailMessage>> GetFailedRetryableAsync(int maxRetries, int limit, CancellationToken cancellationToken = default)
     {
         return await _context.EmailMessages
+            .AsTracking()
             .Where(e => e.Status == EmailStatus.Failed && e.RetryCount < maxRetries)
             .OrderBy(e => e.RetryCount)
             .Take(limit)

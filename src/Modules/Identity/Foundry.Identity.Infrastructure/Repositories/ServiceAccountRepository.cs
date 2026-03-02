@@ -18,6 +18,7 @@ public sealed class ServiceAccountRepository : IServiceAccountRepository
     public Task<ServiceAccountMetadata?> GetByIdAsync(ServiceAccountMetadataId id, CancellationToken ct = default)
     {
         return _context.ServiceAccountMetadata
+            .AsTracking()
             .Where(x => x.Status != Domain.Enums.ServiceAccountStatus.Revoked)
             .FirstOrDefaultAsync(x => x.Id == id, ct);
     }
@@ -26,6 +27,7 @@ public sealed class ServiceAccountRepository : IServiceAccountRepository
     {
         // Need to bypass tenant filter for middleware lookups
         return _context.ServiceAccountMetadata
+            .AsTracking()
             .IgnoreQueryFilters()
             .FirstOrDefaultAsync(x => x.KeycloakClientId == keycloakClientId, ct);
     }

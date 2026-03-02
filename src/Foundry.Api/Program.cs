@@ -199,30 +199,35 @@ try
     builder.Services.AddSingleton<IPresenceService, RedisPresenceService>();
     builder.Services.AddSingleton<IRealtimeDispatcher, SignalRRealtimeDispatcher>();
 
-    // Distributed cache — used by modules like FeatureFlags for caching
-    builder.Services.AddStackExchangeRedisCache(options =>
+    // Distributed cache — reuses the singleton IConnectionMultiplexer registered above
+    builder.Services.AddStackExchangeRedisCache(_ => { });
+    builder.Services.AddSingleton<IConfigureOptions<Microsoft.Extensions.Caching.StackExchangeRedis.RedisCacheOptions>>(sp =>
     {
-        // Defer connection to use final config (WebApplicationFactory overrides)
-        options.ConnectionMultiplexerFactory = async () =>
-        {
-            string connStr = builder.Configuration.GetConnectionString("Redis")!;
-            return await ConnectionMultiplexer.ConnectAsync(connStr);
-        };
+        IConnectionMultiplexer mux = sp.GetRequiredService<IConnectionMultiplexer>();
+        return new ConfigureNamedOptions<Microsoft.Extensions.Caching.StackExchangeRedis.RedisCacheOptions>(
+            Microsoft.Extensions.Options.Options.DefaultName,
+#pragma warning disable CA2025 // Singleton IConnectionMultiplexer lifetime is managed by DI, not the Task
+            options => options.ConnectionMultiplexerFactory = () => Task.FromResult(mux));
+#pragma warning restore CA2025
     });
 
-    // SignalR with Redis backplane — defer connection to use final config
-    // (WebApplicationFactory overrides are applied after service registration)
-    ConfigurationManager configRef = builder.Configuration;
+    // SignalR with Redis backplane — reuses the singleton IConnectionMultiplexer registered above
     builder.Services.AddSignalR()
         .AddStackExchangeRedis(options =>
         {
             options.Configuration.ChannelPrefix = RedisChannel.Literal("Foundry");
-            options.ConnectionFactory = async writer =>
-            {
-                string connStr = configRef.GetConnectionString("Redis")!;
-                return await ConnectionMultiplexer.ConnectAsync(connStr, writer);
-            };
         });
+    builder.Services.AddSingleton<IConfigureOptions<Microsoft.AspNetCore.SignalR.StackExchangeRedis.RedisOptions>>(sp =>
+    {
+        IConnectionMultiplexer mux = sp.GetRequiredService<IConnectionMultiplexer>();
+        return new ConfigureNamedOptions<Microsoft.AspNetCore.SignalR.StackExchangeRedis.RedisOptions>(
+            Microsoft.Extensions.Options.Options.DefaultName,
+            options => options.ConnectionFactory = async _ =>
+            {
+                await Task.CompletedTask;
+                return mux;
+            });
+    });
 
     // Core services
     builder.Services.AddHttpContextAccessor();

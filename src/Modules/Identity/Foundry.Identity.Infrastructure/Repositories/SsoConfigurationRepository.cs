@@ -17,7 +17,7 @@ public sealed class SsoConfigurationRepository : ISsoConfigurationRepository
     public Task<SsoConfiguration?> GetAsync(CancellationToken ct = default)
     {
         // Each tenant has at most one SSO configuration
-        return _context.SsoConfigurations.FirstOrDefaultAsync(ct);
+        return _context.SsoConfigurations.AsTracking().FirstOrDefaultAsync(ct);
     }
 
     public void Add(SsoConfiguration entity)

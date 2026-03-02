@@ -1,4 +1,3 @@
-using System.Net;
 using Foundry.Billing.Application.Metering.Interfaces;
 using Foundry.Billing.Domain.Metering.Entities;
 using Foundry.Billing.Infrastructure.Jobs;
@@ -17,7 +16,6 @@ public class FlushUsageJobExceptionTests
     private readonly IMessageBus _messageBus;
     private readonly ITenantContextFactory _tenantContextFactory;
     private readonly ILogger<FlushUsageJob> _logger;
-    private readonly IServer _server;
     private readonly IDatabase _database;
     private readonly FlushUsageJob _job;
 
@@ -28,12 +26,8 @@ public class FlushUsageJobExceptionTests
         _messageBus = Substitute.For<IMessageBus>();
         _tenantContextFactory = Substitute.For<ITenantContextFactory>();
         _logger = Substitute.For<ILogger<FlushUsageJob>>();
-        _server = Substitute.For<IServer>();
         _database = Substitute.For<IDatabase>();
 
-        IPEndPoint endpoint = new(IPAddress.Loopback, 6379);
-        _redis.GetEndPoints(Arg.Any<bool>()).Returns(new EndPoint[] { endpoint });
-        _redis.GetServer(endpoint, Arg.Any<object>()).Returns(_server);
         _redis.GetDatabase(Arg.Any<int>(), Arg.Any<object>()).Returns(_database);
 
         _tenantContextFactory.CreateScope(Arg.Any<TenantId>()).Returns(Substitute.For<IDisposable>());
@@ -44,7 +38,8 @@ public class FlushUsageJobExceptionTests
     [Fact]
     public async Task Execute_WhenRedisThrows_RethrowsException()
     {
-        _redis.GetEndPoints(Arg.Any<bool>()).Returns(_ => throw new RedisConnectionException(ConnectionFailureType.UnableToConnect, "Connection failed"));
+        _database.SetMembersAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
+            .Returns<RedisValue[]>(_ => throw new RedisConnectionException(ConnectionFailureType.UnableToConnect, "Connection failed"));
 
         Func<Task> act = () => _job.ExecuteAsync(CancellationToken.None);
 
@@ -56,14 +51,14 @@ public class FlushUsageJobExceptionTests
     {
         Guid tenantId1 = Guid.NewGuid();
         Guid tenantId2 = Guid.NewGuid();
-        RedisKey[] keys = new[]
+        RedisValue[] members = new RedisValue[]
         {
-            (RedisKey)$"meter:{tenantId1}:api.calls:2024-02",
-            (RedisKey)$"meter:{tenantId2}:api.calls:2024-02"
+            $"meter:{tenantId1}:api.calls:2024-02",
+            $"meter:{tenantId2}:api.calls:2024-02"
         };
 
-        _server.KeysAsync(Arg.Any<int>(), Arg.Any<RedisValue>(), Arg.Any<int>(), Arg.Any<long>(), Arg.Any<int>(), Arg.Any<CommandFlags>())
-            .Returns(ToAsyncEnumerable(keys));
+        _database.SetMembersAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
+            .Returns(members);
 
         // First key throws, second key succeeds
         int callCount = 0;
@@ -95,8 +90,8 @@ public class FlushUsageJobExceptionTests
         Guid tenantId = Guid.NewGuid();
         string key = $"meter:{tenantId}:api.calls:2024-02";
 
-        _server.KeysAsync(Arg.Any<int>(), Arg.Any<RedisValue>(), Arg.Any<int>(), Arg.Any<long>(), Arg.Any<int>(), Arg.Any<CommandFlags>())
-            .Returns(ToAsyncEnumerable((RedisKey)key));
+        _database.SetMembersAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
+            .Returns(new RedisValue[] { key });
 
         _database.StringGetSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<CommandFlags>())
             .Returns(new RedisValue("-5"));
@@ -113,8 +108,8 @@ public class FlushUsageJobExceptionTests
         // Key has 4 parts but doesn't start with "meter"
         string key = "other:00000000-0000-0000-0000-000000000001:api.calls:2024-02";
 
-        _server.KeysAsync(Arg.Any<int>(), Arg.Any<RedisValue>(), Arg.Any<int>(), Arg.Any<long>(), Arg.Any<int>(), Arg.Any<CommandFlags>())
-            .Returns(ToAsyncEnumerable((RedisKey)key));
+        _database.SetMembersAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
+            .Returns(new RedisValue[] { key });
 
         await _job.ExecuteAsync(CancellationToken.None);
 
@@ -133,15 +128,5 @@ public class FlushUsageJobExceptionTests
         act.Should().Throw<System.Reflection.TargetInvocationException>()
             .WithInnerException<ArgumentException>()
             .WithMessage("*Invalid period format*");
-    }
-
-    private static async IAsyncEnumerable<RedisKey> ToAsyncEnumerable(params RedisKey[] keys)
-    {
-        foreach (RedisKey key in keys)
-        {
-            yield return key;
-        }
-
-        await Task.CompletedTask;
     }
 }

@@ -19,6 +19,7 @@ public sealed class CustomFieldDefinitionRepository : ICustomFieldDefinitionRepo
         CancellationToken cancellationToken = default)
     {
         return _context.CustomFieldDefinitions
+            .AsTracking()
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
     }
 
@@ -28,6 +29,7 @@ public sealed class CustomFieldDefinitionRepository : ICustomFieldDefinitionRepo
         CancellationToken cancellationToken = default)
     {
         return _context.CustomFieldDefinitions
+            .AsTracking()
             .FirstOrDefaultAsync(x => x.EntityType == entityType && x.FieldKey == fieldKey, cancellationToken);
     }
 

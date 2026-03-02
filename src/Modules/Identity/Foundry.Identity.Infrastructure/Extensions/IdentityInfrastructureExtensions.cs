@@ -76,6 +76,7 @@ public static class IdentityInfrastructureExtensions
         // Token service for auth proxy (no auth required on this client)
         services.AddHttpClient("KeycloakTokenClient");
 
+        services.AddMemoryCache();
         services.AddScoped<IKeycloakAdminService, KeycloakAdminService>();
         services.AddScoped<IKeycloakOrganizationService, KeycloakOrganizationService>();
         services.AddScoped<ITokenService, KeycloakTokenService>();

@@ -13,6 +13,7 @@ public sealed class StorageDbContext : TenantAwareDbContext<StorageDbContext>
     public StorageDbContext(DbContextOptions<StorageDbContext> options, ITenantContext tenantContext)
         : base(options, tenantContext)
     {
+        ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

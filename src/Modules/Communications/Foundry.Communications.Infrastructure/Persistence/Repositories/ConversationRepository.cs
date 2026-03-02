@@ -22,6 +22,7 @@ public sealed class ConversationRepository : IConversationRepository
     public Task<Conversation?> GetByIdAsync(ConversationId id, CancellationToken cancellationToken = default)
     {
         return _context.Conversations
+            .AsTracking()
             .Include(c => c.Participants)
             .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
     }

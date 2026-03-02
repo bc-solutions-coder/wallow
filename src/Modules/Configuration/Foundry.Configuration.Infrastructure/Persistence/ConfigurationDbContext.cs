@@ -15,6 +15,7 @@ public sealed class ConfigurationDbContext : TenantAwareDbContext<ConfigurationD
         DbContextOptions<ConfigurationDbContext> options,
         ITenantContext tenantContext) : base(options, tenantContext)
     {
+        ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

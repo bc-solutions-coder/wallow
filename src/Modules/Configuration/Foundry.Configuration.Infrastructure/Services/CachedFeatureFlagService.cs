@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text.Json;
 using Foundry.Configuration.Application.FeatureFlags.Contracts;
 using Microsoft.Extensions.Caching.Distributed;
@@ -11,6 +12,7 @@ public sealed class CachedFeatureFlagService : IFeatureFlagService
 
     private static readonly TimeSpan _cacheTtl = TimeSpan.FromSeconds(60);
     private static readonly DistributedCacheEntryOptions _cacheOptions = new() { AbsoluteExpirationRelativeToNow = _cacheTtl };
+    private static readonly ConcurrentDictionary<string, ConcurrentBag<string>> _keysByFlag = new();
 
     public CachedFeatureFlagService(IFeatureFlagService inner, IDistributedCache cache)
     {
@@ -21,6 +23,7 @@ public sealed class CachedFeatureFlagService : IFeatureFlagService
     public async Task<bool> IsEnabledAsync(string key, Guid tenantId, Guid? userId = null, CancellationToken ct = default)
     {
         string cacheKey = BuildCacheKey(key, tenantId, userId);
+        TrackKey(key, cacheKey);
         string? cached = await _cache.GetStringAsync(cacheKey, ct);
 
         if (cached is not null)
@@ -36,6 +39,7 @@ public sealed class CachedFeatureFlagService : IFeatureFlagService
     public async Task<string?> GetVariantAsync(string key, Guid tenantId, Guid? userId = null, CancellationToken ct = default)
     {
         string cacheKey = BuildCacheKey(key, tenantId, userId);
+        TrackKey(key, cacheKey);
         string? cached = await _cache.GetStringAsync(cacheKey, ct);
 
         if (cached is not null)
@@ -53,10 +57,19 @@ public sealed class CachedFeatureFlagService : IFeatureFlagService
 
     public static async Task InvalidateAsync(IDistributedCache cache, string flagKey)
     {
-        // Invalidate by removing known key patterns is impractical without scanning.
-        // Instead, we remove the base key — callers should invalidate specific tenant/user combos
-        // or use a broader cache-busting strategy. For simplicity, remove the wildcard-free base key.
-        await cache.RemoveAsync($"ff:{flagKey}");
+        if (_keysByFlag.TryRemove(flagKey, out ConcurrentBag<string>? trackedKeys))
+        {
+            foreach (string cacheKey in trackedKeys.Distinct())
+            {
+                await cache.RemoveAsync(cacheKey);
+            }
+        }
+    }
+
+    private static void TrackKey(string flagKey, string cacheKey)
+    {
+        ConcurrentBag<string> keys = _keysByFlag.GetOrAdd(flagKey, _ => []);
+        keys.Add(cacheKey);
     }
 
     private static string BuildCacheKey(string flagKey, Guid tenantId, Guid? userId)

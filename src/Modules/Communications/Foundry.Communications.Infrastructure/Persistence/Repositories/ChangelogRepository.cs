@@ -17,6 +17,7 @@ public sealed class ChangelogRepository : IChangelogRepository
     public Task<ChangelogEntry?> GetByIdAsync(ChangelogEntryId id, CancellationToken ct = default)
     {
         return _context.ChangelogEntries
+            .AsTracking()
             .Include(e => e.Items)
             .FirstOrDefaultAsync(e => e.Id == id, ct);
     }
@@ -24,6 +25,7 @@ public sealed class ChangelogRepository : IChangelogRepository
     public Task<ChangelogEntry?> GetByVersionAsync(string version, CancellationToken ct = default)
     {
         return _context.ChangelogEntries
+            .AsTracking()
             .Include(e => e.Items)
             .FirstOrDefaultAsync(e => e.Version == version, ct);
     }

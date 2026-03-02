@@ -4,6 +4,7 @@ using Foundry.Communications.Infrastructure.Persistence;
 using Foundry.Communications.Infrastructure.Persistence.Repositories;
 using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.MultiTenancy;
+using Foundry.Shared.Kernel.Pagination;
 using Microsoft.EntityFrameworkCore;
 using InAppNotificationType = Foundry.Communications.Domain.Channels.InApp.Enums.NotificationType;
 
@@ -94,10 +95,12 @@ public sealed class NotificationRepositoryTests : IDisposable
         }
         await _dbContext.SaveChangesAsync();
 
-        (IReadOnlyList<Notification> items, int totalCount) = await _repository.GetByUserIdPagedAsync(userId, 1, 2);
+        PagedResult<Notification> result = await _repository.GetByUserIdPagedAsync(userId, 1, 2);
 
-        totalCount.Should().Be(5);
-        items.Should().HaveCount(2);
+        result.TotalCount.Should().Be(5);
+        result.Items.Should().HaveCount(2);
+        result.Page.Should().Be(1);
+        result.PageSize.Should().Be(2);
     }
 
     [Fact]
@@ -111,10 +114,10 @@ public sealed class NotificationRepositoryTests : IDisposable
         }
         await _dbContext.SaveChangesAsync();
 
-        (IReadOnlyList<Notification> items, int totalCount) = await _repository.GetByUserIdPagedAsync(userId, 2, 2);
+        PagedResult<Notification> result = await _repository.GetByUserIdPagedAsync(userId, 2, 2);
 
-        totalCount.Should().Be(5);
-        items.Should().HaveCount(2);
+        result.TotalCount.Should().Be(5);
+        result.Items.Should().HaveCount(2);
     }
 
     [Fact]

@@ -20,7 +20,9 @@ public sealed class UsageRecordRepository : IUsageRecordRepository
 
     public Task<UsageRecord?> GetByIdAsync(UsageRecordId id, CancellationToken cancellationToken = default)
     {
-        return _context.UsageRecords.FindAsync([id], cancellationToken).AsTask();
+        return _context.UsageRecords
+            .AsTracking()
+            .FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
     }
 
     public async Task<IReadOnlyList<UsageRecord>> GetHistoryAsync(
@@ -48,6 +50,7 @@ public sealed class UsageRecordRepository : IUsageRecordRepository
     {
         TenantId tenantId = _tenantContext.TenantId;
         return _context.UsageRecords
+            .AsTracking()
             .FirstOrDefaultAsync(u =>
                 u.TenantId == tenantId &&
                 u.MeterCode == meterCode &&

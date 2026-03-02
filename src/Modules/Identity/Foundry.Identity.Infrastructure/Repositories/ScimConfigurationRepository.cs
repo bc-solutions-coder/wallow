@@ -17,7 +17,7 @@ public sealed class ScimConfigurationRepository : IScimConfigurationRepository
     public Task<ScimConfiguration?> GetAsync(CancellationToken ct = default)
     {
         // Each tenant has at most one SCIM configuration
-        return _context.ScimConfigurations.FirstOrDefaultAsync(ct);
+        return _context.ScimConfigurations.AsTracking().FirstOrDefaultAsync(ct);
     }
 
     public void Add(ScimConfiguration entity)

@@ -16,12 +16,15 @@ public sealed class StorageBucketRepository : IStorageBucketRepository
 
     public Task<StorageBucket?> GetByIdAsync(StorageBucketId id, CancellationToken cancellationToken = default)
     {
-        return _context.Buckets.FindAsync([id], cancellationToken).AsTask();
+        return _context.Buckets
+            .AsTracking()
+            .FirstOrDefaultAsync(b => b.Id == id, cancellationToken);
     }
 
     public Task<StorageBucket?> GetByNameAsync(string name, CancellationToken cancellationToken = default)
     {
         return _context.Buckets
+            .AsTracking()
             .FirstOrDefaultAsync(b => b.Name == name, cancellationToken);
     }
 

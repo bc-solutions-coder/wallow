@@ -47,7 +47,8 @@ public sealed class StorageBucket : AggregateRoot<StorageBucketId>, ITenantScope
                 ? null
                 : JsonSerializer.Serialize(allowedContentTypes.ToList()),
             Retention = retention,
-            Versioning = versioning
+            Versioning = versioning,
+            CreatedAt = DateTime.UtcNow
         };
     }
 

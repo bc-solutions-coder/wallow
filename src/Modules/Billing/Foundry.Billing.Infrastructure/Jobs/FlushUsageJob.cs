@@ -15,6 +15,7 @@ namespace Foundry.Billing.Infrastructure.Jobs;
 /// </summary>
 public sealed partial class FlushUsageJob
 {
+    private const string MeterIndexKey = "meter:__index";
     private readonly IConnectionMultiplexer _redis;
     private readonly IUsageRecordRepository _usageRepository;
     private readonly IMessageBus _messageBus;
@@ -45,23 +46,20 @@ public sealed partial class FlushUsageJob
 
         try
         {
-            IServer server = _redis.GetServer(_redis.GetEndPoints().First());
-            List<RedisKey> keys = [];
-            await foreach (RedisKey key in server.KeysAsync(pattern: "meter:*"))
-            {
-                keys.Add(key);
-            }
+            IDatabase db = _redis.GetDatabase();
+            RedisValue[] members = await db.SetMembersAsync(MeterIndexKey);
+            List<string> keys = members.Select(m => m.ToString()).ToList();
 
             LogFoundMeterKeys(_logger, keys.Count);
 
-            foreach (RedisKey key in keys)
+            foreach (string key in keys)
             {
                 if (cancellationToken.IsCancellationRequested)
                 {
                     break;
                 }
 
-                bool processed = await ProcessKeyAsync(key.ToString());
+                bool processed = await ProcessKeyAsync(key);
                 if (processed)
                 {
                     flushedCount++;
@@ -145,6 +143,9 @@ public sealed partial class FlushUsageJob
                     _usageRepository.Add(record);
                 }
             }
+
+            // Remove from index Set after successful flush
+            await db.SetRemoveAsync(MeterIndexKey, key);
 
             LogFlushedMeterValue(_logger, value, meterCode, tenantId.Value);
             return true;

@@ -1,6 +1,7 @@
 using Foundry.Billing.Application.Interfaces;
 using Foundry.Billing.Domain.Entities;
 using Foundry.Billing.Domain.Identity;
+using Foundry.Shared.Kernel.Pagination;
 using Microsoft.EntityFrameworkCore;
 
 namespace Foundry.Billing.Infrastructure.Persistence.Repositories;
@@ -16,12 +17,15 @@ public sealed class InvoiceRepository : IInvoiceRepository
 
     public Task<Invoice?> GetByIdAsync(InvoiceId id, CancellationToken cancellationToken = default)
     {
-        return _context.Invoices.FindAsync([id], cancellationToken).AsTask();
+        return _context.Invoices
+            .AsTracking()
+            .FirstOrDefaultAsync(i => i.Id == id, cancellationToken);
     }
 
     public Task<Invoice?> GetByIdWithLineItemsAsync(InvoiceId id, CancellationToken cancellationToken = default)
     {
         return _context.Invoices
+            .AsTracking()
             .Include(i => i.LineItems)
             .FirstOrDefaultAsync(i => i.Id == id, cancellationToken);
     }
@@ -35,12 +39,43 @@ public sealed class InvoiceRepository : IInvoiceRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<PagedResult<Invoice>> GetByUserIdPagedAsync(Guid userId, int page, int pageSize, CancellationToken cancellationToken = default)
+    {
+        IQueryable<Invoice> query = _context.Invoices
+            .Include(i => i.LineItems)
+            .Where(i => i.UserId == userId)
+            .OrderByDescending(i => i.CreatedAt);
+
+        int totalCount = await query.CountAsync(cancellationToken);
+        List<Invoice> items = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return new PagedResult<Invoice>(items, totalCount, page, pageSize);
+    }
+
     public async Task<IReadOnlyList<Invoice>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         return await _context.Invoices
             .Include(i => i.LineItems)
             .OrderByDescending(i => i.CreatedAt)
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<PagedResult<Invoice>> GetAllPagedAsync(int page, int pageSize, CancellationToken cancellationToken = default)
+    {
+        IQueryable<Invoice> query = _context.Invoices
+            .Include(i => i.LineItems)
+            .OrderByDescending(i => i.CreatedAt);
+
+        int totalCount = await query.CountAsync(cancellationToken);
+        List<Invoice> items = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return new PagedResult<Invoice>(items, totalCount, page, pageSize);
     }
 
     public Task<bool> ExistsByInvoiceNumberAsync(string invoiceNumber, CancellationToken cancellationToken = default)

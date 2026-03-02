@@ -1,4 +1,3 @@
-using System.Net;
 using Foundry.Billing.Application.Metering.Interfaces;
 using Foundry.Billing.Domain.Metering.Entities;
 using Foundry.Billing.Infrastructure.Jobs;
@@ -17,7 +16,6 @@ public class FlushUsageJobAdditionalTests
     private readonly IMessageBus _messageBus;
     private readonly ITenantContextFactory _tenantContextFactory;
     private readonly ILogger<FlushUsageJob> _logger;
-    private readonly IServer _server;
     private readonly IDatabase _database;
     private readonly FlushUsageJob _job;
 
@@ -28,12 +26,8 @@ public class FlushUsageJobAdditionalTests
         _messageBus = Substitute.For<IMessageBus>();
         _tenantContextFactory = Substitute.For<ITenantContextFactory>();
         _logger = Substitute.For<ILogger<FlushUsageJob>>();
-        _server = Substitute.For<IServer>();
         _database = Substitute.For<IDatabase>();
 
-        IPEndPoint endpoint = new(IPAddress.Loopback, 6379);
-        _redis.GetEndPoints(Arg.Any<bool>()).Returns(new EndPoint[] { endpoint });
-        _redis.GetServer(endpoint, Arg.Any<object>()).Returns(_server);
         _redis.GetDatabase(Arg.Any<int>(), Arg.Any<object>()).Returns(_database);
 
         _tenantContextFactory.CreateScope(Arg.Any<TenantId>()).Returns(Substitute.For<IDisposable>());
@@ -46,8 +40,8 @@ public class FlushUsageJobAdditionalTests
     {
         string invalidKey = "not-a-meter-key";
 
-        _server.KeysAsync(Arg.Any<int>(), Arg.Any<RedisValue>(), Arg.Any<int>(), Arg.Any<long>(), Arg.Any<int>(), Arg.Any<CommandFlags>())
-            .Returns(ToAsyncEnumerable((RedisKey)invalidKey));
+        _database.SetMembersAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
+            .Returns(new RedisValue[] { invalidKey });
 
         await _job.ExecuteAsync(CancellationToken.None);
 
@@ -60,8 +54,8 @@ public class FlushUsageJobAdditionalTests
     {
         string invalidKey = "meter:not-a-guid:api.calls:2024-02";
 
-        _server.KeysAsync(Arg.Any<int>(), Arg.Any<RedisValue>(), Arg.Any<int>(), Arg.Any<long>(), Arg.Any<int>(), Arg.Any<CommandFlags>())
-            .Returns(ToAsyncEnumerable((RedisKey)invalidKey));
+        _database.SetMembersAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
+            .Returns(new RedisValue[] { invalidKey });
 
         await _job.ExecuteAsync(CancellationToken.None);
 
@@ -71,8 +65,8 @@ public class FlushUsageJobAdditionalTests
     [Fact]
     public async Task Execute_WithNoKeys_DoesNotPublishEvent()
     {
-        _server.KeysAsync(Arg.Any<int>(), Arg.Any<RedisValue>(), Arg.Any<int>(), Arg.Any<long>(), Arg.Any<int>(), Arg.Any<CommandFlags>())
-            .Returns(ToAsyncEnumerable());
+        _database.SetMembersAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
+            .Returns(Array.Empty<RedisValue>());
 
         await _job.ExecuteAsync(CancellationToken.None);
 
@@ -85,8 +79,8 @@ public class FlushUsageJobAdditionalTests
         Guid tenantId = Guid.NewGuid();
         string key = $"meter:{tenantId}:api.calls:2024-02";
 
-        _server.KeysAsync(Arg.Any<int>(), Arg.Any<RedisValue>(), Arg.Any<int>(), Arg.Any<long>(), Arg.Any<int>(), Arg.Any<CommandFlags>())
-            .Returns(ToAsyncEnumerable((RedisKey)key));
+        _database.SetMembersAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
+            .Returns(new RedisValue[] { key });
 
         _database.StringGetSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<CommandFlags>())
             .Returns(RedisValue.Null);
@@ -100,14 +94,14 @@ public class FlushUsageJobAdditionalTests
     public async Task Execute_WhenCancelled_StopsProcessing()
     {
         Guid tenantId = Guid.NewGuid();
-        RedisKey[] keys = new[]
+        RedisValue[] members = new RedisValue[]
         {
-            (RedisKey)$"meter:{tenantId}:api.calls:2024-02",
-            (RedisKey)$"meter:{tenantId}:storage.bytes:2024-02"
+            $"meter:{tenantId}:api.calls:2024-02",
+            $"meter:{tenantId}:storage.bytes:2024-02"
         };
 
-        _server.KeysAsync(Arg.Any<int>(), Arg.Any<RedisValue>(), Arg.Any<int>(), Arg.Any<long>(), Arg.Any<int>(), Arg.Any<CommandFlags>())
-            .Returns(ToAsyncEnumerable(keys));
+        _database.SetMembersAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
+            .Returns(members);
 
         using CancellationTokenSource cts = new CancellationTokenSource();
         await cts.CancelAsync();
@@ -121,8 +115,8 @@ public class FlushUsageJobAdditionalTests
     [Fact]
     public async Task Execute_CallsSaveChangesAsync()
     {
-        _server.KeysAsync(Arg.Any<int>(), Arg.Any<RedisValue>(), Arg.Any<int>(), Arg.Any<long>(), Arg.Any<int>(), Arg.Any<CommandFlags>())
-            .Returns(ToAsyncEnumerable());
+        _database.SetMembersAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
+            .Returns(Array.Empty<RedisValue>());
 
         await _job.ExecuteAsync(CancellationToken.None);
 
@@ -135,8 +129,8 @@ public class FlushUsageJobAdditionalTests
         Guid tenantId = Guid.NewGuid();
         string key = $"meter:{tenantId}:api.calls:2024-02-15";
 
-        _server.KeysAsync(Arg.Any<int>(), Arg.Any<RedisValue>(), Arg.Any<int>(), Arg.Any<long>(), Arg.Any<int>(), Arg.Any<CommandFlags>())
-            .Returns(ToAsyncEnumerable((RedisKey)key));
+        _database.SetMembersAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
+            .Returns(new RedisValue[] { key });
 
         _database.StringGetSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<CommandFlags>())
             .Returns(new RedisValue("50"));
@@ -156,8 +150,8 @@ public class FlushUsageJobAdditionalTests
         Guid tenantId = Guid.NewGuid();
         string key = $"meter:{tenantId}:api.calls:2024-02-15-10";
 
-        _server.KeysAsync(Arg.Any<int>(), Arg.Any<RedisValue>(), Arg.Any<int>(), Arg.Any<long>(), Arg.Any<int>(), Arg.Any<CommandFlags>())
-            .Returns(ToAsyncEnumerable((RedisKey)key));
+        _database.SetMembersAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
+            .Returns(new RedisValue[] { key });
 
         _database.StringGetSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<CommandFlags>())
             .Returns(new RedisValue("75"));
@@ -169,15 +163,5 @@ public class FlushUsageJobAdditionalTests
         await _job.ExecuteAsync(CancellationToken.None);
 
         _usageRepository.Received(1).Add(Arg.Is<UsageRecord>(r => r.MeterCode == "api.calls"));
-    }
-
-    private static async IAsyncEnumerable<RedisKey> ToAsyncEnumerable(params RedisKey[] keys)
-    {
-        foreach (RedisKey key in keys)
-        {
-            yield return key;
-        }
-
-        await Task.CompletedTask;
     }
 }
