@@ -10,7 +10,7 @@ public sealed class SmsPreference : Entity<SmsPreferenceId>, ITenantScoped
 {
     public TenantId TenantId { get; set; }
     public Guid UserId { get; private set; }
-    public PhoneNumber PhoneNumber { get; private set; }
+    public PhoneNumber PhoneNumber { get; private set; } = null!;
     public bool IsOptedIn { get; private set; }
 
     private SmsPreference() { }

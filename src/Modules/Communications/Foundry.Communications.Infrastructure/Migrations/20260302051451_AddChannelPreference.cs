@@ -69,7 +69,27 @@ namespace Foundry.Communications.Infrastructure.Migrations
                     table.PrimaryKey("PK_sms_preferences", x => x.id);
                 });
 
+            migrationBuilder.CreateIndex(
+                name: "IX_channel_preferences_tenant_id",
+                schema: "communications",
+                table: "channel_preferences",
+                column: "tenant_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_channel_preferences_tenant_id_user_id",
+                schema: "communications",
+                table: "channel_preferences",
+                columns: new[] { "tenant_id", "user_id" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_channel_preferences_tenant_id_user_id_channel_type_notifica~",
+                schema: "communications",
+                table: "channel_preferences",
+                columns: new[] { "tenant_id", "user_id", "channel_type", "notification_type" },
+                unique: true);
+
             // Data migration: copy email_preferences into channel_preferences
+            // Must run after the unique index is created for ON CONFLICT to work
             migrationBuilder.Sql("""
                 INSERT INTO communications.channel_preferences (id, tenant_id, user_id, channel_type, notification_type, is_enabled, created_at, updated_at, created_by, updated_by)
                 SELECT
@@ -92,25 +112,6 @@ namespace Foundry.Communications.Infrastructure.Migrations
                 FROM communications.email_preferences
                 ON CONFLICT (tenant_id, user_id, channel_type, notification_type) DO NOTHING;
                 """);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_channel_preferences_tenant_id",
-                schema: "communications",
-                table: "channel_preferences",
-                column: "tenant_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_channel_preferences_tenant_id_user_id",
-                schema: "communications",
-                table: "channel_preferences",
-                columns: new[] { "tenant_id", "user_id" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_channel_preferences_tenant_id_user_id_channel_type_notifica~",
-                schema: "communications",
-                table: "channel_preferences",
-                columns: new[] { "tenant_id", "user_id", "channel_type", "notification_type" },
-                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_sms_messages_created_at",

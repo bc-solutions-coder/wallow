@@ -48,6 +48,13 @@ public sealed class SmsMessageConfiguration : IEntityTypeConfiguration<SmsMessag
             .HasMaxLength(50)
             .IsRequired();
 
+        builder.Property(e => e.SentAt)
+            .HasColumnName("sent_at");
+
+        builder.Property(e => e.FailureReason)
+            .HasColumnName("failure_reason")
+            .HasMaxLength(1000);
+
         builder.Property(e => e.RetryCount)
             .HasColumnName("retry_count")
             .IsRequired();
