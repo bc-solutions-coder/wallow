@@ -8,6 +8,7 @@ using Foundry.Api.Jobs;
 using Foundry.Api.Logging;
 using Foundry.Api.Middleware;
 using Foundry.Api.Services;
+using Foundry.Communications.Infrastructure.Jobs;
 using Foundry.Identity.Infrastructure.Authorization;
 using Foundry.Identity.Infrastructure.Middleware;
 using Foundry.Identity.Infrastructure.MultiTenancy;
@@ -393,6 +394,11 @@ try
         jobManager.AddOrUpdate<SystemHeartbeatJob>(
             "system-heartbeat",
             job => job.ExecuteAsync(),
+            "*/5 * * * *");
+
+        jobManager.AddOrUpdate<RetryFailedEmailsJob>(
+            "retry-failed-emails",
+            job => job.ExecuteAsync(CancellationToken.None),
             "*/5 * * * *");
 
     }

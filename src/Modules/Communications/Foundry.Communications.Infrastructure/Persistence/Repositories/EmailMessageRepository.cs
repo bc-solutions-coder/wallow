@@ -34,6 +34,15 @@ public sealed class EmailMessageRepository : IEmailMessageRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<EmailMessage>> GetFailedRetryableAsync(int maxRetries, int limit, CancellationToken cancellationToken = default)
+    {
+        return await _context.EmailMessages
+            .Where(e => e.Status == EmailStatus.Failed && e.RetryCount < maxRetries)
+            .OrderBy(e => e.RetryCount)
+            .Take(limit)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         await _context.SaveChangesAsync(cancellationToken);

@@ -3,6 +3,7 @@ using Foundry.Communications.Application.Channels.Email.Interfaces;
 using Foundry.Communications.Application.Channels.InApp.Interfaces;
 using Foundry.Communications.Application.Channels.Sms.Interfaces;
 using Foundry.Communications.Application.Extensions;
+using Foundry.Communications.Infrastructure.Jobs;
 using Foundry.Communications.Infrastructure.Persistence;
 using Foundry.Communications.Infrastructure.Persistence.Repositories;
 using Foundry.Communications.Infrastructure.Services;
@@ -72,6 +73,9 @@ public static partial class CommunicationsModuleExtensions
 
         // InApp notification services
         services.AddScoped<INotificationService, SignalRNotificationService>();
+
+        // Background jobs
+        services.AddScoped<RetryFailedEmailsJob>();
 
         // SMS services
         services.Configure<TwilioSettings>(configuration.GetSection("TwilioSettings"));
