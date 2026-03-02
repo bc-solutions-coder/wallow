@@ -1,0 +1,199 @@
+using Asp.Versioning;
+using Foundry.Communications.Api.Contracts.Messaging.Requests;
+using Foundry.Communications.Api.Contracts.Messaging.Responses;
+using Foundry.Communications.Api.Extensions;
+using Foundry.Communications.Application.Messaging.Commands.CreateConversation;
+using Foundry.Communications.Application.Messaging.Commands.MarkConversationRead;
+using Foundry.Communications.Application.Messaging.Commands.SendMessage;
+using Foundry.Communications.Application.Messaging.DTOs;
+using Foundry.Communications.Application.Messaging.Queries.GetConversations;
+using Foundry.Communications.Application.Messaging.Queries.GetMessages;
+using Foundry.Communications.Application.Messaging.Queries.GetUnreadConversationCount;
+using Foundry.Shared.Kernel.Results;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Wolverine;
+
+namespace Foundry.Communications.Api.Controllers;
+
+[ApiController]
+[ApiVersion(1.0)]
+[Route("api/v{version:apiVersion}/conversations")]
+[Authorize]
+[Tags("Conversations")]
+[Produces("application/json")]
+[Consumes("application/json")]
+public class ConversationsController : ControllerBase
+{
+    private readonly IMessageBus _bus;
+
+    public ConversationsController(IMessageBus bus)
+    {
+        _bus = bus;
+    }
+
+    [HttpPost]
+    [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> CreateConversation(
+        [FromBody] CreateConversationRequest request,
+        CancellationToken cancellationToken)
+    {
+        Guid? userId = GetCurrentUserId();
+        if (userId is null)
+        {
+            return Unauthorized();
+        }
+
+        bool isDirect = request.ParticipantIds.Count == 1;
+        string type = isDirect ? "Direct" : "Group";
+
+        CreateConversationCommand command = new(
+            userId.Value,
+            isDirect ? request.ParticipantIds[0] : null,
+            isDirect ? null : request.ParticipantIds,
+            type,
+            request.Subject);
+
+        Result<Guid> result = await _bus.InvokeAsync<Result<Guid>>(command, cancellationToken);
+
+        return result.ToCreatedResult($"/api/v1/conversations/{result.Value}");
+    }
+
+    [HttpGet]
+    [ProducesResponseType(typeof(IReadOnlyList<ConversationResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetConversations(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        Guid? userId = GetCurrentUserId();
+        if (userId is null)
+        {
+            return Unauthorized();
+        }
+
+        Result<IReadOnlyList<ConversationDto>> result = await _bus.InvokeAsync<Result<IReadOnlyList<ConversationDto>>>(
+            new GetConversationsQuery(userId.Value, page, pageSize), cancellationToken);
+
+        return result.Map(conversations =>
+            conversations.Select(ToConversationResponse).ToList() as IReadOnlyList<ConversationResponse>)
+            .ToActionResult();
+    }
+
+    [HttpGet("{id:guid}/messages")]
+    [ProducesResponseType(typeof(MessagePageResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetMessages(
+        Guid id,
+        [FromQuery] Guid? cursor = null,
+        [FromQuery] int pageSize = 50,
+        CancellationToken cancellationToken = default)
+    {
+        Guid? userId = GetCurrentUserId();
+        if (userId is null)
+        {
+            return Unauthorized();
+        }
+
+        Result<IReadOnlyList<MessageDto>> result = await _bus.InvokeAsync<Result<IReadOnlyList<MessageDto>>>(
+            new GetMessagesQuery(id, userId.Value, cursor, pageSize), cancellationToken);
+
+        return result.Map(messages =>
+        {
+            List<MessageResponse> items = messages.Select(ToMessageResponse).ToList();
+            bool hasMore = items.Count == pageSize;
+            Guid? nextCursor = hasMore && items.Count > 0 ? items[^1].Id : null;
+            return new MessagePageResponse(items, nextCursor, hasMore);
+        }).ToActionResult();
+    }
+
+    [HttpPost("{id:guid}/messages")]
+    [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> SendMessage(
+        Guid id,
+        [FromBody] SendMessageRequest request,
+        CancellationToken cancellationToken)
+    {
+        Guid? userId = GetCurrentUserId();
+        if (userId is null)
+        {
+            return Unauthorized();
+        }
+
+        Result<Guid> result = await _bus.InvokeAsync<Result<Guid>>(
+            new SendMessageCommand(id, userId.Value, request.Body), cancellationToken);
+
+        return result.ToCreatedResult($"/api/v1/conversations/{id}/messages");
+    }
+
+    [HttpPost("{id:guid}/read")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> MarkAsRead(Guid id, CancellationToken cancellationToken)
+    {
+        Guid? userId = GetCurrentUserId();
+        if (userId is null)
+        {
+            return Unauthorized();
+        }
+
+        Result result = await _bus.InvokeAsync<Result>(
+            new MarkConversationReadCommand(id, userId.Value), cancellationToken);
+
+        return result.ToNoContentResult();
+    }
+
+    [HttpGet("unread-count")]
+    [ProducesResponseType(typeof(UnreadCountResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetUnreadCount(CancellationToken cancellationToken)
+    {
+        Guid? userId = GetCurrentUserId();
+        if (userId is null)
+        {
+            return Unauthorized();
+        }
+
+        Result<int> result = await _bus.InvokeAsync<Result<int>>(
+            new GetUnreadConversationCountQuery(userId.Value), cancellationToken);
+
+        return result.Map(count => new UnreadCountResponse(count)).ToActionResult();
+    }
+
+    private Guid? GetCurrentUserId()
+    {
+        string? userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst("sub")?.Value;
+
+        if (userIdClaim is null || !Guid.TryParse(userIdClaim, out Guid userId))
+        {
+            return null;
+        }
+
+        return userId;
+    }
+
+    private static ConversationResponse ToConversationResponse(ConversationDto dto) => new(
+        dto.Id,
+        dto.Type,
+        dto.Participants,
+        dto.LastMessage,
+        dto.UnreadCount,
+        dto.LastActivityAt);
+
+    private static MessageResponse ToMessageResponse(MessageDto dto) => new(
+        dto.Id,
+        dto.ConversationId,
+        dto.SenderId,
+        dto.Body,
+        dto.Status,
+        dto.SentAt);
+}

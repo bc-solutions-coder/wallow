@@ -1,9 +1,10 @@
 using System.Text.RegularExpressions;
 using Foundry.Communications.Domain.Channels.Sms.Exceptions;
+using Foundry.Shared.Kernel.Domain;
 
 namespace Foundry.Communications.Domain.Channels.Sms.ValueObjects;
 
-public readonly partial record struct PhoneNumber
+public sealed partial class PhoneNumber : ValueObject
 {
     public string Value { get; }
 
@@ -27,6 +28,11 @@ public readonly partial record struct PhoneNumber
         }
 
         return new PhoneNumber(value);
+    }
+
+    protected override IEnumerable<object?> GetEqualityComponents()
+    {
+        yield return Value;
     }
 
     public override string ToString() => Value;

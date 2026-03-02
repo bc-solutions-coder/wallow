@@ -2,6 +2,7 @@ using Foundry.Communications.Domain.Announcements.Entities;
 using Foundry.Communications.Domain.Channels.Email.Entities;
 using Foundry.Communications.Domain.Channels.InApp.Entities;
 using Foundry.Communications.Domain.Channels.Sms.Entities;
+using Foundry.Communications.Domain.Messaging.Entities;
 using Foundry.Communications.Domain.Preferences.Entities;
 using Foundry.Shared.Infrastructure.Persistence;
 using Foundry.Shared.Kernel.MultiTenancy;
@@ -24,6 +25,11 @@ public sealed class CommunicationsDbContext : TenantAwareDbContext<Communication
 
     // Preferences
     public DbSet<ChannelPreference> ChannelPreferences => Set<ChannelPreference>();
+
+    // Messaging
+    public DbSet<Conversation> Conversations => Set<Conversation>();
+    public DbSet<Message> Messages => Set<Message>();
+    public DbSet<Participant> Participants => Set<Participant>();
 
     // Announcements
     public DbSet<Announcement> Announcements => Set<Announcement>();

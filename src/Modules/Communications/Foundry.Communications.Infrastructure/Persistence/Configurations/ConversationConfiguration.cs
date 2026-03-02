@@ -1,20 +1,20 @@
-using Foundry.Communications.Domain.Channels.Sms.Entities;
-using Foundry.Communications.Domain.Channels.Sms.Identity;
+using Foundry.Communications.Domain.Messaging.Entities;
+using Foundry.Communications.Domain.Messaging.Identity;
 using Foundry.Shared.Kernel.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Foundry.Communications.Infrastructure.Persistence.Configurations;
 
-public sealed class SmsMessageConfiguration : IEntityTypeConfiguration<SmsMessage>
+public sealed class ConversationConfiguration : IEntityTypeConfiguration<Conversation>
 {
-    public void Configure(EntityTypeBuilder<SmsMessage> builder)
+    public void Configure(EntityTypeBuilder<Conversation> builder)
     {
-        builder.ToTable("sms_messages");
+        builder.ToTable("conversations");
 
         builder.HasKey(e => e.Id);
         builder.Property(e => e.Id)
-            .HasConversion(new StronglyTypedIdConverter<SmsMessageId>())
+            .HasConversion(new StronglyTypedIdConverter<ConversationId>())
             .HasColumnName("id")
             .ValueGeneratedNever();
 
@@ -23,33 +23,18 @@ public sealed class SmsMessageConfiguration : IEntityTypeConfiguration<SmsMessag
             .HasColumnName("tenant_id")
             .IsRequired();
 
-        builder.OwnsOne(e => e.To, to =>
-        {
-            to.Property(p => p.Value)
-                .HasColumnName("to_phone_number")
-                .HasMaxLength(20)
-                .IsRequired();
-        });
+        builder.Property(e => e.Subject)
+            .HasColumnName("subject")
+            .HasMaxLength(255);
 
-        builder.OwnsOne(e => e.From, from =>
-        {
-            from.Property(p => p.Value)
-                .HasColumnName("from_phone_number")
-                .HasMaxLength(20);
-        });
-
-        builder.Property(e => e.Body)
-            .HasColumnName("body")
+        builder.Property(e => e.IsGroup)
+            .HasColumnName("is_group")
             .IsRequired();
 
         builder.Property(e => e.Status)
             .HasColumnName("status")
             .HasConversion<string>()
             .HasMaxLength(50)
-            .IsRequired();
-
-        builder.Property(e => e.RetryCount)
-            .HasColumnName("retry_count")
             .IsRequired();
 
         builder.Property(e => e.CreatedAt)
@@ -66,8 +51,7 @@ public sealed class SmsMessageConfiguration : IEntityTypeConfiguration<SmsMessag
             .HasColumnName("updated_by");
 
         builder.HasIndex(e => e.TenantId);
-        builder.HasIndex(e => e.Status);
-        builder.HasIndex(e => e.CreatedAt);
+        builder.HasIndex(e => e.CreatedAt).IsDescending();
 
         builder.Ignore(e => e.DomainEvents);
     }
