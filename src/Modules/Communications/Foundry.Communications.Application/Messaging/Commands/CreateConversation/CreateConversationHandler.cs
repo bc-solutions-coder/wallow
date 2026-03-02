@@ -1,0 +1,35 @@
+using Foundry.Communications.Application.Messaging.Interfaces;
+using Foundry.Communications.Domain.Messaging.Entities;
+using Foundry.Shared.Kernel.MultiTenancy;
+using Foundry.Shared.Kernel.Results;
+
+namespace Foundry.Communications.Application.Messaging.Commands.CreateConversation;
+
+public sealed class CreateConversationHandler(
+    IConversationRepository conversationRepository,
+    ITenantContext tenantContext)
+{
+    public async Task<Result<Guid>> Handle(
+        CreateConversationCommand command,
+        CancellationToken cancellationToken)
+    {
+        Conversation conversation = command.Type switch
+        {
+            "Direct" => Conversation.CreateDirect(
+                tenantContext.TenantId,
+                command.InitiatorId,
+                command.RecipientId!.Value),
+            "Group" => Conversation.CreateGroup(
+                tenantContext.TenantId,
+                command.InitiatorId,
+                command.Name!,
+                command.MemberIds!),
+            _ => throw new ArgumentException($"Unknown conversation type: {command.Type}", nameof(command))
+        };
+
+        conversationRepository.Add(conversation);
+        await conversationRepository.SaveChangesAsync(cancellationToken);
+
+        return Result.Success(conversation.Id.Value);
+    }
+}
