@@ -8,7 +8,4 @@ public interface ITenantContext
     string TenantName { get; }
     string Region { get; }
     bool IsResolved { get; }
-
-    void SetTenant(TenantId tenantId, string tenantName = "", string region = RegionConfiguration.PrimaryRegion);
-    void Clear();
 }

@@ -12,6 +12,7 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped<TenantContext>();
         services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantContext>());
+        services.AddScoped<ITenantContextSetter>(sp => sp.GetRequiredService<TenantContext>());
         services.AddScoped<TenantSaveChangesInterceptor>();
         services.AddScoped<ITenantContextFactory, TenantContextFactory>();
 

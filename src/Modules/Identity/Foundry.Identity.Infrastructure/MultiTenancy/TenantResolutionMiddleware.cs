@@ -18,7 +18,7 @@ public partial class TenantResolutionMiddleware
         _logger = logger;
     }
 
-    public async Task InvokeAsync(HttpContext context, TenantContext tenantContext)
+    public async Task InvokeAsync(HttpContext context, ITenantContextSetter tenantSetter)
     {
         if (context.User.Identity?.IsAuthenticated == true)
         {
@@ -30,10 +30,7 @@ public partial class TenantResolutionMiddleware
 
                 if (orgId.HasValue)
                 {
-                    tenantContext.TenantId = TenantId.Create(orgId.Value);
-                    tenantContext.TenantName = orgName;
-                    tenantContext.IsResolved = true;
-
+                    tenantSetter.SetTenant(TenantId.Create(orgId.Value), orgName);
                     LogTenantResolved(orgId, orgName);
                 }
             }
@@ -44,8 +41,7 @@ public partial class TenantResolutionMiddleware
                 HasRealmAdminRole(context.User) &&
                 Guid.TryParse(headerTenantId, out Guid overrideId))
             {
-                tenantContext.TenantId = TenantId.Create(overrideId);
-                tenantContext.IsResolved = true;
+                tenantSetter.SetTenant(TenantId.Create(overrideId));
                 LogAdminTenantOverride(overrideId);
             }
 
@@ -56,13 +52,13 @@ public partial class TenantResolutionMiddleware
                 region = context.Request.Headers["X-Tenant-Region"].FirstOrDefault();
             }
 
-            tenantContext.Region = !string.IsNullOrEmpty(region)
+            tenantSetter.Region = !string.IsNullOrEmpty(region)
                 ? region
                 : RegionConfiguration.PrimaryRegion;
 
-            if (tenantContext.Region != RegionConfiguration.PrimaryRegion)
+            if (tenantSetter.Region != RegionConfiguration.PrimaryRegion)
             {
-                LogRegionResolved(tenantContext.Region);
+                LogRegionResolved(tenantSetter.Region);
             }
         }
 

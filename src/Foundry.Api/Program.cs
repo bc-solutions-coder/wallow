@@ -120,6 +120,10 @@ try
         // Module tagging middleware — tags Wolverine messages with foundry.module
         opts.Policies.AddMiddleware(typeof(WolverineModuleTaggingMiddleware));
 
+        // Tenant middleware — stamps outgoing messages with TenantId and restores it on incoming
+        opts.Policies.AddMiddleware(typeof(TenantStampingMiddleware));
+        opts.Policies.AddMiddleware(typeof(TenantRestoringMiddleware));
+
         // For integration tests - discover handlers from test assemblies
         if (builder.Environment.IsEnvironment("Testing"))
         {

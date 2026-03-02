@@ -31,8 +31,5 @@ public sealed class ConfigurationDbContextFactory : IDesignTimeDbContextFactory<
         public string TenantName => string.Empty;
         public string Region => RegionConfiguration.PrimaryRegion;
         public bool IsResolved => false;
-
-        public void SetTenant(TenantId tenantId, string tenantName = "", string region = RegionConfiguration.PrimaryRegion) { }
-        public void Clear() { }
     }
 }

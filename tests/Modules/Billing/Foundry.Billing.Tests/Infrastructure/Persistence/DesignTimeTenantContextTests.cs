@@ -38,26 +38,6 @@ public class DesignTimeTenantContextTests
         context.IsResolved.Should().BeTrue();
     }
 
-    [Fact]
-    public void SetTenant_DoesNotThrow()
-    {
-        ITenantContext context = CreateDesignTimeTenantContext();
-
-        Action act = () => context.SetTenant(TenantId.New(), "test", "us-east");
-
-        act.Should().NotThrow();
-    }
-
-    [Fact]
-    public void Clear_DoesNotThrow()
-    {
-        ITenantContext context = CreateDesignTimeTenantContext();
-
-        Action act = () => context.Clear();
-
-        act.Should().NotThrow();
-    }
-
     private static ITenantContext CreateDesignTimeTenantContext()
     {
         // DesignTimeTenantContext is internal, so we use reflection

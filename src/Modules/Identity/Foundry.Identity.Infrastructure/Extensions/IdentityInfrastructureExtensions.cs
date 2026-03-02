@@ -56,6 +56,7 @@ public static class IdentityInfrastructureExtensions
     {
         services.AddScoped<TenantContext>();
         services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantContext>());
+        services.AddScoped<ITenantContextSetter>(sp => sp.GetRequiredService<TenantContext>());
         return services;
     }
 

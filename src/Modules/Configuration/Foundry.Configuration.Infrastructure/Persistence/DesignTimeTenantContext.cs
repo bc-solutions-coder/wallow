@@ -13,14 +13,4 @@ internal sealed class DesignTimeTenantContext : ITenantContext
     public string TenantName => "design-time";
     public string Region => RegionConfiguration.PrimaryRegion;
     public bool IsResolved => true;
-
-    public void SetTenant(TenantId tenantId, string tenantName = "", string region = RegionConfiguration.PrimaryRegion)
-    {
-        // No-op for design-time
-    }
-
-    public void Clear()
-    {
-        // No-op for design-time
-    }
 }
