@@ -101,3 +101,190 @@ public class NotificationMarkAsReadTests
         notification.ReadAt.Should().BeAfter(firstReadAt!.Value);
     }
 }
+
+public class NotificationOptionalPropertiesTests
+{
+    [Fact]
+    public void Create_WithActionUrl_SetsActionUrl()
+    {
+        string actionUrl = "https://app.example.com/invoices/123";
+
+        Notification notification = Notification.Create(
+            TenantId.New(),
+            Guid.NewGuid(),
+            NotificationType.SystemAlert,
+            "Invoice Ready",
+            "Your invoice is ready",
+            actionUrl: actionUrl);
+
+        notification.ActionUrl.Should().Be(actionUrl);
+    }
+
+    [Fact]
+    public void Create_WithoutActionUrl_ActionUrlIsNull()
+    {
+        Notification notification = Notification.Create(
+            TenantId.New(),
+            Guid.NewGuid(),
+            NotificationType.SystemAlert,
+            "Test",
+            "Message");
+
+        notification.ActionUrl.Should().BeNull();
+    }
+
+    [Fact]
+    public void Create_WithSourceModule_SetsSourceModule()
+    {
+        string sourceModule = "Billing";
+
+        Notification notification = Notification.Create(
+            TenantId.New(),
+            Guid.NewGuid(),
+            NotificationType.SystemAlert,
+            "Invoice Ready",
+            "Your invoice is ready",
+            sourceModule: sourceModule);
+
+        notification.SourceModule.Should().Be(sourceModule);
+    }
+
+    [Fact]
+    public void Create_WithoutSourceModule_SourceModuleIsNull()
+    {
+        Notification notification = Notification.Create(
+            TenantId.New(),
+            Guid.NewGuid(),
+            NotificationType.SystemAlert,
+            "Test",
+            "Message");
+
+        notification.SourceModule.Should().BeNull();
+    }
+
+    [Fact]
+    public void Create_WithExpiresAt_SetsExpiresAt()
+    {
+        DateTime expiresAt = DateTime.UtcNow.AddDays(7);
+
+        Notification notification = Notification.Create(
+            TenantId.New(),
+            Guid.NewGuid(),
+            NotificationType.SystemAlert,
+            "Expiring Notice",
+            "This will expire",
+            expiresAt: expiresAt);
+
+        notification.ExpiresAt.Should().Be(expiresAt);
+    }
+
+    [Fact]
+    public void Create_WithoutExpiresAt_ExpiresAtIsNull()
+    {
+        Notification notification = Notification.Create(
+            TenantId.New(),
+            Guid.NewGuid(),
+            NotificationType.SystemAlert,
+            "Test",
+            "Message");
+
+        notification.ExpiresAt.Should().BeNull();
+    }
+
+    [Fact]
+    public void IsExpired_WhenExpiresAtInPast_ReturnsTrue()
+    {
+        Notification notification = Notification.Create(
+            TenantId.New(),
+            Guid.NewGuid(),
+            NotificationType.SystemAlert,
+            "Expired Notice",
+            "This has expired",
+            expiresAt: DateTime.UtcNow.AddMinutes(-1));
+
+        notification.IsExpired.Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsExpired_WhenExpiresAtInFuture_ReturnsFalse()
+    {
+        Notification notification = Notification.Create(
+            TenantId.New(),
+            Guid.NewGuid(),
+            NotificationType.SystemAlert,
+            "Future Notice",
+            "Not expired yet",
+            expiresAt: DateTime.UtcNow.AddDays(1));
+
+        notification.IsExpired.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Create_WithAllOptionalProperties_SetsAllProperties()
+    {
+        string actionUrl = "https://app.example.com/settings";
+        string sourceModule = "Configuration";
+        DateTime expiresAt = DateTime.UtcNow.AddHours(24);
+
+        Notification notification = Notification.Create(
+            TenantId.New(),
+            Guid.NewGuid(),
+            NotificationType.SystemAlert,
+            "Full Notification",
+            "With all optional fields",
+            actionUrl: actionUrl,
+            sourceModule: sourceModule,
+            expiresAt: expiresAt);
+
+        notification.ActionUrl.Should().Be(actionUrl);
+        notification.SourceModule.Should().Be(sourceModule);
+        notification.ExpiresAt.Should().Be(expiresAt);
+    }
+}
+
+public class NotificationArchiveTests
+{
+    [Fact]
+    public void Archive_SetsIsArchivedToTrue()
+    {
+        Notification notification = Notification.Create(
+            TenantId.New(),
+            Guid.NewGuid(),
+            NotificationType.SystemAlert,
+            "Test",
+            "Message");
+
+        notification.Archive();
+
+        notification.IsArchived.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Create_DefaultIsArchivedIsFalse()
+    {
+        Notification notification = Notification.Create(
+            TenantId.New(),
+            Guid.NewGuid(),
+            NotificationType.SystemAlert,
+            "Test",
+            "Message");
+
+        notification.IsArchived.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Archive_CalledTwice_RemainsArchived()
+    {
+        Notification notification = Notification.Create(
+            TenantId.New(),
+            Guid.NewGuid(),
+            NotificationType.SystemAlert,
+            "Test",
+            "Message");
+
+        notification.Archive();
+        notification.Archive();
+
+        notification.IsArchived.Should().BeTrue();
+    }
+}
