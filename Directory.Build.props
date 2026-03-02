@@ -14,11 +14,10 @@
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <TreatWarningsAsErrors Condition="'$(GITHUB_ACTIONS)' == 'true'">true</TreatWarningsAsErrors>
-    <TreatWarningsAsErrors Condition="'$(GITHUB_ACTIONS)' != 'true'">false</TreatWarningsAsErrors>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <!-- Enforce code style in CI builds; IDEs show warnings without blocking -->
     <!-- Local enforcement: git config core.hooksPath .githooks (runs dotnet format on commit) -->
-    <EnforceCodeStyleInBuild Condition="'$(CI)' == 'true' OR '$(GITHUB_ACTIONS)' == 'true'">true</EnforceCodeStyleInBuild>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
   </PropertyGroup>
 
   <!-- Assembly information -->

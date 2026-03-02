@@ -12,7 +12,7 @@ public sealed class MessagingQueryService(
     CommunicationsDbContext dbContext,
     ITenantContext tenantContext) : IMessagingQueryService
 {
-    public async Task<int> GetUnreadConversationCountAsync(Guid userId, CancellationToken cancellationToken)
+    public async Task<int> GetUnreadConversationCountAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         DbConnection connection = dbContext.Database.GetDbConnection();
 
@@ -22,7 +22,9 @@ public sealed class MessagingQueryService(
             INNER JOIN communications.participants p
                 ON p.conversation_id = m.conversation_id
                 AND p.user_id = @UserId
-            WHERE p.tenant_id = @TenantId
+            INNER JOIN communications.conversations c
+                ON c.id = m.conversation_id
+            WHERE c.tenant_id = @TenantId
               AND m.sender_id != @UserId
               AND m.sent_at > COALESCE(p.last_read_at, p.joined_at)
             """;
@@ -41,26 +43,38 @@ public sealed class MessagingQueryService(
         Guid userId,
         Guid? cursorMessageId,
         int pageSize,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
         DbConnection connection = dbContext.Database.GetDbConnection();
 
         string sql = cursorMessageId.HasValue
             ? """
-              SELECT id, conversation_id, sender_id, body, sent_at, status
-              FROM communications.messages
-              WHERE conversation_id = @ConversationId
-                AND tenant_id = @TenantId
-                AND sent_at < (SELECT sent_at FROM communications.messages WHERE id = @CursorMessageId)
-              ORDER BY sent_at DESC
+              SELECT m.id AS "Id",
+                     m.conversation_id AS "ConversationId",
+                     m.sender_id AS "SenderId",
+                     m.body AS "Body",
+                     m.sent_at AS "SentAt",
+                     m.status AS "Status"
+              FROM communications.messages m
+              INNER JOIN communications.conversations c ON c.id = m.conversation_id
+              WHERE m.conversation_id = @ConversationId
+                AND c.tenant_id = @TenantId
+                AND m.sent_at < (SELECT sent_at FROM communications.messages WHERE id = @CursorMessageId)
+              ORDER BY m.sent_at DESC
               LIMIT @PageSize
               """
             : """
-              SELECT id, conversation_id, sender_id, body, sent_at, status
-              FROM communications.messages
-              WHERE conversation_id = @ConversationId
-                AND tenant_id = @TenantId
-              ORDER BY sent_at DESC
+              SELECT m.id AS "Id",
+                     m.conversation_id AS "ConversationId",
+                     m.sender_id AS "SenderId",
+                     m.body AS "Body",
+                     m.sent_at AS "SentAt",
+                     m.status AS "Status"
+              FROM communications.messages m
+              INNER JOIN communications.conversations c ON c.id = m.conversation_id
+              WHERE m.conversation_id = @ConversationId
+                AND c.tenant_id = @TenantId
+              ORDER BY m.sent_at DESC
               LIMIT @PageSize
               """;
 
@@ -84,7 +98,7 @@ public sealed class MessagingQueryService(
         Guid userId,
         int page,
         int pageSize,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
         DbConnection connection = dbContext.Database.GetDbConnection();
         int offset = (page - 1) * pageSize;
@@ -121,15 +135,15 @@ public sealed class MessagingQueryService(
                 GROUP BY p.conversation_id
             )
             SELECT
-                c.id,
-                c.is_group AS type,
-                c.updated_at AS last_activity_at,
-                lm.message_id AS last_message_id,
-                lm.sender_id AS last_message_sender_id,
-                lm.body AS last_message_body,
-                lm.sent_at AS last_message_sent_at,
-                lm.status AS last_message_status,
-                COALESCE(uc.unread_count, 0) AS unread_count
+                c.id AS "Id",
+                c.is_group AS "Type",
+                c.updated_at AS "LastActivityAt",
+                lm.message_id AS "LastMessageId",
+                lm.sender_id AS "LastMessageSenderId",
+                lm.body AS "LastMessageBody",
+                lm.sent_at AS "LastMessageSentAt",
+                lm.status AS "LastMessageStatus",
+                COALESCE(uc.unread_count, 0) AS "UnreadCount"
             FROM communications.conversations c
             INNER JOIN user_conversations uconv ON uconv.conversation_id = c.id
             LEFT JOIN last_messages lm ON lm.conversation_id = c.id
@@ -156,7 +170,10 @@ public sealed class MessagingQueryService(
         foreach (ConversationRow row in rows)
         {
             const string participantsSql = """
-                SELECT user_id, joined_at, last_read_at, is_active
+                SELECT user_id AS "UserId",
+                       joined_at AS "JoinedAt",
+                       last_read_at AS "LastReadAt",
+                       is_active AS "IsActive"
                 FROM communications.participants
                 WHERE conversation_id = @ConversationId
                 """;
@@ -167,14 +184,14 @@ public sealed class MessagingQueryService(
                     new { ConversationId = row.Id },
                     cancellationToken: cancellationToken));
 
-            MessageDto? lastMessage = row.LastMessageId.HasValue
+            MessageDto? lastMessage = row.LastMessageId != Guid.Empty
                 ? new MessageDto(
-                    row.LastMessageId.Value,
+                    row.LastMessageId,
                     row.Id,
-                    row.LastMessageSenderId!.Value,
-                    row.LastMessageBody!,
-                    row.LastMessageSentAt!.Value,
-                    row.LastMessageStatus!)
+                    row.LastMessageSenderId,
+                    row.LastMessageBody,
+                    row.LastMessageSentAt,
+                    row.LastMessageStatus)
                 : null;
 
             string conversationType = row.Type ? "Group" : "Direct";
@@ -184,8 +201,8 @@ public sealed class MessagingQueryService(
                 conversationType,
                 participants.ToList(),
                 lastMessage,
-                row.UnreadCount,
-                row.LastActivityAt ?? DateTimeOffset.MinValue);
+                (int)row.UnreadCount,
+                row.LastActivityAt);
 
             conversations.Add(dto);
         }
@@ -196,11 +213,11 @@ public sealed class MessagingQueryService(
     private sealed record ConversationRow(
         Guid Id,
         bool Type,
-        DateTimeOffset? LastActivityAt,
-        Guid? LastMessageId,
-        Guid? LastMessageSenderId,
-        string? LastMessageBody,
-        DateTimeOffset? LastMessageSentAt,
-        string? LastMessageStatus,
-        int UnreadCount);
+        DateTime LastActivityAt,
+        Guid LastMessageId,
+        Guid LastMessageSenderId,
+        string LastMessageBody,
+        DateTime LastMessageSentAt,
+        string LastMessageStatus,
+        long UnreadCount);
 }

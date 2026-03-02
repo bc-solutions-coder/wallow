@@ -60,7 +60,11 @@ public class ConversationBuilder
     public Conversation Build()
     {
         Conversation conversation = _isGroup
-            ? Conversation.CreateGroup(_tenantId, _initiatorId, _subject, [_recipientId, .._additionalMembers])
+            ? Conversation.CreateGroup(
+                _tenantId,
+                _initiatorId,
+                _subject,
+                [_recipientId, .. _additionalMembers])
             : Conversation.CreateDirect(_tenantId, _initiatorId, _recipientId);
 
         foreach (string body in _messages)

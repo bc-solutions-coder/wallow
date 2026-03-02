@@ -1,10 +1,9 @@
 using Foundry.Communications.Application.Messaging.Commands.CreateConversation;
 using Foundry.Communications.Application.Messaging.Interfaces;
-using Foundry.Communications.Domain.Messaging.Entities;
-using Conversation = Foundry.Communications.Domain.Messaging.Entities.Conversation;
 using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.MultiTenancy;
 using Foundry.Shared.Kernel.Results;
+using Conversation = Foundry.Communications.Domain.Messaging.Entities.Conversation;
 
 namespace Foundry.Communications.Tests.Application.Messaging.Commands;
 

@@ -1,6 +1,7 @@
 using Foundry.Communications.Application.Messaging.Interfaces;
 using Foundry.Communications.Domain.Messaging.Entities;
 using Foundry.Communications.Domain.Messaging.Identity;
+using Microsoft.EntityFrameworkCore;
 
 namespace Foundry.Communications.Infrastructure.Persistence.Repositories;
 
@@ -20,7 +21,9 @@ public sealed class ConversationRepository : IConversationRepository
 
     public Task<Conversation?> GetByIdAsync(ConversationId id, CancellationToken cancellationToken = default)
     {
-        return _context.Conversations.FindAsync([id], cancellationToken).AsTask();
+        return _context.Conversations
+            .Include(c => c.Participants)
+            .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
     }
 
     public async Task SaveChangesAsync(CancellationToken cancellationToken = default)

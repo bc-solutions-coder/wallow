@@ -1,4 +1,3 @@
-using Foundry.Communications.Domain.Preferences;
 using Foundry.Communications.Domain.Preferences.Entities;
 using Foundry.Communications.Domain.Preferences.Identity;
 using Foundry.Shared.Kernel.Identity;

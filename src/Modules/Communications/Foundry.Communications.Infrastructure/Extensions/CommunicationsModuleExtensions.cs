@@ -1,10 +1,10 @@
 using Foundry.Communications.Application.Announcements.Interfaces;
 using Foundry.Communications.Application.Channels.Email.Interfaces;
-using Foundry.Communications.Application.Messaging.Interfaces;
-using Foundry.Communications.Application.Preferences.Interfaces;
 using Foundry.Communications.Application.Channels.InApp.Interfaces;
 using Foundry.Communications.Application.Channels.Sms.Interfaces;
 using Foundry.Communications.Application.Extensions;
+using Foundry.Communications.Application.Messaging.Interfaces;
+using Foundry.Communications.Application.Preferences.Interfaces;
 using Foundry.Communications.Infrastructure.Jobs;
 using Foundry.Communications.Infrastructure.Persistence;
 using Foundry.Communications.Infrastructure.Persistence.Repositories;

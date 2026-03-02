@@ -5,5 +5,5 @@ public sealed record MessageDto(
     Guid ConversationId,
     Guid SenderId,
     string Body,
-    DateTimeOffset SentAt,
+    DateTime SentAt,
     string Status);

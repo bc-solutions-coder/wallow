@@ -1,5 +1,4 @@
 using Foundry.Billing.Infrastructure.Persistence;
-using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.MultiTenancy;
 
 namespace Foundry.Billing.Tests.Infrastructure.Persistence;

@@ -6,4 +6,4 @@ public sealed record ConversationDto(
     IReadOnlyList<ParticipantDto> Participants,
     MessageDto? LastMessage,
     int UnreadCount,
-    DateTimeOffset LastActivityAt);
+    DateTime LastActivityAt);

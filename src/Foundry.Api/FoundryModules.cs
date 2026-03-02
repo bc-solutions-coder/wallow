@@ -25,23 +25,33 @@ internal static class FoundryModules
         // Core infrastructure services used across all domain modules
         // ============================================================================
         if (modules.GetValue("Identity", defaultValue: true))
+        {
             services.AddIdentityModule(configuration);
+        }
 
         if (modules.GetValue("Billing", defaultValue: true))
+        {
             services.AddBillingModule(configuration);
+        }
 
         if (modules.GetValue("Communications", defaultValue: true))
+        {
             services.AddCommunicationsModule(configuration);
+        }
 
         if (modules.GetValue("Storage", defaultValue: true))
+        {
             services.AddStorageModule(configuration);
+        }
 
         // ============================================================================
         // FEATURE MODULES
         // Higher-level application features built on platform and domain modules
         // ============================================================================
         if (modules.GetValue("Configuration", defaultValue: true))
+        {
             services.AddConfigurationModule(configuration);
+        }
 
         // ============================================================================
         // PLUGIN SYSTEM
@@ -61,23 +71,33 @@ internal static class FoundryModules
         // Core infrastructure services - runs DB migrations
         // ============================================================================
         if (modules.GetValue("Identity", defaultValue: true))
+        {
             await app.InitializeIdentityModuleAsync();
+        }
 
         if (modules.GetValue("Billing", defaultValue: true))
+        {
             await app.InitializeBillingModuleAsync();
+        }
 
         if (modules.GetValue("Communications", defaultValue: true))
+        {
             await app.InitializeCommunicationsModuleAsync();
+        }
 
         if (modules.GetValue("Storage", defaultValue: true))
+        {
             await app.InitializeStorageModuleAsync();
+        }
 
         // ============================================================================
         // FEATURE MODULES
         // EF Core modules run migrations
         // ============================================================================
         if (modules.GetValue("Configuration", defaultValue: true))
+        {
             await app.InitializeConfigurationModuleAsync();
+        }
 
         // ============================================================================
         // PLUGIN SYSTEM

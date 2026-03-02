@@ -1,7 +1,6 @@
 using Foundry.Communications.Application.Channels.Sms.Commands.SendSms;
 using Foundry.Communications.Application.Channels.Sms.Interfaces;
 using Foundry.Communications.Domain.Channels.Sms.Entities;
-using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.MultiTenancy;
 using Foundry.Shared.Kernel.Results;
 
