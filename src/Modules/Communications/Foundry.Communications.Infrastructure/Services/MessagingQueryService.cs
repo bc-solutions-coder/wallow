@@ -165,24 +165,36 @@ public sealed class MessagingQueryService(
                 },
                 cancellationToken: cancellationToken));
 
+        List<ConversationRow> rowList = rows.ToList();
+        Guid[] conversationIds = rowList.Select(r => r.Id).ToArray();
+
+        const string participantsSql = """
+            SELECT conversation_id AS "ConversationId",
+                   user_id AS "UserId",
+                   joined_at AS "JoinedAt",
+                   last_read_at AS "LastReadAt",
+                   is_active AS "IsActive"
+            FROM communications.participants
+            WHERE conversation_id = ANY(@ConversationIds)
+            """;
+
+        IEnumerable<ParticipantRow> participantRows = await connection.QueryAsync<ParticipantRow>(
+            new CommandDefinition(
+                participantsSql,
+                new { ConversationIds = conversationIds },
+                cancellationToken: cancellationToken));
+
+        Dictionary<Guid, List<ParticipantDto>> participantsByConversation = participantRows
+            .GroupBy(p => p.ConversationId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Select(p => new ParticipantDto(p.UserId, p.JoinedAt, p.LastReadAt, p.IsActive)).ToList());
+
         List<ConversationDto> conversations = [];
 
-        foreach (ConversationRow row in rows)
+        foreach (ConversationRow row in rowList)
         {
-            const string participantsSql = """
-                SELECT user_id AS "UserId",
-                       joined_at AS "JoinedAt",
-                       last_read_at AS "LastReadAt",
-                       is_active AS "IsActive"
-                FROM communications.participants
-                WHERE conversation_id = @ConversationId
-                """;
-
-            IEnumerable<ParticipantDto> participants = await connection.QueryAsync<ParticipantDto>(
-                new CommandDefinition(
-                    participantsSql,
-                    new { ConversationId = row.Id },
-                    cancellationToken: cancellationToken));
+            List<ParticipantDto> participants = participantsByConversation.GetValueOrDefault(row.Id, []);
 
             MessageDto? lastMessage = row.LastMessageId != Guid.Empty
                 ? new MessageDto(
@@ -199,7 +211,7 @@ public sealed class MessagingQueryService(
             ConversationDto dto = new(
                 row.Id,
                 conversationType,
-                participants.ToList(),
+                participants,
                 lastMessage,
                 (int)row.UnreadCount,
                 row.LastActivityAt);
@@ -209,6 +221,13 @@ public sealed class MessagingQueryService(
 
         return conversations;
     }
+
+    private sealed record ParticipantRow(
+        Guid ConversationId,
+        Guid UserId,
+        DateTime JoinedAt,
+        DateTime? LastReadAt,
+        bool IsActive);
 
     private sealed record ConversationRow(
         Guid Id,

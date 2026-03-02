@@ -1,25 +1,33 @@
 using Foundry.Billing.Application.Metering.DTOs;
 using Foundry.Billing.Application.Metering.Services;
 using Foundry.Billing.Domain.Metering.Enums;
+using Foundry.Shared.Kernel.MultiTenancy;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
 
 namespace Foundry.Billing.Api.Middleware;
 
 /// <summary>
 /// Middleware that checks quotas before requests and increments counters after successful responses.
-/// Only tracks API routes (/api/*).
+/// Only tracks API routes (/api/*). Caches quota lookups per tenant to reduce DB hits.
 /// </summary>
-public sealed class MeteringMiddleware
+public sealed partial class MeteringMiddleware
 {
     private readonly RequestDelegate _next;
+    private readonly IMemoryCache _cache;
+    private readonly ILogger<MeteringMiddleware> _logger;
     private const string ApiCallsMeterCode = "api.calls";
+    private static readonly TimeSpan _cacheDuration = TimeSpan.FromSeconds(30);
 
-    public MeteringMiddleware(RequestDelegate next)
+    public MeteringMiddleware(RequestDelegate next, IMemoryCache cache, ILogger<MeteringMiddleware> logger)
     {
         _next = next;
+        _cache = cache;
+        _logger = logger;
     }
 
-    public async Task InvokeAsync(HttpContext context, IMeteringService meteringService)
+    public async Task InvokeAsync(HttpContext context, IMeteringService meteringService, ITenantContext tenantContext)
     {
         // Skip non-API routes
         if (!context.Request.Path.StartsWithSegments("/api"))
@@ -28,8 +36,13 @@ public sealed class MeteringMiddleware
             return;
         }
 
-        // Check quota before processing request
-        QuotaCheckResult quotaCheck = await meteringService.CheckQuotaAsync(ApiCallsMeterCode);
+        // Check quota with caching by tenant ID to avoid per-request DB lookups
+        string cacheKey = $"quota:{tenantContext.TenantId.Value}:{ApiCallsMeterCode}";
+        QuotaCheckResult quotaCheck = await _cache.GetOrCreateAsync(cacheKey, entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = _cacheDuration;
+            return meteringService.CheckQuotaAsync(ApiCallsMeterCode);
+        }) ?? QuotaCheckResult.Unlimited;
 
         if (!quotaCheck.IsAllowed && quotaCheck.ActionIfExceeded == QuotaAction.Block)
         {
@@ -65,10 +78,20 @@ public sealed class MeteringMiddleware
         // Process the request
         await _next(context);
 
-        // Only count successful requests (status < 400)
+        // Only count successful requests (status < 400) — fire-and-forget to avoid blocking the response
         if (context.Response.StatusCode < 400)
         {
-            await meteringService.IncrementAsync(ApiCallsMeterCode);
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await meteringService.IncrementAsync(ApiCallsMeterCode);
+                }
+                catch (Exception ex)
+                {
+                    LogIncrementFailed(_logger, ApiCallsMeterCode, ex);
+                }
+            });
         }
     }
 
@@ -85,4 +108,7 @@ public sealed class MeteringMiddleware
         DateTime nextMonth = new DateTime(now.Year, now.Month, 1).AddMonths(1);
         return new DateTimeOffset(nextMonth).ToUnixTimeSeconds();
     }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to increment metering counter for {MeterCode}")]
+    private static partial void LogIncrementFailed(ILogger logger, string meterCode, Exception ex);
 }

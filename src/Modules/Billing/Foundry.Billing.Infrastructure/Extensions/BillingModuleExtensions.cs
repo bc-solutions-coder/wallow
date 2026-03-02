@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace Foundry.Billing.Infrastructure.Extensions;
@@ -14,6 +15,7 @@ public static partial class BillingModuleExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        services.AddMemoryCache();
         services.AddBillingApplication();
         services.AddBillingInfrastructure(configuration);
         return services;
@@ -26,7 +28,11 @@ public static partial class BillingModuleExtensions
         {
             await using AsyncServiceScope scope = app.Services.CreateAsyncScope();
             BillingDbContext db = scope.ServiceProvider.GetRequiredService<BillingDbContext>();
-            await db.Database.MigrateAsync();
+            if (app.Environment.IsDevelopment())
+            {
+                await db.Database.MigrateAsync();
+            }
+
             await MeteringDbSeeder.SeedAsync(db);
         }
         catch (Exception ex)

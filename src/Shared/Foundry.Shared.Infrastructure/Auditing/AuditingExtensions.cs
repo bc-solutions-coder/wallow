@@ -2,10 +2,12 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace Foundry.Shared.Infrastructure.Auditing;
 
-public static class AuditingExtensions
+public static partial class AuditingExtensions
 {
     public static IServiceCollection AddFoundryAuditing(
         this IServiceCollection services, IConfiguration configuration)
@@ -26,8 +28,23 @@ public static class AuditingExtensions
 
     public static async Task InitializeAuditingAsync(this WebApplication app)
     {
-        await using AsyncServiceScope scope = app.Services.CreateAsyncScope();
-        AuditDbContext db = scope.ServiceProvider.GetRequiredService<AuditDbContext>();
-        await db.Database.MigrateAsync();
+        if (app.Environment.IsDevelopment())
+        {
+            try
+            {
+                await using AsyncServiceScope scope = app.Services.CreateAsyncScope();
+                AuditDbContext db = scope.ServiceProvider.GetRequiredService<AuditDbContext>();
+                await db.Database.MigrateAsync();
+            }
+            catch (Exception ex)
+            {
+                ILogger logger = app.Services.GetRequiredService<ILoggerFactory>()
+                    .CreateLogger("Auditing");
+                LogMigrationFailed(logger, ex);
+            }
+        }
     }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Audit database migration failed. Ensure PostgreSQL is running.")]
+    private static partial void LogMigrationFailed(ILogger logger, Exception ex);
 }

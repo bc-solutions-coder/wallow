@@ -174,24 +174,28 @@ public sealed partial class KeycloakAdminService : IKeycloakAdminService
                 return Array.Empty<UserDto>();
             }
 
-            List<UserDto> userDtos = new List<UserDto>();
-            foreach (UserRepresentation user in users)
+            List<UserRepresentation> validUsers = users
+                .Where(u => !string.IsNullOrWhiteSpace(u.Id))
+                .ToList();
+
+            Task<IReadOnlyList<string>>[] roleTasks = validUsers
+                .Select(u => GetUserRolesAsync(Guid.Parse(u.Id!), ct))
+                .ToArray();
+
+            IReadOnlyList<string>[] allRoles = await Task.WhenAll(roleTasks);
+
+            List<UserDto> userDtos = new List<UserDto>(validUsers.Count);
+            for (int i = 0; i < validUsers.Count; i++)
             {
-                if (string.IsNullOrWhiteSpace(user.Id))
-                {
-                    continue;
-                }
-
-                Guid userId = Guid.Parse(user.Id);
-                IReadOnlyList<string> roles = await GetUserRolesAsync(userId, ct);
-
+                UserRepresentation user = validUsers[i];
+                Guid userId = Guid.Parse(user.Id!);
                 userDtos.Add(new UserDto(
                     userId,
                     user.Email ?? string.Empty,
                     user.FirstName ?? string.Empty,
                     user.LastName ?? string.Empty,
                     user.Enabled ?? false,
-                    roles));
+                    allRoles[i]));
             }
 
             return userDtos;

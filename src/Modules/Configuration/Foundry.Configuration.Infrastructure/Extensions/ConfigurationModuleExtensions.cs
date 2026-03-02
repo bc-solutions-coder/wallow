@@ -10,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace Foundry.Configuration.Infrastructure.Extensions;
@@ -54,17 +55,20 @@ public static partial class ConfigurationModuleExtensions
 
     public static async Task<WebApplication> InitializeConfigurationModuleAsync(this WebApplication app)
     {
-        try
+        if (app.Environment.IsDevelopment())
         {
-            await using AsyncServiceScope scope = app.Services.CreateAsyncScope();
-            ConfigurationDbContext db = scope.ServiceProvider.GetRequiredService<ConfigurationDbContext>();
-            await db.Database.MigrateAsync();
-        }
-        catch (Exception ex)
-        {
-            ILogger logger = app.Services.GetRequiredService<ILoggerFactory>()
-                .CreateLogger("ConfigurationModule");
-            LogStartupFailed(logger, ex);
+            try
+            {
+                await using AsyncServiceScope scope = app.Services.CreateAsyncScope();
+                ConfigurationDbContext db = scope.ServiceProvider.GetRequiredService<ConfigurationDbContext>();
+                await db.Database.MigrateAsync();
+            }
+            catch (Exception ex)
+            {
+                ILogger logger = app.Services.GetRequiredService<ILoggerFactory>()
+                    .CreateLogger("ConfigurationModule");
+                LogStartupFailed(logger, ex);
+            }
         }
 
         return app;

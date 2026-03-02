@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace Foundry.Identity.Infrastructure.Extensions;
@@ -26,7 +27,10 @@ public static partial class IdentityModuleExtensions
         {
             await using AsyncServiceScope scope = app.Services.CreateAsyncScope();
             IdentityDbContext db = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
-            await db.Database.MigrateAsync();
+            if (app.Environment.IsDevelopment())
+            {
+                await db.Database.MigrateAsync();
+            }
         }
         catch (Exception ex)
         {

@@ -46,13 +46,13 @@ services:
   valkey:
     image: valkey/valkey:8-alpine
     container_name: ${COMPOSE_PROJECT_NAME:-foundry}-valkey
-    command: valkey-server --appendonly yes
+    command: valkey-server --appendonly yes --requirepass ${VALKEY_PASSWORD}
     ports:
       - "6379:6379"
     volumes:
       - valkey_data:/data
     healthcheck:
-      test: ["CMD", "valkey-cli", "ping"]
+      test: ["CMD", "valkey-cli", "-a", "${VALKEY_PASSWORD}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
