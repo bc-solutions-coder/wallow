@@ -98,4 +98,78 @@ public class GetUserNotificationsHandlerTests
         dto.Type.Should().Be(nameof(NotificationType.Mention));
         dto.IsRead.Should().BeFalse();
     }
+
+    [Fact]
+    public async Task Handle_ExcludesArchivedNotifications()
+    {
+        Guid userId = Guid.NewGuid();
+        TenantId tenantId = TenantId.Create(Guid.NewGuid());
+
+        Notification activeNotification = Notification.Create(tenantId, userId, NotificationType.SystemAlert, "Active", "Active message");
+        Notification archivedNotification = Notification.Create(tenantId, userId, NotificationType.SystemAlert, "Archived", "Archived message");
+        archivedNotification.Archive();
+
+        List<Notification> notifications = new() { activeNotification, archivedNotification };
+
+        _repository.GetByUserIdPagedAsync(userId, 1, 20, Arg.Any<CancellationToken>())
+            .Returns((notifications, 2));
+
+        GetUserNotificationsQuery query = new(userId);
+
+        Result<PagedResult<NotificationDto>> result = await _handler.Handle(query, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Should().HaveCount(1);
+        result.Value.Items[0].Title.Should().Be("Active");
+    }
+
+    [Fact]
+    public async Task Handle_ExcludesExpiredNotifications()
+    {
+        Guid userId = Guid.NewGuid();
+        TenantId tenantId = TenantId.Create(Guid.NewGuid());
+
+        Notification activeNotification = Notification.Create(tenantId, userId, NotificationType.SystemAlert, "Active", "Active message");
+        Notification expiredNotification = Notification.Create(
+            tenantId, userId, NotificationType.SystemAlert, "Expired", "Expired message",
+            expiresAt: DateTime.UtcNow.AddHours(-1));
+
+        List<Notification> notifications = new() { activeNotification, expiredNotification };
+
+        _repository.GetByUserIdPagedAsync(userId, 1, 20, Arg.Any<CancellationToken>())
+            .Returns((notifications, 2));
+
+        GetUserNotificationsQuery query = new(userId);
+
+        Result<PagedResult<NotificationDto>> result = await _handler.Handle(query, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Should().HaveCount(1);
+        result.Value.Items[0].Title.Should().Be("Active");
+    }
+
+    [Fact]
+    public async Task Handle_IncludesActiveNonArchivedNotifications()
+    {
+        Guid userId = Guid.NewGuid();
+        TenantId tenantId = TenantId.Create(Guid.NewGuid());
+
+        Notification notification1 = Notification.Create(tenantId, userId, NotificationType.SystemAlert, "Alert", "Alert message");
+        Notification notification2 = Notification.Create(
+            tenantId, userId, NotificationType.TaskAssigned, "Task", "Task message",
+            expiresAt: DateTime.UtcNow.AddHours(1));
+
+        List<Notification> notifications = new() { notification1, notification2 };
+
+        _repository.GetByUserIdPagedAsync(userId, 1, 20, Arg.Any<CancellationToken>())
+            .Returns((notifications, 2));
+
+        GetUserNotificationsQuery query = new(userId);
+
+        Result<PagedResult<NotificationDto>> result = await _handler.Handle(query, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Should().HaveCount(2);
+        result.Value.Items.Select(n => n.Title).Should().Contain("Alert").And.Contain("Task");
+    }
 }

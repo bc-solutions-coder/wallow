@@ -16,6 +16,12 @@ public sealed class Notification : AggregateRoot<NotificationId>, ITenantScoped
     public string Message { get; private set; } = null!;
     public bool IsRead { get; private set; }
     public DateTime? ReadAt { get; private set; }
+    public string? ActionUrl { get; private set; }
+    public string? SourceModule { get; private set; }
+    public DateTime? ExpiresAt { get; private set; }
+    public bool IsArchived { get; private set; }
+
+    public bool IsExpired => ExpiresAt.HasValue && ExpiresAt.Value < DateTime.UtcNow;
 
     private Notification() { }
 
@@ -24,7 +30,10 @@ public sealed class Notification : AggregateRoot<NotificationId>, ITenantScoped
         Guid userId,
         NotificationType type,
         string title,
-        string message)
+        string message,
+        string? actionUrl,
+        string? sourceModule,
+        DateTime? expiresAt)
         : base(NotificationId.New())
     {
         TenantId = tenantId;
@@ -33,6 +42,10 @@ public sealed class Notification : AggregateRoot<NotificationId>, ITenantScoped
         Title = title;
         Message = message;
         IsRead = false;
+        IsArchived = false;
+        ActionUrl = actionUrl;
+        SourceModule = sourceModule;
+        ExpiresAt = expiresAt;
         SetCreated();
 
         RaiseDomainEvent(new NotificationCreatedDomainEvent(
@@ -47,9 +60,12 @@ public sealed class Notification : AggregateRoot<NotificationId>, ITenantScoped
         Guid userId,
         NotificationType type,
         string title,
-        string message)
+        string message,
+        string? actionUrl = null,
+        string? sourceModule = null,
+        DateTime? expiresAt = null)
     {
-        return new Notification(tenantId, userId, type, title, message);
+        return new Notification(tenantId, userId, type, title, message, actionUrl, sourceModule, expiresAt);
     }
 
     public void MarkAsRead()
@@ -61,5 +77,11 @@ public sealed class Notification : AggregateRoot<NotificationId>, ITenantScoped
         RaiseDomainEvent(new NotificationReadDomainEvent(
             Id.Value,
             UserId));
+    }
+
+    public void Archive()
+    {
+        IsArchived = true;
+        SetUpdated();
     }
 }

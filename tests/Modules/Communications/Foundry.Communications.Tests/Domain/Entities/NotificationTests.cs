@@ -127,3 +127,95 @@ public class NotificationMarkAsReadTests
         notification.IsRead.Should().BeTrue();
     }
 }
+
+public class NotificationOptionalPropertiesTests
+{
+    [Fact]
+    public void Create_WithOptionalProperties_SetsAllPropertiesCorrectly()
+    {
+        TenantId tenantId = TenantId.New();
+        Guid userId = Guid.NewGuid();
+        DateTime expiresAt = DateTime.UtcNow.AddDays(7);
+
+        Notification notification = Notification.Create(
+            tenantId, userId, NotificationType.SystemAlert, "Title", "Message",
+            actionUrl: "https://example.com/action",
+            sourceModule: "Billing",
+            expiresAt: expiresAt);
+
+        notification.ActionUrl.Should().Be("https://example.com/action");
+        notification.SourceModule.Should().Be("Billing");
+        notification.ExpiresAt.Should().Be(expiresAt);
+        notification.IsArchived.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Create_WithoutOptionalProperties_DefaultsToNull()
+    {
+        Notification notification = Notification.Create(
+            TenantId.New(), Guid.NewGuid(), NotificationType.TaskAssigned, "Title", "Message");
+
+        notification.ActionUrl.Should().BeNull();
+        notification.SourceModule.Should().BeNull();
+        notification.ExpiresAt.Should().BeNull();
+        notification.IsArchived.Should().BeFalse();
+    }
+}
+
+public class NotificationArchiveTests
+{
+    [Fact]
+    public void Archive_SetsIsArchivedToTrue()
+    {
+        Notification notification = Notification.Create(
+            TenantId.New(), Guid.NewGuid(), NotificationType.SystemAlert, "Title", "Message");
+
+        notification.Archive();
+
+        notification.IsArchived.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Archive_CalledTwice_RemainsArchived()
+    {
+        Notification notification = Notification.Create(
+            TenantId.New(), Guid.NewGuid(), NotificationType.SystemAlert, "Title", "Message");
+
+        notification.Archive();
+        notification.Archive();
+
+        notification.IsArchived.Should().BeTrue();
+    }
+}
+
+public class NotificationIsExpiredTests
+{
+    [Fact]
+    public void IsExpired_WhenExpiresAtIsInThePast_ReturnsTrue()
+    {
+        Notification notification = Notification.Create(
+            TenantId.New(), Guid.NewGuid(), NotificationType.SystemAlert, "Title", "Message",
+            expiresAt: DateTime.UtcNow.AddMinutes(-1));
+
+        notification.IsExpired.Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsExpired_WhenExpiresAtIsInTheFuture_ReturnsFalse()
+    {
+        Notification notification = Notification.Create(
+            TenantId.New(), Guid.NewGuid(), NotificationType.SystemAlert, "Title", "Message",
+            expiresAt: DateTime.UtcNow.AddDays(1));
+
+        notification.IsExpired.Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsExpired_WhenExpiresAtIsNull_ReturnsFalse()
+    {
+        Notification notification = Notification.Create(
+            TenantId.New(), Guid.NewGuid(), NotificationType.SystemAlert, "Title", "Message");
+
+        notification.IsExpired.Should().BeFalse();
+    }
+}

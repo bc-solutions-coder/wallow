@@ -65,6 +65,24 @@ public sealed class NotificationConfiguration : IEntityTypeConfiguration<Notific
         builder.Property(n => n.UpdatedBy)
             .HasColumnName("updated_by");
 
+        builder.Property(n => n.ActionUrl)
+            .HasColumnName("action_url")
+            .HasMaxLength(2048);
+
+        builder.Property(n => n.SourceModule)
+            .HasColumnName("source_module")
+            .HasMaxLength(100);
+
+        builder.Property(n => n.ExpiresAt)
+            .HasColumnName("expires_at");
+
+        builder.Property(n => n.IsArchived)
+            .HasColumnName("is_archived")
+            .HasDefaultValue(false)
+            .IsRequired();
+
+        builder.Ignore(n => n.IsExpired);
+
         builder.HasIndex(n => n.UserId);
         builder.HasIndex(n => n.CreatedAt);
 

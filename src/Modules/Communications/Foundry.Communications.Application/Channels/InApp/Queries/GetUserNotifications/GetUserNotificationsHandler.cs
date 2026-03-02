@@ -18,11 +18,17 @@ public sealed class GetUserNotificationsHandler(INotificationRepository notifica
             query.PageSize,
             cancellationToken);
 
-        List<NotificationDto> dtos = notifications.Select(n => n.ToDto()).ToList();
+        DateTime utcNow = DateTime.UtcNow;
+        List<NotificationDto> dtos = notifications
+            .Where(n => !n.IsArchived && (n.ExpiresAt == null || n.ExpiresAt > utcNow))
+            .Select(n => n.ToDto())
+            .ToList();
+
+        int filteredTotalCount = totalCount - (notifications.Count - dtos.Count);
 
         PagedResult<NotificationDto> pagedResult = new(
             dtos,
-            totalCount,
+            filteredTotalCount,
             query.PageNumber,
             query.PageSize);
 
