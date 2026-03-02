@@ -88,17 +88,11 @@ public class InvoiceCreatedDomainEventHandler
 
 ### Consuming Events (in another module)
 ```csharp
-public class InvoiceCreatedActivityHandler
+public class InvoiceCreatedNotificationHandler
 {
-    public async Task HandleAsync(InvoiceCreatedEvent evt, ActivityService service)
+    public async Task HandleAsync(InvoiceCreatedEvent evt, NotificationService service)
     {
-        await service.RecordAsync(new ActivityEntry
-        {
-            Type = ActivityType.Created,
-            EntityType = "Invoice",
-            EntityId = evt.InvoiceId,
-            Description = $"Invoice created for {evt.Total}"
-        });
+        await service.NotifyAsync(evt.UserId, $"Invoice created for {evt.Total}");
     }
 }
 ```
@@ -120,10 +114,10 @@ public class InvoiceCreatedActivityHandler
                                                  │
                                                  │ Subscribe
                                                  ▼
-┌─────────────┐      Integration Event  ┌──────────────────┐
-│  Activity   │ <────────────────────── │ Consumer         │
-│   Module    │                         │ (Activity)       │
-└─────────────┘                         └──────────────────┘
+┌──────────────────┐  Integration Event  ┌──────────────────┐
+│  Communications  │ <────────────────── │ Consumer         │
+│     Module       │                     │ (Communications) │
+└──────────────────┘                     └──────────────────┘
 ```
 
 ## NuGet Potential

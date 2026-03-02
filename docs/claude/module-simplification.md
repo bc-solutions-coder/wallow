@@ -2,15 +2,15 @@
 
 **Date:** 2026-02-27
 **Status:** Draft
-**Scope:** Reduce Foundry from 24 modules to 5 core modules, move 3 capabilities to shared infrastructure, delete 14 domain modules.
+**Scope:** Reduce Foundry from 24 modules to 5 core modules, move 3 capabilities to shared infrastructure.
 
 ## Problem
 
-Foundry has 24 modules. Most are thin, speculative, or unused. The complexity they create outweighs their value. The platform needs a solid, well-tested foundation before domain modules are built on top of it.
+Foundry had 24 modules. Most were thin, speculative, or unused. The complexity they created outweighed their value. The platform needed a solid, well-tested foundation before domain modules are built on top of it.
 
 ## Decision
 
-Cut to 5 core modules. Move scheduling, auditing, and workflow orchestration to shared infrastructure. Delete all domain building blocks (Catalog, Sales, Inventory, etc.) — they exist on a separate branch and will return once the foundation is ready.
+Cut to 5 core modules. Move scheduling, auditing, and workflow orchestration to shared infrastructure. Domain building blocks (Catalog, Sales, Inventory, etc.) exist on a separate branch and will return once the foundation is ready.
 
 ## Module Inventory (Post-Refactor)
 
@@ -31,12 +31,6 @@ Cut to 5 core modules. Move scheduling, auditing, and workflow orchestration to 
 | **Auditing** | AuditLog | `Shared.Infrastructure/Auditing/` via Audit.NET |
 | **Background Jobs** | Scheduler | `Shared.Infrastructure/BackgroundJobs/` via Hangfire |
 | **Workflows** | Workflows | `Shared.Infrastructure/Workflows/` via Elsa 3 |
-
-### Deleted (14 Modules)
-
-Activity, Assets, Catalog, Comments, Compliance, Inventory, KnowledgeBase, Onboarding, Reporting, Sales, Scheduling, StatusPage, Support, Workflows (as module).
-
-These modules exist on a separate branch and will be rebuilt once the core foundation is tested and stable.
 
 ---
 

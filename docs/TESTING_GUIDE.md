@@ -995,7 +995,7 @@ public class DatabaseTests
 
 ## 9. Event Sourcing and Saga Tests (Removed)
 
-The event-sourced modules (Inventory, Sales, Scheduling) and Wolverine Sagas were removed during the module simplification from ~24 modules to 5. The `MartenFixture` in `Foundry.Tests.Common` remains available if event sourcing is reintroduced in the future.
+The event-sourced modules and Wolverine Sagas were removed during the module simplification from ~24 modules to 5. The `MartenFixture` in `Foundry.Tests.Common` remains available if event sourcing is reintroduced in the future.
 
 ## 10. Bogus Test Data Generation
 

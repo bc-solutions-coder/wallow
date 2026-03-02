@@ -80,8 +80,7 @@ src/Modules/{ModuleName}/
 │   ├── Persistence/           # DbContext, repositories
 │   │   ├── Configurations/    # Entity configurations
 │   │   └── Repositories/      # Repository implementations
-│   ├── Migrations/            # EF Core migrations
-│   └── Compliance/            # (optional) GDPR handlers
+│   └── Migrations/            # EF Core migrations
 │
 └── Foundry.{ModuleName}.Api/
     ├── Controllers/           # API endpoints

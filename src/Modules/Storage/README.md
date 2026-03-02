@@ -11,7 +11,6 @@ The Storage module provides a unified file storage abstraction supporting multip
 - Presigned URL generation for direct client uploads/downloads
 - File metadata management and lifecycle policies
 
-> **Note:** This module handles raw file storage only. For domain-level file concepts like image processing, thumbnails, and file variants, see the [Assets Module](../Assets/README.md).
 
 ## Key Features
 
@@ -481,7 +480,6 @@ Returns: Count of deleted file records.
 
 ### Consumed By
 
-- **Assets Module**: Uses Storage for raw file operations, delegates storage to this module
 - **Other Domain Modules**: May consume Storage for file management needs
 
 ### Does Not Consume
@@ -533,5 +531,4 @@ dotnet test tests/Modules/Storage/Modules.Storage.Tests
 ## Related Documentation
 
 - [Storage Module Design](../../../docs/plans/2026-02-05-storage-module-design.md) - Architecture decisions and design rationale
-- [Assets Module](../Assets/README.md) - Domain-level file management built on Storage
 - [Developer Guide](../../../docs/DEVELOPER_GUIDE.md) - General development practices

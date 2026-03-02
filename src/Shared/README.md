@@ -103,8 +103,6 @@ The Contracts library defines cross-module communication contracts and abstracti
 - Modules reference only the abstraction, never the implementation
 
 **Cross-Module DTOs**: Lightweight references for integration
-- `AssetReference`: Reference to an asset in another module
-- `OrderLineItem`: Line item in an order (used across modules)
 - Examples of data structures shared between bounded contexts
 - Keep these minimal and stable
 
@@ -120,25 +118,9 @@ The Contracts library defines cross-module communication contracts and abstracti
 - `InvoicePaidEvent` – Payment received
 - `InvoiceOverdueEvent` – Payment deadline missed
 
-**Sales**
-- `OrderPlacedEvent` – Customer order submitted
-- `PaymentCompletedEvent` – Payment processed successfully
-- `OrderCancelledEvent` – Order cancelled by customer or system
-
-**Email**
+**Communications**
 - `EmailSentEvent` – Email message delivered
-
-**Notifications**
 - `NotificationCreatedEvent` – Notification generated
-
-**Assets**
-- `AssetReadyEvent` – Asset processing complete and available
-- `AssetDeletedEvent` – Asset removed from system
-
-**Catalog**
-- `ItemCreatedEvent` – New catalog item added
-- `ItemUpdatedEvent` – Catalog item modified
-- `ItemArchivedEvent` – Catalog item marked inactive
 
 ### Dependencies
 

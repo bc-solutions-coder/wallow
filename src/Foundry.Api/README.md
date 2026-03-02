@@ -69,7 +69,7 @@ Configures all services and middleware. Key responsibilities:
 ### SignalRRealtimeDispatcher
 - Implementation of `IRealtimeDispatcher` contract
 - Broadcasts real-time events (e.g., order updates, notifications) to connected SignalR clients
-- Integrates with the event sourcing systems in Inventory, Sales, and Scheduling modules
+- Integrates with the event sourcing systems across modules
 
 ### RedisPresenceService
 - Tracks user presence (online/offline) using Redis
@@ -158,12 +158,11 @@ Configures all services and middleware. Key responsibilities:
 Events published by each module flow through topic exchanges:
 - `identity-events` → Published by Identity module (UserRegisteredEvent, etc.)
 - `billing-events` → Published by Billing module (InvoiceCreatedEvent, PaymentReceivedEvent, etc.)
-- `catalog-events` → Published by Catalog module (ItemCreatedEvent, ItemUpdatedEvent, etc.)
+- `communications-events` → Published by Communications module (EmailSentEvent, NotificationCreatedEvent, etc.)
 
 Consumer queues that the API listens to:
-- `notifications-inbox` → For Notifications module consumers
+- `communications-inbox` → For Communications module consumers
 - `billing-inbox` → For Billing module consumers
-- `catalog-inbox` → For Catalog module consumers
 - `test-inbox` → For integration test event handlers (Testing environment only)
 
 ### Redis for Real-time
@@ -174,7 +173,7 @@ Consumer queues that the API listens to:
 ### Module Event Consumers
 Each module publishes and consumes domain events:
 - **Explicit registration** in Program.cs ensures handlers are discovered even in modular architectures
-- **Handler discovery** includes module Application assemblies (e.g., `Foundry.Assets.Application`)
+- **Handler discovery** includes module Application assemblies (e.g., `Foundry.Billing.Application`)
 - **Validation** via FluentValidation runs automatically on all commands before handlers
 - **Transaction support** integrates Wolverine messages with EF Core transactions
 
