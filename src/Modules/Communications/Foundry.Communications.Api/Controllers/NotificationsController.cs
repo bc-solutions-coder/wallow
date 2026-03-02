@@ -8,6 +8,7 @@ using Foundry.Communications.Application.Channels.InApp.Queries.GetUnreadCount;
 using Foundry.Communications.Application.Channels.InApp.Queries.GetUserNotifications;
 using Foundry.Shared.Kernel.Pagination;
 using Foundry.Shared.Kernel.Results;
+using Foundry.Shared.Kernel.Identity.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -35,6 +36,7 @@ public class NotificationsController : ControllerBase
     /// Get the current user's notification history.
     /// </summary>
     [HttpGet]
+    [HasPermission(PermissionType.NotificationRead)]
     [ProducesResponseType(typeof(PagedNotificationResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> GetNotifications(
@@ -66,6 +68,7 @@ public class NotificationsController : ControllerBase
     /// Get the current user's unread notification count.
     /// </summary>
     [HttpGet("unread-count")]
+    [HasPermission(PermissionType.NotificationRead)]
     [ProducesResponseType(typeof(UnreadCountResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> GetUnreadCount(CancellationToken cancellationToken)
@@ -86,6 +89,7 @@ public class NotificationsController : ControllerBase
     /// Mark a single notification as read.
     /// </summary>
     [HttpPost("{id:guid}/read")]
+    [HasPermission(PermissionType.NotificationRead)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -112,6 +116,7 @@ public class NotificationsController : ControllerBase
     /// Mark all notifications as read for the current user.
     /// </summary>
     [HttpPost("read-all")]
+    [HasPermission(PermissionType.NotificationRead)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> MarkAllAsRead(CancellationToken cancellationToken)

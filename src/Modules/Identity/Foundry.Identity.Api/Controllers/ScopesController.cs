@@ -2,6 +2,7 @@ using Asp.Versioning;
 using Foundry.Identity.Application.DTOs;
 using Foundry.Identity.Application.Interfaces;
 using Foundry.Identity.Domain.Entities;
+using Foundry.Shared.Kernel.Identity.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -30,6 +31,7 @@ public class ScopesController : ControllerBase
     /// List available API scopes with optional category filter.
     /// </summary>
     [HttpGet]
+    [HasPermission(PermissionType.ScopeRead)]
     [ProducesResponseType(typeof(IReadOnlyList<ApiScopeDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<ApiScopeDto>>> List(
         [FromQuery] string? category = null,

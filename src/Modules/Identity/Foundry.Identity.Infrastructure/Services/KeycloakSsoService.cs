@@ -216,7 +216,7 @@ public sealed partial class KeycloakSsoService : ISsoService
         SsoConfiguration? config = await _repository.GetAsync(ct);
         if (config == null)
         {
-            return new SsoTestResult(false, "SSO configuration not found", null);
+            return new SsoTestResult(false, "SSO configuration not found");
         }
 
         try
@@ -234,7 +234,7 @@ public sealed partial class KeycloakSsoService : ISsoService
         {
             IdentityModuleTelemetry.SsoFailuresTotal.Add(1, new KeyValuePair<string, object?>("provider", config.Protocol.ToString()));
             LogSsoConnectionTestFailed(ex, _tenantContext.TenantId.Value);
-            return new SsoTestResult(false, ex.Message, ex.ToString());
+            return new SsoTestResult(false, ex.Message);
         }
     }
 

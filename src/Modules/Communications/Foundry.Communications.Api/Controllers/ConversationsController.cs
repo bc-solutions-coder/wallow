@@ -9,7 +9,9 @@ using Foundry.Communications.Application.Messaging.DTOs;
 using Foundry.Communications.Application.Messaging.Queries.GetConversations;
 using Foundry.Communications.Application.Messaging.Queries.GetMessages;
 using Foundry.Communications.Application.Messaging.Queries.GetUnreadConversationCount;
+using Foundry.Shared.Infrastructure.Services;
 using Foundry.Shared.Kernel.Results;
+using Foundry.Shared.Kernel.Identity.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -27,13 +29,16 @@ namespace Foundry.Communications.Api.Controllers;
 public class ConversationsController : ControllerBase
 {
     private readonly IMessageBus _bus;
+    private readonly IHtmlSanitizationService _sanitizer;
 
-    public ConversationsController(IMessageBus bus)
+    public ConversationsController(IMessageBus bus, IHtmlSanitizationService sanitizer)
     {
         _bus = bus;
+        _sanitizer = sanitizer;
     }
 
     [HttpPost]
+    [HasPermission(PermissionType.MessagingAccess)]
     [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -63,6 +68,7 @@ public class ConversationsController : ControllerBase
     }
 
     [HttpGet]
+    [HasPermission(PermissionType.MessagingAccess)]
     [ProducesResponseType(typeof(IReadOnlyList<ConversationResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> GetConversations(
@@ -85,6 +91,7 @@ public class ConversationsController : ControllerBase
     }
 
     [HttpGet("{id:guid}/messages")]
+    [HasPermission(PermissionType.MessagingAccess)]
     [ProducesResponseType(typeof(MessagePageResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> GetMessages(
@@ -112,6 +119,7 @@ public class ConversationsController : ControllerBase
     }
 
     [HttpPost("{id:guid}/messages")]
+    [HasPermission(PermissionType.MessagingAccess)]
     [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -127,13 +135,16 @@ public class ConversationsController : ControllerBase
             return Unauthorized();
         }
 
+        string sanitizedBody = _sanitizer.Sanitize(request.Body);
+
         Result<Guid> result = await _bus.InvokeAsync<Result<Guid>>(
-            new SendMessageCommand(id, userId.Value, request.Body), cancellationToken);
+            new SendMessageCommand(id, userId.Value, sanitizedBody), cancellationToken);
 
         return result.ToCreatedResult($"/api/v1/conversations/{id}/messages");
     }
 
     [HttpPost("{id:guid}/read")]
+    [HasPermission(PermissionType.MessagingAccess)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -152,6 +163,7 @@ public class ConversationsController : ControllerBase
     }
 
     [HttpGet("unread-count")]
+    [HasPermission(PermissionType.MessagingAccess)]
     [ProducesResponseType(typeof(UnreadCountResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> GetUnreadCount(CancellationToken cancellationToken)

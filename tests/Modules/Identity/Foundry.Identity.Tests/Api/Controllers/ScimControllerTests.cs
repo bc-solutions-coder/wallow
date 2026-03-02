@@ -2,6 +2,8 @@ using Foundry.Identity.Api.Controllers;
 using Foundry.Identity.Application.DTOs;
 using Foundry.Identity.Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using NSubstitute.ExceptionExtensions;
 
 namespace Foundry.Identity.Tests.Api.Controllers;
@@ -14,7 +16,10 @@ public class ScimControllerTests
     public ScimControllerTests()
     {
         _scimService = Substitute.For<IScimService>();
-        _controller = new ScimController(_scimService);
+        ILogger<ScimController> logger = Substitute.For<ILogger<ScimController>>();
+        IHostEnvironment environment = Substitute.For<IHostEnvironment>();
+        environment.EnvironmentName.Returns("Development");
+        _controller = new ScimController(_scimService, logger, environment);
     }
 
     #region ListUsers

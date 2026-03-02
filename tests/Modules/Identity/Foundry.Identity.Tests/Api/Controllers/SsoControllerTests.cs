@@ -150,7 +150,7 @@ public class SsoControllerTests
     [Fact]
     public async Task TestConnection_ReturnsOkWithResult()
     {
-        SsoTestResult testResult = new(true, null, "Connection ok");
+        SsoTestResult testResult = new(true, null);
         _ssoService.TestConnectionAsync(Arg.Any<CancellationToken>())
             .Returns(testResult);
 

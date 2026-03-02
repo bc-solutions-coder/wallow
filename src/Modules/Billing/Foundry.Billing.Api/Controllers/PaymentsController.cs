@@ -6,6 +6,7 @@ using Foundry.Billing.Application.DTOs;
 using Foundry.Billing.Application.Queries.GetPaymentById;
 using Foundry.Billing.Application.Queries.GetPaymentsByInvoiceId;
 using Foundry.Shared.Kernel.Results;
+using Foundry.Shared.Kernel.Identity.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -33,7 +34,7 @@ public class PaymentsController : ControllerBase
     /// Get a specific payment by ID.
     /// </summary>
     [HttpGet("{id:guid}")]
-    [Authorize("PaymentsRead")]
+    [HasPermission(PermissionType.PaymentsRead)]
     [ProducesResponseType(typeof(PaymentResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
@@ -48,7 +49,7 @@ public class PaymentsController : ControllerBase
     /// Get all payments for a specific invoice.
     /// </summary>
     [HttpGet("invoice/{invoiceId:guid}")]
-    [Authorize("PaymentsRead")]
+    [HasPermission(PermissionType.PaymentsRead)]
     [ProducesResponseType(typeof(IReadOnlyList<PaymentResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetByInvoiceId(Guid invoiceId, CancellationToken cancellationToken)
     {
@@ -64,7 +65,7 @@ public class PaymentsController : ControllerBase
     /// Process a payment for an invoice.
     /// </summary>
     [HttpPost("invoice/{invoiceId:guid}")]
-    [Authorize("PaymentsWrite")]
+    [HasPermission(PermissionType.PaymentsWrite)]
     [ProducesResponseType(typeof(PaymentResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]

@@ -57,6 +57,9 @@ public sealed class MessagingQueryService(
                      m.status AS "Status"
               FROM communications.messages m
               INNER JOIN communications.conversations c ON c.id = m.conversation_id
+              INNER JOIN communications.participants p
+                  ON p.conversation_id = m.conversation_id
+                  AND p.user_id = @UserId
               WHERE m.conversation_id = @ConversationId
                 AND c.tenant_id = @TenantId
                 AND m.sent_at < (SELECT sent_at FROM communications.messages WHERE id = @CursorMessageId)
@@ -72,6 +75,9 @@ public sealed class MessagingQueryService(
                      m.status AS "Status"
               FROM communications.messages m
               INNER JOIN communications.conversations c ON c.id = m.conversation_id
+              INNER JOIN communications.participants p
+                  ON p.conversation_id = m.conversation_id
+                  AND p.user_id = @UserId
               WHERE m.conversation_id = @ConversationId
                 AND c.tenant_id = @TenantId
               ORDER BY m.sent_at DESC
@@ -83,6 +89,7 @@ public sealed class MessagingQueryService(
             new
             {
                 ConversationId = conversationId,
+                UserId = userId,
                 TenantId = tenantContext.TenantId.Value,
                 CursorMessageId = cursorMessageId,
                 PageSize = pageSize

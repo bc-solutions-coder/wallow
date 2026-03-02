@@ -75,8 +75,7 @@ public record SaveOidcConfigRequest(
 /// </summary>
 public record SsoTestResult(
     bool Success,
-    string? ErrorMessage,
-    string? DebugInfo);
+    string? ErrorMessage);
 
 /// <summary>
 /// OIDC callback information for IdP configuration.

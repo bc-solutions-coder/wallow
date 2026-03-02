@@ -5,6 +5,8 @@ using Foundry.Identity.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace Foundry.Identity.Api.Controllers;
 
@@ -19,15 +21,22 @@ namespace Foundry.Identity.Api.Controllers;
 [Tags("SCIM")]
 [Produces("application/scim+json", "application/json")]
 [Consumes("application/scim+json", "application/json")]
-public class ScimController : ControllerBase
+public partial class ScimController : ControllerBase
 {
     private static readonly string[] _resourceTypeSchema = ["urn:ietf:params:scim:schemas:core:2.0:ResourceType"];
 
     private readonly IScimService _scimService;
+    private readonly ILogger<ScimController> _logger;
+    private readonly IHostEnvironment _environment;
 
-    public ScimController(IScimService scimService)
+    public ScimController(
+        IScimService scimService,
+        ILogger<ScimController> logger,
+        IHostEnvironment environment)
     {
         _scimService = scimService;
+        _logger = logger;
+        _environment = environment;
     }
 
     #region Users
@@ -89,11 +98,12 @@ public class ScimController : ControllerBase
         }
         catch (Exception ex)
         {
+            LogScimOperationError(ex, "CreateUser");
             return BadRequest(new ScimError
             {
                 Status = 400,
                 ScimType = "invalidValue",
-                Detail = ex.Message
+                Detail = _environment.IsDevelopment() ? ex.Message : "An unexpected error occurred"
             });
         }
     }
@@ -116,10 +126,11 @@ public class ScimController : ControllerBase
         }
         catch (Exception ex)
         {
+            LogScimOperationError(ex, "UpdateUser");
             return BadRequest(new ScimError
             {
                 Status = 400,
-                Detail = ex.Message
+                Detail = _environment.IsDevelopment() ? ex.Message : "An unexpected error occurred"
             });
         }
     }
@@ -142,10 +153,11 @@ public class ScimController : ControllerBase
         }
         catch (Exception ex)
         {
+            LogScimOperationError(ex, "PatchUser");
             return BadRequest(new ScimError
             {
                 Status = 400,
-                Detail = ex.Message
+                Detail = _environment.IsDevelopment() ? ex.Message : "An unexpected error occurred"
             });
         }
     }
@@ -165,10 +177,11 @@ public class ScimController : ControllerBase
         }
         catch (Exception ex)
         {
+            LogScimOperationError(ex, "DeleteUser");
             return BadRequest(new ScimError
             {
                 Status = 400,
-                Detail = ex.Message
+                Detail = _environment.IsDevelopment() ? ex.Message : "An unexpected error occurred"
             });
         }
     }
@@ -226,10 +239,11 @@ public class ScimController : ControllerBase
         }
         catch (Exception ex)
         {
+            LogScimOperationError(ex, "CreateGroup");
             return BadRequest(new ScimError
             {
                 Status = 400,
-                Detail = ex.Message
+                Detail = _environment.IsDevelopment() ? ex.Message : "An unexpected error occurred"
             });
         }
     }
@@ -252,10 +266,11 @@ public class ScimController : ControllerBase
         }
         catch (Exception ex)
         {
+            LogScimOperationError(ex, "UpdateGroup");
             return BadRequest(new ScimError
             {
                 Status = 400,
-                Detail = ex.Message
+                Detail = _environment.IsDevelopment() ? ex.Message : "An unexpected error occurred"
             });
         }
     }
@@ -275,10 +290,11 @@ public class ScimController : ControllerBase
         }
         catch (Exception ex)
         {
+            LogScimOperationError(ex, "DeleteGroup");
             return BadRequest(new ScimError
             {
                 Status = 400,
-                Detail = ex.Message
+                Detail = _environment.IsDevelopment() ? ex.Message : "An unexpected error occurred"
             });
         }
     }
@@ -393,6 +409,12 @@ public class ScimController : ControllerBase
     }
 
     #endregion
+}
+
+public partial class ScimController
+{
+    [LoggerMessage(Level = LogLevel.Error, Message = "SCIM operation {Operation} failed")]
+    private partial void LogScimOperationError(Exception ex, string operation);
 }
 
 #region SCIM Discovery DTOs

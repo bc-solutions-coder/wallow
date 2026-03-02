@@ -10,6 +10,7 @@ using Foundry.Billing.Application.Queries.GetAllInvoices;
 using Foundry.Billing.Application.Queries.GetInvoiceById;
 using Foundry.Billing.Application.Queries.GetInvoicesByUserId;
 using Foundry.Shared.Kernel.Results;
+using Foundry.Shared.Kernel.Identity.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -37,7 +38,7 @@ public class InvoicesController : ControllerBase
     /// Get all invoices.
     /// </summary>
     [HttpGet]
-    [Authorize("InvoicesRead")]
+    [HasPermission(PermissionType.InvoicesRead)]
     [ProducesResponseType(typeof(IReadOnlyList<InvoiceResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
     {
@@ -53,7 +54,7 @@ public class InvoicesController : ControllerBase
     /// Get a specific invoice by ID.
     /// </summary>
     [HttpGet("{id:guid}")]
-    [Authorize("InvoicesRead")]
+    [HasPermission(PermissionType.InvoicesRead)]
     [ProducesResponseType(typeof(InvoiceResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
@@ -68,7 +69,7 @@ public class InvoicesController : ControllerBase
     /// Get all invoices for a specific user.
     /// </summary>
     [HttpGet("user/{userId:guid}")]
-    [Authorize("InvoicesRead")]
+    [HasPermission(PermissionType.InvoicesRead)]
     [ProducesResponseType(typeof(IReadOnlyList<InvoiceResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetByUserId(Guid userId, CancellationToken cancellationToken)
     {
@@ -84,7 +85,7 @@ public class InvoicesController : ControllerBase
     /// Create a new invoice.
     /// </summary>
     [HttpPost]
-    [Authorize("InvoicesWrite")]
+    [HasPermission(PermissionType.InvoicesWrite)]
     [ProducesResponseType(typeof(InvoiceResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Create(
@@ -109,7 +110,7 @@ public class InvoicesController : ControllerBase
     /// Add a line item to an invoice.
     /// </summary>
     [HttpPost("{id:guid}/line-items")]
-    [Authorize("InvoicesWrite")]
+    [HasPermission(PermissionType.InvoicesWrite)]
     [ProducesResponseType(typeof(InvoiceResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
@@ -136,7 +137,7 @@ public class InvoicesController : ControllerBase
     /// Issue an invoice to make it active.
     /// </summary>
     [HttpPost("{id:guid}/issue")]
-    [Authorize("InvoicesWrite")]
+    [HasPermission(PermissionType.InvoicesWrite)]
     [ProducesResponseType(typeof(InvoiceResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
@@ -155,7 +156,7 @@ public class InvoicesController : ControllerBase
     /// Cancel an invoice.
     /// </summary>
     [HttpDelete("{id:guid}")]
-    [Authorize("InvoicesWrite")]
+    [HasPermission(PermissionType.InvoicesWrite)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
