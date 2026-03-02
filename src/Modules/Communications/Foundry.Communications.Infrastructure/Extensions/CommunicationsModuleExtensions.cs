@@ -1,6 +1,7 @@
 using Foundry.Communications.Application.Announcements.Interfaces;
 using Foundry.Communications.Application.Channels.Email.Interfaces;
 using Foundry.Communications.Application.Channels.InApp.Interfaces;
+using Foundry.Communications.Application.Channels.Sms.Interfaces;
 using Foundry.Communications.Application.Extensions;
 using Foundry.Communications.Infrastructure.Persistence;
 using Foundry.Communications.Infrastructure.Persistence.Repositories;
@@ -49,6 +50,9 @@ public static partial class CommunicationsModuleExtensions
         // InApp notification repositories
         services.AddScoped<INotificationRepository, NotificationRepository>();
 
+        // SMS repositories
+        services.AddScoped<ISmsMessageRepository, SmsMessageRepository>();
+
         // Announcement repositories
         services.AddScoped<IAnnouncementRepository, AnnouncementRepository>();
         services.AddScoped<IChangelogRepository, ChangelogRepository>();
@@ -68,6 +72,20 @@ public static partial class CommunicationsModuleExtensions
 
         // InApp notification services
         services.AddScoped<INotificationService, SignalRNotificationService>();
+
+        // SMS services
+        services.Configure<TwilioSettings>(configuration.GetSection("TwilioSettings"));
+
+        string? twilioAccountSid = configuration["TwilioSettings:AccountSid"];
+        if (!string.IsNullOrEmpty(twilioAccountSid))
+        {
+            services.AddHttpClient<TwilioSmsProvider>();
+            services.AddScoped<ISmsProvider, TwilioSmsProvider>();
+        }
+        else
+        {
+            services.AddScoped<ISmsProvider, NullSmsProvider>();
+        }
 
         return services;
     }
