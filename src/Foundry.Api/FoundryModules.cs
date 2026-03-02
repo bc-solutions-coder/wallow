@@ -18,20 +18,30 @@ internal static class FoundryModules
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        IConfigurationSection modules = configuration.GetSection("Foundry:Modules");
+
         // ============================================================================
         // PLATFORM MODULES
         // Core infrastructure services used across all domain modules
         // ============================================================================
-        services.AddIdentityModule(configuration);
-        services.AddBillingModule(configuration);
-        services.AddCommunicationsModule(configuration);
-        services.AddStorageModule(configuration);
+        if (modules.GetValue("Identity", defaultValue: true))
+            services.AddIdentityModule(configuration);
+
+        if (modules.GetValue("Billing", defaultValue: true))
+            services.AddBillingModule(configuration);
+
+        if (modules.GetValue("Communications", defaultValue: true))
+            services.AddCommunicationsModule(configuration);
+
+        if (modules.GetValue("Storage", defaultValue: true))
+            services.AddStorageModule(configuration);
 
         // ============================================================================
         // FEATURE MODULES
         // Higher-level application features built on platform and domain modules
         // ============================================================================
-        services.AddConfigurationModule(configuration);
+        if (modules.GetValue("Configuration", defaultValue: true))
+            services.AddConfigurationModule(configuration);
 
         // ============================================================================
         // PLUGIN SYSTEM
@@ -44,20 +54,30 @@ internal static class FoundryModules
 
     public static async Task InitializeFoundryModulesAsync(this WebApplication app)
     {
+        IConfigurationSection modules = app.Configuration.GetSection("Foundry:Modules");
+
         // ============================================================================
         // PLATFORM MODULES
         // Core infrastructure services - runs DB migrations
         // ============================================================================
-        await app.InitializeIdentityModuleAsync();
-        await app.InitializeBillingModuleAsync();
-        await app.InitializeCommunicationsModuleAsync();
-        await app.InitializeStorageModuleAsync();
+        if (modules.GetValue("Identity", defaultValue: true))
+            await app.InitializeIdentityModuleAsync();
+
+        if (modules.GetValue("Billing", defaultValue: true))
+            await app.InitializeBillingModuleAsync();
+
+        if (modules.GetValue("Communications", defaultValue: true))
+            await app.InitializeCommunicationsModuleAsync();
+
+        if (modules.GetValue("Storage", defaultValue: true))
+            await app.InitializeStorageModuleAsync();
 
         // ============================================================================
         // FEATURE MODULES
         // EF Core modules run migrations
         // ============================================================================
-        await app.InitializeConfigurationModuleAsync();
+        if (modules.GetValue("Configuration", defaultValue: true))
+            await app.InitializeConfigurationModuleAsync();
 
         // ============================================================================
         // PLUGIN SYSTEM
