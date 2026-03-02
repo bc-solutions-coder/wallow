@@ -68,7 +68,8 @@ public static partial class CommunicationsModuleExtensions
     {
         // Email services
         services.Configure<SmtpSettings>(configuration.GetSection("Smtp"));
-        services.AddScoped<IEmailService, SmtpEmailService>();
+        RegisterEmailProvider(services, configuration);
+        services.AddScoped<IEmailService, EmailProviderAdapter>();
         services.AddScoped<IEmailTemplateService, SimpleEmailTemplateService>();
 
         // InApp notification services
@@ -93,6 +94,30 @@ public static partial class CommunicationsModuleExtensions
 
         return services;
     }
+
+    private static void RegisterEmailProvider(IServiceCollection services, IConfiguration configuration)
+    {
+        string provider = configuration.GetValue<string>("Communications:Email:Provider") ?? "Smtp";
+
+        switch (provider)
+        {
+            case "Smtp":
+                services.AddScoped<IEmailProvider, SmtpEmailProvider>();
+                break;
+            default:
+                using (ServiceProvider sp = services.BuildServiceProvider())
+                {
+                    ILogger logger = sp.GetRequiredService<ILoggerFactory>()
+                        .CreateLogger("CommunicationsModule");
+                    LogUnrecognizedEmailProvider(logger, provider);
+                }
+                services.AddScoped<IEmailProvider, SmtpEmailProvider>();
+                break;
+        }
+    }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Unrecognized email provider '{Provider}'. Defaulting to Smtp.")]
+    private static partial void LogUnrecognizedEmailProvider(ILogger logger, string provider);
 
     public static async Task<WebApplication> InitializeCommunicationsModuleAsync(
         this WebApplication app)
