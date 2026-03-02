@@ -9,9 +9,9 @@ namespace Foundry.Shared.Infrastructure.Persistence;
 
 public abstract class TenantAwareDbContext<TContext> : DbContext where TContext : DbContext
 {
-#pragma warning disable SA1401, CA1051 // Field must be protected for expression tree access in subclasses
+#pragma warning disable SA1401, CA1051, IDE1006 // Field must be protected for expression tree access in subclasses
     protected readonly TenantId _tenantId;
-#pragma warning restore SA1401, CA1051
+#pragma warning restore SA1401, CA1051, IDE1006
 
     protected TenantAwareDbContext(DbContextOptions<TContext> options, ITenantContext tenantContext) : base(options)
     {
