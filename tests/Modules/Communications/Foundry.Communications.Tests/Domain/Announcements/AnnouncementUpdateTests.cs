@@ -1,14 +1,17 @@
 using Foundry.Communications.Domain.Announcements.Entities;
 using Foundry.Communications.Domain.Announcements.Enums;
+using Foundry.Shared.Kernel.Identity;
 
 namespace Foundry.Communications.Tests.Domain.Announcements;
 
 public class AnnouncementUpdateTests
 {
+    private static readonly TenantId _testTenantId = TenantId.New();
+
     [Fact]
     public void Update_WithValidData_UpdatesAllProperties()
     {
-        Announcement announcement = Announcement.Create("Original Title", "Original Content", AnnouncementType.Feature, TimeProvider.System);
+        Announcement announcement = Announcement.Create(_testTenantId, "Original Title", "Original Content", AnnouncementType.Feature, TimeProvider.System);
         DateTime expiresAt = DateTime.UtcNow.AddDays(30);
 
         announcement.Update(
@@ -46,7 +49,7 @@ public class AnnouncementUpdateTests
     [InlineData("   ")]
     public void Update_WithInvalidTitle_ThrowsArgumentException(string? title)
     {
-        Announcement announcement = Announcement.Create("Title", "Content", AnnouncementType.Feature, TimeProvider.System);
+        Announcement announcement = Announcement.Create(_testTenantId, "Title", "Content", AnnouncementType.Feature, TimeProvider.System);
 
         Action act = () => announcement.Update(
             title!, "Content", AnnouncementType.Feature,
@@ -61,7 +64,7 @@ public class AnnouncementUpdateTests
     [InlineData("   ")]
     public void Update_WithInvalidContent_ThrowsArgumentException(string? content)
     {
-        Announcement announcement = Announcement.Create("Title", "Content", AnnouncementType.Feature, TimeProvider.System);
+        Announcement announcement = Announcement.Create(_testTenantId, "Title", "Content", AnnouncementType.Feature, TimeProvider.System);
 
         Action act = () => announcement.Update(
             "Title", content!, AnnouncementType.Feature,
@@ -73,7 +76,7 @@ public class AnnouncementUpdateTests
     [Fact]
     public void Update_SetsUpdatedAtTimestamp()
     {
-        Announcement announcement = Announcement.Create("Title", "Content", AnnouncementType.Feature, TimeProvider.System);
+        Announcement announcement = Announcement.Create(_testTenantId, "Title", "Content", AnnouncementType.Feature, TimeProvider.System);
         DateTime before = DateTime.UtcNow;
 
         announcement.Update(

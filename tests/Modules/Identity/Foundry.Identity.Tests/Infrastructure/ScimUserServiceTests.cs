@@ -21,7 +21,7 @@ public class ScimUserServiceTests
     private readonly IScimSyncLogRepository _syncLogRepository = Substitute.For<IScimSyncLogRepository>();
     private readonly ITenantContext _tenantContext = Substitute.For<ITenantContext>();
     private readonly ILogger<ScimUserService> _logger = Substitute.For<ILogger<ScimUserService>>();
-    private readonly TenantId _testTenantId = TenantId.Create(Guid.Parse("12345678-1234-1234-1234-123456789abc"));
+    private readonly TenantId _tenantId = TenantId.Create(Guid.Parse("12345678-1234-1234-1234-123456789abc"));
 
     [Fact]
     public async Task CreateUserAsync_Success_ReturnsScimUser()
@@ -153,7 +153,7 @@ public class ScimUserServiceTests
     [Fact]
     public async Task CreateUserAsync_WithDefaultRole_AssignsRole()
     {
-        (ScimConfiguration config, string _) = ScimConfiguration.Create(_testTenantId, Guid.Empty);
+        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty);
         config.UpdateSettings(true, "user", false, Guid.Empty);
         _scimRepository.GetAsync(Arg.Any<CancellationToken>()).Returns(config);
 
@@ -475,7 +475,7 @@ public class ScimUserServiceTests
     [Fact]
     public async Task DeleteUserAsync_WhenDeprovisionTrue_HardDeletes()
     {
-        (ScimConfiguration config, string _) = ScimConfiguration.Create(_testTenantId, Guid.Empty);
+        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty);
         config.UpdateSettings(true, null, true, Guid.Empty);
         _scimRepository.GetAsync(Arg.Any<CancellationToken>()).Returns(config);
 
@@ -493,7 +493,7 @@ public class ScimUserServiceTests
     [Fact]
     public async Task DeleteUserAsync_WhenDeprovisionFalse_SoftDeletes()
     {
-        (ScimConfiguration config, string _) = ScimConfiguration.Create(_testTenantId, Guid.Empty);
+        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty);
         config.UpdateSettings(true, null, false, Guid.Empty);
         _scimRepository.GetAsync(Arg.Any<CancellationToken>()).Returns(config);
 
@@ -511,7 +511,7 @@ public class ScimUserServiceTests
     [Fact]
     public async Task DeleteUserAsync_WhenFails_LogsErrorAndThrows()
     {
-        (ScimConfiguration config, string _) = ScimConfiguration.Create(_testTenantId, Guid.Empty);
+        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty);
         config.UpdateSettings(true, null, true, Guid.Empty);
         _scimRepository.GetAsync(Arg.Any<CancellationToken>()).Returns(config);
 
@@ -748,7 +748,7 @@ public class ScimUserServiceTests
         };
         httpClientFactory.CreateClient("KeycloakAdminClient").Returns(httpClient);
 
-        _tenantContext.TenantId.Returns(_testTenantId);
+        _tenantContext.TenantId.Returns(_tenantId);
 
         return new ScimUserService(
             httpClientFactory,

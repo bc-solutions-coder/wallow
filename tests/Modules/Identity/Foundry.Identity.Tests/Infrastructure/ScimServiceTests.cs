@@ -20,7 +20,7 @@ public class ScimServiceTests
     private readonly IScimSyncLogRepository _syncLogRepository = Substitute.For<IScimSyncLogRepository>();
     private readonly ITenantContext _tenantContext = Substitute.For<ITenantContext>();
     private readonly ILogger<ScimService> _logger = Substitute.For<ILogger<ScimService>>();
-    private readonly TenantId _testTenantId = TenantId.Create(Guid.Parse("12345678-1234-1234-1234-123456789abc"));
+    private readonly TenantId _tenantId = TenantId.Create(Guid.Parse("12345678-1234-1234-1234-123456789abc"));
 
     [Fact]
     public async Task GetConfigurationAsync_WhenNoneExists_ReturnsNull()
@@ -40,7 +40,7 @@ public class ScimServiceTests
     public async Task GetConfigurationAsync_WhenExists_ReturnsDto()
     {
         // Arrange
-        (ScimConfiguration config, string _) = ScimConfiguration.Create(_testTenantId, Guid.Empty);
+        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty);
         config.UpdateSettings(true, "user", false, Guid.Empty);
         config.Enable(Guid.Empty);
 
@@ -63,7 +63,7 @@ public class ScimServiceTests
     {
         // Arrange
         _scimRepository.GetAsync(Arg.Any<CancellationToken>()).Returns((ScimConfiguration?)null);
-        _tenantContext.TenantId.Returns(_testTenantId);
+        _tenantContext.TenantId.Returns(_tenantId);
 
         ScimService service = CreateService();
 
@@ -91,9 +91,9 @@ public class ScimServiceTests
     public async Task EnableScimAsync_UpdatesExistingConfiguration_WhenExists()
     {
         // Arrange
-        (ScimConfiguration existingConfig, string _) = ScimConfiguration.Create(_testTenantId, Guid.Empty);
+        (ScimConfiguration existingConfig, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty);
         _scimRepository.GetAsync(Arg.Any<CancellationToken>()).Returns(existingConfig);
-        _tenantContext.TenantId.Returns(_testTenantId);
+        _tenantContext.TenantId.Returns(_tenantId);
 
         ScimService service = CreateService();
 
@@ -136,10 +136,10 @@ public class ScimServiceTests
     public async Task DisableScimAsync_WhenExists_DisablesConfiguration()
     {
         // Arrange
-        (ScimConfiguration config, string _) = ScimConfiguration.Create(_testTenantId, Guid.Empty);
+        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty);
         config.Enable(Guid.Empty);
         _scimRepository.GetAsync(Arg.Any<CancellationToken>()).Returns(config);
-        _tenantContext.TenantId.Returns(_testTenantId);
+        _tenantContext.TenantId.Returns(_tenantId);
 
         ScimService service = CreateService();
 
@@ -170,9 +170,9 @@ public class ScimServiceTests
     public async Task RegenerateTokenAsync_GeneratesNewToken()
     {
         // Arrange
-        (ScimConfiguration config, string _) = ScimConfiguration.Create(_testTenantId, Guid.Empty);
+        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty);
         _scimRepository.GetAsync(Arg.Any<CancellationToken>()).Returns(config);
-        _tenantContext.TenantId.Returns(_testTenantId);
+        _tenantContext.TenantId.Returns(_tenantId);
 
         ScimService service = CreateService();
 
@@ -207,7 +207,7 @@ public class ScimServiceTests
     public async Task ValidateTokenAsync_WhenTokenExpired_ReturnsFalse()
     {
         // Arrange
-        (ScimConfiguration config, string _) = ScimConfiguration.Create(_testTenantId, Guid.Empty);
+        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty);
         _ = config.RegenerateToken(Guid.Empty);
         // Manually set expiration to the past (using reflection or just testing the behavior)
         // Since we can't directly set TokenExpiresAt, we'll test with a freshly created token which should be valid
@@ -226,7 +226,7 @@ public class ScimServiceTests
     public async Task ValidateTokenAsync_WhenValidToken_ReturnsTrue()
     {
         // Arrange
-        (ScimConfiguration config, string _) = ScimConfiguration.Create(_testTenantId, Guid.Empty);
+        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty);
         config.Enable(Guid.Empty); // Must enable config for token to be valid
         string plainTextToken = config.RegenerateToken(Guid.Empty);
 
@@ -261,7 +261,7 @@ public class ScimServiceTests
                 }
             });
 
-        _tenantContext.TenantId.Returns(_testTenantId);
+        _tenantContext.TenantId.Returns(_tenantId);
 
         ScimService service = CreateService(handler);
 
@@ -300,7 +300,7 @@ public class ScimServiceTests
         MockKeycloakHttpHandler handler = new MockKeycloakHttpHandler()
             .WithKeycloakPost("/admin/realms/foundry/users", HttpStatusCode.BadRequest);
 
-        _tenantContext.TenantId.Returns(_testTenantId);
+        _tenantContext.TenantId.Returns(_tenantId);
 
         ScimService service = CreateService(handler);
 
@@ -344,7 +344,7 @@ public class ScimServiceTests
                 }
             });
 
-        _tenantContext.TenantId.Returns(_testTenantId);
+        _tenantContext.TenantId.Returns(_tenantId);
 
         ScimService service = CreateService(handler);
 
@@ -381,7 +381,7 @@ public class ScimServiceTests
         MockKeycloakHttpHandler handler = new MockKeycloakHttpHandler()
             .WithKeycloakPut("/admin/realms/foundry/users/user-123", HttpStatusCode.NotFound);
 
-        _tenantContext.TenantId.Returns(_testTenantId);
+        _tenantContext.TenantId.Returns(_tenantId);
 
         ScimService service = CreateService(handler);
 
@@ -422,7 +422,7 @@ public class ScimServiceTests
             })
             .WithKeycloakPut("/admin/realms/foundry/users/user-123", HttpStatusCode.NoContent);
 
-        _tenantContext.TenantId.Returns(_testTenantId);
+        _tenantContext.TenantId.Returns(_tenantId);
 
         ScimService service = CreateService(handler);
 
@@ -455,7 +455,7 @@ public class ScimServiceTests
         MockKeycloakHttpHandler handler = new MockKeycloakHttpHandler()
             .WithKeycloakGet("/admin/realms/foundry/users/user-123", HttpStatusCode.NotFound);
 
-        _tenantContext.TenantId.Returns(_testTenantId);
+        _tenantContext.TenantId.Returns(_tenantId);
 
         ScimService service = CreateService(handler);
 
@@ -482,7 +482,7 @@ public class ScimServiceTests
     public async Task DeleteUserAsync_WhenDeprovisionTrue_PerformsHardDelete()
     {
         // Arrange
-        (ScimConfiguration config, string _) = ScimConfiguration.Create(_testTenantId, Guid.Empty);
+        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty);
         config.UpdateSettings(true, null, true, Guid.Empty); // DeprovisionOnDelete = true
 
         _scimRepository.GetAsync(Arg.Any<CancellationToken>()).Returns(config);
@@ -490,7 +490,7 @@ public class ScimServiceTests
         MockKeycloakHttpHandler handler = new MockKeycloakHttpHandler()
             .WithKeycloakDelete("/admin/realms/foundry/users/user-123", HttpStatusCode.NoContent);
 
-        _tenantContext.TenantId.Returns(_testTenantId);
+        _tenantContext.TenantId.Returns(_tenantId);
 
         ScimService service = CreateService(handler);
 
@@ -508,7 +508,7 @@ public class ScimServiceTests
     public async Task DeleteUserAsync_WhenDeprovisionFalse_PerformsSoftDelete()
     {
         // Arrange
-        (ScimConfiguration config, string _) = ScimConfiguration.Create(_testTenantId, Guid.Empty);
+        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty);
         config.UpdateSettings(true, null, false, Guid.Empty); // DeprovisionOnDelete = false
 
         _scimRepository.GetAsync(Arg.Any<CancellationToken>()).Returns(config);
@@ -516,7 +516,7 @@ public class ScimServiceTests
         MockKeycloakHttpHandler handler = new MockKeycloakHttpHandler()
             .WithKeycloakPut("/admin/realms/foundry/users/user-123", HttpStatusCode.NoContent);
 
-        _tenantContext.TenantId.Returns(_testTenantId);
+        _tenantContext.TenantId.Returns(_tenantId);
 
         ScimService service = CreateService(handler);
 
@@ -534,13 +534,13 @@ public class ScimServiceTests
     public async Task DeleteUserAsync_WhenFails_LogsError()
     {
         // Arrange
-        (ScimConfiguration config, string _) = ScimConfiguration.Create(_testTenantId, Guid.Empty);
+        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty);
         _scimRepository.GetAsync(Arg.Any<CancellationToken>()).Returns(config);
 
         MockKeycloakHttpHandler handler = new MockKeycloakHttpHandler()
             .WithKeycloakPut("/admin/realms/foundry/users/user-123", HttpStatusCode.NotFound);
 
-        _tenantContext.TenantId.Returns(_testTenantId);
+        _tenantContext.TenantId.Returns(_tenantId);
 
         ScimService service = CreateService(handler);
 
@@ -585,7 +585,7 @@ public class ScimServiceTests
             })
             .WithKeycloakGet("/admin/realms/foundry/users/count", HttpStatusCode.OK, 10);
 
-        _tenantContext.TenantId.Returns(_testTenantId);
+        _tenantContext.TenantId.Returns(_tenantId);
 
         ScimService service = CreateService(handler);
 
@@ -627,7 +627,7 @@ public class ScimServiceTests
             })
             .WithKeycloakGet("/admin/realms/foundry/users/count", HttpStatusCode.OK, 1);
 
-        _tenantContext.TenantId.Returns(_testTenantId);
+        _tenantContext.TenantId.Returns(_tenantId);
 
         ScimService service = CreateService(handler);
 
@@ -662,7 +662,7 @@ public class ScimServiceTests
             })
             .WithKeycloakGet("/admin/realms/foundry/groups/group-123/members", HttpStatusCode.OK, Array.Empty<object>());
 
-        _tenantContext.TenantId.Returns(_testTenantId);
+        _tenantContext.TenantId.Returns(_tenantId);
 
         ScimService service = CreateService(handler);
 
@@ -703,7 +703,7 @@ public class ScimServiceTests
             })
             .WithKeycloakGet("/admin/realms/foundry/groups/group-123/members", HttpStatusCode.OK, Array.Empty<object>());
 
-        _tenantContext.TenantId.Returns(_testTenantId);
+        _tenantContext.TenantId.Returns(_tenantId);
 
         ScimService service = CreateService(handler);
 
@@ -733,7 +733,7 @@ public class ScimServiceTests
         MockKeycloakHttpHandler handler = new MockKeycloakHttpHandler()
             .WithKeycloakDelete("/admin/realms/foundry/groups/group-123", HttpStatusCode.NoContent);
 
-        _tenantContext.TenantId.Returns(_testTenantId);
+        _tenantContext.TenantId.Returns(_tenantId);
 
         ScimService service = CreateService(handler);
 
@@ -769,7 +769,7 @@ public class ScimServiceTests
             })
             .WithKeycloakGet("/admin/realms/foundry/groups/group-1/members", HttpStatusCode.OK, Array.Empty<object>());
 
-        _tenantContext.TenantId.Returns(_testTenantId);
+        _tenantContext.TenantId.Returns(_tenantId);
 
         ScimService service = CreateService(handler);
 
@@ -790,8 +790,8 @@ public class ScimServiceTests
         // Arrange
         List<ScimSyncLog> logs =
         [
-            ScimSyncLog.Create(_testTenantId, ScimOperation.Create, ScimResourceType.User, "ext-1", "user-1", true),
-            ScimSyncLog.Create(_testTenantId, ScimOperation.Update, ScimResourceType.User, "ext-2", "user-2", false, "Error")
+            ScimSyncLog.Create(_tenantId, ScimOperation.Create, ScimResourceType.User, "ext-1", "user-1", true),
+            ScimSyncLog.Create(_tenantId, ScimOperation.Update, ScimResourceType.User, "ext-2", "user-2", false, "Error")
         ];
 
         _syncLogRepository.GetRecentAsync(100, Arg.Any<CancellationToken>()).Returns(logs);
@@ -821,7 +821,7 @@ public class ScimServiceTests
 
         httpClientFactory.CreateClient("KeycloakAdminClient").Returns(keycloakClient);
 
-        _tenantContext.TenantId.Returns(_testTenantId);
+        _tenantContext.TenantId.Returns(_tenantId);
 
         ScimUserService userService = new(
             httpClientFactory,

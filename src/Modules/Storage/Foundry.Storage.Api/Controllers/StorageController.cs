@@ -115,7 +115,7 @@ public sealed class StorageController : ControllerBase
         CancellationToken cancellationToken = default)
     {
         Result result = await _bus.InvokeAsync<Result>(
-            new DeleteBucketCommand(name, force), cancellationToken);
+            new DeleteBucketCommand(_tenantContext.TenantId.Value, name, force), cancellationToken);
 
         if (result.IsSuccess)
         {
@@ -276,9 +276,12 @@ public sealed class StorageController : ControllerBase
             ? TimeSpan.FromMinutes(request.ExpiryMinutes.Value)
             : null;
 
+        Guid userId = _currentUserService.GetCurrentUserId() ?? Guid.Empty;
+
         Result<PresignedUploadResult> result = await _bus.InvokeAsync<Result<PresignedUploadResult>>(
             new GetUploadPresignedUrlQuery(
                 _tenantContext.TenantId.Value,
+                userId,
                 request.BucketName,
                 request.FileName,
                 request.ContentType,
@@ -287,7 +290,7 @@ public sealed class StorageController : ControllerBase
                 expiry),
             cancellationToken);
 
-        return result.Map(r => new PresignedUploadResponse(r.UploadUrl, r.StorageKey, r.ExpiresAt))
+        return result.Map(r => new PresignedUploadResponse(r.FileId, r.UploadUrl, r.StorageKey, r.ExpiresAt))
             .ToActionResult();
     }
 

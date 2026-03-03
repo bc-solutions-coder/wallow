@@ -7,6 +7,7 @@ using Foundry.Identity.Domain.Enums;
 using Foundry.Identity.Infrastructure.Services;
 using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.MultiTenancy;
+using Foundry.Shared.Kernel.Services;
 using Keycloak.AuthServices.Authentication;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -20,13 +21,13 @@ public class KeycloakSsoServiceGapTests
     private readonly ISsoConfigurationRepository _repository = Substitute.For<ISsoConfigurationRepository>();
     private readonly ITenantContext _tenantContext = Substitute.For<ITenantContext>();
     private readonly ILogger<KeycloakSsoService> _logger = Substitute.For<ILogger<KeycloakSsoService>>();
-    private readonly TenantId _testTenantId = TenantId.Create(Guid.Parse("12345678-1234-1234-1234-123456789abc"));
+    private readonly TenantId _tenantId = TenantId.Create(Guid.Parse("12345678-1234-1234-1234-123456789abc"));
 
     [Fact]
     public async Task DisableAsync_WithoutKeycloakAlias_StillDisables()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId, "Test SSO", SsoProtocol.Saml,
+            _tenantId, "Test SSO", SsoProtocol.Saml,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateSamlConfig("entity-id", "https://idp.test/sso", null, "cert", SamlNameIdFormat.Email, Guid.Empty);
         config.MoveToTesting(Guid.Empty);
@@ -47,7 +48,7 @@ public class KeycloakSsoServiceGapTests
     public async Task TestConnectionAsync_WhenExceptionThrown_ReturnsFailure()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId, "Test SSO", SsoProtocol.Oidc,
+            _tenantId, "Test SSO", SsoProtocol.Oidc,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateOidcConfig("https://idp.test", "client-123", "secret", "openid", Guid.Empty);
 
@@ -80,7 +81,7 @@ public class KeycloakSsoServiceGapTests
     public async Task SyncUserClaimsAsync_WhenException_RethrowsWithActivityStatus()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId, "Test SSO", SsoProtocol.Saml,
+            _tenantId, "Test SSO", SsoProtocol.Saml,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateBehaviorSettings(false, false, null, true, "groups", Guid.Empty);
 
@@ -204,7 +205,7 @@ public class KeycloakSsoServiceGapTests
     public async Task GetConfigurationAsync_WithOidcConfig_ReturnsDtoCorrectly()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId, "OIDC SSO", SsoProtocol.Oidc,
+            _tenantId, "OIDC SSO", SsoProtocol.Oidc,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateOidcConfig("https://idp.test", "client-123", "secret", "openid", Guid.Empty);
 
@@ -226,7 +227,7 @@ public class KeycloakSsoServiceGapTests
     public async Task ValidateIdpConfigurationAsync_WhenExceptionThrown_ReturnsFailure()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId, "Test SSO", SsoProtocol.Oidc,
+            _tenantId, "Test SSO", SsoProtocol.Oidc,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateOidcConfig("https://idp.test", "client-123", "secret", "openid", Guid.Empty);
 
@@ -259,7 +260,7 @@ public class KeycloakSsoServiceGapTests
         httpClientFactory.CreateClient("KeycloakAdminClient").Returns(keycloakClient);
         httpClientFactory.CreateClient().Returns(externalClient);
 
-        _tenantContext.TenantId.Returns(_testTenantId);
+        _tenantContext.TenantId.Returns(_tenantId);
         currentUserService.UserId.Returns(Guid.Empty);
 
         IOptions<KeycloakAuthenticationOptions> options = Options.Create(new KeycloakAuthenticationOptions

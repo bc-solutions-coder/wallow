@@ -10,10 +10,9 @@ public class RolePermissionMappingTests
     {
         IEnumerable<string> roles = new[] { "admin" };
 
-        IEnumerable<PermissionType> result = RolePermissionMapping.GetPermissions(roles);
+        IEnumerable<string> result = RolePermissionMapping.GetPermissions(roles);
 
-        PermissionType[] allPermissions = Enum.GetValues<PermissionType>();
-        result.Should().BeEquivalentTo(allPermissions);
+        result.Should().BeEquivalentTo(PermissionType.All);
     }
 
     [Fact]
@@ -21,7 +20,7 @@ public class RolePermissionMappingTests
     {
         IEnumerable<string> roles = new[] { "user" };
 
-        List<PermissionType> result = RolePermissionMapping.GetPermissions(roles).ToList();
+        List<string> result = RolePermissionMapping.GetPermissions(roles).ToList();
 
         result.Should().Contain(PermissionType.OrganizationsRead);
         result.Should().NotContain(PermissionType.UsersRead);
@@ -33,7 +32,7 @@ public class RolePermissionMappingTests
     {
         IEnumerable<string> roles = new[] { "manager" };
 
-        List<PermissionType> result = RolePermissionMapping.GetPermissions(roles).ToList();
+        List<string> result = RolePermissionMapping.GetPermissions(roles).ToList();
 
         result.Should().Contain(PermissionType.UsersRead);
         result.Should().Contain(PermissionType.BillingRead);
@@ -50,7 +49,7 @@ public class RolePermissionMappingTests
     {
         IEnumerable<string> roles = new[] { "unknown-role" };
 
-        IEnumerable<PermissionType> result = RolePermissionMapping.GetPermissions(roles);
+        IEnumerable<string> result = RolePermissionMapping.GetPermissions(roles);
 
         result.Should().BeEmpty();
     }
@@ -60,7 +59,7 @@ public class RolePermissionMappingTests
     {
         IEnumerable<string> roles = new[] { "user", "manager" };
 
-        List<PermissionType> result = RolePermissionMapping.GetPermissions(roles).ToList();
+        List<string> result = RolePermissionMapping.GetPermissions(roles).ToList();
 
         result.Should().Contain(PermissionType.OrganizationsRead);
         result.Should().Contain(PermissionType.UsersRead);
@@ -73,7 +72,7 @@ public class RolePermissionMappingTests
     {
         IEnumerable<string> roles = Array.Empty<string>();
 
-        IEnumerable<PermissionType> result = RolePermissionMapping.GetPermissions(roles);
+        IEnumerable<string> result = RolePermissionMapping.GetPermissions(roles);
 
         result.Should().BeEmpty();
     }
@@ -86,10 +85,9 @@ public class RolePermissionMappingTests
     {
         IEnumerable<string> roles = new[] { role };
 
-        IEnumerable<PermissionType> result = RolePermissionMapping.GetPermissions(roles);
+        IEnumerable<string> result = RolePermissionMapping.GetPermissions(roles);
 
-        PermissionType[] allPermissions = Enum.GetValues<PermissionType>();
-        result.Should().BeEquivalentTo(allPermissions);
+        result.Should().BeEquivalentTo(PermissionType.All);
     }
 
     [Theory]
@@ -100,9 +98,9 @@ public class RolePermissionMappingTests
     {
         IEnumerable<string> roles = new[] { role };
 
-        IEnumerable<PermissionType> result = RolePermissionMapping.GetPermissions(roles);
+        IEnumerable<string> result = RolePermissionMapping.GetPermissions(roles);
 
-        IEnumerable<PermissionType> expected = RolePermissionMapping.GetPermissions(["manager"]);
+        IEnumerable<string> expected = RolePermissionMapping.GetPermissions(["manager"]);
         result.Should().BeEquivalentTo(expected);
     }
 }

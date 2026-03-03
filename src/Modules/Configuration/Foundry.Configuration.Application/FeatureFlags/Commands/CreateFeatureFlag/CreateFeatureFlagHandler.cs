@@ -1,4 +1,6 @@
 using Foundry.Configuration.Application.FeatureFlags.Contracts;
+using Foundry.Configuration.Application.FeatureFlags.DTOs;
+using Foundry.Configuration.Application.FeatureFlags.Mappings;
 using Foundry.Configuration.Domain.Entities;
 using Foundry.Configuration.Domain.Enums;
 using Foundry.Configuration.Domain.Events;
@@ -15,12 +17,12 @@ public sealed class CreateFeatureFlagHandler(
     IMessageBus bus,
     TimeProvider timeProvider)
 {
-    public async Task<Result<Guid>> Handle(CreateFeatureFlagCommand cmd, CancellationToken ct)
+    public async Task<Result<FeatureFlagDto>> Handle(CreateFeatureFlagCommand cmd, CancellationToken ct)
     {
         FeatureFlag? existing = await repository.GetByKeyAsync(cmd.Key, ct);
         if (existing is not null)
         {
-            return Result.Failure<Guid>(Error.Conflict($"Flag with key '{cmd.Key}' already exists"));
+            return Result.Failure<FeatureFlagDto>(Error.Conflict($"Flag with key '{cmd.Key}' already exists"));
         }
 
         FeatureFlag flag = cmd.FlagType switch
@@ -39,6 +41,6 @@ public sealed class CreateFeatureFlagHandler(
         await cache.RemoveAsync($"ff:{flag.Key}", ct);
         await bus.PublishAsync(new FeatureFlagCreatedEvent(flag.Id.Value, flag.Key, flag.FlagType));
 
-        return Result.Success(flag.Id.Value);
+        return Result.Success(flag.ToDto());
     }
 }

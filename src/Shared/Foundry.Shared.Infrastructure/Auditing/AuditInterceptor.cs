@@ -1,5 +1,7 @@
 using System.Globalization;
+using System.Reflection;
 using System.Text.Json;
+using Foundry.Shared.Kernel.Auditing;
 using Foundry.Shared.Kernel.MultiTenancy;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -139,6 +141,12 @@ public sealed class AuditInterceptor : SaveChangesInterceptor
         Dictionary<string, object?> dict = new Dictionary<string, object?>();
         foreach (IProperty property in propertyValues.Properties)
         {
+            PropertyInfo? propertyInfo = property.PropertyInfo;
+            if (propertyInfo?.GetCustomAttribute<AuditIgnoreAttribute>() != null)
+            {
+                continue;
+            }
+
             dict[property.Name] = propertyValues[property];
         }
         return JsonSerializer.Serialize(dict);

@@ -113,8 +113,10 @@ public class ResponseContractTests
     {
         DateTime expiresAt = DateTime.UtcNow.AddHours(1);
 
-        PresignedUploadResponse response = new("https://storage.example.com/upload", "storage-key-123", expiresAt);
+        Guid fileId = Guid.NewGuid();
+        PresignedUploadResponse response = new(fileId, "https://storage.example.com/upload", "storage-key-123", expiresAt);
 
+        response.FileId.Should().Be(fileId);
         response.UploadUrl.Should().Be("https://storage.example.com/upload");
         response.StorageKey.Should().Be("storage-key-123");
         response.ExpiresAt.Should().Be(expiresAt);

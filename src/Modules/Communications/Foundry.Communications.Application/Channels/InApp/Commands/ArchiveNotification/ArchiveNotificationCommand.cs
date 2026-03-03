@@ -3,4 +3,4 @@ using Foundry.Shared.Kernel.Identity;
 
 namespace Foundry.Communications.Application.Channels.InApp.Commands.ArchiveNotification;
 
-public sealed record ArchiveNotificationCommand(NotificationId NotificationId, TenantId TenantId);
+public sealed record ArchiveNotificationCommand(NotificationId NotificationId, TenantId TenantId, Guid UserId);

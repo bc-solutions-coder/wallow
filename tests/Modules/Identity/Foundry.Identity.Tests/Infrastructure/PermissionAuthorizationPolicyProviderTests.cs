@@ -19,7 +19,7 @@ public class PermissionAuthorizationPolicyProviderTests
     [Fact]
     public async Task GetPolicyAsync_WithPermissionTypeName_ReturnsPolicyWithRequirement()
     {
-        string policyName = PermissionType.UsersRead.ToString();
+        string policyName = PermissionType.UsersRead;
 
         AuthorizationPolicy? result = await _provider.GetPolicyAsync(policyName);
 

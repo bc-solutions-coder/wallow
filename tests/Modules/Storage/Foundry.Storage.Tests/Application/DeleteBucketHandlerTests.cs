@@ -25,7 +25,7 @@ public class DeleteBucketHandlerTests
     [Fact]
     public async Task Handle_WhenBucketNotFound_ReturnsNotFoundFailure()
     {
-        DeleteBucketCommand command = new("nonexistent");
+        DeleteBucketCommand command = new(Guid.NewGuid(), "nonexistent");
         _bucketRepository.GetByNameAsync(command.Name, Arg.Any<CancellationToken>())
             .Returns((StorageBucket?)null);
 
@@ -36,12 +36,30 @@ public class DeleteBucketHandlerTests
     }
 
     [Fact]
+    public async Task Handle_WhenTenantIdDoesNotMatch_ReturnsNotFoundFailure()
+    {
+        TenantId bucketTenantId = TenantId.New();
+        Guid differentTenantId = Guid.NewGuid();
+        StorageBucket bucket = StorageBucket.Create(bucketTenantId, "tenant-mismatch");
+        DeleteBucketCommand command = new(differentTenantId, "tenant-mismatch");
+
+        _bucketRepository.GetByNameAsync(command.Name, Arg.Any<CancellationToken>())
+            .Returns(bucket);
+
+        Result result = await _handler.Handle(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Contain("NotFound");
+    }
+
+    [Fact]
     public async Task Handle_WhenBucketHasFilesAndNotForced_ReturnsValidationFailure()
     {
-        StorageBucket bucket = StorageBucket.Create(TenantId.New(), "has-files");
+        TenantId tenantId = TenantId.New();
+        StorageBucket bucket = StorageBucket.Create(tenantId, "has-files");
         StoredFile file = StoredFile.Create(
-            TenantId.New(), bucket.Id, "test.txt", "text/plain", 100, "key", Guid.NewGuid());
-        DeleteBucketCommand command = new("has-files", Force: false);
+            tenantId, bucket.Id, "test.txt", "text/plain", 100, "key", Guid.NewGuid());
+        DeleteBucketCommand command = new(tenantId.Value, "has-files", Force: false);
 
         _bucketRepository.GetByNameAsync(command.Name, Arg.Any<CancellationToken>())
             .Returns(bucket);
@@ -59,12 +77,13 @@ public class DeleteBucketHandlerTests
     [Fact]
     public async Task Handle_WhenBucketHasFilesAndForced_DeletesFilesAndBucket()
     {
-        StorageBucket bucket = StorageBucket.Create(TenantId.New(), "force-delete");
+        TenantId tenantId = TenantId.New();
+        StorageBucket bucket = StorageBucket.Create(tenantId, "force-delete");
         StoredFile file1 = StoredFile.Create(
-            TenantId.New(), bucket.Id, "file1.txt", "text/plain", 100, "key1", Guid.NewGuid());
+            tenantId, bucket.Id, "file1.txt", "text/plain", 100, "key1", Guid.NewGuid());
         StoredFile file2 = StoredFile.Create(
-            TenantId.New(), bucket.Id, "file2.txt", "text/plain", 200, "key2", Guid.NewGuid());
-        DeleteBucketCommand command = new("force-delete", Force: true);
+            tenantId, bucket.Id, "file2.txt", "text/plain", 200, "key2", Guid.NewGuid());
+        DeleteBucketCommand command = new(tenantId.Value, "force-delete", Force: true);
 
         _bucketRepository.GetByNameAsync(command.Name, Arg.Any<CancellationToken>())
             .Returns(bucket);
@@ -85,8 +104,9 @@ public class DeleteBucketHandlerTests
     [Fact]
     public async Task Handle_WhenBucketIsEmpty_DeletesBucketWithoutForce()
     {
-        StorageBucket bucket = StorageBucket.Create(TenantId.New(), "empty-bucket");
-        DeleteBucketCommand command = new("empty-bucket");
+        TenantId tenantId = TenantId.New();
+        StorageBucket bucket = StorageBucket.Create(tenantId, "empty-bucket");
+        DeleteBucketCommand command = new(tenantId.Value, "empty-bucket");
 
         _bucketRepository.GetByNameAsync(command.Name, Arg.Any<CancellationToken>())
             .Returns(bucket);
@@ -104,8 +124,9 @@ public class DeleteBucketHandlerTests
     [Fact]
     public async Task Handle_WhenBucketIsEmptyAndForced_DeletesBucket()
     {
-        StorageBucket bucket = StorageBucket.Create(TenantId.New(), "empty-forced");
-        DeleteBucketCommand command = new("empty-forced", Force: true);
+        TenantId tenantId = TenantId.New();
+        StorageBucket bucket = StorageBucket.Create(tenantId, "empty-forced");
+        DeleteBucketCommand command = new(tenantId.Value, "empty-forced", Force: true);
 
         _bucketRepository.GetByNameAsync(command.Name, Arg.Any<CancellationToken>())
             .Returns(bucket);

@@ -8,21 +8,21 @@ namespace Foundry.Identity.Tests.Domain;
 
 public class SsoConfigurationTests
 {
-    private static readonly TenantId _testTenantId = TenantId.Create(Guid.NewGuid());
+    private static readonly TenantId _tenantId = TenantId.Create(Guid.NewGuid());
     private static readonly Guid _testUserId = Guid.NewGuid();
 
     private static SsoConfiguration CreateSamlConfig() =>
-        SsoConfiguration.Create(_testTenantId, "Test SAML", SsoProtocol.Saml, "email", "firstName", "lastName", _testUserId);
+        SsoConfiguration.Create(_tenantId, "Test SAML", SsoProtocol.Saml, "email", "firstName", "lastName", _testUserId);
 
     private static SsoConfiguration CreateOidcConfig() =>
-        SsoConfiguration.Create(_testTenantId, "Test OIDC", SsoProtocol.Oidc, "email", "firstName", "lastName", _testUserId);
+        SsoConfiguration.Create(_tenantId, "Test OIDC", SsoProtocol.Oidc, "email", "firstName", "lastName", _testUserId);
 
     [Fact]
     public void Create_WithValidParameters_CreatesDraftConfiguration()
     {
         SsoConfiguration config = CreateSamlConfig();
 
-        config.TenantId.Should().Be(_testTenantId);
+        config.TenantId.Should().Be(_tenantId);
         config.DisplayName.Should().Be("Test SAML");
         config.Protocol.Should().Be(SsoProtocol.Saml);
         config.Status.Should().Be(SsoStatus.Draft);
@@ -37,7 +37,7 @@ public class SsoConfigurationTests
     [Fact]
     public void Create_WithEmptyDisplayName_ThrowsBusinessRuleException()
     {
-        Action act = () => SsoConfiguration.Create(_testTenantId, "", SsoProtocol.Saml, "email", "first", "last", _testUserId);
+        Action act = () => SsoConfiguration.Create(_tenantId, "", SsoProtocol.Saml, "email", "first", "last", _testUserId);
 
         act.Should().Throw<BusinessRuleException>().WithMessage("*display name*");
     }
@@ -45,7 +45,7 @@ public class SsoConfigurationTests
     [Fact]
     public void Create_WithEmptyEmailAttribute_ThrowsBusinessRuleException()
     {
-        Action act = () => SsoConfiguration.Create(_testTenantId, "Test", SsoProtocol.Saml, "", "first", "last", _testUserId);
+        Action act = () => SsoConfiguration.Create(_tenantId, "Test", SsoProtocol.Saml, "", "first", "last", _testUserId);
 
         act.Should().Throw<BusinessRuleException>().WithMessage("*Email attribute*");
     }
@@ -53,7 +53,7 @@ public class SsoConfigurationTests
     [Fact]
     public void Create_WithEmptyFirstNameAttribute_ThrowsBusinessRuleException()
     {
-        Action act = () => SsoConfiguration.Create(_testTenantId, "Test", SsoProtocol.Saml, "email", "", "last", _testUserId);
+        Action act = () => SsoConfiguration.Create(_tenantId, "Test", SsoProtocol.Saml, "email", "", "last", _testUserId);
 
         act.Should().Throw<BusinessRuleException>().WithMessage("*First name*");
     }
@@ -61,7 +61,7 @@ public class SsoConfigurationTests
     [Fact]
     public void Create_WithEmptyLastNameAttribute_ThrowsBusinessRuleException()
     {
-        Action act = () => SsoConfiguration.Create(_testTenantId, "Test", SsoProtocol.Saml, "email", "first", "", _testUserId);
+        Action act = () => SsoConfiguration.Create(_tenantId, "Test", SsoProtocol.Saml, "email", "first", "", _testUserId);
 
         act.Should().Throw<BusinessRuleException>().WithMessage("*Last name*");
     }
@@ -110,7 +110,7 @@ public class SsoConfigurationTests
         config.DomainEvents.Should().ContainSingle()
             .Which.Should().BeOfType<SsoConfigurationActivatedEvent>()
             .Which.Should().Match<SsoConfigurationActivatedEvent>(e =>
-                e.TenantId == _testTenantId.Value &&
+                e.TenantId == _tenantId.Value &&
                 e.DisplayName == "Test SAML" &&
                 e.Protocol == "SAML");
     }

@@ -4,11 +4,11 @@ namespace Foundry.Identity.Infrastructure.Authorization;
 
 public static class RolePermissionMapping
 {
-    private static readonly Dictionary<string, PermissionType[]> _rolePermissions = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, string[]> _rolePermissions = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["admin"] = Enum.GetValues<PermissionType>(),
-        ["manager"] = new[]
-        {
+        ["admin"] = PermissionType.All.ToArray(),
+        ["manager"] =
+        [
             PermissionType.UsersRead,
             PermissionType.BillingRead,
             PermissionType.OrganizationsRead,
@@ -19,14 +19,14 @@ public static class RolePermissionMapping
             PermissionType.ApiKeysDelete,
             PermissionType.SsoRead,
             PermissionType.ConfigurationManage,
-        },
-        ["user"] = new[]
-        {
+        ],
+        ["user"] =
+        [
             PermissionType.OrganizationsRead,
-        }
+        ]
     };
 
-    public static IEnumerable<PermissionType> GetPermissions(IEnumerable<string> roles)
+    public static IEnumerable<string> GetPermissions(IEnumerable<string> roles)
     {
         return roles
             .Where(r => _rolePermissions.ContainsKey(r))

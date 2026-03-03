@@ -13,20 +13,22 @@ namespace Foundry.Storage.Tests.Application;
 public class GetUploadPresignedUrlHandlerTests
 {
     private readonly IStorageBucketRepository _bucketRepository;
+    private readonly IStoredFileRepository _fileRepository;
     private readonly IStorageProvider _storageProvider;
     private readonly GetUploadPresignedUrlHandler _handler;
 
     public GetUploadPresignedUrlHandlerTests()
     {
         _bucketRepository = Substitute.For<IStorageBucketRepository>();
+        _fileRepository = Substitute.For<IStoredFileRepository>();
         _storageProvider = Substitute.For<IStorageProvider>();
-        _handler = new GetUploadPresignedUrlHandler(_bucketRepository, _storageProvider);
+        _handler = new GetUploadPresignedUrlHandler(_bucketRepository, _fileRepository, _storageProvider);
     }
 
     [Fact]
     public async Task Handle_WhenBucketNotFound_ReturnsNotFoundFailure()
     {
-        GetUploadPresignedUrlQuery query = new(Guid.NewGuid(), "nonexistent", "file.txt", "text/plain", 100);
+        GetUploadPresignedUrlQuery query = new(Guid.NewGuid(), Guid.NewGuid(), "nonexistent", "file.txt", "text/plain", 100);
 
         _bucketRepository.GetByNameAsync("nonexistent", Arg.Any<CancellationToken>())
             .Returns((StorageBucket?)null);
@@ -43,7 +45,7 @@ public class GetUploadPresignedUrlHandlerTests
         StorageBucket bucket = StorageBucket.Create(
             TenantId.New(), "images-only", allowedContentTypes: new[] { "image/*" });
         GetUploadPresignedUrlQuery query = new(
-            Guid.NewGuid(), "images-only", "doc.pdf", "application/pdf", 100);
+            Guid.NewGuid(), Guid.NewGuid(), "images-only", "doc.pdf", "application/pdf", 100);
 
         _bucketRepository.GetByNameAsync("images-only", Arg.Any<CancellationToken>())
             .Returns(bucket);
@@ -61,7 +63,7 @@ public class GetUploadPresignedUrlHandlerTests
         StorageBucket bucket = StorageBucket.Create(
             TenantId.New(), "small-bucket", maxFileSizeBytes: 1000);
         GetUploadPresignedUrlQuery query = new(
-            Guid.NewGuid(), "small-bucket", "big.zip", "application/zip", 5000);
+            Guid.NewGuid(), Guid.NewGuid(), "small-bucket", "big.zip", "application/zip", 5000);
 
         _bucketRepository.GetByNameAsync("small-bucket", Arg.Any<CancellationToken>())
             .Returns(bucket);
@@ -79,7 +81,7 @@ public class GetUploadPresignedUrlHandlerTests
         Guid tenantId = Guid.NewGuid();
         StorageBucket bucket = StorageBucket.Create(TenantId.New(), "uploads");
         GetUploadPresignedUrlQuery query = new(
-            tenantId, "uploads", "photo.png", "image/png", 2048);
+            tenantId, Guid.NewGuid(), "uploads", "photo.png", "image/png", 2048);
 
         _bucketRepository.GetByNameAsync("uploads", Arg.Any<CancellationToken>())
             .Returns(bucket);
@@ -103,7 +105,7 @@ public class GetUploadPresignedUrlHandlerTests
         StorageBucket bucket = StorageBucket.Create(TenantId.New(), "bucket");
         TimeSpan customExpiry = TimeSpan.FromMinutes(60);
         GetUploadPresignedUrlQuery query = new(
-            tenantId, "bucket", "file.txt", "text/plain", 100, Expiry: customExpiry);
+            tenantId, Guid.NewGuid(), "bucket", "file.txt", "text/plain", 100, Expiry: customExpiry);
 
         _bucketRepository.GetByNameAsync("bucket", Arg.Any<CancellationToken>())
             .Returns(bucket);
@@ -124,7 +126,7 @@ public class GetUploadPresignedUrlHandlerTests
         Guid tenantId = Guid.NewGuid();
         StorageBucket bucket = StorageBucket.Create(TenantId.New(), "docs");
         GetUploadPresignedUrlQuery query = new(
-            tenantId, "docs", "report.pdf", "application/pdf", 500, Path: "reports/2024");
+            tenantId, Guid.NewGuid(), "docs", "report.pdf", "application/pdf", 500, Path: "reports/2024");
 
         _bucketRepository.GetByNameAsync("docs", Arg.Any<CancellationToken>())
             .Returns(bucket);
@@ -143,7 +145,7 @@ public class GetUploadPresignedUrlHandlerTests
     {
         StorageBucket bucket = StorageBucket.Create(TenantId.New(), "bucket");
         GetUploadPresignedUrlQuery query = new(
-            Guid.NewGuid(), "bucket", "file.txt", "text/plain", 100);
+            Guid.NewGuid(), Guid.NewGuid(), "bucket", "file.txt", "text/plain", 100);
 
         _bucketRepository.GetByNameAsync("bucket", Arg.Any<CancellationToken>())
             .Returns(bucket);

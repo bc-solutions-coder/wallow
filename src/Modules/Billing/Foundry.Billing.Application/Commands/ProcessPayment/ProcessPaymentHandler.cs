@@ -44,6 +44,12 @@ public sealed class ProcessPaymentHandler(
             command.CustomFields);
 
         paymentRepository.Add(payment);
+
+        if (invoice.Status is InvoiceStatus.Issued or InvoiceStatus.Overdue)
+        {
+            invoice.MarkAsPaid(payment.Id.Value, command.UserId, timeProvider);
+        }
+
         await paymentRepository.SaveChangesAsync(cancellationToken);
 
         return Result.Success(payment.ToDto());

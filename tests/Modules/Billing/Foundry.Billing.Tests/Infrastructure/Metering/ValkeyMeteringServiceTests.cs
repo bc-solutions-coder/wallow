@@ -17,7 +17,7 @@ public class ValkeyMeteringServiceTests
     private readonly IQuotaDefinitionRepository _quotaRepository;
     private readonly IDatabase _database;
     private readonly ValkeyMeteringService _service;
-    private readonly TenantId _testTenantId;
+    private readonly TenantId _tenantId;
 
     public ValkeyMeteringServiceTests()
     {
@@ -30,8 +30,8 @@ public class ValkeyMeteringServiceTests
         ISubscriptionQueryService subscriptionQueryService = Substitute.For<ISubscriptionQueryService>();
         _database = Substitute.For<IDatabase>();
 
-        _testTenantId = TenantId.Create(Guid.NewGuid());
-        tenantContext.TenantId.Returns(_testTenantId);
+        _tenantId = TenantId.Create(Guid.NewGuid());
+        tenantContext.TenantId.Returns(_tenantId);
         redis.GetDatabase(Arg.Any<int>(), Arg.Any<object>()).Returns(_database);
 
         ILogger<ValkeyMeteringService> logger = Substitute.For<ILogger<ValkeyMeteringService>>();
@@ -66,7 +66,7 @@ public class ValkeyMeteringServiceTests
     {
         DateTime now = DateTime.UtcNow;
         string expectedPeriod = now.ToString("yyyy-MM");
-        string expectedKey = $"meter:{_testTenantId.Value}:api.calls:{expectedPeriod}";
+        string expectedKey = $"meter:{_tenantId.Value}:api.calls:{expectedPeriod}";
 
         await _service.IncrementAsync("api.calls", 5);
 

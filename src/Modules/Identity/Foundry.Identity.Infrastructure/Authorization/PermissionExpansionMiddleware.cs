@@ -81,11 +81,11 @@ public class PermissionExpansionMiddleware
         // Expand roles to permissions
         if (roles.Count > 0)
         {
-            IEnumerable<PermissionType> permissions = RolePermissionMapping.GetPermissions(roles);
+            IEnumerable<string> permissions = RolePermissionMapping.GetPermissions(roles);
 
-            foreach (PermissionType permission in permissions)
+            foreach (string permission in permissions)
             {
-                identity?.AddClaim(new Claim("permission", permission.ToString()));
+                identity?.AddClaim(new Claim("permission", permission));
             }
         }
     }
@@ -100,15 +100,15 @@ public class PermissionExpansionMiddleware
         // Map scopes to permissions
         foreach (string scope in scopes)
         {
-            PermissionType? permission = MapScopeToPermission(scope);
-            if (permission.HasValue)
+            string? permission = MapScopeToPermission(scope);
+            if (permission is not null)
             {
-                identity?.AddClaim(new Claim("permission", permission.Value.ToString()));
+                identity?.AddClaim(new Claim("permission", permission));
             }
         }
     }
 
-    private static PermissionType? MapScopeToPermission(string scope)
+    private static string? MapScopeToPermission(string scope)
     {
         return scope switch
         {

@@ -6,6 +6,9 @@ public sealed class DeleteBucketValidator : AbstractValidator<DeleteBucketComman
 {
     public DeleteBucketValidator()
     {
+        RuleFor(x => x.TenantId)
+            .NotEmpty().WithMessage("Tenant ID is required");
+
         RuleFor(x => x.Name)
             .NotEmpty().WithMessage("Bucket name is required");
     }

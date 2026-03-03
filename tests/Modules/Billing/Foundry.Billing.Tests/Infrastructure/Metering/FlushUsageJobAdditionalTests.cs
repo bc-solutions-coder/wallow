@@ -112,8 +112,15 @@ public class FlushUsageJobAdditionalTests
     [Fact]
     public async Task Execute_CallsSaveChangesAsync()
     {
+        Guid tenantId = Guid.NewGuid();
+        string key = $"meter:{tenantId}:api.calls:2024-01";
+
         _database.SetMembersAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
-            .Returns(Array.Empty<RedisValue>());
+            .Returns(new RedisValue[] { key });
+        _database.StringGetSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<CommandFlags>())
+            .Returns(new RedisValue("10"));
+        _usageRepository.GetForPeriodAsync(Arg.Any<string>(), Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
+            .Returns((UsageRecord?)null);
 
         await _job.ExecuteAsync(CancellationToken.None);
 

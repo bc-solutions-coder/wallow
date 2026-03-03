@@ -77,14 +77,15 @@ namespace Foundry.Billing.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("InvoiceNumber")
-                        .IsUnique();
-
                     b.HasIndex("Status");
 
                     b.HasIndex("TenantId");
 
                     b.HasIndex("UserId");
+
+                    b.HasIndex("TenantId", "InvoiceNumber")
+                        .IsUnique()
+                        .HasDatabaseName("ix_billing_invoices_tenant_invoice_number");
 
                     b.ToTable("invoices", "billing");
                 });

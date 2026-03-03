@@ -1,4 +1,4 @@
-using Foundry.Shared.Kernel.Messaging;
+using Foundry.Shared.Infrastructure.Messaging;
 using Wolverine;
 
 namespace Foundry.Shared.Kernel.Tests.Messaging;

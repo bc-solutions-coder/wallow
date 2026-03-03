@@ -40,10 +40,10 @@ public class CreateFeatureFlagHandlerTests
         _repository.GetByKeyAsync(command.Key, Arg.Any<CancellationToken>())
             .Returns((FeatureFlag?)null);
 
-        Result<Guid> result = await _handler.Handle(command, CancellationToken.None);
+        Result<FeatureFlagDto> result = await _handler.Handle(command, CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.Should().NotBeEmpty();
+        result.Value.Id.Should().NotBeEmpty();
         await _repository.Received(1).AddAsync(Arg.Any<FeatureFlag>(), Arg.Any<CancellationToken>());
         await _cache.Received(1).RemoveAsync(Arg.Is<string>(k => k.Contains("dark_mode")), Arg.Any<CancellationToken>());
         await _bus.Received(1).PublishAsync(Arg.Any<object>());
@@ -67,7 +67,7 @@ public class CreateFeatureFlagHandlerTests
         _repository.GetByKeyAsync(command.Key, Arg.Any<CancellationToken>())
             .Returns(existing);
 
-        Result<Guid> result = await _handler.Handle(command, CancellationToken.None);
+        Result<FeatureFlagDto> result = await _handler.Handle(command, CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Code.Should().Contain("Conflict");
@@ -90,7 +90,7 @@ public class CreateFeatureFlagHandlerTests
         _repository.GetByKeyAsync(command.Key, Arg.Any<CancellationToken>())
             .Returns((FeatureFlag?)null);
 
-        Result<Guid> result = await _handler.Handle(command, CancellationToken.None);
+        Result<FeatureFlagDto> result = await _handler.Handle(command, CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
         await _repository.Received(1).AddAsync(
@@ -120,7 +120,7 @@ public class CreateFeatureFlagHandlerTests
         _repository.GetByKeyAsync(command.Key, Arg.Any<CancellationToken>())
             .Returns((FeatureFlag?)null);
 
-        Result<Guid> result = await _handler.Handle(command, CancellationToken.None);
+        Result<FeatureFlagDto> result = await _handler.Handle(command, CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
         await _repository.Received(1).AddAsync(

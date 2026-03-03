@@ -1,81 +1,91 @@
 namespace Foundry.Shared.Kernel.Identity.Authorization;
 
 /// <summary>
-/// System permission types for RBAC
+/// System permission types for RBAC.
+/// String constants allow modules to define their own permissions without modifying this class.
 /// </summary>
-public enum PermissionType
+public static class PermissionType
 {
-    /// <summary>
-    /// No permission assigned (default value).
-    /// </summary>
-    None = 0,
+    public const string None = "None";
 
     // User management
-    UsersRead = 100,
-    UsersCreate = 101,
-    UsersUpdate = 102,
-    UsersDelete = 103,
+    public const string UsersRead = "UsersRead";
+    public const string UsersCreate = "UsersCreate";
+    public const string UsersUpdate = "UsersUpdate";
+    public const string UsersDelete = "UsersDelete";
 
     // Role management
-    RolesRead = 200,
-    RolesCreate = 201,
-    RolesUpdate = 202,
-    RolesDelete = 203,
+    public const string RolesRead = "RolesRead";
+    public const string RolesCreate = "RolesCreate";
+    public const string RolesUpdate = "RolesUpdate";
+    public const string RolesDelete = "RolesDelete";
 
     // Billing
-    BillingRead = 500,
-    BillingManage = 501,
-    InvoicesRead = 502,
-    InvoicesWrite = 503,
-    PaymentsRead = 504,
-    PaymentsWrite = 505,
-    SubscriptionsRead = 506,
-    SubscriptionsWrite = 507,
+    public const string BillingRead = "BillingRead";
+    public const string BillingManage = "BillingManage";
+    public const string InvoicesRead = "InvoicesRead";
+    public const string InvoicesWrite = "InvoicesWrite";
+    public const string PaymentsRead = "PaymentsRead";
+    public const string PaymentsWrite = "PaymentsWrite";
+    public const string SubscriptionsRead = "SubscriptionsRead";
+    public const string SubscriptionsWrite = "SubscriptionsWrite";
 
     // Organizations
-    OrganizationsRead = 600,
-    OrganizationsCreate = 601,
-    OrganizationsUpdate = 602,
-    OrganizationsManageMembers = 603,
+    public const string OrganizationsRead = "OrganizationsRead";
+    public const string OrganizationsCreate = "OrganizationsCreate";
+    public const string OrganizationsUpdate = "OrganizationsUpdate";
+    public const string OrganizationsManageMembers = "OrganizationsManageMembers";
 
     // API Keys / Service Accounts
-    ApiKeysRead = 700,
-    ApiKeysCreate = 701,
-    ApiKeysUpdate = 702,
-    ApiKeysDelete = 703,
+    public const string ApiKeysRead = "ApiKeysRead";
+    public const string ApiKeysCreate = "ApiKeysCreate";
+    public const string ApiKeysUpdate = "ApiKeysUpdate";
+    public const string ApiKeysDelete = "ApiKeysDelete";
 
     // Notifications
-    NotificationsRead = 750,
-    NotificationsWrite = 751,
+    public const string NotificationsRead = "NotificationsRead";
+    public const string NotificationsWrite = "NotificationsWrite";
 
     // Webhooks
-    WebhooksManage = 850,
+    public const string WebhooksManage = "WebhooksManage";
 
     // SSO/SCIM
-    SsoRead = 860,
-    SsoManage = 861,
-    ScimManage = 862,
+    public const string SsoRead = "SsoRead";
+    public const string SsoManage = "SsoManage";
+    public const string ScimManage = "ScimManage";
 
     // Admin
-    AdminAccess = 900,
-    SystemSettings = 901,
+    public const string AdminAccess = "AdminAccess";
+    public const string SystemSettings = "SystemSettings";
 
     // Configuration
-    ConfigurationManage = 950,
+    public const string ConfigurationManage = "ConfigurationManage";
 
     // Communications
-    NotificationRead = 800,
-    EmailPreferenceManage = 801,
-    MessagingAccess = 802,
-    AnnouncementRead = 803,
+    public const string NotificationRead = "NotificationRead";
+    public const string EmailPreferenceManage = "EmailPreferenceManage";
+    public const string MessagingAccess = "MessagingAccess";
+    public const string AnnouncementRead = "AnnouncementRead";
+    public const string AnnouncementManage = "AnnouncementManage";
+
+    public const string ChangelogManage = "ChangelogManage";
 
     // Storage
-    StorageRead = 300,
-    StorageWrite = 301,
+    public const string StorageRead = "StorageRead";
+    public const string StorageWrite = "StorageWrite";
 
     // API Key management
-    ApiKeyManage = 704,
+    public const string ApiKeyManage = "ApiKeyManage";
 
     // Scope management
-    ScopeRead = 710
+    public const string ScopeRead = "ScopeRead";
+
+    /// <summary>
+    /// Returns all permission constants defined in this class.
+    /// </summary>
+    public static IReadOnlyList<string> All { get; } = typeof(PermissionType)
+        .GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+        .Where(f => f.IsLiteral && f.FieldType == typeof(string))
+        .Select(f => (string)f.GetRawConstantValue()!)
+        .ToArray();
 }

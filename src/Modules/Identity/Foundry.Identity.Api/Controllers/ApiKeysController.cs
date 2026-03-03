@@ -8,7 +8,7 @@ using Foundry.Shared.Kernel.Identity.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using ICurrentUserService = Foundry.Shared.Kernel.Services.ICurrentUserService;
+using Foundry.Shared.Kernel.Services;
 
 namespace Foundry.Identity.Api.Controllers;
 

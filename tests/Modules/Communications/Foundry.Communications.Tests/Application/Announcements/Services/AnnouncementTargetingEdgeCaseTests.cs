@@ -155,7 +155,7 @@ public class AnnouncementTargetingEdgeCaseTests
     [Fact]
     public async Task GetActiveAnnouncementsForUserAsync_MapsAllDtoFields()
     {
-        Announcement announcement = Announcement.Create("Test Title", "Test Content", AnnouncementType.Alert, TimeProvider.System, AnnouncementTarget.All, null, DateTime.UtcNow.AddHours(1), DateTime.UtcNow.AddDays(7), true, true, "https://example.com", "Click Here", "https://example.com/image.png");
+        Announcement announcement = Announcement.Create(_testTenantId, "Test Title", "Test Content", AnnouncementType.Alert, TimeProvider.System, AnnouncementTarget.All, null, DateTime.UtcNow.AddHours(1), DateTime.UtcNow.AddDays(7), true, true, "https://example.com", "Click Here", "https://example.com/image.png");
         announcement.Publish(TimeProvider.System);
 
         _announcementRepository.GetPublishedAsync(Arg.Any<CancellationToken>())
@@ -225,13 +225,15 @@ public class AnnouncementTargetingEdgeCaseTests
         await _announcementRepository.Received(1).GetPublishedAsync(cts.Token);
     }
 
+    private static readonly TenantId _testTenantId = TenantId.New();
+
     private static Announcement CreatePublishedAnnouncement(
         string title,
         AnnouncementTarget target,
         string? targetValue = null,
         DateTime? expiresAt = null)
     {
-        Announcement announcement = Announcement.Create(title, "Content", AnnouncementType.Feature, TimeProvider.System, target, targetValue, null, expiresAt, false, true);
+        Announcement announcement = Announcement.Create(_testTenantId, title, "Content", AnnouncementType.Feature, TimeProvider.System, target, targetValue, null, expiresAt, false, true);
         announcement.Publish(TimeProvider.System);
         return announcement;
     }

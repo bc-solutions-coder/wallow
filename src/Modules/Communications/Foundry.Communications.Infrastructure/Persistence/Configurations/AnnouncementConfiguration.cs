@@ -18,6 +18,13 @@ public sealed class AnnouncementConfiguration : IEntityTypeConfiguration<Announc
             .HasColumnName("id")
             .ValueGeneratedNever();
 
+        builder.Property(a => a.TenantId)
+            .HasConversion(new StronglyTypedIdConverter<TenantId>())
+            .HasColumnName("tenant_id")
+            .IsRequired();
+
+        builder.HasIndex(a => a.TenantId);
+
         builder.Property(a => a.Title)
             .HasColumnName("title")
             .HasMaxLength(200)

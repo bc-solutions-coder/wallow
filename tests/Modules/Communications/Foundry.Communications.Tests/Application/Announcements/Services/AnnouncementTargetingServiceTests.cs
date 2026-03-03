@@ -258,6 +258,8 @@ public class AnnouncementTargetingServiceTests
         result.Should().BeEmpty();
     }
 
+    private static readonly TenantId _testTenantId = TenantId.New();
+
     private static Announcement CreatePublishedAnnouncement(
         string title,
         AnnouncementTarget target,
@@ -266,7 +268,7 @@ public class AnnouncementTargetingServiceTests
         bool isPinned = false,
         bool isDismissible = true)
     {
-        Announcement announcement = Announcement.Create(title, "Content", AnnouncementType.Feature, TimeProvider.System, target, targetValue, null, expiresAt, isPinned, isDismissible);
+        Announcement announcement = Announcement.Create(_testTenantId, title, "Content", AnnouncementType.Feature, TimeProvider.System, target, targetValue, null, expiresAt, isPinned, isDismissible);
         announcement.Publish(TimeProvider.System);
         return announcement;
     }

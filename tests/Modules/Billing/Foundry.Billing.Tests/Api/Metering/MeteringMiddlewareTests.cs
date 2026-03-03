@@ -6,7 +6,7 @@ using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.MultiTenancy;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Logging;
+using Wolverine;
 
 namespace Foundry.Billing.Tests.Api.Metering;
 
@@ -14,6 +14,7 @@ public class MeteringMiddlewareTests
 {
     private readonly IMeteringService _meteringService;
     private readonly ITenantContext _tenantContext;
+    private readonly IMessageBus _messageBus;
     private readonly MeteringMiddleware _middleware;
     private bool _nextCalled;
 
@@ -22,6 +23,7 @@ public class MeteringMiddlewareTests
         _meteringService = Substitute.For<IMeteringService>();
         _tenantContext = Substitute.For<ITenantContext>();
         _tenantContext.TenantId.Returns(TenantId.Create(Guid.NewGuid()));
+        _messageBus = Substitute.For<IMessageBus>();
         _nextCalled = false;
         RequestDelegate next = _ =>
         {
@@ -29,8 +31,7 @@ public class MeteringMiddlewareTests
             return Task.CompletedTask;
         };
         IMemoryCache cache = Substitute.For<IMemoryCache>();
-        ILogger<MeteringMiddleware> logger = Substitute.For<ILogger<MeteringMiddleware>>();
-        _middleware = new MeteringMiddleware(next, cache, logger);
+        _middleware = new MeteringMiddleware(next, cache);
     }
 
     [Theory]
@@ -43,11 +44,10 @@ public class MeteringMiddlewareTests
         DefaultHttpContext context = new();
         context.Request.Path = path;
 
-        await _middleware.InvokeAsync(context, _meteringService, _tenantContext);
+        await _middleware.InvokeAsync(context, _meteringService, _tenantContext, _messageBus);
 
         _nextCalled.Should().BeTrue();
         await _meteringService.DidNotReceive().CheckQuotaAsync(Arg.Any<string>());
-        await _meteringService.DidNotReceive().IncrementAsync(Arg.Any<string>(), Arg.Any<decimal>(), Arg.Any<Dictionary<string, string>>());
     }
 
     [Fact]
@@ -65,7 +65,7 @@ public class MeteringMiddlewareTests
                 PercentUsed: 100.1m,
                 ActionIfExceeded: QuotaAction.Block));
 
-        await _middleware.InvokeAsync(context, _meteringService, _tenantContext);
+        await _middleware.InvokeAsync(context, _meteringService, _tenantContext, _messageBus);
 
         context.Response.StatusCode.Should().Be(StatusCodes.Status429TooManyRequests);
         context.Response.Headers["X-RateLimit-Limit"].ToString().Should().Be("1000");
@@ -89,7 +89,7 @@ public class MeteringMiddlewareTests
                 PercentUsed: 100.1m,
                 ActionIfExceeded: QuotaAction.Warn));
 
-        await _middleware.InvokeAsync(context, _meteringService, _tenantContext);
+        await _middleware.InvokeAsync(context, _meteringService, _tenantContext, _messageBus);
 
         _nextCalled.Should().BeTrue();
         context.Response.StatusCode.Should().NotBe(StatusCodes.Status429TooManyRequests);
@@ -110,9 +110,9 @@ public class MeteringMiddlewareTests
                 PercentUsed: 50,
                 ActionIfExceeded: null));
 
-        await _middleware.InvokeAsync(context, _meteringService, _tenantContext);
+        await _middleware.InvokeAsync(context, _meteringService, _tenantContext, _messageBus);
 
-        await _meteringService.Received(1).IncrementAsync("api.calls", Arg.Any<decimal>(), Arg.Any<Dictionary<string, string>>());
+        await _messageBus.Received(1).SendAsync(Arg.Any<object>());
     }
 
     [Theory]
@@ -133,9 +133,9 @@ public class MeteringMiddlewareTests
                 PercentUsed: 50,
                 ActionIfExceeded: null));
 
-        await _middleware.InvokeAsync(context, _meteringService, _tenantContext);
+        await _middleware.InvokeAsync(context, _meteringService, _tenantContext, _messageBus);
 
-        await _meteringService.DidNotReceive().IncrementAsync(Arg.Any<string>(), Arg.Any<decimal>(), Arg.Any<Dictionary<string, string>>());
+        await _messageBus.DidNotReceive().SendAsync(Arg.Any<object>());
     }
 
     [Fact]
@@ -153,7 +153,7 @@ public class MeteringMiddlewareTests
                 PercentUsed: 85,
                 ActionIfExceeded: null));
 
-        await _middleware.InvokeAsync(context, _meteringService, _tenantContext);
+        await _middleware.InvokeAsync(context, _meteringService, _tenantContext, _messageBus);
 
         context.Response.Headers["X-Quota-Warning"].ToString().Should().Contain("85%");
     }
@@ -173,7 +173,7 @@ public class MeteringMiddlewareTests
                 PercentUsed: 50,
                 ActionIfExceeded: null));
 
-        await _middleware.InvokeAsync(context, _meteringService, _tenantContext);
+        await _middleware.InvokeAsync(context, _meteringService, _tenantContext, _messageBus);
 
         context.Response.Headers.Should().NotContainKey("X-Quota-Warning");
     }
@@ -193,7 +193,7 @@ public class MeteringMiddlewareTests
                 PercentUsed: 50,
                 ActionIfExceeded: null));
 
-        await _middleware.InvokeAsync(context, _meteringService, _tenantContext);
+        await _middleware.InvokeAsync(context, _meteringService, _tenantContext, _messageBus);
 
         context.Response.Headers["X-RateLimit-Limit"].ToString().Should().Be("1000");
         context.Response.Headers["X-RateLimit-Remaining"].ToString().Should().Be("499");
@@ -215,7 +215,7 @@ public class MeteringMiddlewareTests
                 PercentUsed: 0,
                 ActionIfExceeded: null));
 
-        await _middleware.InvokeAsync(context, _meteringService, _tenantContext);
+        await _middleware.InvokeAsync(context, _meteringService, _tenantContext, _messageBus);
 
         context.Response.Headers.Should().NotContainKey("X-RateLimit-Limit");
         context.Response.Headers.Should().NotContainKey("X-RateLimit-Remaining");
@@ -236,7 +236,7 @@ public class MeteringMiddlewareTests
                 return new QuotaCheckResult(true, 0, 1000, 0, null);
             });
 
-        await _middleware.InvokeAsync(context, _meteringService, _tenantContext);
+        await _middleware.InvokeAsync(context, _meteringService, _tenantContext, _messageBus);
 
         checkQuotaCalled.Should().BeTrue();
         _nextCalled.Should().BeTrue();

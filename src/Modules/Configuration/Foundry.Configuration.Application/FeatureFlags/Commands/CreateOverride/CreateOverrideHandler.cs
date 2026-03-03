@@ -1,6 +1,7 @@
 using Foundry.Configuration.Application.FeatureFlags.Contracts;
 using Foundry.Configuration.Domain.Entities;
 using Foundry.Configuration.Domain.Identity;
+using Foundry.Shared.Kernel.MultiTenancy;
 using Foundry.Shared.Kernel.Results;
 using Microsoft.Extensions.Caching.Distributed;
 
@@ -10,10 +11,16 @@ public sealed class CreateOverrideHandler(
     IFeatureFlagRepository flagRepo,
     IFeatureFlagOverrideRepository overrideRepo,
     IDistributedCache cache,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    ITenantContext tenantContext)
 {
     public async Task<Result<Guid>> Handle(CreateOverrideCommand cmd, CancellationToken ct)
     {
+        if (cmd.TenantId.HasValue && cmd.TenantId.Value != tenantContext.TenantId.Value)
+        {
+            return Result.Failure<Guid>(Error.Unauthorized("Tenant mismatch."));
+        }
+
         FeatureFlagId flagId = FeatureFlagId.Create(cmd.FlagId);
         FeatureFlag? flag = await flagRepo.GetByIdAsync(flagId, ct);
 

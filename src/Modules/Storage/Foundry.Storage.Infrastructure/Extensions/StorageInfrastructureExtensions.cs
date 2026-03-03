@@ -73,7 +73,7 @@ public static class StorageInfrastructureExtensions
                     };
                     return new AmazonS3Client(s3Options.AccessKey, s3Options.SecretKey, config);
                 });
-                services.AddSingleton<IStorageProvider, S3StorageProvider>();
+                services.AddScoped<IStorageProvider, S3StorageProvider>();
                 break;
             default:
                 services.AddSingleton<IStorageProvider, LocalStorageProvider>();

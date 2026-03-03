@@ -7,7 +7,7 @@ namespace Foundry.Identity.Tests.Domain;
 
 public class ServiceAccountMetadataTests
 {
-    private static readonly TenantId _testTenantId = TenantId.Create(Guid.NewGuid());
+    private static readonly TenantId _tenantId = TenantId.Create(Guid.NewGuid());
     private static readonly Guid _testUserId = Guid.NewGuid();
     private static readonly string[] _oldScopeArray = ["old.scope"];
     private static readonly string[] _singleScopeArray = ["scope"];
@@ -20,7 +20,7 @@ public class ServiceAccountMetadataTests
 
         // Act
         ServiceAccountMetadata metadata = ServiceAccountMetadata.Create(
-            _testTenantId,
+            _tenantId,
             "sa-test-client",
             "Test Service Account",
             "Test description",
@@ -28,7 +28,7 @@ public class ServiceAccountMetadataTests
             _testUserId);
 
         // Assert
-        metadata.TenantId.Should().Be(_testTenantId);
+        metadata.TenantId.Should().Be(_tenantId);
         metadata.KeycloakClientId.Should().Be("sa-test-client");
         metadata.Name.Should().Be("Test Service Account");
         metadata.Description.Should().Be("Test description");
@@ -42,7 +42,7 @@ public class ServiceAccountMetadataTests
     {
         // Act
         Func<ServiceAccountMetadata> act = () => ServiceAccountMetadata.Create(
-            _testTenantId,
+            _tenantId,
             "",
             "Test Service Account",
             null,
@@ -59,7 +59,7 @@ public class ServiceAccountMetadataTests
     {
         // Act
         Func<ServiceAccountMetadata> act = () => ServiceAccountMetadata.Create(
-            _testTenantId,
+            _tenantId,
             "sa-test-client",
             "",
             null,
@@ -76,7 +76,7 @@ public class ServiceAccountMetadataTests
     {
         // Arrange
         ServiceAccountMetadata metadata = ServiceAccountMetadata.Create(
-            _testTenantId,
+            _tenantId,
             "sa-test-client",
             "Test",
             null,
@@ -98,7 +98,7 @@ public class ServiceAccountMetadataTests
     {
         // Arrange
         ServiceAccountMetadata metadata = ServiceAccountMetadata.Create(
-            _testTenantId,
+            _tenantId,
             "sa-test-client",
             "Test",
             null,
@@ -117,7 +117,7 @@ public class ServiceAccountMetadataTests
     {
         // Arrange
         ServiceAccountMetadata metadata = ServiceAccountMetadata.Create(
-            _testTenantId,
+            _tenantId,
             "sa-test-client",
             "Test",
             null,
@@ -138,7 +138,7 @@ public class ServiceAccountMetadataTests
     {
         // Arrange
         ServiceAccountMetadata metadata = ServiceAccountMetadata.Create(
-            _testTenantId,
+            _tenantId,
             "sa-test-client",
             "Test",
             null,
@@ -158,7 +158,7 @@ public class ServiceAccountMetadataTests
     {
         // Arrange
         ServiceAccountMetadata metadata = ServiceAccountMetadata.Create(
-            _testTenantId,
+            _tenantId,
             "sa-test-client",
             "Test",
             null,
@@ -179,7 +179,7 @@ public class ServiceAccountMetadataTests
     {
         // Arrange
         ServiceAccountMetadata metadata = ServiceAccountMetadata.Create(
-            _testTenantId,
+            _tenantId,
             "sa-test-client",
             "Original Name",
             "Original Description",
@@ -199,7 +199,7 @@ public class ServiceAccountMetadataTests
     {
         // Arrange
         ServiceAccountMetadata metadata = ServiceAccountMetadata.Create(
-            _testTenantId,
+            _tenantId,
             "sa-test-client",
             "Test",
             null,
@@ -220,7 +220,7 @@ public class ServiceAccountMetadataTests
     {
         // Arrange
         ServiceAccountMetadata metadata = ServiceAccountMetadata.Create(
-            _testTenantId,
+            _tenantId,
             "sa-test-client",
             "Test",
             null,

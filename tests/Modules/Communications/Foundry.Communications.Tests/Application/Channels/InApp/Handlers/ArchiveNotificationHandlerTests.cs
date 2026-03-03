@@ -23,12 +23,13 @@ public class ArchiveNotificationHandlerTests
     public async Task Handle_WhenNotificationExists_ArchivesAndReturnsSuccess()
     {
         TenantId tenantId = TenantId.Create(Guid.NewGuid());
-        Notification notification = Notification.Create(tenantId, Guid.NewGuid(), NotificationType.SystemAlert, "Title", "Message", TimeProvider.System);
+        Guid userId = Guid.NewGuid();
+        Notification notification = Notification.Create(tenantId, userId, NotificationType.SystemAlert, "Title", "Message", TimeProvider.System);
 
         _repository.GetByIdAsync(Arg.Any<NotificationId>(), Arg.Any<CancellationToken>())
             .Returns(notification);
 
-        ArchiveNotificationCommand command = new(notification.Id, tenantId);
+        ArchiveNotificationCommand command = new(notification.Id, tenantId, userId);
 
         Result result = await _handler.Handle(command, CancellationToken.None);
 
@@ -45,7 +46,8 @@ public class ArchiveNotificationHandlerTests
 
         ArchiveNotificationCommand command = new(
             NotificationId.New(),
-            TenantId.Create(Guid.NewGuid()));
+            TenantId.Create(Guid.NewGuid()),
+            Guid.NewGuid());
 
         Result result = await _handler.Handle(command, CancellationToken.None);
 
@@ -64,7 +66,7 @@ public class ArchiveNotificationHandlerTests
         _repository.GetByIdAsync(Arg.Any<NotificationId>(), Arg.Any<CancellationToken>())
             .Returns(notification);
 
-        ArchiveNotificationCommand command = new(notification.Id, differentTenant);
+        ArchiveNotificationCommand command = new(notification.Id, differentTenant, Guid.NewGuid());
 
         Result result = await _handler.Handle(command, CancellationToken.None);
 
@@ -78,12 +80,13 @@ public class ArchiveNotificationHandlerTests
     {
         using CancellationTokenSource cts = new();
         TenantId tenantId = TenantId.Create(Guid.NewGuid());
-        Notification notification = Notification.Create(tenantId, Guid.NewGuid(), NotificationType.SystemAlert, "Title", "Message", TimeProvider.System);
+        Guid userId = Guid.NewGuid();
+        Notification notification = Notification.Create(tenantId, userId, NotificationType.SystemAlert, "Title", "Message", TimeProvider.System);
 
         _repository.GetByIdAsync(Arg.Any<NotificationId>(), Arg.Any<CancellationToken>())
             .Returns(notification);
 
-        ArchiveNotificationCommand command = new(notification.Id, tenantId);
+        ArchiveNotificationCommand command = new(notification.Id, tenantId, userId);
 
         await _handler.Handle(command, cts.Token);
 

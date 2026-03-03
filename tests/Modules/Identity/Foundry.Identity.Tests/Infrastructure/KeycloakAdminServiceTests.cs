@@ -21,7 +21,7 @@ public class KeycloakAdminServiceTests
     private readonly IMessageBus _messageBus = Substitute.For<IMessageBus>();
     private readonly ITenantContext _tenantContext = Substitute.For<ITenantContext>();
     private readonly ILogger<KeycloakAdminService> _logger = Substitute.For<ILogger<KeycloakAdminService>>();
-    private readonly TenantId _testTenantId = TenantId.Create(Guid.NewGuid());
+    private readonly TenantId _tenantId = TenantId.Create(Guid.NewGuid());
 
     [Fact]
     public async Task CreateUserAsync_Success_ReturnsUserId()
@@ -359,7 +359,7 @@ public class KeycloakAdminServiceTests
         };
         httpClientFactory.CreateClient("KeycloakAdminClient").Returns(httpClient);
 
-        _tenantContext.TenantId.Returns(_testTenantId);
+        _tenantContext.TenantId.Returns(_tenantId);
 
         return new KeycloakAdminService(
             _userClient,

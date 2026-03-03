@@ -16,7 +16,7 @@ public class KeycloakOrganizationServiceAdditionalTests
     private readonly IMessageBus _messageBus = Substitute.For<IMessageBus>();
     private readonly ITenantContext _tenantContext = Substitute.For<ITenantContext>();
     private readonly ILogger<KeycloakOrganizationService> _logger = Substitute.For<ILogger<KeycloakOrganizationService>>();
-    private readonly TenantId _testTenantId = TenantId.Create(Guid.NewGuid());
+    private readonly TenantId _tenantId = TenantId.Create(Guid.NewGuid());
 
     [Fact]
     public async Task CreateOrganizationAsync_WithoutDomain_CreatesSuccessfully()
@@ -205,7 +205,7 @@ public class KeycloakOrganizationServiceAdditionalTests
         };
         httpClientFactory.CreateClient("KeycloakAdminClient").Returns(httpClient);
 
-        _tenantContext.TenantId.Returns(_testTenantId);
+        _tenantContext.TenantId.Returns(_tenantId);
 
         return new KeycloakOrganizationService(
             httpClientFactory,

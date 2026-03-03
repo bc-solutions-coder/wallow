@@ -1,6 +1,7 @@
 using Foundry.Shared.Kernel.Domain;
 using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.MultiTenancy;
+using Foundry.Storage.Domain.Events;
 using Foundry.Storage.Domain.Identity;
 
 namespace Foundry.Storage.Domain.Entities;
@@ -37,7 +38,7 @@ public sealed class StoredFile : AggregateRoot<StoredFileId>, ITenantScoped
         bool isPublic = false,
         string? metadata = null)
     {
-        return new StoredFile
+        StoredFile file = new StoredFile
         {
             Id = StoredFileId.New(),
             TenantId = tenantId,
@@ -52,6 +53,10 @@ public sealed class StoredFile : AggregateRoot<StoredFileId>, ITenantScoped
             UploadedAt = DateTime.UtcNow,
             Metadata = metadata
         };
+
+        file.RaiseDomainEvent(new FileUploadedEvent(file.Id, file.BucketId, tenantId));
+
+        return file;
     }
 
     public void UpdateMetadata(string? metadata)
@@ -62,5 +67,10 @@ public sealed class StoredFile : AggregateRoot<StoredFileId>, ITenantScoped
     public void SetPublic(bool isPublic)
     {
         IsPublic = isPublic;
+    }
+
+    public void MarkAsDeleted()
+    {
+        RaiseDomainEvent(new FileDeletedEvent(Id, BucketId, TenantId));
     }
 }

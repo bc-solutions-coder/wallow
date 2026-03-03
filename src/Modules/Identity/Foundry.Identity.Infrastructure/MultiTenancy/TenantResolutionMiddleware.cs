@@ -23,6 +23,7 @@ public partial class TenantResolutionMiddleware
         if (context.User.Identity?.IsAuthenticated == true)
         {
             Claim? orgClaim = context.User.FindFirst("organization");
+            Guid? resolvedTenantId = null;
             if (orgClaim != null)
             {
                 Guid? orgId = ParseOrganizationId(orgClaim.Value);
@@ -30,6 +31,7 @@ public partial class TenantResolutionMiddleware
 
                 if (orgId.HasValue)
                 {
+                    resolvedTenantId = orgId.Value;
                     tenantSetter.SetTenant(TenantId.Create(orgId.Value), orgName);
                     LogTenantResolved(orgId, orgName);
                 }
@@ -41,8 +43,11 @@ public partial class TenantResolutionMiddleware
                 HasRealmAdminRole(context.User) &&
                 Guid.TryParse(headerTenantId, out Guid overrideId))
             {
+                string userId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "unknown";
+                string requestPath = context.Request.Path.Value ?? "/";
+
                 tenantSetter.SetTenant(TenantId.Create(overrideId));
-                LogAdminTenantOverride(overrideId);
+                LogAdminTenantOverride(overrideId, resolvedTenantId, userId, requestPath);
             }
 
             // Region resolution: JWT claim > header > default
@@ -172,8 +177,8 @@ public partial class TenantResolutionMiddleware
     [LoggerMessage(Level = LogLevel.Debug, Message = "Tenant resolved: {TenantId} ({TenantName})")]
     private partial void LogTenantResolved(Guid? tenantId, string tenantName);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Admin tenant override: {TenantId}")]
-    private partial void LogAdminTenantOverride(Guid tenantId);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Admin tenant override: OverridingTenantId={OverridingTenantId}, OriginalTenantId={OriginalTenantId}, UserId={UserId}, RequestPath={RequestPath}")]
+    private partial void LogAdminTenantOverride(Guid overridingTenantId, Guid? originalTenantId, string userId, string requestPath);
 
     [LoggerMessage(Level = LogLevel.Debug, Message = "Tenant region resolved: {Region}")]
     private partial void LogRegionResolved(string region);

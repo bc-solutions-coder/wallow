@@ -4,6 +4,8 @@ using Foundry.Communications.Application.Channels.Email.Interfaces;
 using Foundry.Communications.Domain.Channels.Email.Entities;
 using Foundry.Communications.Domain.Channels.Email.Enums;
 using Foundry.Shared.Contracts.Communications.Email;
+using Foundry.Shared.Kernel.Identity;
+using Foundry.Shared.Kernel.MultiTenancy;
 using Foundry.Shared.Kernel.Results;
 
 namespace Foundry.Communications.Tests.Application.Channels.Email.Handlers;
@@ -18,7 +20,9 @@ public class SendEmailHandlerTests
     {
         _repository = Substitute.For<IEmailMessageRepository>();
         _emailService = Substitute.For<IEmailService>();
-        _handler = new SendEmailHandler(_repository, _emailService, TimeProvider.System);
+        ITenantContext tenantContext = Substitute.For<ITenantContext>();
+        tenantContext.TenantId.Returns(TenantId.New());
+        _handler = new SendEmailHandler(_repository, _emailService, tenantContext, TimeProvider.System);
     }
 
     [Fact]

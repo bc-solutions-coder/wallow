@@ -10,7 +10,7 @@ using Foundry.Communications.Application.Announcements.Queries.GetAllAnnouncemen
 using Foundry.Communications.Domain.Announcements.Enums;
 using Foundry.Shared.Infrastructure.Services;
 using Foundry.Shared.Kernel.Results;
-using Microsoft.AspNetCore.Authorization;
+using Foundry.Shared.Kernel.Identity.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Wolverine;
@@ -20,7 +20,7 @@ namespace Foundry.Communications.Api.Controllers;
 [ApiController]
 [ApiVersion(1.0)]
 [Route("api/v{version:apiVersion}/admin/announcements")]
-[Authorize(Roles = "Admin")]
+[HasPermission(PermissionType.AnnouncementManage)]
 [Tags("Admin - Announcements")]
 [Produces("application/json")]
 public class AdminAnnouncementsController : ControllerBase

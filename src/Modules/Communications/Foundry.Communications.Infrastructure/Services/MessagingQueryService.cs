@@ -12,6 +12,31 @@ public sealed class MessagingQueryService(
     CommunicationsDbContext dbContext,
     ITenantContext tenantContext) : IMessagingQueryService
 {
+    public async Task<bool> IsParticipantAsync(Guid conversationId, Guid userId, CancellationToken cancellationToken = default)
+    {
+        DbConnection connection = dbContext.Database.GetDbConnection();
+
+        const string sql = """
+            SELECT EXISTS(
+                SELECT 1
+                FROM communications.participants p
+                INNER JOIN communications.conversations c ON c.id = p.conversation_id
+                WHERE p.conversation_id = @ConversationId
+                  AND p.user_id = @UserId
+                  AND p.is_active = true
+                  AND c.tenant_id = @TenantId
+            )
+            """;
+
+        bool exists = await connection.QuerySingleAsync<bool>(
+            new CommandDefinition(
+                sql,
+                new { ConversationId = conversationId, UserId = userId, TenantId = tenantContext.TenantId.Value },
+                cancellationToken: cancellationToken));
+
+        return exists;
+    }
+
     public async Task<int> GetUnreadConversationCountAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         DbConnection connection = dbContext.Database.GetDbConnection();

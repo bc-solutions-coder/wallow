@@ -21,5 +21,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Shared\Foundry.Shared.Kernel\Foundry.Shared.Kernel.csproj" />
+    <ProjectReference Include="..\..\src\Shared\Foundry.Shared.Infrastructure\Foundry.Shared.Infrastructure.csproj" />
   </ItemGroup>
 </Project>

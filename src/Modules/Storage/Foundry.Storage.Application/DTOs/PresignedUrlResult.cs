@@ -5,6 +5,7 @@ public sealed record PresignedUrlResult(
     DateTime ExpiresAt);
 
 public sealed record PresignedUploadResult(
+    Guid FileId,
     string UploadUrl,
     string StorageKey,
     DateTime ExpiresAt);

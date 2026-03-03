@@ -75,7 +75,7 @@ public sealed class SsoConfigurationConfiguration : IEntityTypeConfiguration<Sso
 
         builder.Property(s => s.OidcClientSecret)
             .HasColumnName("oidc_client_secret")
-            .HasMaxLength(500);
+            .HasMaxLength(2000);
 
         builder.Property(s => s.OidcScopes)
             .HasColumnName("oidc_scopes")

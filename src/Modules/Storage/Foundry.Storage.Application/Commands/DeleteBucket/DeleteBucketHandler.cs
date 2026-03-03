@@ -20,6 +20,11 @@ public sealed class DeleteBucketHandler(
             return Result.Failure(Error.NotFound("Bucket", command.Name));
         }
 
+        if (bucket.TenantId.Value != command.TenantId)
+        {
+            return Result.Failure(Error.NotFound("Bucket", command.Name));
+        }
+
         IReadOnlyList<StoredFile> files = await fileRepository.GetByBucketIdAsync(bucket.Id, cancellationToken: cancellationToken);
 
         if (files.Count > 0 && !command.Force)

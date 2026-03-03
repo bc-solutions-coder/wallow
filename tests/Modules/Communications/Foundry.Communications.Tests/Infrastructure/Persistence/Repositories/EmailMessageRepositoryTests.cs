@@ -88,9 +88,7 @@ public sealed class EmailMessageRepositoryTests : IDisposable
         EmailAddress to = EmailAddress.Create("recipient@test.com");
         EmailAddress from = EmailAddress.Create("sender@test.com");
         EmailContent content = EmailContent.Create("Test Subject", "<p>Test Body</p>");
-        EmailMessage email = EmailMessage.Create(to, from, content, TimeProvider.System);
-        _dbContext.Entry(email).Property(nameof(ITenantScoped.TenantId)).CurrentValue = _tenantId;
-        return email;
+        return EmailMessage.Create(_tenantId, to, from, content, TimeProvider.System);
     }
 
     public void Dispose()

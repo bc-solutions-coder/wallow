@@ -10,7 +10,7 @@ public class DeleteBucketValidatorTests
     [Fact]
     public void Should_Not_Have_Error_When_NameIsProvided()
     {
-        DeleteBucketCommand command = new("my-bucket");
+        DeleteBucketCommand command = new(Guid.NewGuid(), "my-bucket");
 
         TestValidationResult<DeleteBucketCommand> result = _validator.TestValidate(command);
 
@@ -22,7 +22,7 @@ public class DeleteBucketValidatorTests
     [InlineData(null)]
     public void Should_Have_Error_When_NameIsEmpty(string? name)
     {
-        DeleteBucketCommand command = new(name!);
+        DeleteBucketCommand command = new(Guid.NewGuid(), name!);
 
         TestValidationResult<DeleteBucketCommand> result = _validator.TestValidate(command);
 
@@ -32,7 +32,7 @@ public class DeleteBucketValidatorTests
     [Fact]
     public void Should_Not_Have_Error_When_ForceIsFalse()
     {
-        DeleteBucketCommand command = new("bucket", Force: false);
+        DeleteBucketCommand command = new(Guid.NewGuid(), "bucket", Force: false);
 
         TestValidationResult<DeleteBucketCommand> result = _validator.TestValidate(command);
 
@@ -42,7 +42,7 @@ public class DeleteBucketValidatorTests
     [Fact]
     public void Should_Not_Have_Error_When_ForceIsTrue()
     {
-        DeleteBucketCommand command = new("bucket", Force: true);
+        DeleteBucketCommand command = new(Guid.NewGuid(), "bucket", Force: true);
 
         TestValidationResult<DeleteBucketCommand> result = _validator.TestValidate(command);
 

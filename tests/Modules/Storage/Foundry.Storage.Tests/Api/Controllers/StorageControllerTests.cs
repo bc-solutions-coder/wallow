@@ -742,7 +742,7 @@ public class StorageControllerTests
     {
         PresignedUploadRequest request = new("test-bucket", "test.txt", "text/plain", 1024);
         DateTime expiresAt = DateTime.UtcNow.AddHours(1);
-        PresignedUploadResult uploadResult = new("https://storage.example.com/upload", "storage-key", expiresAt);
+        PresignedUploadResult uploadResult = new(Guid.NewGuid(), "https://storage.example.com/upload", "storage-key", expiresAt);
         _bus.InvokeAsync<Result<PresignedUploadResult>>(Arg.Any<GetUploadPresignedUrlQuery>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(uploadResult));
 
@@ -759,7 +759,7 @@ public class StorageControllerTests
     public async Task GetPresignedUploadUrl_WithExpiryMinutes_PassesExpiryToQuery()
     {
         PresignedUploadRequest request = new("test-bucket", "test.txt", "text/plain", 1024, ExpiryMinutes: 60);
-        PresignedUploadResult uploadResult = new("url", "key", DateTime.UtcNow.AddHours(1));
+        PresignedUploadResult uploadResult = new(Guid.NewGuid(), "url", "key", DateTime.UtcNow.AddHours(1));
         _bus.InvokeAsync<Result<PresignedUploadResult>>(Arg.Any<GetUploadPresignedUrlQuery>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(uploadResult));
 
@@ -774,7 +774,7 @@ public class StorageControllerTests
     public async Task GetPresignedUploadUrl_WithoutExpiryMinutes_PassesNullExpiry()
     {
         PresignedUploadRequest request = new("test-bucket", "test.txt", "text/plain", 1024);
-        PresignedUploadResult uploadResult = new("url", "key", DateTime.UtcNow.AddHours(1));
+        PresignedUploadResult uploadResult = new(Guid.NewGuid(), "url", "key", DateTime.UtcNow.AddHours(1));
         _bus.InvokeAsync<Result<PresignedUploadResult>>(Arg.Any<GetUploadPresignedUrlQuery>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(uploadResult));
 
@@ -789,7 +789,7 @@ public class StorageControllerTests
     public async Task GetPresignedUploadUrl_WithPath_PassesPathToQuery()
     {
         PresignedUploadRequest request = new("test-bucket", "test.txt", "text/plain", 1024, Path: "uploads/");
-        PresignedUploadResult uploadResult = new("url", "key", DateTime.UtcNow.AddHours(1));
+        PresignedUploadResult uploadResult = new(Guid.NewGuid(), "url", "key", DateTime.UtcNow.AddHours(1));
         _bus.InvokeAsync<Result<PresignedUploadResult>>(Arg.Any<GetUploadPresignedUrlQuery>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(uploadResult));
 
@@ -804,7 +804,7 @@ public class StorageControllerTests
     public async Task GetPresignedUploadUrl_PassesTenantIdToQuery()
     {
         PresignedUploadRequest request = new("test-bucket", "test.txt", "text/plain", 1024);
-        PresignedUploadResult uploadResult = new("url", "key", DateTime.UtcNow.AddHours(1));
+        PresignedUploadResult uploadResult = new(Guid.NewGuid(), "url", "key", DateTime.UtcNow.AddHours(1));
         _bus.InvokeAsync<Result<PresignedUploadResult>>(Arg.Any<GetUploadPresignedUrlQuery>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(uploadResult));
 

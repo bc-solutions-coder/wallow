@@ -3,12 +3,14 @@ using Foundry.Communications.Application.Announcements.Interfaces;
 using Foundry.Communications.Application.Announcements.Queries.GetAllAnnouncements;
 using Foundry.Communications.Domain.Announcements.Entities;
 using Foundry.Communications.Domain.Announcements.Enums;
+using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.Results;
 
 namespace Foundry.Communications.Tests.Application.Announcements.Queries;
 
 public class GetAllAnnouncementsHandlerTests
 {
+    private static readonly TenantId _testTenantId = TenantId.New();
     private readonly IAnnouncementRepository _repository;
     private readonly GetAllAnnouncementsHandler _handler;
 
@@ -23,8 +25,8 @@ public class GetAllAnnouncementsHandlerTests
     {
         List<Announcement> announcements = new()
         {
-            Announcement.Create("Title 1", "Content 1", AnnouncementType.Feature, TimeProvider.System),
-            Announcement.Create("Title 2", "Content 2", AnnouncementType.Alert, TimeProvider.System)
+            Announcement.Create(_testTenantId, "Title 1", "Content 1", AnnouncementType.Feature, TimeProvider.System),
+            Announcement.Create(_testTenantId, "Title 2", "Content 2", AnnouncementType.Alert, TimeProvider.System)
         };
 
         _repository.GetAllAsync(Arg.Any<CancellationToken>())
@@ -55,7 +57,7 @@ public class GetAllAnnouncementsHandlerTests
     [Fact]
     public async Task Handle_MapsFieldsCorrectly()
     {
-        Announcement announcement = Announcement.Create("Feature Title", "Feature Content", AnnouncementType.Feature, TimeProvider.System, AnnouncementTarget.Role, "Admin", null, null, true, false, "https://example.com", "Learn More", "https://example.com/img.png");
+        Announcement announcement = Announcement.Create(_testTenantId, "Feature Title", "Feature Content", AnnouncementType.Feature, TimeProvider.System, AnnouncementTarget.Role, "Admin", null, null, true, false, "https://example.com", "Learn More", "https://example.com/img.png");
 
         _repository.GetAllAsync(Arg.Any<CancellationToken>())
             .Returns(new List<Announcement> { announcement });

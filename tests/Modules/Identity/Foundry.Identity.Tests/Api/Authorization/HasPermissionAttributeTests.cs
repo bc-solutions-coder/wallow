@@ -35,11 +35,11 @@ public class HasPermissionAttributeTests
     [InlineData(PermissionType.ApiKeysCreate)]
     [InlineData(PermissionType.ApiKeysUpdate)]
     [InlineData(PermissionType.ApiKeysDelete)]
-    public void Constructor_WithVariousPermissions_SetsCorrectPolicy(PermissionType permission)
+    public void Constructor_WithVariousPermissions_SetsCorrectPolicy(string permission)
     {
         HasPermissionAttribute attribute = new(permission);
 
-        attribute.Policy.Should().Be(permission.ToString());
+        attribute.Policy.Should().Be(permission);
     }
 
     [Fact]

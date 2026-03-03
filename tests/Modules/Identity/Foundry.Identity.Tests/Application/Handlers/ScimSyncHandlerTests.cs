@@ -20,7 +20,7 @@ public class ScimSyncHandlerTests
     private readonly IScimSyncLogRepository _syncLogRepository = Substitute.For<IScimSyncLogRepository>();
     private readonly ITenantContext _tenantContext = Substitute.For<ITenantContext>();
     private readonly ILogger<ScimService> _logger = Substitute.For<ILogger<ScimService>>();
-    private readonly TenantId _testTenantId = TenantId.Create(Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"));
+    private readonly TenantId _tenantId = TenantId.Create(Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"));
 
     [Fact]
     public async Task FullSync_CreateUser_ThenUpdateUser_LogsBothOperations()
@@ -86,7 +86,7 @@ public class ScimSyncHandlerTests
     [Fact]
     public async Task FullSync_CreateAndDeleteUser_LogsCreateAndDelete()
     {
-        (ScimConfiguration config, string _) = ScimConfiguration.Create(_testTenantId, Guid.Empty);
+        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty);
         config.UpdateSettings(true, null, true, Guid.Empty);
         _scimRepository.GetAsync(Arg.Any<CancellationToken>()).Returns(config);
 
@@ -265,7 +265,7 @@ public class ScimSyncHandlerTests
     [Fact]
     public async Task ConflictResolution_DeleteAlreadyDeletedUser_LogsFailureAndThrows()
     {
-        (ScimConfiguration config, string _) = ScimConfiguration.Create(_testTenantId, Guid.Empty);
+        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty);
         config.UpdateSettings(true, null, true, Guid.Empty);
         _scimRepository.GetAsync(Arg.Any<CancellationToken>()).Returns(config);
 
@@ -449,10 +449,10 @@ public class ScimSyncHandlerTests
     {
         List<ScimSyncLog> logs =
         [
-            ScimSyncLog.Create(_testTenantId, ScimOperation.Create, ScimResourceType.User, "ext-1", "user-1", true),
-            ScimSyncLog.Create(_testTenantId, ScimOperation.Update, ScimResourceType.User, "ext-1", "user-1", true),
-            ScimSyncLog.Create(_testTenantId, ScimOperation.Delete, ScimResourceType.User, "ext-1", "user-1", true),
-            ScimSyncLog.Create(_testTenantId, ScimOperation.Create, ScimResourceType.Group, "ext-grp-1", "grp-1", false, "Conflict")
+            ScimSyncLog.Create(_tenantId, ScimOperation.Create, ScimResourceType.User, "ext-1", "user-1", true),
+            ScimSyncLog.Create(_tenantId, ScimOperation.Update, ScimResourceType.User, "ext-1", "user-1", true),
+            ScimSyncLog.Create(_tenantId, ScimOperation.Delete, ScimResourceType.User, "ext-1", "user-1", true),
+            ScimSyncLog.Create(_tenantId, ScimOperation.Create, ScimResourceType.Group, "ext-grp-1", "grp-1", false, "Conflict")
         ];
 
         _syncLogRepository.GetRecentAsync(50, Arg.Any<CancellationToken>()).Returns(logs);
@@ -481,7 +481,7 @@ public class ScimSyncHandlerTests
 
         httpClientFactory.CreateClient("KeycloakAdminClient").Returns(keycloakClient);
 
-        _tenantContext.TenantId.Returns(_testTenantId);
+        _tenantContext.TenantId.Returns(_tenantId);
 
         ScimUserService userService = new(
             httpClientFactory,

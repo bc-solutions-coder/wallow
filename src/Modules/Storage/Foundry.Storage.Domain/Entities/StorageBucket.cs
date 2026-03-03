@@ -3,6 +3,7 @@ using Foundry.Shared.Kernel.Domain;
 using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.MultiTenancy;
 using Foundry.Storage.Domain.Enums;
+using Foundry.Storage.Domain.Events;
 using Foundry.Storage.Domain.Identity;
 using Foundry.Storage.Domain.ValueObjects;
 
@@ -35,7 +36,7 @@ public sealed class StorageBucket : AggregateRoot<StorageBucketId>, ITenantScope
         RetentionPolicy? retention = null,
         bool versioning = false)
     {
-        return new StorageBucket
+        StorageBucket bucket = new StorageBucket
         {
             Id = StorageBucketId.New(),
             TenantId = tenantId,
@@ -50,6 +51,10 @@ public sealed class StorageBucket : AggregateRoot<StorageBucketId>, ITenantScope
             Versioning = versioning,
             CreatedAt = DateTime.UtcNow
         };
+
+        bucket.RaiseDomainEvent(new BucketCreatedEvent(bucket.Id));
+
+        return bucket;
     }
 
     /// <summary>
@@ -140,5 +145,10 @@ public sealed class StorageBucket : AggregateRoot<StorageBucketId>, ITenantScope
     public void UpdateVersioning(bool versioning)
     {
         Versioning = versioning;
+    }
+
+    public void Delete()
+    {
+        RaiseDomainEvent(new BucketDeletedEvent(Id));
     }
 }

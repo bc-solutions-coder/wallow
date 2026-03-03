@@ -66,6 +66,6 @@ public sealed class StorageBucketConfiguration : IEntityTypeConfiguration<Storag
             .IsRequired();
 
         builder.HasIndex(b => b.TenantId);
-        builder.HasIndex(b => b.Name).IsUnique();
+        builder.HasIndex(b => new { b.TenantId, b.Name }).IsUnique().HasDatabaseName("ix_storage_buckets_tenant_name");
     }
 }

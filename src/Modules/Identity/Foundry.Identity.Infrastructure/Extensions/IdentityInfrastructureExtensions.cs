@@ -6,6 +6,7 @@ using Foundry.Identity.Infrastructure.Services;
 using Foundry.Shared.Kernel.MultiTenancy;
 using Keycloak.AuthServices.Sdk;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -28,6 +29,9 @@ public static class IdentityInfrastructureExtensions
     private static IServiceCollection AddIdentityPersistence(
         this IServiceCollection services, IConfiguration _)
     {
+        services.AddDataProtection()
+            .SetApplicationName("Foundry");
+
         services.AddDbContext<IdentityDbContext>((sp, options) =>
         {
             string? connectionString = sp.GetRequiredService<IConfiguration>().GetConnectionString("DefaultConnection");
@@ -97,7 +101,6 @@ public static class IdentityInfrastructureExtensions
         services.AddScoped<IScimService, ScimService>();
         services.AddScoped<Foundry.Shared.Contracts.Identity.IUserService, UserService>();
         services.AddScoped<Foundry.Shared.Contracts.Identity.IUserQueryService, UserQueryService>();
-        services.AddScoped<ICurrentUserService, CurrentUserService>();
         return services;
     }
 }

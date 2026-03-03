@@ -2,6 +2,8 @@ using Foundry.Configuration.Application.FeatureFlags.Commands.CreateOverride;
 using Foundry.Configuration.Application.FeatureFlags.Contracts;
 using Foundry.Configuration.Domain.Entities;
 using Foundry.Configuration.Domain.Identity;
+using Foundry.Shared.Kernel.Identity;
+using Foundry.Shared.Kernel.MultiTenancy;
 using Foundry.Shared.Kernel.Results;
 using Microsoft.Extensions.Caching.Distributed;
 
@@ -13,28 +15,31 @@ public class CreateOverrideHandlerTests
     private readonly IFeatureFlagOverrideRepository _overrideRepo;
     private readonly IDistributedCache _cache;
     private readonly CreateOverrideHandler _handler;
+    private readonly Guid _callerTenantId;
 
     public CreateOverrideHandlerTests()
     {
         _flagRepo = Substitute.For<IFeatureFlagRepository>();
         _overrideRepo = Substitute.For<IFeatureFlagOverrideRepository>();
         _cache = Substitute.For<IDistributedCache>();
-        _handler = new CreateOverrideHandler(_flagRepo, _overrideRepo, _cache, TimeProvider.System);
+        _callerTenantId = Guid.NewGuid();
+        ITenantContext tenantContext = Substitute.For<ITenantContext>();
+        tenantContext.TenantId.Returns(TenantId.Create(_callerTenantId));
+        _handler = new CreateOverrideHandler(_flagRepo, _overrideRepo, _cache, TimeProvider.System, tenantContext);
     }
 
     [Fact]
     public async Task Handle_WithTenantOverride_CreatesSuccessfully()
     {
         Guid flagId = Guid.NewGuid();
-        Guid tenantId = Guid.NewGuid();
         FeatureFlag flag = FeatureFlag.CreateBoolean("dark_mode", "Dark Mode", true, TimeProvider.System);
 
         _flagRepo.GetByIdAsync(Arg.Any<FeatureFlagId>(), Arg.Any<CancellationToken>())
             .Returns(flag);
-        _overrideRepo.GetOverrideAsync(Arg.Any<FeatureFlagId>(), tenantId, null, Arg.Any<CancellationToken>())
+        _overrideRepo.GetOverrideAsync(Arg.Any<FeatureFlagId>(), _callerTenantId, null, Arg.Any<CancellationToken>())
             .Returns((FeatureFlagOverride?)null);
 
-        CreateOverrideCommand command = new(flagId, TenantId: tenantId, UserId: null, IsEnabled: true, Variant: null, ExpiresAt: null);
+        CreateOverrideCommand command = new(flagId, TenantId: _callerTenantId, UserId: null, IsEnabled: true, Variant: null, ExpiresAt: null);
 
         Result<Guid> result = await _handler.Handle(command, CancellationToken.None);
 
@@ -67,16 +72,15 @@ public class CreateOverrideHandlerTests
     public async Task Handle_WithTenantAndUserOverride_CreatesSuccessfully()
     {
         Guid flagId = Guid.NewGuid();
-        Guid tenantId = Guid.NewGuid();
         Guid userId = Guid.NewGuid();
         FeatureFlag flag = FeatureFlag.CreateBoolean("feature", "Feature", true, TimeProvider.System);
 
         _flagRepo.GetByIdAsync(Arg.Any<FeatureFlagId>(), Arg.Any<CancellationToken>())
             .Returns(flag);
-        _overrideRepo.GetOverrideAsync(Arg.Any<FeatureFlagId>(), tenantId, userId, Arg.Any<CancellationToken>())
+        _overrideRepo.GetOverrideAsync(Arg.Any<FeatureFlagId>(), _callerTenantId, userId, Arg.Any<CancellationToken>())
             .Returns((FeatureFlagOverride?)null);
 
-        CreateOverrideCommand command = new(flagId, TenantId: tenantId, UserId: userId, IsEnabled: false, Variant: null, ExpiresAt: null);
+        CreateOverrideCommand command = new(flagId, TenantId: _callerTenantId, UserId: userId, IsEnabled: false, Variant: null, ExpiresAt: null);
 
         Result<Guid> result = await _handler.Handle(command, CancellationToken.None);
 
@@ -92,7 +96,7 @@ public class CreateOverrideHandlerTests
         _flagRepo.GetByIdAsync(Arg.Any<FeatureFlagId>(), Arg.Any<CancellationToken>())
             .Returns((FeatureFlag?)null);
 
-        CreateOverrideCommand command = new(flagId, TenantId: Guid.NewGuid(), UserId: null, IsEnabled: true, Variant: null, ExpiresAt: null);
+        CreateOverrideCommand command = new(flagId, TenantId: _callerTenantId, UserId: null, IsEnabled: true, Variant: null, ExpiresAt: null);
 
         Result<Guid> result = await _handler.Handle(command, CancellationToken.None);
 
@@ -123,16 +127,15 @@ public class CreateOverrideHandlerTests
     public async Task Handle_WhenOverrideAlreadyExists_ReturnsConflictFailure()
     {
         Guid flagId = Guid.NewGuid();
-        Guid tenantId = Guid.NewGuid();
         FeatureFlag flag = FeatureFlag.CreateBoolean("key", "Name", true, TimeProvider.System);
-        FeatureFlagOverride existing = FeatureFlagOverride.CreateForTenant(FeatureFlagId.Create(flagId), tenantId, true, TimeProvider.System);
+        FeatureFlagOverride existing = FeatureFlagOverride.CreateForTenant(FeatureFlagId.Create(flagId), _callerTenantId, true, TimeProvider.System);
 
         _flagRepo.GetByIdAsync(Arg.Any<FeatureFlagId>(), Arg.Any<CancellationToken>())
             .Returns(flag);
-        _overrideRepo.GetOverrideAsync(Arg.Any<FeatureFlagId>(), tenantId, null, Arg.Any<CancellationToken>())
+        _overrideRepo.GetOverrideAsync(Arg.Any<FeatureFlagId>(), _callerTenantId, null, Arg.Any<CancellationToken>())
             .Returns(existing);
 
-        CreateOverrideCommand command = new(flagId, TenantId: tenantId, UserId: null, IsEnabled: true, Variant: null, ExpiresAt: null);
+        CreateOverrideCommand command = new(flagId, TenantId: _callerTenantId, UserId: null, IsEnabled: true, Variant: null, ExpiresAt: null);
 
         Result<Guid> result = await _handler.Handle(command, CancellationToken.None);
 
@@ -144,15 +147,14 @@ public class CreateOverrideHandlerTests
     public async Task Handle_AfterSuccess_InvalidatesCache()
     {
         Guid flagId = Guid.NewGuid();
-        Guid tenantId = Guid.NewGuid();
         FeatureFlag flag = FeatureFlag.CreateBoolean("cached_flag", "Cached", true, TimeProvider.System);
 
         _flagRepo.GetByIdAsync(Arg.Any<FeatureFlagId>(), Arg.Any<CancellationToken>())
             .Returns(flag);
-        _overrideRepo.GetOverrideAsync(Arg.Any<FeatureFlagId>(), tenantId, null, Arg.Any<CancellationToken>())
+        _overrideRepo.GetOverrideAsync(Arg.Any<FeatureFlagId>(), _callerTenantId, null, Arg.Any<CancellationToken>())
             .Returns((FeatureFlagOverride?)null);
 
-        CreateOverrideCommand command = new(flagId, TenantId: tenantId, UserId: null, IsEnabled: false, Variant: null, ExpiresAt: null);
+        CreateOverrideCommand command = new(flagId, TenantId: _callerTenantId, UserId: null, IsEnabled: false, Variant: null, ExpiresAt: null);
 
         await _handler.Handle(command, CancellationToken.None);
 

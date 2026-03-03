@@ -26,6 +26,11 @@ public sealed class ArchiveNotificationHandler(
             return Result.Failure(Error.Unauthorized("Unauthorized access to notification"));
         }
 
+        if (notification.UserId != command.UserId)
+        {
+            return Result.Failure(Error.Unauthorized("Unauthorized access to notification"));
+        }
+
         notification.Archive(timeProvider);
         await notificationRepository.SaveChangesAsync(cancellationToken);
 

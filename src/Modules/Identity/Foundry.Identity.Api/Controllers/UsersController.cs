@@ -5,6 +5,7 @@ using Foundry.Identity.Api.Contracts.Responses;
 using Foundry.Identity.Application.DTOs;
 using Foundry.Identity.Application.Interfaces;
 using Foundry.Shared.Kernel.Identity.Authorization;
+using Foundry.Shared.Kernel.MultiTenancy;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -21,10 +22,17 @@ namespace Foundry.Identity.Api.Controllers;
 public class UsersController : ControllerBase
 {
     private readonly IKeycloakAdminService _keycloakAdmin;
+    private readonly IKeycloakOrganizationService _keycloakOrg;
+    private readonly ITenantContext _tenantContext;
 
-    public UsersController(IKeycloakAdminService keycloakAdmin)
+    public UsersController(
+        IKeycloakAdminService keycloakAdmin,
+        IKeycloakOrganizationService keycloakOrg,
+        ITenantContext tenantContext)
     {
         _keycloakAdmin = keycloakAdmin;
+        _keycloakOrg = keycloakOrg;
+        _tenantContext = tenantContext;
     }
 
     /// <summary>
@@ -50,7 +58,20 @@ public class UsersController : ControllerBase
     public async Task<ActionResult<UserDto>> GetUserById(Guid id, CancellationToken ct)
     {
         UserDto? user = await _keycloakAdmin.GetUserByIdAsync(id, ct);
-        return user is null ? NotFound() : Ok(user);
+        if (user is null)
+        {
+            return NotFound();
+        }
+
+        // Verify the requested user belongs to the current tenant's organization
+        IReadOnlyList<OrganizationDto> userOrgs = await _keycloakOrg.GetUserOrganizationsAsync(id, ct);
+        bool belongsToTenant = userOrgs.Any(o => o.Id == _tenantContext.TenantId.Value);
+        if (!belongsToTenant)
+        {
+            return NotFound();
+        }
+
+        return Ok(user);
     }
 
     /// <summary>

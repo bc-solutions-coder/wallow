@@ -1,4 +1,6 @@
 using Foundry.Configuration.Application.FeatureFlags.Contracts;
+using Foundry.Configuration.Application.FeatureFlags.DTOs;
+using Foundry.Configuration.Application.FeatureFlags.Mappings;
 using Foundry.Configuration.Domain.Entities;
 using Foundry.Configuration.Domain.Enums;
 using Foundry.Configuration.Domain.Events;
@@ -15,14 +17,14 @@ public sealed class UpdateFeatureFlagHandler(
     IMessageBus bus,
     TimeProvider timeProvider)
 {
-    public async Task<Result> Handle(UpdateFeatureFlagCommand cmd, CancellationToken ct)
+    public async Task<Result<FeatureFlagDto>> Handle(UpdateFeatureFlagCommand cmd, CancellationToken ct)
     {
         FeatureFlagId flagId = FeatureFlagId.Create(cmd.Id);
         FeatureFlag? flag = await repository.GetByIdAsync(flagId, ct);
 
         if (flag is null)
         {
-            return Result.Failure(Error.NotFound("FeatureFlag", cmd.Id));
+            return Result.Failure<FeatureFlagDto>(Error.NotFound("FeatureFlag", cmd.Id));
         }
 
         flag.Update(cmd.Name, cmd.Description, cmd.DefaultEnabled, timeProvider);
@@ -37,6 +39,6 @@ public sealed class UpdateFeatureFlagHandler(
         await cache.RemoveAsync($"ff:{flag.Key}", ct);
         await bus.PublishAsync(new FeatureFlagUpdatedEvent(flag.Id.Value, flag.Key, "Name,Description,DefaultEnabled"));
 
-        return Result.Success();
+        return Result.Success(flag.ToDto());
     }
 }

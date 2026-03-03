@@ -1,10 +1,11 @@
+using Foundry.Billing.Application.Metering.Commands.IncrementMeter;
 using Foundry.Billing.Application.Metering.DTOs;
 using Foundry.Billing.Application.Metering.Services;
 using Foundry.Billing.Domain.Metering.Enums;
 using Foundry.Shared.Kernel.MultiTenancy;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Logging;
+using Wolverine;
 
 namespace Foundry.Billing.Api.Middleware;
 
@@ -12,22 +13,20 @@ namespace Foundry.Billing.Api.Middleware;
 /// Middleware that checks quotas before requests and increments counters after successful responses.
 /// Only tracks API routes (/api/*). Caches quota lookups per tenant to reduce DB hits.
 /// </summary>
-public sealed partial class MeteringMiddleware
+public sealed class MeteringMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly IMemoryCache _cache;
-    private readonly ILogger<MeteringMiddleware> _logger;
     private const string ApiCallsMeterCode = "api.calls";
     private static readonly TimeSpan _cacheDuration = TimeSpan.FromSeconds(30);
 
-    public MeteringMiddleware(RequestDelegate next, IMemoryCache cache, ILogger<MeteringMiddleware> logger)
+    public MeteringMiddleware(RequestDelegate next, IMemoryCache cache)
     {
         _next = next;
         _cache = cache;
-        _logger = logger;
     }
 
-    public async Task InvokeAsync(HttpContext context, IMeteringService meteringService, ITenantContext tenantContext)
+    public async Task InvokeAsync(HttpContext context, IMeteringService meteringService, ITenantContext tenantContext, IMessageBus messageBus)
     {
         // Skip non-API routes
         if (!context.Request.Path.StartsWithSegments("/api"))
@@ -79,16 +78,10 @@ public sealed partial class MeteringMiddleware
         await _next(context);
 
         // Only count successful requests (status < 400)
+        // Dispatch via Wolverine so the handler runs in its own DI scope
         if (context.Response.StatusCode < 400)
         {
-            try
-            {
-                await meteringService.IncrementAsync(ApiCallsMeterCode);
-            }
-            catch (Exception ex)
-            {
-                LogIncrementFailed(_logger, ApiCallsMeterCode, ex);
-            }
+            await messageBus.SendAsync(new IncrementMeterCommand(ApiCallsMeterCode));
         }
     }
 
@@ -106,6 +99,4 @@ public sealed partial class MeteringMiddleware
         return new DateTimeOffset(nextMonth).ToUnixTimeSeconds();
     }
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to increment metering counter for {MeterCode}")]
-    private static partial void LogIncrementFailed(ILogger logger, string meterCode, Exception ex);
 }

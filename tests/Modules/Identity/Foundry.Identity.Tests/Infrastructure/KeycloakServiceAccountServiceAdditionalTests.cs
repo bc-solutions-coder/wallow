@@ -7,6 +7,7 @@ using Foundry.Identity.Domain.Identity;
 using Foundry.Identity.Infrastructure.Services;
 using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.MultiTenancy;
+using Foundry.Shared.Kernel.Services;
 using Keycloak.AuthServices.Authentication;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -23,7 +24,7 @@ public class KeycloakServiceAccountServiceAdditionalTests
     private readonly ITenantContext _tenantContext = Substitute.For<ITenantContext>();
     private readonly ICurrentUserService _currentUserService = Substitute.For<ICurrentUserService>();
     private readonly ILogger<KeycloakServiceAccountService> _logger = Substitute.For<ILogger<KeycloakServiceAccountService>>();
-    private readonly TenantId _testTenantId = TenantId.Create(Guid.Parse("12345678-1234-1234-1234-123456789abc"));
+    private readonly TenantId _tenantId = TenantId.Create(Guid.Parse("12345678-1234-1234-1234-123456789abc"));
 
     [Fact]
     public async Task CreateAsync_Success_ReturnsResult()
@@ -97,7 +98,7 @@ public class KeycloakServiceAccountServiceAdditionalTests
     public async Task RotateSecretAsync_Success_ReturnsNewSecret()
     {
         ServiceAccountMetadata metadata = ServiceAccountMetadata.Create(
-            _testTenantId, "sa-test-client", "Test", null, Array.Empty<string>(), Guid.Empty);
+            _tenantId, "sa-test-client", "Test", null, Array.Empty<string>(), Guid.Empty);
         _repository.GetByIdAsync(Arg.Any<ServiceAccountMetadataId>(), Arg.Any<CancellationToken>())
             .Returns(metadata);
 
@@ -121,7 +122,7 @@ public class KeycloakServiceAccountServiceAdditionalTests
     public async Task RotateSecretAsync_MissingSecret_Throws()
     {
         ServiceAccountMetadata metadata = ServiceAccountMetadata.Create(
-            _testTenantId, "sa-test-client", "Test", null, Array.Empty<string>(), Guid.Empty);
+            _tenantId, "sa-test-client", "Test", null, Array.Empty<string>(), Guid.Empty);
         _repository.GetByIdAsync(Arg.Any<ServiceAccountMetadataId>(), Arg.Any<CancellationToken>())
             .Returns(metadata);
 
@@ -145,7 +146,7 @@ public class KeycloakServiceAccountServiceAdditionalTests
     public async Task UpdateScopesAsync_Success_UpdatesLocalAndKeycloak()
     {
         ServiceAccountMetadata metadata = ServiceAccountMetadata.Create(
-            _testTenantId, "sa-test-client", "Test", null, _oldScope, Guid.Empty);
+            _tenantId, "sa-test-client", "Test", null, _oldScope, Guid.Empty);
         _repository.GetByIdAsync(Arg.Any<ServiceAccountMetadataId>(), Arg.Any<CancellationToken>())
             .Returns(metadata);
 
@@ -168,7 +169,7 @@ public class KeycloakServiceAccountServiceAdditionalTests
     public async Task RevokeAsync_Success_DeletesFromKeycloakAndRevokesLocal()
     {
         ServiceAccountMetadata metadata = ServiceAccountMetadata.Create(
-            _testTenantId, "sa-test-client", "Test", null, Array.Empty<string>(), Guid.Empty);
+            _tenantId, "sa-test-client", "Test", null, Array.Empty<string>(), Guid.Empty);
         _repository.GetByIdAsync(Arg.Any<ServiceAccountMetadataId>(), Arg.Any<CancellationToken>())
             .Returns(metadata);
 
@@ -190,7 +191,7 @@ public class KeycloakServiceAccountServiceAdditionalTests
     public async Task RevokeAsync_WhenKeycloakClientNotFound_ThrowsInvalidOperationException()
     {
         ServiceAccountMetadata metadata = ServiceAccountMetadata.Create(
-            _testTenantId, "sa-test-client", "Test", null, Array.Empty<string>(), Guid.Empty);
+            _tenantId, "sa-test-client", "Test", null, Array.Empty<string>(), Guid.Empty);
         _repository.GetByIdAsync(Arg.Any<ServiceAccountMetadataId>(), Arg.Any<CancellationToken>())
             .Returns(metadata);
 
@@ -226,7 +227,7 @@ public class KeycloakServiceAccountServiceAdditionalTests
         httpClient.BaseAddress = new Uri("https://keycloak.test/");
         httpClientFactory.CreateClient("KeycloakAdminClient").Returns(httpClient);
 
-        _tenantContext.TenantId.Returns(_testTenantId);
+        _tenantContext.TenantId.Returns(_tenantId);
         _currentUserService.UserId.Returns(Guid.NewGuid());
 
         IOptions<KeycloakAuthenticationOptions> options = Options.Create(new KeycloakAuthenticationOptions

@@ -2,6 +2,7 @@ using Foundry.Communications.Application.Announcements.DTOs;
 using Foundry.Communications.Application.Announcements.Interfaces;
 using Foundry.Communications.Domain.Announcements.Entities;
 using Foundry.Communications.Domain.Announcements.Enums;
+using Foundry.Shared.Kernel.MultiTenancy;
 using Foundry.Shared.Kernel.Results;
 
 namespace Foundry.Communications.Application.Announcements.Commands.CreateAnnouncement;
@@ -22,11 +23,13 @@ public sealed record CreateAnnouncementCommand(
 
 public sealed class CreateAnnouncementHandler(
     IAnnouncementRepository repository,
+    ITenantContext tenantContext,
     TimeProvider timeProvider)
 {
     public async Task<Result<AnnouncementDto>> Handle(CreateAnnouncementCommand command, CancellationToken ct)
     {
         Announcement announcement = Announcement.Create(
+            tenantContext.TenantId,
             command.Title,
             command.Content,
             command.Type,

@@ -9,6 +9,7 @@ using Foundry.Identity.Infrastructure.Services;
 using Foundry.Shared.Kernel.Domain;
 using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.MultiTenancy;
+using Foundry.Shared.Kernel.Services;
 using Keycloak.AuthServices.Authentication;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -26,7 +27,7 @@ public class KeycloakServiceAccountServiceTests
     private readonly ITenantContext _tenantContext = Substitute.For<ITenantContext>();
     private readonly ICurrentUserService _currentUserService = Substitute.For<ICurrentUserService>();
     private readonly ILogger<KeycloakServiceAccountService> _logger = Substitute.For<ILogger<KeycloakServiceAccountService>>();
-    private readonly TenantId _testTenantId = TenantId.Create(Guid.NewGuid());
+    private readonly TenantId _tenantId = TenantId.Create(Guid.NewGuid());
 
     [Fact]
     public async Task ListAsync_ReturnsAllTenantServiceAccounts()
@@ -34,8 +35,8 @@ public class KeycloakServiceAccountServiceTests
         // Arrange
         List<ServiceAccountMetadata> accounts =
         [
-            ServiceAccountMetadata.Create(_testTenantId, "sa-client-1", "Account 1", null, Array.Empty<string>(), Guid.Empty),
-            ServiceAccountMetadata.Create(_testTenantId, "sa-client-2", "Account 2", "Description", _oneScope, Guid.Empty)
+            ServiceAccountMetadata.Create(_tenantId, "sa-client-1", "Account 1", null, Array.Empty<string>(), Guid.Empty),
+            ServiceAccountMetadata.Create(_tenantId, "sa-client-2", "Account 2", "Description", _oneScope, Guid.Empty)
         ];
 
         _repository.GetAllAsync(Arg.Any<CancellationToken>()).Returns(accounts);
@@ -57,7 +58,7 @@ public class KeycloakServiceAccountServiceTests
     {
         // Arrange
         ServiceAccountMetadata metadata = ServiceAccountMetadata.Create(
-            _testTenantId,
+            _tenantId,
             "sa-test-client",
             "Test Account",
             "Test Description",
@@ -157,7 +158,7 @@ public class KeycloakServiceAccountServiceTests
         httpClient.BaseAddress = new Uri("https://keycloak.test/");
         httpClientFactory.CreateClient("KeycloakAdminClient").Returns(httpClient);
 
-        _tenantContext.TenantId.Returns(_testTenantId);
+        _tenantContext.TenantId.Returns(_tenantId);
 
         IOptions<KeycloakAuthenticationOptions> options = Options.Create(new KeycloakAuthenticationOptions
         {

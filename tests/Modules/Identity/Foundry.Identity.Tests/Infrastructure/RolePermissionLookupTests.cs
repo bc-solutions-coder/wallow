@@ -12,10 +12,9 @@ public class RolePermissionLookupTests
     {
         IEnumerable<string> roles = new[] { "admin" };
 
-        IReadOnlyCollection<PermissionType> result = _lookup.GetPermissions(roles);
+        IReadOnlyCollection<string> result = _lookup.GetPermissions(roles);
 
-        PermissionType[] allPermissions = Enum.GetValues<PermissionType>();
-        result.Should().BeEquivalentTo(allPermissions);
+        result.Should().BeEquivalentTo(PermissionType.All);
     }
 
     [Fact]
@@ -23,7 +22,7 @@ public class RolePermissionLookupTests
     {
         IEnumerable<string> roles = Array.Empty<string>();
 
-        IReadOnlyCollection<PermissionType> result = _lookup.GetPermissions(roles);
+        IReadOnlyCollection<string> result = _lookup.GetPermissions(roles);
 
         result.Should().BeEmpty();
     }
@@ -33,7 +32,7 @@ public class RolePermissionLookupTests
     {
         IEnumerable<string> roles = new[] { "nonexistent" };
 
-        IReadOnlyCollection<PermissionType> result = _lookup.GetPermissions(roles);
+        IReadOnlyCollection<string> result = _lookup.GetPermissions(roles);
 
         result.Should().BeEmpty();
     }

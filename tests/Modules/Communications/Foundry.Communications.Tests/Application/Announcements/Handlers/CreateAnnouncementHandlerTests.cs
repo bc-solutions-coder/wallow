@@ -3,6 +3,8 @@ using Foundry.Communications.Application.Announcements.DTOs;
 using Foundry.Communications.Application.Announcements.Interfaces;
 using Foundry.Communications.Domain.Announcements.Entities;
 using Foundry.Communications.Domain.Announcements.Enums;
+using Foundry.Shared.Kernel.Identity;
+using Foundry.Shared.Kernel.MultiTenancy;
 using Foundry.Shared.Kernel.Results;
 
 namespace Foundry.Communications.Tests.Application.Announcements.Handlers;
@@ -15,7 +17,9 @@ public class CreateAnnouncementHandlerTests
     public CreateAnnouncementHandlerTests()
     {
         _repository = Substitute.For<IAnnouncementRepository>();
-        _handler = new CreateAnnouncementHandler(_repository, TimeProvider.System);
+        ITenantContext tenantContext = Substitute.For<ITenantContext>();
+        tenantContext.TenantId.Returns(TenantId.New());
+        _handler = new CreateAnnouncementHandler(_repository, tenantContext, TimeProvider.System);
     }
 
     [Fact]

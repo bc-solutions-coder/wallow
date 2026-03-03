@@ -55,7 +55,7 @@ public class RolesControllerTests
     [Fact]
     public void GetRolePermissions_ReturnsPermissionsForRole()
     {
-        IReadOnlyCollection<PermissionType> permissions = new[] { PermissionType.UsersRead, PermissionType.UsersCreate };
+        IReadOnlyCollection<string> permissions = new[] { PermissionType.UsersRead, PermissionType.UsersCreate };
         _rolePermissionLookup.GetPermissions(Arg.Is<IEnumerable<string>>(r => r.Contains("admin")))
             .Returns(permissions);
 
@@ -69,7 +69,7 @@ public class RolesControllerTests
     public void GetRolePermissions_WithNoPermissions_ReturnsEmptyList()
     {
         _rolePermissionLookup.GetPermissions(Arg.Any<IEnumerable<string>>())
-            .Returns(Array.Empty<PermissionType>());
+            .Returns(Array.Empty<string>());
 
         ActionResult result = _controller.GetRolePermissions("guest");
 

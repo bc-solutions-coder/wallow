@@ -2,11 +2,14 @@ using Foundry.Communications.Domain.Channels.Email.Entities;
 using Foundry.Communications.Domain.Channels.Email.Enums;
 using Foundry.Communications.Domain.Channels.Email.Events;
 using Foundry.Communications.Domain.Channels.Email.ValueObjects;
+using Foundry.Shared.Kernel.Identity;
 
 namespace Foundry.Communications.Tests.Channels.Email.Domain.Entities;
 
 public class EmailMessageCreateTests
 {
+    private static readonly TenantId _testTenantId = TenantId.New();
+
     [Fact]
     public void Create_WithValidData_ReturnsEmailMessageInPendingStatus()
     {
@@ -14,7 +17,7 @@ public class EmailMessageCreateTests
         EmailAddress from = EmailAddress.Create("sender@example.com");
         EmailContent content = EmailContent.Create("Test Subject", "Test Body");
 
-        EmailMessage message = EmailMessage.Create(to, from, content, TimeProvider.System);
+        EmailMessage message = EmailMessage.Create(_testTenantId, to, from, content, TimeProvider.System);
 
         message.To.Should().Be(to);
         message.From.Should().Be(from);
@@ -29,7 +32,7 @@ public class EmailMessageCreateTests
         EmailAddress to = EmailAddress.Create("test@example.com");
         EmailContent content = EmailContent.Create("Subject", "Body");
 
-        EmailMessage message = EmailMessage.Create(to, null, content, TimeProvider.System);
+        EmailMessage message = EmailMessage.Create(_testTenantId, to, null, content, TimeProvider.System);
 
         message.From.Should().BeNull();
     }
@@ -37,10 +40,13 @@ public class EmailMessageCreateTests
 
 public class EmailMessageSendingTests
 {
+    private static readonly TenantId _testTenantId = TenantId.New();
+
     [Fact]
     public void MarkAsSent_ChangesStatusToSent()
     {
         EmailMessage message = EmailMessage.Create(
+            _testTenantId,
             EmailAddress.Create("test@example.com"),
             null,
             EmailContent.Create("Subject", "Body"), TimeProvider.System);
@@ -55,7 +61,7 @@ public class EmailMessageSendingTests
     public void MarkAsSent_RaisesEmailSentEvent()
     {
         EmailAddress to = EmailAddress.Create("test@example.com");
-        EmailMessage message = EmailMessage.Create(to, null, EmailContent.Create("Subject", "Body"), TimeProvider.System);
+        EmailMessage message = EmailMessage.Create(_testTenantId, to, null, EmailContent.Create("Subject", "Body"), TimeProvider.System);
 
         message.MarkAsSent(TimeProvider.System);
 
@@ -68,6 +74,7 @@ public class EmailMessageSendingTests
     public void MarkAsFailed_ChangesStatusToFailedAndIncrementsRetryCount()
     {
         EmailMessage message = EmailMessage.Create(
+            _testTenantId,
             EmailAddress.Create("test@example.com"),
             null,
             EmailContent.Create("Subject", "Body"), TimeProvider.System);
@@ -83,6 +90,7 @@ public class EmailMessageSendingTests
     public void MarkAsFailed_RaisesEmailFailedEvent()
     {
         EmailMessage message = EmailMessage.Create(
+            _testTenantId,
             EmailAddress.Create("test@example.com"),
             null,
             EmailContent.Create("Subject", "Body"), TimeProvider.System);
@@ -96,10 +104,13 @@ public class EmailMessageSendingTests
 
 public class EmailMessageRetryTests
 {
+    private static readonly TenantId _testTenantId = TenantId.New();
+
     [Fact]
     public void ResetForRetry_ChangesStatusToPending()
     {
         EmailMessage message = EmailMessage.Create(
+            _testTenantId,
             EmailAddress.Create("test@example.com"),
             null,
             EmailContent.Create("Subject", "Body"), TimeProvider.System);
@@ -115,6 +126,7 @@ public class EmailMessageRetryTests
     public void CanRetry_WithinLimit_ReturnsTrue()
     {
         EmailMessage message = EmailMessage.Create(
+            _testTenantId,
             EmailAddress.Create("test@example.com"),
             null,
             EmailContent.Create("Subject", "Body"), TimeProvider.System);
@@ -131,6 +143,7 @@ public class EmailMessageRetryTests
     public void CanRetry_ExceedsLimit_ReturnsFalse()
     {
         EmailMessage message = EmailMessage.Create(
+            _testTenantId,
             EmailAddress.Create("test@example.com"),
             null,
             EmailContent.Create("Subject", "Body"), TimeProvider.System);

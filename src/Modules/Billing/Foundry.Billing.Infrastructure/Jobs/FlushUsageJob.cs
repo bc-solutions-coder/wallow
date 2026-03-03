@@ -66,8 +66,6 @@ public sealed partial class FlushUsageJob
                 }
             }
 
-            await _usageRepository.SaveChangesAsync(cancellationToken);
-
             if (flushedCount > 0)
             {
                 await _messageBus.PublishAsync(new UsageFlushedEvent(_timeProvider.GetUtcNow().UtcDateTime, flushedCount));
@@ -142,6 +140,8 @@ public sealed partial class FlushUsageJob
 
                     _usageRepository.Add(record);
                 }
+
+                await _usageRepository.SaveChangesAsync(CancellationToken.None);
             }
 
             // Remove from index Set after successful flush

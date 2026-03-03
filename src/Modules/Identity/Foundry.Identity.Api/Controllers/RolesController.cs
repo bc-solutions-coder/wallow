@@ -54,8 +54,8 @@ public class RolesController : ControllerBase
     [HasPermission(PermissionType.RolesRead)]
     public ActionResult GetRolePermissions(string roleName)
     {
-        IReadOnlyCollection<PermissionType> permissions = _rolePermissionLookup.GetPermissions(new[] { roleName });
-        return Ok(permissions.Select(p => p.ToString()));
+        IReadOnlyCollection<string> permissions = _rolePermissionLookup.GetPermissions(new[] { roleName });
+        return Ok(permissions);
     }
 
     private record RoleInfo(string Name, string? Description);

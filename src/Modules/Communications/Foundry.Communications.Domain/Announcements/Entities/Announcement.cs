@@ -1,11 +1,14 @@
 using Foundry.Communications.Domain.Announcements.Enums;
 using Foundry.Communications.Domain.Announcements.Identity;
 using Foundry.Shared.Kernel.Domain;
+using Foundry.Shared.Kernel.Identity;
+using Foundry.Shared.Kernel.MultiTenancy;
 
 namespace Foundry.Communications.Domain.Announcements.Entities;
 
-public sealed class Announcement : AggregateRoot<AnnouncementId>
+public sealed class Announcement : AggregateRoot<AnnouncementId>, ITenantScoped
 {
+    public TenantId TenantId { get; init; }
     public string Title { get; private set; } = null!;
     public string Content { get; private set; } = null!;
     public AnnouncementType Type { get; private set; }
@@ -23,6 +26,7 @@ public sealed class Announcement : AggregateRoot<AnnouncementId>
     private Announcement() { }
 
     private Announcement(
+        TenantId tenantId,
         string title,
         string content,
         AnnouncementType type,
@@ -38,6 +42,7 @@ public sealed class Announcement : AggregateRoot<AnnouncementId>
         TimeProvider timeProvider)
         : base(AnnouncementId.New())
     {
+        TenantId = tenantId;
         Title = title;
         Content = content;
         Type = type;
@@ -55,6 +60,7 @@ public sealed class Announcement : AggregateRoot<AnnouncementId>
     }
 
     public static Announcement Create(
+        TenantId tenantId,
         string title,
         string content,
         AnnouncementType type,
@@ -73,7 +79,7 @@ public sealed class Announcement : AggregateRoot<AnnouncementId>
         ArgumentException.ThrowIfNullOrWhiteSpace(content);
 
         return new Announcement(
-            title, content, type, target, targetValue,
+            tenantId, title, content, type, target, targetValue,
             publishAt, expiresAt, isPinned, isDismissible,
             actionUrl, actionLabel, imageUrl, timeProvider);
     }

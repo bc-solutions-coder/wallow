@@ -24,13 +24,13 @@ public class SsoClaimsSyncServiceAdditionalTests
     private readonly ISsoConfigurationRepository _repository = Substitute.For<ISsoConfigurationRepository>();
     private readonly ITenantContext _tenantContext = Substitute.For<ITenantContext>();
     private readonly ILogger<SsoClaimsSyncService> _logger = Substitute.For<ILogger<SsoClaimsSyncService>>();
-    private readonly TenantId _testTenantId = TenantId.Create(Guid.Parse("12345678-1234-1234-1234-123456789abc"));
+    private readonly TenantId _tenantId = TenantId.Create(Guid.Parse("12345678-1234-1234-1234-123456789abc"));
 
     [Fact]
     public async Task SyncUserClaimsAsync_WithInvalidJsonArray_TreatsAsLiteral()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId, "Test SSO", SsoProtocol.Saml,
+            _tenantId, "Test SSO", SsoProtocol.Saml,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateBehaviorSettings(false, false, null, true, "groups", Guid.Empty);
 
@@ -61,7 +61,7 @@ public class SsoClaimsSyncServiceAdditionalTests
     public async Task SyncUserClaimsAsync_WhenTryAssignRoleThrowsException_DoesNotThrow()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId, "Test SSO", SsoProtocol.Saml,
+            _tenantId, "Test SSO", SsoProtocol.Saml,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateBehaviorSettings(false, false, null, true, "groups", Guid.Empty);
 
@@ -92,7 +92,7 @@ public class SsoClaimsSyncServiceAdditionalTests
     public async Task SyncUserClaimsAsync_WhenRemoveRoleThrowsException_DoesNotThrow()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId, "Test SSO", SsoProtocol.Saml,
+            _tenantId, "Test SSO", SsoProtocol.Saml,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateBehaviorSettings(false, false, null, true, "groups", Guid.Empty);
 
@@ -127,7 +127,7 @@ public class SsoClaimsSyncServiceAdditionalTests
     public async Task SyncUserClaimsAsync_WhenRemoveRoleNotFoundInKeycloak_Skips()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId, "Test SSO", SsoProtocol.Saml,
+            _tenantId, "Test SSO", SsoProtocol.Saml,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateBehaviorSettings(false, false, null, true, "groups", Guid.Empty);
 
@@ -159,7 +159,7 @@ public class SsoClaimsSyncServiceAdditionalTests
     public async Task SyncUserClaimsAsync_WhenGetRolesReturnsNullList_TreatsAsEmpty()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId, "Test SSO", SsoProtocol.Saml,
+            _tenantId, "Test SSO", SsoProtocol.Saml,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateBehaviorSettings(false, false, null, true, "groups", Guid.Empty);
 
@@ -189,7 +189,7 @@ public class SsoClaimsSyncServiceAdditionalTests
     public async Task SyncUserClaimsAsync_WithRemoveRoleFails_LogsFailure()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId, "Test SSO", SsoProtocol.Saml,
+            _tenantId, "Test SSO", SsoProtocol.Saml,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateBehaviorSettings(false, false, null, true, "groups", Guid.Empty);
 
@@ -223,7 +223,7 @@ public class SsoClaimsSyncServiceAdditionalTests
     public async Task SyncUserClaimsAsync_WithJsonArrayContainingBlanks_SkipsBlanks()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId, "Test SSO", SsoProtocol.Saml,
+            _tenantId, "Test SSO", SsoProtocol.Saml,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateBehaviorSettings(false, false, null, true, "groups", Guid.Empty);
 
@@ -260,7 +260,7 @@ public class SsoClaimsSyncServiceAdditionalTests
         httpClient.BaseAddress = new Uri("https://keycloak.test/");
         httpClientFactory.CreateClient("KeycloakAdminClient").Returns(httpClient);
 
-        _tenantContext.TenantId.Returns(_testTenantId);
+        _tenantContext.TenantId.Returns(_tenantId);
 
         return new SsoClaimsSyncService(httpClientFactory, _repository, _tenantContext, _logger);
     }

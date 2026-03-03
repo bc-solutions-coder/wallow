@@ -5,11 +5,11 @@ namespace Foundry.Shared.Kernel.Identity.Authorization;
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = true)]
 public sealed class HasPermissionAttribute : AuthorizeAttribute
 {
-    public HasPermissionAttribute(PermissionType permission)
-        : base(permission.ToString())
+    public HasPermissionAttribute(string permission)
+        : base(permission)
     {
         Permission = permission;
     }
 
-    public PermissionType Permission { get; }
+    public string Permission { get; }
 }

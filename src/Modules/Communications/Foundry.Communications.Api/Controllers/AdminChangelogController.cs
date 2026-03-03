@@ -6,7 +6,7 @@ using Foundry.Communications.Application.Announcements.Commands.PublishChangelog
 using Foundry.Communications.Application.Announcements.DTOs;
 using Foundry.Shared.Infrastructure.Services;
 using Foundry.Shared.Kernel.Results;
-using Microsoft.AspNetCore.Authorization;
+using Foundry.Shared.Kernel.Identity.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Wolverine;
@@ -16,7 +16,7 @@ namespace Foundry.Communications.Api.Controllers;
 [ApiController]
 [ApiVersion(1.0)]
 [Route("api/v{version:apiVersion}/admin/changelog")]
-[Authorize(Roles = "Admin")]
+[HasPermission(PermissionType.ChangelogManage)]
 [Tags("Admin - Changelog")]
 [Produces("application/json")]
 public class AdminChangelogController : ControllerBase

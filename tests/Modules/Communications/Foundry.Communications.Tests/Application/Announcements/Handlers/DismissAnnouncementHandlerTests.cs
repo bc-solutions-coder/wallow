@@ -10,6 +10,7 @@ namespace Foundry.Communications.Tests.Application.Announcements.Handlers;
 
 public class DismissAnnouncementHandlerTests
 {
+    private static readonly TenantId _testTenantId = TenantId.New();
     private readonly IAnnouncementRepository _announcementRepository;
     private readonly IAnnouncementDismissalRepository _dismissalRepository;
     private readonly DismissAnnouncementHandler _handler;
@@ -25,7 +26,7 @@ public class DismissAnnouncementHandlerTests
     public async Task Handle_WhenDismissible_CreatesAndReturnsSuccess()
     {
         Guid userId = Guid.NewGuid();
-        Announcement announcement = Announcement.Create("Title", "Content", AnnouncementType.Feature, TimeProvider.System, isDismissible: true);
+        Announcement announcement = Announcement.Create(_testTenantId, "Title", "Content", AnnouncementType.Feature, TimeProvider.System, isDismissible: true);
 
         _announcementRepository.GetByIdAsync(Arg.Any<AnnouncementId>(), Arg.Any<CancellationToken>())
             .Returns(announcement);
@@ -57,7 +58,7 @@ public class DismissAnnouncementHandlerTests
     [Fact]
     public async Task Handle_WhenNotDismissible_ReturnsValidationFailure()
     {
-        Announcement announcement = Announcement.Create("Title", "Content", AnnouncementType.Alert, TimeProvider.System, isDismissible: false);
+        Announcement announcement = Announcement.Create(_testTenantId, "Title", "Content", AnnouncementType.Alert, TimeProvider.System, isDismissible: false);
 
         _announcementRepository.GetByIdAsync(Arg.Any<AnnouncementId>(), Arg.Any<CancellationToken>())
             .Returns(announcement);
@@ -74,7 +75,7 @@ public class DismissAnnouncementHandlerTests
     public async Task Handle_WhenAlreadyDismissed_ReturnsSuccessWithoutAdding()
     {
         Guid userId = Guid.NewGuid();
-        Announcement announcement = Announcement.Create("Title", "Content", AnnouncementType.Feature, TimeProvider.System, isDismissible: true);
+        Announcement announcement = Announcement.Create(_testTenantId, "Title", "Content", AnnouncementType.Feature, TimeProvider.System, isDismissible: true);
 
         _announcementRepository.GetByIdAsync(Arg.Any<AnnouncementId>(), Arg.Any<CancellationToken>())
             .Returns(announcement);

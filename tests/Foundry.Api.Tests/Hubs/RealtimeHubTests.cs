@@ -71,7 +71,9 @@ public sealed class RealtimeHubTests : IDisposable
         await _hub.OnConnectedAsync();
 
         await _presenceService.Received(1).TrackConnectionAsync("user-1", "conn-user-1");
-        await _dispatcher.Received(1).SendToAllAsync(
+        string expectedGroup = $"tenant:{_tenantGuid}";
+        await _dispatcher.Received(1).SendToGroupAsync(
+            expectedGroup,
             Arg.Is<RealtimeEnvelope>(e => e.Module == "Presence" && e.Type == "UserOnline"),
             Arg.Any<CancellationToken>());
     }
@@ -95,7 +97,7 @@ public sealed class RealtimeHubTests : IDisposable
 
         _context.Received(1).Abort();
         await _presenceService.DidNotReceive().TrackConnectionAsync(Arg.Any<string>(), Arg.Any<string>());
-        await _dispatcher.DidNotReceive().SendToAllAsync(Arg.Any<RealtimeEnvelope>(), Arg.Any<CancellationToken>());
+        await _dispatcher.DidNotReceive().SendToGroupAsync(Arg.Any<string>(), Arg.Any<RealtimeEnvelope>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -125,7 +127,9 @@ public sealed class RealtimeHubTests : IDisposable
         await _hub.OnDisconnectedAsync(null);
 
         await _presenceService.Received(1).RemoveConnectionAsync(connectionId, Arg.Any<CancellationToken>());
-        await _dispatcher.Received(1).SendToAllAsync(
+        string expectedGroup = $"tenant:{_tenantGuid}";
+        await _dispatcher.Received(1).SendToGroupAsync(
+            expectedGroup,
             Arg.Is<RealtimeEnvelope>(e => e.Module == "Presence" && e.Type == "UserOffline"),
             Arg.Any<CancellationToken>());
     }
@@ -143,7 +147,8 @@ public sealed class RealtimeHubTests : IDisposable
         await _hub.OnDisconnectedAsync(null);
 
         await _presenceService.Received(1).RemoveConnectionAsync(connectionId, Arg.Any<CancellationToken>());
-        await _dispatcher.DidNotReceive().SendToAllAsync(
+        await _dispatcher.DidNotReceive().SendToGroupAsync(
+            Arg.Any<string>(),
             Arg.Is<RealtimeEnvelope>(e => e.Type == "UserOffline"),
             Arg.Any<CancellationToken>());
     }
@@ -159,7 +164,7 @@ public sealed class RealtimeHubTests : IDisposable
         await _hub.OnDisconnectedAsync(null);
 
         await _presenceService.Received(1).RemoveConnectionAsync(connectionId, Arg.Any<CancellationToken>());
-        await _dispatcher.DidNotReceive().SendToAllAsync(Arg.Any<RealtimeEnvelope>(), Arg.Any<CancellationToken>());
+        await _dispatcher.DidNotReceive().SendToGroupAsync(Arg.Any<string>(), Arg.Any<RealtimeEnvelope>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

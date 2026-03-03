@@ -22,12 +22,14 @@ public sealed class EmailMessage : AggregateRoot<EmailMessageId>, ITenantScoped
     private EmailMessage() { }
 
     private EmailMessage(
+        TenantId tenantId,
         EmailAddress to,
         EmailAddress? from,
         EmailContent content,
         TimeProvider timeProvider)
         : base(EmailMessageId.New())
     {
+        TenantId = tenantId;
         To = to;
         From = from;
         Content = content;
@@ -37,12 +39,13 @@ public sealed class EmailMessage : AggregateRoot<EmailMessageId>, ITenantScoped
     }
 
     public static EmailMessage Create(
+        TenantId tenantId,
         EmailAddress to,
         EmailAddress? from,
         EmailContent content,
         TimeProvider timeProvider)
     {
-        return new EmailMessage(to, from, content, timeProvider);
+        return new EmailMessage(tenantId, to, from, content, timeProvider);
     }
 
     public void MarkAsSent(TimeProvider timeProvider)

@@ -4,12 +4,14 @@ using Foundry.Communications.Application.Announcements.Interfaces;
 using Foundry.Communications.Domain.Announcements.Entities;
 using Foundry.Communications.Domain.Announcements.Enums;
 using Foundry.Communications.Domain.Announcements.Identity;
+using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.Results;
 
 namespace Foundry.Communications.Tests.Application.Announcements.Handlers;
 
 public class UpdateAnnouncementHandlerTests
 {
+    private static readonly TenantId _testTenantId = TenantId.New();
     private readonly IAnnouncementRepository _repository;
     private readonly UpdateAnnouncementHandler _handler;
 
@@ -22,7 +24,7 @@ public class UpdateAnnouncementHandlerTests
     [Fact]
     public async Task Handle_WhenAnnouncementExists_UpdatesAndReturnsSuccess()
     {
-        Announcement announcement = Announcement.Create("Old Title", "Old Content", AnnouncementType.Feature, TimeProvider.System);
+        Announcement announcement = Announcement.Create(_testTenantId, "Old Title", "Old Content", AnnouncementType.Feature, TimeProvider.System);
 
         _repository.GetByIdAsync(Arg.Any<AnnouncementId>(), Arg.Any<CancellationToken>())
             .Returns(announcement);
@@ -61,7 +63,7 @@ public class UpdateAnnouncementHandlerTests
     [Fact]
     public async Task Handle_WhenAnnouncementExists_CallsUpdateOnRepository()
     {
-        Announcement announcement = Announcement.Create("Title", "Content", AnnouncementType.Feature, TimeProvider.System);
+        Announcement announcement = Announcement.Create(_testTenantId, "Title", "Content", AnnouncementType.Feature, TimeProvider.System);
 
         _repository.GetByIdAsync(Arg.Any<AnnouncementId>(), Arg.Any<CancellationToken>())
             .Returns(announcement);

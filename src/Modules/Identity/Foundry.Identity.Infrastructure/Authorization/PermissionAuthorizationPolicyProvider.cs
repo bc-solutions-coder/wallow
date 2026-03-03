@@ -15,7 +15,7 @@ public class PermissionAuthorizationPolicyProvider : IAuthorizationPolicyProvide
 
     public Task<AuthorizationPolicy?> GetPolicyAsync(string policyName)
     {
-        if (Enum.TryParse<PermissionType>(policyName, out _))
+        if (PermissionType.All.Contains(policyName))
         {
             AuthorizationPolicy policy = new AuthorizationPolicyBuilder()
                 .AddRequirements(new PermissionRequirement(policyName))

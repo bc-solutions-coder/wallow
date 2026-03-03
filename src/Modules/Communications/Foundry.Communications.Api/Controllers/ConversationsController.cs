@@ -9,6 +9,7 @@ using Foundry.Communications.Application.Messaging.DTOs;
 using Foundry.Communications.Application.Messaging.Queries.GetConversations;
 using Foundry.Communications.Application.Messaging.Queries.GetMessages;
 using Foundry.Communications.Application.Messaging.Queries.GetUnreadConversationCount;
+using Foundry.Communications.Application.Messaging.Interfaces;
 using Foundry.Shared.Infrastructure.Services;
 using Foundry.Shared.Kernel.Results;
 using Foundry.Shared.Kernel.Services;
@@ -32,12 +33,14 @@ public class ConversationsController : ControllerBase
     private readonly IMessageBus _bus;
     private readonly IHtmlSanitizationService _sanitizer;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IMessagingQueryService _messagingQueryService;
 
-    public ConversationsController(IMessageBus bus, IHtmlSanitizationService sanitizer, ICurrentUserService currentUserService)
+    public ConversationsController(IMessageBus bus, IHtmlSanitizationService sanitizer, ICurrentUserService currentUserService, IMessagingQueryService messagingQueryService)
     {
         _bus = bus;
         _sanitizer = sanitizer;
         _currentUserService = currentUserService;
+        _messagingQueryService = messagingQueryService;
     }
 
     [HttpPost]
@@ -97,6 +100,7 @@ public class ConversationsController : ControllerBase
     [HasPermission(PermissionType.MessagingAccess)]
     [ProducesResponseType(typeof(MessagePageResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> GetMessages(
         Guid id,
         [FromQuery] Guid? cursor = null,
@@ -107,6 +111,12 @@ public class ConversationsController : ControllerBase
         if (userId is null)
         {
             return Unauthorized();
+        }
+
+        bool isParticipant = await _messagingQueryService.IsParticipantAsync(id, userId.Value, cancellationToken);
+        if (!isParticipant)
+        {
+            return Forbid();
         }
 
         Result<IReadOnlyList<MessageDto>> result = await _bus.InvokeAsync<Result<IReadOnlyList<MessageDto>>>(

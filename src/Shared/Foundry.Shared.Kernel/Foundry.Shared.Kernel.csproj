@@ -13,11 +13,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- CQRS & Messaging -->
-    <PackageReference Include="WolverineFx" />
-    <PackageReference Include="WolverineFx.RabbitMQ" />
-    <PackageReference Include="WolverineFx.FluentValidation" />
-
     <!-- Validation -->
     <PackageReference Include="FluentValidation" />
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />

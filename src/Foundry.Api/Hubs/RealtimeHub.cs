@@ -25,8 +25,9 @@ internal sealed partial class RealtimeHub(
         await presenceService.TrackConnectionAsync(userId, Context.ConnectionId);
         LogUserConnected(userId, Context.ConnectionId);
 
+        string tenantGroup = $"tenant:{tenantContext.TenantId.Value}";
         RealtimeEnvelope envelope = RealtimeEnvelope.Create("Presence", "UserOnline", new { UserId = userId });
-        await dispatcher.SendToAllAsync(envelope);
+        await dispatcher.SendToGroupAsync(tenantGroup, envelope);
         await base.OnConnectedAsync();
     }
 
@@ -40,8 +41,9 @@ internal sealed partial class RealtimeHub(
             bool stillOnline = await presenceService.IsUserOnlineAsync(userId);
             if (!stillOnline)
             {
+                string tenantGroup = $"tenant:{tenantContext.TenantId.Value}";
                 RealtimeEnvelope envelope = RealtimeEnvelope.Create("Presence", "UserOffline", new { UserId = userId });
-                await dispatcher.SendToAllAsync(envelope);
+                await dispatcher.SendToGroupAsync(tenantGroup, envelope);
             }
         }
 

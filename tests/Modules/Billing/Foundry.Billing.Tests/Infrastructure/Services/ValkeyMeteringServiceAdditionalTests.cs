@@ -22,7 +22,7 @@ public class ValkeyMeteringServiceAdditionalTests
     private readonly ISubscriptionQueryService _subscriptionQueryService;
     private readonly IDatabase _database;
     private readonly ValkeyMeteringService _service;
-    private readonly TenantId _testTenantId;
+    private readonly TenantId _tenantId;
 
     public ValkeyMeteringServiceAdditionalTests()
     {
@@ -35,8 +35,8 @@ public class ValkeyMeteringServiceAdditionalTests
         _subscriptionQueryService = Substitute.For<ISubscriptionQueryService>();
         _database = Substitute.For<IDatabase>();
 
-        _testTenantId = TenantId.Create(Guid.NewGuid());
-        tenantContext.TenantId.Returns(_testTenantId);
+        _tenantId = TenantId.Create(Guid.NewGuid());
+        tenantContext.TenantId.Returns(_tenantId);
         redis.GetDatabase(Arg.Any<int>(), Arg.Any<object>()).Returns(_database);
 
         ILogger<ValkeyMeteringService> logger = Substitute.For<ILogger<ValkeyMeteringService>>();
@@ -49,7 +49,7 @@ public class ValkeyMeteringServiceAdditionalTests
         DateTime from = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         DateTime to = new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc);
 
-        UsageRecord record = UsageRecord.Create(_testTenantId, "api.calls", from, to, 500, TimeProvider.System);
+        UsageRecord record = UsageRecord.Create(_tenantId, "api.calls", from, to, 500, TimeProvider.System);
 
         _usageRepository.GetHistoryAsync("api.calls", from, to, Arg.Any<CancellationToken>())
             .Returns(new List<UsageRecord> { record });
@@ -59,7 +59,7 @@ public class ValkeyMeteringServiceAdditionalTests
         result.Should().HaveCount(1);
         result[0].MeterCode.Should().Be("api.calls");
         result[0].Value.Should().Be(500);
-        result[0].TenantId.Should().Be(_testTenantId.Value);
+        result[0].TenantId.Should().Be(_tenantId.Value);
         result[0].PeriodStart.Should().Be(from);
         result[0].PeriodEnd.Should().Be(to);
     }
@@ -84,7 +84,7 @@ public class ValkeyMeteringServiceAdditionalTests
         QuotaDefinition quota = QuotaDefinition.CreatePlanQuota(
             "api.calls", "free", 100, QuotaPeriod.Monthly, QuotaAction.Warn);
 
-        _subscriptionQueryService.GetActivePlanCodeAsync(_testTenantId.Value, Arg.Any<CancellationToken>())
+        _subscriptionQueryService.GetActivePlanCodeAsync(_tenantId.Value, Arg.Any<CancellationToken>())
             .Returns("free");
 
         _quotaRepository.GetEffectiveQuotaAsync("api.calls", "free", Arg.Any<CancellationToken>())
@@ -120,7 +120,7 @@ public class ValkeyMeteringServiceAdditionalTests
         QuotaDefinition quota = QuotaDefinition.CreatePlanQuota(
             "api.calls", "free", 1000, QuotaPeriod.Monthly, QuotaAction.Warn);
 
-        _subscriptionQueryService.GetActivePlanCodeAsync(_testTenantId.Value, Arg.Any<CancellationToken>())
+        _subscriptionQueryService.GetActivePlanCodeAsync(_tenantId.Value, Arg.Any<CancellationToken>())
             .Returns("free");
 
         _quotaRepository.GetEffectiveQuotaAsync("api.calls", "free", Arg.Any<CancellationToken>())
@@ -138,7 +138,7 @@ public class ValkeyMeteringServiceAdditionalTests
     [Fact]
     public async Task CheckQuotaAsync_UsesSubscriptionPlanCode()
     {
-        _subscriptionQueryService.GetActivePlanCodeAsync(_testTenantId.Value, Arg.Any<CancellationToken>())
+        _subscriptionQueryService.GetActivePlanCodeAsync(_tenantId.Value, Arg.Any<CancellationToken>())
             .Returns("enterprise");
 
         _quotaRepository.GetEffectiveQuotaAsync("api.calls", "enterprise", Arg.Any<CancellationToken>())
@@ -147,7 +147,7 @@ public class ValkeyMeteringServiceAdditionalTests
         await _service.CheckQuotaAsync("api.calls");
 
         await _subscriptionQueryService.Received(1)
-            .GetActivePlanCodeAsync(_testTenantId.Value, Arg.Any<CancellationToken>());
+            .GetActivePlanCodeAsync(_tenantId.Value, Arg.Any<CancellationToken>());
         await _quotaRepository.Received(1)
             .GetEffectiveQuotaAsync("api.calls", "enterprise", Arg.Any<CancellationToken>());
     }

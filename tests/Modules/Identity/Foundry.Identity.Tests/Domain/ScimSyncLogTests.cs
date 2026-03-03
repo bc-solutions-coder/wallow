@@ -8,20 +8,20 @@ namespace Foundry.Identity.Tests.Domain;
 
 public class ScimSyncLogTests
 {
-    private static readonly TenantId _testTenantId = TenantId.Create(Guid.NewGuid());
+    private static readonly TenantId _tenantId = TenantId.Create(Guid.NewGuid());
 
     [Fact]
     public void Create_WithValidParameters_CreatesLogEntry()
     {
         ScimSyncLog log = ScimSyncLog.Create(
-            _testTenantId,
+            _tenantId,
             ScimOperation.Create,
             ScimResourceType.User,
             "ext-123",
             "int-456",
             true);
 
-        log.TenantId.Should().Be(_testTenantId);
+        log.TenantId.Should().Be(_tenantId);
         log.Operation.Should().Be(ScimOperation.Create);
         log.ResourceType.Should().Be(ScimResourceType.User);
         log.ExternalId.Should().Be("ext-123");
@@ -36,7 +36,7 @@ public class ScimSyncLogTests
     public void Create_WithErrorMessage_StoresErrorDetails()
     {
         ScimSyncLog log = ScimSyncLog.Create(
-            _testTenantId,
+            _tenantId,
             ScimOperation.Update,
             ScimResourceType.Group,
             "ext-789",
@@ -55,7 +55,7 @@ public class ScimSyncLogTests
     public void Create_WithEmptyExternalId_ThrowsBusinessRuleException()
     {
         Action act = () => ScimSyncLog.Create(
-            _testTenantId,
+            _tenantId,
             ScimOperation.Create,
             ScimResourceType.User,
             "",
@@ -70,7 +70,7 @@ public class ScimSyncLogTests
     public void Create_RaisesScimSyncCompletedEvent()
     {
         ScimSyncLog log = ScimSyncLog.Create(
-            _testTenantId,
+            _tenantId,
             ScimOperation.Delete,
             ScimResourceType.User,
             "ext-999",
@@ -81,7 +81,7 @@ public class ScimSyncLogTests
         log.DomainEvents.Should().ContainSingle()
             .Which.Should().BeOfType<ScimSyncCompletedEvent>()
             .Which.Should().Match<ScimSyncCompletedEvent>(e =>
-                e.TenantId == _testTenantId.Value &&
+                e.TenantId == _tenantId.Value &&
                 e.Operation == "Delete" &&
                 e.ResourceType == "User" &&
 !e.Success &&

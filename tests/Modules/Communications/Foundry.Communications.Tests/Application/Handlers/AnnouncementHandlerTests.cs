@@ -7,6 +7,8 @@ using Foundry.Communications.Domain.Announcements.Entities;
 using Foundry.Communications.Domain.Announcements.Enums;
 using Foundry.Communications.Domain.Announcements.Identity;
 using Foundry.Shared.Contracts.Communications.Announcements.Events;
+using Foundry.Shared.Kernel.Identity;
+using Foundry.Shared.Kernel.MultiTenancy;
 using Foundry.Shared.Kernel.Results;
 using Wolverine;
 
@@ -14,6 +16,7 @@ namespace Foundry.Communications.Tests.Application.Handlers;
 
 public class AnnouncementHandlerTests
 {
+    private static readonly TenantId _testTenantId = TenantId.New();
     private readonly IAnnouncementRepository _repository;
     private readonly IMessageBus _messageBus;
     private readonly CreateAnnouncementHandler _createHandler;
@@ -24,7 +27,9 @@ public class AnnouncementHandlerTests
     {
         _repository = Substitute.For<IAnnouncementRepository>();
         _messageBus = Substitute.For<IMessageBus>();
-        _createHandler = new CreateAnnouncementHandler(_repository, TimeProvider.System);
+        ITenantContext tenantContext = Substitute.For<ITenantContext>();
+        tenantContext.TenantId.Returns(_testTenantId);
+        _createHandler = new CreateAnnouncementHandler(_repository, tenantContext, TimeProvider.System);
         _publishHandler = new PublishAnnouncementHandler(_repository, _messageBus, TimeProvider.System);
         _archiveHandler = new ArchiveAnnouncementHandler(_repository, TimeProvider.System);
     }
@@ -90,7 +95,7 @@ public class AnnouncementHandlerTests
     [Fact]
     public async Task Publish_WhenAnnouncementExists_ReturnsSuccessAndUpdatesRepository()
     {
-        Announcement announcement = Announcement.Create("Title", "Content", AnnouncementType.Feature, TimeProvider.System);
+        Announcement announcement = Announcement.Create(_testTenantId, "Title", "Content", AnnouncementType.Feature, TimeProvider.System);
         _repository.GetByIdAsync(Arg.Any<AnnouncementId>(), Arg.Any<CancellationToken>())
             .Returns(announcement);
 
@@ -119,7 +124,7 @@ public class AnnouncementHandlerTests
     [Fact]
     public async Task Publish_SendsIntegrationEvent()
     {
-        Announcement announcement = Announcement.Create("Test Title", "Test Content", AnnouncementType.Alert, TimeProvider.System, AnnouncementTarget.All, null, null, null, true, true);
+        Announcement announcement = Announcement.Create(_testTenantId, "Test Title", "Test Content", AnnouncementType.Alert, TimeProvider.System, AnnouncementTarget.All, null, null, null, true, true);
         _repository.GetByIdAsync(Arg.Any<AnnouncementId>(), Arg.Any<CancellationToken>())
             .Returns(announcement);
 
@@ -153,7 +158,7 @@ public class AnnouncementHandlerTests
     [Fact]
     public async Task Archive_WhenAnnouncementExists_ArchivesAndReturnsSuccess()
     {
-        Announcement announcement = Announcement.Create("Title", "Content", AnnouncementType.Feature, TimeProvider.System);
+        Announcement announcement = Announcement.Create(_testTenantId, "Title", "Content", AnnouncementType.Feature, TimeProvider.System);
         _repository.GetByIdAsync(Arg.Any<AnnouncementId>(), Arg.Any<CancellationToken>())
             .Returns(announcement);
 
@@ -207,7 +212,7 @@ public class AnnouncementHandlerTests
         createResult.IsSuccess.Should().BeTrue();
         createResult.Value.Status.Should().Be(AnnouncementStatus.Draft);
 
-        Announcement announcement = Announcement.Create("Lifecycle Test", "Content", AnnouncementType.Update, TimeProvider.System);
+        Announcement announcement = Announcement.Create(_testTenantId, "Lifecycle Test", "Content", AnnouncementType.Update, TimeProvider.System);
         _repository.GetByIdAsync(Arg.Any<AnnouncementId>(), Arg.Any<CancellationToken>())
             .Returns(announcement);
 

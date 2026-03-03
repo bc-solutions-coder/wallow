@@ -71,7 +71,7 @@ jobs:
       - name: Scan container image for vulnerabilities
         uses: aquasecurity/trivy-action@0.29.0
         with:
-          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
           format: table
           exit-code: '1'
           severity: CRITICAL,HIGH

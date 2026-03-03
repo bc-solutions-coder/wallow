@@ -3,6 +3,7 @@ using Foundry.Communications.Domain.Channels.Email.Entities;
 using Foundry.Communications.Domain.Channels.Email.ValueObjects;
 using Foundry.Communications.Infrastructure.Jobs;
 using Foundry.Shared.Contracts.Communications.Email;
+using Foundry.Shared.Kernel.Identity;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -77,12 +78,14 @@ public class RetryFailedEmailsJobTests
         await _emailMessageRepository.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
+    private static readonly TenantId _testTenantId = TenantId.New();
+
     private static EmailMessage CreateFailedEmailMessage()
     {
         EmailAddress to = EmailAddress.Create("test@example.com");
         EmailAddress from = EmailAddress.Create("sender@example.com");
         EmailContent content = EmailContent.Create("Test Subject", "Test Body");
-        EmailMessage message = EmailMessage.Create(to, from, content, TimeProvider.System);
+        EmailMessage message = EmailMessage.Create(_testTenantId, to, from, content, TimeProvider.System);
         message.MarkAsFailed("Transient error", TimeProvider.System);
         return message;
     }

@@ -2,7 +2,7 @@ using Microsoft.Extensions.Logging;
 using Wolverine;
 using Wolverine.ErrorHandling;
 
-namespace Foundry.Shared.Kernel.Messaging;
+namespace Foundry.Shared.Infrastructure.Messaging;
 
 public static class WolverineErrorHandlingExtensions
 {

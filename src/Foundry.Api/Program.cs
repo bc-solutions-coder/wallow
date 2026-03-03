@@ -19,7 +19,7 @@ using Foundry.Shared.Infrastructure.Middleware;
 using Foundry.Shared.Infrastructure.Services;
 using Foundry.Shared.Infrastructure.Workflows;
 using Foundry.Shared.Kernel.Extensions;
-using Foundry.Shared.Kernel.Messaging;
+using Foundry.Shared.Infrastructure.Messaging;
 using Hangfire;
 using Microsoft.Extensions.Options;
 using Scalar.AspNetCore;
@@ -243,6 +243,7 @@ try
     });
     builder.Services.AddSharedKernel();
     builder.Services.AddHtmlSanitization();
+    builder.Services.AddCurrentUserService();
     builder.Services.AddApiServices(builder.Configuration, builder.Environment);
     builder.Services.AddObservability(builder.Configuration, builder.Environment);
     builder.Services.AddHangfireServices(builder.Configuration);

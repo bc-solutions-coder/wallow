@@ -7,7 +7,7 @@ using Foundry.Storage.Application.Interfaces;
 using Foundry.Storage.Domain.Entities;
 using Foundry.Storage.Domain.Enums;
 
-namespace Foundry.Storage.Application.Tests.Handlers;
+namespace Foundry.Storage.Tests.Application.Handlers;
 
 public class CreateBucketHandlerTests
 {

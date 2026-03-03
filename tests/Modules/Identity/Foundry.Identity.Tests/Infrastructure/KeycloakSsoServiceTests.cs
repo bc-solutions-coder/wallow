@@ -7,6 +7,7 @@ using Foundry.Identity.Domain.Enums;
 using Foundry.Identity.Infrastructure.Services;
 using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.MultiTenancy;
+using Foundry.Shared.Kernel.Services;
 using Keycloak.AuthServices.Authentication;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -20,7 +21,7 @@ public class KeycloakSsoServiceTests
     private readonly ISsoConfigurationRepository _repository = Substitute.For<ISsoConfigurationRepository>();
     private readonly ITenantContext _tenantContext = Substitute.For<ITenantContext>();
     private readonly ILogger<KeycloakSsoService> _logger = Substitute.For<ILogger<KeycloakSsoService>>();
-    private readonly TenantId _testTenantId = TenantId.Create(Guid.Parse("12345678-1234-1234-1234-123456789abc"));
+    private readonly TenantId _tenantId = TenantId.Create(Guid.Parse("12345678-1234-1234-1234-123456789abc"));
 
     [Fact]
     public async Task GetConfigurationAsync_WhenNoneExists_ReturnsNull()
@@ -41,7 +42,7 @@ public class KeycloakSsoServiceTests
     {
         // Arrange
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId,
+            _tenantId,
             "Test SSO",
             SsoProtocol.Saml,
             "email",
@@ -119,7 +120,7 @@ public class KeycloakSsoServiceTests
     {
         // Arrange
         SsoConfiguration existingConfig = SsoConfiguration.Create(
-            _testTenantId,
+            _tenantId,
             "Old Name",
             SsoProtocol.Saml,
             "email",
@@ -210,7 +211,7 @@ public class KeycloakSsoServiceTests
     {
         // Arrange
         SsoConfiguration existingConfig = SsoConfiguration.Create(
-            _testTenantId,
+            _tenantId,
             "Old OIDC",
             SsoProtocol.Oidc,
             "email",
@@ -273,7 +274,7 @@ public class KeycloakSsoServiceTests
     {
         // Arrange
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId,
+            _tenantId,
             "Test SSO",
             SsoProtocol.Saml,
             "email",
@@ -297,7 +298,7 @@ public class KeycloakSsoServiceTests
     {
         // Arrange
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId,
+            _tenantId,
             "Test SSO",
             SsoProtocol.Saml,
             "email",
@@ -354,7 +355,7 @@ public class KeycloakSsoServiceTests
     {
         // Arrange
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId,
+            _tenantId,
             "Test SSO",
             SsoProtocol.Saml,
             "email",
@@ -412,7 +413,7 @@ public class KeycloakSsoServiceTests
     {
         // Arrange
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId,
+            _tenantId,
             "Test SSO",
             SsoProtocol.Saml,
             "email",
@@ -436,7 +437,7 @@ public class KeycloakSsoServiceTests
     {
         // Arrange
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId,
+            _tenantId,
             "Test SSO",
             SsoProtocol.Saml,
             "email",
@@ -470,7 +471,7 @@ public class KeycloakSsoServiceTests
     {
         // Arrange - use invalid cert format to test URL checking only
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId,
+            _tenantId,
             "Test SSO",
             SsoProtocol.Saml,
             "email",
@@ -505,7 +506,7 @@ public class KeycloakSsoServiceTests
     {
         // Arrange
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId,
+            _tenantId,
             "Test SSO",
             SsoProtocol.Oidc,
             "email",
@@ -529,7 +530,7 @@ public class KeycloakSsoServiceTests
     {
         // Arrange
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId,
+            _tenantId,
             "Test SSO",
             SsoProtocol.Oidc,
             "email",
@@ -562,7 +563,7 @@ public class KeycloakSsoServiceTests
     {
         // Arrange
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId,
+            _tenantId,
             "Test SSO",
             SsoProtocol.Oidc,
             "email",
@@ -599,7 +600,7 @@ public class KeycloakSsoServiceTests
     {
         // Arrange
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId,
+            _tenantId,
             "Test SSO",
             SsoProtocol.Oidc,
             "email",
@@ -651,7 +652,7 @@ public class KeycloakSsoServiceTests
     {
         // Arrange
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId,
+            _tenantId,
             "Test SSO",
             SsoProtocol.Saml,
             "email",
@@ -675,7 +676,7 @@ public class KeycloakSsoServiceTests
     {
         // Arrange
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId,
+            _tenantId,
             "Test SSO",
             SsoProtocol.Saml,
             "email",
@@ -706,7 +707,7 @@ public class KeycloakSsoServiceTests
     {
         // Arrange
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId,
+            _tenantId,
             "Test SSO",
             SsoProtocol.Oidc,
             "email",
@@ -730,7 +731,7 @@ public class KeycloakSsoServiceTests
     {
         // Arrange
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId,
+            _tenantId,
             "Test SSO",
             SsoProtocol.Oidc,
             "email",
@@ -816,7 +817,7 @@ public class KeycloakSsoServiceTests
         httpClientFactory.CreateClient("KeycloakAdminClient").Returns(keycloakClient);
         httpClientFactory.CreateClient().Returns(externalClient);
 
-        _tenantContext.TenantId.Returns(_testTenantId);
+        _tenantContext.TenantId.Returns(_tenantId);
         currentUserService.UserId.Returns(Guid.Empty);
 
         IOptions<KeycloakAuthenticationOptions> options = Options.Create(new KeycloakAuthenticationOptions

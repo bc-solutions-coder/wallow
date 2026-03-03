@@ -4,6 +4,7 @@ using Foundry.Communications.Domain.Announcements.Entities;
 using Foundry.Communications.Domain.Announcements.Enums;
 using Foundry.Communications.Domain.Announcements.Identity;
 using Foundry.Shared.Contracts.Communications.Announcements.Events;
+using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.Results;
 using Wolverine;
 
@@ -11,6 +12,7 @@ namespace Foundry.Communications.Tests.Application.Announcements.Handlers;
 
 public class PublishAnnouncementHandlerTests
 {
+    private static readonly TenantId _testTenantId = TenantId.New();
     private readonly IAnnouncementRepository _repository;
     private readonly IMessageBus _messageBus;
     private readonly PublishAnnouncementHandler _handler;
@@ -25,7 +27,7 @@ public class PublishAnnouncementHandlerTests
     [Fact]
     public async Task Handle_WhenAnnouncementExists_PublishesAndReturnsSuccess()
     {
-        Announcement announcement = Announcement.Create("Title", "Content", AnnouncementType.Feature, TimeProvider.System);
+        Announcement announcement = Announcement.Create(_testTenantId, "Title", "Content", AnnouncementType.Feature, TimeProvider.System);
 
         _repository.GetByIdAsync(Arg.Any<AnnouncementId>(), Arg.Any<CancellationToken>())
             .Returns(announcement);
@@ -55,7 +57,7 @@ public class PublishAnnouncementHandlerTests
     [Fact]
     public async Task Handle_PublishesIntegrationEvent()
     {
-        Announcement announcement = Announcement.Create("Test Title", "Test Content", AnnouncementType.Alert, TimeProvider.System, AnnouncementTarget.All, null, null, null, true, true);
+        Announcement announcement = Announcement.Create(_testTenantId, "Test Title", "Test Content", AnnouncementType.Alert, TimeProvider.System, AnnouncementTarget.All, null, null, null, true, true);
 
         _repository.GetByIdAsync(Arg.Any<AnnouncementId>(), Arg.Any<CancellationToken>())
             .Returns(announcement);

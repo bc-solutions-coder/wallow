@@ -21,7 +21,7 @@ public class ScimGroupServiceTests
     private readonly IScimSyncLogRepository _syncLogRepository = Substitute.For<IScimSyncLogRepository>();
     private readonly ITenantContext _tenantContext = Substitute.For<ITenantContext>();
     private readonly ILogger<ScimGroupService> _logger = Substitute.For<ILogger<ScimGroupService>>();
-    private readonly TenantId _testTenantId = TenantId.Create(Guid.Parse("12345678-1234-1234-1234-123456789abc"));
+    private readonly TenantId _tenantId = TenantId.Create(Guid.Parse("12345678-1234-1234-1234-123456789abc"));
 
     [Fact]
     public async Task CreateGroupAsync_Success_ReturnsScimGroup()
@@ -431,7 +431,7 @@ public class ScimGroupServiceTests
     [Fact]
     public async Task LogSyncAsync_UpdatesScimConfiguration_WhenConfigExists()
     {
-        (ScimConfiguration config, string _) = ScimConfiguration.Create(_testTenantId, Guid.Empty);
+        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty);
         _scimRepository.GetAsync(Arg.Any<CancellationToken>()).Returns(config);
 
         MockHttpHandler handler = new MockHttpHandler()
@@ -453,7 +453,7 @@ public class ScimGroupServiceTests
         };
         httpClientFactory.CreateClient("KeycloakAdminClient").Returns(httpClient);
 
-        _tenantContext.TenantId.Returns(_testTenantId);
+        _tenantContext.TenantId.Returns(_tenantId);
 
         return new ScimGroupService(
             httpClientFactory,

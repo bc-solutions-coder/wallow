@@ -29,7 +29,7 @@ public class SsoClaimsSyncServiceTests
     private readonly ISsoConfigurationRepository _repository = Substitute.For<ISsoConfigurationRepository>();
     private readonly ITenantContext _tenantContext = Substitute.For<ITenantContext>();
     private readonly ILogger<SsoClaimsSyncService> _logger = Substitute.For<ILogger<SsoClaimsSyncService>>();
-    private readonly TenantId _testTenantId = TenantId.Create(Guid.Parse("12345678-1234-1234-1234-123456789abc"));
+    private readonly TenantId _tenantId = TenantId.Create(Guid.Parse("12345678-1234-1234-1234-123456789abc"));
 
     [Fact]
     public async Task SyncUserClaimsAsync_WhenNoConfig_SkipsSync()
@@ -47,7 +47,7 @@ public class SsoClaimsSyncServiceTests
     public async Task SyncUserClaimsAsync_WhenSyncGroupsDisabled_SkipsSync()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId, "Test SSO", SsoProtocol.Saml,
+            _tenantId, "Test SSO", SsoProtocol.Saml,
             "email", "firstName", "lastName", Guid.Empty);
         // SyncGroupsAsRoles defaults to false
 
@@ -62,7 +62,7 @@ public class SsoClaimsSyncServiceTests
     public async Task SyncUserClaimsAsync_WhenGroupsAttributeEmpty_SkipsSync()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId, "Test SSO", SsoProtocol.Saml,
+            _tenantId, "Test SSO", SsoProtocol.Saml,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateBehaviorSettings(false, false, null, true, null, Guid.Empty);
 
@@ -77,7 +77,7 @@ public class SsoClaimsSyncServiceTests
     public async Task SyncUserClaimsAsync_WhenUserNotFound_SkipsSync()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId, "Test SSO", SsoProtocol.Saml,
+            _tenantId, "Test SSO", SsoProtocol.Saml,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateBehaviorSettings(false, false, null, true, "groups", Guid.Empty);
 
@@ -96,7 +96,7 @@ public class SsoClaimsSyncServiceTests
     public async Task SyncUserClaimsAsync_WhenNoGroupsInAttributes_SkipsSync()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId, "Test SSO", SsoProtocol.Saml,
+            _tenantId, "Test SSO", SsoProtocol.Saml,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateBehaviorSettings(false, false, null, true, "groups", Guid.Empty);
 
@@ -124,7 +124,7 @@ public class SsoClaimsSyncServiceTests
     public async Task SyncUserClaimsAsync_WithGroups_SyncsRoles()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId, "Test SSO", SsoProtocol.Saml,
+            _tenantId, "Test SSO", SsoProtocol.Saml,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateBehaviorSettings(false, false, null, true, "groups", Guid.Empty);
 
@@ -157,7 +157,7 @@ public class SsoClaimsSyncServiceTests
     public async Task SyncUserClaimsAsync_WithDefaultRole_IncludesDefaultRole()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId, "Test SSO", SsoProtocol.Saml,
+            _tenantId, "Test SSO", SsoProtocol.Saml,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateBehaviorSettings(false, false, "user", true, "groups", Guid.Empty);
 
@@ -190,7 +190,7 @@ public class SsoClaimsSyncServiceTests
     public async Task SyncUserClaimsAsync_WithJsonArrayGroups_ParsesCorrectly()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId, "Test SSO", SsoProtocol.Saml,
+            _tenantId, "Test SSO", SsoProtocol.Saml,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateBehaviorSettings(false, false, null, true, "groups", Guid.Empty);
 
@@ -223,7 +223,7 @@ public class SsoClaimsSyncServiceTests
     public async Task SyncUserClaimsAsync_WithDnGroupNames_ExtractsCommonName()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId, "Test SSO", SsoProtocol.Saml,
+            _tenantId, "Test SSO", SsoProtocol.Saml,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateBehaviorSettings(false, false, null, true, "groups", Guid.Empty);
 
@@ -254,7 +254,7 @@ public class SsoClaimsSyncServiceTests
     public async Task SyncUserClaimsAsync_RemovesOldRoles_WhenNotInTargetGroups()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId, "Test SSO", SsoProtocol.Saml,
+            _tenantId, "Test SSO", SsoProtocol.Saml,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateBehaviorSettings(false, false, null, true, "groups", Guid.Empty);
 
@@ -292,7 +292,7 @@ public class SsoClaimsSyncServiceTests
     public async Task SyncUserClaimsAsync_PreservesSystemRoles()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId, "Test SSO", SsoProtocol.Saml,
+            _tenantId, "Test SSO", SsoProtocol.Saml,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateBehaviorSettings(false, false, null, true, "groups", Guid.Empty);
 
@@ -329,7 +329,7 @@ public class SsoClaimsSyncServiceTests
     public async Task SyncUserClaimsAsync_WhenRoleDoesNotExist_SkipsAssignment()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId, "Test SSO", SsoProtocol.Saml,
+            _tenantId, "Test SSO", SsoProtocol.Saml,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateBehaviorSettings(false, false, null, true, "groups", Guid.Empty);
 
@@ -359,7 +359,7 @@ public class SsoClaimsSyncServiceTests
     public async Task SyncUserClaimsAsync_WhenKeycloakThrows_PropagatesException()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId, "Test SSO", SsoProtocol.Saml,
+            _tenantId, "Test SSO", SsoProtocol.Saml,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateBehaviorSettings(false, false, null, true, "groups", Guid.Empty);
 
@@ -379,7 +379,7 @@ public class SsoClaimsSyncServiceTests
     public async Task SyncUserClaimsAsync_WhenGetRolesFails_ReturnsEmpty()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId, "Test SSO", SsoProtocol.Saml,
+            _tenantId, "Test SSO", SsoProtocol.Saml,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateBehaviorSettings(false, false, null, true, "groups", Guid.Empty);
 
@@ -409,7 +409,7 @@ public class SsoClaimsSyncServiceTests
     public async Task SyncUserClaimsAsync_WhenAssignRoleFails_DoesNotThrow()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId, "Test SSO", SsoProtocol.Saml,
+            _tenantId, "Test SSO", SsoProtocol.Saml,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateBehaviorSettings(false, false, null, true, "groups", Guid.Empty);
 
@@ -441,7 +441,7 @@ public class SsoClaimsSyncServiceTests
     public async Task SyncUserClaimsAsync_WhenRemoveRoleFails_DoesNotThrow()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId, "Test SSO", SsoProtocol.Saml,
+            _tenantId, "Test SSO", SsoProtocol.Saml,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateBehaviorSettings(false, false, null, true, "groups", Guid.Empty);
 
@@ -473,7 +473,7 @@ public class SsoClaimsSyncServiceTests
     public async Task SyncUserClaimsAsync_WithCnPrefixedGroup_SanitizesName()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId, "Test SSO", SsoProtocol.Saml,
+            _tenantId, "Test SSO", SsoProtocol.Saml,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateBehaviorSettings(false, false, null, true, "groups", Guid.Empty);
 
@@ -504,7 +504,7 @@ public class SsoClaimsSyncServiceTests
     public async Task SyncUserClaimsAsync_WithBlankGroupValues_SkipsThem()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId, "Test SSO", SsoProtocol.Saml,
+            _tenantId, "Test SSO", SsoProtocol.Saml,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateBehaviorSettings(false, false, null, true, "groups", Guid.Empty);
 
@@ -541,7 +541,7 @@ public class SsoClaimsSyncServiceTests
         httpClient.BaseAddress = new Uri("https://keycloak.test/");
         httpClientFactory.CreateClient("KeycloakAdminClient").Returns(httpClient);
 
-        _tenantContext.TenantId.Returns(_testTenantId);
+        _tenantContext.TenantId.Returns(_tenantId);
 
         return new SsoClaimsSyncService(httpClientFactory, _repository, _tenantContext, _logger);
     }

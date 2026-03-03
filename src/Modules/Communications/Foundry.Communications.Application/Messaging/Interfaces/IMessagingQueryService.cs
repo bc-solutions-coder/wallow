@@ -4,6 +4,8 @@ namespace Foundry.Communications.Application.Messaging.Interfaces;
 
 public interface IMessagingQueryService
 {
+    Task<bool> IsParticipantAsync(Guid conversationId, Guid userId, CancellationToken cancellationToken = default);
+
     Task<int> GetUnreadConversationCountAsync(Guid userId, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<MessageDto>> GetMessagesAsync(

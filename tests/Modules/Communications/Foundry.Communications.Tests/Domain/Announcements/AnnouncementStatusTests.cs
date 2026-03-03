@@ -1,14 +1,17 @@
 using Foundry.Communications.Domain.Announcements.Entities;
 using Foundry.Communications.Domain.Announcements.Enums;
+using Foundry.Shared.Kernel.Identity;
 
 namespace Foundry.Communications.Tests.Domain.Announcements;
 
 public class AnnouncementStatusTests
 {
+    private static readonly TenantId _testTenantId = TenantId.New();
+
     [Fact]
     public void Publish_FromDraft_ChangesStatusToPublishedAndSetsPublishAt()
     {
-        Announcement announcement = Announcement.Create("Title", "Content", AnnouncementType.Feature, TimeProvider.System);
+        Announcement announcement = Announcement.Create(_testTenantId, "Title", "Content", AnnouncementType.Feature, TimeProvider.System);
         announcement.Status.Should().Be(AnnouncementStatus.Draft);
         DateTime before = DateTime.UtcNow;
 
@@ -22,7 +25,7 @@ public class AnnouncementStatusTests
     [Fact]
     public void Publish_WhenAlreadyPublished_DoesNothing()
     {
-        Announcement announcement = Announcement.Create("Title", "Content", AnnouncementType.Feature, TimeProvider.System);
+        Announcement announcement = Announcement.Create(_testTenantId, "Title", "Content", AnnouncementType.Feature, TimeProvider.System);
         announcement.Publish(TimeProvider.System);
         DateTime? firstPublishAt = announcement.PublishAt;
 
@@ -35,7 +38,7 @@ public class AnnouncementStatusTests
     [Fact]
     public void Expire_ChangesStatusToExpired()
     {
-        Announcement announcement = Announcement.Create("Title", "Content", AnnouncementType.Feature, TimeProvider.System);
+        Announcement announcement = Announcement.Create(_testTenantId, "Title", "Content", AnnouncementType.Feature, TimeProvider.System);
         announcement.Publish(TimeProvider.System);
 
         announcement.Expire(TimeProvider.System);
@@ -46,7 +49,7 @@ public class AnnouncementStatusTests
     [Fact]
     public void Archive_ChangesStatusToArchived()
     {
-        Announcement announcement = Announcement.Create("Title", "Content", AnnouncementType.Feature, TimeProvider.System);
+        Announcement announcement = Announcement.Create(_testTenantId, "Title", "Content", AnnouncementType.Feature, TimeProvider.System);
 
         announcement.Archive(TimeProvider.System);
 
@@ -56,7 +59,7 @@ public class AnnouncementStatusTests
     [Fact]
     public void Expire_SetsUpdatedAtTimestamp()
     {
-        Announcement announcement = Announcement.Create("Title", "Content", AnnouncementType.Feature, TimeProvider.System);
+        Announcement announcement = Announcement.Create(_testTenantId, "Title", "Content", AnnouncementType.Feature, TimeProvider.System);
         DateTime before = DateTime.UtcNow;
 
         announcement.Expire(TimeProvider.System);
@@ -68,7 +71,7 @@ public class AnnouncementStatusTests
     [Fact]
     public void Archive_SetsUpdatedAtTimestamp()
     {
-        Announcement announcement = Announcement.Create("Title", "Content", AnnouncementType.Feature, TimeProvider.System);
+        Announcement announcement = Announcement.Create(_testTenantId, "Title", "Content", AnnouncementType.Feature, TimeProvider.System);
         DateTime before = DateTime.UtcNow;
 
         announcement.Archive(TimeProvider.System);

@@ -94,7 +94,7 @@ public sealed class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
 
         builder.HasIndex(i => i.TenantId);
         builder.HasIndex(i => i.UserId);
-        builder.HasIndex(i => i.InvoiceNumber).IsUnique();
+        builder.HasIndex(i => new { i.TenantId, i.InvoiceNumber }).IsUnique().HasDatabaseName("ix_billing_invoices_tenant_invoice_number");
         builder.HasIndex(i => i.Status);
     }
 }
