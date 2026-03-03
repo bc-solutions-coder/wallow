@@ -3,8 +3,11 @@ using Foundry.Identity.Domain.Enums;
 using Foundry.Identity.Infrastructure.Persistence;
 using Foundry.Identity.Infrastructure.Repositories;
 using Foundry.Shared.Kernel.Identity;
+using Foundry.Shared.Kernel.MultiTenancy;
 using Foundry.Tests.Common.Bases;
 using Foundry.Tests.Common.Fixtures;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.EntityFrameworkCore;
 
 namespace Foundry.Identity.Tests.Integration;
 
@@ -15,6 +18,12 @@ public sealed class ServiceAccountRepositoryTests : DbContextIntegrationTestBase
     private ServiceAccountRepository _repository = null!;
 
     public ServiceAccountRepositoryTests(PostgresContainerFixture fixture) : base(fixture) { }
+
+    protected override IdentityDbContext CreateDbContext(DbContextOptions<IdentityDbContext> options, ITenantContext tenantContext)
+    {
+        IDataProtectionProvider dataProtectionProvider = DataProtectionProvider.Create("Foundry.Identity.Tests");
+        return new IdentityDbContext(options, tenantContext, dataProtectionProvider);
+    }
 
     public override async Task InitializeAsync()
     {

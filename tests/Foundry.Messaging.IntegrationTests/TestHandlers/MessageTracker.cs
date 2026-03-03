@@ -6,11 +6,11 @@ public class MessageTracker : IMessageTracker
 {
     private readonly List<TestEvent> _processedEvents = new();
     private readonly Dictionary<Guid, int> _attemptCounts = new();
-    private readonly object _lock = new();
+    private readonly Lock _lock = new();
 
     public void RecordEvent(TestEvent @event)
     {
-        lock (_lock)
+        using (_lock.EnterScope())
         {
             _processedEvents.Add(@event);
         }
@@ -18,7 +18,7 @@ public class MessageTracker : IMessageTracker
 
     public void IncrementAttempt(Guid eventId)
     {
-        lock (_lock)
+        using (_lock.EnterScope())
         {
             if (!_attemptCounts.TryGetValue(eventId, out int count))
             {
@@ -30,7 +30,7 @@ public class MessageTracker : IMessageTracker
 
     public IReadOnlyList<TestEvent> GetProcessedEvents()
     {
-        lock (_lock)
+        using (_lock.EnterScope())
         {
             return _processedEvents.ToList();
         }
@@ -38,7 +38,7 @@ public class MessageTracker : IMessageTracker
 
     public int GetAttemptCount(Guid eventId)
     {
-        lock (_lock)
+        using (_lock.EnterScope())
         {
             return _attemptCounts.GetValueOrDefault(eventId, 0);
         }
@@ -46,7 +46,7 @@ public class MessageTracker : IMessageTracker
 
     public void Reset()
     {
-        lock (_lock)
+        using (_lock.EnterScope())
         {
             _processedEvents.Clear();
             _attemptCounts.Clear();

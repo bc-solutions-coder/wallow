@@ -319,7 +319,7 @@ public class WorkflowActivityBaseTests
         ActivityNode rootNode = new(activity, "root");
         WorkflowGraph workflowGraph = new(workflow, rootNode, new[] { rootNode });
 
-        ExecuteActivityDelegate execDelegate = _ => ValueTask.CompletedTask;
+        static ValueTask execDelegate(ActivityExecutionContext _) => ValueTask.CompletedTask;
 
         ConstructorInfo wecCtor = typeof(WorkflowExecutionContext)
             .GetConstructors(BindingFlags.NonPublic | BindingFlags.Instance)[0];
@@ -328,7 +328,7 @@ public class WorkflowActivityBaseTests
         {
             serviceProvider, workflowGraph, "wf-instance-1", null, null,
             new Dictionary<string, object>(), new Dictionary<string, object>(),
-            execDelegate, null, Array.Empty<ActivityIncident>(), Array.Empty<Bookmark>(),
+            (ExecuteActivityDelegate)execDelegate, null, Array.Empty<ActivityIncident>(), Array.Empty<Bookmark>(),
             DateTimeOffset.UtcNow, CancellationToken.None
         });
 

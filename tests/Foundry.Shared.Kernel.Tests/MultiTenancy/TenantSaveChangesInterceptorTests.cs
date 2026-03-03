@@ -34,7 +34,7 @@ public class TenantSaveChangesInterceptorTests
         TenantId tenantId = TenantId.New();
         _tenantContext.IsResolved.Returns(true);
         _tenantContext.TenantId.Returns(tenantId);
-        using TestDbContext dbContext = CreateDbContext();
+        await using TestDbContext dbContext = CreateDbContext();
         dbContext.TenantEntities.Add(new TestTenantEntity { Name = "Test" });
 
         await dbContext.SaveChangesAsync();

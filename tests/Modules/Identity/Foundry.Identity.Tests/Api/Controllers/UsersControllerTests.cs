@@ -4,6 +4,8 @@ using Foundry.Identity.Api.Contracts.Responses;
 using Foundry.Identity.Api.Controllers;
 using Foundry.Identity.Application.DTOs;
 using Foundry.Identity.Application.Interfaces;
+using Foundry.Shared.Kernel.Identity;
+using Foundry.Shared.Kernel.MultiTenancy;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -13,14 +15,19 @@ public class UsersControllerTests
 {
     private static readonly string[] _userRole = ["user"];
     private static readonly string[] _adminRole = ["admin"];
+    private static readonly Guid _testTenantGuid = Guid.NewGuid();
     private readonly IKeycloakAdminService _keycloakAdmin;
+    private readonly IKeycloakOrganizationService _keycloakOrg;
     private readonly UsersController _controller;
     private readonly Guid _userId = Guid.NewGuid();
 
     public UsersControllerTests()
     {
         _keycloakAdmin = Substitute.For<IKeycloakAdminService>();
-        _controller = new UsersController(_keycloakAdmin);
+        _keycloakOrg = Substitute.For<IKeycloakOrganizationService>();
+        ITenantContext tenantContext = Substitute.For<ITenantContext>();
+        tenantContext.TenantId.Returns(new TenantId(_testTenantGuid));
+        _controller = new UsersController(_keycloakAdmin, _keycloakOrg, tenantContext);
 
         ClaimsPrincipal user = new(new ClaimsIdentity(new[]
         {
@@ -81,6 +88,8 @@ public class UsersControllerTests
         UserDto user = new(userId, "a@test.com", "Alice", "Smith", true, _userRole);
         _keycloakAdmin.GetUserByIdAsync(userId, Arg.Any<CancellationToken>())
             .Returns(user);
+        _keycloakOrg.GetUserOrganizationsAsync(userId, Arg.Any<CancellationToken>())
+            .Returns(new List<OrganizationDto> { new(_testTenantGuid, "Test Org", null, 1) });
 
         ActionResult<UserDto> result = await _controller.GetUserById(userId, CancellationToken.None);
 

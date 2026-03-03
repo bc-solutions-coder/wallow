@@ -114,7 +114,7 @@ public class FlushUsageJobExceptionTests
     }
 
     [Fact]
-    public async Task ParsePeriod_WithFivePartFormat_ThrowsArgumentException()
+    public void ParsePeriod_WithFivePartFormat_ThrowsArgumentException()
     {
         System.Reflection.MethodInfo? method = typeof(FlushUsageJob).GetMethod("ParsePeriod",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);

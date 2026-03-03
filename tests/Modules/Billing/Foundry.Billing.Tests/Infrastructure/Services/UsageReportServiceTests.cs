@@ -26,7 +26,7 @@ public class UsageReportServiceTests
     [Fact]
     public async Task GetUsageAsync_ReturnsGroupedUsageByMeterCode()
     {
-        using BillingDbContext dbContext = CreateDbContext();
+        await using BillingDbContext dbContext = CreateDbContext();
         DateTime from = new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc);
         DateTime to = new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc);
         DateTime periodStart = new DateTime(2026, 2, 15, 0, 0, 0, DateTimeKind.Utc);
@@ -55,7 +55,7 @@ public class UsageReportServiceTests
     [Fact]
     public async Task GetUsageAsync_ReturnsEmptyWhenNoRecords()
     {
-        using BillingDbContext dbContext = CreateDbContext();
+        await using BillingDbContext dbContext = CreateDbContext();
         DateTime from = new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc);
         DateTime to = new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc);
 
@@ -70,7 +70,7 @@ public class UsageReportServiceTests
     [Fact]
     public async Task GetUsageAsync_FiltersOutRecordsOutsideDateRange()
     {
-        using BillingDbContext dbContext = CreateDbContext();
+        await using BillingDbContext dbContext = CreateDbContext();
         DateTime from = new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc);
         DateTime to = new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc);
 
@@ -95,7 +95,7 @@ public class UsageReportServiceTests
     [Fact]
     public async Task GetUsageAsync_RespectsTenantIsolation()
     {
-        using BillingDbContext dbContext = CreateDbContext();
+        await using BillingDbContext dbContext = CreateDbContext();
         DateTime from = new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc);
         DateTime to = new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc);
 

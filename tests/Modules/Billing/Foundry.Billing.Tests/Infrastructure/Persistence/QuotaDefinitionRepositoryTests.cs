@@ -96,7 +96,7 @@ public class QuotaDefinitionRepositoryTests : DbContextIntegrationTestBase<Billi
     {
         // Seed a plan-level default (system tenant)
         TenantId systemTenantId = TenantId.Create(Guid.Empty);
-        using BillingDbContext systemContext = CreateDbContextForTenant(systemTenantId, "System");
+        await using BillingDbContext systemContext = CreateDbContextForTenant(systemTenantId, "System");
         string meterCode = $"test.plan.{Guid.NewGuid():N}";
         QuotaDefinition planDefault = QuotaDefinition.CreatePlanQuota(
             meterCode, "enterprise", 500000, QuotaPeriod.Monthly, QuotaAction.Warn);
