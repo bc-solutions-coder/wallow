@@ -70,7 +70,7 @@ public sealed class RealtimeHubTests : IDisposable
 
         await _hub.OnConnectedAsync();
 
-        await _presenceService.Received(1).TrackConnectionAsync("user-1", "conn-user-1");
+        await _presenceService.Received(1).TrackConnectionAsync(_tenantGuid, "user-1", "conn-user-1");
         string expectedGroup = $"tenant:{_tenantGuid}";
         await _dispatcher.Received(1).SendToGroupAsync(
             expectedGroup,
@@ -85,7 +85,7 @@ public sealed class RealtimeHubTests : IDisposable
 
         await _hub.OnConnectedAsync();
 
-        await _presenceService.Received(1).TrackConnectionAsync("user-sub", "conn-user-sub");
+        await _presenceService.Received(1).TrackConnectionAsync(_tenantGuid, "user-sub", "conn-user-sub");
     }
 
     [Fact]
@@ -96,7 +96,7 @@ public sealed class RealtimeHubTests : IDisposable
         await _hub.OnConnectedAsync();
 
         _context.Received(1).Abort();
-        await _presenceService.DidNotReceive().TrackConnectionAsync(Arg.Any<string>(), Arg.Any<string>());
+        await _presenceService.DidNotReceive().TrackConnectionAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<string>());
         await _dispatcher.DidNotReceive().SendToGroupAsync(Arg.Any<string>(), Arg.Any<RealtimeEnvelope>(), Arg.Any<CancellationToken>());
     }
 
@@ -121,7 +121,7 @@ public sealed class RealtimeHubTests : IDisposable
         _context.ConnectionId.Returns(connectionId);
         _presenceService.GetUserIdByConnectionAsync(connectionId, Arg.Any<CancellationToken>())
             .Returns("user-1");
-        _presenceService.IsUserOnlineAsync("user-1", Arg.Any<CancellationToken>())
+        _presenceService.IsUserOnlineAsync(_tenantGuid, "user-1", Arg.Any<CancellationToken>())
             .Returns(false);
 
         await _hub.OnDisconnectedAsync(null);
@@ -141,7 +141,7 @@ public sealed class RealtimeHubTests : IDisposable
         _context.ConnectionId.Returns(connectionId);
         _presenceService.GetUserIdByConnectionAsync(connectionId, Arg.Any<CancellationToken>())
             .Returns("user-1");
-        _presenceService.IsUserOnlineAsync("user-1", Arg.Any<CancellationToken>())
+        _presenceService.IsUserOnlineAsync(_tenantGuid, "user-1", Arg.Any<CancellationToken>())
             .Returns(true);
 
         await _hub.OnDisconnectedAsync(null);
@@ -174,7 +174,7 @@ public sealed class RealtimeHubTests : IDisposable
         _context.ConnectionId.Returns(connectionId);
         _presenceService.GetUserIdByConnectionAsync(connectionId, Arg.Any<CancellationToken>())
             .Returns("user-err");
-        _presenceService.IsUserOnlineAsync("user-err", Arg.Any<CancellationToken>())
+        _presenceService.IsUserOnlineAsync(_tenantGuid, "user-err", Arg.Any<CancellationToken>())
             .Returns(false);
 
         await _hub.OnDisconnectedAsync(new InvalidOperationException("test error"));
@@ -269,12 +269,12 @@ public sealed class RealtimeHubTests : IDisposable
         _clients.Group("page:/dashboard").Returns(groupProxy);
 
         List<UserPresence> viewers = [new UserPresence("user-1", null, ["conn-user-1"], ["/dashboard"])];
-        _presenceService.GetUsersOnPageAsync("/dashboard", Arg.Any<CancellationToken>())
+        _presenceService.GetUsersOnPageAsync(_tenantGuid, "/dashboard", Arg.Any<CancellationToken>())
             .Returns(viewers);
 
         await _hub.UpdatePageContext("/dashboard");
 
-        await _presenceService.Received(1).SetPageContextAsync("conn-user-1", "/dashboard", Arg.Any<CancellationToken>());
+        await _presenceService.Received(1).SetPageContextAsync(_tenantGuid, "conn-user-1", "/dashboard", Arg.Any<CancellationToken>());
         await _groups.Received(1).AddToGroupAsync("conn-user-1", "page:/dashboard", Arg.Any<CancellationToken>());
         await groupProxy.Received(1).SendCoreAsync(
             "ReceivePresence",
@@ -290,7 +290,7 @@ public sealed class RealtimeHubTests : IDisposable
         await _hub.UpdatePageContext("/dashboard");
 
         await _presenceService.DidNotReceive().SetPageContextAsync(
-            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+            Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     public void Dispose()

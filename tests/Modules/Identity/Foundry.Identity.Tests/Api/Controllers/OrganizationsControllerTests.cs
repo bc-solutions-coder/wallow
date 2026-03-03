@@ -4,6 +4,8 @@ using Foundry.Identity.Api.Contracts.Responses;
 using Foundry.Identity.Api.Controllers;
 using Foundry.Identity.Application.DTOs;
 using Foundry.Identity.Application.Interfaces;
+using Foundry.Shared.Kernel.Identity;
+using Foundry.Shared.Kernel.MultiTenancy;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -13,13 +15,17 @@ public class OrganizationsControllerTests
 {
     private static readonly string[] _userRole = ["user"];
     private readonly IKeycloakOrganizationService _orgService;
+    private readonly ITenantContext _tenantContext;
     private readonly OrganizationsController _controller;
     private readonly Guid _userId = Guid.NewGuid();
+    private readonly Guid _tenantOrgId = Guid.NewGuid();
 
     public OrganizationsControllerTests()
     {
         _orgService = Substitute.For<IKeycloakOrganizationService>();
-        _controller = new OrganizationsController(_orgService);
+        _tenantContext = Substitute.For<ITenantContext>();
+        _tenantContext.TenantId.Returns(TenantId.Create(_tenantOrgId));
+        _controller = new OrganizationsController(_orgService, _tenantContext);
 
         ClaimsPrincipal user = new(new ClaimsIdentity(new[]
         {
@@ -68,12 +74,12 @@ public class OrganizationsControllerTests
     #region GetAll
 
     [Fact]
-    public async Task GetAll_ReturnsOkWithOrganizations()
+    public async Task GetAll_ReturnsOkFilteredToCurrentTenant()
     {
         List<OrganizationDto> orgs =
         [
-            new OrganizationDto(Guid.NewGuid(), "Org A", "org-a.com", 5),
-            new OrganizationDto(Guid.NewGuid(), "Org B", null, 3)
+            new OrganizationDto(_tenantOrgId, "Tenant Org", "tenant.com", 5),
+            new OrganizationDto(Guid.NewGuid(), "Other Org", "other.com", 3)
         ];
         _orgService.GetOrganizationsAsync(null, 0, 20, Arg.Any<CancellationToken>())
             .Returns(orgs);
@@ -82,7 +88,8 @@ public class OrganizationsControllerTests
 
         OkObjectResult ok = result.Result.Should().BeOfType<OkObjectResult>().Subject;
         IReadOnlyList<OrganizationDto> response = ok.Value.Should().BeAssignableTo<IReadOnlyList<OrganizationDto>>().Subject;
-        response.Should().HaveCount(2);
+        response.Should().HaveCount(1);
+        response[0].Id.Should().Be(_tenantOrgId);
     }
 
     [Fact]
@@ -103,29 +110,38 @@ public class OrganizationsControllerTests
     [Fact]
     public async Task GetById_WhenFound_ReturnsOk()
     {
-        Guid orgId = Guid.NewGuid();
-        OrganizationDto org = new(orgId, "Acme Corp", "acme.com", 10);
-        _orgService.GetOrganizationByIdAsync(orgId, Arg.Any<CancellationToken>())
+        OrganizationDto org = new(_tenantOrgId, "Acme Corp", "acme.com", 10);
+        _orgService.GetOrganizationByIdAsync(_tenantOrgId, Arg.Any<CancellationToken>())
             .Returns(org);
 
-        ActionResult<OrganizationDto> result = await _controller.GetById(orgId, CancellationToken.None);
+        ActionResult<OrganizationDto> result = await _controller.GetById(_tenantOrgId, CancellationToken.None);
 
         OkObjectResult ok = result.Result.Should().BeOfType<OkObjectResult>().Subject;
         OrganizationDto response = ok.Value.Should().BeOfType<OrganizationDto>().Subject;
-        response.Id.Should().Be(orgId);
+        response.Id.Should().Be(_tenantOrgId);
         response.Name.Should().Be("Acme Corp");
     }
 
     [Fact]
     public async Task GetById_WhenNotFound_ReturnsNotFound()
     {
-        Guid orgId = Guid.NewGuid();
-        _orgService.GetOrganizationByIdAsync(orgId, Arg.Any<CancellationToken>())
+        _orgService.GetOrganizationByIdAsync(_tenantOrgId, Arg.Any<CancellationToken>())
             .Returns((OrganizationDto?)null);
 
-        ActionResult<OrganizationDto> result = await _controller.GetById(orgId, CancellationToken.None);
+        ActionResult<OrganizationDto> result = await _controller.GetById(_tenantOrgId, CancellationToken.None);
 
         result.Result.Should().BeOfType<NotFoundResult>();
+    }
+
+    [Fact]
+    public async Task GetById_WhenOrgIsNotCurrentTenant_ReturnsNotFound()
+    {
+        Guid otherOrgId = Guid.NewGuid();
+
+        ActionResult<OrganizationDto> result = await _controller.GetById(otherOrgId, CancellationToken.None);
+
+        result.Result.Should().BeOfType<NotFoundResult>();
+        await _orgService.DidNotReceive().GetOrganizationByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 
     #endregion
@@ -135,19 +151,29 @@ public class OrganizationsControllerTests
     [Fact]
     public async Task GetMembers_ReturnsOkWithMemberList()
     {
-        Guid orgId = Guid.NewGuid();
         List<UserDto> members =
         [
             new UserDto(Guid.NewGuid(), "a@test.com", "Alice", "Smith", true, _userRole)
         ];
-        _orgService.GetMembersAsync(orgId, Arg.Any<CancellationToken>())
+        _orgService.GetMembersAsync(_tenantOrgId, Arg.Any<CancellationToken>())
             .Returns(members);
 
-        ActionResult<IReadOnlyList<UserDto>> result = await _controller.GetMembers(orgId, CancellationToken.None);
+        ActionResult<IReadOnlyList<UserDto>> result = await _controller.GetMembers(_tenantOrgId, CancellationToken.None);
 
         OkObjectResult ok = result.Result.Should().BeOfType<OkObjectResult>().Subject;
         IReadOnlyList<UserDto> response = ok.Value.Should().BeAssignableTo<IReadOnlyList<UserDto>>().Subject;
         response.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public async Task GetMembers_WhenOrgIsNotCurrentTenant_ReturnsNotFound()
+    {
+        Guid otherOrgId = Guid.NewGuid();
+
+        ActionResult<IReadOnlyList<UserDto>> result = await _controller.GetMembers(otherOrgId, CancellationToken.None);
+
+        result.Result.Should().BeOfType<NotFoundResult>();
+        await _orgService.DidNotReceive().GetMembersAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 
     #endregion
@@ -157,14 +183,25 @@ public class OrganizationsControllerTests
     [Fact]
     public async Task AddMember_ReturnsNoContent()
     {
-        Guid orgId = Guid.NewGuid();
         Guid memberId = Guid.NewGuid();
         AddMemberRequest request = new(memberId);
 
-        ActionResult result = await _controller.AddMember(orgId, request, CancellationToken.None);
+        ActionResult result = await _controller.AddMember(_tenantOrgId, request, CancellationToken.None);
 
         result.Should().BeOfType<NoContentResult>();
-        await _orgService.Received(1).AddMemberAsync(orgId, memberId, Arg.Any<CancellationToken>());
+        await _orgService.Received(1).AddMemberAsync(_tenantOrgId, memberId, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AddMember_WhenOrgIsNotCurrentTenant_ReturnsNotFound()
+    {
+        Guid otherOrgId = Guid.NewGuid();
+        AddMemberRequest request = new(Guid.NewGuid());
+
+        ActionResult result = await _controller.AddMember(otherOrgId, request, CancellationToken.None);
+
+        result.Should().BeOfType<NotFoundResult>();
+        await _orgService.DidNotReceive().AddMemberAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 
     #endregion
@@ -174,13 +211,24 @@ public class OrganizationsControllerTests
     [Fact]
     public async Task RemoveMember_ReturnsNoContent()
     {
-        Guid orgId = Guid.NewGuid();
         Guid memberId = Guid.NewGuid();
 
-        ActionResult result = await _controller.RemoveMember(orgId, memberId, CancellationToken.None);
+        ActionResult result = await _controller.RemoveMember(_tenantOrgId, memberId, CancellationToken.None);
 
         result.Should().BeOfType<NoContentResult>();
-        await _orgService.Received(1).RemoveMemberAsync(orgId, memberId, Arg.Any<CancellationToken>());
+        await _orgService.Received(1).RemoveMemberAsync(_tenantOrgId, memberId, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task RemoveMember_WhenOrgIsNotCurrentTenant_ReturnsNotFound()
+    {
+        Guid otherOrgId = Guid.NewGuid();
+        Guid memberId = Guid.NewGuid();
+
+        ActionResult result = await _controller.RemoveMember(otherOrgId, memberId, CancellationToken.None);
+
+        result.Should().BeOfType<NotFoundResult>();
+        await _orgService.DidNotReceive().RemoveMemberAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 
     #endregion

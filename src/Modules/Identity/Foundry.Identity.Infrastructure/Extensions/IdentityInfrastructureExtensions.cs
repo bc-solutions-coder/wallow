@@ -4,6 +4,7 @@ using Foundry.Identity.Infrastructure.Persistence;
 using Foundry.Identity.Infrastructure.Repositories;
 using Foundry.Identity.Infrastructure.Services;
 using Foundry.Shared.Kernel.MultiTenancy;
+using Keycloak.AuthServices.Authentication;
 using Keycloak.AuthServices.Sdk;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
@@ -20,6 +21,13 @@ public static class IdentityInfrastructureExtensions
     public static IServiceCollection AddIdentityInfrastructure(
         this IServiceCollection services, IConfiguration configuration)
     {
+        services.AddKeycloakWebApiAuthentication(configuration, options =>
+            {
+                options.RequireHttpsMetadata = !Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
+                    ?.Equals("Development", StringComparison.OrdinalIgnoreCase) ?? true;
+                options.Audience = "foundry-api";
+            }, "Keycloak");
+
         services.AddIdentityAuthorization();
         services.AddMultiTenancy();
         services.AddIdentityPersistence(configuration);

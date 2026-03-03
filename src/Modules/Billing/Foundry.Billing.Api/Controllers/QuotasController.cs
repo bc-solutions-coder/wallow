@@ -9,6 +9,7 @@ using Foundry.Shared.Kernel.Results;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Foundry.Shared.Kernel.Identity.Authorization;
 using Wolverine;
 
 namespace Foundry.Billing.Api.Controllers;
@@ -33,6 +34,7 @@ public class QuotasController : ControllerBase
     /// Get quota status for current tenant.
     /// </summary>
     [HttpGet]
+    [HasPermission(PermissionType.BillingRead)]
     [ProducesResponseType(typeof(IReadOnlyList<QuotaStatusDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
     {
@@ -46,6 +48,7 @@ public class QuotasController : ControllerBase
     /// Set a quota override for a tenant (admin only).
     /// </summary>
     [HttpPut("admin/{tenantId:guid}")]
+    [HasPermission(PermissionType.BillingManage)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> SetOverride(
@@ -69,6 +72,7 @@ public class QuotasController : ControllerBase
     /// Remove a quota override for a tenant (admin only).
     /// </summary>
     [HttpDelete("admin/{tenantId:guid}/{meterCode}")]
+    [HasPermission(PermissionType.BillingManage)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> RemoveOverride(

@@ -63,10 +63,7 @@ public class UsersController : ControllerBase
             return NotFound();
         }
 
-        // Verify the requested user belongs to the current tenant's organization
-        IReadOnlyList<OrganizationDto> userOrgs = await _keycloakOrg.GetUserOrganizationsAsync(id, ct);
-        bool belongsToTenant = userOrgs.Any(o => o.Id == _tenantContext.TenantId.Value);
-        if (!belongsToTenant)
+        if (!await UserBelongsToTenantAsync(id, ct))
         {
             return NotFound();
         }
@@ -116,6 +113,11 @@ public class UsersController : ControllerBase
     [HasPermission(PermissionType.UsersUpdate)]
     public async Task<ActionResult> DeactivateUser(Guid id, CancellationToken ct)
     {
+        if (!await UserBelongsToTenantAsync(id, ct))
+        {
+            return NotFound();
+        }
+
         await _keycloakAdmin.DeactivateUserAsync(id, ct);
         return NoContent();
     }
@@ -127,6 +129,11 @@ public class UsersController : ControllerBase
     [HasPermission(PermissionType.UsersUpdate)]
     public async Task<ActionResult> ActivateUser(Guid id, CancellationToken ct)
     {
+        if (!await UserBelongsToTenantAsync(id, ct))
+        {
+            return NotFound();
+        }
+
         await _keycloakAdmin.ActivateUserAsync(id, ct);
         return NoContent();
     }
@@ -141,6 +148,11 @@ public class UsersController : ControllerBase
         [FromBody] AssignRoleRequest request,
         CancellationToken ct)
     {
+        if (!await UserBelongsToTenantAsync(userId, ct))
+        {
+            return NotFound();
+        }
+
         await _keycloakAdmin.AssignRoleAsync(userId, request.RoleName, ct);
         return NoContent();
     }
@@ -152,7 +164,18 @@ public class UsersController : ControllerBase
     [HasPermission(PermissionType.RolesUpdate)]
     public async Task<ActionResult> RemoveRole(Guid userId, string roleName, CancellationToken ct)
     {
+        if (!await UserBelongsToTenantAsync(userId, ct))
+        {
+            return NotFound();
+        }
+
         await _keycloakAdmin.RemoveRoleAsync(userId, roleName, ct);
         return NoContent();
+    }
+
+    private async Task<bool> UserBelongsToTenantAsync(Guid userId, CancellationToken ct)
+    {
+        IReadOnlyList<OrganizationDto> userOrgs = await _keycloakOrg.GetUserOrganizationsAsync(userId, ct);
+        return userOrgs.Any(o => o.Id == _tenantContext.TenantId.Value);
     }
 }

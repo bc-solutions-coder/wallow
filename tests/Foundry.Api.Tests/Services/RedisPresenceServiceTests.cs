@@ -9,6 +9,7 @@ namespace Foundry.Api.Tests.Services;
 [Trait("Category", "Integration")]
 public class RedisPresenceServiceTests : IClassFixture<RedisFixture>, IAsyncLifetime
 {
+    private static readonly Guid _testTenantId = Guid.Parse("00000000-0000-0000-0000-000000000099");
     private readonly RedisFixture _fixture;
     private ConnectionMultiplexer _multiplexer = null!;
     private RedisPresenceService _sut = null!;
@@ -36,41 +37,41 @@ public class RedisPresenceServiceTests : IClassFixture<RedisFixture>, IAsyncLife
     [Fact]
     public async Task TrackConnection_ShouldMakeUserOnline()
     {
-        await _sut.TrackConnectionAsync("user-1", "conn-1");
+        await _sut.TrackConnectionAsync(_testTenantId, "user-1", "conn-1");
 
-        bool isOnline = await _sut.IsUserOnlineAsync("user-1");
+        bool isOnline = await _sut.IsUserOnlineAsync(_testTenantId, "user-1");
         isOnline.Should().BeTrue();
     }
 
     [Fact]
     public async Task RemoveConnection_LastConnection_ShouldMakeUserOffline()
     {
-        await _sut.TrackConnectionAsync("user-1", "conn-1");
+        await _sut.TrackConnectionAsync(_testTenantId, "user-1", "conn-1");
         await _sut.RemoveConnectionAsync("conn-1");
 
-        bool isOnline = await _sut.IsUserOnlineAsync("user-1");
+        bool isOnline = await _sut.IsUserOnlineAsync(_testTenantId, "user-1");
         isOnline.Should().BeFalse();
     }
 
     [Fact]
     public async Task RemoveConnection_OtherConnectionsExist_ShouldKeepUserOnline()
     {
-        await _sut.TrackConnectionAsync("user-1", "conn-1");
-        await _sut.TrackConnectionAsync("user-1", "conn-2");
+        await _sut.TrackConnectionAsync(_testTenantId, "user-1", "conn-1");
+        await _sut.TrackConnectionAsync(_testTenantId, "user-1", "conn-2");
 
         await _sut.RemoveConnectionAsync("conn-1");
 
-        bool isOnline = await _sut.IsUserOnlineAsync("user-1");
+        bool isOnline = await _sut.IsUserOnlineAsync(_testTenantId, "user-1");
         isOnline.Should().BeTrue();
     }
 
     [Fact]
     public async Task SetPageContext_ShouldTrackUserOnPage()
     {
-        await _sut.TrackConnectionAsync("user-1", "conn-1");
-        await _sut.SetPageContextAsync("conn-1", "/dashboard");
+        await _sut.TrackConnectionAsync(_testTenantId, "user-1", "conn-1");
+        await _sut.SetPageContextAsync(_testTenantId, "conn-1", "/dashboard");
 
-        IReadOnlyList<UserPresence> users = await _sut.GetUsersOnPageAsync("/dashboard");
+        IReadOnlyList<UserPresence> users = await _sut.GetUsersOnPageAsync(_testTenantId, "/dashboard");
         users.Should().ContainSingle()
             .Which.UserId.Should().Be("user-1");
     }
@@ -78,19 +79,19 @@ public class RedisPresenceServiceTests : IClassFixture<RedisFixture>, IAsyncLife
     [Fact]
     public async Task GetUsersOnPage_ShouldReturnCorrectViewers()
     {
-        await _sut.TrackConnectionAsync("user-1", "conn-1");
-        await _sut.TrackConnectionAsync("user-2", "conn-2");
-        await _sut.TrackConnectionAsync("user-3", "conn-3");
+        await _sut.TrackConnectionAsync(_testTenantId, "user-1", "conn-1");
+        await _sut.TrackConnectionAsync(_testTenantId, "user-2", "conn-2");
+        await _sut.TrackConnectionAsync(_testTenantId, "user-3", "conn-3");
 
-        await _sut.SetPageContextAsync("conn-1", "/tasks");
-        await _sut.SetPageContextAsync("conn-2", "/tasks");
-        await _sut.SetPageContextAsync("conn-3", "/dashboard");
+        await _sut.SetPageContextAsync(_testTenantId, "conn-1", "/tasks");
+        await _sut.SetPageContextAsync(_testTenantId, "conn-2", "/tasks");
+        await _sut.SetPageContextAsync(_testTenantId, "conn-3", "/dashboard");
 
-        IReadOnlyList<UserPresence> tasksViewers = await _sut.GetUsersOnPageAsync("/tasks");
+        IReadOnlyList<UserPresence> tasksViewers = await _sut.GetUsersOnPageAsync(_testTenantId, "/tasks");
         tasksViewers.Should().HaveCount(2);
         tasksViewers.Select(u => u.UserId).Should().BeEquivalentTo(["user-1", "user-2"]);
 
-        IReadOnlyList<UserPresence> dashboardViewers = await _sut.GetUsersOnPageAsync("/dashboard");
+        IReadOnlyList<UserPresence> dashboardViewers = await _sut.GetUsersOnPageAsync(_testTenantId, "/dashboard");
         dashboardViewers.Should().ContainSingle()
             .Which.UserId.Should().Be("user-3");
     }
@@ -98,7 +99,7 @@ public class RedisPresenceServiceTests : IClassFixture<RedisFixture>, IAsyncLife
     [Fact]
     public async Task GetUserIdByConnection_ShouldReturnCorrectUserId()
     {
-        await _sut.TrackConnectionAsync("user-1", "conn-1");
+        await _sut.TrackConnectionAsync(_testTenantId, "user-1", "conn-1");
 
         string? userId = await _sut.GetUserIdByConnectionAsync("conn-1");
         userId.Should().Be("user-1");
@@ -114,11 +115,11 @@ public class RedisPresenceServiceTests : IClassFixture<RedisFixture>, IAsyncLife
     [Fact]
     public async Task GetOnlineUsers_ShouldReturnAllConnectedUsers()
     {
-        await _sut.TrackConnectionAsync("user-1", "conn-1");
-        await _sut.TrackConnectionAsync("user-1", "conn-2");
-        await _sut.TrackConnectionAsync("user-2", "conn-3");
+        await _sut.TrackConnectionAsync(_testTenantId, "user-1", "conn-1");
+        await _sut.TrackConnectionAsync(_testTenantId, "user-1", "conn-2");
+        await _sut.TrackConnectionAsync(_testTenantId, "user-2", "conn-3");
 
-        IReadOnlyList<UserPresence> onlineUsers = await _sut.GetOnlineUsersAsync();
+        IReadOnlyList<UserPresence> onlineUsers = await _sut.GetOnlineUsersAsync(_testTenantId);
         onlineUsers.Should().HaveCount(2);
 
         UserPresence user1 = onlineUsers.Single(u => u.UserId == "user-1");
@@ -131,14 +132,14 @@ public class RedisPresenceServiceTests : IClassFixture<RedisFixture>, IAsyncLife
     [Fact]
     public async Task SetPageContext_ShouldRemoveFromOldPage()
     {
-        await _sut.TrackConnectionAsync("user-1", "conn-1");
-        await _sut.SetPageContextAsync("conn-1", "/tasks");
-        await _sut.SetPageContextAsync("conn-1", "/dashboard");
+        await _sut.TrackConnectionAsync(_testTenantId, "user-1", "conn-1");
+        await _sut.SetPageContextAsync(_testTenantId, "conn-1", "/tasks");
+        await _sut.SetPageContextAsync(_testTenantId, "conn-1", "/dashboard");
 
-        IReadOnlyList<UserPresence> tasksViewers = await _sut.GetUsersOnPageAsync("/tasks");
+        IReadOnlyList<UserPresence> tasksViewers = await _sut.GetUsersOnPageAsync(_testTenantId, "/tasks");
         tasksViewers.Should().BeEmpty();
 
-        IReadOnlyList<UserPresence> dashboardViewers = await _sut.GetUsersOnPageAsync("/dashboard");
+        IReadOnlyList<UserPresence> dashboardViewers = await _sut.GetUsersOnPageAsync(_testTenantId, "/dashboard");
         dashboardViewers.Should().ContainSingle()
             .Which.UserId.Should().Be("user-1");
     }
@@ -146,12 +147,12 @@ public class RedisPresenceServiceTests : IClassFixture<RedisFixture>, IAsyncLife
     [Fact]
     public async Task RemoveConnection_ShouldCleanUpPageContext()
     {
-        await _sut.TrackConnectionAsync("user-1", "conn-1");
-        await _sut.SetPageContextAsync("conn-1", "/tasks");
+        await _sut.TrackConnectionAsync(_testTenantId, "user-1", "conn-1");
+        await _sut.SetPageContextAsync(_testTenantId, "conn-1", "/tasks");
 
         await _sut.RemoveConnectionAsync("conn-1");
 
-        IReadOnlyList<UserPresence> viewers = await _sut.GetUsersOnPageAsync("/tasks");
+        IReadOnlyList<UserPresence> viewers = await _sut.GetUsersOnPageAsync(_testTenantId, "/tasks");
         viewers.Should().BeEmpty();
     }
 
@@ -166,10 +167,10 @@ public class RedisPresenceServiceTests : IClassFixture<RedisFixture>, IAsyncLife
     [Fact]
     public async Task GetOnlineUsers_WithPageContext_IncludesPageInfo()
     {
-        await _sut.TrackConnectionAsync("user-1", "conn-1");
-        await _sut.SetPageContextAsync("conn-1", "/dashboard");
+        await _sut.TrackConnectionAsync(_testTenantId, "user-1", "conn-1");
+        await _sut.SetPageContextAsync(_testTenantId, "conn-1", "/dashboard");
 
-        IReadOnlyList<UserPresence> onlineUsers = await _sut.GetOnlineUsersAsync();
+        IReadOnlyList<UserPresence> onlineUsers = await _sut.GetOnlineUsersAsync(_testTenantId);
 
         UserPresence user = onlineUsers.Single();
         user.UserId.Should().Be("user-1");
@@ -179,22 +180,22 @@ public class RedisPresenceServiceTests : IClassFixture<RedisFixture>, IAsyncLife
     [Fact]
     public async Task GetUsersOnPage_StaleConnection_IsSkipped()
     {
-        await _sut.TrackConnectionAsync("user-1", "conn-1");
-        await _sut.SetPageContextAsync("conn-1", "/tasks");
+        await _sut.TrackConnectionAsync(_testTenantId, "user-1", "conn-1");
+        await _sut.SetPageContextAsync(_testTenantId, "conn-1", "/tasks");
 
         // Remove the connection but not the page viewers set
         // This simulates a stale entry
         IDatabase db = _multiplexer.GetDatabase();
         await db.HashDeleteAsync("presence:conn2user", "conn-1");
 
-        IReadOnlyList<UserPresence> viewers = await _sut.GetUsersOnPageAsync("/tasks");
+        IReadOnlyList<UserPresence> viewers = await _sut.GetUsersOnPageAsync(_testTenantId, "/tasks");
         viewers.Should().BeEmpty();
     }
 
     [Fact]
     public async Task IsUserOnline_UnknownUser_ReturnsFalse()
     {
-        bool isOnline = await _sut.IsUserOnlineAsync("unknown-user");
+        bool isOnline = await _sut.IsUserOnlineAsync(_testTenantId, "unknown-user");
 
         isOnline.Should().BeFalse();
     }
@@ -202,7 +203,7 @@ public class RedisPresenceServiceTests : IClassFixture<RedisFixture>, IAsyncLife
     [Fact]
     public async Task GetOnlineUsers_NoUsers_ReturnsEmptyList()
     {
-        IReadOnlyList<UserPresence> onlineUsers = await _sut.GetOnlineUsersAsync();
+        IReadOnlyList<UserPresence> onlineUsers = await _sut.GetOnlineUsersAsync(_testTenantId);
 
         onlineUsers.Should().BeEmpty();
     }
@@ -210,7 +211,7 @@ public class RedisPresenceServiceTests : IClassFixture<RedisFixture>, IAsyncLife
     [Fact]
     public async Task GetUsersOnPage_NoViewers_ReturnsEmptyList()
     {
-        IReadOnlyList<UserPresence> viewers = await _sut.GetUsersOnPageAsync("/empty-page");
+        IReadOnlyList<UserPresence> viewers = await _sut.GetUsersOnPageAsync(_testTenantId, "/empty-page");
 
         viewers.Should().BeEmpty();
     }

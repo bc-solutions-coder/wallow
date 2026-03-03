@@ -203,6 +203,8 @@ public class UsersControllerTests
     public async Task DeactivateUser_ReturnsNoContent()
     {
         Guid userId = Guid.NewGuid();
+        _keycloakOrg.GetUserOrganizationsAsync(userId, Arg.Any<CancellationToken>())
+            .Returns(new List<OrganizationDto> { new(_testTenantGuid, "Test Org", null, 1) });
 
         ActionResult result = await _controller.DeactivateUser(userId, CancellationToken.None);
 
@@ -218,6 +220,8 @@ public class UsersControllerTests
     public async Task ActivateUser_ReturnsNoContent()
     {
         Guid userId = Guid.NewGuid();
+        _keycloakOrg.GetUserOrganizationsAsync(userId, Arg.Any<CancellationToken>())
+            .Returns(new List<OrganizationDto> { new(_testTenantGuid, "Test Org", null, 1) });
 
         ActionResult result = await _controller.ActivateUser(userId, CancellationToken.None);
 
@@ -234,6 +238,8 @@ public class UsersControllerTests
     {
         Guid userId = Guid.NewGuid();
         AssignRoleRequest request = new("admin");
+        _keycloakOrg.GetUserOrganizationsAsync(userId, Arg.Any<CancellationToken>())
+            .Returns(new List<OrganizationDto> { new(_testTenantGuid, "Test Org", null, 1) });
 
         ActionResult result = await _controller.AssignRole(userId, request, CancellationToken.None);
 
@@ -249,6 +255,8 @@ public class UsersControllerTests
     public async Task RemoveRole_ReturnsNoContent()
     {
         Guid userId = Guid.NewGuid();
+        _keycloakOrg.GetUserOrganizationsAsync(userId, Arg.Any<CancellationToken>())
+            .Returns(new List<OrganizationDto> { new(_testTenantGuid, "Test Org", null, 1) });
 
         ActionResult result = await _controller.RemoveRole(userId, "admin", CancellationToken.None);
 

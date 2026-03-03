@@ -5,6 +5,7 @@ using Foundry.Identity.Api.Contracts.Responses;
 using Foundry.Identity.Application.DTOs;
 using Foundry.Identity.Application.Interfaces;
 using Foundry.Shared.Kernel.Identity.Authorization;
+using Foundry.Shared.Kernel.MultiTenancy;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -21,11 +22,15 @@ namespace Foundry.Identity.Api.Controllers;
 public class OrganizationsController : ControllerBase
 {
     private readonly IKeycloakOrganizationService _orgService;
+    private readonly ITenantContext _tenantContext;
 
-    public OrganizationsController(IKeycloakOrganizationService orgService)
+    public OrganizationsController(IKeycloakOrganizationService orgService, ITenantContext tenantContext)
     {
         _orgService = orgService;
+        _tenantContext = tenantContext;
     }
+
+    private bool IsCurrentTenantOrg(Guid orgId) => orgId == _tenantContext.TenantId.Value;
 
     /// <summary>
     /// Create a new organization.
@@ -50,7 +55,9 @@ public class OrganizationsController : ControllerBase
         CancellationToken ct = default)
     {
         IReadOnlyList<OrganizationDto> orgs = await _orgService.GetOrganizationsAsync(search, first, max, ct);
-        return Ok(orgs);
+        Guid tenantId = _tenantContext.TenantId.Value;
+        IReadOnlyList<OrganizationDto> filtered = orgs.Where(o => o.Id == tenantId).ToList();
+        return Ok(filtered);
     }
 
     /// <summary>
@@ -60,6 +67,11 @@ public class OrganizationsController : ControllerBase
     [HasPermission(PermissionType.OrganizationsRead)]
     public async Task<ActionResult<OrganizationDto>> GetById(Guid id, CancellationToken ct)
     {
+        if (!IsCurrentTenantOrg(id))
+        {
+            return NotFound();
+        }
+
         OrganizationDto? org = await _orgService.GetOrganizationByIdAsync(id, ct);
         return org is null ? NotFound() : Ok(org);
     }
@@ -71,6 +83,11 @@ public class OrganizationsController : ControllerBase
     [HasPermission(PermissionType.OrganizationsRead)]
     public async Task<ActionResult<IReadOnlyList<UserDto>>> GetMembers(Guid id, CancellationToken ct)
     {
+        if (!IsCurrentTenantOrg(id))
+        {
+            return NotFound();
+        }
+
         return Ok(await _orgService.GetMembersAsync(id, ct));
     }
 
@@ -81,6 +98,11 @@ public class OrganizationsController : ControllerBase
     [HasPermission(PermissionType.OrganizationsManageMembers)]
     public async Task<ActionResult> AddMember(Guid id, AddMemberRequest request, CancellationToken ct)
     {
+        if (!IsCurrentTenantOrg(id))
+        {
+            return NotFound();
+        }
+
         await _orgService.AddMemberAsync(id, request.UserId, ct);
         return NoContent();
     }
@@ -92,6 +114,11 @@ public class OrganizationsController : ControllerBase
     [HasPermission(PermissionType.OrganizationsManageMembers)]
     public async Task<ActionResult> RemoveMember(Guid id, Guid userId, CancellationToken ct)
     {
+        if (!IsCurrentTenantOrg(id))
+        {
+            return NotFound();
+        }
+
         await _orgService.RemoveMemberAsync(id, userId, ct);
         return NoContent();
     }

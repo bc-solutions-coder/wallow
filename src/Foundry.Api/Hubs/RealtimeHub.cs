@@ -22,7 +22,7 @@ internal sealed partial class RealtimeHub(
             return;
         }
 
-        await presenceService.TrackConnectionAsync(userId, Context.ConnectionId);
+        await presenceService.TrackConnectionAsync(tenantContext.TenantId.Value, userId, Context.ConnectionId);
         LogUserConnected(userId, Context.ConnectionId);
 
         string tenantGroup = $"tenant:{tenantContext.TenantId.Value}";
@@ -38,7 +38,7 @@ internal sealed partial class RealtimeHub(
 
         if (userId is not null)
         {
-            bool stillOnline = await presenceService.IsUserOnlineAsync(userId);
+            bool stillOnline = await presenceService.IsUserOnlineAsync(tenantContext.TenantId.Value, userId);
             if (!stillOnline)
             {
                 string tenantGroup = $"tenant:{tenantContext.TenantId.Value}";
@@ -72,10 +72,10 @@ internal sealed partial class RealtimeHub(
             return;
         }
 
-        await presenceService.SetPageContextAsync(Context.ConnectionId, pageContext);
+        await presenceService.SetPageContextAsync(tenantContext.TenantId.Value, Context.ConnectionId, pageContext);
         await Groups.AddToGroupAsync(Context.ConnectionId, $"page:{pageContext}");
 
-        IReadOnlyList<UserPresence> viewers = await presenceService.GetUsersOnPageAsync(pageContext);
+        IReadOnlyList<UserPresence> viewers = await presenceService.GetUsersOnPageAsync(tenantContext.TenantId.Value, pageContext);
         RealtimeEnvelope envelope = RealtimeEnvelope.Create("Presence", "PageViewersUpdated", new
         {
             PageContext = pageContext,
