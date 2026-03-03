@@ -6,6 +6,7 @@ using Foundry.Configuration.Domain.Exceptions;
 using Foundry.Configuration.Domain.Identity;
 using Foundry.Shared.Kernel.CustomFields;
 using Foundry.Shared.Kernel.Identity;
+using Foundry.Shared.Kernel.Services;
 
 namespace Foundry.Configuration.Tests.Application.Handlers;
 
@@ -17,7 +18,9 @@ public class UpdateCustomFieldDefinitionHandlerTests
     public UpdateCustomFieldDefinitionHandlerTests()
     {
         _repository = Substitute.For<ICustomFieldDefinitionRepository>();
-        _handler = new UpdateCustomFieldDefinitionHandler(_repository, TimeProvider.System);
+        ICurrentUserService currentUserService = Substitute.For<ICurrentUserService>();
+        currentUserService.UserId.Returns(Guid.NewGuid());
+        _handler = new UpdateCustomFieldDefinitionHandler(_repository, currentUserService, TimeProvider.System);
     }
 
     private static CustomFieldDefinition CreateDefinition(string entityType = "Invoice", string fieldKey = "test_field")

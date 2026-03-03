@@ -5,6 +5,7 @@ using Foundry.Billing.Domain.Events;
 using Foundry.Billing.Domain.Identity;
 using Foundry.Billing.Domain.ValueObjects;
 using Foundry.Shared.Contracts.Billing.Events;
+using Foundry.Shared.Contracts.Identity;
 using Microsoft.Extensions.Logging;
 using NSubstitute.Core;
 using Wolverine;
@@ -15,12 +16,16 @@ namespace Foundry.Billing.Tests.Application.EventHandlers;
 public class InvoiceOverdueDomainEventHandlerTests
 {
     private readonly IInvoiceRepository _invoiceRepository;
+    private readonly IUserQueryService _userQueryService;
     private readonly IMessageBus _messageBus;
     private readonly ILogger<InvoiceOverdueDomainEventHandler> _logger;
 
     public InvoiceOverdueDomainEventHandlerTests()
     {
         _invoiceRepository = Substitute.For<IInvoiceRepository>();
+        _userQueryService = Substitute.For<IUserQueryService>();
+        _userQueryService.GetUserEmailAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns("test@example.com");
         _messageBus = Substitute.For<IMessageBus>();
         _logger = Substitute.For<ILogger<InvoiceOverdueDomainEventHandler>>();
         _logger.IsEnabled(Arg.Any<LogLevel>()).Returns(true);
@@ -44,6 +49,7 @@ public class InvoiceOverdueDomainEventHandlerTests
         await InvoiceOverdueDomainEventHandler.HandleAsync(
             domainEvent,
             _invoiceRepository,
+            _userQueryService,
             _messageBus,
             _logger,
             CancellationToken.None);
@@ -70,6 +76,7 @@ public class InvoiceOverdueDomainEventHandlerTests
         await InvoiceOverdueDomainEventHandler.HandleAsync(
             domainEvent,
             _invoiceRepository,
+            _userQueryService,
             _messageBus,
             _logger,
             CancellationToken.None);
@@ -89,6 +96,7 @@ public class InvoiceOverdueDomainEventHandlerTests
         await InvoiceOverdueDomainEventHandler.HandleAsync(
             domainEvent,
             _invoiceRepository,
+            _userQueryService,
             _messageBus,
             _logger,
             CancellationToken.None);
@@ -115,6 +123,7 @@ public class InvoiceOverdueDomainEventHandlerTests
         await InvoiceOverdueDomainEventHandler.HandleAsync(
             domainEvent,
             _invoiceRepository,
+            _userQueryService,
             _messageBus,
             _logger,
             CancellationToken.None);
@@ -140,6 +149,7 @@ public class InvoiceOverdueDomainEventHandlerTests
         await InvoiceOverdueDomainEventHandler.HandleAsync(
             domainEvent,
             _invoiceRepository,
+            _userQueryService,
             _messageBus,
             _logger,
             cts.Token);

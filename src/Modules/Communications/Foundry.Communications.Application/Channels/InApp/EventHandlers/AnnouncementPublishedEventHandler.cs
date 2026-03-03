@@ -1,5 +1,5 @@
 using Foundry.Communications.Application.Channels.InApp.Interfaces;
-using Foundry.Communications.Domain.Channels.InApp.Enums;
+using Foundry.Communications.Domain.Enums;
 using Foundry.Shared.Contracts.Communications.Announcements.Events;
 using Foundry.Shared.Kernel.MultiTenancy;
 using Microsoft.Extensions.Logging;

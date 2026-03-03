@@ -26,6 +26,35 @@ public sealed partial class UserQueryService : IUserQueryService
         _logger = logger;
     }
 
+    public async Task<string> GetUserEmailAsync(Guid userId, CancellationToken ct = default)
+    {
+        string cacheKey = $"user-email:{userId}";
+        try
+        {
+            string email = await _cache.GetOrCreateAsync(cacheKey, async entry =>
+            {
+                entry.AbsoluteExpirationRelativeToNow = _cacheDuration;
+
+                HttpResponseMessage response = await _httpClient.GetAsync($"/admin/realms/{_realm}/users/{userId}", ct);
+                if (!response.IsSuccessStatusCode)
+                {
+                    LogGetUserEmailFailed(userId);
+                    return string.Empty;
+                }
+
+                UserEmailRepresentation? user = await response.Content.ReadFromJsonAsync<UserEmailRepresentation>(ct);
+                return user?.Email ?? string.Empty;
+            }) ?? string.Empty;
+
+            return email;
+        }
+        catch (Exception ex)
+        {
+            LogGetUserEmailException(ex, userId);
+            return string.Empty;
+        }
+    }
+
     public async Task<int> GetNewUsersCountAsync(Guid tenantId, DateTime from, DateTime to, CancellationToken ct = default)
     {
         string cacheKey = $"new-users-count:{tenantId}:{from:O}:{to:O}";
@@ -127,6 +156,11 @@ public sealed partial class UserQueryService : IUserQueryService
         return await response.Content.ReadFromJsonAsync<List<UserMemberRepresentation>>(ct);
     }
 
+    private sealed record UserEmailRepresentation
+    {
+        public string? Email { get; init; }
+    }
+
     private sealed record UserMemberRepresentation
     {
         public string? Id { get; init; }
@@ -138,6 +172,12 @@ public sealed partial class UserQueryService : IUserQueryService
 
 public sealed partial class UserQueryService
 {
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to get email for user {UserId}")]
+    private partial void LogGetUserEmailFailed(Guid userId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Exception getting email for user {UserId}")]
+    private partial void LogGetUserEmailException(Exception ex, Guid userId);
+
     [LoggerMessage(Level = LogLevel.Debug, Message = "Found {Count} new users for organization {OrgId} between {From} and {To}")]
     private partial void LogNewUsersCount(int count, Guid orgId, DateTime from, DateTime to);
 

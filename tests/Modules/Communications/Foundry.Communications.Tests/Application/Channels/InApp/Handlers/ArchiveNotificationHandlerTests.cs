@@ -1,7 +1,7 @@
 using Foundry.Communications.Application.Channels.InApp.Commands.ArchiveNotification;
 using Foundry.Communications.Application.Channels.InApp.Interfaces;
 using Foundry.Communications.Domain.Channels.InApp.Entities;
-using Foundry.Communications.Domain.Channels.InApp.Enums;
+using Foundry.Communications.Domain.Enums;
 using Foundry.Communications.Domain.Channels.InApp.Identity;
 using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.Results;

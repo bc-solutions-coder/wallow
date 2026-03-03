@@ -73,7 +73,7 @@ public class CachedFeatureFlagServiceIsEnabledTests
 
         await _service.IsEnabledAsync("feature", tenantId, userId);
 
-        string expectedKey = $"ff:feature:{tenantId}:{userId}";
+        string expectedKey = $"ff:bool:feature:{tenantId}:{userId}";
         await _cache.Received().GetAsync(expectedKey, Arg.Any<CancellationToken>());
     }
 
@@ -86,7 +86,7 @@ public class CachedFeatureFlagServiceIsEnabledTests
 
         await _service.IsEnabledAsync("feature", tenantId);
 
-        string expectedKey = $"ff:feature:{tenantId}:";
+        string expectedKey = $"ff:bool:feature:{tenantId}:";
         await _cache.Received().GetAsync(expectedKey, Arg.Any<CancellationToken>());
     }
 }
@@ -195,7 +195,7 @@ public class CachedFeatureFlagServiceInvalidateTests
         // Now invalidate should remove the tracked cache key
         await CachedFeatureFlagService.InvalidateAsync(cache, flagKey);
 
-        string expectedCacheKey = $"ff:{flagKey}:{tenantId}:";
+        string expectedCacheKey = $"ff:bool:{flagKey}:{tenantId}:";
         await cache.Received().RemoveAsync(expectedCacheKey, Arg.Any<CancellationToken>());
     }
 }

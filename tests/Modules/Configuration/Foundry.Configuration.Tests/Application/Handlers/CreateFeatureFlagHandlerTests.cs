@@ -5,7 +5,6 @@ using Foundry.Configuration.Domain.Entities;
 using Foundry.Configuration.Domain.Enums;
 using Foundry.Shared.Kernel.Results;
 using Microsoft.Extensions.Caching.Distributed;
-using Wolverine;
 
 namespace Foundry.Configuration.Tests.Application.Handlers;
 
@@ -13,15 +12,13 @@ public class CreateFeatureFlagHandlerTests
 {
     private readonly IFeatureFlagRepository _repository;
     private readonly IDistributedCache _cache;
-    private readonly IMessageBus _bus;
     private readonly CreateFeatureFlagHandler _handler;
 
     public CreateFeatureFlagHandlerTests()
     {
         _repository = Substitute.For<IFeatureFlagRepository>();
         _cache = Substitute.For<IDistributedCache>();
-        _bus = Substitute.For<IMessageBus>();
-        _handler = new CreateFeatureFlagHandler(_repository, _cache, _bus, TimeProvider.System);
+        _handler = new CreateFeatureFlagHandler(_repository, _cache, TimeProvider.System);
     }
 
     [Fact]
@@ -46,7 +43,6 @@ public class CreateFeatureFlagHandlerTests
         result.Value.Id.Should().NotBeEmpty();
         await _repository.Received(1).AddAsync(Arg.Any<FeatureFlag>(), Arg.Any<CancellationToken>());
         await _cache.Received(1).RemoveAsync(Arg.Is<string>(k => k.Contains("dark_mode")), Arg.Any<CancellationToken>());
-        await _bus.Received(1).PublishAsync(Arg.Any<object>());
     }
 
     [Fact]
@@ -126,26 +122,5 @@ public class CreateFeatureFlagHandlerTests
         await _repository.Received(1).AddAsync(
             Arg.Is<FeatureFlag>(f => f.FlagType == FlagType.Variant && f.Variants.Count == 2),
             Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task Handle_WithBooleanFlag_PublishesCreatedEvent()
-    {
-        CreateFeatureFlagCommand command = new(
-            Key: "feature_x",
-            Name: "Feature X",
-            Description: null,
-            FlagType: FlagType.Boolean,
-            DefaultEnabled: true,
-            RolloutPercentage: null,
-            Variants: null,
-            DefaultVariant: null);
-
-        _repository.GetByKeyAsync(command.Key, Arg.Any<CancellationToken>())
-            .Returns((FeatureFlag?)null);
-
-        await _handler.Handle(command, CancellationToken.None);
-
-        await _bus.Received(1).PublishAsync(Arg.Any<object>());
     }
 }

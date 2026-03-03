@@ -1,4 +1,5 @@
 using Foundry.Configuration.Domain.Enums;
+using Foundry.Configuration.Domain.Events;
 using Foundry.Configuration.Domain.Exceptions;
 using Foundry.Configuration.Domain.Identity;
 using Foundry.Configuration.Domain.ValueObjects;
@@ -10,7 +11,7 @@ namespace Foundry.Configuration.Domain.Entities;
 /// A feature flag definition. Global to the platform (not tenant-scoped).
 /// Tenants/users get overrides, not their own flags.
 /// </summary>
-public sealed class FeatureFlag : Entity<FeatureFlagId>
+public sealed class FeatureFlag : AggregateRoot<FeatureFlagId>
 {
     public string Key { get; private set; } = string.Empty;
     public string Name { get; private set; } = string.Empty;
@@ -30,9 +31,6 @@ public sealed class FeatureFlag : Entity<FeatureFlagId>
     /// <summary>For Variant type: which variant is default.</summary>
     public string? DefaultVariant { get; private set; }
 
-    public DateTime CreatedAt { get; private set; }
-    public DateTime? UpdatedAt { get; private set; }
-
     private readonly List<FeatureFlagOverride> _overrides = new();
     public IReadOnlyCollection<FeatureFlagOverride> Overrides => _overrides.AsReadOnly();
 
@@ -40,7 +38,7 @@ public sealed class FeatureFlag : Entity<FeatureFlagId>
 
     public static FeatureFlag CreateBoolean(string key, string name, bool defaultEnabled, TimeProvider timeProvider, string? description = null)
     {
-        return new FeatureFlag
+        FeatureFlag flag = new FeatureFlag
         {
             Id = FeatureFlagId.New(),
             Key = key,
@@ -50,6 +48,9 @@ public sealed class FeatureFlag : Entity<FeatureFlagId>
             DefaultEnabled = defaultEnabled,
             CreatedAt = timeProvider.GetUtcNow().UtcDateTime
         };
+
+        flag.RaiseDomainEvent(new FeatureFlagCreatedEvent(flag.Id.Value, flag.Key, flag.FlagType));
+        return flag;
     }
 
     public static FeatureFlag CreatePercentage(string key, string name, int percentage, TimeProvider timeProvider, string? description = null)
@@ -59,7 +60,7 @@ public sealed class FeatureFlag : Entity<FeatureFlagId>
             throw new ArgumentOutOfRangeException(nameof(percentage), "Must be 0-100");
         }
 
-        return new FeatureFlag
+        FeatureFlag flag = new FeatureFlag
         {
             Id = FeatureFlagId.New(),
             Key = key,
@@ -70,6 +71,9 @@ public sealed class FeatureFlag : Entity<FeatureFlagId>
             RolloutPercentage = percentage,
             CreatedAt = timeProvider.GetUtcNow().UtcDateTime
         };
+
+        flag.RaiseDomainEvent(new FeatureFlagCreatedEvent(flag.Id.Value, flag.Key, flag.FlagType));
+        return flag;
     }
 
     public static FeatureFlag CreateVariant(string key, string name, IReadOnlyList<VariantWeight> variants, string defaultVariant, TimeProvider timeProvider, string? description = null)
@@ -97,15 +101,36 @@ public sealed class FeatureFlag : Entity<FeatureFlagId>
         };
 
         flag._variants.AddRange(variants);
+        flag.RaiseDomainEvent(new FeatureFlagCreatedEvent(flag.Id.Value, flag.Key, flag.FlagType));
         return flag;
     }
 
     public void Update(string name, string? description, bool defaultEnabled, TimeProvider timeProvider)
     {
+        List<string> changedProperties = new();
+
+        if (Name != name)
+        {
+            changedProperties.Add(nameof(Name));
+        }
+
+        if (Description != description)
+        {
+            changedProperties.Add(nameof(Description));
+        }
+
+        if (DefaultEnabled != defaultEnabled)
+        {
+            changedProperties.Add(nameof(DefaultEnabled));
+        }
+
         Name = name;
         Description = description;
         DefaultEnabled = defaultEnabled;
         UpdatedAt = timeProvider.GetUtcNow().UtcDateTime;
+
+        string changedProps = string.Join(",", changedProperties);
+        RaiseDomainEvent(new FeatureFlagUpdatedEvent(Id.Value, Key, changedProps));
     }
 
     public void UpdatePercentage(int percentage, TimeProvider timeProvider)
@@ -145,5 +170,10 @@ public sealed class FeatureFlag : Entity<FeatureFlagId>
         _variants.Clear();
         _variants.AddRange(variants);
         UpdatedAt = timeProvider.GetUtcNow().UtcDateTime;
+    }
+
+    public void MarkDeleted()
+    {
+        RaiseDomainEvent(new FeatureFlagDeletedEvent(Id.Value, Key));
     }
 }

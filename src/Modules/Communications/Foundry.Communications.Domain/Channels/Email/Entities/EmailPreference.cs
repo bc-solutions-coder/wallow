@@ -1,4 +1,4 @@
-using Foundry.Communications.Domain.Channels.Email.Enums;
+using Foundry.Communications.Domain.Enums;
 using Foundry.Communications.Domain.Channels.Email.Identity;
 using Foundry.Shared.Kernel.Domain;
 using Foundry.Shared.Kernel.Identity;

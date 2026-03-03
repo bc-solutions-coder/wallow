@@ -241,15 +241,15 @@ public sealed partial class KeycloakAdminService : IKeycloakAdminService
             throw new InvalidOperationException($"Role '{roleName}' not found");
         }
 
+        UserRepresentation user = await _userClient.GetUserAsync(_realm, userId.ToString(), false, ct);
+        IReadOnlyList<string> currentRoles = await GetUserRolesAsync(userId, ct);
+        string oldRole = currentRoles.FirstOrDefault(r => r != roleName) ?? "none";
+
         HttpResponseMessage response = await _httpClient.PostAsJsonAsync(
             $"/admin/realms/{_realm}/users/{userId}/role-mappings/realm",
             new[] { role },
             ct);
         response.EnsureSuccessStatusCode();
-
-        UserRepresentation user = await _userClient.GetUserAsync(_realm, userId.ToString(), false, ct);
-        IReadOnlyList<string> currentRoles = await GetUserRolesAsync(userId, ct);
-        string oldRole = currentRoles.FirstOrDefault(r => r != roleName) ?? "none";
 
         await _messageBus.PublishAsync(new UserRoleChangedEvent
         {

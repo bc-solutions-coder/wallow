@@ -4,6 +4,7 @@ using Foundry.Configuration.Domain.Entities;
 using Foundry.Configuration.Domain.Exceptions;
 using Foundry.Configuration.Domain.Identity;
 using Foundry.Shared.Kernel.CustomFields;
+using Foundry.Shared.Kernel.Services;
 
 namespace Foundry.Configuration.Application.Commands;
 
@@ -11,6 +12,7 @@ public sealed record UpdateCustomFieldDefinition(
     Guid Id,
     string? DisplayName = null,
     string? Description = null,
+    bool ClearDescription = false,
     bool? IsRequired = null,
     int? DisplayOrder = null,
     FieldValidationRules? ValidationRules = null,
@@ -19,11 +21,16 @@ public sealed record UpdateCustomFieldDefinition(
 public sealed class UpdateCustomFieldDefinitionHandler
 {
     private readonly ICustomFieldDefinitionRepository _repository;
+    private readonly ICurrentUserService _currentUserService;
     private readonly TimeProvider _timeProvider;
 
-    public UpdateCustomFieldDefinitionHandler(ICustomFieldDefinitionRepository repository, TimeProvider timeProvider)
+    public UpdateCustomFieldDefinitionHandler(
+        ICustomFieldDefinitionRepository repository,
+        ICurrentUserService currentUserService,
+        TimeProvider timeProvider)
     {
         _repository = repository;
+        _currentUserService = currentUserService;
         _timeProvider = timeProvider;
     }
 
@@ -40,14 +47,14 @@ public sealed class UpdateCustomFieldDefinitionHandler
             throw new CustomFieldException($"Custom field definition with ID '{command.Id}' not found");
         }
 
-        Guid userId = Guid.Empty;
+        Guid userId = _currentUserService.GetCurrentUserId() ?? Guid.Empty;
 
         if (command.DisplayName != null)
         {
             definition.UpdateDisplayName(command.DisplayName, userId, _timeProvider);
         }
 
-        if (command.Description != null)
+        if (command.Description != null || command.ClearDescription)
         {
             definition.UpdateDescription(command.Description, userId, _timeProvider);
         }

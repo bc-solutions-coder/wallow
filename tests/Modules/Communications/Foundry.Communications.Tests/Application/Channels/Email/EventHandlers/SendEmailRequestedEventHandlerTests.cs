@@ -1,4 +1,5 @@
 using Foundry.Communications.Application.Channels.Email.EventHandlers;
+using Foundry.Communications.Application.Channels.Email.Interfaces;
 using Foundry.Shared.Contracts.Communications.Email;
 using Foundry.Shared.Contracts.Communications.Email.Events;
 using Microsoft.Extensions.Logging;
@@ -8,11 +9,13 @@ namespace Foundry.Communications.Tests.Application.Channels.Email.EventHandlers;
 public class SendEmailRequestedEventHandlerTests
 {
     private readonly IEmailService _emailService;
+    private readonly IEmailMessageRepository _emailMessageRepository;
     private readonly ILogger<SendEmailRequestedEvent> _logger;
 
     public SendEmailRequestedEventHandlerTests()
     {
         _emailService = Substitute.For<IEmailService>();
+        _emailMessageRepository = Substitute.For<IEmailMessageRepository>();
         _logger = Substitute.For<ILogger<SendEmailRequestedEvent>>();
         _logger.IsEnabled(Arg.Any<LogLevel>()).Returns(true);
     }
@@ -31,7 +34,7 @@ public class SendEmailRequestedEventHandlerTests
         };
 
         await SendEmailRequestedEventHandler.HandleAsync(
-            evt, _emailService, _logger, CancellationToken.None);
+            evt, _emailService, _emailMessageRepository, TimeProvider.System, _logger, CancellationToken.None);
 
         await _emailService.Received(1).SendAsync(
             "user@example.com",
@@ -55,7 +58,7 @@ public class SendEmailRequestedEventHandlerTests
         };
 
         await SendEmailRequestedEventHandler.HandleAsync(
-            evt, _emailService, _logger, CancellationToken.None);
+            evt, _emailService, _emailMessageRepository, TimeProvider.System, _logger, CancellationToken.None);
 
         await _emailService.Received(1).SendAsync(
             "user@example.com", null, "Subject", "Body", Arg.Any<CancellationToken>());
@@ -79,7 +82,7 @@ public class SendEmailRequestedEventHandlerTests
         };
 
         Func<Task> act = () => SendEmailRequestedEventHandler.HandleAsync(
-            evt, _emailService, _logger, CancellationToken.None);
+            evt, _emailService, _emailMessageRepository, TimeProvider.System, _logger, CancellationToken.None);
 
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("SMTP error");
@@ -97,9 +100,8 @@ public class SendEmailRequestedEventHandlerTests
             SourceModule = null
         };
 
-        // Should not throw
         await SendEmailRequestedEventHandler.HandleAsync(
-            evt, _emailService, _logger, CancellationToken.None);
+            evt, _emailService, _emailMessageRepository, TimeProvider.System, _logger, CancellationToken.None);
 
         await _emailService.Received(1).SendAsync(
             Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<string>(),
@@ -119,7 +121,7 @@ public class SendEmailRequestedEventHandlerTests
         };
 
         await SendEmailRequestedEventHandler.HandleAsync(
-            evt, _emailService, _logger, cts.Token);
+            evt, _emailService, _emailMessageRepository, TimeProvider.System, _logger, cts.Token);
 
         await _emailService.Received(1).SendAsync(
             Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<string>(),

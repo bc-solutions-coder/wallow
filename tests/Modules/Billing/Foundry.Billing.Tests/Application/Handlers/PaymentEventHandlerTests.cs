@@ -5,6 +5,7 @@ using Foundry.Billing.Domain.Events;
 using Foundry.Billing.Domain.Identity;
 using Foundry.Billing.Domain.ValueObjects;
 using Foundry.Shared.Contracts.Billing.Events;
+using Foundry.Shared.Contracts.Identity;
 using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.MultiTenancy;
 using Microsoft.Extensions.Logging;
@@ -18,6 +19,7 @@ public class PaymentEventHandlerTests
     private readonly IInvoiceRepository _invoiceRepository;
     private readonly IMessageBus _messageBus;
     private readonly ITenantContext _tenantContext;
+    private readonly IUserQueryService _userQueryService;
     private readonly ILogger<InvoicePaidDomainEventHandler> _invoicePaidLogger;
     private readonly ILogger<PaymentCreatedDomainEventHandler> _paymentReceivedLogger;
 
@@ -26,6 +28,9 @@ public class PaymentEventHandlerTests
         _invoiceRepository = Substitute.For<IInvoiceRepository>();
         _messageBus = Substitute.For<IMessageBus>();
         _tenantContext = Substitute.For<ITenantContext>();
+        _userQueryService = Substitute.For<IUserQueryService>();
+        _userQueryService.GetUserEmailAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns("test@example.com");
         _invoicePaidLogger = NullLogger<InvoicePaidDomainEventHandler>.Instance;
         _paymentReceivedLogger = NullLogger<PaymentCreatedDomainEventHandler>.Instance;
 
@@ -129,7 +134,7 @@ public class PaymentEventHandlerTests
 
         // Act
         await PaymentCreatedDomainEventHandler.HandleAsync(
-            domainEvent, _messageBus, _tenantContext, _paymentReceivedLogger, CancellationToken.None);
+            domainEvent, _messageBus, _tenantContext, _userQueryService, _paymentReceivedLogger, CancellationToken.None);
 
         // Assert
         await _messageBus.Received(1).PublishAsync(Arg.Is<PaymentReceivedEvent>(e =>
@@ -142,7 +147,7 @@ public class PaymentEventHandlerTests
     }
 
     [Fact]
-    public async Task PaymentReceived_SetsEmptyDefaults_ForEmailAndPaymentMethod()
+    public async Task PaymentReceived_SetsUserEmailFromQueryService_AndEmptyPaymentMethod()
     {
         // Arrange
         PaymentCreatedDomainEvent domainEvent = new PaymentCreatedDomainEvent(
@@ -150,11 +155,11 @@ public class PaymentEventHandlerTests
 
         // Act
         await PaymentCreatedDomainEventHandler.HandleAsync(
-            domainEvent, _messageBus, _tenantContext, _paymentReceivedLogger, CancellationToken.None);
+            domainEvent, _messageBus, _tenantContext, _userQueryService, _paymentReceivedLogger, CancellationToken.None);
 
         // Assert
         await _messageBus.Received(1).PublishAsync(Arg.Is<PaymentReceivedEvent>(e =>
-            e.UserEmail == string.Empty &&
+            e.UserEmail == "test@example.com" &&
             e.PaymentMethod == string.Empty));
     }
 
@@ -167,9 +172,9 @@ public class PaymentEventHandlerTests
 
         // Act
         await PaymentCreatedDomainEventHandler.HandleAsync(
-            domainEvent, _messageBus, _tenantContext, _paymentReceivedLogger, CancellationToken.None);
+            domainEvent, _messageBus, _tenantContext, _userQueryService, _paymentReceivedLogger, CancellationToken.None);
         await PaymentCreatedDomainEventHandler.HandleAsync(
-            domainEvent, _messageBus, _tenantContext, _paymentReceivedLogger, CancellationToken.None);
+            domainEvent, _messageBus, _tenantContext, _userQueryService, _paymentReceivedLogger, CancellationToken.None);
 
         // Assert - handler is stateless, duplicate calls publish again
         await _messageBus.Received(2).PublishAsync(Arg.Any<PaymentReceivedEvent>());

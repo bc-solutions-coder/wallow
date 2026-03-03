@@ -1,4 +1,4 @@
-using Foundry.Communications.Domain.Channels.InApp.Enums;
+using Foundry.Communications.Domain.Enums;
 using Foundry.Communications.Domain.Channels.InApp.Events;
 using Foundry.Communications.Domain.Channels.InApp.Identity;
 using Foundry.Shared.Kernel.Domain;

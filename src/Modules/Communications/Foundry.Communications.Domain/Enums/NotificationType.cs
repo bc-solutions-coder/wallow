@@ -1,4 +1,4 @@
-namespace Foundry.Communications.Domain.Channels.InApp.Enums;
+namespace Foundry.Communications.Domain.Enums;
 
 public enum NotificationType
 {
@@ -8,5 +8,6 @@ public enum NotificationType
     SystemAlert = 3,
     BillingInvoice = 4,
     Mention = 5,
-    Announcement = 6
+    Announcement = 6,
+    SystemNotification = 7
 }

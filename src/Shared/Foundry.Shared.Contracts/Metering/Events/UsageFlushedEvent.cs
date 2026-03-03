@@ -6,7 +6,6 @@ namespace Foundry.Shared.Contracts.Metering.Events;
 /// </summary>
 public sealed record UsageFlushedEvent : IntegrationEvent
 {
-    public required Guid TenantId { get; init; }
     public required DateTime FlushedAt { get; init; }
     public required int RecordCount { get; init; }
 }

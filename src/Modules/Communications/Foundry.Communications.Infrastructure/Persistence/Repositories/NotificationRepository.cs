@@ -30,8 +30,10 @@ public sealed class NotificationRepository : INotificationRepository
     public async Task<PagedResult<Notification>> GetByUserIdPagedAsync(
         Guid userId, int page, int pageSize, CancellationToken cancellationToken = default)
     {
+        DateTime utcNow = DateTime.UtcNow;
+
         IQueryable<Notification> query = _context.Notifications
-            .Where(n => n.UserId == userId)
+            .Where(n => n.UserId == userId && !n.IsArchived && (n.ExpiresAt == null || n.ExpiresAt > utcNow))
             .OrderByDescending(n => n.CreatedAt);
 
         int totalCount = await query.CountAsync(cancellationToken);

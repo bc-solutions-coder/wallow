@@ -6,6 +6,7 @@ using Foundry.Configuration.Domain.Exceptions;
 using Foundry.Shared.Kernel.CustomFields;
 using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.MultiTenancy;
+using Foundry.Shared.Kernel.Services;
 
 namespace Foundry.Configuration.Tests.Application.Handlers;
 
@@ -19,7 +20,9 @@ public class CreateCustomFieldDefinitionHandlerTests
         _repository = Substitute.For<ICustomFieldDefinitionRepository>();
         ITenantContext tenantContext = Substitute.For<ITenantContext>();
         tenantContext.TenantId.Returns(TenantId.New());
-        _handler = new CreateCustomFieldDefinitionHandler(_repository, tenantContext, TimeProvider.System);
+        ICurrentUserService currentUserService = Substitute.For<ICurrentUserService>();
+        currentUserService.UserId.Returns(Guid.NewGuid());
+        _handler = new CreateCustomFieldDefinitionHandler(_repository, tenantContext, currentUserService, TimeProvider.System);
     }
 
     [Fact]
