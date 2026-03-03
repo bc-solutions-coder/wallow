@@ -1,6 +1,6 @@
 using Foundry.Communications.Application.Channels.Email.Interfaces;
 using Foundry.Communications.Domain.Channels.Email.Entities;
-using Foundry.Communications.Domain.Channels.Email.Enums;
+using Foundry.Communications.Domain.Enums;
 using Foundry.Shared.Contracts.Communications.Email;
 using Foundry.Shared.Contracts.Identity.Events;
 using Microsoft.Extensions.Logging;

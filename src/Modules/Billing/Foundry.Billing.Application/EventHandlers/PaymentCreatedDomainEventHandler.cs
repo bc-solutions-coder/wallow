@@ -1,4 +1,5 @@
 using Foundry.Billing.Domain.Events;
+using Foundry.Shared.Contracts.Identity;
 using Foundry.Shared.Kernel.MultiTenancy;
 using Microsoft.Extensions.Logging;
 using Wolverine;
@@ -11,10 +12,13 @@ public sealed partial class PaymentCreatedDomainEventHandler
         PaymentCreatedDomainEvent domainEvent,
         IMessageBus bus,
         ITenantContext tenantContext,
+        IUserQueryService userQueryService,
         ILogger<PaymentCreatedDomainEventHandler> logger,
-        CancellationToken _)
+        CancellationToken cancellationToken)
     {
         LogHandlingPaymentCreated(logger, domainEvent.PaymentId);
+
+        string userEmail = await userQueryService.GetUserEmailAsync(domainEvent.UserId, cancellationToken);
 
         await bus.PublishAsync(new Foundry.Shared.Contracts.Billing.Events.PaymentReceivedEvent
         {
@@ -22,7 +26,7 @@ public sealed partial class PaymentCreatedDomainEventHandler
             TenantId = tenantContext.TenantId.Value,
             InvoiceId = domainEvent.InvoiceId,
             UserId = domainEvent.UserId,
-            UserEmail = string.Empty,
+            UserEmail = userEmail,
             Amount = domainEvent.Amount,
             Currency = domainEvent.Currency,
             PaymentMethod = string.Empty,

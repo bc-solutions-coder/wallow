@@ -6,7 +6,7 @@ using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.MultiTenancy;
 using Foundry.Shared.Kernel.Pagination;
 using Microsoft.EntityFrameworkCore;
-using InAppNotificationType = Foundry.Communications.Domain.Channels.InApp.Enums.NotificationType;
+using InAppNotificationType = Foundry.Communications.Domain.Enums.NotificationType;
 
 namespace Foundry.Communications.Tests.Infrastructure.Persistence.Repositories;
 

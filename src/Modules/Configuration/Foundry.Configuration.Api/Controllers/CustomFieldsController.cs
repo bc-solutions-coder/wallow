@@ -127,6 +127,7 @@ public class CustomFieldsController : ControllerBase
             id,
             request.DisplayName,
             request.Description,
+            request.ClearDescription,
             request.IsRequired,
             request.DisplayOrder,
             request.ValidationRules,
@@ -186,6 +187,7 @@ public sealed record UpdateCustomFieldRequest
 {
     public string? DisplayName { get; init; }
     public string? Description { get; init; }
+    public bool ClearDescription { get; init; }
     public bool? IsRequired { get; init; }
     public int? DisplayOrder { get; init; }
     public FieldValidationRules? ValidationRules { get; init; }

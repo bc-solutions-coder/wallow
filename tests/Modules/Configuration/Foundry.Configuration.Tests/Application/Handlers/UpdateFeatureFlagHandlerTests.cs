@@ -4,7 +4,6 @@ using Foundry.Configuration.Domain.Entities;
 using Foundry.Configuration.Domain.Identity;
 using Foundry.Shared.Kernel.Results;
 using Microsoft.Extensions.Caching.Distributed;
-using Wolverine;
 
 namespace Foundry.Configuration.Tests.Application.Handlers;
 
@@ -12,15 +11,13 @@ public class UpdateFeatureFlagHandlerTests
 {
     private readonly IFeatureFlagRepository _repository;
     private readonly IDistributedCache _cache;
-    private readonly IMessageBus _bus;
     private readonly UpdateFeatureFlagHandler _handler;
 
     public UpdateFeatureFlagHandlerTests()
     {
         _repository = Substitute.For<IFeatureFlagRepository>();
         _cache = Substitute.For<IDistributedCache>();
-        _bus = Substitute.For<IMessageBus>();
-        _handler = new UpdateFeatureFlagHandler(_repository, _cache, _bus, TimeProvider.System);
+        _handler = new UpdateFeatureFlagHandler(_repository, _cache, TimeProvider.System);
     }
 
     [Fact]
@@ -90,7 +87,7 @@ public class UpdateFeatureFlagHandlerTests
     }
 
     [Fact]
-    public async Task Handle_AfterSuccess_InvalidatesCacheAndPublishesEvent()
+    public async Task Handle_AfterSuccess_InvalidatesCache()
     {
         FeatureFlag flag = FeatureFlag.CreateBoolean("cached_flag", "Cached", true, TimeProvider.System);
 
@@ -104,11 +101,10 @@ public class UpdateFeatureFlagHandlerTests
         await _cache.Received(1).RemoveAsync(
             Arg.Is<string>(k => k.Contains("cached_flag")),
             Arg.Any<CancellationToken>());
-        await _bus.Received(1).PublishAsync(Arg.Any<object>());
     }
 
     [Fact]
-    public async Task Handle_WhenNotFound_DoesNotInvalidateCacheOrPublish()
+    public async Task Handle_WhenNotFound_DoesNotInvalidateCache()
     {
         _repository.GetByIdAsync(Arg.Any<FeatureFlagId>(), Arg.Any<CancellationToken>())
             .Returns((FeatureFlag?)null);
@@ -118,6 +114,5 @@ public class UpdateFeatureFlagHandlerTests
         await _handler.Handle(command, CancellationToken.None);
 
         await _cache.DidNotReceive().RemoveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
-        await _bus.DidNotReceive().PublishAsync(Arg.Any<object>());
     }
 }

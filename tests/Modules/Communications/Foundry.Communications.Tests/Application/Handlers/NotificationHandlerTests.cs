@@ -4,7 +4,7 @@ using Foundry.Communications.Application.Channels.InApp.Commands.SendNotificatio
 using Foundry.Communications.Application.Channels.InApp.DTOs;
 using Foundry.Communications.Application.Channels.InApp.Interfaces;
 using Foundry.Communications.Domain.Channels.InApp.Entities;
-using Foundry.Communications.Domain.Channels.InApp.Enums;
+using Foundry.Communications.Domain.Enums;
 using Foundry.Communications.Domain.Channels.InApp.Identity;
 using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.MultiTenancy;

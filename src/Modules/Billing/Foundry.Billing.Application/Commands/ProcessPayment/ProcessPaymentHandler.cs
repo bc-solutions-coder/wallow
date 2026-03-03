@@ -27,6 +27,12 @@ public sealed class ProcessPaymentHandler(
                 Error.NotFound("Invoice", command.InvoiceId));
         }
 
+        if (command.Amount > invoice.TotalAmount.Amount)
+        {
+            return Result.Failure<PaymentDto>(
+                Error.Validation("Payment.Overpayment", "Payment amount exceeds outstanding balance."));
+        }
+
         if (!Enum.TryParse<PaymentMethod>(command.PaymentMethod, ignoreCase: true, out PaymentMethod method))
         {
             return Result.Failure<PaymentDto>(

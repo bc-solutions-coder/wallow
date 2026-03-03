@@ -1,6 +1,6 @@
 using FluentValidation.TestHelper;
 using Foundry.Communications.Application.Channels.InApp.Commands.SendNotification;
-using Foundry.Communications.Domain.Channels.InApp.Enums;
+using Foundry.Communications.Domain.Enums;
 
 namespace Foundry.Communications.Tests.Application.Channels.InApp.Validators;
 

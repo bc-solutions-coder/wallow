@@ -101,8 +101,12 @@ public class InvoicesController : ControllerBase
             return Unauthorized();
         }
 
+        Guid targetUserId = request.UserId is not null && User.IsInRole("admin")
+            ? request.UserId.Value
+            : currentUserId.Value;
+
         CreateInvoiceCommand command = new CreateInvoiceCommand(
-            currentUserId.Value,
+            targetUserId,
             request.InvoiceNumber,
             request.Currency,
             request.DueDate);

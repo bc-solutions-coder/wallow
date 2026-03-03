@@ -2,6 +2,7 @@ using Foundry.Communications.Application.Channels.Email.DTOs;
 using Foundry.Communications.Application.Channels.Email.Mappings;
 using Foundry.Communications.Domain.Channels.Email.Entities;
 using Foundry.Communications.Domain.Channels.Email.Enums;
+using Foundry.Communications.Domain.Enums;
 using Foundry.Communications.Domain.Channels.Email.ValueObjects;
 using Foundry.Shared.Kernel.Identity;
 

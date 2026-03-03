@@ -1,6 +1,6 @@
 using Foundry.Communications.Api.Contracts.Email.Enums;
 using Foundry.Communications.Api.Mappings;
-using Foundry.Communications.Domain.Channels.Email.Enums;
+using Foundry.Communications.Domain.Enums;
 
 namespace Foundry.Communications.Tests.Api.Mappings;
 

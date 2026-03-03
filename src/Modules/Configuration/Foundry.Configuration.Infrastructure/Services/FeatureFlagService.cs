@@ -94,15 +94,54 @@ public sealed class FeatureFlagService : IFeatureFlagService
 
         foreach (FeatureFlag flag in flags)
         {
+            FeatureFlagOverride? activeOverride = ResolveOverride(flag, tenantId, userId);
+
             if (flag.FlagType == FlagType.Variant)
             {
-                string? variant = await GetVariantAsync(flag.Key, tenantId, userId, ct);
+                string? variant;
+                string reason;
+
+                if (activeOverride?.Variant is not null)
+                {
+                    variant = activeOverride.Variant;
+                    reason = FormatOverrideReason(activeOverride);
+                }
+                else if (flag.Variants.Count > 0)
+                {
+                    variant = SelectVariantByWeight(flag.Key, userId, flag.Variants);
+                    reason = "Weighted variant selection";
+                }
+                else
+                {
+                    variant = flag.DefaultVariant;
+                    reason = "Default variant";
+                }
+
                 results[flag.Key] = variant ?? (object)false;
+                await PublishEvaluationAsync(flag.Key, tenantId, userId, variant ?? "null", reason);
             }
             else
             {
-                bool enabled = await IsEnabledAsync(flag.Key, tenantId, userId, ct);
+                bool enabled;
+                string reason;
+
+                if (activeOverride?.IsEnabled is not null)
+                {
+                    enabled = activeOverride.IsEnabled.Value;
+                    reason = FormatOverrideReason(activeOverride);
+                }
+                else
+                {
+                    enabled = flag.FlagType switch
+                    {
+                        FlagType.Percentage => EvaluatePercentage(flag.Key, userId, flag.RolloutPercentage ?? 0),
+                        _ => flag.DefaultEnabled
+                    };
+                    reason = flag.FlagType == FlagType.Percentage ? "Percentage rollout" : "Default value";
+                }
+
                 results[flag.Key] = enabled;
+                await PublishEvaluationAsync(flag.Key, tenantId, userId, enabled.ToString(), reason);
             }
         }
 

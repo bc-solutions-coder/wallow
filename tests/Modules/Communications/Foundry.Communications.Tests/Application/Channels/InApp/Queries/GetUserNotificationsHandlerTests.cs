@@ -2,7 +2,7 @@ using Foundry.Communications.Application.Channels.InApp.DTOs;
 using Foundry.Communications.Application.Channels.InApp.Interfaces;
 using Foundry.Communications.Application.Channels.InApp.Queries.GetUserNotifications;
 using Foundry.Communications.Domain.Channels.InApp.Entities;
-using Foundry.Communications.Domain.Channels.InApp.Enums;
+using Foundry.Communications.Domain.Enums;
 using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.Pagination;
 using Foundry.Shared.Kernel.Results;
@@ -17,7 +17,7 @@ public class GetUserNotificationsHandlerTests
     public GetUserNotificationsHandlerTests()
     {
         _repository = Substitute.For<INotificationRepository>();
-        _handler = new GetUserNotificationsHandler(_repository, TimeProvider.System);
+        _handler = new GetUserNotificationsHandler(_repository);
     }
 
     [Fact]
@@ -105,14 +105,13 @@ public class GetUserNotificationsHandlerTests
         Guid userId = Guid.NewGuid();
         TenantId tenantId = TenantId.Create(Guid.NewGuid());
 
+        // Repository filters out archived notifications, so mock returns only active ones
         Notification activeNotification = Notification.Create(tenantId, userId, NotificationType.SystemAlert, "Active", "Active message", TimeProvider.System);
-        Notification archivedNotification = Notification.Create(tenantId, userId, NotificationType.SystemAlert, "Archived", "Archived message", TimeProvider.System);
-        archivedNotification.Archive(TimeProvider.System);
 
-        List<Notification> notifications = new() { activeNotification, archivedNotification };
+        List<Notification> notifications = new() { activeNotification };
 
         _repository.GetByUserIdPagedAsync(userId, 1, 20, Arg.Any<CancellationToken>())
-            .Returns(new PagedResult<Notification>(notifications, 2, 1, 20));
+            .Returns(new PagedResult<Notification>(notifications, 1, 1, 20));
 
         GetUserNotificationsQuery query = new(userId);
 
@@ -129,13 +128,13 @@ public class GetUserNotificationsHandlerTests
         Guid userId = Guid.NewGuid();
         TenantId tenantId = TenantId.Create(Guid.NewGuid());
 
+        // Repository filters out expired notifications, so mock returns only active ones
         Notification activeNotification = Notification.Create(tenantId, userId, NotificationType.SystemAlert, "Active", "Active message", TimeProvider.System);
-        Notification expiredNotification = Notification.Create(tenantId, userId, NotificationType.SystemAlert, "Expired", "Expired message", TimeProvider.System, expiresAt: DateTime.UtcNow.AddHours(-1));
 
-        List<Notification> notifications = new() { activeNotification, expiredNotification };
+        List<Notification> notifications = new() { activeNotification };
 
         _repository.GetByUserIdPagedAsync(userId, 1, 20, Arg.Any<CancellationToken>())
-            .Returns(new PagedResult<Notification>(notifications, 2, 1, 20));
+            .Returns(new PagedResult<Notification>(notifications, 1, 1, 20));
 
         GetUserNotificationsQuery query = new(userId);
 

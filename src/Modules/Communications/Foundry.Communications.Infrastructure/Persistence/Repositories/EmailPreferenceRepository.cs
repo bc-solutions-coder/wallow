@@ -1,6 +1,6 @@
 using Foundry.Communications.Application.Channels.Email.Interfaces;
 using Foundry.Communications.Domain.Channels.Email.Entities;
-using Foundry.Communications.Domain.Channels.Email.Enums;
+using Foundry.Communications.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace Foundry.Communications.Infrastructure.Persistence.Repositories;

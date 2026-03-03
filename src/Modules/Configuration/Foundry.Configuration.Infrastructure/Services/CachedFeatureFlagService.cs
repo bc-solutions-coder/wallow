@@ -22,7 +22,7 @@ public sealed class CachedFeatureFlagService : IFeatureFlagService
 
     public async Task<bool> IsEnabledAsync(string key, Guid tenantId, Guid? userId = null, CancellationToken ct = default)
     {
-        string cacheKey = BuildCacheKey(key, tenantId, userId);
+        string cacheKey = BuildCacheKey("bool", key, tenantId, userId);
         TrackKey(key, cacheKey);
         string? cached = await _cache.GetStringAsync(cacheKey, ct);
 
@@ -38,7 +38,7 @@ public sealed class CachedFeatureFlagService : IFeatureFlagService
 
     public async Task<string?> GetVariantAsync(string key, Guid tenantId, Guid? userId = null, CancellationToken ct = default)
     {
-        string cacheKey = BuildCacheKey(key, tenantId, userId);
+        string cacheKey = BuildCacheKey("variant", key, tenantId, userId);
         TrackKey(key, cacheKey);
         string? cached = await _cache.GetStringAsync(cacheKey, ct);
 
@@ -72,8 +72,8 @@ public sealed class CachedFeatureFlagService : IFeatureFlagService
         keys.Add(cacheKey);
     }
 
-    private static string BuildCacheKey(string flagKey, Guid tenantId, Guid? userId)
+    private static string BuildCacheKey(string prefix, string flagKey, Guid tenantId, Guid? userId)
         => userId.HasValue
-            ? $"ff:{flagKey}:{tenantId}:{userId}"
-            : $"ff:{flagKey}:{tenantId}:";
+            ? $"ff:{prefix}:{flagKey}:{tenantId}:{userId}"
+            : $"ff:{prefix}:{flagKey}:{tenantId}:";
 }

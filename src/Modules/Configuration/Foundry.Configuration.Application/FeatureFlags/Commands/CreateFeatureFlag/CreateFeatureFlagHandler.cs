@@ -3,18 +3,15 @@ using Foundry.Configuration.Application.FeatureFlags.DTOs;
 using Foundry.Configuration.Application.FeatureFlags.Mappings;
 using Foundry.Configuration.Domain.Entities;
 using Foundry.Configuration.Domain.Enums;
-using Foundry.Configuration.Domain.Events;
 using Foundry.Configuration.Domain.ValueObjects;
 using Foundry.Shared.Kernel.Results;
 using Microsoft.Extensions.Caching.Distributed;
-using Wolverine;
 
 namespace Foundry.Configuration.Application.FeatureFlags.Commands.CreateFeatureFlag;
 
 public sealed class CreateFeatureFlagHandler(
     IFeatureFlagRepository repository,
     IDistributedCache cache,
-    IMessageBus bus,
     TimeProvider timeProvider)
 {
     public async Task<Result<FeatureFlagDto>> Handle(CreateFeatureFlagCommand cmd, CancellationToken ct)
@@ -39,7 +36,6 @@ public sealed class CreateFeatureFlagHandler(
         await repository.AddAsync(flag, ct);
 
         await cache.RemoveAsync($"ff:{flag.Key}", ct);
-        await bus.PublishAsync(new FeatureFlagCreatedEvent(flag.Id.Value, flag.Key, flag.FlagType));
 
         return Result.Success(flag.ToDto());
     }

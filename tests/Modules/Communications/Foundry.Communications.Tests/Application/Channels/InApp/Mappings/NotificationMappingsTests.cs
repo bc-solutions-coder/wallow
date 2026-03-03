@@ -1,7 +1,7 @@
 using Foundry.Communications.Application.Channels.InApp.DTOs;
 using Foundry.Communications.Application.Channels.InApp.Mappings;
 using Foundry.Communications.Domain.Channels.InApp.Entities;
-using Foundry.Communications.Domain.Channels.InApp.Enums;
+using Foundry.Communications.Domain.Enums;
 using Foundry.Shared.Kernel.Identity;
 
 namespace Foundry.Communications.Tests.Application.Channels.InApp.Mappings;

@@ -69,6 +69,9 @@ internal sealed class FeatureFlagConfiguration : IEntityTypeConfiguration<Featur
         builder.Property(f => f.UpdatedAt)
             .HasColumnName("updated_at");
 
+        builder.Ignore(f => f.CreatedBy);
+        builder.Ignore(f => f.UpdatedBy);
+
         builder.HasMany(f => f.Overrides)
             .WithOne(o => o.Flag)
             .HasForeignKey(o => o.FlagId)

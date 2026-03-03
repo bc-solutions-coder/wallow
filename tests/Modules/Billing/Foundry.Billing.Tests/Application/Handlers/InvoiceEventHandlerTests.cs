@@ -4,6 +4,7 @@ using Foundry.Billing.Domain.Entities;
 using Foundry.Billing.Domain.Events;
 using Foundry.Billing.Domain.Identity;
 using Foundry.Shared.Contracts.Billing.Events;
+using Foundry.Shared.Contracts.Identity;
 using Foundry.Tests.Common.Builders;
 using Microsoft.Extensions.Logging;
 using Wolverine;
@@ -13,12 +14,16 @@ namespace Foundry.Billing.Tests.Application.Handlers;
 public class InvoiceOverdueDomainEventHandlerTests
 {
     private readonly IInvoiceRepository _repository;
+    private readonly IUserQueryService _userQueryService;
     private readonly IMessageBus _bus;
     private readonly ILogger<InvoiceOverdueDomainEventHandler> _logger;
 
     public InvoiceOverdueDomainEventHandlerTests()
     {
         _repository = Substitute.For<IInvoiceRepository>();
+        _userQueryService = Substitute.For<IUserQueryService>();
+        _userQueryService.GetUserEmailAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns("test@example.com");
         _bus = Substitute.For<IMessageBus>();
         _logger = Substitute.For<ILogger<InvoiceOverdueDomainEventHandler>>();
     }
@@ -41,7 +46,7 @@ public class InvoiceOverdueDomainEventHandlerTests
 
         // Act
         await InvoiceOverdueDomainEventHandler.HandleAsync(
-            domainEvent, _repository, _bus, _logger, CancellationToken.None);
+            domainEvent, _repository, _userQueryService, _bus, _logger, CancellationToken.None);
 
         // Assert
         await _bus.Received(1).PublishAsync(Arg.Is<InvoiceOverdueEvent>(e =>
@@ -64,7 +69,7 @@ public class InvoiceOverdueDomainEventHandlerTests
 
         // Act
         await InvoiceOverdueDomainEventHandler.HandleAsync(
-            domainEvent, _repository, _bus, _logger, CancellationToken.None);
+            domainEvent, _repository, _userQueryService, _bus, _logger, CancellationToken.None);
 
         // Assert
         await _bus.DidNotReceive().PublishAsync(Arg.Any<InvoiceOverdueEvent>());

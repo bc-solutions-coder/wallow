@@ -2,7 +2,7 @@ using Foundry.Communications.Application.Channels.Email.Commands.UpdateEmailPref
 using Foundry.Communications.Application.Channels.Email.DTOs;
 using Foundry.Communications.Application.Channels.Email.Interfaces;
 using Foundry.Communications.Domain.Channels.Email.Entities;
-using Foundry.Communications.Domain.Channels.Email.Enums;
+using Foundry.Communications.Domain.Enums;
 using Foundry.Shared.Kernel.Results;
 
 namespace Foundry.Communications.Tests.Application.Channels.Email.Handlers;

@@ -1,4 +1,4 @@
-using Foundry.Communications.Domain.Channels.Email.Enums;
+using Foundry.Communications.Domain.Enums;
 
 namespace Foundry.Communications.Application.Channels.Email.Commands.UpdateEmailPreferences;
 

@@ -1,6 +1,6 @@
 using FluentValidation.TestHelper;
 using Foundry.Communications.Application.Channels.Email.Commands.UpdateEmailPreferences;
-using Foundry.Communications.Domain.Channels.Email.Enums;
+using Foundry.Communications.Domain.Enums;
 
 namespace Foundry.Communications.Tests.Application.Channels.Email.Validators;
 

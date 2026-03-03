@@ -1,6 +1,7 @@
 using Foundry.Billing.Application.EventHandlers;
 using Foundry.Billing.Domain.Events;
 using Foundry.Shared.Contracts.Billing.Events;
+using Foundry.Shared.Contracts.Identity;
 using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.MultiTenancy;
 using Microsoft.Extensions.Logging;
@@ -14,6 +15,7 @@ public class PaymentCreatedDomainEventHandlerTests
 {
     private readonly IMessageBus _messageBus;
     private readonly ITenantContext _tenantContext;
+    private readonly IUserQueryService _userQueryService;
     private readonly ILogger<PaymentCreatedDomainEventHandler> _logger;
 
     public PaymentCreatedDomainEventHandlerTests()
@@ -21,6 +23,9 @@ public class PaymentCreatedDomainEventHandlerTests
         _messageBus = Substitute.For<IMessageBus>();
         _tenantContext = Substitute.For<ITenantContext>();
         _tenantContext.TenantId.Returns(TenantId.Create(Guid.NewGuid()));
+        _userQueryService = Substitute.For<IUserQueryService>();
+        _userQueryService.GetUserEmailAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns("test@example.com");
         _logger = Substitute.For<ILogger<PaymentCreatedDomainEventHandler>>();
         _logger.IsEnabled(Arg.Any<LogLevel>()).Returns(true);
     }
@@ -43,6 +48,7 @@ public class PaymentCreatedDomainEventHandlerTests
             domainEvent,
             _messageBus,
             _tenantContext,
+            _userQueryService,
             _logger,
             CancellationToken.None);
 
@@ -71,6 +77,7 @@ public class PaymentCreatedDomainEventHandlerTests
             domainEvent,
             _messageBus,
             _tenantContext,
+            _userQueryService,
             _logger,
             cts.Token);
 
@@ -92,6 +99,7 @@ public class PaymentCreatedDomainEventHandlerTests
             domainEvent,
             _messageBus,
             _tenantContext,
+            _userQueryService,
             _logger,
             CancellationToken.None);
 
@@ -118,6 +126,7 @@ public class PaymentCreatedDomainEventHandlerTests
             domainEvent,
             _messageBus,
             _tenantContext,
+            _userQueryService,
             _logger,
             CancellationToken.None);
 

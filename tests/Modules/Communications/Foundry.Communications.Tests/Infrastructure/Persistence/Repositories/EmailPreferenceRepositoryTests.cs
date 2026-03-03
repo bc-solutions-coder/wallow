@@ -4,7 +4,7 @@ using Foundry.Communications.Infrastructure.Persistence.Repositories;
 using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.MultiTenancy;
 using Microsoft.EntityFrameworkCore;
-using EmailNotificationType = Foundry.Communications.Domain.Channels.Email.Enums.NotificationType;
+using EmailNotificationType = Foundry.Communications.Domain.Enums.NotificationType;
 
 namespace Foundry.Communications.Tests.Infrastructure.Persistence.Repositories;
 

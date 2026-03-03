@@ -20,7 +20,6 @@ public sealed partial class UsageFlushedDomainEventHandler
         // Publish integration event for Billing module
         await bus.PublishAsync(new Foundry.Shared.Contracts.Metering.Events.UsageFlushedEvent
         {
-            TenantId = Guid.Empty,
             FlushedAt = domainEvent.FlushedAt,
             RecordCount = domainEvent.RecordCount
         });

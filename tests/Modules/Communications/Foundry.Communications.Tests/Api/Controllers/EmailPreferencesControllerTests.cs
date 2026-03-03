@@ -6,7 +6,7 @@ using Foundry.Communications.Api.Controllers;
 using Foundry.Communications.Application.Channels.Email.Commands.UpdateEmailPreferences;
 using Foundry.Communications.Application.Channels.Email.DTOs;
 using Foundry.Communications.Application.Channels.Email.Queries.GetEmailPreferences;
-using Foundry.Communications.Domain.Channels.Email.Enums;
+using Foundry.Communications.Domain.Enums;
 using Foundry.Shared.Kernel.Results;
 using Foundry.Shared.Kernel.Services;
 using Microsoft.AspNetCore.Http;
