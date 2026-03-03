@@ -54,14 +54,14 @@ public class ServiceAccountsController : ControllerBase
         [FromBody] Contracts.Requests.CreateServiceAccountRequest request,
         CancellationToken ct)
     {
-        Application.DTOs.CreateServiceAccountRequest appRequest = new Application.DTOs.CreateServiceAccountRequest(
+        Application.DTOs.CreateServiceAccountRequest appRequest = new(
             request.Name,
             request.Description,
             request.Scopes);
 
         ServiceAccountCreatedResult result = await _serviceAccountService.CreateAsync(appRequest, ct);
 
-        ServiceAccountCreatedResponse response = new ServiceAccountCreatedResponse
+        ServiceAccountCreatedResponse response = new()
         {
             Id = result.Id.Value.ToString(),
             ClientId = result.ClientId,

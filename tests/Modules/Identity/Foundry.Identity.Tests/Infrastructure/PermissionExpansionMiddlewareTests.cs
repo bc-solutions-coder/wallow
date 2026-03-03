@@ -11,11 +11,13 @@ public class PermissionExpansionMiddlewareTests
     public async Task InvokeAsync_WithUnauthenticatedUser_DoesNotAddPermissions()
     {
         // Arrange
-        DefaultHttpContext context = new DefaultHttpContext();
-        context.User = new ClaimsPrincipal(); // Not authenticated
+        DefaultHttpContext context = new()
+        {
+            User = new ClaimsPrincipal() // Not authenticated
+        };
         bool nextCalled = false;
 
-        PermissionExpansionMiddleware middleware = new PermissionExpansionMiddleware(_ =>
+        PermissionExpansionMiddleware middleware = new(_ =>
         {
             nextCalled = true;
             return Task.CompletedTask;
@@ -39,13 +41,13 @@ public class PermissionExpansionMiddlewareTests
             new Claim("scope", "invoices.read invoices.write")
         };
 
-        ClaimsIdentity identity = new ClaimsIdentity(claims, "Bearer");
-        DefaultHttpContext context = new DefaultHttpContext
+        ClaimsIdentity identity = new(claims, "Bearer");
+        DefaultHttpContext context = new()
         {
             User = new ClaimsPrincipal(identity)
         };
 
-        PermissionExpansionMiddleware middleware = new PermissionExpansionMiddleware(_ => Task.CompletedTask);
+        PermissionExpansionMiddleware middleware = new(_ => Task.CompletedTask);
 
         // Act
         await middleware.InvokeAsync(context);
@@ -67,13 +69,13 @@ public class PermissionExpansionMiddlewareTests
             new Claim("scope", "payments.write")
         };
 
-        ClaimsIdentity identity = new ClaimsIdentity(claims, "Bearer");
-        DefaultHttpContext context = new DefaultHttpContext
+        ClaimsIdentity identity = new(claims, "Bearer");
+        DefaultHttpContext context = new()
         {
             User = new ClaimsPrincipal(identity)
         };
 
-        PermissionExpansionMiddleware middleware = new PermissionExpansionMiddleware(_ => Task.CompletedTask);
+        PermissionExpansionMiddleware middleware = new(_ => Task.CompletedTask);
 
         // Act
         await middleware.InvokeAsync(context);
@@ -94,13 +96,13 @@ public class PermissionExpansionMiddlewareTests
             new Claim("scope", "unknown.scope invoices.read invalid.scope")
         };
 
-        ClaimsIdentity identity = new ClaimsIdentity(claims, "Bearer");
-        DefaultHttpContext context = new DefaultHttpContext
+        ClaimsIdentity identity = new(claims, "Bearer");
+        DefaultHttpContext context = new()
         {
             User = new ClaimsPrincipal(identity)
         };
 
-        PermissionExpansionMiddleware middleware = new PermissionExpansionMiddleware(_ => Task.CompletedTask);
+        PermissionExpansionMiddleware middleware = new(_ => Task.CompletedTask);
 
         // Act
         await middleware.InvokeAsync(context);
@@ -121,13 +123,13 @@ public class PermissionExpansionMiddlewareTests
             new Claim("scope", "invoices.read invoices.write payments.read payments.write subscriptions.read subscriptions.write")
         };
 
-        ClaimsIdentity identity = new ClaimsIdentity(claims, "Bearer");
-        DefaultHttpContext context = new DefaultHttpContext
+        ClaimsIdentity identity = new(claims, "Bearer");
+        DefaultHttpContext context = new()
         {
             User = new ClaimsPrincipal(identity)
         };
 
-        PermissionExpansionMiddleware middleware = new PermissionExpansionMiddleware(_ => Task.CompletedTask);
+        PermissionExpansionMiddleware middleware = new(_ => Task.CompletedTask);
 
         // Act
         await middleware.InvokeAsync(context);
@@ -152,13 +154,13 @@ public class PermissionExpansionMiddlewareTests
             new Claim("scope", "users.read users.write")
         };
 
-        ClaimsIdentity identity = new ClaimsIdentity(claims, "Bearer");
-        DefaultHttpContext context = new DefaultHttpContext
+        ClaimsIdentity identity = new(claims, "Bearer");
+        DefaultHttpContext context = new()
         {
             User = new ClaimsPrincipal(identity)
         };
 
-        PermissionExpansionMiddleware middleware = new PermissionExpansionMiddleware(_ => Task.CompletedTask);
+        PermissionExpansionMiddleware middleware = new(_ => Task.CompletedTask);
 
         // Act
         await middleware.InvokeAsync(context);
@@ -179,13 +181,13 @@ public class PermissionExpansionMiddlewareTests
             new Claim("scope", "notifications.read notifications.write")
         };
 
-        ClaimsIdentity identity = new ClaimsIdentity(claims, "Bearer");
-        DefaultHttpContext context = new DefaultHttpContext
+        ClaimsIdentity identity = new(claims, "Bearer");
+        DefaultHttpContext context = new()
         {
             User = new ClaimsPrincipal(identity)
         };
 
-        PermissionExpansionMiddleware middleware = new PermissionExpansionMiddleware(_ => Task.CompletedTask);
+        PermissionExpansionMiddleware middleware = new(_ => Task.CompletedTask);
 
         // Act
         await middleware.InvokeAsync(context);
@@ -206,13 +208,13 @@ public class PermissionExpansionMiddlewareTests
             new Claim("scope", "webhooks.manage")
         };
 
-        ClaimsIdentity identity = new ClaimsIdentity(claims, "Bearer");
-        DefaultHttpContext context = new DefaultHttpContext
+        ClaimsIdentity identity = new(claims, "Bearer");
+        DefaultHttpContext context = new()
         {
             User = new ClaimsPrincipal(identity)
         };
 
-        PermissionExpansionMiddleware middleware = new PermissionExpansionMiddleware(_ => Task.CompletedTask);
+        PermissionExpansionMiddleware middleware = new(_ => Task.CompletedTask);
 
         // Act
         await middleware.InvokeAsync(context);
@@ -232,13 +234,13 @@ public class PermissionExpansionMiddlewareTests
             new Claim(ClaimTypes.Role, "admin")
         };
 
-        ClaimsIdentity identity = new ClaimsIdentity(claims, "Bearer");
-        DefaultHttpContext context = new DefaultHttpContext
+        ClaimsIdentity identity = new(claims, "Bearer");
+        DefaultHttpContext context = new()
         {
             User = new ClaimsPrincipal(identity)
         };
 
-        PermissionExpansionMiddleware middleware = new PermissionExpansionMiddleware(_ => Task.CompletedTask);
+        PermissionExpansionMiddleware middleware = new(_ => Task.CompletedTask);
 
         // Act
         await middleware.InvokeAsync(context);
@@ -257,13 +259,13 @@ public class PermissionExpansionMiddlewareTests
             new Claim(ClaimTypes.Role, "user")
         };
 
-        ClaimsIdentity identity = new ClaimsIdentity(claims, "Bearer");
-        DefaultHttpContext context = new DefaultHttpContext
+        ClaimsIdentity identity = new(claims, "Bearer");
+        DefaultHttpContext context = new()
         {
             User = new ClaimsPrincipal(identity)
         };
 
-        PermissionExpansionMiddleware middleware = new PermissionExpansionMiddleware(_ => Task.CompletedTask);
+        PermissionExpansionMiddleware middleware = new(_ => Task.CompletedTask);
 
         // Act
         await middleware.InvokeAsync(context);
@@ -277,10 +279,10 @@ public class PermissionExpansionMiddlewareTests
     public async Task InvokeAsync_CallsNextMiddleware()
     {
         // Arrange
-        DefaultHttpContext context = new DefaultHttpContext();
+        DefaultHttpContext context = new();
         bool nextCalled = false;
 
-        PermissionExpansionMiddleware middleware = new PermissionExpansionMiddleware(_ =>
+        PermissionExpansionMiddleware middleware = new(_ =>
         {
             nextCalled = true;
             return Task.CompletedTask;

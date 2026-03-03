@@ -297,8 +297,10 @@ public class KeycloakOrganizationServiceGapTests
     private KeycloakOrganizationService CreateService(HttpMessageHandler handler)
     {
         IHttpClientFactory httpClientFactory = Substitute.For<IHttpClientFactory>();
-        HttpClient httpClient = new HttpClient(handler);
-        httpClient.BaseAddress = new Uri("https://keycloak.test/");
+        HttpClient httpClient = new(handler)
+        {
+            BaseAddress = new Uri("https://keycloak.test/")
+        };
         httpClientFactory.CreateClient("KeycloakAdminClient").Returns(httpClient);
 
         _tenantContext.TenantId.Returns(_testTenantId);
@@ -312,9 +314,9 @@ public class KeycloakOrganizationServiceGapTests
 
     private sealed class MockHttpHandler : HttpMessageHandler
     {
-        private readonly Dictionary<string, (HttpStatusCode Status, object? Content, string? LocationHeader)> _routes = new();
-        private readonly HashSet<string> _throwRoutes = new();
-        private readonly HashSet<string> _nullRoutes = new();
+        private readonly Dictionary<string, (HttpStatusCode Status, object? Content, string? LocationHeader)> _routes = [];
+        private readonly HashSet<string> _throwRoutes = [];
+        private readonly HashSet<string> _nullRoutes = [];
 
         public MockHttpHandler WithGet(string path, object content)
         {
@@ -374,7 +376,7 @@ public class KeycloakOrganizationServiceGapTests
 
             if (_routes.TryGetValue(key, out (HttpStatusCode Status, object? Content, string? LocationHeader) route))
             {
-                HttpResponseMessage response = new HttpResponseMessage(route.Status);
+                HttpResponseMessage response = new(route.Status);
                 if (route.Content != null)
                 {
                     response.Content = JsonContent.Create(route.Content);

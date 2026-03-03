@@ -22,7 +22,7 @@ public class UsersControllerTests
         _keycloakAdmin = Substitute.For<IKeycloakAdminService>();
         _controller = new UsersController(_keycloakAdmin);
 
-        ClaimsPrincipal user = new ClaimsPrincipal(new ClaimsIdentity(new[]
+        ClaimsPrincipal user = new(new ClaimsIdentity(new[]
         {
             new Claim(ClaimTypes.NameIdentifier, _userId.ToString()),
             new Claim(ClaimTypes.Email, "test@example.com"),
@@ -44,11 +44,11 @@ public class UsersControllerTests
     [Fact]
     public async Task GetUsers_ReturnsOkWithUserList()
     {
-        List<UserDto> users = new()
-        {
+        List<UserDto> users =
+        [
             new UserDto(Guid.NewGuid(), "a@test.com", "Alice", "Smith", true, _userRole),
             new UserDto(Guid.NewGuid(), "b@test.com", "Bob", "Jones", true, _adminRole)
-        };
+        ];
         _keycloakAdmin.GetUsersAsync(null, 0, 20, Arg.Any<CancellationToken>())
             .Returns(users);
 

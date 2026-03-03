@@ -14,9 +14,9 @@ public class RevokeServiceAccountCommandTests
     {
         // Arrange
         ServiceAccountMetadataId accountId = ServiceAccountMetadataId.New();
-        RevokeServiceAccountCommand command = new RevokeServiceAccountCommand(accountId);
+        RevokeServiceAccountCommand command = new(accountId);
 
-        RevokeServiceAccountHandler handler = new RevokeServiceAccountHandler(_serviceAccountService);
+        RevokeServiceAccountHandler handler = new(_serviceAccountService);
 
         // Act
         Result result = await handler.Handle(command, CancellationToken.None);
@@ -33,8 +33,8 @@ public class RevokeServiceAccountCommandTests
     public async Task Handle_ReturnsSuccessResult()
     {
         // Arrange
-        RevokeServiceAccountCommand command = new RevokeServiceAccountCommand(ServiceAccountMetadataId.New());
-        RevokeServiceAccountHandler handler = new RevokeServiceAccountHandler(_serviceAccountService);
+        RevokeServiceAccountCommand command = new(ServiceAccountMetadataId.New());
+        RevokeServiceAccountHandler handler = new(_serviceAccountService);
 
         // Act
         Result result = await handler.Handle(command, CancellationToken.None);
@@ -47,9 +47,9 @@ public class RevokeServiceAccountCommandTests
     public async Task Handle_PropagatesCancellationToken()
     {
         // Arrange
-        RevokeServiceAccountCommand command = new RevokeServiceAccountCommand(ServiceAccountMetadataId.New());
-        RevokeServiceAccountHandler handler = new RevokeServiceAccountHandler(_serviceAccountService);
-        using CancellationTokenSource cts = new CancellationTokenSource();
+        RevokeServiceAccountCommand command = new(ServiceAccountMetadataId.New());
+        RevokeServiceAccountHandler handler = new(_serviceAccountService);
+        using CancellationTokenSource cts = new();
 
         // Act
         await handler.Handle(command, cts.Token);

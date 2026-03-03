@@ -14,18 +14,18 @@ public class GetApiScopesQueryTests
     public async Task Handle_WithNoCategory_ReturnsAllScopes()
     {
         // Arrange
-        List<ApiScope> scopes = new List<ApiScope>
-        {
+        List<ApiScope> scopes =
+        [
             ApiScope.Create("invoices.read", "Read Invoices", "Billing", "Read invoice data"),
             ApiScope.Create("payments.write", "Write Payments", "Billing", "Create payments"),
             ApiScope.Create("users.read", "Read Users", "Identity", "Read user data")
-        };
+        ];
 
         _apiScopeRepository.GetAllAsync(null, Arg.Any<CancellationToken>())
             .Returns(scopes);
 
-        GetApiScopesQuery query = new GetApiScopesQuery();
-        GetApiScopesHandler handler = new GetApiScopesHandler(_apiScopeRepository);
+        GetApiScopesQuery query = new();
+        GetApiScopesHandler handler = new(_apiScopeRepository);
 
         // Act
         Result<IReadOnlyList<ApiScopeDto>> result = await handler.Handle(query, CancellationToken.None);
@@ -44,17 +44,17 @@ public class GetApiScopesQueryTests
     public async Task Handle_WithCategory_PassesCategoryToRepository()
     {
         // Arrange
-        List<ApiScope> billingScopes = new List<ApiScope>
-        {
+        List<ApiScope> billingScopes =
+        [
             ApiScope.Create("invoices.read", "Read Invoices", "Billing"),
             ApiScope.Create("payments.write", "Write Payments", "Billing")
-        };
+        ];
 
         _apiScopeRepository.GetAllAsync("Billing", Arg.Any<CancellationToken>())
             .Returns(billingScopes);
 
-        GetApiScopesQuery query = new GetApiScopesQuery("Billing");
-        GetApiScopesHandler handler = new GetApiScopesHandler(_apiScopeRepository);
+        GetApiScopesQuery query = new("Billing");
+        GetApiScopesHandler handler = new(_apiScopeRepository);
 
         // Act
         Result<IReadOnlyList<ApiScopeDto>> result = await handler.Handle(query, CancellationToken.None);
@@ -81,8 +81,8 @@ public class GetApiScopesQueryTests
         _apiScopeRepository.GetAllAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(new List<ApiScope> { scope });
 
-        GetApiScopesQuery query = new GetApiScopesQuery();
-        GetApiScopesHandler handler = new GetApiScopesHandler(_apiScopeRepository);
+        GetApiScopesQuery query = new();
+        GetApiScopesHandler handler = new(_apiScopeRepository);
 
         // Act
         Result<IReadOnlyList<ApiScopeDto>> result = await handler.Handle(query, CancellationToken.None);
@@ -104,8 +104,8 @@ public class GetApiScopesQueryTests
         _apiScopeRepository.GetAllAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(new List<ApiScope>());
 
-        GetApiScopesQuery query = new GetApiScopesQuery();
-        GetApiScopesHandler handler = new GetApiScopesHandler(_apiScopeRepository);
+        GetApiScopesQuery query = new();
+        GetApiScopesHandler handler = new(_apiScopeRepository);
 
         // Act
         Result<IReadOnlyList<ApiScopeDto>> result = await handler.Handle(query, CancellationToken.None);
@@ -119,12 +119,12 @@ public class GetApiScopesQueryTests
     public async Task Handle_PropagatesCancellationToken()
     {
         // Arrange
-        using CancellationTokenSource cts = new CancellationTokenSource();
+        using CancellationTokenSource cts = new();
         _apiScopeRepository.GetAllAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(new List<ApiScope>());
 
-        GetApiScopesQuery query = new GetApiScopesQuery();
-        GetApiScopesHandler handler = new GetApiScopesHandler(_apiScopeRepository);
+        GetApiScopesQuery query = new();
+        GetApiScopesHandler handler = new(_apiScopeRepository);
 
         // Act
         await handler.Handle(query, cts.Token);

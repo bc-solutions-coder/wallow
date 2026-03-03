@@ -24,7 +24,7 @@ public class ApiKeysControllerScopeValidationTests
 
         _controller = new ApiKeysController(apiKeyService, tenantContext, currentUserService);
 
-        ClaimsPrincipal user = new ClaimsPrincipal(new ClaimsIdentity(new[]
+        ClaimsPrincipal user = new(new ClaimsIdentity(new[]
         {
             new Claim(ClaimTypes.NameIdentifier, _userId.ToString())
         }, "TestAuth"));
@@ -42,7 +42,7 @@ public class ApiKeysControllerScopeValidationTests
     [Fact]
     public async Task CreateApiKey_WithInvalidScopes_ReturnsBadRequest()
     {
-        List<string> invalidScopes = new() { "invalid.scope", "also.bad" };
+        List<string> invalidScopes = ["invalid.scope", "also.bad"];
         CreateApiKeyRequest request = new("Test Key", invalidScopes);
 
         IActionResult result = await _controller.CreateApiKey(request, CancellationToken.None);
@@ -57,7 +57,7 @@ public class ApiKeysControllerScopeValidationTests
     [Fact]
     public async Task CreateApiKey_WithMixOfValidAndInvalidScopes_ReturnsBadRequest()
     {
-        List<string> scopes = new() { "invoices.read", "bad.scope" };
+        List<string> scopes = ["invoices.read", "bad.scope"];
         CreateApiKeyRequest request = new("Test Key", scopes);
 
         IActionResult result = await _controller.CreateApiKey(request, CancellationToken.None);
@@ -71,15 +71,15 @@ public class ApiKeysControllerScopeValidationTests
     [Fact]
     public async Task CreateApiKey_WithAllValidScopes_DoesNotReturnBadRequestForScopes()
     {
-        List<string> allValid = new()
-        {
+        List<string> allValid =
+        [
             "invoices.read", "invoices.write",
             "payments.read", "payments.write",
             "subscriptions.read", "subscriptions.write",
             "users.read", "users.write",
             "notifications.read", "notifications.write",
             "webhooks.manage"
-        };
+        ];
         CreateApiKeyRequest request = new("Test Key", allValid);
 
         IActionResult result = await _controller.CreateApiKey(request, CancellationToken.None);

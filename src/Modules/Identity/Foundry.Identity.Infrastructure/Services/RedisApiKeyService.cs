@@ -48,7 +48,7 @@ public sealed partial class RedisApiKeyService : IApiKeyService
             // Hash the key for storage (we never store the raw key)
             string keyHash = HashApiKey(apiKey);
 
-            ApiKeyData metadata = new ApiKeyData
+            ApiKeyData metadata = new()
             {
                 KeyId = keyId,
                 Name = name,
@@ -186,7 +186,7 @@ public sealed partial class RedisApiKeyService : IApiKeyService
             IDatabase db = _redis.GetDatabase();
             RedisValue[] keyIds = await db.SetMembersAsync($"{UserKeysPrefix}{userId}");
 
-            List<ApiKeyMetadata> results = new List<ApiKeyMetadata>();
+            List<ApiKeyMetadata> results = [];
             foreach (RedisValue keyId in keyIds)
             {
                 RedisValue json = await db.StringGetAsync($"{KeyPrefix}id:{keyId}");

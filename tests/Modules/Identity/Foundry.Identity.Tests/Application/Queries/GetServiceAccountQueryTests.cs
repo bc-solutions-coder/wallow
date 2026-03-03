@@ -17,7 +17,7 @@ public class GetServiceAccountQueryTests
     public async Task Handle_WithExistingAccount_ReturnsAccount()
     {
         ServiceAccountMetadataId accountId = ServiceAccountMetadataId.New();
-        ServiceAccountDto expectedDto = new ServiceAccountDto(
+        ServiceAccountDto expectedDto = new(
             accountId,
             "sa-client-1",
             "Account 1",
@@ -30,8 +30,8 @@ public class GetServiceAccountQueryTests
         _serviceAccountService.GetAsync(accountId, Arg.Any<CancellationToken>())
             .Returns(expectedDto);
 
-        GetServiceAccountQuery query = new GetServiceAccountQuery(accountId);
-        GetServiceAccountHandler handler = new GetServiceAccountHandler(_serviceAccountService);
+        GetServiceAccountQuery query = new(accountId);
+        GetServiceAccountHandler handler = new(_serviceAccountService);
 
         Result<ServiceAccountDto?> result = await handler.Handle(query, CancellationToken.None);
 
@@ -48,8 +48,8 @@ public class GetServiceAccountQueryTests
         _serviceAccountService.GetAsync(accountId, Arg.Any<CancellationToken>())
             .Returns((ServiceAccountDto?)null);
 
-        GetServiceAccountQuery query = new GetServiceAccountQuery(accountId);
-        GetServiceAccountHandler handler = new GetServiceAccountHandler(_serviceAccountService);
+        GetServiceAccountQuery query = new(accountId);
+        GetServiceAccountHandler handler = new(_serviceAccountService);
 
         Result<ServiceAccountDto?> result = await handler.Handle(query, CancellationToken.None);
 
@@ -61,13 +61,13 @@ public class GetServiceAccountQueryTests
     public async Task Handle_PropagatesCancellationToken()
     {
         ServiceAccountMetadataId accountId = ServiceAccountMetadataId.New();
-        using CancellationTokenSource cts = new CancellationTokenSource();
+        using CancellationTokenSource cts = new();
 
         _serviceAccountService.GetAsync(Arg.Any<ServiceAccountMetadataId>(), Arg.Any<CancellationToken>())
             .Returns((ServiceAccountDto?)null);
 
-        GetServiceAccountQuery query = new GetServiceAccountQuery(accountId);
-        GetServiceAccountHandler handler = new GetServiceAccountHandler(_serviceAccountService);
+        GetServiceAccountQuery query = new(accountId);
+        GetServiceAccountHandler handler = new(_serviceAccountService);
 
         await handler.Handle(query, cts.Token);
 

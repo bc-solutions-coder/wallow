@@ -43,7 +43,7 @@ public sealed partial class KeycloakAdminService : IKeycloakAdminService
     {
         LogCreatingUser(email);
 
-        UserRepresentation userRepresentation = new UserRepresentation
+        UserRepresentation userRepresentation = new()
         {
             Email = email,
             FirstName = firstName,
@@ -180,7 +180,7 @@ public sealed partial class KeycloakAdminService : IKeycloakAdminService
 
             IReadOnlyList<string>[] allRoles = await Task.WhenAll(roleTasks);
 
-            List<UserDto> userDtos = new List<UserDto>(validUsers.Count);
+            List<UserDto> userDtos = new(validUsers.Count);
             for (int i = 0; i < validUsers.Count; i++)
             {
                 UserRepresentation user = validUsers[i];
@@ -271,7 +271,7 @@ public sealed partial class KeycloakAdminService : IKeycloakAdminService
             return;
         }
 
-        using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Delete, $"/admin/realms/{Realm}/users/{userId}/role-mappings/realm")
+        using HttpRequestMessage request = new(HttpMethod.Delete, $"/admin/realms/{Realm}/users/{userId}/role-mappings/realm")
         {
             Content = JsonContent.Create(new[] { role })
         };

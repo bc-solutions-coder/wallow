@@ -63,11 +63,13 @@ public class ServiceAccountTrackingMiddlewareTests
     public async Task InvokeAsync_WithNoAzpClaim_DoesNotTrack()
     {
         // Arrange
-        DefaultHttpContext context = new DefaultHttpContext();
-        context.User = new ClaimsPrincipal(new ClaimsIdentity()); // No claims
+        DefaultHttpContext context = new()
+        {
+            User = new ClaimsPrincipal(new ClaimsIdentity()) // No claims
+        };
         context.Response.StatusCode = 200;
 
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = new();
         services.AddScoped<IServiceAccountRepository>(_ => _repository);
         context.RequestServices = services.BuildServiceProvider();
 
@@ -160,14 +162,16 @@ public class ServiceAccountTrackingMiddlewareTests
 
     private DefaultHttpContext CreateHttpContext(string clientId, int statusCode)
     {
-        DefaultHttpContext context = new DefaultHttpContext();
-        context.User = new ClaimsPrincipal(new ClaimsIdentity(new[]
+        DefaultHttpContext context = new()
         {
-            new Claim("azp", clientId)
-        }));
+            User = new ClaimsPrincipal(new ClaimsIdentity(new[]
+            {
+                new Claim("azp", clientId)
+            }))
+        };
         context.Response.StatusCode = statusCode;
 
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = new();
         services.AddScoped<IServiceAccountRepository>(_ => _repository);
         context.RequestServices = services.BuildServiceProvider();
 

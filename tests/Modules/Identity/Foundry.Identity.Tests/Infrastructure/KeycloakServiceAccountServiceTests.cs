@@ -32,11 +32,11 @@ public class KeycloakServiceAccountServiceTests
     public async Task ListAsync_ReturnsAllTenantServiceAccounts()
     {
         // Arrange
-        List<ServiceAccountMetadata> accounts = new List<ServiceAccountMetadata>
-        {
+        List<ServiceAccountMetadata> accounts =
+        [
             ServiceAccountMetadata.Create(_testTenantId, "sa-client-1", "Account 1", null, Array.Empty<string>(), Guid.Empty),
             ServiceAccountMetadata.Create(_testTenantId, "sa-client-2", "Account 2", "Description", _oneScope, Guid.Empty)
-        };
+        ];
 
         _repository.GetAllAsync(Arg.Any<CancellationToken>()).Returns(accounts);
 
@@ -180,7 +180,7 @@ public class KeycloakServiceAccountServiceTests
             CancellationToken cancellationToken)
         {
             // Return a basic success response for any request
-            HttpResponseMessage response = new HttpResponseMessage(HttpStatusCode.OK)
+            HttpResponseMessage response = new(HttpStatusCode.OK)
             {
                 Content = JsonContent.Create(new { id = Guid.NewGuid().ToString(), value = "test-secret" })
             };

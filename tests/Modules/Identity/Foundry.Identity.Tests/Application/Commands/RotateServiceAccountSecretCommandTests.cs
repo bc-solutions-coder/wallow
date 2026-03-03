@@ -15,9 +15,9 @@ public class RotateServiceAccountSecretCommandTests
     {
         // Arrange
         ServiceAccountMetadataId accountId = ServiceAccountMetadataId.New();
-        RotateServiceAccountSecretCommand command = new RotateServiceAccountSecretCommand(accountId);
+        RotateServiceAccountSecretCommand command = new(accountId);
 
-        SecretRotatedResult expectedResult = new SecretRotatedResult(
+        SecretRotatedResult expectedResult = new(
             "new-secret-123",
             DateTime.UtcNow);
 
@@ -25,7 +25,7 @@ public class RotateServiceAccountSecretCommandTests
             .RotateSecretAsync(Arg.Any<ServiceAccountMetadataId>(), Arg.Any<CancellationToken>())
             .Returns(expectedResult);
 
-        RotateServiceAccountSecretHandler handler = new RotateServiceAccountSecretHandler(_serviceAccountService);
+        RotateServiceAccountSecretHandler handler = new(_serviceAccountService);
 
         // Act
         Result<SecretRotatedResult> result = await handler.Handle(command, CancellationToken.None);
@@ -43,7 +43,7 @@ public class RotateServiceAccountSecretCommandTests
     public async Task Handle_ReturnsSecretRotatedResult()
     {
         // Arrange
-        RotateServiceAccountSecretCommand command = new RotateServiceAccountSecretCommand(ServiceAccountMetadataId.New());
+        RotateServiceAccountSecretCommand command = new(ServiceAccountMetadataId.New());
         string newSecret = "rotated-secret-xyz";
         DateTime rotatedAt = DateTime.UtcNow;
 
@@ -51,7 +51,7 @@ public class RotateServiceAccountSecretCommandTests
             .RotateSecretAsync(Arg.Any<ServiceAccountMetadataId>(), Arg.Any<CancellationToken>())
             .Returns(new SecretRotatedResult(newSecret, rotatedAt));
 
-        RotateServiceAccountSecretHandler handler = new RotateServiceAccountSecretHandler(_serviceAccountService);
+        RotateServiceAccountSecretHandler handler = new(_serviceAccountService);
 
         // Act
         Result<SecretRotatedResult> result = await handler.Handle(command, CancellationToken.None);

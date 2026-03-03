@@ -436,11 +436,13 @@ public class KeycloakIdpServiceTests
     {
         IHttpClientFactory httpClientFactory = Substitute.For<IHttpClientFactory>();
 
-        HttpClient keycloakClient = new HttpClient(handler);
-        keycloakClient.BaseAddress = new Uri("https://keycloak.test/");
+        HttpClient keycloakClient = new(handler)
+        {
+            BaseAddress = new Uri("https://keycloak.test/")
+        };
         httpClientFactory.CreateClient("KeycloakAdminClient").Returns(keycloakClient);
 
-        HttpClient externalClient = new HttpClient(handler);
+        HttpClient externalClient = new(handler);
         httpClientFactory.CreateClient().Returns(externalClient);
 
         return new KeycloakIdpService(httpClientFactory, _logger);
@@ -448,10 +450,10 @@ public class KeycloakIdpServiceTests
 
     private sealed class MockHttpHandler : HttpMessageHandler
     {
-        private readonly Dictionary<string, (HttpStatusCode Status, object? Content)> _routes = new();
-        private readonly Dictionary<string, (HttpStatusCode Status, object? Content)> _externalRoutes = new();
-        private readonly HashSet<string> _throwRoutes = new();
-        private readonly HashSet<string> _throwExternalRoutes = new();
+        private readonly Dictionary<string, (HttpStatusCode Status, object? Content)> _routes = [];
+        private readonly Dictionary<string, (HttpStatusCode Status, object? Content)> _externalRoutes = [];
+        private readonly HashSet<string> _throwRoutes = [];
+        private readonly HashSet<string> _throwExternalRoutes = [];
 
         public MockHttpHandler WithGet(string path, HttpStatusCode status, object? content = null)
         {
@@ -512,7 +514,7 @@ public class KeycloakIdpServiceTests
                 string key = $"{request.Method}:{path}";
                 if (_routes.TryGetValue(key, out (HttpStatusCode Status, object? Content) route))
                 {
-                    HttpResponseMessage response = new HttpResponseMessage(route.Status);
+                    HttpResponseMessage response = new(route.Status);
                     if (route.Content != null)
                     {
                         response.Content = JsonContent.Create(route.Content);
@@ -530,7 +532,7 @@ public class KeycloakIdpServiceTests
             string externalKey = $"{request.Method}:{fullUrl}";
             if (_externalRoutes.TryGetValue(externalKey, out (HttpStatusCode Status, object? Content) externalRoute))
             {
-                HttpResponseMessage response = new HttpResponseMessage(externalRoute.Status);
+                HttpResponseMessage response = new(externalRoute.Status);
                 if (externalRoute.Content != null)
                 {
                     response.Content = JsonContent.Create(externalRoute.Content);

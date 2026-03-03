@@ -108,7 +108,7 @@ public class RequestContractTests
     public void CreateApiKeyRequest_WithAllFields_CreatesInstance()
     {
         DateTimeOffset expiresAt = DateTimeOffset.UtcNow.AddDays(30);
-        List<string> scopes = new() { "billing:read", "billing:write" };
+        List<string> scopes = ["billing:read", "billing:write"];
         CreateApiKeyRequest request = new("Production Key", scopes, expiresAt);
 
         request.Name.Should().Be("Production Key");

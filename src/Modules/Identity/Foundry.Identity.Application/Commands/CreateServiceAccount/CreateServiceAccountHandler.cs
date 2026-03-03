@@ -10,7 +10,7 @@ public sealed class CreateServiceAccountHandler(IServiceAccountService serviceAc
         CreateServiceAccountCommand command,
         CancellationToken ct)
     {
-        CreateServiceAccountRequest request = new CreateServiceAccountRequest(
+        CreateServiceAccountRequest request = new(
             command.Name,
             command.Description,
             command.Scopes);

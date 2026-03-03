@@ -30,7 +30,7 @@ public class ApiKeysControllerTests
 
         _controller = new ApiKeysController(_apiKeyService, _tenantContext, _currentUserService);
 
-        ClaimsPrincipal user = new ClaimsPrincipal(new ClaimsIdentity(new[]
+        ClaimsPrincipal user = new(new ClaimsIdentity(new[]
         {
             new Claim(ClaimTypes.NameIdentifier, _userId.ToString())
         }, "TestAuth"));
@@ -142,11 +142,11 @@ public class ApiKeysControllerTests
     public async Task ListApiKeys_ReturnsOkWithApiKeys()
     {
         DateTimeOffset now = DateTimeOffset.UtcNow;
-        List<ApiKeyMetadata> keys = new()
-        {
+        List<ApiKeyMetadata> keys =
+        [
             new ApiKeyMetadata("key-1", "Prod Key", "fnd_prod", _userId, _tenantId,
                 _billingReadScope, now, now.AddDays(30), now.AddHours(-1))
-        };
+        ];
         _apiKeyService.ListApiKeysAsync(_userId, Arg.Any<CancellationToken>())
             .Returns(keys);
 
@@ -183,11 +183,11 @@ public class ApiKeysControllerTests
         DateTimeOffset created = DateTimeOffset.UtcNow.AddDays(-7);
         DateTimeOffset expires = DateTimeOffset.UtcNow.AddDays(23);
         DateTimeOffset lastUsed = DateTimeOffset.UtcNow.AddHours(-2);
-        List<ApiKeyMetadata> keys = new()
-        {
+        List<ApiKeyMetadata> keys =
+        [
             new ApiKeyMetadata("k1", "Key", "pfx", _userId, _tenantId,
                 _twoScopes, created, expires, lastUsed)
-        };
+        ];
         _apiKeyService.ListApiKeysAsync(_userId, Arg.Any<CancellationToken>()).Returns(keys);
 
         IActionResult result = await _controller.ListApiKeys(CancellationToken.None);

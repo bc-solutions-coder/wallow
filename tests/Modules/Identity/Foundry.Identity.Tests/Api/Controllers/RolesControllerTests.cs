@@ -25,14 +25,14 @@ public class RolesControllerTests
     [Fact]
     public async Task GetRoles_WithValidResponse_ReturnsFilteredRoles()
     {
-        List<object> keycloakRoles = new()
-        {
+        List<object> keycloakRoles =
+        [
             new { Name = "admin", Description = "Admin role" },
             new { Name = "user", Description = "User role" },
             new { Name = "uma_protection", Description = "UMA" },
             new { Name = "offline_access", Description = "Offline" },
             new { Name = "default-roles-foundry", Description = "Default" }
-        };
+        ];
         HttpResponseMessage response = new(HttpStatusCode.OK)
         {
             Content = JsonContent.Create(keycloakRoles)

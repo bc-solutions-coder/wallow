@@ -14,7 +14,7 @@ public class UpdateServiceAccountScopesValidatorTests
     [Fact]
     public void Validate_WithValidScopes_ShouldPass()
     {
-        UpdateServiceAccountScopesCommand command = new UpdateServiceAccountScopesCommand(
+        UpdateServiceAccountScopesCommand command = new(
             ServiceAccountMetadataId.New(), _twoScopes);
 
         TestValidationResult<UpdateServiceAccountScopesCommand> result = _validator.TestValidate(command);
@@ -25,7 +25,7 @@ public class UpdateServiceAccountScopesValidatorTests
     [Fact]
     public void Validate_WithEmptyScopes_ShouldFail()
     {
-        UpdateServiceAccountScopesCommand command = new UpdateServiceAccountScopesCommand(
+        UpdateServiceAccountScopesCommand command = new(
             ServiceAccountMetadataId.New(),
             Array.Empty<string>());
 
@@ -38,7 +38,7 @@ public class UpdateServiceAccountScopesValidatorTests
     [Fact]
     public void Validate_WithSingleScope_ShouldPass()
     {
-        UpdateServiceAccountScopesCommand command = new UpdateServiceAccountScopesCommand(
+        UpdateServiceAccountScopesCommand command = new(
             ServiceAccountMetadataId.New(), _oneScope);
 
         TestValidationResult<UpdateServiceAccountScopesCommand> result = _validator.TestValidate(command);

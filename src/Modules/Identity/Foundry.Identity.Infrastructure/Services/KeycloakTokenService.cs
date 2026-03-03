@@ -35,7 +35,7 @@ public sealed partial class KeycloakTokenService : ITokenService
 
         string tokenEndpoint = $"{AuthServerUrl.TrimEnd('/')}/realms/{Realm}/protocol/openid-connect/token";
 
-        using FormUrlEncodedContent content = new FormUrlEncodedContent(new Dictionary<string, string>
+        using FormUrlEncodedContent content = new(new Dictionary<string, string>
         {
             ["grant_type"] = "password",
             ["client_id"] = ClientId,
@@ -81,7 +81,7 @@ public sealed partial class KeycloakTokenService : ITokenService
 
         string tokenEndpoint = $"{AuthServerUrl.TrimEnd('/')}/realms/{Realm}/protocol/openid-connect/token";
 
-        using FormUrlEncodedContent content = new FormUrlEncodedContent(new Dictionary<string, string>
+        using FormUrlEncodedContent content = new(new Dictionary<string, string>
         {
             ["grant_type"] = "refresh_token",
             ["client_id"] = ClientId,

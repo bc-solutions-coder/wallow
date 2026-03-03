@@ -349,8 +349,8 @@ ZXN0IENlcnRpZmljYXRlIFBUeSBMdGQwDQYJKoZIhvcNAQELBQADggEBAF2MqQ==";
 public class SsoConfigurationTestFactory : FoundryApiFactory
 {
     private WireMockServer? _keycloakMock;
-    private readonly List<JsonElement> _createdIdps = new();
-    private readonly List<JsonElement> _updatedIdps = new();
+    private readonly List<JsonElement> _createdIdps = [];
+    private readonly List<JsonElement> _updatedIdps = [];
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {

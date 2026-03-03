@@ -17,8 +17,8 @@ public class ApiKeyAuthenticationMiddlewareTests
     public async Task InvokeAsync_NoApiKeyHeader_CallsNext()
     {
         ApiKeyAuthenticationMiddleware middleware = CreateMiddleware();
-        DefaultHttpContext context = new DefaultHttpContext();
-        TenantContext tenantContext = new TenantContext();
+        DefaultHttpContext context = new();
+        TenantContext tenantContext = new();
 
         await middleware.InvokeAsync(context, _apiKeyService, tenantContext);
 
@@ -29,9 +29,9 @@ public class ApiKeyAuthenticationMiddlewareTests
     public async Task InvokeAsync_EmptyApiKeyHeader_CallsNext()
     {
         ApiKeyAuthenticationMiddleware middleware = CreateMiddleware();
-        DefaultHttpContext context = new DefaultHttpContext();
+        DefaultHttpContext context = new();
         context.Request.Headers["X-Api-Key"] = "";
-        TenantContext tenantContext = new TenantContext();
+        TenantContext tenantContext = new();
 
         await middleware.InvokeAsync(context, _apiKeyService, tenantContext);
 
@@ -42,10 +42,10 @@ public class ApiKeyAuthenticationMiddlewareTests
     public async Task InvokeAsync_InvalidApiKey_Returns401()
     {
         ApiKeyAuthenticationMiddleware middleware = CreateMiddleware();
-        DefaultHttpContext context = new DefaultHttpContext();
+        DefaultHttpContext context = new();
         context.Response.Body = new MemoryStream();
         context.Request.Headers["X-Api-Key"] = "sk_live_invalid";
-        TenantContext tenantContext = new TenantContext();
+        TenantContext tenantContext = new();
 
         _apiKeyService.ValidateApiKeyAsync("sk_live_invalid", Arg.Any<CancellationToken>())
             .Returns(new ApiKeyValidationResult(false, null, null, null, null, "Invalid API key"));
@@ -60,13 +60,13 @@ public class ApiKeyAuthenticationMiddlewareTests
     public async Task InvokeAsync_ValidApiKey_SetsUserAndTenant()
     {
         ApiKeyAuthenticationMiddleware middleware = CreateMiddleware();
-        DefaultHttpContext context = new DefaultHttpContext();
+        DefaultHttpContext context = new();
         context.Request.Headers["X-Api-Key"] = "sk_live_validkey";
-        TenantContext tenantContext = new TenantContext();
+        TenantContext tenantContext = new();
 
         Guid userId = Guid.NewGuid();
         Guid tenantId = Guid.NewGuid();
-        List<string> scopes = new List<string> { "invoices.read", "users.read" };
+        List<string> scopes = ["invoices.read", "users.read"];
 
         _apiKeyService.ValidateApiKeyAsync("sk_live_validkey", Arg.Any<CancellationToken>())
             .Returns(new ApiKeyValidationResult(true, "key-id-1", userId, tenantId, scopes, null));
@@ -87,9 +87,9 @@ public class ApiKeyAuthenticationMiddlewareTests
     public async Task InvokeAsync_ValidApiKeyNoScopes_SetsUserWithoutScopeClaims()
     {
         ApiKeyAuthenticationMiddleware middleware = CreateMiddleware();
-        DefaultHttpContext context = new DefaultHttpContext();
+        DefaultHttpContext context = new();
         context.Request.Headers["X-Api-Key"] = "sk_live_noscopes";
-        TenantContext tenantContext = new TenantContext();
+        TenantContext tenantContext = new();
 
         Guid userId = Guid.NewGuid();
         Guid tenantId = Guid.NewGuid();

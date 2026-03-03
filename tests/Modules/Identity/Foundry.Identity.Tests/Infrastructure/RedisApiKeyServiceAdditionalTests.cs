@@ -45,7 +45,7 @@ public class RedisApiKeyServiceAdditionalTests
                 Arg.Any<bool>(), Arg.Any<When>(), Arg.Any<CommandFlags>())
             .Returns(true);
 
-        RedisApiKeyService service = new RedisApiKeyService(_redis, _logger);
+        RedisApiKeyService service = new(_redis, _logger);
 
         ApiKeyValidationResult result = await service.ValidateApiKeyAsync("sk_live_somekeydata123456");
 
@@ -79,7 +79,7 @@ public class RedisApiKeyServiceAdditionalTests
         _db.StringGetAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
             .Returns((RedisValue)keyJson);
 
-        RedisApiKeyService service = new RedisApiKeyService(_redis, _logger);
+        RedisApiKeyService service = new(_redis, _logger);
 
         ApiKeyValidationResult result = await service.ValidateApiKeyAsync("sk_live_somekeydata123456");
 
@@ -94,7 +94,7 @@ public class RedisApiKeyServiceAdditionalTests
         _db.StringGetAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
             .Returns((RedisValue)"not-valid-json{{{");
 
-        RedisApiKeyService service = new RedisApiKeyService(_redis, _logger);
+        RedisApiKeyService service = new(_redis, _logger);
 
         ApiKeyValidationResult result = await service.ValidateApiKeyAsync("sk_live_somekeydata123456");
 
@@ -108,7 +108,7 @@ public class RedisApiKeyServiceAdditionalTests
         _db.StringGetAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
             .Returns((RedisValue)"null");
 
-        RedisApiKeyService service = new RedisApiKeyService(_redis, _logger);
+        RedisApiKeyService service = new(_redis, _logger);
 
         ApiKeyValidationResult result = await service.ValidateApiKeyAsync("sk_live_somekeydata123456");
 
@@ -143,7 +143,7 @@ public class RedisApiKeyServiceAdditionalTests
                 Arg.Any<bool>(), Arg.Any<When>(), Arg.Any<CommandFlags>())
             .Returns(true);
 
-        RedisApiKeyService service = new RedisApiKeyService(_redis, _logger);
+        RedisApiKeyService service = new(_redis, _logger);
 
         ApiKeyValidationResult result = await service.ValidateApiKeyAsync("sk_live_somekeydata123456");
 

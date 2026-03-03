@@ -168,8 +168,8 @@ public sealed partial class ScimGroupService
 
         List<ScimKeycloakGroupRepresentation>? groups = await response.Content.ReadFromJsonAsync<List<ScimKeycloakGroupRepresentation>>(ct);
 
-        List<ScimGroup> scimGroups = new List<ScimGroup>();
-        foreach (ScimKeycloakGroupRepresentation group in groups ?? new List<ScimKeycloakGroupRepresentation>())
+        List<ScimGroup> scimGroups = [];
+        foreach (ScimKeycloakGroupRepresentation group in groups ?? [])
         {
             if (group.Id != null)
             {
@@ -242,15 +242,15 @@ public sealed partial class ScimGroupService
             HttpResponseMessage response = await _httpClient.GetAsync($"/admin/realms/{Realm}/groups/{groupId}/members", ct);
             if (!response.IsSuccessStatusCode)
             {
-                return new List<string>();
+                return [];
             }
 
             List<ScimKeycloakUserRepresentation>? members = await response.Content.ReadFromJsonAsync<List<ScimKeycloakUserRepresentation>>(ct);
-            return members?.Select(m => m.Id ?? "").Where(id => !string.IsNullOrEmpty(id)).ToList() ?? new List<string>();
+            return members?.Select(m => m.Id ?? "").Where(id => !string.IsNullOrEmpty(id)).ToList() ?? [];
         }
         catch
         {
-            return new List<string>();
+            return [];
         }
     }
 

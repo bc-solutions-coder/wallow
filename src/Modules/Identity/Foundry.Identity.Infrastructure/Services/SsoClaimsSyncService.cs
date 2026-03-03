@@ -112,7 +112,7 @@ public sealed partial class SsoClaimsSyncService
             return [];
         }
 
-        List<string> groups = new List<string>();
+        List<string> groups = [];
         foreach (string value in groupValues)
         {
             if (string.IsNullOrWhiteSpace(value))
@@ -187,7 +187,7 @@ public sealed partial class SsoClaimsSyncService
             targetRoles.Add(defaultRole);
         }
 
-        HashSet<string> preservedRoles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        HashSet<string> preservedRoles = new(StringComparer.OrdinalIgnoreCase)
         {
             "default-roles-foundry",
             "offline_access",
@@ -278,7 +278,7 @@ public sealed partial class SsoClaimsSyncService
                 return;
             }
 
-            using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Delete, $"/admin/realms/{Realm}/users/{userId}/role-mappings/realm")
+            using HttpRequestMessage request = new(HttpMethod.Delete, $"/admin/realms/{Realm}/users/{userId}/role-mappings/realm")
             {
                 Content = JsonContent.Create(new[] { role })
             };

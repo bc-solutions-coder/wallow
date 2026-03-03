@@ -7,7 +7,7 @@ public class PermissionRequirementTests
     [Fact]
     public void Constructor_SetsPermission()
     {
-        PermissionRequirement requirement = new PermissionRequirement("UsersRead");
+        PermissionRequirement requirement = new("UsersRead");
 
         requirement.Permission.Should().Be("UsersRead");
     }

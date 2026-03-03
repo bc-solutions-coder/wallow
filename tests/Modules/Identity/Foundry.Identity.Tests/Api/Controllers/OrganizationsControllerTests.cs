@@ -21,7 +21,7 @@ public class OrganizationsControllerTests
         _orgService = Substitute.For<IKeycloakOrganizationService>();
         _controller = new OrganizationsController(_orgService);
 
-        ClaimsPrincipal user = new ClaimsPrincipal(new ClaimsIdentity(new[]
+        ClaimsPrincipal user = new(new ClaimsIdentity(new[]
         {
             new Claim(ClaimTypes.NameIdentifier, _userId.ToString())
         }, "TestAuth"));
@@ -70,11 +70,11 @@ public class OrganizationsControllerTests
     [Fact]
     public async Task GetAll_ReturnsOkWithOrganizations()
     {
-        List<OrganizationDto> orgs = new()
-        {
+        List<OrganizationDto> orgs =
+        [
             new OrganizationDto(Guid.NewGuid(), "Org A", "org-a.com", 5),
             new OrganizationDto(Guid.NewGuid(), "Org B", null, 3)
-        };
+        ];
         _orgService.GetOrganizationsAsync(null, 0, 20, Arg.Any<CancellationToken>())
             .Returns(orgs);
 
@@ -136,10 +136,10 @@ public class OrganizationsControllerTests
     public async Task GetMembers_ReturnsOkWithMemberList()
     {
         Guid orgId = Guid.NewGuid();
-        List<UserDto> members = new()
-        {
+        List<UserDto> members =
+        [
             new UserDto(Guid.NewGuid(), "a@test.com", "Alice", "Smith", true, _userRole)
-        };
+        ];
         _orgService.GetMembersAsync(orgId, Arg.Any<CancellationToken>())
             .Returns(members);
 
@@ -190,10 +190,10 @@ public class OrganizationsControllerTests
     [Fact]
     public async Task GetMyOrganizations_ReturnsOkWithCurrentUserOrgs()
     {
-        List<OrganizationDto> orgs = new()
-        {
+        List<OrganizationDto> orgs =
+        [
             new OrganizationDto(Guid.NewGuid(), "My Org", null, 5)
-        };
+        ];
         _orgService.GetUserOrganizationsAsync(_userId, Arg.Any<CancellationToken>())
             .Returns(orgs);
 

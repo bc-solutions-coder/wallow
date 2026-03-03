@@ -25,7 +25,7 @@ public sealed class ScimToKeycloakTranslator
 
         IReadOnlyList<ScimToken> tokens = _lexer.Tokenize(filter);
         ScimFilterNode ast = _parser.Parse(tokens);
-        ScimToKeycloakVisitor visitor = new ScimToKeycloakVisitor();
+        ScimToKeycloakVisitor visitor = new();
         return ast.Accept(visitor);
     }
 

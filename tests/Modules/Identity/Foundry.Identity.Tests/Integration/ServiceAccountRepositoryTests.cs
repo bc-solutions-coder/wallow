@@ -71,7 +71,7 @@ public sealed class ServiceAccountRepositoryTests : DbContextIntegrationTestBase
         TenantId otherTenantId = TenantId.New();
         await using IdentityDbContext otherDbContext = CreateDbContextForTenant(otherTenantId);
 
-        ServiceAccountRepository otherRepository = new ServiceAccountRepository(otherDbContext);
+        ServiceAccountRepository otherRepository = new(otherDbContext);
 
         ServiceAccountMetadata account = ServiceAccountMetadata.Create(
             otherTenantId,
@@ -141,7 +141,7 @@ public sealed class ServiceAccountRepositoryTests : DbContextIntegrationTestBase
         TenantId otherTenantId = TenantId.New();
         await using IdentityDbContext otherDbContext = CreateDbContextForTenant(otherTenantId);
 
-        ServiceAccountRepository otherRepository = new ServiceAccountRepository(otherDbContext);
+        ServiceAccountRepository otherRepository = new(otherDbContext);
 
         ServiceAccountMetadata account2 = ServiceAccountMetadata.Create(otherTenantId, "tenant2-client", "Tenant 2", "Description", ["scope:read"], Guid.NewGuid());
         otherRepository.Add(account2);

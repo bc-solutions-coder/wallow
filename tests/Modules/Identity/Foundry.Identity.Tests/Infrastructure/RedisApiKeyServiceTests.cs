@@ -33,7 +33,7 @@ public class RedisApiKeyServiceTests
         _db.SetAddAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<CommandFlags>())
             .Returns(true);
 
-        RedisApiKeyService service = new RedisApiKeyService(_redis, _logger);
+        RedisApiKeyService service = new(_redis, _logger);
 
         ApiKeyCreateResult result = await service.CreateApiKeyAsync(
             "Test Key", userId, tenantId, _invoicesReadScope);
@@ -67,7 +67,7 @@ public class RedisApiKeyServiceTests
         _db.SetAddAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<CommandFlags>())
             .Returns(true);
 
-        RedisApiKeyService service = new RedisApiKeyService(_redis, _logger);
+        RedisApiKeyService service = new(_redis, _logger);
 
         ApiKeyCreateResult result = await service.CreateApiKeyAsync(
             "Expiring Key", userId, tenantId, null, expiresAt);
@@ -86,7 +86,7 @@ public class RedisApiKeyServiceTests
                 Arg.Any<bool>(), Arg.Any<When>(), Arg.Any<CommandFlags>())
             .Throws(new RedisException("Connection lost"));
 
-        RedisApiKeyService service = new RedisApiKeyService(_redis, _logger);
+        RedisApiKeyService service = new(_redis, _logger);
 
         ApiKeyCreateResult result = await service.CreateApiKeyAsync(
             "Test Key", userId, tenantId);
@@ -98,7 +98,7 @@ public class RedisApiKeyServiceTests
     [Fact]
     public async Task ValidateApiKeyAsync_NullOrEmpty_ReturnsInvalid()
     {
-        RedisApiKeyService service = new RedisApiKeyService(_redis, _logger);
+        RedisApiKeyService service = new(_redis, _logger);
 
         ApiKeyValidationResult result = await service.ValidateApiKeyAsync("");
 
@@ -109,7 +109,7 @@ public class RedisApiKeyServiceTests
     [Fact]
     public async Task ValidateApiKeyAsync_WrongPrefix_ReturnsInvalid()
     {
-        RedisApiKeyService service = new RedisApiKeyService(_redis, _logger);
+        RedisApiKeyService service = new(_redis, _logger);
 
         ApiKeyValidationResult result = await service.ValidateApiKeyAsync("pk_test_something");
 
@@ -123,7 +123,7 @@ public class RedisApiKeyServiceTests
         _db.StringGetAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
             .Returns(RedisValue.Null);
 
-        RedisApiKeyService service = new RedisApiKeyService(_redis, _logger);
+        RedisApiKeyService service = new(_redis, _logger);
 
         ApiKeyValidationResult result = await service.ValidateApiKeyAsync("sk_live_somekeydata123456");
 
@@ -137,7 +137,7 @@ public class RedisApiKeyServiceTests
         _db.StringGetAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
             .Throws(new RedisException("Connection failed"));
 
-        RedisApiKeyService service = new RedisApiKeyService(_redis, _logger);
+        RedisApiKeyService service = new(_redis, _logger);
 
         ApiKeyValidationResult result = await service.ValidateApiKeyAsync("sk_live_somekeydata123456");
 
@@ -171,7 +171,7 @@ public class RedisApiKeyServiceTests
         _db.StringGetAsync(Arg.Is<RedisKey>(k => k.ToString().Contains("id:key-1")), Arg.Any<CommandFlags>())
             .Returns((RedisValue)keyJson);
 
-        RedisApiKeyService service = new RedisApiKeyService(_redis, _logger);
+        RedisApiKeyService service = new(_redis, _logger);
 
         IReadOnlyList<ApiKeyMetadata> result = await service.ListApiKeysAsync(userId);
 
@@ -188,7 +188,7 @@ public class RedisApiKeyServiceTests
         _db.SetMembersAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
             .Throws(new RedisException("Connection lost"));
 
-        RedisApiKeyService service = new RedisApiKeyService(_redis, _logger);
+        RedisApiKeyService service = new(_redis, _logger);
 
         IReadOnlyList<ApiKeyMetadata> result = await service.ListApiKeysAsync(userId);
 
@@ -206,7 +206,7 @@ public class RedisApiKeyServiceTests
         _db.StringGetAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
             .Returns(RedisValue.Null);
 
-        RedisApiKeyService service = new RedisApiKeyService(_redis, _logger);
+        RedisApiKeyService service = new(_redis, _logger);
 
         IReadOnlyList<ApiKeyMetadata> result = await service.ListApiKeysAsync(userId);
 
@@ -221,7 +221,7 @@ public class RedisApiKeyServiceTests
         _db.StringGetAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
             .Returns(RedisValue.Null);
 
-        RedisApiKeyService service = new RedisApiKeyService(_redis, _logger);
+        RedisApiKeyService service = new(_redis, _logger);
 
         bool result = await service.RevokeApiKeyAsync("nonexistent", userId);
 
@@ -249,7 +249,7 @@ public class RedisApiKeyServiceTests
         _db.StringGetAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
             .Returns((RedisValue)keyJson);
 
-        RedisApiKeyService service = new RedisApiKeyService(_redis, _logger);
+        RedisApiKeyService service = new(_redis, _logger);
 
         bool result = await service.RevokeApiKeyAsync("key-1", userId);
 
@@ -276,7 +276,7 @@ public class RedisApiKeyServiceTests
         _db.StringGetAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
             .Returns((RedisValue)keyJson);
 
-        RedisApiKeyService service = new RedisApiKeyService(_redis, _logger);
+        RedisApiKeyService service = new(_redis, _logger);
 
         bool result = await service.RevokeApiKeyAsync("key-1", userId);
 
@@ -294,7 +294,7 @@ public class RedisApiKeyServiceTests
         _db.StringGetAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
             .Throws(new RedisException("Connection lost"));
 
-        RedisApiKeyService service = new RedisApiKeyService(_redis, _logger);
+        RedisApiKeyService service = new(_redis, _logger);
 
         bool result = await service.RevokeApiKeyAsync("key-1", userId);
 

@@ -53,7 +53,7 @@ public class SsoController : ControllerBase
         [FromBody] ConfigureSamlSsoRequest request,
         CancellationToken ct)
     {
-        SaveSamlConfigRequest saveRequest = new SaveSamlConfigRequest(
+        SaveSamlConfigRequest saveRequest = new(
             request.DisplayName,
             request.EntityId,
             request.SsoUrl,
@@ -84,7 +84,7 @@ public class SsoController : ControllerBase
         [FromBody] ConfigureOidcSsoRequest request,
         CancellationToken ct)
     {
-        SaveOidcConfigRequest saveRequest = new SaveOidcConfigRequest(
+        SaveOidcConfigRequest saveRequest = new(
             request.DisplayName,
             request.Issuer,
             request.ClientId,

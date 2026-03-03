@@ -110,7 +110,7 @@ public class KeycloakSsoServiceGapTests
 
         KeycloakSsoService service = CreateService(handler);
 
-        SaveSamlConfigRequest request = new SaveSamlConfigRequest(
+        SaveSamlConfigRequest request = new(
             DisplayName: "Transient SAML",
             EntityId: "https://idp.test/metadata",
             SsoUrl: "https://idp.test/sso",
@@ -143,7 +143,7 @@ public class KeycloakSsoServiceGapTests
 
         KeycloakSsoService service = CreateService(handler);
 
-        SaveSamlConfigRequest request = new SaveSamlConfigRequest(
+        SaveSamlConfigRequest request = new(
             DisplayName: "Unspecified SAML",
             EntityId: "https://idp.test/metadata",
             SsoUrl: "https://idp.test/sso",
@@ -178,7 +178,7 @@ public class KeycloakSsoServiceGapTests
 
         string pemCert = "-----BEGIN CERTIFICATE-----\nMIICertData\n-----END CERTIFICATE-----";
 
-        SaveSamlConfigRequest request = new SaveSamlConfigRequest(
+        SaveSamlConfigRequest request = new(
             DisplayName: "PEM SAML",
             EntityId: "https://idp.test/metadata",
             SsoUrl: "https://idp.test/sso",
@@ -267,13 +267,13 @@ public class KeycloakSsoServiceGapTests
             AuthServerUrl = "https://keycloak.test"
         });
 
-        SsoClaimsSyncService claimsSyncService = new SsoClaimsSyncService(
+        SsoClaimsSyncService claimsSyncService = new(
             httpClientFactory,
             _repository,
             _tenantContext,
             Substitute.For<ILogger<SsoClaimsSyncService>>());
 
-        KeycloakIdpService idpService = new KeycloakIdpService(
+        KeycloakIdpService idpService = new(
             httpClientFactory,
             Substitute.For<ILogger<KeycloakIdpService>>());
 
@@ -290,9 +290,9 @@ public class KeycloakSsoServiceGapTests
 
     private sealed class MockKeycloakHttpHandler : HttpMessageHandler
     {
-        private readonly Dictionary<string, (HttpStatusCode Status, object? Content)> _keycloakRoutes = new();
-        private readonly Dictionary<string, (HttpStatusCode Status, object? Content)> _externalRoutes = new();
-        private readonly HashSet<string> _throwRoutes = new();
+        private readonly Dictionary<string, (HttpStatusCode Status, object? Content)> _keycloakRoutes = [];
+        private readonly Dictionary<string, (HttpStatusCode Status, object? Content)> _externalRoutes = [];
+        private readonly HashSet<string> _throwRoutes = [];
 
         public MockKeycloakHttpHandler WithKeycloakGet(string path, HttpStatusCode status, object? content = null)
         {
@@ -341,7 +341,7 @@ public class KeycloakSsoServiceGapTests
             {
                 if (_keycloakRoutes.TryGetValue(key, out (HttpStatusCode Status, object? Content) route))
                 {
-                    HttpResponseMessage response = new HttpResponseMessage(route.Status);
+                    HttpResponseMessage response = new(route.Status);
                     if (route.Content != null)
                     {
                         response.Content = JsonContent.Create(route.Content);
@@ -357,7 +357,7 @@ public class KeycloakSsoServiceGapTests
 
             if (_externalRoutes.TryGetValue(fullKey, out (HttpStatusCode Status, object? Content) externalRoute))
             {
-                HttpResponseMessage response = new HttpResponseMessage(externalRoute.Status);
+                HttpResponseMessage response = new(externalRoute.Status);
                 if (externalRoute.Content != null)
                 {
                     response.Content = JsonContent.Create(externalRoute.Content);

@@ -46,7 +46,7 @@ public sealed partial class ScimUserService
         {
             string email = request.Emails?.FirstOrDefault(e => e.Primary)?.Value ?? request.UserName;
 
-            UserRepresentation userRepresentation = new UserRepresentation
+            UserRepresentation userRepresentation = new()
             {
                 Username = request.UserName,
                 Email = email,
@@ -94,7 +94,7 @@ public sealed partial class ScimUserService
         {
             string email = request.Emails?.FirstOrDefault(e => e.Primary)?.Value ?? request.UserName;
 
-            UserRepresentation userRepresentation = new UserRepresentation
+            UserRepresentation userRepresentation = new()
             {
                 Username = request.UserName,
                 Email = email,
@@ -184,7 +184,7 @@ public sealed partial class ScimUserService
             }
             else
             {
-                UserRepresentation disableRequest = new UserRepresentation { Enabled = false };
+                UserRepresentation disableRequest = new() { Enabled = false };
                 HttpResponseMessage response = await _httpClient.PutAsJsonAsync(
                     $"/admin/realms/{Realm}/users/{id}",
                     disableRequest,
@@ -233,14 +233,14 @@ public sealed partial class ScimUserService
         int first = Math.Max(0, request.StartIndex - 1);
         int max = Math.Min(request.Count, ScimConstants.MaxPageSize);
 
-        ScimToKeycloakTranslator translator = new ScimToKeycloakTranslator();
+        ScimToKeycloakTranslator translator = new();
         KeycloakQueryParams keycloakParams = translator.Translate(request.Filter);
 
-        List<string> queryParams = new List<string>
-        {
+        List<string> queryParams =
+        [
             $"first={first}",
             $"max={max}"
-        };
+        ];
 
         if (keycloakParams.Username != null)
         {
@@ -273,7 +273,7 @@ public sealed partial class ScimUserService
 
         List<ScimKeycloakUserRepresentation>? users = await response.Content.ReadFromJsonAsync<List<ScimKeycloakUserRepresentation>>(ct);
 
-        List<ScimUser> scimUsers = users?.Select(u => MapToScimUser(u, u.Id ?? "")).ToList() ?? new List<ScimUser>();
+        List<ScimUser> scimUsers = users?.Select(u => MapToScimUser(u, u.Id ?? "")).ToList() ?? [];
 
         if (keycloakParams.InMemoryFilter != null)
         {

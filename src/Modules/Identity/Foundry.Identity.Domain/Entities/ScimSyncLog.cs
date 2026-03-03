@@ -60,7 +60,7 @@ public sealed class ScimSyncLog : AggregateRoot<ScimSyncLogId>, ITenantScoped
                 "SCIM external ID is required");
         }
 
-        ScimSyncLog log = new ScimSyncLog(
+        ScimSyncLog log = new(
             tenantId,
             operation,
             resourceType,

@@ -32,7 +32,7 @@ public sealed partial class KeycloakOrganizationService : IKeycloakOrganizationS
     {
         LogCreatingOrganization(name);
 
-        CreateOrganizationRequest createRequest = new CreateOrganizationRequest
+        CreateOrganizationRequest createRequest = new()
         {
             Name = name,
             Domains = string.IsNullOrWhiteSpace(domain) ? null : new[] { new OrgDomain { Name = domain } }
@@ -102,11 +102,11 @@ public sealed partial class KeycloakOrganizationService : IKeycloakOrganizationS
     {
         try
         {
-            List<string> queryParams = new List<string>
-            {
+            List<string> queryParams =
+            [
                 $"first={first}",
                 $"max={max}"
-            };
+            ];
 
             if (!string.IsNullOrWhiteSpace(search))
             {
@@ -123,7 +123,7 @@ public sealed partial class KeycloakOrganizationService : IKeycloakOrganizationS
                 return Array.Empty<OrganizationDto>();
             }
 
-            List<OrganizationDto> orgDtos = new List<OrganizationDto>();
+            List<OrganizationDto> orgDtos = [];
             foreach (OrgRepresentation org in orgs)
             {
                 if (string.IsNullOrWhiteSpace(org.Id))
@@ -200,7 +200,7 @@ public sealed partial class KeycloakOrganizationService : IKeycloakOrganizationS
                 return Array.Empty<UserDto>();
             }
 
-            List<UserDto> userDtos = new List<UserDto>();
+            List<UserDto> userDtos = [];
             foreach (OrgUserRepresentation user in users)
             {
                 if (string.IsNullOrWhiteSpace(user.Id))
@@ -242,7 +242,7 @@ public sealed partial class KeycloakOrganizationService : IKeycloakOrganizationS
                 return Array.Empty<OrganizationDto>();
             }
 
-            List<OrganizationDto> orgDtos = new List<OrganizationDto>();
+            List<OrganizationDto> orgDtos = [];
             foreach (OrgRepresentation org in orgs)
             {
                 if (string.IsNullOrWhiteSpace(org.Id))
