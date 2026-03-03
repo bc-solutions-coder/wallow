@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- TargetFramework, Nullable, etc. inherited from Directory.Build.props -->
+  <!-- Package versions managed in Directory.Packages.props -->
+
+  <PropertyGroup>
+    <RootNamespace>Foundry.Shared.Infrastructure.Plugins</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Foundry.Shared.Kernel\Foundry.Shared.Kernel.csproj" />
+  </ItemGroup>
+
+</Project>

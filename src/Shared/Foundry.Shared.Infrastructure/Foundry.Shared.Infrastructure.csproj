@@ -14,6 +14,10 @@
   <ItemGroup>
     <ProjectReference Include="..\Foundry.Shared.Kernel\Foundry.Shared.Kernel.csproj" />
     <ProjectReference Include="..\Foundry.Shared.Contracts\Foundry.Shared.Contracts.csproj" />
+    <ProjectReference Include="..\Foundry.Shared.Infrastructure.Core\Foundry.Shared.Infrastructure.Core.csproj" />
+    <ProjectReference Include="..\Foundry.Shared.Infrastructure.BackgroundJobs\Foundry.Shared.Infrastructure.BackgroundJobs.csproj" />
+    <ProjectReference Include="..\Foundry.Shared.Infrastructure.Workflows\Foundry.Shared.Infrastructure.Workflows.csproj" />
+    <ProjectReference Include="..\Foundry.Shared.Infrastructure.Plugins\Foundry.Shared.Infrastructure.Plugins.csproj" />
   </ItemGroup>
 
   <ItemGroup>
