@@ -123,7 +123,7 @@ public sealed class ApiKeysController : ControllerBase
             });
         }
 
-        ApiKeyCreatedResponse response = new ApiKeyCreatedResponse(
+        ApiKeyCreatedResponse response = new(
             KeyId: result.KeyId!,
             ApiKey: result.ApiKey!,
             Prefix: result.Prefix!,

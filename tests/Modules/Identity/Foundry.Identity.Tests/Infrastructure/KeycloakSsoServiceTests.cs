@@ -85,7 +85,7 @@ public class KeycloakSsoServiceTests
 
         KeycloakSsoService service = CreateService(handler);
 
-        SaveSamlConfigRequest request = new SaveSamlConfigRequest(
+        SaveSamlConfigRequest request = new(
             DisplayName: "SAML Provider",
             EntityId: "https://idp.test/metadata",
             SsoUrl: "https://idp.test/sso",
@@ -136,7 +136,7 @@ public class KeycloakSsoServiceTests
 
         KeycloakSsoService service = CreateService(handler);
 
-        SaveSamlConfigRequest request = new SaveSamlConfigRequest(
+        SaveSamlConfigRequest request = new(
             DisplayName: "Updated SAML",
             EntityId: "https://idp.test/metadata",
             SsoUrl: "https://idp.test/sso",
@@ -176,7 +176,7 @@ public class KeycloakSsoServiceTests
 
         KeycloakSsoService service = CreateService(handler);
 
-        SaveOidcConfigRequest request = new SaveOidcConfigRequest(
+        SaveOidcConfigRequest request = new(
             DisplayName: "OIDC Provider",
             Issuer: "https://idp.test",
             ClientId: "client-123",
@@ -227,7 +227,7 @@ public class KeycloakSsoServiceTests
 
         KeycloakSsoService service = CreateService(handler);
 
-        SaveOidcConfigRequest request = new SaveOidcConfigRequest(
+        SaveOidcConfigRequest request = new(
             DisplayName: "Updated OIDC",
             Issuer: "https://new-idp.test",
             ClientId: "new-client",
@@ -824,13 +824,13 @@ public class KeycloakSsoServiceTests
             AuthServerUrl = "https://keycloak.test"  // No trailing slash
         });
 
-        SsoClaimsSyncService claimsSyncService = new SsoClaimsSyncService(
+        SsoClaimsSyncService claimsSyncService = new(
             httpClientFactory,
             _repository,
             _tenantContext,
             Substitute.For<ILogger<SsoClaimsSyncService>>());
 
-        KeycloakIdpService idpService = new KeycloakIdpService(
+        KeycloakIdpService idpService = new(
             httpClientFactory,
             Substitute.For<ILogger<KeycloakIdpService>>());
 
@@ -847,8 +847,8 @@ public class KeycloakSsoServiceTests
 
     private sealed class MockKeycloakHttpHandler : HttpMessageHandler
     {
-        private readonly Dictionary<string, (HttpStatusCode Status, object? Content)> _keycloakRoutes = new();
-        private readonly Dictionary<string, (HttpStatusCode Status, object? Content)> _externalRoutes = new();
+        private readonly Dictionary<string, (HttpStatusCode Status, object? Content)> _keycloakRoutes = [];
+        private readonly Dictionary<string, (HttpStatusCode Status, object? Content)> _externalRoutes = [];
 
         public MockKeycloakHttpHandler WithKeycloakGet(string path, HttpStatusCode status, object? content = null)
         {
@@ -885,7 +885,7 @@ public class KeycloakSsoServiceTests
             {
                 if (_keycloakRoutes.TryGetValue(key, out (HttpStatusCode Status, object? Content) route))
                 {
-                    HttpResponseMessage response = new HttpResponseMessage(route.Status);
+                    HttpResponseMessage response = new(route.Status);
                     if (route.Content != null)
                     {
                         response.Content = JsonContent.Create(route.Content);
@@ -904,7 +904,7 @@ public class KeycloakSsoServiceTests
             string externalKey = $"{request.Method}:{request.RequestUri}";
             if (_externalRoutes.TryGetValue(externalKey, out (HttpStatusCode Status, object? Content) externalRoute))
             {
-                HttpResponseMessage response = new HttpResponseMessage(externalRoute.Status);
+                HttpResponseMessage response = new(externalRoute.Status);
                 if (externalRoute.Content != null)
                 {
                     response.Content = JsonContent.Create(externalRoute.Content);

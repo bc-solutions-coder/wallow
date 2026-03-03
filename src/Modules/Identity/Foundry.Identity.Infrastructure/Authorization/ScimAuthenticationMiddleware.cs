@@ -82,14 +82,14 @@ public sealed partial class ScimAuthenticationMiddleware
         LogScimTokenAuthenticated(tenantContext.TenantId.Value);
 
         // Create a minimal claims principal for SCIM requests
-        List<Claim> claims = new List<Claim>
-        {
+        List<Claim> claims =
+        [
             new("scim_client", "true"),
             new("auth_method", "scim_bearer"),
             new("tenant_id", tenantContext.TenantId.Value.ToString())
-        };
+        ];
 
-        ClaimsIdentity identity = new ClaimsIdentity(claims, "ScimBearer");
+        ClaimsIdentity identity = new(claims, "ScimBearer");
         context.User = new ClaimsPrincipal(identity);
 
         await _next(context);
@@ -109,7 +109,7 @@ public sealed partial class ScimAuthenticationMiddleware
         context.Response.StatusCode = StatusCodes.Status401Unauthorized;
         context.Response.ContentType = "application/scim+json";
 
-        ScimError error = new ScimError
+        ScimError error = new()
         {
             Status = 401,
             ScimType = "invalidCredentials",

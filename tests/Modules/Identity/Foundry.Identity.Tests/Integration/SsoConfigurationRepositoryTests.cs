@@ -93,7 +93,7 @@ public sealed class SsoConfigurationRepositoryTests : DbContextIntegrationTestBa
         TenantId otherTenantId = TenantId.New();
         await using IdentityDbContext otherDbContext = CreateDbContextForTenant(otherTenantId);
 
-        SsoConfigurationRepository otherRepository = new SsoConfigurationRepository(otherDbContext);
+        SsoConfigurationRepository otherRepository = new(otherDbContext);
 
         SsoConfiguration config2 = SsoConfiguration.Create(
             otherTenantId,

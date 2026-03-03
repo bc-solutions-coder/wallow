@@ -55,7 +55,7 @@ public partial class ScimController : ControllerBase
         [FromQuery] string? sortOrder = null,
         CancellationToken ct = default)
     {
-        ScimListRequest request = new ScimListRequest(filter, startIndex, count, sortBy, sortOrder);
+        ScimListRequest request = new(filter, startIndex, count, sortBy, sortOrder);
         ScimListResponse<ScimUser> result = await _scimService.ListUsersAsync(request, ct);
         return Ok(result);
     }
@@ -201,7 +201,7 @@ public partial class ScimController : ControllerBase
         [FromQuery] int count = 100,
         CancellationToken ct = default)
     {
-        ScimListRequest request = new ScimListRequest(filter, startIndex, count);
+        ScimListRequest request = new(filter, startIndex, count);
         ScimListResponse<ScimGroup> result = await _scimService.ListGroupsAsync(request, ct);
         return Ok(result);
     }
@@ -311,7 +311,7 @@ public partial class ScimController : ControllerBase
     [ProducesResponseType(typeof(ScimServiceProviderConfig), StatusCodes.Status200OK)]
     public ActionResult<ScimServiceProviderConfig> GetServiceProviderConfig()
     {
-        ScimServiceProviderConfig config = new ScimServiceProviderConfig
+        ScimServiceProviderConfig config = new()
         {
             Schemas = new[] { "urn:ietf:params:scim:schemas:core:2.0:ServiceProviderConfig" },
             DocumentationUri = "https://docs.foundry.dev/scim",
@@ -344,8 +344,8 @@ public partial class ScimController : ControllerBase
     [ProducesResponseType(typeof(ScimListResponse<ScimSchema>), StatusCodes.Status200OK)]
     public ActionResult<ScimListResponse<ScimSchema>> GetSchemas()
     {
-        List<ScimSchema> schemas = new List<ScimSchema>
-        {
+        List<ScimSchema> schemas =
+        [
             new()
             {
                 Id = "urn:ietf:params:scim:schemas:core:2.0:User",
@@ -358,7 +358,7 @@ public partial class ScimController : ControllerBase
                 Name = "Group",
                 Description = "Group"
             }
-        };
+        ];
 
         return Ok(new ScimListResponse<ScimSchema>
         {
@@ -377,8 +377,8 @@ public partial class ScimController : ControllerBase
     [ProducesResponseType(typeof(ScimListResponse<ScimResourceType>), StatusCodes.Status200OK)]
     public ActionResult<ScimListResponse<ScimResourceType>> GetResourceTypes()
     {
-        List<ScimResourceType> resourceTypes = new List<ScimResourceType>
-        {
+        List<ScimResourceType> resourceTypes =
+        [
             new()
             {
                 Schemas = _resourceTypeSchema,
@@ -397,7 +397,7 @@ public partial class ScimController : ControllerBase
                 Endpoint = "/Groups",
                 Schema = "urn:ietf:params:scim:schemas:core:2.0:Group"
             }
-        };
+        ];
 
         return Ok(new ScimListResponse<ScimResourceType>
         {

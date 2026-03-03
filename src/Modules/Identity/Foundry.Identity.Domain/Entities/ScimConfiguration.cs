@@ -46,7 +46,7 @@ public sealed class ScimConfiguration : AggregateRoot<ScimConfigurationId>, ITen
         string plainTextToken = token;
         DateTime expiresAt = DateTime.UtcNow.AddYears(1);
 
-        ScimConfiguration config = new ScimConfiguration(
+        ScimConfiguration config = new(
             tenantId,
             HashToken(token),
             prefix,

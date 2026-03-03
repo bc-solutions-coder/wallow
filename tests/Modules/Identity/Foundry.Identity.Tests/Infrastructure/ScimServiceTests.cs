@@ -67,7 +67,7 @@ public class ScimServiceTests
 
         ScimService service = CreateService();
 
-        EnableScimRequest request = new EnableScimRequest(
+        EnableScimRequest request = new(
             AutoActivateUsers: true,
             DefaultRole: "user",
             DeprovisionOnDelete: false);
@@ -97,7 +97,7 @@ public class ScimServiceTests
 
         ScimService service = CreateService();
 
-        EnableScimRequest request = new EnableScimRequest(
+        EnableScimRequest request = new(
             AutoActivateUsers: false,
             DefaultRole: "admin",
             DeprovisionOnDelete: true);
@@ -265,7 +265,7 @@ public class ScimServiceTests
 
         ScimService service = CreateService(handler);
 
-        ScimUserRequest request = new ScimUserRequest
+        ScimUserRequest request = new()
         {
             UserName = "john.doe",
             ExternalId = "ext-123",
@@ -304,7 +304,7 @@ public class ScimServiceTests
 
         ScimService service = CreateService(handler);
 
-        ScimUserRequest request = new ScimUserRequest
+        ScimUserRequest request = new()
         {
             UserName = "john.doe",
             ExternalId = "ext-123",
@@ -348,7 +348,7 @@ public class ScimServiceTests
 
         ScimService service = CreateService(handler);
 
-        ScimUserRequest request = new ScimUserRequest
+        ScimUserRequest request = new()
         {
             UserName = "john.updated",
             ExternalId = "ext-123",
@@ -385,7 +385,7 @@ public class ScimServiceTests
 
         ScimService service = CreateService(handler);
 
-        ScimUserRequest request = new ScimUserRequest
+        ScimUserRequest request = new()
         {
             UserName = "john.doe",
             Active = true
@@ -426,7 +426,7 @@ public class ScimServiceTests
 
         ScimService service = CreateService(handler);
 
-        ScimPatchRequest request = new ScimPatchRequest
+        ScimPatchRequest request = new()
         {
             Operations = new[]
             {
@@ -459,7 +459,7 @@ public class ScimServiceTests
 
         ScimService service = CreateService(handler);
 
-        ScimPatchRequest request = new ScimPatchRequest
+        ScimPatchRequest request = new()
         {
             Operations = new[]
             {
@@ -589,7 +589,7 @@ public class ScimServiceTests
 
         ScimService service = CreateService(handler);
 
-        ScimListRequest request = new ScimListRequest(
+        ScimListRequest request = new(
             Filter: null,
             StartIndex: 1,
             Count: 10);
@@ -631,7 +631,7 @@ public class ScimServiceTests
 
         ScimService service = CreateService(handler);
 
-        ScimListRequest request = new ScimListRequest(
+        ScimListRequest request = new(
             Filter: "userName eq \"john.doe\"",
             StartIndex: 1,
             Count: 10);
@@ -666,7 +666,7 @@ public class ScimServiceTests
 
         ScimService service = CreateService(handler);
 
-        ScimGroupRequest request = new ScimGroupRequest
+        ScimGroupRequest request = new()
         {
             DisplayName = "Developers",
             ExternalId = "ext-grp-123"
@@ -707,7 +707,7 @@ public class ScimServiceTests
 
         ScimService service = CreateService(handler);
 
-        ScimGroupRequest request = new ScimGroupRequest
+        ScimGroupRequest request = new()
         {
             DisplayName = "Updated Developers",
             ExternalId = "ext-grp-123"
@@ -773,7 +773,7 @@ public class ScimServiceTests
 
         ScimService service = CreateService(handler);
 
-        ScimListRequest request = new ScimListRequest(StartIndex: 1, Count: 10);
+        ScimListRequest request = new(StartIndex: 1, Count: 10);
 
         // Act
         ScimListResponse<ScimGroup> result = await service.ListGroupsAsync(request);
@@ -788,11 +788,11 @@ public class ScimServiceTests
     public async Task GetSyncLogsAsync_ReturnsLogs()
     {
         // Arrange
-        List<ScimSyncLog> logs = new List<ScimSyncLog>
-        {
+        List<ScimSyncLog> logs =
+        [
             ScimSyncLog.Create(_testTenantId, ScimOperation.Create, ScimResourceType.User, "ext-1", "user-1", true),
             ScimSyncLog.Create(_testTenantId, ScimOperation.Update, ScimResourceType.User, "ext-2", "user-2", false, "Error")
-        };
+        ];
 
         _syncLogRepository.GetRecentAsync(100, Arg.Any<CancellationToken>()).Returns(logs);
 
@@ -823,14 +823,14 @@ public class ScimServiceTests
 
         _tenantContext.TenantId.Returns(_testTenantId);
 
-        ScimUserService userService = new ScimUserService(
+        ScimUserService userService = new(
             httpClientFactory,
             _scimRepository,
             _syncLogRepository,
             _tenantContext,
             Substitute.For<ILogger<ScimUserService>>());
 
-        ScimGroupService groupService = new ScimGroupService(
+        ScimGroupService groupService = new(
             httpClientFactory,
             _scimRepository,
             _syncLogRepository,
@@ -848,7 +848,7 @@ public class ScimServiceTests
 
     private sealed class MockKeycloakHttpHandler : HttpMessageHandler
     {
-        private readonly Dictionary<string, (HttpStatusCode Status, object? Content, string? LocationHeader)> _routes = new();
+        private readonly Dictionary<string, (HttpStatusCode Status, object? Content, string? LocationHeader)> _routes = [];
 
         public MockKeycloakHttpHandler WithKeycloakGet(string path, HttpStatusCode status, object? content = null)
         {
@@ -887,7 +887,7 @@ public class ScimServiceTests
             string exactKey = $"{request.Method}:{path}";
             if (_routes.TryGetValue(exactKey, out (HttpStatusCode Status, object? Content, string? LocationHeader) route))
             {
-                HttpResponseMessage response = new HttpResponseMessage(route.Status);
+                HttpResponseMessage response = new(route.Status);
                 if (route.Content != null)
                 {
                     response.Content = JsonContent.Create(route.Content);

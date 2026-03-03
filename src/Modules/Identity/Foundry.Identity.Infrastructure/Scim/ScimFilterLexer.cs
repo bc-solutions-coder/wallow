@@ -4,20 +4,20 @@ namespace Foundry.Identity.Infrastructure.Scim;
 
 public sealed class ScimFilterLexer
 {
-    private static readonly HashSet<string> _operators = new()
-    {
+    private static readonly HashSet<string> _operators =
+    [
         "eq", "ne", "co", "sw", "ew", "gt", "ge", "lt", "le", "pr"
-    };
+    ];
 
-    private static readonly HashSet<string> _logicOperators = new()
-    {
+    private static readonly HashSet<string> _logicOperators =
+    [
         "and", "or", "not"
-    };
+    ];
 
-    private static readonly HashSet<string> _boolValues = new()
-    {
+    private static readonly HashSet<string> _boolValues =
+    [
         "true", "false"
-    };
+    ];
 
     public IReadOnlyList<ScimToken> Tokenize(string filter)
     {
@@ -26,7 +26,7 @@ public sealed class ScimFilterLexer
             return new List<ScimToken>();
         }
 
-        List<ScimToken> tokens = new List<ScimToken>();
+        List<ScimToken> tokens = [];
         int position = 0;
 
         while (position < filter.Length)
@@ -100,7 +100,7 @@ public sealed class ScimFilterLexer
             throw new ScimFilterException("Expected string to start with double quote", position);
         }
 
-        StringBuilder sb = new StringBuilder();
+        StringBuilder sb = new();
         position++; // Skip opening quote
 
         while (position < filter.Length)
@@ -152,7 +152,7 @@ public sealed class ScimFilterLexer
 
     private static (string Value, int Position) ParseIdentifier(string filter, int position)
     {
-        StringBuilder sb = new StringBuilder();
+        StringBuilder sb = new();
 
         while (position < filter.Length)
         {

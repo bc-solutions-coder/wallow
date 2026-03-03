@@ -68,13 +68,13 @@ public sealed partial class ApiKeyAuthenticationMiddleware
         LogApiKeyAuthenticated(result.KeyId, result.UserId, result.TenantId);
 
         // Create claims principal from API key
-        List<Claim> claims = new List<Claim>
-        {
+        List<Claim> claims =
+        [
             new(ClaimTypes.NameIdentifier, result.UserId!.Value.ToString()),
             new("sub", result.UserId!.Value.ToString()),
             new("api_key_id", result.KeyId!),
             new("auth_method", "api_key")
-        };
+        ];
 
         // Add scope claims (or all permissions if no scopes specified)
         if (result.Scopes != null && result.Scopes.Count > 0)
@@ -85,7 +85,7 @@ public sealed partial class ApiKeyAuthenticationMiddleware
             }
         }
 
-        ClaimsIdentity identity = new ClaimsIdentity(claims, "ApiKey");
+        ClaimsIdentity identity = new(claims, "ApiKey");
         context.User = new ClaimsPrincipal(identity);
 
         // Set tenant context (same pattern as TenantResolutionMiddleware)

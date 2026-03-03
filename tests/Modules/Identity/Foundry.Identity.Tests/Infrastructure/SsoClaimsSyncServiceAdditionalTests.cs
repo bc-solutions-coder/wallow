@@ -267,9 +267,9 @@ public class SsoClaimsSyncServiceAdditionalTests
 
     private sealed class MockHttpHandler : HttpMessageHandler
     {
-        private readonly Dictionary<string, (HttpStatusCode Status, object? Content)> _routes = new();
-        private readonly HashSet<string> _throwRoutes = new();
-        private readonly HashSet<string> _nullRoutes = new();
+        private readonly Dictionary<string, (HttpStatusCode Status, object? Content)> _routes = [];
+        private readonly HashSet<string> _throwRoutes = [];
+        private readonly HashSet<string> _nullRoutes = [];
 
         public MockHttpHandler WithGet(string path, object content)
         {
@@ -341,7 +341,7 @@ public class SsoClaimsSyncServiceAdditionalTests
 
             if (_routes.TryGetValue(key, out (HttpStatusCode Status, object? Content) route))
             {
-                HttpResponseMessage response = new HttpResponseMessage(route.Status);
+                HttpResponseMessage response = new(route.Status);
                 if (route.Content != null)
                 {
                     response.Content = JsonContent.Create(route.Content);

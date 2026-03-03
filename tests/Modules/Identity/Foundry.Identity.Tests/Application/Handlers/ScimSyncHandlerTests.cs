@@ -47,7 +47,7 @@ public class ScimSyncHandlerTests
 
         ScimService service = CreateService(handler);
 
-        ScimUserRequest createRequest = new ScimUserRequest
+        ScimUserRequest createRequest = new()
         {
             UserName = "sync.user",
             ExternalId = "ext-sync-1",
@@ -58,7 +58,7 @@ public class ScimSyncHandlerTests
 
         ScimUser created = await service.CreateUserAsync(createRequest);
 
-        ScimUserRequest updateRequest = new ScimUserRequest
+        ScimUserRequest updateRequest = new()
         {
             UserName = "sync.user",
             ExternalId = "ext-sync-1",
@@ -112,7 +112,7 @@ public class ScimSyncHandlerTests
 
         ScimService service = CreateService(handler);
 
-        ScimUserRequest createRequest = new ScimUserRequest
+        ScimUserRequest createRequest = new()
         {
             UserName = "del.user",
             ExternalId = "ext-del-1",
@@ -150,7 +150,7 @@ public class ScimSyncHandlerTests
 
         ScimService service = CreateService(handler);
 
-        ScimPatchRequest patchRequest = new ScimPatchRequest
+        ScimPatchRequest patchRequest = new()
         {
             Operations = new[]
             {
@@ -191,7 +191,7 @@ public class ScimSyncHandlerTests
 
         ScimService service = CreateService(handler);
 
-        ScimPatchRequest patchRequest = new ScimPatchRequest
+        ScimPatchRequest patchRequest = new()
         {
             Operations = new[]
             {
@@ -218,7 +218,7 @@ public class ScimSyncHandlerTests
 
         ScimService service = CreateService(handler);
 
-        ScimUserRequest request = new ScimUserRequest
+        ScimUserRequest request = new()
         {
             UserName = "ghost.user",
             ExternalId = "ext-ghost",
@@ -244,7 +244,7 @@ public class ScimSyncHandlerTests
 
         ScimService service = CreateService(handler);
 
-        ScimUserRequest request = new ScimUserRequest
+        ScimUserRequest request = new()
         {
             UserName = "duplicate.user",
             ExternalId = "ext-dup-1",
@@ -292,7 +292,7 @@ public class ScimSyncHandlerTests
 
         ScimService failService = CreateService(failHandler);
 
-        ScimUserRequest request = new ScimUserRequest
+        ScimUserRequest request = new()
         {
             UserName = "retry.user",
             ExternalId = "ext-retry-1",
@@ -345,7 +345,7 @@ public class ScimSyncHandlerTests
 
         ScimService service = CreateService(handler);
 
-        ScimPatchRequest patchRequest = new ScimPatchRequest
+        ScimPatchRequest patchRequest = new()
         {
             Operations = new[]
             {
@@ -384,7 +384,7 @@ public class ScimSyncHandlerTests
 
         ScimService service = CreateService(handler);
 
-        ScimGroupRequest createRequest = new ScimGroupRequest
+        ScimGroupRequest createRequest = new()
         {
             DisplayName = "Sync Group",
             ExternalId = "ext-grp-sync"
@@ -393,7 +393,7 @@ public class ScimSyncHandlerTests
         ScimGroup created = await service.CreateGroupAsync(createRequest);
         created.Id.Should().Be("grp-sync-1");
 
-        ScimGroupRequest updateRequest = new ScimGroupRequest
+        ScimGroupRequest updateRequest = new()
         {
             DisplayName = "Updated Sync Group",
             ExternalId = "ext-grp-sync"
@@ -428,7 +428,7 @@ public class ScimSyncHandlerTests
 
         ScimService service = CreateService(handler);
 
-        ScimGroupRequest request = new ScimGroupRequest
+        ScimGroupRequest request = new()
         {
             DisplayName = "Failing Group",
             ExternalId = "ext-fail-grp"
@@ -447,13 +447,13 @@ public class ScimSyncHandlerTests
     [Fact]
     public async Task GetSyncLogs_AfterMultipleOperations_ReturnsAllLogs()
     {
-        List<ScimSyncLog> logs = new List<ScimSyncLog>
-        {
+        List<ScimSyncLog> logs =
+        [
             ScimSyncLog.Create(_testTenantId, ScimOperation.Create, ScimResourceType.User, "ext-1", "user-1", true),
             ScimSyncLog.Create(_testTenantId, ScimOperation.Update, ScimResourceType.User, "ext-1", "user-1", true),
             ScimSyncLog.Create(_testTenantId, ScimOperation.Delete, ScimResourceType.User, "ext-1", "user-1", true),
             ScimSyncLog.Create(_testTenantId, ScimOperation.Create, ScimResourceType.Group, "ext-grp-1", "grp-1", false, "Conflict")
-        };
+        ];
 
         _syncLogRepository.GetRecentAsync(50, Arg.Any<CancellationToken>()).Returns(logs);
 
@@ -483,14 +483,14 @@ public class ScimSyncHandlerTests
 
         _tenantContext.TenantId.Returns(_testTenantId);
 
-        ScimUserService userService = new ScimUserService(
+        ScimUserService userService = new(
             httpClientFactory,
             _scimRepository,
             _syncLogRepository,
             _tenantContext,
             Substitute.For<ILogger<ScimUserService>>());
 
-        ScimGroupService groupService = new ScimGroupService(
+        ScimGroupService groupService = new(
             httpClientFactory,
             _scimRepository,
             _syncLogRepository,
@@ -508,7 +508,7 @@ public class ScimSyncHandlerTests
 
     private sealed class MockKeycloakHttpHandler : HttpMessageHandler
     {
-        private readonly Dictionary<string, (HttpStatusCode Status, object? Content, string? LocationHeader)> _routes = new();
+        private readonly Dictionary<string, (HttpStatusCode Status, object? Content, string? LocationHeader)> _routes = [];
 
         public MockKeycloakHttpHandler WithRoute(string method, string path, HttpStatusCode status,
             object? content = null, string? locationHeader = null)
@@ -526,7 +526,7 @@ public class ScimSyncHandlerTests
 
             if (_routes.TryGetValue(key, out (HttpStatusCode Status, object? Content, string? LocationHeader) route))
             {
-                HttpResponseMessage response = new HttpResponseMessage(route.Status);
+                HttpResponseMessage response = new(route.Status);
                 if (route.Content != null)
                 {
                     response.Content = JsonContent.Create(route.Content);

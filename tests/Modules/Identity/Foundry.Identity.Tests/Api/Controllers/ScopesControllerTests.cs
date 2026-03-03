@@ -22,11 +22,11 @@ public class ScopesControllerTests
     [Fact]
     public async Task List_WithNoCategory_ReturnsAllScopes()
     {
-        List<ApiScope> scopes = new()
-        {
+        List<ApiScope> scopes =
+        [
             ApiScope.Create("billing:read", "Read Billing", "Billing", "Read billing data"),
             ApiScope.Create("billing:write", "Write Billing", "Billing", "Write billing data", true)
-        };
+        ];
         _apiScopeRepository.GetAllAsync(null, Arg.Any<CancellationToken>())
             .Returns(scopes);
 

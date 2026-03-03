@@ -61,7 +61,7 @@ public sealed partial class KeycloakSsoService : ISsoService
         TenantId tenantId = _tenantContext.TenantId;
         string alias = $"saml-{tenantId.Value.ToString()[..8]}";
 
-        Dictionary<string, object> idpConfig = new Dictionary<string, object>
+        Dictionary<string, object> idpConfig = new()
         {
             ["alias"] = alias,
             ["displayName"] = request.DisplayName,
@@ -101,7 +101,7 @@ public sealed partial class KeycloakSsoService : ISsoService
         TenantId tenantId = _tenantContext.TenantId;
         string alias = $"oidc-{tenantId.Value.ToString()[..8]}";
 
-        Dictionary<string, object> idpConfig = new Dictionary<string, object>
+        Dictionary<string, object> idpConfig = new()
         {
             ["alias"] = alias,
             ["displayName"] = request.DisplayName,

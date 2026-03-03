@@ -25,7 +25,7 @@ public class KeycloakAdminServiceGapTests
     public async Task CreateUserAsync_WithPassword_CreatesWithCredentials()
     {
         Guid userId = Guid.NewGuid();
-        HttpResponseMessage createResponse = new HttpResponseMessage(HttpStatusCode.Created);
+        HttpResponseMessage createResponse = new(HttpStatusCode.Created);
         createResponse.Headers.Location = new Uri($"https://keycloak.test/users/{userId}");
 
         _userClient.CreateUserWithResponseAsync("foundry", Arg.Any<UserRepresentation>(), Arg.Any<CancellationToken>())
@@ -48,7 +48,7 @@ public class KeycloakAdminServiceGapTests
     public async Task CreateUserAsync_WithoutPassword_CreatesWithoutCredentials()
     {
         Guid userId = Guid.NewGuid();
-        HttpResponseMessage createResponse = new HttpResponseMessage(HttpStatusCode.Created);
+        HttpResponseMessage createResponse = new(HttpStatusCode.Created);
         createResponse.Headers.Location = new Uri($"https://keycloak.test/users/{userId}");
 
         _userClient.CreateUserWithResponseAsync("foundry", Arg.Any<UserRepresentation>(), Arg.Any<CancellationToken>())
@@ -69,7 +69,7 @@ public class KeycloakAdminServiceGapTests
     [Fact]
     public async Task CreateUserAsync_MissingLocationHeader_ThrowsInvalidOperation()
     {
-        HttpResponseMessage createResponse = new HttpResponseMessage(HttpStatusCode.Created);
+        HttpResponseMessage createResponse = new(HttpStatusCode.Created);
         // No Location header
 
         _userClient.CreateUserWithResponseAsync("foundry", Arg.Any<UserRepresentation>(), Arg.Any<CancellationToken>())
@@ -135,8 +135,7 @@ public class KeycloakAdminServiceGapTests
             Arg.Any<CancellationToken>())
             .Returns(new List<UserRepresentation>
             {
-                new UserRepresentation
-                {
+                new() {
                     Id = userId.ToString(),
                     Email = "found@test.com",
                     FirstName = "Found",
@@ -180,7 +179,7 @@ public class KeycloakAdminServiceGapTests
             Arg.Any<CancellationToken>())
             .Returns(new List<UserRepresentation>
             {
-                new UserRepresentation { Id = null, Email = "test@test.com" }
+                new() { Id = null, Email = "test@test.com" }
             });
 
         KeycloakAdminService service = CreateService(new MockHttpHandler());
@@ -199,8 +198,7 @@ public class KeycloakAdminServiceGapTests
             Arg.Any<CancellationToken>())
             .Returns(new List<UserRepresentation>
             {
-                new UserRepresentation
-                {
+                new() {
                     Id = userId.ToString(),
                     Email = "search@test.com",
                     FirstName = "Search",
@@ -230,9 +228,9 @@ public class KeycloakAdminServiceGapTests
             Arg.Any<CancellationToken>())
             .Returns(new List<UserRepresentation>
             {
-                new UserRepresentation { Id = null, Email = "bad@test.com" },
-                new UserRepresentation { Id = "", Email = "empty@test.com" },
-                new UserRepresentation { Id = userId.ToString(), Email = "good@test.com", Enabled = true }
+                new() { Id = null, Email = "bad@test.com" },
+                new() { Id = "", Email = "empty@test.com" },
+                new() { Id = userId.ToString(), Email = "good@test.com", Enabled = true }
             });
 
         MockHttpHandler handler = new MockHttpHandler()
@@ -329,8 +327,10 @@ public class KeycloakAdminServiceGapTests
     private KeycloakAdminService CreateService(HttpMessageHandler handler)
     {
         IHttpClientFactory httpClientFactory = Substitute.For<IHttpClientFactory>();
-        HttpClient httpClient = new HttpClient(handler);
-        httpClient.BaseAddress = new Uri("https://keycloak.test/");
+        HttpClient httpClient = new(handler)
+        {
+            BaseAddress = new Uri("https://keycloak.test/")
+        };
         httpClientFactory.CreateClient("KeycloakAdminClient").Returns(httpClient);
 
         _tenantContext.TenantId.Returns(_testTenantId);
@@ -345,8 +345,8 @@ public class KeycloakAdminServiceGapTests
 
     private sealed class MockHttpHandler : HttpMessageHandler
     {
-        private readonly Dictionary<string, (HttpStatusCode Status, object? Content)> _routes = new();
-        private readonly HashSet<string> _throwRoutes = new();
+        private readonly Dictionary<string, (HttpStatusCode Status, object? Content)> _routes = [];
+        private readonly HashSet<string> _throwRoutes = [];
 
         public MockHttpHandler WithGet(string path, object content)
         {
@@ -386,7 +386,7 @@ public class KeycloakAdminServiceGapTests
 
             if (_routes.TryGetValue(key, out (HttpStatusCode Status, object? Content) route))
             {
-                HttpResponseMessage response = new HttpResponseMessage(route.Status);
+                HttpResponseMessage response = new(route.Status);
                 if (route.Content != null)
                 {
                     response.Content = JsonContent.Create(route.Content);

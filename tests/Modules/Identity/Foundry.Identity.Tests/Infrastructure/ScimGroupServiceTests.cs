@@ -41,7 +41,7 @@ public class ScimGroupServiceTests
 
         ScimGroupService service = CreateService(handler);
 
-        ScimGroupRequest request = new ScimGroupRequest
+        ScimGroupRequest request = new()
         {
             DisplayName = "Engineering",
             ExternalId = "ext-grp-1"
@@ -81,7 +81,7 @@ public class ScimGroupServiceTests
 
         ScimGroupService service = CreateService(handler);
 
-        ScimGroupRequest request = new ScimGroupRequest
+        ScimGroupRequest request = new()
         {
             DisplayName = "Team",
             Members = new[]
@@ -111,7 +111,7 @@ public class ScimGroupServiceTests
 
         ScimGroupService service = CreateService(handler);
 
-        ScimGroupRequest request = new ScimGroupRequest
+        ScimGroupRequest request = new()
         {
             DisplayName = "NoExt",
             ExternalId = null
@@ -133,7 +133,7 @@ public class ScimGroupServiceTests
 
         ScimGroupService service = CreateService(handler);
 
-        ScimGroupRequest request = new ScimGroupRequest
+        ScimGroupRequest request = new()
         {
             DisplayName = "Fail Group",
             ExternalId = "ext-fail"
@@ -157,7 +157,7 @@ public class ScimGroupServiceTests
 
         ScimGroupService service = CreateService(handler);
 
-        ScimGroupRequest request = new ScimGroupRequest
+        ScimGroupRequest request = new()
         {
             DisplayName = "No Location",
             ExternalId = "ext-no-loc"
@@ -187,7 +187,7 @@ public class ScimGroupServiceTests
 
         ScimGroupService service = CreateService(handler);
 
-        ScimGroupRequest request = new ScimGroupRequest
+        ScimGroupRequest request = new()
         {
             DisplayName = "Updated Team",
             ExternalId = "ext-1"
@@ -223,7 +223,7 @@ public class ScimGroupServiceTests
 
         ScimGroupService service = CreateService(handler);
 
-        ScimGroupRequest request = new ScimGroupRequest
+        ScimGroupRequest request = new()
         {
             DisplayName = "Team",
             Members = new[]
@@ -245,7 +245,7 @@ public class ScimGroupServiceTests
 
         ScimGroupService service = CreateService(handler);
 
-        ScimGroupRequest request = new ScimGroupRequest
+        ScimGroupRequest request = new()
         {
             DisplayName = "Fail Update"
         };
@@ -316,7 +316,7 @@ public class ScimGroupServiceTests
 
         ScimGroupService service = CreateService(handler);
 
-        ScimListRequest request = new ScimListRequest(StartIndex: 1, Count: 10);
+        ScimListRequest request = new(StartIndex: 1, Count: 10);
 
         ScimListResponse<ScimGroup> result = await service.ListGroupsAsync(request);
 
@@ -345,7 +345,7 @@ public class ScimGroupServiceTests
 
         ScimGroupService service = CreateService(handler);
 
-        ScimListRequest request = new ScimListRequest(StartIndex: 1, Count: 10);
+        ScimListRequest request = new(StartIndex: 1, Count: 10);
 
         ScimListResponse<ScimGroup> result = await service.ListGroupsAsync(request);
 
@@ -361,7 +361,7 @@ public class ScimGroupServiceTests
 
         ScimGroupService service = CreateService(handler);
 
-        ScimListRequest request = new ScimListRequest(StartIndex: 0, Count: 500);
+        ScimListRequest request = new(StartIndex: 0, Count: 500);
 
         ScimListResponse<ScimGroup> result = await service.ListGroupsAsync(request);
 
@@ -381,7 +381,7 @@ public class ScimGroupServiceTests
 
         ScimGroupService service = CreateService(handler);
 
-        ScimListRequest request = new ScimListRequest(StartIndex: 1, Count: 10);
+        ScimListRequest request = new(StartIndex: 1, Count: 10);
 
         ScimListResponse<ScimGroup> result = await service.ListGroupsAsync(request);
 
@@ -403,7 +403,7 @@ public class ScimGroupServiceTests
 
         ScimGroupService service = CreateService(handler);
 
-        ScimGroupRequest request = new ScimGroupRequest
+        ScimGroupRequest request = new()
         {
             DisplayName = "ErrorMembers",
             ExternalId = "ext-err"
@@ -447,8 +447,10 @@ public class ScimGroupServiceTests
     private ScimGroupService CreateService(HttpMessageHandler handler)
     {
         IHttpClientFactory httpClientFactory = Substitute.For<IHttpClientFactory>();
-        HttpClient httpClient = new HttpClient(handler);
-        httpClient.BaseAddress = new Uri("https://keycloak.test/");
+        HttpClient httpClient = new(handler)
+        {
+            BaseAddress = new Uri("https://keycloak.test/")
+        };
         httpClientFactory.CreateClient("KeycloakAdminClient").Returns(httpClient);
 
         _tenantContext.TenantId.Returns(_testTenantId);
@@ -463,8 +465,8 @@ public class ScimGroupServiceTests
 
     private sealed class MockHttpHandler : HttpMessageHandler
     {
-        private readonly Dictionary<string, (HttpStatusCode Status, object? Content, string? LocationHeader)> _routes = new();
-        private readonly HashSet<string> _throwRoutes = new();
+        private readonly Dictionary<string, (HttpStatusCode Status, object? Content, string? LocationHeader)> _routes = [];
+        private readonly HashSet<string> _throwRoutes = [];
 
         public MockHttpHandler WithGet(string path, HttpStatusCode status, object? content = null)
         {
@@ -510,7 +512,7 @@ public class ScimGroupServiceTests
 
             if (_routes.TryGetValue(key, out (HttpStatusCode Status, object? Content, string? LocationHeader) route))
             {
-                HttpResponseMessage response = new HttpResponseMessage(route.Status);
+                HttpResponseMessage response = new(route.Status);
                 if (route.Content != null)
                 {
                     response.Content = JsonContent.Create(route.Content);

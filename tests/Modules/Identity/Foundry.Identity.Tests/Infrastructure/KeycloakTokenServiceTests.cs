@@ -174,8 +174,10 @@ public class KeycloakTokenServiceTests
     private KeycloakTokenService CreateService(HttpMessageHandler handler)
     {
         IHttpClientFactory httpClientFactory = Substitute.For<IHttpClientFactory>();
-        HttpClient httpClient = new HttpClient(handler);
-        httpClient.BaseAddress = new Uri("https://keycloak.test/");
+        HttpClient httpClient = new(handler)
+        {
+            BaseAddress = new Uri("https://keycloak.test/")
+        };
         httpClientFactory.CreateClient("KeycloakTokenClient").Returns(httpClient);
 
         IConfiguration configuration = new ConfigurationBuilder()
@@ -196,7 +198,7 @@ public class KeycloakTokenServiceTests
 
     private sealed class MockHttpHandler : HttpMessageHandler
     {
-        private readonly Dictionary<string, (HttpStatusCode Status, string Content)> _routes = new();
+        private readonly Dictionary<string, (HttpStatusCode Status, string Content)> _routes = [];
         private bool _shouldThrow;
 
         public MockHttpHandler WithPost(string path, HttpStatusCode status, string content)
@@ -225,7 +227,7 @@ public class KeycloakTokenServiceTests
 
             if (_routes.TryGetValue(key, out (HttpStatusCode Status, string Content) route))
             {
-                HttpResponseMessage response = new HttpResponseMessage(route.Status)
+                HttpResponseMessage response = new(route.Status)
                 {
                     Content = new StringContent(route.Content, Encoding.UTF8, "application/json")
                 };

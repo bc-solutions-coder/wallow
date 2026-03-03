@@ -29,11 +29,11 @@ public class ServiceAccountsControllerTests
     public async Task List_ReturnsOkWithServiceAccounts()
     {
         ServiceAccountMetadataId id = ServiceAccountMetadataId.New();
-        List<ServiceAccountDto> accounts = new()
-        {
+        List<ServiceAccountDto> accounts =
+        [
             new ServiceAccountDto(id, "client-1", "Backend Service", "Desc", ServiceAccountStatus.Active,
                 _billingReadScope, DateTime.UtcNow, null)
-        };
+        ];
         _serviceAccountService.ListAsync(Arg.Any<CancellationToken>())
             .Returns(accounts);
 

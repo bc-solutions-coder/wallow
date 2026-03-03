@@ -38,7 +38,7 @@ public class KeycloakServiceAccountServiceAdditionalTests
 
         KeycloakServiceAccountService service = CreateService(handler);
 
-        CreateServiceAccountRequest request = new CreateServiceAccountRequest(
+        CreateServiceAccountRequest request = new(
             "Test Service",
             "A test service account",
             _invoicesReadWriteScopes);
@@ -62,7 +62,7 @@ public class KeycloakServiceAccountServiceAdditionalTests
 
         KeycloakServiceAccountService service = CreateService(handler);
 
-        CreateServiceAccountRequest request = new CreateServiceAccountRequest(
+        CreateServiceAccountRequest request = new(
             "Test Service", null, Array.Empty<string>());
 
         Func<Task> act = async () => await service.CreateAsync(request);
@@ -84,7 +84,7 @@ public class KeycloakServiceAccountServiceAdditionalTests
 
         KeycloakServiceAccountService service = CreateService(handler);
 
-        CreateServiceAccountRequest request = new CreateServiceAccountRequest(
+        CreateServiceAccountRequest request = new(
             "Test Service", null, Array.Empty<string>());
 
         Func<Task> act = async () => await service.CreateAsync(request);
@@ -245,7 +245,7 @@ public class KeycloakServiceAccountServiceAdditionalTests
 
     private sealed class MockHttpHandler : HttpMessageHandler
     {
-        private readonly Dictionary<string, (HttpStatusCode Status, object? Content, string? LocationHeader)> _routes = new();
+        private readonly Dictionary<string, (HttpStatusCode Status, object? Content, string? LocationHeader)> _routes = [];
 
         public MockHttpHandler WithGet(string path, object content)
         {
@@ -280,7 +280,7 @@ public class KeycloakServiceAccountServiceAdditionalTests
 
             if (_routes.TryGetValue(key, out (HttpStatusCode Status, object? Content, string? LocationHeader) route))
             {
-                HttpResponseMessage response = new HttpResponseMessage(route.Status);
+                HttpResponseMessage response = new(route.Status);
                 if (route.Content != null)
                 {
                     response.Content = JsonContent.Create(route.Content);

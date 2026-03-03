@@ -7,7 +7,7 @@ public class HasPermissionAttributeTests
     [Fact]
     public void Constructor_SetsPolicy_ToPermissionTypeName()
     {
-        HasPermissionAttribute attribute = new HasPermissionAttribute(PermissionType.UsersRead);
+        HasPermissionAttribute attribute = new(PermissionType.UsersRead);
 
         attribute.Policy.Should().Be("UsersRead");
     }
@@ -15,7 +15,7 @@ public class HasPermissionAttributeTests
     [Fact]
     public void Constructor_WithDifferentPermission_SetsCorrectPolicy()
     {
-        HasPermissionAttribute attribute = new HasPermissionAttribute(PermissionType.UsersCreate);
+        HasPermissionAttribute attribute = new(PermissionType.UsersCreate);
 
         attribute.Policy.Should().Be("UsersCreate");
     }

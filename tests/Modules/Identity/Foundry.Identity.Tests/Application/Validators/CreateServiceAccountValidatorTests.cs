@@ -15,7 +15,7 @@ public class CreateServiceAccountValidatorTests
     public void Validate_WithValidCommand_ShouldPass()
     {
         // Arrange
-        CreateServiceAccountCommand command = new CreateServiceAccountCommand(
+        CreateServiceAccountCommand command = new(
             "Test Service Account",
             "Test description",
             _twoScopes);
@@ -31,7 +31,7 @@ public class CreateServiceAccountValidatorTests
     public void Validate_WithEmptyName_ShouldFail()
     {
         // Arrange
-        CreateServiceAccountCommand command = new CreateServiceAccountCommand(
+        CreateServiceAccountCommand command = new(
             "",
             "Description",
             _oneScope);
@@ -48,8 +48,8 @@ public class CreateServiceAccountValidatorTests
     public void Validate_WithNameTooLong_ShouldFail()
     {
         // Arrange
-        string longName = new string('a', 101);
-        CreateServiceAccountCommand command = new CreateServiceAccountCommand(
+        string longName = new('a', 101);
+        CreateServiceAccountCommand command = new(
             longName,
             "Description",
             _oneScope);
@@ -66,8 +66,8 @@ public class CreateServiceAccountValidatorTests
     public void Validate_WithDescriptionTooLong_ShouldFail()
     {
         // Arrange
-        string longDescription = new string('a', 501);
-        CreateServiceAccountCommand command = new CreateServiceAccountCommand(
+        string longDescription = new('a', 501);
+        CreateServiceAccountCommand command = new(
             "Valid Name",
             longDescription,
             _oneScope);
@@ -84,7 +84,7 @@ public class CreateServiceAccountValidatorTests
     public void Validate_WithEmptyScopes_ShouldFail()
     {
         // Arrange
-        CreateServiceAccountCommand command = new CreateServiceAccountCommand(
+        CreateServiceAccountCommand command = new(
             "Valid Name",
             "Description",
             Array.Empty<string>());
@@ -101,7 +101,7 @@ public class CreateServiceAccountValidatorTests
     public void Validate_WithNullDescription_ShouldPass()
     {
         // Arrange
-        CreateServiceAccountCommand command = new CreateServiceAccountCommand(
+        CreateServiceAccountCommand command = new(
             "Valid Name",
             null,
             _oneScope);
@@ -117,8 +117,8 @@ public class CreateServiceAccountValidatorTests
     public void Validate_WithMaxLengthName_ShouldPass()
     {
         // Arrange
-        string maxLengthName = new string('a', 100);
-        CreateServiceAccountCommand command = new CreateServiceAccountCommand(
+        string maxLengthName = new('a', 100);
+        CreateServiceAccountCommand command = new(
             maxLengthName,
             "Description",
             _oneScope);
@@ -134,8 +134,8 @@ public class CreateServiceAccountValidatorTests
     public void Validate_WithMaxLengthDescription_ShouldPass()
     {
         // Arrange
-        string maxLengthDescription = new string('a', 500);
-        CreateServiceAccountCommand command = new CreateServiceAccountCommand(
+        string maxLengthDescription = new('a', 500);
+        CreateServiceAccountCommand command = new(
             "Valid Name",
             maxLengthDescription,
             _oneScope);
@@ -151,7 +151,7 @@ public class CreateServiceAccountValidatorTests
     public void Validate_WithMultipleScopes_ShouldPass()
     {
         // Arrange
-        CreateServiceAccountCommand command = new CreateServiceAccountCommand(
+        CreateServiceAccountCommand command = new(
             "Valid Name",
             "Description",
             _threeScopes);

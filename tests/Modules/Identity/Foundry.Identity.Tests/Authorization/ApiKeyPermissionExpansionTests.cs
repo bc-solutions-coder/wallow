@@ -17,13 +17,13 @@ public class ApiKeyPermissionExpansionTests
             new Claim("scope", "invoices.read invoices.write")
         };
 
-        ClaimsIdentity identity = new ClaimsIdentity(claims, "ApiKey");
-        DefaultHttpContext context = new DefaultHttpContext
+        ClaimsIdentity identity = new(claims, "ApiKey");
+        DefaultHttpContext context = new()
         {
             User = new ClaimsPrincipal(identity)
         };
 
-        PermissionExpansionMiddleware middleware = new PermissionExpansionMiddleware(_ => Task.CompletedTask);
+        PermissionExpansionMiddleware middleware = new(_ => Task.CompletedTask);
 
         await middleware.InvokeAsync(context);
 
@@ -41,13 +41,13 @@ public class ApiKeyPermissionExpansionTests
             new Claim("scope", "unknown.scope invoices.read bogus.permission")
         };
 
-        ClaimsIdentity identity = new ClaimsIdentity(claims, "ApiKey");
-        DefaultHttpContext context = new DefaultHttpContext
+        ClaimsIdentity identity = new(claims, "ApiKey");
+        DefaultHttpContext context = new()
         {
             User = new ClaimsPrincipal(identity)
         };
 
-        PermissionExpansionMiddleware middleware = new PermissionExpansionMiddleware(_ => Task.CompletedTask);
+        PermissionExpansionMiddleware middleware = new(_ => Task.CompletedTask);
 
         await middleware.InvokeAsync(context);
 
@@ -65,13 +65,13 @@ public class ApiKeyPermissionExpansionTests
             new Claim("scope", "invoices.read payments.write users.read notifications.write webhooks.manage")
         };
 
-        ClaimsIdentity identity = new ClaimsIdentity(claims, "ApiKey");
-        DefaultHttpContext context = new DefaultHttpContext
+        ClaimsIdentity identity = new(claims, "ApiKey");
+        DefaultHttpContext context = new()
         {
             User = new ClaimsPrincipal(identity)
         };
 
-        PermissionExpansionMiddleware middleware = new PermissionExpansionMiddleware(_ => Task.CompletedTask);
+        PermissionExpansionMiddleware middleware = new(_ => Task.CompletedTask);
 
         await middleware.InvokeAsync(context);
 

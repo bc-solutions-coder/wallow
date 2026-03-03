@@ -18,8 +18,8 @@ public class GetServiceAccountsQueryTests
     public async Task Handle_ReturnsAllServiceAccounts()
     {
         // Arrange
-        List<ServiceAccountDto> accounts = new List<ServiceAccountDto>
-        {
+        List<ServiceAccountDto> accounts =
+        [
             new(
                 ServiceAccountMetadataId.New(),
                 "sa-client-1",
@@ -38,13 +38,13 @@ public class GetServiceAccountsQueryTests
                 _twoScopes,
                 DateTime.UtcNow,
                 DateTime.UtcNow)
-        };
+        ];
 
         _serviceAccountService.ListAsync(Arg.Any<CancellationToken>())
             .Returns(accounts);
 
-        GetServiceAccountsQuery query = new GetServiceAccountsQuery();
-        GetServiceAccountsHandler handler = new GetServiceAccountsHandler(_serviceAccountService);
+        GetServiceAccountsQuery query = new();
+        GetServiceAccountsHandler handler = new(_serviceAccountService);
 
         // Act
         Result<IReadOnlyList<ServiceAccountDto>> result = await handler.Handle(query, CancellationToken.None);
@@ -65,8 +65,8 @@ public class GetServiceAccountsQueryTests
         _serviceAccountService.ListAsync(Arg.Any<CancellationToken>())
             .Returns(new List<ServiceAccountDto>());
 
-        GetServiceAccountsQuery query = new GetServiceAccountsQuery();
-        GetServiceAccountsHandler handler = new GetServiceAccountsHandler(_serviceAccountService);
+        GetServiceAccountsQuery query = new();
+        GetServiceAccountsHandler handler = new(_serviceAccountService);
 
         // Act
         Result<IReadOnlyList<ServiceAccountDto>> result = await handler.Handle(query, CancellationToken.None);
@@ -80,12 +80,12 @@ public class GetServiceAccountsQueryTests
     public async Task Handle_PropagatesCancellationToken()
     {
         // Arrange
-        using CancellationTokenSource cts = new CancellationTokenSource();
+        using CancellationTokenSource cts = new();
         _serviceAccountService.ListAsync(Arg.Any<CancellationToken>())
             .Returns(new List<ServiceAccountDto>());
 
-        GetServiceAccountsQuery query = new GetServiceAccountsQuery();
-        GetServiceAccountsHandler handler = new GetServiceAccountsHandler(_serviceAccountService);
+        GetServiceAccountsQuery query = new();
+        GetServiceAccountsHandler handler = new(_serviceAccountService);
 
         // Act
         await handler.Handle(query, cts.Token);

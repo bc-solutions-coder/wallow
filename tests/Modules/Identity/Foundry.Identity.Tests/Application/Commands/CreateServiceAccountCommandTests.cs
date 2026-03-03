@@ -15,9 +15,9 @@ public class CreateServiceAccountCommandTests
     {
         // Arrange
         string[] scopes = new[] { "invoices.read", "invoices.write" };
-        CreateServiceAccountCommand command = new CreateServiceAccountCommand("Test Service", "Description", scopes);
+        CreateServiceAccountCommand command = new("Test Service", "Description", scopes);
 
-        ServiceAccountCreatedResult expectedResult = new ServiceAccountCreatedResult(
+        ServiceAccountCreatedResult expectedResult = new(
             ServiceAccountMetadataId.New(),
             "sa-test-client",
             "secret123",
@@ -28,7 +28,7 @@ public class CreateServiceAccountCommandTests
             .CreateAsync(Arg.Any<CreateServiceAccountRequest>(), Arg.Any<CancellationToken>())
             .Returns(expectedResult);
 
-        CreateServiceAccountHandler handler = new CreateServiceAccountHandler(_serviceAccountService);
+        CreateServiceAccountHandler handler = new(_serviceAccountService);
 
         // Act
         Result<ServiceAccountCreatedResult> result = await handler.Handle(command, CancellationToken.None);
@@ -50,7 +50,7 @@ public class CreateServiceAccountCommandTests
     {
         // Arrange
         string[] scopes = new[] { "scope1", "scope2" };
-        CreateServiceAccountCommand command = new CreateServiceAccountCommand("Name", "Desc", scopes);
+        CreateServiceAccountCommand command = new("Name", "Desc", scopes);
 
         _serviceAccountService
             .CreateAsync(Arg.Any<CreateServiceAccountRequest>(), Arg.Any<CancellationToken>())
@@ -61,7 +61,7 @@ public class CreateServiceAccountCommandTests
                 "endpoint",
                 scopes.ToList()));
 
-        CreateServiceAccountHandler handler = new CreateServiceAccountHandler(_serviceAccountService);
+        CreateServiceAccountHandler handler = new(_serviceAccountService);
 
         // Act
         await handler.Handle(command, CancellationToken.None);

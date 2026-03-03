@@ -16,8 +16,8 @@ public class UpdateServiceAccountScopesCommandTests
     public async Task Handle_WithValidCommand_CallsServiceWithCorrectParameters()
     {
         ServiceAccountMetadataId accountId = ServiceAccountMetadataId.New();
-        UpdateServiceAccountScopesCommand command = new UpdateServiceAccountScopesCommand(accountId, _twoScopes);
-        UpdateServiceAccountScopesHandler handler = new UpdateServiceAccountScopesHandler(_serviceAccountService);
+        UpdateServiceAccountScopesCommand command = new(accountId, _twoScopes);
+        UpdateServiceAccountScopesHandler handler = new(_serviceAccountService);
 
         Result result = await handler.Handle(command, CancellationToken.None);
 
@@ -31,9 +31,9 @@ public class UpdateServiceAccountScopesCommandTests
     [Fact]
     public async Task Handle_ReturnsSuccessResult()
     {
-        UpdateServiceAccountScopesCommand command = new UpdateServiceAccountScopesCommand(
+        UpdateServiceAccountScopesCommand command = new(
             ServiceAccountMetadataId.New(), _oneScope);
-        UpdateServiceAccountScopesHandler handler = new UpdateServiceAccountScopesHandler(_serviceAccountService);
+        UpdateServiceAccountScopesHandler handler = new(_serviceAccountService);
 
         Result result = await handler.Handle(command, CancellationToken.None);
 
@@ -43,10 +43,10 @@ public class UpdateServiceAccountScopesCommandTests
     [Fact]
     public async Task Handle_PropagatesCancellationToken()
     {
-        UpdateServiceAccountScopesCommand command = new UpdateServiceAccountScopesCommand(
+        UpdateServiceAccountScopesCommand command = new(
             ServiceAccountMetadataId.New(), _oneScope);
-        UpdateServiceAccountScopesHandler handler = new UpdateServiceAccountScopesHandler(_serviceAccountService);
-        using CancellationTokenSource cts = new CancellationTokenSource();
+        UpdateServiceAccountScopesHandler handler = new(_serviceAccountService);
+        using CancellationTokenSource cts = new();
 
         await handler.Handle(command, cts.Token);
 

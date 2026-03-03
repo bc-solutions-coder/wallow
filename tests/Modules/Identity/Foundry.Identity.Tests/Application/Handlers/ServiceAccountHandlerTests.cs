@@ -24,9 +24,9 @@ public class CreateServiceAccountHandlerTests
     public async Task Handle_WithValidCommand_ReturnsSuccess()
     {
         string[] scopes = ["invoices.read", "invoices.write"];
-        CreateServiceAccountCommand command = new CreateServiceAccountCommand("My Service", "A test service", scopes);
+        CreateServiceAccountCommand command = new("My Service", "A test service", scopes);
 
-        ServiceAccountCreatedResult expectedResult = new ServiceAccountCreatedResult(
+        ServiceAccountCreatedResult expectedResult = new(
             ServiceAccountMetadataId.New(),
             "sa-my-service",
             "generated-secret-abc",
@@ -49,7 +49,7 @@ public class CreateServiceAccountHandlerTests
     public async Task Handle_MapsCommandFieldsToRequest()
     {
         string[] scopes = ["billing.read"];
-        CreateServiceAccountCommand command = new CreateServiceAccountCommand("Billing Reader", "Reads billing data", scopes);
+        CreateServiceAccountCommand command = new("Billing Reader", "Reads billing data", scopes);
 
         _serviceAccountService
             .CreateAsync(Arg.Any<CreateServiceAccountRequest>(), Arg.Any<CancellationToken>())
@@ -69,7 +69,7 @@ public class CreateServiceAccountHandlerTests
     [Fact]
     public async Task Handle_WithDuplicateName_PropagatesServiceException()
     {
-        CreateServiceAccountCommand command = new CreateServiceAccountCommand("Existing Service", null, ["scope1"]);
+        CreateServiceAccountCommand command = new("Existing Service", null, ["scope1"]);
 
         _serviceAccountService
             .CreateAsync(Arg.Any<CreateServiceAccountRequest>(), Arg.Any<CancellationToken>())
@@ -85,7 +85,7 @@ public class CreateServiceAccountHandlerTests
     public async Task Handle_WithNullDescription_PassesNullToService()
     {
         string[] scopes = ["scope1"];
-        CreateServiceAccountCommand command = new CreateServiceAccountCommand("No Desc Service", null, scopes);
+        CreateServiceAccountCommand command = new("No Desc Service", null, scopes);
 
         _serviceAccountService
             .CreateAsync(Arg.Any<CreateServiceAccountRequest>(), Arg.Any<CancellationToken>())
@@ -115,10 +115,10 @@ public class RotateServiceAccountSecretHandlerTests
     public async Task Handle_WithValidId_ReturnsNewSecret()
     {
         ServiceAccountMetadataId accountId = ServiceAccountMetadataId.New();
-        RotateServiceAccountSecretCommand command = new RotateServiceAccountSecretCommand(accountId);
+        RotateServiceAccountSecretCommand command = new(accountId);
         DateTime rotatedAt = DateTime.UtcNow;
 
-        SecretRotatedResult expectedResult = new SecretRotatedResult("new-rotated-secret", rotatedAt);
+        SecretRotatedResult expectedResult = new("new-rotated-secret", rotatedAt);
 
         _serviceAccountService
             .RotateSecretAsync(accountId, Arg.Any<CancellationToken>())
@@ -135,7 +135,7 @@ public class RotateServiceAccountSecretHandlerTests
     public async Task Handle_CallsServiceWithCorrectId()
     {
         ServiceAccountMetadataId accountId = ServiceAccountMetadataId.New();
-        RotateServiceAccountSecretCommand command = new RotateServiceAccountSecretCommand(accountId);
+        RotateServiceAccountSecretCommand command = new(accountId);
 
         _serviceAccountService
             .RotateSecretAsync(Arg.Any<ServiceAccountMetadataId>(), Arg.Any<CancellationToken>())
@@ -150,7 +150,7 @@ public class RotateServiceAccountSecretHandlerTests
     public async Task Handle_WithNonExistentId_PropagatesServiceException()
     {
         ServiceAccountMetadataId nonExistentId = ServiceAccountMetadataId.New();
-        RotateServiceAccountSecretCommand command = new RotateServiceAccountSecretCommand(nonExistentId);
+        RotateServiceAccountSecretCommand command = new(nonExistentId);
 
         _serviceAccountService
             .RotateSecretAsync(nonExistentId, Arg.Any<CancellationToken>())
@@ -178,7 +178,7 @@ public class RevokeServiceAccountHandlerTests
     public async Task Handle_WithValidId_ReturnsSuccess()
     {
         ServiceAccountMetadataId accountId = ServiceAccountMetadataId.New();
-        RevokeServiceAccountCommand command = new RevokeServiceAccountCommand(accountId);
+        RevokeServiceAccountCommand command = new(accountId);
 
         Result result = await _handler.Handle(command, CancellationToken.None);
 
@@ -190,7 +190,7 @@ public class RevokeServiceAccountHandlerTests
     public async Task Handle_CalledTwice_IsIdempotent()
     {
         ServiceAccountMetadataId accountId = ServiceAccountMetadataId.New();
-        RevokeServiceAccountCommand command = new RevokeServiceAccountCommand(accountId);
+        RevokeServiceAccountCommand command = new(accountId);
 
         Result result1 = await _handler.Handle(command, CancellationToken.None);
         Result result2 = await _handler.Handle(command, CancellationToken.None);
@@ -204,8 +204,8 @@ public class RevokeServiceAccountHandlerTests
     public async Task Handle_PropagatesCancellationToken()
     {
         ServiceAccountMetadataId accountId = ServiceAccountMetadataId.New();
-        RevokeServiceAccountCommand command = new RevokeServiceAccountCommand(accountId);
-        using CancellationTokenSource cts = new CancellationTokenSource();
+        RevokeServiceAccountCommand command = new(accountId);
+        using CancellationTokenSource cts = new();
 
         await _handler.Handle(command, cts.Token);
 

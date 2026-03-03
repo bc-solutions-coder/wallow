@@ -11,14 +11,14 @@ public class PermissionAuthorizationHandlerTests
     [Fact]
     public async Task HandleRequirementAsync_UserHasPermission_Succeeds()
     {
-        ClaimsPrincipal user = new ClaimsPrincipal(new ClaimsIdentity(new[]
+        ClaimsPrincipal user = new(new ClaimsIdentity(new[]
         {
             new Claim("permission", "UsersRead"),
             new Claim("permission", "UsersCreate")
         }, "test"));
 
-        PermissionRequirement requirement = new PermissionRequirement("UsersRead");
-        AuthorizationHandlerContext context = new AuthorizationHandlerContext(
+        PermissionRequirement requirement = new("UsersRead");
+        AuthorizationHandlerContext context = new(
             new[] { requirement }, user, null);
 
         await _handler.HandleAsync(context);
@@ -29,13 +29,13 @@ public class PermissionAuthorizationHandlerTests
     [Fact]
     public async Task HandleRequirementAsync_UserLacksPermission_DoesNotSucceed()
     {
-        ClaimsPrincipal user = new ClaimsPrincipal(new ClaimsIdentity(new[]
+        ClaimsPrincipal user = new(new ClaimsIdentity(new[]
         {
             new Claim("permission", "UsersRead")
         }, "test"));
 
-        PermissionRequirement requirement = new PermissionRequirement("UsersCreate");
-        AuthorizationHandlerContext context = new AuthorizationHandlerContext(
+        PermissionRequirement requirement = new("UsersCreate");
+        AuthorizationHandlerContext context = new(
             new[] { requirement }, user, null);
 
         await _handler.HandleAsync(context);
@@ -46,10 +46,10 @@ public class PermissionAuthorizationHandlerTests
     [Fact]
     public async Task HandleRequirementAsync_UserHasNoPermissions_DoesNotSucceed()
     {
-        ClaimsPrincipal user = new ClaimsPrincipal(new ClaimsIdentity(Array.Empty<Claim>(), "test"));
+        ClaimsPrincipal user = new(new ClaimsIdentity(Array.Empty<Claim>(), "test"));
 
-        PermissionRequirement requirement = new PermissionRequirement("UsersRead");
-        AuthorizationHandlerContext context = new AuthorizationHandlerContext(
+        PermissionRequirement requirement = new("UsersRead");
+        AuthorizationHandlerContext context = new(
             new[] { requirement }, user, null);
 
         await _handler.HandleAsync(context);

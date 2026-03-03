@@ -32,7 +32,7 @@ public class KeycloakAdminServiceTests
             .WithPost($"/admin/realms/foundry/users/{userId}/role-mappings/realm", HttpStatusCode.NoContent)
             .WithGet($"/admin/realms/foundry/users/{userId}/role-mappings/realm", new[] { new { name = "user" } });
 
-        HttpResponseMessage createResponse = new HttpResponseMessage(HttpStatusCode.Created);
+        HttpResponseMessage createResponse = new(HttpStatusCode.Created);
         createResponse.Headers.Location = new Uri($"https://keycloak.test/users/{userId}");
         _userClient.CreateUserWithResponseAsync("foundry", Arg.Any<UserRepresentation>(), Arg.Any<CancellationToken>())
             .Returns(createResponse);
@@ -54,7 +54,7 @@ public class KeycloakAdminServiceTests
             .WithPost($"/admin/realms/foundry/users/{userId}/role-mappings/realm", HttpStatusCode.NoContent)
             .WithGet($"/admin/realms/foundry/users/{userId}/role-mappings/realm", new[] { new { name = "user" } });
 
-        HttpResponseMessage createResponse = new HttpResponseMessage(HttpStatusCode.Created);
+        HttpResponseMessage createResponse = new(HttpStatusCode.Created);
         createResponse.Headers.Location = new Uri($"https://keycloak.test/users/{userId}");
         _userClient.CreateUserWithResponseAsync("foundry", Arg.Any<UserRepresentation>(), Arg.Any<CancellationToken>())
             .Returns(createResponse);
@@ -69,7 +69,7 @@ public class KeycloakAdminServiceTests
     [Fact]
     public async Task CreateUserAsync_MissingLocationHeader_Throws()
     {
-        HttpResponseMessage createResponse = new HttpResponseMessage(HttpStatusCode.Created);
+        HttpResponseMessage createResponse = new(HttpStatusCode.Created);
         // No location header
         _userClient.CreateUserWithResponseAsync("foundry", Arg.Any<UserRepresentation>(), Arg.Any<CancellationToken>())
             .Returns(createResponse);
@@ -131,8 +131,7 @@ public class KeycloakAdminServiceTests
         _userClient.GetUsersAsync("foundry", Arg.Any<GetUsersRequestParameters>(), Arg.Any<CancellationToken>())
             .Returns(new List<UserRepresentation>
             {
-                new UserRepresentation
-                {
+                new() {
                     Id = userId.ToString(),
                     Email = "test@test.com",
                     FirstName = "Jane",
@@ -171,7 +170,7 @@ public class KeycloakAdminServiceTests
         _userClient.GetUsersAsync("foundry", Arg.Any<GetUsersRequestParameters>(), Arg.Any<CancellationToken>())
             .Returns(new List<UserRepresentation>
             {
-                new UserRepresentation { Id = null, Email = "test@test.com" }
+                new() { Id = null, Email = "test@test.com" }
             });
 
         KeycloakAdminService service = CreateService(new MockHttpHandler());
@@ -189,8 +188,8 @@ public class KeycloakAdminServiceTests
         _userClient.GetUsersAsync("foundry", Arg.Any<GetUsersRequestParameters>(), Arg.Any<CancellationToken>())
             .Returns(new List<UserRepresentation>
             {
-                new UserRepresentation { Id = userId1.ToString(), Email = "u1@test.com", FirstName = "U1", LastName = "L1", Enabled = true },
-                new UserRepresentation { Id = userId2.ToString(), Email = "u2@test.com", FirstName = "U2", LastName = "L2", Enabled = false }
+                new() { Id = userId1.ToString(), Email = "u1@test.com", FirstName = "U1", LastName = "L1", Enabled = true },
+                new() { Id = userId2.ToString(), Email = "u2@test.com", FirstName = "U2", LastName = "L2", Enabled = false }
             });
 
         MockHttpHandler handler = new MockHttpHandler()
@@ -213,8 +212,8 @@ public class KeycloakAdminServiceTests
         _userClient.GetUsersAsync("foundry", Arg.Any<GetUsersRequestParameters>(), Arg.Any<CancellationToken>())
             .Returns(new List<UserRepresentation>
             {
-                new UserRepresentation { Id = null, Email = "bad@test.com" },
-                new UserRepresentation { Id = userId.ToString(), Email = "good@test.com", Enabled = true }
+                new() { Id = null, Email = "bad@test.com" },
+                new() { Id = userId.ToString(), Email = "good@test.com", Enabled = true }
             });
 
         MockHttpHandler handler = new MockHttpHandler()
@@ -350,8 +349,10 @@ public class KeycloakAdminServiceTests
     private KeycloakAdminService CreateService(HttpMessageHandler handler)
     {
         IHttpClientFactory httpClientFactory = Substitute.For<IHttpClientFactory>();
-        HttpClient httpClient = new HttpClient(handler);
-        httpClient.BaseAddress = new Uri("https://keycloak.test/");
+        HttpClient httpClient = new(handler)
+        {
+            BaseAddress = new Uri("https://keycloak.test/")
+        };
         httpClientFactory.CreateClient("KeycloakAdminClient").Returns(httpClient);
 
         _tenantContext.TenantId.Returns(_testTenantId);
@@ -366,7 +367,7 @@ public class KeycloakAdminServiceTests
 
     private sealed class MockHttpHandler : HttpMessageHandler
     {
-        private readonly Dictionary<string, (HttpStatusCode Status, object? Content)> _routes = new();
+        private readonly Dictionary<string, (HttpStatusCode Status, object? Content)> _routes = [];
 
         public MockHttpHandler WithGet(string path, object content)
         {
@@ -401,7 +402,7 @@ public class KeycloakAdminServiceTests
 
             if (_routes.TryGetValue(key, out (HttpStatusCode Status, object? Content) route))
             {
-                HttpResponseMessage response = new HttpResponseMessage(route.Status);
+                HttpResponseMessage response = new(route.Status);
                 if (route.Content != null)
                 {
                     response.Content = JsonContent.Create(route.Content);

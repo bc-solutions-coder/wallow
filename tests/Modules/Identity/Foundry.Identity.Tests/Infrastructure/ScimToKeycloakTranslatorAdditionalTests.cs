@@ -38,8 +38,8 @@ public class ScimToKeycloakTranslatorAdditionalTests
 
         result.InMemoryFilter.Should().NotBeNull();
 
-        ScimUser matchingUser = new ScimUser { UserName = "john.doe" };
-        ScimUser nonMatchingUser = new ScimUser { UserName = "alice.smith" };
+        ScimUser matchingUser = new() { UserName = "john.doe" };
+        ScimUser nonMatchingUser = new() { UserName = "alice.smith" };
 
         result.InMemoryFilter!(matchingUser).Should().BeTrue();
         result.InMemoryFilter!(nonMatchingUser).Should().BeFalse();
@@ -52,8 +52,8 @@ public class ScimToKeycloakTranslatorAdditionalTests
 
         result.InMemoryFilter.Should().NotBeNull();
 
-        ScimUser greaterUser = new ScimUser { UserName = "charlie" };
-        ScimUser lesserUser = new ScimUser { UserName = "alice" };
+        ScimUser greaterUser = new() { UserName = "charlie" };
+        ScimUser lesserUser = new() { UserName = "alice" };
 
         result.InMemoryFilter!(greaterUser).Should().BeTrue();
         result.InMemoryFilter!(lesserUser).Should().BeFalse();
@@ -66,9 +66,9 @@ public class ScimToKeycloakTranslatorAdditionalTests
 
         result.InMemoryFilter.Should().NotBeNull();
 
-        ScimUser equalUser = new ScimUser { UserName = "bob" };
-        ScimUser greaterUser = new ScimUser { UserName = "charlie" };
-        ScimUser lesserUser = new ScimUser { UserName = "alice" };
+        ScimUser equalUser = new() { UserName = "bob" };
+        ScimUser greaterUser = new() { UserName = "charlie" };
+        ScimUser lesserUser = new() { UserName = "alice" };
 
         result.InMemoryFilter!(equalUser).Should().BeTrue();
         result.InMemoryFilter!(greaterUser).Should().BeTrue();
@@ -82,8 +82,8 @@ public class ScimToKeycloakTranslatorAdditionalTests
 
         result.InMemoryFilter.Should().NotBeNull();
 
-        ScimUser lesserUser = new ScimUser { UserName = "alice" };
-        ScimUser greaterUser = new ScimUser { UserName = "charlie" };
+        ScimUser lesserUser = new() { UserName = "alice" };
+        ScimUser greaterUser = new() { UserName = "charlie" };
 
         result.InMemoryFilter!(lesserUser).Should().BeTrue();
         result.InMemoryFilter!(greaterUser).Should().BeFalse();
@@ -96,9 +96,9 @@ public class ScimToKeycloakTranslatorAdditionalTests
 
         result.InMemoryFilter.Should().NotBeNull();
 
-        ScimUser equalUser = new ScimUser { UserName = "bob" };
-        ScimUser lesserUser = new ScimUser { UserName = "alice" };
-        ScimUser greaterUser = new ScimUser { UserName = "charlie" };
+        ScimUser equalUser = new() { UserName = "bob" };
+        ScimUser lesserUser = new() { UserName = "alice" };
+        ScimUser greaterUser = new() { UserName = "charlie" };
 
         result.InMemoryFilter!(equalUser).Should().BeTrue();
         result.InMemoryFilter!(lesserUser).Should().BeTrue();
@@ -113,9 +113,9 @@ public class ScimToKeycloakTranslatorAdditionalTests
         // Both sides have params, one is in-memory, so combined with in-memory filter
         result.InMemoryFilter.Should().NotBeNull();
 
-        ScimUser matchingUser = new ScimUser { UserName = "john", Active = true };
-        ScimUser wrongUser = new ScimUser { UserName = "john", Active = false };
-        ScimUser wrongName = new ScimUser { UserName = "jane", Active = true };
+        ScimUser matchingUser = new() { UserName = "john", Active = true };
+        ScimUser wrongUser = new() { UserName = "john", Active = false };
+        ScimUser wrongName = new() { UserName = "jane", Active = true };
 
         result.InMemoryFilter!(matchingUser).Should().BeTrue();
         result.InMemoryFilter!(wrongUser).Should().BeFalse();
@@ -130,9 +130,9 @@ public class ScimToKeycloakTranslatorAdditionalTests
         // Two Keycloak params with same type -> falls to in-memory
         result.InMemoryFilter.Should().NotBeNull();
 
-        ScimUser john = new ScimUser { UserName = "john" };
-        ScimUser jane = new ScimUser { UserName = "jane" };
-        ScimUser other = new ScimUser { UserName = "bob" };
+        ScimUser john = new() { UserName = "john" };
+        ScimUser jane = new() { UserName = "jane" };
+        ScimUser other = new() { UserName = "bob" };
 
         result.InMemoryFilter!(john).Should().BeTrue();
         result.InMemoryFilter!(jane).Should().BeTrue();
@@ -146,12 +146,12 @@ public class ScimToKeycloakTranslatorAdditionalTests
 
         result.InMemoryFilter.Should().NotBeNull();
 
-        ScimUser withEmail = new ScimUser
+        ScimUser withEmail = new()
         {
             UserName = "john",
             Emails = new[] { new ScimEmail { Value = "john@test.com", Primary = true } }
         };
-        ScimUser withoutEmail = new ScimUser { UserName = "john" };
+        ScimUser withoutEmail = new() { UserName = "john" };
 
         result.InMemoryFilter!(withEmail).Should().BeTrue();
         result.InMemoryFilter!(withoutEmail).Should().BeFalse();
@@ -164,8 +164,8 @@ public class ScimToKeycloakTranslatorAdditionalTests
 
         result.InMemoryFilter.Should().NotBeNull();
 
-        ScimUser withName = new ScimUser { UserName = "john", Name = new ScimName { GivenName = "John" } };
-        ScimUser withoutName = new ScimUser { UserName = "john", Name = new ScimName { GivenName = null } };
+        ScimUser withName = new() { UserName = "john", Name = new ScimName { GivenName = "John" } };
+        ScimUser withoutName = new() { UserName = "john", Name = new ScimName { GivenName = null } };
 
         result.InMemoryFilter!(withName).Should().BeTrue();
         result.InMemoryFilter!(withoutName).Should().BeFalse();
@@ -178,8 +178,8 @@ public class ScimToKeycloakTranslatorAdditionalTests
 
         result.InMemoryFilter.Should().NotBeNull();
 
-        ScimUser withName = new ScimUser { UserName = "john", Name = new ScimName { FamilyName = "Doe" } };
-        ScimUser withoutName = new ScimUser { UserName = "john", Name = new ScimName { FamilyName = "" } };
+        ScimUser withName = new() { UserName = "john", Name = new ScimName { FamilyName = "Doe" } };
+        ScimUser withoutName = new() { UserName = "john", Name = new ScimName { FamilyName = "" } };
 
         result.InMemoryFilter!(withName).Should().BeTrue();
         result.InMemoryFilter!(withoutName).Should().BeFalse();
@@ -192,7 +192,7 @@ public class ScimToKeycloakTranslatorAdditionalTests
 
         result.InMemoryFilter.Should().NotBeNull();
 
-        ScimUser user = new ScimUser { UserName = "john" };
+        ScimUser user = new() { UserName = "john" };
         result.InMemoryFilter!(user).Should().BeFalse();
     }
 
@@ -204,7 +204,7 @@ public class ScimToKeycloakTranslatorAdditionalTests
         result.InMemoryFilter.Should().NotBeNull();
 
         // Unknown attribute -> null value -> returns false
-        ScimUser user = new ScimUser { UserName = "john" };
+        ScimUser user = new() { UserName = "john" };
         result.InMemoryFilter!(user).Should().BeFalse();
     }
 
@@ -242,8 +242,8 @@ public class ScimToKeycloakTranslatorAdditionalTests
 
         result.InMemoryFilter.Should().NotBeNull();
 
-        ScimUser adminInactive = new ScimUser { UserName = "admin", Active = false };
-        ScimUser regularActive = new ScimUser { UserName = "user", Active = true };
+        ScimUser adminInactive = new() { UserName = "admin", Active = false };
+        ScimUser regularActive = new() { UserName = "user", Active = true };
 
         result.InMemoryFilter!(adminInactive).Should().BeFalse();
         result.InMemoryFilter!(regularActive).Should().BeTrue();
@@ -256,13 +256,13 @@ public class ScimToKeycloakTranslatorAdditionalTests
 
         result.InMemoryFilter.Should().NotBeNull();
 
-        ScimUser activeWithEmail = new ScimUser
+        ScimUser activeWithEmail = new()
         {
             Active = true,
             UserName = "john",
             Emails = new[] { new ScimEmail { Value = "john@test.com", Primary = true } }
         };
-        ScimUser inactiveWithEmail = new ScimUser
+        ScimUser inactiveWithEmail = new()
         {
             Active = false,
             UserName = "john",
@@ -280,8 +280,8 @@ public class ScimToKeycloakTranslatorAdditionalTests
 
         result.InMemoryFilter.Should().NotBeNull();
 
-        ScimUser activeUser = new ScimUser { Active = true, UserName = "test" };
-        ScimUser inactiveUser = new ScimUser { Active = false, UserName = "test" };
+        ScimUser activeUser = new() { Active = true, UserName = "test" };
+        ScimUser inactiveUser = new() { Active = false, UserName = "test" };
 
         // Both should match since it's OR
         result.InMemoryFilter!(activeUser).Should().BeTrue();

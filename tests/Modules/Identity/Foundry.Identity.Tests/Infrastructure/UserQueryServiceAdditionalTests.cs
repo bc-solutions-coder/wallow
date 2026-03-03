@@ -78,8 +78,8 @@ public class UserQueryServiceAdditionalTests
     public async Task GetNewUsersCountAsync_WithExactBoundaryTimestamps_HandlesCorrectly()
     {
         Guid tenantId = Guid.NewGuid();
-        DateTime from = new DateTime(2025, 6, 1, 0, 0, 0, DateTimeKind.Utc);
-        DateTime to = new DateTime(2025, 7, 1, 0, 0, 0, DateTimeKind.Utc);
+        DateTime from = new(2025, 6, 1, 0, 0, 0, DateTimeKind.Utc);
+        DateTime to = new(2025, 7, 1, 0, 0, 0, DateTimeKind.Utc);
         long fromTs = new DateTimeOffset(from).ToUnixTimeMilliseconds();
         long toTs = new DateTimeOffset(to).ToUnixTimeMilliseconds();
 
@@ -118,8 +118,10 @@ public class UserQueryServiceAdditionalTests
     private UserQueryService CreateService(HttpMessageHandler handler)
     {
         IHttpClientFactory httpClientFactory = Substitute.For<IHttpClientFactory>();
-        HttpClient httpClient = new HttpClient(handler);
-        httpClient.BaseAddress = new Uri("https://keycloak.test/");
+        HttpClient httpClient = new(handler)
+        {
+            BaseAddress = new Uri("https://keycloak.test/")
+        };
         httpClientFactory.CreateClient("KeycloakAdminClient").Returns(httpClient);
 
         return new UserQueryService(httpClientFactory, _cache, _logger);
@@ -127,8 +129,8 @@ public class UserQueryServiceAdditionalTests
 
     private sealed class MockHttpHandler : HttpMessageHandler
     {
-        private readonly Dictionary<string, (HttpStatusCode Status, object? Content)> _routes = new();
-        private readonly HashSet<string> _nullRoutes = new();
+        private readonly Dictionary<string, (HttpStatusCode Status, object? Content)> _routes = [];
+        private readonly HashSet<string> _nullRoutes = [];
 
         public MockHttpHandler WithGet(string path, object content)
         {
@@ -165,7 +167,7 @@ public class UserQueryServiceAdditionalTests
 
             if (_routes.TryGetValue(key, out (HttpStatusCode Status, object? Content) route))
             {
-                HttpResponseMessage response = new HttpResponseMessage(route.Status);
+                HttpResponseMessage response = new(route.Status);
                 if (route.Content != null)
                 {
                     response.Content = JsonContent.Create(route.Content);

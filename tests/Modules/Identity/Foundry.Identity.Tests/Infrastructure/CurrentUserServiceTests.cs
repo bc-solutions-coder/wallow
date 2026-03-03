@@ -12,7 +12,7 @@ public class CurrentUserServiceTests
         Guid userId = Guid.NewGuid();
         IHttpContextAccessor accessor = CreateAccessor(new Claim(ClaimTypes.NameIdentifier, userId.ToString()));
 
-        CurrentUserService service = new CurrentUserService(accessor);
+        CurrentUserService service = new(accessor);
 
         service.UserId.Should().Be(userId);
     }
@@ -23,7 +23,7 @@ public class CurrentUserServiceTests
         Guid userId = Guid.NewGuid();
         IHttpContextAccessor accessor = CreateAccessor(new Claim("sub", userId.ToString()));
 
-        CurrentUserService service = new CurrentUserService(accessor);
+        CurrentUserService service = new(accessor);
 
         service.UserId.Should().Be(userId);
     }
@@ -32,11 +32,11 @@ public class CurrentUserServiceTests
     public void UserId_WhenNotAuthenticated_ReturnsNull()
     {
         IHttpContextAccessor accessor = Substitute.For<IHttpContextAccessor>();
-        DefaultHttpContext context = new DefaultHttpContext();
+        DefaultHttpContext context = new();
         // User is not authenticated by default
         accessor.HttpContext.Returns(context);
 
-        CurrentUserService service = new CurrentUserService(accessor);
+        CurrentUserService service = new(accessor);
 
         service.UserId.Should().BeNull();
     }
@@ -47,7 +47,7 @@ public class CurrentUserServiceTests
         IHttpContextAccessor accessor = Substitute.For<IHttpContextAccessor>();
         accessor.HttpContext.Returns((HttpContext?)null);
 
-        CurrentUserService service = new CurrentUserService(accessor);
+        CurrentUserService service = new(accessor);
 
         service.UserId.Should().BeNull();
     }
@@ -57,7 +57,7 @@ public class CurrentUserServiceTests
     {
         IHttpContextAccessor accessor = CreateAccessor(new Claim(ClaimTypes.NameIdentifier, "not-a-guid"));
 
-        CurrentUserService service = new CurrentUserService(accessor);
+        CurrentUserService service = new(accessor);
 
         service.UserId.Should().BeNull();
     }
@@ -67,7 +67,7 @@ public class CurrentUserServiceTests
     {
         IHttpContextAccessor accessor = CreateAccessor(new Claim("some-other-claim", "value"));
 
-        CurrentUserService service = new CurrentUserService(accessor);
+        CurrentUserService service = new(accessor);
 
         service.UserId.Should().BeNull();
     }
@@ -75,8 +75,8 @@ public class CurrentUserServiceTests
     private static IHttpContextAccessor CreateAccessor(params Claim[] claims)
     {
         IHttpContextAccessor accessor = Substitute.For<IHttpContextAccessor>();
-        DefaultHttpContext context = new DefaultHttpContext();
-        ClaimsIdentity identity = new ClaimsIdentity(claims, "test");
+        DefaultHttpContext context = new();
+        ClaimsIdentity identity = new(claims, "test");
         context.User = new ClaimsPrincipal(identity);
         accessor.HttpContext.Returns(context);
         return accessor;

@@ -44,7 +44,7 @@ public class PermissionExpansionMiddleware
 
     private static void ExpandUserRoles(HttpContext context, ClaimsIdentity? identity)
     {
-        List<string> roles = new List<string>();
+        List<string> roles = [];
 
         // Read standard role claims
         List<string> standardRoles = context.User.FindAll(ClaimTypes.Role)

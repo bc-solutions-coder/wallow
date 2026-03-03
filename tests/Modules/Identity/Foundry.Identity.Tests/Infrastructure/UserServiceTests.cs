@@ -21,7 +21,7 @@ public class UserServiceTests
     public async Task GetUserByIdAsync_WhenUserExists_ReturnsUserInfo()
     {
         Guid userId = Guid.NewGuid();
-        UserDto userDto = new UserDto(userId, "test@example.com", "John", "Doe", true, _userRole);
+        UserDto userDto = new(userId, "test@example.com", "John", "Doe", true, _userRole);
         _keycloakAdmin.GetUserByIdAsync(userId, Arg.Any<CancellationToken>()).Returns(userDto);
 
         UserInfo? result = await _service.GetUserByIdAsync(userId);
@@ -50,7 +50,7 @@ public class UserServiceTests
     {
         Guid userId = Guid.NewGuid();
         string email = "jane@example.com";
-        UserDto userDto = new UserDto(userId, email, "Jane", "Smith", false, _adminRole);
+        UserDto userDto = new(userId, email, "Jane", "Smith", false, _adminRole);
         _keycloakAdmin.GetUserByEmailAsync(email, Arg.Any<CancellationToken>()).Returns(userDto);
 
         UserInfo? result = await _service.GetUserByEmailAsync(email);
