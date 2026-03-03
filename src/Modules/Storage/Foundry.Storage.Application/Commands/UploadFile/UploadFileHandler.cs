@@ -11,7 +11,8 @@ namespace Foundry.Storage.Application.Commands.UploadFile;
 public sealed class UploadFileHandler(
     IStorageBucketRepository bucketRepository,
     IStoredFileRepository fileRepository,
-    IStorageProvider storageProvider)
+    IStorageProvider storageProvider,
+    IFileScanner fileScanner)
 {
     public async Task<Result<UploadResult>> Handle(
         UploadFileCommand command,
@@ -47,6 +48,13 @@ public sealed class UploadFileHandler(
             command.Path,
             fileId,
             extension);
+
+        FileScanResult scanResult = await fileScanner.ScanAsync(command.Content, command.FileName, cancellationToken);
+        if (!scanResult.IsClean)
+        {
+            return Result.Failure<UploadResult>(
+                Error.Validation($"File '{command.FileName}' failed security scan: {scanResult.ThreatName}"));
+        }
 
         await storageProvider.UploadAsync(
             command.Content,

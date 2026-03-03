@@ -28,3 +28,10 @@ services:
     networks:
       - foundry
     restart: unless-stopped
+
+  # ============================================
+  # ANTIVIRUS (ClamAV)
+  # ============================================
+  clamav:
+    ports:
+      - "3310:3310"

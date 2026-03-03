@@ -1,3 +1,4 @@
+using System.Net.Sockets;
 using Amazon;
 using Amazon.S3;
 using Foundry.Shared.Contracts.Storage;
@@ -8,9 +9,11 @@ using Foundry.Storage.Infrastructure.Configuration;
 using Foundry.Storage.Infrastructure.Persistence;
 using Foundry.Storage.Infrastructure.Persistence.Repositories;
 using Foundry.Storage.Infrastructure.Providers;
+using Foundry.Storage.Infrastructure.Scanning;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
 
 namespace Foundry.Storage.Infrastructure.Extensions;
@@ -23,6 +26,8 @@ public static class StorageInfrastructureExtensions
     {
         services.AddStoragePersistence(configuration);
         services.AddStorageProvider(configuration);
+        services.AddScoped<IFileScanner, ClamAvFileScanner>();
+        services.AddClamAvHealthCheck(configuration);
 
         return services;
     }
@@ -78,6 +83,39 @@ public static class StorageInfrastructureExtensions
             default:
                 services.AddSingleton<IStorageProvider, LocalStorageProvider>();
                 break;
+        }
+    }
+
+    private static void AddClamAvHealthCheck(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        StorageOptions storageOptions = configuration.GetSection(StorageOptions.SectionName).Get<StorageOptions>()
+                                        ?? new StorageOptions();
+
+        services.AddHealthChecks()
+            .AddCheck(
+                "clamav",
+                new ClamAvHealthCheck(storageOptions.ClamAvHost, storageOptions.ClamAvPort),
+                tags: ["clamav"]);
+    }
+}
+
+internal sealed class ClamAvHealthCheck(string host, int port) : IHealthCheck
+{
+    public async Task<HealthCheckResult> CheckHealthAsync(
+        HealthCheckContext context,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            using TcpClient client = new();
+            await client.ConnectAsync(host, port, cancellationToken);
+            return HealthCheckResult.Healthy("ClamAV is reachable.");
+        }
+        catch (Exception ex)
+        {
+            return HealthCheckResult.Unhealthy("ClamAV is unreachable.", ex);
         }
     }
 }

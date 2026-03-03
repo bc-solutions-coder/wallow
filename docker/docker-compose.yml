@@ -128,6 +128,23 @@ services:
       - foundry
     restart: unless-stopped
 
+  # ============================================
+  # ANTIVIRUS (ClamAV)
+  # ============================================
+  clamav:
+    image: clamav/clamav:latest
+    container_name: ${COMPOSE_PROJECT_NAME:-foundry}-clamav
+    ports:
+      - "3310:3310"
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/clamdcheck.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - foundry
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   valkey_data:

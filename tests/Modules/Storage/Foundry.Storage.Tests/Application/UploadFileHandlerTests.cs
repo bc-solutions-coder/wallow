@@ -15,6 +15,7 @@ public class UploadFileHandlerTests
     private readonly IStorageBucketRepository _bucketRepository;
     private readonly IStoredFileRepository _fileRepository;
     private readonly IStorageProvider _storageProvider;
+    private readonly IFileScanner _fileScanner;
     private readonly UploadFileHandler _handler;
 
     public UploadFileHandlerTests()
@@ -22,7 +23,10 @@ public class UploadFileHandlerTests
         _bucketRepository = Substitute.For<IStorageBucketRepository>();
         _fileRepository = Substitute.For<IStoredFileRepository>();
         _storageProvider = Substitute.For<IStorageProvider>();
-        _handler = new UploadFileHandler(_bucketRepository, _fileRepository, _storageProvider);
+        _fileScanner = Substitute.For<IFileScanner>();
+        _fileScanner.ScanAsync(Arg.Any<Stream>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(FileScanResult.Clean());
+        _handler = new UploadFileHandler(_bucketRepository, _fileRepository, _storageProvider, _fileScanner);
     }
 
     [Fact]
@@ -170,6 +174,30 @@ public class UploadFileHandlerTests
 
         _fileRepository.Received(2).Add(Arg.Any<StoredFile>());
         await _fileRepository.Received(2).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_WhenFileScanFails_ReturnsFailureWithThreatName()
+    {
+        // Arrange
+        StorageBucket bucket = StorageBucket.Create(TenantId.New(), "test-bucket");
+        UploadFileCommand command = CreateCommand();
+
+        _bucketRepository.GetByNameAsync(command.BucketName, Arg.Any<CancellationToken>())
+            .Returns(bucket);
+        _fileScanner.ScanAsync(Arg.Any<Stream>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(FileScanResult.Infected("Trojan.Generic"));
+
+        // Act
+        Result<UploadResult> result = await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().StartWith("Validation");
+        result.Error.Message.Should().Contain("Trojan.Generic");
+
+        await _storageProvider.DidNotReceive().UploadAsync(
+            Arg.Any<Stream>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     private static UploadFileCommand CreateCommand(

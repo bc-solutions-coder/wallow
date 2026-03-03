@@ -9,6 +9,8 @@ public sealed class StorageOptions
     public StorageProvider Provider { get; set; } = StorageProvider.Local;
     public LocalStorageOptions Local { get; set; } = new();
     public S3StorageOptions S3 { get; set; } = new();
+    public string ClamAvHost { get; set; } = "localhost";
+    public int ClamAvPort { get; set; } = 3310;
 }
 
 public sealed class LocalStorageOptions
