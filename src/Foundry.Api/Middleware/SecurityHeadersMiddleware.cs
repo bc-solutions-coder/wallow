@@ -45,6 +45,15 @@ internal sealed class SecurityHeadersMiddleware
                    "style-src 'self' 'unsafe-inline'";
         }
 
+        if (path.HasValue && path.StartsWithSegments("/scalar"))
+        {
+            return "default-src 'self'; " +
+                   "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; " +
+                   "style-src 'self' 'unsafe-inline'; " +
+                   "img-src 'self' data:; " +
+                   "font-src 'self' data:";
+        }
+
         if (path.HasValue && path.StartsWithSegments("/hubs"))
         {
             return "default-src 'self'; " +

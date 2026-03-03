@@ -133,6 +133,7 @@ services:
   # ============================================
   clamav:
     image: clamav/clamav:latest
+    platform: linux/amd64
     container_name: ${COMPOSE_PROJECT_NAME:-foundry}-clamav
     ports:
       - "3310:3310"

@@ -239,6 +239,7 @@ try
     }).AddApiExplorer(opts =>
     {
         opts.GroupNameFormat = "'v'V";
+        opts.SubstitutionFormat = "V";
         opts.SubstituteApiVersionInUrl = true;
     });
     builder.Services.AddSharedKernel();
