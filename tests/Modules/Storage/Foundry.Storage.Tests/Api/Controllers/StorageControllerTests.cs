@@ -448,18 +448,16 @@ public class StorageControllerTests
     }
 
     [Fact]
-    public async Task Upload_WhenFailure_ThrowsDueToValueAccess()
+    public async Task Upload_WhenFailure_ReturnsErrorResult()
     {
-        // BUG: Controller accesses result.Value?.FileId for location string even on failure path,
-        // which throws InvalidOperationException from the Result type.
         IFormFile file = CreateMockFormFile("test.txt", "text/plain", 100);
         _bus.InvokeAsync<Result<UploadResult>>(Arg.Any<UploadFileCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Failure<UploadResult>(Error.NotFound("Bucket", "test-bucket")));
 
-        Func<Task> act = () => _controller.Upload(file, "test-bucket", cancellationToken: CancellationToken.None);
+        IActionResult result = await _controller.Upload(file, "test-bucket", cancellationToken: CancellationToken.None);
 
-        await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("Cannot access value of a failed result");
+        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        objectResult.StatusCode.Should().Be(StatusCodes.Status404NotFound);
     }
 
     [Fact]

@@ -263,18 +263,16 @@ public class InvoicesControllerTests
     }
 
     [Fact]
-    public async Task Create_WhenFailure_ThrowsDueToValueAccess()
+    public async Task Create_WhenFailure_ReturnsErrorResult()
     {
-        // BUG: Controller accesses result.Value?.Id for location string even on failure path,
-        // which throws InvalidOperationException from the Result type.
         CreateInvoiceRequest request = new("INV-001", "USD", null);
         _bus.InvokeAsync<Result<InvoiceDto>>(Arg.Any<CreateInvoiceCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Failure<InvoiceDto>(Error.Validation("Invalid invoice")));
 
-        Func<Task> act = () => _controller.Create(request, CancellationToken.None);
+        IActionResult result = await _controller.Create(request, CancellationToken.None);
 
-        await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("Cannot access value of a failed result");
+        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        objectResult.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
     }
 
     [Fact]

@@ -1,7 +1,7 @@
 using Asp.Versioning;
 using Foundry.Communications.Api.Contracts.Email.Requests;
 using Foundry.Communications.Api.Contracts.Email.Responses;
-using Foundry.Communications.Api.Extensions;
+using Foundry.Shared.Api.Extensions;
 using Foundry.Communications.Api.Mappings;
 using Foundry.Communications.Application.Channels.Email.Commands.UpdateEmailPreferences;
 using Foundry.Communications.Application.Channels.Email.DTOs;

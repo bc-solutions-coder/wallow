@@ -1,7 +1,7 @@
 using Asp.Versioning;
 using Foundry.Communications.Api.Contracts.Messaging.Requests;
 using Foundry.Communications.Api.Contracts.Messaging.Responses;
-using Foundry.Communications.Api.Extensions;
+using Foundry.Shared.Api.Extensions;
 using Foundry.Communications.Application.Messaging.Commands.CreateConversation;
 using Foundry.Communications.Application.Messaging.Commands.MarkConversationRead;
 using Foundry.Communications.Application.Messaging.Commands.SendMessage;
@@ -69,6 +69,11 @@ public class ConversationsController : ControllerBase
             request.Subject);
 
         Result<Guid> result = await _bus.InvokeAsync<Result<Guid>>(command, cancellationToken);
+
+        if (!result.IsSuccess)
+        {
+            return result.ToActionResult();
+        }
 
         return result.ToCreatedResult($"/api/v1/conversations/{result.Value}");
     }

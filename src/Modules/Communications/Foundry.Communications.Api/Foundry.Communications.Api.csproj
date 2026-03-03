@@ -8,5 +8,6 @@
   <ItemGroup>
     <ProjectReference Include="..\Foundry.Communications.Application\Foundry.Communications.Application.csproj" />
     <ProjectReference Include="..\..\..\Shared\Foundry.Shared.Infrastructure\Foundry.Shared.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\Shared\Foundry.Shared.Api\Foundry.Shared.Api.csproj" />
   </ItemGroup>
 </Project>

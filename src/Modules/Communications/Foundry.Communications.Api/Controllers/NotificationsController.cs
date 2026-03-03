@@ -1,6 +1,6 @@
 using Asp.Versioning;
 using Foundry.Communications.Api.Contracts.InApp.Responses;
-using Foundry.Communications.Api.Extensions;
+using Foundry.Shared.Api.Extensions;
 using Foundry.Communications.Application.Channels.InApp.Commands.MarkAllNotificationsRead;
 using Foundry.Communications.Application.Channels.InApp.Commands.MarkNotificationRead;
 using Foundry.Communications.Application.Channels.InApp.DTOs;

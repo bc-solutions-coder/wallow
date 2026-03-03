@@ -89,8 +89,13 @@ public class FeatureFlagsController : ControllerBase
 
         Result<FeatureFlagDto> result = await _bus.InvokeAsync<Result<FeatureFlagDto>>(command, cancellationToken);
 
+        if (!result.IsSuccess)
+        {
+            return result.ToActionResult();
+        }
+
         return result.Map(ToFeatureFlagResponse)
-            .ToCreatedResult($"/api/configuration/feature-flags/{result.Value?.Id}");
+            .ToCreatedResult($"/api/configuration/feature-flags/{result.Value.Id}");
     }
 
     /// <summary>
@@ -180,8 +185,13 @@ public class FeatureFlagsController : ControllerBase
 
         Result<FeatureFlagOverrideDto> result = await _bus.InvokeAsync<Result<FeatureFlagOverrideDto>>(command, cancellationToken);
 
+        if (!result.IsSuccess)
+        {
+            return result.ToActionResult();
+        }
+
         return result.Map(ToFeatureFlagOverrideResponse)
-            .ToCreatedResult($"/api/configuration/feature-flags/{id}/overrides/{result.Value?.Id}");
+            .ToCreatedResult($"/api/configuration/feature-flags/{id}/overrides/{result.Value.Id}");
     }
 
     /// <summary>

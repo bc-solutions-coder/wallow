@@ -178,8 +178,13 @@ public sealed class StorageController : ControllerBase
 
         Result<UploadResult> result = await _bus.InvokeAsync<Result<UploadResult>>(command, cancellationToken);
 
+        if (!result.IsSuccess)
+        {
+            return result.ToActionResult();
+        }
+
         return result.Map(ToUploadResponse)
-            .ToCreatedResult($"/api/v1/storage/files/{result.Value?.FileId}");
+            .ToCreatedResult($"/api/v1/storage/files/{result.Value.FileId}");
     }
 
     /// <summary>
@@ -214,7 +219,7 @@ public sealed class StorageController : ControllerBase
             return result.ToActionResult();
         }
 
-        return Redirect(result.Value!.Url);
+        return Redirect(result.Value.Url);
     }
 
     /// <summary>

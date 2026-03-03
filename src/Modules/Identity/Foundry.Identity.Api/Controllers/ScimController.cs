@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using Asp.Versioning;
 using Foundry.Identity.Application.DTOs;
+using Foundry.Identity.Application.Exceptions;
 using Foundry.Identity.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -95,6 +96,16 @@ public partial class ScimController : ControllerBase
         {
             ScimUser user = await _scimService.CreateUserAsync(request, ct);
             return Created($"/scim/v2/Users/{user.Id}", user);
+        }
+        catch (KeycloakConflictException ex)
+        {
+            LogScimOperationError(ex, "CreateUser");
+            return Conflict(new ScimError
+            {
+                Status = 409,
+                ScimType = "uniqueness",
+                Detail = "User already exists"
+            });
         }
         catch (Exception ex)
         {
