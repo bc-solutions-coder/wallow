@@ -15,7 +15,7 @@ namespace Foundry.Identity.Api.Controllers;
 /// Follows RFC 7644 (SCIM Protocol) specification.
 /// </summary>
 [ApiController]
-[ApiVersion(1.0)]
+[ApiVersion(1)]
 [Route("scim/v2")]
 [AllowAnonymous] // SCIM uses Bearer token authentication via middleware (not OAuth)
 [Tags("SCIM")]

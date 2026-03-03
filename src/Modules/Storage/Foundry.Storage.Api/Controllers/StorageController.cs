@@ -28,7 +28,7 @@ using Wolverine;
 namespace Foundry.Storage.Api.Controllers;
 
 [ApiController]
-[ApiVersion(1.0)]
+[ApiVersion(1)]
 [Route("api/v{version:apiVersion}/storage")]
 [Authorize]
 [Tags("Storage")]

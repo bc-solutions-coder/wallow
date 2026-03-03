@@ -232,13 +232,13 @@ try
     builder.Services.AddControllers();
     builder.Services.AddApiVersioning(opts =>
     {
-        opts.DefaultApiVersion = new ApiVersion(1, 0);
+        opts.DefaultApiVersion = new ApiVersion(1);
         opts.AssumeDefaultVersionWhenUnspecified = true;
         opts.ReportApiVersions = true;
         opts.ApiVersionReader = new UrlSegmentApiVersionReader();
     }).AddApiExplorer(opts =>
     {
-        opts.GroupNameFormat = "'v'VVV";
+        opts.GroupNameFormat = "'v'V";
         opts.SubstituteApiVersionInUrl = true;
     });
     builder.Services.AddSharedKernel();

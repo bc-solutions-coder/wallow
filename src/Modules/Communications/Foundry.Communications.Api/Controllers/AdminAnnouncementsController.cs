@@ -18,7 +18,7 @@ using Wolverine;
 namespace Foundry.Communications.Api.Controllers;
 
 [ApiController]
-[ApiVersion(1.0)]
+[ApiVersion(1)]
 [Route("api/v{version:apiVersion}/admin/announcements")]
 [HasPermission(PermissionType.AnnouncementManage)]
 [Tags("Admin - Announcements")]

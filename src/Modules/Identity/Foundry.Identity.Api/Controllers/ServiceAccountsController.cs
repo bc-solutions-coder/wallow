@@ -15,7 +15,7 @@ namespace Foundry.Identity.Api.Controllers;
 /// Manages OAuth2 service accounts for API access via client credentials flow.
 /// </summary>
 [ApiController]
-[ApiVersion(1.0)]
+[ApiVersion(1)]
 [Route("api/v{version:apiVersion}/identity/service-accounts")]
 [Authorize]
 [Tags("Service Accounts")]

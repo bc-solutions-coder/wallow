@@ -16,7 +16,7 @@ namespace Foundry.Identity.Api.Controllers;
 /// API key management endpoints for service-to-service authentication.
 /// </summary>
 [ApiController]
-[ApiVersion(1.0)]
+[ApiVersion(1)]
 [Route("api/v{version:apiVersion}/identity/auth/keys")]
 [Authorize]
 public sealed class ApiKeysController : ControllerBase

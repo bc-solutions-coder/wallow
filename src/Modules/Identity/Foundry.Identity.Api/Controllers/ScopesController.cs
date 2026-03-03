@@ -13,7 +13,7 @@ namespace Foundry.Identity.Api.Controllers;
 /// Lists available API scopes that can be assigned to service accounts.
 /// </summary>
 [ApiController]
-[ApiVersion(1.0)]
+[ApiVersion(1)]
 [Route("api/v{version:apiVersion}/identity/scopes")]
 [Authorize]
 [Tags("API Scopes")]

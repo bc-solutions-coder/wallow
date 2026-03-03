@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Foundry.Identity.Api.Controllers;
 
 [ApiController]
-[ApiVersion(1.0)]
+[ApiVersion(1)]
 [Route("api/v{version:apiVersion}/identity/roles")]
 [Authorize]
 [Tags("Roles")]

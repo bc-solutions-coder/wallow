@@ -12,7 +12,7 @@ using Wolverine;
 namespace Foundry.Configuration.Api.Controllers;
 
 [ApiController]
-[ApiVersion(1.0)]
+[ApiVersion(1)]
 [Route("api/v{version:apiVersion}/configuration/custom-fields")]
 [Authorize]
 [HasPermission(PermissionType.ConfigurationManage)]

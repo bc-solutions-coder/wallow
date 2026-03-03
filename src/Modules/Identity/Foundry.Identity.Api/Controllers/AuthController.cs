@@ -14,7 +14,7 @@ namespace Foundry.Identity.Api.Controllers;
 /// These endpoints proxy to Keycloak, hiding the IdP configuration from clients.
 /// </summary>
 [ApiController]
-[ApiVersion(1.0)]
+[ApiVersion(1)]
 [Route("api/v{version:apiVersion}/identity/auth")]
 [AllowAnonymous]
 [EnableRateLimiting("auth")]

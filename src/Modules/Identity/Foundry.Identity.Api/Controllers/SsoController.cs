@@ -14,7 +14,7 @@ namespace Foundry.Identity.Api.Controllers;
 /// SSO (Single Sign-On) management endpoints for tenant administrators.
 /// </summary>
 [ApiController]
-[ApiVersion(1.0)]
+[ApiVersion(1)]
 [Route("api/v{version:apiVersion}/identity/sso")]
 [Authorize]
 [Tags("SSO")]
