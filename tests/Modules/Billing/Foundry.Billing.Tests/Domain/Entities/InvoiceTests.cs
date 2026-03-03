@@ -7,7 +7,7 @@ using Foundry.Billing.Domain.ValueObjects;
 using Foundry.Shared.Kernel.Domain;
 using Foundry.Tests.Common.Builders;
 
-namespace Foundry.Billing.Domain.Tests.Entities;
+namespace Foundry.Billing.Tests.Domain.Entities;
 
 public class InvoiceCreateTests
 {

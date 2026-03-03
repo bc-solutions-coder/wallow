@@ -5,7 +5,7 @@ using Foundry.Billing.Domain.Entities;
 using Foundry.Billing.Domain.ValueObjects;
 using Foundry.Shared.Kernel.Results;
 
-namespace Foundry.Billing.Application.Tests.Queries;
+namespace Foundry.Billing.Tests.Application.Queries;
 
 public class GetSubscriptionsByUserIdHandlerTests
 {

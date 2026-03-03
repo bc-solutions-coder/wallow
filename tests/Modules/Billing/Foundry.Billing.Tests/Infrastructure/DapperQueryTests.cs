@@ -11,7 +11,7 @@ using Foundry.Tests.Common.Bases;
 using Foundry.Tests.Common.Fixtures;
 using Microsoft.EntityFrameworkCore;
 
-namespace Foundry.Billing.Infrastructure.Tests;
+namespace Foundry.Billing.Tests.Infrastructure;
 
 [CollectionDefinition("PostgresDatabase")]
 public class PostgresDatabaseCollection : ICollectionFixture<PostgresContainerFixture>;

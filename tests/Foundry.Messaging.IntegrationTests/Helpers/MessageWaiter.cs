@@ -1,6 +1,6 @@
-using Messaging.IntegrationTests.TestHandlers;
+using Foundry.Messaging.IntegrationTests.TestHandlers;
 
-namespace Messaging.IntegrationTests.Helpers;
+namespace Foundry.Messaging.IntegrationTests.Helpers;
 
 public class MessageWaiter
 {

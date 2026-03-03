@@ -98,10 +98,6 @@ public sealed partial class KeycloakAdminService : IKeycloakAdminService
         try
         {
             UserRepresentation user = await _userClient.GetUserAsync(Realm, userId.ToString(), false, ct);
-            if (user == null)
-            {
-                return null;
-            }
 
             IReadOnlyList<string> roles = await GetUserRolesAsync(userId, ct);
 
@@ -248,7 +244,7 @@ public sealed partial class KeycloakAdminService : IKeycloakAdminService
             ct);
         response.EnsureSuccessStatusCode();
 
-        UserRepresentation? user = await _userClient.GetUserAsync(Realm, userId.ToString(), false, ct);
+        UserRepresentation user = await _userClient.GetUserAsync(Realm, userId.ToString(), false, ct);
         IReadOnlyList<string> currentRoles = await GetUserRolesAsync(userId, ct);
         string oldRole = currentRoles.FirstOrDefault(r => r != roleName) ?? "none";
 
@@ -256,7 +252,7 @@ public sealed partial class KeycloakAdminService : IKeycloakAdminService
         {
             UserId = userId,
             TenantId = _tenantContext.TenantId.Value,
-            Email = user?.Email ?? string.Empty,
+            Email = user.Email ?? string.Empty,
             OldRole = oldRole,
             NewRole = roleName
         });
@@ -291,7 +287,7 @@ public sealed partial class KeycloakAdminService : IKeycloakAdminService
         {
             UserId = userId,
             TenantId = _tenantContext.TenantId.Value,
-            Email = user?.Email ?? string.Empty,
+            Email = user.Email ?? string.Empty,
             OldRole = roleName,
             NewRole = newRole
         });

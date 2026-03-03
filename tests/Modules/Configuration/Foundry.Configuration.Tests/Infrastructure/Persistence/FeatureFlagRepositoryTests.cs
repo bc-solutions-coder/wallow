@@ -28,7 +28,7 @@ public class FeatureFlagRepositoryTests : DbContextIntegrationTestBase<Configura
         FeatureFlag? result = await repository.GetByIdAsync(flag.Id);
 
         result.Should().NotBeNull();
-        result!.Name.Should().Be("Test Feature");
+        result.Name.Should().Be("Test Feature");
         result.DefaultEnabled.Should().BeTrue();
     }
 
@@ -54,7 +54,7 @@ public class FeatureFlagRepositoryTests : DbContextIntegrationTestBase<Configura
         FeatureFlag? result = await repository.GetByKeyAsync(key);
 
         result.Should().NotBeNull();
-        result!.Key.Should().Be(key);
+        result.Key.Should().Be(key);
     }
 
     [Fact]
@@ -83,7 +83,7 @@ public class FeatureFlagRepositoryTests : DbContextIntegrationTestBase<Configura
         FeatureFlag? result = await repository.GetByKeyAsync(key);
 
         result.Should().NotBeNull();
-        result!.Overrides.Should().HaveCount(1);
+        result.Overrides.Should().HaveCount(1);
     }
 
     [Fact]
@@ -121,7 +121,7 @@ public class FeatureFlagRepositoryTests : DbContextIntegrationTestBase<Configura
         FeatureFlag? result = await repository.GetByIdAsync(flag.Id);
 
         result.Should().NotBeNull();
-        result!.Name.Should().Be("Updated Name");
+        result.Name.Should().Be("Updated Name");
         result.Description.Should().Be("Updated desc");
         result.DefaultEnabled.Should().BeFalse();
     }

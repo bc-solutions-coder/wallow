@@ -10,20 +10,19 @@ public class SendSmsHandlerTests
 {
     private readonly ISmsMessageRepository _repository;
     private readonly ISmsProvider _smsProvider;
-    private readonly ITenantContext _tenantContext;
     private readonly SendSmsHandler _handler;
 
     public SendSmsHandlerTests()
     {
         _repository = Substitute.For<ISmsMessageRepository>();
         _smsProvider = Substitute.For<ISmsProvider>();
-        _tenantContext = Substitute.For<ITenantContext>();
-        _tenantContext.TenantId.Returns(Foundry.Shared.Kernel.Identity.TenantId.New());
+        ITenantContext tenantContext = Substitute.For<ITenantContext>();
+        tenantContext.TenantId.Returns(Foundry.Shared.Kernel.Identity.TenantId.New());
 
         _smsProvider.SendAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(new SmsDeliveryResult(true, "test-sid", null));
 
-        _handler = new SendSmsHandler(_repository, _smsProvider, _tenantContext, TimeProvider.System);
+        _handler = new SendSmsHandler(_repository, _smsProvider, tenantContext, TimeProvider.System);
     }
 
     [Fact]

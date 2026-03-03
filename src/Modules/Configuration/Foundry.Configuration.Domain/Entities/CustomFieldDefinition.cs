@@ -15,7 +15,7 @@ namespace Foundry.Configuration.Domain.Entities;
 /// </summary>
 public sealed partial class CustomFieldDefinition : AggregateRoot<CustomFieldDefinitionId>, ITenantScoped
 {
-    [System.Text.RegularExpressions.GeneratedRegex(@"^[a-z][a-z0-9_]*$", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
+    [GeneratedRegex(@"^[a-z][a-z0-9_]*$", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
     private static partial Regex FieldKeyPattern();
 
     public TenantId TenantId { get; init; }

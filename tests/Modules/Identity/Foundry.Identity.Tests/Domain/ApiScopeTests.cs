@@ -1,7 +1,7 @@
 using Foundry.Identity.Domain.Entities;
 using Foundry.Shared.Kernel.Domain;
 
-namespace Modules.Identity.Tests.Domain;
+namespace Foundry.Identity.Tests.Domain;
 
 public class ApiScopeTests
 {

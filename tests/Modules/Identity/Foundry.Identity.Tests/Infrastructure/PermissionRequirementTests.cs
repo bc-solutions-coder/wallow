@@ -1,6 +1,6 @@
 using Foundry.Identity.Infrastructure.Authorization;
 
-namespace Modules.Identity.Tests.Infrastructure;
+namespace Foundry.Identity.Tests.Infrastructure;
 
 public class PermissionRequirementTests
 {

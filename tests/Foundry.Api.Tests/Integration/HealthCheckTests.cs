@@ -18,7 +18,6 @@ public sealed class HealthCheckTests : IDisposable
     public void Dispose()
     {
         _client.Dispose();
-        GC.SuppressFinalize(this);
     }
 
     [Fact]

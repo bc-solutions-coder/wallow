@@ -2,7 +2,7 @@ using Foundry.Identity.Domain.Entities;
 using Foundry.Shared.Kernel.Domain;
 using Foundry.Shared.Kernel.Identity;
 
-namespace Modules.Identity.Tests.Domain;
+namespace Foundry.Identity.Tests.Domain;
 
 public class ScimConfigurationTests
 {

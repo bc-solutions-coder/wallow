@@ -87,7 +87,7 @@ public sealed partial class SmtpEmailProvider(
         return message;
     }
 
-    private async Task SendWithRetryAsync(MimeMessage message, CancellationToken cancellationToken)
+    private async Task SendWithRetryAsync(MimeMessage message, CancellationToken cancellationToken = default)
     {
         using Activity? activity = EmailModuleTelemetry.ActivitySource.StartActivity("Email.Send");
         activity?.SetTag("email.to", message.To.ToString());
@@ -152,7 +152,7 @@ public sealed partial class SmtpEmailProvider(
             lastException);
     }
 
-    private async Task ConnectAndAuthenticateAsync(SmtpClient client, CancellationToken cancellationToken)
+    private async Task ConnectAndAuthenticateAsync(SmtpClient client, CancellationToken cancellationToken = default)
     {
         SecureSocketOptions secureSocketOptions = _settings.UseSsl
             ? SecureSocketOptions.StartTls

@@ -105,7 +105,7 @@ public class InvoiceBuilder
         Invoice invoice = Invoice.Create(_userId, _invoiceNumber, _currency, _createdBy, _timeProvider, _dueDate);
 
         // Add line items
-        foreach ((string? description, decimal amount, int quantity) in _lineItems)
+        foreach ((string description, decimal amount, int quantity) in _lineItems)
         {
             invoice.AddLineItem(description, Money.Create(amount, _currency), quantity, _createdBy, _timeProvider);
         }

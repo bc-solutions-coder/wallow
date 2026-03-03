@@ -186,7 +186,7 @@ public sealed partial class ScimService : IScimService
 
     private static string HashToken(string token)
     {
-        byte[] bytes = System.Text.Encoding.UTF8.GetBytes(token);
+        byte[] bytes = Encoding.UTF8.GetBytes(token);
         byte[] hash = SHA256.HashData(bytes);
         return Convert.ToBase64String(hash);
     }

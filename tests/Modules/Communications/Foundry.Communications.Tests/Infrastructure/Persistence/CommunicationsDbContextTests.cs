@@ -79,6 +79,5 @@ public sealed class CommunicationsDbContextTests : IDisposable
     public void Dispose()
     {
         _dbContext.Dispose();
-        GC.SuppressFinalize(this);
     }
 }

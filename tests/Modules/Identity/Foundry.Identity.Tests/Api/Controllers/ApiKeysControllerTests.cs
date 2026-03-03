@@ -67,7 +67,7 @@ public class ApiKeysControllerTests
     [Fact]
     public async Task CreateApiKey_WithEmptyName_ReturnsBadRequest()
     {
-        CreateApiKeyRequest request = new("", null, null);
+        CreateApiKeyRequest request = new("");
 
         IActionResult result = await _controller.CreateApiKey(request, CancellationToken.None);
 
@@ -79,7 +79,7 @@ public class ApiKeysControllerTests
     [Fact]
     public async Task CreateApiKey_WithWhitespaceName_ReturnsBadRequest()
     {
-        CreateApiKeyRequest request = new("   ", null, null);
+        CreateApiKeyRequest request = new("   ");
 
         IActionResult result = await _controller.CreateApiKey(request, CancellationToken.None);
 
@@ -97,7 +97,7 @@ public class ApiKeysControllerTests
             }
         };
         _currentUserService.GetCurrentUserId().Returns((Guid?)null);
-        CreateApiKeyRequest request = new("Key", null, null);
+        CreateApiKeyRequest request = new("Key");
 
         IActionResult result = await _controller.CreateApiKey(request, CancellationToken.None);
 
@@ -108,7 +108,7 @@ public class ApiKeysControllerTests
     public async Task CreateApiKey_WithEmptyTenantId_ReturnsBadRequest()
     {
         _tenantContext.TenantId.Returns(new Shared.Kernel.Identity.TenantId(Guid.Empty));
-        CreateApiKeyRequest request = new("Key", null, null);
+        CreateApiKeyRequest request = new("Key");
 
         IActionResult result = await _controller.CreateApiKey(request, CancellationToken.None);
 
@@ -120,7 +120,7 @@ public class ApiKeysControllerTests
     [Fact]
     public async Task CreateApiKey_WhenServiceFails_ReturnsBadRequest()
     {
-        CreateApiKeyRequest request = new("Key", null, null);
+        CreateApiKeyRequest request = new("Key");
         ApiKeyCreateResult createResult = new(false, null, null, null, "Duplicate key name");
         _apiKeyService.CreateApiKeyAsync(
             Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<Guid>(),
@@ -283,7 +283,7 @@ public class ApiKeysControllerTests
             }
         };
         _currentUserService.GetCurrentUserId().Returns(subUserId);
-        CreateApiKeyRequest request = new("Key", null, null);
+        CreateApiKeyRequest request = new("Key");
         ApiKeyCreateResult createResult = new(true, "id", "key", "pfx", null);
         _apiKeyService.CreateApiKeyAsync(
             Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<Guid>(),
@@ -311,7 +311,7 @@ public class ApiKeysControllerTests
             }
         };
         _currentUserService.GetCurrentUserId().Returns((Guid?)null);
-        CreateApiKeyRequest request = new("Key", null, null);
+        CreateApiKeyRequest request = new("Key");
 
         IActionResult result = await _controller.CreateApiKey(request, CancellationToken.None);
 

@@ -250,7 +250,7 @@ public sealed partial class KeycloakServiceAccountService : IServiceAccountServi
         return client.Id;
     }
 
-    [GeneratedRegex(@"[^a-z0-9]+", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
+    [GeneratedRegex("[^a-z0-9]+", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
     private static partial Regex SlugifyRegex();
 
     private static string Slugify(string name)

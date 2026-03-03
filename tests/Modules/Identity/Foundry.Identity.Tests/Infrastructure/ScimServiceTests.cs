@@ -12,7 +12,7 @@ using Microsoft.Extensions.Logging;
 #pragma warning disable CA2000 // HttpClient/HttpMessageHandler lifetime is managed by test framework
 #pragma warning disable CA1861 // Inline arrays in test data are intentional and not called repeatedly
 
-namespace Modules.Identity.Tests.Infrastructure;
+namespace Foundry.Identity.Tests.Infrastructure;
 
 public class ScimServiceTests
 {
@@ -52,7 +52,7 @@ public class ScimServiceTests
 
         // Assert
         result.Should().NotBeNull();
-        result!.IsEnabled.Should().BeTrue();
+        result.IsEnabled.Should().BeTrue();
         result.AutoActivateUsers.Should().BeTrue();
         result.DefaultRole.Should().Be("user");
         result.DeprovisionOnDelete.Should().BeFalse();
@@ -790,8 +790,8 @@ public class ScimServiceTests
         // Arrange
         List<ScimSyncLog> logs = new List<ScimSyncLog>
         {
-            ScimSyncLog.Create(_testTenantId, ScimOperation.Create, ScimResourceType.User, "ext-1", "user-1", true, null, null),
-            ScimSyncLog.Create(_testTenantId, ScimOperation.Update, ScimResourceType.User, "ext-2", "user-2", false, "Error", null)
+            ScimSyncLog.Create(_testTenantId, ScimOperation.Create, ScimResourceType.User, "ext-1", "user-1", true),
+            ScimSyncLog.Create(_testTenantId, ScimOperation.Update, ScimResourceType.User, "ext-2", "user-2", false, "Error")
         };
 
         _syncLogRepository.GetRecentAsync(100, Arg.Any<CancellationToken>()).Returns(logs);

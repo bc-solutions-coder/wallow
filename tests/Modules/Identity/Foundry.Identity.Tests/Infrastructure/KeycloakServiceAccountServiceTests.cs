@@ -15,7 +15,7 @@ using Microsoft.Extensions.Options;
 
 #pragma warning disable CA2000 // HttpClient/HttpMessageHandler lifetime is managed by test framework
 
-namespace Modules.Identity.Tests.Infrastructure;
+namespace Foundry.Identity.Tests.Infrastructure;
 
 public class KeycloakServiceAccountServiceTests
 {
@@ -75,7 +75,7 @@ public class KeycloakServiceAccountServiceTests
 
         // Assert
         result.Should().NotBeNull();
-        result!.Name.Should().Be("Test Account");
+        result.Name.Should().Be("Test Account");
         result.Description.Should().Be("Test Description");
         result.Status.Should().Be(ServiceAccountStatus.Active);
         result.Scopes.Should().BeEquivalentTo(_twoScopes);

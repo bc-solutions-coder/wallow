@@ -19,7 +19,6 @@ public class AnnouncementsControllerTests
 {
     private readonly IMessageBus _bus;
     private readonly ICurrentUserService _currentUserService;
-    private readonly ITenantContext _tenantContext;
     private readonly AnnouncementsController _controller;
     private readonly Guid _userId = Guid.NewGuid();
     private readonly Guid _tenantId = Guid.NewGuid();
@@ -27,12 +26,12 @@ public class AnnouncementsControllerTests
     public AnnouncementsControllerTests()
     {
         _bus = Substitute.For<IMessageBus>();
-        _tenantContext = Substitute.For<ITenantContext>();
-        _tenantContext.TenantId.Returns(TenantId.Create(_tenantId));
+        ITenantContext tenantContext = Substitute.For<ITenantContext>();
+        tenantContext.TenantId.Returns(TenantId.Create(_tenantId));
         _currentUserService = Substitute.For<ICurrentUserService>();
         _currentUserService.GetCurrentUserId().Returns(_userId);
 
-        _controller = new AnnouncementsController(_bus, _tenantContext, _currentUserService);
+        _controller = new AnnouncementsController(_bus, tenantContext, _currentUserService);
 
         ClaimsPrincipal user = new ClaimsPrincipal(new ClaimsIdentity(new[]
         {

@@ -164,7 +164,7 @@ namespace Foundry.TestBilling.Infrastructure.Consumers
     public static class TestOrderPlacedHandler
     {
         public static void Handle(
-            Foundry.Shared.Contracts.TestSales.Events.TestOrderPlacedEvent _)
+            TestOrderPlacedEvent _)
         { }
     }
 }
@@ -178,15 +178,15 @@ namespace Foundry.TestBilling.Application.Sagas
     public class TestOrderSaga : Saga
     {
         public static void Start(
-            Foundry.Shared.Contracts.TestSales.Events.TestOrderPlacedEvent _)
+            TestOrderPlacedEvent _)
         { }
 
         public void Handle(
-            Foundry.Shared.Contracts.Billing.Events.TestInvoicePaidEvent _)
+            TestInvoicePaidEvent _)
         { }
 
         public Task HandleAsync(
-            Foundry.Shared.Contracts.Billing.Events.TestInvoicePaidEvent _) => Task.CompletedTask;
+            TestInvoicePaidEvent _) => Task.CompletedTask;
     }
 }
 
@@ -197,7 +197,7 @@ namespace Foundry.Shared.Handlers
     public static class TestSharedOrderHandler
     {
         public static void Handle(
-            Foundry.Shared.Contracts.TestSales.Events.TestOrderPlacedEvent _)
+            TestOrderPlacedEvent _)
         { }
     }
 }

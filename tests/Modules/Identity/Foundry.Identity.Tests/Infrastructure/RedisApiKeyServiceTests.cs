@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 using NSubstitute.ExceptionExtensions;
 using StackExchange.Redis;
 
-namespace Modules.Identity.Tests.Infrastructure;
+namespace Foundry.Identity.Tests.Infrastructure;
 
 public class RedisApiKeyServiceTests
 {

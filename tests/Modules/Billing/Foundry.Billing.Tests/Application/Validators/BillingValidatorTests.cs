@@ -7,7 +7,7 @@ using Foundry.Billing.Application.Commands.CreateSubscription;
 using Foundry.Billing.Application.Commands.IssueInvoice;
 using Foundry.Billing.Application.Commands.ProcessPayment;
 
-namespace Foundry.Billing.Application.Tests.Validators;
+namespace Foundry.Billing.Tests.Application.Validators;
 
 // --- CreateInvoiceValidator ---
 

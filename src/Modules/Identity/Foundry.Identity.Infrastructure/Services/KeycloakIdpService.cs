@@ -76,7 +76,7 @@ public sealed partial class KeycloakIdpService
             CreateAttributeMapper(alias, "lastName", lastNameAttribute, "lastName")
         ];
 
-        foreach (Dictionary<string, object>? mapper in mappers)
+        foreach (Dictionary<string, object> mapper in mappers)
         {
             try
             {

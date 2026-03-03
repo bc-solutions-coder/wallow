@@ -12,7 +12,7 @@ public class ApiScopesTests : ServiceAccountIntegrationTestBase
     [Fact]
     public async Task Should_List_All_Available_Scopes()
     {
-        IReadOnlyList<ApiScope> scopes = await ApiScopeRepository.GetAllAsync(null);
+        IReadOnlyList<ApiScope> scopes = await ApiScopeRepository.GetAllAsync();
 
         scopes.Should().NotBeEmpty();
         scopes.Should().Contain(s => s.Code.Contains("invoices") || s.Code.Contains("payments"));
@@ -47,24 +47,24 @@ public class ApiScopesTests : ServiceAccountIntegrationTestBase
         List<ApiScopeDto>? scopes = await response.Content.ReadFromJsonAsync<List<ApiScopeDto>>();
         scopes.Should().NotBeNull();
         scopes.Should().NotBeEmpty();
-        scopes!.Should().OnlyContain(s => s.Category == "Billing");
+        scopes.Should().OnlyContain(s => s.Category == "Billing");
     }
 
     [Fact]
     public async Task Should_Include_Scope_Metadata()
     {
-        IReadOnlyList<ApiScope> scopes = await ApiScopeRepository.GetAllAsync(null);
+        IReadOnlyList<ApiScope> scopes = await ApiScopeRepository.GetAllAsync();
 
         ApiScope? invoiceReadScope = scopes.FirstOrDefault(s => s.Code == "invoices.read");
         invoiceReadScope.Should().NotBeNull();
-        invoiceReadScope!.DisplayName.Should().NotBeNullOrWhiteSpace();
+        invoiceReadScope.DisplayName.Should().NotBeNullOrWhiteSpace();
         invoiceReadScope.Category.Should().NotBeNullOrWhiteSpace();
     }
 
     [Fact]
     public async Task Should_Identify_Default_Scopes()
     {
-        IReadOnlyList<ApiScope> scopes = await ApiScopeRepository.GetAllAsync(null);
+        IReadOnlyList<ApiScope> scopes = await ApiScopeRepository.GetAllAsync();
 
         scopes.Should().Contain(s => s.IsDefault);
     }
@@ -72,8 +72,8 @@ public class ApiScopesTests : ServiceAccountIntegrationTestBase
     [Fact]
     public async Task Should_Return_Consistent_Scope_List()
     {
-        IReadOnlyList<ApiScope> firstCall = await ApiScopeRepository.GetAllAsync(null);
-        IReadOnlyList<ApiScope> secondCall = await ApiScopeRepository.GetAllAsync(null);
+        IReadOnlyList<ApiScope> firstCall = await ApiScopeRepository.GetAllAsync();
+        IReadOnlyList<ApiScope> secondCall = await ApiScopeRepository.GetAllAsync();
 
         firstCall.Select(s => s.Code).Should().BeEquivalentTo(secondCall.Select(s => s.Code));
     }

@@ -8,7 +8,7 @@ using Foundry.Tests.Common.Builders;
 using Microsoft.Extensions.Logging;
 using Wolverine;
 
-namespace Foundry.Billing.Application.Tests.Handlers;
+namespace Foundry.Billing.Tests.Application.Handlers;
 
 public class InvoiceOverdueDomainEventHandlerTests
 {

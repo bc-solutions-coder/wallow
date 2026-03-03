@@ -31,7 +31,7 @@ public class ConfigurationDbContextModelTests
         IEntityType? entityType = context.Model.FindEntityType(typeof(CustomFieldDefinition));
 
         entityType.Should().NotBeNull();
-        entityType!.GetTableName().Should().Be("custom_field_definitions");
+        entityType.GetTableName().Should().Be("custom_field_definitions");
     }
 
     [Fact]
@@ -42,7 +42,7 @@ public class ConfigurationDbContextModelTests
         IEntityType? entityType = context.Model.FindEntityType(typeof(FeatureFlag));
 
         entityType.Should().NotBeNull();
-        entityType!.GetTableName().Should().Be("feature_flags");
+        entityType.GetTableName().Should().Be("feature_flags");
     }
 
     [Fact]
@@ -53,7 +53,7 @@ public class ConfigurationDbContextModelTests
         IEntityType? entityType = context.Model.FindEntityType(typeof(FeatureFlagOverride));
 
         entityType.Should().NotBeNull();
-        entityType!.GetTableName().Should().Be("feature_flag_overrides");
+        entityType.GetTableName().Should().Be("feature_flag_overrides");
     }
 
     [Fact]
@@ -62,14 +62,15 @@ public class ConfigurationDbContextModelTests
         using ConfigurationDbContext context = CreateContext();
 
         IEntityType? entityType = context.Model.FindEntityType(typeof(FeatureFlag));
-        IProperty? keyProperty = entityType?.FindProperty(nameof(FeatureFlag.Key));
+        entityType.Should().NotBeNull();
+        IProperty? keyProperty = entityType.FindProperty(nameof(FeatureFlag.Key));
 
         keyProperty.Should().NotBeNull();
 
-        IIndex? uniqueIndex = entityType!.GetIndexes()
+        IIndex? uniqueIndex = entityType.GetIndexes()
             .FirstOrDefault(i => i.Properties.Any(p => p.Name == nameof(FeatureFlag.Key)));
         uniqueIndex.Should().NotBeNull();
-        uniqueIndex!.IsUnique.Should().BeTrue();
+        uniqueIndex.IsUnique.Should().BeTrue();
     }
 
     [Fact]
@@ -82,7 +83,7 @@ public class ConfigurationDbContextModelTests
             .FirstOrDefault(i => i.GetDatabaseName() == "ix_custom_field_definitions_tenant_entity_key");
 
         uniqueIndex.Should().NotBeNull();
-        uniqueIndex!.IsUnique.Should().BeTrue();
+        uniqueIndex.IsUnique.Should().BeTrue();
     }
 
     [Fact]
@@ -95,7 +96,7 @@ public class ConfigurationDbContextModelTests
             .FirstOrDefault(f => f.PrincipalEntityType.ClrType == typeof(FeatureFlag));
 
         fk.Should().NotBeNull();
-        fk!.DeleteBehavior.Should().Be(DeleteBehavior.Cascade);
+        fk.DeleteBehavior.Should().Be(DeleteBehavior.Cascade);
     }
 
     [Fact]
@@ -107,7 +108,7 @@ public class ConfigurationDbContextModelTests
         IProperty? keyProp = entityType?.FindProperty(nameof(FeatureFlag.Key));
 
         keyProp.Should().NotBeNull();
-        keyProp!.GetMaxLength().Should().Be(100);
+        keyProp.GetMaxLength().Should().Be(100);
     }
 
     [Fact]
@@ -119,7 +120,7 @@ public class ConfigurationDbContextModelTests
         IProperty? prop = entityType?.FindProperty(nameof(CustomFieldDefinition.FieldKey));
 
         prop.Should().NotBeNull();
-        prop!.GetMaxLength().Should().Be(50);
+        prop.GetMaxLength().Should().Be(50);
     }
 
     [Fact]
@@ -142,7 +143,7 @@ public class ConfigurationDbContextModelTests
         IProperty? prop = entityType?.FindProperty(nameof(FeatureFlagOverride.ExpiresAt));
 
         prop.Should().NotBeNull();
-        prop!.GetColumnName().Should().Be("expires_at");
+        prop.GetColumnName().Should().Be("expires_at");
     }
 
     [Fact]

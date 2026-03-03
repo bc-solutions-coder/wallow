@@ -2,7 +2,7 @@ using FluentValidation.TestHelper;
 using Foundry.Identity.Application.Commands.UpdateServiceAccountScopes;
 using Foundry.Identity.Domain.Identity;
 
-namespace Modules.Identity.Tests.Application.Validators;
+namespace Foundry.Identity.Tests.Application.Validators;
 
 public class UpdateServiceAccountScopesValidatorTests
 {

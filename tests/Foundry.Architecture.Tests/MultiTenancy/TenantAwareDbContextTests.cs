@@ -95,13 +95,11 @@ public sealed class TenantAwareDbContextTests : IDisposable
     private sealed class TenantScopedEntity : ITenantScoped
     {
         public Guid Id { get; set; }
-        public string Name { get; set; } = string.Empty;
         public TenantId TenantId { get; init; }
     }
 
     private sealed class NonTenantEntity
     {
         public Guid Id { get; set; }
-        public string Name { get; set; } = string.Empty;
     }
 }

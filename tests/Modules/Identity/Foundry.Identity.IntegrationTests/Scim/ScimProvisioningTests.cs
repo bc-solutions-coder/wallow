@@ -312,7 +312,7 @@ public class ScimProvisioningTests : IClassFixture<ScimProvisioningTestFactory>,
         // Assert - User should still exist but disabled
         ScimUser? result = await _scimService.GetUserAsync(createdUser.Id);
         result.Should().NotBeNull();
-        result!.Active.Should().BeFalse();
+        result.Active.Should().BeFalse();
 
         // Verify sync log
         IReadOnlyList<ScimSyncLogDto> syncLogs = await _scimService.GetSyncLogsAsync();

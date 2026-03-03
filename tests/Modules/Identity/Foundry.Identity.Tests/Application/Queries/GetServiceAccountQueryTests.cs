@@ -5,7 +5,7 @@ using Foundry.Identity.Domain.Enums;
 using Foundry.Identity.Domain.Identity;
 using Foundry.Shared.Kernel.Results;
 
-namespace Modules.Identity.Tests.Application.Queries;
+namespace Foundry.Identity.Tests.Application.Queries;
 
 public class GetServiceAccountQueryTests
 {

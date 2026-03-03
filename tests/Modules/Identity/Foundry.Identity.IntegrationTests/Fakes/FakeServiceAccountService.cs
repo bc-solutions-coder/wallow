@@ -138,7 +138,7 @@ public sealed class FakeServiceAccountService : IServiceAccountService
 
     private static string Slugify(string name)
         => System.Text.RegularExpressions.Regex
-            .Replace(name.ToLowerInvariant(), @"[^a-z0-9]+", "-")
+            .Replace(name.ToLowerInvariant(), "[^a-z0-9]+", "-")
             .Trim('-');
 
     private static string GenerateFakeSecret()

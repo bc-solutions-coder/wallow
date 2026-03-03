@@ -16,7 +16,6 @@ public class NotificationHandlerTests
 {
     private readonly INotificationRepository _repository;
     private readonly INotificationService _notificationService;
-    private readonly ITenantContext _tenantContext;
     private readonly TenantId _tenantId;
     private readonly SendNotificationHandler _sendHandler;
     private readonly MarkNotificationReadHandler _markReadHandler;
@@ -26,10 +25,10 @@ public class NotificationHandlerTests
     {
         _repository = Substitute.For<INotificationRepository>();
         _notificationService = Substitute.For<INotificationService>();
-        _tenantContext = Substitute.For<ITenantContext>();
+        ITenantContext tenantContext = Substitute.For<ITenantContext>();
         _tenantId = TenantId.Create(Guid.NewGuid());
-        _tenantContext.TenantId.Returns(_tenantId);
-        _sendHandler = new SendNotificationHandler(_repository, _notificationService, _tenantContext, TimeProvider.System);
+        tenantContext.TenantId.Returns(_tenantId);
+        _sendHandler = new SendNotificationHandler(_repository, _notificationService, tenantContext, TimeProvider.System);
         _markReadHandler = new MarkNotificationReadHandler(_repository, TimeProvider.System);
         _markAllReadHandler = new MarkAllNotificationsReadHandler(_repository, TimeProvider.System);
     }

@@ -250,7 +250,7 @@ public class SsoControllerTests
     private static SsoConfigurationDto CreateSsoConfig()
     {
         return new SsoConfigurationDto(
-            SsoConfigurationId.New(), "Test IdP", SsoProtocol.SAML, SsoStatus.Active,
+            SsoConfigurationId.New(), "Test IdP", SsoProtocol.Saml, SsoStatus.Active,
             "entity-id", "https://idp/sso", true,
             null, null, false,
             false, true, null, false,

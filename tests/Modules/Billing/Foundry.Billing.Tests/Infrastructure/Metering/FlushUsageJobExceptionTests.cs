@@ -11,28 +11,24 @@ namespace Foundry.Billing.Tests.Infrastructure.Metering;
 
 public class FlushUsageJobExceptionTests
 {
-    private readonly IConnectionMultiplexer _redis;
     private readonly IUsageRecordRepository _usageRepository;
-    private readonly IMessageBus _messageBus;
-    private readonly ITenantContextFactory _tenantContextFactory;
-    private readonly ILogger<FlushUsageJob> _logger;
     private readonly IDatabase _database;
     private readonly FlushUsageJob _job;
 
     public FlushUsageJobExceptionTests()
     {
-        _redis = Substitute.For<IConnectionMultiplexer>();
+        IConnectionMultiplexer redis = Substitute.For<IConnectionMultiplexer>();
         _usageRepository = Substitute.For<IUsageRecordRepository>();
-        _messageBus = Substitute.For<IMessageBus>();
-        _tenantContextFactory = Substitute.For<ITenantContextFactory>();
-        _logger = Substitute.For<ILogger<FlushUsageJob>>();
+        IMessageBus messageBus = Substitute.For<IMessageBus>();
+        ITenantContextFactory tenantContextFactory = Substitute.For<ITenantContextFactory>();
+        ILogger<FlushUsageJob> logger = Substitute.For<ILogger<FlushUsageJob>>();
         _database = Substitute.For<IDatabase>();
 
-        _redis.GetDatabase(Arg.Any<int>(), Arg.Any<object>()).Returns(_database);
+        redis.GetDatabase(Arg.Any<int>(), Arg.Any<object>()).Returns(_database);
 
-        _tenantContextFactory.CreateScope(Arg.Any<TenantId>()).Returns(Substitute.For<IDisposable>());
+        tenantContextFactory.CreateScope(Arg.Any<TenantId>()).Returns(Substitute.For<IDisposable>());
 
-        _job = new FlushUsageJob(_redis, _usageRepository, _messageBus, _tenantContextFactory, TimeProvider.System, _logger);
+        _job = new FlushUsageJob(redis, _usageRepository, messageBus, tenantContextFactory, TimeProvider.System, logger);
     }
 
     [Fact]
@@ -63,7 +59,7 @@ public class FlushUsageJobExceptionTests
         // First key throws, second key succeeds
         int callCount = 0;
         _database.StringGetSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<CommandFlags>())
-            .Returns(callInfo =>
+            .Returns(_ =>
             {
                 callCount++;
                 if (callCount == 1)

@@ -32,7 +32,7 @@ public class FileNameSanitizerTests
     [Fact]
     public void Sanitize_ControlCharacters_RemovesThem()
     {
-        string input = "file\x00name\x0D\x0A.txt";
+        string input = "file\u0000name\u000D\u000A.txt";
 
         string result = FileNameSanitizer.Sanitize(input);
 
@@ -42,7 +42,7 @@ public class FileNameSanitizerTests
     [Fact]
     public void Sanitize_NullByte_RemovesIt()
     {
-        string input = "malicious\x00.exe";
+        string input = "malicious\u0000.exe";
 
         string result = FileNameSanitizer.Sanitize(input);
 
@@ -95,7 +95,7 @@ public class FileNameSanitizerTests
     [Fact]
     public void Sanitize_OnlyDangerousChars_ReturnsUnnamed()
     {
-        string input = "\x00\x01\x02";
+        string input = "\u0000\u0001\u0002";
 
         string result = FileNameSanitizer.Sanitize(input);
 

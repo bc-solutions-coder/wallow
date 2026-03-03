@@ -26,7 +26,6 @@ namespace Foundry.Configuration.Tests.Api.Controllers;
 public class FeatureFlagsControllerTests
 {
     private readonly IMessageBus _bus;
-    private readonly ITenantContext _tenantContext;
     private readonly IFeatureFlagService _featureFlagService;
     private readonly ICurrentUserService _currentUserService;
     private readonly FeatureFlagsController _controller;
@@ -36,14 +35,14 @@ public class FeatureFlagsControllerTests
     public FeatureFlagsControllerTests()
     {
         _bus = Substitute.For<IMessageBus>();
-        _tenantContext = Substitute.For<ITenantContext>();
+        ITenantContext tenantContext = Substitute.For<ITenantContext>();
         _featureFlagService = Substitute.For<IFeatureFlagService>();
         _currentUserService = Substitute.For<ICurrentUserService>();
         _currentUserService.GetCurrentUserId().Returns(_userId);
 
-        _tenantContext.TenantId.Returns(new TenantId(_tenantId));
+        tenantContext.TenantId.Returns(new TenantId(_tenantId));
 
-        _controller = new FeatureFlagsController(_bus, _tenantContext, _featureFlagService, _currentUserService);
+        _controller = new FeatureFlagsController(_bus, tenantContext, _featureFlagService, _currentUserService);
 
         ClaimsPrincipal user = new ClaimsPrincipal(new ClaimsIdentity(new[]
         {

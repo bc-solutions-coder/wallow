@@ -17,7 +17,7 @@ public sealed class ModuleTaggingMiddlewareTests : IDisposable
     public async Task InvokeAsync_WithMatchingModuleNamespace_SetsModuleTag()
     {
         using ActivityListener listener = CreateListener();
-        using Activity? activity = _activitySource.StartActivity("test");
+        using Activity? activity = _activitySource.StartActivity();
         activity.Should().NotBeNull();
 
         bool nextCalled = false;
@@ -38,7 +38,7 @@ public sealed class ModuleTaggingMiddlewareTests : IDisposable
     public async Task InvokeAsync_WithNonMatchingNamespace_DoesNotSetTag()
     {
         using ActivityListener listener = CreateListener();
-        using Activity? activity = _activitySource.StartActivity("test");
+        using Activity? activity = _activitySource.StartActivity();
         activity.Should().NotBeNull();
 
         ModuleTaggingMiddleware sut = new(_ => Task.CompletedTask);
@@ -53,7 +53,7 @@ public sealed class ModuleTaggingMiddlewareTests : IDisposable
     public async Task InvokeAsync_WithNoEndpoint_DoesNotSetTag()
     {
         using ActivityListener listener = CreateListener();
-        using Activity? activity = _activitySource.StartActivity("test");
+        using Activity? activity = _activitySource.StartActivity();
         activity.Should().NotBeNull();
 
         ModuleTaggingMiddleware sut = new(_ => Task.CompletedTask);
@@ -138,6 +138,5 @@ public sealed class ModuleTaggingMiddlewareTests : IDisposable
     public void Dispose()
     {
         _activitySource.Dispose();
-        GC.SuppressFinalize(this);
     }
 }

@@ -13,16 +13,15 @@ public class SendNotificationHandlerTests
 {
     private readonly INotificationRepository _repository;
     private readonly INotificationService _notificationService;
-    private readonly ITenantContext _tenantContext;
     private readonly SendNotificationHandler _handler;
 
     public SendNotificationHandlerTests()
     {
         _repository = Substitute.For<INotificationRepository>();
         _notificationService = Substitute.For<INotificationService>();
-        _tenantContext = Substitute.For<ITenantContext>();
-        _tenantContext.TenantId.Returns(TenantId.Create(Guid.NewGuid()));
-        _handler = new SendNotificationHandler(_repository, _notificationService, _tenantContext, TimeProvider.System);
+        ITenantContext tenantContext = Substitute.For<ITenantContext>();
+        tenantContext.TenantId.Returns(TenantId.Create(Guid.NewGuid()));
+        _handler = new SendNotificationHandler(_repository, _notificationService, tenantContext, TimeProvider.System);
     }
 
     [Fact]

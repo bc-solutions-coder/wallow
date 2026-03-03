@@ -1,6 +1,6 @@
-using Messaging.IntegrationTests.TestEvents;
+using Foundry.Messaging.IntegrationTests.TestEvents;
 
-namespace Messaging.IntegrationTests.TestHandlers;
+namespace Foundry.Messaging.IntegrationTests.TestHandlers;
 
 public interface IMessageTracker
 {

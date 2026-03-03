@@ -1,13 +1,13 @@
 using Foundry.Tests.Common.Factories;
-using Messaging.IntegrationTests.Helpers;
-using Messaging.IntegrationTests.TestHandlers;
+using Foundry.Messaging.IntegrationTests.Helpers;
+using Foundry.Messaging.IntegrationTests.TestHandlers;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Wolverine;
 
-namespace Messaging.IntegrationTests.Fixtures;
+namespace Foundry.Messaging.IntegrationTests.Fixtures;
 
 public class MessagingTestFixture : FoundryApiFactory
 {

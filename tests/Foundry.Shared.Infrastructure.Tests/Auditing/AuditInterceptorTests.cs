@@ -4,6 +4,7 @@ using Foundry.Shared.Kernel.MultiTenancy;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 using Testcontainers.PostgreSql;
@@ -90,9 +91,9 @@ public class AuditInterceptorTests : IAsyncLifetime
         await auditDb.Database.EnsureCreatedAsync();
 
         AuditTestDbContext testDb = scope.ServiceProvider.GetRequiredService<AuditTestDbContext>();
-        Microsoft.EntityFrameworkCore.Storage.RelationalDatabaseCreator creator = (Microsoft.EntityFrameworkCore.Storage.RelationalDatabaseCreator)
+        RelationalDatabaseCreator creator = (RelationalDatabaseCreator)
             ((IInfrastructure<IServiceProvider>)testDb.Database).Instance
-                .GetRequiredService<Microsoft.EntityFrameworkCore.Storage.IDatabaseCreator>();
+                .GetRequiredService<IDatabaseCreator>();
         await creator.CreateTablesAsync();
     }
 

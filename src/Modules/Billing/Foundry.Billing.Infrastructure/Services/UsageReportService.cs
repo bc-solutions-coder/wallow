@@ -32,11 +32,11 @@ public sealed class UsageReportService : IUsageReportService
                 md => md.Code,
                 (ur, md) => new
                 {
-                    Date = ur.PeriodStart.Date,
-                    MeterCode = ur.MeterCode,
-                    DisplayName = md.DisplayName,
-                    Unit = md.Unit,
-                    Value = ur.Value
+                    ur.PeriodStart.Date,
+                    ur.MeterCode,
+                    md.DisplayName,
+                    md.Unit,
+                    ur.Value
                 })
             .GroupBy(x => new { x.Date, x.MeterCode, x.DisplayName, x.Unit })
             .Select(g => new UsageReportRow(

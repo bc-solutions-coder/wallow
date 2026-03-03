@@ -10,15 +10,14 @@ namespace Foundry.Communications.Tests.Application.Messaging.Commands;
 public class CreateConversationHandlerTests
 {
     private readonly IConversationRepository _repository;
-    private readonly ITenantContext _tenantContext;
     private readonly CreateConversationHandler _handler;
 
     public CreateConversationHandlerTests()
     {
         _repository = Substitute.For<IConversationRepository>();
-        _tenantContext = Substitute.For<ITenantContext>();
-        _tenantContext.TenantId.Returns(TenantId.Create(Guid.NewGuid()));
-        _handler = new CreateConversationHandler(_repository, _tenantContext, TimeProvider.System);
+        ITenantContext tenantContext = Substitute.For<ITenantContext>();
+        tenantContext.TenantId.Returns(TenantId.Create(Guid.NewGuid()));
+        _handler = new CreateConversationHandler(_repository, tenantContext, TimeProvider.System);
     }
 
     [Fact]

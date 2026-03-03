@@ -7,13 +7,12 @@ namespace Foundry.Communications.Tests.Application.Announcements.Handlers;
 
 public class CreateChangelogEntryMappingTests
 {
-    private readonly IChangelogRepository _repository;
     private readonly CreateChangelogEntryHandler _handler;
 
     public CreateChangelogEntryMappingTests()
     {
-        _repository = Substitute.For<IChangelogRepository>();
-        _handler = new CreateChangelogEntryHandler(_repository, TimeProvider.System);
+        IChangelogRepository repository = Substitute.For<IChangelogRepository>();
+        _handler = new CreateChangelogEntryHandler(repository, TimeProvider.System);
     }
 
     [Fact]

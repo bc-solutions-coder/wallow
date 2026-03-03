@@ -68,10 +68,10 @@ public sealed class PluginAssemblyLoadContextTests : IDisposable
         PluginAssemblyLoadContext context = new(_tempDirectory);
         string assemblyName = Path.GetFileNameWithoutExtension(sourceAssembly);
 
-        Assembly? result = context.LoadFromAssemblyName(new AssemblyName(assemblyName));
+        Assembly result = context.LoadFromAssemblyName(new AssemblyName(assemblyName));
 
         result.Should().NotBeNull();
-        result!.GetName().Name.Should().Be(assemblyName);
+        result.GetName().Name.Should().Be(assemblyName);
     }
 
     public void Dispose()
@@ -88,6 +88,5 @@ public sealed class PluginAssemblyLoadContextTests : IDisposable
             // Best-effort cleanup
         }
 
-        GC.SuppressFinalize(this);
     }
 }

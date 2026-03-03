@@ -8,7 +8,7 @@ using NSubstitute.Core;
 using Wolverine;
 using static Foundry.Tests.Common.Helpers.LoggerAssertionExtensions;
 
-namespace Foundry.Billing.Application.Tests.EventHandlers;
+namespace Foundry.Billing.Tests.Application.EventHandlers;
 
 public class PaymentCreatedDomainEventHandlerTests
 {

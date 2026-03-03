@@ -10,7 +10,7 @@ using NSubstitute.Core;
 using Wolverine;
 using static Foundry.Tests.Common.Helpers.LoggerAssertionExtensions;
 
-namespace Foundry.Billing.Application.Tests.EventHandlers;
+namespace Foundry.Billing.Tests.Application.EventHandlers;
 
 public class InvoicePaidDomainEventHandlerTests
 {
@@ -32,7 +32,6 @@ public class InvoicePaidDomainEventHandlerTests
         Guid invoiceId = Guid.NewGuid();
         Guid paymentId = Guid.NewGuid();
         Guid userId = Guid.NewGuid();
-        Guid tenantId = Guid.NewGuid();
         DateTime paidAt = DateTime.UtcNow;
 
         Invoice invoice = Invoice.Create(userId, "INV-001", "USD", userId, TimeProvider.System, DateTime.UtcNow.AddDays(30));

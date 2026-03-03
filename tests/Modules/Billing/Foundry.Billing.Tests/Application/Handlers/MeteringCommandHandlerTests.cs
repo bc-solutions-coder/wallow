@@ -5,7 +5,7 @@ using Foundry.Billing.Domain.Metering.Entities;
 using Foundry.Billing.Domain.Metering.Enums;
 using Foundry.Shared.Kernel.Results;
 
-namespace Foundry.Billing.Application.Tests.Handlers;
+namespace Foundry.Billing.Tests.Application.Handlers;
 
 public class SetQuotaOverrideHandlerTests
 {

@@ -3,7 +3,7 @@ using Foundry.Identity.Application.Interfaces;
 using Foundry.Identity.Infrastructure.Services;
 using Foundry.Shared.Contracts.Identity;
 
-namespace Modules.Identity.Tests.Infrastructure;
+namespace Foundry.Identity.Tests.Infrastructure;
 
 public class UserServiceTests
 {
@@ -27,7 +27,7 @@ public class UserServiceTests
         UserInfo? result = await _service.GetUserByIdAsync(userId);
 
         result.Should().NotBeNull();
-        result!.Id.Should().Be(userId);
+        result.Id.Should().Be(userId);
         result.Email.Should().Be("test@example.com");
         result.FirstName.Should().Be("John");
         result.LastName.Should().Be("Doe");
@@ -56,7 +56,7 @@ public class UserServiceTests
         UserInfo? result = await _service.GetUserByEmailAsync(email);
 
         result.Should().NotBeNull();
-        result!.Id.Should().Be(userId);
+        result.Id.Should().Be(userId);
         result.Email.Should().Be(email);
         result.FirstName.Should().Be("Jane");
         result.LastName.Should().Be("Smith");

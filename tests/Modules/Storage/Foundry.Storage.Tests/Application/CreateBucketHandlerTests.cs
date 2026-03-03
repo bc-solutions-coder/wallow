@@ -12,15 +12,14 @@ namespace Foundry.Storage.Tests.Application;
 public class CreateBucketHandlerTests
 {
     private readonly IStorageBucketRepository _bucketRepository;
-    private readonly ITenantContext _tenantContext;
     private readonly CreateBucketHandler _handler;
 
     public CreateBucketHandlerTests()
     {
         _bucketRepository = Substitute.For<IStorageBucketRepository>();
-        _tenantContext = Substitute.For<ITenantContext>();
-        _tenantContext.TenantId.Returns(TenantId.New());
-        _handler = new CreateBucketHandler(_bucketRepository, _tenantContext);
+        ITenantContext tenantContext = Substitute.For<ITenantContext>();
+        tenantContext.TenantId.Returns(TenantId.New());
+        _handler = new CreateBucketHandler(_bucketRepository, tenantContext);
     }
 
     [Fact]

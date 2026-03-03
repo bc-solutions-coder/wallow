@@ -28,7 +28,7 @@ public sealed class SsoConfigurationRepositoryTests : DbContextIntegrationTestBa
         SsoConfiguration config = SsoConfiguration.Create(
             TestTenantId,
             "Corporate SAML",
-            SsoProtocol.SAML,
+            SsoProtocol.Saml,
             "email",
             "firstName",
             "lastName",
@@ -40,7 +40,7 @@ public sealed class SsoConfigurationRepositoryTests : DbContextIntegrationTestBa
         SsoConfiguration? retrieved = await _repository.GetAsync();
 
         retrieved.Should().NotBeNull();
-        retrieved!.Protocol.Should().Be(SsoProtocol.SAML);
+        retrieved.Protocol.Should().Be(SsoProtocol.Saml);
         retrieved.DisplayName.Should().Be("Corporate SAML");
         retrieved.EmailAttribute.Should().Be("email");
     }
@@ -59,7 +59,7 @@ public sealed class SsoConfigurationRepositoryTests : DbContextIntegrationTestBa
         SsoConfiguration config = SsoConfiguration.Create(
             TestTenantId,
             "OIDC Provider",
-            SsoProtocol.OIDC,
+            SsoProtocol.Oidc,
             "email",
             "given_name",
             "family_name",
@@ -72,7 +72,7 @@ public sealed class SsoConfigurationRepositoryTests : DbContextIntegrationTestBa
         SsoConfiguration? retrieved = await _repository.GetAsync();
 
         retrieved.Should().NotBeNull();
-        retrieved!.Protocol.Should().Be(SsoProtocol.OIDC);
+        retrieved.Protocol.Should().Be(SsoProtocol.Oidc);
     }
 
     [Fact]
@@ -81,7 +81,7 @@ public sealed class SsoConfigurationRepositoryTests : DbContextIntegrationTestBa
         SsoConfiguration config1 = SsoConfiguration.Create(
             TestTenantId,
             "Tenant 1 SAML",
-            SsoProtocol.SAML,
+            SsoProtocol.Saml,
             "email",
             "firstName",
             "lastName",
@@ -98,7 +98,7 @@ public sealed class SsoConfigurationRepositoryTests : DbContextIntegrationTestBa
         SsoConfiguration config2 = SsoConfiguration.Create(
             otherTenantId,
             "Tenant 2 OIDC",
-            SsoProtocol.OIDC,
+            SsoProtocol.Oidc,
             "email",
             "given_name",
             "family_name",
@@ -113,11 +113,11 @@ public sealed class SsoConfigurationRepositoryTests : DbContextIntegrationTestBa
         SsoConfiguration? tenant2Config = await otherRepository.GetAsync();
 
         tenant1Config.Should().NotBeNull();
-        tenant1Config!.Protocol.Should().Be(SsoProtocol.SAML);
+        tenant1Config.Protocol.Should().Be(SsoProtocol.Saml);
         tenant1Config.DisplayName.Should().Be("Tenant 1 SAML");
 
         tenant2Config.Should().NotBeNull();
-        tenant2Config!.Protocol.Should().Be(SsoProtocol.OIDC);
+        tenant2Config.Protocol.Should().Be(SsoProtocol.Oidc);
         tenant2Config.DisplayName.Should().Be("Tenant 2 OIDC");
     }
 }

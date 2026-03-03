@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 
 #pragma warning disable CA2000 // HttpClient/HttpMessageHandler lifetime is managed by test framework
 
-namespace Modules.Identity.Tests.Infrastructure;
+namespace Foundry.Identity.Tests.Infrastructure;
 
 public class UserQueryServiceAdditionalTests
 {

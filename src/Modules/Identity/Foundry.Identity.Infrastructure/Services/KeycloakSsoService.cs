@@ -86,7 +86,7 @@ public sealed partial class KeycloakSsoService : ISsoService
         };
 
         return SaveIdpConfigurationCoreAsync(
-            alias, SsoProtocol.SAML, request.DisplayName,
+            alias, SsoProtocol.Saml, request.DisplayName,
             request.EmailAttribute, request.FirstNameAttribute, request.LastNameAttribute,
             request.EnforceForAllUsers, request.AutoProvisionUsers, request.DefaultRole,
             request.SyncGroupsAsRoles, request.GroupsAttribute,
@@ -125,7 +125,7 @@ public sealed partial class KeycloakSsoService : ISsoService
         };
 
         return SaveIdpConfigurationCoreAsync(
-            alias, SsoProtocol.OIDC, request.DisplayName,
+            alias, SsoProtocol.Oidc, request.DisplayName,
             request.EmailAttribute, request.FirstNameAttribute, request.LastNameAttribute,
             request.EnforceForAllUsers, request.AutoProvisionUsers, request.DefaultRole,
             request.SyncGroupsAsRoles, request.GroupsAttribute,
@@ -221,7 +221,7 @@ public sealed partial class KeycloakSsoService : ISsoService
 
         try
         {
-            if (config.Protocol == SsoProtocol.SAML)
+            if (config.Protocol == SsoProtocol.Saml)
             {
                 return await _idpService.TestSamlConnectionAsync(config, ct);
             }
@@ -331,7 +331,7 @@ public sealed partial class KeycloakSsoService : ISsoService
 
         try
         {
-            if (config.Protocol == SsoProtocol.SAML)
+            if (config.Protocol == SsoProtocol.Saml)
             {
                 return KeycloakIdpService.ValidateSamlConfiguration(config);
             }

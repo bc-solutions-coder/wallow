@@ -46,7 +46,7 @@ public class CreateServiceAccountTests : ServiceAccountIntegrationTestBase
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         ServiceAccountCreatedResponse? content = await response.Content.ReadFromJsonAsync<ServiceAccountCreatedResponse>();
         content.Should().NotBeNull();
-        content!.ClientId.Should().NotBeNullOrWhiteSpace();
+        content.ClientId.Should().NotBeNullOrWhiteSpace();
         content.ClientSecret.Should().NotBeNullOrWhiteSpace();
     }
 
@@ -63,7 +63,7 @@ public class CreateServiceAccountTests : ServiceAccountIntegrationTestBase
         ServiceAccountDto? retrieved = await ServiceAccountService.GetAsync(result.Id);
 
         retrieved.Should().NotBeNull();
-        retrieved!.Name.Should().Be(request.Name);
+        retrieved.Name.Should().Be(request.Name);
         retrieved.Description.Should().Be(request.Description);
         retrieved.Scopes.Should().BeEquivalentTo(request.Scopes);
         retrieved.Status.Should().Be(ServiceAccountStatus.Active);

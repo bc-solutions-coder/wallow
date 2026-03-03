@@ -97,7 +97,7 @@ public class ServiceAccountFlowTests : KeycloakIntegrationTestBase
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         TokenResponse? content = await response.Content.ReadFromJsonAsync<TokenResponse>();
         content.Should().NotBeNull();
-        content!.AccessToken.Should().NotBeNullOrWhiteSpace();
+        content.AccessToken.Should().NotBeNullOrWhiteSpace();
         content.TokenType.Should().Be("Bearer");
         content.ExpiresIn.Should().BeGreaterThan(0);
     }

@@ -39,7 +39,7 @@ public sealed class ServiceAccountRepositoryTests : DbContextIntegrationTestBase
         ServiceAccountMetadata? retrieved = await _repository.GetByIdAsync(account.Id);
 
         retrieved.Should().NotBeNull();
-        retrieved!.Name.Should().Be("Test Service");
+        retrieved.Name.Should().Be("Test Service");
         retrieved.KeycloakClientId.Should().Be("test-client-id");
         retrieved.Scopes.Should().BeEquivalentTo("billing:read", "billing:write");
     }
@@ -62,7 +62,7 @@ public sealed class ServiceAccountRepositoryTests : DbContextIntegrationTestBase
         ServiceAccountMetadata? retrieved = await _repository.GetByKeycloakClientIdAsync("unique-client-id");
 
         retrieved.Should().NotBeNull();
-        retrieved!.Name.Should().Be("Unique Service");
+        retrieved.Name.Should().Be("Unique Service");
     }
 
     [Fact]
@@ -87,7 +87,7 @@ public sealed class ServiceAccountRepositoryTests : DbContextIntegrationTestBase
         ServiceAccountMetadata? retrievedFromOtherTenant = await _repository.GetByKeycloakClientIdAsync("cross-tenant-client");
 
         retrievedFromOtherTenant.Should().NotBeNull();
-        retrievedFromOtherTenant!.Name.Should().Be("Cross Tenant");
+        retrievedFromOtherTenant.Name.Should().Be("Cross Tenant");
     }
 
     [Fact]

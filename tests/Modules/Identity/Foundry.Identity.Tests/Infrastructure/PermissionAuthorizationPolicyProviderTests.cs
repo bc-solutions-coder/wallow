@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authorization.Infrastructure;
 using Microsoft.Extensions.Options;
 
-namespace Modules.Identity.Tests.Infrastructure;
+namespace Foundry.Identity.Tests.Infrastructure;
 
 public class PermissionAuthorizationPolicyProviderTests
 {
@@ -24,7 +24,7 @@ public class PermissionAuthorizationPolicyProviderTests
         AuthorizationPolicy? result = await _provider.GetPolicyAsync(policyName);
 
         result.Should().NotBeNull();
-        result!.Requirements.Should().ContainSingle()
+        result.Requirements.Should().ContainSingle()
             .Which.Should().BeOfType<PermissionRequirement>()
             .Which.Permission.Should().Be(policyName);
     }
@@ -53,7 +53,7 @@ public class PermissionAuthorizationPolicyProviderTests
         AuthorizationPolicy? result = await _provider.GetFallbackPolicyAsync();
 
         result.Should().NotBeNull();
-        result!.Requirements.Should().ContainSingle()
+        result.Requirements.Should().ContainSingle()
             .Which.Should().BeOfType<DenyAnonymousAuthorizationRequirement>();
     }
 }

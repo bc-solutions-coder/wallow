@@ -11,7 +11,7 @@ using Wolverine;
 
 #pragma warning disable CA2000 // HttpClient/HttpMessageHandler lifetime is managed by test framework
 
-namespace Modules.Identity.Tests.Infrastructure;
+namespace Foundry.Identity.Tests.Infrastructure;
 
 public class KeycloakAdminServiceGapTests
 {
@@ -105,7 +105,7 @@ public class KeycloakAdminServiceGapTests
         UserDto? result = await service.GetUserByIdAsync(userId);
 
         result.Should().NotBeNull();
-        result!.Email.Should().Be("test@test.com");
+        result.Email.Should().Be("test@test.com");
         result.FirstName.Should().Be("Test");
         result.LastName.Should().Be("User");
         result.Enabled.Should().BeTrue();
@@ -154,7 +154,7 @@ public class KeycloakAdminServiceGapTests
         UserDto? result = await service.GetUserByEmailAsync("found@test.com");
 
         result.Should().NotBeNull();
-        result!.Email.Should().Be("found@test.com");
+        result.Email.Should().Be("found@test.com");
     }
 
     [Fact]
@@ -253,7 +253,7 @@ public class KeycloakAdminServiceGapTests
         _userClient.GetUsersAsync("foundry",
             Arg.Any<Keycloak.AuthServices.Sdk.Admin.Requests.Users.GetUsersRequestParameters>(),
             Arg.Any<CancellationToken>())
-            .Returns<IEnumerable<UserRepresentation>>(x => throw new HttpRequestException("Connection failed"));
+            .Returns<IEnumerable<UserRepresentation>>(_ => throw new HttpRequestException("Connection failed"));
 
         KeycloakAdminService service = CreateService(new MockHttpHandler());
 

@@ -221,11 +221,11 @@ public class FeatureFlagServiceGetVariantTests
     [Fact]
     public async Task GetVariantAsync_ForVariantFlag_ReturnsVariant()
     {
-        List<VariantWeight> variants = new()
-        {
+        VariantWeight[] variants =
+        [
             new VariantWeight("control", 100),
             new VariantWeight("treatment", 0)
-        };
+        ];
         FeatureFlag flag = FeatureFlag.CreateVariant("ab_test", "Test", variants, "control", TimeProvider.System);
         _repository.GetByKeyAsync("ab_test", Arg.Any<CancellationToken>()).Returns(flag);
 
@@ -248,11 +248,11 @@ public class FeatureFlagServiceGetVariantTests
     [Fact]
     public async Task GetVariantAsync_WithOverride_UsesOverrideVariant()
     {
-        List<VariantWeight> variants = new()
-        {
+        VariantWeight[] variants =
+        [
             new VariantWeight("control", 50),
             new VariantWeight("treatment", 50)
-        };
+        ];
         FeatureFlag flag = FeatureFlag.CreateVariant("ab_test", "Test", variants, "control", TimeProvider.System);
         Guid tenantId = Guid.NewGuid();
         FeatureFlagOverride overrideEntity = FeatureFlagOverride.CreateForTenant(flag.Id, tenantId, null, TimeProvider.System, variant: "treatment");
@@ -284,11 +284,11 @@ public class FeatureFlagServiceGetVariantTests
     [Fact]
     public async Task GetVariantAsync_ForVariantFlagWithAllZeroWeights_ReturnsFirstVariant()
     {
-        List<VariantWeight> variants = new()
-        {
+        VariantWeight[] variants =
+        [
             new VariantWeight("control", 0),
             new VariantWeight("treatment", 0)
-        };
+        ];
         FeatureFlag flag = FeatureFlag.CreateVariant("ab_test", "Test", variants, "control", TimeProvider.System);
         _repository.GetByKeyAsync("ab_test", Arg.Any<CancellationToken>()).Returns(flag);
 
@@ -301,14 +301,13 @@ public class FeatureFlagServiceGetVariantTests
 public class FeatureFlagServiceGetAllFlagsTests
 {
     private readonly IFeatureFlagRepository _repository;
-    private readonly IMessageBus _messageBus;
     private readonly FeatureFlagService _service;
 
     public FeatureFlagServiceGetAllFlagsTests()
     {
         _repository = Substitute.For<IFeatureFlagRepository>();
-        _messageBus = Substitute.For<IMessageBus>();
-        _service = new FeatureFlagService(_repository, _messageBus, TimeProvider.System);
+        IMessageBus messageBus = Substitute.For<IMessageBus>();
+        _service = new FeatureFlagService(_repository, messageBus, TimeProvider.System);
     }
 
     [Fact]
@@ -339,10 +338,10 @@ public class FeatureFlagServiceGetAllFlagsTests
     [Fact]
     public async Task GetAllFlagsAsync_WithVariantFlag_ReturnsVariantValue()
     {
-        List<VariantWeight> variants = new()
-        {
+        VariantWeight[] variants =
+        [
             new VariantWeight("control", 100)
-        };
+        ];
         FeatureFlag flag = FeatureFlag.CreateVariant("ab_test", "Test", variants, "control", TimeProvider.System);
         _repository.GetAllAsync(Arg.Any<CancellationToken>())
             .Returns(new List<FeatureFlag> { flag });

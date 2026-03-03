@@ -1,6 +1,6 @@
 using Foundry.Identity.Infrastructure.Scim;
 
-namespace Modules.Identity.Tests.Infrastructure;
+namespace Foundry.Identity.Tests.Infrastructure;
 
 public class ScimFilterExceptionTests
 {

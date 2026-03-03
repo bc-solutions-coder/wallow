@@ -4,9 +4,9 @@ using Foundry.Billing.Domain.Events;
 using Foundry.Billing.Domain.Exceptions;
 using Foundry.Billing.Domain.Identity;
 using Foundry.Billing.Domain.ValueObjects;
-using static Foundry.Billing.Domain.Tests.Entities.PaymentTestHelpers;
+using static Foundry.Billing.Tests.Domain.Entities.PaymentTestHelpers;
 
-namespace Foundry.Billing.Domain.Tests.Entities;
+namespace Foundry.Billing.Tests.Domain.Entities;
 
 public class PaymentCreateTests
 {

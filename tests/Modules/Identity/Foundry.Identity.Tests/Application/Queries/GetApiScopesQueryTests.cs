@@ -4,7 +4,7 @@ using Foundry.Identity.Application.Queries.GetApiScopes;
 using Foundry.Identity.Domain.Entities;
 using Foundry.Shared.Kernel.Results;
 
-namespace Modules.Identity.Tests.Application.Queries;
+namespace Foundry.Identity.Tests.Application.Queries;
 
 public class GetApiScopesQueryTests
 {

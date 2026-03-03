@@ -27,7 +27,7 @@ public sealed class GetQuotaStatusHandler(
                 continue;
             }
 
-            QuotaDefinition? override_ = await quotaRepository.GetTenantOverrideAsync(
+            QuotaDefinition? quotaOverride = await quotaRepository.GetTenantOverrideAsync(
                 meter.Code,
                 cancellationToken);
 
@@ -39,7 +39,7 @@ public sealed class GetQuotaStatusHandler(
                 PercentUsed: quotaCheck.PercentUsed,
                 Period: "Monthly",
                 OnExceeded: quotaCheck.ActionIfExceeded?.ToString() ?? "None",
-                IsOverride: override_ is not null));
+                IsOverride: quotaOverride is not null));
         }
 
         return results;

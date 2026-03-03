@@ -216,12 +216,12 @@ public sealed class ScimToKeycloakTranslator
 
             if (queryParams.Username != null)
             {
-                matches = matches && user.UserName?.Equals(queryParams.Username, StringComparison.OrdinalIgnoreCase) == true;
+                matches = matches && user.UserName.Equals(queryParams.Username, StringComparison.OrdinalIgnoreCase);
             }
 
             if (queryParams.Email != null)
             {
-                matches = matches && user.Emails?.Any(e => e.Value?.Equals(queryParams.Email, StringComparison.OrdinalIgnoreCase) == true) == true;
+                matches = matches && user.Emails?.Any(e => e.Value.Equals(queryParams.Email, StringComparison.OrdinalIgnoreCase)) == true;
             }
 
             if (queryParams.FirstName != null)
@@ -237,8 +237,8 @@ public sealed class ScimToKeycloakTranslator
             if (queryParams.Search != null)
             {
                 matches = matches && (
-                    user.UserName?.Contains(queryParams.Search, StringComparison.OrdinalIgnoreCase) == true ||
-                    user.Emails?.Any(e => e.Value?.Contains(queryParams.Search, StringComparison.OrdinalIgnoreCase) == true) == true ||
+                    user.UserName.Contains(queryParams.Search, StringComparison.OrdinalIgnoreCase) ||
+                    user.Emails?.Any(e => e.Value.Contains(queryParams.Search, StringComparison.OrdinalIgnoreCase)) == true ||
                     user.Name?.GivenName?.Contains(queryParams.Search, StringComparison.OrdinalIgnoreCase) == true ||
                     user.Name?.FamilyName?.Contains(queryParams.Search, StringComparison.OrdinalIgnoreCase) == true);
             }

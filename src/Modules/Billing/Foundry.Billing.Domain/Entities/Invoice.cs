@@ -35,11 +35,11 @@ namespace Foundry.Billing.Domain.Entities;
 public sealed class Invoice : AggregateRoot<InvoiceId>, ITenantScoped, IHasCustomFields
 {
     public TenantId TenantId { get; init; }
-    public Guid UserId { get; private set; }
+    public Guid UserId { get; init; }
     public string InvoiceNumber { get; private set; } = string.Empty;
     public InvoiceStatus Status { get; private set; }
     public Money TotalAmount { get; private set; } = null!;
-    public DateTime? DueDate { get; private set; }
+    public DateTime? DueDate { get; init; }
     public DateTime? PaidAt { get; private set; }
     public Dictionary<string, object>? CustomFields { get; private set; }
 

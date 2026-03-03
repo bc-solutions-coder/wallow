@@ -41,46 +41,46 @@ public sealed class ScimFilterLexer
 
             if (ch == '(')
             {
-                tokens.Add(new ScimToken(TokenType.LPAREN, "(", position));
+                tokens.Add(new ScimToken(TokenType.Lparen, "(", position));
                 position++;
                 continue;
             }
 
             if (ch == ')')
             {
-                tokens.Add(new ScimToken(TokenType.RPAREN, ")", position));
+                tokens.Add(new ScimToken(TokenType.Rparen, ")", position));
                 position++;
                 continue;
             }
 
             if (ch == '"')
             {
-                (string? stringValue, int newPosition) = ParseString(filter, position);
-                tokens.Add(new ScimToken(TokenType.STRING, stringValue, position));
+                (string stringValue, int newPosition) = ParseString(filter, position);
+                tokens.Add(new ScimToken(TokenType.String, stringValue, position));
                 position = newPosition;
                 continue;
             }
 
             if (char.IsLetter(ch) || ch == '_')
             {
-                (string? identifier, int newPosition) = ParseIdentifier(filter, position);
+                (string identifier, int newPosition) = ParseIdentifier(filter, position);
                 string lowerIdentifier = identifier.ToLowerInvariant();
 
                 if (_operators.Contains(lowerIdentifier))
                 {
-                    tokens.Add(new ScimToken(TokenType.OP, lowerIdentifier, position));
+                    tokens.Add(new ScimToken(TokenType.Op, lowerIdentifier, position));
                 }
                 else if (_logicOperators.Contains(lowerIdentifier))
                 {
-                    tokens.Add(new ScimToken(TokenType.LOGIC, lowerIdentifier, position));
+                    tokens.Add(new ScimToken(TokenType.Logic, lowerIdentifier, position));
                 }
                 else if (_boolValues.Contains(lowerIdentifier))
                 {
-                    tokens.Add(new ScimToken(TokenType.BOOL, lowerIdentifier, position));
+                    tokens.Add(new ScimToken(TokenType.Bool, lowerIdentifier, position));
                 }
                 else
                 {
-                    tokens.Add(new ScimToken(TokenType.ATTR, identifier, position));
+                    tokens.Add(new ScimToken(TokenType.Attr, identifier, position));
                 }
 
                 position = newPosition;

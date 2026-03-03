@@ -1,4 +1,4 @@
-namespace Messaging.IntegrationTests.TestHandlers;
+namespace Foundry.Messaging.IntegrationTests.TestHandlers;
 
 public interface ICrossModuleEventTracker
 {

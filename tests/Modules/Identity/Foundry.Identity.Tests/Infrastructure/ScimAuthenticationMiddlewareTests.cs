@@ -8,7 +8,7 @@ using Foundry.Shared.Kernel.MultiTenancy;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 
-namespace Modules.Identity.Tests.Infrastructure;
+namespace Foundry.Identity.Tests.Infrastructure;
 
 public class ScimAuthenticationMiddlewareTests
 {
@@ -93,7 +93,7 @@ public class ScimAuthenticationMiddlewareTests
         ScimError? error = await JsonSerializer.DeserializeAsync<ScimError>(context.Response.Body);
 
         error.Should().NotBeNull();
-        error!.Status.Should().Be(401);
+        error.Status.Should().Be(401);
         error.ScimType.Should().Be("invalidCredentials");
         error.Detail.Should().Be("Missing Authorization header");
         error.Schemas.Should().Contain("urn:ietf:params:scim:api:messages:2.0:Error");
@@ -123,7 +123,7 @@ public class ScimAuthenticationMiddlewareTests
         ScimError? error = await JsonSerializer.DeserializeAsync<ScimError>(context.Response.Body);
 
         error.Should().NotBeNull();
-        error!.Status.Should().Be(401);
+        error.Status.Should().Be(401);
         error.Detail.Should().Be("Invalid authorization scheme. Use Bearer token.");
     }
 
@@ -150,7 +150,7 @@ public class ScimAuthenticationMiddlewareTests
         ScimError? error = await JsonSerializer.DeserializeAsync<ScimError>(context.Response.Body);
 
         error.Should().NotBeNull();
-        error!.Status.Should().Be(401);
+        error.Status.Should().Be(401);
         error.Detail.Should().Be("Empty Bearer token");
     }
 
@@ -175,7 +175,7 @@ public class ScimAuthenticationMiddlewareTests
         ScimError? error = await JsonSerializer.DeserializeAsync<ScimError>(context.Response.Body);
 
         error.Should().NotBeNull();
-        error!.Status.Should().Be(401);
+        error.Status.Should().Be(401);
         error.Detail.Should().Be("Invalid authorization scheme. Use Bearer token.");
     }
 
@@ -203,7 +203,7 @@ public class ScimAuthenticationMiddlewareTests
         ScimError? error = await JsonSerializer.DeserializeAsync<ScimError>(context.Response.Body);
 
         error.Should().NotBeNull();
-        error!.Status.Should().Be(401);
+        error.Status.Should().Be(401);
         error.ScimType.Should().Be("invalidCredentials");
         error.Detail.Should().Be("Invalid or expired SCIM token");
 

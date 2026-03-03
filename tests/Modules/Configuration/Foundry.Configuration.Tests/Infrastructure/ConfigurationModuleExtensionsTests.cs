@@ -59,7 +59,7 @@ public class ConfigurationModuleExtensionsTests
         ServiceDescriptor? descriptor = services.FirstOrDefault(
             d => d.ServiceType == typeof(ICustomFieldDefinitionRepository));
         descriptor.Should().NotBeNull();
-        descriptor!.Lifetime.Should().Be(ServiceLifetime.Scoped);
+        descriptor.Lifetime.Should().Be(ServiceLifetime.Scoped);
     }
 
     [Fact]
@@ -73,7 +73,7 @@ public class ConfigurationModuleExtensionsTests
         ServiceDescriptor? descriptor = services.FirstOrDefault(
             d => d.ServiceType == typeof(IFeatureFlagRepository));
         descriptor.Should().NotBeNull();
-        descriptor!.Lifetime.Should().Be(ServiceLifetime.Scoped);
+        descriptor.Lifetime.Should().Be(ServiceLifetime.Scoped);
     }
 
     [Fact]
@@ -87,7 +87,7 @@ public class ConfigurationModuleExtensionsTests
         ServiceDescriptor? descriptor = services.FirstOrDefault(
             d => d.ServiceType == typeof(IFeatureFlagOverrideRepository));
         descriptor.Should().NotBeNull();
-        descriptor!.Lifetime.Should().Be(ServiceLifetime.Scoped);
+        descriptor.Lifetime.Should().Be(ServiceLifetime.Scoped);
     }
 
     [Fact]
@@ -101,7 +101,7 @@ public class ConfigurationModuleExtensionsTests
         ServiceDescriptor? descriptor = services.FirstOrDefault(
             d => d.ServiceType == typeof(IFeatureFlagService));
         descriptor.Should().NotBeNull();
-        descriptor!.Lifetime.Should().Be(ServiceLifetime.Scoped);
+        descriptor.Lifetime.Should().Be(ServiceLifetime.Scoped);
     }
 
     [Fact]

@@ -344,7 +344,7 @@ public class CustomFieldDefinitionValidationRulesTests
 
         FieldValidationRules? stored = definition.GetValidationRules();
         stored.Should().NotBeNull();
-        stored!.MinLength.Should().Be(5);
+        stored.MinLength.Should().Be(5);
         stored.MaxLength.Should().Be(50);
     }
 

@@ -1,7 +1,7 @@
-using Messaging.IntegrationTests.TestEvents;
+using Foundry.Messaging.IntegrationTests.TestEvents;
 using Microsoft.Extensions.Logging;
 
-namespace Messaging.IntegrationTests.TestHandlers;
+namespace Foundry.Messaging.IntegrationTests.TestHandlers;
 
 #pragma warning disable CA1848, CA1873
 public class TestEventHandler

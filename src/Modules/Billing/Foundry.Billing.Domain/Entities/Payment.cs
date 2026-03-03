@@ -13,8 +13,8 @@ namespace Foundry.Billing.Domain.Entities;
 public sealed class Payment : AggregateRoot<PaymentId>, ITenantScoped, IHasCustomFields
 {
     public TenantId TenantId { get; init; }
-    public InvoiceId InvoiceId { get; private set; }
-    public Guid UserId { get; private set; }
+    public InvoiceId InvoiceId { get; init; }
+    public Guid UserId { get; init; }
     public Money Amount { get; private set; } = null!;
     public PaymentMethod Method { get; private set; }
     public PaymentStatus Status { get; private set; }

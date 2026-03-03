@@ -39,7 +39,7 @@ public class FeatureFlagOverrideRepositoryTests : DbContextIntegrationTestBase<C
         FeatureFlagOverride? result = await repository.GetByIdAsync(over.Id);
 
         result.Should().NotBeNull();
-        result!.TenantId.Should().Be(tenantId);
+        result.TenantId.Should().Be(tenantId);
         result.IsEnabled.Should().BeTrue();
     }
 
@@ -98,7 +98,7 @@ public class FeatureFlagOverrideRepositoryTests : DbContextIntegrationTestBase<C
         FeatureFlagOverride? result = await repository.GetOverrideAsync(flag.Id, tenantId, userId);
 
         result.Should().NotBeNull();
-        result!.Id.Should().Be(over.Id);
+        result.Id.Should().Be(over.Id);
     }
 
     [Fact]

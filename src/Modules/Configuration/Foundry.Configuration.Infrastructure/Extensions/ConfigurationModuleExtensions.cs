@@ -58,7 +58,7 @@ public static partial class ConfigurationModuleExtensions
         return services;
     }
 
-    public static async Task<WebApplication> InitializeConfigurationModuleAsync(this WebApplication app)
+    public static async Task InitializeConfigurationModuleAsync(this WebApplication app)
     {
         if (app.Environment.IsDevelopment())
         {
@@ -75,8 +75,6 @@ public static partial class ConfigurationModuleExtensions
                 LogStartupFailed(logger, ex);
             }
         }
-
-        return app;
     }
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Configuration module startup failed. Ensure PostgreSQL is running.")]

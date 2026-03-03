@@ -1,7 +1,7 @@
 using FluentValidation.TestHelper;
 using Foundry.Billing.Application.Commands.CancelSubscription;
 
-namespace Foundry.Billing.Application.Tests.Validators;
+namespace Foundry.Billing.Tests.Application.Validators;
 
 public class CancelSubscriptionValidatorTests
 {

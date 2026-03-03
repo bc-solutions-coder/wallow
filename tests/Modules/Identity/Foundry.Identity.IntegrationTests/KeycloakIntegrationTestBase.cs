@@ -69,7 +69,7 @@ public class KeycloakTestFixture : WebApplicationFactory<Program>, IAsyncLifetim
     {
         builder.UseEnvironment("Testing");
 
-        builder.ConfigureAppConfiguration((context, config) =>
+        builder.ConfigureAppConfiguration((_, config) =>
         {
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {

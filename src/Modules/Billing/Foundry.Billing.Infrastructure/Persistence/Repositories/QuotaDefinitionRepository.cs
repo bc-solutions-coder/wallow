@@ -31,10 +31,10 @@ public sealed class QuotaDefinitionRepository : IQuotaDefinitionRepository
         CancellationToken cancellationToken = default)
     {
         // First try tenant-specific override
-        QuotaDefinition? override_ = await GetTenantOverrideAsync(meterCode, cancellationToken);
-        if (override_ is not null)
+        QuotaDefinition? quotaOverride = await GetTenantOverrideAsync(meterCode, cancellationToken);
+        if (quotaOverride is not null)
         {
-            return override_;
+            return quotaOverride;
         }
 
         // Then try plan default (if plan code provided)

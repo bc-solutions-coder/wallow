@@ -4,9 +4,9 @@ using Foundry.Billing.Domain.Events;
 using Foundry.Billing.Domain.Exceptions;
 using Foundry.Billing.Domain.ValueObjects;
 using Foundry.Shared.Kernel.Domain;
-using static Foundry.Billing.Domain.Tests.Entities.SubscriptionTestHelpers;
+using static Foundry.Billing.Tests.Domain.Entities.SubscriptionTestHelpers;
 
-namespace Foundry.Billing.Domain.Tests.Entities;
+namespace Foundry.Billing.Tests.Domain.Entities;
 
 public class SubscriptionCreateTests
 {

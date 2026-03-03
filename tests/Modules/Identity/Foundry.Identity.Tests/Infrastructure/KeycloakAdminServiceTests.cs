@@ -13,7 +13,7 @@ using Wolverine;
 
 #pragma warning disable CA2000 // HttpClient/HttpMessageHandler lifetime is managed by test framework
 
-namespace Modules.Identity.Tests.Infrastructure;
+namespace Foundry.Identity.Tests.Infrastructure;
 
 public class KeycloakAdminServiceTests
 {
@@ -103,7 +103,7 @@ public class KeycloakAdminServiceTests
         UserDto? result = await service.GetUserByIdAsync(userId);
 
         result.Should().NotBeNull();
-        result!.Email.Should().Be("test@test.com");
+        result.Email.Should().Be("test@test.com");
         result.FirstName.Should().Be("John");
         result.LastName.Should().Be("Doe");
         result.Enabled.Should().BeTrue();
@@ -149,7 +149,7 @@ public class KeycloakAdminServiceTests
         UserDto? result = await service.GetUserByEmailAsync("test@test.com");
 
         result.Should().NotBeNull();
-        result!.Email.Should().Be("test@test.com");
+        result.Email.Should().Be("test@test.com");
     }
 
     [Fact]
@@ -199,7 +199,7 @@ public class KeycloakAdminServiceTests
 
         KeycloakAdminService service = CreateService(handler);
 
-        IReadOnlyList<UserDto> result = await service.GetUsersAsync("search", 0, 20);
+        IReadOnlyList<UserDto> result = await service.GetUsersAsync("search");
 
         result.Should().HaveCount(2);
         result[0].Email.Should().Be("u1@test.com");

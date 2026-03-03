@@ -1,7 +1,7 @@
 using Foundry.Billing.Domain.ValueObjects;
 using Foundry.Shared.Kernel.Domain;
 
-namespace Foundry.Billing.Domain.Tests.ValueObjects;
+namespace Foundry.Billing.Tests.Domain.ValueObjects;
 
 public class MoneyTests
 {

@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging;
 
 #pragma warning disable CA2000 // HttpClient/HttpMessageHandler lifetime is managed by test framework
 
-namespace Modules.Identity.Tests.Infrastructure;
+namespace Foundry.Identity.Tests.Infrastructure;
 
 public class KeycloakIdpServiceTests
 {
@@ -133,7 +133,7 @@ public class KeycloakIdpServiceTests
     public async Task TestSamlConnectionAsync_WhenSsoUrlEmpty_ReturnsFailure()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.SAML,
+            TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.Saml,
             "email", "firstName", "lastName", Guid.Empty);
 
         KeycloakIdpService service = CreateService(new MockHttpHandler());
@@ -148,7 +148,7 @@ public class KeycloakIdpServiceTests
     public async Task TestSamlConnectionAsync_WhenUrlReturnsNonSuccess_ReturnsFailure()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.SAML,
+            TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.Saml,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateSamlConfig("entity-id", "https://idp.test/sso", null, "dummycert", SamlNameIdFormat.Email, Guid.Empty);
 
@@ -167,7 +167,7 @@ public class KeycloakIdpServiceTests
     public async Task TestSamlConnectionAsync_WithValidUrlAndNoCert_ReturnsSuccess()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.SAML,
+            TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.Saml,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateSamlConfig("entity-id", "https://idp.test/sso", null, "dummycert", SamlNameIdFormat.Email, Guid.Empty);
 
@@ -189,7 +189,7 @@ public class KeycloakIdpServiceTests
     public async Task TestSamlConnectionAsync_WithInvalidCert_ReturnsFailure()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.SAML,
+            TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.Saml,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateSamlConfig("entity-id", "https://idp.test/sso", null, "invalid-cert-data!", SamlNameIdFormat.Email, Guid.Empty);
 
@@ -208,7 +208,7 @@ public class KeycloakIdpServiceTests
     public async Task TestOidcConnectionAsync_WhenIssuerEmpty_ReturnsFailure()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.OIDC,
+            TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.Oidc,
             "email", "firstName", "lastName", Guid.Empty);
 
         KeycloakIdpService service = CreateService(new MockHttpHandler());
@@ -223,7 +223,7 @@ public class KeycloakIdpServiceTests
     public async Task TestOidcConnectionAsync_WhenDiscoveryFails_ReturnsFailure()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.OIDC,
+            TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.Oidc,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateOidcConfig("https://idp.test", "client-id", "secret", "openid", Guid.Empty);
 
@@ -242,7 +242,7 @@ public class KeycloakIdpServiceTests
     public async Task TestOidcConnectionAsync_WhenIssuerMismatch_ReturnsFailure()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.OIDC,
+            TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.Oidc,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateOidcConfig("https://idp.test", "client-id", "secret", "openid", Guid.Empty);
 
@@ -262,7 +262,7 @@ public class KeycloakIdpServiceTests
     public async Task TestOidcConnectionAsync_WhenValid_ReturnsSuccess()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.OIDC,
+            TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.Oidc,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateOidcConfig("https://idp.test", "client-id", "secret", "openid", Guid.Empty);
 
@@ -281,7 +281,7 @@ public class KeycloakIdpServiceTests
     public async Task TestOidcConnectionAsync_WhenException_ReturnsFailure()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.OIDC,
+            TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.Oidc,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateOidcConfig("https://idp.test", "client-id", "secret", "openid", Guid.Empty);
 
@@ -300,7 +300,7 @@ public class KeycloakIdpServiceTests
     public void ValidateSamlConfiguration_WhenEntityIdMissing_ReturnsFailure()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.SAML,
+            TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.Saml,
             "email", "firstName", "lastName", Guid.Empty);
 
         SsoValidationResult result = KeycloakIdpService.ValidateSamlConfiguration(config);
@@ -313,7 +313,7 @@ public class KeycloakIdpServiceTests
     public void ValidateSamlConfiguration_WhenValidWithCert_ReturnsSuccess()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.SAML,
+            TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.Saml,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateSamlConfig("entity-id", "https://idp.test/sso", null, "dummycert", SamlNameIdFormat.Email, Guid.Empty);
 
@@ -328,7 +328,7 @@ public class KeycloakIdpServiceTests
     public void ValidateSamlConfiguration_WhenConfiguredWithEntityIdAndSsoUrl_ValidatesCorrectly()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.SAML,
+            TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.Saml,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateSamlConfig("entity-id", "https://idp.test/sso", null, "dummycert", SamlNameIdFormat.Email, Guid.Empty);
 
@@ -343,7 +343,7 @@ public class KeycloakIdpServiceTests
     public async Task ValidateOidcConfigurationAsync_WhenIssuerMissing_ReturnsFailure()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.OIDC,
+            TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.Oidc,
             "email", "firstName", "lastName", Guid.Empty);
 
         KeycloakIdpService service = CreateService(new MockHttpHandler());
@@ -358,7 +358,7 @@ public class KeycloakIdpServiceTests
     public async Task ValidateOidcConfigurationAsync_WhenConfiguredWithIssuerAndClientId_ValidatesDiscovery()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.OIDC,
+            TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.Oidc,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateOidcConfig("https://idp.test", "client-id", "secret", "openid", Guid.Empty);
 
@@ -378,7 +378,7 @@ public class KeycloakIdpServiceTests
     public async Task ValidateOidcConfigurationAsync_WhenDiscoveryFails_ReturnsFailure()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.OIDC,
+            TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.Oidc,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateOidcConfig("https://idp.test", "client-id", "secret", "openid", Guid.Empty);
 
@@ -397,7 +397,7 @@ public class KeycloakIdpServiceTests
     public async Task ValidateOidcConfigurationAsync_WhenValid_ReturnsSuccess()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.OIDC,
+            TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.Oidc,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateOidcConfig("https://idp.test", "client-id", "secret", "openid", Guid.Empty);
 
@@ -418,7 +418,7 @@ public class KeycloakIdpServiceTests
     public async Task ValidateOidcConfigurationAsync_WhenException_ReturnsFailure()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.OIDC,
+            TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.Oidc,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateOidcConfig("https://idp.test", "client-id", "secret", "openid", Guid.Empty);
 

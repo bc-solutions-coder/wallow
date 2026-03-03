@@ -4,7 +4,7 @@ using Foundry.Identity.Application.Interfaces;
 using Foundry.Identity.Domain.Identity;
 using Foundry.Shared.Kernel.Results;
 
-namespace Modules.Identity.Tests.Application.Commands;
+namespace Foundry.Identity.Tests.Application.Commands;
 
 public class CreateServiceAccountCommandTests
 {

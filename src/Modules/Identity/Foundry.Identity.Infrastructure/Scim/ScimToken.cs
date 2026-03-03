@@ -2,13 +2,13 @@ namespace Foundry.Identity.Infrastructure.Scim;
 
 public enum TokenType
 {
-    ATTR,
-    OP,
-    LOGIC,
-    LPAREN,
-    RPAREN,
-    STRING,
-    BOOL
+    Attr,
+    Op,
+    Logic,
+    Lparen,
+    Rparen,
+    String,
+    Bool
 }
 
 public sealed record ScimToken(TokenType Type, string Value, int Position);

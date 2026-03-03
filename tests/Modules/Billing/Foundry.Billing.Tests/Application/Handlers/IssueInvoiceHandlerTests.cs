@@ -6,7 +6,7 @@ using Foundry.Billing.Domain.Identity;
 using Foundry.Billing.Domain.ValueObjects;
 using Foundry.Shared.Kernel.Results;
 
-namespace Foundry.Billing.Application.Tests.Handlers;
+namespace Foundry.Billing.Tests.Application.Handlers;
 
 public class IssueInvoiceHandlerTests
 {

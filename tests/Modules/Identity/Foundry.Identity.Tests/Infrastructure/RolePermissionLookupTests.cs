@@ -1,7 +1,7 @@
 using Foundry.Identity.Infrastructure.Authorization;
 using Foundry.Shared.Kernel.Identity.Authorization;
 
-namespace Modules.Identity.Tests.Infrastructure;
+namespace Foundry.Identity.Tests.Infrastructure;
 
 public class RolePermissionLookupTests
 {

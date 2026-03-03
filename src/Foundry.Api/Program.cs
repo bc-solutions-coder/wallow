@@ -90,7 +90,7 @@ try
     builder.Host.UseWolverine(opts =>
     {
         // Discover handlers in all Foundry assemblies
-        foreach (Assembly? assembly in AppDomain.CurrentDomain.GetAssemblies()
+        foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies()
             .Where(a => a.GetName().Name?.StartsWith("Foundry.", StringComparison.Ordinal) == true))
         {
             opts.Discovery.IncludeAssembly(assembly);
@@ -134,14 +134,9 @@ try
                 try
                 {
                     // Try to load the assembly if not already loaded
-                    Assembly? testAssembly = AppDomain.CurrentDomain.GetAssemblies()
-                        .FirstOrDefault(a => a.FullName == testAssemblyName);
-
-                    if (testAssembly == null)
-                    {
-                        // Assembly isn't loaded yet, try to load it
-                        testAssembly = System.Reflection.Assembly.Load(testAssemblyName);
-                    }
+                    Assembly testAssembly = AppDomain.CurrentDomain.GetAssemblies()
+                        .FirstOrDefault(a => a.FullName == testAssemblyName)
+                        ?? System.Reflection.Assembly.Load(testAssemblyName);
 
                     opts.Discovery.IncludeAssembly(testAssembly);
                     Log.Information("Included test assembly {AssemblyName} for handler discovery", testAssemblyName);

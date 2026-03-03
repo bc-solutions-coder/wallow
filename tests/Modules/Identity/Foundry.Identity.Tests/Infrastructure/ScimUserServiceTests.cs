@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging;
 
 #pragma warning disable CA2000 // HttpClient/HttpMessageHandler lifetime is managed by test framework
 
-namespace Modules.Identity.Tests.Infrastructure;
+namespace Foundry.Identity.Tests.Infrastructure;
 
 public class ScimUserServiceTests
 {
@@ -551,7 +551,7 @@ public class ScimUserServiceTests
         ScimUser? result = await service.GetUserAsync("user-1");
 
         result.Should().NotBeNull();
-        result!.UserName.Should().Be("test.user");
+        result.UserName.Should().Be("test.user");
         result.Emails.Should().NotBeNull();
         result.Emails!.Should().ContainSingle(e => e.Value == "test@example.com" && e.Primary);
         result.DisplayName.Should().Be("Test User");
@@ -601,7 +601,7 @@ public class ScimUserServiceTests
         ScimUser? result = await service.GetUserAsync("user-noemail");
 
         result.Should().NotBeNull();
-        result!.Emails.Should().BeNull();
+        result.Emails.Should().BeNull();
         result.UserName.Should().Be("noemail");
     }
 

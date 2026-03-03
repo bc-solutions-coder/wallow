@@ -43,7 +43,7 @@ public class CustomFieldDefinitionRepositoryTests : DbContextIntegrationTestBase
         CustomFieldDefinition? result = await repository.GetByIdAsync(definition.Id);
 
         result.Should().NotBeNull();
-        result!.DisplayName.Should().Be("Test Field");
+        result.DisplayName.Should().Be("Test Field");
         result.EntityType.Should().Be("Invoice");
         result.FieldType.Should().Be(CustomFieldType.Text);
     }
@@ -63,7 +63,7 @@ public class CustomFieldDefinitionRepositoryTests : DbContextIntegrationTestBase
     {
         CustomFieldDefinitionRepository repository = CreateRepository();
         string fieldKey = $"fk_{Guid.NewGuid():N}".Substring(0, 20);
-        CustomFieldDefinition definition = CreateDefinition(fieldKey, "Invoice");
+        CustomFieldDefinition definition = CreateDefinition(fieldKey);
 
         await repository.AddAsync(definition);
         await repository.SaveChangesAsync();
@@ -71,7 +71,7 @@ public class CustomFieldDefinitionRepositoryTests : DbContextIntegrationTestBase
         CustomFieldDefinition? result = await repository.GetByFieldKeyAsync("Invoice", fieldKey);
 
         result.Should().NotBeNull();
-        result!.FieldKey.Should().Be(fieldKey);
+        result.FieldKey.Should().Be(fieldKey);
     }
 
     [Fact]
@@ -164,7 +164,7 @@ public class CustomFieldDefinitionRepositoryTests : DbContextIntegrationTestBase
     {
         CustomFieldDefinitionRepository repository = CreateRepository();
         string fieldKey = $"fk_{Guid.NewGuid():N}".Substring(0, 20);
-        CustomFieldDefinition definition = CreateDefinition(fieldKey, "Invoice");
+        CustomFieldDefinition definition = CreateDefinition(fieldKey);
 
         await repository.AddAsync(definition);
         await repository.SaveChangesAsync();
@@ -200,6 +200,6 @@ public class CustomFieldDefinitionRepositoryTests : DbContextIntegrationTestBase
         CustomFieldDefinition? result = await repository.GetByIdAsync(definition.Id);
 
         result.Should().NotBeNull();
-        result!.DisplayName.Should().Be("Updated Name");
+        result.DisplayName.Should().Be("Updated Name");
     }
 }

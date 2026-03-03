@@ -9,7 +9,7 @@ using Wolverine;
 
 #pragma warning disable CA2000 // HttpClient/HttpMessageHandler lifetime is managed by test framework
 
-namespace Modules.Identity.Tests.Infrastructure;
+namespace Foundry.Identity.Tests.Infrastructure;
 
 public class KeycloakOrganizationServiceTests
 {
@@ -66,7 +66,7 @@ public class KeycloakOrganizationServiceTests
         OrganizationDto? result = await service.GetOrganizationByIdAsync(orgId);
 
         result.Should().NotBeNull();
-        result!.Name.Should().Be("Org One");
+        result.Name.Should().Be("Org One");
         result.Domain.Should().Be("org.com");
     }
 
@@ -114,7 +114,7 @@ public class KeycloakOrganizationServiceTests
 
         KeycloakOrganizationService service = CreateService(handler);
 
-        IReadOnlyList<OrganizationDto> result = await service.GetOrganizationsAsync("search", 0, 20);
+        IReadOnlyList<OrganizationDto> result = await service.GetOrganizationsAsync("search");
 
         result.Should().HaveCount(2);
     }

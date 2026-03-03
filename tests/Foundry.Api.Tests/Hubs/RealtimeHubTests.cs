@@ -291,7 +291,6 @@ public sealed class RealtimeHubTests : IDisposable
     public void Dispose()
     {
         _hub.Dispose();
-        GC.SuppressFinalize(this);
     }
 
     private static bool MatchesEnvelopeType(object? obj, string type)

@@ -46,7 +46,7 @@ public class RotateSecretTests : ServiceAccountIntegrationTestBase
         response.IsSuccessStatusCode.Should().BeTrue();
         SecretRotatedResponse? result = await response.Content.ReadFromJsonAsync<SecretRotatedResponse>();
         result.Should().NotBeNull();
-        result!.NewClientSecret.Should().NotBeNullOrWhiteSpace();
+        result.NewClientSecret.Should().NotBeNullOrWhiteSpace();
     }
 
     [Fact]

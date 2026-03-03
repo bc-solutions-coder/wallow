@@ -153,7 +153,7 @@ public sealed class RealtimeHubIntegrationTests
             .WithUrl("http://localhost/hubs/realtime", options =>
             {
                 options.HttpMessageHandlerFactory = _ => _factory.Server.CreateHandler();
-                options.AccessTokenProvider = () => Task.FromResult(token)!;
+                options.AccessTokenProvider = () => Task.FromResult<string?>(token);
                 options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.LongPolling;
             })
             .Build();

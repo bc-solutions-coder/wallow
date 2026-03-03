@@ -2,7 +2,7 @@ using System.Security.Claims;
 using Foundry.Identity.Infrastructure.Authorization;
 using Microsoft.AspNetCore.Authorization;
 
-namespace Modules.Identity.Tests.Infrastructure;
+namespace Foundry.Identity.Tests.Infrastructure;
 
 public class PermissionAuthorizationHandlerTests
 {

@@ -75,7 +75,7 @@ public class AuditableEntityTests
         TestAuditableEntity entity = new(TestAuditableEntityId.New());
         DateTimeOffset timestamp = DateTimeOffset.UtcNow;
 
-        entity.SetUpdated(timestamp, null);
+        entity.SetUpdated(timestamp);
 
         entity.UpdatedAt.Should().Be(timestamp.UtcDateTime);
         entity.UpdatedBy.Should().BeNull();

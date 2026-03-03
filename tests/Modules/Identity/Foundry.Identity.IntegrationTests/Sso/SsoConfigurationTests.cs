@@ -20,7 +20,6 @@ namespace Foundry.Identity.IntegrationTests.Sso;
 public class SsoConfigurationTests : IClassFixture<SsoConfigurationTestFactory>, IAsyncLifetime
 {
     private readonly SsoConfigurationTestFactory _factory;
-    private readonly HttpClient _client;
     private IServiceScope? _scope;
     private IServiceProvider _scopedServices = null!;
     private ISsoService _ssoService = null!;
@@ -29,8 +28,6 @@ public class SsoConfigurationTests : IClassFixture<SsoConfigurationTestFactory>,
     public SsoConfigurationTests(SsoConfigurationTestFactory factory)
     {
         _factory = factory;
-        _client = factory.CreateClient();
-        _client.DefaultRequestHeaders.Add("Authorization", "Bearer test-token");
     }
 
     public async Task InitializeAsync()
@@ -82,7 +79,7 @@ public class SsoConfigurationTests : IClassFixture<SsoConfigurationTestFactory>,
         // Assert
         result.Should().NotBeNull();
         result.DisplayName.Should().Be("Test SAML Provider");
-        result.Protocol.Should().Be(SsoProtocol.SAML);
+        result.Protocol.Should().Be(SsoProtocol.Saml);
         result.SamlEntityId.Should().Be("https://saml-idp.test/metadata");
         result.Status.Should().Be(SsoStatus.Draft);
 
@@ -122,7 +119,7 @@ public class SsoConfigurationTests : IClassFixture<SsoConfigurationTestFactory>,
         // Assert
         result.Should().NotBeNull();
         result.DisplayName.Should().Be("Test OIDC Provider");
-        result.Protocol.Should().Be(SsoProtocol.OIDC);
+        result.Protocol.Should().Be(SsoProtocol.Oidc);
         result.OidcIssuer.Should().Be(mockIssuer);
         result.Status.Should().Be(SsoStatus.Draft);
 
@@ -162,7 +159,7 @@ public class SsoConfigurationTests : IClassFixture<SsoConfigurationTestFactory>,
         // Assert
         SsoConfigurationDto? config = await _ssoService.GetConfigurationAsync();
         config.Should().NotBeNull();
-        config!.Status.Should().Be(SsoStatus.Active);
+        config.Status.Should().Be(SsoStatus.Active);
 
         IReadOnlyList<JsonElement> updatedIdps = _factory.UpdatedIdentityProviders;
         updatedIdps.Should().HaveCount(1);
@@ -201,7 +198,7 @@ public class SsoConfigurationTests : IClassFixture<SsoConfigurationTestFactory>,
         // Assert
         SsoConfigurationDto? config = await _ssoService.GetConfigurationAsync();
         config.Should().NotBeNull();
-        config!.Status.Should().Be(SsoStatus.Disabled);
+        config.Status.Should().Be(SsoStatus.Disabled);
 
         IReadOnlyList<JsonElement> updatedIdps = _factory.UpdatedIdentityProviders;
         updatedIdps.Should().HaveCount(1);

@@ -148,14 +148,14 @@ public sealed class SsoConfiguration : AggregateRoot<SsoConfigurationId>, ITenan
                 "SSO configuration is already active");
         }
 
-        if (Protocol == SsoProtocol.SAML && string.IsNullOrWhiteSpace(SamlEntityId))
+        if (Protocol == SsoProtocol.Saml && string.IsNullOrWhiteSpace(SamlEntityId))
         {
             throw new BusinessRuleException(
                 "Identity.SamlConfigurationIncomplete",
                 "SAML configuration is incomplete");
         }
 
-        if (Protocol == SsoProtocol.OIDC && string.IsNullOrWhiteSpace(OidcIssuer))
+        if (Protocol == SsoProtocol.Oidc && string.IsNullOrWhiteSpace(OidcIssuer))
         {
             throw new BusinessRuleException(
                 "Identity.OidcConfigurationIncomplete",
@@ -193,7 +193,7 @@ public sealed class SsoConfiguration : AggregateRoot<SsoConfigurationId>, ITenan
         SamlNameIdFormat nameIdFormat,
         Guid updatedByUserId)
     {
-        if (Protocol != SsoProtocol.SAML)
+        if (Protocol != SsoProtocol.Saml)
         {
             throw new BusinessRuleException(
                 "Identity.NotSamlConfiguration",
@@ -243,7 +243,7 @@ public sealed class SsoConfiguration : AggregateRoot<SsoConfigurationId>, ITenan
         string scopes,
         Guid updatedByUserId)
     {
-        if (Protocol != SsoProtocol.OIDC)
+        if (Protocol != SsoProtocol.Oidc)
         {
             throw new BusinessRuleException(
                 "Identity.NotOidcConfiguration",

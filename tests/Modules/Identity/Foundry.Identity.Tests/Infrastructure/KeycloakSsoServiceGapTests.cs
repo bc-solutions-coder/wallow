@@ -13,7 +13,7 @@ using Microsoft.Extensions.Options;
 
 #pragma warning disable CA2000 // HttpClient/HttpMessageHandler lifetime is managed by test framework
 
-namespace Modules.Identity.Tests.Infrastructure;
+namespace Foundry.Identity.Tests.Infrastructure;
 
 public class KeycloakSsoServiceGapTests
 {
@@ -26,7 +26,7 @@ public class KeycloakSsoServiceGapTests
     public async Task DisableAsync_WithoutKeycloakAlias_StillDisables()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId, "Test SSO", SsoProtocol.SAML,
+            _testTenantId, "Test SSO", SsoProtocol.Saml,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateSamlConfig("entity-id", "https://idp.test/sso", null, "cert", SamlNameIdFormat.Email, Guid.Empty);
         config.MoveToTesting(Guid.Empty);
@@ -47,7 +47,7 @@ public class KeycloakSsoServiceGapTests
     public async Task TestConnectionAsync_WhenExceptionThrown_ReturnsFailure()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId, "Test SSO", SsoProtocol.OIDC,
+            _testTenantId, "Test SSO", SsoProtocol.Oidc,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateOidcConfig("https://idp.test", "client-123", "secret", "openid", Guid.Empty);
 
@@ -80,7 +80,7 @@ public class KeycloakSsoServiceGapTests
     public async Task SyncUserClaimsAsync_WhenException_RethrowsWithActivityStatus()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId, "Test SSO", SsoProtocol.SAML,
+            _testTenantId, "Test SSO", SsoProtocol.Saml,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateBehaviorSettings(false, false, null, true, "groups", Guid.Empty);
 
@@ -204,7 +204,7 @@ public class KeycloakSsoServiceGapTests
     public async Task GetConfigurationAsync_WithOidcConfig_ReturnsDtoCorrectly()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId, "OIDC SSO", SsoProtocol.OIDC,
+            _testTenantId, "OIDC SSO", SsoProtocol.Oidc,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateOidcConfig("https://idp.test", "client-123", "secret", "openid", Guid.Empty);
 
@@ -215,18 +215,18 @@ public class KeycloakSsoServiceGapTests
         SsoConfigurationDto? result = await service.GetConfigurationAsync();
 
         result.Should().NotBeNull();
-        result!.OidcIssuer.Should().Be("https://idp.test");
+        result.OidcIssuer.Should().Be("https://idp.test");
         result.OidcClientId.Should().Be("client-123");
         result.OidcConfigured.Should().BeTrue();
         result.SamlConfigured.Should().BeFalse();
-        result.Protocol.Should().Be(SsoProtocol.OIDC);
+        result.Protocol.Should().Be(SsoProtocol.Oidc);
     }
 
     [Fact]
     public async Task ValidateIdpConfigurationAsync_WhenExceptionThrown_ReturnsFailure()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId, "Test SSO", SsoProtocol.OIDC,
+            _testTenantId, "Test SSO", SsoProtocol.Oidc,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateOidcConfig("https://idp.test", "client-123", "secret", "openid", Guid.Empty);
 
@@ -309,18 +309,6 @@ public class KeycloakSsoServiceGapTests
         public MockKeycloakHttpHandler WithKeycloakPost(string path, HttpStatusCode status)
         {
             _keycloakRoutes[$"POST:{path}"] = (status, null);
-            return this;
-        }
-
-        public MockKeycloakHttpHandler WithKeycloakPut(string path, HttpStatusCode status)
-        {
-            _keycloakRoutes[$"PUT:{path}"] = (status, null);
-            return this;
-        }
-
-        public MockKeycloakHttpHandler WithExternalGet(string url, HttpStatusCode status, object? content = null)
-        {
-            _externalRoutes[$"GET:{url}"] = (status, content);
             return this;
         }
 

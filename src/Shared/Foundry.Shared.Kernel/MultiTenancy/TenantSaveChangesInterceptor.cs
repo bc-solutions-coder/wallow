@@ -39,7 +39,7 @@ public class TenantSaveChangesInterceptor : SaveChangesInterceptor
             .Entries<ITenantScoped>()
             .Where(e => e.State == EntityState.Added);
 
-        foreach (EntityEntry<ITenantScoped>? entry in entries)
+        foreach (EntityEntry<ITenantScoped> entry in entries)
         {
             entry.Property(nameof(ITenantScoped.TenantId)).CurrentValue = _tenantContext.TenantId;
         }
@@ -48,7 +48,7 @@ public class TenantSaveChangesInterceptor : SaveChangesInterceptor
             .Entries<ITenantScoped>()
             .Where(e => e.State == EntityState.Modified);
 
-        foreach (EntityEntry<ITenantScoped>? entry in modified)
+        foreach (EntityEntry<ITenantScoped> entry in modified)
         {
             if (entry.Property(nameof(ITenantScoped.TenantId)).IsModified)
             {

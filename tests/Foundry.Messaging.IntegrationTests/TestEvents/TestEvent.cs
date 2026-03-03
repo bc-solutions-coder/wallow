@@ -1,6 +1,6 @@
 using Foundry.Shared.Contracts;
 
-namespace Messaging.IntegrationTests.TestEvents;
+namespace Foundry.Messaging.IntegrationTests.TestEvents;
 
 public sealed record TestEvent : IntegrationEvent
 {

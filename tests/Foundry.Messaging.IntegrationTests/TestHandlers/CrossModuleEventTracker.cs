@@ -1,4 +1,4 @@
-namespace Messaging.IntegrationTests.TestHandlers;
+namespace Foundry.Messaging.IntegrationTests.TestHandlers;
 
 public class CrossModuleEventTracker : ICrossModuleEventTracker
 {
@@ -13,8 +13,7 @@ public class CrossModuleEventTracker : ICrossModuleEventTracker
             {
                 Module = module,
                 EventType = eventType,
-                EventId = eventId,
-                ExecutedAt = DateTime.UtcNow
+                EventId = eventId
             });
         }
     }
@@ -51,6 +50,5 @@ public class CrossModuleEventTracker : ICrossModuleEventTracker
         public required string Module { get; init; }
         public required string EventType { get; init; }
         public required Guid EventId { get; init; }
-        public required DateTime ExecutedAt { get; init; }
     }
 }

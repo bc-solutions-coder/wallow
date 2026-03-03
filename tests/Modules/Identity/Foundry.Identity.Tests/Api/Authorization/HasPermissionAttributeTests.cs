@@ -50,7 +50,7 @@ public class HasPermissionAttributeTests
             .FirstOrDefault() as AttributeUsageAttribute;
 
         usage.Should().NotBeNull();
-        usage!.ValidOn.Should().HaveFlag(AttributeTargets.Class);
+        usage.ValidOn.Should().HaveFlag(AttributeTargets.Class);
         usage.ValidOn.Should().HaveFlag(AttributeTargets.Method);
         usage.AllowMultiple.Should().BeTrue();
     }

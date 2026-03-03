@@ -3,7 +3,7 @@ using Foundry.Communications.Domain.Channels.InApp.Enums;
 using Foundry.Communications.Domain.Channels.InApp.Events;
 using Foundry.Shared.Kernel.Identity;
 
-namespace Foundry.Communications.Domain.Tests.Entities;
+namespace Foundry.Communications.Tests.Domain.Entities;
 
 public class NotificationCreateTests
 {

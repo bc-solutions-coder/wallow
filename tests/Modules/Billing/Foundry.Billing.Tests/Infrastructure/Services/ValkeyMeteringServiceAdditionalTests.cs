@@ -15,8 +15,6 @@ namespace Foundry.Billing.Tests.Infrastructure.Services;
 
 public class ValkeyMeteringServiceAdditionalTests
 {
-    private readonly IConnectionMultiplexer _redis;
-    private readonly ITenantContext _tenantContext;
     private readonly IQuotaDefinitionRepository _quotaRepository;
     private readonly IUsageRecordRepository _usageRepository;
     private readonly IMeterDefinitionRepository _meterRepository;
@@ -28,8 +26,8 @@ public class ValkeyMeteringServiceAdditionalTests
 
     public ValkeyMeteringServiceAdditionalTests()
     {
-        _redis = Substitute.For<IConnectionMultiplexer>();
-        _tenantContext = Substitute.For<ITenantContext>();
+        IConnectionMultiplexer redis = Substitute.For<IConnectionMultiplexer>();
+        ITenantContext tenantContext = Substitute.For<ITenantContext>();
         _quotaRepository = Substitute.For<IQuotaDefinitionRepository>();
         _usageRepository = Substitute.For<IUsageRecordRepository>();
         _meterRepository = Substitute.For<IMeterDefinitionRepository>();
@@ -38,11 +36,11 @@ public class ValkeyMeteringServiceAdditionalTests
         _database = Substitute.For<IDatabase>();
 
         _testTenantId = TenantId.Create(Guid.NewGuid());
-        _tenantContext.TenantId.Returns(_testTenantId);
-        _redis.GetDatabase(Arg.Any<int>(), Arg.Any<object>()).Returns(_database);
+        tenantContext.TenantId.Returns(_testTenantId);
+        redis.GetDatabase(Arg.Any<int>(), Arg.Any<object>()).Returns(_database);
 
         ILogger<ValkeyMeteringService> logger = Substitute.For<ILogger<ValkeyMeteringService>>();
-        _service = new ValkeyMeteringService(_redis, _tenantContext, _quotaRepository, _usageRepository, _meterRepository, _messageBus, _subscriptionQueryService, logger);
+        _service = new ValkeyMeteringService(redis, tenantContext, _quotaRepository, _usageRepository, _meterRepository, _messageBus, _subscriptionQueryService, logger);
     }
 
     [Fact]

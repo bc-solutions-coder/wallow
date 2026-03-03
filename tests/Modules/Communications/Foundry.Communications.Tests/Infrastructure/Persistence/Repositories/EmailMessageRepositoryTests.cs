@@ -117,6 +117,5 @@ public sealed class EmailMessageRepositoryTests : IDisposable
     public void Dispose()
     {
         _dbContext.Dispose();
-        GC.SuppressFinalize(this);
     }
 }

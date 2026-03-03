@@ -1,7 +1,6 @@
 using Foundry.Identity.Domain.Entities;
 using Foundry.Identity.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace Foundry.Identity.Infrastructure.Data;
@@ -82,17 +81,6 @@ public sealed partial class ApiScopeSeeder
             "Access to manage webhook subscriptions", isDefault: false);
     }
 
-    /// <summary>
-    /// Extension method to seed API scopes from IServiceProvider.
-    /// </summary>
-    public static async Task SeedAsync(IServiceProvider services, CancellationToken ct = default)
-    {
-        await using AsyncServiceScope scope = services.CreateAsyncScope();
-        IdentityDbContext context = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
-        ILogger<ApiScopeSeeder> logger = scope.ServiceProvider.GetRequiredService<ILogger<ApiScopeSeeder>>();
-        ApiScopeSeeder seeder = new ApiScopeSeeder(logger);
-        await seeder.SeedAsync(context, ct);
-    }
 }
 
 public sealed partial class ApiScopeSeeder

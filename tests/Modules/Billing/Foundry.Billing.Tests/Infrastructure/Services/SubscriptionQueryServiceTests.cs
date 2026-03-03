@@ -9,14 +9,13 @@ namespace Foundry.Billing.Tests.Infrastructure.Services;
 public class SubscriptionQueryServiceTests
 {
     private readonly ISubscriptionRepository _subscriptionRepository;
-    private readonly ILogger<SubscriptionQueryService> _logger;
     private readonly SubscriptionQueryService _service;
 
     public SubscriptionQueryServiceTests()
     {
         _subscriptionRepository = Substitute.For<ISubscriptionRepository>();
-        _logger = Substitute.For<ILogger<SubscriptionQueryService>>();
-        _service = new SubscriptionQueryService(_subscriptionRepository, _logger);
+        ILogger<SubscriptionQueryService> logger = Substitute.For<ILogger<SubscriptionQueryService>>();
+        _service = new SubscriptionQueryService(_subscriptionRepository, logger);
     }
 
     [Fact]

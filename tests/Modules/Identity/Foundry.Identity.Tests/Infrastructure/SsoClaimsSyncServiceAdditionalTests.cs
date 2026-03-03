@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging;
 
 #pragma warning disable CA2000 // HttpClient/HttpMessageHandler lifetime is managed by test framework
 
-namespace Modules.Identity.Tests.Infrastructure;
+namespace Foundry.Identity.Tests.Infrastructure;
 
 public class SsoClaimsSyncServiceAdditionalTests
 {
@@ -30,7 +30,7 @@ public class SsoClaimsSyncServiceAdditionalTests
     public async Task SyncUserClaimsAsync_WithInvalidJsonArray_TreatsAsLiteral()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId, "Test SSO", SsoProtocol.SAML,
+            _testTenantId, "Test SSO", SsoProtocol.Saml,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateBehaviorSettings(false, false, null, true, "groups", Guid.Empty);
 
@@ -61,7 +61,7 @@ public class SsoClaimsSyncServiceAdditionalTests
     public async Task SyncUserClaimsAsync_WhenTryAssignRoleThrowsException_DoesNotThrow()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId, "Test SSO", SsoProtocol.SAML,
+            _testTenantId, "Test SSO", SsoProtocol.Saml,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateBehaviorSettings(false, false, null, true, "groups", Guid.Empty);
 
@@ -92,7 +92,7 @@ public class SsoClaimsSyncServiceAdditionalTests
     public async Task SyncUserClaimsAsync_WhenRemoveRoleThrowsException_DoesNotThrow()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId, "Test SSO", SsoProtocol.SAML,
+            _testTenantId, "Test SSO", SsoProtocol.Saml,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateBehaviorSettings(false, false, null, true, "groups", Guid.Empty);
 
@@ -127,7 +127,7 @@ public class SsoClaimsSyncServiceAdditionalTests
     public async Task SyncUserClaimsAsync_WhenRemoveRoleNotFoundInKeycloak_Skips()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId, "Test SSO", SsoProtocol.SAML,
+            _testTenantId, "Test SSO", SsoProtocol.Saml,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateBehaviorSettings(false, false, null, true, "groups", Guid.Empty);
 
@@ -159,7 +159,7 @@ public class SsoClaimsSyncServiceAdditionalTests
     public async Task SyncUserClaimsAsync_WhenGetRolesReturnsNullList_TreatsAsEmpty()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId, "Test SSO", SsoProtocol.SAML,
+            _testTenantId, "Test SSO", SsoProtocol.Saml,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateBehaviorSettings(false, false, null, true, "groups", Guid.Empty);
 
@@ -189,7 +189,7 @@ public class SsoClaimsSyncServiceAdditionalTests
     public async Task SyncUserClaimsAsync_WithRemoveRoleFails_LogsFailure()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId, "Test SSO", SsoProtocol.SAML,
+            _testTenantId, "Test SSO", SsoProtocol.Saml,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateBehaviorSettings(false, false, null, true, "groups", Guid.Empty);
 
@@ -223,7 +223,7 @@ public class SsoClaimsSyncServiceAdditionalTests
     public async Task SyncUserClaimsAsync_WithJsonArrayContainingBlanks_SkipsBlanks()
     {
         SsoConfiguration config = SsoConfiguration.Create(
-            _testTenantId, "Test SSO", SsoProtocol.SAML,
+            _testTenantId, "Test SSO", SsoProtocol.Saml,
             "email", "firstName", "lastName", Guid.Empty);
         config.UpdateBehaviorSettings(false, false, null, true, "groups", Guid.Empty);
 
@@ -304,12 +304,6 @@ public class SsoClaimsSyncServiceAdditionalTests
         public MockHttpHandler WithPostThrow(string path)
         {
             _throwRoutes.Add($"POST:{path}");
-            return this;
-        }
-
-        public MockHttpHandler WithDelete(string path, HttpStatusCode status)
-        {
-            _routes[$"DELETE:{path}"] = (status, null);
             return this;
         }
 

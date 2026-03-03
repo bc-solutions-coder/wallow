@@ -45,8 +45,6 @@ public class MockScimIdpFixture : IAsyncLifetime
         SetupDefaultEndpoints();
     }
 
-    public IReadOnlyDictionary<string, KeycloakUser> Users => _users;
-
     private void SetupDefaultEndpoints()
     {
         SetupCreateUser();

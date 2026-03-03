@@ -1,6 +1,6 @@
 using Foundry.Identity.Infrastructure.Scim;
 
-namespace Modules.Identity.Tests.Infrastructure;
+namespace Foundry.Identity.Tests.Infrastructure;
 
 public class ScimFilterParserTests
 {
@@ -17,7 +17,7 @@ public class ScimFilterParserTests
     public void Parse_EmptyTokenList_ThrowsException()
     {
         // Arrange
-        List<ScimToken> tokens = new List<ScimToken>();
+        IReadOnlyList<ScimToken> tokens = Array.Empty<ScimToken>();
 
         // Act & Assert
         ScimFilterException exception = Assert.Throws<ScimFilterException>(() => _parser.Parse(tokens));
@@ -551,8 +551,8 @@ public class ScimFilterParserTests
         // Arrange
         List<ScimToken> tokens = new List<ScimToken>
         {
-            new(TokenType.OP, "eq", 0),
-            new(TokenType.STRING, "value", 3)
+            new(TokenType.Op, "eq", 0),
+            new(TokenType.String, "value", 3)
         };
 
         // Act & Assert
@@ -566,7 +566,7 @@ public class ScimFilterParserTests
         // Arrange
         List<ScimToken> tokens = new List<ScimToken>
         {
-            new(TokenType.ATTR, "userName", 0)
+            new(TokenType.Attr, "userName", 0)
         };
 
         // Act & Assert
@@ -580,8 +580,8 @@ public class ScimFilterParserTests
         // Arrange
         List<ScimToken> tokens = new List<ScimToken>
         {
-            new(TokenType.ATTR, "userName", 0),
-            new(TokenType.OP, "eq", 9)
+            new(TokenType.Attr, "userName", 0),
+            new(TokenType.Op, "eq", 9)
         };
 
         // Act & Assert
@@ -594,7 +594,7 @@ public class ScimFilterParserTests
     {
         // Act & Assert
         ScimFilterException exception = Assert.Throws<ScimFilterException>(() => Parse("(userName eq \"john\""));
-        exception.Message.Should().Contain("Expected RPAREN");
+        exception.Message.Should().Contain("Expected Rparen");
     }
 
     [Fact]
@@ -611,9 +611,9 @@ public class ScimFilterParserTests
         // Arrange - operator followed by operator instead of value
         List<ScimToken> tokens = new List<ScimToken>
         {
-            new(TokenType.ATTR, "userName", 0),
-            new(TokenType.OP, "eq", 9),
-            new(TokenType.OP, "ne", 12)
+            new(TokenType.Attr, "userName", 0),
+            new(TokenType.Op, "eq", 9),
+            new(TokenType.Op, "ne", 12)
         };
 
         // Act & Assert
@@ -627,10 +627,10 @@ public class ScimFilterParserTests
         // Arrange
         List<ScimToken> tokens = new List<ScimToken>
         {
-            new(TokenType.ATTR, "a", 0),
-            new(TokenType.OP, "eq", 2),
-            new(TokenType.STRING, "1", 5),
-            new(TokenType.LOGIC, "and", 9)
+            new(TokenType.Attr, "a", 0),
+            new(TokenType.Op, "eq", 2),
+            new(TokenType.String, "1", 5),
+            new(TokenType.Logic, "and", 9)
         };
 
         // Act & Assert
@@ -644,7 +644,7 @@ public class ScimFilterParserTests
         // Arrange
         List<ScimToken> tokens = new List<ScimToken>
         {
-            new(TokenType.LOGIC, "not", 0)
+            new(TokenType.Logic, "not", 0)
         };
 
         // Act & Assert
@@ -666,8 +666,8 @@ public class ScimFilterParserTests
         // Arrange
         List<ScimToken> tokens = new List<ScimToken>
         {
-            new(TokenType.ATTR, "userName", 0),
-            new(TokenType.LOGIC, "and", 9)
+            new(TokenType.Attr, "userName", 0),
+            new(TokenType.Logic, "and", 9)
         };
 
         // Act & Assert
@@ -681,10 +681,10 @@ public class ScimFilterParserTests
         // Arrange
         List<ScimToken> tokens = new List<ScimToken>
         {
-            new(TokenType.ATTR, "a", 0),
-            new(TokenType.OP, "eq", 2),
-            new(TokenType.STRING, "1", 5),
-            new(TokenType.ATTR, "b", 9)
+            new(TokenType.Attr, "a", 0),
+            new(TokenType.Op, "eq", 2),
+            new(TokenType.String, "1", 5),
+            new(TokenType.Attr, "b", 9)
         };
 
         // Act & Assert
@@ -699,9 +699,9 @@ public class ScimFilterParserTests
         // Arrange
         List<ScimToken> tokens = new List<ScimToken>
         {
-            new(TokenType.ATTR, "emails", 0),
-            new(TokenType.OP, "pr", 7),
-            new(TokenType.STRING, "invalid", 10)
+            new(TokenType.Attr, "emails", 0),
+            new(TokenType.Op, "pr", 7),
+            new(TokenType.String, "invalid", 10)
         };
 
         // Act & Assert

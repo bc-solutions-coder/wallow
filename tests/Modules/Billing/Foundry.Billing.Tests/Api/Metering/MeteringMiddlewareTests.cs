@@ -15,7 +15,6 @@ public class MeteringMiddlewareTests
     private readonly IMeteringService _meteringService;
     private readonly ITenantContext _tenantContext;
     private readonly MeteringMiddleware _middleware;
-    private readonly RequestDelegate _next;
     private bool _nextCalled;
 
     public MeteringMiddlewareTests()
@@ -24,14 +23,14 @@ public class MeteringMiddlewareTests
         _tenantContext = Substitute.For<ITenantContext>();
         _tenantContext.TenantId.Returns(TenantId.Create(Guid.NewGuid()));
         _nextCalled = false;
-        _next = _ =>
+        RequestDelegate next = _ =>
         {
             _nextCalled = true;
             return Task.CompletedTask;
         };
         IMemoryCache cache = Substitute.For<IMemoryCache>();
         ILogger<MeteringMiddleware> logger = Substitute.For<ILogger<MeteringMiddleware>>();
-        _middleware = new MeteringMiddleware(_next, cache, logger);
+        _middleware = new MeteringMiddleware(next, cache, logger);
     }
 
     [Theory]
@@ -230,7 +229,7 @@ public class MeteringMiddlewareTests
         bool checkQuotaCalled = false;
 
         _meteringService.CheckQuotaAsync("api.calls")
-            .Returns(callInfo =>
+            .Returns(_ =>
             {
                 checkQuotaCalled = true;
                 _nextCalled.Should().BeFalse("CheckQuotaAsync should be called before next delegate");

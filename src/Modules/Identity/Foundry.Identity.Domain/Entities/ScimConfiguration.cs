@@ -58,7 +58,7 @@ public sealed class ScimConfiguration : AggregateRoot<ScimConfigurationId>, ITen
 
     public string RegenerateToken(Guid updatedByUserId)
     {
-        (string? token, string? prefix) = GenerateTokenAndPrefix();
+        (string token, string prefix) = GenerateTokenAndPrefix();
         string plainTextToken = token;
 
         BearerToken = HashToken(token);

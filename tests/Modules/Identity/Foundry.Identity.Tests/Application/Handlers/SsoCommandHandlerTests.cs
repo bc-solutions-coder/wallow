@@ -1,6 +1,7 @@
 using Foundry.Identity.Application.Interfaces;
 using Foundry.Identity.Domain.Entities;
 using Foundry.Identity.Domain.Enums;
+using Foundry.Identity.Domain.Events;
 using Foundry.Shared.Kernel.Domain;
 using Foundry.Shared.Kernel.Identity;
 
@@ -22,7 +23,7 @@ public class ConfigureSsoProviderTests
         SsoConfiguration config = SsoConfiguration.Create(
             _tenantId,
             "Corporate SAML",
-            SsoProtocol.SAML,
+            SsoProtocol.Saml,
             "email",
             "firstName",
             "lastName",
@@ -30,7 +31,7 @@ public class ConfigureSsoProviderTests
 
         config.Should().NotBeNull();
         config.Status.Should().Be(SsoStatus.Draft);
-        config.Protocol.Should().Be(SsoProtocol.SAML);
+        config.Protocol.Should().Be(SsoProtocol.Saml);
         config.DisplayName.Should().Be("Corporate SAML");
     }
 
@@ -40,7 +41,7 @@ public class ConfigureSsoProviderTests
         SsoConfiguration config = SsoConfiguration.Create(
             _tenantId,
             "Corporate OIDC",
-            SsoProtocol.OIDC,
+            SsoProtocol.Oidc,
             "email",
             "given_name",
             "family_name",
@@ -48,7 +49,7 @@ public class ConfigureSsoProviderTests
 
         config.Should().NotBeNull();
         config.Status.Should().Be(SsoStatus.Draft);
-        config.Protocol.Should().Be(SsoProtocol.OIDC);
+        config.Protocol.Should().Be(SsoProtocol.Oidc);
     }
 
     [Fact]
@@ -57,7 +58,7 @@ public class ConfigureSsoProviderTests
         Action act = () => SsoConfiguration.Create(
             _tenantId,
             "",
-            SsoProtocol.SAML,
+            SsoProtocol.Saml,
             "email",
             "firstName",
             "lastName",
@@ -73,7 +74,7 @@ public class ConfigureSsoProviderTests
         Action act = () => SsoConfiguration.Create(
             _tenantId,
             "Test SSO",
-            SsoProtocol.SAML,
+            SsoProtocol.Saml,
             "",
             "firstName",
             "lastName",
@@ -89,7 +90,7 @@ public class ConfigureSsoProviderTests
         Action act = () => SsoConfiguration.Create(
             _tenantId,
             "Test SSO",
-            SsoProtocol.SAML,
+            SsoProtocol.Saml,
             "email",
             "",
             "lastName",
@@ -105,7 +106,7 @@ public class ConfigureSsoProviderTests
         Action act = () => SsoConfiguration.Create(
             _tenantId,
             "Test SSO",
-            SsoProtocol.SAML,
+            SsoProtocol.Saml,
             "email",
             "firstName",
             "",
@@ -121,7 +122,7 @@ public class ConfigureSsoProviderTests
         SsoConfiguration config = SsoConfiguration.Create(
             _tenantId,
             "OIDC Provider",
-            SsoProtocol.OIDC,
+            SsoProtocol.Oidc,
             "email",
             "firstName",
             "lastName",
@@ -145,7 +146,7 @@ public class ConfigureSsoProviderTests
         SsoConfiguration config = SsoConfiguration.Create(
             _tenantId,
             "SAML Provider",
-            SsoProtocol.SAML,
+            SsoProtocol.Saml,
             "email",
             "firstName",
             "lastName",
@@ -201,7 +202,7 @@ public class ConfigureSsoProviderTests
         SsoConfiguration config = SsoConfiguration.Create(
             _tenantId,
             "SAML Provider",
-            SsoProtocol.SAML,
+            SsoProtocol.Saml,
             "email",
             "firstName",
             "lastName",
@@ -225,7 +226,7 @@ public class ConfigureSsoProviderTests
         SsoConfiguration config = SsoConfiguration.Create(
             _tenantId,
             "OIDC Provider",
-            SsoProtocol.OIDC,
+            SsoProtocol.Oidc,
             "email",
             "firstName",
             "lastName",
@@ -250,7 +251,7 @@ public class ConfigureSsoProviderTests
         SsoConfiguration config = SsoConfiguration.Create(
             _tenantId,
             "New SSO",
-            SsoProtocol.SAML,
+            SsoProtocol.Saml,
             "email",
             "firstName",
             "lastName",
@@ -267,7 +268,7 @@ public class ConfigureSsoProviderTests
     {
         Guid userId = Guid.NewGuid();
         SsoConfiguration config = SsoConfiguration.Create(
-            _tenantId, "Active SAML", SsoProtocol.SAML,
+            _tenantId, "Active SAML", SsoProtocol.Saml,
             "email", "firstName", "lastName", userId);
         config.UpdateSamlConfig("entity-id", "https://idp.test/sso", null, "cert", SamlNameIdFormat.Email, userId);
         config.MoveToTesting(userId);
@@ -279,7 +280,7 @@ public class ConfigureSsoProviderTests
     {
         Guid userId = Guid.NewGuid();
         SsoConfiguration config = SsoConfiguration.Create(
-            _tenantId, "Active OIDC", SsoProtocol.OIDC,
+            _tenantId, "Active OIDC", SsoProtocol.Oidc,
             "email", "firstName", "lastName", userId);
         config.UpdateOidcConfig("https://issuer.test", "client-id", "secret", "openid", userId);
         config.MoveToTesting(userId);
@@ -303,7 +304,7 @@ public class EnableSsoTests
     {
         Guid userId = Guid.NewGuid();
         SsoConfiguration config = SsoConfiguration.Create(
-            _tenantId, "SAML SSO", SsoProtocol.SAML,
+            _tenantId, "SAML SSO", SsoProtocol.Saml,
             "email", "firstName", "lastName", userId);
         config.UpdateSamlConfig("entity-id", "https://idp.test/sso", null, "cert", SamlNameIdFormat.Email, userId);
 
@@ -317,7 +318,7 @@ public class EnableSsoTests
     {
         Guid userId = Guid.NewGuid();
         SsoConfiguration config = SsoConfiguration.Create(
-            _tenantId, "SAML SSO", SsoProtocol.SAML,
+            _tenantId, "SAML SSO", SsoProtocol.Saml,
             "email", "firstName", "lastName", userId);
         config.UpdateSamlConfig("entity-id", "https://idp.test/sso", null, "cert", SamlNameIdFormat.Email, userId);
         config.MoveToTesting(userId);
@@ -332,7 +333,7 @@ public class EnableSsoTests
     {
         Guid userId = Guid.NewGuid();
         SsoConfiguration config = SsoConfiguration.Create(
-            _tenantId, "SAML SSO", SsoProtocol.SAML,
+            _tenantId, "SAML SSO", SsoProtocol.Saml,
             "email", "firstName", "lastName", userId);
         config.UpdateSamlConfig("entity-id", "https://idp.test/sso", null, "cert", SamlNameIdFormat.Email, userId);
         config.MoveToTesting(userId);
@@ -349,7 +350,7 @@ public class EnableSsoTests
     {
         Guid userId = Guid.NewGuid();
         SsoConfiguration config = SsoConfiguration.Create(
-            _tenantId, "SAML SSO", SsoProtocol.SAML,
+            _tenantId, "SAML SSO", SsoProtocol.Saml,
             "email", "firstName", "lastName", userId);
         config.UpdateSamlConfig("entity-id", "https://idp.test/sso", null, "cert", SamlNameIdFormat.Email, userId);
         config.MoveToTesting(userId);
@@ -366,7 +367,7 @@ public class EnableSsoTests
     {
         Guid userId = Guid.NewGuid();
         SsoConfiguration config = SsoConfiguration.Create(
-            _tenantId, "SAML SSO", SsoProtocol.SAML,
+            _tenantId, "SAML SSO", SsoProtocol.Saml,
             "email", "firstName", "lastName", userId);
 
         Action act = () => config.Activate(userId);
@@ -380,7 +381,7 @@ public class EnableSsoTests
     {
         Guid userId = Guid.NewGuid();
         SsoConfiguration config = SsoConfiguration.Create(
-            _tenantId, "OIDC SSO", SsoProtocol.OIDC,
+            _tenantId, "OIDC SSO", SsoProtocol.Oidc,
             "email", "firstName", "lastName", userId);
 
         Action act = () => config.Activate(userId);
@@ -394,7 +395,7 @@ public class EnableSsoTests
     {
         Guid userId = Guid.NewGuid();
         SsoConfiguration config = SsoConfiguration.Create(
-            _tenantId, "OIDC SSO", SsoProtocol.OIDC,
+            _tenantId, "OIDC SSO", SsoProtocol.Oidc,
             "email", "firstName", "lastName", userId);
         config.UpdateOidcConfig("https://issuer.test", "client-id", "secret", "openid", userId);
 
@@ -408,14 +409,14 @@ public class EnableSsoTests
     {
         Guid userId = Guid.NewGuid();
         SsoConfiguration config = SsoConfiguration.Create(
-            _tenantId, "SAML SSO", SsoProtocol.SAML,
+            _tenantId, "SAML SSO", SsoProtocol.Saml,
             "email", "firstName", "lastName", userId);
         config.UpdateSamlConfig("entity-id", "https://idp.test/sso", null, "cert", SamlNameIdFormat.Email, userId);
 
         config.Activate(userId);
 
         config.DomainEvents.Should().ContainSingle()
-            .Which.Should().BeOfType<Foundry.Identity.Domain.Events.SsoConfigurationActivatedEvent>();
+            .Which.Should().BeOfType<SsoConfigurationActivatedEvent>();
     }
 
     [Fact]
@@ -444,7 +445,7 @@ public class DisableSsoTests
     {
         Guid userId = Guid.NewGuid();
         SsoConfiguration config = SsoConfiguration.Create(
-            _tenantId, "SAML SSO", SsoProtocol.SAML,
+            _tenantId, "SAML SSO", SsoProtocol.Saml,
             "email", "firstName", "lastName", userId);
         config.UpdateSamlConfig("entity-id", "https://idp.test/sso", null, "cert", SamlNameIdFormat.Email, userId);
         config.MoveToTesting(userId);
@@ -460,7 +461,7 @@ public class DisableSsoTests
     {
         Guid userId = Guid.NewGuid();
         SsoConfiguration config = SsoConfiguration.Create(
-            _tenantId, "SAML SSO", SsoProtocol.SAML,
+            _tenantId, "SAML SSO", SsoProtocol.Saml,
             "email", "firstName", "lastName", userId);
 
         config.Disable(userId);
@@ -473,7 +474,7 @@ public class DisableSsoTests
     {
         Guid userId = Guid.NewGuid();
         SsoConfiguration config = SsoConfiguration.Create(
-            _tenantId, "SAML SSO", SsoProtocol.SAML,
+            _tenantId, "SAML SSO", SsoProtocol.Saml,
             "email", "firstName", "lastName", userId);
         config.MoveToTesting(userId);
 
@@ -487,7 +488,7 @@ public class DisableSsoTests
     {
         Guid userId = Guid.NewGuid();
         SsoConfiguration config = SsoConfiguration.Create(
-            _tenantId, "SAML SSO", SsoProtocol.SAML,
+            _tenantId, "SAML SSO", SsoProtocol.Saml,
             "email", "firstName", "lastName", userId);
         config.Disable(userId);
 
@@ -502,7 +503,7 @@ public class DisableSsoTests
     {
         Guid userId = Guid.NewGuid();
         SsoConfiguration config = SsoConfiguration.Create(
-            _tenantId, "SAML SSO", SsoProtocol.SAML,
+            _tenantId, "SAML SSO", SsoProtocol.Saml,
             "email", "firstName", "lastName", userId);
         config.UpdateSamlConfig("entity-id", "https://idp.test/sso", null, "cert", SamlNameIdFormat.Email, userId);
         config.MoveToTesting(userId);
@@ -531,7 +532,7 @@ public class DisableSsoTests
     {
         Guid userId = Guid.NewGuid();
         SsoConfiguration config = SsoConfiguration.Create(
-            _tenantId, "SAML SSO", SsoProtocol.SAML,
+            _tenantId, "SAML SSO", SsoProtocol.Saml,
             "email", "firstName", "lastName", userId);
         config.UpdateSamlConfig("entity-id", "https://idp.test/sso", null, "cert", SamlNameIdFormat.Email, userId);
         config.MoveToTesting(userId);

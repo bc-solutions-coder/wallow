@@ -1,7 +1,7 @@
 using Foundry.Shared.Contracts.Identity.Events;
 using Microsoft.Extensions.Logging;
 
-namespace Messaging.IntegrationTests.TestHandlers;
+namespace Foundry.Messaging.IntegrationTests.TestHandlers;
 
 public sealed class UserRegisteredEventTestHandler
 {

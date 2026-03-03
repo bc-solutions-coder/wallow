@@ -1,7 +1,7 @@
 using FluentValidation.TestHelper;
 using Foundry.Identity.Application.Commands.CreateServiceAccount;
 
-namespace Modules.Identity.Tests.Application.Validators;
+namespace Foundry.Identity.Tests.Application.Validators;
 
 public class CreateServiceAccountValidatorTests
 {

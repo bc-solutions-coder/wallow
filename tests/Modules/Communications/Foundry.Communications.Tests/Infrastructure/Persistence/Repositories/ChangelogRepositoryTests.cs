@@ -185,6 +185,5 @@ public sealed class ChangelogRepositoryTests : IDisposable
     public void Dispose()
     {
         _dbContext.Dispose();
-        GC.SuppressFinalize(this);
     }
 }

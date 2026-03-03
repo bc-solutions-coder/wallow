@@ -4,7 +4,7 @@ using Foundry.Billing.Application.Interfaces;
 using Foundry.Billing.Domain.Entities;
 using Foundry.Shared.Kernel.Results;
 
-namespace Foundry.Billing.Application.Tests.Handlers;
+namespace Foundry.Billing.Tests.Application.Handlers;
 
 public class CreateInvoiceHandlerTests
 {

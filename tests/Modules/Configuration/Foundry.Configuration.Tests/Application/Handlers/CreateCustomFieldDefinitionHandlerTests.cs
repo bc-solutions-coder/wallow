@@ -12,15 +12,14 @@ namespace Foundry.Configuration.Tests.Application.Handlers;
 public class CreateCustomFieldDefinitionHandlerTests
 {
     private readonly ICustomFieldDefinitionRepository _repository;
-    private readonly ITenantContext _tenantContext;
     private readonly CreateCustomFieldDefinitionHandler _handler;
 
     public CreateCustomFieldDefinitionHandlerTests()
     {
         _repository = Substitute.For<ICustomFieldDefinitionRepository>();
-        _tenantContext = Substitute.For<ITenantContext>();
-        _tenantContext.TenantId.Returns(TenantId.New());
-        _handler = new CreateCustomFieldDefinitionHandler(_repository, _tenantContext);
+        ITenantContext tenantContext = Substitute.For<ITenantContext>();
+        tenantContext.TenantId.Returns(TenantId.New());
+        _handler = new CreateCustomFieldDefinitionHandler(_repository, tenantContext);
     }
 
     [Fact]

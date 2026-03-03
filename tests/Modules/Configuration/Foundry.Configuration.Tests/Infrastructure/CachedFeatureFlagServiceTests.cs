@@ -152,14 +152,13 @@ public class CachedFeatureFlagServiceGetVariantTests
 public class CachedFeatureFlagServiceGetAllFlagsTests
 {
     private readonly IFeatureFlagService _inner;
-    private readonly IDistributedCache _cache;
     private readonly CachedFeatureFlagService _service;
 
     public CachedFeatureFlagServiceGetAllFlagsTests()
     {
         _inner = Substitute.For<IFeatureFlagService>();
-        _cache = Substitute.For<IDistributedCache>();
-        _service = new CachedFeatureFlagService(_inner, _cache);
+        IDistributedCache cache = Substitute.For<IDistributedCache>();
+        _service = new CachedFeatureFlagService(_inner, cache);
     }
 
     [Fact]

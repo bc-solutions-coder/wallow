@@ -32,7 +32,6 @@ public sealed class LocalStorageProviderTests : IDisposable
         {
             Directory.Delete(_tempPath, recursive: true);
         }
-        GC.SuppressFinalize(this);
     }
 
     [Fact]

@@ -34,7 +34,7 @@ public class GetCustomFieldDefinitionByIdHandlerTests
         CustomFieldDefinitionDto? result = await _handler.Handle(query, CancellationToken.None);
 
         result.Should().NotBeNull();
-        result!.FieldKey.Should().Be("po_number");
+        result.FieldKey.Should().Be("po_number");
         result.DisplayName.Should().Be("PO Number");
         result.EntityType.Should().Be("Invoice");
     }

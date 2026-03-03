@@ -83,6 +83,5 @@ public sealed class AnnouncementDismissalRepositoryTests : IDisposable
     public void Dispose()
     {
         _dbContext.Dispose();
-        GC.SuppressFinalize(this);
     }
 }

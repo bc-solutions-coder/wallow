@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging;
 
 #pragma warning disable CA2000 // HttpClient/HttpMessageHandler lifetime is managed by test framework
 
-namespace Modules.Identity.Tests.Infrastructure;
+namespace Foundry.Identity.Tests.Infrastructure;
 
 public class ScimUserServiceAdditionalTests
 {
@@ -525,12 +525,6 @@ public class ScimUserServiceAdditionalTests
         public MockHttpHandler WithPut(string path, HttpStatusCode status)
         {
             _routes[$"PUT:{path}"] = (status, null, null);
-            return this;
-        }
-
-        public MockHttpHandler WithDelete(string path, HttpStatusCode status)
-        {
-            _routes[$"DELETE:{path}"] = (status, null, null);
             return this;
         }
 

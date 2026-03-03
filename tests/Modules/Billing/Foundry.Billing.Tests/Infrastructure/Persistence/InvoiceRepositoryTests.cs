@@ -1,4 +1,5 @@
 using Foundry.Billing.Domain.Entities;
+using Foundry.Billing.Domain.Enums;
 using Foundry.Billing.Domain.Identity;
 using Foundry.Billing.Domain.ValueObjects;
 using Foundry.Billing.Infrastructure.Persistence;
@@ -124,7 +125,7 @@ public class InvoiceRepositoryTests : DbContextIntegrationTestBase<BillingDbCont
 
         Invoice? result = await repository.GetByIdAsync(invoice.Id);
         result.Should().NotBeNull();
-        result!.Status.Should().Be(Foundry.Billing.Domain.Enums.InvoiceStatus.Issued);
+        result!.Status.Should().Be(InvoiceStatus.Issued);
     }
 
     [Fact]

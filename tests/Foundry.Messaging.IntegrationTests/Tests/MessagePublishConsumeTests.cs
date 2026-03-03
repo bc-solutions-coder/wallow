@@ -1,11 +1,11 @@
 using Foundry.Shared.Contracts.Identity.Events;
-using Messaging.IntegrationTests.Fixtures;
-using Messaging.IntegrationTests.Helpers;
-using Messaging.IntegrationTests.TestEvents;
-using Messaging.IntegrationTests.TestHandlers;
+using Foundry.Messaging.IntegrationTests.Fixtures;
+using Foundry.Messaging.IntegrationTests.Helpers;
+using Foundry.Messaging.IntegrationTests.TestEvents;
+using Foundry.Messaging.IntegrationTests.TestHandlers;
 using Wolverine;
 
-namespace Messaging.IntegrationTests.Tests;
+namespace Foundry.Messaging.IntegrationTests.Tests;
 
 [Trait("Category", "Integration")]
 public class MessagePublishConsumeTests : IClassFixture<MessagingTestFixture>, IAsyncLifetime

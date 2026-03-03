@@ -155,6 +155,6 @@ public sealed class EventFlowDiscovery
     private static IEnumerable<Type> SafeGetTypes(Assembly assembly)
     {
         try { return assembly.GetTypes(); }
-        catch (ReflectionTypeLoadException ex) { return ex.Types.Where(t => t is not null)!; }
+        catch (ReflectionTypeLoadException ex) { return ex.Types.OfType<Type>(); }
     }
 }

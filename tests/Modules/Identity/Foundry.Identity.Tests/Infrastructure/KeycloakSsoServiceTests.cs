@@ -13,7 +13,7 @@ using Microsoft.Extensions.Options;
 
 #pragma warning disable CA2000 // HttpClient/HttpMessageHandler lifetime is managed by test framework
 
-namespace Modules.Identity.Tests.Infrastructure;
+namespace Foundry.Identity.Tests.Infrastructure;
 
 public class KeycloakSsoServiceTests
 {
@@ -43,7 +43,7 @@ public class KeycloakSsoServiceTests
         SsoConfiguration config = SsoConfiguration.Create(
             _testTenantId,
             "Test SSO",
-            SsoProtocol.SAML,
+            SsoProtocol.Saml,
             "email",
             "firstName",
             "lastName",
@@ -64,8 +64,8 @@ public class KeycloakSsoServiceTests
 
         // Assert
         result.Should().NotBeNull();
-        result!.DisplayName.Should().Be("Test SSO");
-        result.Protocol.Should().Be(SsoProtocol.SAML);
+        result.DisplayName.Should().Be("Test SSO");
+        result.Protocol.Should().Be(SsoProtocol.Saml);
         result.Status.Should().Be(SsoStatus.Draft);
         result.SamlEntityId.Should().Be("entity-id");
         result.SamlSsoUrl.Should().Be("https://idp.test/sso");
@@ -107,7 +107,7 @@ public class KeycloakSsoServiceTests
         // Assert
         result.Should().NotBeNull();
         result.DisplayName.Should().Be("SAML Provider");
-        result.Protocol.Should().Be(SsoProtocol.SAML);
+        result.Protocol.Should().Be(SsoProtocol.Saml);
         result.SamlEntityId.Should().Be("https://idp.test/metadata");
 
         _repository.Received(1).Add(Arg.Any<SsoConfiguration>());
@@ -121,7 +121,7 @@ public class KeycloakSsoServiceTests
         SsoConfiguration existingConfig = SsoConfiguration.Create(
             _testTenantId,
             "Old Name",
-            SsoProtocol.SAML,
+            SsoProtocol.Saml,
             "email",
             "firstName",
             "lastName",
@@ -197,7 +197,7 @@ public class KeycloakSsoServiceTests
         // Assert
         result.Should().NotBeNull();
         result.DisplayName.Should().Be("OIDC Provider");
-        result.Protocol.Should().Be(SsoProtocol.OIDC);
+        result.Protocol.Should().Be(SsoProtocol.Oidc);
         result.OidcIssuer.Should().Be("https://idp.test");
         result.OidcClientId.Should().Be("client-123");
 
@@ -212,7 +212,7 @@ public class KeycloakSsoServiceTests
         SsoConfiguration existingConfig = SsoConfiguration.Create(
             _testTenantId,
             "Old OIDC",
-            SsoProtocol.OIDC,
+            SsoProtocol.Oidc,
             "email",
             "firstName",
             "lastName",
@@ -275,7 +275,7 @@ public class KeycloakSsoServiceTests
         SsoConfiguration config = SsoConfiguration.Create(
             _testTenantId,
             "Test SSO",
-            SsoProtocol.SAML,
+            SsoProtocol.Saml,
             "email",
             "firstName",
             "lastName",
@@ -299,7 +299,7 @@ public class KeycloakSsoServiceTests
         SsoConfiguration config = SsoConfiguration.Create(
             _testTenantId,
             "Test SSO",
-            SsoProtocol.SAML,
+            SsoProtocol.Saml,
             "email",
             "firstName",
             "lastName",
@@ -356,7 +356,7 @@ public class KeycloakSsoServiceTests
         SsoConfiguration config = SsoConfiguration.Create(
             _testTenantId,
             "Test SSO",
-            SsoProtocol.SAML,
+            SsoProtocol.Saml,
             "email",
             "firstName",
             "lastName",
@@ -414,7 +414,7 @@ public class KeycloakSsoServiceTests
         SsoConfiguration config = SsoConfiguration.Create(
             _testTenantId,
             "Test SSO",
-            SsoProtocol.SAML,
+            SsoProtocol.Saml,
             "email",
             "firstName",
             "lastName",
@@ -438,7 +438,7 @@ public class KeycloakSsoServiceTests
         SsoConfiguration config = SsoConfiguration.Create(
             _testTenantId,
             "Test SSO",
-            SsoProtocol.SAML,
+            SsoProtocol.Saml,
             "email",
             "firstName",
             "lastName",
@@ -472,7 +472,7 @@ public class KeycloakSsoServiceTests
         SsoConfiguration config = SsoConfiguration.Create(
             _testTenantId,
             "Test SSO",
-            SsoProtocol.SAML,
+            SsoProtocol.Saml,
             "email",
             "firstName",
             "lastName",
@@ -507,7 +507,7 @@ public class KeycloakSsoServiceTests
         SsoConfiguration config = SsoConfiguration.Create(
             _testTenantId,
             "Test SSO",
-            SsoProtocol.OIDC,
+            SsoProtocol.Oidc,
             "email",
             "firstName",
             "lastName",
@@ -531,7 +531,7 @@ public class KeycloakSsoServiceTests
         SsoConfiguration config = SsoConfiguration.Create(
             _testTenantId,
             "Test SSO",
-            SsoProtocol.OIDC,
+            SsoProtocol.Oidc,
             "email",
             "firstName",
             "lastName",
@@ -564,7 +564,7 @@ public class KeycloakSsoServiceTests
         SsoConfiguration config = SsoConfiguration.Create(
             _testTenantId,
             "Test SSO",
-            SsoProtocol.OIDC,
+            SsoProtocol.Oidc,
             "email",
             "firstName",
             "lastName",
@@ -601,7 +601,7 @@ public class KeycloakSsoServiceTests
         SsoConfiguration config = SsoConfiguration.Create(
             _testTenantId,
             "Test SSO",
-            SsoProtocol.OIDC,
+            SsoProtocol.Oidc,
             "email",
             "firstName",
             "lastName",
@@ -653,7 +653,7 @@ public class KeycloakSsoServiceTests
         SsoConfiguration config = SsoConfiguration.Create(
             _testTenantId,
             "Test SSO",
-            SsoProtocol.SAML,
+            SsoProtocol.Saml,
             "email",
             "firstName",
             "lastName",
@@ -677,7 +677,7 @@ public class KeycloakSsoServiceTests
         SsoConfiguration config = SsoConfiguration.Create(
             _testTenantId,
             "Test SSO",
-            SsoProtocol.SAML,
+            SsoProtocol.Saml,
             "email",
             "firstName",
             "lastName",
@@ -708,7 +708,7 @@ public class KeycloakSsoServiceTests
         SsoConfiguration config = SsoConfiguration.Create(
             _testTenantId,
             "Test SSO",
-            SsoProtocol.OIDC,
+            SsoProtocol.Oidc,
             "email",
             "firstName",
             "lastName",
@@ -732,7 +732,7 @@ public class KeycloakSsoServiceTests
         SsoConfiguration config = SsoConfiguration.Create(
             _testTenantId,
             "Test SSO",
-            SsoProtocol.OIDC,
+            SsoProtocol.Oidc,
             "email",
             "firstName",
             "lastName",
@@ -881,7 +881,7 @@ public class KeycloakSsoServiceTests
             string key = $"{request.Method}:{request.RequestUri?.AbsolutePath ?? request.RequestUri?.ToString() ?? ""}";
 
             // Check if it's a Keycloak admin API call (has /admin/ in path)
-            if (request.RequestUri?.AbsolutePath?.Contains("/admin/") == true)
+            if (request.RequestUri?.AbsolutePath.Contains("/admin/") == true)
             {
                 if (_keycloakRoutes.TryGetValue(key, out (HttpStatusCode Status, object? Content) route))
                 {

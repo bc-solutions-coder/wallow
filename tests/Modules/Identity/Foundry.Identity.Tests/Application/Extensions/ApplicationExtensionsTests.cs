@@ -4,7 +4,7 @@ using Foundry.Identity.Application.Commands.UpdateServiceAccountScopes;
 using Foundry.Identity.Application.Extensions;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Modules.Identity.Tests.Application.Extensions;
+namespace Foundry.Identity.Tests.Application.Extensions;
 
 public class ApplicationExtensionsTests
 {

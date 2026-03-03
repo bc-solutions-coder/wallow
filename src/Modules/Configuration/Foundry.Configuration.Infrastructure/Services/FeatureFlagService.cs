@@ -151,7 +151,7 @@ public sealed class FeatureFlagService : IFeatureFlagService
         return hash % 100 < (uint)rolloutPercentage;
     }
 
-    private static string? SelectVariantByWeight(
+    private static string SelectVariantByWeight(
         string flagKey, Guid? userId, IReadOnlyCollection<VariantWeight> variants)
     {
         int totalWeight = variants.Sum(v => v.Weight);

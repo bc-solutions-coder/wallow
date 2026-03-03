@@ -78,9 +78,9 @@ public sealed class ScimFilterParser
     {
         ScimFilterNode left = ParseAndExpression();
 
-        while (!IsAtEnd && CurrentToken is { Type: TokenType.LOGIC, Value: "or" })
+        while (!IsAtEnd && CurrentToken is { Type: TokenType.Logic, Value: "or" })
         {
-            Consume(TokenType.LOGIC, "or");
+            Consume(TokenType.Logic, "or");
             ScimFilterNode right = ParseAndExpression();
             left = new LogicalNode(left, "or", right);
         }
@@ -93,9 +93,9 @@ public sealed class ScimFilterParser
     {
         ScimFilterNode left = ParseNotExpression();
 
-        while (!IsAtEnd && CurrentToken is { Type: TokenType.LOGIC, Value: "and" })
+        while (!IsAtEnd && CurrentToken is { Type: TokenType.Logic, Value: "and" })
         {
-            Consume(TokenType.LOGIC, "and");
+            Consume(TokenType.Logic, "and");
             ScimFilterNode right = ParseNotExpression();
             left = new LogicalNode(left, "and", right);
         }
@@ -106,9 +106,9 @@ public sealed class ScimFilterParser
     // not expression: 'not' primary | primary
     private ScimFilterNode ParseNotExpression()
     {
-        if (!IsAtEnd && CurrentToken is { Type: TokenType.LOGIC, Value: "not" })
+        if (!IsAtEnd && CurrentToken is { Type: TokenType.Logic, Value: "not" })
         {
-            Consume(TokenType.LOGIC, "not");
+            Consume(TokenType.Logic, "not");
             ScimFilterNode inner = ParsePrimary();
             return new NotNode(inner);
         }
@@ -119,11 +119,11 @@ public sealed class ScimFilterParser
     // primary: '(' or_expr ')' | comparison
     private ScimFilterNode ParsePrimary()
     {
-        if (!IsAtEnd && CurrentToken.Type == TokenType.LPAREN)
+        if (!IsAtEnd && CurrentToken.Type == TokenType.Lparen)
         {
-            Consume(TokenType.LPAREN);
+            Consume(TokenType.Lparen);
             ScimFilterNode expr = ParseOrExpression();
-            Consume(TokenType.RPAREN);
+            Consume(TokenType.Rparen);
             return expr;
         }
 
@@ -133,7 +133,7 @@ public sealed class ScimFilterParser
     // comparison: attr op value | attr 'pr'
     private ScimFilterNode ParseComparison()
     {
-        if (IsAtEnd || CurrentToken.Type != TokenType.ATTR)
+        if (IsAtEnd || CurrentToken.Type != TokenType.Attr)
         {
             throw new ScimFilterException(
                 $"Expected attribute path, got '{(IsAtEnd ? "EOF" : CurrentToken.Value)}'",
@@ -143,7 +143,7 @@ public sealed class ScimFilterParser
         string attrPath = CurrentToken.Value;
         Advance();
 
-        if (IsAtEnd || CurrentToken.Type != TokenType.OP)
+        if (IsAtEnd || CurrentToken.Type != TokenType.Op)
         {
             throw new ScimFilterException(
                 $"Expected operator after attribute '{attrPath}', got '{(IsAtEnd ? "EOF" : CurrentToken.Value)}'",
@@ -166,12 +166,12 @@ public sealed class ScimFilterParser
         }
 
         object value;
-        if (CurrentToken.Type == TokenType.STRING)
+        if (CurrentToken.Type == TokenType.String)
         {
             value = CurrentToken.Value;
             Advance();
         }
-        else if (CurrentToken.Type == TokenType.BOOL)
+        else if (CurrentToken.Type == TokenType.Bool)
         {
             value = CurrentToken.Value == "true";
             Advance();

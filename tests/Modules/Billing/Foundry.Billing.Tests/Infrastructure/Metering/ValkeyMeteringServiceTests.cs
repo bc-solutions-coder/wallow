@@ -14,34 +14,28 @@ namespace Foundry.Billing.Tests.Infrastructure.Metering;
 
 public class ValkeyMeteringServiceTests
 {
-    private readonly IConnectionMultiplexer _redis;
-    private readonly ITenantContext _tenantContext;
     private readonly IQuotaDefinitionRepository _quotaRepository;
-    private readonly IUsageRecordRepository _usageRepository;
-    private readonly IMeterDefinitionRepository _meterRepository;
-    private readonly IMessageBus _messageBus;
-    private readonly ISubscriptionQueryService _subscriptionQueryService;
     private readonly IDatabase _database;
     private readonly ValkeyMeteringService _service;
     private readonly TenantId _testTenantId;
 
     public ValkeyMeteringServiceTests()
     {
-        _redis = Substitute.For<IConnectionMultiplexer>();
-        _tenantContext = Substitute.For<ITenantContext>();
+        IConnectionMultiplexer redis = Substitute.For<IConnectionMultiplexer>();
+        ITenantContext tenantContext = Substitute.For<ITenantContext>();
         _quotaRepository = Substitute.For<IQuotaDefinitionRepository>();
-        _usageRepository = Substitute.For<IUsageRecordRepository>();
-        _meterRepository = Substitute.For<IMeterDefinitionRepository>();
-        _messageBus = Substitute.For<IMessageBus>();
-        _subscriptionQueryService = Substitute.For<ISubscriptionQueryService>();
+        IUsageRecordRepository usageRepository = Substitute.For<IUsageRecordRepository>();
+        IMeterDefinitionRepository meterRepository = Substitute.For<IMeterDefinitionRepository>();
+        IMessageBus messageBus = Substitute.For<IMessageBus>();
+        ISubscriptionQueryService subscriptionQueryService = Substitute.For<ISubscriptionQueryService>();
         _database = Substitute.For<IDatabase>();
 
         _testTenantId = TenantId.Create(Guid.NewGuid());
-        _tenantContext.TenantId.Returns(_testTenantId);
-        _redis.GetDatabase(Arg.Any<int>(), Arg.Any<object>()).Returns(_database);
+        tenantContext.TenantId.Returns(_testTenantId);
+        redis.GetDatabase(Arg.Any<int>(), Arg.Any<object>()).Returns(_database);
 
         ILogger<ValkeyMeteringService> logger = Substitute.For<ILogger<ValkeyMeteringService>>();
-        _service = new ValkeyMeteringService(_redis, _tenantContext, _quotaRepository, _usageRepository, _meterRepository, _messageBus, _subscriptionQueryService, logger);
+        _service = new ValkeyMeteringService(redis, tenantContext, _quotaRepository, usageRepository, meterRepository, messageBus, subscriptionQueryService, logger);
     }
 
     [Fact]
