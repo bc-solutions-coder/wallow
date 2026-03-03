@@ -63,7 +63,8 @@ public sealed partial class CustomFieldDefinition : AggregateRoot<CustomFieldDef
         string fieldKey,
         string displayName,
         CustomFieldType fieldType,
-        Guid createdBy)
+        Guid createdBy,
+        TimeProvider timeProvider)
     {
         ValidateEntityType(entityType);
         ValidateFieldKey(fieldKey);
@@ -82,33 +83,33 @@ public sealed partial class CustomFieldDefinition : AggregateRoot<CustomFieldDef
             IsActive = true
         };
 
-        definition.SetCreated(DateTimeOffset.UtcNow, createdBy);
+        definition.SetCreated(timeProvider.GetUtcNow(), createdBy);
         definition.RaiseDomainEvent(new CustomFieldDefinitionCreatedEvent(
             definition.Id.Value, tenantId.Value, entityType, fieldKey, displayName, fieldType));
 
         return definition;
     }
 
-    public void UpdateDisplayName(string displayName, Guid updatedBy)
+    public void UpdateDisplayName(string displayName, Guid updatedBy, TimeProvider timeProvider)
     {
         ValidateDisplayName(displayName);
         DisplayName = displayName;
-        SetUpdated(DateTimeOffset.UtcNow, updatedBy);
+        SetUpdated(timeProvider.GetUtcNow(), updatedBy);
     }
 
-    public void UpdateDescription(string? description, Guid updatedBy)
+    public void UpdateDescription(string? description, Guid updatedBy, TimeProvider timeProvider)
     {
         Description = description;
-        SetUpdated(DateTimeOffset.UtcNow, updatedBy);
+        SetUpdated(timeProvider.GetUtcNow(), updatedBy);
     }
 
-    public void SetRequired(bool isRequired, Guid updatedBy)
+    public void SetRequired(bool isRequired, Guid updatedBy, TimeProvider timeProvider)
     {
         IsRequired = isRequired;
-        SetUpdated(DateTimeOffset.UtcNow, updatedBy);
+        SetUpdated(timeProvider.GetUtcNow(), updatedBy);
     }
 
-    public void SetDisplayOrder(int order, Guid updatedBy)
+    public void SetDisplayOrder(int order, Guid updatedBy, TimeProvider timeProvider)
     {
         if (order < 0)
         {
@@ -116,10 +117,10 @@ public sealed partial class CustomFieldDefinition : AggregateRoot<CustomFieldDef
         }
 
         DisplayOrder = order;
-        SetUpdated(DateTimeOffset.UtcNow, updatedBy);
+        SetUpdated(timeProvider.GetUtcNow(), updatedBy);
     }
 
-    public void SetValidationRules(FieldValidationRules? rules, Guid updatedBy)
+    public void SetValidationRules(FieldValidationRules? rules, Guid updatedBy, TimeProvider timeProvider)
     {
         if (rules != null)
         {
@@ -127,7 +128,7 @@ public sealed partial class CustomFieldDefinition : AggregateRoot<CustomFieldDef
         }
 
         ValidationRulesJson = rules == null ? null : JsonSerializer.Serialize(rules, _jsonOptions);
-        SetUpdated(DateTimeOffset.UtcNow, updatedBy);
+        SetUpdated(timeProvider.GetUtcNow(), updatedBy);
     }
 
     public FieldValidationRules? GetValidationRules()
@@ -137,7 +138,7 @@ public sealed partial class CustomFieldDefinition : AggregateRoot<CustomFieldDef
             : JsonSerializer.Deserialize<FieldValidationRules>(ValidationRulesJson, _jsonOptions);
     }
 
-    public void SetOptions(IEnumerable<CustomFieldOption>? options, Guid updatedBy)
+    public void SetOptions(IEnumerable<CustomFieldOption>? options, Guid updatedBy, TimeProvider timeProvider)
     {
         if (options != null && FieldType != CustomFieldType.Dropdown && FieldType != CustomFieldType.MultiSelect)
         {
@@ -154,7 +155,7 @@ public sealed partial class CustomFieldDefinition : AggregateRoot<CustomFieldDef
         {
             OptionsJson = null;
         }
-        SetUpdated(DateTimeOffset.UtcNow, updatedBy);
+        SetUpdated(timeProvider.GetUtcNow(), updatedBy);
     }
 
     public IReadOnlyList<CustomFieldOption> GetOptions()
@@ -164,7 +165,7 @@ public sealed partial class CustomFieldDefinition : AggregateRoot<CustomFieldDef
             : JsonSerializer.Deserialize<List<CustomFieldOption>>(OptionsJson, _jsonOptions) ?? [];
     }
 
-    public void Deactivate(Guid deactivatedBy)
+    public void Deactivate(Guid deactivatedBy, TimeProvider timeProvider)
     {
         if (!IsActive)
         {
@@ -172,11 +173,11 @@ public sealed partial class CustomFieldDefinition : AggregateRoot<CustomFieldDef
         }
 
         IsActive = false;
-        SetUpdated(DateTimeOffset.UtcNow, deactivatedBy);
+        SetUpdated(timeProvider.GetUtcNow(), deactivatedBy);
         RaiseDomainEvent(new CustomFieldDefinitionDeactivatedEvent(Id.Value, TenantId.Value, EntityType, FieldKey));
     }
 
-    public void Activate(Guid activatedBy)
+    public void Activate(Guid activatedBy, TimeProvider timeProvider)
     {
         if (IsActive)
         {
@@ -184,7 +185,7 @@ public sealed partial class CustomFieldDefinition : AggregateRoot<CustomFieldDef
         }
 
         IsActive = true;
-        SetUpdated(DateTimeOffset.UtcNow, activatedBy);
+        SetUpdated(timeProvider.GetUtcNow(), activatedBy);
     }
 
     private static void ValidateEntityType(string entityType)

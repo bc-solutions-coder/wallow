@@ -40,8 +40,7 @@ public sealed class SsoConfigurationRepositoryTests : DbContextIntegrationTestBa
             SsoProtocol.Saml,
             "email",
             "firstName",
-            "lastName",
-            Guid.NewGuid());
+            "lastName", Guid.NewGuid(), TimeProvider.System);
 
         _repository.Add(config);
         await _repository.SaveChangesAsync();
@@ -71,8 +70,7 @@ public sealed class SsoConfigurationRepositoryTests : DbContextIntegrationTestBa
             SsoProtocol.Oidc,
             "email",
             "given_name",
-            "family_name",
-            Guid.NewGuid());
+            "family_name", Guid.NewGuid(), TimeProvider.System);
 
         _repository.Add(config);
         await _repository.SaveChangesAsync();
@@ -93,8 +91,7 @@ public sealed class SsoConfigurationRepositoryTests : DbContextIntegrationTestBa
             SsoProtocol.Saml,
             "email",
             "firstName",
-            "lastName",
-            Guid.NewGuid());
+            "lastName", Guid.NewGuid(), TimeProvider.System);
 
         _repository.Add(config1);
         await _repository.SaveChangesAsync();
@@ -110,8 +107,7 @@ public sealed class SsoConfigurationRepositoryTests : DbContextIntegrationTestBa
             SsoProtocol.Oidc,
             "email",
             "given_name",
-            "family_name",
-            Guid.NewGuid());
+            "family_name", Guid.NewGuid(), TimeProvider.System);
 
         otherRepository.Add(config2);
         await otherDbContext.SaveChangesAsync();

@@ -9,10 +9,12 @@ public sealed record ReorderCustomFields(string EntityType, IReadOnlyList<Guid> 
 public sealed class ReorderCustomFieldsHandler
 {
     private readonly ICustomFieldDefinitionRepository _repository;
+    private readonly TimeProvider _timeProvider;
 
-    public ReorderCustomFieldsHandler(ICustomFieldDefinitionRepository repository)
+    public ReorderCustomFieldsHandler(ICustomFieldDefinitionRepository repository, TimeProvider timeProvider)
     {
         _repository = repository;
+        _timeProvider = timeProvider;
     }
 
     public async Task Handle(
@@ -36,7 +38,7 @@ public sealed class ReorderCustomFieldsHandler
                 throw new CustomFieldException($"Field with ID '{fieldId}' not found for entity type '{command.EntityType}'");
             }
 
-            definition.SetDisplayOrder(i, userId);
+            definition.SetDisplayOrder(i, userId, _timeProvider);
             await _repository.UpdateAsync(definition, cancellationToken);
         }
 

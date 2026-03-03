@@ -7,6 +7,8 @@ using Foundry.Shared.Kernel.MultiTenancy;
 using Microsoft.Extensions.Logging;
 using Wolverine;
 
+using Foundry.Identity.Infrastructure;
+using Microsoft.Extensions.Options;
 #pragma warning disable CA2000 // HttpClient/HttpMessageHandler lifetime is managed by test framework
 
 namespace Foundry.Identity.Tests.Infrastructure;
@@ -309,6 +311,7 @@ public class KeycloakOrganizationServiceGapTests
             httpClientFactory,
             _messageBus,
             _tenantContext,
+            Options.Create(new KeycloakOptions()),
             _logger);
     }
 

@@ -28,10 +28,10 @@ public class CustomFieldValidatorTests
     {
         TenantId tenantId = TenantId.New();
         CustomFieldDefinition def = CustomFieldDefinition.Create(
-            tenantId, "Invoice", fieldKey, fieldKey, fieldType, Guid.Empty);
+            tenantId, "Invoice", fieldKey, fieldKey, fieldType, Guid.Empty, TimeProvider.System);
         if (isRequired)
         {
-            def.SetRequired(true, Guid.Empty);
+            def.SetRequired(true, Guid.Empty, TimeProvider.System);
         }
         return def;
     }
@@ -323,7 +323,7 @@ public class CustomFieldValidatorTests
     public async Task ValidateAsync_MaxLengthRule_Exceeded_ReturnsError()
     {
         CustomFieldDefinition def = CreateDefinition("notes");
-        def.SetValidationRules(new FieldValidationRules { MaxLength = 10 }, Guid.Empty);
+        def.SetValidationRules(new FieldValidationRules { MaxLength = 10 }, Guid.Empty, TimeProvider.System);
         _repository.GetByEntityTypeAsync("Invoice", false, Arg.Any<CancellationToken>())
             .Returns(new List<CustomFieldDefinition> { def });
 
@@ -343,7 +343,7 @@ public class CustomFieldValidatorTests
     public async Task ValidateAsync_MinLengthRule_NotMet_ReturnsError()
     {
         CustomFieldDefinition def = CreateDefinition("code");
-        def.SetValidationRules(new FieldValidationRules { MinLength = 5 }, Guid.Empty);
+        def.SetValidationRules(new FieldValidationRules { MinLength = 5 }, Guid.Empty, TimeProvider.System);
         _repository.GetByEntityTypeAsync("Invoice", false, Arg.Any<CancellationToken>())
             .Returns(new List<CustomFieldDefinition> { def });
 
@@ -363,7 +363,7 @@ public class CustomFieldValidatorTests
     public async Task ValidateAsync_NumericMinRule_BelowMin_ReturnsError()
     {
         CustomFieldDefinition def = CreateDefinition("quantity", CustomFieldType.Number);
-        def.SetValidationRules(new FieldValidationRules { Min = 1 }, Guid.Empty);
+        def.SetValidationRules(new FieldValidationRules { Min = 1 }, Guid.Empty, TimeProvider.System);
         _repository.GetByEntityTypeAsync("Invoice", false, Arg.Any<CancellationToken>())
             .Returns(new List<CustomFieldDefinition> { def });
 
@@ -383,7 +383,7 @@ public class CustomFieldValidatorTests
     public async Task ValidateAsync_NumericMaxRule_AboveMax_ReturnsError()
     {
         CustomFieldDefinition def = CreateDefinition("quantity", CustomFieldType.Number);
-        def.SetValidationRules(new FieldValidationRules { Max = 100 }, Guid.Empty);
+        def.SetValidationRules(new FieldValidationRules { Max = 100 }, Guid.Empty, TimeProvider.System);
         _repository.GetByEntityTypeAsync("Invoice", false, Arg.Any<CancellationToken>())
             .Returns(new List<CustomFieldDefinition> { def });
 
@@ -403,7 +403,7 @@ public class CustomFieldValidatorTests
     public async Task ValidateAsync_PatternRule_NoMatch_ReturnsError()
     {
         CustomFieldDefinition def = CreateDefinition("code");
-        def.SetValidationRules(new FieldValidationRules { Pattern = @"^[A-Z]{3}-\d{3}$" }, Guid.Empty);
+        def.SetValidationRules(new FieldValidationRules { Pattern = @"^[A-Z]{3}-\d{3}$" }, Guid.Empty, TimeProvider.System);
         _repository.GetByEntityTypeAsync("Invoice", false, Arg.Any<CancellationToken>())
             .Returns(new List<CustomFieldDefinition> { def });
 
@@ -427,7 +427,7 @@ public class CustomFieldValidatorTests
         {
             Pattern = @"^[A-Z]{3}$",
             PatternMessage = "Must be 3 uppercase letters"
-        }, Guid.Empty);
+        }, Guid.Empty, TimeProvider.System);
         _repository.GetByEntityTypeAsync("Invoice", false, Arg.Any<CancellationToken>())
             .Returns(new List<CustomFieldDefinition> { def });
 
@@ -447,7 +447,7 @@ public class CustomFieldValidatorTests
     public async Task ValidateAsync_PatternRule_Matches_ReturnsSuccess()
     {
         CustomFieldDefinition def = CreateDefinition("code");
-        def.SetValidationRules(new FieldValidationRules { Pattern = @"^[A-Z]{3}-\d{3}$" }, Guid.Empty);
+        def.SetValidationRules(new FieldValidationRules { Pattern = @"^[A-Z]{3}-\d{3}$" }, Guid.Empty, TimeProvider.System);
         _repository.GetByEntityTypeAsync("Invoice", false, Arg.Any<CancellationToken>())
             .Returns(new List<CustomFieldDefinition> { def });
 
@@ -470,7 +470,7 @@ public class CustomFieldValidatorTests
             new CustomFieldOption { Value = "active", Label = "Active" },
             new CustomFieldOption { Value = "inactive", Label = "Inactive" }
         ];
-        def.SetOptions(options, Guid.Empty);
+        def.SetOptions(options, Guid.Empty, TimeProvider.System);
         _repository.GetByEntityTypeAsync("Invoice", false, Arg.Any<CancellationToken>())
             .Returns(new List<CustomFieldDefinition> { def });
 
@@ -495,7 +495,7 @@ public class CustomFieldValidatorTests
             new CustomFieldOption { Value = "active", Label = "Active" },
             new CustomFieldOption { Value = "inactive", Label = "Inactive" }
         ];
-        def.SetOptions(options, Guid.Empty);
+        def.SetOptions(options, Guid.Empty, TimeProvider.System);
         _repository.GetByEntityTypeAsync("Invoice", false, Arg.Any<CancellationToken>())
             .Returns(new List<CustomFieldDefinition> { def });
 
@@ -518,7 +518,7 @@ public class CustomFieldValidatorTests
             new CustomFieldOption { Value = "active", Label = "Active" },
             new CustomFieldOption { Value = "archived", Label = "Archived", IsActive = false }
         ];
-        def.SetOptions(options, Guid.Empty);
+        def.SetOptions(options, Guid.Empty, TimeProvider.System);
         _repository.GetByEntityTypeAsync("Invoice", false, Arg.Any<CancellationToken>())
             .Returns(new List<CustomFieldDefinition> { def });
 
@@ -536,7 +536,7 @@ public class CustomFieldValidatorTests
     public async Task ValidateAsync_DateRangeRule_BeforeMin_ReturnsError()
     {
         CustomFieldDefinition def = CreateDefinition("due_date", CustomFieldType.Date);
-        def.SetValidationRules(new FieldValidationRules { MinDate = new DateTime(2025, 1, 1) }, Guid.Empty);
+        def.SetValidationRules(new FieldValidationRules { MinDate = new DateTime(2025, 1, 1) }, Guid.Empty, TimeProvider.System);
         _repository.GetByEntityTypeAsync("Invoice", false, Arg.Any<CancellationToken>())
             .Returns(new List<CustomFieldDefinition> { def });
 
@@ -556,7 +556,7 @@ public class CustomFieldValidatorTests
     public async Task ValidateAsync_DateRangeRule_AfterMax_ReturnsError()
     {
         CustomFieldDefinition def = CreateDefinition("due_date", CustomFieldType.Date);
-        def.SetValidationRules(new FieldValidationRules { MaxDate = new DateTime(2025, 12, 31) }, Guid.Empty);
+        def.SetValidationRules(new FieldValidationRules { MaxDate = new DateTime(2025, 12, 31) }, Guid.Empty, TimeProvider.System);
         _repository.GetByEntityTypeAsync("Invoice", false, Arg.Any<CancellationToken>())
             .Returns(new List<CustomFieldDefinition> { def });
 

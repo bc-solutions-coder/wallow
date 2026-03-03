@@ -29,7 +29,6 @@ public class StorageMappingsTests
         dto.FileName.Should().Be("report.pdf");
         dto.ContentType.Should().Be("application/pdf");
         dto.SizeBytes.Should().Be(5000);
-        dto.StorageKey.Should().Be("tenant-123/bucket/report.pdf");
         dto.Path.Should().Be("reports");
         dto.IsPublic.Should().BeTrue();
         dto.UploadedBy.Should().Be(uploadedBy);

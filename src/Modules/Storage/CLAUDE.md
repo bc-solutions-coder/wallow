@@ -1,82 +1,34 @@
-# Storage Module - Developer Guide
+# Storage Module
 
-## Architecture
+## Module Responsibility
 
-- **Type:** EF Core (CRUD)
-- **Schema:** `storage`
-- **Multi-tenant:** Partial (StoredFile is tenant-scoped, StorageBucket is NOT)
-- **Events:** None
+Owns file storage lifecycle: bucket management, file upload/download/deletion, and presigned URL generation. Supports pluggable storage backends (local filesystem, S3). Retention policies are defined but not yet enforced.
 
-## Domain Model
+## Layer Rules
 
-**Entities:**
-- `StorageBucket` - NOT tenant-scoped, logical grouping with policies
-- `StoredFile` - Tenant-scoped file metadata, bytes stored in backend provider
+- **Domain** (`Foundry.Storage.Domain`): Entities (`StorageBucket` -- NOT tenant-scoped, `StoredFile` -- tenant-scoped), value objects (`RetentionPolicy` with period + action: Archive/Delete/Anonymize). Domain depends only on `Shared.Kernel`.
+- **Application** (`Foundry.Storage.Application`): Commands (`CreateBucket`, `DeleteBucket`, `UploadFile`, `DeleteFile`), queries (`GetBucketByName`, `GetFileById`, `GetFilesByBucket`, `GetPresignedUrl`). Defines `IStorageProvider` interface.
+- **Infrastructure** (`Foundry.Storage.Infrastructure`): `StorageDbContext` (EF Core, `storage` schema), `LocalStorageProvider`, `S3StorageProvider` implementations.
+- **Api** (`Foundry.Storage.Api`): `StorageController` (file upload/download/deletion).
 
-**Value Objects:**
-- `RetentionPolicy` - Retention period + action (Archive/Delete/Anonymize)
+## Key Patterns
 
-## Layer Structure
+- **Provider abstraction**: `IStorageProvider` interface with `StoreAsync`, `RetrieveAsync`, `DeleteAsync`. New backends implement this interface and register in `StorageModuleExtensions.cs`.
+- **Bucket vs file tenancy**: `StorageBucket` is global (shared across tenants). `StoredFile` is tenant-scoped via `ITenantScoped`. This is intentional -- buckets are infrastructure-level groupings.
 
-- **Domain:** Bucket, StoredFile entities, RetentionPolicy value object
-- **Application:** Commands (CreateBucket, DeleteBucket, UploadFile, DeleteFile), Queries (GetBucketByName, GetFileById, GetFilesByBucket, GetPresignedUrl)
-- **Infrastructure:** LocalStorageProvider, S3StorageProvider, StorageDbContext
-- **API:** StorageController (file upload/download/deletion)
+## Dependencies
 
-## Build & Test
+- **Depends on**: `Foundry.Shared.Kernel` (base entities, `ITenantScoped`, Result pattern).
+- **Depended on by**: `Foundry.Api` (registers module). No integration events published.
 
-```bash
-dotnet test tests/Modules/Storage/Storage.Domain.Tests
-```
+## Constraints
 
-## How to Extend
+- Do not reference other modules directly.
+- This module uses the `storage` PostgreSQL schema.
+- `StorageBucket` is NOT tenant-scoped -- all tenants share buckets.
+- No domain events are published currently.
 
-### Adding a New Storage Provider
+## Known Gaps
 
-1. Implement `IStorageProvider` in Infrastructure/Providers/:
-```csharp
-public class AzureBlobStorageProvider : IStorageProvider
-{
-    public Task<string> StoreAsync(string bucket, string key, Stream content, CancellationToken ct);
-    public Task<Stream> RetrieveAsync(string bucket, string key, CancellationToken ct);
-    public Task DeleteAsync(string bucket, string key, CancellationToken ct);
-}
-```
-
-2. Register in `StorageModuleExtensions.cs`:
-```csharp
-services.AddSingleton<IStorageProvider, AzureBlobStorageProvider>();
-```
-
-### Adding a New Retention Action
-
-1. Update `RetentionAction` enum in Domain
-2. Implement logic in `RetentionService` (Infrastructure)
-3. Create background job to enforce policies
-
-## Configuration
-
-```json
-{
-  "Storage": {
-    "Provider": "Local|S3",
-    "Local": {
-      "BasePath": "/var/foundry/storage"
-    },
-    "S3": {
-      "BucketName": "foundry-storage",
-      "Region": "us-east-1",
-      "AccessKey": "...",
-      "SecretKey": "..."
-    }
-  }
-}
-```
-
-## Known Issues
-
-- **CRITICAL:** StorageBucket is NOT tenant-scoped (all tenants share buckets)
 - Retention policies defined but no enforcement mechanism (no background job)
-- No virus scanning, no encryption at rest
 - Versioning flag exists but not implemented
-- No domain events published

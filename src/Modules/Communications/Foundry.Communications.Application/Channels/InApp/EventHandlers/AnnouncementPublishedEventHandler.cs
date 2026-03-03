@@ -14,7 +14,6 @@ public sealed partial class AnnouncementPublishedEventHandler
 {
     public static async Task HandleAsync(
         AnnouncementPublishedEvent integrationEvent,
-        INotificationRepository _,
         INotificationService notificationService,
         ITenantContext tenantContext,
         ILogger<AnnouncementPublishedEventHandler> logger,

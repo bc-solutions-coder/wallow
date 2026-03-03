@@ -19,7 +19,7 @@ public class ScimSyncLogTests
             ScimResourceType.User,
             "ext-123",
             "int-456",
-            true);
+            true, TimeProvider.System);
 
         log.TenantId.Should().Be(_tenantId);
         log.Operation.Should().Be(ScimOperation.Create);
@@ -41,7 +41,7 @@ public class ScimSyncLogTests
             ScimResourceType.Group,
             "ext-789",
             null,
-            false,
+            false, TimeProvider.System,
             "User not found",
             "{\"schemas\":[\"urn:scim\"]}");
 
@@ -60,7 +60,7 @@ public class ScimSyncLogTests
             ScimResourceType.User,
             "",
             null,
-            true);
+            true, TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>()
             .WithMessage("*external ID*");
@@ -75,7 +75,7 @@ public class ScimSyncLogTests
             ScimResourceType.User,
             "ext-999",
             null,
-            false,
+            false, TimeProvider.System,
             "Deprovision failed");
 
         log.DomainEvents.Should().ContainSingle()

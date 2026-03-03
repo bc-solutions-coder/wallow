@@ -15,7 +15,6 @@ public static class StorageMappings
             file.FileName,
             file.ContentType,
             file.SizeBytes,
-            file.StorageKey,
             file.Path,
             file.IsPublic,
             file.UploadedBy,

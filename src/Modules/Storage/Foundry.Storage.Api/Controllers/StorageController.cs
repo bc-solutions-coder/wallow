@@ -2,6 +2,7 @@ using Asp.Versioning;
 using Foundry.Shared.Contracts.Storage;
 using Foundry.Shared.Contracts.Storage.Commands;
 using Foundry.Shared.Kernel.MultiTenancy;
+using Foundry.Shared.Kernel.Pagination;
 using Foundry.Shared.Kernel.Results;
 using Foundry.Storage.Api.Contracts.Requests;
 using Foundry.Storage.Api.Contracts.Responses;
@@ -241,18 +242,23 @@ public sealed class StorageController : ControllerBase
     /// </summary>
     [HttpGet("files")]
     [HasPermission(PermissionType.StorageRead)]
-    [ProducesResponseType(typeof(IReadOnlyList<FileMetadataResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PagedResult<FileMetadataResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> ListFiles(
         [FromQuery] string bucket,
         [FromQuery] string? path = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        Result<IReadOnlyList<StoredFileDto>> result = await _bus.InvokeAsync<Result<IReadOnlyList<StoredFileDto>>>(
-            new GetFilesByBucketQuery(_tenantContext.TenantId.Value, bucket, path), cancellationToken);
+        Result<PagedResult<StoredFileDto>> result = await _bus.InvokeAsync<Result<PagedResult<StoredFileDto>>>(
+            new GetFilesByBucketQuery(_tenantContext.TenantId.Value, bucket, path, page, pageSize), cancellationToken);
 
-        return result.Map(files =>
-            (IReadOnlyList<FileMetadataResponse>)files.Select(ToFileMetadataResponse).ToList())
+        return result.Map(paged => new PagedResult<FileMetadataResponse>(
+                paged.Items.Select(ToFileMetadataResponse).ToList(),
+                paged.TotalCount,
+                paged.Page,
+                paged.PageSize))
             .ToActionResult();
     }
 
@@ -290,7 +296,7 @@ public sealed class StorageController : ControllerBase
                 expiry),
             cancellationToken);
 
-        return result.Map(r => new PresignedUploadResponse(r.FileId, r.UploadUrl, r.StorageKey, r.ExpiresAt))
+        return result.Map(r => new PresignedUploadResponse(r.FileId, r.UploadUrl, r.ExpiresAt))
             .ToActionResult();
     }
 

@@ -5,6 +5,7 @@ using Foundry.Identity.Domain.Entities;
 using Foundry.Identity.Domain.Enums;
 using Foundry.Shared.Kernel.MultiTenancy;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Foundry.Identity.Infrastructure.Services;
 
@@ -15,20 +16,25 @@ public sealed partial class ScimGroupService
     private readonly IScimSyncLogRepository _syncLogRepository;
     private readonly ITenantContext _tenantContext;
     private readonly ILogger<ScimGroupService> _logger;
-    private const string Realm = "foundry";
+    private readonly TimeProvider _timeProvider;
+    private readonly string _realm;
 
     public ScimGroupService(
         IHttpClientFactory httpClientFactory,
         IScimConfigurationRepository scimRepository,
         IScimSyncLogRepository syncLogRepository,
         ITenantContext tenantContext,
-        ILogger<ScimGroupService> logger)
+        IOptions<KeycloakOptions> keycloakOptions,
+        ILogger<ScimGroupService> logger,
+        TimeProvider timeProvider)
     {
         _httpClient = httpClientFactory.CreateClient("KeycloakAdminClient");
         _scimRepository = scimRepository;
         _syncLogRepository = syncLogRepository;
         _tenantContext = tenantContext;
+        _realm = keycloakOptions.Value.Realm;
         _logger = logger;
+        _timeProvider = timeProvider;
     }
 
     public async Task<ScimGroup> CreateGroupAsync(ScimGroupRequest request, CancellationToken ct = default)
@@ -49,7 +55,7 @@ public sealed partial class ScimGroupService
             };
 
             HttpResponseMessage response = await _httpClient.PostAsJsonAsync(
-                $"/admin/realms/{Realm}/groups",
+                $"/admin/realms/{_realm}/groups",
                 groupRepresentation,
                 ct);
             response.EnsureSuccessStatusCode();
@@ -97,7 +103,7 @@ public sealed partial class ScimGroupService
             };
 
             HttpResponseMessage response = await _httpClient.PutAsJsonAsync(
-                $"/admin/realms/{Realm}/groups/{id}",
+                $"/admin/realms/{_realm}/groups/{id}",
                 groupRepresentation,
                 ct);
             response.EnsureSuccessStatusCode();
@@ -143,7 +149,7 @@ public sealed partial class ScimGroupService
 
         try
         {
-            HttpResponseMessage response = await _httpClient.DeleteAsync($"/admin/realms/{Realm}/groups/{id}", ct);
+            HttpResponseMessage response = await _httpClient.DeleteAsync($"/admin/realms/{_realm}/groups/{id}", ct);
             response.EnsureSuccessStatusCode();
 
             await LogSyncAsync(ScimOperation.Delete, ScimResourceType.Group, id, id, true, ct: ct);
@@ -163,7 +169,7 @@ public sealed partial class ScimGroupService
         int first = Math.Max(0, request.StartIndex - 1);
         int max = Math.Min(request.Count, ScimConstants.MaxPageSize);
 
-        HttpResponseMessage response = await _httpClient.GetAsync($"/admin/realms/{Realm}/groups?first={first}&max={max}", ct);
+        HttpResponseMessage response = await _httpClient.GetAsync($"/admin/realms/{_realm}/groups?first={first}&max={max}", ct);
         response.EnsureSuccessStatusCode();
 
         List<ScimKeycloakGroupRepresentation>? groups = await response.Content.ReadFromJsonAsync<List<ScimKeycloakGroupRepresentation>>(ct);
@@ -190,11 +196,11 @@ public sealed partial class ScimGroupService
         };
     }
 
-    private async Task<ScimGroup?> GetGroupAsync(string id, CancellationToken ct)
+    public async Task<ScimGroup?> GetGroupAsync(string id, CancellationToken ct)
     {
         try
         {
-            HttpResponseMessage response = await _httpClient.GetAsync($"/admin/realms/{Realm}/groups/{id}", ct);
+            HttpResponseMessage response = await _httpClient.GetAsync($"/admin/realms/{_realm}/groups/{id}", ct);
             if (!response.IsSuccessStatusCode)
             {
                 return null;
@@ -239,7 +245,7 @@ public sealed partial class ScimGroupService
     {
         try
         {
-            HttpResponseMessage response = await _httpClient.GetAsync($"/admin/realms/{Realm}/groups/{groupId}/members", ct);
+            HttpResponseMessage response = await _httpClient.GetAsync($"/admin/realms/{_realm}/groups/{groupId}/members", ct);
             if (!response.IsSuccessStatusCode)
             {
                 return [];
@@ -257,7 +263,7 @@ public sealed partial class ScimGroupService
     private async Task AddUserToGroupAsync(string userId, string groupId, CancellationToken ct)
     {
         HttpResponseMessage response = await _httpClient.PutAsync(
-            $"/admin/realms/{Realm}/users/{userId}/groups/{groupId}",
+            $"/admin/realms/{_realm}/users/{userId}/groups/{groupId}",
             null,
             ct);
         response.EnsureSuccessStatusCode();
@@ -266,7 +272,7 @@ public sealed partial class ScimGroupService
     private async Task RemoveUserFromGroupAsync(string userId, string groupId, CancellationToken ct)
     {
         HttpResponseMessage response = await _httpClient.DeleteAsync(
-            $"/admin/realms/{Realm}/users/{userId}/groups/{groupId}",
+            $"/admin/realms/{_realm}/users/{userId}/groups/{groupId}",
             ct);
         response.EnsureSuccessStatusCode();
     }
@@ -290,6 +296,7 @@ public sealed partial class ScimGroupService
                 externalId,
                 internalId,
                 success,
+                _timeProvider,
                 errorMessage,
                 requestBody);
 
@@ -299,7 +306,7 @@ public sealed partial class ScimGroupService
             ScimConfiguration? config = await _scimRepository.GetAsync(ct);
             if (config != null)
             {
-                config.RecordSync(Guid.Empty);
+                config.RecordSync(Guid.Empty, _timeProvider);
                 await _scimRepository.SaveChangesAsync(ct);
             }
         }

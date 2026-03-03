@@ -26,8 +26,7 @@ public class ConfigureSsoProviderTests
             SsoProtocol.Saml,
             "email",
             "firstName",
-            "lastName",
-            Guid.NewGuid());
+            "lastName", Guid.NewGuid(), TimeProvider.System);
 
         config.Should().NotBeNull();
         config.Status.Should().Be(SsoStatus.Draft);
@@ -44,8 +43,7 @@ public class ConfigureSsoProviderTests
             SsoProtocol.Oidc,
             "email",
             "given_name",
-            "family_name",
-            Guid.NewGuid());
+            "family_name", Guid.NewGuid(), TimeProvider.System);
 
         config.Should().NotBeNull();
         config.Status.Should().Be(SsoStatus.Draft);
@@ -61,8 +59,7 @@ public class ConfigureSsoProviderTests
             SsoProtocol.Saml,
             "email",
             "firstName",
-            "lastName",
-            Guid.NewGuid());
+            "lastName", Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>()
             .Which.Code.Should().Be("Identity.DisplayNameRequired");
@@ -77,8 +74,7 @@ public class ConfigureSsoProviderTests
             SsoProtocol.Saml,
             "",
             "firstName",
-            "lastName",
-            Guid.NewGuid());
+            "lastName", Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>()
             .Which.Code.Should().Be("Identity.EmailAttributeRequired");
@@ -93,8 +89,7 @@ public class ConfigureSsoProviderTests
             SsoProtocol.Saml,
             "email",
             "",
-            "lastName",
-            Guid.NewGuid());
+            "lastName", Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>()
             .Which.Code.Should().Be("Identity.FirstNameAttributeRequired");
@@ -109,8 +104,7 @@ public class ConfigureSsoProviderTests
             SsoProtocol.Saml,
             "email",
             "firstName",
-            "",
-            Guid.NewGuid());
+            "", Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>()
             .Which.Code.Should().Be("Identity.LastNameAttributeRequired");
@@ -125,16 +119,14 @@ public class ConfigureSsoProviderTests
             SsoProtocol.Oidc,
             "email",
             "firstName",
-            "lastName",
-            Guid.NewGuid());
+            "lastName", Guid.NewGuid(), TimeProvider.System);
 
         Action act = () => config.UpdateSamlConfig(
             "entity-id",
             "https://idp.test/sso",
             null,
             "cert",
-            SamlNameIdFormat.Email,
-            Guid.NewGuid());
+            SamlNameIdFormat.Email, Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>()
             .Which.Code.Should().Be("Identity.NotSamlConfiguration");
@@ -149,15 +141,13 @@ public class ConfigureSsoProviderTests
             SsoProtocol.Saml,
             "email",
             "firstName",
-            "lastName",
-            Guid.NewGuid());
+            "lastName", Guid.NewGuid(), TimeProvider.System);
 
         Action act = () => config.UpdateOidcConfig(
             "https://issuer.test",
             "client-id",
             "client-secret",
-            "openid",
-            Guid.NewGuid());
+            "openid", Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>()
             .Which.Code.Should().Be("Identity.NotOidcConfiguration");
@@ -173,8 +163,7 @@ public class ConfigureSsoProviderTests
             "https://new-idp.test/sso",
             null,
             "new-cert",
-            SamlNameIdFormat.Persistent,
-            Guid.NewGuid());
+            SamlNameIdFormat.Persistent, Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>()
             .Which.Code.Should().Be("Identity.CannotUpdateActiveConfiguration");
@@ -189,8 +178,7 @@ public class ConfigureSsoProviderTests
             "https://new-issuer.test",
             "new-client",
             "new-secret",
-            "openid email",
-            Guid.NewGuid());
+            "openid email", Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>()
             .Which.Code.Should().Be("Identity.CannotUpdateActiveConfiguration");
@@ -205,16 +193,14 @@ public class ConfigureSsoProviderTests
             SsoProtocol.Saml,
             "email",
             "firstName",
-            "lastName",
-            Guid.NewGuid());
+            "lastName", Guid.NewGuid(), TimeProvider.System);
 
         Action act = () => config.UpdateSamlConfig(
             "",
             "https://idp.test/sso",
             null,
             "cert",
-            SamlNameIdFormat.Email,
-            Guid.NewGuid());
+            SamlNameIdFormat.Email, Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>()
             .Which.Code.Should().Be("Identity.SamlEntityIdRequired");
@@ -229,15 +215,13 @@ public class ConfigureSsoProviderTests
             SsoProtocol.Oidc,
             "email",
             "firstName",
-            "lastName",
-            Guid.NewGuid());
+            "lastName", Guid.NewGuid(), TimeProvider.System);
 
         Action act = () => config.UpdateOidcConfig(
             "",
             "client-id",
             "client-secret",
-            "openid",
-            Guid.NewGuid());
+            "openid", Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>()
             .Which.Code.Should().Be("Identity.OidcIssuerRequired");
@@ -254,8 +238,7 @@ public class ConfigureSsoProviderTests
             SsoProtocol.Saml,
             "email",
             "firstName",
-            "lastName",
-            Guid.NewGuid());
+            "lastName", Guid.NewGuid(), TimeProvider.System);
 
         _repository.Add(config);
         await _repository.SaveChangesAsync();
@@ -269,10 +252,10 @@ public class ConfigureSsoProviderTests
         Guid userId = Guid.NewGuid();
         SsoConfiguration config = SsoConfiguration.Create(
             _tenantId, "Active SAML", SsoProtocol.Saml,
-            "email", "firstName", "lastName", userId);
-        config.UpdateSamlConfig("entity-id", "https://idp.test/sso", null, "cert", SamlNameIdFormat.Email, userId);
-        config.MoveToTesting(userId);
-        config.Activate(userId);
+            "email", "firstName", "lastName", userId, TimeProvider.System);
+        config.UpdateSamlConfig("entity-id", "https://idp.test/sso", null, "cert", SamlNameIdFormat.Email, userId, TimeProvider.System);
+        config.MoveToTesting(userId, TimeProvider.System);
+        config.Activate(userId, TimeProvider.System);
         return config;
     }
 
@@ -281,10 +264,10 @@ public class ConfigureSsoProviderTests
         Guid userId = Guid.NewGuid();
         SsoConfiguration config = SsoConfiguration.Create(
             _tenantId, "Active OIDC", SsoProtocol.Oidc,
-            "email", "firstName", "lastName", userId);
-        config.UpdateOidcConfig("https://issuer.test", "client-id", "secret", "openid", userId);
-        config.MoveToTesting(userId);
-        config.Activate(userId);
+            "email", "firstName", "lastName", userId, TimeProvider.System);
+        config.UpdateOidcConfig("https://issuer.test", "client-id", "secret", "openid", userId, TimeProvider.System);
+        config.MoveToTesting(userId, TimeProvider.System);
+        config.Activate(userId, TimeProvider.System);
         return config;
     }
 }
@@ -305,10 +288,10 @@ public class EnableSsoTests
         Guid userId = Guid.NewGuid();
         SsoConfiguration config = SsoConfiguration.Create(
             _tenantId, "SAML SSO", SsoProtocol.Saml,
-            "email", "firstName", "lastName", userId);
-        config.UpdateSamlConfig("entity-id", "https://idp.test/sso", null, "cert", SamlNameIdFormat.Email, userId);
+            "email", "firstName", "lastName", userId, TimeProvider.System);
+        config.UpdateSamlConfig("entity-id", "https://idp.test/sso", null, "cert", SamlNameIdFormat.Email, userId, TimeProvider.System);
 
-        config.Activate(userId);
+        config.Activate(userId, TimeProvider.System);
 
         config.Status.Should().Be(SsoStatus.Active);
     }
@@ -319,11 +302,11 @@ public class EnableSsoTests
         Guid userId = Guid.NewGuid();
         SsoConfiguration config = SsoConfiguration.Create(
             _tenantId, "SAML SSO", SsoProtocol.Saml,
-            "email", "firstName", "lastName", userId);
-        config.UpdateSamlConfig("entity-id", "https://idp.test/sso", null, "cert", SamlNameIdFormat.Email, userId);
-        config.MoveToTesting(userId);
+            "email", "firstName", "lastName", userId, TimeProvider.System);
+        config.UpdateSamlConfig("entity-id", "https://idp.test/sso", null, "cert", SamlNameIdFormat.Email, userId, TimeProvider.System);
+        config.MoveToTesting(userId, TimeProvider.System);
 
-        config.Activate(userId);
+        config.Activate(userId, TimeProvider.System);
 
         config.Status.Should().Be(SsoStatus.Active);
     }
@@ -334,13 +317,13 @@ public class EnableSsoTests
         Guid userId = Guid.NewGuid();
         SsoConfiguration config = SsoConfiguration.Create(
             _tenantId, "SAML SSO", SsoProtocol.Saml,
-            "email", "firstName", "lastName", userId);
-        config.UpdateSamlConfig("entity-id", "https://idp.test/sso", null, "cert", SamlNameIdFormat.Email, userId);
-        config.MoveToTesting(userId);
-        config.Activate(userId);
-        config.Disable(userId);
+            "email", "firstName", "lastName", userId, TimeProvider.System);
+        config.UpdateSamlConfig("entity-id", "https://idp.test/sso", null, "cert", SamlNameIdFormat.Email, userId, TimeProvider.System);
+        config.MoveToTesting(userId, TimeProvider.System);
+        config.Activate(userId, TimeProvider.System);
+        config.Disable(userId, TimeProvider.System);
 
-        config.Activate(userId);
+        config.Activate(userId, TimeProvider.System);
 
         config.Status.Should().Be(SsoStatus.Active);
     }
@@ -351,12 +334,12 @@ public class EnableSsoTests
         Guid userId = Guid.NewGuid();
         SsoConfiguration config = SsoConfiguration.Create(
             _tenantId, "SAML SSO", SsoProtocol.Saml,
-            "email", "firstName", "lastName", userId);
-        config.UpdateSamlConfig("entity-id", "https://idp.test/sso", null, "cert", SamlNameIdFormat.Email, userId);
-        config.MoveToTesting(userId);
-        config.Activate(userId);
+            "email", "firstName", "lastName", userId, TimeProvider.System);
+        config.UpdateSamlConfig("entity-id", "https://idp.test/sso", null, "cert", SamlNameIdFormat.Email, userId, TimeProvider.System);
+        config.MoveToTesting(userId, TimeProvider.System);
+        config.Activate(userId, TimeProvider.System);
 
-        Action act = () => config.Activate(userId);
+        Action act = () => config.Activate(userId, TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>()
             .Which.Code.Should().Be("Identity.SsoAlreadyActive");
@@ -368,9 +351,9 @@ public class EnableSsoTests
         Guid userId = Guid.NewGuid();
         SsoConfiguration config = SsoConfiguration.Create(
             _tenantId, "SAML SSO", SsoProtocol.Saml,
-            "email", "firstName", "lastName", userId);
+            "email", "firstName", "lastName", userId, TimeProvider.System);
 
-        Action act = () => config.Activate(userId);
+        Action act = () => config.Activate(userId, TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>()
             .Which.Code.Should().Be("Identity.SamlConfigurationIncomplete");
@@ -382,9 +365,9 @@ public class EnableSsoTests
         Guid userId = Guid.NewGuid();
         SsoConfiguration config = SsoConfiguration.Create(
             _tenantId, "OIDC SSO", SsoProtocol.Oidc,
-            "email", "firstName", "lastName", userId);
+            "email", "firstName", "lastName", userId, TimeProvider.System);
 
-        Action act = () => config.Activate(userId);
+        Action act = () => config.Activate(userId, TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>()
             .Which.Code.Should().Be("Identity.OidcConfigurationIncomplete");
@@ -396,10 +379,10 @@ public class EnableSsoTests
         Guid userId = Guid.NewGuid();
         SsoConfiguration config = SsoConfiguration.Create(
             _tenantId, "OIDC SSO", SsoProtocol.Oidc,
-            "email", "firstName", "lastName", userId);
-        config.UpdateOidcConfig("https://issuer.test", "client-id", "secret", "openid", userId);
+            "email", "firstName", "lastName", userId, TimeProvider.System);
+        config.UpdateOidcConfig("https://issuer.test", "client-id", "secret", "openid", userId, TimeProvider.System);
 
-        config.Activate(userId);
+        config.Activate(userId, TimeProvider.System);
 
         config.Status.Should().Be(SsoStatus.Active);
     }
@@ -410,10 +393,10 @@ public class EnableSsoTests
         Guid userId = Guid.NewGuid();
         SsoConfiguration config = SsoConfiguration.Create(
             _tenantId, "SAML SSO", SsoProtocol.Saml,
-            "email", "firstName", "lastName", userId);
-        config.UpdateSamlConfig("entity-id", "https://idp.test/sso", null, "cert", SamlNameIdFormat.Email, userId);
+            "email", "firstName", "lastName", userId, TimeProvider.System);
+        config.UpdateSamlConfig("entity-id", "https://idp.test/sso", null, "cert", SamlNameIdFormat.Email, userId, TimeProvider.System);
 
-        config.Activate(userId);
+        config.Activate(userId, TimeProvider.System);
 
         config.DomainEvents.Should().ContainSingle()
             .Which.Should().BeOfType<SsoConfigurationActivatedEvent>();
@@ -446,12 +429,12 @@ public class DisableSsoTests
         Guid userId = Guid.NewGuid();
         SsoConfiguration config = SsoConfiguration.Create(
             _tenantId, "SAML SSO", SsoProtocol.Saml,
-            "email", "firstName", "lastName", userId);
-        config.UpdateSamlConfig("entity-id", "https://idp.test/sso", null, "cert", SamlNameIdFormat.Email, userId);
-        config.MoveToTesting(userId);
-        config.Activate(userId);
+            "email", "firstName", "lastName", userId, TimeProvider.System);
+        config.UpdateSamlConfig("entity-id", "https://idp.test/sso", null, "cert", SamlNameIdFormat.Email, userId, TimeProvider.System);
+        config.MoveToTesting(userId, TimeProvider.System);
+        config.Activate(userId, TimeProvider.System);
 
-        config.Disable(userId);
+        config.Disable(userId, TimeProvider.System);
 
         config.Status.Should().Be(SsoStatus.Disabled);
     }
@@ -462,9 +445,9 @@ public class DisableSsoTests
         Guid userId = Guid.NewGuid();
         SsoConfiguration config = SsoConfiguration.Create(
             _tenantId, "SAML SSO", SsoProtocol.Saml,
-            "email", "firstName", "lastName", userId);
+            "email", "firstName", "lastName", userId, TimeProvider.System);
 
-        config.Disable(userId);
+        config.Disable(userId, TimeProvider.System);
 
         config.Status.Should().Be(SsoStatus.Disabled);
     }
@@ -475,10 +458,10 @@ public class DisableSsoTests
         Guid userId = Guid.NewGuid();
         SsoConfiguration config = SsoConfiguration.Create(
             _tenantId, "SAML SSO", SsoProtocol.Saml,
-            "email", "firstName", "lastName", userId);
-        config.MoveToTesting(userId);
+            "email", "firstName", "lastName", userId, TimeProvider.System);
+        config.MoveToTesting(userId, TimeProvider.System);
 
-        config.Disable(userId);
+        config.Disable(userId, TimeProvider.System);
 
         config.Status.Should().Be(SsoStatus.Disabled);
     }
@@ -489,10 +472,10 @@ public class DisableSsoTests
         Guid userId = Guid.NewGuid();
         SsoConfiguration config = SsoConfiguration.Create(
             _tenantId, "SAML SSO", SsoProtocol.Saml,
-            "email", "firstName", "lastName", userId);
-        config.Disable(userId);
+            "email", "firstName", "lastName", userId, TimeProvider.System);
+        config.Disable(userId, TimeProvider.System);
 
-        Action act = () => config.Disable(userId);
+        Action act = () => config.Disable(userId, TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>()
             .Which.Code.Should().Be("Identity.SsoAlreadyDisabled");
@@ -504,15 +487,15 @@ public class DisableSsoTests
         Guid userId = Guid.NewGuid();
         SsoConfiguration config = SsoConfiguration.Create(
             _tenantId, "SAML SSO", SsoProtocol.Saml,
-            "email", "firstName", "lastName", userId);
-        config.UpdateSamlConfig("entity-id", "https://idp.test/sso", null, "cert", SamlNameIdFormat.Email, userId);
-        config.MoveToTesting(userId);
-        config.Activate(userId);
-        config.Disable(userId);
+            "email", "firstName", "lastName", userId, TimeProvider.System);
+        config.UpdateSamlConfig("entity-id", "https://idp.test/sso", null, "cert", SamlNameIdFormat.Email, userId, TimeProvider.System);
+        config.MoveToTesting(userId, TimeProvider.System);
+        config.Activate(userId, TimeProvider.System);
+        config.Disable(userId, TimeProvider.System);
 
         // After disable, config updates should be allowed again (not active)
         Action act = () => config.UpdateSamlConfig(
-            "new-entity", "https://new-idp.test/sso", null, "new-cert", SamlNameIdFormat.Persistent, userId);
+            "new-entity", "https://new-idp.test/sso", null, "new-cert", SamlNameIdFormat.Persistent, userId, TimeProvider.System);
 
         act.Should().NotThrow();
     }
@@ -533,12 +516,12 @@ public class DisableSsoTests
         Guid userId = Guid.NewGuid();
         SsoConfiguration config = SsoConfiguration.Create(
             _tenantId, "SAML SSO", SsoProtocol.Saml,
-            "email", "firstName", "lastName", userId);
-        config.UpdateSamlConfig("entity-id", "https://idp.test/sso", null, "cert", SamlNameIdFormat.Email, userId);
-        config.MoveToTesting(userId);
-        config.Activate(userId);
+            "email", "firstName", "lastName", userId, TimeProvider.System);
+        config.UpdateSamlConfig("entity-id", "https://idp.test/sso", null, "cert", SamlNameIdFormat.Email, userId, TimeProvider.System);
+        config.MoveToTesting(userId, TimeProvider.System);
+        config.Activate(userId, TimeProvider.System);
 
-        Action act = () => config.UpdateBehaviorSettings(true, false, "admin", true, "groups", userId);
+        Action act = () => config.UpdateBehaviorSettings(true, false, "admin", true, "groups", userId, TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>()
             .Which.Code.Should().Be("Identity.CannotUpdateActiveConfiguration");

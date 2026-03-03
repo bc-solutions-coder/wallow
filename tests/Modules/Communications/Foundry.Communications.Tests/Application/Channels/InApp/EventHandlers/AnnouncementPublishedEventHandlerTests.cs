@@ -10,7 +10,6 @@ namespace Foundry.Communications.Tests.Application.Channels.InApp.EventHandlers;
 
 public class AnnouncementPublishedEventHandlerTests
 {
-    private readonly INotificationRepository _notificationRepository;
     private readonly INotificationService _notificationService;
     private readonly ITenantContext _tenantContext;
     private readonly ILogger<AnnouncementPublishedEventHandler> _logger;
@@ -18,7 +17,6 @@ public class AnnouncementPublishedEventHandlerTests
 
     public AnnouncementPublishedEventHandlerTests()
     {
-        _notificationRepository = Substitute.For<INotificationRepository>();
         _notificationService = Substitute.For<INotificationService>();
         _tenantContext = Substitute.For<ITenantContext>();
         _logger = Substitute.For<ILogger<AnnouncementPublishedEventHandler>>();
@@ -43,7 +41,7 @@ public class AnnouncementPublishedEventHandlerTests
         };
 
         await AnnouncementPublishedEventHandler.HandleAsync(
-            evt, _notificationRepository, _notificationService,
+            evt, _notificationService,
             _tenantContext, _logger, CancellationToken.None);
 
         await _notificationService.Received(1).BroadcastToTenantAsync(
@@ -70,7 +68,7 @@ public class AnnouncementPublishedEventHandlerTests
         };
 
         await AnnouncementPublishedEventHandler.HandleAsync(
-            evt, _notificationRepository, _notificationService,
+            evt, _notificationService,
             _tenantContext, _logger, CancellationToken.None);
 
         await _notificationService.Received(1).BroadcastToTenantAsync(
@@ -97,7 +95,7 @@ public class AnnouncementPublishedEventHandlerTests
         };
 
         await AnnouncementPublishedEventHandler.HandleAsync(
-            evt, _notificationRepository, _notificationService,
+            evt, _notificationService,
             _tenantContext, _logger, CancellationToken.None);
 
         await _notificationService.DidNotReceive().BroadcastToTenantAsync(
@@ -124,7 +122,7 @@ public class AnnouncementPublishedEventHandlerTests
         };
 
         await AnnouncementPublishedEventHandler.HandleAsync(
-            evt, _notificationRepository, _notificationService,
+            evt, _notificationService,
             _tenantContext, _logger, CancellationToken.None);
 
         await _notificationService.Received(1).BroadcastToTenantAsync(
@@ -151,7 +149,7 @@ public class AnnouncementPublishedEventHandlerTests
         };
 
         await AnnouncementPublishedEventHandler.HandleAsync(
-            evt, _notificationRepository, _notificationService,
+            evt, _notificationService,
             _tenantContext, _logger, CancellationToken.None);
 
         await _notificationService.DidNotReceive().BroadcastToTenantAsync(
@@ -183,7 +181,7 @@ public class AnnouncementPublishedEventHandlerTests
         };
 
         await AnnouncementPublishedEventHandler.HandleAsync(
-            evt, _notificationRepository, _notificationService,
+            evt, _notificationService,
             _tenantContext, _logger, CancellationToken.None);
 
         await _notificationService.Received(1).BroadcastToTenantAsync(
@@ -211,7 +209,7 @@ public class AnnouncementPublishedEventHandlerTests
         };
 
         await AnnouncementPublishedEventHandler.HandleAsync(
-            evt, _notificationRepository, _notificationService,
+            evt, _notificationService,
             _tenantContext, _logger, CancellationToken.None);
 
         await _notificationService.Received(1).BroadcastToTenantAsync(
@@ -239,7 +237,7 @@ public class AnnouncementPublishedEventHandlerTests
         };
 
         await AnnouncementPublishedEventHandler.HandleAsync(
-            evt, _notificationRepository, _notificationService,
+            evt, _notificationService,
             _tenantContext, _logger, CancellationToken.None);
 
         await _notificationService.Received(1).BroadcastToTenantAsync(

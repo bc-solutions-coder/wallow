@@ -26,7 +26,8 @@ public class CustomFieldDefinitionRepositoryTests : DbContextIntegrationTestBase
             fieldKey ?? $"field_{Guid.NewGuid():N}".Substring(0, 30),
             "Test Field",
             CustomFieldType.Text,
-            TestUserId);
+            TestUserId,
+            TimeProvider.System);
         definition.ClearDomainEvents();
         return definition;
     }
@@ -63,9 +64,9 @@ public class CustomFieldDefinitionRepositoryTests : DbContextIntegrationTestBase
     {
         CustomFieldDefinitionRepository repository = CreateRepository();
         CustomFieldDefinition def1 = CreateDefinition(entityType: "Invoice");
-        def1.SetDisplayOrder(2, TestUserId);
+        def1.SetDisplayOrder(2, TestUserId, TimeProvider.System);
         CustomFieldDefinition def2 = CreateDefinition(entityType: "Invoice");
-        def2.SetDisplayOrder(1, TestUserId);
+        def2.SetDisplayOrder(1, TestUserId, TimeProvider.System);
 
         await repository.AddAsync(def1);
         await repository.AddAsync(def2);
@@ -85,7 +86,7 @@ public class CustomFieldDefinitionRepositoryTests : DbContextIntegrationTestBase
         CustomFieldDefinitionRepository repository = CreateRepository();
         CustomFieldDefinition activeDef = CreateDefinition(entityType: "Invoice");
         CustomFieldDefinition inactiveDef = CreateDefinition(entityType: "Invoice");
-        inactiveDef.Deactivate(TestUserId);
+        inactiveDef.Deactivate(TestUserId, TimeProvider.System);
         inactiveDef.ClearDomainEvents();
 
         await repository.AddAsync(activeDef);
@@ -103,7 +104,7 @@ public class CustomFieldDefinitionRepositoryTests : DbContextIntegrationTestBase
     {
         CustomFieldDefinitionRepository repository = CreateRepository();
         CustomFieldDefinition inactiveDef = CreateDefinition(entityType: "Invoice");
-        inactiveDef.Deactivate(TestUserId);
+        inactiveDef.Deactivate(TestUserId, TimeProvider.System);
         inactiveDef.ClearDomainEvents();
 
         await repository.AddAsync(inactiveDef);
@@ -148,7 +149,7 @@ public class CustomFieldDefinitionRepositoryTests : DbContextIntegrationTestBase
         await repository.AddAsync(definition);
         await repository.SaveChangesAsync();
 
-        definition.UpdateDisplayName("Updated Name", TestUserId);
+        definition.UpdateDisplayName("Updated Name", TestUserId, TimeProvider.System);
         await repository.UpdateAsync(definition);
         await repository.SaveChangesAsync();
 

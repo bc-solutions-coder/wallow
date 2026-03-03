@@ -1,8 +1,6 @@
 using System.Diagnostics;
 using Foundry.Communications.Application.Channels.Email.Interfaces;
 using Foundry.Communications.Application.Channels.Email.Telemetry;
-using MailKit.Net.Smtp;
-using MailKit.Security;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MimeKit;
@@ -10,6 +8,7 @@ using MimeKit;
 namespace Foundry.Communications.Infrastructure.Services;
 
 public sealed partial class SmtpEmailProvider(
+    SmtpConnectionPool connectionPool,
     IOptions<SmtpSettings> settings,
     ILogger<SmtpEmailProvider> logger) : IEmailProvider
 {
@@ -96,23 +95,16 @@ public sealed partial class SmtpEmailProvider(
         int attempt = 0;
         Exception? lastException = null;
 
-        using SmtpClient client = new SmtpClient();
-        client.Timeout = _settings.TimeoutSeconds * 1000;
-
-        await ConnectAndAuthenticateAsync(client, cancellationToken);
-
         while (attempt < _settings.MaxRetries)
         {
             attempt++;
 
             try
             {
-                await client.SendAsync(message, cancellationToken);
+                await connectionPool.SendAsync(message, cancellationToken);
 
                 string recipients = message.To.ToString();
                 LogEmailSent(logger, recipients, message.Subject, attempt);
-
-                await client.DisconnectAsync(true, cancellationToken);
                 return;
             }
             catch (Exception ex)
@@ -125,12 +117,6 @@ public sealed partial class SmtpEmailProvider(
                 {
                     int delayMs = (int)Math.Pow(2, attempt) * 1000;
                     await Task.Delay(delayMs, cancellationToken);
-
-                    // Reconnect in case the connection was dropped
-                    if (!client.IsConnected)
-                    {
-                        await ConnectAndAuthenticateAsync(client, cancellationToken);
-                    }
                 }
             }
         }
@@ -150,20 +136,6 @@ public sealed partial class SmtpEmailProvider(
         throw new InvalidOperationException(
             $"Failed to send email after {_settings.MaxRetries} attempts. See inner exception for details.",
             lastException);
-    }
-
-    private async Task ConnectAndAuthenticateAsync(SmtpClient client, CancellationToken cancellationToken = default)
-    {
-        SecureSocketOptions secureSocketOptions = _settings.UseSsl
-            ? SecureSocketOptions.StartTls
-            : SecureSocketOptions.None;
-
-        await client.ConnectAsync(_settings.Host, _settings.Port, secureSocketOptions, cancellationToken);
-
-        if (!string.IsNullOrWhiteSpace(_settings.Username) && !string.IsNullOrWhiteSpace(_settings.Password))
-        {
-            await client.AuthenticateAsync(_settings.Username, _settings.Password, cancellationToken);
-        }
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Email sent successfully to {To} with subject '{Subject}' on attempt {Attempt}")]

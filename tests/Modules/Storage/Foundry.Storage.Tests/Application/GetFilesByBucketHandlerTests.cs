@@ -1,4 +1,5 @@
 using Foundry.Shared.Kernel.Identity;
+using Foundry.Shared.Kernel.Pagination;
 using Foundry.Shared.Kernel.Results;
 using Foundry.Storage.Application.DTOs;
 using Foundry.Storage.Application.Interfaces;
@@ -28,54 +29,59 @@ public class GetFilesByBucketHandlerTests
         _bucketRepository.GetByNameAsync("nonexistent", Arg.Any<CancellationToken>())
             .Returns((StorageBucket?)null);
 
-        Result<IReadOnlyList<StoredFileDto>> result = await _handler.Handle(query, CancellationToken.None);
+        Result<PagedResult<StoredFileDto>> result = await _handler.Handle(query, CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Code.Should().Contain("NotFound");
     }
 
     [Fact]
-    public async Task Handle_WhenBucketExistsWithFiles_ReturnsOnlyTenantFiles()
+    public async Task Handle_WhenBucketExistsWithFiles_ReturnsPagedFiles()
     {
         TenantId tenantId = TenantId.New();
-        TenantId otherTenantId = TenantId.New();
         StorageBucket bucket = StorageBucket.Create(tenantId, "shared-bucket");
 
         StoredFile tenantFile = StoredFile.Create(
             tenantId, bucket.Id, "mine.txt", "text/plain", 100, "key1", Guid.NewGuid());
-        StoredFile otherFile = StoredFile.Create(
-            otherTenantId, bucket.Id, "theirs.txt", "text/plain", 200, "key2", Guid.NewGuid());
+
+        PagedResult<StoredFile> pagedFiles = new(
+            new List<StoredFile> { tenantFile }, 1, 1, 20);
 
         GetFilesByBucketQuery query = new(tenantId.Value, "shared-bucket");
 
         _bucketRepository.GetByNameAsync("shared-bucket", Arg.Any<CancellationToken>())
             .Returns(bucket);
-        _fileRepository.GetByBucketIdAsync(bucket.Id, null, Arg.Any<CancellationToken>())
-            .Returns(new List<StoredFile> { tenantFile, otherFile });
+        _fileRepository.GetByBucketIdPagedAsync(bucket.Id, tenantId.Value, null, 1, 20, Arg.Any<CancellationToken>())
+            .Returns(pagedFiles);
 
-        Result<IReadOnlyList<StoredFileDto>> result = await _handler.Handle(query, CancellationToken.None);
+        Result<PagedResult<StoredFileDto>> result = await _handler.Handle(query, CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.Should().HaveCount(1);
-        result.Value![0].FileName.Should().Be("mine.txt");
+        result.Value!.Items.Should().HaveCount(1);
+        result.Value.Items[0].FileName.Should().Be("mine.txt");
+        result.Value.TotalCount.Should().Be(1);
     }
 
     [Fact]
-    public async Task Handle_WhenBucketExistsButEmpty_ReturnsEmptyList()
+    public async Task Handle_WhenBucketExistsButEmpty_ReturnsEmptyPagedResult()
     {
         TenantId tenantId = TenantId.New();
         StorageBucket bucket = StorageBucket.Create(tenantId, "empty-bucket");
         GetFilesByBucketQuery query = new(tenantId.Value, "empty-bucket");
 
+        PagedResult<StoredFile> emptyPaged = new(
+            new List<StoredFile>(), 0, 1, 20);
+
         _bucketRepository.GetByNameAsync("empty-bucket", Arg.Any<CancellationToken>())
             .Returns(bucket);
-        _fileRepository.GetByBucketIdAsync(bucket.Id, null, Arg.Any<CancellationToken>())
-            .Returns(new List<StoredFile>());
+        _fileRepository.GetByBucketIdPagedAsync(bucket.Id, tenantId.Value, null, 1, 20, Arg.Any<CancellationToken>())
+            .Returns(emptyPaged);
 
-        Result<IReadOnlyList<StoredFileDto>> result = await _handler.Handle(query, CancellationToken.None);
+        Result<PagedResult<StoredFileDto>> result = await _handler.Handle(query, CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.Should().BeEmpty();
+        result.Value!.Items.Should().BeEmpty();
+        result.Value.TotalCount.Should().Be(0);
     }
 
     [Fact]
@@ -85,14 +91,17 @@ public class GetFilesByBucketHandlerTests
         StorageBucket bucket = StorageBucket.Create(tenantId, "bucket");
         GetFilesByBucketQuery query = new(tenantId.Value, "bucket", PathPrefix: "documents/2024");
 
+        PagedResult<StoredFile> emptyPaged = new(
+            new List<StoredFile>(), 0, 1, 20);
+
         _bucketRepository.GetByNameAsync("bucket", Arg.Any<CancellationToken>())
             .Returns(bucket);
-        _fileRepository.GetByBucketIdAsync(bucket.Id, "documents/2024", Arg.Any<CancellationToken>())
-            .Returns(new List<StoredFile>());
+        _fileRepository.GetByBucketIdPagedAsync(bucket.Id, tenantId.Value, "documents/2024", 1, 20, Arg.Any<CancellationToken>())
+            .Returns(emptyPaged);
 
-        Result<IReadOnlyList<StoredFileDto>> result = await _handler.Handle(query, CancellationToken.None);
+        Result<PagedResult<StoredFileDto>> result = await _handler.Handle(query, CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
-        await _fileRepository.Received(1).GetByBucketIdAsync(bucket.Id, "documents/2024", Arg.Any<CancellationToken>());
+        await _fileRepository.Received(1).GetByBucketIdPagedAsync(bucket.Id, tenantId.Value, "documents/2024", 1, 20, Arg.Any<CancellationToken>());
     }
 }

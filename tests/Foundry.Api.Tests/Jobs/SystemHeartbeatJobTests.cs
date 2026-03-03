@@ -1,10 +1,11 @@
 using Foundry.Api.Jobs;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Foundry.Api.Tests.Jobs;
 
 public class SystemHeartbeatJobTests
 {
-    private readonly SystemHeartbeatJob _sut = new();
+    private readonly SystemHeartbeatJob _sut = new(NullLogger<SystemHeartbeatJob>.Instance);
 
     [Fact]
     public async Task ExecuteAsync_WhenCalled_CompletesSuccessfully()

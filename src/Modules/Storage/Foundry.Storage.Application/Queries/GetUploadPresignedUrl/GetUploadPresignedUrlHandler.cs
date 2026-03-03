@@ -62,7 +62,7 @@ public sealed class GetUploadPresignedUrlHandler(
             forUpload: true,
             cancellationToken);
 
-        return new PresignedUploadResult(storedFile.Id.Value, url, storageKey, DateTime.UtcNow.Add(expiry));
+        return new PresignedUploadResult(storedFile.Id.Value, url, DateTime.UtcNow.Add(expiry));
     }
 
     private static string BuildStorageKey(

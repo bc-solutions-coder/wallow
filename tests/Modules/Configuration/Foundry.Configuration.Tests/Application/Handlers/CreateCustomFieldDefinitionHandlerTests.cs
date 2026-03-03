@@ -19,7 +19,7 @@ public class CreateCustomFieldDefinitionHandlerTests
         _repository = Substitute.For<ICustomFieldDefinitionRepository>();
         ITenantContext tenantContext = Substitute.For<ITenantContext>();
         tenantContext.TenantId.Returns(TenantId.New());
-        _handler = new CreateCustomFieldDefinitionHandler(_repository, tenantContext);
+        _handler = new CreateCustomFieldDefinitionHandler(_repository, tenantContext, TimeProvider.System);
     }
 
     [Fact]

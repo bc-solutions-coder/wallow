@@ -40,11 +40,12 @@ public sealed partial class ServiceAccountTrackingMiddleware
                         // Need to create a new scope since the request scope may be disposed
                         await using AsyncServiceScope scope = context.RequestServices.CreateAsyncScope();
                         IServiceAccountRepository repository = scope.ServiceProvider.GetRequiredService<IServiceAccountRepository>();
+                        TimeProvider timeProvider = scope.ServiceProvider.GetRequiredService<TimeProvider>();
 
                         ServiceAccountMetadata? metadata = await repository.GetByKeycloakClientIdAsync(clientId);
                         if (metadata != null)
                         {
-                            metadata.MarkUsed();
+                            metadata.MarkUsed(timeProvider);
                             await repository.SaveChangesAsync();
                         }
                     }

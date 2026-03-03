@@ -2,8 +2,9 @@ using System.Net;
 using System.Text;
 using Foundry.Identity.Application.Interfaces;
 using Foundry.Identity.Infrastructure.Services;
-using Microsoft.Extensions.Configuration;
+using Foundry.Identity.Infrastructure;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 #pragma warning disable CA2000 // HttpClient/HttpMessageHandler lifetime is managed by test framework
 
@@ -180,19 +181,17 @@ public class KeycloakTokenServiceTests
         };
         httpClientFactory.CreateClient("KeycloakTokenClient").Returns(httpClient);
 
-        IConfiguration configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["Keycloak:realm"] = "foundry",
-                ["Keycloak:resource"] = "foundry-api",
-                ["Keycloak:credentials:secret"] = "test-secret",
-                ["Keycloak:auth-server-url"] = "https://keycloak.test/"
-            })
-            .Build();
+        IOptions<KeycloakOptions> keycloakOptions = Options.Create(new KeycloakOptions
+        {
+            Realm = "foundry",
+            AuthorityUrl = "https://keycloak.test/",
+            AdminClientId = "foundry-api",
+            AdminClientSecret = "test-secret"
+        });
 
         return new KeycloakTokenService(
             httpClientFactory,
-            configuration,
+            keycloakOptions,
             _logger);
     }
 

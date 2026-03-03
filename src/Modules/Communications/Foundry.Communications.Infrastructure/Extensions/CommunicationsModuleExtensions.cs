@@ -13,6 +13,7 @@ using Foundry.Shared.Contracts.Communications.Email;
 using Foundry.Shared.Kernel.MultiTenancy;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -49,6 +50,8 @@ public static partial class CommunicationsModuleExtensions
                     errorCodesToAdd: null);
                 npgsql.CommandTimeout(30);
             });
+            options.ConfigureWarnings(w =>
+                w.Ignore(RelationalEventId.PendingModelChangesWarning));
             options.AddInterceptors(sp.GetRequiredService<TenantSaveChangesInterceptor>());
         });
 
@@ -120,10 +123,12 @@ public static partial class CommunicationsModuleExtensions
         switch (provider)
         {
             case "Smtp":
+                services.AddSingleton<SmtpConnectionPool>();
                 services.AddScoped<IEmailProvider, SmtpEmailProvider>();
                 break;
             default:
                 Console.WriteLine($"Warning: Unrecognized email provider '{provider}'. Defaulting to Smtp.");
+                services.AddSingleton<SmtpConnectionPool>();
                 services.AddScoped<IEmailProvider, SmtpEmailProvider>();
                 break;
         }
@@ -136,7 +141,7 @@ public static partial class CommunicationsModuleExtensions
         {
             await using AsyncServiceScope scope = app.Services.CreateAsyncScope();
             CommunicationsDbContext db = scope.ServiceProvider.GetRequiredService<CommunicationsDbContext>();
-            if (app.Environment.IsDevelopment())
+            if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))
             {
                 await db.Database.MigrateAsync();
             }

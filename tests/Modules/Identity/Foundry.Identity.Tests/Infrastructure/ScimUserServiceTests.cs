@@ -9,6 +9,8 @@ using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.MultiTenancy;
 using Microsoft.Extensions.Logging;
 
+using Foundry.Identity.Infrastructure;
+using Microsoft.Extensions.Options;
 #pragma warning disable CA2000 // HttpClient/HttpMessageHandler lifetime is managed by test framework
 
 namespace Foundry.Identity.Tests.Infrastructure;
@@ -153,8 +155,8 @@ public class ScimUserServiceTests
     [Fact]
     public async Task CreateUserAsync_WithDefaultRole_AssignsRole()
     {
-        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty);
-        config.UpdateSettings(true, "user", false, Guid.Empty);
+        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty, TimeProvider.System);
+        config.UpdateSettings(true, "user", false, Guid.Empty, TimeProvider.System);
         _scimRepository.GetAsync(Arg.Any<CancellationToken>()).Returns(config);
 
         MockHttpHandler handler = new MockHttpHandler()
@@ -475,8 +477,8 @@ public class ScimUserServiceTests
     [Fact]
     public async Task DeleteUserAsync_WhenDeprovisionTrue_HardDeletes()
     {
-        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty);
-        config.UpdateSettings(true, null, true, Guid.Empty);
+        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty, TimeProvider.System);
+        config.UpdateSettings(true, null, true, Guid.Empty, TimeProvider.System);
         _scimRepository.GetAsync(Arg.Any<CancellationToken>()).Returns(config);
 
         MockHttpHandler handler = new MockHttpHandler()
@@ -493,8 +495,8 @@ public class ScimUserServiceTests
     [Fact]
     public async Task DeleteUserAsync_WhenDeprovisionFalse_SoftDeletes()
     {
-        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty);
-        config.UpdateSettings(true, null, false, Guid.Empty);
+        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty, TimeProvider.System);
+        config.UpdateSettings(true, null, false, Guid.Empty, TimeProvider.System);
         _scimRepository.GetAsync(Arg.Any<CancellationToken>()).Returns(config);
 
         MockHttpHandler handler = new MockHttpHandler()
@@ -511,8 +513,8 @@ public class ScimUserServiceTests
     [Fact]
     public async Task DeleteUserAsync_WhenFails_LogsErrorAndThrows()
     {
-        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty);
-        config.UpdateSettings(true, null, true, Guid.Empty);
+        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty, TimeProvider.System);
+        config.UpdateSettings(true, null, true, Guid.Empty, TimeProvider.System);
         _scimRepository.GetAsync(Arg.Any<CancellationToken>()).Returns(config);
 
         MockHttpHandler handler = new MockHttpHandler()
@@ -755,7 +757,9 @@ public class ScimUserServiceTests
             _scimRepository,
             _syncLogRepository,
             _tenantContext,
-            _logger);
+            Options.Create(new KeycloakOptions()),
+            _logger,
+            TimeProvider.System);
     }
 
     private sealed class MockHttpHandler : HttpMessageHandler

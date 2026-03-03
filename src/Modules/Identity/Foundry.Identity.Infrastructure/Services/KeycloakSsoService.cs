@@ -24,7 +24,8 @@ public sealed partial class KeycloakSsoService : ISsoService
     private readonly ILogger<KeycloakSsoService> _logger;
     private readonly SsoClaimsSyncService _claimsSyncService;
     private readonly KeycloakIdpService _idpService;
-    private const string Realm = "foundry";
+    private readonly TimeProvider _timeProvider;
+    private readonly string _realm;
 
     public KeycloakSsoService(
         IHttpClientFactory httpClientFactory,
@@ -32,18 +33,22 @@ public sealed partial class KeycloakSsoService : ISsoService
         ITenantContext tenantContext,
         ICurrentUserService currentUserService,
         IOptions<KeycloakAuthenticationOptions> keycloakOptions,
+        IOptions<KeycloakOptions> keycloakRealmOptions,
         ILogger<KeycloakSsoService> logger,
         SsoClaimsSyncService claimsSyncService,
-        KeycloakIdpService idpService)
+        KeycloakIdpService idpService,
+        TimeProvider timeProvider)
     {
         _httpClient = httpClientFactory.CreateClient("KeycloakAdminClient");
         _repository = repository;
         _tenantContext = tenantContext;
         _currentUserService = currentUserService;
         _keycloakOptions = keycloakOptions.Value;
+        _realm = keycloakRealmOptions.Value.Realm;
         _logger = logger;
         _claimsSyncService = claimsSyncService;
         _idpService = idpService;
+        _timeProvider = timeProvider;
     }
 
     public async Task<SsoConfigurationDto?> GetConfigurationAsync(CancellationToken ct = default)
@@ -93,7 +98,7 @@ public sealed partial class KeycloakSsoService : ISsoService
             request.SyncGroupsAsRoles, request.GroupsAttribute,
             (config, userId) => config.UpdateSamlConfig(
                 request.EntityId, request.SsoUrl, request.SloUrl,
-                request.Certificate, request.NameIdFormat, userId),
+                request.Certificate, request.NameIdFormat, userId, _timeProvider),
             idpConfig, ct);
     }
 
@@ -132,7 +137,7 @@ public sealed partial class KeycloakSsoService : ISsoService
             request.SyncGroupsAsRoles, request.GroupsAttribute,
             (config, userId) => config.UpdateOidcConfig(
                 request.Issuer, request.ClientId, request.ClientSecret,
-                request.Scopes, userId),
+                request.Scopes, userId, _timeProvider),
             idpConfig, ct);
     }
 
@@ -169,7 +174,7 @@ public sealed partial class KeycloakSsoService : ISsoService
         {
             config = SsoConfiguration.Create(
                 tenantId, displayName, protocol,
-                emailAttribute, firstNameAttribute, lastNameAttribute, userId);
+                emailAttribute, firstNameAttribute, lastNameAttribute, userId, _timeProvider);
             _repository.Add(config);
         }
 
@@ -179,14 +184,14 @@ public sealed partial class KeycloakSsoService : ISsoService
         // Update behavior settings
         config.UpdateBehaviorSettings(
             enforceForAllUsers, autoProvisionUsers, defaultRole,
-            syncGroupsAsRoles, groupsAttribute, userId);
+            syncGroupsAsRoles, groupsAttribute, userId, _timeProvider);
 
         // Create or update Keycloak Identity Provider
         bool idpExists = await _idpService.IdentityProviderExistsAsync(alias, ct);
         if (idpExists)
         {
             HttpResponseMessage updateResponse = await _httpClient.PutAsJsonAsync(
-                $"/admin/realms/{Realm}/identity-provider/instances/{alias}",
+                $"/admin/realms/{_realm}/identity-provider/instances/{alias}",
                 idpConfig, ct);
             updateResponse.EnsureSuccessStatusCode();
             LogUpdatedIdp(protocolName, alias);
@@ -194,7 +199,7 @@ public sealed partial class KeycloakSsoService : ISsoService
         else
         {
             HttpResponseMessage createResponse = await _httpClient.PostAsJsonAsync(
-                $"/admin/realms/{Realm}/identity-provider/instances",
+                $"/admin/realms/{_realm}/identity-provider/instances",
                 idpConfig, ct);
             createResponse.EnsureSuccessStatusCode();
             LogCreatedIdp(protocolName, alias);
@@ -204,7 +209,7 @@ public sealed partial class KeycloakSsoService : ISsoService
         await _idpService.CreateAttributeMappersAsync(alias, emailAttribute, firstNameAttribute, lastNameAttribute, ct);
 
         // Store the alias reference
-        config.SetKeycloakIdpAlias(alias, userId);
+        config.SetKeycloakIdpAlias(alias, userId, _timeProvider);
         await _repository.SaveChangesAsync(ct);
 
         IdentityModuleTelemetry.SsoLoginsTotal.Add(1, new KeyValuePair<string, object?>("provider", protocolName));
@@ -258,7 +263,7 @@ public sealed partial class KeycloakSsoService : ISsoService
         await _idpService.EnableIdentityProviderAsync(config.KeycloakIdpAlias, true, ct);
 
         // Update local status
-        config.Activate(_currentUserService.UserId ?? Guid.Empty);
+        config.Activate(_currentUserService.UserId ?? Guid.Empty, _timeProvider);
         await _repository.SaveChangesAsync(ct);
 
         IdentityModuleTelemetry.SsoLoginsTotal.Add(1, new KeyValuePair<string, object?>("provider", config.Protocol.ToString()));
@@ -282,7 +287,7 @@ public sealed partial class KeycloakSsoService : ISsoService
         }
 
         // Update local status
-        config.Disable(_currentUserService.UserId ?? Guid.Empty);
+        config.Disable(_currentUserService.UserId ?? Guid.Empty, _timeProvider);
         await _repository.SaveChangesAsync(ct);
 
         LogSsoDisabled(_tenantContext.TenantId.Value);
@@ -313,13 +318,13 @@ public sealed partial class KeycloakSsoService : ISsoService
         TenantId tenantId = _tenantContext.TenantId;
         string alias = $"oidc-{tenantId.Value.ToString()[..8]}";
 
-        string redirectUri = $"{_keycloakOptions.AuthServerUrl}/realms/{Realm}/broker/{alias}/endpoint";
-        string postLogoutRedirectUri = $"{_keycloakOptions.AuthServerUrl}/realms/{Realm}/broker/{alias}/endpoint/logout_response";
+        string redirectUri = $"{_keycloakOptions.AuthServerUrl}/realms/{_realm}/broker/{alias}/endpoint";
+        string postLogoutRedirectUri = $"{_keycloakOptions.AuthServerUrl}/realms/{_realm}/broker/{alias}/endpoint/logout_response";
 
         return Task.FromResult(new OidcCallbackInfo(
             redirectUri,
             postLogoutRedirectUri,
-            $"foundry-{Realm}"));
+            $"foundry-{_realm}"));
     }
 
     public async Task<SsoValidationResult> ValidateIdpConfigurationAsync(CancellationToken ct = default)
@@ -393,28 +398,28 @@ public sealed partial class KeycloakSsoService : ISsoService
 
     private string GetServiceProviderEntityId()
     {
-        return $"{_keycloakOptions.AuthServerUrl}/realms/{Realm}";
+        return $"{_keycloakOptions.AuthServerUrl}/realms/{_realm}";
     }
 
     private string GetServiceProviderAcsUrl()
     {
         TenantId tenantId = _tenantContext.TenantId;
         string alias = $"saml-{tenantId.Value.ToString()[..8]}";
-        return $"{_keycloakOptions.AuthServerUrl}/realms/{Realm}/broker/{alias}/endpoint";
+        return $"{_keycloakOptions.AuthServerUrl}/realms/{_realm}/broker/{alias}/endpoint";
     }
 
     private string GetServiceProviderSloUrl()
     {
         TenantId tenantId = _tenantContext.TenantId;
         string alias = $"saml-{tenantId.Value.ToString()[..8]}";
-        return $"{_keycloakOptions.AuthServerUrl}/realms/{Realm}/broker/{alias}/endpoint/logout_response";
+        return $"{_keycloakOptions.AuthServerUrl}/realms/{_realm}/broker/{alias}/endpoint/logout_response";
     }
 
     private string GetServiceProviderMetadataUrl()
     {
         TenantId tenantId = _tenantContext.TenantId;
         string alias = $"saml-{tenantId.Value.ToString()[..8]}";
-        return $"{_keycloakOptions.AuthServerUrl}/realms/{Realm}/broker/{alias}/endpoint/descriptor";
+        return $"{_keycloakOptions.AuthServerUrl}/realms/{_realm}/broker/{alias}/endpoint/descriptor";
     }
 
     private static string NormalizeCertificate(string certificate)

@@ -59,6 +59,7 @@ public static class PermissionType
     public const string SystemSettings = "SystemSettings";
 
     // Configuration
+    public const string ConfigurationRead = "ConfigurationRead";
     public const string ConfigurationManage = "ConfigurationManage";
 
     // Communications

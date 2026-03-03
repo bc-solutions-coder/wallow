@@ -27,17 +27,41 @@ public sealed class UpdateFeatureFlagHandler(
             return Result.Failure<FeatureFlagDto>(Error.NotFound("FeatureFlag", cmd.Id));
         }
 
+        List<string> changedProperties = new();
+
+        if (flag.Name != cmd.Name)
+        {
+            changedProperties.Add(nameof(FeatureFlag.Name));
+        }
+
+        if (flag.Description != cmd.Description)
+        {
+            changedProperties.Add(nameof(FeatureFlag.Description));
+        }
+
+        if (flag.DefaultEnabled != cmd.DefaultEnabled)
+        {
+            changedProperties.Add(nameof(FeatureFlag.DefaultEnabled));
+        }
+
         flag.Update(cmd.Name, cmd.Description, cmd.DefaultEnabled, timeProvider);
 
         if (flag.FlagType == FlagType.Percentage && cmd.RolloutPercentage.HasValue)
         {
+            if (flag.RolloutPercentage != cmd.RolloutPercentage.Value)
+            {
+                changedProperties.Add(nameof(FeatureFlag.RolloutPercentage));
+            }
+
             flag.UpdatePercentage(cmd.RolloutPercentage.Value, timeProvider);
         }
 
         await repository.UpdateAsync(flag, ct);
 
         await cache.RemoveAsync($"ff:{flag.Key}", ct);
-        await bus.PublishAsync(new FeatureFlagUpdatedEvent(flag.Id.Value, flag.Key, "Name,Description,DefaultEnabled"));
+
+        string changedProps = string.Join(",", changedProperties);
+        await bus.PublishAsync(new FeatureFlagUpdatedEvent(flag.Id.Value, flag.Key, changedProps));
 
         return Result.Success(flag.ToDto());
     }

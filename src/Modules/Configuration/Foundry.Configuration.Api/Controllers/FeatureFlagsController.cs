@@ -10,6 +10,7 @@ using Foundry.Configuration.Application.FeatureFlags.Commands.DeleteOverride;
 using Foundry.Configuration.Application.FeatureFlags.Commands.UpdateFeatureFlag;
 using Foundry.Configuration.Application.FeatureFlags.Contracts;
 using Foundry.Configuration.Application.FeatureFlags.DTOs;
+using Foundry.Configuration.Application.FeatureFlags.Queries.EvaluateFlag;
 using Foundry.Configuration.Application.FeatureFlags.Queries.GetAllFlags;
 using Foundry.Configuration.Application.FeatureFlags.Queries.GetOverridesForFlag;
 using Foundry.Shared.Kernel.Identity.Authorization;
@@ -206,6 +207,24 @@ public class FeatureFlagsController : ControllerBase
         }
 
         return result.ToActionResult();
+    }
+
+    /// <summary>
+    /// Evaluate a single feature flag by key for the current tenant/user context.
+    /// </summary>
+    [HttpGet("{key}/evaluate")]
+    [HasPermission(PermissionType.ConfigurationRead)]
+    [ProducesResponseType(typeof(FlagEvaluationResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> EvaluateByKey(string key, CancellationToken cancellationToken)
+    {
+        Guid tenantId = _tenantContext.TenantId.Value;
+        Guid? userId = _currentUserService.GetCurrentUserId();
+
+        EvaluateFlagQuery query = new EvaluateFlagQuery(key, tenantId, userId);
+        Result<FlagEvaluationResultDto> result = await _bus.InvokeAsync<Result<FlagEvaluationResultDto>>(query, cancellationToken);
+
+        return result.Map(dto => new FlagEvaluationResponse(dto.Key, dto.IsEnabled, dto.Variant))
+            .ToActionResult();
     }
 
     /// <summary>

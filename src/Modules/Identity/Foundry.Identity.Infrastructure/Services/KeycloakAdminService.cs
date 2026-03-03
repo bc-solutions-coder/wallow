@@ -7,6 +7,7 @@ using Keycloak.AuthServices.Sdk.Admin;
 using Keycloak.AuthServices.Sdk.Admin.Models;
 using Keycloak.AuthServices.Sdk.Admin.Requests.Users;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Wolverine;
 
 namespace Foundry.Identity.Infrastructure.Services;
@@ -18,19 +19,21 @@ public sealed partial class KeycloakAdminService : IKeycloakAdminService
     private readonly IMessageBus _messageBus;
     private readonly ITenantContext _tenantContext;
     private readonly ILogger<KeycloakAdminService> _logger;
-    private const string Realm = "foundry";
+    private readonly string _realm;
 
     public KeycloakAdminService(
         IKeycloakUserClient userClient,
         IHttpClientFactory httpClientFactory,
         IMessageBus messageBus,
         ITenantContext tenantContext,
+        IOptions<KeycloakOptions> keycloakOptions,
         ILogger<KeycloakAdminService> logger)
     {
         _userClient = userClient;
         _httpClient = httpClientFactory.CreateClient("KeycloakAdminClient");
         _messageBus = messageBus;
         _tenantContext = tenantContext;
+        _realm = keycloakOptions.Value.Realm;
         _logger = logger;
     }
 
@@ -66,7 +69,7 @@ public sealed partial class KeycloakAdminService : IKeycloakAdminService
             ];
         }
 
-        HttpResponseMessage response = await _userClient.CreateUserWithResponseAsync(Realm, userRepresentation, ct);
+        HttpResponseMessage response = await _userClient.CreateUserWithResponseAsync(_realm, userRepresentation, ct);
         response.EnsureSuccessStatusCode();
 
         string? locationHeader = response.Headers.Location?.ToString();
@@ -97,7 +100,7 @@ public sealed partial class KeycloakAdminService : IKeycloakAdminService
     {
         try
         {
-            UserRepresentation user = await _userClient.GetUserAsync(Realm, userId.ToString(), false, ct);
+            UserRepresentation user = await _userClient.GetUserAsync(_realm, userId.ToString(), false, ct);
 
             IReadOnlyList<string> roles = await GetUserRolesAsync(userId, ct);
 
@@ -120,7 +123,7 @@ public sealed partial class KeycloakAdminService : IKeycloakAdminService
     {
         try
         {
-            List<UserRepresentation> users = (await _userClient.GetUsersAsync(Realm, new GetUsersRequestParameters
+            List<UserRepresentation> users = (await _userClient.GetUsersAsync(_realm, new GetUsersRequestParameters
             {
                 Email = email,
                 Exact = true
@@ -158,7 +161,7 @@ public sealed partial class KeycloakAdminService : IKeycloakAdminService
     {
         try
         {
-            List<UserRepresentation> users = (await _userClient.GetUsersAsync(Realm, new GetUsersRequestParameters
+            List<UserRepresentation> users = (await _userClient.GetUsersAsync(_realm, new GetUsersRequestParameters
             {
                 Search = search,
                 First = first,
@@ -207,7 +210,7 @@ public sealed partial class KeycloakAdminService : IKeycloakAdminService
     {
         LogDeactivatingUser(userId);
 
-        await _userClient.UpdateUserAsync(Realm, userId.ToString(), new UserRepresentation
+        await _userClient.UpdateUserAsync(_realm, userId.ToString(), new UserRepresentation
         {
             Enabled = false
         }, ct);
@@ -219,7 +222,7 @@ public sealed partial class KeycloakAdminService : IKeycloakAdminService
     {
         LogActivatingUser(userId);
 
-        await _userClient.UpdateUserAsync(Realm, userId.ToString(), new UserRepresentation
+        await _userClient.UpdateUserAsync(_realm, userId.ToString(), new UserRepresentation
         {
             Enabled = true
         }, ct);
@@ -234,17 +237,17 @@ public sealed partial class KeycloakAdminService : IKeycloakAdminService
         RoleRepresentation? role = await GetRealmRoleAsync(roleName, ct);
         if (role == null)
         {
-            LogRoleNotFound(roleName, Realm);
+            LogRoleNotFound(roleName, _realm);
             throw new InvalidOperationException($"Role '{roleName}' not found");
         }
 
         HttpResponseMessage response = await _httpClient.PostAsJsonAsync(
-            $"/admin/realms/{Realm}/users/{userId}/role-mappings/realm",
+            $"/admin/realms/{_realm}/users/{userId}/role-mappings/realm",
             new[] { role },
             ct);
         response.EnsureSuccessStatusCode();
 
-        UserRepresentation user = await _userClient.GetUserAsync(Realm, userId.ToString(), false, ct);
+        UserRepresentation user = await _userClient.GetUserAsync(_realm, userId.ToString(), false, ct);
         IReadOnlyList<string> currentRoles = await GetUserRolesAsync(userId, ct);
         string oldRole = currentRoles.FirstOrDefault(r => r != roleName) ?? "none";
 
@@ -267,11 +270,11 @@ public sealed partial class KeycloakAdminService : IKeycloakAdminService
         RoleRepresentation? role = await GetRealmRoleAsync(roleName, ct);
         if (role == null)
         {
-            LogRoleNotFound(roleName, Realm);
+            LogRoleNotFound(roleName, _realm);
             return;
         }
 
-        using HttpRequestMessage request = new(HttpMethod.Delete, $"/admin/realms/{Realm}/users/{userId}/role-mappings/realm")
+        using HttpRequestMessage request = new(HttpMethod.Delete, $"/admin/realms/{_realm}/users/{userId}/role-mappings/realm")
         {
             Content = JsonContent.Create(new[] { role })
         };
@@ -279,7 +282,7 @@ public sealed partial class KeycloakAdminService : IKeycloakAdminService
         HttpResponseMessage response = await _httpClient.SendAsync(request, ct);
         response.EnsureSuccessStatusCode();
 
-        UserRepresentation user = await _userClient.GetUserAsync(Realm, userId.ToString(), false, ct);
+        UserRepresentation user = await _userClient.GetUserAsync(_realm, userId.ToString(), false, ct);
         IReadOnlyList<string> currentRoles = await GetUserRolesAsync(userId, ct);
         string newRole = currentRoles.Count > 0 ? currentRoles[0] : "none";
 
@@ -299,7 +302,7 @@ public sealed partial class KeycloakAdminService : IKeycloakAdminService
     {
         try
         {
-            HttpResponseMessage response = await _httpClient.GetAsync($"/admin/realms/{Realm}/users/{userId}/role-mappings/realm", ct);
+            HttpResponseMessage response = await _httpClient.GetAsync($"/admin/realms/{_realm}/users/{userId}/role-mappings/realm", ct);
             response.EnsureSuccessStatusCode();
 
             List<RoleRepresentation>? roles = await response.Content.ReadFromJsonAsync<List<RoleRepresentation>>(ct);
@@ -321,7 +324,7 @@ public sealed partial class KeycloakAdminService : IKeycloakAdminService
     {
         LogDeletingUser(userId);
 
-        await _userClient.DeleteUserAsync(Realm, userId.ToString(), ct);
+        await _userClient.DeleteUserAsync(_realm, userId.ToString(), ct);
 
         LogUserDeleted(userId);
     }
@@ -330,7 +333,7 @@ public sealed partial class KeycloakAdminService : IKeycloakAdminService
     {
         try
         {
-            HttpResponseMessage response = await _httpClient.GetAsync($"/admin/realms/{Realm}/roles/{roleName}", ct);
+            HttpResponseMessage response = await _httpClient.GetAsync($"/admin/realms/{_realm}/roles/{roleName}", ct);
             response.EnsureSuccessStatusCode();
             return await response.Content.ReadFromJsonAsync<RoleRepresentation>(ct);
         }

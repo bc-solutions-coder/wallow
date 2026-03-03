@@ -13,7 +13,7 @@ public class CustomFieldDefinitionMapperTests
         CustomFieldType fieldType = CustomFieldType.Text)
     {
         TenantId tenantId = TenantId.New();
-        return CustomFieldDefinition.Create(tenantId, entityType, fieldKey, "Test Field", fieldType, Guid.Empty);
+        return CustomFieldDefinition.Create(tenantId, entityType, fieldKey, "Test Field", fieldType, Guid.Empty, TimeProvider.System);
     }
 
     [Fact]
@@ -38,7 +38,7 @@ public class CustomFieldDefinitionMapperTests
     public void ToDto_WithDescription_MapsDescription()
     {
         CustomFieldDefinition definition = CreateDefinition();
-        definition.UpdateDescription("A description", Guid.Empty);
+        definition.UpdateDescription("A description", Guid.Empty, TimeProvider.System);
 
         CustomFieldDefinitionDto dto = definition.ToDto();
 
@@ -50,7 +50,7 @@ public class CustomFieldDefinitionMapperTests
     {
         CustomFieldDefinition definition = CreateDefinition();
         FieldValidationRules rules = new() { MaxLength = 100, MinLength = 5 };
-        definition.SetValidationRules(rules, Guid.Empty);
+        definition.SetValidationRules(rules, Guid.Empty, TimeProvider.System);
 
         CustomFieldDefinitionDto dto = definition.ToDto();
 
@@ -68,7 +68,7 @@ public class CustomFieldDefinitionMapperTests
             new CustomFieldOption { Value = "a", Label = "Option A" },
             new CustomFieldOption { Value = "b", Label = "Option B" }
         ];
-        definition.SetOptions(options, Guid.Empty);
+        definition.SetOptions(options, Guid.Empty, TimeProvider.System);
 
         CustomFieldDefinitionDto dto = definition.ToDto();
 
@@ -81,7 +81,7 @@ public class CustomFieldDefinitionMapperTests
     public void ToDto_WhenDeactivated_MapsIsActiveFalse()
     {
         CustomFieldDefinition definition = CreateDefinition();
-        definition.Deactivate(Guid.Empty);
+        definition.Deactivate(Guid.Empty, TimeProvider.System);
 
         CustomFieldDefinitionDto dto = definition.ToDto();
 

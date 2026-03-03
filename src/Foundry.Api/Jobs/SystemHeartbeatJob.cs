@@ -1,12 +1,20 @@
-using Serilog;
-
 namespace Foundry.Api.Jobs;
 
-internal sealed class SystemHeartbeatJob
+internal sealed partial class SystemHeartbeatJob
 {
+    private readonly ILogger<SystemHeartbeatJob> _logger;
+
+    public SystemHeartbeatJob(ILogger<SystemHeartbeatJob> logger)
+    {
+        _logger = logger;
+    }
+
     public Task ExecuteAsync()
     {
-        Log.Information("Heartbeat: system alive at {Timestamp}", DateTime.UtcNow);
+        LogHeartbeat(_logger, DateTime.UtcNow);
         return Task.CompletedTask;
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Heartbeat: system alive at {Timestamp}")]
+    private static partial void LogHeartbeat(ILogger logger, DateTime timestamp);
 }

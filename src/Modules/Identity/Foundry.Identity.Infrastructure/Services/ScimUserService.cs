@@ -9,6 +9,7 @@ using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.MultiTenancy;
 using Keycloak.AuthServices.Sdk.Admin.Models;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Foundry.Identity.Infrastructure.Services;
 
@@ -19,20 +20,25 @@ public sealed partial class ScimUserService
     private readonly IScimSyncLogRepository _syncLogRepository;
     private readonly ITenantContext _tenantContext;
     private readonly ILogger<ScimUserService> _logger;
-    private const string Realm = "foundry";
+    private readonly TimeProvider _timeProvider;
+    private readonly string _realm;
 
     public ScimUserService(
         IHttpClientFactory httpClientFactory,
         IScimConfigurationRepository scimRepository,
         IScimSyncLogRepository syncLogRepository,
         ITenantContext tenantContext,
-        ILogger<ScimUserService> logger)
+        IOptions<KeycloakOptions> keycloakOptions,
+        ILogger<ScimUserService> logger,
+        TimeProvider timeProvider)
     {
         _httpClient = httpClientFactory.CreateClient("KeycloakAdminClient");
         _scimRepository = scimRepository;
         _syncLogRepository = syncLogRepository;
         _tenantContext = tenantContext;
+        _realm = keycloakOptions.Value.Realm;
         _logger = logger;
+        _timeProvider = timeProvider;
     }
 
     public async Task<ScimUser> CreateUserAsync(ScimUserRequest request, CancellationToken ct = default)
@@ -60,7 +66,7 @@ public sealed partial class ScimUserService
             };
 
             HttpResponseMessage response = await _httpClient.PostAsJsonAsync(
-                $"/admin/realms/{Realm}/users",
+                $"/admin/realms/{_realm}/users",
                 userRepresentation,
                 ct);
             response.EnsureSuccessStatusCode();
@@ -108,7 +114,7 @@ public sealed partial class ScimUserService
             };
 
             HttpResponseMessage response = await _httpClient.PutAsJsonAsync(
-                $"/admin/realms/{Realm}/users/{id}",
+                $"/admin/realms/{_realm}/users/{id}",
                 userRepresentation,
                 ct);
             response.EnsureSuccessStatusCode();
@@ -133,7 +139,7 @@ public sealed partial class ScimUserService
 
         try
         {
-            HttpResponseMessage response = await _httpClient.GetAsync($"/admin/realms/{Realm}/users/{id}", ct);
+            HttpResponseMessage response = await _httpClient.GetAsync($"/admin/realms/{_realm}/users/{id}", ct);
             response.EnsureSuccessStatusCode();
             ScimKeycloakUserRepresentation? currentUser = await response.Content.ReadFromJsonAsync<ScimKeycloakUserRepresentation>(ct);
 
@@ -148,7 +154,7 @@ public sealed partial class ScimUserService
             }
 
             HttpResponseMessage updateResponse = await _httpClient.PutAsJsonAsync(
-                $"/admin/realms/{Realm}/users/{id}",
+                $"/admin/realms/{_realm}/users/{id}",
                 currentUser,
                 ct);
             updateResponse.EnsureSuccessStatusCode();
@@ -178,7 +184,7 @@ public sealed partial class ScimUserService
 
             if (config?.DeprovisionOnDelete == true)
             {
-                HttpResponseMessage response = await _httpClient.DeleteAsync($"/admin/realms/{Realm}/users/{id}", ct);
+                HttpResponseMessage response = await _httpClient.DeleteAsync($"/admin/realms/{_realm}/users/{id}", ct);
                 response.EnsureSuccessStatusCode();
                 LogScimUserDeleted(id);
             }
@@ -186,7 +192,7 @@ public sealed partial class ScimUserService
             {
                 UserRepresentation disableRequest = new() { Enabled = false };
                 HttpResponseMessage response = await _httpClient.PutAsJsonAsync(
-                    $"/admin/realms/{Realm}/users/{id}",
+                    $"/admin/realms/{_realm}/users/{id}",
                     disableRequest,
                     ct);
                 response.EnsureSuccessStatusCode();
@@ -207,7 +213,7 @@ public sealed partial class ScimUserService
     {
         try
         {
-            HttpResponseMessage response = await _httpClient.GetAsync($"/admin/realms/{Realm}/users/{id}", ct);
+            HttpResponseMessage response = await _httpClient.GetAsync($"/admin/realms/{_realm}/users/{id}", ct);
             if (!response.IsSuccessStatusCode)
             {
                 return null;
@@ -268,7 +274,7 @@ public sealed partial class ScimUserService
         }
 
         string queryString = string.Join("&", queryParams);
-        HttpResponseMessage response = await _httpClient.GetAsync($"/admin/realms/{Realm}/users?{queryString}", ct);
+        HttpResponseMessage response = await _httpClient.GetAsync($"/admin/realms/{_realm}/users?{queryString}", ct);
         response.EnsureSuccessStatusCode();
 
         List<ScimKeycloakUserRepresentation>? users = await response.Content.ReadFromJsonAsync<List<ScimKeycloakUserRepresentation>>(ct);
@@ -280,7 +286,7 @@ public sealed partial class ScimUserService
             scimUsers = scimUsers.Where(keycloakParams.InMemoryFilter).ToList();
         }
 
-        HttpResponseMessage countResponse = await _httpClient.GetAsync($"/admin/realms/{Realm}/users/count", ct);
+        HttpResponseMessage countResponse = await _httpClient.GetAsync($"/admin/realms/{_realm}/users/count", ct);
         int totalCount = await countResponse.Content.ReadFromJsonAsync<int>(ct);
 
         return new ScimListResponse<ScimUser>
@@ -299,7 +305,7 @@ public sealed partial class ScimUserService
         try
         {
             HttpResponseMessage response = await _httpClient.PostAsJsonAsync(
-                $"/admin/realms/{Realm}/organizations/{tenantId.Value}/members",
+                $"/admin/realms/{_realm}/organizations/{tenantId.Value}/members",
                 new { id = userId },
                 ct);
             if (!response.IsSuccessStatusCode)
@@ -323,7 +329,7 @@ public sealed partial class ScimUserService
 
         try
         {
-            HttpResponseMessage roleResponse = await _httpClient.GetAsync($"/admin/realms/{Realm}/roles/{config.DefaultRole}", ct);
+            HttpResponseMessage roleResponse = await _httpClient.GetAsync($"/admin/realms/{_realm}/roles/{config.DefaultRole}", ct);
             if (!roleResponse.IsSuccessStatusCode)
             {
                 LogDefaultRoleNotFound(config.DefaultRole);
@@ -333,7 +339,7 @@ public sealed partial class ScimUserService
             ScimKeycloakRoleRepresentation? role = await roleResponse.Content.ReadFromJsonAsync<ScimKeycloakRoleRepresentation>(ct);
 
             HttpResponseMessage assignResponse = await _httpClient.PostAsJsonAsync(
-                $"/admin/realms/{Realm}/users/{userId}/role-mappings/realm",
+                $"/admin/realms/{_realm}/users/{userId}/role-mappings/realm",
                 new[] { role },
                 ct);
             assignResponse.EnsureSuccessStatusCode();
@@ -363,6 +369,7 @@ public sealed partial class ScimUserService
                 externalId,
                 internalId,
                 success,
+                _timeProvider,
                 errorMessage,
                 requestBody);
 
@@ -372,7 +379,7 @@ public sealed partial class ScimUserService
             ScimConfiguration? config = await _scimRepository.GetAsync(ct);
             if (config != null)
             {
-                config.RecordSync(Guid.Empty);
+                config.RecordSync(Guid.Empty, _timeProvider);
                 await _scimRepository.SaveChangesAsync(ct);
             }
         }

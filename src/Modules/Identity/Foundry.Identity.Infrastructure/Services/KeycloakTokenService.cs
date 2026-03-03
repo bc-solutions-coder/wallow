@@ -1,7 +1,7 @@
 using System.Text.Json;
 using Foundry.Identity.Application.Interfaces;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Foundry.Identity.Infrastructure.Services;
 
@@ -11,21 +11,16 @@ namespace Foundry.Identity.Infrastructure.Services;
 public sealed partial class KeycloakTokenService : ITokenService
 {
     private readonly HttpClient _httpClient;
-    private readonly IConfiguration _configuration;
+    private readonly KeycloakOptions _keycloakOptions;
     private readonly ILogger<KeycloakTokenService> _logger;
-
-    private string Realm => _configuration["Keycloak:realm"] ?? "foundry";
-    private string ClientId => _configuration["Keycloak:resource"] ?? "foundry-api";
-    private string ClientSecret => _configuration["Keycloak:credentials:secret"] ?? "";
-    private string AuthServerUrl => _configuration["Keycloak:auth-server-url"] ?? "http://localhost:8080/";
 
     public KeycloakTokenService(
         IHttpClientFactory httpClientFactory,
-        IConfiguration configuration,
+        IOptions<KeycloakOptions> keycloakOptions,
         ILogger<KeycloakTokenService> logger)
     {
         _httpClient = httpClientFactory.CreateClient("KeycloakTokenClient");
-        _configuration = configuration;
+        _keycloakOptions = keycloakOptions.Value;
         _logger = logger;
     }
 
@@ -33,13 +28,13 @@ public sealed partial class KeycloakTokenService : ITokenService
     {
         LogRequestingToken(email);
 
-        string tokenEndpoint = $"{AuthServerUrl.TrimEnd('/')}/realms/{Realm}/protocol/openid-connect/token";
+        string tokenEndpoint = $"{_keycloakOptions.AuthorityUrl.TrimEnd('/')}/realms/{_keycloakOptions.Realm}/protocol/openid-connect/token";
 
         using FormUrlEncodedContent content = new(new Dictionary<string, string>
         {
             ["grant_type"] = "password",
-            ["client_id"] = ClientId,
-            ["client_secret"] = ClientSecret,
+            ["client_id"] = _keycloakOptions.AdminClientId,
+            ["client_secret"] = _keycloakOptions.AdminClientSecret,
             ["username"] = email,
             ["password"] = password,
             ["scope"] = "openid profile email"
@@ -79,13 +74,13 @@ public sealed partial class KeycloakTokenService : ITokenService
     {
         LogRefreshingToken();
 
-        string tokenEndpoint = $"{AuthServerUrl.TrimEnd('/')}/realms/{Realm}/protocol/openid-connect/token";
+        string tokenEndpoint = $"{_keycloakOptions.AuthorityUrl.TrimEnd('/')}/realms/{_keycloakOptions.Realm}/protocol/openid-connect/token";
 
         using FormUrlEncodedContent content = new(new Dictionary<string, string>
         {
             ["grant_type"] = "refresh_token",
-            ["client_id"] = ClientId,
-            ["client_secret"] = ClientSecret,
+            ["client_id"] = _keycloakOptions.AdminClientId,
+            ["client_secret"] = _keycloakOptions.AdminClientSecret,
             ["refresh_token"] = refreshToken
         });
 

@@ -1,3 +1,4 @@
+using Foundry.Shared.Kernel.Pagination;
 using Foundry.Storage.Application.Interfaces;
 using Foundry.Storage.Domain.Entities;
 using Foundry.Storage.Domain.Identity;
@@ -37,6 +38,33 @@ public sealed class StoredFileRepository : IStoredFileRepository
         return await query
             .OrderByDescending(f => f.UploadedAt)
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<PagedResult<StoredFile>> GetByBucketIdPagedAsync(
+        StorageBucketId bucketId,
+        Guid tenantId,
+        string? pathPrefix,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        IQueryable<StoredFile> query = _context.Files
+            .Where(f => f.BucketId == bucketId && f.TenantId.Value == tenantId);
+
+        if (!string.IsNullOrWhiteSpace(pathPrefix))
+        {
+            query = query.Where(f => f.Path != null && f.Path.StartsWith(pathPrefix));
+        }
+
+        int totalCount = await query.CountAsync(cancellationToken);
+
+        List<StoredFile> items = await query
+            .OrderByDescending(f => f.UploadedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return new PagedResult<StoredFile>(items, totalCount, page, pageSize);
     }
 
     public void Add(StoredFile file)

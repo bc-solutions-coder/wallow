@@ -4,6 +4,7 @@ using System.Security.Cryptography.X509Certificates;
 using Foundry.Identity.Application.DTOs;
 using Foundry.Identity.Domain.Entities;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Foundry.Identity.Infrastructure.Services;
 
@@ -12,14 +13,16 @@ public sealed partial class KeycloakIdpService
     private readonly HttpClient _httpClient;
     private readonly HttpClient _externalHttpClient;
     private readonly ILogger<KeycloakIdpService> _logger;
-    private const string Realm = "foundry";
+    private readonly string _realm;
 
     public KeycloakIdpService(
         IHttpClientFactory httpClientFactory,
+        IOptions<KeycloakOptions> keycloakOptions,
         ILogger<KeycloakIdpService> logger)
     {
         _httpClient = httpClientFactory.CreateClient("KeycloakAdminClient");
         _externalHttpClient = httpClientFactory.CreateClient();
+        _realm = keycloakOptions.Value.Realm;
         _logger = logger;
     }
 
@@ -28,7 +31,7 @@ public sealed partial class KeycloakIdpService
         try
         {
             HttpResponseMessage response = await _httpClient.GetAsync(
-                $"/admin/realms/{Realm}/identity-provider/instances/{alias}",
+                $"/admin/realms/{_realm}/identity-provider/instances/{alias}",
                 ct);
             return response.IsSuccessStatusCode;
         }
@@ -42,7 +45,7 @@ public sealed partial class KeycloakIdpService
     {
         // Get current IdP config
         HttpResponseMessage response = await _httpClient.GetAsync(
-            $"/admin/realms/{Realm}/identity-provider/instances/{alias}",
+            $"/admin/realms/{_realm}/identity-provider/instances/{alias}",
             ct);
         response.EnsureSuccessStatusCode();
 
@@ -56,7 +59,7 @@ public sealed partial class KeycloakIdpService
         idpConfig["enabled"] = enabled;
 
         HttpResponseMessage updateResponse = await _httpClient.PutAsJsonAsync(
-            $"/admin/realms/{Realm}/identity-provider/instances/{alias}",
+            $"/admin/realms/{_realm}/identity-provider/instances/{alias}",
             idpConfig,
             ct);
         updateResponse.EnsureSuccessStatusCode();
@@ -81,7 +84,7 @@ public sealed partial class KeycloakIdpService
             try
             {
                 HttpResponseMessage response = await _httpClient.PostAsJsonAsync(
-                    $"/admin/realms/{Realm}/identity-provider/instances/{alias}/mappers",
+                    $"/admin/realms/{_realm}/identity-provider/instances/{alias}/mappers",
                     mapper,
                     ct);
 
@@ -89,7 +92,7 @@ public sealed partial class KeycloakIdpService
                 {
                     // Try to update if mapper already exists
                     List<IdpMapperRepresentation>? existingMappers = await _httpClient.GetFromJsonAsync<List<IdpMapperRepresentation>>(
-                        $"/admin/realms/{Realm}/identity-provider/instances/{alias}/mappers",
+                        $"/admin/realms/{_realm}/identity-provider/instances/{alias}/mappers",
                         ct);
 
                     IdpMapperRepresentation? existing = existingMappers?.FirstOrDefault(m => m.Name == Convert.ToString(mapper["name"], CultureInfo.InvariantCulture));
@@ -97,7 +100,7 @@ public sealed partial class KeycloakIdpService
                     {
                         mapper["id"] = existing.Id;
                         await _httpClient.PutAsJsonAsync(
-                            $"/admin/realms/{Realm}/identity-provider/instances/{alias}/mappers/{existing.Id}",
+                            $"/admin/realms/{_realm}/identity-provider/instances/{alias}/mappers/{existing.Id}",
                             mapper,
                             ct);
                     }

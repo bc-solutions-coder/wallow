@@ -13,6 +13,8 @@ internal sealed class SecurityHeadersMiddleware
 
     public async Task InvokeAsync(HttpContext context)
     {
+        PathString path = context.Request.Path;
+
         context.Response.OnStarting(() =>
         {
             IHeaderDictionary headers = context.Response.Headers;
@@ -21,7 +23,7 @@ internal sealed class SecurityHeadersMiddleware
             headers["X-Frame-Options"] = "DENY";
             headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
             headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
-            headers["Content-Security-Policy"] = "default-src 'self'";
+            headers["Content-Security-Policy"] = GetContentSecurityPolicy(path);
 
             if (_isProduction)
             {
@@ -32,5 +34,23 @@ internal sealed class SecurityHeadersMiddleware
         });
 
         await _next(context);
+    }
+
+    private static string GetContentSecurityPolicy(PathString path)
+    {
+        if (path.HasValue && path.StartsWithSegments("/hangfire"))
+        {
+            return "default-src 'self'; " +
+                   "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; " +
+                   "style-src 'self' 'unsafe-inline'";
+        }
+
+        if (path.HasValue && path.StartsWithSegments("/hubs"))
+        {
+            return "default-src 'self'; " +
+                   "connect-src 'self' ws: wss:";
+        }
+
+        return "default-src 'self'";
     }
 }

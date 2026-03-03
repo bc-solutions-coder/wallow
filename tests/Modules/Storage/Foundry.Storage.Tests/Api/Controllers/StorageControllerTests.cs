@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Foundry.Shared.Contracts.Storage;
+using Foundry.Shared.Kernel.Pagination;
 using Foundry.Shared.Contracts.Storage.Commands;
 using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.MultiTenancy;
@@ -519,7 +520,7 @@ public class StorageControllerTests
     {
         Guid fileId = Guid.NewGuid();
         Guid bucketId = Guid.NewGuid();
-        StoredFileDto dto = new(fileId, _tenantId, bucketId, "test.txt", "text/plain", 100, "key",
+        StoredFileDto dto = new(fileId, _tenantId, bucketId, "test.txt", "text/plain", 100,
             "docs/", true, _userId, DateTime.UtcNow, null);
         _bus.InvokeAsync<Result<StoredFileDto>>(Arg.Any<GetFileByIdQuery>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(dto));
@@ -555,7 +556,7 @@ public class StorageControllerTests
     public async Task GetFile_PassesTenantIdAndFileIdToQuery()
     {
         Guid fileId = Guid.NewGuid();
-        StoredFileDto dto = new(fileId, _tenantId, Guid.NewGuid(), "test.txt", "text/plain", 100, "key",
+        StoredFileDto dto = new(fileId, _tenantId, Guid.NewGuid(), "test.txt", "text/plain", 100,
             null, false, _userId, DateTime.UtcNow, null);
         _bus.InvokeAsync<Result<StoredFileDto>>(Arg.Any<GetFileByIdQuery>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(dto));
@@ -665,45 +666,48 @@ public class StorageControllerTests
     {
         List<StoredFileDto> files = new()
         {
-            new(Guid.NewGuid(), _tenantId, Guid.NewGuid(), "file1.txt", "text/plain", 100, "key1",
+            new(Guid.NewGuid(), _tenantId, Guid.NewGuid(), "file1.txt", "text/plain", 100,
                 null, false, _userId, DateTime.UtcNow, null),
-            new(Guid.NewGuid(), _tenantId, Guid.NewGuid(), "file2.txt", "text/plain", 200, "key2",
+            new(Guid.NewGuid(), _tenantId, Guid.NewGuid(), "file2.txt", "text/plain", 200,
                 null, false, _userId, DateTime.UtcNow, null)
         };
-        _bus.InvokeAsync<Result<IReadOnlyList<StoredFileDto>>>(Arg.Any<GetFilesByBucketQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success<IReadOnlyList<StoredFileDto>>(files));
+        PagedResult<StoredFileDto> pagedFiles = new(files, 2, 1, 20);
+        _bus.InvokeAsync<Result<PagedResult<StoredFileDto>>>(Arg.Any<GetFilesByBucketQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(pagedFiles));
 
         IActionResult result = await _controller.ListFiles("test-bucket", cancellationToken: CancellationToken.None);
 
         OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
-        IReadOnlyList<FileMetadataResponse> responses = ok.Value.Should().BeAssignableTo<IReadOnlyList<FileMetadataResponse>>().Subject;
-        responses.Should().HaveCount(2);
-        responses[0].FileName.Should().Be("file1.txt");
-        responses[1].FileName.Should().Be("file2.txt");
+        PagedResult<FileMetadataResponse> pagedResponse = ok.Value.Should().BeOfType<PagedResult<FileMetadataResponse>>().Subject;
+        pagedResponse.Items.Should().HaveCount(2);
+        pagedResponse.Items[0].FileName.Should().Be("file1.txt");
+        pagedResponse.Items[1].FileName.Should().Be("file2.txt");
     }
 
     [Fact]
     public async Task ListFiles_WhenEmpty_ReturnsOkWithEmptyList()
     {
-        _bus.InvokeAsync<Result<IReadOnlyList<StoredFileDto>>>(Arg.Any<GetFilesByBucketQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success<IReadOnlyList<StoredFileDto>>(new List<StoredFileDto>()));
+        PagedResult<StoredFileDto> emptyPaged = new(new List<StoredFileDto>(), 0, 1, 20);
+        _bus.InvokeAsync<Result<PagedResult<StoredFileDto>>>(Arg.Any<GetFilesByBucketQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(emptyPaged));
 
         IActionResult result = await _controller.ListFiles("test-bucket", cancellationToken: CancellationToken.None);
 
         OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
-        IReadOnlyList<FileMetadataResponse> responses = ok.Value.Should().BeAssignableTo<IReadOnlyList<FileMetadataResponse>>().Subject;
-        responses.Should().BeEmpty();
+        PagedResult<FileMetadataResponse> pagedResponse = ok.Value.Should().BeOfType<PagedResult<FileMetadataResponse>>().Subject;
+        pagedResponse.Items.Should().BeEmpty();
     }
 
     [Fact]
     public async Task ListFiles_WithPath_PassesPathToQuery()
     {
-        _bus.InvokeAsync<Result<IReadOnlyList<StoredFileDto>>>(Arg.Any<GetFilesByBucketQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success<IReadOnlyList<StoredFileDto>>(new List<StoredFileDto>()));
+        PagedResult<StoredFileDto> emptyPaged = new(new List<StoredFileDto>(), 0, 1, 20);
+        _bus.InvokeAsync<Result<PagedResult<StoredFileDto>>>(Arg.Any<GetFilesByBucketQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(emptyPaged));
 
         await _controller.ListFiles("test-bucket", path: "images/", cancellationToken: CancellationToken.None);
 
-        await _bus.Received(1).InvokeAsync<Result<IReadOnlyList<StoredFileDto>>>(
+        await _bus.Received(1).InvokeAsync<Result<PagedResult<StoredFileDto>>>(
             Arg.Is<GetFilesByBucketQuery>(q => q.BucketName == "test-bucket" && q.PathPrefix == "images/"),
             Arg.Any<CancellationToken>());
     }
@@ -711,12 +715,13 @@ public class StorageControllerTests
     [Fact]
     public async Task ListFiles_PassesTenantIdToQuery()
     {
-        _bus.InvokeAsync<Result<IReadOnlyList<StoredFileDto>>>(Arg.Any<GetFilesByBucketQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success<IReadOnlyList<StoredFileDto>>(new List<StoredFileDto>()));
+        PagedResult<StoredFileDto> emptyPaged = new(new List<StoredFileDto>(), 0, 1, 20);
+        _bus.InvokeAsync<Result<PagedResult<StoredFileDto>>>(Arg.Any<GetFilesByBucketQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(emptyPaged));
 
         await _controller.ListFiles("test-bucket", cancellationToken: CancellationToken.None);
 
-        await _bus.Received(1).InvokeAsync<Result<IReadOnlyList<StoredFileDto>>>(
+        await _bus.Received(1).InvokeAsync<Result<PagedResult<StoredFileDto>>>(
             Arg.Is<GetFilesByBucketQuery>(q => q.TenantId == _tenantId),
             Arg.Any<CancellationToken>());
     }
@@ -724,8 +729,8 @@ public class StorageControllerTests
     [Fact]
     public async Task ListFiles_WhenBucketNotFound_Returns404()
     {
-        _bus.InvokeAsync<Result<IReadOnlyList<StoredFileDto>>>(Arg.Any<GetFilesByBucketQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Failure<IReadOnlyList<StoredFileDto>>(Error.NotFound("Bucket", "missing")));
+        _bus.InvokeAsync<Result<PagedResult<StoredFileDto>>>(Arg.Any<GetFilesByBucketQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Failure<PagedResult<StoredFileDto>>(Error.NotFound("Bucket", "missing")));
 
         IActionResult result = await _controller.ListFiles("missing", cancellationToken: CancellationToken.None);
 
@@ -742,7 +747,7 @@ public class StorageControllerTests
     {
         PresignedUploadRequest request = new("test-bucket", "test.txt", "text/plain", 1024);
         DateTime expiresAt = DateTime.UtcNow.AddHours(1);
-        PresignedUploadResult uploadResult = new(Guid.NewGuid(), "https://storage.example.com/upload", "storage-key", expiresAt);
+        PresignedUploadResult uploadResult = new(Guid.NewGuid(), "https://storage.example.com/upload", expiresAt);
         _bus.InvokeAsync<Result<PresignedUploadResult>>(Arg.Any<GetUploadPresignedUrlQuery>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(uploadResult));
 
@@ -751,7 +756,6 @@ public class StorageControllerTests
         OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
         PresignedUploadResponse response = ok.Value.Should().BeOfType<PresignedUploadResponse>().Subject;
         response.UploadUrl.Should().Be("https://storage.example.com/upload");
-        response.StorageKey.Should().Be("storage-key");
         response.ExpiresAt.Should().Be(expiresAt);
     }
 
@@ -759,7 +763,7 @@ public class StorageControllerTests
     public async Task GetPresignedUploadUrl_WithExpiryMinutes_PassesExpiryToQuery()
     {
         PresignedUploadRequest request = new("test-bucket", "test.txt", "text/plain", 1024, ExpiryMinutes: 60);
-        PresignedUploadResult uploadResult = new(Guid.NewGuid(), "url", "key", DateTime.UtcNow.AddHours(1));
+        PresignedUploadResult uploadResult = new(Guid.NewGuid(), "url", DateTime.UtcNow.AddHours(1));
         _bus.InvokeAsync<Result<PresignedUploadResult>>(Arg.Any<GetUploadPresignedUrlQuery>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(uploadResult));
 
@@ -774,7 +778,7 @@ public class StorageControllerTests
     public async Task GetPresignedUploadUrl_WithoutExpiryMinutes_PassesNullExpiry()
     {
         PresignedUploadRequest request = new("test-bucket", "test.txt", "text/plain", 1024);
-        PresignedUploadResult uploadResult = new(Guid.NewGuid(), "url", "key", DateTime.UtcNow.AddHours(1));
+        PresignedUploadResult uploadResult = new(Guid.NewGuid(), "url", DateTime.UtcNow.AddHours(1));
         _bus.InvokeAsync<Result<PresignedUploadResult>>(Arg.Any<GetUploadPresignedUrlQuery>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(uploadResult));
 
@@ -789,7 +793,7 @@ public class StorageControllerTests
     public async Task GetPresignedUploadUrl_WithPath_PassesPathToQuery()
     {
         PresignedUploadRequest request = new("test-bucket", "test.txt", "text/plain", 1024, Path: "uploads/");
-        PresignedUploadResult uploadResult = new(Guid.NewGuid(), "url", "key", DateTime.UtcNow.AddHours(1));
+        PresignedUploadResult uploadResult = new(Guid.NewGuid(), "url", DateTime.UtcNow.AddHours(1));
         _bus.InvokeAsync<Result<PresignedUploadResult>>(Arg.Any<GetUploadPresignedUrlQuery>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(uploadResult));
 
@@ -804,7 +808,7 @@ public class StorageControllerTests
     public async Task GetPresignedUploadUrl_PassesTenantIdToQuery()
     {
         PresignedUploadRequest request = new("test-bucket", "test.txt", "text/plain", 1024);
-        PresignedUploadResult uploadResult = new(Guid.NewGuid(), "url", "key", DateTime.UtcNow.AddHours(1));
+        PresignedUploadResult uploadResult = new(Guid.NewGuid(), "url", DateTime.UtcNow.AddHours(1));
         _bus.InvokeAsync<Result<PresignedUploadResult>>(Arg.Any<GetUploadPresignedUrlQuery>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(uploadResult));
 

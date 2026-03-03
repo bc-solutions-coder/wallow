@@ -23,6 +23,12 @@ public static class RolePermissionMapping
         ["user"] =
         [
             PermissionType.OrganizationsRead,
+            PermissionType.MessagingAccess,
+            PermissionType.NotificationRead,
+            PermissionType.EmailPreferenceManage,
+            PermissionType.AnnouncementRead,
+            PermissionType.StorageRead,
+            PermissionType.StorageWrite,
         ]
     };
 

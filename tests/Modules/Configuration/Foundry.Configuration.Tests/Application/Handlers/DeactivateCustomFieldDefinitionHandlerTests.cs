@@ -16,7 +16,7 @@ public class DeactivateCustomFieldDefinitionHandlerTests
     public DeactivateCustomFieldDefinitionHandlerTests()
     {
         _repository = Substitute.For<ICustomFieldDefinitionRepository>();
-        _handler = new DeactivateCustomFieldDefinitionHandler(_repository);
+        _handler = new DeactivateCustomFieldDefinitionHandler(_repository, TimeProvider.System);
     }
 
     [Fact]
@@ -24,7 +24,7 @@ public class DeactivateCustomFieldDefinitionHandlerTests
     {
         TenantId tenantId = TenantId.New();
         CustomFieldDefinition definition = CustomFieldDefinition.Create(
-            tenantId, "Invoice", "test_field", "Test Field", CustomFieldType.Text, Guid.Empty);
+            tenantId, "Invoice", "test_field", "Test Field", CustomFieldType.Text, Guid.Empty, TimeProvider.System);
 
         _repository.GetByIdAsync(Arg.Any<CustomFieldDefinitionId>(), Arg.Any<CancellationToken>())
             .Returns(definition);
@@ -58,8 +58,8 @@ public class DeactivateCustomFieldDefinitionHandlerTests
     {
         TenantId tenantId = TenantId.New();
         CustomFieldDefinition definition = CustomFieldDefinition.Create(
-            tenantId, "Invoice", "test_field", "Test Field", CustomFieldType.Text, Guid.Empty);
-        definition.Deactivate(Guid.Empty);
+            tenantId, "Invoice", "test_field", "Test Field", CustomFieldType.Text, Guid.Empty, TimeProvider.System);
+        definition.Deactivate(Guid.Empty, TimeProvider.System);
 
         _repository.GetByIdAsync(Arg.Any<CustomFieldDefinitionId>(), Arg.Any<CancellationToken>())
             .Returns(definition);

@@ -55,7 +55,8 @@ public sealed class ServiceAccountMetadata : AuditableEntity<ServiceAccountMetad
         string name,
         string? description,
         IEnumerable<string> scopes,
-        Guid createdByUserId)
+        Guid createdByUserId,
+        TimeProvider timeProvider)
     {
         Id = ServiceAccountMetadataId.New();
         TenantId = tenantId;
@@ -64,7 +65,7 @@ public sealed class ServiceAccountMetadata : AuditableEntity<ServiceAccountMetad
         Description = description;
         Status = ServiceAccountStatus.Active;
         _scopes.AddRange(scopes);
-        SetCreated(DateTimeOffset.UtcNow, createdByUserId);
+        SetCreated(timeProvider.GetUtcNow(), createdByUserId);
     }
 
     public static ServiceAccountMetadata Create(
@@ -73,7 +74,8 @@ public sealed class ServiceAccountMetadata : AuditableEntity<ServiceAccountMetad
         string name,
         string? description,
         IEnumerable<string> scopes,
-        Guid createdByUserId)
+        Guid createdByUserId,
+        TimeProvider timeProvider)
     {
         if (string.IsNullOrWhiteSpace(keycloakClientId))
         {
@@ -95,21 +97,22 @@ public sealed class ServiceAccountMetadata : AuditableEntity<ServiceAccountMetad
             name,
             description,
             scopes,
-            createdByUserId);
+            createdByUserId,
+            timeProvider);
     }
 
     /// <summary>
     /// Updates the last used timestamp. Called by middleware when API is accessed.
     /// </summary>
-    public void MarkUsed()
+    public void MarkUsed(TimeProvider timeProvider)
     {
-        LastUsedAt = DateTime.UtcNow;
+        LastUsedAt = timeProvider.GetUtcNow().UtcDateTime;
     }
 
     /// <summary>
     /// Revokes the service account. The Keycloak client should be deleted separately.
     /// </summary>
-    public void Revoke(Guid updatedByUserId)
+    public void Revoke(Guid updatedByUserId, TimeProvider timeProvider)
     {
         if (Status == ServiceAccountStatus.Revoked)
         {
@@ -119,13 +122,13 @@ public sealed class ServiceAccountMetadata : AuditableEntity<ServiceAccountMetad
         }
 
         Status = ServiceAccountStatus.Revoked;
-        SetUpdated(DateTimeOffset.UtcNow, updatedByUserId);
+        SetUpdated(timeProvider.GetUtcNow(), updatedByUserId);
     }
 
     /// <summary>
     /// Updates the scopes assigned to this service account.
     /// </summary>
-    public void UpdateScopes(IEnumerable<string> scopes, Guid updatedByUserId)
+    public void UpdateScopes(IEnumerable<string> scopes, Guid updatedByUserId, TimeProvider timeProvider)
     {
         if (Status == ServiceAccountStatus.Revoked)
         {
@@ -136,13 +139,13 @@ public sealed class ServiceAccountMetadata : AuditableEntity<ServiceAccountMetad
 
         _scopes.Clear();
         _scopes.AddRange(scopes);
-        SetUpdated(DateTimeOffset.UtcNow, updatedByUserId);
+        SetUpdated(timeProvider.GetUtcNow(), updatedByUserId);
     }
 
     /// <summary>
     /// Updates the service account name and description.
     /// </summary>
-    public void UpdateDetails(string name, string? description, Guid updatedByUserId)
+    public void UpdateDetails(string name, string? description, Guid updatedByUserId, TimeProvider timeProvider)
     {
         if (Status == ServiceAccountStatus.Revoked)
         {
@@ -160,6 +163,6 @@ public sealed class ServiceAccountMetadata : AuditableEntity<ServiceAccountMetad
 
         Name = name;
         Description = description;
-        SetUpdated(DateTimeOffset.UtcNow, updatedByUserId);
+        SetUpdated(timeProvider.GetUtcNow(), updatedByUserId);
     }
 }

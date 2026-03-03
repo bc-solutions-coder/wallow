@@ -50,5 +50,6 @@ internal sealed class FeatureFlagOverrideConfiguration : IEntityTypeConfiguratio
         builder.HasIndex(o => new { o.FlagId, o.TenantId, o.UserId });
         builder.HasIndex(o => o.TenantId);
         builder.HasIndex(o => o.UserId);
+        builder.HasIndex(o => new { o.TenantId, o.FlagId }).IsUnique().HasDatabaseName("ix_configuration_feature_flag_overrides_tenant_flag");
     }
 }

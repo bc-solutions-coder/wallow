@@ -17,13 +17,13 @@ public class UpdateCustomFieldDefinitionHandlerTests
     public UpdateCustomFieldDefinitionHandlerTests()
     {
         _repository = Substitute.For<ICustomFieldDefinitionRepository>();
-        _handler = new UpdateCustomFieldDefinitionHandler(_repository);
+        _handler = new UpdateCustomFieldDefinitionHandler(_repository, TimeProvider.System);
     }
 
     private static CustomFieldDefinition CreateDefinition(string entityType = "Invoice", string fieldKey = "test_field")
     {
         TenantId tenantId = TenantId.New();
-        return CustomFieldDefinition.Create(tenantId, entityType, fieldKey, "Test Field", CustomFieldType.Text, Guid.Empty);
+        return CustomFieldDefinition.Create(tenantId, entityType, fieldKey, "Test Field", CustomFieldType.Text, Guid.Empty, TimeProvider.System);
     }
 
     [Fact]
@@ -111,7 +111,7 @@ public class UpdateCustomFieldDefinitionHandlerTests
     {
         TenantId tenantId = TenantId.New();
         CustomFieldDefinition definition = CustomFieldDefinition.Create(
-            tenantId, "Invoice", "dept_select", "Department", CustomFieldType.Dropdown, Guid.Empty);
+            tenantId, "Invoice", "dept_select", "Department", CustomFieldType.Dropdown, Guid.Empty, TimeProvider.System);
 
         _repository.GetByIdAsync(Arg.Any<CustomFieldDefinitionId>(), Arg.Any<CancellationToken>())
             .Returns(definition);

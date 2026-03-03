@@ -25,7 +25,8 @@ public sealed class ScimConfiguration : AggregateRoot<ScimConfigurationId>, ITen
         string bearerToken,
         string tokenPrefix,
         DateTime tokenExpiresAt,
-        Guid createdByUserId)
+        Guid createdByUserId,
+        TimeProvider timeProvider)
     {
         Id = ScimConfigurationId.New();
         TenantId = tenantId;
@@ -35,41 +36,43 @@ public sealed class ScimConfiguration : AggregateRoot<ScimConfigurationId>, ITen
         TokenExpiresAt = tokenExpiresAt;
         AutoActivateUsers = true;
         DeprovisionOnDelete = false;
-        SetCreated(DateTimeOffset.UtcNow, createdByUserId);
+        SetCreated(timeProvider.GetUtcNow(), createdByUserId);
     }
 
     public static (ScimConfiguration Config, string PlainTextToken) Create(
         TenantId tenantId,
-        Guid createdByUserId)
+        Guid createdByUserId,
+        TimeProvider timeProvider)
     {
         (string token, string prefix) = GenerateTokenAndPrefix();
         string plainTextToken = token;
-        DateTime expiresAt = DateTime.UtcNow.AddYears(1);
+        DateTime expiresAt = timeProvider.GetUtcNow().UtcDateTime.AddYears(1);
 
         ScimConfiguration config = new(
             tenantId,
             HashToken(token),
             prefix,
             expiresAt,
-            createdByUserId);
+            createdByUserId,
+            timeProvider);
 
         return (config, plainTextToken);
     }
 
-    public string RegenerateToken(Guid updatedByUserId)
+    public string RegenerateToken(Guid updatedByUserId, TimeProvider timeProvider)
     {
         (string token, string prefix) = GenerateTokenAndPrefix();
         string plainTextToken = token;
 
         BearerToken = HashToken(token);
         TokenPrefix = prefix;
-        TokenExpiresAt = DateTime.UtcNow.AddYears(1);
-        SetUpdated(DateTimeOffset.UtcNow, updatedByUserId);
+        TokenExpiresAt = timeProvider.GetUtcNow().UtcDateTime.AddYears(1);
+        SetUpdated(timeProvider.GetUtcNow(), updatedByUserId);
 
         return plainTextToken;
     }
 
-    public void Enable(Guid updatedByUserId)
+    public void Enable(Guid updatedByUserId, TimeProvider timeProvider)
     {
         if (IsEnabled)
         {
@@ -79,10 +82,10 @@ public sealed class ScimConfiguration : AggregateRoot<ScimConfigurationId>, ITen
         }
 
         IsEnabled = true;
-        SetUpdated(DateTimeOffset.UtcNow, updatedByUserId);
+        SetUpdated(timeProvider.GetUtcNow(), updatedByUserId);
     }
 
-    public void Disable(Guid updatedByUserId)
+    public void Disable(Guid updatedByUserId, TimeProvider timeProvider)
     {
         if (!IsEnabled)
         {
@@ -92,30 +95,31 @@ public sealed class ScimConfiguration : AggregateRoot<ScimConfigurationId>, ITen
         }
 
         IsEnabled = false;
-        SetUpdated(DateTimeOffset.UtcNow, updatedByUserId);
+        SetUpdated(timeProvider.GetUtcNow(), updatedByUserId);
     }
 
     public void UpdateSettings(
         bool autoActivateUsers,
         string? defaultRole,
         bool deprovisionOnDelete,
-        Guid updatedByUserId)
+        Guid updatedByUserId,
+        TimeProvider timeProvider)
     {
         AutoActivateUsers = autoActivateUsers;
         DefaultRole = defaultRole;
         DeprovisionOnDelete = deprovisionOnDelete;
-        SetUpdated(DateTimeOffset.UtcNow, updatedByUserId);
+        SetUpdated(timeProvider.GetUtcNow(), updatedByUserId);
     }
 
-    public void RecordSync(Guid updatedByUserId)
+    public void RecordSync(Guid updatedByUserId, TimeProvider timeProvider)
     {
-        LastSyncAt = DateTime.UtcNow;
-        SetUpdated(DateTimeOffset.UtcNow, updatedByUserId);
+        LastSyncAt = timeProvider.GetUtcNow().UtcDateTime;
+        SetUpdated(timeProvider.GetUtcNow(), updatedByUserId);
     }
 
-    public bool IsTokenValid()
+    public bool IsTokenValid(TimeProvider timeProvider)
     {
-        return IsEnabled && TokenExpiresAt > DateTime.UtcNow;
+        return IsEnabled && TokenExpiresAt > timeProvider.GetUtcNow().UtcDateTime;
     }
 
     private static (string Token, string Prefix) GenerateTokenAndPrefix()

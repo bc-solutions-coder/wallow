@@ -24,7 +24,7 @@ public class GetCustomFieldDefinitionByIdHandlerTests
     {
         TenantId tenantId = TenantId.New();
         CustomFieldDefinition definition = CustomFieldDefinition.Create(
-            tenantId, "Invoice", "po_number", "PO Number", CustomFieldType.Text, Guid.Empty);
+            tenantId, "Invoice", "po_number", "PO Number", CustomFieldType.Text, Guid.Empty, TimeProvider.System);
 
         _repository.GetByIdAsync(Arg.Any<CustomFieldDefinitionId>(), Arg.Any<CancellationToken>())
             .Returns(definition);

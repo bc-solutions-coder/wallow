@@ -15,7 +15,7 @@ public class CustomFieldDefinitionCreateTests
         Guid createdBy = Guid.NewGuid();
 
         CustomFieldDefinition definition = CustomFieldDefinition.Create(
-            tenantId, "Invoice", "po_number", "PO Number", CustomFieldType.Text, createdBy);
+            tenantId, "Invoice", "po_number", "PO Number", CustomFieldType.Text, createdBy, TimeProvider.System);
 
         definition.Id.Value.Should().NotBeEmpty();
         definition.TenantId.Should().Be(tenantId);
@@ -38,7 +38,7 @@ public class CustomFieldDefinitionCreateTests
         Guid createdBy = Guid.NewGuid();
 
         CustomFieldDefinition definition = CustomFieldDefinition.Create(
-            tenantId, "Invoice", "po_number", "PO Number", CustomFieldType.Text, createdBy);
+            tenantId, "Invoice", "po_number", "PO Number", CustomFieldType.Text, createdBy, TimeProvider.System);
 
         definition.CreatedBy.Should().Be(createdBy);
         definition.CreatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
@@ -51,7 +51,7 @@ public class CustomFieldDefinitionCreateTests
         Guid createdBy = Guid.NewGuid();
 
         CustomFieldDefinition definition = CustomFieldDefinition.Create(
-            tenantId, "Invoice", "po_number", "PO Number", CustomFieldType.Text, createdBy);
+            tenantId, "Invoice", "po_number", "PO Number", CustomFieldType.Text, createdBy, TimeProvider.System);
 
         definition.DomainEvents.Should().ContainSingle()
             .Which.Should().BeOfType<CustomFieldDefinitionCreatedEvent>()
@@ -65,7 +65,7 @@ public class CustomFieldDefinitionCreateTests
         Guid createdBy = Guid.NewGuid();
 
         CustomFieldDefinition definition = CustomFieldDefinition.Create(
-            tenantId, "Invoice", "po_number", "PO Number", CustomFieldType.Number, createdBy);
+            tenantId, "Invoice", "po_number", "PO Number", CustomFieldType.Number, createdBy, TimeProvider.System);
 
         CustomFieldDefinitionCreatedEvent evt = definition.DomainEvents.OfType<CustomFieldDefinitionCreatedEvent>().Single();
         evt.DefinitionId.Should().Be(definition.Id.Value);
@@ -83,7 +83,7 @@ public class CustomFieldDefinitionCreateTests
         TenantId tenantId = TenantId.New();
 
         Action act = () => CustomFieldDefinition.Create(
-            tenantId, entityType, "po_number", "PO Number", CustomFieldType.Text, Guid.NewGuid());
+            tenantId, entityType, "po_number", "PO Number", CustomFieldType.Text, Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<CustomFieldException>()
             .WithMessage("*Entity type is required*");
@@ -95,7 +95,7 @@ public class CustomFieldDefinitionCreateTests
         TenantId tenantId = TenantId.New();
 
         Action act = () => CustomFieldDefinition.Create(
-            tenantId, "UnsupportedType", "po_number", "PO Number", CustomFieldType.Text, Guid.NewGuid());
+            tenantId, "UnsupportedType", "po_number", "PO Number", CustomFieldType.Text, Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<CustomFieldException>()
             .WithMessage("*does not support custom fields*");
@@ -109,7 +109,7 @@ public class CustomFieldDefinitionCreateTests
         TenantId tenantId = TenantId.New();
 
         Action act = () => CustomFieldDefinition.Create(
-            tenantId, "Invoice", fieldKey, "PO Number", CustomFieldType.Text, Guid.NewGuid());
+            tenantId, "Invoice", fieldKey, "PO Number", CustomFieldType.Text, Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<CustomFieldException>()
             .WithMessage("*Field key is required*");
@@ -122,7 +122,7 @@ public class CustomFieldDefinitionCreateTests
         string longKey = new string('a', 51);
 
         Action act = () => CustomFieldDefinition.Create(
-            tenantId, "Invoice", longKey, "PO Number", CustomFieldType.Text, Guid.NewGuid());
+            tenantId, "Invoice", longKey, "PO Number", CustomFieldType.Text, Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<CustomFieldException>()
             .WithMessage("*50 characters*");
@@ -138,7 +138,7 @@ public class CustomFieldDefinitionCreateTests
         TenantId tenantId = TenantId.New();
 
         Action act = () => CustomFieldDefinition.Create(
-            tenantId, "Invoice", fieldKey, "PO Number", CustomFieldType.Text, Guid.NewGuid());
+            tenantId, "Invoice", fieldKey, "PO Number", CustomFieldType.Text, Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<CustomFieldException>()
             .WithMessage("*lowercase alphanumeric*");
@@ -152,7 +152,7 @@ public class CustomFieldDefinitionCreateTests
         TenantId tenantId = TenantId.New();
 
         Action act = () => CustomFieldDefinition.Create(
-            tenantId, "Invoice", "po_number", displayName, CustomFieldType.Text, Guid.NewGuid());
+            tenantId, "Invoice", "po_number", displayName, CustomFieldType.Text, Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<CustomFieldException>()
             .WithMessage("*Display name is required*");
@@ -165,7 +165,7 @@ public class CustomFieldDefinitionCreateTests
         string longName = new string('A', 101);
 
         Action act = () => CustomFieldDefinition.Create(
-            tenantId, "Invoice", "po_number", longName, CustomFieldType.Text, Guid.NewGuid());
+            tenantId, "Invoice", "po_number", longName, CustomFieldType.Text, Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<CustomFieldException>()
             .WithMessage("*100 characters*");
@@ -180,7 +180,7 @@ public class CustomFieldDefinitionCreateTests
         foreach (CustomFieldType fieldType in Enum.GetValues<CustomFieldType>())
         {
             CustomFieldDefinition definition = CustomFieldDefinition.Create(
-                tenantId, "Invoice", $"field_{(int)fieldType}", "Display", fieldType, createdBy);
+                tenantId, "Invoice", $"field_{(int)fieldType}", "Display", fieldType, createdBy, TimeProvider.System);
 
             definition.FieldType.Should().Be(fieldType);
         }
@@ -192,7 +192,7 @@ public class CustomFieldDefinitionUpdateTests
     private CustomFieldDefinition CreateValidDefinition()
     {
         return CustomFieldDefinition.Create(
-            TenantId.New(), "Invoice", "po_number", "PO Number", CustomFieldType.Text, Guid.NewGuid());
+            TenantId.New(), "Invoice", "po_number", "PO Number", CustomFieldType.Text, Guid.NewGuid(), TimeProvider.System);
     }
 
     [Fact]
@@ -201,7 +201,7 @@ public class CustomFieldDefinitionUpdateTests
         CustomFieldDefinition definition = CreateValidDefinition();
         Guid updatedBy = Guid.NewGuid();
 
-        definition.UpdateDisplayName("Updated Name", updatedBy);
+        definition.UpdateDisplayName("Updated Name", updatedBy, TimeProvider.System);
 
         definition.DisplayName.Should().Be("Updated Name");
         definition.UpdatedBy.Should().Be(updatedBy);
@@ -215,7 +215,7 @@ public class CustomFieldDefinitionUpdateTests
     {
         CustomFieldDefinition definition = CreateValidDefinition();
 
-        Action act = () => definition.UpdateDisplayName(name, Guid.NewGuid());
+        Action act = () => definition.UpdateDisplayName(name, Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<CustomFieldException>()
             .WithMessage("*Display name is required*");
@@ -226,7 +226,7 @@ public class CustomFieldDefinitionUpdateTests
     {
         CustomFieldDefinition definition = CreateValidDefinition();
 
-        Action act = () => definition.UpdateDisplayName(new string('X', 101), Guid.NewGuid());
+        Action act = () => definition.UpdateDisplayName(new string('X', 101), Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<CustomFieldException>()
             .WithMessage("*100 characters*");
@@ -238,7 +238,7 @@ public class CustomFieldDefinitionUpdateTests
         CustomFieldDefinition definition = CreateValidDefinition();
         Guid updatedBy = Guid.NewGuid();
 
-        definition.UpdateDescription("A helpful description", updatedBy);
+        definition.UpdateDescription("A helpful description", updatedBy, TimeProvider.System);
 
         definition.Description.Should().Be("A helpful description");
         definition.UpdatedBy.Should().Be(updatedBy);
@@ -248,9 +248,9 @@ public class CustomFieldDefinitionUpdateTests
     public void UpdateDescription_WithNull_ClearsDescription()
     {
         CustomFieldDefinition definition = CreateValidDefinition();
-        definition.UpdateDescription("something", Guid.NewGuid());
+        definition.UpdateDescription("something", Guid.NewGuid(), TimeProvider.System);
 
-        definition.UpdateDescription(null, Guid.NewGuid());
+        definition.UpdateDescription(null, Guid.NewGuid(), TimeProvider.System);
 
         definition.Description.Should().BeNull();
     }
@@ -261,7 +261,7 @@ public class CustomFieldDefinitionUpdateTests
         CustomFieldDefinition definition = CreateValidDefinition();
         Guid updatedBy = Guid.NewGuid();
 
-        definition.SetRequired(true, updatedBy);
+        definition.SetRequired(true, updatedBy, TimeProvider.System);
 
         definition.IsRequired.Should().BeTrue();
         definition.UpdatedBy.Should().Be(updatedBy);
@@ -271,9 +271,9 @@ public class CustomFieldDefinitionUpdateTests
     public void SetRequired_ToFalse_ClearsIsRequired()
     {
         CustomFieldDefinition definition = CreateValidDefinition();
-        definition.SetRequired(true, Guid.NewGuid());
+        definition.SetRequired(true, Guid.NewGuid(), TimeProvider.System);
 
-        definition.SetRequired(false, Guid.NewGuid());
+        definition.SetRequired(false, Guid.NewGuid(), TimeProvider.System);
 
         definition.IsRequired.Should().BeFalse();
     }
@@ -284,7 +284,7 @@ public class CustomFieldDefinitionUpdateTests
         CustomFieldDefinition definition = CreateValidDefinition();
         Guid updatedBy = Guid.NewGuid();
 
-        definition.SetDisplayOrder(5, updatedBy);
+        definition.SetDisplayOrder(5, updatedBy, TimeProvider.System);
 
         definition.DisplayOrder.Should().Be(5);
         definition.UpdatedBy.Should().Be(updatedBy);
@@ -294,9 +294,9 @@ public class CustomFieldDefinitionUpdateTests
     public void SetDisplayOrder_WithZero_SetsOrderToZero()
     {
         CustomFieldDefinition definition = CreateValidDefinition();
-        definition.SetDisplayOrder(10, Guid.NewGuid());
+        definition.SetDisplayOrder(10, Guid.NewGuid(), TimeProvider.System);
 
-        definition.SetDisplayOrder(0, Guid.NewGuid());
+        definition.SetDisplayOrder(0, Guid.NewGuid(), TimeProvider.System);
 
         definition.DisplayOrder.Should().Be(0);
     }
@@ -306,7 +306,7 @@ public class CustomFieldDefinitionUpdateTests
     {
         CustomFieldDefinition definition = CreateValidDefinition();
 
-        Action act = () => definition.SetDisplayOrder(-1, Guid.NewGuid());
+        Action act = () => definition.SetDisplayOrder(-1, Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<CustomFieldException>()
             .WithMessage("*Display order cannot be negative*");
@@ -319,16 +319,16 @@ public class CustomFieldDefinitionValidationRulesTests
     {
         string fieldKey = $"field_{(int)fieldType}";
         return CustomFieldDefinition.Create(
-            TenantId.New(), "Invoice", fieldKey, "Test Field", fieldType, Guid.NewGuid());
+            TenantId.New(), "Invoice", fieldKey, "Test Field", fieldType, Guid.NewGuid(), TimeProvider.System);
     }
 
     [Fact]
     public void SetValidationRules_WithNull_ClearsRules()
     {
         CustomFieldDefinition definition = CreateDefinition(CustomFieldType.Text);
-        definition.SetValidationRules(new FieldValidationRules { MaxLength = 50 }, Guid.NewGuid());
+        definition.SetValidationRules(new FieldValidationRules { MaxLength = 50 }, Guid.NewGuid(), TimeProvider.System);
 
-        definition.SetValidationRules(null, Guid.NewGuid());
+        definition.SetValidationRules(null, Guid.NewGuid(), TimeProvider.System);
 
         definition.ValidationRulesJson.Should().BeNull();
         definition.GetValidationRules().Should().BeNull();
@@ -340,7 +340,7 @@ public class CustomFieldDefinitionValidationRulesTests
         CustomFieldDefinition definition = CreateDefinition(CustomFieldType.Text);
         FieldValidationRules rules = new FieldValidationRules { MinLength = 5, MaxLength = 50 };
 
-        definition.SetValidationRules(rules, Guid.NewGuid());
+        definition.SetValidationRules(rules, Guid.NewGuid(), TimeProvider.System);
 
         FieldValidationRules? stored = definition.GetValidationRules();
         stored.Should().NotBeNull();
@@ -358,7 +358,7 @@ public class CustomFieldDefinitionValidationRulesTests
         CustomFieldDefinition definition = CreateDefinition(fieldType);
         FieldValidationRules rules = new FieldValidationRules { MaxLength = 100 };
 
-        definition.SetValidationRules(rules, Guid.NewGuid());
+        definition.SetValidationRules(rules, Guid.NewGuid(), TimeProvider.System);
 
         definition.GetValidationRules()!.MaxLength.Should().Be(100);
     }
@@ -376,7 +376,7 @@ public class CustomFieldDefinitionValidationRulesTests
         CustomFieldDefinition definition = CreateDefinition(fieldType);
         FieldValidationRules rules = new FieldValidationRules { MinLength = 5 };
 
-        Action act = () => definition.SetValidationRules(rules, Guid.NewGuid());
+        Action act = () => definition.SetValidationRules(rules, Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<CustomFieldException>()
             .WithMessage("*MinLength/MaxLength*text-based*");
@@ -390,7 +390,7 @@ public class CustomFieldDefinitionValidationRulesTests
         CustomFieldDefinition definition = CreateDefinition(fieldType);
         FieldValidationRules rules = new FieldValidationRules { Min = 0, Max = 1000 };
 
-        definition.SetValidationRules(rules, Guid.NewGuid());
+        definition.SetValidationRules(rules, Guid.NewGuid(), TimeProvider.System);
 
         FieldValidationRules? stored = definition.GetValidationRules();
         stored!.Min.Should().Be(0);
@@ -407,7 +407,7 @@ public class CustomFieldDefinitionValidationRulesTests
         CustomFieldDefinition definition = CreateDefinition(fieldType);
         FieldValidationRules rules = new FieldValidationRules { Min = 0 };
 
-        Action act = () => definition.SetValidationRules(rules, Guid.NewGuid());
+        Action act = () => definition.SetValidationRules(rules, Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<CustomFieldException>()
             .WithMessage("*Min/Max*numeric*");
@@ -425,7 +425,7 @@ public class CustomFieldDefinitionValidationRulesTests
             MaxDate = new DateTime(2030, 12, 31)
         };
 
-        definition.SetValidationRules(rules, Guid.NewGuid());
+        definition.SetValidationRules(rules, Guid.NewGuid(), TimeProvider.System);
 
         FieldValidationRules? stored = definition.GetValidationRules();
         stored!.MinDate.Should().Be(new DateTime(2020, 1, 1));
@@ -441,7 +441,7 @@ public class CustomFieldDefinitionValidationRulesTests
         CustomFieldDefinition definition = CreateDefinition(fieldType);
         FieldValidationRules rules = new FieldValidationRules { MinDate = DateTime.UtcNow };
 
-        Action act = () => definition.SetValidationRules(rules, Guid.NewGuid());
+        Action act = () => definition.SetValidationRules(rules, Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<CustomFieldException>()
             .WithMessage("*MinDate/MaxDate*date*");
@@ -453,7 +453,7 @@ public class CustomFieldDefinitionValidationRulesTests
         CustomFieldDefinition definition = CreateDefinition(CustomFieldType.Text);
         FieldValidationRules rules = new FieldValidationRules { Pattern = @"^\d{3}-\d{4}$" };
 
-        definition.SetValidationRules(rules, Guid.NewGuid());
+        definition.SetValidationRules(rules, Guid.NewGuid(), TimeProvider.System);
 
         definition.GetValidationRules()!.Pattern.Should().Be(@"^\d{3}-\d{4}$");
     }
@@ -464,7 +464,7 @@ public class CustomFieldDefinitionValidationRulesTests
         CustomFieldDefinition definition = CreateDefinition(CustomFieldType.TextArea);
         FieldValidationRules rules = new FieldValidationRules { Pattern = @"^[A-Z]+$" };
 
-        definition.SetValidationRules(rules, Guid.NewGuid());
+        definition.SetValidationRules(rules, Guid.NewGuid(), TimeProvider.System);
 
         definition.GetValidationRules()!.Pattern.Should().Be(@"^[A-Z]+$");
     }
@@ -478,7 +478,7 @@ public class CustomFieldDefinitionValidationRulesTests
         CustomFieldDefinition definition = CreateDefinition(fieldType);
         FieldValidationRules rules = new FieldValidationRules { Pattern = @"^\d+$" };
 
-        Action act = () => definition.SetValidationRules(rules, Guid.NewGuid());
+        Action act = () => definition.SetValidationRules(rules, Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<CustomFieldException>()
             .WithMessage("*Pattern*text*");
@@ -490,7 +490,7 @@ public class CustomFieldDefinitionValidationRulesTests
         CustomFieldDefinition definition = CreateDefinition(CustomFieldType.Text);
         FieldValidationRules rules = new FieldValidationRules { Pattern = "[invalid" };
 
-        Action act = () => definition.SetValidationRules(rules, Guid.NewGuid());
+        Action act = () => definition.SetValidationRules(rules, Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<CustomFieldException>()
             .WithMessage("*Invalid regex pattern*");
@@ -512,13 +512,13 @@ public class CustomFieldDefinitionOptionsTests
     private CustomFieldDefinition CreateDropdownDefinition()
     {
         return CustomFieldDefinition.Create(
-            TenantId.New(), "Invoice", "status_field", "Status", CustomFieldType.Dropdown, Guid.NewGuid());
+            TenantId.New(), "Invoice", "status_field", "Status", CustomFieldType.Dropdown, Guid.NewGuid(), TimeProvider.System);
     }
 
     private CustomFieldDefinition CreateMultiSelectDefinition()
     {
         return CustomFieldDefinition.Create(
-            TenantId.New(), "Invoice", "tags_field", "Tags", CustomFieldType.MultiSelect, Guid.NewGuid());
+            TenantId.New(), "Invoice", "tags_field", "Tags", CustomFieldType.MultiSelect, Guid.NewGuid(), TimeProvider.System);
     }
 
     [Fact]
@@ -531,7 +531,7 @@ public class CustomFieldDefinitionOptionsTests
             new CustomFieldOption { Value = "published", Label = "Published", Order = 2 }
         };
 
-        definition.SetOptions(options, Guid.NewGuid());
+        definition.SetOptions(options, Guid.NewGuid(), TimeProvider.System);
 
         IReadOnlyList<CustomFieldOption> stored = definition.GetOptions();
         stored.Should().HaveCount(2);
@@ -549,7 +549,7 @@ public class CustomFieldDefinitionOptionsTests
             new CustomFieldOption { Value = "blue", Label = "Blue" }
         };
 
-        definition.SetOptions(options, Guid.NewGuid());
+        definition.SetOptions(options, Guid.NewGuid(), TimeProvider.System);
 
         definition.GetOptions().Should().HaveCount(2);
     }
@@ -558,13 +558,13 @@ public class CustomFieldDefinitionOptionsTests
     public void SetOptions_ForNonDropdownType_ThrowsCustomFieldException()
     {
         CustomFieldDefinition definition = CustomFieldDefinition.Create(
-            TenantId.New(), "Invoice", "text_field", "Text", CustomFieldType.Text, Guid.NewGuid());
+            TenantId.New(), "Invoice", "text_field", "Text", CustomFieldType.Text, Guid.NewGuid(), TimeProvider.System);
         List<CustomFieldOption> options = new()
         {
             new CustomFieldOption { Value = "a", Label = "A" }
         };
 
-        Action act = () => definition.SetOptions(options, Guid.NewGuid());
+        Action act = () => definition.SetOptions(options, Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<CustomFieldException>()
             .WithMessage("*Options are only allowed for Dropdown and MultiSelect*");
@@ -580,7 +580,7 @@ public class CustomFieldDefinitionOptionsTests
             new CustomFieldOption { Value = "draft", Label = "Draft 2" }
         };
 
-        Action act = () => definition.SetOptions(options, Guid.NewGuid());
+        Action act = () => definition.SetOptions(options, Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<CustomFieldException>()
             .WithMessage("*Duplicate option values*");
@@ -593,9 +593,9 @@ public class CustomFieldDefinitionOptionsTests
         definition.SetOptions(new List<CustomFieldOption>
         {
             new CustomFieldOption { Value = "a", Label = "A" }
-        }, Guid.NewGuid());
+        }, Guid.NewGuid(), TimeProvider.System);
 
-        definition.SetOptions(null, Guid.NewGuid());
+        definition.SetOptions(null, Guid.NewGuid(), TimeProvider.System);
 
         definition.GetOptions().Should().BeEmpty();
     }
@@ -607,9 +607,9 @@ public class CustomFieldDefinitionOptionsTests
         definition.SetOptions(new List<CustomFieldOption>
         {
             new CustomFieldOption { Value = "a", Label = "A" }
-        }, Guid.NewGuid());
+        }, Guid.NewGuid(), TimeProvider.System);
 
-        definition.SetOptions(new List<CustomFieldOption>(), Guid.NewGuid());
+        definition.SetOptions(new List<CustomFieldOption>(), Guid.NewGuid(), TimeProvider.System);
 
         definition.GetOptions().Should().BeEmpty();
     }
@@ -630,7 +630,7 @@ public class CustomFieldDefinitionLifecycleTests
     private CustomFieldDefinition CreateValidDefinition()
     {
         return CustomFieldDefinition.Create(
-            TenantId.New(), "Invoice", "po_number", "PO Number", CustomFieldType.Text, Guid.NewGuid());
+            TenantId.New(), "Invoice", "po_number", "PO Number", CustomFieldType.Text, Guid.NewGuid(), TimeProvider.System);
     }
 
     [Fact]
@@ -640,7 +640,7 @@ public class CustomFieldDefinitionLifecycleTests
         definition.ClearDomainEvents();
         Guid deactivatedBy = Guid.NewGuid();
 
-        definition.Deactivate(deactivatedBy);
+        definition.Deactivate(deactivatedBy, TimeProvider.System);
 
         definition.IsActive.Should().BeFalse();
         definition.UpdatedBy.Should().Be(deactivatedBy);
@@ -654,7 +654,7 @@ public class CustomFieldDefinitionLifecycleTests
         CustomFieldDefinition definition = CreateValidDefinition();
         definition.ClearDomainEvents();
 
-        definition.Deactivate(Guid.NewGuid());
+        definition.Deactivate(Guid.NewGuid(), TimeProvider.System);
 
         CustomFieldDefinitionDeactivatedEvent evt = definition.DomainEvents
             .OfType<CustomFieldDefinitionDeactivatedEvent>().Single();
@@ -668,9 +668,9 @@ public class CustomFieldDefinitionLifecycleTests
     public void Deactivate_WhenAlreadyInactive_ThrowsCustomFieldException()
     {
         CustomFieldDefinition definition = CreateValidDefinition();
-        definition.Deactivate(Guid.NewGuid());
+        definition.Deactivate(Guid.NewGuid(), TimeProvider.System);
 
-        Action act = () => definition.Deactivate(Guid.NewGuid());
+        Action act = () => definition.Deactivate(Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<CustomFieldException>()
             .WithMessage("*already deactivated*");
@@ -680,10 +680,10 @@ public class CustomFieldDefinitionLifecycleTests
     public void Activate_WhenInactive_SetsActive()
     {
         CustomFieldDefinition definition = CreateValidDefinition();
-        definition.Deactivate(Guid.NewGuid());
+        definition.Deactivate(Guid.NewGuid(), TimeProvider.System);
         Guid activatedBy = Guid.NewGuid();
 
-        definition.Activate(activatedBy);
+        definition.Activate(activatedBy, TimeProvider.System);
 
         definition.IsActive.Should().BeTrue();
         definition.UpdatedBy.Should().Be(activatedBy);
@@ -694,7 +694,7 @@ public class CustomFieldDefinitionLifecycleTests
     {
         CustomFieldDefinition definition = CreateValidDefinition();
 
-        Action act = () => definition.Activate(Guid.NewGuid());
+        Action act = () => definition.Activate(Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<CustomFieldException>()
             .WithMessage("*already active*");

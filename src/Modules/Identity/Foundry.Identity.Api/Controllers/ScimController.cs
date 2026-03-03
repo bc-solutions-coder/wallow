@@ -212,15 +212,18 @@ public partial class ScimController : ControllerBase
     [HttpGet("Groups/{id}")]
     [ProducesResponseType(typeof(ScimGroup), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ScimError), StatusCodes.Status404NotFound)]
-    public Task<IActionResult> GetGroup(string id, CancellationToken _)
+    public async Task<ActionResult<ScimGroup>> GetGroup(string id, CancellationToken ct)
     {
-        // Groups are fetched via listing for now
-        IActionResult result = NotFound(new ScimError
+        ScimGroup? group = await _scimService.GetGroupAsync(id, ct);
+        if (group is null)
         {
-            Status = 404,
-            Detail = $"Group with id '{id}' not found"
-        });
-        return Task.FromResult(result);
+            return NotFound(new ScimError
+            {
+                Status = 404,
+                Detail = $"Group with id '{id}' not found"
+            });
+        }
+        return Ok(group);
     }
 
     /// <summary>

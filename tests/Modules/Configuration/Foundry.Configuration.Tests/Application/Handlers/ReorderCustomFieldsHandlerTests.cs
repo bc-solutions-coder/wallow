@@ -15,13 +15,13 @@ public class ReorderCustomFieldsHandlerTests
     public ReorderCustomFieldsHandlerTests()
     {
         _repository = Substitute.For<ICustomFieldDefinitionRepository>();
-        _handler = new ReorderCustomFieldsHandler(_repository);
+        _handler = new ReorderCustomFieldsHandler(_repository, TimeProvider.System);
     }
 
     private static CustomFieldDefinition CreateDefinition(string fieldKey)
     {
         TenantId tenantId = TenantId.New();
-        return CustomFieldDefinition.Create(tenantId, "Invoice", fieldKey, $"Field {fieldKey}", CustomFieldType.Text, Guid.Empty);
+        return CustomFieldDefinition.Create(tenantId, "Invoice", fieldKey, $"Field {fieldKey}", CustomFieldType.Text, Guid.Empty, TimeProvider.System);
     }
 
     [Fact]

@@ -9,6 +9,8 @@ using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.MultiTenancy;
 using Microsoft.Extensions.Logging;
 
+using Foundry.Identity.Infrastructure;
+using Microsoft.Extensions.Options;
 #pragma warning disable CA2000 // HttpClient/HttpMessageHandler lifetime is managed by test framework
 
 namespace Foundry.Identity.Tests.Infrastructure;
@@ -233,8 +235,8 @@ public class ScimUserServiceAdditionalTests
     [Fact]
     public async Task CreateUserAsync_WhenDefaultRoleNotFound_DoesNotThrow()
     {
-        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty);
-        config.UpdateSettings(true, "nonexistent-role", false, Guid.Empty);
+        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty, TimeProvider.System);
+        config.UpdateSettings(true, "nonexistent-role", false, Guid.Empty, TimeProvider.System);
         _scimRepository.GetAsync(Arg.Any<CancellationToken>()).Returns(config);
 
         MockHttpHandler handler = new MockHttpHandler()
@@ -284,8 +286,8 @@ public class ScimUserServiceAdditionalTests
     [Fact]
     public async Task CreateUserAsync_WhenAssignDefaultRoleThrows_DoesNotThrow()
     {
-        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty);
-        config.UpdateSettings(true, "bad-role", false, Guid.Empty);
+        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty, TimeProvider.System);
+        config.UpdateSettings(true, "bad-role", false, Guid.Empty, TimeProvider.System);
         _scimRepository.GetAsync(Arg.Any<CancellationToken>()).Returns(config);
 
         MockHttpHandler handler = new MockHttpHandler()
@@ -485,7 +487,9 @@ public class ScimUserServiceAdditionalTests
             _scimRepository,
             _syncLogRepository,
             _tenantContext,
-            _logger);
+            Options.Create(new KeycloakOptions()),
+            _logger,
+            TimeProvider.System);
     }
 
     private sealed class MockHttpHandler : HttpMessageHandler

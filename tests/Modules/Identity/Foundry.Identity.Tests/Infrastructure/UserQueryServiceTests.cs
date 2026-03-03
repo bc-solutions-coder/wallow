@@ -4,6 +4,8 @@ using Foundry.Identity.Infrastructure.Services;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
+using Foundry.Identity.Infrastructure;
+using Microsoft.Extensions.Options;
 #pragma warning disable CA2000 // HttpClient/HttpMessageHandler lifetime is managed by test framework
 
 namespace Foundry.Identity.Tests.Infrastructure;
@@ -158,7 +160,7 @@ public class UserQueryServiceTests
         };
         httpClientFactory.CreateClient("KeycloakAdminClient").Returns(httpClient);
 
-        return new UserQueryService(httpClientFactory, _cache, _logger);
+        return new UserQueryService(httpClientFactory, _cache, Options.Create(new KeycloakOptions()), _logger);
     }
 
     private sealed class MockHttpHandler : HttpMessageHandler

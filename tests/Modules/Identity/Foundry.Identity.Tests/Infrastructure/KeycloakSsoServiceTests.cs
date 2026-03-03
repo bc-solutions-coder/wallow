@@ -12,6 +12,7 @@ using Keycloak.AuthServices.Authentication;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
+using Foundry.Identity.Infrastructure;
 #pragma warning disable CA2000 // HttpClient/HttpMessageHandler lifetime is managed by test framework
 
 namespace Foundry.Identity.Tests.Infrastructure;
@@ -47,15 +48,13 @@ public class KeycloakSsoServiceTests
             SsoProtocol.Saml,
             "email",
             "firstName",
-            "lastName",
-            Guid.Empty);
+            "lastName", Guid.Empty, TimeProvider.System);
         config.UpdateSamlConfig(
             "entity-id",
             "https://idp.test/sso",
             "https://idp.test/slo",
             "cert123",
-            SamlNameIdFormat.Email,
-            Guid.Empty);
+            SamlNameIdFormat.Email, Guid.Empty, TimeProvider.System);
 
         _repository.GetAsync(Arg.Any<CancellationToken>()).Returns(config);
         KeycloakSsoService service = CreateService();
@@ -125,8 +124,7 @@ public class KeycloakSsoServiceTests
             SsoProtocol.Saml,
             "email",
             "firstName",
-            "lastName",
-            Guid.Empty);
+            "lastName", Guid.Empty, TimeProvider.System);
 
         MockKeycloakHttpHandler handler = new MockKeycloakHttpHandler()
             .WithKeycloakGet("/admin/realms/foundry/identity-provider/instances/saml-12345678", HttpStatusCode.OK)
@@ -216,8 +214,7 @@ public class KeycloakSsoServiceTests
             SsoProtocol.Oidc,
             "email",
             "firstName",
-            "lastName",
-            Guid.Empty);
+            "lastName", Guid.Empty, TimeProvider.System);
 
         MockKeycloakHttpHandler handler = new MockKeycloakHttpHandler()
             .WithKeycloakGet("/admin/realms/foundry/identity-provider/instances/oidc-12345678", HttpStatusCode.OK)
@@ -279,8 +276,7 @@ public class KeycloakSsoServiceTests
             SsoProtocol.Saml,
             "email",
             "firstName",
-            "lastName",
-            Guid.Empty);
+            "lastName", Guid.Empty, TimeProvider.System);
 
         _repository.GetAsync(Arg.Any<CancellationToken>()).Returns(config);
         KeycloakSsoService service = CreateService();
@@ -303,17 +299,15 @@ public class KeycloakSsoServiceTests
             SsoProtocol.Saml,
             "email",
             "firstName",
-            "lastName",
-            Guid.Empty);
+            "lastName", Guid.Empty, TimeProvider.System);
         config.UpdateSamlConfig(
             "entity-id",
             "https://idp.test/sso",
             null,
             "cert",
-            SamlNameIdFormat.Email,
-            Guid.Empty);
-        config.SetKeycloakIdpAlias("saml-12345678", Guid.Empty);
-        config.MoveToTesting(Guid.Empty);
+            SamlNameIdFormat.Email, Guid.Empty, TimeProvider.System);
+        config.SetKeycloakIdpAlias("saml-12345678", Guid.Empty, TimeProvider.System);
+        config.MoveToTesting(Guid.Empty, TimeProvider.System);
 
         MockKeycloakHttpHandler handler = new MockKeycloakHttpHandler()
             .WithKeycloakGet("/admin/realms/foundry/identity-provider/instances/saml-12345678", HttpStatusCode.OK, new
@@ -360,18 +354,16 @@ public class KeycloakSsoServiceTests
             SsoProtocol.Saml,
             "email",
             "firstName",
-            "lastName",
-            Guid.Empty);
+            "lastName", Guid.Empty, TimeProvider.System);
         config.UpdateSamlConfig(
             "entity-id",
             "https://idp.test/sso",
             null,
             "cert",
-            SamlNameIdFormat.Email,
-            Guid.Empty);
-        config.SetKeycloakIdpAlias("saml-12345678", Guid.Empty);
-        config.MoveToTesting(Guid.Empty);
-        config.Activate(Guid.Empty);
+            SamlNameIdFormat.Email, Guid.Empty, TimeProvider.System);
+        config.SetKeycloakIdpAlias("saml-12345678", Guid.Empty, TimeProvider.System);
+        config.MoveToTesting(Guid.Empty, TimeProvider.System);
+        config.Activate(Guid.Empty, TimeProvider.System);
 
         MockKeycloakHttpHandler handler = new MockKeycloakHttpHandler()
             .WithKeycloakGet("/admin/realms/foundry/identity-provider/instances/saml-12345678", HttpStatusCode.OK, new
@@ -418,8 +410,7 @@ public class KeycloakSsoServiceTests
             SsoProtocol.Saml,
             "email",
             "firstName",
-            "lastName",
-            Guid.Empty);
+            "lastName", Guid.Empty, TimeProvider.System);
 
         _repository.GetAsync(Arg.Any<CancellationToken>()).Returns(config);
         KeycloakSsoService service = CreateService();
@@ -442,15 +433,13 @@ public class KeycloakSsoServiceTests
             SsoProtocol.Saml,
             "email",
             "firstName",
-            "lastName",
-            Guid.Empty);
+            "lastName", Guid.Empty, TimeProvider.System);
         config.UpdateSamlConfig(
             "entity-id",
             "https://idp.test/sso",
             null,
             "cert",
-            SamlNameIdFormat.Email,
-            Guid.Empty);
+            SamlNameIdFormat.Email, Guid.Empty, TimeProvider.System);
 
         MockKeycloakHttpHandler handler = new MockKeycloakHttpHandler()
             .WithExternalGet("https://idp.test/sso", HttpStatusCode.NotFound);
@@ -476,15 +465,13 @@ public class KeycloakSsoServiceTests
             SsoProtocol.Saml,
             "email",
             "firstName",
-            "lastName",
-            Guid.Empty);
+            "lastName", Guid.Empty, TimeProvider.System);
         config.UpdateSamlConfig(
             "entity-id",
             "https://idp.test/sso",
             null,
             "not-a-valid-cert-format",  // Will skip cert validation since it fails to parse
-            SamlNameIdFormat.Email,
-            Guid.Empty);
+            SamlNameIdFormat.Email, Guid.Empty, TimeProvider.System);
 
         MockKeycloakHttpHandler handler = new MockKeycloakHttpHandler()
             .WithExternalGet("https://idp.test/sso", HttpStatusCode.OK);
@@ -511,8 +498,7 @@ public class KeycloakSsoServiceTests
             SsoProtocol.Oidc,
             "email",
             "firstName",
-            "lastName",
-            Guid.Empty);
+            "lastName", Guid.Empty, TimeProvider.System);
 
         _repository.GetAsync(Arg.Any<CancellationToken>()).Returns(config);
         KeycloakSsoService service = CreateService();
@@ -535,14 +521,12 @@ public class KeycloakSsoServiceTests
             SsoProtocol.Oidc,
             "email",
             "firstName",
-            "lastName",
-            Guid.Empty);
+            "lastName", Guid.Empty, TimeProvider.System);
         config.UpdateOidcConfig(
             "https://idp.test",
             "client-123",
             "secret",
-            "openid",
-            Guid.Empty);
+            "openid", Guid.Empty, TimeProvider.System);
 
         MockKeycloakHttpHandler handler = new MockKeycloakHttpHandler()
             .WithExternalGet("https://idp.test/.well-known/openid-configuration", HttpStatusCode.NotFound);
@@ -568,14 +552,12 @@ public class KeycloakSsoServiceTests
             SsoProtocol.Oidc,
             "email",
             "firstName",
-            "lastName",
-            Guid.Empty);
+            "lastName", Guid.Empty, TimeProvider.System);
         config.UpdateOidcConfig(
             "https://idp.test",
             "client-123",
             "secret",
-            "openid",
-            Guid.Empty);
+            "openid", Guid.Empty, TimeProvider.System);
 
         MockKeycloakHttpHandler handler = new MockKeycloakHttpHandler()
             .WithExternalGet("https://idp.test/.well-known/openid-configuration", HttpStatusCode.OK, new
@@ -605,14 +587,12 @@ public class KeycloakSsoServiceTests
             SsoProtocol.Oidc,
             "email",
             "firstName",
-            "lastName",
-            Guid.Empty);
+            "lastName", Guid.Empty, TimeProvider.System);
         config.UpdateOidcConfig(
             "https://idp.test",
             "client-123",
             "secret",
-            "openid",
-            Guid.Empty);
+            "openid", Guid.Empty, TimeProvider.System);
 
         MockKeycloakHttpHandler handler = new MockKeycloakHttpHandler()
             .WithExternalGet("https://idp.test/.well-known/openid-configuration", HttpStatusCode.OK, new
@@ -657,8 +637,7 @@ public class KeycloakSsoServiceTests
             SsoProtocol.Saml,
             "email",
             "firstName",
-            "lastName",
-            Guid.Empty);
+            "lastName", Guid.Empty, TimeProvider.System);
 
         _repository.GetAsync(Arg.Any<CancellationToken>()).Returns(config);
         KeycloakSsoService service = CreateService();
@@ -681,15 +660,13 @@ public class KeycloakSsoServiceTests
             SsoProtocol.Saml,
             "email",
             "firstName",
-            "lastName",
-            Guid.Empty);
+            "lastName", Guid.Empty, TimeProvider.System);
         config.UpdateSamlConfig(
             "entity-id",
             "https://idp.test/sso",
             null,
             "not-valid-base64-cert",
-            SamlNameIdFormat.Email,
-            Guid.Empty);
+            SamlNameIdFormat.Email, Guid.Empty, TimeProvider.System);
 
         _repository.GetAsync(Arg.Any<CancellationToken>()).Returns(config);
         KeycloakSsoService service = CreateService();
@@ -712,8 +689,7 @@ public class KeycloakSsoServiceTests
             SsoProtocol.Oidc,
             "email",
             "firstName",
-            "lastName",
-            Guid.Empty);
+            "lastName", Guid.Empty, TimeProvider.System);
 
         _repository.GetAsync(Arg.Any<CancellationToken>()).Returns(config);
         KeycloakSsoService service = CreateService();
@@ -736,14 +712,12 @@ public class KeycloakSsoServiceTests
             SsoProtocol.Oidc,
             "email",
             "firstName",
-            "lastName",
-            Guid.Empty);
+            "lastName", Guid.Empty, TimeProvider.System);
         config.UpdateOidcConfig(
             "https://idp.test",
             "client-123",
             "secret",
-            "openid",
-            Guid.Empty);
+            "openid", Guid.Empty, TimeProvider.System);
 
         MockKeycloakHttpHandler handler = new MockKeycloakHttpHandler()
             .WithExternalGet("https://idp.test/.well-known/openid-configuration", HttpStatusCode.OK, new
@@ -829,10 +803,12 @@ public class KeycloakSsoServiceTests
             httpClientFactory,
             _repository,
             _tenantContext,
+            Options.Create(new KeycloakOptions()),
             Substitute.For<ILogger<SsoClaimsSyncService>>());
 
         KeycloakIdpService idpService = new(
             httpClientFactory,
+            Options.Create(new KeycloakOptions()),
             Substitute.For<ILogger<KeycloakIdpService>>());
 
         return new KeycloakSsoService(
@@ -841,9 +817,11 @@ public class KeycloakSsoServiceTests
             _tenantContext,
             currentUserService,
             options,
+            Options.Create(new KeycloakOptions()),
             _logger,
             claimsSyncService,
-            idpService);
+            idpService,
+            TimeProvider.System);
     }
 
     private sealed class MockKeycloakHttpHandler : HttpMessageHandler

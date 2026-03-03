@@ -2,8 +2,9 @@ using System.Net;
 using System.Text;
 using Foundry.Identity.Application.Interfaces;
 using Foundry.Identity.Infrastructure.Services;
-using Microsoft.Extensions.Configuration;
+using Foundry.Identity.Infrastructure;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 #pragma warning disable CA2000 // HttpClient/HttpMessageHandler lifetime is managed by test framework
 
@@ -24,10 +25,7 @@ public class KeycloakTokenServiceGapTests
         MockHttpHandler handler = new MockHttpHandler()
             .WithPost("/realms/foundry/protocol/openid-connect/token", HttpStatusCode.OK, tokenJson);
 
-        // Use empty config - will use defaults
-        IConfiguration configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>())
-            .Build();
+        IOptions<KeycloakOptions> keycloakOptions = Options.Create(new KeycloakOptions());
 
         IHttpClientFactory httpClientFactory = Substitute.For<IHttpClientFactory>();
         HttpClient httpClient = new(handler)
@@ -36,7 +34,7 @@ public class KeycloakTokenServiceGapTests
         };
         httpClientFactory.CreateClient("KeycloakTokenClient").Returns(httpClient);
 
-        KeycloakTokenService service = new(httpClientFactory, configuration, _logger);
+        KeycloakTokenService service = new(httpClientFactory, keycloakOptions, _logger);
 
         TokenResult result = await service.GetTokenAsync("user@test.com", "password");
 
@@ -137,17 +135,15 @@ public class KeycloakTokenServiceGapTests
         };
         httpClientFactory.CreateClient("KeycloakTokenClient").Returns(httpClient);
 
-        IConfiguration configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["Keycloak:realm"] = "foundry",
-                ["Keycloak:resource"] = "foundry-api",
-                ["Keycloak:credentials:secret"] = "test-secret",
-                ["Keycloak:auth-server-url"] = "https://keycloak.test/"
-            })
-            .Build();
+        IOptions<KeycloakOptions> keycloakOptions = Options.Create(new KeycloakOptions
+        {
+            Realm = "foundry",
+            AuthorityUrl = "https://keycloak.test/",
+            AdminClientId = "foundry-api",
+            AdminClientSecret = "test-secret"
+        });
 
-        return new KeycloakTokenService(httpClientFactory, configuration, _logger);
+        return new KeycloakTokenService(httpClientFactory, keycloakOptions, _logger);
     }
 
     private sealed class MockHttpHandler : HttpMessageHandler

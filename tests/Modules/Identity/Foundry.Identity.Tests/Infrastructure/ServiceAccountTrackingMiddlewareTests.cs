@@ -71,6 +71,7 @@ public class ServiceAccountTrackingMiddlewareTests
 
         ServiceCollection services = new();
         services.AddScoped<IServiceAccountRepository>(_ => _repository);
+        services.AddSingleton(TimeProvider.System);
         context.RequestServices = services.BuildServiceProvider();
 
         ServiceAccountTrackingMiddleware middleware = CreateMiddleware();
@@ -98,8 +99,8 @@ public class ServiceAccountTrackingMiddlewareTests
             "Test",
             null,
             Array.Empty<string>(),
-            Guid.Empty);
-        metadata.MarkUsed(); // Initial mark
+            Guid.Empty, TimeProvider.System);
+        metadata.MarkUsed(TimeProvider.System); // Initial mark
 
         _repository.GetByKeycloakClientIdAsync("sa-test-client", Arg.Any<CancellationToken>())
             .Returns(metadata);
@@ -173,6 +174,7 @@ public class ServiceAccountTrackingMiddlewareTests
 
         ServiceCollection services = new();
         services.AddScoped<IServiceAccountRepository>(_ => _repository);
+        services.AddSingleton(TimeProvider.System);
         context.RequestServices = services.BuildServiceProvider();
 
         return context;

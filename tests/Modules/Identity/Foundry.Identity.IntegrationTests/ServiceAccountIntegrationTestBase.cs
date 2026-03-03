@@ -44,7 +44,7 @@ public class ServiceAccountIntegrationTestBase : FoundryIntegrationTestBase, ICl
         await seeder.SeedAsync(context);
     }
 
-    private async Task CleanupDatabaseAsync(IdentityDbContext context)
+    private static async Task CleanupDatabaseAsync(IdentityDbContext context)
     {
         context.ScimSyncLogs.RemoveRange(context.ScimSyncLogs);
         context.ScimConfigurations.RemoveRange(context.ScimConfigurations);

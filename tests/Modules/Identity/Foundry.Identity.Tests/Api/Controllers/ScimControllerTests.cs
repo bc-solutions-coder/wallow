@@ -238,14 +238,30 @@ public class ScimControllerTests
     #region GetGroup
 
     [Fact]
-    public async Task GetGroup_AlwaysReturnsNotFound()
+    public async Task GetGroup_WhenFound_ReturnsOk()
     {
-        IActionResult result = await _controller.GetGroup("group-1", CancellationToken.None);
+        ScimGroup group = new() { Id = "group-1", DisplayName = "Test Group" };
+        _scimService.GetGroupAsync("group-1", Arg.Any<CancellationToken>())
+            .Returns(group);
 
-        NotFoundObjectResult notFound = result.Should().BeOfType<NotFoundObjectResult>().Subject;
+        ActionResult<ScimGroup> result = await _controller.GetGroup("group-1", CancellationToken.None);
+
+        OkObjectResult ok = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        ok.Value.Should().BeOfType<ScimGroup>();
+    }
+
+    [Fact]
+    public async Task GetGroup_WhenNotFound_ReturnsNotFoundWithScimError()
+    {
+        _scimService.GetGroupAsync("nonexistent", Arg.Any<CancellationToken>())
+            .Returns((ScimGroup?)null);
+
+        ActionResult<ScimGroup> result = await _controller.GetGroup("nonexistent", CancellationToken.None);
+
+        NotFoundObjectResult notFound = result.Result.Should().BeOfType<NotFoundObjectResult>().Subject;
         ScimError error = notFound.Value.Should().BeOfType<ScimError>().Subject;
         error.Status.Should().Be(404);
-        error.Detail.Should().Contain("group-1");
+        error.Detail.Should().Contain("nonexistent");
     }
 
     #endregion

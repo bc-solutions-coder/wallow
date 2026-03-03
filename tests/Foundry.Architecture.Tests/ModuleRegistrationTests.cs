@@ -129,6 +129,62 @@ public class ModuleRegistrationTests
         initializeModuleMethod.GetParameters()[0].ParameterType.Name.Should().Be("WebApplication");
     }
 
+    [Fact]
+    public void AllDiscoveredModules_ShouldBeRegistered_InFoundryModules()
+    {
+        // Discover all Foundry.*.Infrastructure assemblies via loaded DLLs
+        string[] infrastructureDlls = Directory
+            .GetFiles(AppDomain.CurrentDomain.BaseDirectory, "Foundry.*.Infrastructure.dll")
+            .ToArray();
+
+        infrastructureDlls.Should().NotBeEmpty("there should be Infrastructure assemblies in the output");
+
+        List<string> discoveredModuleNames = new();
+
+        foreach (string dll in infrastructureDlls)
+        {
+            Assembly assembly = Assembly.LoadFrom(dll);
+
+            // Find static classes named {Module}ModuleExtensions with Add{Module}Module methods
+            Type[] moduleExtensionTypes = assembly.GetTypes()
+                .Where(t => t.IsSealed && t.IsAbstract && t.Name.EndsWith("ModuleExtensions", StringComparison.Ordinal))
+                .ToArray();
+
+            foreach (Type extensionType in moduleExtensionTypes)
+            {
+                string typeName = extensionType.Name;
+                string moduleName = typeName.Replace("ModuleExtensions", "");
+
+                MethodInfo? addMethod = extensionType.GetMethod(
+                    $"Add{moduleName}Module",
+                    BindingFlags.Public | BindingFlags.Static);
+
+                if (addMethod != null)
+                {
+                    discoveredModuleNames.Add(moduleName);
+                }
+            }
+        }
+
+        discoveredModuleNames.Should().NotBeEmpty("reflection should discover at least one module");
+
+        // Verify every discovered module is registered in FoundryModules.cs
+        string sourceCode = File.ReadAllText(
+            Path.Combine(GetSolutionRoot(), "src/Foundry.Api/FoundryModules.cs"));
+
+        foreach (string moduleName in discoveredModuleNames)
+        {
+            string expectedCall = $"Add{moduleName}Module(configuration)";
+            sourceCode.Should().Contain(expectedCall,
+                $"module '{moduleName}' was discovered via reflection but is not registered in FoundryModules.cs");
+        }
+
+        // Discovered modules via reflection should match the known module list
+        discoveredModuleNames.Order().Should().BeEquivalentTo(
+            _moduleNames.Order(),
+            "discovered modules via reflection should match TestConstants.AllModules");
+    }
+
     private static string GetSolutionRoot()
     {
         DirectoryInfo? directory = new DirectoryInfo(AppContext.BaseDirectory);

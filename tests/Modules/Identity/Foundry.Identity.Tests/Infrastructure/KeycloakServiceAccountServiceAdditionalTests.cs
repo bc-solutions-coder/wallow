@@ -12,6 +12,7 @@ using Keycloak.AuthServices.Authentication;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
+using Foundry.Identity.Infrastructure;
 #pragma warning disable CA2000 // HttpClient/HttpMessageHandler lifetime is managed by test framework
 
 namespace Foundry.Identity.Tests.Infrastructure;
@@ -98,7 +99,7 @@ public class KeycloakServiceAccountServiceAdditionalTests
     public async Task RotateSecretAsync_Success_ReturnsNewSecret()
     {
         ServiceAccountMetadata metadata = ServiceAccountMetadata.Create(
-            _tenantId, "sa-test-client", "Test", null, Array.Empty<string>(), Guid.Empty);
+            _tenantId, "sa-test-client", "Test", null, Array.Empty<string>(), Guid.Empty, TimeProvider.System);
         _repository.GetByIdAsync(Arg.Any<ServiceAccountMetadataId>(), Arg.Any<CancellationToken>())
             .Returns(metadata);
 
@@ -122,7 +123,7 @@ public class KeycloakServiceAccountServiceAdditionalTests
     public async Task RotateSecretAsync_MissingSecret_Throws()
     {
         ServiceAccountMetadata metadata = ServiceAccountMetadata.Create(
-            _tenantId, "sa-test-client", "Test", null, Array.Empty<string>(), Guid.Empty);
+            _tenantId, "sa-test-client", "Test", null, Array.Empty<string>(), Guid.Empty, TimeProvider.System);
         _repository.GetByIdAsync(Arg.Any<ServiceAccountMetadataId>(), Arg.Any<CancellationToken>())
             .Returns(metadata);
 
@@ -146,7 +147,7 @@ public class KeycloakServiceAccountServiceAdditionalTests
     public async Task UpdateScopesAsync_Success_UpdatesLocalAndKeycloak()
     {
         ServiceAccountMetadata metadata = ServiceAccountMetadata.Create(
-            _tenantId, "sa-test-client", "Test", null, _oldScope, Guid.Empty);
+            _tenantId, "sa-test-client", "Test", null, _oldScope, Guid.Empty, TimeProvider.System);
         _repository.GetByIdAsync(Arg.Any<ServiceAccountMetadataId>(), Arg.Any<CancellationToken>())
             .Returns(metadata);
 
@@ -169,7 +170,7 @@ public class KeycloakServiceAccountServiceAdditionalTests
     public async Task RevokeAsync_Success_DeletesFromKeycloakAndRevokesLocal()
     {
         ServiceAccountMetadata metadata = ServiceAccountMetadata.Create(
-            _tenantId, "sa-test-client", "Test", null, Array.Empty<string>(), Guid.Empty);
+            _tenantId, "sa-test-client", "Test", null, Array.Empty<string>(), Guid.Empty, TimeProvider.System);
         _repository.GetByIdAsync(Arg.Any<ServiceAccountMetadataId>(), Arg.Any<CancellationToken>())
             .Returns(metadata);
 
@@ -191,7 +192,7 @@ public class KeycloakServiceAccountServiceAdditionalTests
     public async Task RevokeAsync_WhenKeycloakClientNotFound_ThrowsInvalidOperationException()
     {
         ServiceAccountMetadata metadata = ServiceAccountMetadata.Create(
-            _tenantId, "sa-test-client", "Test", null, Array.Empty<string>(), Guid.Empty);
+            _tenantId, "sa-test-client", "Test", null, Array.Empty<string>(), Guid.Empty, TimeProvider.System);
         _repository.GetByIdAsync(Arg.Any<ServiceAccountMetadataId>(), Arg.Any<CancellationToken>())
             .Returns(metadata);
 
@@ -241,6 +242,8 @@ public class KeycloakServiceAccountServiceAdditionalTests
             _tenantContext,
             _currentUserService,
             options,
+            Options.Create(new KeycloakOptions()),
+            TimeProvider.System,
             _logger);
     }
 

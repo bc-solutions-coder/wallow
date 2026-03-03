@@ -44,8 +44,7 @@ public sealed class FakeServiceAccountService : IServiceAccountService
             clientId,
             request.Name,
             request.Description,
-            request.Scopes,
-            Guid.Empty);
+            request.Scopes, Guid.Empty, TimeProvider.System);
 
         _repository.Add(metadata);
         await _repository.SaveChangesAsync(ct);
@@ -120,7 +119,7 @@ public sealed class FakeServiceAccountService : IServiceAccountService
             throw new EntityNotFoundException(nameof(ServiceAccountMetadata), id.Value);
         }
 
-        metadata.UpdateScopes(scopes, Guid.Empty);
+        metadata.UpdateScopes(scopes, Guid.Empty, TimeProvider.System);
         await _repository.SaveChangesAsync(ct);
     }
 
@@ -132,7 +131,7 @@ public sealed class FakeServiceAccountService : IServiceAccountService
             throw new EntityNotFoundException(nameof(ServiceAccountMetadata), id.Value);
         }
 
-        metadata.Revoke(Guid.Empty);
+        metadata.Revoke(Guid.Empty, TimeProvider.System);
         await _repository.SaveChangesAsync(ct);
     }
 

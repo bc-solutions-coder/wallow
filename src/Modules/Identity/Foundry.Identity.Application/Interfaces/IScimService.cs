@@ -62,6 +62,11 @@ public interface IScimService
 
     // SCIM Group Operations (optional)
     /// <summary>
+    /// Gets a group by ID.
+    /// </summary>
+    Task<ScimGroup?> GetGroupAsync(string id, CancellationToken ct = default);
+
+    /// <summary>
     /// Creates a new group via SCIM provisioning.
     /// </summary>
     Task<ScimGroup> CreateGroupAsync(ScimGroupRequest request, CancellationToken ct = default);

@@ -12,10 +12,10 @@ public class SsoConfigurationTests
     private static readonly Guid _testUserId = Guid.NewGuid();
 
     private static SsoConfiguration CreateSamlConfig() =>
-        SsoConfiguration.Create(_tenantId, "Test SAML", SsoProtocol.Saml, "email", "firstName", "lastName", _testUserId);
+        SsoConfiguration.Create(_tenantId, "Test SAML", SsoProtocol.Saml, "email", "firstName", "lastName", _testUserId, TimeProvider.System);
 
     private static SsoConfiguration CreateOidcConfig() =>
-        SsoConfiguration.Create(_tenantId, "Test OIDC", SsoProtocol.Oidc, "email", "firstName", "lastName", _testUserId);
+        SsoConfiguration.Create(_tenantId, "Test OIDC", SsoProtocol.Oidc, "email", "firstName", "lastName", _testUserId, TimeProvider.System);
 
     [Fact]
     public void Create_WithValidParameters_CreatesDraftConfiguration()
@@ -37,7 +37,7 @@ public class SsoConfigurationTests
     [Fact]
     public void Create_WithEmptyDisplayName_ThrowsBusinessRuleException()
     {
-        Action act = () => SsoConfiguration.Create(_tenantId, "", SsoProtocol.Saml, "email", "first", "last", _testUserId);
+        Action act = () => SsoConfiguration.Create(_tenantId, "", SsoProtocol.Saml, "email", "first", "last", _testUserId, TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>().WithMessage("*display name*");
     }
@@ -45,7 +45,7 @@ public class SsoConfigurationTests
     [Fact]
     public void Create_WithEmptyEmailAttribute_ThrowsBusinessRuleException()
     {
-        Action act = () => SsoConfiguration.Create(_tenantId, "Test", SsoProtocol.Saml, "", "first", "last", _testUserId);
+        Action act = () => SsoConfiguration.Create(_tenantId, "Test", SsoProtocol.Saml, "", "first", "last", _testUserId, TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>().WithMessage("*Email attribute*");
     }
@@ -53,7 +53,7 @@ public class SsoConfigurationTests
     [Fact]
     public void Create_WithEmptyFirstNameAttribute_ThrowsBusinessRuleException()
     {
-        Action act = () => SsoConfiguration.Create(_tenantId, "Test", SsoProtocol.Saml, "email", "", "last", _testUserId);
+        Action act = () => SsoConfiguration.Create(_tenantId, "Test", SsoProtocol.Saml, "email", "", "last", _testUserId, TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>().WithMessage("*First name*");
     }
@@ -61,7 +61,7 @@ public class SsoConfigurationTests
     [Fact]
     public void Create_WithEmptyLastNameAttribute_ThrowsBusinessRuleException()
     {
-        Action act = () => SsoConfiguration.Create(_tenantId, "Test", SsoProtocol.Saml, "email", "first", "", _testUserId);
+        Action act = () => SsoConfiguration.Create(_tenantId, "Test", SsoProtocol.Saml, "email", "first", "", _testUserId, TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>().WithMessage("*Last name*");
     }
@@ -71,7 +71,7 @@ public class SsoConfigurationTests
     {
         SsoConfiguration config = CreateSamlConfig();
 
-        config.MoveToTesting(_testUserId);
+        config.MoveToTesting(_testUserId, TimeProvider.System);
 
         config.Status.Should().Be(SsoStatus.Testing);
     }
@@ -80,10 +80,10 @@ public class SsoConfigurationTests
     public void MoveToTesting_FromNonDraft_ThrowsBusinessRuleException()
     {
         SsoConfiguration config = CreateSamlConfig();
-        config.UpdateSamlConfig("entity-id", "https://sso.example.com", null, "cert-data", SamlNameIdFormat.Email, _testUserId);
-        config.Activate(_testUserId);
+        config.UpdateSamlConfig("entity-id", "https://sso.example.com", null, "cert-data", SamlNameIdFormat.Email, _testUserId, TimeProvider.System);
+        config.Activate(_testUserId, TimeProvider.System);
 
-        Action act = () => config.MoveToTesting(_testUserId);
+        Action act = () => config.MoveToTesting(_testUserId, TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>().WithMessage("*Draft*");
     }
@@ -92,9 +92,9 @@ public class SsoConfigurationTests
     public void Activate_SamlWithCompleteConfig_SetsStatusToActive()
     {
         SsoConfiguration config = CreateSamlConfig();
-        config.UpdateSamlConfig("entity-id", "https://sso.example.com", null, "cert-data", SamlNameIdFormat.Email, _testUserId);
+        config.UpdateSamlConfig("entity-id", "https://sso.example.com", null, "cert-data", SamlNameIdFormat.Email, _testUserId, TimeProvider.System);
 
-        config.Activate(_testUserId);
+        config.Activate(_testUserId, TimeProvider.System);
 
         config.Status.Should().Be(SsoStatus.Active);
     }
@@ -103,9 +103,9 @@ public class SsoConfigurationTests
     public void Activate_SamlWithCompleteConfig_RaisesSsoConfigurationActivatedEvent()
     {
         SsoConfiguration config = CreateSamlConfig();
-        config.UpdateSamlConfig("entity-id", "https://sso.example.com", null, "cert-data", SamlNameIdFormat.Email, _testUserId);
+        config.UpdateSamlConfig("entity-id", "https://sso.example.com", null, "cert-data", SamlNameIdFormat.Email, _testUserId, TimeProvider.System);
 
-        config.Activate(_testUserId);
+        config.Activate(_testUserId, TimeProvider.System);
 
         config.DomainEvents.Should().ContainSingle()
             .Which.Should().BeOfType<SsoConfigurationActivatedEvent>()
@@ -119,10 +119,10 @@ public class SsoConfigurationTests
     public void Activate_WhenAlreadyActive_ThrowsBusinessRuleException()
     {
         SsoConfiguration config = CreateSamlConfig();
-        config.UpdateSamlConfig("entity-id", "https://sso.example.com", null, "cert-data", SamlNameIdFormat.Email, _testUserId);
-        config.Activate(_testUserId);
+        config.UpdateSamlConfig("entity-id", "https://sso.example.com", null, "cert-data", SamlNameIdFormat.Email, _testUserId, TimeProvider.System);
+        config.Activate(_testUserId, TimeProvider.System);
 
-        Action act = () => config.Activate(_testUserId);
+        Action act = () => config.Activate(_testUserId, TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>().WithMessage("*already active*");
     }
@@ -132,7 +132,7 @@ public class SsoConfigurationTests
     {
         SsoConfiguration config = CreateSamlConfig();
 
-        Action act = () => config.Activate(_testUserId);
+        Action act = () => config.Activate(_testUserId, TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>().WithMessage("*SAML configuration is incomplete*");
     }
@@ -142,7 +142,7 @@ public class SsoConfigurationTests
     {
         SsoConfiguration config = CreateOidcConfig();
 
-        Action act = () => config.Activate(_testUserId);
+        Action act = () => config.Activate(_testUserId, TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>().WithMessage("*OIDC configuration is incomplete*");
     }
@@ -151,9 +151,9 @@ public class SsoConfigurationTests
     public void Activate_OidcWithCompleteConfig_SetsStatusToActive()
     {
         SsoConfiguration config = CreateOidcConfig();
-        config.UpdateOidcConfig("https://issuer.example.com", "client-id", "client-secret", "openid profile", _testUserId);
+        config.UpdateOidcConfig("https://issuer.example.com", "client-id", "client-secret", "openid profile", _testUserId, TimeProvider.System);
 
-        config.Activate(_testUserId);
+        config.Activate(_testUserId, TimeProvider.System);
 
         config.Status.Should().Be(SsoStatus.Active);
     }
@@ -162,10 +162,10 @@ public class SsoConfigurationTests
     public void Disable_WhenActive_SetsStatusToDisabled()
     {
         SsoConfiguration config = CreateSamlConfig();
-        config.UpdateSamlConfig("entity-id", "https://sso.example.com", null, "cert-data", SamlNameIdFormat.Email, _testUserId);
-        config.Activate(_testUserId);
+        config.UpdateSamlConfig("entity-id", "https://sso.example.com", null, "cert-data", SamlNameIdFormat.Email, _testUserId, TimeProvider.System);
+        config.Activate(_testUserId, TimeProvider.System);
 
-        config.Disable(_testUserId);
+        config.Disable(_testUserId, TimeProvider.System);
 
         config.Status.Should().Be(SsoStatus.Disabled);
     }
@@ -174,11 +174,11 @@ public class SsoConfigurationTests
     public void Disable_WhenAlreadyDisabled_ThrowsBusinessRuleException()
     {
         SsoConfiguration config = CreateSamlConfig();
-        config.UpdateSamlConfig("entity-id", "https://sso.example.com", null, "cert", SamlNameIdFormat.Email, _testUserId);
-        config.Activate(_testUserId);
-        config.Disable(_testUserId);
+        config.UpdateSamlConfig("entity-id", "https://sso.example.com", null, "cert", SamlNameIdFormat.Email, _testUserId, TimeProvider.System);
+        config.Activate(_testUserId, TimeProvider.System);
+        config.Disable(_testUserId, TimeProvider.System);
 
-        Action act = () => config.Disable(_testUserId);
+        Action act = () => config.Disable(_testUserId, TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>().WithMessage("*already disabled*");
     }
@@ -188,7 +188,7 @@ public class SsoConfigurationTests
     {
         SsoConfiguration config = CreateSamlConfig();
 
-        config.UpdateSamlConfig("entity-id", "https://sso.example.com", "https://slo.example.com", "cert-data", SamlNameIdFormat.Persistent, _testUserId);
+        config.UpdateSamlConfig("entity-id", "https://sso.example.com", "https://slo.example.com", "cert-data", SamlNameIdFormat.Persistent, _testUserId, TimeProvider.System);
 
         config.SamlEntityId.Should().Be("entity-id");
         config.SamlSsoUrl.Should().Be("https://sso.example.com");
@@ -202,7 +202,7 @@ public class SsoConfigurationTests
     {
         SsoConfiguration config = CreateOidcConfig();
 
-        Action act = () => config.UpdateSamlConfig("entity-id", "https://sso.example.com", null, "cert", SamlNameIdFormat.Email, _testUserId);
+        Action act = () => config.UpdateSamlConfig("entity-id", "https://sso.example.com", null, "cert", SamlNameIdFormat.Email, _testUserId, TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>().WithMessage("*non-SAML*");
     }
@@ -211,10 +211,10 @@ public class SsoConfigurationTests
     public void UpdateSamlConfig_WhenActive_ThrowsBusinessRuleException()
     {
         SsoConfiguration config = CreateSamlConfig();
-        config.UpdateSamlConfig("entity-id", "https://sso.example.com", null, "cert", SamlNameIdFormat.Email, _testUserId);
-        config.Activate(_testUserId);
+        config.UpdateSamlConfig("entity-id", "https://sso.example.com", null, "cert", SamlNameIdFormat.Email, _testUserId, TimeProvider.System);
+        config.Activate(_testUserId, TimeProvider.System);
 
-        Action act = () => config.UpdateSamlConfig("new-entity", "https://new.example.com", null, "new-cert", SamlNameIdFormat.Persistent, _testUserId);
+        Action act = () => config.UpdateSamlConfig("new-entity", "https://new.example.com", null, "new-cert", SamlNameIdFormat.Persistent, _testUserId, TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>().WithMessage("*active*");
     }
@@ -224,7 +224,7 @@ public class SsoConfigurationTests
     {
         SsoConfiguration config = CreateSamlConfig();
 
-        Action act = () => config.UpdateSamlConfig("", "https://sso.example.com", null, "cert", SamlNameIdFormat.Email, _testUserId);
+        Action act = () => config.UpdateSamlConfig("", "https://sso.example.com", null, "cert", SamlNameIdFormat.Email, _testUserId, TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>().WithMessage("*entity ID*");
     }
@@ -234,7 +234,7 @@ public class SsoConfigurationTests
     {
         SsoConfiguration config = CreateSamlConfig();
 
-        Action act = () => config.UpdateSamlConfig("entity-id", "", null, "cert", SamlNameIdFormat.Email, _testUserId);
+        Action act = () => config.UpdateSamlConfig("entity-id", "", null, "cert", SamlNameIdFormat.Email, _testUserId, TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>().WithMessage("*SSO URL*");
     }
@@ -244,7 +244,7 @@ public class SsoConfigurationTests
     {
         SsoConfiguration config = CreateSamlConfig();
 
-        Action act = () => config.UpdateSamlConfig("entity-id", "https://sso.example.com", null, "", SamlNameIdFormat.Email, _testUserId);
+        Action act = () => config.UpdateSamlConfig("entity-id", "https://sso.example.com", null, "", SamlNameIdFormat.Email, _testUserId, TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>().WithMessage("*certificate*");
     }
@@ -254,7 +254,7 @@ public class SsoConfigurationTests
     {
         SsoConfiguration config = CreateOidcConfig();
 
-        config.UpdateOidcConfig("https://issuer.example.com", "client-id", "client-secret", "openid profile email", _testUserId);
+        config.UpdateOidcConfig("https://issuer.example.com", "client-id", "client-secret", "openid profile email", _testUserId, TimeProvider.System);
 
         config.OidcIssuer.Should().Be("https://issuer.example.com");
         config.OidcClientId.Should().Be("client-id");
@@ -267,7 +267,7 @@ public class SsoConfigurationTests
     {
         SsoConfiguration config = CreateSamlConfig();
 
-        Action act = () => config.UpdateOidcConfig("https://issuer.example.com", "client-id", "secret", "openid", _testUserId);
+        Action act = () => config.UpdateOidcConfig("https://issuer.example.com", "client-id", "secret", "openid", _testUserId, TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>().WithMessage("*non-OIDC*");
     }
@@ -276,10 +276,10 @@ public class SsoConfigurationTests
     public void UpdateOidcConfig_WhenActive_ThrowsBusinessRuleException()
     {
         SsoConfiguration config = CreateOidcConfig();
-        config.UpdateOidcConfig("https://issuer.example.com", "client-id", "secret", "openid", _testUserId);
-        config.Activate(_testUserId);
+        config.UpdateOidcConfig("https://issuer.example.com", "client-id", "secret", "openid", _testUserId, TimeProvider.System);
+        config.Activate(_testUserId, TimeProvider.System);
 
-        Action act = () => config.UpdateOidcConfig("https://new.example.com", "new-client", "new-secret", "openid", _testUserId);
+        Action act = () => config.UpdateOidcConfig("https://new.example.com", "new-client", "new-secret", "openid", _testUserId, TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>().WithMessage("*active*");
     }
@@ -289,7 +289,7 @@ public class SsoConfigurationTests
     {
         SsoConfiguration config = CreateOidcConfig();
 
-        Action act = () => config.UpdateOidcConfig("", "client-id", "secret", "openid", _testUserId);
+        Action act = () => config.UpdateOidcConfig("", "client-id", "secret", "openid", _testUserId, TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>().WithMessage("*issuer*");
     }
@@ -299,7 +299,7 @@ public class SsoConfigurationTests
     {
         SsoConfiguration config = CreateOidcConfig();
 
-        Action act = () => config.UpdateOidcConfig("https://issuer.example.com", "", "secret", "openid", _testUserId);
+        Action act = () => config.UpdateOidcConfig("https://issuer.example.com", "", "secret", "openid", _testUserId, TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>().WithMessage("*client ID*");
     }
@@ -309,7 +309,7 @@ public class SsoConfigurationTests
     {
         SsoConfiguration config = CreateOidcConfig();
 
-        Action act = () => config.UpdateOidcConfig("https://issuer.example.com", "client-id", "", "openid", _testUserId);
+        Action act = () => config.UpdateOidcConfig("https://issuer.example.com", "client-id", "", "openid", _testUserId, TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>().WithMessage("*client secret*");
     }
@@ -319,7 +319,7 @@ public class SsoConfigurationTests
     {
         SsoConfiguration config = CreateSamlConfig();
 
-        config.UpdateBehaviorSettings(true, false, "viewer", true, "groups", _testUserId);
+        config.UpdateBehaviorSettings(true, false, "viewer", true, "groups", _testUserId, TimeProvider.System);
 
         config.EnforceForAllUsers.Should().BeTrue();
         config.AutoProvisionUsers.Should().BeFalse();
@@ -332,10 +332,10 @@ public class SsoConfigurationTests
     public void UpdateBehaviorSettings_WhenActive_ThrowsBusinessRuleException()
     {
         SsoConfiguration config = CreateSamlConfig();
-        config.UpdateSamlConfig("entity-id", "https://sso.example.com", null, "cert", SamlNameIdFormat.Email, _testUserId);
-        config.Activate(_testUserId);
+        config.UpdateSamlConfig("entity-id", "https://sso.example.com", null, "cert", SamlNameIdFormat.Email, _testUserId, TimeProvider.System);
+        config.Activate(_testUserId, TimeProvider.System);
 
-        Action act = () => config.UpdateBehaviorSettings(true, false, "viewer", true, "groups", _testUserId);
+        Action act = () => config.UpdateBehaviorSettings(true, false, "viewer", true, "groups", _testUserId, TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>().WithMessage("*active*");
     }
@@ -345,7 +345,7 @@ public class SsoConfigurationTests
     {
         SsoConfiguration config = CreateSamlConfig();
 
-        config.SetKeycloakIdpAlias("saml-idp-alias", _testUserId);
+        config.SetKeycloakIdpAlias("saml-idp-alias", _testUserId, TimeProvider.System);
 
         config.KeycloakIdpAlias.Should().Be("saml-idp-alias");
     }

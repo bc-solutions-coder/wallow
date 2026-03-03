@@ -9,6 +9,8 @@ using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.MultiTenancy;
 using Microsoft.Extensions.Logging;
 
+using Foundry.Identity.Infrastructure;
+using Microsoft.Extensions.Options;
 #pragma warning disable CA2000 // HttpClient/HttpMessageHandler lifetime is managed by test framework
 #pragma warning disable CA1861 // Inline arrays in test data are intentional and not called repeatedly
 
@@ -40,9 +42,9 @@ public class ScimServiceTests
     public async Task GetConfigurationAsync_WhenExists_ReturnsDto()
     {
         // Arrange
-        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty);
-        config.UpdateSettings(true, "user", false, Guid.Empty);
-        config.Enable(Guid.Empty);
+        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty, TimeProvider.System);
+        config.UpdateSettings(true, "user", false, Guid.Empty, TimeProvider.System);
+        config.Enable(Guid.Empty, TimeProvider.System);
 
         _scimRepository.GetAsync(Arg.Any<CancellationToken>()).Returns(config);
         ScimService service = CreateService();
@@ -91,7 +93,7 @@ public class ScimServiceTests
     public async Task EnableScimAsync_UpdatesExistingConfiguration_WhenExists()
     {
         // Arrange
-        (ScimConfiguration existingConfig, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty);
+        (ScimConfiguration existingConfig, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty, TimeProvider.System);
         _scimRepository.GetAsync(Arg.Any<CancellationToken>()).Returns(existingConfig);
         _tenantContext.TenantId.Returns(_tenantId);
 
@@ -136,8 +138,8 @@ public class ScimServiceTests
     public async Task DisableScimAsync_WhenExists_DisablesConfiguration()
     {
         // Arrange
-        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty);
-        config.Enable(Guid.Empty);
+        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty, TimeProvider.System);
+        config.Enable(Guid.Empty, TimeProvider.System);
         _scimRepository.GetAsync(Arg.Any<CancellationToken>()).Returns(config);
         _tenantContext.TenantId.Returns(_tenantId);
 
@@ -170,7 +172,7 @@ public class ScimServiceTests
     public async Task RegenerateTokenAsync_GeneratesNewToken()
     {
         // Arrange
-        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty);
+        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty, TimeProvider.System);
         _scimRepository.GetAsync(Arg.Any<CancellationToken>()).Returns(config);
         _tenantContext.TenantId.Returns(_tenantId);
 
@@ -207,8 +209,8 @@ public class ScimServiceTests
     public async Task ValidateTokenAsync_WhenTokenExpired_ReturnsFalse()
     {
         // Arrange
-        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty);
-        _ = config.RegenerateToken(Guid.Empty);
+        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty, TimeProvider.System);
+        _ = config.RegenerateToken(Guid.Empty, TimeProvider.System);
         // Manually set expiration to the past (using reflection or just testing the behavior)
         // Since we can't directly set TokenExpiresAt, we'll test with a freshly created token which should be valid
 
@@ -226,9 +228,9 @@ public class ScimServiceTests
     public async Task ValidateTokenAsync_WhenValidToken_ReturnsTrue()
     {
         // Arrange
-        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty);
-        config.Enable(Guid.Empty); // Must enable config for token to be valid
-        string plainTextToken = config.RegenerateToken(Guid.Empty);
+        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty, TimeProvider.System);
+        config.Enable(Guid.Empty, TimeProvider.System); // Must enable config for token to be valid
+        string plainTextToken = config.RegenerateToken(Guid.Empty, TimeProvider.System);
 
         _scimRepository.GetAsync(Arg.Any<CancellationToken>()).Returns(config);
         ScimService service = CreateService();
@@ -482,8 +484,8 @@ public class ScimServiceTests
     public async Task DeleteUserAsync_WhenDeprovisionTrue_PerformsHardDelete()
     {
         // Arrange
-        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty);
-        config.UpdateSettings(true, null, true, Guid.Empty); // DeprovisionOnDelete = true
+        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty, TimeProvider.System);
+        config.UpdateSettings(true, null, true, Guid.Empty, TimeProvider.System); // DeprovisionOnDelete = true
 
         _scimRepository.GetAsync(Arg.Any<CancellationToken>()).Returns(config);
 
@@ -508,8 +510,8 @@ public class ScimServiceTests
     public async Task DeleteUserAsync_WhenDeprovisionFalse_PerformsSoftDelete()
     {
         // Arrange
-        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty);
-        config.UpdateSettings(true, null, false, Guid.Empty); // DeprovisionOnDelete = false
+        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty, TimeProvider.System);
+        config.UpdateSettings(true, null, false, Guid.Empty, TimeProvider.System); // DeprovisionOnDelete = false
 
         _scimRepository.GetAsync(Arg.Any<CancellationToken>()).Returns(config);
 
@@ -534,7 +536,7 @@ public class ScimServiceTests
     public async Task DeleteUserAsync_WhenFails_LogsError()
     {
         // Arrange
-        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty);
+        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty, TimeProvider.System);
         _scimRepository.GetAsync(Arg.Any<CancellationToken>()).Returns(config);
 
         MockKeycloakHttpHandler handler = new MockKeycloakHttpHandler()
@@ -790,8 +792,8 @@ public class ScimServiceTests
         // Arrange
         List<ScimSyncLog> logs =
         [
-            ScimSyncLog.Create(_tenantId, ScimOperation.Create, ScimResourceType.User, "ext-1", "user-1", true),
-            ScimSyncLog.Create(_tenantId, ScimOperation.Update, ScimResourceType.User, "ext-2", "user-2", false, "Error")
+            ScimSyncLog.Create(_tenantId, ScimOperation.Create, ScimResourceType.User, "ext-1", "user-1", true, TimeProvider.System),
+            ScimSyncLog.Create(_tenantId, ScimOperation.Update, ScimResourceType.User, "ext-2", "user-2", false, TimeProvider.System, "Error")
         ];
 
         _syncLogRepository.GetRecentAsync(100, Arg.Any<CancellationToken>()).Returns(logs);
@@ -828,14 +830,18 @@ public class ScimServiceTests
             _scimRepository,
             _syncLogRepository,
             _tenantContext,
-            Substitute.For<ILogger<ScimUserService>>());
+            Options.Create(new KeycloakOptions()),
+            Substitute.For<ILogger<ScimUserService>>(),
+            TimeProvider.System);
 
         ScimGroupService groupService = new(
             httpClientFactory,
             _scimRepository,
             _syncLogRepository,
             _tenantContext,
-            Substitute.For<ILogger<ScimGroupService>>());
+            Options.Create(new KeycloakOptions()),
+            Substitute.For<ILogger<ScimGroupService>>(),
+            TimeProvider.System);
 
         return new ScimService(
             _scimRepository,
@@ -843,7 +849,8 @@ public class ScimServiceTests
             _tenantContext,
             userService,
             groupService,
-            _logger);
+            _logger,
+            TimeProvider.System);
     }
 
     private sealed class MockKeycloakHttpHandler : HttpMessageHandler

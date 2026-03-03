@@ -4,6 +4,7 @@ using Foundry.Billing.Application.Metering.DTOs;
 using Foundry.Billing.Application.Metering.Queries.GetCurrentUsage;
 using Foundry.Billing.Application.Metering.Queries.GetUsageHistory;
 using Foundry.Billing.Domain.Metering.Enums;
+using Foundry.Shared.Kernel.Identity.Authorization;
 using Foundry.Shared.Kernel.Results;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -14,7 +15,7 @@ namespace Foundry.Billing.Api.Controllers;
 
 [ApiController]
 [ApiVersion(1.0)]
-[Route("api/v{version:apiVersion}/metering/usage")]
+[Route("api/v{version:apiVersion}/billing/usage")]
 [Authorize]
 [Tags("Metering")]
 [Produces("application/json")]
@@ -31,6 +32,7 @@ public class UsageController : ControllerBase
     /// Get current usage for all meters.
     /// </summary>
     [HttpGet]
+    [HasPermission(PermissionType.BillingRead)]
     [ProducesResponseType(typeof(IReadOnlyList<UsageSummaryDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAll(
         [FromQuery] QuotaPeriod? period,
@@ -46,6 +48,7 @@ public class UsageController : ControllerBase
     /// Get current usage for a specific meter.
     /// </summary>
     [HttpGet("{meterCode}")]
+    [HasPermission(PermissionType.BillingRead)]
     [ProducesResponseType(typeof(IReadOnlyList<UsageSummaryDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetByMeterCode(
         string meterCode,
@@ -62,6 +65,7 @@ public class UsageController : ControllerBase
     /// Get historical usage for a specific meter.
     /// </summary>
     [HttpGet("{meterCode}/history")]
+    [HasPermission(PermissionType.BillingRead)]
     [ProducesResponseType(typeof(IReadOnlyList<UsageRecordDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetHistory(
         string meterCode,

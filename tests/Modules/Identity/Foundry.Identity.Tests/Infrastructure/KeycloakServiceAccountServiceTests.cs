@@ -14,6 +14,7 @@ using Keycloak.AuthServices.Authentication;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
+using Foundry.Identity.Infrastructure;
 #pragma warning disable CA2000 // HttpClient/HttpMessageHandler lifetime is managed by test framework
 
 namespace Foundry.Identity.Tests.Infrastructure;
@@ -35,8 +36,8 @@ public class KeycloakServiceAccountServiceTests
         // Arrange
         List<ServiceAccountMetadata> accounts =
         [
-            ServiceAccountMetadata.Create(_tenantId, "sa-client-1", "Account 1", null, Array.Empty<string>(), Guid.Empty),
-            ServiceAccountMetadata.Create(_tenantId, "sa-client-2", "Account 2", "Description", _oneScope, Guid.Empty)
+            ServiceAccountMetadata.Create(_tenantId, "sa-client-1", "Account 1", null, Array.Empty<string>(), Guid.Empty, TimeProvider.System),
+            ServiceAccountMetadata.Create(_tenantId, "sa-client-2", "Account 2", "Description", _oneScope, Guid.Empty, TimeProvider.System)
         ];
 
         _repository.GetAllAsync(Arg.Any<CancellationToken>()).Returns(accounts);
@@ -62,9 +63,8 @@ public class KeycloakServiceAccountServiceTests
             "sa-test-client",
             "Test Account",
             "Test Description",
-            _twoScopes,
-            Guid.Empty);
-        metadata.MarkUsed();
+            _twoScopes, Guid.Empty, TimeProvider.System);
+        metadata.MarkUsed(TimeProvider.System);
 
         _repository.GetByIdAsync(Arg.Any<ServiceAccountMetadataId>(), Arg.Any<CancellationToken>())
             .Returns(metadata);
@@ -171,6 +171,8 @@ public class KeycloakServiceAccountServiceTests
             _tenantContext,
             _currentUserService,
             options,
+            Options.Create(new KeycloakOptions()),
+            TimeProvider.System,
             _logger);
     }
 

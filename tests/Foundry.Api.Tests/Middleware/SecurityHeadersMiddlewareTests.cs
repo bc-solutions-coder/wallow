@@ -103,6 +103,7 @@ public sealed class SecurityHeadersMiddlewareTests
         FeatureCollection features = new FeatureCollection();
         features.Set<IHttpResponseFeature>(responseFeature);
         features.Set<IHttpResponseBodyFeature>(new StreamResponseBodyFeature(Stream.Null));
+        features.Set<IHttpRequestFeature>(new HttpRequestFeature { Path = "/" });
         DefaultHttpContext httpContext = new(features);
 
         SecurityHeadersMiddleware sut = new(_ => Task.CompletedTask, _environment);

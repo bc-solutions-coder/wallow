@@ -27,7 +27,7 @@ public static partial class IdentityModuleExtensions
         {
             await using AsyncServiceScope scope = app.Services.CreateAsyncScope();
             IdentityDbContext db = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
-            if (app.Environment.IsDevelopment())
+            if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))
             {
                 await db.Database.MigrateAsync();
             }

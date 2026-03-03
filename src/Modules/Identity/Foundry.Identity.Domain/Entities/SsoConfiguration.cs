@@ -76,7 +76,8 @@ public sealed class SsoConfiguration : AggregateRoot<SsoConfigurationId>, ITenan
         string emailAttribute,
         string firstNameAttribute,
         string lastNameAttribute,
-        Guid createdByUserId)
+        Guid createdByUserId,
+        TimeProvider timeProvider)
     {
         Id = SsoConfigurationId.New();
         TenantId = tenantId;
@@ -89,7 +90,7 @@ public sealed class SsoConfiguration : AggregateRoot<SsoConfigurationId>, ITenan
         EnforceForAllUsers = false;
         AutoProvisionUsers = true;
         SyncGroupsAsRoles = false;
-        SetCreated(DateTimeOffset.UtcNow, createdByUserId);
+        SetCreated(timeProvider.GetUtcNow(), createdByUserId);
     }
 
     public static SsoConfiguration Create(
@@ -99,7 +100,8 @@ public sealed class SsoConfiguration : AggregateRoot<SsoConfigurationId>, ITenan
         string emailAttribute,
         string firstNameAttribute,
         string lastNameAttribute,
-        Guid createdByUserId)
+        Guid createdByUserId,
+        TimeProvider timeProvider)
     {
         if (string.IsNullOrWhiteSpace(displayName))
         {
@@ -136,10 +138,11 @@ public sealed class SsoConfiguration : AggregateRoot<SsoConfigurationId>, ITenan
             emailAttribute,
             firstNameAttribute,
             lastNameAttribute,
-            createdByUserId);
+            createdByUserId,
+            timeProvider);
     }
 
-    public void Activate(Guid updatedByUserId)
+    public void Activate(Guid updatedByUserId, TimeProvider timeProvider)
     {
         if (Status == SsoStatus.Active)
         {
@@ -163,7 +166,7 @@ public sealed class SsoConfiguration : AggregateRoot<SsoConfigurationId>, ITenan
         }
 
         Status = SsoStatus.Active;
-        SetUpdated(DateTimeOffset.UtcNow, updatedByUserId);
+        SetUpdated(timeProvider.GetUtcNow(), updatedByUserId);
 
         RaiseDomainEvent(new SsoConfigurationActivatedEvent(
             Id.Value,
@@ -172,7 +175,7 @@ public sealed class SsoConfiguration : AggregateRoot<SsoConfigurationId>, ITenan
             Protocol.ToString().ToUpperInvariant()));
     }
 
-    public void Disable(Guid updatedByUserId)
+    public void Disable(Guid updatedByUserId, TimeProvider timeProvider)
     {
         if (Status == SsoStatus.Disabled)
         {
@@ -182,7 +185,7 @@ public sealed class SsoConfiguration : AggregateRoot<SsoConfigurationId>, ITenan
         }
 
         Status = SsoStatus.Disabled;
-        SetUpdated(DateTimeOffset.UtcNow, updatedByUserId);
+        SetUpdated(timeProvider.GetUtcNow(), updatedByUserId);
     }
 
     public void UpdateSamlConfig(
@@ -191,7 +194,8 @@ public sealed class SsoConfiguration : AggregateRoot<SsoConfigurationId>, ITenan
         string? sloUrl,
         string certificate,
         SamlNameIdFormat nameIdFormat,
-        Guid updatedByUserId)
+        Guid updatedByUserId,
+        TimeProvider timeProvider)
     {
         if (Protocol != SsoProtocol.Saml)
         {
@@ -233,7 +237,7 @@ public sealed class SsoConfiguration : AggregateRoot<SsoConfigurationId>, ITenan
         SamlSloUrl = sloUrl;
         SamlCertificate = certificate;
         SamlNameIdFormat = nameIdFormat;
-        SetUpdated(DateTimeOffset.UtcNow, updatedByUserId);
+        SetUpdated(timeProvider.GetUtcNow(), updatedByUserId);
     }
 
     public void UpdateOidcConfig(
@@ -241,7 +245,8 @@ public sealed class SsoConfiguration : AggregateRoot<SsoConfigurationId>, ITenan
         string clientId,
         string clientSecret,
         string scopes,
-        Guid updatedByUserId)
+        Guid updatedByUserId,
+        TimeProvider timeProvider)
     {
         if (Protocol != SsoProtocol.Oidc)
         {
@@ -282,7 +287,7 @@ public sealed class SsoConfiguration : AggregateRoot<SsoConfigurationId>, ITenan
         OidcClientId = clientId;
         OidcClientSecret = clientSecret;
         OidcScopes = scopes;
-        SetUpdated(DateTimeOffset.UtcNow, updatedByUserId);
+        SetUpdated(timeProvider.GetUtcNow(), updatedByUserId);
     }
 
     public void UpdateBehaviorSettings(
@@ -291,7 +296,8 @@ public sealed class SsoConfiguration : AggregateRoot<SsoConfigurationId>, ITenan
         string? defaultRole,
         bool syncGroupsAsRoles,
         string? groupsAttribute,
-        Guid updatedByUserId)
+        Guid updatedByUserId,
+        TimeProvider timeProvider)
     {
         if (Status == SsoStatus.Active)
         {
@@ -305,16 +311,16 @@ public sealed class SsoConfiguration : AggregateRoot<SsoConfigurationId>, ITenan
         DefaultRole = defaultRole;
         SyncGroupsAsRoles = syncGroupsAsRoles;
         GroupsAttribute = groupsAttribute;
-        SetUpdated(DateTimeOffset.UtcNow, updatedByUserId);
+        SetUpdated(timeProvider.GetUtcNow(), updatedByUserId);
     }
 
-    public void SetKeycloakIdpAlias(string alias, Guid updatedByUserId)
+    public void SetKeycloakIdpAlias(string alias, Guid updatedByUserId, TimeProvider timeProvider)
     {
         KeycloakIdpAlias = alias;
-        SetUpdated(DateTimeOffset.UtcNow, updatedByUserId);
+        SetUpdated(timeProvider.GetUtcNow(), updatedByUserId);
     }
 
-    public void MoveToTesting(Guid updatedByUserId)
+    public void MoveToTesting(Guid updatedByUserId, TimeProvider timeProvider)
     {
         if (Status != SsoStatus.Draft)
         {
@@ -324,6 +330,6 @@ public sealed class SsoConfiguration : AggregateRoot<SsoConfigurationId>, ITenan
         }
 
         Status = SsoStatus.Testing;
-        SetUpdated(DateTimeOffset.UtcNow, updatedByUserId);
+        SetUpdated(timeProvider.GetUtcNow(), updatedByUserId);
     }
 }

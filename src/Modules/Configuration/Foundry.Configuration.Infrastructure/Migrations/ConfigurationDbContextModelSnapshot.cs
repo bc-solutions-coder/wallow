@@ -215,6 +215,10 @@ namespace Foundry.Configuration.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
+                    b.HasIndex("TenantId", "FlagId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_configuration_feature_flag_overrides_tenant_flag");
+
                     b.HasIndex("FlagId", "TenantId", "UserId");
 
                     b.ToTable("feature_flag_overrides", "configuration");

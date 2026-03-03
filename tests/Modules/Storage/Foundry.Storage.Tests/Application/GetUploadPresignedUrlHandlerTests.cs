@@ -93,8 +93,6 @@ public class GetUploadPresignedUrlHandlerTests
 
         result.IsSuccess.Should().BeTrue();
         result.Value!.UploadUrl.Should().Be("https://storage.example.com/upload-url");
-        result.Value.StorageKey.Should().Contain($"tenant-{tenantId}");
-        result.Value.StorageKey.Should().Contain("uploads");
         result.Value.ExpiresAt.Should().BeAfter(DateTime.UtcNow);
     }
 
@@ -118,26 +116,6 @@ public class GetUploadPresignedUrlHandlerTests
         result.IsSuccess.Should().BeTrue();
         await _storageProvider.Received(1).GetPresignedUrlAsync(
             Arg.Any<string>(), customExpiry, true, Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task Handle_WithPath_IncludesPathInStorageKey()
-    {
-        Guid tenantId = Guid.NewGuid();
-        StorageBucket bucket = StorageBucket.Create(TenantId.New(), "docs");
-        GetUploadPresignedUrlQuery query = new(
-            tenantId, Guid.NewGuid(), "docs", "report.pdf", "application/pdf", 500, Path: "reports/2024");
-
-        _bucketRepository.GetByNameAsync("docs", Arg.Any<CancellationToken>())
-            .Returns(bucket);
-        _storageProvider.GetPresignedUrlAsync(
-                Arg.Any<string>(), Arg.Any<TimeSpan>(), true, Arg.Any<CancellationToken>())
-            .Returns("https://example.com/url");
-
-        Result<PresignedUploadResult> result = await _handler.Handle(query, CancellationToken.None);
-
-        result.IsSuccess.Should().BeTrue();
-        result.Value!.StorageKey.Should().Contain("reports/2024");
     }
 
     [Fact]

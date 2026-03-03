@@ -19,10 +19,12 @@ public sealed record UpdateCustomFieldDefinition(
 public sealed class UpdateCustomFieldDefinitionHandler
 {
     private readonly ICustomFieldDefinitionRepository _repository;
+    private readonly TimeProvider _timeProvider;
 
-    public UpdateCustomFieldDefinitionHandler(ICustomFieldDefinitionRepository repository)
+    public UpdateCustomFieldDefinitionHandler(ICustomFieldDefinitionRepository repository, TimeProvider timeProvider)
     {
         _repository = repository;
+        _timeProvider = timeProvider;
     }
 
     public async Task<CustomFieldDefinitionDto> Handle(
@@ -42,32 +44,32 @@ public sealed class UpdateCustomFieldDefinitionHandler
 
         if (command.DisplayName != null)
         {
-            definition.UpdateDisplayName(command.DisplayName, userId);
+            definition.UpdateDisplayName(command.DisplayName, userId, _timeProvider);
         }
 
         if (command.Description != null)
         {
-            definition.UpdateDescription(command.Description, userId);
+            definition.UpdateDescription(command.Description, userId, _timeProvider);
         }
 
         if (command.IsRequired.HasValue)
         {
-            definition.SetRequired(command.IsRequired.Value, userId);
+            definition.SetRequired(command.IsRequired.Value, userId, _timeProvider);
         }
 
         if (command.DisplayOrder.HasValue)
         {
-            definition.SetDisplayOrder(command.DisplayOrder.Value, userId);
+            definition.SetDisplayOrder(command.DisplayOrder.Value, userId, _timeProvider);
         }
 
         if (command.ValidationRules != null)
         {
-            definition.SetValidationRules(command.ValidationRules, userId);
+            definition.SetValidationRules(command.ValidationRules, userId, _timeProvider);
         }
 
         if (command.Options != null)
         {
-            definition.SetOptions(command.Options, userId);
+            definition.SetOptions(command.Options, userId, _timeProvider);
         }
 
         await _repository.UpdateAsync(definition, cancellationToken);

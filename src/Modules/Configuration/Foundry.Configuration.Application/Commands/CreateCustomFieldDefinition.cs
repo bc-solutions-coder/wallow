@@ -21,13 +21,16 @@ public sealed class CreateCustomFieldDefinitionHandler
 {
     private readonly ICustomFieldDefinitionRepository _repository;
     private readonly ITenantContext _tenantContext;
+    private readonly TimeProvider _timeProvider;
 
     public CreateCustomFieldDefinitionHandler(
         ICustomFieldDefinitionRepository repository,
-        ITenantContext tenantContext)
+        ITenantContext tenantContext,
+        TimeProvider timeProvider)
     {
         _repository = repository;
         _tenantContext = tenantContext;
+        _timeProvider = timeProvider;
     }
 
     public async Task<CustomFieldDefinitionDto> Handle(
@@ -46,26 +49,27 @@ public sealed class CreateCustomFieldDefinitionHandler
             command.FieldKey,
             command.DisplayName,
             command.FieldType,
-            Guid.Empty);
+            Guid.Empty,
+            _timeProvider);
 
         if (!string.IsNullOrWhiteSpace(command.Description))
         {
-            definition.UpdateDescription(command.Description, Guid.Empty);
+            definition.UpdateDescription(command.Description, Guid.Empty, _timeProvider);
         }
 
         if (command.IsRequired)
         {
-            definition.SetRequired(true, Guid.Empty);
+            definition.SetRequired(true, Guid.Empty, _timeProvider);
         }
 
         if (command.ValidationRules != null)
         {
-            definition.SetValidationRules(command.ValidationRules, Guid.Empty);
+            definition.SetValidationRules(command.ValidationRules, Guid.Empty, _timeProvider);
         }
 
         if (command.Options != null && command.Options.Count > 0)
         {
-            definition.SetOptions(command.Options, Guid.Empty);
+            definition.SetOptions(command.Options, Guid.Empty, _timeProvider);
         }
 
         await _repository.AddAsync(definition, cancellationToken);

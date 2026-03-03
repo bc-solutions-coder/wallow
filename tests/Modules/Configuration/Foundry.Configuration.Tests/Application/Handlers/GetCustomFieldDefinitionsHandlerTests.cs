@@ -22,8 +22,8 @@ public class GetCustomFieldDefinitionsHandlerTests
     public async Task Handle_WithDefinitions_ReturnsDtoList()
     {
         TenantId tenantId = TenantId.New();
-        CustomFieldDefinition def1 = CustomFieldDefinition.Create(tenantId, "Invoice", "field_a", "Field A", CustomFieldType.Text, Guid.Empty);
-        CustomFieldDefinition def2 = CustomFieldDefinition.Create(tenantId, "Invoice", "field_b", "Field B", CustomFieldType.Number, Guid.Empty);
+        CustomFieldDefinition def1 = CustomFieldDefinition.Create(tenantId, "Invoice", "field_a", "Field A", CustomFieldType.Text, Guid.Empty, TimeProvider.System);
+        CustomFieldDefinition def2 = CustomFieldDefinition.Create(tenantId, "Invoice", "field_b", "Field B", CustomFieldType.Number, Guid.Empty, TimeProvider.System);
 
         _repository.GetByEntityTypeAsync("Invoice", false, Arg.Any<CancellationToken>())
             .Returns(new List<CustomFieldDefinition> { def1, def2 });

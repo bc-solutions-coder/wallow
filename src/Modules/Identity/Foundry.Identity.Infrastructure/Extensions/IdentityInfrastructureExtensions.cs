@@ -8,8 +8,10 @@ using Keycloak.AuthServices.Sdk;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace Foundry.Identity.Infrastructure.Extensions;
 
@@ -44,6 +46,8 @@ public static class IdentityInfrastructureExtensions
                     errorCodesToAdd: null);
                 npgsqlOptions.CommandTimeout(30);
             });
+            options.ConfigureWarnings(w =>
+                w.Ignore(RelationalEventId.PendingModelChangesWarning));
         });
 
         services.AddScoped<IServiceAccountRepository, ServiceAccountRepository>();
@@ -74,14 +78,14 @@ public static class IdentityInfrastructureExtensions
     private static IServiceCollection AddKeycloakAdmin(
         this IServiceCollection services, IConfiguration configuration)
     {
+        services.Configure<KeycloakOptions>(configuration.GetSection(KeycloakOptions.SectionName));
+
         services.AddKeycloakAdminHttpClient(configuration);
 
-        IConfigurationSection keycloakAdminConfig = configuration.GetSection("KeycloakAdmin");
-        string authServerUrl = keycloakAdminConfig["auth-server-url"] ?? "http://localhost:8080/";
-
-        services.AddHttpClient("KeycloakAdminClient", client =>
+        services.AddHttpClient("KeycloakAdminClient", (sp, client) =>
         {
-            client.BaseAddress = new Uri(authServerUrl);
+            KeycloakOptions options = sp.GetRequiredService<IOptions<KeycloakOptions>>().Value;
+            client.BaseAddress = new Uri(options.AuthorityUrl);
         }).AddStandardResilienceHandler();
 
         // Token service for auth proxy (no auth required on this client)

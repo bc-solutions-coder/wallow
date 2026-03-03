@@ -29,7 +29,8 @@ public sealed class ScimSyncLog : AggregateRoot<ScimSyncLogId>, ITenantScoped
         string? internalId,
         bool success,
         string? errorMessage,
-        string? requestBody)
+        string? requestBody,
+        TimeProvider timeProvider)
     {
         Id = ScimSyncLogId.New();
         TenantId = tenantId;
@@ -40,7 +41,7 @@ public sealed class ScimSyncLog : AggregateRoot<ScimSyncLogId>, ITenantScoped
         Success = success;
         ErrorMessage = errorMessage;
         RequestBody = requestBody;
-        Timestamp = DateTime.UtcNow;
+        Timestamp = timeProvider.GetUtcNow().UtcDateTime;
     }
 
     public static ScimSyncLog Create(
@@ -50,6 +51,7 @@ public sealed class ScimSyncLog : AggregateRoot<ScimSyncLogId>, ITenantScoped
         string externalId,
         string? internalId,
         bool success,
+        TimeProvider timeProvider,
         string? errorMessage = null,
         string? requestBody = null)
     {
@@ -68,7 +70,8 @@ public sealed class ScimSyncLog : AggregateRoot<ScimSyncLogId>, ITenantScoped
             internalId,
             success,
             errorMessage,
-            requestBody);
+            requestBody,
+            timeProvider);
 
         log.RaiseDomainEvent(new ScimSyncCompletedEvent(
             tenantId.Value,

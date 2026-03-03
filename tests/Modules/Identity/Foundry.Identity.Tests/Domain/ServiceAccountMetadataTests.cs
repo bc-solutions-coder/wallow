@@ -24,8 +24,7 @@ public class ServiceAccountMetadataTests
             "sa-test-client",
             "Test Service Account",
             "Test description",
-            scopes,
-            _testUserId);
+            scopes, _testUserId, TimeProvider.System);
 
         // Assert
         metadata.TenantId.Should().Be(_tenantId);
@@ -47,7 +46,7 @@ public class ServiceAccountMetadataTests
             "Test Service Account",
             null,
             Array.Empty<string>(),
-            _testUserId);
+            _testUserId, TimeProvider.System);
 
         // Assert
         act.Should().Throw<BusinessRuleException>()
@@ -64,7 +63,7 @@ public class ServiceAccountMetadataTests
             "",
             null,
             Array.Empty<string>(),
-            _testUserId);
+            _testUserId, TimeProvider.System);
 
         // Assert
         act.Should().Throw<BusinessRuleException>()
@@ -81,11 +80,11 @@ public class ServiceAccountMetadataTests
             "Test",
             null,
             Array.Empty<string>(),
-            _testUserId);
+            _testUserId, TimeProvider.System);
         DateTime beforeMark = DateTime.UtcNow;
 
         // Act
-        metadata.MarkUsed();
+        metadata.MarkUsed(TimeProvider.System);
 
         // Assert
         metadata.LastUsedAt.Should().NotBeNull();
@@ -103,10 +102,10 @@ public class ServiceAccountMetadataTests
             "Test",
             null,
             Array.Empty<string>(),
-            _testUserId);
+            _testUserId, TimeProvider.System);
 
         // Act
-        metadata.Revoke(_testUserId);
+        metadata.Revoke(_testUserId, TimeProvider.System);
 
         // Assert
         metadata.Status.Should().Be(ServiceAccountStatus.Revoked);
@@ -122,11 +121,11 @@ public class ServiceAccountMetadataTests
             "Test",
             null,
             Array.Empty<string>(),
-            _testUserId);
-        metadata.Revoke(_testUserId);
+            _testUserId, TimeProvider.System);
+        metadata.Revoke(_testUserId, TimeProvider.System);
 
         // Act
-        Action act = () => metadata.Revoke(_testUserId);
+        Action act = () => metadata.Revoke(_testUserId, TimeProvider.System);
 
         // Assert
         act.Should().Throw<BusinessRuleException>()
@@ -142,12 +141,11 @@ public class ServiceAccountMetadataTests
             "sa-test-client",
             "Test",
             null,
-            _oldScopeArray,
-            _testUserId);
+            _oldScopeArray, _testUserId, TimeProvider.System);
         string[] newScopes = ["new.scope1", "new.scope2"];
 
         // Act
-        metadata.UpdateScopes(newScopes, _testUserId);
+        metadata.UpdateScopes(newScopes, _testUserId, TimeProvider.System);
 
         // Assert
         metadata.Scopes.Should().BeEquivalentTo(newScopes);
@@ -163,11 +161,11 @@ public class ServiceAccountMetadataTests
             "Test",
             null,
             Array.Empty<string>(),
-            _testUserId);
-        metadata.Revoke(_testUserId);
+            _testUserId, TimeProvider.System);
+        metadata.Revoke(_testUserId, TimeProvider.System);
 
         // Act
-        Action act = () => metadata.UpdateScopes(_singleScopeArray, _testUserId);
+        Action act = () => metadata.UpdateScopes(_singleScopeArray, _testUserId, TimeProvider.System);
 
         // Assert
         act.Should().Throw<BusinessRuleException>()
@@ -184,10 +182,10 @@ public class ServiceAccountMetadataTests
             "Original Name",
             "Original Description",
             Array.Empty<string>(),
-            _testUserId);
+            _testUserId, TimeProvider.System);
 
         // Act
-        metadata.UpdateDetails("New Name", "New Description", _testUserId);
+        metadata.UpdateDetails("New Name", "New Description", _testUserId, TimeProvider.System);
 
         // Assert
         metadata.Name.Should().Be("New Name");
@@ -204,11 +202,11 @@ public class ServiceAccountMetadataTests
             "Test",
             null,
             Array.Empty<string>(),
-            _testUserId);
-        metadata.Revoke(_testUserId);
+            _testUserId, TimeProvider.System);
+        metadata.Revoke(_testUserId, TimeProvider.System);
 
         // Act
-        Action act = () => metadata.UpdateDetails("New Name", null, _testUserId);
+        Action act = () => metadata.UpdateDetails("New Name", null, _testUserId, TimeProvider.System);
 
         // Assert
         act.Should().Throw<BusinessRuleException>()
@@ -225,10 +223,10 @@ public class ServiceAccountMetadataTests
             "Test",
             null,
             Array.Empty<string>(),
-            _testUserId);
+            _testUserId, TimeProvider.System);
 
         // Act
-        Action act = () => metadata.UpdateDetails("", null, _testUserId);
+        Action act = () => metadata.UpdateDetails("", null, _testUserId, TimeProvider.System);
 
         // Assert
         act.Should().Throw<BusinessRuleException>()

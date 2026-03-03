@@ -17,6 +17,7 @@ public sealed partial class ScimService : IScimService
     private readonly ScimUserService _userService;
     private readonly ScimGroupService _groupService;
     private readonly ILogger<ScimService> _logger;
+    private readonly TimeProvider _timeProvider;
 
     public ScimService(
         IScimConfigurationRepository scimRepository,
@@ -24,7 +25,8 @@ public sealed partial class ScimService : IScimService
         ITenantContext tenantContext,
         ScimUserService userService,
         ScimGroupService groupService,
-        ILogger<ScimService> logger)
+        ILogger<ScimService> logger,
+        TimeProvider timeProvider)
     {
         _scimRepository = scimRepository;
         _syncLogRepository = syncLogRepository;
@@ -32,6 +34,7 @@ public sealed partial class ScimService : IScimService
         _userService = userService;
         _groupService = groupService;
         _logger = logger;
+        _timeProvider = timeProvider;
     }
 
     public async Task<ScimConfigurationDto?> GetConfigurationAsync(CancellationToken ct = default)
@@ -55,7 +58,7 @@ public sealed partial class ScimService : IScimService
         ScimConfiguration? config = await _scimRepository.GetAsync(ct);
         if (config == null)
         {
-            (ScimConfiguration newConfig, string token) = ScimConfiguration.Create(tenantId, Guid.Empty);
+            (ScimConfiguration newConfig, string token) = ScimConfiguration.Create(tenantId, Guid.Empty, _timeProvider);
             config = newConfig;
             plainTextToken = token;
             _scimRepository.Add(config);
@@ -65,9 +68,10 @@ public sealed partial class ScimService : IScimService
             request.AutoActivateUsers,
             request.DefaultRole,
             request.DeprovisionOnDelete,
-            Guid.Empty);
+            Guid.Empty,
+            _timeProvider);
 
-        config.Enable(Guid.Empty);
+        config.Enable(Guid.Empty, _timeProvider);
 
         await _scimRepository.SaveChangesAsync(ct);
 
@@ -86,7 +90,7 @@ public sealed partial class ScimService : IScimService
 
         LogDisablingScim(_tenantContext.TenantId.Value);
 
-        config.Disable(Guid.Empty);
+        config.Disable(Guid.Empty, _timeProvider);
         await _scimRepository.SaveChangesAsync(ct);
 
         LogScimDisabled(_tenantContext.TenantId.Value);
@@ -102,7 +106,7 @@ public sealed partial class ScimService : IScimService
 
         LogRegeneratingToken(_tenantContext.TenantId.Value);
 
-        string plainTextToken = config.RegenerateToken(Guid.Empty);
+        string plainTextToken = config.RegenerateToken(Guid.Empty, _timeProvider);
         await _scimRepository.SaveChangesAsync(ct);
 
         return plainTextToken;
@@ -125,6 +129,9 @@ public sealed partial class ScimService : IScimService
 
     public Task<ScimListResponse<ScimUser>> ListUsersAsync(ScimListRequest request, CancellationToken ct = default)
         => _userService.ListUsersAsync(request, ct);
+
+    public Task<ScimGroup?> GetGroupAsync(string id, CancellationToken ct = default)
+        => _groupService.GetGroupAsync(id, ct);
 
     public Task<ScimGroup> CreateGroupAsync(ScimGroupRequest request, CancellationToken ct = default)
         => _groupService.CreateGroupAsync(request, ct);
@@ -155,7 +162,7 @@ public sealed partial class ScimService : IScimService
     public async Task<bool> ValidateTokenAsync(string token, CancellationToken ct = default)
     {
         ScimConfiguration? config = await _scimRepository.GetAsync(ct);
-        if (config == null || !config.IsTokenValid())
+        if (config == null || !config.IsTokenValid(_timeProvider))
         {
             return false;
         }

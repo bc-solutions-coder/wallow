@@ -12,6 +12,7 @@ using Keycloak.AuthServices.Authentication;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
+using Foundry.Identity.Infrastructure;
 #pragma warning disable CA2000 // HttpClient/HttpMessageHandler lifetime is managed by test framework
 
 namespace Foundry.Identity.Tests.Infrastructure;
@@ -28,10 +29,10 @@ public class KeycloakSsoServiceGapTests
     {
         SsoConfiguration config = SsoConfiguration.Create(
             _tenantId, "Test SSO", SsoProtocol.Saml,
-            "email", "firstName", "lastName", Guid.Empty);
-        config.UpdateSamlConfig("entity-id", "https://idp.test/sso", null, "cert", SamlNameIdFormat.Email, Guid.Empty);
-        config.MoveToTesting(Guid.Empty);
-        config.Activate(Guid.Empty);
+            "email", "firstName", "lastName", Guid.Empty, TimeProvider.System);
+        config.UpdateSamlConfig("entity-id", "https://idp.test/sso", null, "cert", SamlNameIdFormat.Email, Guid.Empty, TimeProvider.System);
+        config.MoveToTesting(Guid.Empty, TimeProvider.System);
+        config.Activate(Guid.Empty, TimeProvider.System);
         // No SetKeycloakIdpAlias call
 
         _repository.GetAsync(Arg.Any<CancellationToken>()).Returns(config);
@@ -49,8 +50,8 @@ public class KeycloakSsoServiceGapTests
     {
         SsoConfiguration config = SsoConfiguration.Create(
             _tenantId, "Test SSO", SsoProtocol.Oidc,
-            "email", "firstName", "lastName", Guid.Empty);
-        config.UpdateOidcConfig("https://idp.test", "client-123", "secret", "openid", Guid.Empty);
+            "email", "firstName", "lastName", Guid.Empty, TimeProvider.System);
+        config.UpdateOidcConfig("https://idp.test", "client-123", "secret", "openid", Guid.Empty, TimeProvider.System);
 
         MockKeycloakHttpHandler handler = new MockKeycloakHttpHandler()
             .WithExternalThrow("https://idp.test/.well-known/openid-configuration");
@@ -82,8 +83,8 @@ public class KeycloakSsoServiceGapTests
     {
         SsoConfiguration config = SsoConfiguration.Create(
             _tenantId, "Test SSO", SsoProtocol.Saml,
-            "email", "firstName", "lastName", Guid.Empty);
-        config.UpdateBehaviorSettings(false, false, null, true, "groups", Guid.Empty);
+            "email", "firstName", "lastName", Guid.Empty, TimeProvider.System);
+        config.UpdateBehaviorSettings(false, false, null, true, "groups", Guid.Empty, TimeProvider.System);
 
         _repository.GetAsync(Arg.Any<CancellationToken>()).Returns(config);
 
@@ -206,8 +207,8 @@ public class KeycloakSsoServiceGapTests
     {
         SsoConfiguration config = SsoConfiguration.Create(
             _tenantId, "OIDC SSO", SsoProtocol.Oidc,
-            "email", "firstName", "lastName", Guid.Empty);
-        config.UpdateOidcConfig("https://idp.test", "client-123", "secret", "openid", Guid.Empty);
+            "email", "firstName", "lastName", Guid.Empty, TimeProvider.System);
+        config.UpdateOidcConfig("https://idp.test", "client-123", "secret", "openid", Guid.Empty, TimeProvider.System);
 
         _repository.GetAsync(Arg.Any<CancellationToken>()).Returns(config);
 
@@ -228,8 +229,8 @@ public class KeycloakSsoServiceGapTests
     {
         SsoConfiguration config = SsoConfiguration.Create(
             _tenantId, "Test SSO", SsoProtocol.Oidc,
-            "email", "firstName", "lastName", Guid.Empty);
-        config.UpdateOidcConfig("https://idp.test", "client-123", "secret", "openid", Guid.Empty);
+            "email", "firstName", "lastName", Guid.Empty, TimeProvider.System);
+        config.UpdateOidcConfig("https://idp.test", "client-123", "secret", "openid", Guid.Empty, TimeProvider.System);
 
         MockKeycloakHttpHandler handler = new MockKeycloakHttpHandler()
             .WithExternalThrow("https://idp.test/.well-known/openid-configuration");
@@ -272,10 +273,12 @@ public class KeycloakSsoServiceGapTests
             httpClientFactory,
             _repository,
             _tenantContext,
+            Options.Create(new KeycloakOptions()),
             Substitute.For<ILogger<SsoClaimsSyncService>>());
 
         KeycloakIdpService idpService = new(
             httpClientFactory,
+            Options.Create(new KeycloakOptions()),
             Substitute.For<ILogger<KeycloakIdpService>>());
 
         return new KeycloakSsoService(
@@ -284,9 +287,11 @@ public class KeycloakSsoServiceGapTests
             _tenantContext,
             currentUserService,
             options,
+            Options.Create(new KeycloakOptions()),
             _logger,
             claimsSyncService,
-            idpService);
+            idpService,
+            TimeProvider.System);
     }
 
     private sealed class MockKeycloakHttpHandler : HttpMessageHandler

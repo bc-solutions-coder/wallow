@@ -7,6 +7,8 @@ using Foundry.Identity.Infrastructure.Services;
 using Foundry.Shared.Kernel.Identity;
 using Microsoft.Extensions.Logging;
 
+using Foundry.Identity.Infrastructure;
+using Microsoft.Extensions.Options;
 #pragma warning disable CA2000 // HttpClient/HttpMessageHandler lifetime is managed by test framework
 
 namespace Foundry.Identity.Tests.Infrastructure;
@@ -134,7 +136,7 @@ public class KeycloakIdpServiceTests
     {
         SsoConfiguration config = SsoConfiguration.Create(
             TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.Saml,
-            "email", "firstName", "lastName", Guid.Empty);
+            "email", "firstName", "lastName", Guid.Empty, TimeProvider.System);
 
         KeycloakIdpService service = CreateService(new MockHttpHandler());
 
@@ -149,8 +151,8 @@ public class KeycloakIdpServiceTests
     {
         SsoConfiguration config = SsoConfiguration.Create(
             TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.Saml,
-            "email", "firstName", "lastName", Guid.Empty);
-        config.UpdateSamlConfig("entity-id", "https://idp.test/sso", null, "dummycert", SamlNameIdFormat.Email, Guid.Empty);
+            "email", "firstName", "lastName", Guid.Empty, TimeProvider.System);
+        config.UpdateSamlConfig("entity-id", "https://idp.test/sso", null, "dummycert", SamlNameIdFormat.Email, Guid.Empty, TimeProvider.System);
 
         MockHttpHandler handler = new MockHttpHandler()
             .WithExternal("https://idp.test/sso", HttpStatusCode.NotFound);
@@ -168,8 +170,8 @@ public class KeycloakIdpServiceTests
     {
         SsoConfiguration config = SsoConfiguration.Create(
             TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.Saml,
-            "email", "firstName", "lastName", Guid.Empty);
-        config.UpdateSamlConfig("entity-id", "https://idp.test/sso", null, "dummycert", SamlNameIdFormat.Email, Guid.Empty);
+            "email", "firstName", "lastName", Guid.Empty, TimeProvider.System);
+        config.UpdateSamlConfig("entity-id", "https://idp.test/sso", null, "dummycert", SamlNameIdFormat.Email, Guid.Empty, TimeProvider.System);
 
         // Now clear SamlCertificate field to empty via reflection to test no-cert path
         // Instead, test with a valid cert scenario — TestSamlConnectionAsync with valid config
@@ -190,8 +192,8 @@ public class KeycloakIdpServiceTests
     {
         SsoConfiguration config = SsoConfiguration.Create(
             TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.Saml,
-            "email", "firstName", "lastName", Guid.Empty);
-        config.UpdateSamlConfig("entity-id", "https://idp.test/sso", null, "invalid-cert-data!", SamlNameIdFormat.Email, Guid.Empty);
+            "email", "firstName", "lastName", Guid.Empty, TimeProvider.System);
+        config.UpdateSamlConfig("entity-id", "https://idp.test/sso", null, "invalid-cert-data!", SamlNameIdFormat.Email, Guid.Empty, TimeProvider.System);
 
         MockHttpHandler handler = new MockHttpHandler()
             .WithExternal("https://idp.test/sso", HttpStatusCode.OK);
@@ -209,7 +211,7 @@ public class KeycloakIdpServiceTests
     {
         SsoConfiguration config = SsoConfiguration.Create(
             TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.Oidc,
-            "email", "firstName", "lastName", Guid.Empty);
+            "email", "firstName", "lastName", Guid.Empty, TimeProvider.System);
 
         KeycloakIdpService service = CreateService(new MockHttpHandler());
 
@@ -224,8 +226,8 @@ public class KeycloakIdpServiceTests
     {
         SsoConfiguration config = SsoConfiguration.Create(
             TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.Oidc,
-            "email", "firstName", "lastName", Guid.Empty);
-        config.UpdateOidcConfig("https://idp.test", "client-id", "secret", "openid", Guid.Empty);
+            "email", "firstName", "lastName", Guid.Empty, TimeProvider.System);
+        config.UpdateOidcConfig("https://idp.test", "client-id", "secret", "openid", Guid.Empty, TimeProvider.System);
 
         MockHttpHandler handler = new MockHttpHandler()
             .WithExternal("https://idp.test/.well-known/openid-configuration", HttpStatusCode.NotFound);
@@ -243,8 +245,8 @@ public class KeycloakIdpServiceTests
     {
         SsoConfiguration config = SsoConfiguration.Create(
             TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.Oidc,
-            "email", "firstName", "lastName", Guid.Empty);
-        config.UpdateOidcConfig("https://idp.test", "client-id", "secret", "openid", Guid.Empty);
+            "email", "firstName", "lastName", Guid.Empty, TimeProvider.System);
+        config.UpdateOidcConfig("https://idp.test", "client-id", "secret", "openid", Guid.Empty, TimeProvider.System);
 
         MockHttpHandler handler = new MockHttpHandler()
             .WithExternal("https://idp.test/.well-known/openid-configuration", HttpStatusCode.OK,
@@ -263,8 +265,8 @@ public class KeycloakIdpServiceTests
     {
         SsoConfiguration config = SsoConfiguration.Create(
             TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.Oidc,
-            "email", "firstName", "lastName", Guid.Empty);
-        config.UpdateOidcConfig("https://idp.test", "client-id", "secret", "openid", Guid.Empty);
+            "email", "firstName", "lastName", Guid.Empty, TimeProvider.System);
+        config.UpdateOidcConfig("https://idp.test", "client-id", "secret", "openid", Guid.Empty, TimeProvider.System);
 
         MockHttpHandler handler = new MockHttpHandler()
             .WithExternal("https://idp.test/.well-known/openid-configuration", HttpStatusCode.OK,
@@ -282,8 +284,8 @@ public class KeycloakIdpServiceTests
     {
         SsoConfiguration config = SsoConfiguration.Create(
             TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.Oidc,
-            "email", "firstName", "lastName", Guid.Empty);
-        config.UpdateOidcConfig("https://idp.test", "client-id", "secret", "openid", Guid.Empty);
+            "email", "firstName", "lastName", Guid.Empty, TimeProvider.System);
+        config.UpdateOidcConfig("https://idp.test", "client-id", "secret", "openid", Guid.Empty, TimeProvider.System);
 
         MockHttpHandler handler = new MockHttpHandler()
             .WithThrowExternal("https://idp.test/.well-known/openid-configuration");
@@ -301,7 +303,7 @@ public class KeycloakIdpServiceTests
     {
         SsoConfiguration config = SsoConfiguration.Create(
             TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.Saml,
-            "email", "firstName", "lastName", Guid.Empty);
+            "email", "firstName", "lastName", Guid.Empty, TimeProvider.System);
 
         SsoValidationResult result = KeycloakIdpService.ValidateSamlConfiguration(config);
 
@@ -314,8 +316,8 @@ public class KeycloakIdpServiceTests
     {
         SsoConfiguration config = SsoConfiguration.Create(
             TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.Saml,
-            "email", "firstName", "lastName", Guid.Empty);
-        config.UpdateSamlConfig("entity-id", "https://idp.test/sso", null, "dummycert", SamlNameIdFormat.Email, Guid.Empty);
+            "email", "firstName", "lastName", Guid.Empty, TimeProvider.System);
+        config.UpdateSamlConfig("entity-id", "https://idp.test/sso", null, "dummycert", SamlNameIdFormat.Email, Guid.Empty, TimeProvider.System);
 
         SsoValidationResult result = KeycloakIdpService.ValidateSamlConfiguration(config);
 
@@ -329,8 +331,8 @@ public class KeycloakIdpServiceTests
     {
         SsoConfiguration config = SsoConfiguration.Create(
             TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.Saml,
-            "email", "firstName", "lastName", Guid.Empty);
-        config.UpdateSamlConfig("entity-id", "https://idp.test/sso", null, "dummycert", SamlNameIdFormat.Email, Guid.Empty);
+            "email", "firstName", "lastName", Guid.Empty, TimeProvider.System);
+        config.UpdateSamlConfig("entity-id", "https://idp.test/sso", null, "dummycert", SamlNameIdFormat.Email, Guid.Empty, TimeProvider.System);
 
         // The validate method checks entity ID and SSO URL first, then cert
         SsoValidationResult result = KeycloakIdpService.ValidateSamlConfiguration(config);
@@ -344,7 +346,7 @@ public class KeycloakIdpServiceTests
     {
         SsoConfiguration config = SsoConfiguration.Create(
             TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.Oidc,
-            "email", "firstName", "lastName", Guid.Empty);
+            "email", "firstName", "lastName", Guid.Empty, TimeProvider.System);
 
         KeycloakIdpService service = CreateService(new MockHttpHandler());
 
@@ -359,8 +361,8 @@ public class KeycloakIdpServiceTests
     {
         SsoConfiguration config = SsoConfiguration.Create(
             TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.Oidc,
-            "email", "firstName", "lastName", Guid.Empty);
-        config.UpdateOidcConfig("https://idp.test", "client-id", "secret", "openid", Guid.Empty);
+            "email", "firstName", "lastName", Guid.Empty, TimeProvider.System);
+        config.UpdateOidcConfig("https://idp.test", "client-id", "secret", "openid", Guid.Empty, TimeProvider.System);
 
         // Return a valid discovery doc
         MockHttpHandler handler = new MockHttpHandler()
@@ -379,8 +381,8 @@ public class KeycloakIdpServiceTests
     {
         SsoConfiguration config = SsoConfiguration.Create(
             TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.Oidc,
-            "email", "firstName", "lastName", Guid.Empty);
-        config.UpdateOidcConfig("https://idp.test", "client-id", "secret", "openid", Guid.Empty);
+            "email", "firstName", "lastName", Guid.Empty, TimeProvider.System);
+        config.UpdateOidcConfig("https://idp.test", "client-id", "secret", "openid", Guid.Empty, TimeProvider.System);
 
         MockHttpHandler handler = new MockHttpHandler()
             .WithExternal("https://idp.test/.well-known/openid-configuration", HttpStatusCode.InternalServerError);
@@ -398,8 +400,8 @@ public class KeycloakIdpServiceTests
     {
         SsoConfiguration config = SsoConfiguration.Create(
             TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.Oidc,
-            "email", "firstName", "lastName", Guid.Empty);
-        config.UpdateOidcConfig("https://idp.test", "client-id", "secret", "openid", Guid.Empty);
+            "email", "firstName", "lastName", Guid.Empty, TimeProvider.System);
+        config.UpdateOidcConfig("https://idp.test", "client-id", "secret", "openid", Guid.Empty, TimeProvider.System);
 
         MockHttpHandler handler = new MockHttpHandler()
             .WithExternal("https://idp.test/.well-known/openid-configuration", HttpStatusCode.OK,
@@ -419,8 +421,8 @@ public class KeycloakIdpServiceTests
     {
         SsoConfiguration config = SsoConfiguration.Create(
             TenantId.Create(Guid.NewGuid()), "Test", SsoProtocol.Oidc,
-            "email", "firstName", "lastName", Guid.Empty);
-        config.UpdateOidcConfig("https://idp.test", "client-id", "secret", "openid", Guid.Empty);
+            "email", "firstName", "lastName", Guid.Empty, TimeProvider.System);
+        config.UpdateOidcConfig("https://idp.test", "client-id", "secret", "openid", Guid.Empty, TimeProvider.System);
 
         MockHttpHandler handler = new MockHttpHandler()
             .WithThrowExternal("https://idp.test/.well-known/openid-configuration");
@@ -445,7 +447,7 @@ public class KeycloakIdpServiceTests
         HttpClient externalClient = new(handler);
         httpClientFactory.CreateClient().Returns(externalClient);
 
-        return new KeycloakIdpService(httpClientFactory, _logger);
+        return new KeycloakIdpService(httpClientFactory, Options.Create(new KeycloakOptions()), _logger);
     }
 
     private sealed class MockHttpHandler : HttpMessageHandler

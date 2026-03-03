@@ -9,6 +9,8 @@ using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.MultiTenancy;
 using Microsoft.Extensions.Logging;
 
+using Foundry.Identity.Infrastructure;
+using Microsoft.Extensions.Options;
 #pragma warning disable CA2000 // HttpClient/HttpMessageHandler lifetime is managed by test framework
 
 namespace Foundry.Identity.Tests.Infrastructure;
@@ -431,7 +433,7 @@ public class ScimGroupServiceTests
     [Fact]
     public async Task LogSyncAsync_UpdatesScimConfiguration_WhenConfigExists()
     {
-        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty);
+        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty, TimeProvider.System);
         _scimRepository.GetAsync(Arg.Any<CancellationToken>()).Returns(config);
 
         MockHttpHandler handler = new MockHttpHandler()
@@ -460,7 +462,9 @@ public class ScimGroupServiceTests
             _scimRepository,
             _syncLogRepository,
             _tenantContext,
-            _logger);
+            Options.Create(new KeycloakOptions()),
+            _logger,
+            TimeProvider.System);
     }
 
     private sealed class MockHttpHandler : HttpMessageHandler

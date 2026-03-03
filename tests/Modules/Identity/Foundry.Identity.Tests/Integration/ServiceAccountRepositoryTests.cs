@@ -39,8 +39,7 @@ public sealed class ServiceAccountRepositoryTests : DbContextIntegrationTestBase
             "test-client-id",
             "Test Service",
             "Test Description",
-            ["billing:read", "billing:write"],
-            Guid.NewGuid());
+            ["billing:read", "billing:write"], Guid.NewGuid(), TimeProvider.System);
 
         _repository.Add(account);
         await _repository.SaveChangesAsync();
@@ -61,8 +60,7 @@ public sealed class ServiceAccountRepositoryTests : DbContextIntegrationTestBase
             "unique-client-id",
             "Unique Service",
             "Description",
-            ["scope:read"],
-            Guid.NewGuid());
+            ["scope:read"], Guid.NewGuid(), TimeProvider.System);
 
         _repository.Add(account);
         await _repository.SaveChangesAsync();
@@ -87,8 +85,7 @@ public sealed class ServiceAccountRepositoryTests : DbContextIntegrationTestBase
             "cross-tenant-client",
             "Cross Tenant",
             "Description",
-            ["scope:all"],
-            Guid.NewGuid());
+            ["scope:all"], Guid.NewGuid(), TimeProvider.System);
 
         otherRepository.Add(account);
         await otherDbContext.SaveChangesAsync();
@@ -102,10 +99,10 @@ public sealed class ServiceAccountRepositoryTests : DbContextIntegrationTestBase
     [Fact]
     public async Task GetAllAsync_ExcludesRevokedAccounts()
     {
-        ServiceAccountMetadata active = ServiceAccountMetadata.Create(TestTenantId, "client-active", "Active", "Description", ["scope:read"], Guid.NewGuid());
-        ServiceAccountMetadata revoked = ServiceAccountMetadata.Create(TestTenantId, "client-revoked", "Revoked", "Description", ["scope:read"], Guid.NewGuid());
+        ServiceAccountMetadata active = ServiceAccountMetadata.Create(TestTenantId, "client-active", "Active", "Description", ["scope:read"], Guid.NewGuid(), TimeProvider.System);
+        ServiceAccountMetadata revoked = ServiceAccountMetadata.Create(TestTenantId, "client-revoked", "Revoked", "Description", ["scope:read"], Guid.NewGuid(), TimeProvider.System);
 
-        revoked.Revoke(Guid.NewGuid());
+        revoked.Revoke(Guid.NewGuid(), TimeProvider.System);
 
         _repository.Add(active);
         _repository.Add(revoked);
@@ -122,9 +119,9 @@ public sealed class ServiceAccountRepositoryTests : DbContextIntegrationTestBase
     [Fact]
     public async Task GetAllAsync_OrdersByName()
     {
-        ServiceAccountMetadata charlie = ServiceAccountMetadata.Create(TestTenantId, "client-c", "Charlie", "Description", ["scope:read"], Guid.NewGuid());
-        ServiceAccountMetadata alice = ServiceAccountMetadata.Create(TestTenantId, "client-a", "Alice", "Description", ["scope:read"], Guid.NewGuid());
-        ServiceAccountMetadata bob = ServiceAccountMetadata.Create(TestTenantId, "client-b", "Bob", "Description", ["scope:read"], Guid.NewGuid());
+        ServiceAccountMetadata charlie = ServiceAccountMetadata.Create(TestTenantId, "client-c", "Charlie", "Description", ["scope:read"], Guid.NewGuid(), TimeProvider.System);
+        ServiceAccountMetadata alice = ServiceAccountMetadata.Create(TestTenantId, "client-a", "Alice", "Description", ["scope:read"], Guid.NewGuid(), TimeProvider.System);
+        ServiceAccountMetadata bob = ServiceAccountMetadata.Create(TestTenantId, "client-b", "Bob", "Description", ["scope:read"], Guid.NewGuid(), TimeProvider.System);
 
         _repository.Add(charlie);
         _repository.Add(alice);
@@ -143,7 +140,7 @@ public sealed class ServiceAccountRepositoryTests : DbContextIntegrationTestBase
     [Fact]
     public async Task RespectsTenantIsolation()
     {
-        ServiceAccountMetadata account1 = ServiceAccountMetadata.Create(TestTenantId, "tenant1-client", "Tenant 1", "Description", ["scope:read"], Guid.NewGuid());
+        ServiceAccountMetadata account1 = ServiceAccountMetadata.Create(TestTenantId, "tenant1-client", "Tenant 1", "Description", ["scope:read"], Guid.NewGuid(), TimeProvider.System);
         _repository.Add(account1);
         await _repository.SaveChangesAsync();
 
@@ -152,7 +149,7 @@ public sealed class ServiceAccountRepositoryTests : DbContextIntegrationTestBase
 
         ServiceAccountRepository otherRepository = new(otherDbContext);
 
-        ServiceAccountMetadata account2 = ServiceAccountMetadata.Create(otherTenantId, "tenant2-client", "Tenant 2", "Description", ["scope:read"], Guid.NewGuid());
+        ServiceAccountMetadata account2 = ServiceAccountMetadata.Create(otherTenantId, "tenant2-client", "Tenant 2", "Description", ["scope:read"], Guid.NewGuid(), TimeProvider.System);
         otherRepository.Add(account2);
         await otherDbContext.SaveChangesAsync();
         DbContext.ChangeTracker.Clear();

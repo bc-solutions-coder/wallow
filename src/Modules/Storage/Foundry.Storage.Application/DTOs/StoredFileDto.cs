@@ -7,7 +7,6 @@ public sealed record StoredFileDto(
     string FileName,
     string ContentType,
     long SizeBytes,
-    string StorageKey,
     string? Path,
     bool IsPublic,
     Guid UploadedBy,

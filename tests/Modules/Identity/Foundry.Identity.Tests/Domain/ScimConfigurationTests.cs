@@ -12,7 +12,7 @@ public class ScimConfigurationTests
     [Fact]
     public void Create_WithValidParameters_CreatesDisabledConfiguration()
     {
-        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, _testUserId);
+        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, _testUserId, TimeProvider.System);
 
         config.TenantId.Should().Be(_tenantId);
         config.IsEnabled.Should().BeFalse();
@@ -28,9 +28,9 @@ public class ScimConfigurationTests
     [Fact]
     public void Enable_WhenDisabled_SetsIsEnabledToTrue()
     {
-        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, _testUserId);
+        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, _testUserId, TimeProvider.System);
 
-        config.Enable(_testUserId);
+        config.Enable(_testUserId, TimeProvider.System);
 
         config.IsEnabled.Should().BeTrue();
     }
@@ -38,10 +38,10 @@ public class ScimConfigurationTests
     [Fact]
     public void Enable_WhenAlreadyEnabled_ThrowsBusinessRuleException()
     {
-        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, _testUserId);
-        config.Enable(_testUserId);
+        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, _testUserId, TimeProvider.System);
+        config.Enable(_testUserId, TimeProvider.System);
 
-        Action act = () => config.Enable(_testUserId);
+        Action act = () => config.Enable(_testUserId, TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>()
             .WithMessage("*already enabled*");
@@ -50,10 +50,10 @@ public class ScimConfigurationTests
     [Fact]
     public void Disable_WhenEnabled_SetsIsEnabledToFalse()
     {
-        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, _testUserId);
-        config.Enable(_testUserId);
+        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, _testUserId, TimeProvider.System);
+        config.Enable(_testUserId, TimeProvider.System);
 
-        config.Disable(_testUserId);
+        config.Disable(_testUserId, TimeProvider.System);
 
         config.IsEnabled.Should().BeFalse();
     }
@@ -61,9 +61,9 @@ public class ScimConfigurationTests
     [Fact]
     public void Disable_WhenAlreadyDisabled_ThrowsBusinessRuleException()
     {
-        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, _testUserId);
+        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, _testUserId, TimeProvider.System);
 
-        Action act = () => config.Disable(_testUserId);
+        Action act = () => config.Disable(_testUserId, TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>()
             .WithMessage("*already disabled*");
@@ -72,11 +72,11 @@ public class ScimConfigurationTests
     [Fact]
     public void RegenerateToken_ReturnsNewTokenAndUpdatesFields()
     {
-        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, _testUserId);
+        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, _testUserId, TimeProvider.System);
         string originalToken = config.BearerToken;
         string originalPrefix = config.TokenPrefix;
 
-        string plainTextToken = config.RegenerateToken(_testUserId);
+        string plainTextToken = config.RegenerateToken(_testUserId, TimeProvider.System);
 
         plainTextToken.Should().NotBeNullOrWhiteSpace();
         config.BearerToken.Should().NotBe(originalToken);
@@ -87,9 +87,9 @@ public class ScimConfigurationTests
     [Fact]
     public void UpdateSettings_UpdatesAllSettingFields()
     {
-        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, _testUserId);
+        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, _testUserId, TimeProvider.System);
 
-        config.UpdateSettings(false, "admin", true, _testUserId);
+        config.UpdateSettings(false, "admin", true, _testUserId, TimeProvider.System);
 
         config.AutoActivateUsers.Should().BeFalse();
         config.DefaultRole.Should().Be("admin");
@@ -99,10 +99,10 @@ public class ScimConfigurationTests
     [Fact]
     public void RecordSync_SetsLastSyncAtToCurrentTime()
     {
-        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, _testUserId);
+        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, _testUserId, TimeProvider.System);
         DateTime beforeSync = DateTime.UtcNow;
 
-        config.RecordSync(_testUserId);
+        config.RecordSync(_testUserId, TimeProvider.System);
 
         config.LastSyncAt.Should().NotBeNull();
         config.LastSyncAt.Should().BeOnOrAfter(beforeSync);
@@ -112,10 +112,10 @@ public class ScimConfigurationTests
     [Fact]
     public void IsTokenValid_WhenEnabledAndNotExpired_ReturnsTrue()
     {
-        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, _testUserId);
-        config.Enable(_testUserId);
+        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, _testUserId, TimeProvider.System);
+        config.Enable(_testUserId, TimeProvider.System);
 
-        bool isValid = config.IsTokenValid();
+        bool isValid = config.IsTokenValid(TimeProvider.System);
 
         isValid.Should().BeTrue();
     }
@@ -123,9 +123,9 @@ public class ScimConfigurationTests
     [Fact]
     public void IsTokenValid_WhenDisabled_ReturnsFalse()
     {
-        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, _testUserId);
+        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, _testUserId, TimeProvider.System);
 
-        bool isValid = config.IsTokenValid();
+        bool isValid = config.IsTokenValid(TimeProvider.System);
 
         isValid.Should().BeFalse();
     }

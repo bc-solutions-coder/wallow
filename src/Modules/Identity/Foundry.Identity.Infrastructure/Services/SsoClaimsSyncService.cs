@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using Foundry.Identity.Application.Interfaces;
 using Foundry.Shared.Kernel.MultiTenancy;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Foundry.Identity.Infrastructure.Services;
 
@@ -11,17 +12,19 @@ public sealed partial class SsoClaimsSyncService
     private readonly ISsoConfigurationRepository _repository;
     private readonly ITenantContext _tenantContext;
     private readonly ILogger<SsoClaimsSyncService> _logger;
-    private const string Realm = "foundry";
+    private readonly string _realm;
 
     public SsoClaimsSyncService(
         IHttpClientFactory httpClientFactory,
         ISsoConfigurationRepository repository,
         ITenantContext tenantContext,
+        IOptions<KeycloakOptions> keycloakOptions,
         ILogger<SsoClaimsSyncService> logger)
     {
         _httpClient = httpClientFactory.CreateClient("KeycloakAdminClient");
         _repository = repository;
         _tenantContext = tenantContext;
+        _realm = keycloakOptions.Value.Realm;
         _logger = logger;
     }
 
@@ -85,7 +88,7 @@ public sealed partial class SsoClaimsSyncService
         try
         {
             HttpResponseMessage response = await _httpClient.GetAsync(
-                $"/admin/realms/{Realm}/users/{userId}",
+                $"/admin/realms/{_realm}/users/{userId}",
                 ct);
 
             if (!response.IsSuccessStatusCode)
@@ -148,7 +151,7 @@ public sealed partial class SsoClaimsSyncService
         try
         {
             HttpResponseMessage response = await _httpClient.GetAsync(
-                $"/admin/realms/{Realm}/users/{userId}/role-mappings/realm",
+                $"/admin/realms/{_realm}/users/{userId}/role-mappings/realm",
                 ct);
             response.EnsureSuccessStatusCode();
 
@@ -249,7 +252,7 @@ public sealed partial class SsoClaimsSyncService
             }
 
             HttpResponseMessage response = await _httpClient.PostAsJsonAsync(
-                $"/admin/realms/{Realm}/users/{userId}/role-mappings/realm",
+                $"/admin/realms/{_realm}/users/{userId}/role-mappings/realm",
                 new[] { role },
                 ct);
 
@@ -278,7 +281,7 @@ public sealed partial class SsoClaimsSyncService
                 return;
             }
 
-            using HttpRequestMessage request = new(HttpMethod.Delete, $"/admin/realms/{Realm}/users/{userId}/role-mappings/realm")
+            using HttpRequestMessage request = new(HttpMethod.Delete, $"/admin/realms/{_realm}/users/{userId}/role-mappings/realm")
             {
                 Content = JsonContent.Create(new[] { role })
             };
@@ -304,7 +307,7 @@ public sealed partial class SsoClaimsSyncService
     {
         try
         {
-            HttpResponseMessage response = await _httpClient.GetAsync($"/admin/realms/{Realm}/roles/{roleName}", ct);
+            HttpResponseMessage response = await _httpClient.GetAsync($"/admin/realms/{_realm}/roles/{roleName}", ct);
             if (!response.IsSuccessStatusCode)
             {
                 return null;

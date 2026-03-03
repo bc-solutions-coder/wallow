@@ -8,6 +8,8 @@ using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.MultiTenancy;
 using Microsoft.Extensions.Logging;
 
+using Foundry.Identity.Infrastructure;
+using Microsoft.Extensions.Options;
 #pragma warning disable CA2000 // HttpClient/HttpMessageHandler lifetime is managed by test framework
 
 namespace Foundry.Identity.Tests.Infrastructure;
@@ -31,8 +33,8 @@ public class SsoClaimsSyncServiceAdditionalTests
     {
         SsoConfiguration config = SsoConfiguration.Create(
             _tenantId, "Test SSO", SsoProtocol.Saml,
-            "email", "firstName", "lastName", Guid.Empty);
-        config.UpdateBehaviorSettings(false, false, null, true, "groups", Guid.Empty);
+            "email", "firstName", "lastName", Guid.Empty, TimeProvider.System);
+        config.UpdateBehaviorSettings(false, false, null, true, "groups", Guid.Empty, TimeProvider.System);
 
         _repository.GetAsync(Arg.Any<CancellationToken>()).Returns(config);
 
@@ -62,8 +64,8 @@ public class SsoClaimsSyncServiceAdditionalTests
     {
         SsoConfiguration config = SsoConfiguration.Create(
             _tenantId, "Test SSO", SsoProtocol.Saml,
-            "email", "firstName", "lastName", Guid.Empty);
-        config.UpdateBehaviorSettings(false, false, null, true, "groups", Guid.Empty);
+            "email", "firstName", "lastName", Guid.Empty, TimeProvider.System);
+        config.UpdateBehaviorSettings(false, false, null, true, "groups", Guid.Empty, TimeProvider.System);
 
         _repository.GetAsync(Arg.Any<CancellationToken>()).Returns(config);
 
@@ -93,8 +95,8 @@ public class SsoClaimsSyncServiceAdditionalTests
     {
         SsoConfiguration config = SsoConfiguration.Create(
             _tenantId, "Test SSO", SsoProtocol.Saml,
-            "email", "firstName", "lastName", Guid.Empty);
-        config.UpdateBehaviorSettings(false, false, null, true, "groups", Guid.Empty);
+            "email", "firstName", "lastName", Guid.Empty, TimeProvider.System);
+        config.UpdateBehaviorSettings(false, false, null, true, "groups", Guid.Empty, TimeProvider.System);
 
         _repository.GetAsync(Arg.Any<CancellationToken>()).Returns(config);
 
@@ -128,8 +130,8 @@ public class SsoClaimsSyncServiceAdditionalTests
     {
         SsoConfiguration config = SsoConfiguration.Create(
             _tenantId, "Test SSO", SsoProtocol.Saml,
-            "email", "firstName", "lastName", Guid.Empty);
-        config.UpdateBehaviorSettings(false, false, null, true, "groups", Guid.Empty);
+            "email", "firstName", "lastName", Guid.Empty, TimeProvider.System);
+        config.UpdateBehaviorSettings(false, false, null, true, "groups", Guid.Empty, TimeProvider.System);
 
         _repository.GetAsync(Arg.Any<CancellationToken>()).Returns(config);
 
@@ -160,8 +162,8 @@ public class SsoClaimsSyncServiceAdditionalTests
     {
         SsoConfiguration config = SsoConfiguration.Create(
             _tenantId, "Test SSO", SsoProtocol.Saml,
-            "email", "firstName", "lastName", Guid.Empty);
-        config.UpdateBehaviorSettings(false, false, null, true, "groups", Guid.Empty);
+            "email", "firstName", "lastName", Guid.Empty, TimeProvider.System);
+        config.UpdateBehaviorSettings(false, false, null, true, "groups", Guid.Empty, TimeProvider.System);
 
         _repository.GetAsync(Arg.Any<CancellationToken>()).Returns(config);
 
@@ -190,8 +192,8 @@ public class SsoClaimsSyncServiceAdditionalTests
     {
         SsoConfiguration config = SsoConfiguration.Create(
             _tenantId, "Test SSO", SsoProtocol.Saml,
-            "email", "firstName", "lastName", Guid.Empty);
-        config.UpdateBehaviorSettings(false, false, null, true, "groups", Guid.Empty);
+            "email", "firstName", "lastName", Guid.Empty, TimeProvider.System);
+        config.UpdateBehaviorSettings(false, false, null, true, "groups", Guid.Empty, TimeProvider.System);
 
         _repository.GetAsync(Arg.Any<CancellationToken>()).Returns(config);
 
@@ -224,8 +226,8 @@ public class SsoClaimsSyncServiceAdditionalTests
     {
         SsoConfiguration config = SsoConfiguration.Create(
             _tenantId, "Test SSO", SsoProtocol.Saml,
-            "email", "firstName", "lastName", Guid.Empty);
-        config.UpdateBehaviorSettings(false, false, null, true, "groups", Guid.Empty);
+            "email", "firstName", "lastName", Guid.Empty, TimeProvider.System);
+        config.UpdateBehaviorSettings(false, false, null, true, "groups", Guid.Empty, TimeProvider.System);
 
         _repository.GetAsync(Arg.Any<CancellationToken>()).Returns(config);
 
@@ -262,7 +264,7 @@ public class SsoClaimsSyncServiceAdditionalTests
 
         _tenantContext.TenantId.Returns(_tenantId);
 
-        return new SsoClaimsSyncService(httpClientFactory, _repository, _tenantContext, _logger);
+        return new SsoClaimsSyncService(httpClientFactory, _repository, _tenantContext, Options.Create(new KeycloakOptions()), _logger);
     }
 
     private sealed class MockHttpHandler : HttpMessageHandler

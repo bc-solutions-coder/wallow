@@ -10,10 +10,12 @@ public sealed record DeactivateCustomFieldDefinition(Guid Id);
 public sealed class DeactivateCustomFieldDefinitionHandler
 {
     private readonly ICustomFieldDefinitionRepository _repository;
+    private readonly TimeProvider _timeProvider;
 
-    public DeactivateCustomFieldDefinitionHandler(ICustomFieldDefinitionRepository repository)
+    public DeactivateCustomFieldDefinitionHandler(ICustomFieldDefinitionRepository repository, TimeProvider timeProvider)
     {
         _repository = repository;
+        _timeProvider = timeProvider;
     }
 
     public async Task Handle(
@@ -29,7 +31,7 @@ public sealed class DeactivateCustomFieldDefinitionHandler
             throw new CustomFieldException($"Custom field definition with ID '{command.Id}' not found");
         }
 
-        definition.Deactivate(Guid.Empty);
+        definition.Deactivate(Guid.Empty, _timeProvider);
 
         await _repository.UpdateAsync(definition, cancellationToken);
         await _repository.SaveChangesAsync(cancellationToken);

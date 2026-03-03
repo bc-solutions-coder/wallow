@@ -1,13 +1,36 @@
 using Foundry.Communications.Application.Channels.Email.Interfaces;
 using Foundry.Communications.Infrastructure.Services;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 namespace Foundry.Communications.Tests.Infrastructure.Services;
 
-public class SmtpEmailProviderTests
+public class SmtpEmailProviderTests : IAsyncDisposable
 {
     private readonly ILogger<SmtpEmailProvider> _logger = Substitute.For<ILogger<SmtpEmailProvider>>();
+    private readonly SmtpConnectionPool _connectionPool;
+
+    public SmtpEmailProviderTests()
+    {
+        SmtpSettings defaultSettings = new()
+        {
+            Host = "invalid.host.that.does.not.exist",
+            Port = 9999,
+            MaxRetries = 1,
+            TimeoutSeconds = 1,
+            DefaultFromAddress = "test@foundry.local",
+            DefaultFromName = "Foundry Test"
+        };
+        _connectionPool = new SmtpConnectionPool(
+            Options.Create(defaultSettings), NullLogger<SmtpConnectionPool>.Instance);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await _connectionPool.DisposeAsync();
+        GC.SuppressFinalize(this);
+    }
 
     private SmtpEmailProvider CreateProvider(SmtpSettings? settings = null)
     {
@@ -22,7 +45,7 @@ public class SmtpEmailProviderTests
         };
 
         IOptions<SmtpSettings> options = Options.Create(smtpSettings);
-        return new SmtpEmailProvider(options, _logger);
+        return new SmtpEmailProvider(_connectionPool, options, _logger);
     }
 
     [Fact]
@@ -188,7 +211,7 @@ public class SmtpEmailProviderTests
 
         IOptions<SmtpSettings> options = Options.Create(settings);
 
-        SmtpEmailProvider provider = new(options, _logger);
+        SmtpEmailProvider provider = new(_connectionPool, options, _logger);
 
         provider.Should().NotBeNull();
     }

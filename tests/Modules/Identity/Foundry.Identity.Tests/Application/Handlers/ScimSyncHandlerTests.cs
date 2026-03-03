@@ -9,6 +9,8 @@ using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.MultiTenancy;
 using Microsoft.Extensions.Logging;
 
+using Foundry.Identity.Infrastructure;
+using Microsoft.Extensions.Options;
 #pragma warning disable CA2000 // HttpClient/HttpMessageHandler lifetime is managed by test framework
 #pragma warning disable CA1861 // Inline arrays in test data are intentional
 
@@ -86,8 +88,8 @@ public class ScimSyncHandlerTests
     [Fact]
     public async Task FullSync_CreateAndDeleteUser_LogsCreateAndDelete()
     {
-        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty);
-        config.UpdateSettings(true, null, true, Guid.Empty);
+        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty, TimeProvider.System);
+        config.UpdateSettings(true, null, true, Guid.Empty, TimeProvider.System);
         _scimRepository.GetAsync(Arg.Any<CancellationToken>()).Returns(config);
 
         MockKeycloakHttpHandler handler = new MockKeycloakHttpHandler()
@@ -265,8 +267,8 @@ public class ScimSyncHandlerTests
     [Fact]
     public async Task ConflictResolution_DeleteAlreadyDeletedUser_LogsFailureAndThrows()
     {
-        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty);
-        config.UpdateSettings(true, null, true, Guid.Empty);
+        (ScimConfiguration config, string _) = ScimConfiguration.Create(_tenantId, Guid.Empty, TimeProvider.System);
+        config.UpdateSettings(true, null, true, Guid.Empty, TimeProvider.System);
         _scimRepository.GetAsync(Arg.Any<CancellationToken>()).Returns(config);
 
         MockKeycloakHttpHandler handler = new MockKeycloakHttpHandler()
@@ -449,10 +451,10 @@ public class ScimSyncHandlerTests
     {
         List<ScimSyncLog> logs =
         [
-            ScimSyncLog.Create(_tenantId, ScimOperation.Create, ScimResourceType.User, "ext-1", "user-1", true),
-            ScimSyncLog.Create(_tenantId, ScimOperation.Update, ScimResourceType.User, "ext-1", "user-1", true),
-            ScimSyncLog.Create(_tenantId, ScimOperation.Delete, ScimResourceType.User, "ext-1", "user-1", true),
-            ScimSyncLog.Create(_tenantId, ScimOperation.Create, ScimResourceType.Group, "ext-grp-1", "grp-1", false, "Conflict")
+            ScimSyncLog.Create(_tenantId, ScimOperation.Create, ScimResourceType.User, "ext-1", "user-1", true, TimeProvider.System),
+            ScimSyncLog.Create(_tenantId, ScimOperation.Update, ScimResourceType.User, "ext-1", "user-1", true, TimeProvider.System),
+            ScimSyncLog.Create(_tenantId, ScimOperation.Delete, ScimResourceType.User, "ext-1", "user-1", true, TimeProvider.System),
+            ScimSyncLog.Create(_tenantId, ScimOperation.Create, ScimResourceType.Group, "ext-grp-1", "grp-1", false, TimeProvider.System, "Conflict")
         ];
 
         _syncLogRepository.GetRecentAsync(50, Arg.Any<CancellationToken>()).Returns(logs);
@@ -488,14 +490,18 @@ public class ScimSyncHandlerTests
             _scimRepository,
             _syncLogRepository,
             _tenantContext,
-            Substitute.For<ILogger<ScimUserService>>());
+            Options.Create(new KeycloakOptions()),
+            Substitute.For<ILogger<ScimUserService>>(),
+            TimeProvider.System);
 
         ScimGroupService groupService = new(
             httpClientFactory,
             _scimRepository,
             _syncLogRepository,
             _tenantContext,
-            Substitute.For<ILogger<ScimGroupService>>());
+            Options.Create(new KeycloakOptions()),
+            Substitute.For<ILogger<ScimGroupService>>(),
+            TimeProvider.System);
 
         return new ScimService(
             _scimRepository,
@@ -503,7 +509,8 @@ public class ScimSyncHandlerTests
             _tenantContext,
             userService,
             groupService,
-            _logger);
+            _logger,
+            TimeProvider.System);
     }
 
     private sealed class MockKeycloakHttpHandler : HttpMessageHandler

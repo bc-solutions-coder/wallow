@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using Foundry.Shared.Contracts.Identity;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Foundry.Identity.Infrastructure.Services;
 
@@ -10,16 +11,18 @@ public sealed partial class UserQueryService : IUserQueryService
     private readonly HttpClient _httpClient;
     private readonly IMemoryCache _cache;
     private readonly ILogger<UserQueryService> _logger;
-    private const string Realm = "foundry";
+    private readonly string _realm;
     private static readonly TimeSpan _cacheDuration = TimeSpan.FromSeconds(60);
 
     public UserQueryService(
         IHttpClientFactory httpClientFactory,
         IMemoryCache cache,
+        IOptions<KeycloakOptions> keycloakOptions,
         ILogger<UserQueryService> logger)
     {
         _httpClient = httpClientFactory.CreateClient("KeycloakAdminClient");
         _cache = cache;
+        _realm = keycloakOptions.Value.Realm;
         _logger = logger;
     }
 
@@ -113,7 +116,7 @@ public sealed partial class UserQueryService : IUserQueryService
 
     private async Task<List<UserMemberRepresentation>?> GetOrganizationMembersAsync(Guid orgId, CancellationToken ct)
     {
-        HttpResponseMessage response = await _httpClient.GetAsync($"/admin/realms/{Realm}/organizations/{orgId}/members", ct);
+        HttpResponseMessage response = await _httpClient.GetAsync($"/admin/realms/{_realm}/organizations/{orgId}/members", ct);
 
         if (!response.IsSuccessStatusCode)
         {
