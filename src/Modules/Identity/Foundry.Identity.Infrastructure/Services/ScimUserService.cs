@@ -1,6 +1,8 @@
 using System.Globalization;
+using System.Net;
 using System.Net.Http.Json;
 using Foundry.Identity.Application.DTOs;
+using Foundry.Identity.Application.Exceptions;
 using Foundry.Identity.Application.Interfaces;
 using Foundry.Identity.Domain.Entities;
 using Foundry.Identity.Domain.Enums;
@@ -69,6 +71,12 @@ public sealed partial class ScimUserService
                 $"/admin/realms/{_realm}/users",
                 userRepresentation,
                 ct);
+
+            if (response.StatusCode == HttpStatusCode.Conflict)
+            {
+                throw new KeycloakConflictException($"User '{request.UserName}' already exists");
+            }
+
             response.EnsureSuccessStatusCode();
 
             string? locationHeader = response.Headers.Location?.ToString();

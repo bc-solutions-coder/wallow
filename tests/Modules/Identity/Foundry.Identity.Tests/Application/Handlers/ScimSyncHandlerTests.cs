@@ -4,6 +4,7 @@ using Foundry.Identity.Application.DTOs;
 using Foundry.Identity.Application.Interfaces;
 using Foundry.Identity.Domain.Entities;
 using Foundry.Identity.Domain.Enums;
+using Foundry.Identity.Application.Exceptions;
 using Foundry.Identity.Infrastructure.Services;
 using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.MultiTenancy;
@@ -256,7 +257,7 @@ public class ScimSyncHandlerTests
 
         Func<Task<ScimUser>> act = async () => await service.CreateUserAsync(request);
 
-        await act.Should().ThrowAsync<HttpRequestException>();
+        await act.Should().ThrowAsync<KeycloakConflictException>();
 
         _syncLogRepository.Received(1).Add(Arg.Is<ScimSyncLog>(log =>
             log.Operation == ScimOperation.Create &&

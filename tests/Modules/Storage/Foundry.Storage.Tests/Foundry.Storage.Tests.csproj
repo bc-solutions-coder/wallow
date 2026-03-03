@@ -17,6 +17,7 @@
     <PackageReference Include="NSubstitute" />
     <PackageReference Include="Bogus" />
     <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
   </ItemGroup>
 
   <ItemGroup>

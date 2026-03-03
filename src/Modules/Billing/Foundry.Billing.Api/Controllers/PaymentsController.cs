@@ -92,8 +92,13 @@ public class PaymentsController : ControllerBase
 
         Result<PaymentDto> result = await _bus.InvokeAsync<Result<PaymentDto>>(command, cancellationToken);
 
+        if (!result.IsSuccess)
+        {
+            return result.ToActionResult();
+        }
+
         return result.Map(ToPaymentResponse)
-            .ToCreatedResult($"/api/billing/payments/{result.Value?.Id}");
+            .ToCreatedResult($"/api/billing/payments/{result.Value.Id}");
     }
 
     private static PaymentResponse ToPaymentResponse(PaymentDto dto) => new(

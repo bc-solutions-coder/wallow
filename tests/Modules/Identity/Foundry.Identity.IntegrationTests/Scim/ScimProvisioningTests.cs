@@ -1,4 +1,5 @@
 using Foundry.Identity.Application.DTOs;
+using Foundry.Identity.Application.Exceptions;
 using Foundry.Identity.Application.Interfaces;
 using Foundry.Identity.Domain.Enums;
 using Foundry.Identity.Infrastructure.Persistence;
@@ -138,7 +139,7 @@ public class ScimProvisioningTests : IClassFixture<ScimProvisioningTestFactory>,
         };
 
         Func<Task> act = async () => await _scimService.CreateUserAsync(secondRequest);
-        await act.Should().ThrowAsync<HttpRequestException>();
+        await act.Should().ThrowAsync<KeycloakConflictException>();
     }
 
     [Fact]

@@ -242,18 +242,16 @@ public class SubscriptionsControllerTests
     }
 
     [Fact]
-    public async Task Create_WhenValidationFailure_ThrowsDueToValueAccess()
+    public async Task Create_WhenValidationFailure_ReturnsErrorResult()
     {
-        // BUG: Controller accesses result.Value?.Id for location string even on failure path,
-        // which throws InvalidOperationException from the Result type.
         CreateSubscriptionRequest request = new("", 0m, "USD", DateTime.UtcNow, DateTime.UtcNow.AddMonths(1));
         _bus.InvokeAsync<Result<SubscriptionDto>>(Arg.Any<CreateSubscriptionCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Failure<SubscriptionDto>(Error.Validation("Plan name is required")));
 
-        Func<Task> act = () => _controller.Create(request, CancellationToken.None);
+        IActionResult result = await _controller.Create(request, CancellationToken.None);
 
-        await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("Cannot access value of a failed result");
+        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        objectResult.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
     }
 
     [Fact]

@@ -92,8 +92,13 @@ public class SubscriptionsController : ControllerBase
 
         Result<SubscriptionDto> result = await _bus.InvokeAsync<Result<SubscriptionDto>>(command, cancellationToken);
 
+        if (!result.IsSuccess)
+        {
+            return result.ToActionResult();
+        }
+
         return result.Map(ToSubscriptionResponse)
-            .ToCreatedResult($"/api/billing/subscriptions/{result.Value?.Id}");
+            .ToCreatedResult($"/api/billing/subscriptions/{result.Value.Id}");
     }
 
     /// <summary>

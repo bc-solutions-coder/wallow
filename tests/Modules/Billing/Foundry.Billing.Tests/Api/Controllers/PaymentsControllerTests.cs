@@ -234,35 +234,31 @@ public class PaymentsControllerTests
     }
 
     [Fact]
-    public async Task ProcessPayment_WhenNotFound_ThrowsDueToValueAccess()
+    public async Task ProcessPayment_WhenNotFound_ReturnsErrorResult()
     {
-        // BUG: Controller accesses result.Value?.Id for location string even on failure path,
-        // which throws InvalidOperationException from the Result type.
         Guid invoiceId = Guid.NewGuid();
         ProcessPaymentRequest request = new(100.00m, "USD", "CreditCard");
         _bus.InvokeAsync<Result<PaymentDto>>(Arg.Any<ProcessPaymentCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Failure<PaymentDto>(Error.NotFound("Invoice", invoiceId)));
 
-        Func<Task> act = () => _controller.ProcessPayment(invoiceId, request, CancellationToken.None);
+        IActionResult result = await _controller.ProcessPayment(invoiceId, request, CancellationToken.None);
 
-        await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("Cannot access value of a failed result");
+        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        objectResult.StatusCode.Should().Be(StatusCodes.Status404NotFound);
     }
 
     [Fact]
-    public async Task ProcessPayment_WhenValidationFailure_ThrowsDueToValueAccess()
+    public async Task ProcessPayment_WhenValidationFailure_ReturnsErrorResult()
     {
-        // BUG: Controller accesses result.Value?.Id for location string even on failure path,
-        // which throws InvalidOperationException from the Result type.
         Guid invoiceId = Guid.NewGuid();
         ProcessPaymentRequest request = new(0m, "USD", "CreditCard");
         _bus.InvokeAsync<Result<PaymentDto>>(Arg.Any<ProcessPaymentCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Failure<PaymentDto>(Error.Validation("Amount must be positive")));
 
-        Func<Task> act = () => _controller.ProcessPayment(invoiceId, request, CancellationToken.None);
+        IActionResult result = await _controller.ProcessPayment(invoiceId, request, CancellationToken.None);
 
-        await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("Cannot access value of a failed result");
+        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        objectResult.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
     }
 
     [Fact]

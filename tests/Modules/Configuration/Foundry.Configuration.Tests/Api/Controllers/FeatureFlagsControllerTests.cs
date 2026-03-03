@@ -175,16 +175,16 @@ public class FeatureFlagsControllerTests
     }
 
     [Fact]
-    public async Task Create_WhenFailure_ThrowsDueToValueAccess()
+    public async Task Create_WhenFailure_ReturnsErrorResult()
     {
         CreateFeatureFlagRequest request = new("test", "Test", null, ApiFlagType.Boolean, true, null, null, null);
         _bus.InvokeAsync<Result<FeatureFlagDto>>(Arg.Any<CreateFeatureFlagCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Failure<FeatureFlagDto>(Error.Validation("Invalid flag")));
 
-        Func<Task> act = () => _controller.Create(request, CancellationToken.None);
+        IActionResult result = await _controller.Create(request, CancellationToken.None);
 
-        await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("Cannot access value of a failed result");
+        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        objectResult.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
     }
 
     [Fact]
@@ -450,17 +450,17 @@ public class FeatureFlagsControllerTests
     }
 
     [Fact]
-    public async Task CreateOverride_WhenFailure_ThrowsDueToValueAccess()
+    public async Task CreateOverride_WhenFailure_ReturnsErrorResult()
     {
         Guid flagId = Guid.NewGuid();
         CreateOverrideRequest request = new(null, null, true, null, null);
         _bus.InvokeAsync<Result<FeatureFlagOverrideDto>>(Arg.Any<CreateOverrideCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Failure<FeatureFlagOverrideDto>(Error.Validation("Invalid override")));
 
-        Func<Task> act = () => _controller.CreateOverride(flagId, request, CancellationToken.None);
+        IActionResult result = await _controller.CreateOverride(flagId, request, CancellationToken.None);
 
-        await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("Cannot access value of a failed result");
+        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        objectResult.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
     }
 
     [Fact]

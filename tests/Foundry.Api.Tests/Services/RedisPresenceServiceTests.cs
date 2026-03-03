@@ -186,7 +186,7 @@ public class RedisPresenceServiceTests : IClassFixture<RedisFixture>, IAsyncLife
         // Remove the connection but not the page viewers set
         // This simulates a stale entry
         IDatabase db = _multiplexer.GetDatabase();
-        await db.HashDeleteAsync("presence:conn2user", "conn-1");
+        await db.HashDeleteAsync($"presence:{_testTenantId}:conn2user", "conn-1");
 
         IReadOnlyList<UserPresence> viewers = await _sut.GetUsersOnPageAsync(_testTenantId, "/tasks");
         viewers.Should().BeEmpty();

@@ -1,6 +1,6 @@
 using Asp.Versioning;
 using Foundry.Communications.Api.Contracts.Announcements.Responses;
-using Foundry.Communications.Api.Extensions;
+using Foundry.Shared.Api.Extensions;
 using Foundry.Communications.Application.Announcements.Commands.ArchiveAnnouncement;
 using Foundry.Communications.Application.Announcements.Commands.CreateAnnouncement;
 using Foundry.Communications.Application.Announcements.Commands.PublishAnnouncement;

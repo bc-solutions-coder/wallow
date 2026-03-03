@@ -88,25 +88,36 @@ public class KeycloakTestFixture : WebApplicationFactory<Program>, IAsyncLifetim
 
         builder.ConfigureTestServices(services =>
         {
-            // Register JWT Bearer authentication pointing to the real Keycloak container.
-            // Production code doesn't register an auth scheme (FoundryApiFactory uses TestAuthHandler),
-            // so we must register one here for real OAuth2 token validation.
-            services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-                .AddJwtBearer(options =>
-                {
-                    options.Authority = $"{KeycloakFixture.BaseUrl}/realms/{KeycloakFixture.RealmName}";
-                    options.Audience = KeycloakFixture.ClientId;
-                    options.RequireHttpsMetadata = false;
+            // Remove Elsa's background hosted services (e.g. BookmarkQueuePurger, ScheduledTimer)
+            // to prevent ObjectDisposedException when timer callbacks fire after the service
+            // provider is disposed during test cleanup.
+            List<ServiceDescriptor> elsaHostedServices = services
+                .Where(d => d.ServiceType == typeof(IHostedService)
+                    && (d.ImplementationType?.Namespace?.StartsWith("Elsa", StringComparison.Ordinal) == true
+                        || d.ImplementationFactory?.Method.DeclaringType?.Namespace?.StartsWith("Elsa", StringComparison.Ordinal) == true))
+                .ToList();
+            foreach (ServiceDescriptor descriptor in elsaHostedServices)
+            {
+                services.Remove(descriptor);
+            }
+
+            // Reconfigure the existing JWT Bearer scheme (registered by AddKeycloakWebApiAuthentication
+            // in production) to point at the real Keycloak test container.
+            services.Configure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
+            {
+                options.Authority = $"{KeycloakFixture.BaseUrl}/realms/{KeycloakFixture.RealmName}";
+                options.Audience = KeycloakFixture.ClientId;
+                options.RequireHttpsMetadata = false;
 #pragma warning disable CA5404 // Keycloak doesn't include audience by default in test env
-                    options.TokenValidationParameters = new TokenValidationParameters
-                    {
-                        ValidateIssuer = true,
-                        ValidateAudience = false,
-                        ValidateLifetime = true,
-                        ValidateIssuerSigningKey = true
-                    };
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidateAudience = false,
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true
+                };
 #pragma warning restore CA5404
-                });
+            });
         });
     }
 

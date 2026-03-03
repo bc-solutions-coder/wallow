@@ -113,8 +113,13 @@ public class InvoicesController : ControllerBase
 
         Result<InvoiceDto> result = await _bus.InvokeAsync<Result<InvoiceDto>>(command, cancellationToken);
 
+        if (!result.IsSuccess)
+        {
+            return result.ToActionResult();
+        }
+
         return result.Map(ToInvoiceResponse)
-            .ToCreatedResult($"/api/billing/invoices/{result.Value?.Id}");
+            .ToCreatedResult($"/api/billing/invoices/{result.Value.Id}");
     }
 
     /// <summary>
