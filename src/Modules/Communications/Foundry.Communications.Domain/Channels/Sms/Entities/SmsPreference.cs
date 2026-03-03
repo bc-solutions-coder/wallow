@@ -11,7 +11,7 @@ public sealed class SmsPreference : Entity<SmsPreferenceId>, ITenantScoped
     public TenantId TenantId { get; init; }
     public Guid UserId { get; private set; }
     public PhoneNumber PhoneNumber { get; private set; } = null!;
-    public bool IsOptedIn { get; private set; }
+    public bool IsOptedIn { get; init; }
 
     private SmsPreference() { }
 
@@ -34,13 +34,4 @@ public sealed class SmsPreference : Entity<SmsPreferenceId>, ITenantScoped
         return new SmsPreference(userId, phoneNumber, isOptedIn);
     }
 
-    public void OptIn()
-    {
-        IsOptedIn = true;
-    }
-
-    public void OptOut()
-    {
-        IsOptedIn = false;
-    }
 }

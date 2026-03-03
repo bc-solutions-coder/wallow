@@ -173,29 +173,3 @@ public class NotificationArchiveTests
     }
 }
 
-public class NotificationIsExpiredTests
-{
-    [Fact]
-    public void IsExpired_WhenExpiresAtIsInThePast_ReturnsTrue()
-    {
-        Notification notification = Notification.Create(TenantId.New(), Guid.NewGuid(), NotificationType.SystemAlert, "Title", "Message", TimeProvider.System, expiresAt: DateTime.UtcNow.AddMinutes(-1));
-
-        notification.IsExpired(TimeProvider.System).Should().BeTrue();
-    }
-
-    [Fact]
-    public void IsExpired_WhenExpiresAtIsInTheFuture_ReturnsFalse()
-    {
-        Notification notification = Notification.Create(TenantId.New(), Guid.NewGuid(), NotificationType.SystemAlert, "Title", "Message", TimeProvider.System, expiresAt: DateTime.UtcNow.AddDays(1));
-
-        notification.IsExpired(TimeProvider.System).Should().BeFalse();
-    }
-
-    [Fact]
-    public void IsExpired_WhenExpiresAtIsNull_ReturnsFalse()
-    {
-        Notification notification = Notification.Create(TenantId.New(), Guid.NewGuid(), NotificationType.SystemAlert, "Title", "Message", TimeProvider.System);
-
-        notification.IsExpired(TimeProvider.System).Should().BeFalse();
-    }
-}

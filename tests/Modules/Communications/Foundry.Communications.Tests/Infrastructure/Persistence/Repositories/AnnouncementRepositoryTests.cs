@@ -109,19 +109,6 @@ public sealed class AnnouncementRepositoryTests : IDisposable
         found!.Title.Should().Be("Updated");
     }
 
-    [Fact]
-    public async Task DeleteAsync_RemovesAnnouncementFromDatabase()
-    {
-        Announcement announcement = Announcement.Create("ToDelete", "Content", AnnouncementType.Feature, TimeProvider.System);
-        await _dbContext.Announcements.AddAsync(announcement);
-        await _dbContext.SaveChangesAsync();
-
-        await _repository.DeleteAsync(announcement);
-
-        Announcement? found = await _dbContext.Announcements.FindAsync(announcement.Id);
-        found.Should().BeNull();
-    }
-
     public void Dispose()
     {
         _dbContext.Dispose();

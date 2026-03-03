@@ -43,7 +43,7 @@ public class ScimProvisioningTests : IClassFixture<ScimProvisioningTestFactory>,
         await _dbContext.SaveChangesAsync();
 
         // Enable SCIM for the test tenant
-        await _scimService.EnableScimAsync(new EnableScimRequest(
+        _ = await _scimService.EnableScimAsync(new EnableScimRequest(
             AutoActivateUsers: true,
             DefaultRole: "user",
             DeprovisionOnDelete: false));
@@ -117,7 +117,7 @@ public class ScimProvisioningTests : IClassFixture<ScimProvisioningTestFactory>,
             },
             Active = true
         };
-        await _scimService.CreateUserAsync(firstRequest);
+        _ = await _scimService.CreateUserAsync(firstRequest);
 
         // Setup mock to return 409 conflict
         _factory.SetupUserCreationConflict();
@@ -251,7 +251,7 @@ public class ScimProvisioningTests : IClassFixture<ScimProvisioningTestFactory>,
         // Arrange - Enable deprovisioning
         _dbContext.ChangeTracker.Clear();
         await _scimService.DisableScimAsync();
-        await _scimService.EnableScimAsync(new EnableScimRequest(
+        _ = await _scimService.EnableScimAsync(new EnableScimRequest(
             AutoActivateUsers: true,
             DefaultRole: null,
             DeprovisionOnDelete: true));
@@ -326,7 +326,7 @@ public class ScimProvisioningTests : IClassFixture<ScimProvisioningTestFactory>,
     public async Task ListUsers_WithFilter_ReturnsFiltered()
     {
         // Arrange - Create multiple users
-        await _scimService.CreateUserAsync(new ScimUserRequest
+        _ = await _scimService.CreateUserAsync(new ScimUserRequest
         {
             UserName = "alice@test.com",
             Name = new ScimName { GivenName = "Alice", FamilyName = "Anderson" },
@@ -334,7 +334,7 @@ public class ScimProvisioningTests : IClassFixture<ScimProvisioningTestFactory>,
             Active = true
         });
 
-        await _scimService.CreateUserAsync(new ScimUserRequest
+        _ = await _scimService.CreateUserAsync(new ScimUserRequest
         {
             UserName = "bob@test.com",
             Name = new ScimName { GivenName = "Bob", FamilyName = "Brown" },
@@ -361,7 +361,7 @@ public class ScimProvisioningTests : IClassFixture<ScimProvisioningTestFactory>,
         // Arrange - Create multiple users
         for (int i = 0; i < 5; i++)
         {
-            await _scimService.CreateUserAsync(new ScimUserRequest
+            _ = await _scimService.CreateUserAsync(new ScimUserRequest
             {
                 UserName = $"user{i}@test.com",
                 Emails = new[] { new ScimEmail { Value = $"user{i}@test.com", Primary = true } },

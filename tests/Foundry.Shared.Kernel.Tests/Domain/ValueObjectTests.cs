@@ -116,39 +116,21 @@ public class ValueObjectTests
     }
 
     // Test value objects for testing
-    private sealed class TestValueObject : ValueObject
+    private sealed class TestValueObject(string? name, int age) : ValueObject
     {
-        public string? Name { get; }
-        public int Age { get; }
-
-        public TestValueObject(string? name, int age)
-        {
-            Name = name;
-            Age = age;
-        }
-
         protected override IEnumerable<object?> GetEqualityComponents()
         {
-            yield return Name;
-            yield return Age;
+            yield return name;
+            yield return age;
         }
     }
 
-    private sealed class OtherTestValueObject : ValueObject
+    private sealed class OtherTestValueObject(string? name, int age) : ValueObject
     {
-        public string? Name { get; }
-        public int Age { get; }
-
-        public OtherTestValueObject(string? name, int age)
-        {
-            Name = name;
-            Age = age;
-        }
-
         protected override IEnumerable<object?> GetEqualityComponents()
         {
-            yield return Name;
-            yield return Age;
+            yield return name;
+            yield return age;
         }
     }
 }

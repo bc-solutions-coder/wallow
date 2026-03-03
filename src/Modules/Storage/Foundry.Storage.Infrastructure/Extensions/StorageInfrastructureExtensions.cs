@@ -27,7 +27,7 @@ public static class StorageInfrastructureExtensions
         return services;
     }
 
-    private static IServiceCollection AddStoragePersistence(
+    private static void AddStoragePersistence(
         this IServiceCollection services,
         IConfiguration _)
     {
@@ -48,11 +48,9 @@ public static class StorageInfrastructureExtensions
 
         services.AddScoped<IStorageBucketRepository, StorageBucketRepository>();
         services.AddScoped<IStoredFileRepository, StoredFileRepository>();
-
-        return services;
     }
 
-    private static IServiceCollection AddStorageProvider(
+    private static void AddStorageProvider(
         this IServiceCollection services,
         IConfiguration configuration)
     {
@@ -81,7 +79,5 @@ public static class StorageInfrastructureExtensions
                 services.AddSingleton<IStorageProvider, LocalStorageProvider>();
                 break;
         }
-
-        return services;
     }
 }

@@ -139,22 +139,6 @@ public class NotificationOptionalPropertiesTests
     }
 
     [Fact]
-    public void IsExpired_WhenExpiresAtInPast_ReturnsTrue()
-    {
-        Notification notification = Notification.Create(TenantId.New(), Guid.NewGuid(), NotificationType.SystemAlert, "Expired Notice", "This has expired", TimeProvider.System, expiresAt: DateTime.UtcNow.AddMinutes(-1));
-
-        notification.IsExpired(TimeProvider.System).Should().BeTrue();
-    }
-
-    [Fact]
-    public void IsExpired_WhenExpiresAtInFuture_ReturnsFalse()
-    {
-        Notification notification = Notification.Create(TenantId.New(), Guid.NewGuid(), NotificationType.SystemAlert, "Future Notice", "Not expired yet", TimeProvider.System, expiresAt: DateTime.UtcNow.AddDays(1));
-
-        notification.IsExpired(TimeProvider.System).Should().BeFalse();
-    }
-
-    [Fact]
     public void Create_WithAllOptionalProperties_SetsAllProperties()
     {
         string actionUrl = "https://app.example.com/settings";

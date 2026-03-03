@@ -17,11 +17,6 @@ public interface IFeatureFlagOverrideRepository
         Guid? userId,
         CancellationToken ct = default);
 
-    Task<IReadOnlyList<FeatureFlagOverride>> GetOverridesForContextAsync(
-        Guid tenantId,
-        Guid? userId,
-        CancellationToken ct = default);
-
     Task AddAsync(FeatureFlagOverride over, CancellationToken ct = default);
     Task DeleteAsync(FeatureFlagOverride over, CancellationToken ct = default);
 }

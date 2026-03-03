@@ -151,7 +151,7 @@ public class SsoConfigurationTests : IClassFixture<SsoConfigurationTestFactory>,
             DefaultRole: null,
             SyncGroupsAsRoles: false);
 
-        await _ssoService.SaveSamlConfigurationAsync(request);
+        _ = await _ssoService.SaveSamlConfigurationAsync(request);
 
         // Act
         await _ssoService.ActivateAsync();
@@ -187,7 +187,7 @@ public class SsoConfigurationTests : IClassFixture<SsoConfigurationTestFactory>,
             DefaultRole: null,
             SyncGroupsAsRoles: false);
 
-        await _ssoService.SaveSamlConfigurationAsync(request);
+        _ = await _ssoService.SaveSamlConfigurationAsync(request);
         await _ssoService.ActivateAsync();
 
         _factory.ResetUpdatedProviders();
@@ -244,7 +244,7 @@ public class SsoConfigurationTests : IClassFixture<SsoConfigurationTestFactory>,
             DefaultRole: "user",
             SyncGroupsAsRoles: false);
 
-        await _ssoService.SaveOidcConfigurationAsync(request);
+        _ = await _ssoService.SaveOidcConfigurationAsync(request);
 
         // Act
         SsoTestResult result = await _ssoService.TestConnectionAsync();
@@ -275,7 +275,7 @@ public class SsoConfigurationTests : IClassFixture<SsoConfigurationTestFactory>,
             DefaultRole: null,
             SyncGroupsAsRoles: false);
 
-        await _ssoService.SaveOidcConfigurationAsync(request);
+        _ = await _ssoService.SaveOidcConfigurationAsync(request);
 
         // Act
         SsoTestResult result = await _ssoService.TestConnectionAsync();
@@ -306,7 +306,7 @@ public class SsoConfigurationTests : IClassFixture<SsoConfigurationTestFactory>,
             DefaultRole: null,
             SyncGroupsAsRoles: false);
 
-        await _ssoService.SaveSamlConfigurationAsync(request);
+        _ = await _ssoService.SaveSamlConfigurationAsync(request);
 
         // Act
         SsoValidationResult result = await _ssoService.ValidateIdpConfigurationAsync();

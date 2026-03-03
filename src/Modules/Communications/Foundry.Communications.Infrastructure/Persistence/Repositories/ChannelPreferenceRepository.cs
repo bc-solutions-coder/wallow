@@ -1,7 +1,6 @@
 using Foundry.Communications.Application.Preferences.Interfaces;
 using Foundry.Communications.Domain.Preferences;
 using Foundry.Communications.Domain.Preferences.Entities;
-using Foundry.Communications.Domain.Preferences.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace Foundry.Communications.Infrastructure.Persistence.Repositories;
@@ -13,22 +12,6 @@ public sealed class ChannelPreferenceRepository : IChannelPreferenceRepository
     public ChannelPreferenceRepository(CommunicationsDbContext context)
     {
         _context = context;
-    }
-
-    public Task<ChannelPreference?> GetByIdAsync(ChannelPreferenceId id, CancellationToken cancellationToken = default)
-    {
-        return _context.ChannelPreferences
-            .AsTracking()
-            .FirstOrDefaultAsync(cp => cp.Id == id, cancellationToken);
-    }
-
-    public Task<ChannelPreference?> GetByUserAndChannelAsync(Guid userId, ChannelType channelType, CancellationToken cancellationToken = default)
-    {
-        return _context.ChannelPreferences
-            .AsTracking()
-            .FirstOrDefaultAsync(
-                cp => cp.UserId == userId && cp.ChannelType == channelType,
-                cancellationToken);
     }
 
     public Task<ChannelPreference?> GetByUserChannelAndNotificationTypeAsync(Guid userId, ChannelType channelType, string notificationType, CancellationToken cancellationToken = default)
@@ -50,16 +33,6 @@ public sealed class ChannelPreferenceRepository : IChannelPreferenceRepository
     public void Add(ChannelPreference preference)
     {
         _context.ChannelPreferences.Add(preference);
-    }
-
-    public void Update(ChannelPreference preference)
-    {
-        _context.ChannelPreferences.Update(preference);
-    }
-
-    public void Delete(ChannelPreference preference)
-    {
-        _context.ChannelPreferences.Remove(preference);
     }
 
     public async Task SaveChangesAsync(CancellationToken cancellationToken = default)

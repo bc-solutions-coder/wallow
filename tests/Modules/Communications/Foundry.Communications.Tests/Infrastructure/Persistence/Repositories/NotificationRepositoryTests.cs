@@ -67,24 +67,6 @@ public sealed class NotificationRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task GetByUserIdAsync_ReturnsMatchingNotifications()
-    {
-        Guid userId = Guid.NewGuid();
-        Guid otherUserId = Guid.NewGuid();
-
-        Notification n1 = Notification.Create(_tenantId, userId, InAppNotificationType.SystemAlert, "N1", "M1", TimeProvider.System);
-        Notification n2 = Notification.Create(_tenantId, userId, InAppNotificationType.TaskComment, "N2", "M2", TimeProvider.System);
-        Notification other = Notification.Create(_tenantId, otherUserId, InAppNotificationType.SystemAlert, "Other", "M3", TimeProvider.System);
-
-        await _dbContext.Notifications.AddRangeAsync(n1, n2, other);
-        await _dbContext.SaveChangesAsync();
-
-        IReadOnlyList<Notification> result = await _repository.GetByUserIdAsync(userId);
-
-        result.Should().HaveCount(2);
-    }
-
-    [Fact]
     public async Task GetByUserIdPagedAsync_ReturnsPaginatedResults()
     {
         Guid userId = Guid.NewGuid();

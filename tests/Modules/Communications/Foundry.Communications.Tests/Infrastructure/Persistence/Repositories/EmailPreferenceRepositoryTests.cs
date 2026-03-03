@@ -1,5 +1,4 @@
 using Foundry.Communications.Domain.Channels.Email.Entities;
-using Foundry.Communications.Domain.Channels.Email.Identity;
 using Foundry.Communications.Infrastructure.Persistence;
 using Foundry.Communications.Infrastructure.Persistence.Repositories;
 using Foundry.Shared.Kernel.Identity;
@@ -40,26 +39,6 @@ public sealed class EmailPreferenceRepositoryTests : IDisposable
 
         int count = await _dbContext.EmailPreferences.CountAsync();
         count.Should().Be(1);
-    }
-
-    [Fact]
-    public async Task GetByIdAsync_WhenExists_ReturnsPreference()
-    {
-        EmailPreference preference = CreatePreference(Guid.NewGuid(), EmailNotificationType.BillingInvoice);
-        await _dbContext.EmailPreferences.AddAsync(preference);
-        await _dbContext.SaveChangesAsync();
-
-        EmailPreference? result = await _repository.GetByIdAsync(preference.Id);
-
-        result.Should().NotBeNull();
-    }
-
-    [Fact]
-    public async Task GetByIdAsync_WhenNotExists_ReturnsNull()
-    {
-        EmailPreference? result = await _repository.GetByIdAsync(EmailPreferenceId.New());
-
-        result.Should().BeNull();
     }
 
     [Fact]

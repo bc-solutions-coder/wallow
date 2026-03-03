@@ -59,32 +59,6 @@ public class CustomFieldDefinitionRepositoryTests : DbContextIntegrationTestBase
     }
 
     [Fact]
-    public async Task GetByFieldKeyAsync_ReturnsMatchingDefinition()
-    {
-        CustomFieldDefinitionRepository repository = CreateRepository();
-        string fieldKey = $"fk_{Guid.NewGuid():N}".Substring(0, 20);
-        CustomFieldDefinition definition = CreateDefinition(fieldKey);
-
-        await repository.AddAsync(definition);
-        await repository.SaveChangesAsync();
-
-        CustomFieldDefinition? result = await repository.GetByFieldKeyAsync("Invoice", fieldKey);
-
-        result.Should().NotBeNull();
-        result.FieldKey.Should().Be(fieldKey);
-    }
-
-    [Fact]
-    public async Task GetByFieldKeyAsync_WhenNotExists_ReturnsNull()
-    {
-        CustomFieldDefinitionRepository repository = CreateRepository();
-
-        CustomFieldDefinition? result = await repository.GetByFieldKeyAsync("Invoice", "nonexistent_key");
-
-        result.Should().BeNull();
-    }
-
-    [Fact]
     public async Task GetByEntityTypeAsync_ReturnsActiveDefinitionsOrdered()
     {
         CustomFieldDefinitionRepository repository = CreateRepository();
@@ -138,25 +112,6 @@ public class CustomFieldDefinitionRepositoryTests : DbContextIntegrationTestBase
         IReadOnlyList<CustomFieldDefinition> result = await repository.GetByEntityTypeAsync("Invoice", includeInactive: true);
 
         result.Should().Contain(d => d.Id == inactiveDef.Id);
-    }
-
-    [Fact]
-    public async Task GetAllActiveAsync_ReturnsOnlyActiveDefinitions()
-    {
-        CustomFieldDefinitionRepository repository = CreateRepository();
-        CustomFieldDefinition activeDef = CreateDefinition(entityType: "Invoice");
-        CustomFieldDefinition inactiveDef = CreateDefinition(entityType: "Payment");
-        inactiveDef.Deactivate(TestUserId);
-        inactiveDef.ClearDomainEvents();
-
-        await repository.AddAsync(activeDef);
-        await repository.AddAsync(inactiveDef);
-        await repository.SaveChangesAsync();
-
-        IReadOnlyList<CustomFieldDefinition> result = await repository.GetAllActiveAsync();
-
-        result.Should().Contain(d => d.Id == activeDef.Id);
-        result.Should().NotContain(d => d.Id == inactiveDef.Id);
     }
 
     [Fact]

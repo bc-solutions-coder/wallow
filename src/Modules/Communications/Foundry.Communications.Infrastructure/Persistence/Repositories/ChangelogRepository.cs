@@ -50,15 +50,6 @@ public sealed class ChangelogRepository : IChangelogRepository
             .ToListAsync(ct);
     }
 
-    public async Task<IReadOnlyList<ChangelogEntry>> GetAllAsync(CancellationToken ct = default)
-    {
-        return await _context.ChangelogEntries
-            .Include(e => e.Items)
-            .AsSplitQuery()
-            .OrderByDescending(e => e.ReleasedAt)
-            .ToListAsync(ct);
-    }
-
     public async Task AddAsync(ChangelogEntry entry, CancellationToken ct = default)
     {
         await _context.ChangelogEntries.AddAsync(entry, ct);
@@ -68,12 +59,6 @@ public sealed class ChangelogRepository : IChangelogRepository
     public async Task UpdateAsync(ChangelogEntry entry, CancellationToken ct = default)
     {
         _context.ChangelogEntries.Update(entry);
-        await _context.SaveChangesAsync(ct);
-    }
-
-    public async Task DeleteAsync(ChangelogEntry entry, CancellationToken ct = default)
-    {
-        _context.ChangelogEntries.Remove(entry);
         await _context.SaveChangesAsync(ct);
     }
 }

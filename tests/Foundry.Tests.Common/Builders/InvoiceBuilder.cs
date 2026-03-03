@@ -18,8 +18,6 @@ public class InvoiceBuilder
     private bool _issued;
     private bool _paid;
     private bool _overdue;
-    private bool _cancelled;
-
     public InvoiceBuilder WithUserId(Guid userId)
     {
         _userId = userId;
@@ -47,12 +45,6 @@ public class InvoiceBuilder
     public InvoiceBuilder WithDueDate(DateTime dueDate)
     {
         _dueDate = dueDate;
-        return this;
-    }
-
-    public InvoiceBuilder WithDueDateInDays(int days)
-    {
-        _dueDate = DateTime.UtcNow.AddDays(days);
         return this;
     }
 
@@ -94,12 +86,6 @@ public class InvoiceBuilder
         return this;
     }
 
-    public InvoiceBuilder AsCancelled()
-    {
-        _cancelled = true;
-        return this;
-    }
-
     public Invoice Build()
     {
         Invoice invoice = Invoice.Create(_userId, _invoiceNumber, _currency, _createdBy, _timeProvider, _dueDate);
@@ -129,11 +115,6 @@ public class InvoiceBuilder
         if (_paid)
         {
             invoice.MarkAsPaid(Guid.NewGuid(), _createdBy, _timeProvider);
-        }
-
-        if (_cancelled)
-        {
-            invoice.Cancel(_createdBy, _timeProvider);
         }
 
         // Clear domain events from setup so tests can assert on their own events

@@ -78,20 +78,17 @@ public sealed partial class MeteringMiddleware
         // Process the request
         await _next(context);
 
-        // Only count successful requests (status < 400) — fire-and-forget to avoid blocking the response
+        // Only count successful requests (status < 400)
         if (context.Response.StatusCode < 400)
         {
-            _ = Task.Run(async () =>
+            try
             {
-                try
-                {
-                    await meteringService.IncrementAsync(ApiCallsMeterCode);
-                }
-                catch (Exception ex)
-                {
-                    LogIncrementFailed(_logger, ApiCallsMeterCode, ex);
-                }
-            });
+                await meteringService.IncrementAsync(ApiCallsMeterCode);
+            }
+            catch (Exception ex)
+            {
+                LogIncrementFailed(_logger, ApiCallsMeterCode, ex);
+            }
         }
     }
 

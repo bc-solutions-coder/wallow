@@ -64,9 +64,4 @@ public sealed class ChannelPreference : AggregateRoot<ChannelPreferenceId>, ITen
         SetUpdated(timeProvider.GetUtcNow());
     }
 
-    public void Toggle(TimeProvider timeProvider)
-    {
-        IsEnabled = !IsEnabled;
-        SetUpdated(timeProvider.GetUtcNow());
-    }
 }

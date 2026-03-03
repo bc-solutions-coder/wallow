@@ -1,5 +1,4 @@
 using Foundry.Communications.Domain.Channels.Email.Entities;
-using Foundry.Communications.Domain.Channels.Email.Identity;
 using Foundry.Communications.Domain.Channels.Email.ValueObjects;
 using Foundry.Communications.Infrastructure.Persistence;
 using Foundry.Communications.Infrastructure.Persistence.Repositories;
@@ -40,26 +39,6 @@ public sealed class EmailMessageRepositoryTests : IDisposable
 
         int count = await _dbContext.EmailMessages.CountAsync();
         count.Should().Be(1);
-    }
-
-    [Fact]
-    public async Task GetByIdAsync_WhenExists_ReturnsMessage()
-    {
-        EmailMessage email = CreateEmailMessage();
-        await _dbContext.EmailMessages.AddAsync(email);
-        await _dbContext.SaveChangesAsync();
-
-        EmailMessage? result = await _repository.GetByIdAsync(email.Id);
-
-        result.Should().NotBeNull();
-    }
-
-    [Fact]
-    public async Task GetByIdAsync_WhenNotExists_ReturnsNull()
-    {
-        EmailMessage? result = await _repository.GetByIdAsync(EmailMessageId.New());
-
-        result.Should().BeNull();
     }
 
     [Fact]

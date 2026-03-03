@@ -25,7 +25,6 @@ public sealed class KeycloakFixture : IAsyncLifetime
     public string ClientSecret => "foundry-api-secret";
 
     public string TokenEndpoint => $"{BaseUrl}/realms/{RealmName}/protocol/openid-connect/token";
-    public string JwksUri => $"{BaseUrl}/realms/{RealmName}/protocol/openid-connect/certs";
 
     public async Task InitializeAsync()
     {
@@ -42,7 +41,7 @@ public sealed class KeycloakFixture : IAsyncLifetime
         HttpResponseMessage response = await http.GetAsync($"{BaseUrl}/realms/{RealmName}");
         if (!response.IsSuccessStatusCode)
         {
-            (string stdout, string stderr) = await _keycloak.GetLogsAsync();
+            (string stdout, _) = await _keycloak.GetLogsAsync();
             throw new InvalidOperationException(
                 $"Realm '{RealmName}' not found (status={response.StatusCode}). " +
                 $"RealmFile={realmPath}, Exists={File.Exists(realmPath)}.\n" +
@@ -76,11 +75,5 @@ public sealed class KeycloakFixture : IAsyncLifetime
     {
         [JsonPropertyName("access_token")]
         public string AccessToken { get; init; } = string.Empty;
-
-        [JsonPropertyName("expires_in")]
-        public int ExpiresIn { get; init; }
-
-        [JsonPropertyName("token_type")]
-        public string TokenType { get; init; } = string.Empty;
     }
 }

@@ -113,40 +113,6 @@ public class FeatureFlagOverrideRepositoryTests : DbContextIntegrationTestBase<C
     }
 
     [Fact]
-    public async Task GetOverridesForContextAsync_ReturnsTenantOverrides()
-    {
-        FeatureFlagOverrideRepository repository = CreateOverrideRepository();
-        FeatureFlag flag = await CreateAndSaveFlagAsync();
-        Guid tenantId = Guid.NewGuid();
-        FeatureFlagOverride tenantOver = FeatureFlagOverride.CreateForTenant(flag.Id, tenantId, true, TimeProvider.System);
-
-        await repository.AddAsync(tenantOver);
-
-        IReadOnlyList<FeatureFlagOverride> result = await repository.GetOverridesForContextAsync(tenantId, userId: null);
-
-        result.Should().Contain(o => o.Id == tenantOver.Id);
-    }
-
-    [Fact]
-    public async Task GetOverridesForContextAsync_WithUserId_ReturnsTenantAndUserOverrides()
-    {
-        FeatureFlagOverrideRepository repository = CreateOverrideRepository();
-        FeatureFlag flag = await CreateAndSaveFlagAsync();
-        Guid tenantId = Guid.NewGuid();
-        Guid userId = Guid.NewGuid();
-        FeatureFlagOverride tenantOver = FeatureFlagOverride.CreateForTenant(flag.Id, tenantId, true, TimeProvider.System);
-        FeatureFlagOverride userOver = FeatureFlagOverride.CreateForUser(flag.Id, userId, false, TimeProvider.System);
-
-        await repository.AddAsync(tenantOver);
-        await repository.AddAsync(userOver);
-
-        IReadOnlyList<FeatureFlagOverride> result = await repository.GetOverridesForContextAsync(tenantId, userId);
-
-        result.Should().Contain(o => o.Id == tenantOver.Id);
-        result.Should().Contain(o => o.Id == userOver.Id);
-    }
-
-    [Fact]
     public async Task DeleteAsync_RemovesOverride()
     {
         FeatureFlagOverrideRepository repository = CreateOverrideRepository();

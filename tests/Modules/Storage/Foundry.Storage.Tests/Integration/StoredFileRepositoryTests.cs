@@ -105,28 +105,6 @@ public sealed class StoredFileRepositoryTests : DbContextIntegrationTestBase<Sto
         results.Should().AllSatisfy(f => f.Path!.StartsWith("documents/", StringComparison.Ordinal).Should().BeTrue());
     }
 
-    [Fact]
-    public async Task GetByTenantIdAsync_ReturnsAllTenantFiles()
-    {
-        string suffix = Guid.NewGuid().ToString()[..8];
-        StorageBucket bucket1 = StorageBucket.Create(TenantId.New(), $"bucket1-{suffix}");
-        StorageBucket bucket2 = StorageBucket.Create(TenantId.New(), $"bucket2-{suffix}");
-        DbContext.Buckets.Add(bucket1);
-        DbContext.Buckets.Add(bucket2);
-        await DbContext.SaveChangesAsync();
-
-        for (int i = 0; i < 5; i++)
-        {
-            StoredFile file = StoredFile.Create(TestTenantId, i % 2 == 0 ? bucket1.Id : bucket2.Id, $"file{i}.txt", "text/plain", 100 * i, Guid.NewGuid().ToString(), Guid.NewGuid());
-            _repository.Add(file);
-        }
-        await _repository.SaveChangesAsync();
-        DbContext.ChangeTracker.Clear();
-
-        IReadOnlyList<StoredFile> results = await _repository.GetByTenantIdAsync(TestTenantId);
-
-        results.Should().HaveCount(5);
-    }
 
     [Fact]
     public async Task Remove_DeletesFile()
@@ -172,8 +150,8 @@ public sealed class StoredFileRepositoryTests : DbContextIntegrationTestBase<Sto
         DbContext.ChangeTracker.Clear();
         otherDbContext.ChangeTracker.Clear();
 
-        IReadOnlyList<StoredFile> tenant1Results = await _repository.GetByTenantIdAsync(TestTenantId);
-        IReadOnlyList<StoredFile> tenant2Results = await otherRepository.GetByTenantIdAsync(otherTenantId);
+        IReadOnlyList<StoredFile> tenant1Results = await _repository.GetByBucketIdAsync(bucket1.Id);
+        IReadOnlyList<StoredFile> tenant2Results = await otherRepository.GetByBucketIdAsync(bucket2.Id);
 
         tenant1Results.Should().HaveCount(1);
         tenant1Results[0].FileName.Should().Be("tenant1.txt");

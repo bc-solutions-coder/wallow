@@ -142,20 +142,6 @@ public sealed class ChangelogRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task GetAllAsync_ReturnsAllEntries()
-    {
-        ChangelogEntry e1 = ChangelogEntry.Create("1.0.0", "First", "Content", DateTime.UtcNow, TimeProvider.System);
-        ChangelogEntry e2 = ChangelogEntry.Create("2.0.0", "Second", "Content", DateTime.UtcNow, TimeProvider.System);
-
-        await _dbContext.ChangelogEntries.AddRangeAsync(e1, e2);
-        await _dbContext.SaveChangesAsync();
-
-        IReadOnlyList<ChangelogEntry> result = await _repository.GetAllAsync();
-
-        result.Should().HaveCount(2);
-    }
-
-    [Fact]
     public async Task UpdateAsync_UpdatesEntryInDatabase()
     {
         ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "Original", "Content", DateTime.UtcNow, TimeProvider.System);
@@ -167,19 +153,6 @@ public sealed class ChangelogRepositoryTests : IDisposable
 
         ChangelogEntry? found = await _dbContext.ChangelogEntries.FindAsync(entry.Id);
         found!.Title.Should().Be("Updated");
-    }
-
-    [Fact]
-    public async Task DeleteAsync_RemovesEntryFromDatabase()
-    {
-        ChangelogEntry entry = ChangelogEntry.Create("1.0.0", "ToDelete", "Content", DateTime.UtcNow, TimeProvider.System);
-        await _dbContext.ChangelogEntries.AddAsync(entry);
-        await _dbContext.SaveChangesAsync();
-
-        await _repository.DeleteAsync(entry);
-
-        ChangelogEntry? found = await _dbContext.ChangelogEntries.FindAsync(entry.Id);
-        found.Should().BeNull();
     }
 
     public void Dispose()

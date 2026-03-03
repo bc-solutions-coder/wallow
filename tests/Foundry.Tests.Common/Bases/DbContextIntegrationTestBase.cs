@@ -76,10 +76,6 @@ public abstract class DbContextIntegrationTestBase<TDbContext> : IAsyncLifetime
         return (TDbContext)Activator.CreateInstance(typeof(TDbContext), options, tenantContext)!;
     }
 
-    /// <summary>
-    /// Creates a DbContext configured for a different tenant. Useful for tenant isolation tests.
-    /// The caller is responsible for disposing the returned context.
-    /// </summary>
     protected TDbContext CreateDbContextForTenant(TenantId tenantId, string tenantName = "OtherTenant")
     {
         TenantContext otherContext = new TenantContext();

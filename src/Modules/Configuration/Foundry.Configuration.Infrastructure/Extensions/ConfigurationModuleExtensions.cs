@@ -28,11 +28,11 @@ public static partial class ConfigurationModuleExtensions
 
     private static IServiceCollection AddConfigurationPersistence(
         this IServiceCollection services,
-        IConfiguration _)
+        IConfiguration configuration)
     {
+        string? connectionString = configuration.GetConnectionString("DefaultConnection");
         services.AddDbContext<ConfigurationDbContext>((sp, options) =>
         {
-            string? connectionString = sp.GetRequiredService<IConfiguration>().GetConnectionString("DefaultConnection");
             options.UseNpgsql(connectionString, npgsql =>
             {
                 npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "configuration");

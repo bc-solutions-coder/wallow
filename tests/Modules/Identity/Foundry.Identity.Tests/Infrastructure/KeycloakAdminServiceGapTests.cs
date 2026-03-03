@@ -30,6 +30,8 @@ public class KeycloakAdminServiceGapTests
 
         _userClient.CreateUserWithResponseAsync("foundry", Arg.Any<UserRepresentation>(), Arg.Any<CancellationToken>())
             .Returns(createResponse);
+        _userClient.GetUserAsync("foundry", userId.ToString(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+            .Returns(new UserRepresentation { Email = "test@test.com" });
 
         MockHttpHandler handler = new MockHttpHandler()
             .WithGet($"/admin/realms/foundry/roles/user", new { id = "role-user", name = "user" })
@@ -53,6 +55,8 @@ public class KeycloakAdminServiceGapTests
 
         _userClient.CreateUserWithResponseAsync("foundry", Arg.Any<UserRepresentation>(), Arg.Any<CancellationToken>())
             .Returns(createResponse);
+        _userClient.GetUserAsync("foundry", userId.ToString(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+            .Returns(new UserRepresentation { Email = "test@test.com" });
 
         MockHttpHandler handler = new MockHttpHandler()
             .WithGet($"/admin/realms/foundry/roles/user", new { id = "role-user", name = "user" })

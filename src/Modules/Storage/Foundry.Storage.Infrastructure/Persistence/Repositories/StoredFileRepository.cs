@@ -1,4 +1,3 @@
-using Foundry.Shared.Kernel.Identity;
 using Foundry.Storage.Application.Interfaces;
 using Foundry.Storage.Domain.Entities;
 using Foundry.Storage.Domain.Identity;
@@ -36,16 +35,6 @@ public sealed class StoredFileRepository : IStoredFileRepository
         }
 
         return await query
-            .OrderByDescending(f => f.UploadedAt)
-            .ToListAsync(cancellationToken);
-    }
-
-    public async Task<IReadOnlyList<StoredFile>> GetByTenantIdAsync(
-        TenantId tenantId,
-        CancellationToken cancellationToken = default)
-    {
-        return await _context.Files
-            .Where(f => f.TenantId == tenantId)
             .OrderByDescending(f => f.UploadedAt)
             .ToListAsync(cancellationToken);
     }

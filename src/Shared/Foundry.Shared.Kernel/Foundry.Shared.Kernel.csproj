@@ -7,7 +7,7 @@
     <RootNamespace>Foundry.Shared.Kernel</RootNamespace>
   </PropertyGroup>
 
-  <!-- Required for IModuleRegistration interface which uses WebApplication -->
+  <!-- Required for HasPermissionAttribute which uses AuthorizeAttribute -->
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>

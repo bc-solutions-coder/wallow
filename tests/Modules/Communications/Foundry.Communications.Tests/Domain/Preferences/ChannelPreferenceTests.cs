@@ -16,18 +16,18 @@ public class ChannelPreferenceTests
     {
         Guid userId = Guid.NewGuid();
 
-        ChannelPreference preference = ChannelPreference.Create(userId, channelType, NotificationTypes.TaskAssigned, TimeProvider.System);
+        ChannelPreference preference = ChannelPreference.Create(userId, channelType, "task_assigned", TimeProvider.System);
 
         preference.UserId.Should().Be(userId);
         preference.ChannelType.Should().Be(channelType);
-        preference.NotificationType.Should().Be(NotificationTypes.TaskAssigned);
+        preference.NotificationType.Should().Be("task_assigned");
         preference.Id.Should().NotBeNull();
     }
 
     [Fact]
     public void Create_WithDefaultIsEnabled_DefaultsToTrue()
     {
-        ChannelPreference preference = ChannelPreference.Create(Guid.NewGuid(), ChannelType.Email, NotificationTypes.BillingInvoice, TimeProvider.System);
+        ChannelPreference preference = ChannelPreference.Create(Guid.NewGuid(), ChannelType.Email, "billing_invoice", TimeProvider.System);
 
         preference.IsEnabled.Should().BeTrue();
     }
@@ -35,7 +35,7 @@ public class ChannelPreferenceTests
     [Fact]
     public void Create_WithIsEnabledFalse_SetsIsEnabledToFalse()
     {
-        ChannelPreference preference = ChannelPreference.Create(Guid.NewGuid(), ChannelType.Email, NotificationTypes.SystemAlert, TimeProvider.System, isEnabled: false);
+        ChannelPreference preference = ChannelPreference.Create(Guid.NewGuid(), ChannelType.Email, "system_alert", TimeProvider.System, isEnabled: false);
 
         preference.IsEnabled.Should().BeFalse();
     }
@@ -45,7 +45,7 @@ public class ChannelPreferenceTests
     {
         Guid userId = Guid.NewGuid();
 
-        ChannelPreference preference = ChannelPreference.Create(userId, ChannelType.InApp, NotificationTypes.UserMention, TimeProvider.System);
+        ChannelPreference preference = ChannelPreference.Create(userId, ChannelType.InApp, "user_mention", TimeProvider.System);
 
         preference.DomainEvents.Should().ContainSingle()
             .Which.Should().BeOfType<ChannelPreferenceCreatedEvent>()
@@ -54,7 +54,7 @@ public class ChannelPreferenceTests
                 ChannelPreferenceId = preference.Id,
                 UserId = userId,
                 ChannelType = ChannelType.InApp,
-                NotificationType = NotificationTypes.UserMention,
+                NotificationType = "user_mention",
                 IsEnabled = true
             });
     }

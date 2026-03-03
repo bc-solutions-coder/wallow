@@ -1,7 +1,6 @@
 using Foundry.Communications.Application.Channels.Sms.Interfaces;
 using Foundry.Communications.Domain.Channels.Sms.Entities;
 using Foundry.Communications.Domain.Channels.Sms.Enums;
-using Foundry.Communications.Domain.Channels.Sms.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace Foundry.Communications.Infrastructure.Persistence.Repositories;
@@ -18,13 +17,6 @@ public sealed class SmsMessageRepository : ISmsMessageRepository
     public void Add(SmsMessage message)
     {
         _context.SmsMessages.Add(message);
-    }
-
-    public Task<SmsMessage?> GetByIdAsync(SmsMessageId id, CancellationToken cancellationToken = default)
-    {
-        return _context.SmsMessages
-            .AsTracking()
-            .FirstOrDefaultAsync(m => m.Id == id, cancellationToken);
     }
 
     public async Task<IReadOnlyList<SmsMessage>> GetPendingAsync(int limit, CancellationToken cancellationToken = default)

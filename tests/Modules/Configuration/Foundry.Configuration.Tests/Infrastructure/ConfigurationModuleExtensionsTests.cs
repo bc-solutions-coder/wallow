@@ -12,7 +12,7 @@ namespace Foundry.Configuration.Tests.Infrastructure;
 
 public class ConfigurationModuleExtensionsTests
 {
-    private static ServiceCollection CreateServices()
+    private static (ServiceCollection Services, IConfiguration Configuration) CreateServices()
     {
         ServiceCollection services = new();
 
@@ -31,16 +31,14 @@ public class ConfigurationModuleExtensionsTests
         services.AddSingleton(new TenantSaveChangesInterceptor(new TenantContext()));
         services.AddLogging();
 
-        return services;
+        return (services, configuration);
     }
 
     [Fact]
     public void AddConfigurationModule_RegistersDbContext()
     {
-        ServiceCollection services = CreateServices();
-        IConfiguration config = services.BuildServiceProvider().GetRequiredService<IConfiguration>();
-
-        services.AddConfigurationModule(config);
+        (ServiceCollection services, IConfiguration configuration) = CreateServices();
+        services.AddConfigurationModule(configuration);
 
         ServiceProvider provider = services.BuildServiceProvider();
         using IServiceScope scope = provider.CreateScope();
@@ -51,10 +49,8 @@ public class ConfigurationModuleExtensionsTests
     [Fact]
     public void AddConfigurationModule_RegistersCustomFieldDefinitionRepository()
     {
-        ServiceCollection services = CreateServices();
-        IConfiguration config = services.BuildServiceProvider().GetRequiredService<IConfiguration>();
-
-        services.AddConfigurationModule(config);
+        (ServiceCollection services, IConfiguration configuration) = CreateServices();
+        services.AddConfigurationModule(configuration);
 
         ServiceDescriptor? descriptor = services.FirstOrDefault(
             d => d.ServiceType == typeof(ICustomFieldDefinitionRepository));
@@ -65,10 +61,8 @@ public class ConfigurationModuleExtensionsTests
     [Fact]
     public void AddConfigurationModule_RegistersFeatureFlagRepository()
     {
-        ServiceCollection services = CreateServices();
-        IConfiguration config = services.BuildServiceProvider().GetRequiredService<IConfiguration>();
-
-        services.AddConfigurationModule(config);
+        (ServiceCollection services, IConfiguration configuration) = CreateServices();
+        services.AddConfigurationModule(configuration);
 
         ServiceDescriptor? descriptor = services.FirstOrDefault(
             d => d.ServiceType == typeof(IFeatureFlagRepository));
@@ -79,10 +73,8 @@ public class ConfigurationModuleExtensionsTests
     [Fact]
     public void AddConfigurationModule_RegistersFeatureFlagOverrideRepository()
     {
-        ServiceCollection services = CreateServices();
-        IConfiguration config = services.BuildServiceProvider().GetRequiredService<IConfiguration>();
-
-        services.AddConfigurationModule(config);
+        (ServiceCollection services, IConfiguration configuration) = CreateServices();
+        services.AddConfigurationModule(configuration);
 
         ServiceDescriptor? descriptor = services.FirstOrDefault(
             d => d.ServiceType == typeof(IFeatureFlagOverrideRepository));
@@ -93,10 +85,8 @@ public class ConfigurationModuleExtensionsTests
     [Fact]
     public void AddConfigurationModule_RegistersFeatureFlagServiceAsCached()
     {
-        ServiceCollection services = CreateServices();
-        IConfiguration config = services.BuildServiceProvider().GetRequiredService<IConfiguration>();
-
-        services.AddConfigurationModule(config);
+        (ServiceCollection services, IConfiguration configuration) = CreateServices();
+        services.AddConfigurationModule(configuration);
 
         ServiceDescriptor? descriptor = services.FirstOrDefault(
             d => d.ServiceType == typeof(IFeatureFlagService));
@@ -107,10 +97,8 @@ public class ConfigurationModuleExtensionsTests
     [Fact]
     public void AddConfigurationModule_RegistersFeatureFlagServiceConcrete()
     {
-        ServiceCollection services = CreateServices();
-        IConfiguration config = services.BuildServiceProvider().GetRequiredService<IConfiguration>();
-
-        services.AddConfigurationModule(config);
+        (ServiceCollection services, IConfiguration configuration) = CreateServices();
+        services.AddConfigurationModule(configuration);
 
         ServiceDescriptor? descriptor = services.FirstOrDefault(
             d => d.ServiceType == typeof(FeatureFlagService));

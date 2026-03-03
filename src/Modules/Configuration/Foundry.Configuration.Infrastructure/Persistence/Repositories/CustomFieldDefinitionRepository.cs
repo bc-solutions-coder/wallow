@@ -23,16 +23,6 @@ public sealed class CustomFieldDefinitionRepository : ICustomFieldDefinitionRepo
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
     }
 
-    public Task<CustomFieldDefinition?> GetByFieldKeyAsync(
-        string entityType,
-        string fieldKey,
-        CancellationToken cancellationToken = default)
-    {
-        return _context.CustomFieldDefinitions
-            .AsTracking()
-            .FirstOrDefaultAsync(x => x.EntityType == entityType && x.FieldKey == fieldKey, cancellationToken);
-    }
-
     public async Task<IReadOnlyList<CustomFieldDefinition>> GetByEntityTypeAsync(
         string entityType,
         bool includeInactive = false,
@@ -49,16 +39,6 @@ public sealed class CustomFieldDefinitionRepository : ICustomFieldDefinitionRepo
         return await query
             .OrderBy(x => x.DisplayOrder)
             .ThenBy(x => x.DisplayName)
-            .ToListAsync(cancellationToken);
-    }
-
-    public async Task<IReadOnlyList<CustomFieldDefinition>> GetAllActiveAsync(
-        CancellationToken cancellationToken = default)
-    {
-        return await _context.CustomFieldDefinitions
-            .Where(x => x.IsActive)
-            .OrderBy(x => x.EntityType)
-            .ThenBy(x => x.DisplayOrder)
             .ToListAsync(cancellationToken);
     }
 

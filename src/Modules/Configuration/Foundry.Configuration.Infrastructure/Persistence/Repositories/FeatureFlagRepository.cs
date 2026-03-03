@@ -1,7 +1,6 @@
 using Foundry.Configuration.Application.FeatureFlags.Contracts;
 using Foundry.Configuration.Domain.Entities;
 using Foundry.Configuration.Domain.Identity;
-using Foundry.Shared.Kernel.Pagination;
 using Microsoft.EntityFrameworkCore;
 
 namespace Foundry.Configuration.Infrastructure.Persistence.Repositories;
@@ -35,20 +34,6 @@ public sealed class FeatureFlagRepository : IFeatureFlagRepository
         return await _context.FeatureFlags
             .OrderBy(f => f.Key)
             .ToListAsync(ct);
-    }
-
-    public async Task<PagedResult<FeatureFlag>> GetAllAsync(int page, int pageSize, CancellationToken ct = default)
-    {
-        IQueryable<FeatureFlag> query = _context.FeatureFlags.OrderBy(f => f.Key);
-
-        int totalCount = await query.CountAsync(ct);
-
-        List<FeatureFlag> items = await query
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(ct);
-
-        return new PagedResult<FeatureFlag>(items, totalCount, page, pageSize);
     }
 
     public async Task AddAsync(FeatureFlag flag, CancellationToken ct = default)

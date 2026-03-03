@@ -36,6 +36,8 @@ public class KeycloakAdminServiceTests
         createResponse.Headers.Location = new Uri($"https://keycloak.test/users/{userId}");
         _userClient.CreateUserWithResponseAsync("foundry", Arg.Any<UserRepresentation>(), Arg.Any<CancellationToken>())
             .Returns(createResponse);
+        _userClient.GetUserAsync("foundry", userId.ToString(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+            .Returns(new UserRepresentation { Email = "test@test.com" });
 
         KeycloakAdminService service = CreateService(handler);
 
@@ -58,6 +60,8 @@ public class KeycloakAdminServiceTests
         createResponse.Headers.Location = new Uri($"https://keycloak.test/users/{userId}");
         _userClient.CreateUserWithResponseAsync("foundry", Arg.Any<UserRepresentation>(), Arg.Any<CancellationToken>())
             .Returns(createResponse);
+        _userClient.GetUserAsync("foundry", userId.ToString(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+            .Returns(new UserRepresentation { Email = "test@test.com" });
 
         KeycloakAdminService service = CreateService(handler);
 

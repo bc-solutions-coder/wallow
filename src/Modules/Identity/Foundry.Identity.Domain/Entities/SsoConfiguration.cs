@@ -169,7 +169,7 @@ public sealed class SsoConfiguration : AggregateRoot<SsoConfigurationId>, ITenan
             Id.Value,
             TenantId.Value,
             DisplayName,
-            Protocol.ToString()));
+            Protocol.ToString().ToUpperInvariant()));
     }
 
     public void Disable(Guid updatedByUserId)

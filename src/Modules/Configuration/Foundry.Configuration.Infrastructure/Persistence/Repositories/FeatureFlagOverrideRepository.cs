@@ -46,20 +46,6 @@ public sealed class FeatureFlagOverrideRepository : IFeatureFlagOverrideReposito
             .FirstOrDefaultAsync(ct);
     }
 
-    public async Task<IReadOnlyList<FeatureFlagOverride>> GetOverridesForContextAsync(
-        Guid tenantId,
-        Guid? userId,
-        CancellationToken ct = default)
-    {
-        IQueryable<FeatureFlagOverride> query = ActiveOverrides();
-
-        query = userId.HasValue
-            ? query.Where(o => o.TenantId == tenantId || o.UserId == userId)
-            : query.Where(o => o.TenantId == tenantId);
-
-        return await query.ToListAsync(ct);
-    }
-
     public async Task AddAsync(FeatureFlagOverride over, CancellationToken ct = default)
     {
         _context.FeatureFlagOverrides.Add(over);

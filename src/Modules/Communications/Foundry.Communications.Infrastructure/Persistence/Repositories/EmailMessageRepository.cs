@@ -1,7 +1,6 @@
 using Foundry.Communications.Application.Channels.Email.Interfaces;
 using Foundry.Communications.Domain.Channels.Email.Entities;
 using Foundry.Communications.Domain.Channels.Email.Enums;
-using Foundry.Communications.Domain.Channels.Email.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace Foundry.Communications.Infrastructure.Persistence.Repositories;
@@ -18,13 +17,6 @@ public sealed class EmailMessageRepository : IEmailMessageRepository
     public void Add(EmailMessage emailMessage)
     {
         _context.EmailMessages.Add(emailMessage);
-    }
-
-    public Task<EmailMessage?> GetByIdAsync(EmailMessageId id, CancellationToken cancellationToken = default)
-    {
-        return _context.EmailMessages
-            .AsTracking()
-            .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
     }
 
     public async Task<IReadOnlyList<EmailMessage>> GetPendingAsync(int limit, CancellationToken cancellationToken = default)

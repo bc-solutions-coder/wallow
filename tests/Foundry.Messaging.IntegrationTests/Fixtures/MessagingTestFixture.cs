@@ -4,7 +4,6 @@ using Foundry.Messaging.IntegrationTests.TestHandlers;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Wolverine;
 
 namespace Foundry.Messaging.IntegrationTests.Fixtures;
@@ -34,8 +33,6 @@ public class MessagingTestFixture : FoundryApiFactory
     public MessageWaiter MessageWaiter => Services.GetRequiredService<MessageWaiter>();
 
     public IMessageTracker MessageTracker => _messageTracker;
-
-    public IHost Host => Services.GetRequiredService<IHost>();
 
     public ICrossModuleEventTracker CrossModuleTracker => _crossModuleTracker;
 }

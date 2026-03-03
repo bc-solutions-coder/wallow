@@ -27,14 +27,6 @@ public sealed class NotificationRepository : INotificationRepository
             .FirstOrDefaultAsync(n => n.Id == id, cancellationToken);
     }
 
-    public async Task<IReadOnlyList<Notification>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
-    {
-        return await _context.Notifications
-            .Where(n => n.UserId == userId)
-            .OrderByDescending(n => n.CreatedAt)
-            .ToListAsync(cancellationToken);
-    }
-
     public async Task<PagedResult<Notification>> GetByUserIdPagedAsync(
         Guid userId, int page, int pageSize, CancellationToken cancellationToken = default)
     {
@@ -64,22 +56,6 @@ public sealed class NotificationRepository : INotificationRepository
             .Where(n => n.UserId == userId && !n.IsRead)
             .OrderByDescending(n => n.CreatedAt)
             .ToListAsync(cancellationToken);
-    }
-
-    public async Task<PagedResult<Notification>> GetUnreadByUserIdPagedAsync(
-        Guid userId, int page, int pageSize, CancellationToken cancellationToken = default)
-    {
-        IQueryable<Notification> query = _context.Notifications
-            .Where(n => n.UserId == userId && !n.IsRead)
-            .OrderByDescending(n => n.CreatedAt);
-
-        int totalCount = await query.CountAsync(cancellationToken);
-        List<Notification> items = await query
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(cancellationToken);
-
-        return new PagedResult<Notification>(items, totalCount, page, pageSize);
     }
 
     public async Task SaveChangesAsync(CancellationToken cancellationToken = default)

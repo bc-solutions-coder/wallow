@@ -49,11 +49,6 @@ public abstract class FoundryIntegrationTestBase : IAsyncLifetime
         Client.DefaultRequestHeaders.Add("X-Test-Roles", roles);
     }
 
-    protected void SetAdminUser()
-    {
-        SetTestUser("admin-user-id", "Admin");
-    }
-
     private static Guid GenerateGuidFromString(string input)
     {
         byte[] hash = System.Security.Cryptography.SHA256.HashData(

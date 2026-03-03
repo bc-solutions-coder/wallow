@@ -21,8 +21,6 @@ public sealed class Notification : AggregateRoot<NotificationId>, ITenantScoped
     public DateTime? ExpiresAt { get; private set; }
     public bool IsArchived { get; private set; }
 
-    public bool IsExpired(TimeProvider timeProvider) => ExpiresAt < timeProvider.GetUtcNow().UtcDateTime;
-
     private Notification() { }
 
     private Notification(

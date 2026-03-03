@@ -89,37 +89,10 @@ public sealed class Conversation : AggregateRoot<ConversationId>, ITenantScoped
             TenantId.Value));
     }
 
-    public void AddParticipant(Guid userId, TimeProvider timeProvider)
-    {
-        if (!IsGroup)
-        {
-            throw new ConversationException("Cannot add participants to a direct conversation.");
-        }
-
-        if (_participants.Any(p => p.UserId == userId))
-        {
-            throw new ConversationException("User is already a participant in this conversation.");
-        }
-
-        Participant participant = Participant.Create(userId, Id, timeProvider);
-        _participants.Add(participant);
-        SetUpdated(timeProvider.GetUtcNow());
-
-        RaiseDomainEvent(new ParticipantAddedDomainEvent(
-            Id.Value,
-            userId,
-            TenantId.Value));
-    }
-
     public void MarkReadBy(Guid userId, TimeProvider timeProvider)
     {
         Participant? participant = _participants.FirstOrDefault(p => p.UserId == userId && p.IsActive);
         participant?.MarkRead(timeProvider);
     }
 
-    public void Archive(TimeProvider timeProvider)
-    {
-        Status = ConversationStatus.Archived;
-        SetUpdated(timeProvider.GetUtcNow());
-    }
 }
