@@ -171,18 +171,18 @@ public class DapperQueryTests : DbContextIntegrationTestBase<BillingDbContext>
             """;
 
         await using DbConnection connection = DbContext.Database.GetDbConnection();
-        IEnumerable<PaymentReportRow> tenant1Results = await connection.QueryAsync<PaymentReportRow>(
+        List<PaymentReportRow> tenant1Results = (await connection.QueryAsync<PaymentReportRow>(
             sql,
-            new { TenantId = TestTenantId.Value, From = fromDate, To = toDate });
+            new { TenantId = TestTenantId.Value, From = fromDate, To = toDate })).ToList();
 
-        IEnumerable<PaymentReportRow> tenant2Results = await connection.QueryAsync<PaymentReportRow>(
+        List<PaymentReportRow> tenant2Results = (await connection.QueryAsync<PaymentReportRow>(
             sql,
-            new { TenantId = _otherTenantId.Value, From = fromDate, To = toDate });
+            new { TenantId = _otherTenantId.Value, From = fromDate, To = toDate })).ToList();
 
-        tenant1Results.ToList().Should().HaveCount(1);
+        tenant1Results.Should().HaveCount(1);
         tenant1Results.First().InvoiceNumber.Should().Be("INV-T1");
 
-        tenant2Results.ToList().Should().HaveCount(1);
+        tenant2Results.Should().HaveCount(1);
         tenant2Results.First().InvoiceNumber.Should().Be("INV-T2");
     }
 

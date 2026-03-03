@@ -98,7 +98,7 @@ public class GlobalExceptionHandlerTests
     public async Task TryHandleAsync_ArgumentException_Returns400()
     {
         DefaultHttpContext httpContext = CreateHttpContext();
-        ArgumentException exception = new("Value cannot be empty", "name");
+        ArgumentException exception = new("Value cannot be empty");
 
         bool handled = await _sut.TryHandleAsync(httpContext, exception, CancellationToken.None);
 

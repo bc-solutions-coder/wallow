@@ -124,13 +124,13 @@ public sealed partial class KeycloakAdminService : IKeycloakAdminService
     {
         try
         {
-            IEnumerable<UserRepresentation> users = await _userClient.GetUsersAsync(Realm, new GetUsersRequestParameters
+            List<UserRepresentation> users = (await _userClient.GetUsersAsync(Realm, new GetUsersRequestParameters
             {
                 Email = email,
                 Exact = true
-            }, ct);
+            }, ct)).ToList();
 
-            UserRepresentation? user = users?.FirstOrDefault();
+            UserRepresentation? user = users.FirstOrDefault();
             if (user == null || string.IsNullOrWhiteSpace(user.Id))
             {
                 return null;
@@ -162,14 +162,14 @@ public sealed partial class KeycloakAdminService : IKeycloakAdminService
     {
         try
         {
-            IEnumerable<UserRepresentation> users = await _userClient.GetUsersAsync(Realm, new GetUsersRequestParameters
+            List<UserRepresentation> users = (await _userClient.GetUsersAsync(Realm, new GetUsersRequestParameters
             {
                 Search = search,
                 First = first,
                 Max = max
-            }, ct);
+            }, ct)).ToList();
 
-            if (users == null || !users.Any())
+            if (users.Count == 0)
             {
                 return Array.Empty<UserDto>();
             }

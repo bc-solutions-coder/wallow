@@ -351,7 +351,7 @@ public class PluginLoaderTests
             PluginManifest manifest = CreateManifest(id: "bad-plugin", entryAssembly: "Bad.dll");
             _registry.Register(manifest);
 
-            try { _sut.LoadPlugin(manifest, tempDir); } catch { }
+            try { _sut.LoadPlugin(manifest, tempDir); } catch (PluginLoadException) { }
 
             PluginRegistryEntry? entry = _registry.GetEntry("bad-plugin");
             entry!.Instance.Should().BeNull();

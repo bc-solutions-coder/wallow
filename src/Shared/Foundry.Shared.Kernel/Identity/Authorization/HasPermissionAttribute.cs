@@ -8,6 +8,7 @@ public sealed class HasPermissionAttribute : AuthorizeAttribute
     public HasPermissionAttribute(PermissionType permission)
         : base(permission.ToString())
     {
+        Permission = permission;
     }
 
     public PermissionType Permission { get; }

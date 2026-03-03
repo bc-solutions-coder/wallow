@@ -289,8 +289,8 @@ public sealed partial class CustomFieldDefinition : AggregateRoot<CustomFieldDef
             throw new CustomFieldException("At least one option is required for dropdown/multi-select fields");
         }
 
-        IEnumerable<string> duplicateValues = options.GroupBy(o => o.Value).Where(g => g.Count() > 1).Select(g => g.Key);
-        if (duplicateValues.Any())
+        List<string> duplicateValues = options.GroupBy(o => o.Value).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
+        if (duplicateValues.Count > 0)
         {
             throw new CustomFieldException($"Duplicate option values: {string.Join(", ", duplicateValues)}");
         }

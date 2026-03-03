@@ -21,7 +21,7 @@ public class RolePermissionMappingTests
     {
         IEnumerable<string> roles = new[] { "user" };
 
-        IEnumerable<PermissionType> result = RolePermissionMapping.GetPermissions(roles);
+        List<PermissionType> result = RolePermissionMapping.GetPermissions(roles).ToList();
 
         result.Should().Contain(PermissionType.OrganizationsRead);
         result.Should().NotContain(PermissionType.UsersRead);
@@ -33,7 +33,7 @@ public class RolePermissionMappingTests
     {
         IEnumerable<string> roles = new[] { "manager" };
 
-        IEnumerable<PermissionType> result = RolePermissionMapping.GetPermissions(roles);
+        List<PermissionType> result = RolePermissionMapping.GetPermissions(roles).ToList();
 
         result.Should().Contain(PermissionType.UsersRead);
         result.Should().Contain(PermissionType.BillingRead);
@@ -60,7 +60,7 @@ public class RolePermissionMappingTests
     {
         IEnumerable<string> roles = new[] { "user", "manager" };
 
-        IEnumerable<PermissionType> result = RolePermissionMapping.GetPermissions(roles);
+        List<PermissionType> result = RolePermissionMapping.GetPermissions(roles).ToList();
 
         result.Should().Contain(PermissionType.OrganizationsRead);
         result.Should().Contain(PermissionType.UsersRead);

@@ -24,7 +24,7 @@ public class UserService : IUserService
 
         return new UserInfo(
             user.Id,
-            user.Email ?? string.Empty,
+            user.Email,
             user.FirstName,
             user.LastName,
             user.Enabled);
@@ -41,7 +41,7 @@ public class UserService : IUserService
 
         return new UserInfo(
             user.Id,
-            user.Email ?? string.Empty,
+            user.Email,
             user.FirstName,
             user.LastName,
             user.Enabled);

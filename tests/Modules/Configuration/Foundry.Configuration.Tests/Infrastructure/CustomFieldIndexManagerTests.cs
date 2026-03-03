@@ -29,7 +29,7 @@ public class CustomFieldIndexManagerValidationTests
 
         // Should NOT throw ArgumentException (will throw NullReferenceException from null DbContext)
         ArgumentException? argEx = null;
-        try { await act(); } catch (ArgumentException ex) { argEx = ex; } catch { }
+        try { await act(); } catch (ArgumentException ex) { argEx = ex; } catch (Exception) { /* Expected: null DbContext throws non-ArgumentException */ }
         argEx.Should().BeNull();
     }
 
@@ -137,7 +137,7 @@ public class CustomFieldIndexManagerValidationTests
             await _manager.CreateExpressionIndexAsync(null!, maxIdentifier, "schema", "field");
         }
         catch (ArgumentException ex) { argEx = ex; }
-        catch { }
+        catch (Exception) { /* Expected: null DbContext throws non-ArgumentException */ }
 
         argEx.Should().BeNull();
     }

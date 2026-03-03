@@ -176,6 +176,8 @@ public sealed partial class KeycloakServiceAccountService : IServiceAccountServi
 
     public async Task UpdateScopesAsync(ServiceAccountMetadataId id, IEnumerable<string> scopes, CancellationToken ct = default)
     {
+        List<string> scopesList = scopes.ToList();
+
         ServiceAccountMetadata? metadata = await _repository.GetByIdAsync(id, ct);
         if (metadata is null)
         {
@@ -189,7 +191,7 @@ public sealed partial class KeycloakServiceAccountService : IServiceAccountServi
 
         var updatePayload = new
         {
-            defaultClientScopes = scopes.ToList()
+            defaultClientScopes = scopesList
         };
 
         HttpResponseMessage response = await _httpClient.PutAsJsonAsync(
@@ -199,7 +201,7 @@ public sealed partial class KeycloakServiceAccountService : IServiceAccountServi
         response.EnsureSuccessStatusCode();
 
         // Update local metadata
-        metadata.UpdateScopes(scopes, _currentUserService.UserId ?? Guid.Empty);
+        metadata.UpdateScopes(scopesList, _currentUserService.UserId ?? Guid.Empty);
         await _repository.SaveChangesAsync(ct);
 
         LogScopesUpdated(metadata.KeycloakClientId);

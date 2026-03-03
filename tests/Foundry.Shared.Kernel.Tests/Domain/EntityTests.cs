@@ -55,6 +55,7 @@ public class EntityTests
         entity.Equals(entity).Should().BeTrue();
         // Intentionally testing same-reference equality
 #pragma warning disable CS1718 // Comparison made to same variable
+        // ReSharper disable once EqualExpressionComparison
         (entity == entity).Should().BeTrue();
 #pragma warning restore CS1718
     }

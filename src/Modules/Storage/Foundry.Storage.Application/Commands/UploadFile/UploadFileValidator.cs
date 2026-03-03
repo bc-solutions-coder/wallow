@@ -53,10 +53,7 @@ public sealed class UploadFileValidator : AbstractValidator<UploadFileCommand>
     private static async Task<bool> HaveMatchingMagicBytesAsync(
         UploadFileCommand command, CancellationToken cancellationToken)
     {
-        if (!_magicBytesByContentType.TryGetValue(command.ContentType, out byte[][]? signatures))
-        {
-            return true;
-        }
+        byte[][] signatures = _magicBytesByContentType[command.ContentType];
 
         int maxLength = signatures.Max(s => s.Length);
         byte[] header = new byte[maxLength];
