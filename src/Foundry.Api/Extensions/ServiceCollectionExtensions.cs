@@ -1,5 +1,9 @@
 using System.Threading.RateLimiting;
+using Foundry.Api.HealthChecks;
 using Foundry.Api.Middleware;
+using Foundry.Storage.Domain.Enums;
+using Foundry.Storage.Infrastructure.Configuration;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.OpenApi;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
@@ -93,7 +97,26 @@ internal static class ServiceCollectionExtensions
                 sp => sp.GetRequiredService<IConfiguration>().GetConnectionString("Redis")
                     ?? throw new InvalidOperationException("Redis connection string not configured"),
                 name: "redis",
-                tags: ["infrastructure", "ready"]);
+                tags: ["infrastructure", "ready"])
+            .AddCheck("startup", () => HealthCheckResult.Healthy(),
+                tags: ["startup"])
+            .AddCheck<KeycloakHealthCheck>("keycloak", tags: ["infrastructure", "ready"]);
+
+        // S3 health check - only when S3 storage provider is configured
+        StorageOptions storageOptions = configuration.GetSection(StorageOptions.SectionName).Get<StorageOptions>()
+                                        ?? new StorageOptions();
+        if (storageOptions.Provider == StorageProvider.S3)
+        {
+            services.AddHealthChecks()
+                .AddCheck<S3HealthCheck>("s3", tags: ["storage", "ready"]);
+        }
+
+        services.AddHttpClient("HealthChecks", client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(5);
+        });
+
+        services.AddSingleton<IHealthCheckPublisher, HealthCheckMetricsPublisher>();
 
         return services;
     }
@@ -170,27 +193,62 @@ internal static class ServiceCollectionExtensions
                     new("deployment.environment", environment.EnvironmentName),
                     new("service.instance.id", Environment.MachineName)
                 }))
-            .WithTracing(tracing => tracing
-                .AddAspNetCoreInstrumentation(options =>
-                {
-                    options.Filter = FilterTelemetryRequest;
-                })
-                .AddEntityFrameworkCoreInstrumentation()
-                .AddHttpClientInstrumentation()
-                .AddSource("Wolverine")
-                .AddSource("Foundry")
-                .AddSource("Foundry.*")
-                .AddOtlpExporter(options =>
-                {
-                    options.Endpoint = new Uri(otlpGrpcEndpoint);
-                }))
+            .WithTracing(tracing =>
+            {
+                double samplingRatio = configuration.GetValue<double?>("Observability:TraceSamplingRatio")
+                    ?? (environment.IsDevelopment() ? 1.0 : 0.1);
+
+                tracing
+                    .SetSampler(new ParentBasedSampler(new TraceIdRatioBasedSampler(samplingRatio)))
+                    .AddAspNetCoreInstrumentation(options =>
+                    {
+                        options.Filter = FilterTelemetryRequest;
+                    })
+                    .AddEntityFrameworkCoreInstrumentation(options =>
+                    {
+                        options.SetDbStatementForText = environment.IsDevelopment();
+                    })
+                    .AddHttpClientInstrumentation(options =>
+                    {
+                        string keycloakBaseUrl = (configuration["Keycloak:auth-server-url"] ?? "").TrimEnd('/');
+                        string s3Endpoint = (configuration["Storage:S3:Endpoint"] ?? "").TrimEnd('/');
+
+                        options.EnrichWithHttpRequestMessage = (activity, message) =>
+                        {
+                            string requestUrl = message.RequestUri?.GetLeftPart(UriPartial.Authority) ?? "";
+
+                            if (!string.IsNullOrEmpty(keycloakBaseUrl) &&
+                                requestUrl.Equals(new Uri(keycloakBaseUrl).GetLeftPart(UriPartial.Authority), StringComparison.OrdinalIgnoreCase))
+                            {
+                                activity.SetTag("http.provider", "keycloak");
+                            }
+                            else if (!string.IsNullOrEmpty(s3Endpoint) &&
+                                     requestUrl.Equals(new Uri(s3Endpoint).GetLeftPart(UriPartial.Authority), StringComparison.OrdinalIgnoreCase))
+                            {
+                                activity.SetTag("http.provider", "s3");
+                            }
+                        };
+                    })
+                    .AddRedisInstrumentation()
+                    .AddSource("Wolverine")
+                    .AddSource("Foundry")
+                    .AddSource("Foundry.*")
+                    .AddOtlpExporter(options =>
+                    {
+                        options.Endpoint = new Uri(otlpGrpcEndpoint);
+                    });
+            })
             .WithMetrics(metrics => metrics
+                .SetExemplarFilter(ExemplarFilterType.TraceBased)
                 .AddAspNetCoreInstrumentation()
+                .AddProcessInstrumentation()
                 .AddRuntimeInstrumentation()
                 .AddHttpClientInstrumentation()
                 .AddMeter("Wolverine")
                 .AddMeter("Foundry")
                 .AddMeter("Foundry.*")
+                .AddMeter("Microsoft.AspNetCore.Authentication")
+                .AddMeter("Microsoft.AspNetCore.Authorization")
                 .AddOtlpExporter(options =>
                 {
                     options.Endpoint = new Uri(otlpGrpcEndpoint);

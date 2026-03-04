@@ -1,14 +1,23 @@
+using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using System.Security.Claims;
 using System.Text.Json;
+using Foundry.Shared.Kernel;
 using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.MultiTenancy;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
+using Serilog.Context;
 
 namespace Foundry.Identity.Infrastructure.MultiTenancy;
 
 public partial class TenantResolutionMiddleware
 {
+    private static readonly Meter _meter = Diagnostics.CreateMeter("Foundry");
+    private static readonly Counter<long> _requestsByTenantCounter = _meter.CreateCounter<long>(
+        "foundry.requests_by_tenant_total",
+        description: "Total requests by tenant");
+
     private readonly RequestDelegate _next;
     private readonly ILogger<TenantResolutionMiddleware> _logger;
 
@@ -20,10 +29,11 @@ public partial class TenantResolutionMiddleware
 
     public async Task InvokeAsync(HttpContext context, ITenantContextSetter tenantSetter)
     {
+        Guid? resolvedTenantId = null;
+
         if (context.User.Identity?.IsAuthenticated == true)
         {
             Claim? orgClaim = context.User.FindFirst("organization");
-            Guid? resolvedTenantId = null;
             if (orgClaim != null)
             {
                 Guid? orgId = ParseOrganizationId(orgClaim.Value);
@@ -43,11 +53,12 @@ public partial class TenantResolutionMiddleware
                 HasRealmAdminRole(context.User) &&
                 Guid.TryParse(headerTenantId, out Guid overrideId))
             {
-                string userId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "unknown";
+                string adminUserId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "unknown";
                 string requestPath = context.Request.Path.Value ?? "/";
 
                 tenantSetter.SetTenant(TenantId.Create(overrideId));
-                LogAdminTenantOverride(overrideId, resolvedTenantId, userId, requestPath);
+                LogAdminTenantOverride(overrideId, resolvedTenantId, adminUserId, requestPath);
+                resolvedTenantId = overrideId;
             }
 
             // Region resolution: JWT claim > header > default
@@ -67,7 +78,25 @@ public partial class TenantResolutionMiddleware
             }
         }
 
-        await _next(context);
+        if (resolvedTenantId.HasValue)
+        {
+            _requestsByTenantCounter.Add(1, new KeyValuePair<string, object?>("tenant_id", resolvedTenantId.Value.ToString()));
+        }
+
+        string? userId = context.User.Identity?.IsAuthenticated == true
+            ? context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            : null;
+
+        if (userId is not null)
+        {
+            Activity.Current?.SetTag("enduser.id", userId);
+        }
+
+        using (LogContext.PushProperty("TenantId", resolvedTenantId, destructureObjects: false))
+        using (LogContext.PushProperty("UserId", userId, destructureObjects: false))
+        {
+            await _next(context);
+        }
     }
 
     private const string AdminRole = "admin";

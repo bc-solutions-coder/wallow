@@ -11,21 +11,9 @@ public class EmailModuleTelemetryTests
     }
 
     [Fact]
-    public void Meter_HasCorrectName()
-    {
-        EmailModuleTelemetry.Meter.Name.Should().Be("Foundry.Communications.Email");
-    }
-
-    [Fact]
     public void ActivitySource_IsNotNull()
     {
         EmailModuleTelemetry.ActivitySource.Should().NotBeNull();
-    }
-
-    [Fact]
-    public void Meter_IsNotNull()
-    {
-        EmailModuleTelemetry.Meter.Should().NotBeNull();
     }
 
     [Fact]
@@ -38,11 +26,20 @@ public class EmailModuleTelemetryTests
     }
 
     [Fact]
-    public void Meter_IsSameInstanceOnMultipleAccess()
+    public void EmailSentTotal_IsNotNull()
     {
-        System.Diagnostics.Metrics.Meter first = EmailModuleTelemetry.Meter;
-        System.Diagnostics.Metrics.Meter second = EmailModuleTelemetry.Meter;
+        EmailModuleTelemetry.EmailSentTotal.Should().NotBeNull();
+    }
 
-        first.Should().BeSameAs(second);
+    [Fact]
+    public void EmailFailedTotal_IsNotNull()
+    {
+        EmailModuleTelemetry.EmailFailedTotal.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void EmailSendDuration_IsNotNull()
+    {
+        EmailModuleTelemetry.EmailSendDuration.Should().NotBeNull();
     }
 }

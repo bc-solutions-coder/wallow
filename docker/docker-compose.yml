@@ -103,7 +103,7 @@ services:
   #   OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
   #   OTEL_SERVICE_NAME=foundry-api
   #
-  # OTEL_EXPORTER_OTLP_ENDPOINT — gRPC endpoint exposed by grafana-lgtm
+  # OTEL_EXPORTER_OTLP_ENDPOINT — gRPC endpoint exposed by Alloy collector
   # OTEL_SERVICE_NAME           — logical service name shown in traces/metrics
   # ============================================
   grafana-lgtm:
@@ -111,8 +111,6 @@ services:
     container_name: ${COMPOSE_PROJECT_NAME:-foundry}-grafana-lgtm
     ports:
       - "3000:3000"   # Grafana UI
-      - "4317:4317"   # OTLP gRPC
-      - "4318:4318"   # OTLP HTTP
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=${GF_ADMIN_PASSWORD:-admin}
     volumes:
@@ -124,6 +122,24 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - foundry
+    restart: unless-stopped
+
+  # ============================================
+  # OTLP COLLECTOR (Grafana Alloy)
+  # ============================================
+  alloy:
+    image: grafana/alloy:latest
+    container_name: ${COMPOSE_PROJECT_NAME:-foundry}-alloy
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+    depends_on:
+      grafana-lgtm:
+        condition: service_healthy
     networks:
       - foundry
     restart: unless-stopped

@@ -7,7 +7,7 @@ groups:
     interval: 1m
     rules:
       - uid: slo-api-p99-latency
-        title: API P99 Latency Exceeds 500ms
+        title: API P99 Latency Exceeds 2s
         condition: threshold
         for: 5m
         labels:
@@ -15,8 +15,8 @@ groups:
           service: foundry-api
           slo: latency
         annotations:
-          summary: API P99 latency is above 500ms SLO threshold
-          description: "P99 latency is {{ $value }}ms, exceeding the 500ms SLO target over a 5-minute window."
+          summary: API P99 latency is above 2s SLO threshold
+          description: "P99 latency is {{ $value }}ms, exceeding the 2000ms SLO target over a 5-minute window."
         data:
           - refId: A
             datasourceUid: prometheus
@@ -38,7 +38,7 @@ groups:
                 - evaluator:
                     type: gt
                     params:
-                      - 500
+                      - 2000
                   operator:
                     type: and
                   query:
@@ -47,7 +47,7 @@ groups:
               expression: A
 
       - uid: slo-api-error-rate
-        title: API Error Rate Exceeds 0.1%
+        title: API Error Rate Exceeds 1%
         condition: threshold
         for: 5m
         labels:
@@ -55,8 +55,8 @@ groups:
           service: foundry-api
           slo: availability
         annotations:
-          summary: API error rate is above 0.1% SLO threshold
-          description: "Error rate is {{ $value | printf \"%.4f\" }}, exceeding the 0.001 (0.1%) SLO target over a 5-minute window."
+          summary: API error rate is above 1% SLO threshold
+          description: "Error rate is {{ $value | printf \"%.4f\" }}, exceeding the 0.01 (1%) SLO target over a 5-minute window."
         data:
           - refId: A
             datasourceUid: prometheus
@@ -78,7 +78,7 @@ groups:
                 - evaluator:
                     type: gt
                     params:
-                      - 0.001
+                      - 0.01
                   operator:
                     type: and
                   query:
@@ -145,6 +145,46 @@ groups:
               to: 0
             model:
               expr: sum(rate(http_server_request_duration_seconds_count{http_route=~".*[Ss]so.*|.*[Ll]ogin.*", http_response_status_code=~"[45].."}[5m])) / sum(rate(http_server_request_duration_seconds_count{http_route=~".*[Ss]so.*|.*[Ll]ogin.*"}[5m]))
+              intervalMs: 15000
+              maxDataPoints: 43200
+          - refId: threshold
+            datasourceUid: __expr__
+            relativeTimeRange:
+              from: 0
+              to: 0
+            model:
+              type: threshold
+              conditions:
+                - evaluator:
+                    type: gt
+                    params:
+                      - 0.05
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+              expression: A
+
+      - uid: slo-wolverine-error-rate
+        title: Wolverine Message Processing Error Rate Exceeds 5%
+        condition: threshold
+        for: 5m
+        labels:
+          severity: critical
+          service: foundry-messaging
+          slo: messaging-reliability
+        annotations:
+          summary: Wolverine message processing error rate is above 5% SLO threshold
+          description: "Message processing error rate is {{ $value | printf \"%.4f\" }}, exceeding the 0.05 (5%) SLO target over a 5-minute window."
+        data:
+          - refId: A
+            datasourceUid: prometheus
+            relativeTimeRange:
+              from: 300
+              to: 0
+            model:
+              expr: sum(rate(foundry_messaging_messages_total{status="error"}[5m])) / sum(rate(foundry_messaging_messages_total[5m]))
               intervalMs: 15000
               maxDataPoints: 43200
           - refId: threshold

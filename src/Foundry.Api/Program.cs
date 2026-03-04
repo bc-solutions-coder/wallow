@@ -3,6 +3,8 @@ using Asp.Versioning;
 using Elsa.Extensions;
 using Elsa.Workflows.Api;
 using Foundry.Api.Extensions;
+using Foundry.Shared.Infrastructure.Core.Cache;
+using Microsoft.Extensions.Caching.Distributed;
 using Foundry.Api.Hubs;
 using Foundry.Api.Jobs;
 using Foundry.Api.Logging;
@@ -51,12 +53,14 @@ try
             .ReadFrom.Configuration(context.Configuration)
             .ReadFrom.Services(services)
             .Enrich.FromLogContext()
+            .Destructure.With<PiiDestructuringPolicy>()
             .Enrich.With<ModuleEnricher>()
             .Enrich.WithProperty("Application", "Foundry")
             .WriteTo.Console(outputTemplate:
                 "[{Timestamp:HH:mm:ss} {Level:u3}] [{Module}] [{TraceId}] {Message:lj} {Properties:j}{NewLine}{Exception}");
 
-        // OpenTelemetry log export — enabled in all environments
+        // OpenTelemetry log export — conditional on EnableLogging flag
+        if (context.Configuration.GetValue<bool>("OpenTelemetry:EnableLogging", false))
         {
             string otlpEndpoint = context.Configuration["OpenTelemetry:OtlpEndpoint"]
                 ?? "http://localhost:4318";
@@ -209,6 +213,15 @@ try
 #pragma warning restore CA2025
     });
 
+    // Wrap IDistributedCache with instrumented decorator for cache hit/miss metrics
+    builder.Services.AddSingleton<IDistributedCache>(sp =>
+    {
+        IOptions<Microsoft.Extensions.Caching.StackExchangeRedis.RedisCacheOptions> options =
+            sp.GetRequiredService<IOptions<Microsoft.Extensions.Caching.StackExchangeRedis.RedisCacheOptions>>();
+        Microsoft.Extensions.Caching.StackExchangeRedis.RedisCache inner = new(options);
+        return new InstrumentedDistributedCache(inner);
+    });
+
     // SignalR with Redis backplane — reuses the singleton IConnectionMultiplexer registered above
     builder.Services.AddSignalR()
         .AddStackExchangeRedis(options =>
@@ -275,6 +288,9 @@ try
         };
     });
 
+    // Correlation ID (read X-Correlation-Id or generate, push to LogContext + Activity)
+    app.UseMiddleware<CorrelationIdMiddleware>();
+
     // Security headers (CSP, X-Content-Type-Options, etc.)
     app.UseMiddleware<SecurityHeadersMiddleware>();
 
@@ -335,6 +351,12 @@ try
         Predicate = _ => false
     }).AllowAnonymous();
 
+    app.MapHealthChecks("/health/startup", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+    {
+        Predicate = check => check.Tags.Contains("startup"),
+        ResponseWriter = WriteHealthCheckResponse
+    }).AllowAnonymous();
+
     // Info endpoint
     app.MapGet("/", () => Results.Ok(new
     {
@@ -355,6 +377,9 @@ try
     // Tenant resolution (reads org claim from JWT → populates ITenantContext)
     // Note: For API key auth, tenant is already set by ApiKeyAuthenticationMiddleware
     app.UseMiddleware<TenantResolutionMiddleware>();
+
+    // Tenant observability (sets foundry.tenant_id on Activity tag + W3C Baggage for downstream propagation)
+    app.UseMiddleware<TenantBaggageMiddleware>();
 
     // SCIM authentication (Bearer token validation for /scim/v2/* endpoints)
     app.UseMiddleware<ScimAuthenticationMiddleware>();

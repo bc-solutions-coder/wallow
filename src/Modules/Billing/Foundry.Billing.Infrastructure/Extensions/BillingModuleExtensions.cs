@@ -28,7 +28,7 @@ public static partial class BillingModuleExtensions
         {
             await using AsyncServiceScope scope = app.Services.CreateAsyncScope();
             BillingDbContext db = scope.ServiceProvider.GetRequiredService<BillingDbContext>();
-            if (app.Environment.IsDevelopment())
+            if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))
             {
                 await db.Database.MigrateAsync();
             }

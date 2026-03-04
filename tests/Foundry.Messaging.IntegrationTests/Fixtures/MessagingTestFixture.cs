@@ -26,6 +26,9 @@ public class MessagingTestFixture : FoundryApiFactory
 
         // Tell Program.cs to discover test handlers via Wolverine configuration
         builder.UseSetting("Wolverine:TestAssembly", typeof(MessagingTestFixture).Assembly.FullName);
+
+        // Enable RabbitMQ transport for messaging integration tests
+        builder.UseSetting("ModuleMessaging:Transport", "RabbitMq");
     }
 
     public IMessageBus MessageBus => Services.GetRequiredService<IMessageBus>();

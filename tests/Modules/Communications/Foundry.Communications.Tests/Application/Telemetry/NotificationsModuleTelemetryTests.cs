@@ -11,21 +11,9 @@ public class NotificationsModuleTelemetryTests
     }
 
     [Fact]
-    public void Meter_HasCorrectName()
-    {
-        NotificationsModuleTelemetry.Meter.Name.Should().Be("Foundry.Communications.InApp");
-    }
-
-    [Fact]
     public void ActivitySource_IsNotNull()
     {
         NotificationsModuleTelemetry.ActivitySource.Should().NotBeNull();
-    }
-
-    [Fact]
-    public void Meter_IsNotNull()
-    {
-        NotificationsModuleTelemetry.Meter.Should().NotBeNull();
     }
 
     [Fact]
@@ -38,11 +26,14 @@ public class NotificationsModuleTelemetryTests
     }
 
     [Fact]
-    public void Meter_IsSameInstanceOnMultipleAccess()
+    public void NotificationSentTotal_IsNotNull()
     {
-        System.Diagnostics.Metrics.Meter first = NotificationsModuleTelemetry.Meter;
-        System.Diagnostics.Metrics.Meter second = NotificationsModuleTelemetry.Meter;
+        NotificationsModuleTelemetry.NotificationSentTotal.Should().NotBeNull();
+    }
 
-        first.Should().BeSameAs(second);
+    [Fact]
+    public void NotificationFailedTotal_IsNotNull()
+    {
+        NotificationsModuleTelemetry.NotificationFailedTotal.Should().NotBeNull();
     }
 }
