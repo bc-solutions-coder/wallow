@@ -1,16 +1,19 @@
 using Foundry.Shared.Contracts.Storage;
 using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.Results;
+using Foundry.Storage.Application.Commands.ScanUploadedFile;
 using Foundry.Storage.Application.DTOs;
 using Foundry.Storage.Application.Interfaces;
 using Foundry.Storage.Domain.Entities;
+using Wolverine;
 
 namespace Foundry.Storage.Application.Queries.GetUploadPresignedUrl;
 
 public sealed class GetUploadPresignedUrlHandler(
     IStorageBucketRepository bucketRepository,
     IStoredFileRepository fileRepository,
-    IStorageProvider storageProvider)
+    IStorageProvider storageProvider,
+    IMessageBus messageBus)
 {
     private static readonly TimeSpan _defaultExpiry = TimeSpan.FromMinutes(15);
 
@@ -42,7 +45,7 @@ public sealed class GetUploadPresignedUrlHandler(
         string storageKey = BuildStorageKey(query.TenantId, query.BucketName, query.Path, fileId, extension);
 
         TenantId tenantId = TenantId.Create(query.TenantId);
-        StoredFile storedFile = StoredFile.Create(
+        StoredFile storedFile = StoredFile.CreatePendingValidation(
             tenantId,
             bucket.Id,
             query.FileName,
@@ -54,6 +57,8 @@ public sealed class GetUploadPresignedUrlHandler(
 
         fileRepository.Add(storedFile);
         await fileRepository.SaveChangesAsync(cancellationToken);
+
+        await messageBus.PublishAsync(new ScanUploadedFileCommand(storedFile.Id));
 
         TimeSpan expiry = query.Expiry ?? _defaultExpiry;
         string url = await storageProvider.GetPresignedUrlAsync(

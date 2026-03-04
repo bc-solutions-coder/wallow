@@ -1,8 +1,12 @@
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 using Foundry.Identity.Application.DTOs;
-using Foundry.Identity.Application.Interfaces;
+using Foundry.Identity.Domain.Entities;
+using Foundry.Identity.Infrastructure.Persistence;
 using Foundry.Shared.Kernel.MultiTenancy;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Primitives;
 
@@ -11,6 +15,8 @@ namespace Foundry.Identity.Infrastructure.Authorization;
 /// <summary>
 /// Middleware that authenticates SCIM API requests using Bearer token.
 /// Only applies to /scim/v2/* endpoints.
+/// Queries ScimConfiguration with IgnoreQueryFilters to bypass tenant filtering,
+/// then sets the tenant context from the matched configuration.
 /// </summary>
 public sealed partial class ScimAuthenticationMiddleware
 {
@@ -31,8 +37,9 @@ public sealed partial class ScimAuthenticationMiddleware
 
     public async Task InvokeAsync(
         HttpContext context,
-        IScimService scimService,
-        TenantContext tenantContext)
+        IdentityDbContext dbContext,
+        TenantContext tenantContext,
+        TimeProvider timeProvider)
     {
         // Only apply to SCIM endpoints
         if (!context.Request.Path.StartsWithSegments(ScimPathPrefix, StringComparison.OrdinalIgnoreCase))
@@ -69,15 +76,35 @@ public sealed partial class ScimAuthenticationMiddleware
             return;
         }
 
-        // Validate the SCIM token
-        bool isValid = await scimService.ValidateTokenAsync(token, context.RequestAborted);
+        // Use the token prefix (first 8 chars) to narrow down candidates across all tenants
+        string tokenPrefix = token.Length >= 8 ? token[..8] : token;
 
-        if (!isValid)
+        ScimConfiguration? config = await dbContext.ScimConfigurations
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.IsEnabled && c.TokenPrefix == tokenPrefix, context.RequestAborted);
+
+        if (config == null || !config.IsTokenValid(timeProvider))
         {
             LogInvalidScimTokenAttempt(context.Connection.RemoteIpAddress);
             await ReturnUnauthorizedAsync(context, "Invalid or expired SCIM token");
             return;
         }
+
+        // Validate full token hash with constant-time comparison
+        string hashedToken = HashToken(token);
+        byte[] expectedBytes = Encoding.UTF8.GetBytes(config.BearerToken);
+        byte[] actualBytes = Encoding.UTF8.GetBytes(hashedToken);
+
+        if (!CryptographicOperations.FixedTimeEquals(expectedBytes, actualBytes))
+        {
+            LogInvalidScimTokenAttempt(context.Connection.RemoteIpAddress);
+            await ReturnUnauthorizedAsync(context, "Invalid or expired SCIM token");
+            return;
+        }
+
+        // Set tenant context from the matched SCIM configuration
+        tenantContext.SetTenant(config.TenantId);
 
         LogScimTokenAuthenticated(tenantContext.TenantId.Value);
 
@@ -117,6 +144,13 @@ public sealed partial class ScimAuthenticationMiddleware
         };
 
         await context.Response.WriteAsJsonAsync(error);
+    }
+
+    private static string HashToken(string token)
+    {
+        byte[] bytes = Encoding.UTF8.GetBytes(token);
+        byte[] hash = SHA256.HashData(bytes);
+        return Convert.ToBase64String(hash);
     }
 }
 

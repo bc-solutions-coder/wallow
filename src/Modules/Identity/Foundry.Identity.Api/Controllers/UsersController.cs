@@ -6,6 +6,7 @@ using Foundry.Identity.Application.DTOs;
 using Foundry.Identity.Application.Interfaces;
 using Foundry.Shared.Kernel.Identity.Authorization;
 using Foundry.Shared.Kernel.MultiTenancy;
+using Foundry.Shared.Kernel.Pagination;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -40,14 +41,30 @@ public class UsersController : ControllerBase
     /// </summary>
     [HttpGet]
     [HasPermission(PermissionType.UsersRead)]
-    public async Task<ActionResult<IReadOnlyList<UserDto>>> GetUsers(
+    public async Task<ActionResult<PagedResult<UserDto>>> GetUsers(
         [FromQuery] string? search,
         [FromQuery] int first = 0,
         [FromQuery] int max = 20,
         CancellationToken ct = default)
     {
-        IReadOnlyList<UserDto> users = await _keycloakAdmin.GetUsersAsync(search, first, max, ct);
-        return Ok(users);
+        Guid tenantId = _tenantContext.TenantId.Value;
+        IReadOnlyList<UserDto> members = await _keycloakOrg.GetMembersAsync(tenantId, ct);
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            string searchLower = search.ToLowerInvariant();
+            members = members
+                .Where(u => (u.Email?.Contains(searchLower, StringComparison.OrdinalIgnoreCase) ?? false)
+                          || (u.FirstName?.Contains(searchLower, StringComparison.OrdinalIgnoreCase) ?? false)
+                          || (u.LastName?.Contains(searchLower, StringComparison.OrdinalIgnoreCase) ?? false))
+                .ToList();
+        }
+
+        int totalCount = members.Count;
+        IReadOnlyList<UserDto> paged = members.Skip(first).Take(max).ToList();
+        int page = max > 0 ? (first / max) + 1 : 1;
+
+        return Ok(new PagedResult<UserDto>(paged, totalCount, page, max));
     }
 
     /// <summary>

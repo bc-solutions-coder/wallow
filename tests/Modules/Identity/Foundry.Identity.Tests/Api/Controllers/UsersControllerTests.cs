@@ -6,6 +6,7 @@ using Foundry.Identity.Application.DTOs;
 using Foundry.Identity.Application.Interfaces;
 using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.MultiTenancy;
+using Foundry.Shared.Kernel.Pagination;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -56,25 +57,33 @@ public class UsersControllerTests
             new UserDto(Guid.NewGuid(), "a@test.com", "Alice", "Smith", true, _userRole),
             new UserDto(Guid.NewGuid(), "b@test.com", "Bob", "Jones", true, _adminRole)
         ];
-        _keycloakAdmin.GetUsersAsync(null, 0, 20, Arg.Any<CancellationToken>())
+        _keycloakOrg.GetMembersAsync(_testTenantGuid, Arg.Any<CancellationToken>())
             .Returns(users);
 
-        ActionResult<IReadOnlyList<UserDto>> result = await _controller.GetUsers(null, 0, 20, CancellationToken.None);
+        ActionResult<PagedResult<UserDto>> result = await _controller.GetUsers(null, 0, 20, CancellationToken.None);
 
         OkObjectResult ok = result.Result.Should().BeOfType<OkObjectResult>().Subject;
-        IReadOnlyList<UserDto> response = ok.Value.Should().BeAssignableTo<IReadOnlyList<UserDto>>().Subject;
-        response.Should().HaveCount(2);
+        PagedResult<UserDto> response = ok.Value.Should().BeOfType<PagedResult<UserDto>>().Subject;
+        response.Items.Should().HaveCount(2);
     }
 
     [Fact]
-    public async Task GetUsers_WithSearchFilter_PassesSearchToService()
+    public async Task GetUsers_WithSearchFilter_FiltersResults()
     {
-        _keycloakAdmin.GetUsersAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
-            .Returns(new List<UserDto>());
+        List<UserDto> users =
+        [
+            new UserDto(Guid.NewGuid(), "alice@test.com", "Alice", "Smith", true, _userRole),
+            new UserDto(Guid.NewGuid(), "bob@test.com", "Bob", "Jones", true, _adminRole)
+        ];
+        _keycloakOrg.GetMembersAsync(_testTenantGuid, Arg.Any<CancellationToken>())
+            .Returns(users);
 
-        await _controller.GetUsers("alice", 5, 10, CancellationToken.None);
+        ActionResult<PagedResult<UserDto>> result = await _controller.GetUsers("alice", 0, 10, CancellationToken.None);
 
-        await _keycloakAdmin.Received(1).GetUsersAsync("alice", 5, 10, Arg.Any<CancellationToken>());
+        OkObjectResult ok = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        PagedResult<UserDto> response = ok.Value.Should().BeOfType<PagedResult<UserDto>>().Subject;
+        response.Items.Should().HaveCount(1);
+        response.Items[0].Email.Should().Be("alice@test.com");
     }
 
     #endregion
