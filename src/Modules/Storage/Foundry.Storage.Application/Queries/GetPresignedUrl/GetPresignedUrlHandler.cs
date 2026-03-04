@@ -3,6 +3,7 @@ using Foundry.Shared.Kernel.Results;
 using Foundry.Storage.Application.DTOs;
 using Foundry.Storage.Application.Interfaces;
 using Foundry.Storage.Domain.Entities;
+using Foundry.Storage.Domain.Enums;
 using Foundry.Storage.Domain.Identity;
 
 namespace Foundry.Storage.Application.Queries.GetPresignedUrl;
@@ -28,6 +29,11 @@ public sealed class GetPresignedUrlHandler(
         if (file.TenantId.Value != query.TenantId)
         {
             return Result.Failure<PresignedUrlResult>(Error.NotFound("File", query.FileId));
+        }
+
+        if (file.Status != FileStatus.Available)
+        {
+            return Result.Failure<PresignedUrlResult>(Error.Validation("File.NotAvailable", "File is not yet available for download."));
         }
 
         TimeSpan expiry = query.Expiry ?? _defaultExpiry;

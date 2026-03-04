@@ -4,6 +4,7 @@
 services:
   postgres:
     # No external ports
+    ports: !reset []
     logging:
       driver: json-file
       options:

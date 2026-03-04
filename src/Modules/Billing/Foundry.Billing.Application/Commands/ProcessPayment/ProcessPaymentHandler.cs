@@ -33,6 +33,12 @@ public sealed class ProcessPaymentHandler(
                 Error.Validation("Payment.Overpayment", "Payment amount exceeds outstanding balance."));
         }
 
+        if (!string.Equals(command.Currency, invoice.TotalAmount.Currency, StringComparison.OrdinalIgnoreCase))
+        {
+            return Result.Failure<PaymentDto>(
+                Error.Validation("Payment.CurrencyMismatch", "Payment currency does not match invoice currency."));
+        }
+
         if (!Enum.TryParse<PaymentMethod>(command.PaymentMethod, ignoreCase: true, out PaymentMethod method))
         {
             return Result.Failure<PaymentDto>(
@@ -53,7 +59,16 @@ public sealed class ProcessPaymentHandler(
 
         if (invoice.Status is InvoiceStatus.Issued or InvoiceStatus.Overdue)
         {
-            invoice.MarkAsPaid(payment.Id.Value, command.UserId, timeProvider);
+            IReadOnlyList<Payment> existingPayments = await paymentRepository.GetByInvoiceIdAsync(invoiceId, cancellationToken);
+            Money totalPaid = existingPayments
+                .Where(p => p.Status == PaymentStatus.Completed)
+                .Aggregate(Money.Zero(invoice.TotalAmount.Currency), (sum, p) => sum + p.Amount);
+            totalPaid = totalPaid + amount;
+
+            if (totalPaid.Amount >= invoice.TotalAmount.Amount)
+            {
+                invoice.MarkAsPaid(payment.Id.Value, command.UserId, timeProvider);
+            }
         }
 
         await paymentRepository.SaveChangesAsync(cancellationToken);

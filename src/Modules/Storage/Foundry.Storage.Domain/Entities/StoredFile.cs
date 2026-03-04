@@ -1,6 +1,7 @@
 using Foundry.Shared.Kernel.Domain;
 using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.MultiTenancy;
+using Foundry.Storage.Domain.Enums;
 using Foundry.Storage.Domain.Events;
 using Foundry.Storage.Domain.Identity;
 
@@ -23,6 +24,7 @@ public sealed class StoredFile : AggregateRoot<StoredFileId>, ITenantScoped
     public Guid UploadedBy { get; private set; }
     public DateTime UploadedAt { get; private set; }
     public string? Metadata { get; private set; }
+    public FileStatus Status { get; private set; }
 
     private StoredFile() { }
 
@@ -51,7 +53,8 @@ public sealed class StoredFile : AggregateRoot<StoredFileId>, ITenantScoped
             IsPublic = isPublic,
             UploadedBy = uploadedBy,
             UploadedAt = DateTime.UtcNow,
-            Metadata = metadata
+            Metadata = metadata,
+            Status = FileStatus.Available
         };
 
         file.RaiseDomainEvent(new FileUploadedEvent(file.Id, file.BucketId, tenantId));
@@ -67,6 +70,48 @@ public sealed class StoredFile : AggregateRoot<StoredFileId>, ITenantScoped
     public void SetPublic(bool isPublic)
     {
         IsPublic = isPublic;
+    }
+
+    public static StoredFile CreatePendingValidation(
+        TenantId tenantId,
+        StorageBucketId bucketId,
+        string fileName,
+        string contentType,
+        long sizeBytes,
+        string storageKey,
+        Guid uploadedBy,
+        string? path = null,
+        bool isPublic = false,
+        string? metadata = null)
+    {
+        StoredFile file = new StoredFile
+        {
+            Id = StoredFileId.New(),
+            TenantId = tenantId,
+            BucketId = bucketId,
+            FileName = fileName,
+            ContentType = contentType,
+            SizeBytes = sizeBytes,
+            StorageKey = storageKey,
+            Path = path,
+            IsPublic = isPublic,
+            UploadedBy = uploadedBy,
+            UploadedAt = DateTime.UtcNow,
+            Metadata = metadata,
+            Status = FileStatus.PendingValidation
+        };
+
+        return file;
+    }
+
+    public void MarkAsAvailable()
+    {
+        Status = FileStatus.Available;
+    }
+
+    public void MarkAsRejected()
+    {
+        Status = FileStatus.Rejected;
     }
 
     public void MarkAsDeleted()
