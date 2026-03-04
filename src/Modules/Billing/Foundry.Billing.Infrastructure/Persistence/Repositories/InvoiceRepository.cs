@@ -7,6 +7,13 @@ namespace Foundry.Billing.Infrastructure.Persistence.Repositories;
 
 public sealed class InvoiceRepository : IInvoiceRepository
 {
+    private static readonly Func<BillingDbContext, InvoiceId, CancellationToken, Task<Invoice?>>
+        _getByIdQuery = EF.CompileAsyncQuery(
+            (BillingDbContext ctx, InvoiceId id, CancellationToken _) =>
+                ctx.Invoices
+                    .AsTracking()
+                    .FirstOrDefault(i => i.Id == id));
+
     private readonly BillingDbContext _context;
 
     public InvoiceRepository(BillingDbContext context)
@@ -16,9 +23,7 @@ public sealed class InvoiceRepository : IInvoiceRepository
 
     public Task<Invoice?> GetByIdAsync(InvoiceId id, CancellationToken cancellationToken = default)
     {
-        return _context.Invoices
-            .AsTracking()
-            .FirstOrDefaultAsync(i => i.Id == id, cancellationToken);
+        return _getByIdQuery(_context, id, cancellationToken);
     }
 
     public Task<Invoice?> GetByIdWithLineItemsAsync(InvoiceId id, CancellationToken cancellationToken = default)

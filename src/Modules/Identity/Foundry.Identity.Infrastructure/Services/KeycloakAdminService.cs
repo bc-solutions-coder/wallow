@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using Foundry.Identity.Application.DTOs;
 using Foundry.Identity.Application.Interfaces;
+using Foundry.Identity.Infrastructure.Extensions;
 using Foundry.Shared.Contracts.Identity.Events;
 using Foundry.Shared.Kernel.MultiTenancy;
 using Keycloak.AuthServices.Sdk.Admin;
@@ -70,7 +71,7 @@ public sealed partial class KeycloakAdminService : IKeycloakAdminService
         }
 
         HttpResponseMessage response = await _userClient.CreateUserWithResponseAsync(_realm, userRepresentation, ct);
-        response.EnsureSuccessStatusCode();
+        await response.EnsureSuccessOrThrowAsync(ct);
 
         string? locationHeader = response.Headers.Location?.ToString();
         if (string.IsNullOrWhiteSpace(locationHeader))
@@ -249,7 +250,7 @@ public sealed partial class KeycloakAdminService : IKeycloakAdminService
             $"/admin/realms/{_realm}/users/{userId}/role-mappings/realm",
             new[] { role },
             ct);
-        response.EnsureSuccessStatusCode();
+        await response.EnsureSuccessOrThrowAsync(ct);
 
         await _messageBus.PublishAsync(new UserRoleChangedEvent
         {
@@ -280,7 +281,7 @@ public sealed partial class KeycloakAdminService : IKeycloakAdminService
         };
 
         HttpResponseMessage response = await _httpClient.SendAsync(request, ct);
-        response.EnsureSuccessStatusCode();
+        await response.EnsureSuccessOrThrowAsync(ct);
 
         UserRepresentation user = await _userClient.GetUserAsync(_realm, userId.ToString(), false, ct);
         IReadOnlyList<string> currentRoles = await GetUserRolesAsync(userId, ct);
@@ -303,7 +304,7 @@ public sealed partial class KeycloakAdminService : IKeycloakAdminService
         try
         {
             HttpResponseMessage response = await _httpClient.GetAsync($"/admin/realms/{_realm}/users/{userId}/role-mappings/realm", ct);
-            response.EnsureSuccessStatusCode();
+            await response.EnsureSuccessOrThrowAsync(ct);
 
             List<RoleRepresentation>? roles = await response.Content.ReadFromJsonAsync<List<RoleRepresentation>>(ct);
             if (roles == null)
@@ -334,7 +335,7 @@ public sealed partial class KeycloakAdminService : IKeycloakAdminService
         try
         {
             HttpResponseMessage response = await _httpClient.GetAsync($"/admin/realms/{_realm}/roles/{roleName}", ct);
-            response.EnsureSuccessStatusCode();
+            await response.EnsureSuccessOrThrowAsync(ct);
             return await response.Content.ReadFromJsonAsync<RoleRepresentation>(ct);
         }
         catch (Exception ex)

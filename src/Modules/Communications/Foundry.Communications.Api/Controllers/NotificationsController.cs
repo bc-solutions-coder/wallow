@@ -50,7 +50,7 @@ public class NotificationsController : ControllerBase
         Guid? userId = _currentUserService.GetCurrentUserId();
         if (userId is null)
         {
-            return Unauthorized();
+            return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
         }
 
         Result<PagedResult<NotificationDto>> result = await _bus.InvokeAsync<Result<PagedResult<NotificationDto>>>(
@@ -79,7 +79,7 @@ public class NotificationsController : ControllerBase
         Guid? userId = _currentUserService.GetCurrentUserId();
         if (userId is null)
         {
-            return Unauthorized();
+            return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
         }
 
         Result<int> result = await _bus.InvokeAsync<Result<int>>(
@@ -101,7 +101,7 @@ public class NotificationsController : ControllerBase
         Guid? userId = _currentUserService.GetCurrentUserId();
         if (userId is null)
         {
-            return Unauthorized();
+            return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
         }
 
         Result result = await _bus.InvokeAsync<Result>(
@@ -127,7 +127,7 @@ public class NotificationsController : ControllerBase
         Guid? userId = _currentUserService.GetCurrentUserId();
         if (userId is null)
         {
-            return Unauthorized();
+            return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
         }
 
         Result result = await _bus.InvokeAsync<Result>(

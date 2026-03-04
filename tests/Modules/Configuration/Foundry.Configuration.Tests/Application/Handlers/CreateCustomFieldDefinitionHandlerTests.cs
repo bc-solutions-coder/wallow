@@ -2,10 +2,10 @@ using Foundry.Configuration.Application.Commands;
 using Foundry.Configuration.Application.Contracts;
 using Foundry.Configuration.Application.Contracts.DTOs;
 using Foundry.Configuration.Domain.Entities;
-using Foundry.Configuration.Domain.Exceptions;
 using Foundry.Shared.Kernel.CustomFields;
 using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.MultiTenancy;
+using Foundry.Shared.Kernel.Results;
 using Foundry.Shared.Kernel.Services;
 
 namespace Foundry.Configuration.Tests.Application.Handlers;
@@ -37,22 +37,23 @@ public class CreateCustomFieldDefinitionHandlerTests
         _repository.FieldKeyExistsAsync("Invoice", "po_number", Arg.Any<CancellationToken>())
             .Returns(false);
 
-        CustomFieldDefinitionDto result = await _handler.Handle(command, CancellationToken.None);
+        Result<CustomFieldDefinitionDto> result = await _handler.Handle(command, CancellationToken.None);
 
-        result.Should().NotBeNull();
-        result.EntityType.Should().Be("Invoice");
-        result.FieldKey.Should().Be("po_number");
-        result.DisplayName.Should().Be("PO Number");
-        result.FieldType.Should().Be(CustomFieldType.Text);
-        result.IsActive.Should().BeTrue();
-        result.IsRequired.Should().BeFalse();
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().NotBeNull();
+        result.Value.EntityType.Should().Be("Invoice");
+        result.Value.FieldKey.Should().Be("po_number");
+        result.Value.DisplayName.Should().Be("PO Number");
+        result.Value.FieldType.Should().Be(CustomFieldType.Text);
+        result.Value.IsActive.Should().BeTrue();
+        result.Value.IsRequired.Should().BeFalse();
 
         await _repository.Received(1).AddAsync(Arg.Any<CustomFieldDefinition>(), Arg.Any<CancellationToken>());
         await _repository.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Handle_WithDuplicateFieldKey_ThrowsCustomFieldException()
+    public async Task Handle_WithDuplicateFieldKey_ReturnsConflictFailure()
     {
         CreateCustomFieldDefinition command = new(
             EntityType: "Invoice",
@@ -63,10 +64,11 @@ public class CreateCustomFieldDefinitionHandlerTests
         _repository.FieldKeyExistsAsync("Invoice", "po_number", Arg.Any<CancellationToken>())
             .Returns(true);
 
-        Func<Task> act = () => _handler.Handle(command, CancellationToken.None);
+        Result<CustomFieldDefinitionDto> result = await _handler.Handle(command, CancellationToken.None);
 
-        await act.Should().ThrowAsync<CustomFieldException>()
-            .WithMessage("*already exists*");
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Be("Conflict.Error");
+        result.Error.Message.Should().Contain("already exists");
         await _repository.DidNotReceive().AddAsync(Arg.Any<CustomFieldDefinition>(), Arg.Any<CancellationToken>());
     }
 
@@ -83,9 +85,10 @@ public class CreateCustomFieldDefinitionHandlerTests
         _repository.FieldKeyExistsAsync("Invoice", "department", Arg.Any<CancellationToken>())
             .Returns(false);
 
-        CustomFieldDefinitionDto result = await _handler.Handle(command, CancellationToken.None);
+        Result<CustomFieldDefinitionDto> result = await _handler.Handle(command, CancellationToken.None);
 
-        result.Description.Should().Be("The department for this invoice");
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Description.Should().Be("The department for this invoice");
     }
 
     [Fact]
@@ -101,9 +104,10 @@ public class CreateCustomFieldDefinitionHandlerTests
         _repository.FieldKeyExistsAsync("Payment", "reference_id", Arg.Any<CancellationToken>())
             .Returns(false);
 
-        CustomFieldDefinitionDto result = await _handler.Handle(command, CancellationToken.None);
+        Result<CustomFieldDefinitionDto> result = await _handler.Handle(command, CancellationToken.None);
 
-        result.IsRequired.Should().BeTrue();
+        result.IsSuccess.Should().BeTrue();
+        result.Value.IsRequired.Should().BeTrue();
     }
 
     [Fact]
@@ -121,10 +125,11 @@ public class CreateCustomFieldDefinitionHandlerTests
         _repository.FieldKeyExistsAsync("Invoice", "notes_field", Arg.Any<CancellationToken>())
             .Returns(false);
 
-        CustomFieldDefinitionDto result = await _handler.Handle(command, CancellationToken.None);
+        Result<CustomFieldDefinitionDto> result = await _handler.Handle(command, CancellationToken.None);
 
-        result.ValidationRules.Should().NotBeNull();
-        result.ValidationRules!.MaxLength.Should().Be(50);
+        result.IsSuccess.Should().BeTrue();
+        result.Value.ValidationRules.Should().NotBeNull();
+        result.Value.ValidationRules!.MaxLength.Should().Be(50);
     }
 
     [Fact]
@@ -146,9 +151,10 @@ public class CreateCustomFieldDefinitionHandlerTests
         _repository.FieldKeyExistsAsync("Invoice", "dept_select", Arg.Any<CancellationToken>())
             .Returns(false);
 
-        CustomFieldDefinitionDto result = await _handler.Handle(command, CancellationToken.None);
+        Result<CustomFieldDefinitionDto> result = await _handler.Handle(command, CancellationToken.None);
 
-        result.Options.Should().NotBeNull();
-        result.Options.Should().HaveCount(2);
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Options.Should().NotBeNull();
+        result.Value.Options.Should().HaveCount(2);
     }
 }

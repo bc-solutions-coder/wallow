@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using Foundry.Identity.Application.DTOs;
+using Foundry.Shared.Kernel.Domain;
 using Foundry.Identity.Application.Interfaces;
 using Foundry.Identity.Domain.Entities;
 using Foundry.Identity.Domain.Enums;
@@ -317,7 +318,7 @@ public class ScimServiceTests
         Func<Task<ScimUser>> act = async () => await service.CreateUserAsync(request);
 
         // Assert
-        await act.Should().ThrowAsync<HttpRequestException>();
+        await act.Should().ThrowAsync<ExternalServiceException>();
 
         _syncLogRepository.Received(1).Add(Arg.Is<ScimSyncLog>(log =>
             log.Operation == ScimOperation.Create &&
@@ -397,7 +398,7 @@ public class ScimServiceTests
         Func<Task<ScimUser>> act = async () => await service.UpdateUserAsync("user-123", request);
 
         // Assert
-        await act.Should().ThrowAsync<HttpRequestException>();
+        await act.Should().ThrowAsync<ExternalServiceException>();
 
         _syncLogRepository.Received(1).Add(Arg.Is<ScimSyncLog>(log =>
             log.Operation == ScimOperation.Update &&
@@ -473,7 +474,7 @@ public class ScimServiceTests
         Func<Task<ScimUser>> act = async () => await service.PatchUserAsync("user-123", request);
 
         // Assert
-        await act.Should().ThrowAsync<HttpRequestException>();
+        await act.Should().ThrowAsync<ExternalServiceException>();
 
         _syncLogRepository.Received(1).Add(Arg.Is<ScimSyncLog>(log =>
             log.Operation == ScimOperation.Patch &&
@@ -550,7 +551,7 @@ public class ScimServiceTests
         Func<Task> act = async () => await service.DeleteUserAsync("user-123");
 
         // Assert
-        await act.Should().ThrowAsync<HttpRequestException>();
+        await act.Should().ThrowAsync<ExternalServiceException>();
 
         _syncLogRepository.Received(1).Add(Arg.Is<ScimSyncLog>(log =>
             log.Operation == ScimOperation.Delete &&

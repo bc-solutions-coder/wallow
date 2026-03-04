@@ -1,8 +1,14 @@
-namespace Foundry.Identity.Infrastructure.Scim;
+#pragma warning disable CA1032 // Intentionally restricting constructors to enforce structured exception creation
+
+namespace Foundry.Identity.Application.Exceptions;
 
 public sealed class ScimFilterException : Exception
 {
     public int Position { get; }
+
+    public ScimFilterException()
+    {
+    }
 
     public ScimFilterException(string message, int position = -1)
         : base(position >= 0 ? $"{message} at position {position}" : message)
@@ -16,15 +22,8 @@ public sealed class ScimFilterException : Exception
         Position = position;
     }
 
-    public ScimFilterException()
-    {
-    }
-
-    public ScimFilterException(string message) : base(message)
-    {
-    }
-
-    public ScimFilterException(string message, Exception innerException) : base(message, innerException)
+    public ScimFilterException(string message, Exception innerException)
+        : base(message, innerException)
     {
     }
 }

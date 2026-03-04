@@ -8,6 +8,13 @@ namespace Foundry.Billing.Infrastructure.Persistence.Repositories;
 
 public sealed class SubscriptionRepository : ISubscriptionRepository
 {
+    private static readonly Func<BillingDbContext, SubscriptionId, CancellationToken, Task<Subscription?>>
+        _getByIdQuery = EF.CompileAsyncQuery(
+            (BillingDbContext ctx, SubscriptionId id, CancellationToken _) =>
+                ctx.Subscriptions
+                    .AsTracking()
+                    .FirstOrDefault(s => s.Id == id));
+
     private readonly BillingDbContext _context;
 
     public SubscriptionRepository(BillingDbContext context)
@@ -17,9 +24,7 @@ public sealed class SubscriptionRepository : ISubscriptionRepository
 
     public Task<Subscription?> GetByIdAsync(SubscriptionId id, CancellationToken cancellationToken = default)
     {
-        return _context.Subscriptions
-            .AsTracking()
-            .FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
+        return _getByIdQuery(_context, id, cancellationToken);
     }
 
     public async Task<IReadOnlyList<Subscription>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)

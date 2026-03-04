@@ -12,23 +12,4 @@ public class CustomFieldExceptionTests
         exception.Message.Should().Be("Something went wrong");
         exception.Code.Should().Be("Configuration.CustomField");
     }
-
-    [Fact]
-    public void Constructor_Parameterless_CreatesInstance()
-    {
-        CustomFieldException exception = new CustomFieldException();
-
-        exception.Should().NotBeNull();
-    }
-
-    [Fact]
-    public void Constructor_WithMessageAndInnerException_SetsBoth()
-    {
-        Exception inner = new InvalidOperationException("inner");
-
-        CustomFieldException exception = new CustomFieldException("outer", inner);
-
-        exception.Message.Should().Be("outer");
-        exception.InnerException.Should().Be(inner);
-    }
 }

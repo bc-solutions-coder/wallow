@@ -2,8 +2,10 @@ using Asp.Versioning;
 using Foundry.Configuration.Application.Commands;
 using Foundry.Configuration.Application.Contracts.DTOs;
 using Foundry.Configuration.Application.Queries;
+using Foundry.Shared.Api.Extensions;
 using Foundry.Shared.Kernel.CustomFields;
 using Foundry.Shared.Kernel.Identity.Authorization;
+using Foundry.Shared.Kernel.Results;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -89,7 +91,7 @@ public class CustomFieldsController : ControllerBase
     [HttpPost]
     [ProducesResponseType(typeof(CustomFieldDefinitionDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<CustomFieldDefinitionDto>> Create(
+    public async Task<IActionResult> Create(
         CreateCustomFieldRequest request,
         CancellationToken cancellationToken)
     {
@@ -103,12 +105,12 @@ public class CustomFieldsController : ControllerBase
             request.ValidationRules,
             request.Options);
 
-        CustomFieldDefinitionDto result = await _bus.InvokeAsync<CustomFieldDefinitionDto>(command, cancellationToken);
+        Result<CustomFieldDefinitionDto> result = await _bus.InvokeAsync<Result<CustomFieldDefinitionDto>>(command, cancellationToken);
 
-        return CreatedAtAction(
+        return result.ToCreatedResult(
             nameof(GetById),
-            new { id = result.Id },
-            result);
+            "CustomFields",
+            dto => new { id = dto.Id });
     }
 
     /// <summary>

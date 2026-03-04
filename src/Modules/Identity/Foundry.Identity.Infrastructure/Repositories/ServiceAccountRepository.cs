@@ -8,6 +8,14 @@ namespace Foundry.Identity.Infrastructure.Repositories;
 
 public sealed class ServiceAccountRepository : IServiceAccountRepository
 {
+    private static readonly Func<IdentityDbContext, string, Task<ServiceAccountMetadata?>>
+        _getByKeycloakClientIdQuery = EF.CompileAsyncQuery(
+            (IdentityDbContext ctx, string keycloakClientId) =>
+                ctx.ServiceAccountMetadata
+                    .AsTracking()
+                    .IgnoreQueryFilters()
+                    .FirstOrDefault(x => x.KeycloakClientId == keycloakClientId));
+
     private readonly IdentityDbContext _context;
 
     public ServiceAccountRepository(IdentityDbContext context)
@@ -26,10 +34,7 @@ public sealed class ServiceAccountRepository : IServiceAccountRepository
     public Task<ServiceAccountMetadata?> GetByKeycloakClientIdAsync(string keycloakClientId, CancellationToken ct = default)
     {
         // Need to bypass tenant filter for middleware lookups
-        return _context.ServiceAccountMetadata
-            .AsTracking()
-            .IgnoreQueryFilters()
-            .FirstOrDefaultAsync(x => x.KeycloakClientId == keycloakClientId, ct);
+        return _getByKeycloakClientIdQuery(_context, keycloakClientId);
     }
 
     public async Task<IReadOnlyList<ServiceAccountMetadata>> GetAllAsync(CancellationToken ct = default)

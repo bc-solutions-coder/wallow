@@ -8,6 +8,11 @@ namespace Foundry.Storage.Infrastructure.Persistence.Repositories;
 
 public sealed class StoredFileRepository : IStoredFileRepository
 {
+    private static readonly Func<StorageDbContext, StoredFileId, CancellationToken, Task<StoredFile?>> _getByIdQuery =
+        EF.CompileAsyncQuery(
+            (StorageDbContext ctx, StoredFileId id, CancellationToken _) =>
+                ctx.Files.AsTracking().FirstOrDefault(f => f.Id == id));
+
     private readonly StorageDbContext _context;
 
     public StoredFileRepository(StorageDbContext context)
@@ -17,9 +22,7 @@ public sealed class StoredFileRepository : IStoredFileRepository
 
     public Task<StoredFile?> GetByIdAsync(StoredFileId id, CancellationToken cancellationToken = default)
     {
-        return _context.Files
-            .AsTracking()
-            .FirstOrDefaultAsync(f => f.Id == id, cancellationToken);
+        return _getByIdQuery(_context, id, cancellationToken);
     }
 
     public async Task<IReadOnlyList<StoredFile>> GetByBucketIdAsync(

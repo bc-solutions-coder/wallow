@@ -1,3 +1,5 @@
+#pragma warning disable CA1032 // Intentionally removing weak constructors to enforce structured exception creation
+
 namespace Foundry.Shared.Kernel.Domain;
 
 /// <summary>
@@ -12,25 +14,27 @@ public abstract class DomainException : Exception
 
     protected DomainException(string code, string message) : base(message)
     {
+        ArgumentException.ThrowIfNullOrEmpty(code);
+        ArgumentException.ThrowIfNullOrEmpty(message);
         Code = code;
     }
 
     protected DomainException(string code, string message, Exception innerException)
         : base(message, innerException)
     {
+        ArgumentException.ThrowIfNullOrEmpty(code);
+        ArgumentException.ThrowIfNullOrEmpty(message);
         Code = code;
-    }
-
-    protected DomainException()
-    {
     }
 
     protected DomainException(string message) : base(message)
     {
+        ArgumentException.ThrowIfNullOrEmpty(message);
     }
 
     protected DomainException(string message, Exception innerException) : base(message, innerException)
     {
+        ArgumentException.ThrowIfNullOrEmpty(message);
     }
 }
 
@@ -48,18 +52,6 @@ public class EntityNotFoundException : DomainException
         EntityName = entityName;
         EntityId = entityId;
     }
-
-    public EntityNotFoundException()
-    {
-    }
-
-    public EntityNotFoundException(string message) : base(message)
-    {
-    }
-
-    public EntityNotFoundException(string message, Exception innerException) : base(message, innerException)
-    {
-    }
 }
 
 /// <summary>
@@ -71,16 +63,12 @@ public class BusinessRuleException : DomainException
         : base(code, message)
     {
     }
+}
 
-    public BusinessRuleException()
-    {
-    }
-
-    public BusinessRuleException(string message) : base(message)
-    {
-    }
-
-    public BusinessRuleException(string message, Exception innerException) : base(message, innerException)
+public class ForbiddenAccessException : DomainException
+{
+    public ForbiddenAccessException(string message)
+        : base("Access.Forbidden", message)
     {
     }
 }

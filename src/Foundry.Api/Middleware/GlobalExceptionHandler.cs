@@ -29,6 +29,29 @@ internal partial class GlobalExceptionHandler : IExceptionHandler
     {
         string traceId = System.Diagnostics.Activity.Current?.Id ?? httpContext.TraceIdentifier;
 
+        if (exception is OperationCanceledException)
+        {
+            string path = httpContext.Request.Path;
+            LogRequestCancelled(traceId, path);
+
+            // Do not mark the span as error for cancellations
+            System.Diagnostics.Activity.Current?.SetStatus(System.Diagnostics.ActivityStatusCode.Ok);
+
+            ProblemDetails cancelledProblem = new ProblemDetails
+            {
+                Status = 499,
+                Title = "Client Closed Request",
+                Type = "https://httpstatuses.com/499",
+                Instance = $"/errors/{traceId}",
+                Detail = "The request was cancelled by the client.",
+                Extensions = { ["traceId"] = traceId }
+            };
+
+            httpContext.Response.StatusCode = 499;
+            await httpContext.Response.WriteAsJsonAsync(cancelledProblem, cancellationToken);
+            return true;
+        }
+
         LogUnhandledException(exception, traceId, httpContext.Request.Path);
 
         ProblemDetails problemDetails = CreateProblemDetails(exception, traceId);
@@ -63,6 +86,11 @@ internal partial class GlobalExceptionHandler : IExceptionHandler
                 StatusCodes.Status401Unauthorized,
                 "Unauthorized",
                 "https://tools.ietf.org/html/rfc7235#section-3.1"),
+
+            ForbiddenAccessException => (
+                StatusCodes.Status403Forbidden,
+                "Forbidden",
+                "https://tools.ietf.org/html/rfc7231#section-6.5.3"),
 
             ArgumentException or ArgumentNullException => (
                 StatusCodes.Status400BadRequest,
@@ -119,4 +147,7 @@ internal partial class GlobalExceptionHandler
 {
     [LoggerMessage(Level = LogLevel.Error, Message = "Unhandled exception occurred. TraceId: {TraceId}, Path: {Path}")]
     private partial void LogUnhandledException(Exception ex, string traceId, string path);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Request cancelled by client. TraceId: {TraceId}, Path: {Path}")]
+    private partial void LogRequestCancelled(string traceId, string path);
 }

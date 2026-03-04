@@ -4,6 +4,7 @@ using System.Security.Cryptography.X509Certificates;
 using Foundry.Identity.Application.DTOs;
 using Foundry.Identity.Domain.Entities;
 using Microsoft.Extensions.Logging;
+using Foundry.Identity.Infrastructure.Extensions;
 using Microsoft.Extensions.Options;
 
 namespace Foundry.Identity.Infrastructure.Services;
@@ -47,7 +48,7 @@ public sealed partial class KeycloakIdpService
         HttpResponseMessage response = await _httpClient.GetAsync(
             $"/admin/realms/{_realm}/identity-provider/instances/{alias}",
             ct);
-        response.EnsureSuccessStatusCode();
+        await response.EnsureSuccessOrThrowAsync(ct);
 
         Dictionary<string, object>? idpConfig = await response.Content.ReadFromJsonAsync<Dictionary<string, object>>(ct);
         if (idpConfig == null)
@@ -62,7 +63,7 @@ public sealed partial class KeycloakIdpService
             $"/admin/realms/{_realm}/identity-provider/instances/{alias}",
             idpConfig,
             ct);
-        updateResponse.EnsureSuccessStatusCode();
+        await updateResponse.EnsureSuccessOrThrowAsync(ct);
     }
 
     public async Task CreateAttributeMappersAsync(

@@ -1,3 +1,5 @@
+using Foundry.Identity.Application.Exceptions;
+
 namespace Foundry.Identity.Infrastructure.Scim;
 
 // Visitor pattern base for AST traversal

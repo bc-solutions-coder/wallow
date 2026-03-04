@@ -80,7 +80,7 @@ public class PaymentsController : ControllerBase
         Guid? currentUserId = _currentUserService.GetCurrentUserId();
         if (currentUserId is null)
         {
-            return Unauthorized();
+            return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
         }
 
         ProcessPaymentCommand command = new ProcessPaymentCommand(

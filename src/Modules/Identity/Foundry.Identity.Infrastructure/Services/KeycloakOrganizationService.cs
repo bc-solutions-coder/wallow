@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using Foundry.Identity.Infrastructure.Extensions;
 using Foundry.Identity.Application.DTOs;
 using Foundry.Identity.Application.Interfaces;
 using Foundry.Shared.Contracts.Identity.Events;
@@ -42,7 +43,7 @@ public sealed partial class KeycloakOrganizationService : IKeycloakOrganizationS
         };
 
         HttpResponseMessage response = await _httpClient.PostAsJsonAsync($"/admin/realms/{_realm}/organizations", createRequest, ct);
-        response.EnsureSuccessStatusCode();
+        await response.EnsureSuccessOrThrowAsync();
 
         string? locationHeader = response.Headers.Location?.ToString();
         if (string.IsNullOrWhiteSpace(locationHeader))
@@ -118,7 +119,7 @@ public sealed partial class KeycloakOrganizationService : IKeycloakOrganizationS
 
             string queryString = string.Join("&", queryParams);
             HttpResponseMessage response = await _httpClient.GetAsync($"/admin/realms/{_realm}/organizations?{queryString}", ct);
-            response.EnsureSuccessStatusCode();
+            await response.EnsureSuccessOrThrowAsync();
 
             List<OrgRepresentation>? orgs = await response.Content.ReadFromJsonAsync<List<OrgRepresentation>>(ct);
             if (orgs == null || orgs.Count == 0)
@@ -171,7 +172,7 @@ public sealed partial class KeycloakOrganizationService : IKeycloakOrganizationS
             $"/admin/realms/{_realm}/organizations/{orgId}/members",
             addMemberRequest,
             ct);
-        response.EnsureSuccessStatusCode();
+        await response.EnsureSuccessOrThrowAsync();
 
         string userEmail = await GetUserEmailAsync(userId, ct);
 
@@ -193,7 +194,7 @@ public sealed partial class KeycloakOrganizationService : IKeycloakOrganizationS
         HttpResponseMessage response = await _httpClient.DeleteAsync(
             $"/admin/realms/{_realm}/organizations/{orgId}/members/{userId}",
             ct);
-        response.EnsureSuccessStatusCode();
+        await response.EnsureSuccessOrThrowAsync();
 
         LogMemberRemoved(userId, orgId);
     }
@@ -203,7 +204,7 @@ public sealed partial class KeycloakOrganizationService : IKeycloakOrganizationS
         try
         {
             HttpResponseMessage response = await _httpClient.GetAsync($"/admin/realms/{_realm}/organizations/{orgId}/members", ct);
-            response.EnsureSuccessStatusCode();
+            await response.EnsureSuccessOrThrowAsync();
 
             List<OrgUserRepresentation>? users = await response.Content.ReadFromJsonAsync<List<OrgUserRepresentation>>(ct);
             if (users == null || users.Count == 0)
@@ -254,7 +255,7 @@ public sealed partial class KeycloakOrganizationService : IKeycloakOrganizationS
         try
         {
             HttpResponseMessage response = await _httpClient.GetAsync($"/admin/realms/{_realm}/users/{userId}/organizations", ct);
-            response.EnsureSuccessStatusCode();
+            await response.EnsureSuccessOrThrowAsync();
 
             List<OrgRepresentation>? orgs = await response.Content.ReadFromJsonAsync<List<OrgRepresentation>>(ct);
             if (orgs == null || orgs.Count == 0)

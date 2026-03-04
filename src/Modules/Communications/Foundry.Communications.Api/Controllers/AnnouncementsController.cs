@@ -46,7 +46,7 @@ public class AnnouncementsController : ControllerBase
         Guid? userId = _currentUserService.GetCurrentUserId();
         if (userId is null)
         {
-            return Unauthorized();
+            return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
         }
 
         IReadOnlyList<string> roles = GetUserRoles();
@@ -78,7 +78,7 @@ public class AnnouncementsController : ControllerBase
         Guid? userId = _currentUserService.GetCurrentUserId();
         if (userId is null)
         {
-            return Unauthorized();
+            return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
         }
 
         Result result = await _bus.InvokeAsync<Result>(

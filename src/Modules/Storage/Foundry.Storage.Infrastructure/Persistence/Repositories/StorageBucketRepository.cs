@@ -6,6 +6,11 @@ namespace Foundry.Storage.Infrastructure.Persistence.Repositories;
 
 public sealed class StorageBucketRepository : IStorageBucketRepository
 {
+    private static readonly Func<StorageDbContext, string, CancellationToken, Task<StorageBucket?>> _getByNameQuery =
+        EF.CompileAsyncQuery(
+            (StorageDbContext ctx, string name, CancellationToken _) =>
+                ctx.Buckets.AsTracking().FirstOrDefault(b => b.Name == name));
+
     private readonly StorageDbContext _context;
 
     public StorageBucketRepository(StorageDbContext context)
@@ -15,9 +20,7 @@ public sealed class StorageBucketRepository : IStorageBucketRepository
 
     public Task<StorageBucket?> GetByNameAsync(string name, CancellationToken cancellationToken = default)
     {
-        return _context.Buckets
-            .AsTracking()
-            .FirstOrDefaultAsync(b => b.Name == name, cancellationToken);
+        return _getByNameQuery(_context, name, cancellationToken);
     }
 
     public Task<bool> ExistsByNameAsync(string name, CancellationToken cancellationToken = default)

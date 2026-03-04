@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Net.Http.Json;
+using Foundry.Identity.Infrastructure.Extensions;
 using Foundry.Identity.Application.DTOs;
 using Foundry.Identity.Application.Interfaces;
 using Foundry.Identity.Application.Telemetry;
@@ -193,7 +194,7 @@ public sealed partial class KeycloakSsoService : ISsoService
             HttpResponseMessage updateResponse = await _httpClient.PutAsJsonAsync(
                 $"/admin/realms/{_realm}/identity-provider/instances/{alias}",
                 idpConfig, ct);
-            updateResponse.EnsureSuccessStatusCode();
+            await updateResponse.EnsureSuccessOrThrowAsync();
             LogUpdatedIdp(protocolName, alias);
         }
         else
@@ -201,7 +202,7 @@ public sealed partial class KeycloakSsoService : ISsoService
             HttpResponseMessage createResponse = await _httpClient.PostAsJsonAsync(
                 $"/admin/realms/{_realm}/identity-provider/instances",
                 idpConfig, ct);
-            createResponse.EnsureSuccessStatusCode();
+            await createResponse.EnsureSuccessOrThrowAsync();
             LogCreatedIdp(protocolName, alias);
         }
 

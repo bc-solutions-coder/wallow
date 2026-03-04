@@ -270,7 +270,8 @@ public class PaymentsControllerTests
 
         IActionResult result = await _controller.ProcessPayment(invoiceId, request, CancellationToken.None);
 
-        result.Should().BeOfType<UnauthorizedResult>();
+        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        objectResult.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
     }
 
     #endregion

@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
+using Foundry.Identity.Infrastructure.Extensions;
 using Foundry.Identity.Application.DTOs;
 using Foundry.Identity.Application.Exceptions;
 using Foundry.Identity.Application.Interfaces;
@@ -77,7 +78,7 @@ public sealed partial class ScimUserService
                 throw new KeycloakConflictException($"User '{request.UserName}' already exists");
             }
 
-            response.EnsureSuccessStatusCode();
+            await response.EnsureSuccessOrThrowAsync();
 
             string? locationHeader = response.Headers.Location?.ToString();
             string userId = locationHeader?.Split('/').Last() ?? throw new InvalidOperationException("User created but Location header is missing");
@@ -125,7 +126,7 @@ public sealed partial class ScimUserService
                 $"/admin/realms/{_realm}/users/{id}",
                 userRepresentation,
                 ct);
-            response.EnsureSuccessStatusCode();
+            await response.EnsureSuccessOrThrowAsync();
 
             await LogSyncAsync(ScimOperation.Update, ScimResourceType.User, externalId, id, true, ct: ct);
 
@@ -148,7 +149,7 @@ public sealed partial class ScimUserService
         try
         {
             HttpResponseMessage response = await _httpClient.GetAsync($"/admin/realms/{_realm}/users/{id}", ct);
-            response.EnsureSuccessStatusCode();
+            await response.EnsureSuccessOrThrowAsync();
             ScimKeycloakUserRepresentation? currentUser = await response.Content.ReadFromJsonAsync<ScimKeycloakUserRepresentation>(ct);
 
             if (currentUser == null)
@@ -165,7 +166,7 @@ public sealed partial class ScimUserService
                 $"/admin/realms/{_realm}/users/{id}",
                 currentUser,
                 ct);
-            updateResponse.EnsureSuccessStatusCode();
+            await updateResponse.EnsureSuccessOrThrowAsync();
 
             string externalId = currentUser.Attributes?.GetValueOrDefault("scim_external_id")?.FirstOrDefault() ?? id;
             await LogSyncAsync(ScimOperation.Patch, ScimResourceType.User, externalId, id, true, ct: ct);
@@ -193,7 +194,7 @@ public sealed partial class ScimUserService
             if (config?.DeprovisionOnDelete == true)
             {
                 HttpResponseMessage response = await _httpClient.DeleteAsync($"/admin/realms/{_realm}/users/{id}", ct);
-                response.EnsureSuccessStatusCode();
+                await response.EnsureSuccessOrThrowAsync();
                 LogScimUserDeleted(id);
             }
             else
@@ -203,7 +204,7 @@ public sealed partial class ScimUserService
                     $"/admin/realms/{_realm}/users/{id}",
                     disableRequest,
                     ct);
-                response.EnsureSuccessStatusCode();
+                await response.EnsureSuccessOrThrowAsync();
                 LogScimUserDisabled(id);
             }
 
@@ -283,7 +284,7 @@ public sealed partial class ScimUserService
 
         string queryString = string.Join("&", queryParams);
         HttpResponseMessage response = await _httpClient.GetAsync($"/admin/realms/{_realm}/users?{queryString}", ct);
-        response.EnsureSuccessStatusCode();
+        await response.EnsureSuccessOrThrowAsync();
 
         List<ScimKeycloakUserRepresentation>? users = await response.Content.ReadFromJsonAsync<List<ScimKeycloakUserRepresentation>>(ct);
 
@@ -350,7 +351,7 @@ public sealed partial class ScimUserService
                 $"/admin/realms/{_realm}/users/{userId}/role-mappings/realm",
                 new[] { role },
                 ct);
-            assignResponse.EnsureSuccessStatusCode();
+            await assignResponse.EnsureSuccessOrThrowAsync();
         }
         catch (Exception ex)
         {

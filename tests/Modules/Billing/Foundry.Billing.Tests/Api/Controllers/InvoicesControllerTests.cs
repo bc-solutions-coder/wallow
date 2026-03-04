@@ -485,7 +485,8 @@ public class InvoicesControllerTests
 
         IActionResult result = await _controller.Create(request, CancellationToken.None);
 
-        result.Should().BeOfType<UnauthorizedResult>();
+        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        objectResult.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
     }
 
     [Fact]
@@ -523,7 +524,8 @@ public class InvoicesControllerTests
 
         IActionResult result = await _controller.Create(request, CancellationToken.None);
 
-        result.Should().BeOfType<UnauthorizedResult>();
+        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        objectResult.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
     }
 
     #endregion

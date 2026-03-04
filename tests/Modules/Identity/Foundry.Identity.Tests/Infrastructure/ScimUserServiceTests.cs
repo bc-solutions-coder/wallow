@@ -7,6 +7,7 @@ using Foundry.Identity.Domain.Enums;
 using Foundry.Identity.Application.Exceptions;
 using Foundry.Identity.Infrastructure.Services;
 using Foundry.Shared.Kernel.Identity;
+using Foundry.Shared.Kernel.Domain;
 using Foundry.Shared.Kernel.MultiTenancy;
 using Microsoft.Extensions.Logging;
 
@@ -264,7 +265,7 @@ public class ScimUserServiceTests
 
         Func<Task<ScimUser>> act = async () => await service.UpdateUserAsync("user-fail", request);
 
-        await act.Should().ThrowAsync<HttpRequestException>();
+        await act.Should().ThrowAsync<ExternalServiceException>();
 
         _syncLogRepository.Received(1).Add(Arg.Is<ScimSyncLog>(log =>
             log.Operation == ScimOperation.Update && !log.Success));
@@ -469,7 +470,7 @@ public class ScimUserServiceTests
 
         Func<Task<ScimUser>> act = async () => await service.PatchUserAsync("user-404", request);
 
-        await act.Should().ThrowAsync<HttpRequestException>();
+        await act.Should().ThrowAsync<ExternalServiceException>();
 
         _syncLogRepository.Received(1).Add(Arg.Is<ScimSyncLog>(log =>
             log.Operation == ScimOperation.Patch && !log.Success));
@@ -525,7 +526,7 @@ public class ScimUserServiceTests
 
         Func<Task> act = async () => await service.DeleteUserAsync("user-fail");
 
-        await act.Should().ThrowAsync<HttpRequestException>();
+        await act.Should().ThrowAsync<ExternalServiceException>();
 
         _syncLogRepository.Received(1).Add(Arg.Is<ScimSyncLog>(log =>
             log.Operation == ScimOperation.Delete && !log.Success));

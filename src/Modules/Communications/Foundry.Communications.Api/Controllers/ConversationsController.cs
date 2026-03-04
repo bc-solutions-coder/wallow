@@ -55,7 +55,7 @@ public class ConversationsController : ControllerBase
         Guid? userId = _currentUserService.GetCurrentUserId();
         if (userId is null)
         {
-            return Unauthorized();
+            return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
         }
 
         bool isDirect = request.ParticipantIds.Count == 1;
@@ -90,7 +90,7 @@ public class ConversationsController : ControllerBase
         Guid? userId = _currentUserService.GetCurrentUserId();
         if (userId is null)
         {
-            return Unauthorized();
+            return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
         }
 
         Result<IReadOnlyList<ConversationDto>> result = await _bus.InvokeAsync<Result<IReadOnlyList<ConversationDto>>>(
@@ -115,13 +115,13 @@ public class ConversationsController : ControllerBase
         Guid? userId = _currentUserService.GetCurrentUserId();
         if (userId is null)
         {
-            return Unauthorized();
+            return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
         }
 
         bool isParticipant = await _messagingQueryService.IsParticipantAsync(id, userId.Value, cancellationToken);
         if (!isParticipant)
         {
-            return Forbid();
+            return Problem(statusCode: 403, title: "Forbidden", detail: "Access denied");
         }
 
         Result<IReadOnlyList<MessageDto>> result = await _bus.InvokeAsync<Result<IReadOnlyList<MessageDto>>>(
@@ -150,7 +150,7 @@ public class ConversationsController : ControllerBase
         Guid? userId = _currentUserService.GetCurrentUserId();
         if (userId is null)
         {
-            return Unauthorized();
+            return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
         }
 
         string sanitizedBody = _sanitizer.Sanitize(request.Body);
@@ -171,7 +171,7 @@ public class ConversationsController : ControllerBase
         Guid? userId = _currentUserService.GetCurrentUserId();
         if (userId is null)
         {
-            return Unauthorized();
+            return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
         }
 
         Result result = await _bus.InvokeAsync<Result>(
@@ -189,7 +189,7 @@ public class ConversationsController : ControllerBase
         Guid? userId = _currentUserService.GetCurrentUserId();
         if (userId is null)
         {
-            return Unauthorized();
+            return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
         }
 
         Result<int> result = await _bus.InvokeAsync<Result<int>>(

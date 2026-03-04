@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using Foundry.Identity.Application.DTOs;
+using Foundry.Shared.Kernel.Domain;
 using Foundry.Identity.Application.Interfaces;
 using Foundry.Identity.Domain.Entities;
 using Foundry.Identity.Domain.Enums;
@@ -143,7 +144,7 @@ public class ScimGroupServiceTests
 
         Func<Task<ScimGroup>> act = async () => await service.CreateGroupAsync(request);
 
-        await act.Should().ThrowAsync<HttpRequestException>();
+        await act.Should().ThrowAsync<ExternalServiceException>();
 
         _syncLogRepository.Received(1).Add(Arg.Is<ScimSyncLog>(log =>
             log.Operation == ScimOperation.Create &&
@@ -254,7 +255,7 @@ public class ScimGroupServiceTests
 
         Func<Task<ScimGroup>> act = async () => await service.UpdateGroupAsync("grp-1", request);
 
-        await act.Should().ThrowAsync<HttpRequestException>();
+        await act.Should().ThrowAsync<ExternalServiceException>();
 
         _syncLogRepository.Received(1).Add(Arg.Is<ScimSyncLog>(log =>
             log.Operation == ScimOperation.Update && !log.Success));
@@ -286,7 +287,7 @@ public class ScimGroupServiceTests
 
         Func<Task> act = async () => await service.DeleteGroupAsync("grp-1");
 
-        await act.Should().ThrowAsync<HttpRequestException>();
+        await act.Should().ThrowAsync<ExternalServiceException>();
 
         _syncLogRepository.Received(1).Add(Arg.Is<ScimSyncLog>(log =>
             log.Operation == ScimOperation.Delete && !log.Success));
