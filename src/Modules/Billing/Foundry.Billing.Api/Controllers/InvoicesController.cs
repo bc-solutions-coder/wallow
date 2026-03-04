@@ -98,7 +98,7 @@ public class InvoicesController : ControllerBase
         Guid? currentUserId = _currentUserService.GetCurrentUserId();
         if (currentUserId is null)
         {
-            return Unauthorized();
+            return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
         }
 
         Guid targetUserId = request.UserId is not null && User.IsInRole("admin")
@@ -138,7 +138,7 @@ public class InvoicesController : ControllerBase
         Guid? currentUserId = _currentUserService.GetCurrentUserId();
         if (currentUserId is null)
         {
-            return Unauthorized();
+            return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
         }
 
         AddLineItemCommand command = new AddLineItemCommand(
@@ -166,7 +166,7 @@ public class InvoicesController : ControllerBase
         Guid? currentUserId = _currentUserService.GetCurrentUserId();
         if (currentUserId is null)
         {
-            return Unauthorized();
+            return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
         }
 
         IssueInvoiceCommand command = new IssueInvoiceCommand(id, currentUserId.Value);
@@ -189,7 +189,7 @@ public class InvoicesController : ControllerBase
         Guid? currentUserId = _currentUserService.GetCurrentUserId();
         if (currentUserId is null)
         {
-            return Unauthorized();
+            return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
         }
 
         CancelInvoiceCommand command = new CancelInvoiceCommand(id, currentUserId.Value);

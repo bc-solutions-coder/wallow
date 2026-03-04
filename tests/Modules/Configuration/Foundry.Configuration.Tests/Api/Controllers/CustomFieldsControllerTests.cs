@@ -3,6 +3,7 @@ using Foundry.Configuration.Application.Commands;
 using Foundry.Configuration.Application.Contracts.DTOs;
 using Foundry.Configuration.Application.Queries;
 using Foundry.Shared.Kernel.CustomFields;
+using Foundry.Shared.Kernel.Results;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Wolverine;
@@ -169,12 +170,12 @@ public class CustomFieldsControllerTests
             FieldType = CustomFieldType.Text
         };
         CustomFieldDefinitionDto dto = CreateDefinitionDto("Invoice", "custom_ref");
-        _bus.InvokeAsync<CustomFieldDefinitionDto>(Arg.Any<CreateCustomFieldDefinition>(), Arg.Any<CancellationToken>())
-            .Returns(dto);
+        _bus.InvokeAsync<Result<CustomFieldDefinitionDto>>(Arg.Any<CreateCustomFieldDefinition>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(dto));
 
-        ActionResult<CustomFieldDefinitionDto> result = await _controller.Create(request, CancellationToken.None);
+        IActionResult result = await _controller.Create(request, CancellationToken.None);
 
-        CreatedAtActionResult created = result.Result.Should().BeOfType<CreatedAtActionResult>().Subject;
+        CreatedAtActionResult created = result.Should().BeOfType<CreatedAtActionResult>().Subject;
         created.StatusCode.Should().Be(StatusCodes.Status201Created);
         created.ActionName.Should().Be(nameof(CustomFieldsController.GetById));
     }
@@ -199,12 +200,12 @@ public class CustomFieldsControllerTests
             Options = options
         };
         CustomFieldDefinitionDto dto = CreateDefinitionDto("Invoice", "priority");
-        _bus.InvokeAsync<CustomFieldDefinitionDto>(Arg.Any<CreateCustomFieldDefinition>(), Arg.Any<CancellationToken>())
-            .Returns(dto);
+        _bus.InvokeAsync<Result<CustomFieldDefinitionDto>>(Arg.Any<CreateCustomFieldDefinition>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(dto));
 
         await _controller.Create(request, CancellationToken.None);
 
-        await _bus.Received(1).InvokeAsync<CustomFieldDefinitionDto>(
+        await _bus.Received(1).InvokeAsync<Result<CustomFieldDefinitionDto>>(
             Arg.Is<CreateCustomFieldDefinition>(c =>
                 c.EntityType == "Invoice" &&
                 c.FieldKey == "priority" &&
@@ -227,12 +228,12 @@ public class CustomFieldsControllerTests
             FieldType = CustomFieldType.Text
         };
         CustomFieldDefinitionDto dto = CreateDefinitionDto("Invoice", "ref", definitionId);
-        _bus.InvokeAsync<CustomFieldDefinitionDto>(Arg.Any<CreateCustomFieldDefinition>(), Arg.Any<CancellationToken>())
-            .Returns(dto);
+        _bus.InvokeAsync<Result<CustomFieldDefinitionDto>>(Arg.Any<CreateCustomFieldDefinition>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(dto));
 
-        ActionResult<CustomFieldDefinitionDto> result = await _controller.Create(request, CancellationToken.None);
+        IActionResult result = await _controller.Create(request, CancellationToken.None);
 
-        CreatedAtActionResult created = result.Result.Should().BeOfType<CreatedAtActionResult>().Subject;
+        CreatedAtActionResult created = result.Should().BeOfType<CreatedAtActionResult>().Subject;
         created.RouteValues.Should().ContainKey("id");
         created.RouteValues!["id"].Should().Be(definitionId);
     }

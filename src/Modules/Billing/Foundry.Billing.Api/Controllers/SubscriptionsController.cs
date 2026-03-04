@@ -79,7 +79,7 @@ public class SubscriptionsController : ControllerBase
         Guid? currentUserId = _currentUserService.GetCurrentUserId();
         if (currentUserId is null)
         {
-            return Unauthorized();
+            return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
         }
 
         CreateSubscriptionCommand command = new CreateSubscriptionCommand(
@@ -114,7 +114,7 @@ public class SubscriptionsController : ControllerBase
         Guid? currentUserId = _currentUserService.GetCurrentUserId();
         if (currentUserId is null)
         {
-            return Unauthorized();
+            return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
         }
 
         CancelSubscriptionCommand command = new CancelSubscriptionCommand(id, currentUserId.Value);

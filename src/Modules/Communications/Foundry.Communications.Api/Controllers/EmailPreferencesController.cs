@@ -46,7 +46,7 @@ public class EmailPreferencesController : ControllerBase
         Guid? userId = _currentUserService.GetCurrentUserId();
         if (userId is null)
         {
-            return Unauthorized();
+            return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
         }
 
         Result<IReadOnlyList<EmailPreferenceDto>> result = await _bus.InvokeAsync<Result<IReadOnlyList<EmailPreferenceDto>>>(
@@ -70,7 +70,7 @@ public class EmailPreferencesController : ControllerBase
         Guid? userId = _currentUserService.GetCurrentUserId();
         if (userId is null)
         {
-            return Unauthorized();
+            return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
         }
 
         UpdateEmailPreferencesCommand command = new UpdateEmailPreferencesCommand(

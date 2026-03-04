@@ -68,7 +68,8 @@ public class EmailPreferencesControllerTests
         _currentUserService.GetCurrentUserId().Returns((Guid?)null);
         IActionResult result = await _controller.GetPreferences(CancellationToken.None);
 
-        result.Should().BeOfType<UnauthorizedResult>();
+        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        objectResult.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
     }
 
     [Fact]
@@ -147,7 +148,8 @@ public class EmailPreferencesControllerTests
 
         IActionResult result = await _controller.UpdatePreference(request, CancellationToken.None);
 
-        result.Should().BeOfType<UnauthorizedResult>();
+        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        objectResult.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
     }
 
     [Fact]

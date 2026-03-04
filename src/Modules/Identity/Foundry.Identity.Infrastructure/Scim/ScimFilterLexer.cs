@@ -1,4 +1,5 @@
 using System.Text;
+using Foundry.Identity.Application.Exceptions;
 
 namespace Foundry.Identity.Infrastructure.Scim;
 

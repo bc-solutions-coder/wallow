@@ -160,7 +160,7 @@ public sealed class StorageController : ControllerBase
         Guid? userId = _currentUserService.GetCurrentUserId();
         if (userId is null)
         {
-            return Unauthorized();
+            return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
         }
 
         await using Stream stream = file.OpenReadStream();

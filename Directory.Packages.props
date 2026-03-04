@@ -130,6 +130,10 @@
          Reverse Proxy (YARP)
          ====================================== -->
     <!-- ======================================
+         Benchmarking
+         ====================================== -->
+    <PackageVersion Include="BenchmarkDotNet" Version="0.14.0" />
+    <!-- ======================================
          Testing
          ====================================== -->
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />

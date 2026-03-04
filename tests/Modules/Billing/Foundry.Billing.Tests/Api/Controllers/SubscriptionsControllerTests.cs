@@ -262,7 +262,8 @@ public class SubscriptionsControllerTests
 
         IActionResult result = await _controller.Create(request, CancellationToken.None);
 
-        result.Should().BeOfType<UnauthorizedResult>();
+        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        objectResult.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
         await _bus.DidNotReceive().InvokeAsync<Result<SubscriptionDto>>(
             Arg.Any<CreateSubscriptionCommand>(),
             Arg.Any<CancellationToken>());

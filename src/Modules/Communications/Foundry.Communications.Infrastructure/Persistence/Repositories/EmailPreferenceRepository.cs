@@ -7,6 +7,13 @@ namespace Foundry.Communications.Infrastructure.Persistence.Repositories;
 
 public sealed class EmailPreferenceRepository : IEmailPreferenceRepository
 {
+    private static readonly Func<CommunicationsDbContext, Guid, NotificationType, CancellationToken, Task<EmailPreference?>>
+        _getByUserAndTypeQuery = EF.CompileAsyncQuery(
+            (CommunicationsDbContext ctx, Guid userId, NotificationType notificationType, CancellationToken _) =>
+                ctx.EmailPreferences
+                    .AsTracking()
+                    .FirstOrDefault(ep => ep.UserId == userId && ep.NotificationType == notificationType));
+
     private readonly CommunicationsDbContext _context;
 
     public EmailPreferenceRepository(CommunicationsDbContext context)
@@ -21,11 +28,7 @@ public sealed class EmailPreferenceRepository : IEmailPreferenceRepository
 
     public Task<EmailPreference?> GetByUserAndTypeAsync(Guid userId, NotificationType notificationType, CancellationToken cancellationToken = default)
     {
-        return _context.EmailPreferences
-            .AsTracking()
-            .FirstOrDefaultAsync(
-                ep => ep.UserId == userId && ep.NotificationType == notificationType,
-                cancellationToken);
+        return _getByUserAndTypeQuery(_context, userId, notificationType, cancellationToken);
     }
 
     public async Task<IReadOnlyList<EmailPreference>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)

@@ -1,4 +1,4 @@
-using Foundry.Identity.Infrastructure.Scim;
+using Foundry.Identity.Application.Exceptions;
 
 namespace Foundry.Identity.Tests.Infrastructure;
 

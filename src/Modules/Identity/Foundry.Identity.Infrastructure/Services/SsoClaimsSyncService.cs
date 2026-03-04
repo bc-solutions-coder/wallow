@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using Foundry.Identity.Infrastructure.Extensions;
 using Foundry.Identity.Application.Interfaces;
 using Foundry.Shared.Kernel.MultiTenancy;
 using Microsoft.Extensions.Logging;
@@ -153,7 +154,7 @@ public sealed partial class SsoClaimsSyncService
             HttpResponseMessage response = await _httpClient.GetAsync(
                 $"/admin/realms/{_realm}/users/{userId}/role-mappings/realm",
                 ct);
-            response.EnsureSuccessStatusCode();
+            await response.EnsureSuccessOrThrowAsync();
 
             List<KeycloakRoleRepresentation>? roles = await response.Content.ReadFromJsonAsync<List<KeycloakRoleRepresentation>>(ct);
             if (roles == null)

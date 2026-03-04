@@ -7,6 +7,16 @@ namespace Foundry.Configuration.Infrastructure.Persistence.Repositories;
 
 public sealed class FeatureFlagRepository : IFeatureFlagRepository
 {
+    private static readonly Func<ConfigurationDbContext, FeatureFlagId, CancellationToken, Task<FeatureFlag?>> _getByIdQuery =
+        EF.CompileAsyncQuery(
+            (ConfigurationDbContext ctx, FeatureFlagId id, CancellationToken _) =>
+                ctx.FeatureFlags.AsTracking().FirstOrDefault(f => f.Id == id));
+
+    private static readonly Func<ConfigurationDbContext, string, CancellationToken, Task<FeatureFlag?>> _getByKeyQuery =
+        EF.CompileAsyncQuery(
+            (ConfigurationDbContext ctx, string key, CancellationToken _) =>
+                ctx.FeatureFlags.AsTracking().Include(f => f.Overrides).FirstOrDefault(f => f.Key == key));
+
     private readonly ConfigurationDbContext _context;
 
     public FeatureFlagRepository(ConfigurationDbContext context)
@@ -16,17 +26,12 @@ public sealed class FeatureFlagRepository : IFeatureFlagRepository
 
     public Task<FeatureFlag?> GetByIdAsync(FeatureFlagId id, CancellationToken ct = default)
     {
-        return _context.FeatureFlags
-            .AsTracking()
-            .FirstOrDefaultAsync(f => f.Id == id, ct);
+        return _getByIdQuery(_context, id, ct);
     }
 
     public Task<FeatureFlag?> GetByKeyAsync(string key, CancellationToken ct = default)
     {
-        return _context.FeatureFlags
-            .AsTracking()
-            .Include(f => f.Overrides)
-            .FirstOrDefaultAsync(f => f.Key == key, ct);
+        return _getByKeyQuery(_context, key, ct);
     }
 
     public async Task<IReadOnlyList<FeatureFlag>> GetAllAsync(CancellationToken ct = default)

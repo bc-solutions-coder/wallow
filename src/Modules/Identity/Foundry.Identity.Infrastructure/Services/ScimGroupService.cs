@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using Foundry.Identity.Infrastructure.Extensions;
 using Foundry.Identity.Application.DTOs;
 using Foundry.Identity.Application.Interfaces;
 using Foundry.Identity.Domain.Entities;
@@ -58,7 +59,7 @@ public sealed partial class ScimGroupService
                 $"/admin/realms/{_realm}/groups",
                 groupRepresentation,
                 ct);
-            response.EnsureSuccessStatusCode();
+            await response.EnsureSuccessOrThrowAsync();
 
             string? locationHeader = response.Headers.Location?.ToString();
             string groupId = locationHeader?.Split('/').Last() ?? throw new InvalidOperationException("Group created but Location header is missing");
@@ -106,7 +107,7 @@ public sealed partial class ScimGroupService
                 $"/admin/realms/{_realm}/groups/{id}",
                 groupRepresentation,
                 ct);
-            response.EnsureSuccessStatusCode();
+            await response.EnsureSuccessOrThrowAsync();
 
             if (request.Members != null)
             {
@@ -150,7 +151,7 @@ public sealed partial class ScimGroupService
         try
         {
             HttpResponseMessage response = await _httpClient.DeleteAsync($"/admin/realms/{_realm}/groups/{id}", ct);
-            response.EnsureSuccessStatusCode();
+            await response.EnsureSuccessOrThrowAsync();
 
             await LogSyncAsync(ScimOperation.Delete, ScimResourceType.Group, id, id, true, ct: ct);
 
@@ -170,7 +171,7 @@ public sealed partial class ScimGroupService
         int max = Math.Min(request.Count, ScimConstants.MaxPageSize);
 
         HttpResponseMessage response = await _httpClient.GetAsync($"/admin/realms/{_realm}/groups?first={first}&max={max}", ct);
-        response.EnsureSuccessStatusCode();
+        await response.EnsureSuccessOrThrowAsync();
 
         List<ScimKeycloakGroupRepresentation>? groups = await response.Content.ReadFromJsonAsync<List<ScimKeycloakGroupRepresentation>>(ct);
 
@@ -266,7 +267,7 @@ public sealed partial class ScimGroupService
             $"/admin/realms/{_realm}/users/{userId}/groups/{groupId}",
             null,
             ct);
-        response.EnsureSuccessStatusCode();
+        await response.EnsureSuccessOrThrowAsync();
     }
 
     private async Task RemoveUserFromGroupAsync(string userId, string groupId, CancellationToken ct)
@@ -274,7 +275,7 @@ public sealed partial class ScimGroupService
         HttpResponseMessage response = await _httpClient.DeleteAsync(
             $"/admin/realms/{_realm}/users/{userId}/groups/{groupId}",
             ct);
-        response.EnsureSuccessStatusCode();
+        await response.EnsureSuccessOrThrowAsync();
     }
 
     private async Task LogSyncAsync(

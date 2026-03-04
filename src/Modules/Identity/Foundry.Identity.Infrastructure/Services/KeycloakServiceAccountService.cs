@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using System.Text.RegularExpressions;
+using Foundry.Identity.Infrastructure.Extensions;
 using Foundry.Identity.Application.DTOs;
 using Foundry.Identity.Application.Interfaces;
 using Foundry.Identity.Domain.Entities;
@@ -74,7 +75,7 @@ public sealed partial class KeycloakServiceAccountService : IServiceAccountServi
             $"/admin/realms/{_realm}/clients",
             clientRepresentation,
             ct);
-        createResponse.EnsureSuccessStatusCode();
+        await createResponse.EnsureSuccessOrThrowAsync();
 
         // Get the client's internal ID from the Location header
         string? locationHeader = createResponse.Headers.Location?.ToString();
@@ -88,7 +89,7 @@ public sealed partial class KeycloakServiceAccountService : IServiceAccountServi
         HttpResponseMessage secretResponse = await _httpClient.GetAsync(
             $"/admin/realms/{_realm}/clients/{internalClientId}/client-secret",
             ct);
-        secretResponse.EnsureSuccessStatusCode();
+        await secretResponse.EnsureSuccessOrThrowAsync();
         ClientSecretResponse? secretData = await secretResponse.Content.ReadFromJsonAsync<ClientSecretResponse>(ct);
         string clientSecret = secretData?.Value ?? throw new InvalidOperationException("Failed to retrieve client secret");
 
@@ -171,7 +172,7 @@ public sealed partial class KeycloakServiceAccountService : IServiceAccountServi
             $"/admin/realms/{_realm}/clients/{internalClientId}/client-secret",
             null,
             ct);
-        response.EnsureSuccessStatusCode();
+        await response.EnsureSuccessOrThrowAsync();
 
         ClientSecretResponse? secretData = await response.Content.ReadFromJsonAsync<ClientSecretResponse>(ct);
         string newSecret = secretData?.Value ?? throw new InvalidOperationException("Failed to regenerate client secret");
@@ -205,7 +206,7 @@ public sealed partial class KeycloakServiceAccountService : IServiceAccountServi
             $"/admin/realms/{_realm}/clients/{internalClientId}",
             updatePayload,
             ct);
-        response.EnsureSuccessStatusCode();
+        await response.EnsureSuccessOrThrowAsync();
 
         // Update local metadata
         metadata.UpdateScopes(scopesList, _currentUserService.UserId ?? Guid.Empty, _timeProvider);
@@ -230,7 +231,7 @@ public sealed partial class KeycloakServiceAccountService : IServiceAccountServi
         HttpResponseMessage response = await _httpClient.DeleteAsync(
             $"/admin/realms/{_realm}/clients/{internalClientId}",
             ct);
-        response.EnsureSuccessStatusCode();
+        await response.EnsureSuccessOrThrowAsync();
 
         // Soft delete locally
         metadata.Revoke(_currentUserService.UserId ?? Guid.Empty, _timeProvider);
@@ -244,7 +245,7 @@ public sealed partial class KeycloakServiceAccountService : IServiceAccountServi
         HttpResponseMessage response = await _httpClient.GetAsync(
             $"/admin/realms/{_realm}/clients?clientId={clientId}",
             ct);
-        response.EnsureSuccessStatusCode();
+        await response.EnsureSuccessOrThrowAsync();
 
         List<KeycloakClientResponse>? clients = await response.Content.ReadFromJsonAsync<List<KeycloakClientResponse>>(ct);
         KeycloakClientResponse? client = clients?.FirstOrDefault();

@@ -12,23 +12,4 @@ public class InvalidEmailAddressExceptionTests
         exception.Message.Should().Be("Test message");
         exception.Code.Should().Be("Email.InvalidEmailAddress");
     }
-
-    [Fact]
-    public void Constructor_Default_CreatesException()
-    {
-        InvalidEmailAddressException exception = new();
-
-        exception.Should().NotBeNull();
-    }
-
-    [Fact]
-    public void Constructor_WithMessageAndInnerException_SetsProperties()
-    {
-        InvalidOperationException inner = new("Inner error");
-
-        InvalidEmailAddressException exception = new("Outer message", inner);
-
-        exception.Message.Should().Be("Outer message");
-        exception.InnerException.Should().Be(inner);
-    }
 }

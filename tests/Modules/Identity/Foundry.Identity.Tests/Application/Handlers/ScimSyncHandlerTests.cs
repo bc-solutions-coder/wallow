@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using Foundry.Identity.Application.DTOs;
+using Foundry.Shared.Kernel.Domain;
 using Foundry.Identity.Application.Interfaces;
 using Foundry.Identity.Domain.Entities;
 using Foundry.Identity.Domain.Enums;
@@ -230,7 +231,7 @@ public class ScimSyncHandlerTests
 
         Func<Task<ScimUser>> act = async () => await service.UpdateUserAsync("nonexistent-user", request);
 
-        await act.Should().ThrowAsync<HttpRequestException>();
+        await act.Should().ThrowAsync<ExternalServiceException>();
 
         _syncLogRepository.Received(1).Add(Arg.Is<ScimSyncLog>(log =>
             log.Operation == ScimOperation.Update &&
@@ -279,7 +280,7 @@ public class ScimSyncHandlerTests
 
         Func<Task> act = async () => await service.DeleteUserAsync("already-deleted");
 
-        await act.Should().ThrowAsync<HttpRequestException>();
+        await act.Should().ThrowAsync<ExternalServiceException>();
 
         _syncLogRepository.Received(1).Add(Arg.Is<ScimSyncLog>(log =>
             log.Operation == ScimOperation.Delete &&
@@ -304,7 +305,7 @@ public class ScimSyncHandlerTests
         };
 
         Func<Task<ScimUser>> failAct = async () => await failService.CreateUserAsync(request);
-        await failAct.Should().ThrowAsync<HttpRequestException>();
+        await failAct.Should().ThrowAsync<ExternalServiceException>();
 
         _syncLogRepository.Received(1).Add(Arg.Is<ScimSyncLog>(log =>
             log.Operation == ScimOperation.Create && !log.Success));
@@ -358,7 +359,7 @@ public class ScimSyncHandlerTests
 
         Func<Task<ScimUser>> act = async () => await service.PatchUserAsync("missing-user", patchRequest);
 
-        await act.Should().ThrowAsync<HttpRequestException>();
+        await act.Should().ThrowAsync<ExternalServiceException>();
 
         _syncLogRepository.Received(1).Add(Arg.Is<ScimSyncLog>(log =>
             log.Operation == ScimOperation.Patch &&
@@ -439,7 +440,7 @@ public class ScimSyncHandlerTests
 
         Func<Task<ScimGroup>> act = async () => await service.CreateGroupAsync(request);
 
-        await act.Should().ThrowAsync<HttpRequestException>();
+        await act.Should().ThrowAsync<ExternalServiceException>();
 
         _syncLogRepository.Received(1).Add(Arg.Is<ScimSyncLog>(log =>
             log.Operation == ScimOperation.Create &&

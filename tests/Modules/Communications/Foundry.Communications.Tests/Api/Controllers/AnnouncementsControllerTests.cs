@@ -75,7 +75,8 @@ public class AnnouncementsControllerTests
         _currentUserService.GetCurrentUserId().Returns((Guid?)null);
         IActionResult result = await _controller.GetAnnouncements(CancellationToken.None);
 
-        result.Should().BeOfType<UnauthorizedResult>();
+        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        objectResult.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
     }
 
     [Fact]
@@ -197,7 +198,8 @@ public class AnnouncementsControllerTests
         _currentUserService.GetCurrentUserId().Returns((Guid?)null);
         IActionResult result = await _controller.DismissAnnouncement(Guid.NewGuid(), CancellationToken.None);
 
-        result.Should().BeOfType<UnauthorizedResult>();
+        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        objectResult.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
     }
 
     [Fact]

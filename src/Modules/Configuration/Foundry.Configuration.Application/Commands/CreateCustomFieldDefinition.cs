@@ -1,9 +1,9 @@
 using Foundry.Configuration.Application.Contracts;
 using Foundry.Configuration.Application.Contracts.DTOs;
 using Foundry.Configuration.Domain.Entities;
-using Foundry.Configuration.Domain.Exceptions;
 using Foundry.Shared.Kernel.CustomFields;
 using Foundry.Shared.Kernel.MultiTenancy;
+using Foundry.Shared.Kernel.Results;
 using Foundry.Shared.Kernel.Services;
 
 namespace Foundry.Configuration.Application.Commands;
@@ -37,14 +37,15 @@ public sealed class CreateCustomFieldDefinitionHandler
         _timeProvider = timeProvider;
     }
 
-    public async Task<CustomFieldDefinitionDto> Handle(
+    public async Task<Result<CustomFieldDefinitionDto>> Handle(
         CreateCustomFieldDefinition command,
         CancellationToken cancellationToken)
     {
         if (await _repository.FieldKeyExistsAsync(command.EntityType, command.FieldKey, cancellationToken))
         {
-            throw new CustomFieldException(
-                $"A field with key '{command.FieldKey}' already exists for entity type '{command.EntityType}'");
+            return Result.Failure<CustomFieldDefinitionDto>(
+                Error.Conflict(
+                    $"A field with key '{command.FieldKey}' already exists for entity type '{command.EntityType}'"));
         }
 
         Guid userId = _currentUserService.GetCurrentUserId() ?? Guid.Empty;
@@ -81,6 +82,6 @@ public sealed class CreateCustomFieldDefinitionHandler
         await _repository.AddAsync(definition, cancellationToken);
         await _repository.SaveChangesAsync(cancellationToken);
 
-        return definition.ToDto();
+        return Result.Success(definition.ToDto());
     }
 }

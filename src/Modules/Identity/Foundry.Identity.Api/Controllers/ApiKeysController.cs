@@ -74,7 +74,7 @@ public sealed class ApiKeysController : ControllerBase
         Guid? userId = _currentUserService.GetCurrentUserId();
         if (userId == null)
         {
-            return Unauthorized();
+            return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
         }
 
         Guid tenantId = _tenantContext.TenantId.Value;
@@ -149,7 +149,7 @@ public sealed class ApiKeysController : ControllerBase
         Guid? userId = _currentUserService.GetCurrentUserId();
         if (userId == null)
         {
-            return Unauthorized();
+            return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
         }
 
         IReadOnlyList<ApiKeyMetadata> keys = await _apiKeyService.ListApiKeysAsync(userId.Value, ct);
@@ -182,7 +182,7 @@ public sealed class ApiKeysController : ControllerBase
         Guid? userId = _currentUserService.GetCurrentUserId();
         if (userId == null)
         {
-            return Unauthorized();
+            return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
         }
 
         bool revoked = await _apiKeyService.RevokeApiKeyAsync(keyId, userId.Value, ct);

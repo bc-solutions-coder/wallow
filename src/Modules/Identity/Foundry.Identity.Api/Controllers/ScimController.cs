@@ -56,9 +56,21 @@ public partial class ScimController : ControllerBase
         [FromQuery] string? sortOrder = null,
         CancellationToken ct = default)
     {
-        ScimListRequest request = new(filter, startIndex, count, sortBy, sortOrder);
-        ScimListResponse<ScimUser> result = await _scimService.ListUsersAsync(request, ct);
-        return Ok(result);
+        try
+        {
+            ScimListRequest request = new(filter, startIndex, count, sortBy, sortOrder);
+            ScimListResponse<ScimUser> result = await _scimService.ListUsersAsync(request, ct);
+            return Ok(result);
+        }
+        catch (ScimFilterException ex)
+        {
+            return BadRequest(new ScimError
+            {
+                Status = 400,
+                ScimType = "invalidFilter",
+                Detail = ex.Message
+            });
+        }
     }
 
     /// <summary>
@@ -212,9 +224,21 @@ public partial class ScimController : ControllerBase
         [FromQuery] int count = 100,
         CancellationToken ct = default)
     {
-        ScimListRequest request = new(filter, startIndex, count);
-        ScimListResponse<ScimGroup> result = await _scimService.ListGroupsAsync(request, ct);
-        return Ok(result);
+        try
+        {
+            ScimListRequest request = new(filter, startIndex, count);
+            ScimListResponse<ScimGroup> result = await _scimService.ListGroupsAsync(request, ct);
+            return Ok(result);
+        }
+        catch (ScimFilterException ex)
+        {
+            return BadRequest(new ScimError
+            {
+                Status = 400,
+                ScimType = "invalidFilter",
+                Detail = ex.Message
+            });
+        }
     }
 
     /// <summary>
