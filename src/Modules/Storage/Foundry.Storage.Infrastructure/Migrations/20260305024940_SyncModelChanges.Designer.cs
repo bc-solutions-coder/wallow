@@ -3,17 +3,20 @@ using System;
 using Foundry.Storage.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace Foundry.Storage.Infrastructure.Migrations
+namespace Foundry.Storage.Infrastructure.Migrations;
+
+[DbContext(typeof(StorageDbContext))]
+[Migration("20260305024940_SyncModelChanges")]
+partial class SyncModelChanges
 {
-    [DbContext(typeof(StorageDbContext))]
-    partial class StorageDbContextModelSnapshot : ModelSnapshot
-    {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -209,6 +212,5 @@ namespace Foundry.Storage.Infrastructure.Migrations
                         .IsRequired();
                 });
 #pragma warning restore 612, 618
-        }
     }
 }
