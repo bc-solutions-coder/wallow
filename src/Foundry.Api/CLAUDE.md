@@ -17,10 +17,10 @@ This is not a Clean Architecture layer -- it is the **composition root**.
 ## Key Patterns
 
 - **Middleware pipeline order** (in `Program.cs`): ExceptionHandler -> Serilog request logging -> OpenAPI (dev only) -> CORS -> Health checks -> Authentication (Keycloak JWT) -> TenantResolutionMiddleware -> PermissionExpansionMiddleware -> Authorization -> Hangfire dashboard -> Controllers + SignalR hub. Order matters -- do not rearrange.
-- **Wolverine setup**: Configures PostgreSQL durable outbox, EF Core transaction integration, FluentValidation middleware, RabbitMQ transport with explicit exchange/queue routing, and handler assembly discovery for each module.
+- **Wolverine setup**: Configures PostgreSQL durable outbox, EF Core transaction integration, FluentValidation middleware, and handler assembly discovery for each module. Defaults to in-memory transport; set `ModuleMessaging:Transport` to `RabbitMq` to enable RabbitMQ transport.
 - **SignalR**: Single `RealtimeHub` at `/hubs/realtime` with Redis backplane. Authenticated via JWT query string parameter for WebSocket upgrade. Presence tracking via `RedisPresenceService`.
 - **Hangfire**: PostgreSQL storage, dashboard at `/hangfire` (auth-filtered). Modules register recurring jobs via `IRecurringJobRegistration`. API registers `SystemHeartbeatJob` directly.
-- **Health checks**: `/health` (all), `/health/ready` (PostgreSQL, RabbitMQ, Hangfire, Redis), `/health/live` (liveness only).
+- **Health checks**: `/health` (all), `/health/ready` (PostgreSQL, Hangfire, Redis, Keycloak; RabbitMQ only when enabled), `/health/live` (liveness only).
 - **Error handling**: `GlobalExceptionHandler` maps domain exceptions to RFC 7807 Problem Details. `EntityNotFoundException` -> 404, `BusinessRuleException` -> 422, etc.
 
 ## Dependencies
@@ -32,6 +32,6 @@ This is not a Clean Architecture layer -- it is the **composition root**.
 
 - Do not add business logic here. If you need a new feature, add it to the appropriate module.
 - Do not change middleware ordering without understanding the full pipeline. Authentication must precede tenant resolution, which must precede permission expansion, which must precede authorization.
-- Do not add direct module-to-module references. Cross-module communication goes through RabbitMQ events defined in `Shared.Contracts`.
+- Do not add direct module-to-module references. Cross-module communication goes through Wolverine integration events defined in `Shared.Contracts`.
 - The `Program` class is `partial` to support `WebApplicationFactory<Program>` in integration tests -- do not remove this.
-- RabbitMQ exchange/queue bindings are declared explicitly in `Program.cs`. When adding a new integration event type, add its `PublishMessage` routing here.
+- When RabbitMQ transport is enabled, exchange/queue bindings are declared in `Program.cs`. When adding a new integration event type, add its `PublishMessage` routing there.

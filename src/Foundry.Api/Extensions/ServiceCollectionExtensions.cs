@@ -8,7 +8,6 @@ using Microsoft.OpenApi;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
-using RabbitMQ.Client;
 using Foundry.Shared.Infrastructure.Core.Resilience;
 using Serilog;
 
@@ -76,20 +75,10 @@ internal static class ServiceCollectionExtensions
 
         // Health checks - connection strings resolved lazily via factories
         // to support Testcontainers dynamic connection strings
-        services.AddHealthChecks()
+        IHealthChecksBuilder healthChecks = services.AddHealthChecks()
             .AddNpgSql(
                 sp => sp.GetRequiredService<IConfiguration>().GetConnectionString("DefaultConnection")!,
                 name: "postgresql", tags: ["db", "ready"])
-            .AddRabbitMQ(sp =>
-            {
-                IConfiguration config = sp.GetRequiredService<IConfiguration>();
-                string rabbitHost = config["RabbitMQ:Host"]!;
-                string rabbitUser = config["RabbitMQ:Username"]!;
-                string rabbitPass = config["RabbitMQ:Password"]!;
-                Uri rabbitUri = new Uri($"amqp://{rabbitUser}:{rabbitPass}@{rabbitHost}:5672");
-                ConnectionFactory factory = new RabbitMQ.Client.ConnectionFactory { Uri = rabbitUri };
-                return factory.CreateConnectionAsync();
-            }, name: "rabbitmq", tags: ["messaging", "ready"])
             .AddHangfire(options =>
             {
                 options.MinimumAvailableServers = 1;
@@ -102,6 +91,22 @@ internal static class ServiceCollectionExtensions
             .AddCheck("startup", () => HealthCheckResult.Healthy(),
                 tags: ["startup"])
             .AddCheck<KeycloakHealthCheck>("keycloak", tags: ["infrastructure", "ready"]);
+
+        // RabbitMQ health check — only when RabbitMQ transport is active
+        string transport = configuration.GetValue<string>("ModuleMessaging:Transport") ?? "InMemory";
+        if (transport.Equals("RabbitMq", StringComparison.OrdinalIgnoreCase))
+        {
+            healthChecks.AddRabbitMQ(sp =>
+            {
+                IConfiguration config = sp.GetRequiredService<IConfiguration>();
+                string rabbitHost = config["RabbitMQ:Host"]!;
+                string rabbitUser = config["RabbitMQ:Username"]!;
+                string rabbitPass = config["RabbitMQ:Password"]!;
+                Uri rabbitUri = new Uri($"amqp://{rabbitUser}:{rabbitPass}@{rabbitHost}:5672");
+                RabbitMQ.Client.ConnectionFactory factory = new() { Uri = rabbitUri };
+                return factory.CreateConnectionAsync();
+            }, name: "rabbitmq", tags: ["messaging", "ready"]);
+        }
 
         // S3 health check - only when S3 storage provider is configured
         StorageOptions storageOptions = configuration.GetSection(StorageOptions.SectionName).Get<StorageOptions>()
