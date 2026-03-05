@@ -118,7 +118,7 @@ services:
       - ./grafana/provisioning/dashboards/dashboards.yml:/otel-lgtm/grafana/conf/provisioning/dashboards/foundry-dashboards.yaml:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
+      test: ["CMD", "test", "-f", "/tmp/ready"]
       interval: 10s
       timeout: 5s
       retries: 5
