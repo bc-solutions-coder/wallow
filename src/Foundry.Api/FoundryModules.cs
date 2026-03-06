@@ -3,6 +3,7 @@ using Foundry.Billing.Infrastructure.Extensions;
 using Foundry.Communications.Infrastructure.Extensions;
 using Foundry.Configuration.Infrastructure.Extensions;
 using Foundry.Identity.Infrastructure.Extensions;
+using Foundry.Inquiries.Infrastructure.Extensions;
 using Foundry.Shared.Infrastructure.Plugins;
 using Foundry.Storage.Infrastructure.Extensions;
 
@@ -53,6 +54,11 @@ internal static class FoundryModules
             services.AddConfigurationModule(configuration);
         }
 
+        if (modules.GetValue("Inquiries", defaultValue: true))
+        {
+            services.AddInquiriesModule(configuration);
+        }
+
         // ============================================================================
         // PLUGIN SYSTEM
         // Extensibility via dynamically loaded plugin assemblies
@@ -97,6 +103,11 @@ internal static class FoundryModules
         if (modules.GetValue("Configuration", defaultValue: true))
         {
             await app.InitializeConfigurationModuleAsync();
+        }
+
+        if (modules.GetValue("Inquiries", defaultValue: true))
+        {
+            await app.InitializeInquiriesModuleAsync();
         }
 
         // ============================================================================

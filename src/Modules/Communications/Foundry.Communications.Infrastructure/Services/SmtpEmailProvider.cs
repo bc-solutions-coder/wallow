@@ -104,7 +104,7 @@ public sealed partial class SmtpEmailProvider(
             }, cancellationToken);
 
             string recipients = message.To.ToString();
-            LogEmailSent(logger, recipients, message.Subject);
+            LogEmailSent(logger, recipients, message.Subject ?? string.Empty);
         }
         catch (Exception ex)
         {

@@ -2,4 +2,5 @@ version: "1.0"
 linter: jetbrains/qodana-cdnet:latest
 dotnet:
   solution: Foundry.sln
+bootstrap: dotnet restore Foundry.sln
 failThreshold: 0
