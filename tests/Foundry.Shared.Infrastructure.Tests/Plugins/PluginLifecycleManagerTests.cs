@@ -18,7 +18,7 @@ public class PluginLifecycleManagerTests
 
     public PluginLifecycleManagerTests()
     {
-        _loader = new PluginLoader(_registry);
+        _loader = new PluginLoader(_registry, Options.Create(new PluginOptions()), NullLogger<PluginLoader>.Instance);
         _permissionValidator = Substitute.For<IPluginPermissionValidator>();
         IOptions<PluginOptions> options = Options.Create(new PluginOptions
         {
@@ -749,7 +749,7 @@ public sealed class PluginLifecycleManagerLoggingTests : IDisposable
 
     public PluginLifecycleManagerLoggingTests()
     {
-        _loader = new PluginLoader(_registry);
+        _loader = new PluginLoader(_registry, Options.Create(new PluginOptions()), NullLogger<PluginLoader>.Instance);
         _permissionValidator = Substitute.For<IPluginPermissionValidator>();
         IOptions<PluginOptions> options = Options.Create(new PluginOptions
         {

@@ -10,12 +10,14 @@ namespace Foundry.Communications.Tests.Application.Messaging.Commands;
 public class MarkConversationReadHandlerTests
 {
     private readonly IConversationRepository _repository;
+    private readonly IMessagingQueryService _messagingQueryService;
     private readonly MarkConversationReadHandler _handler;
 
     public MarkConversationReadHandlerTests()
     {
         _repository = Substitute.For<IConversationRepository>();
-        _handler = new MarkConversationReadHandler(_repository, TimeProvider.System);
+        _messagingQueryService = Substitute.For<IMessagingQueryService>();
+        _handler = new MarkConversationReadHandler(_repository, _messagingQueryService, TimeProvider.System);
     }
 
     [Fact]
@@ -27,6 +29,8 @@ public class MarkConversationReadHandlerTests
 
         _repository.GetByIdAsync(Arg.Any<ConversationId>(), Arg.Any<CancellationToken>())
             .Returns(conversation);
+        _messagingQueryService.IsParticipantAsync(Arg.Any<Guid>(), userId, Arg.Any<CancellationToken>())
+            .Returns(true);
 
         MarkConversationReadCommand command = new(conversation.Id.Value, userId);
 
@@ -61,6 +65,8 @@ public class MarkConversationReadHandlerTests
 
         _repository.GetByIdAsync(Arg.Any<ConversationId>(), Arg.Any<CancellationToken>())
             .Returns(conversation);
+        _messagingQueryService.IsParticipantAsync(Arg.Any<Guid>(), userId, Arg.Any<CancellationToken>())
+            .Returns(true);
 
         MarkConversationReadCommand command = new(conversation.Id.Value, userId);
 

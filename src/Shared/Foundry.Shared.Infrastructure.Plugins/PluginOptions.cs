@@ -8,4 +8,5 @@ public sealed class PluginOptions
     public bool AutoDiscover { get; set; } = true;
     public bool AutoEnable { get; set; }
     public Dictionary<string, List<string>> Permissions { get; set; } = [];
+    public Dictionary<string, string> AllowedPluginHashes { get; set; } = [];
 }

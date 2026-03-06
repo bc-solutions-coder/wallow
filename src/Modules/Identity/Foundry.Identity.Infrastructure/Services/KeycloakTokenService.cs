@@ -47,7 +47,7 @@ public sealed partial class KeycloakTokenService : ITokenService
 
             if (!response.IsSuccessStatusCode)
             {
-                LogTokenRequestFailed(email, response.StatusCode);
+                LogTokenRequestFailed(MaskEmail(email), response.StatusCode);
                 return ParseErrorResponse(json);
             }
 
@@ -56,7 +56,7 @@ public sealed partial class KeycloakTokenService : ITokenService
         }
         catch (Exception ex)
         {
-            LogGetTokenFailed(ex, email);
+            LogGetTokenFailed(ex, MaskEmail(email));
             return new TokenResult(
                 Success: false,
                 AccessToken: null,
@@ -235,4 +235,15 @@ public sealed partial class KeycloakTokenService
 
     [LoggerMessage(Level = LogLevel.Error, Message = "Failed to revoke token")]
     private partial void LogRevokeTokenFailed(Exception ex);
+
+    private static string MaskEmail(string email)
+    {
+        int atIndex = email.IndexOf('@', StringComparison.Ordinal);
+        if (atIndex <= 0)
+        {
+            return "***";
+        }
+
+        return string.Concat(email[0].ToString(), "***", email[atIndex..]);
+    }
 }

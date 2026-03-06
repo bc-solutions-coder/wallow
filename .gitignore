@@ -50,5 +50,6 @@ docker/.env
 .worktrees/
 
 # Qodana
+.qodana/
 .qodana-cache/
 .qodana-results/

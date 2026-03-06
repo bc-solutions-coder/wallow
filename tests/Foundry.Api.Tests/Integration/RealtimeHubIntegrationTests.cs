@@ -90,11 +90,11 @@ public sealed class RealtimeHubIntegrationTests
 
         connection.On<RealtimeEnvelope>("ReceiveBilling", envelope => tcs.TrySetResult(envelope));
         await connection.StartAsync();
-        await connection.InvokeAsync("JoinGroup", "project:test-id");
+        await connection.InvokeAsync("JoinGroup", "tenant:test-id");
         await Task.Delay(500); // Allow LongPolling cycle to establish
 
         IRealtimeDispatcher dispatcher = _factory.Services.GetRequiredService<IRealtimeDispatcher>();
-        await dispatcher.SendToGroupAsync("project:test-id", RealtimeEnvelope.Create("Billing", "InvoiceCreated", new { TaskId = 7 }));
+        await dispatcher.SendToGroupAsync("tenant:test-id", RealtimeEnvelope.Create("Billing", "InvoiceCreated", new { TaskId = 7 }));
 
         RealtimeEnvelope received = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(10));
 

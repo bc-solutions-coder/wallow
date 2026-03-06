@@ -14,11 +14,6 @@ public interface IServiceAccountRepository
     Task<ServiceAccountMetadata?> GetByIdAsync(ServiceAccountMetadataId id, CancellationToken ct = default);
 
     /// <summary>
-    /// Gets a service account by Keycloak client ID.
-    /// </summary>
-    Task<ServiceAccountMetadata?> GetByKeycloakClientIdAsync(string keycloakClientId, CancellationToken ct = default);
-
-    /// <summary>
     /// Gets all service accounts for the current tenant.
     /// </summary>
     Task<IReadOnlyList<ServiceAccountMetadata>> GetAllAsync(CancellationToken ct = default);

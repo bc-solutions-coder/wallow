@@ -42,18 +42,19 @@ internal sealed partial class SignalRRealtimeDispatcher(
         }
     }
 
-    public async Task SendToAllAsync(RealtimeEnvelope envelope, CancellationToken ct = default)
+    public async Task SendToTenantAsync(Guid tenantId, RealtimeEnvelope envelope, CancellationToken ct = default)
     {
         try
         {
             RealtimeEnvelope sanitized = SanitizeEnvelope(envelope);
             string method = $"Receive{sanitized.Module}";
-            await hubContext.Clients.All.SendAsync(method, sanitized, ct);
-            LogSentToAll(sanitized.Type, method);
+            string group = $"tenant:{tenantId}";
+            await hubContext.Clients.Group(group).SendAsync(method, sanitized, ct);
+            LogSentToTenant(sanitized.Type, tenantId, method);
         }
         catch (Exception ex)
         {
-            LogFailedSendToAll(ex, envelope.Type);
+            LogFailedSendToTenant(ex, envelope.Type, tenantId);
         }
     }
 
@@ -116,9 +117,9 @@ internal sealed partial class SignalRRealtimeDispatcher
     [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to send {Type} to group {GroupId}")]
     private partial void LogFailedSendToGroup(Exception ex, string type, string groupId);
 
-    [LoggerMessage(Level = LogLevel.Debug, Message = "Sent {Type} to all on {Method}")]
-    private partial void LogSentToAll(string type, string method);
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Sent {Type} to tenant {TenantId} on {Method}")]
+    private partial void LogSentToTenant(string type, Guid tenantId, string method);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to send {Type} to all")]
-    private partial void LogFailedSendToAll(Exception ex, string type);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to send {Type} to tenant {TenantId}")]
+    private partial void LogFailedSendToTenant(Exception ex, string type, Guid tenantId);
 }

@@ -14,6 +14,7 @@ public class SignalRRealtimeDispatcherTests
     private readonly IHtmlSanitizationService _sanitizer = Substitute.For<IHtmlSanitizationService>();
     private readonly IClientProxy _clientProxy = Substitute.For<IClientProxy>();
     private readonly SignalRRealtimeDispatcher _sut;
+    private static readonly Guid _tenantId = Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
 
     public SignalRRealtimeDispatcherTests()
     {
@@ -50,12 +51,12 @@ public class SignalRRealtimeDispatcherTests
     }
 
     [Fact]
-    public async Task SendToAll_ShouldCallCorrectClientMethod()
+    public async Task SendToTenant_ShouldCallCorrectClientMethod()
     {
-        _hubContext.Clients.All.Returns(_clientProxy);
+        _hubContext.Clients.Group($"tenant:{_tenantId}").Returns(_clientProxy);
         RealtimeEnvelope envelope = RealtimeEnvelope.Create("Presence", "UserOnline", new { UserId = "user-1" });
 
-        await _sut.SendToAllAsync(envelope);
+        await _sut.SendToTenantAsync(_tenantId, envelope);
 
         await _clientProxy.Received(1).SendCoreAsync(
             "ReceivePresence",
@@ -92,15 +93,15 @@ public class SignalRRealtimeDispatcherTests
     }
 
     [Fact]
-    public async Task SendToAll_WhenHubContextThrows_ShouldLogAndNotRethrow()
+    public async Task SendToTenant_WhenHubContextThrows_ShouldLogAndNotRethrow()
     {
-        _hubContext.Clients.All.Returns(_clientProxy);
+        _hubContext.Clients.Group($"tenant:{_tenantId}").Returns(_clientProxy);
         _clientProxy.SendCoreAsync(Arg.Any<string>(), Arg.Any<object?[]>(), Arg.Any<CancellationToken>())
             .ThrowsAsync(new InvalidOperationException("Connection lost"));
 
         RealtimeEnvelope envelope = RealtimeEnvelope.Create("Presence", "UserOnline", new { UserId = "user-1" });
 
-        Func<Task> act = () => _sut.SendToAllAsync(envelope);
+        Func<Task> act = () => _sut.SendToTenantAsync(_tenantId, envelope);
 
         await act.Should().NotThrowAsync();
     }
@@ -119,9 +120,9 @@ public class SignalRRealtimeDispatcherTests
     }
 
     [Fact]
-    public async Task SendToAll_SanitizesNestedObjectPayload()
+    public async Task SendToTenant_SanitizesNestedObjectPayload()
     {
-        _hubContext.Clients.All.Returns(_clientProxy);
+        _hubContext.Clients.Group($"tenant:{_tenantId}").Returns(_clientProxy);
         _sanitizer.Sanitize(Arg.Any<string>()).Returns(callInfo => $"clean:{callInfo.Arg<string>()}");
 
         RealtimeEnvelope envelope = RealtimeEnvelope.Create("Module", "Type", new
@@ -129,15 +130,15 @@ public class SignalRRealtimeDispatcherTests
             Outer = new { Inner = "dirty" }
         });
 
-        await _sut.SendToAllAsync(envelope);
+        await _sut.SendToTenantAsync(_tenantId, envelope);
 
         _sanitizer.Received().Sanitize("dirty");
     }
 
     [Fact]
-    public async Task SendToAll_SanitizesArrayPayload()
+    public async Task SendToTenant_SanitizesArrayPayload()
     {
-        _hubContext.Clients.All.Returns(_clientProxy);
+        _hubContext.Clients.Group($"tenant:{_tenantId}").Returns(_clientProxy);
         _sanitizer.Sanitize(Arg.Any<string>()).Returns(callInfo => $"clean:{callInfo.Arg<string>()}");
 
         List<string> items = ["one", "two"];
@@ -146,7 +147,7 @@ public class SignalRRealtimeDispatcherTests
             Items = items
         });
 
-        await _sut.SendToAllAsync(envelope);
+        await _sut.SendToTenantAsync(_tenantId, envelope);
 
         _sanitizer.Received().Sanitize("one");
         _sanitizer.Received().Sanitize("two");
@@ -164,9 +165,9 @@ public class SignalRRealtimeDispatcherTests
     }
 
     [Fact]
-    public async Task SendToAll_SanitizesArrayWithNestedObjects()
+    public async Task SendToTenant_SanitizesArrayWithNestedObjects()
     {
-        _hubContext.Clients.All.Returns(_clientProxy);
+        _hubContext.Clients.Group($"tenant:{_tenantId}").Returns(_clientProxy);
         _sanitizer.Sanitize(Arg.Any<string>()).Returns(callInfo => $"clean:{callInfo.Arg<string>()}");
 
         RealtimeEnvelope envelope = RealtimeEnvelope.Create("Module", "Type", new
@@ -174,21 +175,21 @@ public class SignalRRealtimeDispatcherTests
             Items = new object[] { new { Name = "dirty" } }
         });
 
-        await _sut.SendToAllAsync(envelope);
+        await _sut.SendToTenantAsync(_tenantId, envelope);
 
         _sanitizer.Received().Sanitize("dirty");
     }
 
     [Fact]
-    public async Task SendToAll_WithArrayContainingNulls_DoesNotThrow()
+    public async Task SendToTenant_WithArrayContainingNulls_DoesNotThrow()
     {
-        _hubContext.Clients.All.Returns(_clientProxy);
+        _hubContext.Clients.Group($"tenant:{_tenantId}").Returns(_clientProxy);
         _sanitizer.Sanitize(Arg.Any<string>()).Returns(callInfo => callInfo.Arg<string>());
 
         System.Text.Json.Nodes.JsonNode? payload = System.Text.Json.Nodes.JsonNode.Parse("{\"Items\":[null,\"text\"]}");
         RealtimeEnvelope envelope = RealtimeEnvelope.Create("Module", "Type", payload!);
 
-        Func<Task> act = () => _sut.SendToAllAsync(envelope);
+        Func<Task> act = () => _sut.SendToTenantAsync(_tenantId, envelope);
 
         await act.Should().NotThrowAsync();
     }

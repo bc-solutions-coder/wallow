@@ -1,5 +1,5 @@
-using Foundry.Identity.Application.Interfaces;
 using Foundry.Identity.Domain.Entities;
+using Foundry.Identity.Infrastructure.Repositories;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,11 +14,16 @@ public sealed partial class ServiceAccountTrackingMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly ILogger<ServiceAccountTrackingMiddleware> _logger;
+    private readonly IServiceScopeFactory _serviceScopeFactory;
 
-    public ServiceAccountTrackingMiddleware(RequestDelegate next, ILogger<ServiceAccountTrackingMiddleware> logger)
+    public ServiceAccountTrackingMiddleware(
+        RequestDelegate next,
+        ILogger<ServiceAccountTrackingMiddleware> logger,
+        IServiceScopeFactory serviceScopeFactory)
     {
         _next = next;
         _logger = logger;
+        _serviceScopeFactory = serviceScopeFactory;
     }
 
     public async Task InvokeAsync(HttpContext context)
@@ -38,8 +43,8 @@ public sealed partial class ServiceAccountTrackingMiddleware
                     try
                     {
                         // Need to create a new scope since the request scope may be disposed
-                        await using AsyncServiceScope scope = context.RequestServices.CreateAsyncScope();
-                        IServiceAccountRepository repository = scope.ServiceProvider.GetRequiredService<IServiceAccountRepository>();
+                        await using AsyncServiceScope scope = _serviceScopeFactory.CreateAsyncScope();
+                        IServiceAccountUnfilteredRepository repository = scope.ServiceProvider.GetRequiredService<IServiceAccountUnfilteredRepository>();
                         TimeProvider timeProvider = scope.ServiceProvider.GetRequiredService<TimeProvider>();
 
                         ServiceAccountMetadata? metadata = await repository.GetByKeycloakClientIdAsync(clientId);

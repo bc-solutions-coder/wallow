@@ -9,16 +9,19 @@ using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace Foundry.Shared.Infrastructure.Auditing;
 
-public sealed class AuditInterceptor : SaveChangesInterceptor
+public sealed partial class AuditInterceptor : SaveChangesInterceptor
 {
     private readonly IServiceProvider _serviceProvider;
+    private readonly ILogger<AuditInterceptor> _logger;
 
-    public AuditInterceptor(IServiceProvider serviceProvider)
+    public AuditInterceptor(IServiceProvider serviceProvider, ILogger<AuditInterceptor> logger)
     {
         _serviceProvider = serviceProvider;
+        _logger = logger;
     }
 
     public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(
@@ -61,9 +64,9 @@ public sealed class AuditInterceptor : SaveChangesInterceptor
                 tenantId = tenantContext.TenantId.Value;
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Context services may not be available (e.g., during migrations)
+            LogContextResolutionFailed(ex);
         }
 
         DateTimeOffset timestamp = DateTimeOffset.UtcNow;
@@ -151,4 +154,7 @@ public sealed class AuditInterceptor : SaveChangesInterceptor
         }
         return JsonSerializer.Serialize(dict);
     }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to resolve audit context services (e.g., during migrations)")]
+    private partial void LogContextResolutionFailed(Exception exception);
 }

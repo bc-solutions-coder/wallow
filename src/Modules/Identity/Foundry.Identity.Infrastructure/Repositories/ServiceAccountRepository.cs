@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Foundry.Identity.Infrastructure.Repositories;
 
-public sealed class ServiceAccountRepository : IServiceAccountRepository
+public sealed class ServiceAccountRepository : IServiceAccountRepository, IServiceAccountUnfilteredRepository
 {
     private static readonly Func<IdentityDbContext, string, Task<ServiceAccountMetadata?>>
         _getByKeycloakClientIdQuery = EF.CompileAsyncQuery(
@@ -31,9 +31,12 @@ public sealed class ServiceAccountRepository : IServiceAccountRepository
             .FirstOrDefaultAsync(x => x.Id == id, ct);
     }
 
-    public Task<ServiceAccountMetadata?> GetByKeycloakClientIdAsync(string keycloakClientId, CancellationToken ct = default)
+    /// <summary>
+    /// Resolves a service account by its Keycloak client ID, bypassing tenant query filters (IgnoreQueryFilters).
+    /// For internal cross-layer use only (e.g., middleware that must identify service accounts before tenant context is established).
+    /// </summary>
+    Task<ServiceAccountMetadata?> IServiceAccountUnfilteredRepository.GetByKeycloakClientIdAsync(string keycloakClientId, CancellationToken ct)
     {
-        // Need to bypass tenant filter for middleware lookups
         return _getByKeycloakClientIdQuery(_context, keycloakClientId);
     }
 

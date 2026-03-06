@@ -66,7 +66,7 @@ public sealed class ServiceAccountRepositoryTests : DbContextIntegrationTestBase
         await _repository.SaveChangesAsync();
         DbContext.ChangeTracker.Clear();
 
-        ServiceAccountMetadata? retrieved = await _repository.GetByKeycloakClientIdAsync("unique-client-id");
+        ServiceAccountMetadata? retrieved = await ((IServiceAccountUnfilteredRepository)_repository).GetByKeycloakClientIdAsync("unique-client-id");
 
         retrieved.Should().NotBeNull();
         retrieved.Name.Should().Be("Unique Service");
@@ -90,7 +90,7 @@ public sealed class ServiceAccountRepositoryTests : DbContextIntegrationTestBase
         otherRepository.Add(account);
         await otherDbContext.SaveChangesAsync();
 
-        ServiceAccountMetadata? retrievedFromOtherTenant = await _repository.GetByKeycloakClientIdAsync("cross-tenant-client");
+        ServiceAccountMetadata? retrievedFromOtherTenant = await ((IServiceAccountUnfilteredRepository)_repository).GetByKeycloakClientIdAsync("cross-tenant-client");
 
         retrievedFromOtherTenant.Should().NotBeNull();
         retrievedFromOtherTenant.Name.Should().Be("Cross Tenant");

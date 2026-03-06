@@ -3,6 +3,7 @@ using Amazon;
 using Amazon.S3;
 using Foundry.Shared.Contracts.Storage;
 using Foundry.Shared.Kernel.MultiTenancy;
+using Foundry.Storage.Application.Configuration;
 using Foundry.Storage.Application.Interfaces;
 using Foundry.Storage.Domain.Enums;
 using Foundry.Storage.Infrastructure.Configuration;
@@ -24,6 +25,7 @@ public static class StorageInfrastructureExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        services.Configure<PresignedUrlOptions>(configuration.GetSection(PresignedUrlOptions.SectionName));
         services.AddStoragePersistence(configuration);
         services.AddStorageProvider(configuration);
         services.AddScoped<IFileScanner, ClamAvFileScanner>();

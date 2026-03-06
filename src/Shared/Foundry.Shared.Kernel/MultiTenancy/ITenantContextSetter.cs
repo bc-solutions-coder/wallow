@@ -6,6 +6,6 @@ public interface ITenantContextSetter
 {
     void SetTenant(TenantId tenantId);
     void SetTenant(TenantId tenantId, string tenantName, string region = RegionConfiguration.PrimaryRegion);
-    string Region { get; set; }
+    string Region { get; }
     void Clear();
 }

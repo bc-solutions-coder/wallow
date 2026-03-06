@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Logging;
 
 namespace Foundry.Identity.Api.Controllers;
 
@@ -18,13 +19,15 @@ namespace Foundry.Identity.Api.Controllers;
 [Route("api/v{version:apiVersion}/identity/auth")]
 [AllowAnonymous]
 [EnableRateLimiting("auth")]
-public sealed class AuthController : ControllerBase
+public sealed partial class AuthController : ControllerBase
 {
     private readonly ITokenService _tokenService;
+    private readonly ILogger<AuthController> _logger;
 
-    public AuthController(ITokenService tokenService)
+    public AuthController(ITokenService tokenService, ILogger<AuthController> logger)
     {
         _tokenService = tokenService;
+        _logger = logger;
     }
 
     /// <summary>
@@ -66,13 +69,19 @@ public sealed class AuthController : ControllerBase
 
         if (!result.Success)
         {
-            return Unauthorized(new ProblemDetails
+            LogTokenRequestFailed(request.Email, result.Error, result.ErrorDescription);
+
+            ProblemDetails problem = new()
             {
                 Title = "Authentication failed",
                 Detail = result.ErrorDescription ?? result.Error ?? "Invalid credentials",
-                Status = StatusCodes.Status401Unauthorized,
-                Extensions = { ["error"] = result.Error }
-            });
+                Status = StatusCodes.Status401Unauthorized
+            };
+            if (result.Error != null)
+            {
+                problem.Extensions["error"] = result.Error;
+            }
+            return Unauthorized(problem);
         }
 
         return Ok(new TokenResponse(
@@ -121,13 +130,19 @@ public sealed class AuthController : ControllerBase
 
         if (!result.Success)
         {
-            return Unauthorized(new ProblemDetails
+            LogTokenRefreshFailed(result.Error, result.ErrorDescription);
+
+            ProblemDetails problem = new()
             {
                 Title = "Token refresh failed",
                 Detail = result.ErrorDescription ?? result.Error ?? "Invalid or expired refresh token",
-                Status = StatusCodes.Status401Unauthorized,
-                Extensions = { ["error"] = result.Error }
-            });
+                Status = StatusCodes.Status401Unauthorized
+            };
+            if (result.Error != null)
+            {
+                problem.Extensions["error"] = result.Error;
+            }
+            return Unauthorized(problem);
         }
 
         return Ok(new TokenResponse(
@@ -171,4 +186,10 @@ public sealed class AuthController : ControllerBase
 
         return NoContent();
     }
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Token request failed for {Email}: {Error} - {ErrorDescription}")]
+    private partial void LogTokenRequestFailed(string email, string? error, string? errorDescription);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Token refresh failed: {Error} - {ErrorDescription}")]
+    private partial void LogTokenRefreshFailed(string? error, string? errorDescription);
 }

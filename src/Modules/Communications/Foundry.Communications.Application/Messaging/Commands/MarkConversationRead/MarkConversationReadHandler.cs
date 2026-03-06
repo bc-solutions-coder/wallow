@@ -7,6 +7,7 @@ namespace Foundry.Communications.Application.Messaging.Commands.MarkConversation
 
 public sealed class MarkConversationReadHandler(
     IConversationRepository conversationRepository,
+    IMessagingQueryService messagingQueryService,
     TimeProvider timeProvider)
 {
     public async Task<Result> Handle(
@@ -20,6 +21,14 @@ public sealed class MarkConversationReadHandler(
         if (conversation is null)
         {
             return Result.Failure(Error.NotFound("Conversation", command.ConversationId));
+        }
+
+        bool isParticipant = await messagingQueryService.IsParticipantAsync(
+            command.ConversationId, command.UserId, cancellationToken);
+
+        if (!isParticipant)
+        {
+            return Result.Failure(Error.Unauthorized("Unauthorized access to conversation"));
         }
 
         conversation.MarkReadBy(command.UserId, timeProvider);

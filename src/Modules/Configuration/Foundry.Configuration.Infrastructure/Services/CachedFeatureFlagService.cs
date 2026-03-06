@@ -12,7 +12,7 @@ public sealed class CachedFeatureFlagService : IFeatureFlagService
 
     private static readonly TimeSpan _cacheTtl = TimeSpan.FromSeconds(60);
     private static readonly DistributedCacheEntryOptions _cacheOptions = new() { AbsoluteExpirationRelativeToNow = _cacheTtl };
-    private static readonly ConcurrentDictionary<string, ConcurrentBag<string>> _keysByFlag = new();
+    private static readonly ConcurrentDictionary<string, ConcurrentDictionary<string, byte>> _keysByFlag = new();
 
     public CachedFeatureFlagService(IFeatureFlagService inner, IDistributedCache cache)
     {
@@ -57,9 +57,9 @@ public sealed class CachedFeatureFlagService : IFeatureFlagService
 
     public static async Task InvalidateAsync(IDistributedCache cache, string flagKey)
     {
-        if (_keysByFlag.TryRemove(flagKey, out ConcurrentBag<string>? trackedKeys))
+        if (_keysByFlag.TryRemove(flagKey, out ConcurrentDictionary<string, byte>? trackedKeys))
         {
-            foreach (string cacheKey in trackedKeys.Distinct())
+            foreach (string cacheKey in trackedKeys.Keys)
             {
                 await cache.RemoveAsync(cacheKey);
             }
@@ -68,8 +68,8 @@ public sealed class CachedFeatureFlagService : IFeatureFlagService
 
     private static void TrackKey(string flagKey, string cacheKey)
     {
-        ConcurrentBag<string> keys = _keysByFlag.GetOrAdd(flagKey, _ => []);
-        keys.Add(cacheKey);
+        ConcurrentDictionary<string, byte> keys = _keysByFlag.GetOrAdd(flagKey, _ => new ConcurrentDictionary<string, byte>());
+        keys.TryAdd(cacheKey, 0);
     }
 
     private static string BuildCacheKey(string prefix, string flagKey, Guid tenantId, Guid? userId)

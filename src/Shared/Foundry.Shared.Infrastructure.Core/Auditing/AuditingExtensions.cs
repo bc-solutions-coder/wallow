@@ -21,6 +21,7 @@ public static partial class AuditingExtensions
             });
         });
 
+        services.AddLogging();
         services.AddSingleton<AuditInterceptor>();
 
         return services;

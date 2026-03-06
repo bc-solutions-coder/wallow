@@ -1,16 +1,19 @@
 using Foundry.Shared.Contracts.Storage;
 using Foundry.Shared.Kernel.Results;
+using Foundry.Storage.Application.Configuration;
 using Foundry.Storage.Application.DTOs;
 using Foundry.Storage.Application.Interfaces;
 using Foundry.Storage.Domain.Entities;
 using Foundry.Storage.Domain.Enums;
 using Foundry.Storage.Domain.Identity;
+using Microsoft.Extensions.Options;
 
 namespace Foundry.Storage.Application.Queries.GetPresignedUrl;
 
 public sealed class GetPresignedUrlHandler(
     IStoredFileRepository fileRepository,
-    IStorageProvider storageProvider)
+    IStorageProvider storageProvider,
+    IOptions<PresignedUrlOptions> presignedUrlOptions)
 {
     private static readonly TimeSpan _defaultExpiry = TimeSpan.FromHours(1);
 
@@ -36,7 +39,13 @@ public sealed class GetPresignedUrlHandler(
             return Result.Failure<PresignedUrlResult>(Error.Validation("File.NotAvailable", "File is not yet available for download."));
         }
 
+        TimeSpan maxExpiry = TimeSpan.FromMinutes(presignedUrlOptions.Value.MaxDownloadExpiryMinutes);
         TimeSpan expiry = query.Expiry ?? _defaultExpiry;
+        if (expiry > maxExpiry)
+        {
+            expiry = maxExpiry;
+        }
+
         string url = await storageProvider.GetPresignedUrlAsync(
             file.StorageKey,
             expiry,

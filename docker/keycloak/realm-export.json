@@ -174,7 +174,7 @@
   "maxFailureWaitSeconds": 900,
   "maxDeltaTimeSeconds": 43200,
   "failureFactor": 5,
-  "sslRequired": "none",
+  "sslRequired": "external",
   "organizationsEnabled": true,
   "accessTokenLifespan": 300,
   "ssoSessionIdleTimeout": 1800,
@@ -303,8 +303,7 @@
       "clientRoles": {
         "realm-management": [
           "manage-users",
-          "view-users",
-          "manage-realm"
+          "view-users"
         ]
       }
     }
@@ -325,8 +324,7 @@
         "client": "foundry-api",
         "roles": [
           "manage-users",
-          "view-users",
-          "manage-realm"
+          "view-users"
         ]
       }
     ]

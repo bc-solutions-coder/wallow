@@ -30,6 +30,7 @@ public partial class TenantResolutionMiddleware
     public async Task InvokeAsync(HttpContext context, ITenantContextSetter tenantSetter)
     {
         Guid? resolvedTenantId = null;
+        string resolvedTenantName = string.Empty;
 
         if (context.User.Identity?.IsAuthenticated == true)
         {
@@ -42,7 +43,7 @@ public partial class TenantResolutionMiddleware
                 if (orgId.HasValue)
                 {
                     resolvedTenantId = orgId.Value;
-                    tenantSetter.SetTenant(TenantId.Create(orgId.Value), orgName);
+                    resolvedTenantName = orgName;
                     LogTenantResolved(orgId, orgName);
                 }
             }
@@ -60,9 +61,9 @@ public partial class TenantResolutionMiddleware
                     string adminUserId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "unknown";
                     string requestPath = context.Request.Path.Value ?? "/";
 
-                    tenantSetter.SetTenant(TenantId.Create(overrideId));
                     LogAdminTenantOverride(overrideId, resolvedTenantId, adminUserId, requestPath);
                     resolvedTenantId = overrideId;
+                    resolvedTenantName = string.Empty;
                 }
             }
 
@@ -73,13 +74,18 @@ public partial class TenantResolutionMiddleware
                 region = context.Request.Headers["X-Tenant-Region"].FirstOrDefault();
             }
 
-            tenantSetter.Region = !string.IsNullOrEmpty(region)
+            string resolvedRegion = !string.IsNullOrEmpty(region)
                 ? region
                 : RegionConfiguration.PrimaryRegion;
 
-            if (tenantSetter.Region != RegionConfiguration.PrimaryRegion)
+            if (resolvedTenantId.HasValue)
             {
-                LogRegionResolved(tenantSetter.Region);
+                tenantSetter.SetTenant(TenantId.Create(resolvedTenantId.Value), resolvedTenantName, resolvedRegion);
+            }
+
+            if (resolvedRegion != RegionConfiguration.PrimaryRegion)
+            {
+                LogRegionResolved(resolvedRegion);
             }
         }
 

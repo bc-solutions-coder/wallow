@@ -1,7 +1,7 @@
 using System.Security.Claims;
-using Foundry.Identity.Application.Interfaces;
 using Foundry.Identity.Domain.Entities;
 using Foundry.Identity.Infrastructure.Middleware;
+using Foundry.Identity.Infrastructure.Repositories;
 using Foundry.Shared.Kernel.Identity;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,7 +11,7 @@ namespace Foundry.Identity.Tests.Infrastructure;
 
 public class ServiceAccountTrackingMiddlewareTests
 {
-    private readonly IServiceAccountRepository _repository = Substitute.For<IServiceAccountRepository>();
+    private readonly IServiceAccountUnfilteredRepository _repository = Substitute.For<IServiceAccountUnfilteredRepository>();
     private readonly ILogger<ServiceAccountTrackingMiddleware> _logger = Substitute.For<ILogger<ServiceAccountTrackingMiddleware>>();
 
     [Fact]
@@ -69,10 +69,7 @@ public class ServiceAccountTrackingMiddlewareTests
         };
         context.Response.StatusCode = 200;
 
-        ServiceCollection services = new();
-        services.AddScoped<IServiceAccountRepository>(_ => _repository);
-        services.AddSingleton(TimeProvider.System);
-        context.RequestServices = services.BuildServiceProvider();
+        context.RequestServices = BuildServiceProvider();
 
         ServiceAccountTrackingMiddleware middleware = CreateMiddleware();
 
@@ -137,9 +134,34 @@ public class ServiceAccountTrackingMiddlewareTests
             () => _repository.Received().GetByKeycloakClientIdAsync("sa-test-client", Arg.Any<CancellationToken>()));
     }
 
+    private ServiceProvider BuildServiceProvider()
+    {
+        ServiceCollection services = new();
+        services.AddScoped<IServiceAccountUnfilteredRepository>(_ => _repository);
+        services.AddSingleton(TimeProvider.System);
+        return services.BuildServiceProvider();
+    }
+
     private ServiceAccountTrackingMiddleware CreateMiddleware()
     {
-        return new ServiceAccountTrackingMiddleware(_ => Task.CompletedTask, _logger);
+        ServiceProvider serviceProvider = BuildServiceProvider();
+        IServiceScopeFactory scopeFactory = serviceProvider.GetRequiredService<IServiceScopeFactory>();
+        return new ServiceAccountTrackingMiddleware(_ => Task.CompletedTask, _logger, scopeFactory);
+    }
+
+    private DefaultHttpContext CreateHttpContext(string clientId, int statusCode)
+    {
+        DefaultHttpContext context = new()
+        {
+            User = new ClaimsPrincipal(new ClaimsIdentity(new[]
+            {
+                new Claim("azp", clientId)
+            }))
+        };
+        context.Response.StatusCode = statusCode;
+        context.RequestServices = BuildServiceProvider();
+
+        return context;
     }
 
     private static async Task WaitForReceivedCallAsync(Func<Task> assertion, int timeoutMs = 2000)
@@ -159,24 +181,5 @@ public class ServiceAccountTrackingMiddlewareTests
         }
         // Final attempt — let it throw
         await assertion();
-    }
-
-    private DefaultHttpContext CreateHttpContext(string clientId, int statusCode)
-    {
-        DefaultHttpContext context = new()
-        {
-            User = new ClaimsPrincipal(new ClaimsIdentity(new[]
-            {
-                new Claim("azp", clientId)
-            }))
-        };
-        context.Response.StatusCode = statusCode;
-
-        ServiceCollection services = new();
-        services.AddScoped<IServiceAccountRepository>(_ => _repository);
-        services.AddSingleton(TimeProvider.System);
-        context.RequestServices = services.BuildServiceProvider();
-
-        return context;
     }
 }

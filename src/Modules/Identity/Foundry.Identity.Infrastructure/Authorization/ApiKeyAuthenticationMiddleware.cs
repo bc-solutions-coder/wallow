@@ -90,9 +90,7 @@ public sealed partial class ApiKeyAuthenticationMiddleware
         context.User = new ClaimsPrincipal(identity);
 
         // Set tenant context (same pattern as TenantResolutionMiddleware)
-        tenantContext.TenantId = TenantId.Create(result.TenantId!.Value);
-        tenantContext.TenantName = $"api-key-{result.KeyId}";
-        tenantContext.IsResolved = true;
+        tenantContext.SetTenant(TenantId.Create(result.TenantId!.Value), $"api-key-{result.KeyId}");
 
         await _next(context);
     }

@@ -4,10 +4,10 @@ namespace Foundry.Shared.Kernel.MultiTenancy;
 
 public class TenantContext : ITenantContext, ITenantContextSetter
 {
-    public TenantId TenantId { get; set; }
-    public string TenantName { get; set; } = string.Empty;
-    public string Region { get; set; } = RegionConfiguration.PrimaryRegion;
-    public bool IsResolved { get; set; }
+    public TenantId TenantId { get; internal set; }
+    public string TenantName { get; internal set; } = string.Empty;
+    public string Region { get; internal set; } = RegionConfiguration.PrimaryRegion;
+    public bool IsResolved { get; internal set; }
 
     public void SetTenant(TenantId tenantId)
     {

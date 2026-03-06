@@ -73,20 +73,14 @@ public class ServiceAccountTestFactory : FoundryApiFactory
                 if (context?.Request.Headers.TryGetValue("X-Tenant-Id", out Microsoft.Extensions.Primitives.StringValues tenantIdHeader) == true
                     && Guid.TryParse(tenantIdHeader, out Guid tenantGuid))
                 {
-                    return new TenantContext
-                    {
-                        TenantId = TenantId.Create(tenantGuid),
-                        TenantName = $"Test Tenant {tenantGuid}",
-                        IsResolved = true
-                    };
+                    TenantContext tenantCtx = new();
+                    tenantCtx.SetTenant(TenantId.Create(tenantGuid), $"Test Tenant {tenantGuid}");
+                    return tenantCtx;
                 }
 
-                return new TenantContext
-                {
-                    TenantId = TenantId.Create(TestConstants.TestTenantId),
-                    TenantName = "Test Tenant",
-                    IsResolved = true
-                };
+                TenantContext defaultCtx = new();
+                defaultCtx.SetTenant(TenantId.Create(TestConstants.TestTenantId), "Test Tenant");
+                return defaultCtx;
             });
         });
     }
