@@ -31,9 +31,12 @@ public sealed class InvoiceQueryService : IInvoiceQueryService
               AND i."PaidAt" < @To
             """;
 
-        decimal result = await connection.QuerySingleAsync<decimal>(
+        CommandDefinition command = new(
             sql,
-            new { TenantId = _tenantContext.TenantId.Value, From = from, To = to });
+            new { TenantId = _tenantContext.TenantId.Value, From = from, To = to },
+            cancellationToken: ct);
+
+        decimal result = await connection.QuerySingleAsync<decimal>(command);
 
         return result;
     }
@@ -50,9 +53,12 @@ public sealed class InvoiceQueryService : IInvoiceQueryService
               AND i."CreatedAt" < @To
             """;
 
-        int result = await connection.QuerySingleAsync<int>(
+        CommandDefinition command = new(
             sql,
-            new { TenantId = _tenantContext.TenantId.Value, From = from, To = to });
+            new { TenantId = _tenantContext.TenantId.Value, From = from, To = to },
+            cancellationToken: ct);
+
+        int result = await connection.QuerySingleAsync<int>(command);
 
         return result;
     }
@@ -68,9 +74,12 @@ public sealed class InvoiceQueryService : IInvoiceQueryService
               AND i."Status" = 1
             """;
 
-        int result = await connection.QuerySingleAsync<int>(
+        CommandDefinition command = new(
             sql,
-            new { TenantId = _tenantContext.TenantId.Value });
+            new { TenantId = _tenantContext.TenantId.Value },
+            cancellationToken: ct);
+
+        int result = await connection.QuerySingleAsync<int>(command);
 
         return result;
     }
@@ -86,9 +95,12 @@ public sealed class InvoiceQueryService : IInvoiceQueryService
               AND i."Status" IN (1, 3)
             """;
 
-        decimal result = await connection.QuerySingleAsync<decimal>(
+        CommandDefinition command = new(
             sql,
-            new { TenantId = _tenantContext.TenantId.Value });
+            new { TenantId = _tenantContext.TenantId.Value },
+            cancellationToken: ct);
+
+        decimal result = await connection.QuerySingleAsync<decimal>(command);
 
         return result;
     }

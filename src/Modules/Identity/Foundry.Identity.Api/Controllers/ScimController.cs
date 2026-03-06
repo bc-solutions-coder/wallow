@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Hosting;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Logging;
 
 namespace Foundry.Identity.Api.Controllers;
@@ -18,7 +19,8 @@ namespace Foundry.Identity.Api.Controllers;
 [ApiController]
 [ApiVersion(1)]
 [Route("scim/v2")]
-[AllowAnonymous] // SCIM uses Bearer token authentication via middleware (not OAuth)
+[Authorize(AuthenticationSchemes = "ScimBearer")]
+[EnableRateLimiting("scim")]
 [Tags("SCIM")]
 [Produces("application/scim+json", "application/json")]
 [Consumes("application/scim+json", "application/json")]

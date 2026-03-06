@@ -114,6 +114,39 @@ public sealed partial class KeycloakTokenService : ITokenService
         }
     }
 
+    public async Task<bool> RevokeTokenAsync(string refreshToken, CancellationToken ct = default)
+    {
+        LogRevokingToken();
+
+        string logoutEndpoint = $"{_keycloakOptions.AuthorityUrl.TrimEnd('/')}/realms/{_keycloakOptions.Realm}/protocol/openid-connect/logout";
+
+        using FormUrlEncodedContent content = new(new Dictionary<string, string>
+        {
+            ["client_id"] = _keycloakOptions.AdminClientId,
+            ["client_secret"] = _keycloakOptions.AdminClientSecret,
+            ["refresh_token"] = refreshToken
+        });
+
+        try
+        {
+            HttpResponseMessage response = await _httpClient.PostAsync(logoutEndpoint, content, ct);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                LogTokenRevocationFailed(response.StatusCode);
+                return false;
+            }
+
+            LogTokenRevoked();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            LogRevokeTokenFailed(ex);
+            return false;
+        }
+    }
+
     private static TokenResult ParseSuccessResponse(string json)
     {
         using JsonDocument doc = JsonDocument.Parse(json);
@@ -190,4 +223,16 @@ public sealed partial class KeycloakTokenService
 
     [LoggerMessage(Level = LogLevel.Error, Message = "Failed to refresh token")]
     private partial void LogRefreshTokenFailed(Exception ex);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Revoking token")]
+    private partial void LogRevokingToken();
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Token revocation failed: {StatusCode}")]
+    private partial void LogTokenRevocationFailed(System.Net.HttpStatusCode statusCode);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Token revoked successfully")]
+    private partial void LogTokenRevoked();
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Failed to revoke token")]
+    private partial void LogRevokeTokenFailed(Exception ex);
 }

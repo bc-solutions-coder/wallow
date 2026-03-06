@@ -138,4 +138,37 @@ public sealed class AuthController : ControllerBase
             RefreshExpiresIn: result.RefreshExpiresIn,
             Scope: result.Scope));
     }
+
+    /// <summary>
+    /// Revoke a refresh token, effectively logging the user out.
+    /// </summary>
+    [HttpPost("logout")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> Logout([FromBody] LogoutRequest request, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.RefreshToken))
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Invalid request",
+                Detail = "Refresh token is required",
+                Status = StatusCodes.Status400BadRequest
+            });
+        }
+
+        bool revoked = await _tokenService.RevokeTokenAsync(request.RefreshToken, ct);
+
+        if (!revoked)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Logout failed",
+                Detail = "Failed to revoke the token",
+                Status = StatusCodes.Status400BadRequest
+            });
+        }
+
+        return NoContent();
+    }
 }

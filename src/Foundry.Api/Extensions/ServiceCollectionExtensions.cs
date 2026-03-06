@@ -151,6 +151,16 @@ internal static class ServiceCollectionExtensions
                         QueueLimit = 0
                     }));
 
+            options.AddPolicy("scim", httpContext =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    GetTenantPartitionKey(httpContext),
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = RateLimitDefaults.ScimPermitLimit,
+                        Window = TimeSpan.FromMinutes(RateLimitDefaults.ScimWindowMinutes),
+                        QueueLimit = 0
+                    }));
+
             options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
                 RateLimitPartition.GetFixedWindowLimiter(
                     GetTenantPartitionKey(httpContext),

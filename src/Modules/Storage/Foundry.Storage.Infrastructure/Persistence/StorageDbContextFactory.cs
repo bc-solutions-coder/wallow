@@ -13,7 +13,8 @@ public class StorageDbContextFactory : IDesignTimeDbContextFactory<StorageDbCont
     {
         DbContextOptionsBuilder<StorageDbContext> optionsBuilder = new DbContextOptionsBuilder<StorageDbContext>();
 
-        optionsBuilder.UseNpgsql("Host=localhost;Database=foundry;Username=foundry;Password=foundry");
+        string password = Environment.GetEnvironmentVariable("FOUNDRY_DB_PASSWORD") ?? "foundry";
+        optionsBuilder.UseNpgsql($"Host=localhost;Database=foundry;Username=foundry;Password={password}");
 
         DesignTimeTenantContext mockTenantContext = new DesignTimeTenantContext();
 

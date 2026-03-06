@@ -69,6 +69,7 @@ public class AnnouncementsController : ControllerBase
     /// Dismiss an announcement so it no longer appears for the current user.
     /// </summary>
     [HttpPost("{id:guid}/dismiss")]
+    [HasPermission(PermissionType.AnnouncementRead)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]

@@ -13,6 +13,7 @@ internal sealed partial class RealtimeHub(
     ITenantContext tenantContext,
     ILogger<RealtimeHub> logger) : Hub
 {
+    private static readonly string[] _allowedGroupPrefixes = ["tenant:", "user:", "page:"];
     public override async Task OnConnectedAsync()
     {
         string? userId = GetUserId();
@@ -53,6 +54,12 @@ internal sealed partial class RealtimeHub(
 
     public async Task JoinGroup(string groupId)
     {
+        if (!HasAllowedPrefix(groupId))
+        {
+            LogInvalidGroupPrefix(Context.ConnectionId, groupId);
+            throw new HubException("Invalid group name.");
+        }
+
         ValidateTenantGroup(groupId);
         await Groups.AddToGroupAsync(Context.ConnectionId, groupId);
         LogConnectionJoinedGroup(Context.ConnectionId, groupId);
@@ -60,6 +67,12 @@ internal sealed partial class RealtimeHub(
 
     public async Task LeaveGroup(string groupId)
     {
+        if (!HasAllowedPrefix(groupId))
+        {
+            LogInvalidGroupPrefix(Context.ConnectionId, groupId);
+            throw new HubException("Invalid group name.");
+        }
+
         ValidateTenantGroup(groupId);
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, groupId);
     }
@@ -107,6 +120,9 @@ internal sealed partial class RealtimeHub(
         }
     }
 
+    private static bool HasAllowedPrefix(string groupId) =>
+        Array.Exists(_allowedGroupPrefixes, prefix => groupId.StartsWith(prefix, StringComparison.Ordinal));
+
     private string? GetUserId() =>
         Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value
         ?? Context.User?.FindFirst("sub")?.Value;
@@ -125,4 +141,7 @@ internal sealed partial class RealtimeHub
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Rejected cross-tenant group join: Connection {ConnectionId} attempted to join {GroupId} but belongs to tenant {TenantId}")]
     private partial void LogCrossTenantJoinRejected(string connectionId, string groupId, Guid tenantId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Rejected group with invalid prefix: Connection {ConnectionId} attempted group {GroupId}")]
+    private partial void LogInvalidGroupPrefix(string connectionId, string groupId);
 }

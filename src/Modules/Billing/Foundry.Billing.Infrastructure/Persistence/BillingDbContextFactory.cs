@@ -14,7 +14,8 @@ public class BillingDbContextFactory : IDesignTimeDbContextFactory<BillingDbCont
         DbContextOptionsBuilder<BillingDbContext> optionsBuilder = new DbContextOptionsBuilder<BillingDbContext>();
 
         // Use a placeholder connection string for design-time
-        optionsBuilder.UseNpgsql("Host=localhost;Database=foundry;Username=postgres;Password=postgres");
+        string password = Environment.GetEnvironmentVariable("FOUNDRY_DB_PASSWORD") ?? "postgres";
+        optionsBuilder.UseNpgsql($"Host=localhost;Database=foundry;Username=postgres;Password={password}");
 
         // Create a mock tenant context for design-time
         DesignTimeTenantContext mockTenantContext = new DesignTimeTenantContext();

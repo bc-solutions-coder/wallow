@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Hangfire.Dashboard;
 
 namespace Foundry.Api.Middleware;
@@ -20,6 +21,8 @@ internal sealed class HangfireDashboardAuthFilter : IDashboardAuthorizationFilte
 
         HttpContext httpContext = context.GetHttpContext();
         return httpContext.User.Identity?.IsAuthenticated == true
-            && httpContext.User.IsInRole("Admin");
+            && httpContext.User.Claims.Any(c =>
+                c.Type == ClaimTypes.Role
+                && c.Value.Equals("admin", StringComparison.OrdinalIgnoreCase));
     }
 }

@@ -2,6 +2,7 @@ using Asp.Versioning;
 using Foundry.Shared.Api.Extensions;
 using Foundry.Billing.Application.Metering.DTOs;
 using Foundry.Billing.Application.Metering.Queries.GetMeterDefinitions;
+using Foundry.Shared.Kernel.Identity.Authorization;
 using Foundry.Shared.Kernel.Results;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -29,6 +30,7 @@ public class MetersController : ControllerBase
     /// Get all meter definitions.
     /// </summary>
     [HttpGet]
+    [HasPermission(PermissionType.BillingRead)]
     [ProducesResponseType(typeof(IReadOnlyList<MeterDefinitionDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
     {

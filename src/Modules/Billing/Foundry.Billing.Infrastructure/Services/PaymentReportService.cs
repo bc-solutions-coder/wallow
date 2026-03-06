@@ -1,20 +1,20 @@
+using System.Data.Common;
 using Dapper;
+using Foundry.Billing.Infrastructure.Persistence;
 using Foundry.Shared.Contracts.Billing;
 using Foundry.Shared.Kernel.MultiTenancy;
-using Microsoft.Extensions.Configuration;
-using Npgsql;
+using Microsoft.EntityFrameworkCore;
 
 namespace Foundry.Billing.Infrastructure.Services;
 
 public sealed class PaymentReportService : IPaymentReportService
 {
-    private readonly string _connectionString;
+    private readonly BillingDbContext _context;
     private readonly ITenantContext _tenantContext;
 
-    public PaymentReportService(IConfiguration configuration, ITenantContext tenantContext)
+    public PaymentReportService(BillingDbContext context, ITenantContext tenantContext)
     {
-        _connectionString = configuration.GetConnectionString("DefaultConnection")
-            ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+        _context = context;
         _tenantContext = tenantContext;
     }
 
@@ -23,6 +23,8 @@ public sealed class PaymentReportService : IPaymentReportService
         DateTime to,
         CancellationToken ct = default)
     {
+        DbConnection connection = _context.Database.GetDbConnection();
+
         const string sql = """
             SELECT
                 p."Id" as "PaymentId",
@@ -40,10 +42,12 @@ public sealed class PaymentReportService : IPaymentReportService
             ORDER BY p."CreatedAt" DESC
             """;
 
-        await using NpgsqlConnection connection = new NpgsqlConnection(_connectionString);
-        IEnumerable<PaymentReportRow> results = await connection.QueryAsync<PaymentReportRow>(
+        CommandDefinition command = new(
             sql,
-            new { TenantId = _tenantContext.TenantId.Value, From = from, To = to });
+            new { TenantId = _tenantContext.TenantId.Value, From = from, To = to },
+            cancellationToken: ct);
+
+        IEnumerable<PaymentReportRow> results = await connection.QueryAsync<PaymentReportRow>(command);
 
         return results.AsList();
     }
