@@ -241,7 +241,7 @@ public class FeatureFlagsController : ControllerBase
     /// Get all feature flags evaluated for the current tenant/user context.
     /// Any authenticated user can call this endpoint.
     /// </summary>
-    [HttpGet("/api/feature-flags/evaluate")]
+    [HttpGet("evaluate")]
     [ProducesResponseType(typeof(Dictionary<string, object>), StatusCodes.Status200OK)]
     public async Task<IActionResult> Evaluate(CancellationToken cancellationToken)
     {

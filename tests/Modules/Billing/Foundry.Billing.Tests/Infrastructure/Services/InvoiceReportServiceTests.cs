@@ -1,38 +1,34 @@
+using Foundry.Billing.Infrastructure.Persistence;
 using Foundry.Billing.Infrastructure.Services;
+using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.MultiTenancy;
-using Microsoft.Extensions.Configuration;
+using Microsoft.EntityFrameworkCore;
 
 namespace Foundry.Billing.Tests.Infrastructure.Services;
 
 public class InvoiceReportServiceTests
 {
     [Fact]
-    public void Constructor_WithValidConnectionString_CreatesInstance()
+    public void Constructor_CreatesInstance()
     {
-        IConfiguration configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Database=test"
-            })
-            .Build();
+        using BillingDbContext dbContext = CreateDbContext();
         ITenantContext tenantContext = Substitute.For<ITenantContext>();
+        tenantContext.TenantId.Returns(TenantId.Create(Guid.NewGuid()));
 
-        InvoiceReportService service = new InvoiceReportService(configuration, tenantContext);
+        InvoiceReportService service = new InvoiceReportService(dbContext, tenantContext);
 
         service.Should().NotBeNull();
     }
 
-    [Fact]
-    public void Constructor_WithMissingConnectionString_ThrowsInvalidOperationException()
+    private static BillingDbContext CreateDbContext()
     {
-        IConfiguration configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>())
-            .Build();
+        DbContextOptions<BillingDbContext> options = new DbContextOptionsBuilder<BillingDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+
         ITenantContext tenantContext = Substitute.For<ITenantContext>();
+        tenantContext.TenantId.Returns(TenantId.Create(Guid.NewGuid()));
 
-        Action act = () => _ = new InvoiceReportService(configuration, tenantContext);
-
-        act.Should().Throw<InvalidOperationException>()
-            .WithMessage("*DefaultConnection*");
+        return new BillingDbContext(options, tenantContext);
     }
 }

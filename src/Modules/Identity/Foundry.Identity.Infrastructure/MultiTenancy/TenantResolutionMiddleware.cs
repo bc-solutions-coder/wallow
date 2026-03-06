@@ -49,16 +49,21 @@ public partial class TenantResolutionMiddleware
 
             // Admin override: allow X-Tenant-Id header for verified realm admin
             string? headerTenantId = context.Request.Headers["X-Tenant-Id"].FirstOrDefault();
-            if (!string.IsNullOrEmpty(headerTenantId) &&
-                HasRealmAdminRole(context.User) &&
-                Guid.TryParse(headerTenantId, out Guid overrideId))
+            if (!string.IsNullOrEmpty(headerTenantId))
             {
-                string adminUserId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "unknown";
-                string requestPath = context.Request.Path.Value ?? "/";
+                if (!Guid.TryParseExact(headerTenantId, "D", out Guid overrideId))
+                {
+                    LogInvalidTenantIdHeader(headerTenantId);
+                }
+                else if (HasRealmAdminRole(context.User))
+                {
+                    string adminUserId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "unknown";
+                    string requestPath = context.Request.Path.Value ?? "/";
 
-                tenantSetter.SetTenant(TenantId.Create(overrideId));
-                LogAdminTenantOverride(overrideId, resolvedTenantId, adminUserId, requestPath);
-                resolvedTenantId = overrideId;
+                    tenantSetter.SetTenant(TenantId.Create(overrideId));
+                    LogAdminTenantOverride(overrideId, resolvedTenantId, adminUserId, requestPath);
+                    resolvedTenantId = overrideId;
+                }
             }
 
             // Region resolution: JWT claim > header > default
@@ -208,6 +213,9 @@ public partial class TenantResolutionMiddleware
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Admin tenant override: OverridingTenantId={OverridingTenantId}, OriginalTenantId={OriginalTenantId}, UserId={UserId}, RequestPath={RequestPath}")]
     private partial void LogAdminTenantOverride(Guid overridingTenantId, Guid? originalTenantId, string userId, string requestPath);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Invalid GUID format in X-Tenant-Id header: {HeaderValue}")]
+    private partial void LogInvalidTenantIdHeader(string headerValue);
 
     [LoggerMessage(Level = LogLevel.Debug, Message = "Tenant region resolved: {Region}")]
     private partial void LogRegionResolved(string region);

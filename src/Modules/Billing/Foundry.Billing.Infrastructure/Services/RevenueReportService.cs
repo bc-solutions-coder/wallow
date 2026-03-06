@@ -41,10 +41,13 @@ public sealed class RevenueReportService : IRevenueReportService
               AND i."CreatedAt" < @To
             """;
 
-        IEnumerable<RevenueReportRow> results = await connection.QueryAsync<RevenueReportRow>(
+        CommandDefinition command = new(
             sql,
-            new { TenantId = _tenantContext.TenantId.Value, From = from, To = to });
+            new { TenantId = _tenantContext.TenantId.Value, From = from, To = to },
+            cancellationToken: ct);
 
-        return results.ToList();
+        IEnumerable<RevenueReportRow> results = await connection.QueryAsync<RevenueReportRow>(command);
+
+        return results.AsList();
     }
 }

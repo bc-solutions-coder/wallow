@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Microsoft.AspNetCore.Authentication;
 using Foundry.Shared.Infrastructure.Core.Resilience;
 
 namespace Foundry.Identity.Infrastructure.Extensions;
@@ -70,6 +71,8 @@ public static class IdentityInfrastructureExtensions
 
     private static IServiceCollection AddIdentityAuthorization(this IServiceCollection services)
     {
+        services.AddAuthentication()
+            .AddScheme<AuthenticationSchemeOptions, ScimBearerAuthenticationHandler>("ScimBearer", null);
         services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
         services.AddSingleton<IAuthorizationPolicyProvider, PermissionAuthorizationPolicyProvider>();
         services.AddSingleton<IRolePermissionLookup, RolePermissionLookup>();

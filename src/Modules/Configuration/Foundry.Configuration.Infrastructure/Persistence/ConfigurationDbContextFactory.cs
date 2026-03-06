@@ -15,8 +15,9 @@ public sealed class ConfigurationDbContextFactory : IDesignTimeDbContextFactory<
         DbContextOptionsBuilder<ConfigurationDbContext> optionsBuilder = new DbContextOptionsBuilder<ConfigurationDbContext>();
 
         // Use a dummy connection string for design-time operations
+        string password = Environment.GetEnvironmentVariable("FOUNDRY_DB_PASSWORD") ?? "foundry";
         optionsBuilder.UseNpgsql(
-            "Host=localhost;Database=foundry;Username=foundry;Password=foundry",
+            $"Host=localhost;Database=foundry;Username=foundry;Password={password}",
             npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "configuration"));
 
         // Create a simple tenant context for design time

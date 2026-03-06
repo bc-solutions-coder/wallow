@@ -14,6 +14,11 @@ public interface ITokenService
     /// Refreshes an access token using a refresh token.
     /// </summary>
     Task<TokenResult> RefreshTokenAsync(string refreshToken, CancellationToken ct = default);
+
+    /// <summary>
+    /// Revokes a refresh token, effectively logging the user out.
+    /// </summary>
+    Task<bool> RevokeTokenAsync(string refreshToken, CancellationToken ct = default);
 }
 
 /// <summary>

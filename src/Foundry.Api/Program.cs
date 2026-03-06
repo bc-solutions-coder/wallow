@@ -47,6 +47,13 @@ try
 
     WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
+    // Suppress Kestrel server header to avoid exposing server technology
+    builder.WebHost.ConfigureKestrel(options =>
+    {
+        options.AddServerHeader = false;
+        options.Limits.MaxRequestBodySize = 1_048_576;
+    });
+
     // Serilog
     builder.Host.UseSerilog((context, services, configuration) =>
     {
@@ -129,6 +136,9 @@ try
         // Tenant middleware — stamps outgoing messages with TenantId and restores it on incoming
         opts.Policies.AddMiddleware(typeof(TenantStampingMiddleware));
         opts.Policies.AddMiddleware(typeof(TenantRestoringMiddleware));
+
+        // Authorization middleware — validates tenant context on external messages
+        opts.Policies.AddMiddleware(typeof(WolverineAuthorizationMiddleware));
 
         // For integration tests - discover handlers from test assemblies
         if (builder.Environment.IsEnvironment("Testing"))
@@ -368,13 +378,16 @@ try
         ResponseWriter = WriteHealthCheckResponse
     }).AllowAnonymous();
 
-    // Info endpoint
-    app.MapGet("/", () => Results.Ok(new
+    // Info endpoint (non-production only — avoid exposing version info in production)
+    if (!app.Environment.IsProduction())
     {
-        Name = "Foundry API",
-        Version = "1.0.0",
-        Health = "/health"
-    })).ExcludeFromDescription().AllowAnonymous();
+        app.MapGet("/", () => Results.Ok(new
+        {
+            Name = "Foundry API",
+            Version = "1.0.0",
+            Health = "/health"
+        })).ExcludeFromDescription().AllowAnonymous();
+    }
 
     // Rate limiting
     app.UseRateLimiter();
@@ -455,6 +468,30 @@ try
         }
     });
 
+    // Startup configuration validation — fail fast if critical settings are missing
+    if (!app.Environment.IsEnvironment("Testing"))
+    {
+        Dictionary<string, string?> requiredConfig = new()
+        {
+            ["ConnectionStrings:DefaultConnection"] = app.Configuration.GetConnectionString("DefaultConnection"),
+            ["ConnectionStrings:Redis"] = app.Configuration.GetConnectionString("Redis"),
+            ["Authentication:Authority"] = app.Configuration["Authentication:Authority"],
+            ["Authentication:Audience"] = app.Configuration["Authentication:Audience"],
+        };
+
+        List<string> missing = requiredConfig
+            .Where(kvp => string.IsNullOrWhiteSpace(kvp.Value))
+            .Select(kvp => kvp.Key)
+            .ToList();
+
+        if (missing.Count > 0)
+        {
+            throw new InvalidOperationException(
+                $"Missing required configuration: {string.Join(", ", missing)}. " +
+                "Ensure all required settings are configured in appsettings or environment variables.");
+        }
+    }
+
     await app.RunAsync();
 }
 catch (Exception ex)
@@ -474,7 +511,7 @@ static Task WriteHealthCheckResponse(HttpContext context, Microsoft.Extensions.D
 
     IHostEnvironment env = context.RequestServices.GetRequiredService<IHostEnvironment>();
 
-    if (env.IsProduction())
+    if (!env.IsDevelopment())
     {
         context.Response.StatusCode = report.Status == Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Healthy
             ? StatusCodes.Status200OK

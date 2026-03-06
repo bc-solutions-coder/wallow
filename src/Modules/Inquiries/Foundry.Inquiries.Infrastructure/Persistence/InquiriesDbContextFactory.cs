@@ -9,8 +9,9 @@ public sealed class InquiriesDbContextFactory : IDesignTimeDbContextFactory<Inqu
     {
         DbContextOptionsBuilder<InquiriesDbContext> optionsBuilder = new DbContextOptionsBuilder<InquiriesDbContext>();
 
+        string password = Environment.GetEnvironmentVariable("FOUNDRY_DB_PASSWORD") ?? "foundry";
         optionsBuilder.UseNpgsql(
-            "Host=localhost;Database=foundry;Username=foundry;Password=foundry",
+            $"Host=localhost;Database=foundry;Username=foundry;Password={password}",
             npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "inquiries"));
 
         return new InquiriesDbContext(optionsBuilder.Options);
