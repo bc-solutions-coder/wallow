@@ -443,6 +443,18 @@ try
             "*/5 * * * *");
 
     }
+    // Unhook OpenTelemetry Redis profiler before DI disposal to prevent ObjectDisposedException
+    // race condition when SignalR's RedisHubLifetimeManager unsubscribes during shutdown
+    IHostApplicationLifetime lifetime = app.Services.GetRequiredService<IHostApplicationLifetime>();
+    lifetime.ApplicationStopping.Register(() =>
+    {
+        IConnectionMultiplexer mux = app.Services.GetRequiredService<IConnectionMultiplexer>();
+        if (mux is ConnectionMultiplexer connectionMultiplexer)
+        {
+            connectionMultiplexer.RegisterProfiler(null!);
+        }
+    });
+
     await app.RunAsync();
 }
 catch (Exception ex)
