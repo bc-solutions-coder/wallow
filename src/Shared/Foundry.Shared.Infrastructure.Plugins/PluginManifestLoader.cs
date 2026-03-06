@@ -59,6 +59,11 @@ public static class PluginManifestLoader
             missing.Add(nameof(manifest.Version));
         }
 
+        if (string.IsNullOrWhiteSpace(manifest.Author))
+        {
+            missing.Add(nameof(manifest.Author));
+        }
+
         if (string.IsNullOrWhiteSpace(manifest.EntryAssembly))
         {
             missing.Add(nameof(manifest.EntryAssembly));

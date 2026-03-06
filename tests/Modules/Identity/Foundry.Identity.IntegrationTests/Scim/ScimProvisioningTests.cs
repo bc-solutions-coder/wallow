@@ -410,11 +410,11 @@ public class ScimProvisioningTestFactory : FoundryApiFactory
             });
 
             // Fixed tenant context for tests
-            services.AddScoped<ITenantContext>(_ => new TenantContext
+            services.AddScoped<ITenantContext>(_ =>
             {
-                TenantId = TenantId.Create(TestConstants.TestTenantId),
-                TenantName = "Test Tenant",
-                IsResolved = true
+                TenantContext tc = new();
+                tc.SetTenant(TenantId.Create(TestConstants.TestTenantId), "Test Tenant");
+                return tc;
             });
         });
     }

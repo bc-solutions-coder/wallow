@@ -68,6 +68,7 @@ public class AuditInterceptorTests : IAsyncLifetime
         tenantContext.IsResolved.Returns(false);
         services.AddSingleton(tenantContext);
 
+        services.AddLogging();
         services.AddSingleton<AuditInterceptor>();
 
         services.AddDbContext<AuditDbContext>(options =>
@@ -266,6 +267,7 @@ public class AuditInterceptorTests : IAsyncLifetime
     {
         // Build a minimal service provider WITHOUT IHttpContextAccessor or ITenantContext
         ServiceCollection services = new ServiceCollection();
+        services.AddLogging();
         services.AddSingleton<AuditInterceptor>();
 
         services.AddDbContext<AuditDbContext>(options =>

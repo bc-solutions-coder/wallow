@@ -42,11 +42,11 @@ internal static class AsyncApiEndpointExtensions
         <html>
         <head>
             <title>Foundry AsyncAPI</title>
-            <link rel="stylesheet" href="https://unpkg.com/@asyncapi/react-component@latest/styles/default.min.css">
+            <link rel="stylesheet" href="https://unpkg.com/@asyncapi/react-component@3.0.2/styles/default.min.css" integrity="sha384-+kAXZlmkYbACsvDm+h2/qAphvw98RHOGObISB6ouInRvC2tvmBLwvgZVZQOtMndl" crossorigin="anonymous">
         </head>
         <body>
             <div id="asyncapi"></div>
-            <script src="https://unpkg.com/@asyncapi/react-component@latest/browser/standalone/index.js"></script>
+            <script src="https://unpkg.com/@asyncapi/react-component@3.0.2/browser/standalone/index.js" integrity="sha384-qYnchRkiLeA3INQMui0zmEqOZzAdSM6DTME5EPknhPDJNfi5FkyRVoSKfswOT1K/" crossorigin="anonymous"></script>
             <script>
                 fetch('/asyncapi/v1.json')
                     .then(r => r.json())

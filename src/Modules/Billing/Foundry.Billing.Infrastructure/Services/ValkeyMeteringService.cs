@@ -61,7 +61,7 @@ public sealed partial class ValkeyMeteringService : IMeteringService
         IDatabase db = _redis.GetDatabase();
 
         // Fire-and-forget: does not block the request pipeline
-        Task incrementTask = db.StringIncrementAsync(key, (long)value, CommandFlags.FireAndForget);
+        Task incrementTask = db.StringIncrementAsync(key, (double)value, CommandFlags.FireAndForget);
         _ = incrementTask.ContinueWith(
             t => LogMeteringIncrementFailed(_logger, t.Exception!, key),
             CancellationToken.None,

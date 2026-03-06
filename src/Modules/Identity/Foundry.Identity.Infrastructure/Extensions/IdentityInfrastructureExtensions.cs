@@ -61,6 +61,8 @@ public static class IdentityInfrastructureExtensions
         });
 
         services.AddScoped<IServiceAccountRepository, ServiceAccountRepository>();
+        services.AddScoped<IServiceAccountUnfilteredRepository>(sp =>
+            (IServiceAccountUnfilteredRepository)sp.GetRequiredService<IServiceAccountRepository>());
         services.AddScoped<IApiScopeRepository, ApiScopeRepository>();
         services.AddScoped<ISsoConfigurationRepository, SsoConfigurationRepository>();
         services.AddScoped<IScimConfigurationRepository, ScimConfigurationRepository>();

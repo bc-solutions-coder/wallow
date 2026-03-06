@@ -45,7 +45,7 @@ public class ValkeyMeteringServiceTests
 
         await _database.Received(1).StringIncrementAsync(
             Arg.Is<RedisKey>(k => k.ToString().Contains("api.calls")),
-            1,
+            (double)1,
             Arg.Any<CommandFlags>());
     }
 
@@ -72,7 +72,7 @@ public class ValkeyMeteringServiceTests
 
         await _database.Received().StringIncrementAsync(
             Arg.Is<RedisKey>(k => k.ToString() == expectedKey),
-            5,
+            (double)5,
             Arg.Any<CommandFlags>());
     }
 

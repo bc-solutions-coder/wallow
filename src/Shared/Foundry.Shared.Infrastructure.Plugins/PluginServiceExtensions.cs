@@ -16,6 +16,7 @@ public static partial class PluginServiceExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        services.AddLogging();
         services.Configure<PluginOptions>(configuration.GetSection(PluginOptions.SectionName));
         services.AddSingleton<PluginRegistry>();
         services.AddSingleton<IPluginPermissionValidator, PluginPermissionValidator>();

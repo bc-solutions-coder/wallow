@@ -1,4 +1,6 @@
 using Foundry.Shared.Contracts.Storage;
+using Foundry.Storage.Application.Configuration;
+using Microsoft.Extensions.Options;
 using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.Results;
 using Foundry.Storage.Application.DTOs;
@@ -23,7 +25,7 @@ public class GetPresignedUrlHandlerTests
     {
         _fileRepository = Substitute.For<IStoredFileRepository>();
         _storageProvider = Substitute.For<IStorageProvider>();
-        _handler = new GetPresignedUrlHandler(_fileRepository, _storageProvider);
+        _handler = new GetPresignedUrlHandler(_fileRepository, _storageProvider, Options.Create(new PresignedUrlOptions()));
     }
 
     [Fact]
@@ -168,7 +170,7 @@ public class GetUploadPresignedUrlHandlerTests
         _fileRepository = Substitute.For<IStoredFileRepository>();
         _storageProvider = Substitute.For<IStorageProvider>();
         _messageBus = Substitute.For<IMessageBus>();
-        _handler = new GetUploadPresignedUrlHandler(_bucketRepository, _fileRepository, _storageProvider, _messageBus);
+        _handler = new GetUploadPresignedUrlHandler(_bucketRepository, _fileRepository, _storageProvider, _messageBus, Options.Create(new PresignedUrlOptions()));
     }
 
     [Fact]
@@ -247,7 +249,7 @@ public class GetUploadPresignedUrlHandlerTests
     {
         Guid tenantId = Guid.NewGuid();
         StorageBucket bucket = StorageBucket.Create(TenantId.New(), "bucket");
-        TimeSpan customExpiry = TimeSpan.FromMinutes(60);
+        TimeSpan customExpiry = TimeSpan.FromMinutes(10); // Within 15-minute max
         GetUploadPresignedUrlQuery query = new(
             tenantId, Guid.NewGuid(), "bucket", "file.txt", "text/plain", 100, Expiry: customExpiry);
 

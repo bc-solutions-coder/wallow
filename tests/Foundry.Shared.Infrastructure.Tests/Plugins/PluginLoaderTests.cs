@@ -2,6 +2,8 @@ using System.Reflection;
 using System.Reflection.Emit;
 using Foundry.Shared.Infrastructure.Plugins;
 using Foundry.Shared.Kernel.Plugins;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 
 namespace Foundry.Shared.Infrastructure.Tests.Plugins;
 
@@ -12,7 +14,7 @@ public class PluginLoaderTests
 
     public PluginLoaderTests()
     {
-        _sut = new PluginLoader(_registry);
+        _sut = new PluginLoader(_registry, Options.Create(new PluginOptions()), NullLogger<PluginLoader>.Instance);
     }
 
     private static PluginManifest CreateManifest(

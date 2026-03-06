@@ -27,6 +27,7 @@ internal sealed partial class RealtimeHub(
         LogUserConnected(userId, Context.ConnectionId);
 
         string tenantGroup = $"tenant:{tenantContext.TenantId.Value}";
+        await Groups.AddToGroupAsync(Context.ConnectionId, tenantGroup);
         RealtimeEnvelope envelope = RealtimeEnvelope.Create("Presence", "UserOnline", new { UserId = userId });
         await dispatcher.SendToGroupAsync(tenantGroup, envelope);
         await base.OnConnectedAsync();
@@ -85,16 +86,27 @@ internal sealed partial class RealtimeHub(
             return;
         }
 
-        await presenceService.SetPageContextAsync(tenantContext.TenantId.Value, Context.ConnectionId, pageContext);
-        await Groups.AddToGroupAsync(Context.ConnectionId, $"page:{pageContext}");
+        Guid tenantId = tenantContext.TenantId.Value;
+        string newPageGroup = $"page:{tenantId}:{pageContext}";
 
-        IReadOnlyList<UserPresence> viewers = await presenceService.GetUsersOnPageAsync(tenantContext.TenantId.Value, pageContext);
+        // Remove from old page group if switching contexts
+        if (Context.Items.TryGetValue("CurrentPageGroup", out object? oldGroupObj) && oldGroupObj is string oldPageGroup)
+        {
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, oldPageGroup);
+        }
+
+        Context.Items["CurrentPageGroup"] = newPageGroup;
+
+        await presenceService.SetPageContextAsync(tenantId, Context.ConnectionId, pageContext);
+        await Groups.AddToGroupAsync(Context.ConnectionId, newPageGroup);
+
+        IReadOnlyList<UserPresence> viewers = await presenceService.GetUsersOnPageAsync(tenantId, pageContext);
         RealtimeEnvelope envelope = RealtimeEnvelope.Create("Presence", "PageViewersUpdated", new
         {
             PageContext = pageContext,
             Viewers = viewers
         });
-        await Clients.Group($"page:{pageContext}").SendAsync("ReceivePresence", envelope);
+        await Clients.Group(newPageGroup).SendAsync("ReceivePresence", envelope);
     }
 
     private void ValidateTenantGroup(string groupId)

@@ -265,8 +265,9 @@ public sealed class RealtimeHubTests : IDisposable
     public async Task UpdatePageContext_WithAuthenticatedUser_SetsContextAndSendsViewers()
     {
         SetupAuthenticatedUser("user-1");
+        string pageGroup = $"page:{_tenantGuid}:/dashboard";
         IClientProxy groupProxy = Substitute.For<IClientProxy>();
-        _clients.Group("page:/dashboard").Returns(groupProxy);
+        _clients.Group(pageGroup).Returns(groupProxy);
 
         List<UserPresence> viewers = [new UserPresence("user-1", null, ["conn-user-1"], ["/dashboard"])];
         _presenceService.GetUsersOnPageAsync(_tenantGuid, "/dashboard", Arg.Any<CancellationToken>())
@@ -275,7 +276,7 @@ public sealed class RealtimeHubTests : IDisposable
         await _hub.UpdatePageContext("/dashboard");
 
         await _presenceService.Received(1).SetPageContextAsync(_tenantGuid, "conn-user-1", "/dashboard", Arg.Any<CancellationToken>());
-        await _groups.Received(1).AddToGroupAsync("conn-user-1", "page:/dashboard", Arg.Any<CancellationToken>());
+        await _groups.Received(1).AddToGroupAsync("conn-user-1", pageGroup, Arg.Any<CancellationToken>());
         await groupProxy.Received(1).SendCoreAsync(
             "ReceivePresence",
             Arg.Is<object?[]>(args => args.Length == 1 && MatchesEnvelopeType(args[0], "PageViewersUpdated")),

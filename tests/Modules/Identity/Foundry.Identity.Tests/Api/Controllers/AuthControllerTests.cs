@@ -4,6 +4,7 @@ using Foundry.Identity.Api.Controllers;
 using Foundry.Identity.Application.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 
 namespace Foundry.Identity.Tests.Api.Controllers;
 
@@ -15,7 +16,7 @@ public class AuthControllerTests
     public AuthControllerTests()
     {
         _tokenService = Substitute.For<ITokenService>();
-        _controller = new AuthController(_tokenService);
+        _controller = new AuthController(_tokenService, Substitute.For<ILogger<AuthController>>());
     }
 
     #region GetToken

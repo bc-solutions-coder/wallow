@@ -58,7 +58,8 @@ public class AuditTenantIsolationTests : IAsyncLifetime
         services.AddDbContext<AuditDbContext>(opts =>
             opts.UseNpgsql(_postgres.GetConnectionString()));
 
-        services.AddSingleton<AuditInterceptor>(sp => new AuditInterceptor(sp));
+        services.AddLogging();
+        services.AddSingleton<AuditInterceptor>();
 
         services.AddDbContext<TenantIsolationTestDbContext>((sp, opts) =>
         {

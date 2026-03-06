@@ -141,6 +141,7 @@ public class ConversationsController : ControllerBase
     [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> SendMessage(
         Guid id,
@@ -151,6 +152,12 @@ public class ConversationsController : ControllerBase
         if (userId is null)
         {
             return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
+        }
+
+        bool isParticipant = await _messagingQueryService.IsParticipantAsync(id, userId.Value, cancellationToken);
+        if (!isParticipant)
+        {
+            return Problem(statusCode: 403, title: "Forbidden", detail: "Access denied");
         }
 
         string sanitizedBody = _sanitizer.Sanitize(request.Body);

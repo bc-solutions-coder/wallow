@@ -36,7 +36,6 @@ public sealed class QueryBenchmarks : IDisposable
     private StorageDbContext _storageDbContext = null!;
     private BillingDbContext _billingDbContext = null!;
 
-    private ServiceAccountRepository _serviceAccountRepo = null!;
     private ScimConfigurationRepository _scimConfigRepo = null!;
     private FeatureFlagRepository _featureFlagRepo = null!;
     private StorageBucketRepository _storageBucketRepo = null!;
@@ -44,7 +43,6 @@ public sealed class QueryBenchmarks : IDisposable
     private InvoiceRepository _invoiceRepo = null!;
     private SubscriptionRepository _subscriptionRepo = null!;
 
-    private string _testKeycloakClientId = null!;
     private FeatureFlagId _testFeatureFlagId;
     private string _testFeatureFlagKey = null!;
     private StoredFileId _testStoredFileId;
@@ -66,17 +64,7 @@ public sealed class QueryBenchmarks : IDisposable
             .Options;
         _identityDbContext = new IdentityDbContext(identityOptions, tenantContext, dataProtectionProvider);
         _identityDbContext.Database.EnsureCreated();
-        _serviceAccountRepo = new ServiceAccountRepository(_identityDbContext);
         _scimConfigRepo = new ScimConfigurationRepository(_identityDbContext);
-
-        // Seed identity data
-        _testKeycloakClientId = "sa-bench-client";
-        ServiceAccountMetadata serviceAccount = ServiceAccountMetadata.Create(
-            tenantContext.TenantId, _testKeycloakClientId, "Bench Service", "Benchmark test",
-            ["scope:read"], Guid.NewGuid(), TimeProvider.System);
-        _identityDbContext.ServiceAccountMetadata.Add(serviceAccount);
-        _identityDbContext.SaveChanges();
-        _identityDbContext.ChangeTracker.Clear();
 
         // Configuration
         _configConnection = new SqliteConnection("DataSource=:memory:");
@@ -162,13 +150,6 @@ public sealed class QueryBenchmarks : IDisposable
         _billingDbContext?.Dispose();
         _billingConnection?.Dispose();
         GC.SuppressFinalize(this);
-    }
-
-    [Benchmark]
-    public Task<ServiceAccountMetadata?> ServiceAccount_GetByKeycloakClientId()
-    {
-        _identityDbContext.ChangeTracker.Clear();
-        return _serviceAccountRepo.GetByKeycloakClientIdAsync(_testKeycloakClientId);
     }
 
     [Benchmark]

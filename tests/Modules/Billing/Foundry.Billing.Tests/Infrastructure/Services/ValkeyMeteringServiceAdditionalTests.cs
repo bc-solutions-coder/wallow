@@ -159,7 +159,7 @@ public class ValkeyMeteringServiceAdditionalTests
 
         await _database.Received(1).StringIncrementAsync(
             Arg.Is<RedisKey>(k => k.ToString().Contains("storage.bytes")),
-            1024,
+            (double)1024,
             Arg.Any<CommandFlags>());
     }
 

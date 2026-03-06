@@ -119,6 +119,9 @@ public class UsersController : ControllerBase
             request.Password,
             ct);
 
+        Guid tenantId = _tenantContext.TenantId.Value;
+        await _keycloakOrg.AddMemberAsync(tenantId, userId, ct);
+
         UserDto? user = await _keycloakAdmin.GetUserByIdAsync(userId, ct);
         return CreatedAtAction(nameof(GetUserById), new { id = userId }, user);
     }

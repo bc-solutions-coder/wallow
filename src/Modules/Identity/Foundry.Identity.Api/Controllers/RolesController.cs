@@ -40,8 +40,10 @@ public class RolesController : ControllerBase
         response.EnsureSuccessStatusCode();
 
         List<RoleInfo>? roles = await response.Content.ReadFromJsonAsync<List<RoleInfo>>(ct);
-        var appRoles = roles?.Where(r => !r.Name.StartsWith("uma_", StringComparison.Ordinal) && r.Name != "offline_access" && r.Name != "default-roles-foundry")
-            .Select(r => new { r.Name, r.Description })
+
+        List<object>? appRoles = roles?
+            .Where(r => !IsKeycloakSystemRole(r.Name))
+            .Select(r => new { r.Name, r.Description } as object)
             .ToList();
 
         return Ok(appRoles);
@@ -56,6 +58,21 @@ public class RolesController : ControllerBase
     {
         IReadOnlyCollection<string> permissions = _rolePermissionLookup.GetPermissions(new[] { roleName });
         return Ok(permissions);
+    }
+
+    private static bool IsKeycloakSystemRole(string roleName)
+    {
+        HashSet<string> systemRoles =
+        [
+            "offline_access",
+            "uma_authorization",
+            "create-realm",
+            "admin"
+        ];
+
+        return systemRoles.Contains(roleName)
+               || roleName.StartsWith("uma_", StringComparison.Ordinal)
+               || roleName.StartsWith("default-roles-", StringComparison.Ordinal);
     }
 
     private record RoleInfo(string Name, string? Description);

@@ -1,4 +1,6 @@
 using Foundry.Shared.Contracts.Storage;
+using Foundry.Storage.Application.Configuration;
+using Microsoft.Extensions.Options;
 using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.Results;
 using Foundry.Storage.Application.DTOs;
@@ -19,7 +21,7 @@ public class GetPresignedUrlHandlerTests
     {
         _fileRepository = Substitute.For<IStoredFileRepository>();
         _storageProvider = Substitute.For<IStorageProvider>();
-        _handler = new GetPresignedUrlHandler(_fileRepository, _storageProvider);
+        _handler = new GetPresignedUrlHandler(_fileRepository, _storageProvider, Options.Create(new PresignedUrlOptions()));
     }
 
     [Fact]
