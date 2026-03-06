@@ -5,6 +5,7 @@ using Foundry.Configuration.Infrastructure.Extensions;
 using Foundry.Identity.Infrastructure.Extensions;
 using Foundry.Inquiries.Infrastructure.Extensions;
 using Foundry.Shared.Infrastructure.Plugins;
+using Foundry.Showcases.Infrastructure.Extensions;
 using Foundry.Storage.Infrastructure.Extensions;
 
 namespace Foundry.Api;
@@ -59,6 +60,11 @@ internal static class FoundryModules
             services.AddInquiriesModule(configuration);
         }
 
+        if (modules.GetValue("Showcases", defaultValue: true))
+        {
+            services.AddShowcasesModule(configuration);
+        }
+
         // ============================================================================
         // PLUGIN SYSTEM
         // Extensibility via dynamically loaded plugin assemblies
@@ -108,6 +114,11 @@ internal static class FoundryModules
         if (modules.GetValue("Inquiries", defaultValue: true))
         {
             await app.InitializeInquiriesModuleAsync();
+        }
+
+        if (modules.GetValue("Showcases", defaultValue: true))
+        {
+            await app.InitializeShowcasesModuleAsync();
         }
 
         // ============================================================================

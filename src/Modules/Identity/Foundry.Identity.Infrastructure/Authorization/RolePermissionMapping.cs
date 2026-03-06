@@ -20,6 +20,8 @@ public static class RolePermissionMapping
             PermissionType.ApiKeysDelete,
             PermissionType.SsoRead,
             PermissionType.ConfigurationManage,
+            PermissionType.ShowcasesRead,
+            PermissionType.ShowcasesManage,
         ],
         ["user"] =
         [
@@ -30,6 +32,7 @@ public static class RolePermissionMapping
             PermissionType.AnnouncementRead,
             PermissionType.StorageRead,
             PermissionType.StorageWrite,
+            PermissionType.ShowcasesRead,
         ]
     }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 

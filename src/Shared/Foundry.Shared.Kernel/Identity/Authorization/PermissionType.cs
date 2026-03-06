@@ -78,6 +78,10 @@ public static class PermissionType
     // API Key management
     public const string ApiKeyManage = "ApiKeyManage";
 
+    // Showcases
+    public const string ShowcasesRead = "ShowcasesRead";
+    public const string ShowcasesManage = "ShowcasesManage";
+
     // Scope management
     public const string ScopeRead = "ScopeRead";
 

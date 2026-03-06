@@ -163,6 +163,10 @@ public class PermissionExpansionMiddleware
             "configuration.read" => PermissionType.ConfigurationRead,
             "configuration.manage" => PermissionType.ConfigurationManage,
 
+            // Showcases
+            "showcases.read" => PermissionType.ShowcasesRead,
+            "showcases.manage" => PermissionType.ShowcasesManage,
+
             // Platform
             "webhooks.manage" => PermissionType.WebhooksManage,
 
