@@ -288,6 +288,7 @@ internal static class ServiceCollectionExtensions
                 .AddMeter("Foundry.*")
                 .AddMeter("Microsoft.AspNetCore.Authentication")
                 .AddMeter("Microsoft.AspNetCore.Authorization")
+                .AddMeter("Microsoft.Extensions.Http.Resilience")
                 .AddOtlpExporter(options =>
                 {
                     options.Endpoint = new Uri(otlpGrpcEndpoint);
