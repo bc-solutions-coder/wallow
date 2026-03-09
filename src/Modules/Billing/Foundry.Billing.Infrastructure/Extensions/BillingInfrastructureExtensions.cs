@@ -19,10 +19,11 @@ public static class BillingInfrastructureExtensions
     public static IServiceCollection AddBillingInfrastructure(
         this IServiceCollection services, IConfiguration configuration)
     {
-        return services.AddBillingPersistence(configuration);
+        services.AddBillingPersistence(configuration);
+        return services;
     }
 
-    private static IServiceCollection AddBillingPersistence(
+    private static void AddBillingPersistence(
         this IServiceCollection services, IConfiguration _)
     {
         services.AddDbContext<BillingDbContext>((sp, options) =>
@@ -65,6 +66,5 @@ public static class BillingInfrastructureExtensions
         // Metering jobs
         services.AddScoped<FlushUsageJob>();
 
-        return services;
     }
 }

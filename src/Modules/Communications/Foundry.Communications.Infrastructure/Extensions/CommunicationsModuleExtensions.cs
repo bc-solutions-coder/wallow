@@ -31,7 +31,7 @@ public static partial class CommunicationsModuleExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        services.AddCommunicationsApplication();
+        _ = services.AddCommunicationsApplication();
         services
             .AddCommunicationsPersistence(configuration)
             .AddCommunicationsServices(configuration);

@@ -40,7 +40,7 @@ public sealed class UploadFileHandler(
         TenantId tenantId = TenantId.Create(command.TenantId);
         Guid fileId = Guid.NewGuid();
         string sanitizedFileName = FileNameSanitizer.Sanitize(command.FileName);
-        string extension = System.IO.Path.GetExtension(sanitizedFileName);
+        string extension = Path.GetExtension(sanitizedFileName);
 
         string storageKey = BuildStorageKey(
             command.TenantId,

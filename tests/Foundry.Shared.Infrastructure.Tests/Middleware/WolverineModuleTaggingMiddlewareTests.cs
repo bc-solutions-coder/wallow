@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using Foundry.Billing.Application.Commands;
+using Foundry.Identity.Infrastructure.Consumers;
 using Foundry.Shared.Infrastructure.Core.Middleware;
 using Wolverine;
 
@@ -13,7 +15,7 @@ namespace Foundry.Shared.Infrastructure.Tests.Middleware
             activity.Start();
             Activity.Current = activity;
 
-            Envelope envelope = new Envelope(new Foundry.Billing.Application.Commands.FakeBillingApplicationMessage());
+            Envelope envelope = new Envelope(new FakeBillingApplicationMessage());
 
             WolverineModuleTaggingMiddleware.Before(envelope);
 
@@ -27,7 +29,7 @@ namespace Foundry.Shared.Infrastructure.Tests.Middleware
             activity.Start();
             Activity.Current = activity;
 
-            Envelope envelope = new Envelope(new Foundry.Identity.Infrastructure.Consumers.FakeIdentityInfrastructureMessage());
+            Envelope envelope = new Envelope(new FakeIdentityInfrastructureMessage());
 
             WolverineModuleTaggingMiddleware.Before(envelope);
 
@@ -52,7 +54,7 @@ namespace Foundry.Shared.Infrastructure.Tests.Middleware
         public void Before_WithNoActivity_DoesNotThrow()
         {
             Activity.Current = null;
-            Envelope envelope = new Envelope(new Foundry.Billing.Application.Commands.FakeBillingApplicationMessage());
+            Envelope envelope = new Envelope(new FakeBillingApplicationMessage());
 
             Action act = () => WolverineModuleTaggingMiddleware.Before(envelope);
 

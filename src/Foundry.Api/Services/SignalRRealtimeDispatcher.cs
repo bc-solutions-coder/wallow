@@ -76,7 +76,7 @@ internal sealed partial class SignalRRealtimeDispatcher(
         {
             foreach ((string key, JsonNode? value) in obj.ToList())
             {
-                if (value is JsonValue val && val.TryGetValue<string>(out string? str))
+                if (value is JsonValue val && val.TryGetValue(out string? str))
                 {
                     obj[key] = sanitizer.Sanitize(str);
                 }
@@ -90,7 +90,7 @@ internal sealed partial class SignalRRealtimeDispatcher(
         {
             for (int i = 0; i < arr.Count; i++)
             {
-                if (arr[i] is JsonValue val && val.TryGetValue<string>(out string? str))
+                if (arr[i] is JsonValue val && val.TryGetValue(out string? str))
                 {
                     arr[i] = sanitizer.Sanitize(str);
                 }

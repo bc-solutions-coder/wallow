@@ -1,5 +1,6 @@
 using Foundry.Communications.Application.Channels.Sms.Commands.SendSms;
 using Foundry.Shared.Contracts.Communications.Sms.Events;
+using Foundry.Shared.Kernel.Results;
 using Microsoft.Extensions.Logging;
 using Wolverine;
 
@@ -18,7 +19,7 @@ public static partial class SendSmsRequestedEventHandler
         try
         {
             SendSmsCommand command = new(@event.To, @event.Body);
-            await bus.InvokeAsync<Foundry.Shared.Kernel.Results.Result>(command, cancellationToken);
+            await bus.InvokeAsync<Result>(command, cancellationToken);
 
             LogSmsSent(logger, @event.To);
         }

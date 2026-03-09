@@ -44,7 +44,7 @@ public sealed class GetUploadPresignedUrlHandler(
         }
 
         Guid fileId = Guid.NewGuid();
-        string extension = System.IO.Path.GetExtension(query.FileName);
+        string extension = Path.GetExtension(query.FileName);
         string storageKey = BuildStorageKey(query.TenantId, query.BucketName, query.Path, fileId, extension);
 
         TenantId tenantId = TenantId.Create(query.TenantId);

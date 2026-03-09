@@ -163,7 +163,7 @@ public class InvoiceLineItemTests
             .WithDefaultLineItem()
             .Build();
 
-        Action act = () => invoice.RemoveLineItem(Foundry.Billing.Domain.Identity.InvoiceLineItemId.New(), Guid.NewGuid(), TimeProvider.System);
+        Action act = () => invoice.RemoveLineItem(InvoiceLineItemId.New(), Guid.NewGuid(), TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>()
             .Where(e => e.Code == "Billing.LineItemNotFound");

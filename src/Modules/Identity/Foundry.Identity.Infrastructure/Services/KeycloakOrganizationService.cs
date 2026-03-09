@@ -1,4 +1,3 @@
-// ReSharper disable UnusedAutoPropertyAccessor.Global
 using System.Net.Http.Json;
 using Foundry.Identity.Infrastructure.Extensions;
 using Foundry.Identity.Application.DTOs;
@@ -37,11 +36,9 @@ public sealed partial class KeycloakOrganizationService : IKeycloakOrganizationS
     {
         LogCreatingOrganization(name);
 
-        CreateOrganizationRequest createRequest = new()
-        {
-            Name = name,
-            Domains = string.IsNullOrWhiteSpace(domain) ? null : new[] { new OrgDomain { Name = domain } }
-        };
+        CreateOrganizationRequest createRequest = new(
+            name,
+            string.IsNullOrWhiteSpace(domain) ? null : [new OrgDomain(domain)]);
 
         HttpResponseMessage response = await _httpClient.PostAsJsonAsync($"/admin/realms/{_realm}/organizations", createRequest, ct);
         await response.EnsureSuccessOrThrowAsync();
@@ -363,16 +360,9 @@ public sealed partial class KeycloakOrganizationService : IKeycloakOrganizationS
 
 }
 
-file sealed record CreateOrganizationRequest
-{
-    public required string Name { get; init; }
-    public OrgDomain[]? Domains { get; init; }
-}
+file sealed record CreateOrganizationRequest(string Name, OrgDomain[]? Domains);
 
-file sealed record OrgDomain
-{
-    public required string Name { get; init; }
-}
+file sealed record OrgDomain(string Name);
 
 file sealed record OrgRepresentation
 {
@@ -390,10 +380,7 @@ file sealed record OrgUserRepresentation
     public bool? Enabled { get; init; }
 }
 
-file sealed record OrgRoleRepresentation
-{
-    public string? Name { get; init; }
-}
+file sealed record OrgRoleRepresentation(string? Name);
 
 public sealed partial class KeycloakOrganizationService
 {

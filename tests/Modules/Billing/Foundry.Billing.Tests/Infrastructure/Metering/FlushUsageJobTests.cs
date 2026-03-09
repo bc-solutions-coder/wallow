@@ -169,7 +169,7 @@ public class ParsePeriodTests
     public void ParsePeriod_Monthly_ShouldParseCorrectly(string input, string expectedStart, string expectedEnd)
     {
         MethodInfo? method = typeof(FlushUsageJob).GetMethod("ParsePeriod",
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            BindingFlags.NonPublic | BindingFlags.Static);
 
         (DateTime, DateTime)? result = method!.Invoke(null, new object[] { input }) as (DateTime, DateTime)?;
 
@@ -184,7 +184,7 @@ public class ParsePeriodTests
     public void ParsePeriod_Daily_ShouldParseCorrectly(string input, string expectedStart, string expectedEnd)
     {
         MethodInfo? method = typeof(FlushUsageJob).GetMethod("ParsePeriod",
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            BindingFlags.NonPublic | BindingFlags.Static);
 
         (DateTime, DateTime)? result = method!.Invoke(null, new object[] { input }) as (DateTime, DateTime)?;
 
@@ -199,7 +199,7 @@ public class ParsePeriodTests
     public void ParsePeriod_Hourly_ShouldParseCorrectly(string input, string expectedStart, string expectedEnd)
     {
         MethodInfo? method = typeof(FlushUsageJob).GetMethod("ParsePeriod",
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            BindingFlags.NonPublic | BindingFlags.Static);
 
         (DateTime, DateTime)? result = method!.Invoke(null, new object[] { input }) as (DateTime, DateTime)?;
 
@@ -212,11 +212,11 @@ public class ParsePeriodTests
     public void ParsePeriod_InvalidFormat_ShouldThrowArgumentException()
     {
         MethodInfo? method = typeof(FlushUsageJob).GetMethod("ParsePeriod",
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            BindingFlags.NonPublic | BindingFlags.Static);
 
         Action act = () => method!.Invoke(null, new object[] { "invalid" });
 
-        act.Should().Throw<System.Reflection.TargetInvocationException>()
+        act.Should().Throw<TargetInvocationException>()
             .WithInnerException<ArgumentException>();
     }
 }

@@ -292,11 +292,7 @@ public sealed partial class KeycloakIdpService
     private partial void LogCreateMapperFailed(Exception ex, string mapperName, string alias);
 }
 
-file sealed record IdpMapperRepresentation
-{
-    public string? Id { get; init; }
-    public string? Name { get; init; }
-}
+file sealed record IdpMapperRepresentation(string? Id, string? Name);
 
 file sealed record OidcDiscoveryDocument
 {

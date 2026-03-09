@@ -1,7 +1,7 @@
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Npgsql;
+
 
 namespace Foundry.Configuration.Infrastructure.Services;
 
@@ -42,18 +42,18 @@ public sealed partial class CustomFieldIndexManager
         const string checkSql = """
             SELECT EXISTS (
                 SELECT 1 FROM pg_indexes
-                WHERE schemaname = @schemaName
-                AND tablename = @tableName
-                AND indexname = @indexName
+                WHERE schemaname = {0}
+                AND tablename = {1}
+                AND indexname = {2}
             );
             """;
 
         bool exists = await context.Database
             .SqlQueryRaw<bool>(
                 checkSql,
-                new NpgsqlParameter("@schemaName", schemaName),
-                new NpgsqlParameter("@tableName", tableName),
-                new NpgsqlParameter("@indexName", indexName))
+                schemaName,
+                tableName,
+                indexName)
             .FirstOrDefaultAsync(cancellationToken);
 
         if (exists)

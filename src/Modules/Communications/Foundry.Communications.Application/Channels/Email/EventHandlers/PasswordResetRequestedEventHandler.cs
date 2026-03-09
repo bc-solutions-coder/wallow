@@ -36,8 +36,8 @@ public sealed partial class PasswordResetRequestedEventHandler
 
         var model = new
         {
-            Email = integrationEvent.Email,
-            ResetToken = integrationEvent.ResetToken
+            integrationEvent.Email,
+            integrationEvent.ResetToken
         };
 
         string body = await templateService.RenderAsync("PasswordReset", model, cancellationToken);

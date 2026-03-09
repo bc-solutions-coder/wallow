@@ -44,9 +44,9 @@ public class PluginManifestTests
     [Fact]
     public void Equality_SameValues_AreEqual()
     {
-        List<PluginDependency> deps = [];
-        List<string> perms = [];
-        List<string> services = [];
+        PluginDependency[] deps = [];
+        string[] perms = [];
+        string[] services = [];
 
         PluginManifest manifest1 = new("id", "Name", "1.0.0", "Desc", "Auth", "1.0.0", "Entry.dll", deps, perms, services);
         PluginManifest manifest2 = new("id", "Name", "1.0.0", "Desc", "Auth", "1.0.0", "Entry.dll", deps, perms, services);
@@ -57,9 +57,9 @@ public class PluginManifestTests
     [Fact]
     public void Equality_DifferentId_AreNotEqual()
     {
-        List<PluginDependency> deps = [];
-        List<string> perms = [];
-        List<string> services = [];
+        PluginDependency[] deps = [];
+        string[] perms = [];
+        string[] services = [];
 
         PluginManifest manifest1 = new("id-1", "Name", "1.0.0", "Desc", "Auth", "1.0.0", "Entry.dll", deps, perms, services);
         PluginManifest manifest2 = new("id-2", "Name", "1.0.0", "Desc", "Auth", "1.0.0", "Entry.dll", deps, perms, services);

@@ -60,13 +60,13 @@ public sealed class StorageController : ControllerBase
         [FromBody] CreateBucketRequest request,
         CancellationToken cancellationToken)
     {
-        AccessLevel access = Enum.TryParse<AccessLevel>(request.Access, true, out AccessLevel accessLevel)
+        AccessLevel access = Enum.TryParse(request.Access, true, out AccessLevel accessLevel)
             ? accessLevel
             : AccessLevel.Private;
 
         RetentionAction? retentionAction = null;
         if (!string.IsNullOrEmpty(request.RetentionAction) &&
-            Enum.TryParse<RetentionAction>(request.RetentionAction, true, out RetentionAction action))
+            Enum.TryParse(request.RetentionAction, true, out RetentionAction action))
         {
             retentionAction = action;
         }

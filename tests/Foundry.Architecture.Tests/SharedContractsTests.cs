@@ -1,4 +1,6 @@
 using System.Reflection;
+using Foundry.Shared.Contracts.Identity.Events;
+using Foundry.Shared.Kernel.Domain;
 using NetArchTest.Rules;
 
 namespace Foundry.Architecture.Tests;
@@ -8,7 +10,7 @@ public class SharedContractsTests
     [Fact]
     public void SharedContracts_ShouldNotDependOn_AnyModule()
     {
-        Assembly sharedContractsAssembly = typeof(Foundry.Shared.Contracts.Identity.Events.UserRegisteredEvent).Assembly;
+        Assembly sharedContractsAssembly = typeof(UserRegisteredEvent).Assembly;
 
         foreach (string moduleName in TestConstants.AllModules)
         {
@@ -26,7 +28,7 @@ public class SharedContractsTests
     [Fact]
     public void SharedKernel_ShouldNotDependOn_AnyModule()
     {
-        Assembly sharedKernelAssembly = typeof(Foundry.Shared.Kernel.Domain.AggregateRoot<>).Assembly;
+        Assembly sharedKernelAssembly = typeof(AggregateRoot<>).Assembly;
 
         foreach (string moduleName in TestConstants.AllModules)
         {
@@ -44,7 +46,7 @@ public class SharedContractsTests
     [Fact]
     public void SharedKernel_ShouldNotDependOn_SharedContracts()
     {
-        Assembly sharedKernelAssembly = typeof(Foundry.Shared.Kernel.Domain.AggregateRoot<>).Assembly;
+        Assembly sharedKernelAssembly = typeof(AggregateRoot<>).Assembly;
 
         TestResult result = Types.InAssembly(sharedKernelAssembly)
             .ShouldNot()
@@ -59,7 +61,7 @@ public class SharedContractsTests
     [Fact]
     public void SharedContracts_ShouldNotDependOn_EntityFramework()
     {
-        Assembly sharedContractsAssembly = typeof(Foundry.Shared.Contracts.Identity.Events.UserRegisteredEvent).Assembly;
+        Assembly sharedContractsAssembly = typeof(UserRegisteredEvent).Assembly;
 
         TestResult result = Types.InAssembly(sharedContractsAssembly)
             .ShouldNot()
@@ -74,7 +76,7 @@ public class SharedContractsTests
     [Fact]
     public void SharedKernel_CanDependOn_EntityFrameworkForInfrastructureHelpers()
     {
-        Assembly sharedKernelAssembly = typeof(Foundry.Shared.Kernel.Domain.AggregateRoot<>).Assembly;
+        Assembly sharedKernelAssembly = typeof(AggregateRoot<>).Assembly;
 
         // Shared.Kernel contains EF Core value converters for strongly-typed IDs
         // This is intentional infrastructure support and is allowed

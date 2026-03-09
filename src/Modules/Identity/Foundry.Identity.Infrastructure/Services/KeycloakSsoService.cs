@@ -158,7 +158,7 @@ public sealed partial class KeycloakSsoService : ISsoService
         Dictionary<string, object> idpConfig,
         CancellationToken ct)
     {
-        using Activity? activity = IdentityModuleTelemetry.ActivitySource.StartActivity("Identity.SaveIdpConfiguration");
+        using Activity? activity = IdentityModuleTelemetry.ActivitySource.StartActivity("Identity.SaveIdpConfiguration", ActivityKind.Internal);
 
         TenantId tenantId = _tenantContext.TenantId;
         Guid userId = _currentUserService.UserId ?? Guid.Empty;
@@ -355,7 +355,7 @@ public sealed partial class KeycloakSsoService : ISsoService
 
     public async Task SyncUserClaimsAsync(Guid userId, CancellationToken ct = default)
     {
-        using Activity? activity = IdentityModuleTelemetry.ActivitySource.StartActivity("Identity.SyncUser");
+        using Activity? activity = IdentityModuleTelemetry.ActivitySource.StartActivity("Identity.SyncUser", ActivityKind.Internal);
         activity?.SetTag("identity.user_id", userId.ToString());
         activity?.SetTag("identity.provider", "keycloak");
 
@@ -441,7 +441,7 @@ public sealed partial class KeycloakSsoService : ISsoService
             SamlNameIdFormat.Email => "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress",
             SamlNameIdFormat.Persistent => "urn:oasis:names:tc:SAML:2.0:nameid-format:persistent",
             SamlNameIdFormat.Transient => "urn:oasis:names:tc:SAML:2.0:nameid-format:transient",
-            _ => "urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified"
+            SamlNameIdFormat.Unspecified or _ => "urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified"
         };
     }
 }

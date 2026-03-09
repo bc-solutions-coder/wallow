@@ -31,6 +31,7 @@ public sealed class FeatureFlag : AggregateRoot<FeatureFlagId>
     /// <summary>For Variant type: which variant is default.</summary>
     public string? DefaultVariant { get; private set; }
 
+    // ReSharper disable once CollectionNeverUpdated.Local — EF Core populates via navigation property mapping
     private readonly List<FeatureFlagOverride> _overrides = new();
     public IReadOnlyCollection<FeatureFlagOverride> Overrides => _overrides.AsReadOnly();
 

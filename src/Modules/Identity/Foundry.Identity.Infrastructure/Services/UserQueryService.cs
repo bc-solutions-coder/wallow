@@ -160,7 +160,9 @@ public sealed partial class UserQueryService : IUserQueryService
         public string? Id { get; init; }
         // ReSharper disable once UnusedMember.Local
         public string? Email { get; init; }
+        // ReSharper disable once UnusedAutoPropertyAccessor.Local - set by JSON deserialization
         public bool? Enabled { get; init; }
+        // ReSharper disable once UnusedAutoPropertyAccessor.Local - set by JSON deserialization
         public long? CreatedTimestamp { get; init; }
     }
 }

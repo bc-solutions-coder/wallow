@@ -4,8 +4,12 @@ using Elsa.Extensions;
 using Elsa.Workflows.Api;
 using Foundry.Api.Extensions;
 using Foundry.Shared.Infrastructure.Core.Cache;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.SignalR.StackExchangeRedis;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Caching.Hybrid;
+using Microsoft.Extensions.Caching.StackExchangeRedis;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Foundry.Api.Hubs;
 using Foundry.Api.Jobs;
 using Foundry.Api.Logging;
@@ -151,7 +155,7 @@ try
                     // Try to load the assembly if not already loaded
                     Assembly testAssembly = AppDomain.CurrentDomain.GetAssemblies()
                         .FirstOrDefault(a => a.FullName == testAssemblyName)
-                        ?? System.Reflection.Assembly.Load(testAssemblyName);
+                        ?? Assembly.Load(testAssemblyName);
 
                     opts.Discovery.IncludeAssembly(testAssembly);
                     Log.Information("Included test assembly {AssemblyName} for handler discovery", testAssemblyName);
@@ -214,11 +218,11 @@ try
 
     // Distributed cache — reuses the singleton IConnectionMultiplexer registered above
     builder.Services.AddStackExchangeRedisCache(_ => { });
-    builder.Services.AddSingleton<IConfigureOptions<Microsoft.Extensions.Caching.StackExchangeRedis.RedisCacheOptions>>(sp =>
+    builder.Services.AddSingleton<IConfigureOptions<RedisCacheOptions>>(sp =>
     {
         IConnectionMultiplexer mux = sp.GetRequiredService<IConnectionMultiplexer>();
-        return new ConfigureNamedOptions<Microsoft.Extensions.Caching.StackExchangeRedis.RedisCacheOptions>(
-            Microsoft.Extensions.Options.Options.DefaultName,
+        return new ConfigureNamedOptions<RedisCacheOptions>(
+            Options.DefaultName,
 #pragma warning disable CA2025 // Singleton IConnectionMultiplexer lifetime is managed by DI, not the Task
             options => options.ConnectionMultiplexerFactory = () => Task.FromResult(mux));
 #pragma warning restore CA2025
@@ -227,9 +231,9 @@ try
     // Wrap IDistributedCache with instrumented decorator for cache hit/miss metrics
     builder.Services.AddSingleton<IDistributedCache>(sp =>
     {
-        IOptions<Microsoft.Extensions.Caching.StackExchangeRedis.RedisCacheOptions> options =
-            sp.GetRequiredService<IOptions<Microsoft.Extensions.Caching.StackExchangeRedis.RedisCacheOptions>>();
-        Microsoft.Extensions.Caching.StackExchangeRedis.RedisCache inner = new(options);
+        IOptions<RedisCacheOptions> options =
+            sp.GetRequiredService<IOptions<RedisCacheOptions>>();
+        RedisCache inner = new(options);
         return new InstrumentedDistributedCache(inner);
     });
 
@@ -249,11 +253,11 @@ try
         {
             options.Configuration.ChannelPrefix = RedisChannel.Literal("Foundry");
         });
-    builder.Services.AddSingleton<IConfigureOptions<Microsoft.AspNetCore.SignalR.StackExchangeRedis.RedisOptions>>(sp =>
+    builder.Services.AddSingleton<IConfigureOptions<RedisOptions>>(sp =>
     {
         IConnectionMultiplexer mux = sp.GetRequiredService<IConnectionMultiplexer>();
-        return new ConfigureNamedOptions<Microsoft.AspNetCore.SignalR.StackExchangeRedis.RedisOptions>(
-            Microsoft.Extensions.Options.Options.DefaultName,
+        return new ConfigureNamedOptions<RedisOptions>(
+            Options.DefaultName,
             options => options.ConnectionFactory = async _ =>
             {
                 await Task.CompletedTask;
@@ -355,24 +359,24 @@ try
     }
 
     // Health checks
-    app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+    app.MapHealthChecks("/health", new HealthCheckOptions
     {
         Predicate = _ => true,
         ResponseWriter = WriteHealthCheckResponse
     }).AllowAnonymous();
 
-    app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+    app.MapHealthChecks("/health/ready", new HealthCheckOptions
     {
         Predicate = check => check.Tags.Contains("ready"),
         ResponseWriter = WriteHealthCheckResponse
     }).AllowAnonymous();
 
-    app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+    app.MapHealthChecks("/health/live", new HealthCheckOptions
     {
         Predicate = _ => false
     }).AllowAnonymous();
 
-    app.MapHealthChecks("/health/startup", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+    app.MapHealthChecks("/health/startup", new HealthCheckOptions
     {
         Predicate = check => check.Tags.Contains("startup"),
         ResponseWriter = WriteHealthCheckResponse
@@ -505,7 +509,7 @@ finally
 }
 
 // Health check response writer
-static Task WriteHealthCheckResponse(HttpContext context, Microsoft.Extensions.Diagnostics.HealthChecks.HealthReport report)
+static Task WriteHealthCheckResponse(HttpContext context, HealthReport report)
 {
     context.Response.ContentType = "application/json";
 
@@ -513,7 +517,7 @@ static Task WriteHealthCheckResponse(HttpContext context, Microsoft.Extensions.D
 
     if (!env.IsDevelopment())
     {
-        context.Response.StatusCode = report.Status == Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Healthy
+        context.Response.StatusCode = report.Status == HealthStatus.Healthy
             ? StatusCodes.Status200OK
             : StatusCodes.Status503ServiceUnavailable;
 

@@ -21,7 +21,7 @@ public static partial class ConfigurationModuleExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        services.AddConfigurationApplication();
+        _ = services.AddConfigurationApplication();
         return services.AddConfigurationPersistence(configuration);
     }
 

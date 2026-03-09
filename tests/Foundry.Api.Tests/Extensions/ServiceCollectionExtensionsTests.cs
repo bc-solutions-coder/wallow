@@ -1,6 +1,7 @@
 using Foundry.Api.Extensions;
 using Foundry.Api.Middleware;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -10,7 +11,11 @@ using Microsoft.AspNetCore.OpenApi;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
+using OpenTelemetry.Trace;
 
 namespace Foundry.Api.Tests.Extensions;
 
@@ -46,7 +51,7 @@ public class ServiceCollectionExtensionsTests
         }
 
         IConfiguration config = BuildConfiguration(defaults);
-        Microsoft.Extensions.Hosting.IHostEnvironment env = Substitute.For<Microsoft.Extensions.Hosting.IHostEnvironment>();
+        IHostEnvironment env = Substitute.For<IHostEnvironment>();
         env.EnvironmentName.Returns(environmentName);
         services.AddLogging();
         services.AddApiServices(config, env);
@@ -59,8 +64,8 @@ public class ServiceCollectionExtensionsTests
         ServiceCollection services = CreateServicesWithApiDefaults();
 
         ServiceProvider provider = services.BuildServiceProvider();
-        Microsoft.Extensions.Options.IOptions<Microsoft.AspNetCore.Http.ProblemDetailsOptions>? options =
-            provider.GetService<Microsoft.Extensions.Options.IOptions<Microsoft.AspNetCore.Http.ProblemDetailsOptions>>();
+        IOptions<ProblemDetailsOptions>? options =
+            provider.GetService<IOptions<ProblemDetailsOptions>>();
         options.Should().NotBeNull();
     }
 
@@ -83,8 +88,8 @@ public class ServiceCollectionExtensionsTests
         });
 
         ServiceProvider provider = services.BuildServiceProvider();
-        Microsoft.AspNetCore.Cors.Infrastructure.ICorsService? corsService =
-            provider.GetService<Microsoft.AspNetCore.Cors.Infrastructure.ICorsService>();
+        ICorsService? corsService =
+            provider.GetService<ICorsService>();
         corsService.Should().NotBeNull();
     }
 
@@ -111,8 +116,8 @@ public class ServiceCollectionExtensionsTests
         ServiceCollection services = CreateServicesWithApiDefaults();
 
         ServiceProvider provider = services.BuildServiceProvider();
-        Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckService? healthCheckService =
-            provider.GetService<Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckService>();
+        HealthCheckService? healthCheckService =
+            provider.GetService<HealthCheckService>();
         healthCheckService.Should().NotBeNull();
     }
 
@@ -124,7 +129,7 @@ public class ServiceCollectionExtensionsTests
         services.AddFoundryRateLimiting();
 
         ServiceDescriptor? descriptor = services.FirstOrDefault(d =>
-            d.ServiceType == typeof(Microsoft.Extensions.Options.IConfigureOptions<RateLimiterOptions>));
+            d.ServiceType == typeof(IConfigureOptions<RateLimiterOptions>));
         descriptor.Should().NotBeNull();
     }
 
@@ -137,14 +142,14 @@ public class ServiceCollectionExtensionsTests
             ["OpenTelemetry:ServiceName"] = "TestService",
             ["OpenTelemetry:OtlpGrpcEndpoint"] = "http://localhost:4317",
         });
-        Microsoft.Extensions.Hosting.IHostEnvironment env = Substitute.For<Microsoft.Extensions.Hosting.IHostEnvironment>();
+        IHostEnvironment env = Substitute.For<IHostEnvironment>();
         env.EnvironmentName.Returns("Development");
 
         services.AddLogging();
         services.AddObservability(config, env);
 
         ServiceProvider provider = services.BuildServiceProvider();
-        OpenTelemetry.Trace.TracerProvider? tracerProvider = provider.GetService<OpenTelemetry.Trace.TracerProvider>();
+        TracerProvider? tracerProvider = provider.GetService<TracerProvider>();
         tracerProvider.Should().NotBeNull();
     }
 
@@ -156,7 +161,7 @@ public class ServiceCollectionExtensionsTests
         {
             ["OpenTelemetry:ServiceName"] = "TestService",
         });
-        Microsoft.Extensions.Hosting.IHostEnvironment env = Substitute.For<Microsoft.Extensions.Hosting.IHostEnvironment>();
+        IHostEnvironment env = Substitute.For<IHostEnvironment>();
         env.EnvironmentName.Returns("Production");
 
         Action act = () => services.AddObservability(config, env);
@@ -173,14 +178,14 @@ public class ServiceCollectionExtensionsTests
         {
             ["OpenTelemetry:ServiceName"] = "TestService",
         });
-        Microsoft.Extensions.Hosting.IHostEnvironment env = Substitute.For<Microsoft.Extensions.Hosting.IHostEnvironment>();
+        IHostEnvironment env = Substitute.For<IHostEnvironment>();
         env.EnvironmentName.Returns("Development");
 
         services.AddLogging();
         services.AddObservability(config, env);
 
         ServiceProvider provider = services.BuildServiceProvider();
-        OpenTelemetry.Trace.TracerProvider? tracerProvider = provider.GetService<OpenTelemetry.Trace.TracerProvider>();
+        TracerProvider? tracerProvider = provider.GetService<TracerProvider>();
         tracerProvider.Should().NotBeNull();
     }
 
@@ -192,7 +197,7 @@ public class ServiceCollectionExtensionsTests
         {
             ["OpenTelemetry:OtlpGrpcEndpoint"] = "http://localhost:4317",
         });
-        Microsoft.Extensions.Hosting.IHostEnvironment env = Substitute.For<Microsoft.Extensions.Hosting.IHostEnvironment>();
+        IHostEnvironment env = Substitute.For<IHostEnvironment>();
         env.EnvironmentName.Returns("Development");
 
         services.AddLogging();
@@ -210,7 +215,7 @@ public class ServiceCollectionExtensionsTests
         {
             ["OpenTelemetry:OtlpGrpcEndpoint"] = "http://localhost:4317",
         });
-        Microsoft.Extensions.Hosting.IHostEnvironment env = Substitute.For<Microsoft.Extensions.Hosting.IHostEnvironment>();
+        IHostEnvironment env = Substitute.For<IHostEnvironment>();
         env.EnvironmentName.Returns("Development");
 
         services.AddLogging();
@@ -243,8 +248,8 @@ public class ServiceCollectionExtensionsTests
         ServiceCollection services = CreateServicesWithApiDefaults();
         ServiceProvider provider = services.BuildServiceProvider();
 
-        Microsoft.Extensions.Options.IOptions<ProblemDetailsOptions> options =
-            provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<ProblemDetailsOptions>>();
+        IOptions<ProblemDetailsOptions> options =
+            provider.GetRequiredService<IOptions<ProblemDetailsOptions>>();
 
         ProblemDetailsContext context = new ProblemDetailsContext
         {

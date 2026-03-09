@@ -31,7 +31,7 @@ public static class InvoiceRepositoryExtensions
         Dictionary<string, string> criteria,
         CancellationToken cancellationToken = default)
     {
-        string jsonFilter = System.Text.Json.JsonSerializer.Serialize(criteria);
+        string jsonFilter = JsonSerializer.Serialize(criteria);
 
         return await invoices
             .Where(i => i.CustomFields != null && EF.Functions.JsonContains(i.CustomFields, jsonFilter))

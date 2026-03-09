@@ -52,7 +52,7 @@ public static class MeteringDbSeeder
                 true)
         };
 
-        foreach (MeterDefinition? meter in meters)
+        foreach (MeterDefinition meter in meters)
         {
             if (!existingCodes.Contains(meter.Code))
             {
@@ -89,7 +89,7 @@ public static class MeteringDbSeeder
             CreatePlanQuota("users.active", "enterprise", 500, QuotaPeriod.Monthly, QuotaAction.Warn),
         };
 
-        foreach (QuotaDefinition? quota in quotas)
+        foreach (QuotaDefinition quota in quotas)
         {
             bool exists = existingQuotas.Any(q =>
                 q.MeterCode == quota.MeterCode && q.PlanCode == quota.PlanCode);

@@ -137,7 +137,7 @@ public class FoundryApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     {
         builder.UseEnvironment("Testing");
 
-        builder.ConfigureAppConfiguration((context, config) =>
+        builder.ConfigureAppConfiguration((_, config) =>
         {
             // Add allowAdmin=true for Redis to enable FLUSHDB in tests
             string redisConnection = _redis.GetConnectionString() + ",allowAdmin=true";
@@ -153,7 +153,7 @@ public class FoundryApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         builder.ConfigureTestServices(services =>
         {
             services.AddAuthentication("Test")
-                .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>("Test", options => { });
+                .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>("Test", _ => { });
 
             services.AddScoped<ITenantContext>(_ => new TenantContext
             {

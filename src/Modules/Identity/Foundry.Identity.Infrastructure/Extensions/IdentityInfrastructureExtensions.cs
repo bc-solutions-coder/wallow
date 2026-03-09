@@ -30,16 +30,15 @@ public static class IdentityInfrastructureExtensions
                 options.Audience = "foundry-api";
             }, "Keycloak");
 
-        services
-            .AddIdentityAuthorization()
-            .AddMultiTenancy()
-            .AddIdentityPersistence(configuration)
-            .AddKeycloakAdmin(configuration);
+        services.AddIdentityAuthorization();
+        services.AddMultiTenancy();
+        services.AddIdentityPersistence(configuration);
+        services.AddKeycloakAdmin(configuration);
 
         return services;
     }
 
-    private static IServiceCollection AddIdentityPersistence(
+    private static void AddIdentityPersistence(
         this IServiceCollection services, IConfiguration _)
     {
         services.AddDataProtection()
@@ -68,29 +67,25 @@ public static class IdentityInfrastructureExtensions
         services.AddScoped<ISsoConfigurationRepository, SsoConfigurationRepository>();
         services.AddScoped<IScimConfigurationRepository, ScimConfigurationRepository>();
         services.AddScoped<IScimSyncLogRepository, ScimSyncLogRepository>();
-
-        return services;
     }
 
-    private static IServiceCollection AddIdentityAuthorization(this IServiceCollection services)
+    private static void AddIdentityAuthorization(this IServiceCollection services)
     {
         services.AddAuthentication()
             .AddScheme<AuthenticationSchemeOptions, ScimBearerAuthenticationHandler>("ScimBearer", null);
         services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
         services.AddSingleton<IAuthorizationPolicyProvider, PermissionAuthorizationPolicyProvider>();
         services.AddSingleton<IRolePermissionLookup, RolePermissionLookup>();
-        return services;
     }
 
-    private static IServiceCollection AddMultiTenancy(this IServiceCollection services)
+    private static void AddMultiTenancy(this IServiceCollection services)
     {
         services.AddScoped<TenantContext>();
         services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantContext>());
         services.AddScoped<ITenantContextSetter>(sp => sp.GetRequiredService<TenantContext>());
-        return services;
     }
 
-    private static IServiceCollection AddKeycloakAdmin(
+    private static void AddKeycloakAdmin(
         this IServiceCollection services, IConfiguration configuration)
     {
         services.Configure<KeycloakOptions>(configuration.GetSection(KeycloakOptions.SectionName));
@@ -120,6 +115,5 @@ public static class IdentityInfrastructureExtensions
         services.AddScoped<IScimService, ScimService>();
         services.AddScoped<Foundry.Shared.Contracts.Identity.IUserService, UserService>();
         services.AddScoped<Foundry.Shared.Contracts.Identity.IUserQueryService, UserQueryService>();
-        return services;
     }
 }

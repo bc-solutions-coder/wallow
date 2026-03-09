@@ -103,7 +103,7 @@ internal partial class GlobalExceptionHandler : IExceptionHandler
                 "https://tools.ietf.org/html/rfc7231#section-6.6.1")
         };
 
-        ProblemDetails problemDetails = new ProblemDetails
+        ProblemDetails problemDetails = new()
         {
             Status = statusCode,
             Title = title,

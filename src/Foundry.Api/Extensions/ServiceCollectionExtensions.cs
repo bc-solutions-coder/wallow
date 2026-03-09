@@ -9,6 +9,10 @@ using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Foundry.Shared.Infrastructure.Core.Resilience;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OpenApi;
+using RabbitMQ.Client;
 using Serilog;
 
 namespace Foundry.Api.Extensions;
@@ -103,7 +107,7 @@ internal static class ServiceCollectionExtensions
                 string rabbitUser = config["RabbitMQ:Username"]!;
                 string rabbitPass = config["RabbitMQ:Password"]!;
                 Uri rabbitUri = new Uri($"amqp://{rabbitUser}:{rabbitPass}@{rabbitHost}:5672");
-                RabbitMQ.Client.ConnectionFactory factory = new() { Uri = rabbitUri };
+                ConnectionFactory factory = new() { Uri = rabbitUri };
                 return factory.CreateConnectionAsync();
             }, name: "rabbitmq", tags: ["messaging", "ready"]);
         }
@@ -189,7 +193,7 @@ internal static class ServiceCollectionExtensions
 
                 httpContext.Response.Headers["X-RateLimit-Remaining"] = "0";
 
-                Microsoft.AspNetCore.Mvc.ProblemDetails problemDetails = new()
+                ProblemDetails problemDetails = new()
                 {
                     Status = 429,
                     Type = "about:blank",
@@ -342,11 +346,11 @@ internal static class ServiceCollectionExtensions
 
     internal static Task TransformOperationSecurity(
         OpenApiOperation operation,
-        Microsoft.AspNetCore.OpenApi.OpenApiOperationTransformerContext context)
+        OpenApiOperationTransformerContext context)
     {
         IList<object> metadata = context.Description.ActionDescriptor.EndpointMetadata;
         bool hasAllowAnonymous = metadata
-            .OfType<Microsoft.AspNetCore.Authorization.AllowAnonymousAttribute>()
+            .OfType<AllowAnonymousAttribute>()
             .Any();
 
         if (hasAllowAnonymous)

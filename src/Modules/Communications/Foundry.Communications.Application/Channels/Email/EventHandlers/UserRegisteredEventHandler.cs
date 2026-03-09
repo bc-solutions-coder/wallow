@@ -36,9 +36,9 @@ public sealed partial class UserRegisteredEventHandler
 
         var model = new
         {
-            FirstName = integrationEvent.FirstName,
-            LastName = integrationEvent.LastName,
-            Email = integrationEvent.Email
+            integrationEvent.FirstName,
+            integrationEvent.LastName,
+            integrationEvent.Email
         };
 
         string body = await templateService.RenderAsync("WelcomeEmail", model, cancellationToken);

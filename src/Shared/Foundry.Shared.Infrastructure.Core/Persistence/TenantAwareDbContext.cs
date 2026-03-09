@@ -9,7 +9,8 @@ namespace Foundry.Shared.Infrastructure.Core.Persistence;
 
 public abstract class TenantAwareDbContext<TContext> : DbContext where TContext : DbContext
 {
-#pragma warning disable SA1401, CA1051, IDE1006 // Field must be protected for expression tree access in subclasses
+    // ReSharper disable once InconsistentNaming — Field must be protected for expression tree access in subclasses
+#pragma warning disable SA1401, CA1051, IDE1006
     protected readonly TenantId _tenantId;
 #pragma warning restore SA1401, CA1051, IDE1006
 

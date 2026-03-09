@@ -92,7 +92,7 @@ public sealed partial class SmtpEmailProvider(
 
     private async Task SendWithPipelineAsync(MimeMessage message, CancellationToken cancellationToken = default)
     {
-        using Activity? activity = EmailModuleTelemetry.ActivitySource.StartActivity("Email.Send");
+        using Activity? activity = EmailModuleTelemetry.ActivitySource.StartActivity();
         activity?.SetTag("email.to", message.To.ToString());
         activity?.SetTag("email.template", message.Subject);
 

@@ -1,6 +1,7 @@
 using Foundry.Communications.Application.Channels.Sms.Commands.SendSms;
 using Foundry.Communications.Application.Channels.Sms.Interfaces;
 using Foundry.Communications.Domain.Channels.Sms.Entities;
+using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.MultiTenancy;
 using Foundry.Shared.Kernel.Results;
 
@@ -17,7 +18,7 @@ public class SendSmsHandlerTests
         _repository = Substitute.For<ISmsMessageRepository>();
         _smsProvider = Substitute.For<ISmsProvider>();
         ITenantContext tenantContext = Substitute.For<ITenantContext>();
-        tenantContext.TenantId.Returns(Foundry.Shared.Kernel.Identity.TenantId.New());
+        tenantContext.TenantId.Returns(TenantId.New());
 
         _smsProvider.SendAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(new SmsDeliveryResult(true, "test-sid", null));
