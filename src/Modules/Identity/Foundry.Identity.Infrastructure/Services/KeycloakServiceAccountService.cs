@@ -15,40 +15,23 @@ using Microsoft.Extensions.Options;
 
 namespace Foundry.Identity.Infrastructure.Services;
 
-public sealed partial class KeycloakServiceAccountService : IServiceAccountService
+public sealed partial class KeycloakServiceAccountService(
+    IHttpClientFactory httpClientFactory,
+    IServiceAccountRepository repository,
+    ITenantContext tenantContext,
+    ICurrentUserService currentUserService,
+    IOptions<KeycloakAuthenticationOptions> keycloakOptions,
+    IOptions<KeycloakOptions> keycloakRealmOptions,
+    TimeProvider timeProvider,
+    ILogger<KeycloakServiceAccountService> logger) : IServiceAccountService
 {
-    private readonly HttpClient _httpClient;
-    private readonly IServiceAccountRepository _repository;
-    private readonly ITenantContext _tenantContext;
-    private readonly ICurrentUserService _currentUserService;
-    private readonly KeycloakAuthenticationOptions _keycloakOptions;
-    private readonly TimeProvider _timeProvider;
-    private readonly ILogger<KeycloakServiceAccountService> _logger;
-    private readonly string _realm;
-
-    public KeycloakServiceAccountService(
-        IHttpClientFactory httpClientFactory,
-        IServiceAccountRepository repository,
-        ITenantContext tenantContext,
-        ICurrentUserService currentUserService,
-        IOptions<KeycloakAuthenticationOptions> keycloakOptions,
-        IOptions<KeycloakOptions> keycloakRealmOptions,
-        TimeProvider timeProvider,
-        ILogger<KeycloakServiceAccountService> logger)
-    {
-        _httpClient = httpClientFactory.CreateClient("KeycloakAdminClient");
-        _repository = repository;
-        _tenantContext = tenantContext;
-        _currentUserService = currentUserService;
-        _keycloakOptions = keycloakOptions.Value;
-        _realm = keycloakRealmOptions.Value.Realm;
-        _timeProvider = timeProvider;
-        _logger = logger;
-    }
+    private readonly HttpClient _httpClient = httpClientFactory.CreateClient("KeycloakAdminClient");
+    private readonly KeycloakAuthenticationOptions _keycloakOptions = keycloakOptions.Value;
+    private readonly string _realm = keycloakRealmOptions.Value.Realm;
 
     public async Task<ServiceAccountCreatedResult> CreateAsync(CreateServiceAccountRequest request, CancellationToken ct = default)
     {
-        TenantId tenantId = _tenantContext.TenantId;
+        TenantId tenantId = tenantContext.TenantId;
         string clientId = $"sa-{tenantId.Value.ToString()[..8]}-{Slugify(request.Name)}";
 
         LogCreatingServiceAccount(clientId, tenantId.Value);
@@ -100,11 +83,11 @@ public sealed partial class KeycloakServiceAccountService : IServiceAccountServi
             request.Name,
             request.Description,
             request.Scopes,
-            _currentUserService.UserId ?? Guid.Empty,
-            _timeProvider);
+            currentUserService.UserId ?? Guid.Empty,
+            timeProvider);
 
-        _repository.Add(metadata);
-        await _repository.SaveChangesAsync(ct);
+        repository.Add(metadata);
+        await repository.SaveChangesAsync(ct);
 
         LogServiceAccountCreated(clientId, metadata.Id);
 
@@ -120,7 +103,7 @@ public sealed partial class KeycloakServiceAccountService : IServiceAccountServi
 
     public async Task<IReadOnlyList<ServiceAccountDto>> ListAsync(CancellationToken ct = default)
     {
-        IReadOnlyList<ServiceAccountMetadata> accounts = await _repository.GetAllAsync(ct);
+        IReadOnlyList<ServiceAccountMetadata> accounts = await repository.GetAllAsync(ct);
 
         return accounts
             .Select(a => new ServiceAccountDto(
@@ -137,7 +120,7 @@ public sealed partial class KeycloakServiceAccountService : IServiceAccountServi
 
     public async Task<ServiceAccountDto?> GetAsync(ServiceAccountMetadataId id, CancellationToken ct = default)
     {
-        ServiceAccountMetadata? account = await _repository.GetByIdAsync(id, ct);
+        ServiceAccountMetadata? account = await repository.GetByIdAsync(id, ct);
         if (account is null)
         {
             return null;
@@ -156,7 +139,7 @@ public sealed partial class KeycloakServiceAccountService : IServiceAccountServi
 
     public async Task<SecretRotatedResult> RotateSecretAsync(ServiceAccountMetadataId id, CancellationToken ct = default)
     {
-        ServiceAccountMetadata? metadata = await _repository.GetByIdAsync(id, ct);
+        ServiceAccountMetadata? metadata = await repository.GetByIdAsync(id, ct);
         if (metadata is null)
         {
             throw new EntityNotFoundException(nameof(ServiceAccountMetadata), id.Value);
@@ -186,7 +169,7 @@ public sealed partial class KeycloakServiceAccountService : IServiceAccountServi
     {
         List<string> scopesList = scopes.ToList();
 
-        ServiceAccountMetadata? metadata = await _repository.GetByIdAsync(id, ct);
+        ServiceAccountMetadata? metadata = await repository.GetByIdAsync(id, ct);
         if (metadata is null)
         {
             throw new EntityNotFoundException(nameof(ServiceAccountMetadata), id.Value);
@@ -209,15 +192,15 @@ public sealed partial class KeycloakServiceAccountService : IServiceAccountServi
         await response.EnsureSuccessOrThrowAsync();
 
         // Update local metadata
-        metadata.UpdateScopes(scopesList, _currentUserService.UserId ?? Guid.Empty, _timeProvider);
-        await _repository.SaveChangesAsync(ct);
+        metadata.UpdateScopes(scopesList, currentUserService.UserId ?? Guid.Empty, timeProvider);
+        await repository.SaveChangesAsync(ct);
 
         LogScopesUpdated(metadata.KeycloakClientId);
     }
 
     public async Task RevokeAsync(ServiceAccountMetadataId id, CancellationToken ct = default)
     {
-        ServiceAccountMetadata? metadata = await _repository.GetByIdAsync(id, ct);
+        ServiceAccountMetadata? metadata = await repository.GetByIdAsync(id, ct);
         if (metadata is null)
         {
             throw new EntityNotFoundException(nameof(ServiceAccountMetadata), id.Value);
@@ -234,8 +217,8 @@ public sealed partial class KeycloakServiceAccountService : IServiceAccountServi
         await response.EnsureSuccessOrThrowAsync();
 
         // Soft delete locally
-        metadata.Revoke(_currentUserService.UserId ?? Guid.Empty, _timeProvider);
-        await _repository.SaveChangesAsync(ct);
+        metadata.Revoke(currentUserService.UserId ?? Guid.Empty, timeProvider);
+        await repository.SaveChangesAsync(ct);
 
         LogServiceAccountRevoked(metadata.KeycloakClientId);
     }

@@ -40,7 +40,7 @@ public sealed class LocalStorageProviderTests : IDisposable
         // Arrange
         string key = "test-tenant/bucket/test-file.txt";
         byte[] content = "Hello, World!"u8.ToArray();
-        using MemoryStream stream = new MemoryStream(content);
+        using MemoryStream stream = new(content);
 
         // Act
         string etag = await _provider.UploadAsync(stream, key, "text/plain");
@@ -58,7 +58,7 @@ public sealed class LocalStorageProviderTests : IDisposable
     {
         // Arrange
         string key = "tenant-123/invoices/2024/02/invoice.pdf";
-        using MemoryStream stream = new MemoryStream([1, 2, 3]);
+        using MemoryStream stream = new([1, 2, 3]);
 
         // Act
         await _provider.UploadAsync(stream, key, "application/pdf");
@@ -74,12 +74,12 @@ public sealed class LocalStorageProviderTests : IDisposable
         // Arrange
         string key = "test/download.txt";
         byte[] content = "Download test content"u8.ToArray();
-        using MemoryStream uploadStream = new MemoryStream(content);
+        using MemoryStream uploadStream = new(content);
         await _provider.UploadAsync(uploadStream, key, "text/plain");
 
         // Act
         await using Stream downloadStream = await _provider.DownloadAsync(key);
-        using MemoryStream memoryStream = new MemoryStream();
+        using MemoryStream memoryStream = new();
         await downloadStream.CopyToAsync(memoryStream);
 
         // Assert
@@ -104,7 +104,7 @@ public sealed class LocalStorageProviderTests : IDisposable
     {
         // Arrange
         string key = "test/delete.txt";
-        using MemoryStream stream = new MemoryStream([1, 2, 3]);
+        using MemoryStream stream = new([1, 2, 3]);
         await _provider.UploadAsync(stream, key, "text/plain");
 
         string filePath = Path.Combine(_tempPath, key.Replace('/', Path.DirectorySeparatorChar));
@@ -135,7 +135,7 @@ public sealed class LocalStorageProviderTests : IDisposable
     {
         // Arrange
         string key = "test/exists.txt";
-        using MemoryStream stream = new MemoryStream([1, 2, 3]);
+        using MemoryStream stream = new([1, 2, 3]);
         await _provider.UploadAsync(stream, key, "text/plain");
 
         // Act

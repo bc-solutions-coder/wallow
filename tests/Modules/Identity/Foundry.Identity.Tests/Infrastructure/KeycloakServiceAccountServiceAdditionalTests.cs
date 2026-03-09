@@ -65,7 +65,7 @@ public class KeycloakServiceAccountServiceAdditionalTests
         KeycloakServiceAccountService service = CreateService(handler);
 
         CreateServiceAccountRequest request = new(
-            "Test Service", null, Array.Empty<string>());
+            "Test Service", null, []);
 
         Func<Task> act = async () => await service.CreateAsync(request);
 
@@ -87,7 +87,7 @@ public class KeycloakServiceAccountServiceAdditionalTests
         KeycloakServiceAccountService service = CreateService(handler);
 
         CreateServiceAccountRequest request = new(
-            "Test Service", null, Array.Empty<string>());
+            "Test Service", null, []);
 
         Func<Task> act = async () => await service.CreateAsync(request);
 
@@ -99,7 +99,7 @@ public class KeycloakServiceAccountServiceAdditionalTests
     public async Task RotateSecretAsync_Success_ReturnsNewSecret()
     {
         ServiceAccountMetadata metadata = ServiceAccountMetadata.Create(
-            _tenantId, "sa-test-client", "Test", null, Array.Empty<string>(), Guid.Empty, TimeProvider.System);
+            _tenantId, "sa-test-client", "Test", null, [], Guid.Empty, TimeProvider.System);
         _repository.GetByIdAsync(Arg.Any<ServiceAccountMetadataId>(), Arg.Any<CancellationToken>())
             .Returns(metadata);
 
@@ -123,7 +123,7 @@ public class KeycloakServiceAccountServiceAdditionalTests
     public async Task RotateSecretAsync_MissingSecret_Throws()
     {
         ServiceAccountMetadata metadata = ServiceAccountMetadata.Create(
-            _tenantId, "sa-test-client", "Test", null, Array.Empty<string>(), Guid.Empty, TimeProvider.System);
+            _tenantId, "sa-test-client", "Test", null, [], Guid.Empty, TimeProvider.System);
         _repository.GetByIdAsync(Arg.Any<ServiceAccountMetadataId>(), Arg.Any<CancellationToken>())
             .Returns(metadata);
 
@@ -170,7 +170,7 @@ public class KeycloakServiceAccountServiceAdditionalTests
     public async Task RevokeAsync_Success_DeletesFromKeycloakAndRevokesLocal()
     {
         ServiceAccountMetadata metadata = ServiceAccountMetadata.Create(
-            _tenantId, "sa-test-client", "Test", null, Array.Empty<string>(), Guid.Empty, TimeProvider.System);
+            _tenantId, "sa-test-client", "Test", null, [], Guid.Empty, TimeProvider.System);
         _repository.GetByIdAsync(Arg.Any<ServiceAccountMetadataId>(), Arg.Any<CancellationToken>())
             .Returns(metadata);
 
@@ -192,7 +192,7 @@ public class KeycloakServiceAccountServiceAdditionalTests
     public async Task RevokeAsync_WhenKeycloakClientNotFound_ThrowsInvalidOperationException()
     {
         ServiceAccountMetadata metadata = ServiceAccountMetadata.Create(
-            _tenantId, "sa-test-client", "Test", null, Array.Empty<string>(), Guid.Empty, TimeProvider.System);
+            _tenantId, "sa-test-client", "Test", null, [], Guid.Empty, TimeProvider.System);
         _repository.GetByIdAsync(Arg.Any<ServiceAccountMetadataId>(), Arg.Any<CancellationToken>())
             .Returns(metadata);
 
@@ -210,7 +210,7 @@ public class KeycloakServiceAccountServiceAdditionalTests
     [Fact]
     public async Task ListAsync_ReturnsEmptyList_WhenNoAccounts()
     {
-        _repository.GetAllAsync(Arg.Any<CancellationToken>()).Returns(new List<ServiceAccountMetadata>());
+        _repository.GetAllAsync(Arg.Any<CancellationToken>()).Returns([]);
 
         KeycloakServiceAccountService service = CreateService();
 
@@ -223,8 +223,7 @@ public class KeycloakServiceAccountServiceAdditionalTests
     {
         IHttpClientFactory httpClientFactory = Substitute.For<IHttpClientFactory>();
         HttpClient httpClient = handler != null
-            ? new HttpClient(handler)
-            : new HttpClient(new MockHttpHandler());
+            ? new HttpClient(handler) : new HttpClient(new MockHttpHandler());
         httpClient.BaseAddress = new Uri("https://keycloak.test/");
         httpClientFactory.CreateClient("KeycloakAdminClient").Returns(httpClient);
 
@@ -249,7 +248,7 @@ public class KeycloakServiceAccountServiceAdditionalTests
 
     private sealed class MockHttpHandler : HttpMessageHandler
     {
-        private readonly Dictionary<string, (HttpStatusCode Status, object? Content, string? LocationHeader)> _routes = [];
+        private readonly Dictionary<string, (HttpStatusCode Status, object? Content, string? LocationHeader)> _routes = new Dictionary<string, (HttpStatusCode Status, object? Content, string? LocationHeader)>();
 
         public MockHttpHandler WithGet(string path, object content)
         {

@@ -49,7 +49,7 @@ public class ScimUserServiceTests
 
         ScimUserService service = CreateService(handler);
 
-        ScimUserRequest request = new()
+        ScimUserRequest request = new ScimUserRequest()
         {
             UserName = "jane.doe",
             ExternalId = "ext-1",
@@ -89,7 +89,7 @@ public class ScimUserServiceTests
 
         ScimUserService service = CreateService(handler);
 
-        ScimUserRequest request = new()
+        ScimUserRequest request = new ScimUserRequest()
         {
             UserName = "auto.ext",
             ExternalId = null,
@@ -119,7 +119,7 @@ public class ScimUserServiceTests
 
         ScimUserService service = CreateService(handler);
 
-        ScimUserRequest request = new()
+        ScimUserRequest request = new ScimUserRequest()
         {
             UserName = "noemail@company.com",
             Active = true,
@@ -139,7 +139,7 @@ public class ScimUserServiceTests
 
         ScimUserService service = CreateService(handler);
 
-        ScimUserRequest request = new()
+        ScimUserRequest request = new ScimUserRequest()
         {
             UserName = "conflict.user",
             ExternalId = "ext-conflict",
@@ -176,7 +176,7 @@ public class ScimUserServiceTests
 
         ScimUserService service = CreateService(handler);
 
-        ScimUserRequest request = new()
+        ScimUserRequest request = new ScimUserRequest()
         {
             UserName = "roled.user",
             Active = true
@@ -203,7 +203,7 @@ public class ScimUserServiceTests
 
         ScimUserService service = CreateService(handler);
 
-        ScimUserRequest request = new() { UserName = "org.fail", Active = true };
+        ScimUserRequest request = new ScimUserRequest() { UserName = "org.fail", Active = true };
 
         ScimUser result = await service.CreateUserAsync(request);
 
@@ -231,7 +231,7 @@ public class ScimUserServiceTests
 
         ScimUserService service = CreateService(handler);
 
-        ScimUserRequest request = new()
+        ScimUserRequest request = new ScimUserRequest()
         {
             UserName = "updated.user",
             ExternalId = "ext-1",
@@ -257,7 +257,7 @@ public class ScimUserServiceTests
 
         ScimUserService service = CreateService(handler);
 
-        ScimUserRequest request = new()
+        ScimUserRequest request = new ScimUserRequest()
         {
             UserName = "fail.update",
             Active = true
@@ -292,7 +292,7 @@ public class ScimUserServiceTests
 
         ScimUserService service = CreateService(handler);
 
-        ScimPatchRequest request = new()
+        ScimPatchRequest request = new ScimPatchRequest()
         {
             Operations = new[]
             {
@@ -323,7 +323,7 @@ public class ScimUserServiceTests
 
         ScimUserService service = CreateService(handler);
 
-        ScimPatchRequest request = new()
+        ScimPatchRequest request = new ScimPatchRequest()
         {
             Operations = new[]
             {
@@ -353,7 +353,7 @@ public class ScimUserServiceTests
 
         ScimUserService service = CreateService(handler);
 
-        ScimPatchRequest request = new()
+        ScimPatchRequest request = new ScimPatchRequest()
         {
             Operations = new[]
             {
@@ -383,7 +383,7 @@ public class ScimUserServiceTests
 
         ScimUserService service = CreateService(handler);
 
-        ScimPatchRequest request = new()
+        ScimPatchRequest request = new ScimPatchRequest()
         {
             Operations = new[]
             {
@@ -411,7 +411,7 @@ public class ScimUserServiceTests
 
         ScimUserService service = CreateService(handler);
 
-        ScimPatchRequest request = new()
+        ScimPatchRequest request = new ScimPatchRequest()
         {
             Operations = new[]
             {
@@ -439,7 +439,7 @@ public class ScimUserServiceTests
 
         ScimUserService service = CreateService(handler);
 
-        ScimPatchRequest request = new()
+        ScimPatchRequest request = new ScimPatchRequest()
         {
             Operations = new[]
             {
@@ -460,7 +460,7 @@ public class ScimUserServiceTests
 
         ScimUserService service = CreateService(handler);
 
-        ScimPatchRequest request = new()
+        ScimPatchRequest request = new ScimPatchRequest()
         {
             Operations = new[]
             {
@@ -701,7 +701,7 @@ public class ScimUserServiceTests
 
         ScimUserService service = CreateService(handler);
 
-        ScimPatchRequest request = new()
+        ScimPatchRequest request = new ScimPatchRequest()
         {
             Operations = new[]
             {
@@ -730,7 +730,7 @@ public class ScimUserServiceTests
 
         ScimUserService service = CreateService(handler);
 
-        ScimPatchRequest request = new()
+        ScimPatchRequest request = new ScimPatchRequest()
         {
             Operations = new[]
             {
@@ -766,7 +766,7 @@ public class ScimUserServiceTests
 
     private sealed class MockHttpHandler : HttpMessageHandler
     {
-        private readonly Dictionary<string, (HttpStatusCode Status, object? Content, string? LocationHeader)> _routes = [];
+        private readonly Dictionary<string, (HttpStatusCode Status, object? Content, string? LocationHeader)> _routes = new Dictionary<string, (HttpStatusCode Status, object? Content, string? LocationHeader)>();
         private readonly HashSet<string> _throwRoutes = [];
 
         public MockHttpHandler WithGet(string path, HttpStatusCode status, object? content = null)

@@ -28,16 +28,10 @@ public class KeycloakTestCollection : ICollectionFixture<KeycloakTestFixture>
 /// </summary>
 [Collection(KeycloakTestCollection.Name)]
 [Trait("Category", "Integration")]
-public class KeycloakIntegrationTestBase : IAsyncLifetime
+public class KeycloakIntegrationTestBase(KeycloakTestFixture fixture) : IAsyncLifetime
 {
-    protected KeycloakTestFixture Fixture { get; }
-    protected HttpClient Client { get; }
-
-    public KeycloakIntegrationTestBase(KeycloakTestFixture fixture)
-    {
-        Fixture = fixture;
-        Client = fixture.CreateClient();
-    }
+    protected KeycloakTestFixture Fixture { get; } = fixture;
+    protected HttpClient Client { get; } = fixture.CreateClient();
 
     public virtual Task InitializeAsync() => Task.CompletedTask;
 

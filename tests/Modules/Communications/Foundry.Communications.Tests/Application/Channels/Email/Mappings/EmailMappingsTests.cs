@@ -82,7 +82,7 @@ public class EmailMappingsTests
     public void ToDto_EmailPreference_MapsAllFields()
     {
         Guid userId = Guid.NewGuid();
-        EmailPreference preference = EmailPreference.Create(userId, NotificationType.SystemNotification, true);
+        EmailPreference preference = EmailPreference.Create(userId, NotificationType.SystemNotification);
 
         EmailPreferenceDto dto = preference.ToDto();
 

@@ -21,7 +21,7 @@ public class CreateSubscriptionHandlerTests
     public async Task Handle_WithValidCommand_CreatesSubscription()
     {
         // Arrange
-        CreateSubscriptionCommand command = new CreateSubscriptionCommand(
+        CreateSubscriptionCommand command = new(
             UserId: Guid.NewGuid(),
             PlanName: "Pro Plan",
             Price: 29.99m,
@@ -46,7 +46,7 @@ public class CreateSubscriptionHandlerTests
     public async Task Handle_WithDifferentCurrency_CreatesSubscriptionWithCurrency()
     {
         // Arrange
-        CreateSubscriptionCommand command = new CreateSubscriptionCommand(
+        CreateSubscriptionCommand command = new(
             UserId: Guid.NewGuid(),
             PlanName: "Enterprise",
             Price: 199.00m,

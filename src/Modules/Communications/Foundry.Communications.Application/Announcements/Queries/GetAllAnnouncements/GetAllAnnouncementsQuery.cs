@@ -7,18 +7,12 @@ namespace Foundry.Communications.Application.Announcements.Queries.GetAllAnnounc
 
 public sealed record GetAllAnnouncementsQuery;
 
-public sealed class GetAllAnnouncementsHandler
+public sealed class GetAllAnnouncementsHandler(IAnnouncementRepository repository)
 {
-    private readonly IAnnouncementRepository _repository;
-
-    public GetAllAnnouncementsHandler(IAnnouncementRepository repository)
-    {
-        _repository = repository;
-    }
 
     public async Task<Result<IReadOnlyList<AnnouncementDto>>> Handle(GetAllAnnouncementsQuery _, CancellationToken ct)
     {
-        IReadOnlyList<Announcement> announcements = await _repository.GetAllAsync(ct);
+        IReadOnlyList<Announcement> announcements = await repository.GetAllAsync(ct);
         IReadOnlyList<AnnouncementDto> dtos = announcements.Select(MapToDto).ToList();
         return Result.Success(dtos);
     }

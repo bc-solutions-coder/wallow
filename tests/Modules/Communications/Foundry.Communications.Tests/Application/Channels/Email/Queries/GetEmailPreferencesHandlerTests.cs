@@ -22,11 +22,11 @@ public class GetEmailPreferencesHandlerTests
     public async Task Handle_ReturnsPreferencesForUser()
     {
         Guid userId = Guid.NewGuid();
-        List<EmailPreference> preferences = new()
-        {
-            EmailPreference.Create(userId, NotificationType.SystemNotification, true),
+        List<EmailPreference> preferences =
+        [
+            EmailPreference.Create(userId, NotificationType.SystemNotification),
             EmailPreference.Create(userId, NotificationType.TaskAssigned, false)
-        };
+        ];
 
         _repository.GetByUserIdAsync(userId, Arg.Any<CancellationToken>())
             .Returns(preferences);
@@ -44,7 +44,7 @@ public class GetEmailPreferencesHandlerTests
     {
         Guid userId = Guid.NewGuid();
         _repository.GetByUserIdAsync(userId, Arg.Any<CancellationToken>())
-            .Returns(new List<EmailPreference>());
+            .Returns([]);
 
         GetEmailPreferencesQuery query = new(userId);
 
@@ -58,10 +58,10 @@ public class GetEmailPreferencesHandlerTests
     public async Task Handle_MapsPreferenceFieldsCorrectly()
     {
         Guid userId = Guid.NewGuid();
-        EmailPreference preference = EmailPreference.Create(userId, NotificationType.BillingInvoice, true);
+        EmailPreference preference = EmailPreference.Create(userId, NotificationType.BillingInvoice);
 
         _repository.GetByUserIdAsync(userId, Arg.Any<CancellationToken>())
-            .Returns(new List<EmailPreference> { preference });
+            .Returns([preference]);
 
         GetEmailPreferencesQuery query = new(userId);
 
@@ -79,7 +79,7 @@ public class GetEmailPreferencesHandlerTests
         using CancellationTokenSource cts = new();
         Guid userId = Guid.NewGuid();
         _repository.GetByUserIdAsync(userId, Arg.Any<CancellationToken>())
-            .Returns(new List<EmailPreference>());
+            .Returns([]);
 
         GetEmailPreferencesQuery query = new(userId);
 

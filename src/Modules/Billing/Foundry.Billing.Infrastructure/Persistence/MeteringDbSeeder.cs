@@ -20,8 +20,8 @@ public static class MeteringDbSeeder
             .Select(m => m.Code)
             .ToListAsync();
 
-        MeterDefinition[] meters = new[]
-        {
+        MeterDefinition[] meters =
+        [
             MeterDefinition.Create(
                 "api.calls",
                 "API Calls",
@@ -50,7 +50,7 @@ public static class MeteringDbSeeder
                 "executions",
                 MeterAggregation.Sum,
                 true)
-        };
+        ];
 
         foreach (MeterDefinition meter in meters)
         {
@@ -71,8 +71,8 @@ public static class MeteringDbSeeder
             .Select(q => new { q.MeterCode, q.PlanCode })
             .ToListAsync();
 
-        QuotaDefinition[] quotas = new[]
-        {
+        QuotaDefinition[] quotas =
+        [
             // Free tier
             CreatePlanQuota("api.calls", "free", 1000, QuotaPeriod.Monthly, QuotaAction.Block),
             CreatePlanQuota("storage.bytes", "free", 100 * 1024 * 1024, QuotaPeriod.Monthly, QuotaAction.Block), // 100 MB
@@ -87,7 +87,7 @@ public static class MeteringDbSeeder
             CreatePlanQuota("api.calls", "enterprise", 1000000, QuotaPeriod.Monthly, QuotaAction.Warn),
             CreatePlanQuota("storage.bytes", "enterprise", 100L * 1024 * 1024 * 1024, QuotaPeriod.Monthly, QuotaAction.Warn), // 100 GB
             CreatePlanQuota("users.active", "enterprise", 500, QuotaPeriod.Monthly, QuotaAction.Warn),
-        };
+        ];
 
         foreach (QuotaDefinition quota in quotas)
         {

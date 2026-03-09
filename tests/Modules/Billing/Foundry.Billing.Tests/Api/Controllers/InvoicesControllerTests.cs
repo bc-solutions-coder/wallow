@@ -31,7 +31,7 @@ public class InvoicesControllerTests
         _currentUserService.GetCurrentUserId().Returns(_userId);
         _controller = new InvoicesController(_bus, _currentUserService);
 
-        ClaimsPrincipal user = new ClaimsPrincipal(new ClaimsIdentity(new[]
+        ClaimsPrincipal user = new(new ClaimsIdentity(new[]
         {
             new Claim(ClaimTypes.NameIdentifier, _userId.ToString())
         }, "TestAuth"));
@@ -67,7 +67,7 @@ public class InvoicesControllerTests
     public async Task GetAll_WhenEmpty_ReturnsOkWithEmptyList()
     {
         _bus.InvokeAsync<Result<IReadOnlyList<InvoiceDto>>>(Arg.Any<GetAllInvoicesQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success<IReadOnlyList<InvoiceDto>>(new List<InvoiceDto>()));
+            .Returns(Result.Success<IReadOnlyList<InvoiceDto>>([]));
 
         IActionResult result = await _controller.GetAll(CancellationToken.None);
 
@@ -186,7 +186,7 @@ public class InvoicesControllerTests
     {
         Guid userId = Guid.NewGuid();
         _bus.InvokeAsync<Result<IReadOnlyList<InvoiceDto>>>(Arg.Any<GetInvoicesByUserIdQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success<IReadOnlyList<InvoiceDto>>(new List<InvoiceDto>()));
+            .Returns(Result.Success<IReadOnlyList<InvoiceDto>>([]));
 
         await _controller.GetByUserId(userId, CancellationToken.None);
 
@@ -542,7 +542,7 @@ public class InvoicesControllerTests
         DateTime createdAt = DateTime.UtcNow.AddDays(-1);
         DateTime updatedAt = DateTime.UtcNow;
         InvoiceDto dto = new(invoiceId, userId, "INV-999", "Paid", 500.00m, "EUR",
-            dueDate, paidAt, createdAt, updatedAt, new List<InvoiceLineItemDto>(), null);
+            dueDate, paidAt, createdAt, updatedAt, [], null);
         _bus.InvokeAsync<Result<InvoiceDto>>(Arg.Any<GetInvoiceByIdQuery>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(dto));
 
@@ -580,7 +580,7 @@ public class InvoicesControllerTests
             null,
             DateTime.UtcNow,
             null,
-            new List<InvoiceLineItemDto>(),
+            [],
             null);
     }
 

@@ -6,35 +6,26 @@ using Microsoft.Extensions.Options;
 
 namespace Foundry.Identity.Infrastructure.Services;
 
-public sealed partial class UserQueryService : IUserQueryService
+public sealed partial class UserQueryService(
+    IHttpClientFactory httpClientFactory,
+    HybridCache cache,
+    IOptions<KeycloakOptions> keycloakOptions,
+    ILogger<UserQueryService> logger) : IUserQueryService
 {
-    private readonly HttpClient _httpClient;
-    private readonly HybridCache _cache;
-    private readonly ILogger<UserQueryService> _logger;
-    private readonly string _realm;
+    private readonly HttpClient _httpClient = httpClientFactory.CreateClient("KeycloakAdminClient");
+    private readonly string _realm = keycloakOptions.Value.Realm;
+
     private static readonly HybridCacheEntryOptions _cacheOptions = new()
     {
         Expiration = TimeSpan.FromSeconds(60)
     };
-
-    public UserQueryService(
-        IHttpClientFactory httpClientFactory,
-        HybridCache cache,
-        IOptions<KeycloakOptions> keycloakOptions,
-        ILogger<UserQueryService> logger)
-    {
-        _httpClient = httpClientFactory.CreateClient("KeycloakAdminClient");
-        _cache = cache;
-        _realm = keycloakOptions.Value.Realm;
-        _logger = logger;
-    }
 
     public async Task<string> GetUserEmailAsync(Guid userId, CancellationToken ct = default)
     {
         string cacheKey = $"user-email:{userId}";
         try
         {
-            return await _cache.GetOrCreateAsync(cacheKey, async cancel =>
+            return await cache.GetOrCreateAsync(cacheKey, async cancel =>
             {
                 HttpResponseMessage response = await _httpClient.GetAsync($"/admin/realms/{_realm}/users/{userId}", cancel);
                 if (!response.IsSuccessStatusCode)
@@ -59,7 +50,7 @@ public sealed partial class UserQueryService : IUserQueryService
         string cacheKey = $"new-users-count:{tenantId}:{from:O}:{to:O}";
         try
         {
-            int count = await _cache.GetOrCreateAsync(cacheKey, async cancel =>
+            int count = await cache.GetOrCreateAsync(cacheKey, async cancel =>
             {
                 List<UserMemberRepresentation>? members = await GetOrganizationMembersAsync(tenantId, cancel);
                 if (members == null || members.Count == 0)
@@ -90,7 +81,7 @@ public sealed partial class UserQueryService : IUserQueryService
         string cacheKey = $"active-users-count:{tenantId}";
         try
         {
-            int count = await _cache.GetOrCreateAsync(cacheKey, async cancel =>
+            int count = await cache.GetOrCreateAsync(cacheKey, async cancel =>
             {
                 List<UserMemberRepresentation>? members = await GetOrganizationMembersAsync(tenantId, cancel);
                 if (members == null || members.Count == 0)
@@ -120,7 +111,7 @@ public sealed partial class UserQueryService : IUserQueryService
         string cacheKey = $"total-users-count:{tenantId}";
         try
         {
-            int count = await _cache.GetOrCreateAsync(cacheKey, async cancel =>
+            int count = await cache.GetOrCreateAsync(cacheKey, async cancel =>
             {
                 List<UserMemberRepresentation>? members = await GetOrganizationMembersAsync(tenantId, cancel);
                 return members?.Count ?? 0;

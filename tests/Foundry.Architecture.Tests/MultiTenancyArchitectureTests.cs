@@ -24,7 +24,7 @@ public class MultiTenancyArchitectureTests
     {
         foreach (string moduleName in _tenantAwareModules)
         {
-            yield return new object[] { moduleName };
+            yield return [moduleName];
         }
     }
 

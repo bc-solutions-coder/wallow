@@ -9,22 +9,15 @@ using Wolverine;
 
 namespace Foundry.Configuration.Infrastructure.Services;
 
-public sealed class FeatureFlagService : IFeatureFlagService
+public sealed class FeatureFlagService(
+    IFeatureFlagRepository repository,
+    IMessageBus messageBus,
+    TimeProvider timeProvider) : IFeatureFlagService
 {
-    private readonly IFeatureFlagRepository _repository;
-    private readonly IMessageBus _messageBus;
-    private readonly TimeProvider _timeProvider;
-
-    public FeatureFlagService(IFeatureFlagRepository repository, IMessageBus messageBus, TimeProvider timeProvider)
-    {
-        _repository = repository;
-        _messageBus = messageBus;
-        _timeProvider = timeProvider;
-    }
 
     public async Task<bool> IsEnabledAsync(string key, Guid tenantId, Guid? userId = null, CancellationToken ct = default)
     {
-        FeatureFlag? flag = await _repository.GetByKeyAsync(key, ct);
+        FeatureFlag? flag = await repository.GetByKeyAsync(key, ct);
         if (flag is null)
         {
             return false;
@@ -56,7 +49,7 @@ public sealed class FeatureFlagService : IFeatureFlagService
 
     public async Task<string?> GetVariantAsync(string key, Guid tenantId, Guid? userId = null, CancellationToken ct = default)
     {
-        FeatureFlag? flag = await _repository.GetByKeyAsync(key, ct);
+        FeatureFlag? flag = await repository.GetByKeyAsync(key, ct);
         if (flag is null)
         {
             return null;
@@ -89,8 +82,8 @@ public sealed class FeatureFlagService : IFeatureFlagService
 
     public async Task<Dictionary<string, object>> GetAllFlagsAsync(Guid tenantId, Guid? userId = null, CancellationToken ct = default)
     {
-        IReadOnlyList<FeatureFlag> flags = await _repository.GetAllAsync(ct);
-        Dictionary<string, object> results = new Dictionary<string, object>(flags.Count);
+        IReadOnlyList<FeatureFlag> flags = await repository.GetAllAsync(ct);
+        Dictionary<string, object> results = new(flags.Count);
 
         foreach (FeatureFlag flag in flags)
         {
@@ -150,7 +143,7 @@ public sealed class FeatureFlagService : IFeatureFlagService
 
     private FeatureFlagOverride? ResolveOverride(FeatureFlag flag, Guid tenantId, Guid? userId)
     {
-        List<FeatureFlagOverride> active = flag.Overrides.Where(o => !o.IsExpired(_timeProvider)).ToList();
+        List<FeatureFlagOverride> active = flag.Overrides.Where(o => !o.IsExpired(timeProvider)).ToList();
 
         // Priority: user+tenant > user-only > tenant-only > none
         if (userId.HasValue)
@@ -221,7 +214,7 @@ public sealed class FeatureFlagService : IFeatureFlagService
     private async Task PublishEvaluationAsync(
         string flagKey, Guid tenantId, Guid? userId, string result, string reason)
     {
-        await _messageBus.PublishAsync(new FeatureFlagEvaluatedEvent(
+        await messageBus.PublishAsync(new FeatureFlagEvaluatedEvent(
             flagKey, tenantId, userId, result, reason, DateTimeOffset.UtcNow));
     }
 

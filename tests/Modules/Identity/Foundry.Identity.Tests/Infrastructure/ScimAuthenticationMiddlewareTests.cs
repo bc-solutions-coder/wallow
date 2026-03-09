@@ -44,7 +44,7 @@ public sealed class ScimAuthenticationMiddlewareTests : IDisposable
     [Fact]
     public async Task InvokeAsync_NonScimPath_PassesThroughWithoutAuthentication()
     {
-        DefaultHttpContext context = new();
+        DefaultHttpContext context = new DefaultHttpContext();
         context.Request.Path = "/api/users";
         bool nextCalled = false;
         ScimAuthenticationMiddleware middleware = new(_ =>
@@ -66,7 +66,7 @@ public sealed class ScimAuthenticationMiddlewareTests : IDisposable
     [InlineData("/SCIM/V2/serviceproviderconfig")]
     public async Task InvokeAsync_DiscoveryEndpoint_BypassesAuthentication(string path)
     {
-        DefaultHttpContext context = new();
+        DefaultHttpContext context = new DefaultHttpContext();
         context.Request.Path = path;
         bool nextCalled = false;
         ScimAuthenticationMiddleware middleware = new(_ =>
@@ -83,7 +83,7 @@ public sealed class ScimAuthenticationMiddlewareTests : IDisposable
     [Fact]
     public async Task InvokeAsync_MissingAuthorizationHeader_Returns401()
     {
-        DefaultHttpContext context = new();
+        DefaultHttpContext context = new DefaultHttpContext();
         context.Request.Path = "/scim/v2/Users";
         context.Response.Body = new MemoryStream();
 
@@ -105,7 +105,7 @@ public sealed class ScimAuthenticationMiddlewareTests : IDisposable
     [InlineData("InvalidScheme token123")]
     public async Task InvokeAsync_InvalidBearerScheme_Returns401(string authHeader)
     {
-        DefaultHttpContext context = new();
+        DefaultHttpContext context = new DefaultHttpContext();
         context.Request.Path = "/scim/v2/Users";
         context.Request.Headers.Authorization = authHeader;
         context.Response.Body = new MemoryStream();
@@ -125,7 +125,7 @@ public sealed class ScimAuthenticationMiddlewareTests : IDisposable
     [InlineData("Bearer   ")]
     public async Task InvokeAsync_EmptyBearerToken_Returns401(string authHeader)
     {
-        DefaultHttpContext context = new();
+        DefaultHttpContext context = new DefaultHttpContext();
         context.Request.Path = "/scim/v2/Users";
         context.Request.Headers.Authorization = authHeader;
         context.Response.Body = new MemoryStream();
@@ -143,7 +143,7 @@ public sealed class ScimAuthenticationMiddlewareTests : IDisposable
     [Fact]
     public async Task InvokeAsync_BearerWithoutSpace_Returns401()
     {
-        DefaultHttpContext context = new();
+        DefaultHttpContext context = new DefaultHttpContext();
         context.Request.Path = "/scim/v2/Users";
         context.Request.Headers.Authorization = "Bearer";
         context.Response.Body = new MemoryStream();
@@ -161,7 +161,7 @@ public sealed class ScimAuthenticationMiddlewareTests : IDisposable
     [Fact]
     public async Task InvokeAsync_TokenWithNoMatchingConfig_Returns401()
     {
-        DefaultHttpContext context = new();
+        DefaultHttpContext context = new DefaultHttpContext();
         context.Request.Path = "/scim/v2/Users";
         context.Request.Headers.Authorization = "Bearer unknowntoken12345";
         context.Response.Body = new MemoryStream();
@@ -186,7 +186,7 @@ public sealed class ScimAuthenticationMiddlewareTests : IDisposable
         _dbContext.ScimConfigurations.Add(config);
         await _dbContext.SaveChangesAsync();
 
-        DefaultHttpContext context = new();
+        DefaultHttpContext context = new DefaultHttpContext();
         context.Request.Path = "/scim/v2/Users";
         context.Request.Headers.Authorization = $"Bearer {plainToken}";
         ClaimsPrincipal? capturedPrincipal = null;
@@ -219,7 +219,7 @@ public sealed class ScimAuthenticationMiddlewareTests : IDisposable
         _dbContext.ScimConfigurations.Add(config);
         await _dbContext.SaveChangesAsync();
 
-        DefaultHttpContext context = new();
+        DefaultHttpContext context = new DefaultHttpContext();
         context.Request.Path = "/scim/v2/Users";
         context.Request.Headers.Authorization = $"Bearer {plainToken}";
         bool nextCalled = false;
@@ -244,7 +244,7 @@ public sealed class ScimAuthenticationMiddlewareTests : IDisposable
         _dbContext.ScimConfigurations.Add(config);
         await _dbContext.SaveChangesAsync();
 
-        DefaultHttpContext context = new();
+        DefaultHttpContext context = new DefaultHttpContext();
         context.Request.Path = "/scim/v2/Users";
         context.Request.Headers.Authorization = $"Bearer {plainToken}";
         context.Response.Body = new MemoryStream();
@@ -263,7 +263,7 @@ public sealed class ScimAuthenticationMiddlewareTests : IDisposable
         _dbContext.ScimConfigurations.Add(config);
         await _dbContext.SaveChangesAsync();
 
-        DefaultHttpContext context = new();
+        DefaultHttpContext context = new DefaultHttpContext();
         context.Request.Path = "/scim/v2/Users";
         context.Request.Headers.Authorization = $"bearer {plainToken}";
         bool nextCalled = false;
@@ -291,7 +291,7 @@ public sealed class ScimAuthenticationMiddlewareTests : IDisposable
         string prefix = plainToken[..8];
         string tamperedToken = prefix + "TAMPERED_SUFFIX_THAT_WONT_MATCH";
 
-        DefaultHttpContext context = new();
+        DefaultHttpContext context = new DefaultHttpContext();
         context.Request.Path = "/scim/v2/Users";
         context.Request.Headers.Authorization = $"Bearer {tamperedToken}";
         context.Response.Body = new MemoryStream();

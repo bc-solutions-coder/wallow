@@ -11,18 +11,8 @@ namespace Foundry.Identity.IntegrationTests.Fakes;
 /// Fake implementation of IServiceAccountService for testing.
 /// Does not make real HTTP calls to Keycloak.
 /// </summary>
-public sealed class FakeServiceAccountService : IServiceAccountService
+public sealed class FakeServiceAccountService(IServiceAccountRepository repository, ITenantContext tenantContext) : IServiceAccountService
 {
-    private readonly IServiceAccountRepository _repository;
-    private readonly ITenantContext _tenantContext;
-
-    public FakeServiceAccountService(
-        IServiceAccountRepository repository,
-        ITenantContext tenantContext)
-    {
-        _repository = repository;
-        _tenantContext = tenantContext;
-    }
 
     public async Task<ServiceAccountCreatedResult> CreateAsync(
         CreateServiceAccountRequest request,
@@ -35,7 +25,7 @@ public sealed class FakeServiceAccountService : IServiceAccountService
                 "Service account name is required");
         }
 
-        Shared.Kernel.Identity.TenantId tenantId = _tenantContext.TenantId;
+        Shared.Kernel.Identity.TenantId tenantId = tenantContext.TenantId;
         string clientId = $"sa-{tenantId.Value.ToString()[..8]}-{Slugify(request.Name)}";
         string clientSecret = GenerateFakeSecret();
 
@@ -46,8 +36,8 @@ public sealed class FakeServiceAccountService : IServiceAccountService
             request.Description,
             request.Scopes, Guid.Empty, TimeProvider.System);
 
-        _repository.Add(metadata);
-        await _repository.SaveChangesAsync(ct);
+        repository.Add(metadata);
+        await repository.SaveChangesAsync(ct);
 
         return new ServiceAccountCreatedResult(
             metadata.Id,
@@ -59,7 +49,7 @@ public sealed class FakeServiceAccountService : IServiceAccountService
 
     public async Task<IReadOnlyList<ServiceAccountDto>> ListAsync(CancellationToken ct = default)
     {
-        IReadOnlyList<ServiceAccountMetadata> accounts = await _repository.GetAllAsync(ct);
+        IReadOnlyList<ServiceAccountMetadata> accounts = await repository.GetAllAsync(ct);
 
         return accounts
             .Select(a => new ServiceAccountDto(
@@ -78,7 +68,7 @@ public sealed class FakeServiceAccountService : IServiceAccountService
         ServiceAccountMetadataId id,
         CancellationToken ct = default)
     {
-        ServiceAccountMetadata? account = await _repository.GetByIdAsync(id, ct);
+        ServiceAccountMetadata? account = await repository.GetByIdAsync(id, ct);
         if (account is null)
         {
             return null;
@@ -99,7 +89,7 @@ public sealed class FakeServiceAccountService : IServiceAccountService
         ServiceAccountMetadataId id,
         CancellationToken ct = default)
     {
-        ServiceAccountMetadata? metadata = await _repository.GetByIdAsync(id, ct);
+        ServiceAccountMetadata? metadata = await repository.GetByIdAsync(id, ct);
         if (metadata is null)
         {
             throw new EntityNotFoundException(nameof(ServiceAccountMetadata), id.Value);
@@ -113,26 +103,26 @@ public sealed class FakeServiceAccountService : IServiceAccountService
         IEnumerable<string> scopes,
         CancellationToken ct = default)
     {
-        ServiceAccountMetadata? metadata = await _repository.GetByIdAsync(id, ct);
+        ServiceAccountMetadata? metadata = await repository.GetByIdAsync(id, ct);
         if (metadata is null)
         {
             throw new EntityNotFoundException(nameof(ServiceAccountMetadata), id.Value);
         }
 
         metadata.UpdateScopes(scopes, Guid.Empty, TimeProvider.System);
-        await _repository.SaveChangesAsync(ct);
+        await repository.SaveChangesAsync(ct);
     }
 
     public async Task RevokeAsync(ServiceAccountMetadataId id, CancellationToken ct = default)
     {
-        ServiceAccountMetadata? metadata = await _repository.GetByIdAsync(id, ct);
+        ServiceAccountMetadata? metadata = await repository.GetByIdAsync(id, ct);
         if (metadata is null)
         {
             throw new EntityNotFoundException(nameof(ServiceAccountMetadata), id.Value);
         }
 
         metadata.Revoke(Guid.Empty, TimeProvider.System);
-        await _repository.SaveChangesAsync(ct);
+        await repository.SaveChangesAsync(ct);
     }
 
     private static string Slugify(string name)

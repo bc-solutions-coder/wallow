@@ -10,13 +10,11 @@ namespace Foundry.Billing.Tests.Infrastructure.Persistence;
 
 [Collection("PostgresDatabase")]
 [Trait("Category", "Integration")]
-public class MeterDefinitionRepositoryTests : DbContextIntegrationTestBase<BillingDbContext>
+public class MeterDefinitionRepositoryTests(PostgresContainerFixture fixture) : DbContextIntegrationTestBase<BillingDbContext>(fixture)
 {
-    public MeterDefinitionRepositoryTests(PostgresContainerFixture fixture) : base(fixture) { }
-
     protected override bool UseMigrateAsync => true;
 
-    private MeterDefinitionRepository CreateRepository() => new MeterDefinitionRepository(DbContext);
+    private MeterDefinitionRepository CreateRepository() => new(DbContext);
 
     [Fact]
     public async Task Add_And_GetByIdAsync_ReturnsMeterDefinition()

@@ -5,25 +5,19 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Foundry.Billing.Infrastructure.Persistence.Repositories;
 
-public sealed class PaymentRepository : IPaymentRepository
+public sealed class PaymentRepository(BillingDbContext context) : IPaymentRepository
 {
-    private readonly BillingDbContext _context;
-
-    public PaymentRepository(BillingDbContext context)
-    {
-        _context = context;
-    }
 
     public Task<Payment?> GetByIdAsync(PaymentId id, CancellationToken cancellationToken = default)
     {
-        return _context.Payments
+        return context.Payments
             .AsTracking()
             .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
     }
 
     public async Task<IReadOnlyList<Payment>> GetByInvoiceIdAsync(InvoiceId invoiceId, CancellationToken cancellationToken = default)
     {
-        return await _context.Payments
+        return await context.Payments
             .Where(p => p.InvoiceId == invoiceId)
             .OrderByDescending(p => p.CreatedAt)
             .ToListAsync(cancellationToken);
@@ -31,7 +25,7 @@ public sealed class PaymentRepository : IPaymentRepository
 
     public async Task<IReadOnlyList<Payment>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
     {
-        return await _context.Payments
+        return await context.Payments
             .Where(p => p.UserId == userId)
             .OrderByDescending(p => p.CreatedAt)
             .ToListAsync(cancellationToken);
@@ -39,23 +33,23 @@ public sealed class PaymentRepository : IPaymentRepository
 
     public async Task<IReadOnlyList<Payment>> GetAllAsync(CancellationToken cancellationToken = default)
     {
-        return await _context.Payments
+        return await context.Payments
             .OrderByDescending(p => p.CreatedAt)
             .ToListAsync(cancellationToken);
     }
 
     public void Add(Payment payment)
     {
-        _context.Payments.Add(payment);
+        context.Payments.Add(payment);
     }
 
     public void Update(Payment payment)
     {
-        _context.Payments.Update(payment);
+        context.Payments.Update(payment);
     }
 
     public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        await _context.SaveChangesAsync(cancellationToken);
+        await context.SaveChangesAsync(cancellationToken);
     }
 }

@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Foundry.Identity.Infrastructure.Repositories;
 
-public sealed class ServiceAccountRepository : IServiceAccountRepository, IServiceAccountUnfilteredRepository
+public sealed class ServiceAccountRepository(IdentityDbContext context) : IServiceAccountRepository, IServiceAccountUnfilteredRepository
 {
     private static readonly Func<IdentityDbContext, string, Task<ServiceAccountMetadata?>>
         _getByKeycloakClientIdQuery = EF.CompileAsyncQuery(
@@ -16,16 +16,9 @@ public sealed class ServiceAccountRepository : IServiceAccountRepository, IServi
                     .IgnoreQueryFilters()
                     .FirstOrDefault(x => x.KeycloakClientId == keycloakClientId));
 
-    private readonly IdentityDbContext _context;
-
-    public ServiceAccountRepository(IdentityDbContext context)
-    {
-        _context = context;
-    }
-
     public Task<ServiceAccountMetadata?> GetByIdAsync(ServiceAccountMetadataId id, CancellationToken ct = default)
     {
-        return _context.ServiceAccountMetadata
+        return context.ServiceAccountMetadata
             .AsTracking()
             .Where(x => x.Status != Domain.Enums.ServiceAccountStatus.Revoked)
             .FirstOrDefaultAsync(x => x.Id == id, ct);
@@ -37,12 +30,12 @@ public sealed class ServiceAccountRepository : IServiceAccountRepository, IServi
     /// </summary>
     Task<ServiceAccountMetadata?> IServiceAccountUnfilteredRepository.GetByKeycloakClientIdAsync(string keycloakClientId, CancellationToken ct)
     {
-        return _getByKeycloakClientIdQuery(_context, keycloakClientId);
+        return _getByKeycloakClientIdQuery(context, keycloakClientId);
     }
 
     public async Task<IReadOnlyList<ServiceAccountMetadata>> GetAllAsync(CancellationToken ct = default)
     {
-        return await _context.ServiceAccountMetadata
+        return await context.ServiceAccountMetadata
             .Where(x => x.Status != Domain.Enums.ServiceAccountStatus.Revoked)
             .OrderBy(x => x.Name)
             .ToListAsync(ct);
@@ -50,11 +43,11 @@ public sealed class ServiceAccountRepository : IServiceAccountRepository, IServi
 
     public void Add(ServiceAccountMetadata entity)
     {
-        _context.ServiceAccountMetadata.Add(entity);
+        context.ServiceAccountMetadata.Add(entity);
     }
 
     public async Task SaveChangesAsync(CancellationToken ct = default)
     {
-        await _context.SaveChangesAsync(ct);
+        await context.SaveChangesAsync(ct);
     }
 }

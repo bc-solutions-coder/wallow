@@ -10,7 +10,7 @@ public class EntityTests
     {
         TestEntityId id = TestEntityId.New();
 
-        TestEntity entity = new TestEntity(id);
+        TestEntity entity = new(id);
 
         entity.Id.Should().Be(id);
     }
@@ -19,8 +19,8 @@ public class EntityTests
     public void Equals_SameId_ReturnsTrue()
     {
         TestEntityId id = TestEntityId.New();
-        TestEntity entity1 = new TestEntity(id);
-        TestEntity entity2 = new TestEntity(id);
+        TestEntity entity1 = new(id);
+        TestEntity entity2 = new(id);
 
         entity1.Equals(entity2).Should().BeTrue();
         (entity1 == entity2).Should().BeTrue();
@@ -29,8 +29,8 @@ public class EntityTests
     [Fact]
     public void Equals_DifferentId_ReturnsFalse()
     {
-        TestEntity entity1 = new TestEntity(TestEntityId.New());
-        TestEntity entity2 = new TestEntity(TestEntityId.New());
+        TestEntity entity1 = new(TestEntityId.New());
+        TestEntity entity2 = new(TestEntityId.New());
 
         entity1.Equals(entity2).Should().BeFalse();
         (entity1 != entity2).Should().BeTrue();
@@ -39,7 +39,7 @@ public class EntityTests
     [Fact]
     public void Equals_Null_ReturnsFalse()
     {
-        TestEntity entity = new TestEntity(TestEntityId.New());
+        TestEntity entity = new(TestEntityId.New());
 
         // Intentionally testing null equality behavior
 #pragma warning disable CA1508 // Avoid dead conditional code
@@ -50,7 +50,7 @@ public class EntityTests
     [Fact]
     public void Equals_SameReference_ReturnsTrue()
     {
-        TestEntity entity = new TestEntity(TestEntityId.New());
+        TestEntity entity = new(TestEntityId.New());
 
         entity.Equals(entity).Should().BeTrue();
         // Intentionally testing same-reference equality
@@ -64,8 +64,8 @@ public class EntityTests
     public void GetHashCode_SameId_ReturnsSameHash()
     {
         TestEntityId id = TestEntityId.New();
-        TestEntity entity1 = new TestEntity(id);
-        TestEntity entity2 = new TestEntity(id);
+        TestEntity entity1 = new(id);
+        TestEntity entity2 = new(id);
 
         entity1.GetHashCode().Should().Be(entity2.GetHashCode());
     }
@@ -73,8 +73,8 @@ public class EntityTests
     [Fact]
     public void GetHashCode_DifferentId_ReturnsDifferentHash()
     {
-        TestEntity entity1 = new TestEntity(TestEntityId.New());
-        TestEntity entity2 = new TestEntity(TestEntityId.New());
+        TestEntity entity1 = new(TestEntityId.New());
+        TestEntity entity2 = new(TestEntityId.New());
 
         entity1.GetHashCode().Should().NotBe(entity2.GetHashCode());
     }
@@ -94,7 +94,7 @@ public class EntityTests
     [Fact]
     public void OperatorEquals_OneNull_ReturnsFalse()
     {
-        TestEntity entity = new TestEntity(TestEntityId.New());
+        TestEntity entity = new(TestEntityId.New());
         TestEntity? nullEntity = null;
 
         // Intentionally testing entity-null equality
@@ -107,8 +107,8 @@ public class EntityTests
     [Fact]
     public void OperatorNotEquals_DifferentId_ReturnsTrue()
     {
-        TestEntity entity1 = new TestEntity(TestEntityId.New());
-        TestEntity entity2 = new TestEntity(TestEntityId.New());
+        TestEntity entity1 = new(TestEntityId.New());
+        TestEntity entity2 = new(TestEntityId.New());
 
         (entity1 != entity2).Should().BeTrue();
     }
@@ -117,8 +117,8 @@ public class EntityTests
     public void OperatorNotEquals_SameId_ReturnsFalse()
     {
         TestEntityId id = TestEntityId.New();
-        TestEntity entity1 = new TestEntity(id);
-        TestEntity entity2 = new TestEntity(id);
+        TestEntity entity1 = new(id);
+        TestEntity entity2 = new(id);
 
         (entity1 != entity2).Should().BeFalse();
     }
@@ -126,8 +126,8 @@ public class EntityTests
     [Fact]
     public void Equals_Object_DifferentType_ReturnsFalse()
     {
-        TestEntity entity = new TestEntity(TestEntityId.New());
-        object obj = new object();
+        TestEntity entity = new(TestEntityId.New());
+        object obj = new();
 
         entity.Equals(obj).Should().BeFalse();
     }

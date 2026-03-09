@@ -59,7 +59,7 @@ public class UploadFileValidatorTests
     [Fact]
     public async Task Should_Have_Error_When_BucketNameExceeds100Characters()
     {
-        string longName = new string('a', 101);
+        string longName = new('a', 101);
         UploadFileCommand command = CreateValidCommand(bucketName: longName);
 
         TestValidationResult<UploadFileCommand> result = await _validator.TestValidateAsync(command);
@@ -82,7 +82,7 @@ public class UploadFileValidatorTests
     [Fact]
     public async Task Should_Have_Error_When_FileNameExceeds500Characters()
     {
-        string longFileName = new string('x', 501);
+        string longFileName = new('x', 501);
         UploadFileCommand command = CreateValidCommand(fileName: longFileName);
 
         TestValidationResult<UploadFileCommand> result = await _validator.TestValidateAsync(command);
@@ -137,7 +137,7 @@ public class UploadFileValidatorTests
     [Fact]
     public async Task Should_Have_Error_When_PathExceeds500Characters()
     {
-        string longPath = new string('a', 501);
+        string longPath = new('a', 501);
         UploadFileCommand command = CreateValidCommand(path: longPath);
 
         TestValidationResult<UploadFileCommand> result = await _validator.TestValidateAsync(command);

@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Foundry.Billing.Infrastructure.Persistence.Repositories;
 
-public sealed class SubscriptionRepository : ISubscriptionRepository
+public sealed class SubscriptionRepository(BillingDbContext context) : ISubscriptionRepository
 {
     private static readonly Func<BillingDbContext, SubscriptionId, CancellationToken, Task<Subscription?>>
         _getByIdQuery = EF.CompileAsyncQuery(
@@ -15,21 +15,14 @@ public sealed class SubscriptionRepository : ISubscriptionRepository
                     .AsTracking()
                     .FirstOrDefault(s => s.Id == id));
 
-    private readonly BillingDbContext _context;
-
-    public SubscriptionRepository(BillingDbContext context)
-    {
-        _context = context;
-    }
-
     public Task<Subscription?> GetByIdAsync(SubscriptionId id, CancellationToken cancellationToken = default)
     {
-        return _getByIdQuery(_context, id, cancellationToken);
+        return _getByIdQuery(context, id, cancellationToken);
     }
 
     public async Task<IReadOnlyList<Subscription>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
     {
-        return await _context.Subscriptions
+        return await context.Subscriptions
             .Where(s => s.UserId == userId)
             .OrderByDescending(s => s.CreatedAt)
             .ToListAsync(cancellationToken);
@@ -37,14 +30,14 @@ public sealed class SubscriptionRepository : ISubscriptionRepository
 
     public async Task<IReadOnlyList<Subscription>> GetAllAsync(CancellationToken cancellationToken = default)
     {
-        return await _context.Subscriptions
+        return await context.Subscriptions
             .OrderByDescending(s => s.CreatedAt)
             .ToListAsync(cancellationToken);
     }
 
     public Task<Subscription?> GetActiveByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
     {
-        return _context.Subscriptions
+        return context.Subscriptions
             .AsTracking()
             .Where(s => s.UserId == userId && s.Status == SubscriptionStatus.Active)
             .OrderByDescending(s => s.StartDate)
@@ -53,16 +46,16 @@ public sealed class SubscriptionRepository : ISubscriptionRepository
 
     public void Add(Subscription subscription)
     {
-        _context.Subscriptions.Add(subscription);
+        context.Subscriptions.Add(subscription);
     }
 
     public void Update(Subscription subscription)
     {
-        _context.Subscriptions.Update(subscription);
+        context.Subscriptions.Update(subscription);
     }
 
     public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        await _context.SaveChangesAsync(cancellationToken);
+        await context.SaveChangesAsync(cancellationToken);
     }
 }

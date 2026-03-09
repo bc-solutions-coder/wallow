@@ -11,7 +11,7 @@ public class DesignTimeTenantContextTests
         // The factory creates a DesignTimeTenantContext internally.
         // We verify the DbContext is created successfully, which means
         // the tenant context returns valid defaults.
-        ConfigurationDbContextFactory factory = new ConfigurationDbContextFactory();
+        ConfigurationDbContextFactory factory = new();
 
         ConfigurationDbContext context = factory.CreateDbContext([]);
 

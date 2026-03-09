@@ -14,11 +14,8 @@ public class ResponseContractTests
         Guid id = Guid.NewGuid();
         DateTime createdAt = DateTime.UtcNow.AddDays(-1);
         DateTime updatedAt = DateTime.UtcNow;
-        List<VariantWeightDto> variants = new()
-        {
-            new VariantWeightDto("control", 50),
-            new VariantWeightDto("treatment", 50)
-        };
+        List<VariantWeightDto> variants = [new("control", 50),
+            new("treatment", 50)];
 
         FeatureFlagResponse response = new(id, "dark-mode", "Dark Mode", "Toggle dark theme",
             ApiFlagType.Variant, false, 50, variants, "control", createdAt, updatedAt);

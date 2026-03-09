@@ -9,9 +9,9 @@ namespace Foundry.Configuration.Tests.Infrastructure.Persistence;
 
 [Collection("PostgresDatabase")]
 [Trait("Category", "Integration")]
-public class FeatureFlagOverrideRepositoryTests : DbContextIntegrationTestBase<ConfigurationDbContext>
+public class FeatureFlagOverrideRepositoryTests(PostgresContainerFixture fixture)
+    : DbContextIntegrationTestBase<ConfigurationDbContext>(fixture)
 {
-    public FeatureFlagOverrideRepositoryTests(PostgresContainerFixture fixture) : base(fixture) { }
 
     protected override bool UseMigrateAsync => true;
 

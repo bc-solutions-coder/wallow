@@ -33,12 +33,12 @@ public class AnnouncementsControllerTests
 
         _controller = new AnnouncementsController(_bus, tenantContext, _currentUserService);
 
-        ClaimsPrincipal user = new ClaimsPrincipal(new ClaimsIdentity(new[]
-        {
+        ClaimsPrincipal user = new(new ClaimsIdentity(
+        [
             new Claim(ClaimTypes.NameIdentifier, _userId.ToString()),
             new Claim(ClaimTypes.Role, "Admin"),
             new Claim("plan", "Pro")
-        }, "TestAuth"));
+        ], "TestAuth"));
         _controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext { User = user }
@@ -53,7 +53,7 @@ public class AnnouncementsControllerTests
         AnnouncementDto dto = new(Guid.NewGuid(), "Title", "Content", AnnouncementType.Feature,
             AnnouncementTarget.All, null, null, null, true, true, null, null, null, AnnouncementStatus.Published, DateTime.UtcNow);
         _bus.InvokeAsync<Result<IReadOnlyList<AnnouncementDto>>>(Arg.Any<GetActiveAnnouncementsQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success<IReadOnlyList<AnnouncementDto>>(new List<AnnouncementDto> { dto }));
+            .Returns(Result.Success<IReadOnlyList<AnnouncementDto>>([dto]));
 
         IActionResult result = await _controller.GetAnnouncements(CancellationToken.None);
 
@@ -83,7 +83,7 @@ public class AnnouncementsControllerTests
     public async Task GetAnnouncements_PassesUserContextToQuery()
     {
         _bus.InvokeAsync<Result<IReadOnlyList<AnnouncementDto>>>(Arg.Any<GetActiveAnnouncementsQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success<IReadOnlyList<AnnouncementDto>>(new List<AnnouncementDto>()));
+            .Returns(Result.Success<IReadOnlyList<AnnouncementDto>>([]));
 
         await _controller.GetAnnouncements(CancellationToken.None);
 
@@ -103,14 +103,14 @@ public class AnnouncementsControllerTests
         {
             HttpContext = new DefaultHttpContext
             {
-                User = new ClaimsPrincipal(new ClaimsIdentity(new[]
-                {
+                User = new ClaimsPrincipal(new ClaimsIdentity(
+                [
                     new Claim(ClaimTypes.NameIdentifier, _userId.ToString())
-                }, "TestAuth"))
+                ], "TestAuth"))
             }
         };
         _bus.InvokeAsync<Result<IReadOnlyList<AnnouncementDto>>>(Arg.Any<GetActiveAnnouncementsQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success<IReadOnlyList<AnnouncementDto>>(new List<AnnouncementDto>()));
+            .Returns(Result.Success<IReadOnlyList<AnnouncementDto>>([]));
 
         await _controller.GetAnnouncements(CancellationToken.None);
 
@@ -128,7 +128,7 @@ public class AnnouncementsControllerTests
             "https://example.com", "Click me", "https://img.example.com/img.png",
             AnnouncementStatus.Published, createdAt);
         _bus.InvokeAsync<Result<IReadOnlyList<AnnouncementDto>>>(Arg.Any<GetActiveAnnouncementsQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success<IReadOnlyList<AnnouncementDto>>(new List<AnnouncementDto> { dto }));
+            .Returns(Result.Success<IReadOnlyList<AnnouncementDto>>([dto]));
 
         IActionResult result = await _controller.GetAnnouncements(CancellationToken.None);
 

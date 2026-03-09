@@ -16,9 +16,9 @@ internal static class AsyncApiEndpointExtensions
             .Where(a => a.GetName().Name?.StartsWith("Foundry.", StringComparison.Ordinal) == true)
             .ToArray();
 
-        EventFlowDiscovery discovery = new EventFlowDiscovery();
+        EventFlowDiscovery discovery = new();
         EventFlowInfo[] flows = discovery.Discover(assemblies).ToArray();
-        AsyncApiDocumentGenerator generator = new AsyncApiDocumentGenerator(flows);
+        AsyncApiDocumentGenerator generator = new(flows);
         string mermaid = MermaidFlowGenerator.Generate(flows);
 
         app.MapGet("/asyncapi/v1.json", () => Results.Json(generator.GenerateDocument()))

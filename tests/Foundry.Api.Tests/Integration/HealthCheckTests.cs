@@ -6,14 +6,9 @@ namespace Foundry.Api.Tests.Integration;
 
 [Collection(nameof(ApiIntegrationTestCollection))]
 [Trait("Category", "Integration")]
-public sealed class HealthCheckTests : IDisposable
+public sealed class HealthCheckTests(FoundryApiFactory factory) : IDisposable
 {
-    private readonly HttpClient _client;
-
-    public HealthCheckTests(FoundryApiFactory factory)
-    {
-        _client = factory.CreateClient();
-    }
+    private readonly HttpClient _client = factory.CreateClient();
 
     public void Dispose()
     {

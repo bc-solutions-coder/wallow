@@ -20,8 +20,7 @@ public sealed class IdentityDbContext : TenantAwareDbContext<IdentityDbContext>
     public IdentityDbContext(
         DbContextOptions<IdentityDbContext> options,
         ITenantContext tenantContext,
-        IDataProtectionProvider dataProtectionProvider)
-        : base(options, tenantContext)
+        IDataProtectionProvider dataProtectionProvider) : base(options, tenantContext)
     {
         _dataProtectionProvider = dataProtectionProvider;
         ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;

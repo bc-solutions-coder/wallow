@@ -7,21 +7,15 @@ using StackExchange.Redis;
 namespace Foundry.Api.Tests.Services;
 
 [Trait("Category", "Integration")]
-public class RedisPresenceServiceTests : IClassFixture<RedisFixture>, IAsyncLifetime
+public class RedisPresenceServiceTests(RedisFixture fixture) : IClassFixture<RedisFixture>, IAsyncLifetime
 {
     private static readonly Guid _testTenantId = Guid.Parse("00000000-0000-0000-0000-000000000099");
-    private readonly RedisFixture _fixture;
     private ConnectionMultiplexer _multiplexer = null!;
     private RedisPresenceService _sut = null!;
 
-    public RedisPresenceServiceTests(RedisFixture fixture)
-    {
-        _fixture = fixture;
-    }
-
     public async Task InitializeAsync()
     {
-        _multiplexer = await ConnectionMultiplexer.ConnectAsync(_fixture.ConnectionString + ",allowAdmin=true");
+        _multiplexer = await ConnectionMultiplexer.ConnectAsync(fixture.ConnectionString + ",allowAdmin=true");
         // Flush database between tests to ensure isolation
         IServer server = _multiplexer.GetServers()[0];
         await server.FlushDatabaseAsync();
@@ -30,8 +24,7 @@ public class RedisPresenceServiceTests : IClassFixture<RedisFixture>, IAsyncLife
 
     public async Task DisposeAsync()
     {
-        _multiplexer.Dispose();
-        await Task.CompletedTask;
+        await _multiplexer.DisposeAsync();
     }
 
     [Fact]

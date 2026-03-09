@@ -72,8 +72,7 @@ public sealed class Payment : AggregateRoot<PaymentId>, ITenantScoped, IHasCusto
             throw new InvalidPaymentException("Payment amount must be greater than zero");
         }
 
-        Payment payment = new Payment(invoiceId, userId, amount, method, createdByUserId, timeProvider);
-        payment.CustomFields = customFields;
+        Payment payment = new(invoiceId, userId, amount, method, createdByUserId, timeProvider) { CustomFields = customFields };
 
         payment.RaiseDomainEvent(new PaymentCreatedDomainEvent(
             payment.Id.Value,

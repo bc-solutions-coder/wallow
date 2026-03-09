@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Foundry.Billing.Infrastructure.Persistence.Repositories;
 
-public sealed class InvoiceRepository : IInvoiceRepository
+public sealed class InvoiceRepository(BillingDbContext context) : IInvoiceRepository
 {
     private static readonly Func<BillingDbContext, InvoiceId, CancellationToken, Task<Invoice?>>
         _getByIdQuery = EF.CompileAsyncQuery(
@@ -14,21 +14,14 @@ public sealed class InvoiceRepository : IInvoiceRepository
                     .AsTracking()
                     .FirstOrDefault(i => i.Id == id));
 
-    private readonly BillingDbContext _context;
-
-    public InvoiceRepository(BillingDbContext context)
-    {
-        _context = context;
-    }
-
     public Task<Invoice?> GetByIdAsync(InvoiceId id, CancellationToken cancellationToken = default)
     {
-        return _getByIdQuery(_context, id, cancellationToken);
+        return _getByIdQuery(context, id, cancellationToken);
     }
 
     public Task<Invoice?> GetByIdWithLineItemsAsync(InvoiceId id, CancellationToken cancellationToken = default)
     {
-        return _context.Invoices
+        return context.Invoices
             .AsTracking()
             .Include(i => i.LineItems)
             .FirstOrDefaultAsync(i => i.Id == id, cancellationToken);
@@ -36,7 +29,7 @@ public sealed class InvoiceRepository : IInvoiceRepository
 
     public async Task<IReadOnlyList<Invoice>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
     {
-        return await _context.Invoices
+        return await context.Invoices
             .Include(i => i.LineItems)
             .Where(i => i.UserId == userId)
             .OrderByDescending(i => i.CreatedAt)
@@ -45,7 +38,7 @@ public sealed class InvoiceRepository : IInvoiceRepository
 
     public async Task<IReadOnlyList<Invoice>> GetAllAsync(CancellationToken cancellationToken = default)
     {
-        return await _context.Invoices
+        return await context.Invoices
             .Include(i => i.LineItems)
             .OrderByDescending(i => i.CreatedAt)
             .ToListAsync(cancellationToken);
@@ -53,27 +46,27 @@ public sealed class InvoiceRepository : IInvoiceRepository
 
     public Task<bool> ExistsByInvoiceNumberAsync(string invoiceNumber, CancellationToken cancellationToken = default)
     {
-        return _context.Invoices
+        return context.Invoices
             .AnyAsync(i => i.InvoiceNumber == invoiceNumber, cancellationToken);
     }
 
     public void Add(Invoice invoice)
     {
-        _context.Invoices.Add(invoice);
+        context.Invoices.Add(invoice);
     }
 
     public void Update(Invoice invoice)
     {
-        _context.Invoices.Update(invoice);
+        context.Invoices.Update(invoice);
     }
 
     public void Remove(Invoice invoice)
     {
-        _context.Invoices.Remove(invoice);
+        context.Invoices.Remove(invoice);
     }
 
     public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        await _context.SaveChangesAsync(cancellationToken);
+        await context.SaveChangesAsync(cancellationToken);
     }
 }

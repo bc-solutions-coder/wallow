@@ -43,7 +43,7 @@ public class GetServiceAccountsQueryTests
         _serviceAccountService.ListAsync(Arg.Any<CancellationToken>())
             .Returns(accounts);
 
-        GetServiceAccountsQuery query = new();
+        GetServiceAccountsQuery query = new GetServiceAccountsQuery();
         GetServiceAccountsHandler handler = new(_serviceAccountService);
 
         // Act
@@ -63,9 +63,9 @@ public class GetServiceAccountsQueryTests
     {
         // Arrange
         _serviceAccountService.ListAsync(Arg.Any<CancellationToken>())
-            .Returns(new List<ServiceAccountDto>());
+            .Returns([]);
 
-        GetServiceAccountsQuery query = new();
+        GetServiceAccountsQuery query = new GetServiceAccountsQuery();
         GetServiceAccountsHandler handler = new(_serviceAccountService);
 
         // Act
@@ -80,11 +80,11 @@ public class GetServiceAccountsQueryTests
     public async Task Handle_PropagatesCancellationToken()
     {
         // Arrange
-        using CancellationTokenSource cts = new();
+        using CancellationTokenSource cts = new CancellationTokenSource();
         _serviceAccountService.ListAsync(Arg.Any<CancellationToken>())
-            .Returns(new List<ServiceAccountDto>());
+            .Returns([]);
 
-        GetServiceAccountsQuery query = new();
+        GetServiceAccountsQuery query = new GetServiceAccountsQuery();
         GetServiceAccountsHandler handler = new(_serviceAccountService);
 
         // Act

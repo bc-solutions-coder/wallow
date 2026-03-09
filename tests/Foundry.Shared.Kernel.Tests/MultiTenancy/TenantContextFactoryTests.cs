@@ -8,8 +8,8 @@ public class TenantContextFactoryTests
     [Fact]
     public void CreateScope_SetsTenantOnContext()
     {
-        TenantContext context = new TenantContext();
-        TenantContextFactory factory = new TenantContextFactory(context);
+        TenantContext context = new();
+        TenantContextFactory factory = new(context);
         TenantId tenantId = TenantId.New();
 
         using IDisposable scope = factory.CreateScope(tenantId);
@@ -21,8 +21,8 @@ public class TenantContextFactoryTests
     [Fact]
     public void CreateScope_WhenDisposed_ClearsContext()
     {
-        TenantContext context = new TenantContext();
-        TenantContextFactory factory = new TenantContextFactory(context);
+        TenantContext context = new();
+        TenantContextFactory factory = new(context);
         TenantId tenantId = TenantId.New();
 
         IDisposable scope = factory.CreateScope(tenantId);
@@ -36,8 +36,8 @@ public class TenantContextFactoryTests
     [Fact]
     public void CreateScope_MultipleScopes_LastScopeOverwritesTenant()
     {
-        TenantContext context = new TenantContext();
-        TenantContextFactory factory = new TenantContextFactory(context);
+        TenantContext context = new();
+        TenantContextFactory factory = new(context);
         TenantId firstId = TenantId.New();
         TenantId secondId = TenantId.New();
 
@@ -56,8 +56,8 @@ public class TenantContextFactoryTests
     [Fact]
     public void CreateScope_ScopeIsDisposable()
     {
-        TenantContext context = new TenantContext();
-        TenantContextFactory factory = new TenantContextFactory(context);
+        TenantContext context = new();
+        TenantContextFactory factory = new(context);
 
         IDisposable scope = factory.CreateScope(TenantId.New());
 
@@ -68,8 +68,8 @@ public class TenantContextFactoryTests
     [Fact]
     public void CreateScope_WithDefaultTenantId_StillSetsContext()
     {
-        TenantContext context = new TenantContext();
-        TenantContextFactory factory = new TenantContextFactory(context);
+        TenantContext context = new();
+        TenantContextFactory factory = new(context);
 
         using IDisposable scope = factory.CreateScope(default);
 
@@ -80,8 +80,8 @@ public class TenantContextFactoryTests
     [Fact]
     public void CreateScope_DisposeTwice_DoesNotThrow()
     {
-        TenantContext context = new TenantContext();
-        TenantContextFactory factory = new TenantContextFactory(context);
+        TenantContext context = new();
+        TenantContextFactory factory = new(context);
 
         IDisposable scope = factory.CreateScope(TenantId.New());
         scope.Dispose();

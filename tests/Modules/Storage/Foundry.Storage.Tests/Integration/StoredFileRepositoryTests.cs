@@ -13,12 +13,10 @@ public class PostgresDatabaseCollection : ICollectionFixture<PostgresContainerFi
 
 [Collection("PostgresDatabase")]
 [Trait("Category", "Integration")]
-public sealed class StoredFileRepositoryTests : DbContextIntegrationTestBase<StorageDbContext>
+public sealed class StoredFileRepositoryTests(PostgresContainerFixture fixture) : DbContextIntegrationTestBase<StorageDbContext>(fixture)
 {
     private StoredFileRepository _repository = null!;
     private readonly Faker _faker = new();
-
-    public StoredFileRepositoryTests(PostgresContainerFixture fixture) : base(fixture) { }
 
     public override async Task InitializeAsync()
     {
@@ -41,8 +39,7 @@ public sealed class StoredFileRepositoryTests : DbContextIntegrationTestBase<Sto
             1024 * 100,
             $"s3://bucket/{Guid.NewGuid()}/file.pdf",
             Guid.NewGuid(),
-            "documents/invoices",
-            false);
+            "documents/invoices");
 
         _repository.Add(file);
         await _repository.SaveChangesAsync();
@@ -138,7 +135,7 @@ public sealed class StoredFileRepositoryTests : DbContextIntegrationTestBase<Sto
 
         TenantId otherTenantId = TenantId.New();
         await using StorageDbContext otherDbContext = CreateDbContextForTenant(otherTenantId);
-        StoredFileRepository otherRepository = new StoredFileRepository(otherDbContext);
+        StoredFileRepository otherRepository = new(otherDbContext);
 
         StorageBucket bucket2 = StorageBucket.Create(TenantId.New(), $"bucket2-{suffix}");
         otherDbContext.Buckets.Add(bucket2);

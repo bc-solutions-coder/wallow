@@ -19,10 +19,12 @@ public class ChangelogControllerTests
     public ChangelogControllerTests()
     {
         _bus = Substitute.For<IMessageBus>();
-        _controller = new ChangelogController(_bus);
-        _controller.ControllerContext = new ControllerContext
+        _controller = new ChangelogController(_bus)
         {
-            HttpContext = new DefaultHttpContext()
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext()
+            }
         };
     }
 
@@ -33,7 +35,7 @@ public class ChangelogControllerTests
     {
         ChangelogEntryDto dto = CreateChangelogDto();
         _bus.InvokeAsync<Result<IReadOnlyList<ChangelogEntryDto>>>(Arg.Any<GetChangelogQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success<IReadOnlyList<ChangelogEntryDto>>(new List<ChangelogEntryDto> { dto }));
+            .Returns(Result.Success<IReadOnlyList<ChangelogEntryDto>>([dto]));
 
         IActionResult result = await _controller.GetChangelog(ct: CancellationToken.None);
 
@@ -48,7 +50,7 @@ public class ChangelogControllerTests
     public async Task GetChangelog_WithEmptyList_ReturnsOkWithEmptyList()
     {
         _bus.InvokeAsync<Result<IReadOnlyList<ChangelogEntryDto>>>(Arg.Any<GetChangelogQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success<IReadOnlyList<ChangelogEntryDto>>(new List<ChangelogEntryDto>()));
+            .Returns(Result.Success<IReadOnlyList<ChangelogEntryDto>>([]));
 
         IActionResult result = await _controller.GetChangelog(ct: CancellationToken.None);
 
@@ -61,7 +63,7 @@ public class ChangelogControllerTests
     public async Task GetChangelog_PassesLimitToQuery()
     {
         _bus.InvokeAsync<Result<IReadOnlyList<ChangelogEntryDto>>>(Arg.Any<GetChangelogQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success<IReadOnlyList<ChangelogEntryDto>>(new List<ChangelogEntryDto>()));
+            .Returns(Result.Success<IReadOnlyList<ChangelogEntryDto>>([]));
 
         await _controller.GetChangelog(limit: 25, ct: CancellationToken.None);
 
@@ -75,9 +77,9 @@ public class ChangelogControllerTests
     {
         ChangelogItemDto item = new(Guid.NewGuid(), "Added new feature", ChangeType.Feature);
         ChangelogEntryDto dto = new(Guid.NewGuid(), "1.0.0", "Release", "Content", DateTime.UtcNow, true,
-            new List<ChangelogItemDto> { item }, DateTime.UtcNow);
+            [item], DateTime.UtcNow);
         _bus.InvokeAsync<Result<IReadOnlyList<ChangelogEntryDto>>>(Arg.Any<GetChangelogQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success<IReadOnlyList<ChangelogEntryDto>>(new List<ChangelogEntryDto> { dto }));
+            .Returns(Result.Success<IReadOnlyList<ChangelogEntryDto>>([dto]));
 
         IActionResult result = await _controller.GetChangelog(ct: CancellationToken.None);
 
@@ -180,6 +182,6 @@ public class ChangelogControllerTests
     {
         return new ChangelogEntryDto(
             Guid.NewGuid(), "1.0.0", "Release 1.0", "Release content", DateTime.UtcNow, true,
-            new List<ChangelogItemDto>(), DateTime.UtcNow);
+            [], DateTime.UtcNow);
     }
 }

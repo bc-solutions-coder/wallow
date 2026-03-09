@@ -12,7 +12,7 @@ public sealed class ConfigurationDbContextFactory : IDesignTimeDbContextFactory<
 {
     public ConfigurationDbContext CreateDbContext(string[] args)
     {
-        DbContextOptionsBuilder<ConfigurationDbContext> optionsBuilder = new DbContextOptionsBuilder<ConfigurationDbContext>();
+        DbContextOptionsBuilder<ConfigurationDbContext> optionsBuilder = new();
 
         // Use a dummy connection string for design-time operations
         string password = Environment.GetEnvironmentVariable("FOUNDRY_DB_PASSWORD") ?? "foundry";
@@ -21,7 +21,7 @@ public sealed class ConfigurationDbContextFactory : IDesignTimeDbContextFactory<
             npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "configuration"));
 
         // Create a simple tenant context for design time
-        DesignTimeTenantContext tenantContext = new DesignTimeTenantContext();
+        DesignTimeTenantContext tenantContext = new();
 
         return new ConfigurationDbContext(optionsBuilder.Options, tenantContext);
     }

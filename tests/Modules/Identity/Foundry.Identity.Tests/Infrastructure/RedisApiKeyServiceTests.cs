@@ -242,7 +242,7 @@ public class RedisApiKeyServiceTests
             KeyHash = "hash-1",
             UserId = otherUserId,
             TenantId = Guid.NewGuid(),
-            Scopes = Array.Empty<string>(),
+            Scopes = new List<string>(),
             CreatedAt = DateTimeOffset.UtcNow,
         });
 
@@ -269,7 +269,7 @@ public class RedisApiKeyServiceTests
             KeyHash = "hash-1",
             UserId = userId,
             TenantId = Guid.NewGuid(),
-            Scopes = Array.Empty<string>(),
+            Scopes = new List<string>(),
             CreatedAt = DateTimeOffset.UtcNow,
         });
 

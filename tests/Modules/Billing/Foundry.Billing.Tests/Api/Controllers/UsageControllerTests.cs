@@ -18,10 +18,12 @@ public class UsageControllerTests
     public UsageControllerTests()
     {
         _bus = Substitute.For<IMessageBus>();
-        _controller = new UsageController(_bus);
-        _controller.ControllerContext = new ControllerContext
+        _controller = new UsageController(_bus)
         {
-            HttpContext = new DefaultHttpContext()
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext()
+            }
         };
     }
 
@@ -49,7 +51,7 @@ public class UsageControllerTests
     public async Task GetAll_WithPeriod_PassesPeriodToQuery()
     {
         _bus.InvokeAsync<Result<IReadOnlyList<UsageSummaryDto>>>(Arg.Any<GetCurrentUsageQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success<IReadOnlyList<UsageSummaryDto>>(new List<UsageSummaryDto>()));
+            .Returns(Result.Success<IReadOnlyList<UsageSummaryDto>>([]));
 
         await _controller.GetAll(QuotaPeriod.Daily, CancellationToken.None);
 
@@ -62,7 +64,7 @@ public class UsageControllerTests
     public async Task GetAll_WithoutPeriod_PassesNullPeriodToQuery()
     {
         _bus.InvokeAsync<Result<IReadOnlyList<UsageSummaryDto>>>(Arg.Any<GetCurrentUsageQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success<IReadOnlyList<UsageSummaryDto>>(new List<UsageSummaryDto>()));
+            .Returns(Result.Success<IReadOnlyList<UsageSummaryDto>>([]));
 
         await _controller.GetAll(null, CancellationToken.None);
 
@@ -109,7 +111,7 @@ public class UsageControllerTests
     public async Task GetByMeterCode_PassesCorrectMeterCodeToQuery()
     {
         _bus.InvokeAsync<Result<IReadOnlyList<UsageSummaryDto>>>(Arg.Any<GetCurrentUsageQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success<IReadOnlyList<UsageSummaryDto>>(new List<UsageSummaryDto>()));
+            .Returns(Result.Success<IReadOnlyList<UsageSummaryDto>>([]));
 
         await _controller.GetByMeterCode("storage", QuotaPeriod.Monthly, CancellationToken.None);
 
@@ -160,7 +162,7 @@ public class UsageControllerTests
         DateTime from = DateTime.UtcNow.AddDays(-30);
         DateTime to = DateTime.UtcNow;
         _bus.InvokeAsync<Result<IReadOnlyList<UsageRecordDto>>>(Arg.Any<GetUsageHistoryQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success<IReadOnlyList<UsageRecordDto>>(new List<UsageRecordDto>()));
+            .Returns(Result.Success<IReadOnlyList<UsageRecordDto>>([]));
 
         await _controller.GetHistory("storage", from, to, CancellationToken.None);
 
@@ -173,7 +175,7 @@ public class UsageControllerTests
     public async Task GetHistory_WhenEmpty_ReturnsOkWithEmptyList()
     {
         _bus.InvokeAsync<Result<IReadOnlyList<UsageRecordDto>>>(Arg.Any<GetUsageHistoryQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success<IReadOnlyList<UsageRecordDto>>(new List<UsageRecordDto>()));
+            .Returns(Result.Success<IReadOnlyList<UsageRecordDto>>([]));
 
         IActionResult result = await _controller.GetHistory("api-calls", DateTime.UtcNow.AddDays(-7), DateTime.UtcNow, CancellationToken.None);
 

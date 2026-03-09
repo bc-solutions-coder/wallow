@@ -20,31 +20,21 @@ public sealed record UserContext(
     string? PlanName,
     IReadOnlyList<string> Roles);
 
-public sealed class AnnouncementTargetingService : IAnnouncementTargetingService
+public sealed class AnnouncementTargetingService(
+    IAnnouncementRepository announcementRepository,
+    IAnnouncementDismissalRepository dismissalRepository,
+    TimeProvider timeProvider) : IAnnouncementTargetingService
 {
-    private readonly IAnnouncementRepository _announcementRepository;
-    private readonly IAnnouncementDismissalRepository _dismissalRepository;
-    private readonly TimeProvider _timeProvider;
-
-    public AnnouncementTargetingService(
-        IAnnouncementRepository announcementRepository,
-        IAnnouncementDismissalRepository dismissalRepository,
-        TimeProvider timeProvider)
-    {
-        _announcementRepository = announcementRepository;
-        _dismissalRepository = dismissalRepository;
-        _timeProvider = timeProvider;
-    }
 
     public async Task<IReadOnlyList<AnnouncementDto>> GetActiveAnnouncementsForUserAsync(
         UserContext userContext,
         CancellationToken ct = default)
     {
-        IReadOnlyList<Announcement> announcements = await _announcementRepository.GetPublishedAsync(ct);
-        IReadOnlyList<AnnouncementDismissal> dismissals = await _dismissalRepository.GetByUserIdAsync(userContext.UserId, ct);
+        IReadOnlyList<Announcement> announcements = await announcementRepository.GetPublishedAsync(ct);
+        IReadOnlyList<AnnouncementDismissal> dismissals = await dismissalRepository.GetByUserIdAsync(userContext.UserId, ct);
         HashSet<AnnouncementId> dismissedIds = dismissals.Select(d => d.AnnouncementId).ToHashSet();
 
-        DateTime now = _timeProvider.GetUtcNow().UtcDateTime;
+        DateTime now = timeProvider.GetUtcNow().UtcDateTime;
 
         return announcements
             .Where(a => IsActiveAndNotExpired(a, now))

@@ -8,21 +8,13 @@ namespace Foundry.Identity.Infrastructure.Services;
 /// <summary>
 /// Token service implementation that delegates to Keycloak's token endpoint.
 /// </summary>
-public sealed partial class KeycloakTokenService : ITokenService
+public sealed partial class KeycloakTokenService(
+    IHttpClientFactory httpClientFactory,
+    IOptions<KeycloakOptions> keycloakOptions,
+    ILogger<KeycloakTokenService> logger) : ITokenService
 {
-    private readonly HttpClient _httpClient;
-    private readonly KeycloakOptions _keycloakOptions;
-    private readonly ILogger<KeycloakTokenService> _logger;
-
-    public KeycloakTokenService(
-        IHttpClientFactory httpClientFactory,
-        IOptions<KeycloakOptions> keycloakOptions,
-        ILogger<KeycloakTokenService> logger)
-    {
-        _httpClient = httpClientFactory.CreateClient("KeycloakTokenClient");
-        _keycloakOptions = keycloakOptions.Value;
-        _logger = logger;
-    }
+    private readonly HttpClient _httpClient = httpClientFactory.CreateClient("KeycloakTokenClient");
+    private readonly KeycloakOptions _keycloakOptions = keycloakOptions.Value;
 
     public async Task<TokenResult> GetTokenAsync(string email, string password, CancellationToken ct = default)
     {

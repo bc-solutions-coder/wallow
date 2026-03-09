@@ -174,8 +174,7 @@ public sealed class ScimToKeycloakTranslator
             {
                 ComparisonNode c => EvaluateComparison(user, c),
                 LogicalNode l => l.Operator == "and"
-                    ? EvaluateFilter(user, l.Left) && EvaluateFilter(user, l.Right)
-                    : EvaluateFilter(user, l.Left) || EvaluateFilter(user, l.Right),
+                    ? EvaluateFilter(user, l.Left) && EvaluateFilter(user, l.Right) : EvaluateFilter(user, l.Left) || EvaluateFilter(user, l.Right),
                 NotNode n => !EvaluateFilter(user, n.InnerExpression),
                 PresenceNode p => NormalizeAttributePath(p.AttributePath) switch
                 {
@@ -197,8 +196,7 @@ public sealed class ScimToKeycloakTranslator
             // When combining filters with in-memory components, we must fetch all users
             // and filter in-memory
             Func<ScimUser, bool> combinedFilter = logicOp == "and"
-                ? user => ApplyFilter(user, left) && ApplyFilter(user, right)
-                : user => ApplyFilter(user, left) || ApplyFilter(user, right);
+                ? user => ApplyFilter(user, left) && ApplyFilter(user, right) : user => ApplyFilter(user, left) || ApplyFilter(user, right);
 
             return new KeycloakQueryParams(InMemoryFilter: combinedFilter);
         }

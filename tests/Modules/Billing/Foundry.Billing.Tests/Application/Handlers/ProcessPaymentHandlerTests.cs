@@ -32,7 +32,7 @@ public class ProcessPaymentHandlerTests
         _invoiceRepository.GetByIdAsync(Arg.Any<InvoiceId>(), Arg.Any<CancellationToken>())
             .Returns(invoice);
 
-        ProcessPaymentCommand command = new ProcessPaymentCommand(
+        ProcessPaymentCommand command = new(
             InvoiceId: Guid.NewGuid(),
             UserId: Guid.NewGuid(),
             Amount: 100.00m,
@@ -58,7 +58,7 @@ public class ProcessPaymentHandlerTests
         _invoiceRepository.GetByIdAsync(Arg.Any<InvoiceId>(), Arg.Any<CancellationToken>())
             .Returns((Invoice?)null);
 
-        ProcessPaymentCommand command = new ProcessPaymentCommand(
+        ProcessPaymentCommand command = new(
             InvoiceId: Guid.NewGuid(),
             UserId: Guid.NewGuid(),
             Amount: 100.00m,
@@ -84,7 +84,7 @@ public class ProcessPaymentHandlerTests
         _invoiceRepository.GetByIdAsync(Arg.Any<InvoiceId>(), Arg.Any<CancellationToken>())
             .Returns(invoice);
 
-        ProcessPaymentCommand command = new ProcessPaymentCommand(
+        ProcessPaymentCommand command = new(
             InvoiceId: Guid.NewGuid(),
             UserId: Guid.NewGuid(),
             Amount: 100.00m,
@@ -110,7 +110,7 @@ public class ProcessPaymentHandlerTests
         _invoiceRepository.GetByIdAsync(Arg.Any<InvoiceId>(), Arg.Any<CancellationToken>())
             .Returns(invoice);
 
-        ProcessPaymentCommand command = new ProcessPaymentCommand(
+        ProcessPaymentCommand command = new(
             InvoiceId: Guid.NewGuid(),
             UserId: Guid.NewGuid(),
             Amount: 100.00m,
@@ -143,9 +143,9 @@ public class ProcessPaymentHandlerTests
         Guid invoiceId = Guid.NewGuid();
         Guid userId = Guid.NewGuid();
 
-        ProcessPaymentCommand command1 = new ProcessPaymentCommand(invoiceId, userId, 100.00m, "USD", "CreditCard");
-        ProcessPaymentCommand command2 = new ProcessPaymentCommand(invoiceId, userId, 100.00m, "USD", "BankTransfer");
-        ProcessPaymentCommand command3 = new ProcessPaymentCommand(invoiceId, userId, 100.00m, "USD", "CreditCard");
+        ProcessPaymentCommand command1 = new(invoiceId, userId, 100.00m, "USD", "CreditCard");
+        ProcessPaymentCommand command2 = new(invoiceId, userId, 100.00m, "USD", "BankTransfer");
+        ProcessPaymentCommand command3 = new(invoiceId, userId, 100.00m, "USD", "CreditCard");
 
         // Act
         Task<Result<PaymentDto>>[] tasks = new[]

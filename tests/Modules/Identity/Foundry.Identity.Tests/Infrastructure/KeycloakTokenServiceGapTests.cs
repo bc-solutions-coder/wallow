@@ -148,7 +148,7 @@ public class KeycloakTokenServiceGapTests
 
     private sealed class MockHttpHandler : HttpMessageHandler
     {
-        private readonly Dictionary<string, (HttpStatusCode Status, string Content)> _routes = [];
+        private readonly Dictionary<string, (HttpStatusCode Status, string Content)> _routes = new Dictionary<string, (HttpStatusCode Status, string Content)>();
 
         public MockHttpHandler WithPost(string path, HttpStatusCode status, string content)
         {

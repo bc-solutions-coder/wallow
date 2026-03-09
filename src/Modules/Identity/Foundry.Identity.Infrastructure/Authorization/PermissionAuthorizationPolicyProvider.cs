@@ -4,14 +4,9 @@ using Microsoft.Extensions.Options;
 
 namespace Foundry.Identity.Infrastructure.Authorization;
 
-public class PermissionAuthorizationPolicyProvider : IAuthorizationPolicyProvider
+public class PermissionAuthorizationPolicyProvider(IOptions<AuthorizationOptions> options) : IAuthorizationPolicyProvider
 {
-    private readonly DefaultAuthorizationPolicyProvider _fallbackProvider;
-
-    public PermissionAuthorizationPolicyProvider(IOptions<AuthorizationOptions> options)
-    {
-        _fallbackProvider = new DefaultAuthorizationPolicyProvider(options);
-    }
+    private readonly DefaultAuthorizationPolicyProvider _fallbackProvider = new(options);
 
     public Task<AuthorizationPolicy?> GetPolicyAsync(string policyName)
     {

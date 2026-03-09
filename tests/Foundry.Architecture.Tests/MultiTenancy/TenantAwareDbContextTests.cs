@@ -62,17 +62,13 @@ public sealed class TenantAwareDbContextTests : IDisposable
         _connection.Dispose();
     }
 
-    private sealed class TestDbContext : TenantAwareDbContext<TestDbContext>
+    private sealed class TestDbContext(DbContextOptions<TestDbContext> options, ITenantContext tenantContext)
+        : TenantAwareDbContext<TestDbContext>(options, tenantContext)
     {
         // ReSharper disable once UnusedMember.Local
         public DbSet<TenantScopedEntity> TenantScopedEntities => Set<TenantScopedEntity>();
         // ReSharper disable once UnusedMember.Local
         public DbSet<NonTenantEntity> NonTenantEntities => Set<NonTenantEntity>();
-
-        public TestDbContext(DbContextOptions<TestDbContext> options, ITenantContext tenantContext)
-            : base(options, tenantContext)
-        {
-        }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

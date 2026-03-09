@@ -5,28 +5,20 @@ using Microsoft.Extensions.Logging;
 
 namespace Foundry.Billing.Infrastructure.Services;
 
-public sealed partial class SubscriptionQueryService : ISubscriptionQueryService
+public sealed partial class SubscriptionQueryService(
+    ISubscriptionRepository subscriptionRepository,
+    ILogger<SubscriptionQueryService> logger) : ISubscriptionQueryService
 {
-    private readonly ISubscriptionRepository _subscriptionRepository;
-    private readonly ILogger<SubscriptionQueryService> _logger;
-
-    public SubscriptionQueryService(
-        ISubscriptionRepository subscriptionRepository,
-        ILogger<SubscriptionQueryService> logger)
-    {
-        _subscriptionRepository = subscriptionRepository;
-        _logger = logger;
-    }
 
     public async Task<string?> GetActivePlanCodeAsync(Guid tenantId, CancellationToken ct = default)
     {
         try
         {
-            Subscription? subscription = await _subscriptionRepository.GetActiveByUserIdAsync(tenantId, ct);
+            Subscription? subscription = await subscriptionRepository.GetActiveByUserIdAsync(tenantId, ct);
 
             if (subscription is null)
             {
-                LogNoActiveSubscription(_logger, tenantId);
+                LogNoActiveSubscription(logger, tenantId);
                 return null;
             }
 
@@ -34,7 +26,7 @@ public sealed partial class SubscriptionQueryService : ISubscriptionQueryService
         }
         catch (Exception ex)
         {
-            LogGetActivePlanFailed(_logger, ex, tenantId);
+            LogGetActivePlanFailed(logger, ex, tenantId);
             return null;
         }
     }

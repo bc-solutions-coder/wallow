@@ -21,14 +21,8 @@ namespace Foundry.Identity.Api.Controllers;
 [Tags("Service Accounts")]
 [Produces("application/json")]
 [Consumes("application/json")]
-public class ServiceAccountsController : ControllerBase
+public class ServiceAccountsController(IServiceAccountService serviceAccountService) : ControllerBase
 {
-    private readonly IServiceAccountService _serviceAccountService;
-
-    public ServiceAccountsController(IServiceAccountService serviceAccountService)
-    {
-        _serviceAccountService = serviceAccountService;
-    }
 
     /// <summary>
     /// List all service accounts for the current tenant.
@@ -38,7 +32,7 @@ public class ServiceAccountsController : ControllerBase
     [ProducesResponseType(typeof(IReadOnlyList<ServiceAccountDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<ServiceAccountDto>>> List(CancellationToken ct)
     {
-        IReadOnlyList<ServiceAccountDto> accounts = await _serviceAccountService.ListAsync(ct);
+        IReadOnlyList<ServiceAccountDto> accounts = await serviceAccountService.ListAsync(ct);
         return Ok(accounts);
     }
 
@@ -59,7 +53,7 @@ public class ServiceAccountsController : ControllerBase
             request.Description,
             request.Scopes);
 
-        ServiceAccountCreatedResult result = await _serviceAccountService.CreateAsync(appRequest, ct);
+        ServiceAccountCreatedResult result = await serviceAccountService.CreateAsync(appRequest, ct);
 
         ServiceAccountCreatedResponse response = new()
         {
@@ -82,7 +76,7 @@ public class ServiceAccountsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ServiceAccountDto>> Get(Guid id, CancellationToken ct)
     {
-        ServiceAccountDto? account = await _serviceAccountService.GetAsync(ServiceAccountMetadataId.Create(id), ct);
+        ServiceAccountDto? account = await serviceAccountService.GetAsync(ServiceAccountMetadataId.Create(id), ct);
         return account is null ? NotFound() : Ok(account);
     }
 
@@ -98,7 +92,7 @@ public class ServiceAccountsController : ControllerBase
         [FromBody] UpdateScopesRequest request,
         CancellationToken ct)
     {
-        await _serviceAccountService.UpdateScopesAsync(
+        await serviceAccountService.UpdateScopesAsync(
             ServiceAccountMetadataId.Create(id),
             request.Scopes,
             ct);
@@ -115,7 +109,7 @@ public class ServiceAccountsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<SecretRotatedResponse>> RotateSecret(Guid id, CancellationToken ct)
     {
-        SecretRotatedResult result = await _serviceAccountService.RotateSecretAsync(
+        SecretRotatedResult result = await serviceAccountService.RotateSecretAsync(
             ServiceAccountMetadataId.Create(id),
             ct);
 
@@ -135,7 +129,7 @@ public class ServiceAccountsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> Revoke(Guid id, CancellationToken ct)
     {
-        await _serviceAccountService.RevokeAsync(
+        await serviceAccountService.RevokeAsync(
             ServiceAccountMetadataId.Create(id),
             ct);
         return NoContent();

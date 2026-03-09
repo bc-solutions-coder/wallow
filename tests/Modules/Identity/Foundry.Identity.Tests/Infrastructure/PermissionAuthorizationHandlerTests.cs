@@ -6,7 +6,7 @@ namespace Foundry.Identity.Tests.Infrastructure;
 
 public class PermissionAuthorizationHandlerTests
 {
-    private readonly PermissionAuthorizationHandler _handler = new();
+    private readonly PermissionAuthorizationHandler _handler = new PermissionAuthorizationHandler();
 
     [Fact]
     public async Task HandleRequirementAsync_UserHasPermission_Succeeds()
@@ -46,7 +46,7 @@ public class PermissionAuthorizationHandlerTests
     [Fact]
     public async Task HandleRequirementAsync_UserHasNoPermissions_DoesNotSucceed()
     {
-        ClaimsPrincipal user = new(new ClaimsIdentity(Array.Empty<Claim>(), "test"));
+        ClaimsPrincipal user = new(new ClaimsIdentity([], "test"));
 
         PermissionRequirement requirement = new("UsersRead");
         AuthorizationHandlerContext context = new(

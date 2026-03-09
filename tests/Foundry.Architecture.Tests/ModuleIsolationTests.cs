@@ -15,7 +15,7 @@ public class ModuleIsolationTests
         {
             foreach (string layer in _layers)
             {
-                yield return new object[] { moduleName, layer };
+                yield return [moduleName, layer];
             }
         }
     }

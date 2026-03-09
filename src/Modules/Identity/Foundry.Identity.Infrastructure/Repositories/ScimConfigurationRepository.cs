@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Foundry.Identity.Infrastructure.Repositories;
 
-public sealed class ScimConfigurationRepository : IScimConfigurationRepository
+public sealed class ScimConfigurationRepository(IdentityDbContext context) : IScimConfigurationRepository
 {
     private static readonly Func<IdentityDbContext, Task<ScimConfiguration?>>
         _getQuery = EF.CompileAsyncQuery(
@@ -14,26 +14,19 @@ public sealed class ScimConfigurationRepository : IScimConfigurationRepository
                     .AsTracking()
                     .FirstOrDefault());
 
-    private readonly IdentityDbContext _context;
-
-    public ScimConfigurationRepository(IdentityDbContext context)
-    {
-        _context = context;
-    }
-
     public Task<ScimConfiguration?> GetAsync(CancellationToken ct = default)
     {
         // Each tenant has at most one SCIM configuration
-        return _getQuery(_context);
+        return _getQuery(context);
     }
 
     public void Add(ScimConfiguration entity)
     {
-        _context.ScimConfigurations.Add(entity);
+        context.ScimConfigurations.Add(entity);
     }
 
     public async Task SaveChangesAsync(CancellationToken ct = default)
     {
-        await _context.SaveChangesAsync(ct);
+        await context.SaveChangesAsync(ct);
     }
 }

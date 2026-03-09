@@ -5,7 +5,7 @@ namespace Foundry.Identity.Tests.Infrastructure;
 
 public class ScimFilterLexerTests
 {
-    private readonly ScimFilterLexer _lexer = new();
+    private readonly ScimFilterLexer _lexer = new ScimFilterLexer();
 
     [Fact]
     public void Tokenize_WithEmptyString_ReturnsEmptyList()

@@ -20,7 +20,7 @@ public class UpdateCustomFieldDefinitionHandlerTests
         _repository = Substitute.For<ICustomFieldDefinitionRepository>();
         ICurrentUserService currentUserService = Substitute.For<ICurrentUserService>();
         currentUserService.UserId.Returns(Guid.NewGuid());
-        _handler = new UpdateCustomFieldDefinitionHandler(_repository, currentUserService, TimeProvider.System);
+        _handler = new(_repository, currentUserService, TimeProvider.System);
     }
 
     private static CustomFieldDefinition CreateDefinition(string entityType = "Invoice", string fieldKey = "test_field")
@@ -121,8 +121,8 @@ public class UpdateCustomFieldDefinitionHandlerTests
 
         List<CustomFieldOption> options =
         [
-            new CustomFieldOption { Value = "a", Label = "Option A" },
-            new CustomFieldOption { Value = "b", Label = "Option B" }
+            new() { Value = "a", Label = "Option A" },
+            new() { Value = "b", Label = "Option B" }
         ];
         UpdateCustomFieldDefinitionCommand command = new(Id: definition.Id.Value, Options: options);
 

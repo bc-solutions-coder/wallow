@@ -15,7 +15,7 @@ public class InvoiceReportServiceTests
         ITenantContext tenantContext = Substitute.For<ITenantContext>();
         tenantContext.TenantId.Returns(TenantId.Create(Guid.NewGuid()));
 
-        InvoiceReportService service = new InvoiceReportService(dbContext, tenantContext);
+        InvoiceReportService service = new(dbContext, tenantContext);
 
         service.Should().NotBeNull();
     }

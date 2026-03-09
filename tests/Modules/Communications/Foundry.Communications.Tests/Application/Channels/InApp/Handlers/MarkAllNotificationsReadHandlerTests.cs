@@ -24,12 +24,12 @@ public class MarkAllNotificationsReadHandlerTests
         Guid userId = Guid.NewGuid();
         TenantId tenantId = TenantId.Create(Guid.NewGuid());
 
-        List<Notification> notifications = new()
-        {
+        List<Notification> notifications =
+        [
             Notification.Create(tenantId, userId, NotificationType.SystemAlert, "Title 1", "Message 1", TimeProvider.System),
             Notification.Create(tenantId, userId, NotificationType.TaskAssigned, "Title 2", "Message 2", TimeProvider.System),
             Notification.Create(tenantId, userId, NotificationType.Mention, "Title 3", "Message 3", TimeProvider.System)
-        };
+        ];
 
         _repository.GetUnreadByUserIdAsync(userId, Arg.Any<CancellationToken>())
             .Returns(notifications);
@@ -48,7 +48,7 @@ public class MarkAllNotificationsReadHandlerTests
     {
         Guid userId = Guid.NewGuid();
         _repository.GetUnreadByUserIdAsync(userId, Arg.Any<CancellationToken>())
-            .Returns(new List<Notification>());
+            .Returns([]);
 
         MarkAllNotificationsReadCommand command = new(userId);
 
@@ -65,7 +65,7 @@ public class MarkAllNotificationsReadHandlerTests
         Guid userId = Guid.NewGuid();
 
         _repository.GetUnreadByUserIdAsync(userId, Arg.Any<CancellationToken>())
-            .Returns(new List<Notification>());
+            .Returns([]);
 
         MarkAllNotificationsReadCommand command = new(userId);
 

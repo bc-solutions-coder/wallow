@@ -7,18 +7,12 @@ namespace Foundry.Communications.Application.Announcements.Queries.GetChangelog;
 
 public sealed record GetChangelogQuery(int Limit = 50);
 
-public sealed class GetChangelogHandler
+public sealed class GetChangelogHandler(IChangelogRepository repository)
 {
-    private readonly IChangelogRepository _repository;
-
-    public GetChangelogHandler(IChangelogRepository repository)
-    {
-        _repository = repository;
-    }
 
     public async Task<Result<IReadOnlyList<ChangelogEntryDto>>> Handle(GetChangelogQuery query, CancellationToken ct)
     {
-        IReadOnlyList<ChangelogEntry> entries = await _repository.GetPublishedAsync(query.Limit, ct);
+        IReadOnlyList<ChangelogEntry> entries = await repository.GetPublishedAsync(query.Limit, ct);
         IReadOnlyList<ChangelogEntryDto> dtos = entries.Select(MapToDto).ToList();
         return Result.Success(dtos);
     }

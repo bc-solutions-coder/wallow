@@ -99,8 +99,8 @@ public sealed class SecurityHeadersMiddlewareTests
     private async Task<IHeaderDictionary> InvokeAndGetHeaders(string environmentName)
     {
         _environment.EnvironmentName.Returns(environmentName);
-        CallbackCapturingResponseFeature responseFeature = new CallbackCapturingResponseFeature();
-        FeatureCollection features = new FeatureCollection();
+        CallbackCapturingResponseFeature responseFeature = new();
+        FeatureCollection features = new();
         features.Set<IHttpResponseFeature>(responseFeature);
         features.Set<IHttpResponseBodyFeature>(new StreamResponseBodyFeature(Stream.Null));
         features.Set<IHttpRequestFeature>(new HttpRequestFeature { Path = "/" });

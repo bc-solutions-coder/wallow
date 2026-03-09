@@ -26,11 +26,11 @@ public class GetUserNotificationsHandlerTests
         Guid userId = Guid.NewGuid();
         TenantId tenantId = TenantId.Create(Guid.NewGuid());
 
-        List<Notification> notifications = new()
-        {
+        List<Notification> notifications =
+        [
             Notification.Create(tenantId, userId, NotificationType.SystemAlert, "Title 1", "Message 1", TimeProvider.System),
             Notification.Create(tenantId, userId, NotificationType.TaskAssigned, "Title 2", "Message 2", TimeProvider.System)
-        };
+        ];
 
         _repository.GetByUserIdPagedAsync(userId, 1, 20, Arg.Any<CancellationToken>())
             .Returns(new PagedResult<Notification>(notifications, 2, 1, 20));
@@ -51,7 +51,7 @@ public class GetUserNotificationsHandlerTests
     {
         Guid userId = Guid.NewGuid();
         _repository.GetByUserIdPagedAsync(userId, 3, 10, Arg.Any<CancellationToken>())
-            .Returns(new PagedResult<Notification>(new List<Notification>(), 0, 3, 10));
+            .Returns(new PagedResult<Notification>([], 0, 3, 10));
 
         GetUserNotificationsQuery query = new(userId, PageNumber: 3, PageSize: 10);
 
@@ -65,7 +65,7 @@ public class GetUserNotificationsHandlerTests
     {
         Guid userId = Guid.NewGuid();
         _repository.GetByUserIdPagedAsync(userId, 1, 20, Arg.Any<CancellationToken>())
-            .Returns(new PagedResult<Notification>(new List<Notification>(), 0, 1, 20));
+            .Returns(new PagedResult<Notification>([], 0, 1, 20));
 
         GetUserNotificationsQuery query = new(userId);
 
@@ -85,7 +85,7 @@ public class GetUserNotificationsHandlerTests
         Notification notification = Notification.Create(tenantId, userId, NotificationType.Mention, "Test Title", "Test Message", TimeProvider.System);
 
         _repository.GetByUserIdPagedAsync(userId, 1, 20, Arg.Any<CancellationToken>())
-            .Returns(new PagedResult<Notification>(new List<Notification> { notification }, 1, 1, 20));
+            .Returns(new PagedResult<Notification>([notification], 1, 1, 20));
 
         GetUserNotificationsQuery query = new(userId);
 
@@ -108,7 +108,7 @@ public class GetUserNotificationsHandlerTests
         // Repository filters out archived notifications, so mock returns only active ones
         Notification activeNotification = Notification.Create(tenantId, userId, NotificationType.SystemAlert, "Active", "Active message", TimeProvider.System);
 
-        List<Notification> notifications = new() { activeNotification };
+        List<Notification> notifications = [activeNotification];
 
         _repository.GetByUserIdPagedAsync(userId, 1, 20, Arg.Any<CancellationToken>())
             .Returns(new PagedResult<Notification>(notifications, 1, 1, 20));
@@ -131,7 +131,7 @@ public class GetUserNotificationsHandlerTests
         // Repository filters out expired notifications, so mock returns only active ones
         Notification activeNotification = Notification.Create(tenantId, userId, NotificationType.SystemAlert, "Active", "Active message", TimeProvider.System);
 
-        List<Notification> notifications = new() { activeNotification };
+        List<Notification> notifications = [activeNotification];
 
         _repository.GetByUserIdPagedAsync(userId, 1, 20, Arg.Any<CancellationToken>())
             .Returns(new PagedResult<Notification>(notifications, 1, 1, 20));
@@ -154,7 +154,7 @@ public class GetUserNotificationsHandlerTests
         Notification notification1 = Notification.Create(tenantId, userId, NotificationType.SystemAlert, "Alert", "Alert message", TimeProvider.System);
         Notification notification2 = Notification.Create(tenantId, userId, NotificationType.TaskAssigned, "Task", "Task message", TimeProvider.System, expiresAt: DateTime.UtcNow.AddHours(1));
 
-        List<Notification> notifications = new() { notification1, notification2 };
+        List<Notification> notifications = [notification1, notification2];
 
         _repository.GetByUserIdPagedAsync(userId, 1, 20, Arg.Any<CancellationToken>())
             .Returns(new PagedResult<Notification>(notifications, 2, 1, 20));

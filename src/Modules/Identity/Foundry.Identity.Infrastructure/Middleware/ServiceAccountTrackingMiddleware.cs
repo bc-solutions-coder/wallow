@@ -10,25 +10,12 @@ namespace Foundry.Identity.Infrastructure.Middleware;
 /// <summary>
 /// Tracks service account usage by updating LastUsedAt timestamp when API requests are made.
 /// </summary>
-public sealed partial class ServiceAccountTrackingMiddleware
+public sealed partial class ServiceAccountTrackingMiddleware(RequestDelegate next, ILogger<ServiceAccountTrackingMiddleware> logger, IServiceScopeFactory serviceScopeFactory)
 {
-    private readonly RequestDelegate _next;
-    private readonly ILogger<ServiceAccountTrackingMiddleware> _logger;
-    private readonly IServiceScopeFactory _serviceScopeFactory;
-
-    public ServiceAccountTrackingMiddleware(
-        RequestDelegate next,
-        ILogger<ServiceAccountTrackingMiddleware> logger,
-        IServiceScopeFactory serviceScopeFactory)
-    {
-        _next = next;
-        _logger = logger;
-        _serviceScopeFactory = serviceScopeFactory;
-    }
 
     public async Task InvokeAsync(HttpContext context)
     {
-        await _next(context);
+        await next(context);
 
         // Only track successful requests from service accounts
         if (context.Response.StatusCode is >= 200 and < 300)
@@ -43,7 +30,7 @@ public sealed partial class ServiceAccountTrackingMiddleware
                     try
                     {
                         // Need to create a new scope since the request scope may be disposed
-                        await using AsyncServiceScope scope = _serviceScopeFactory.CreateAsyncScope();
+                        await using AsyncServiceScope scope = serviceScopeFactory.CreateAsyncScope();
                         IServiceAccountUnfilteredRepository repository = scope.ServiceProvider.GetRequiredService<IServiceAccountUnfilteredRepository>();
                         TimeProvider timeProvider = scope.ServiceProvider.GetRequiredService<TimeProvider>();
 

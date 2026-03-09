@@ -51,7 +51,7 @@ public class ScimSyncHandlerTests
 
         ScimService service = CreateService(handler);
 
-        ScimUserRequest createRequest = new()
+        ScimUserRequest createRequest = new ScimUserRequest()
         {
             UserName = "sync.user",
             ExternalId = "ext-sync-1",
@@ -62,7 +62,7 @@ public class ScimSyncHandlerTests
 
         ScimUser created = await service.CreateUserAsync(createRequest);
 
-        ScimUserRequest updateRequest = new()
+        ScimUserRequest updateRequest = new ScimUserRequest()
         {
             UserName = "sync.user",
             ExternalId = "ext-sync-1",
@@ -116,7 +116,7 @@ public class ScimSyncHandlerTests
 
         ScimService service = CreateService(handler);
 
-        ScimUserRequest createRequest = new()
+        ScimUserRequest createRequest = new ScimUserRequest()
         {
             UserName = "del.user",
             ExternalId = "ext-del-1",
@@ -154,7 +154,7 @@ public class ScimSyncHandlerTests
 
         ScimService service = CreateService(handler);
 
-        ScimPatchRequest patchRequest = new()
+        ScimPatchRequest patchRequest = new ScimPatchRequest()
         {
             Operations = new[]
             {
@@ -195,7 +195,7 @@ public class ScimSyncHandlerTests
 
         ScimService service = CreateService(handler);
 
-        ScimPatchRequest patchRequest = new()
+        ScimPatchRequest patchRequest = new ScimPatchRequest()
         {
             Operations = new[]
             {
@@ -222,7 +222,7 @@ public class ScimSyncHandlerTests
 
         ScimService service = CreateService(handler);
 
-        ScimUserRequest request = new()
+        ScimUserRequest request = new ScimUserRequest()
         {
             UserName = "ghost.user",
             ExternalId = "ext-ghost",
@@ -248,7 +248,7 @@ public class ScimSyncHandlerTests
 
         ScimService service = CreateService(handler);
 
-        ScimUserRequest request = new()
+        ScimUserRequest request = new ScimUserRequest()
         {
             UserName = "duplicate.user",
             ExternalId = "ext-dup-1",
@@ -296,7 +296,7 @@ public class ScimSyncHandlerTests
 
         ScimService failService = CreateService(failHandler);
 
-        ScimUserRequest request = new()
+        ScimUserRequest request = new ScimUserRequest()
         {
             UserName = "retry.user",
             ExternalId = "ext-retry-1",
@@ -349,7 +349,7 @@ public class ScimSyncHandlerTests
 
         ScimService service = CreateService(handler);
 
-        ScimPatchRequest patchRequest = new()
+        ScimPatchRequest patchRequest = new ScimPatchRequest()
         {
             Operations = new[]
             {
@@ -388,7 +388,7 @@ public class ScimSyncHandlerTests
 
         ScimService service = CreateService(handler);
 
-        ScimGroupRequest createRequest = new()
+        ScimGroupRequest createRequest = new ScimGroupRequest()
         {
             DisplayName = "Sync Group",
             ExternalId = "ext-grp-sync"
@@ -397,7 +397,7 @@ public class ScimSyncHandlerTests
         ScimGroup created = await service.CreateGroupAsync(createRequest);
         created.Id.Should().Be("grp-sync-1");
 
-        ScimGroupRequest updateRequest = new()
+        ScimGroupRequest updateRequest = new ScimGroupRequest()
         {
             DisplayName = "Updated Sync Group",
             ExternalId = "ext-grp-sync"
@@ -432,7 +432,7 @@ public class ScimSyncHandlerTests
 
         ScimService service = CreateService(handler);
 
-        ScimGroupRequest request = new()
+        ScimGroupRequest request = new ScimGroupRequest()
         {
             DisplayName = "Failing Group",
             ExternalId = "ext-fail-grp"
@@ -479,8 +479,7 @@ public class ScimSyncHandlerTests
         IHttpClientFactory httpClientFactory = Substitute.For<IHttpClientFactory>();
 
         HttpClient keycloakClient = handler != null
-            ? new HttpClient(handler)
-            : new HttpClient(new MockKeycloakHttpHandler());
+            ? new HttpClient(handler) : new HttpClient(new MockKeycloakHttpHandler());
         keycloakClient.BaseAddress = new Uri("https://keycloak.test/");
 
         httpClientFactory.CreateClient("KeycloakAdminClient").Returns(keycloakClient);
@@ -517,7 +516,7 @@ public class ScimSyncHandlerTests
 
     private sealed class MockKeycloakHttpHandler : HttpMessageHandler
     {
-        private readonly Dictionary<string, (HttpStatusCode Status, object? Content, string? LocationHeader)> _routes = [];
+        private readonly Dictionary<string, (HttpStatusCode Status, object? Content, string? LocationHeader)> _routes = new Dictionary<string, (HttpStatusCode Status, object? Content, string? LocationHeader)>();
 
         public MockKeycloakHttpHandler WithRoute(string method, string path, HttpStatusCode status,
             object? content = null, string? locationHeader = null)

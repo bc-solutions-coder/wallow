@@ -5,18 +5,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Foundry.Identity.Infrastructure.Repositories;
 
-public sealed class ScimSyncLogRepository : IScimSyncLogRepository
+public sealed class ScimSyncLogRepository(IdentityDbContext context) : IScimSyncLogRepository
 {
-    private readonly IdentityDbContext _context;
-
-    public ScimSyncLogRepository(IdentityDbContext context)
-    {
-        _context = context;
-    }
 
     public async Task<IReadOnlyList<ScimSyncLog>> GetRecentAsync(int limit = 100, CancellationToken ct = default)
     {
-        return await _context.ScimSyncLogs
+        return await context.ScimSyncLogs
             .OrderByDescending(x => x.Timestamp)
             .Take(limit)
             .ToListAsync(ct);
@@ -24,11 +18,11 @@ public sealed class ScimSyncLogRepository : IScimSyncLogRepository
 
     public void Add(ScimSyncLog entity)
     {
-        _context.ScimSyncLogs.Add(entity);
+        context.ScimSyncLogs.Add(entity);
     }
 
     public async Task SaveChangesAsync(CancellationToken ct = default)
     {
-        await _context.SaveChangesAsync(ct);
+        await context.SaveChangesAsync(ct);
     }
 }

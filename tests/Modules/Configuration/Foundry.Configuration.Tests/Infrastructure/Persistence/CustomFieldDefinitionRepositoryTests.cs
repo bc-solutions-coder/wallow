@@ -10,9 +10,9 @@ namespace Foundry.Configuration.Tests.Infrastructure.Persistence;
 
 [Collection("PostgresDatabase")]
 [Trait("Category", "Integration")]
-public class CustomFieldDefinitionRepositoryTests : DbContextIntegrationTestBase<ConfigurationDbContext>
+public class CustomFieldDefinitionRepositoryTests(PostgresContainerFixture fixture)
+    : DbContextIntegrationTestBase<ConfigurationDbContext>(fixture)
 {
-    public CustomFieldDefinitionRepositoryTests(PostgresContainerFixture fixture) : base(fixture) { }
 
     protected override bool UseMigrateAsync => true;
 
@@ -63,9 +63,9 @@ public class CustomFieldDefinitionRepositoryTests : DbContextIntegrationTestBase
     public async Task GetByEntityTypeAsync_ReturnsActiveDefinitionsOrdered()
     {
         CustomFieldDefinitionRepository repository = CreateRepository();
-        CustomFieldDefinition def1 = CreateDefinition(entityType: "Invoice");
+        CustomFieldDefinition def1 = CreateDefinition();
         def1.SetDisplayOrder(2, TestUserId, TimeProvider.System);
-        CustomFieldDefinition def2 = CreateDefinition(entityType: "Invoice");
+        CustomFieldDefinition def2 = CreateDefinition();
         def2.SetDisplayOrder(1, TestUserId, TimeProvider.System);
 
         await repository.AddAsync(def1);
@@ -144,7 +144,7 @@ public class CustomFieldDefinitionRepositoryTests : DbContextIntegrationTestBase
     public async Task UpdateAsync_ModifiesExistingDefinition()
     {
         CustomFieldDefinitionRepository repository = CreateRepository();
-        CustomFieldDefinition definition = CreateDefinition(entityType: "Invoice");
+        CustomFieldDefinition definition = CreateDefinition();
 
         await repository.AddAsync(definition);
         await repository.SaveChangesAsync();

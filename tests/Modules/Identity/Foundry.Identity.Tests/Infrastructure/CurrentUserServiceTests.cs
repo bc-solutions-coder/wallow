@@ -32,7 +32,7 @@ public class CurrentUserServiceTests
     public void GetCurrentUserId_WhenNotAuthenticated_ReturnsNull()
     {
         IHttpContextAccessor accessor = Substitute.For<IHttpContextAccessor>();
-        DefaultHttpContext context = new();
+        DefaultHttpContext context = new DefaultHttpContext();
         // User is not authenticated by default
         accessor.HttpContext.Returns(context);
 
@@ -75,7 +75,7 @@ public class CurrentUserServiceTests
     private static IHttpContextAccessor CreateAccessor(params Claim[] claims)
     {
         IHttpContextAccessor accessor = Substitute.For<IHttpContextAccessor>();
-        DefaultHttpContext context = new();
+        DefaultHttpContext context = new DefaultHttpContext();
         ClaimsIdentity identity = new(claims, "test");
         context.User = new ClaimsPrincipal(identity);
         accessor.HttpContext.Returns(context);

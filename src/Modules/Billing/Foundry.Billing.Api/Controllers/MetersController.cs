@@ -17,14 +17,8 @@ namespace Foundry.Billing.Api.Controllers;
 [Authorize]
 [Tags("Metering")]
 [Produces("application/json")]
-public class MetersController : ControllerBase
+public class MetersController(IMessageBus bus) : ControllerBase
 {
-    private readonly IMessageBus _bus;
-
-    public MetersController(IMessageBus bus)
-    {
-        _bus = bus;
-    }
 
     /// <summary>
     /// Get all meter definitions.
@@ -34,7 +28,7 @@ public class MetersController : ControllerBase
     [ProducesResponseType(typeof(IReadOnlyList<MeterDefinitionDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
     {
-        Result<IReadOnlyList<MeterDefinitionDto>> result = await _bus.InvokeAsync<Result<IReadOnlyList<MeterDefinitionDto>>>(
+        Result<IReadOnlyList<MeterDefinitionDto>> result = await bus.InvokeAsync<Result<IReadOnlyList<MeterDefinitionDto>>>(
             new GetMeterDefinitionsQuery(), cancellationToken);
 
         return result.ToActionResult();

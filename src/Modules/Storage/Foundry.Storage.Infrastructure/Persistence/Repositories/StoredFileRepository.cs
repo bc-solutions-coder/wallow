@@ -6,23 +6,16 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Foundry.Storage.Infrastructure.Persistence.Repositories;
 
-public sealed class StoredFileRepository : IStoredFileRepository
+public sealed class StoredFileRepository(StorageDbContext context) : IStoredFileRepository
 {
     private static readonly Func<StorageDbContext, StoredFileId, CancellationToken, Task<StoredFile?>> _getByIdQuery =
         EF.CompileAsyncQuery(
             (StorageDbContext ctx, StoredFileId id, CancellationToken _) =>
                 ctx.Files.AsTracking().FirstOrDefault(f => f.Id == id));
 
-    private readonly StorageDbContext _context;
-
-    public StoredFileRepository(StorageDbContext context)
-    {
-        _context = context;
-    }
-
     public Task<StoredFile?> GetByIdAsync(StoredFileId id, CancellationToken cancellationToken = default)
     {
-        return _getByIdQuery(_context, id, cancellationToken);
+        return _getByIdQuery(context, id, cancellationToken);
     }
 
     public async Task<IReadOnlyList<StoredFile>> GetByBucketIdAsync(
@@ -30,7 +23,7 @@ public sealed class StoredFileRepository : IStoredFileRepository
         string? pathPrefix = null,
         CancellationToken cancellationToken = default)
     {
-        IQueryable<StoredFile> query = _context.Files
+        IQueryable<StoredFile> query = context.Files
             .Where(f => f.BucketId == bucketId);
 
         if (!string.IsNullOrWhiteSpace(pathPrefix))
@@ -51,7 +44,7 @@ public sealed class StoredFileRepository : IStoredFileRepository
         int pageSize,
         CancellationToken cancellationToken = default)
     {
-        IQueryable<StoredFile> query = _context.Files
+        IQueryable<StoredFile> query = context.Files
             .Where(f => f.BucketId == bucketId && f.TenantId.Value == tenantId);
 
         if (!string.IsNullOrWhiteSpace(pathPrefix))
@@ -72,16 +65,16 @@ public sealed class StoredFileRepository : IStoredFileRepository
 
     public void Add(StoredFile file)
     {
-        _context.Files.Add(file);
+        context.Files.Add(file);
     }
 
     public void Remove(StoredFile file)
     {
-        _context.Files.Remove(file);
+        context.Files.Remove(file);
     }
 
     public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        await _context.SaveChangesAsync(cancellationToken);
+        await context.SaveChangesAsync(cancellationToken);
     }
 }

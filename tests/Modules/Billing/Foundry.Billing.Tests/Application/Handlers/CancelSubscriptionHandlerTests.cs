@@ -29,7 +29,7 @@ public class CancelSubscriptionHandlerTests
         _repository.GetByIdAsync(Arg.Any<SubscriptionId>(), Arg.Any<CancellationToken>())
             .Returns(subscription);
 
-        CancelSubscriptionCommand command = new CancelSubscriptionCommand(
+        CancelSubscriptionCommand command = new(
             SubscriptionId: subscriptionId,
             CancelledByUserId: Guid.NewGuid());
 
@@ -50,7 +50,7 @@ public class CancelSubscriptionHandlerTests
         _repository.GetByIdAsync(Arg.Any<SubscriptionId>(), Arg.Any<CancellationToken>())
             .Returns((Subscription?)null);
 
-        CancelSubscriptionCommand command = new CancelSubscriptionCommand(
+        CancelSubscriptionCommand command = new(
             SubscriptionId: Guid.NewGuid(),
             CancelledByUserId: Guid.NewGuid());
 

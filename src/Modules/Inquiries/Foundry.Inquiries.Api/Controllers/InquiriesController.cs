@@ -22,14 +22,8 @@ namespace Foundry.Inquiries.Api.Controllers;
 [Tags("Inquiries")]
 [Produces("application/json")]
 [Consumes("application/json")]
-public class InquiriesController : ControllerBase
+public class InquiriesController(IMessageBus bus) : ControllerBase
 {
-    private readonly IMessageBus _bus;
-
-    public InquiriesController(IMessageBus bus)
-    {
-        _bus = bus;
-    }
 
     [HttpPost]
     [AllowAnonymous]
@@ -41,7 +35,7 @@ public class InquiriesController : ControllerBase
     {
         string ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 
-        SubmitInquiryCommand command = new SubmitInquiryCommand(
+        SubmitInquiryCommand command = new(
             request.Name,
             request.Email,
             request.Company,
@@ -52,7 +46,7 @@ public class InquiriesController : ControllerBase
             ipAddress,
             HoneypotField: null);
 
-        Result<InquiryDto> result = await _bus.InvokeAsync<Result<InquiryDto>>(command, cancellationToken);
+        Result<InquiryDto> result = await bus.InvokeAsync<Result<InquiryDto>>(command, cancellationToken);
 
         return result.Map(ToInquiryResponse).ToActionResult();
     }
@@ -69,7 +63,7 @@ public class InquiriesController : ControllerBase
             parsedStatus = parsed;
         }
 
-        Result<IReadOnlyList<InquiryDto>> result = await _bus.InvokeAsync<Result<IReadOnlyList<InquiryDto>>>(
+        Result<IReadOnlyList<InquiryDto>> result = await bus.InvokeAsync<Result<IReadOnlyList<InquiryDto>>>(
             new GetInquiriesQuery(parsedStatus), cancellationToken);
 
         return result.Map(inquiries =>
@@ -82,7 +76,7 @@ public class InquiriesController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
     {
-        Result<InquiryDto> result = await _bus.InvokeAsync<Result<InquiryDto>>(
+        Result<InquiryDto> result = await bus.InvokeAsync<Result<InquiryDto>>(
             new GetInquiryByIdQuery(id), cancellationToken);
 
         return result.Map(ToInquiryResponse).ToActionResult();
@@ -107,7 +101,7 @@ public class InquiriesController : ControllerBase
             });
         }
 
-        Result<InquiryDto> result = await _bus.InvokeAsync<Result<InquiryDto>>(
+        Result<InquiryDto> result = await bus.InvokeAsync<Result<InquiryDto>>(
             new UpdateInquiryStatusCommand(id, newStatus), cancellationToken);
 
         return result.Map(ToInquiryResponse).ToActionResult();

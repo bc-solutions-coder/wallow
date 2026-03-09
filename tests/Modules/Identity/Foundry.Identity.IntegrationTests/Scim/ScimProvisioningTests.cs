@@ -14,22 +14,16 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Foundry.Identity.IntegrationTests.Scim;
 
 [Trait("Category", "Integration")]
-public class ScimProvisioningTests : IClassFixture<ScimProvisioningTestFactory>, IAsyncLifetime
+public class ScimProvisioningTests(ScimProvisioningTestFactory factory) : IClassFixture<ScimProvisioningTestFactory>, IAsyncLifetime
 {
-    private readonly ScimProvisioningTestFactory _factory;
     private IServiceScope? _scope;
     private IServiceProvider _scopedServices = null!;
     private IScimService _scimService = null!;
     private IdentityDbContext _dbContext = null!;
 
-    public ScimProvisioningTests(ScimProvisioningTestFactory factory)
-    {
-        _factory = factory;
-    }
-
     public async Task InitializeAsync()
     {
-        _scope = _factory.Services.CreateScope();
+        _scope = factory.Services.CreateScope();
         _scopedServices = _scope.ServiceProvider;
 
         _scimService = _scopedServices.GetRequiredService<IScimService>();
@@ -49,7 +43,7 @@ public class ScimProvisioningTests : IClassFixture<ScimProvisioningTestFactory>,
             DefaultRole: "user",
             DeprovisionOnDelete: false));
 
-        _factory.ResetKeycloakMock();
+        factory.ResetKeycloakMock();
     }
 
     public Task DisposeAsync()
@@ -121,7 +115,7 @@ public class ScimProvisioningTests : IClassFixture<ScimProvisioningTestFactory>,
         _ = await _scimService.CreateUserAsync(firstRequest);
 
         // Setup mock to return 409 conflict
-        _factory.SetupUserCreationConflict();
+        factory.SetupUserCreationConflict();
 
         // Act & Assert - Try to create duplicate
         ScimUserRequest secondRequest = new()

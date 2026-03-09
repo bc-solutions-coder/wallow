@@ -31,7 +31,7 @@ public class IssueInvoiceHandlerTests
         _repository.GetByIdWithLineItemsAsync(Arg.Any<InvoiceId>(), Arg.Any<CancellationToken>())
             .Returns(invoice);
 
-        IssueInvoiceCommand command = new IssueInvoiceCommand(
+        IssueInvoiceCommand command = new(
             InvoiceId: Guid.NewGuid(),
             IssuedByUserId: Guid.NewGuid());
 
@@ -52,7 +52,7 @@ public class IssueInvoiceHandlerTests
         _repository.GetByIdWithLineItemsAsync(Arg.Any<InvoiceId>(), Arg.Any<CancellationToken>())
             .Returns((Invoice?)null);
 
-        IssueInvoiceCommand command = new IssueInvoiceCommand(
+        IssueInvoiceCommand command = new(
             InvoiceId: Guid.NewGuid(),
             IssuedByUserId: Guid.NewGuid());
 

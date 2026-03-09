@@ -48,7 +48,7 @@ public class GetUploadPresignedUrlHandlerTests
     public async Task Handle_WhenContentTypeNotAllowed_ReturnsValidationFailure()
     {
         StorageBucket bucket = StorageBucket.Create(
-            TenantId.New(), "images-only", allowedContentTypes: new[] { "image/*" });
+            TenantId.New(), "images-only", allowedContentTypes: ["image/*"]);
         GetUploadPresignedUrlQuery query = new(
             Guid.NewGuid(), Guid.NewGuid(), "images-only", "doc.pdf", "application/pdf", 100);
 

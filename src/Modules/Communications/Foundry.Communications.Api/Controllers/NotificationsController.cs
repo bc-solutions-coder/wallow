@@ -24,16 +24,8 @@ namespace Foundry.Communications.Api.Controllers;
 [Tags("Notifications")]
 [Produces("application/json")]
 [Consumes("application/json")]
-public class NotificationsController : ControllerBase
+public class NotificationsController(IMessageBus bus, ICurrentUserService currentUserService) : ControllerBase
 {
-    private readonly IMessageBus _bus;
-    private readonly ICurrentUserService _currentUserService;
-
-    public NotificationsController(IMessageBus bus, ICurrentUserService currentUserService)
-    {
-        _bus = bus;
-        _currentUserService = currentUserService;
-    }
 
     /// <summary>
     /// Get the current user's notification history.
@@ -47,13 +39,13 @@ public class NotificationsController : ControllerBase
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        Guid? userId = _currentUserService.GetCurrentUserId();
+        Guid? userId = currentUserService.GetCurrentUserId();
         if (userId is null)
         {
             return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
         }
 
-        Result<PagedResult<NotificationDto>> result = await _bus.InvokeAsync<Result<PagedResult<NotificationDto>>>(
+        Result<PagedResult<NotificationDto>> result = await bus.InvokeAsync<Result<PagedResult<NotificationDto>>>(
             new GetUserNotificationsQuery(userId.Value, pageNumber, pageSize), cancellationToken);
 
         return result.Map(paged => new PagedNotificationResponse(
@@ -76,13 +68,13 @@ public class NotificationsController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> GetUnreadCount(CancellationToken cancellationToken)
     {
-        Guid? userId = _currentUserService.GetCurrentUserId();
+        Guid? userId = currentUserService.GetCurrentUserId();
         if (userId is null)
         {
             return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
         }
 
-        Result<int> result = await _bus.InvokeAsync<Result<int>>(
+        Result<int> result = await bus.InvokeAsync<Result<int>>(
             new GetUnreadCountQuery(userId.Value), cancellationToken);
 
         return result.Map(count => new UnreadCountResponse(count)).ToActionResult();
@@ -98,13 +90,13 @@ public class NotificationsController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> MarkAsRead(Guid id, CancellationToken cancellationToken)
     {
-        Guid? userId = _currentUserService.GetCurrentUserId();
+        Guid? userId = currentUserService.GetCurrentUserId();
         if (userId is null)
         {
             return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
         }
 
-        Result result = await _bus.InvokeAsync<Result>(
+        Result result = await bus.InvokeAsync<Result>(
             new MarkNotificationReadCommand(id, userId.Value), cancellationToken);
 
         if (result.IsFailure)
@@ -124,13 +116,13 @@ public class NotificationsController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> MarkAllAsRead(CancellationToken cancellationToken)
     {
-        Guid? userId = _currentUserService.GetCurrentUserId();
+        Guid? userId = currentUserService.GetCurrentUserId();
         if (userId is null)
         {
             return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
         }
 
-        Result result = await _bus.InvokeAsync<Result>(
+        Result result = await bus.InvokeAsync<Result>(
             new MarkAllNotificationsReadCommand(userId.Value), cancellationToken);
 
         if (result.IsFailure)

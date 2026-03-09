@@ -15,7 +15,7 @@ public class StorageBucketCreateTests
         TenantId tenantId = TenantId.New();
         string name = "test-bucket";
         string description = "Test description";
-        string[] allowedTypes = new[] { "image/*", "application/pdf" };
+        string[] allowedTypes = ["image/*", "application/pdf"];
         RetentionPolicy retention = new(30, RetentionAction.Delete);
 
         StorageBucket bucket = StorageBucket.Create(
@@ -62,7 +62,7 @@ public class StorageBucketCreateTests
         StorageBucket bucket = StorageBucket.Create(
             TenantId.New(),
             "test",
-            allowedContentTypes: new[] { "image/png", "application/pdf" });
+            allowedContentTypes: ["image/png", "application/pdf"]);
 
         bucket.AllowedContentTypes.Should().NotBeNull();
         bucket.IsContentTypeAllowed("image/png").Should().BeTrue();
@@ -85,7 +85,7 @@ public class StorageBucketIsContentTypeAllowedTests
     [Fact]
     public void IsContentTypeAllowed_WithEmptyAllowedList_ReturnsTrue()
     {
-        StorageBucket bucket = StorageBucket.Create(TenantId.New(), "test", allowedContentTypes: Array.Empty<string>());
+        StorageBucket bucket = StorageBucket.Create(TenantId.New(), "test", allowedContentTypes: []);
 
         bucket.IsContentTypeAllowed("image/png").Should().BeTrue();
         bucket.IsContentTypeAllowed("application/pdf").Should().BeTrue();
@@ -99,7 +99,7 @@ public class StorageBucketIsContentTypeAllowedTests
     [InlineData("text/plain", false)]
     public void IsContentTypeAllowed_WithWildcardPattern_MatchesCorrectly(string contentType, bool expected)
     {
-        StorageBucket bucket = StorageBucket.Create(TenantId.New(), "test", allowedContentTypes: new[] { "image/*" });
+        StorageBucket bucket = StorageBucket.Create(TenantId.New(), "test", allowedContentTypes: ["image/*"]);
 
         bool result = bucket.IsContentTypeAllowed(contentType);
 
@@ -109,7 +109,7 @@ public class StorageBucketIsContentTypeAllowedTests
     [Fact]
     public void IsContentTypeAllowed_WithExactMatch_ReturnsCorrectResult()
     {
-        StorageBucket bucket = StorageBucket.Create(TenantId.New(), "test", allowedContentTypes: new[] { "application/pdf", "application/json" });
+        StorageBucket bucket = StorageBucket.Create(TenantId.New(), "test", allowedContentTypes: ["application/pdf", "application/json"]);
 
         bucket.IsContentTypeAllowed("application/pdf").Should().BeTrue();
         bucket.IsContentTypeAllowed("application/json").Should().BeTrue();
@@ -119,7 +119,7 @@ public class StorageBucketIsContentTypeAllowedTests
     [Fact]
     public void IsContentTypeAllowed_WithDifferentCasing_ReturnsTrueCaseInsensitive()
     {
-        StorageBucket bucket = StorageBucket.Create(TenantId.New(), "test", allowedContentTypes: new[] { "Image/*" });
+        StorageBucket bucket = StorageBucket.Create(TenantId.New(), "test", allowedContentTypes: ["Image/*"]);
 
         bucket.IsContentTypeAllowed("IMAGE/PNG").Should().BeTrue();
         bucket.IsContentTypeAllowed("image/png").Should().BeTrue();
@@ -131,7 +131,7 @@ public class StorageBucketIsContentTypeAllowedTests
     [InlineData("*")]
     public void IsContentTypeAllowed_WithUniversalWildcard_ReturnsTrue(string pattern)
     {
-        StorageBucket bucket = StorageBucket.Create(TenantId.New(), "test", allowedContentTypes: new[] { pattern });
+        StorageBucket bucket = StorageBucket.Create(TenantId.New(), "test", allowedContentTypes: [pattern]);
 
         bucket.IsContentTypeAllowed("image/png").Should().BeTrue();
         bucket.IsContentTypeAllowed("application/pdf").Should().BeTrue();
@@ -211,7 +211,7 @@ public class StorageBucketUpdateTests
     {
         StorageBucket bucket = StorageBucket.Create(TenantId.New(), "test");
 
-        bucket.UpdateAllowedContentTypes(new[] { "image/png", "image/jpeg" });
+        bucket.UpdateAllowedContentTypes(["image/png", "image/jpeg"]);
 
         bucket.IsContentTypeAllowed("image/png").Should().BeTrue();
         bucket.IsContentTypeAllowed("image/jpeg").Should().BeTrue();
@@ -221,7 +221,7 @@ public class StorageBucketUpdateTests
     [Fact]
     public void UpdateAllowedContentTypes_WithNull_AllowsAllTypes()
     {
-        StorageBucket bucket = StorageBucket.Create(TenantId.New(), "test", allowedContentTypes: new[] { "image/png" });
+        StorageBucket bucket = StorageBucket.Create(TenantId.New(), "test", allowedContentTypes: ["image/png"]);
 
         bucket.UpdateAllowedContentTypes(null);
 

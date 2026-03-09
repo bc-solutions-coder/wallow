@@ -174,7 +174,7 @@ public class UsersControllerTests
     {
         Guid newUserId = Guid.NewGuid();
         CreateUserRequest request = new("new@test.com", "New", "User", "password123");
-        UserDto createdUser = new(newUserId, "new@test.com", "New", "User", true, Array.Empty<string>());
+        UserDto createdUser = new(newUserId, "new@test.com", "New", "User", true, []);
         _keycloakAdmin.CreateUserAsync("new@test.com", "New", "User", "password123", Arg.Any<CancellationToken>())
             .Returns(newUserId);
         _keycloakAdmin.GetUserByIdAsync(newUserId, Arg.Any<CancellationToken>())
@@ -197,7 +197,7 @@ public class UsersControllerTests
         _keycloakAdmin.CreateUserAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(newUserId);
         _keycloakAdmin.GetUserByIdAsync(newUserId, Arg.Any<CancellationToken>())
-            .Returns(new UserDto(newUserId, "test@test.com", "First", "Last", true, Array.Empty<string>()));
+            .Returns(new UserDto(newUserId, "test@test.com", "First", "Last", true, []));
 
         await _controller.CreateUser(request, CancellationToken.None);
 

@@ -32,7 +32,7 @@ public class ServiceCollectionExtensionsTests
         Dictionary<string, string?>? configOverrides = null,
         string environmentName = "Development")
     {
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = new();
         Dictionary<string, string?> defaults = new Dictionary<string, string?>
         {
             ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Database=test",
@@ -124,7 +124,7 @@ public class ServiceCollectionExtensionsTests
     [Fact]
     public void AddFoundryRateLimiting_RegistersRateLimiterOptions()
     {
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = new();
 
         services.AddFoundryRateLimiting();
 
@@ -136,7 +136,7 @@ public class ServiceCollectionExtensionsTests
     [Fact]
     public void AddObservability_InDevelopment_RegistersOpenTelemetry()
     {
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = new();
         IConfiguration config = BuildConfiguration(new Dictionary<string, string?>
         {
             ["OpenTelemetry:ServiceName"] = "TestService",
@@ -156,7 +156,7 @@ public class ServiceCollectionExtensionsTests
     [Fact]
     public void AddObservability_InProduction_WithoutEndpoint_Throws()
     {
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = new();
         IConfiguration config = BuildConfiguration(new Dictionary<string, string?>
         {
             ["OpenTelemetry:ServiceName"] = "TestService",
@@ -173,7 +173,7 @@ public class ServiceCollectionExtensionsTests
     [Fact]
     public void AddObservability_InDevelopment_WithoutEndpoint_UsesDefaultEndpoint()
     {
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = new();
         IConfiguration config = BuildConfiguration(new Dictionary<string, string?>
         {
             ["OpenTelemetry:ServiceName"] = "TestService",
@@ -192,7 +192,7 @@ public class ServiceCollectionExtensionsTests
     [Fact]
     public void AddObservability_WithDefaultServiceName_UsesFoundry()
     {
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = new();
         IConfiguration config = BuildConfiguration(new Dictionary<string, string?>
         {
             ["OpenTelemetry:OtlpGrpcEndpoint"] = "http://localhost:4317",
@@ -210,7 +210,7 @@ public class ServiceCollectionExtensionsTests
     [Fact]
     public void AddObservability_ReturnsSameServiceCollection()
     {
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = new();
         IConfiguration config = BuildConfiguration(new Dictionary<string, string?>
         {
             ["OpenTelemetry:OtlpGrpcEndpoint"] = "http://localhost:4317",
@@ -235,7 +235,7 @@ public class ServiceCollectionExtensionsTests
     [Fact]
     public void AddFoundryRateLimiting_ReturnsSameServiceCollection()
     {
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = new();
 
         IServiceCollection result = services.AddFoundryRateLimiting();
 
@@ -265,7 +265,7 @@ public class ServiceCollectionExtensionsTests
     [Fact]
     public async Task TransformDocumentInfo_SetsCorrectApiInfo()
     {
-        OpenApiDocument document = new OpenApiDocument();
+        OpenApiDocument document = new();
 
         await Foundry.Api.Extensions.ServiceCollectionExtensions.TransformDocumentInfo(document);
 
@@ -280,7 +280,7 @@ public class ServiceCollectionExtensionsTests
     [Fact]
     public async Task TransformDocumentSecurity_AddsBearerSecurityScheme()
     {
-        OpenApiDocument document = new OpenApiDocument();
+        OpenApiDocument document = new();
 
         await Foundry.Api.Extensions.ServiceCollectionExtensions.TransformDocumentSecurity(document);
 
@@ -295,7 +295,7 @@ public class ServiceCollectionExtensionsTests
     [Fact]
     public async Task TransformDocumentSecurity_AddsGlobalSecurityRequirement()
     {
-        OpenApiDocument document = new OpenApiDocument();
+        OpenApiDocument document = new();
 
         await Foundry.Api.Extensions.ServiceCollectionExtensions.TransformDocumentSecurity(document);
 
@@ -366,7 +366,7 @@ public class ServiceCollectionExtensionsTests
     [InlineData("/openapi/v1.json", true)]
     public void FilterTelemetryRequest_FiltersCorrectPaths(string path, bool expected)
     {
-        DefaultHttpContext httpContext = new DefaultHttpContext();
+        DefaultHttpContext httpContext = new();
         httpContext.Request.Path = path;
 
         bool result = Foundry.Api.Extensions.ServiceCollectionExtensions.FilterTelemetryRequest(httpContext);

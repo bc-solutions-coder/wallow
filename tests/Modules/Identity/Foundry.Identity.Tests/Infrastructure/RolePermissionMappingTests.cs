@@ -70,7 +70,7 @@ public class RolePermissionMappingTests
     [Fact]
     public void GetPermissions_EmptyRoles_ReturnsEmpty()
     {
-        IEnumerable<string> roles = Array.Empty<string>();
+        IEnumerable<string> roles = [];
 
         IEnumerable<string> result = RolePermissionMapping.GetPermissions(roles);
 

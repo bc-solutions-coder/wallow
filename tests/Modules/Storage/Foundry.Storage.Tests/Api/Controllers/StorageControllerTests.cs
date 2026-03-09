@@ -43,10 +43,10 @@ public class StorageControllerTests
 
         _controller = new StorageController(_bus, tenantContext, _currentUserService);
 
-        ClaimsPrincipal user = new ClaimsPrincipal(new ClaimsIdentity(new[]
-        {
+        ClaimsPrincipal user = new(new ClaimsIdentity(
+        [
             new Claim(ClaimTypes.NameIdentifier, _userId.ToString())
-        }, "TestAuth"));
+        ], "TestAuth"));
         _controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext { User = user }
@@ -171,7 +171,7 @@ public class StorageControllerTests
     [Fact]
     public async Task CreateBucket_WithAllowedContentTypes_PassesToCommand()
     {
-        List<string> contentTypes = new() { "image/png", "image/jpeg" };
+        List<string> contentTypes = ["image/png", "image/jpeg"];
         CreateBucketRequest request = new("test-bucket", AllowedContentTypes: contentTypes);
         BucketDto dto = new(Guid.NewGuid(), "test-bucket", null, "Private", 0, contentTypes, null, false, DateTime.UtcNow);
         _bus.InvokeAsync<Result<BucketDto>>(Arg.Any<CreateBucketCommand>(), Arg.Any<CancellationToken>())
@@ -480,10 +480,10 @@ public class StorageControllerTests
         {
             HttpContext = new DefaultHttpContext
             {
-                User = new ClaimsPrincipal(new ClaimsIdentity(new[]
-                {
+                User = new ClaimsPrincipal(new ClaimsIdentity(
+                [
                     new Claim("sub", subUserId.ToString())
-                }, "TestAuth"))
+                ], "TestAuth"))
             }
         };
         _currentUserService.GetCurrentUserId().Returns(subUserId);
@@ -664,13 +664,13 @@ public class StorageControllerTests
     [Fact]
     public async Task ListFiles_WhenFound_ReturnsOkWithFileList()
     {
-        List<StoredFileDto> files = new()
-        {
+        List<StoredFileDto> files =
+        [
             new(Guid.NewGuid(), _tenantId, Guid.NewGuid(), "file1.txt", "text/plain", 100,
                 null, false, _userId, DateTime.UtcNow, null),
             new(Guid.NewGuid(), _tenantId, Guid.NewGuid(), "file2.txt", "text/plain", 200,
                 null, false, _userId, DateTime.UtcNow, null)
-        };
+        ];
         PagedResult<StoredFileDto> pagedFiles = new(files, 2, 1, 20);
         _bus.InvokeAsync<Result<PagedResult<StoredFileDto>>>(Arg.Any<GetFilesByBucketQuery>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(pagedFiles));
@@ -687,7 +687,7 @@ public class StorageControllerTests
     [Fact]
     public async Task ListFiles_WhenEmpty_ReturnsOkWithEmptyList()
     {
-        PagedResult<StoredFileDto> emptyPaged = new(new List<StoredFileDto>(), 0, 1, 20);
+        PagedResult<StoredFileDto> emptyPaged = new([], 0, 1, 20);
         _bus.InvokeAsync<Result<PagedResult<StoredFileDto>>>(Arg.Any<GetFilesByBucketQuery>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(emptyPaged));
 
@@ -701,7 +701,7 @@ public class StorageControllerTests
     [Fact]
     public async Task ListFiles_WithPath_PassesPathToQuery()
     {
-        PagedResult<StoredFileDto> emptyPaged = new(new List<StoredFileDto>(), 0, 1, 20);
+        PagedResult<StoredFileDto> emptyPaged = new([], 0, 1, 20);
         _bus.InvokeAsync<Result<PagedResult<StoredFileDto>>>(Arg.Any<GetFilesByBucketQuery>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(emptyPaged));
 
@@ -715,7 +715,7 @@ public class StorageControllerTests
     [Fact]
     public async Task ListFiles_PassesTenantIdToQuery()
     {
-        PagedResult<StoredFileDto> emptyPaged = new(new List<StoredFileDto>(), 0, 1, 20);
+        PagedResult<StoredFileDto> emptyPaged = new([], 0, 1, 20);
         _bus.InvokeAsync<Result<PagedResult<StoredFileDto>>>(Arg.Any<GetFilesByBucketQuery>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(emptyPaged));
 

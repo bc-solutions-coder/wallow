@@ -9,7 +9,7 @@ public class UpdateServiceAccountScopesValidatorTests
     private static readonly string[] _twoScopes = ["invoices.read", "invoices.write"];
     private static readonly string[] _oneScope = ["scope1"];
 
-    private readonly UpdateServiceAccountScopesValidator _validator = new();
+    private readonly UpdateServiceAccountScopesValidator _validator = new UpdateServiceAccountScopesValidator();
 
     [Fact]
     public void Validate_WithValidScopes_ShouldPass()
@@ -27,7 +27,7 @@ public class UpdateServiceAccountScopesValidatorTests
     {
         UpdateServiceAccountScopesCommand command = new(
             ServiceAccountMetadataId.New(),
-            Array.Empty<string>());
+            []);
 
         TestValidationResult<UpdateServiceAccountScopesCommand> result = _validator.TestValidate(command);
 

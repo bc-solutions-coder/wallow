@@ -50,7 +50,7 @@ public class PaymentEventHandlerTests
         invoice.Issue(userId, TimeProvider.System);
         invoice.MarkAsPaid(Guid.NewGuid(), userId, TimeProvider.System);
 
-        InvoicePaidDomainEvent domainEvent = new InvoicePaidDomainEvent(
+        InvoicePaidDomainEvent domainEvent = new(
             invoice.Id.Value,
             Guid.NewGuid(),
             DateTime.UtcNow);
@@ -75,7 +75,7 @@ public class PaymentEventHandlerTests
     public async Task InvoicePaid_WhenInvoiceNotFound_DoesNotPublishEvent()
     {
         // Arrange
-        InvoicePaidDomainEvent domainEvent = new InvoicePaidDomainEvent(
+        InvoicePaidDomainEvent domainEvent = new(
             Guid.NewGuid(),
             Guid.NewGuid(),
             DateTime.UtcNow);
@@ -101,7 +101,7 @@ public class PaymentEventHandlerTests
         invoice.Issue(userId, TimeProvider.System);
         invoice.MarkAsPaid(Guid.NewGuid(), userId, TimeProvider.System);
 
-        InvoicePaidDomainEvent domainEvent = new InvoicePaidDomainEvent(
+        InvoicePaidDomainEvent domainEvent = new(
             invoice.Id.Value,
             Guid.NewGuid(),
             DateTime.UtcNow);
@@ -129,7 +129,7 @@ public class PaymentEventHandlerTests
         Guid invoiceId = Guid.NewGuid();
         Guid userId = Guid.NewGuid();
 
-        PaymentCreatedDomainEvent domainEvent = new PaymentCreatedDomainEvent(
+        PaymentCreatedDomainEvent domainEvent = new(
             paymentId, invoiceId, 250.00m, "EUR", userId);
 
         // Act
@@ -150,7 +150,7 @@ public class PaymentEventHandlerTests
     public async Task PaymentReceived_SetsUserEmailFromQueryService_AndEmptyPaymentMethod()
     {
         // Arrange
-        PaymentCreatedDomainEvent domainEvent = new PaymentCreatedDomainEvent(
+        PaymentCreatedDomainEvent domainEvent = new(
             Guid.NewGuid(), Guid.NewGuid(), 100m, "USD", Guid.NewGuid());
 
         // Act
@@ -167,7 +167,7 @@ public class PaymentEventHandlerTests
     public async Task PaymentReceived_CalledTwiceWithSameEvent_PublishesTwice()
     {
         // Arrange
-        PaymentCreatedDomainEvent domainEvent = new PaymentCreatedDomainEvent(
+        PaymentCreatedDomainEvent domainEvent = new(
             Guid.NewGuid(), Guid.NewGuid(), 75m, "GBP", Guid.NewGuid());
 
         // Act

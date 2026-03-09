@@ -96,7 +96,7 @@ public class OrganizationsControllerTests
     public async Task GetAll_WithSearchAndPagination_PassesParametersToService()
     {
         _orgService.GetOrganizationsAsync(Arg.Any<string?>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
-            .Returns(new List<OrganizationDto>());
+            .Returns([]);
 
         await _controller.GetAll("acme", 10, 50, CancellationToken.None);
 
@@ -256,7 +256,7 @@ public class OrganizationsControllerTests
     public async Task GetMyOrganizations_UsesCurrentUserIdFromClaims()
     {
         _orgService.GetUserOrganizationsAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
-            .Returns(new List<OrganizationDto>());
+            .Returns([]);
 
         await _controller.GetMyOrganizations(CancellationToken.None);
 

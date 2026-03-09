@@ -11,8 +11,8 @@ public static class JsonSchemaGenerator
 {
     public static JsonObject GenerateSchema(Type type)
     {
-        JsonObject properties = new JsonObject();
-        JsonArray required = new JsonArray();
+        JsonObject properties = new();
+        JsonArray required = new();
 
         foreach (PropertyInfo prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
             .Concat(GetBaseProperties(type)))
@@ -108,7 +108,7 @@ public static class JsonSchemaGenerator
 
     private static JsonObject SimpleType(string type, string? format = null)
     {
-        JsonObject obj = new JsonObject { ["type"] = type };
+        JsonObject obj = new() { ["type"] = type };
         if (format is not null)
         {
             obj["format"] = format;
@@ -138,7 +138,7 @@ public static class JsonSchemaGenerator
             return true;
         }
 
-        NullabilityInfoContext context = new NullabilityInfoContext();
+        NullabilityInfoContext context = new();
         NullabilityInfo info = context.Create(prop);
         return info.ReadState == NullabilityState.Nullable;
     }

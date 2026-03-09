@@ -510,7 +510,7 @@ public class SsoConfigurationTestFactory : FoundryApiFactory
                 .UsingGet())
             .RespondWith(Response.Create()
                 .WithStatusCode(200)
-                .WithBodyAsJson(new List<object>()));
+                .WithBodyAsJson(Array.Empty<object>()));
     }
 
     public void SetupOidcDiscovery(string issuer)

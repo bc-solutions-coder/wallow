@@ -18,14 +18,8 @@ namespace Foundry.Communications.Api.Controllers;
 [AllowAnonymous]
 [Tags("Changelog")]
 [Produces("application/json")]
-public class ChangelogController : ControllerBase
+public class ChangelogController(IMessageBus bus) : ControllerBase
 {
-    private readonly IMessageBus _bus;
-
-    public ChangelogController(IMessageBus bus)
-    {
-        _bus = bus;
-    }
 
     /// <summary>
     /// Get the changelog entries (most recent first).
@@ -36,7 +30,7 @@ public class ChangelogController : ControllerBase
         [FromQuery] int limit = 50,
         CancellationToken ct = default)
     {
-        Result<IReadOnlyList<ChangelogEntryDto>> result = await _bus.InvokeAsync<Result<IReadOnlyList<ChangelogEntryDto>>>(
+        Result<IReadOnlyList<ChangelogEntryDto>> result = await bus.InvokeAsync<Result<IReadOnlyList<ChangelogEntryDto>>>(
             new GetChangelogQuery(limit),
             ct);
 
@@ -53,7 +47,7 @@ public class ChangelogController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetChangelogByVersion(string changelogVersion, CancellationToken ct)
     {
-        Result<ChangelogEntryDto> result = await _bus.InvokeAsync<Result<ChangelogEntryDto>>(
+        Result<ChangelogEntryDto> result = await bus.InvokeAsync<Result<ChangelogEntryDto>>(
             new GetChangelogByVersionQuery(changelogVersion),
             ct);
 
@@ -68,7 +62,7 @@ public class ChangelogController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetLatestChangelog(CancellationToken ct)
     {
-        Result<ChangelogEntryDto> result = await _bus.InvokeAsync<Result<ChangelogEntryDto>>(
+        Result<ChangelogEntryDto> result = await bus.InvokeAsync<Result<ChangelogEntryDto>>(
             new GetLatestChangelogQuery(),
             ct);
 

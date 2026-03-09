@@ -10,7 +10,7 @@ public class AddLineItemValidatorTests
     [Fact]
     public void Should_Have_Error_When_InvoiceId_Is_Empty()
     {
-        AddLineItemCommand command = new AddLineItemCommand(
+        AddLineItemCommand command = new(
             Guid.Empty,
             "Consulting Services",
             150.00m,
@@ -27,7 +27,7 @@ public class AddLineItemValidatorTests
     [Fact]
     public void Should_Have_Error_When_Description_Is_Empty()
     {
-        AddLineItemCommand command = new AddLineItemCommand(
+        AddLineItemCommand command = new(
             Guid.NewGuid(),
             "",
             150.00m,
@@ -44,7 +44,7 @@ public class AddLineItemValidatorTests
     [Fact]
     public void Should_Have_Error_When_Description_Exceeds_MaxLength()
     {
-        AddLineItemCommand command = new AddLineItemCommand(
+        AddLineItemCommand command = new(
             Guid.NewGuid(),
             new string('A', 501),
             150.00m,
@@ -61,7 +61,7 @@ public class AddLineItemValidatorTests
     [Fact]
     public void Should_Have_Error_When_UnitPrice_Is_Negative()
     {
-        AddLineItemCommand command = new AddLineItemCommand(
+        AddLineItemCommand command = new(
             Guid.NewGuid(),
             "Consulting Services",
             -10.00m,
@@ -78,7 +78,7 @@ public class AddLineItemValidatorTests
     [Fact]
     public void Should_Not_Have_Error_When_UnitPrice_Is_Zero()
     {
-        AddLineItemCommand command = new AddLineItemCommand(
+        AddLineItemCommand command = new(
             Guid.NewGuid(),
             "Free Item",
             0m,
@@ -97,7 +97,7 @@ public class AddLineItemValidatorTests
     [InlineData(-100)]
     public void Should_Have_Error_When_Quantity_Is_Not_Greater_Than_Zero(int quantity)
     {
-        AddLineItemCommand command = new AddLineItemCommand(
+        AddLineItemCommand command = new(
             Guid.NewGuid(),
             "Consulting Services",
             150.00m,
@@ -114,7 +114,7 @@ public class AddLineItemValidatorTests
     [Fact]
     public void Should_Have_Error_When_UpdatedByUserId_Is_Empty()
     {
-        AddLineItemCommand command = new AddLineItemCommand(
+        AddLineItemCommand command = new(
             Guid.NewGuid(),
             "Consulting Services",
             150.00m,
@@ -131,7 +131,7 @@ public class AddLineItemValidatorTests
     [Fact]
     public void Should_Not_Have_Error_When_Command_Is_Valid()
     {
-        AddLineItemCommand command = new AddLineItemCommand(
+        AddLineItemCommand command = new(
             Guid.NewGuid(),
             "Consulting Services - 10 hours",
             150.00m,

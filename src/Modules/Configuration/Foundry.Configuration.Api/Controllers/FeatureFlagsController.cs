@@ -31,24 +31,12 @@ namespace Foundry.Configuration.Api.Controllers;
 [Tags("Configuration")]
 [Produces("application/json")]
 [Consumes("application/json")]
-public class FeatureFlagsController : ControllerBase
+public class FeatureFlagsController(
+    IMessageBus bus,
+    ITenantContext tenantContext,
+    IFeatureFlagService featureFlagService,
+    ICurrentUserService currentUserService) : ControllerBase
 {
-    private readonly IMessageBus _bus;
-    private readonly ITenantContext _tenantContext;
-    private readonly IFeatureFlagService _featureFlagService;
-    private readonly ICurrentUserService _currentUserService;
-
-    public FeatureFlagsController(
-        IMessageBus bus,
-        ITenantContext tenantContext,
-        IFeatureFlagService featureFlagService,
-        ICurrentUserService currentUserService)
-    {
-        _bus = bus;
-        _tenantContext = tenantContext;
-        _featureFlagService = featureFlagService;
-        _currentUserService = currentUserService;
-    }
 
     /// <summary>
     /// Get all feature flags (admin only).
@@ -58,7 +46,7 @@ public class FeatureFlagsController : ControllerBase
     [ProducesResponseType(typeof(IReadOnlyList<FeatureFlagResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
     {
-        Result<IReadOnlyList<FeatureFlagDto>> result = await _bus.InvokeAsync<Result<IReadOnlyList<FeatureFlagDto>>>(
+        Result<IReadOnlyList<FeatureFlagDto>> result = await bus.InvokeAsync<Result<IReadOnlyList<FeatureFlagDto>>>(
             new GetAllFlagsQuery(), cancellationToken);
 
         return result.Map(flags =>
@@ -77,7 +65,7 @@ public class FeatureFlagsController : ControllerBase
         [FromBody] CreateFeatureFlagRequest request,
         CancellationToken cancellationToken)
     {
-        CreateFeatureFlagCommand command = new CreateFeatureFlagCommand(
+        CreateFeatureFlagCommand command = new(
             request.Key,
             request.Name,
             request.Description,
@@ -87,7 +75,7 @@ public class FeatureFlagsController : ControllerBase
             request.Variants,
             request.DefaultVariant);
 
-        Result<FeatureFlagDto> result = await _bus.InvokeAsync<Result<FeatureFlagDto>>(command, cancellationToken);
+        Result<FeatureFlagDto> result = await bus.InvokeAsync<Result<FeatureFlagDto>>(command, cancellationToken);
 
         if (!result.IsSuccess)
         {
@@ -111,14 +99,14 @@ public class FeatureFlagsController : ControllerBase
         [FromBody] UpdateFeatureFlagRequest request,
         CancellationToken cancellationToken)
     {
-        UpdateFeatureFlagCommand command = new UpdateFeatureFlagCommand(
+        UpdateFeatureFlagCommand command = new(
             id,
             request.Name,
             request.Description,
             request.DefaultEnabled,
             request.RolloutPercentage);
 
-        Result<FeatureFlagDto> result = await _bus.InvokeAsync<Result<FeatureFlagDto>>(command, cancellationToken);
+        Result<FeatureFlagDto> result = await bus.InvokeAsync<Result<FeatureFlagDto>>(command, cancellationToken);
 
         return result.Map(ToFeatureFlagResponse).ToActionResult();
     }
@@ -133,9 +121,9 @@ public class FeatureFlagsController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
-        DeleteFeatureFlagCommand command = new DeleteFeatureFlagCommand(id);
+        DeleteFeatureFlagCommand command = new(id);
 
-        Result result = await _bus.InvokeAsync<Result>(command, cancellationToken);
+        Result result = await bus.InvokeAsync<Result>(command, cancellationToken);
 
         if (result.IsSuccess)
         {
@@ -154,7 +142,7 @@ public class FeatureFlagsController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetOverrides(Guid id, CancellationToken cancellationToken)
     {
-        Result<IReadOnlyList<FeatureFlagOverrideDto>> result = await _bus.InvokeAsync<Result<IReadOnlyList<FeatureFlagOverrideDto>>>(
+        Result<IReadOnlyList<FeatureFlagOverrideDto>> result = await bus.InvokeAsync<Result<IReadOnlyList<FeatureFlagOverrideDto>>>(
             new GetOverridesForFlagQuery(id), cancellationToken);
 
         return result.Map(overrides =>
@@ -175,7 +163,7 @@ public class FeatureFlagsController : ControllerBase
         [FromBody] CreateOverrideRequest request,
         CancellationToken cancellationToken)
     {
-        CreateOverrideCommand command = new CreateOverrideCommand(
+        CreateOverrideCommand command = new(
             id,
             request.TenantId,
             request.UserId,
@@ -183,7 +171,7 @@ public class FeatureFlagsController : ControllerBase
             request.Variant,
             request.ExpiresAt);
 
-        Result<FeatureFlagOverrideDto> result = await _bus.InvokeAsync<Result<FeatureFlagOverrideDto>>(command, cancellationToken);
+        Result<FeatureFlagOverrideDto> result = await bus.InvokeAsync<Result<FeatureFlagOverrideDto>>(command, cancellationToken);
 
         if (!result.IsSuccess)
         {
@@ -207,9 +195,9 @@ public class FeatureFlagsController : ControllerBase
         Guid overrideId,
         CancellationToken cancellationToken)
     {
-        DeleteOverrideCommand command = new DeleteOverrideCommand(overrideId);
+        DeleteOverrideCommand command = new(overrideId);
 
-        Result result = await _bus.InvokeAsync<Result>(command, cancellationToken);
+        Result result = await bus.InvokeAsync<Result>(command, cancellationToken);
 
         if (result.IsSuccess)
         {
@@ -227,11 +215,11 @@ public class FeatureFlagsController : ControllerBase
     [ProducesResponseType(typeof(FlagEvaluationResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> EvaluateByKey(string key, CancellationToken cancellationToken)
     {
-        Guid tenantId = _tenantContext.TenantId.Value;
-        Guid? userId = _currentUserService.GetCurrentUserId();
+        Guid tenantId = tenantContext.TenantId.Value;
+        Guid? userId = currentUserService.GetCurrentUserId();
 
-        EvaluateFlagQuery query = new EvaluateFlagQuery(key, tenantId, userId);
-        Result<FlagEvaluationResultDto> result = await _bus.InvokeAsync<Result<FlagEvaluationResultDto>>(query, cancellationToken);
+        EvaluateFlagQuery query = new(key, tenantId, userId);
+        Result<FlagEvaluationResultDto> result = await bus.InvokeAsync<Result<FlagEvaluationResultDto>>(query, cancellationToken);
 
         return result.Map(dto => new FlagEvaluationResponse(dto.Key, dto.IsEnabled, dto.Variant))
             .ToActionResult();
@@ -245,10 +233,10 @@ public class FeatureFlagsController : ControllerBase
     [ProducesResponseType(typeof(Dictionary<string, object>), StatusCodes.Status200OK)]
     public async Task<IActionResult> Evaluate(CancellationToken cancellationToken)
     {
-        Guid tenantId = _tenantContext.TenantId.Value;
-        Guid? userId = _currentUserService.GetCurrentUserId();
+        Guid tenantId = tenantContext.TenantId.Value;
+        Guid? userId = currentUserService.GetCurrentUserId();
 
-        Dictionary<string, object> flags = await _featureFlagService.GetAllFlagsAsync(tenantId, userId, cancellationToken);
+        Dictionary<string, object> flags = await featureFlagService.GetAllFlagsAsync(tenantId, userId, cancellationToken);
 
         return Ok(flags);
     }

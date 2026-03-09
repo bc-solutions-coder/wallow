@@ -37,7 +37,7 @@ public class PaymentCreatedDomainEventHandlerTests
         Guid invoiceId = Guid.NewGuid();
         Guid userId = Guid.NewGuid();
 
-        PaymentCreatedDomainEvent domainEvent = new PaymentCreatedDomainEvent(
+        PaymentCreatedDomainEvent domainEvent = new(
             paymentId,
             invoiceId,
             500.00m,
@@ -64,14 +64,14 @@ public class PaymentCreatedDomainEventHandlerTests
     [Fact]
     public async Task HandleAsync_PassesCancellationToken()
     {
-        PaymentCreatedDomainEvent domainEvent = new PaymentCreatedDomainEvent(
+        PaymentCreatedDomainEvent domainEvent = new(
             Guid.NewGuid(),
             Guid.NewGuid(),
             100m,
             "USD",
             Guid.NewGuid());
 
-        using CancellationTokenSource cts = new CancellationTokenSource();
+        using CancellationTokenSource cts = new();
 
         await PaymentCreatedDomainEventHandler.HandleAsync(
             domainEvent,
@@ -88,7 +88,7 @@ public class PaymentCreatedDomainEventHandlerTests
     public async Task HandleAsync_LogsInformation()
     {
         Guid paymentId = Guid.NewGuid();
-        PaymentCreatedDomainEvent domainEvent = new PaymentCreatedDomainEvent(
+        PaymentCreatedDomainEvent domainEvent = new(
             paymentId,
             Guid.NewGuid(),
             100m,
@@ -115,7 +115,7 @@ public class PaymentCreatedDomainEventHandlerTests
     public async Task HandleAsync_PublishesBothLogMessages()
     {
         Guid paymentId = Guid.NewGuid();
-        PaymentCreatedDomainEvent domainEvent = new PaymentCreatedDomainEvent(
+        PaymentCreatedDomainEvent domainEvent = new(
             paymentId,
             Guid.NewGuid(),
             100m,

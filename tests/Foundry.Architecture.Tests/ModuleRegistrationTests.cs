@@ -54,7 +54,7 @@ public class ModuleRegistrationTests
         string sourceCode = File.ReadAllText(
             Path.Combine(GetSolutionRoot(), "src/Foundry.Api/FoundryModules.cs"));
 
-        foreach (string? moduleName in modulesWithDbContext)
+        foreach (string moduleName in modulesWithDbContext)
         {
             string initializeModuleCall = $"Initialize{moduleName}ModuleAsync()";
             sourceCode.Should().Contain(initializeModuleCall,
@@ -139,7 +139,7 @@ public class ModuleRegistrationTests
 
         infrastructureDlls.Should().NotBeEmpty("there should be Infrastructure assemblies in the output");
 
-        List<string> discoveredModuleNames = new();
+        List<string> discoveredModuleNames = [];
 
         foreach (string dll in infrastructureDlls)
         {
@@ -187,7 +187,7 @@ public class ModuleRegistrationTests
 
     private static string GetSolutionRoot()
     {
-        DirectoryInfo? directory = new DirectoryInfo(AppContext.BaseDirectory);
+        DirectoryInfo? directory = new(AppContext.BaseDirectory);
         while (directory != null && !File.Exists(Path.Combine(directory.FullName, "Foundry.sln")))
         {
             directory = directory.Parent;

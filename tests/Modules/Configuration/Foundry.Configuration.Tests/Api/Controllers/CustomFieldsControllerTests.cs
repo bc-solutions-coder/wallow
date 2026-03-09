@@ -21,8 +21,8 @@ public class CustomFieldsControllerTests
     public CustomFieldsControllerTests()
     {
         _bus = Substitute.For<IMessageBus>();
-        _controller = new CustomFieldsController(_bus);
-        _controller.ControllerContext = new ControllerContext
+        _controller = new(_bus);
+        _controller.ControllerContext = new()
         {
             HttpContext = new DefaultHttpContext()
         };
@@ -33,11 +33,8 @@ public class CustomFieldsControllerTests
     [Fact]
     public async Task GetEntityTypes_ReturnsOkWithEntityTypes()
     {
-        List<EntityTypeDto> entityTypes = new()
-        {
-            new EntityTypeDto("Invoice", "Billing", "Billing invoices"),
-            new EntityTypeDto("Payment", "Billing", "Payment records")
-        };
+        List<EntityTypeDto> entityTypes = [new EntityTypeDto("Invoice", "Billing", "Billing invoices"),
+            new EntityTypeDto("Payment", "Billing", "Payment records")];
         _bus.InvokeAsync<IReadOnlyList<EntityTypeDto>>(Arg.Any<GetSupportedEntityTypes>(), Arg.Any<CancellationToken>())
             .Returns(entityTypes);
 
@@ -70,11 +67,8 @@ public class CustomFieldsControllerTests
     [Fact]
     public async Task GetByEntityType_ReturnsOkWithDefinitions()
     {
-        List<CustomFieldDefinitionDto> definitions = new()
-        {
-            CreateDefinitionDto("Invoice", "custom_ref"),
-            CreateDefinitionDto("Invoice", "priority")
-        };
+        List<CustomFieldDefinitionDto> definitions = [CreateDefinitionDto("Invoice", "custom_ref"),
+            CreateDefinitionDto("Invoice", "priority")];
         _bus.InvokeAsync<IReadOnlyList<CustomFieldDefinitionDto>>(Arg.Any<GetCustomFieldDefinitions>(), Arg.Any<CancellationToken>())
             .Returns(definitions);
 
@@ -187,10 +181,10 @@ public class CustomFieldsControllerTests
     public async Task Create_PassesCorrectFieldsToCommand()
     {
         FieldValidationRules rules = new() { MinLength = 1, MaxLength = 100 };
-        List<CustomFieldOption> options = new()
-        {
-            new CustomFieldOption { Value = "opt1", Label = "Option 1" }
-        };
+        List<CustomFieldOption> options = [
+
+            new() { Value = "opt1", Label = "Option 1" }
+        ];
         CreateCustomFieldRequest request = new()
         {
             EntityType = "Invoice",
@@ -269,10 +263,10 @@ public class CustomFieldsControllerTests
     {
         Guid definitionId = Guid.NewGuid();
         FieldValidationRules rules = new() { Min = 0, Max = 1000 };
-        List<CustomFieldOption> options = new()
-        {
-            new CustomFieldOption { Value = "a", Label = "A" }
-        };
+        List<CustomFieldOption> options = [
+
+            new() { Value = "a", Label = "A" }
+        ];
         UpdateCustomFieldRequest request = new()
         {
             DisplayName = "Updated",
@@ -335,7 +329,7 @@ public class CustomFieldsControllerTests
     [Fact]
     public async Task Reorder_WhenSuccess_Returns204NoContent()
     {
-        List<Guid> fieldIds = new() { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() };
+        List<Guid> fieldIds = [Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid()];
         ReorderFieldsRequest request = new() { FieldIds = fieldIds };
         _bus.InvokeAsync(Arg.Any<ReorderCustomFieldsCommand>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
@@ -348,7 +342,7 @@ public class CustomFieldsControllerTests
     [Fact]
     public async Task Reorder_PassesCorrectFieldsToCommand()
     {
-        List<Guid> fieldIds = new() { Guid.NewGuid(), Guid.NewGuid() };
+        List<Guid> fieldIds = [Guid.NewGuid(), Guid.NewGuid()];
         ReorderFieldsRequest request = new() { FieldIds = fieldIds };
         _bus.InvokeAsync(Arg.Any<ReorderCustomFieldsCommand>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);

@@ -22,7 +22,7 @@ public class CreateCustomFieldDefinitionHandlerTests
         tenantContext.TenantId.Returns(TenantId.New());
         ICurrentUserService currentUserService = Substitute.For<ICurrentUserService>();
         currentUserService.UserId.Returns(Guid.NewGuid());
-        _handler = new CreateCustomFieldDefinitionHandler(_repository, tenantContext, currentUserService, TimeProvider.System);
+        _handler = new(_repository, tenantContext, currentUserService, TimeProvider.System);
     }
 
     [Fact]
@@ -137,8 +137,8 @@ public class CreateCustomFieldDefinitionHandlerTests
     {
         List<CustomFieldOption> options =
         [
-            new CustomFieldOption { Value = "eng", Label = "Engineering" },
-            new CustomFieldOption { Value = "sales", Label = "Sales" }
+            new() { Value = "eng", Label = "Engineering" },
+            new() { Value = "sales", Label = "Sales" }
         ];
 
         CreateCustomFieldDefinitionCommand command = new(

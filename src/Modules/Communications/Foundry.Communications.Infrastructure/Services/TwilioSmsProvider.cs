@@ -18,7 +18,7 @@ public sealed partial class TwilioSmsProvider(
     {
         string url = $"https://api.twilio.com/2010-04-01/Accounts/{_settings.AccountSid}/Messages.json";
 
-        using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, url);
+        using HttpRequestMessage request = new(HttpMethod.Post, url);
 
         string credentials = Convert.ToBase64String(Encoding.ASCII.GetBytes($"{_settings.AccountSid}:{_settings.AuthToken}"));
         request.Headers.Authorization = new AuthenticationHeaderValue("Basic", credentials);

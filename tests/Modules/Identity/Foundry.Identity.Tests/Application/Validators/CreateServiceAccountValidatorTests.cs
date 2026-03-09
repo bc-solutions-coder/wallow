@@ -9,7 +9,7 @@ public class CreateServiceAccountValidatorTests
     private static readonly string[] _oneScope = ["scope1"];
     private static readonly string[] _threeScopes = ["scope1", "scope2", "scope3"];
 
-    private readonly CreateServiceAccountValidator _validator = new();
+    private readonly CreateServiceAccountValidator _validator = new CreateServiceAccountValidator();
 
     [Fact]
     public void Validate_WithValidCommand_ShouldPass()
@@ -87,7 +87,7 @@ public class CreateServiceAccountValidatorTests
         CreateServiceAccountCommand command = new(
             "Valid Name",
             "Description",
-            Array.Empty<string>());
+            []);
 
         // Act
         TestValidationResult<CreateServiceAccountCommand> result = _validator.TestValidate(command);

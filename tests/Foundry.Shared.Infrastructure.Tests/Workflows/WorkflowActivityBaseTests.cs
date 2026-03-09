@@ -362,7 +362,7 @@ internal sealed class FakeLoggerProvider : ILoggerProvider
 
     private sealed class FakeLogger(List<string> entries) : ILogger
     {
-        public IDisposable? BeginScope<TState>(TState state) where TState : notnull =>
+        public IDisposable BeginScope<TState>(TState state) where TState : notnull =>
             new NoOpDisposable();
 
         public bool IsEnabled(LogLevel logLevel) => true;

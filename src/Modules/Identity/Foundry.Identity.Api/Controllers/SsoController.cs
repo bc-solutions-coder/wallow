@@ -20,14 +20,8 @@ namespace Foundry.Identity.Api.Controllers;
 [Tags("SSO")]
 [Produces("application/json")]
 [Consumes("application/json")]
-public class SsoController : ControllerBase
+public class SsoController(ISsoService ssoService) : ControllerBase
 {
-    private readonly ISsoService _ssoService;
-
-    public SsoController(ISsoService ssoService)
-    {
-        _ssoService = ssoService;
-    }
 
     /// <summary>
     /// Get the current SSO configuration for the tenant.
@@ -38,7 +32,7 @@ public class SsoController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<SsoConfigurationDto>> GetConfiguration(CancellationToken ct)
     {
-        SsoConfigurationDto? config = await _ssoService.GetConfigurationAsync(ct);
+        SsoConfigurationDto? config = await ssoService.GetConfigurationAsync(ct);
         return config is null ? NotFound() : Ok(config);
     }
 
@@ -69,7 +63,7 @@ public class SsoController : ControllerBase
             request.DefaultRole,
             request.SyncGroupsAsRoles);
 
-        SsoConfigurationDto config = await _ssoService.SaveSamlConfigurationAsync(saveRequest, ct);
+        SsoConfigurationDto config = await ssoService.SaveSamlConfigurationAsync(saveRequest, ct);
         return Ok(config);
     }
 
@@ -99,7 +93,7 @@ public class SsoController : ControllerBase
             request.DefaultRole,
             request.SyncGroupsAsRoles);
 
-        SsoConfigurationDto config = await _ssoService.SaveOidcConfigurationAsync(saveRequest, ct);
+        SsoConfigurationDto config = await ssoService.SaveOidcConfigurationAsync(saveRequest, ct);
         return Ok(config);
     }
 
@@ -112,7 +106,7 @@ public class SsoController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<SsoTestResult>> TestConnection(CancellationToken ct)
     {
-        SsoTestResult result = await _ssoService.TestConnectionAsync(ct);
+        SsoTestResult result = await ssoService.TestConnectionAsync(ct);
         return Ok(result);
     }
 
@@ -126,7 +120,7 @@ public class SsoController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Activate(CancellationToken ct)
     {
-        await _ssoService.ActivateAsync(ct);
+        await ssoService.ActivateAsync(ct);
         return NoContent();
     }
 
@@ -139,7 +133,7 @@ public class SsoController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Disable(CancellationToken ct)
     {
-        await _ssoService.DisableAsync(ct);
+        await ssoService.DisableAsync(ct);
         return NoContent();
     }
 
@@ -153,7 +147,7 @@ public class SsoController : ControllerBase
     [ProducesResponseType(typeof(string), StatusCodes.Status200OK, "application/xml")]
     public async Task<IActionResult> GetSamlMetadata(CancellationToken ct)
     {
-        string metadata = await _ssoService.GetSamlServiceProviderMetadataAsync(ct);
+        string metadata = await ssoService.GetSamlServiceProviderMetadataAsync(ct);
         return Content(metadata, "application/xml");
     }
 
@@ -166,7 +160,7 @@ public class SsoController : ControllerBase
     [ProducesResponseType(typeof(OidcCallbackInfo), StatusCodes.Status200OK)]
     public async Task<ActionResult<OidcCallbackInfo>> GetOidcCallbackInfo(CancellationToken ct)
     {
-        OidcCallbackInfo callbackInfo = await _ssoService.GetOidcCallbackInfoAsync(ct);
+        OidcCallbackInfo callbackInfo = await ssoService.GetOidcCallbackInfoAsync(ct);
         return Ok(callbackInfo);
     }
 
@@ -179,7 +173,7 @@ public class SsoController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<SsoValidationResult>> ValidateConfiguration(CancellationToken ct)
     {
-        SsoValidationResult result = await _ssoService.ValidateIdpConfigurationAsync(ct);
+        SsoValidationResult result = await ssoService.ValidateIdpConfigurationAsync(ct);
         return Ok(result);
     }
 }

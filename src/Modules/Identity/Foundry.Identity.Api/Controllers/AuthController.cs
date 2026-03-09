@@ -19,16 +19,8 @@ namespace Foundry.Identity.Api.Controllers;
 [Route("api/v{version:apiVersion}/identity/auth")]
 [AllowAnonymous]
 [EnableRateLimiting("auth")]
-public sealed partial class AuthController : ControllerBase
+public sealed partial class AuthController(ITokenService tokenService, ILogger<AuthController> logger) : ControllerBase
 {
-    private readonly ITokenService _tokenService;
-    private readonly ILogger<AuthController> _logger;
-
-    public AuthController(ITokenService tokenService, ILogger<AuthController> logger)
-    {
-        _tokenService = tokenService;
-        _logger = logger;
-    }
 
     /// <summary>
     /// Obtain an access token using email and password.
@@ -65,7 +57,7 @@ public sealed partial class AuthController : ControllerBase
             });
         }
 
-        TokenResult result = await _tokenService.GetTokenAsync(request.Email, request.Password, ct);
+        TokenResult result = await tokenService.GetTokenAsync(request.Email, request.Password, ct);
 
         if (!result.Success)
         {
@@ -126,7 +118,7 @@ public sealed partial class AuthController : ControllerBase
             });
         }
 
-        TokenResult result = await _tokenService.RefreshTokenAsync(request.RefreshToken, ct);
+        TokenResult result = await tokenService.RefreshTokenAsync(request.RefreshToken, ct);
 
         if (!result.Success)
         {
@@ -172,7 +164,7 @@ public sealed partial class AuthController : ControllerBase
             });
         }
 
-        bool revoked = await _tokenService.RevokeTokenAsync(request.RefreshToken, ct);
+        bool revoked = await tokenService.RevokeTokenAsync(request.RefreshToken, ct);
 
         if (!revoked)
         {

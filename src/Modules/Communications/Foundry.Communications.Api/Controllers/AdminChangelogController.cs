@@ -19,16 +19,8 @@ namespace Foundry.Communications.Api.Controllers;
 [HasPermission(PermissionType.ChangelogManage)]
 [Tags("Admin - Changelog")]
 [Produces("application/json")]
-public class AdminChangelogController : ControllerBase
+public class AdminChangelogController(IMessageBus bus, IHtmlSanitizationService sanitizer) : ControllerBase
 {
-    private readonly IMessageBus _bus;
-    private readonly IHtmlSanitizationService _sanitizer;
-
-    public AdminChangelogController(IMessageBus bus, IHtmlSanitizationService sanitizer)
-    {
-        _bus = bus;
-        _sanitizer = sanitizer;
-    }
 
     /// <summary>
     /// Create a new changelog entry.
@@ -40,11 +32,11 @@ public class AdminChangelogController : ControllerBase
         [FromBody] CreateChangelogEntryRequest request,
         CancellationToken ct)
     {
-        Result<ChangelogEntryDto> result = await _bus.InvokeAsync<Result<ChangelogEntryDto>>(
+        Result<ChangelogEntryDto> result = await bus.InvokeAsync<Result<ChangelogEntryDto>>(
             new CreateChangelogEntryCommand(
                 request.Version,
-                _sanitizer.Sanitize(request.Title),
-                _sanitizer.Sanitize(request.Content),
+                sanitizer.Sanitize(request.Title),
+                sanitizer.Sanitize(request.Content),
                 request.ReleasedAt),
             ct);
 
@@ -60,7 +52,7 @@ public class AdminChangelogController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> PublishChangelogEntry(Guid id, CancellationToken ct)
     {
-        Result result = await _bus.InvokeAsync<Result>(new PublishChangelogEntryCommand(id), ct);
+        Result result = await bus.InvokeAsync<Result>(new PublishChangelogEntryCommand(id), ct);
         return result.ToNoContentResult();
     }
 

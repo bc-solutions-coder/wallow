@@ -45,7 +45,7 @@ public class GetMeterDefinitionsHandlerTests
     public async Task Handle_WhenNoMeters_ReturnsEmptyList()
     {
         _meterRepository.GetAllAsync(Arg.Any<CancellationToken>())
-            .Returns(Array.Empty<MeterDefinition>());
+            .Returns([]);
 
         Result<IReadOnlyList<MeterDefinitionDto>> result = await _handler.Handle(
             new GetMeterDefinitionsQuery(), CancellationToken.None);

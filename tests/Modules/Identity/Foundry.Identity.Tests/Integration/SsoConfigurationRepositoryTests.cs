@@ -13,11 +13,9 @@ namespace Foundry.Identity.Tests.Integration;
 
 [Collection("PostgresDatabase")]
 [Trait("Category", "Integration")]
-public sealed class SsoConfigurationRepositoryTests : DbContextIntegrationTestBase<IdentityDbContext>
+public sealed class SsoConfigurationRepositoryTests(PostgresContainerFixture fixture) : DbContextIntegrationTestBase<IdentityDbContext>(fixture)
 {
     private SsoConfigurationRepository _repository = null!;
-
-    public SsoConfigurationRepositoryTests(PostgresContainerFixture fixture) : base(fixture) { }
 
     protected override IdentityDbContext CreateDbContext(DbContextOptions<IdentityDbContext> options, ITenantContext tenantContext)
     {

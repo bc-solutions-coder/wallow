@@ -2,15 +2,8 @@ using System.Text.RegularExpressions;
 
 namespace Foundry.Api.Middleware;
 
-internal sealed partial class ModuleTaggingMiddleware
+internal sealed partial class ModuleTaggingMiddleware(RequestDelegate next)
 {
-    private readonly RequestDelegate _next;
-
-    public ModuleTaggingMiddleware(RequestDelegate next)
-    {
-        _next = next;
-    }
-
     public async Task InvokeAsync(HttpContext context)
     {
         if (System.Diagnostics.Activity.Current is { } activity)
@@ -28,7 +21,7 @@ internal sealed partial class ModuleTaggingMiddleware
             }
         }
 
-        await _next(context);
+        await next(context);
     }
 
     [GeneratedRegex(@"^Foundry\.(\w+)\.Api\b", RegexOptions.NonBacktracking)]

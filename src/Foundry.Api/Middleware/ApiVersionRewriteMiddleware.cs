@@ -4,15 +4,8 @@ namespace Foundry.Api.Middleware;
 /// Rewrites requests from /api/{path} to /api/v1/{path} when no version segment is present,
 /// ensuring backward compatibility for clients that don't specify an API version.
 /// </summary>
-internal sealed class ApiVersionRewriteMiddleware
+internal sealed class ApiVersionRewriteMiddleware(RequestDelegate next)
 {
-    private readonly RequestDelegate _next;
-
-    public ApiVersionRewriteMiddleware(RequestDelegate next)
-    {
-        _next = next;
-    }
-
     public Task InvokeAsync(HttpContext context)
     {
         string? path = context.Request.Path.Value;
@@ -25,7 +18,7 @@ internal sealed class ApiVersionRewriteMiddleware
             context.Request.Path = "/api/v1" + path[4..];
         }
 
-        return _next(context);
+        return next(context);
     }
 
     private static bool HasVersionSegment(string path)

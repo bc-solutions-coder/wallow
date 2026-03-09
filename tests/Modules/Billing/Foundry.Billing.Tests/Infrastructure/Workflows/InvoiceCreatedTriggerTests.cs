@@ -7,7 +7,7 @@ public class InvoiceCreatedTriggerTests
     [Fact]
     public void ModuleName_ReturnsBilling()
     {
-        InvoiceCreatedTrigger trigger = new InvoiceCreatedTrigger();
+        InvoiceCreatedTrigger trigger = new();
 
         trigger.ModuleName.Should().Be("Billing");
     }

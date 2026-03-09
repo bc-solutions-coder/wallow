@@ -6,28 +6,20 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Foundry.Communications.Infrastructure.Persistence.Repositories;
 
-public sealed class AnnouncementRepository : IAnnouncementRepository
+public sealed class AnnouncementRepository(CommunicationsDbContext context, TimeProvider timeProvider) : IAnnouncementRepository
 {
-    private readonly CommunicationsDbContext _context;
-    private readonly TimeProvider _timeProvider;
-
-    public AnnouncementRepository(CommunicationsDbContext context, TimeProvider timeProvider)
-    {
-        _context = context;
-        _timeProvider = timeProvider;
-    }
 
     public Task<Announcement?> GetByIdAsync(AnnouncementId id, CancellationToken ct = default)
     {
-        return _context.Announcements
+        return context.Announcements
             .AsTracking()
             .FirstOrDefaultAsync(a => a.Id == id, ct);
     }
 
     public async Task<IReadOnlyList<Announcement>> GetPublishedAsync(CancellationToken ct = default)
     {
-        DateTime now = _timeProvider.GetUtcNow().UtcDateTime;
-        return await _context.Announcements
+        DateTime now = timeProvider.GetUtcNow().UtcDateTime;
+        return await context.Announcements
             .Where(a => a.Status == AnnouncementStatus.Published
                 && (a.PublishAt == null || a.PublishAt <= now)
                 && (a.ExpiresAt == null || a.ExpiresAt > now))
@@ -38,20 +30,20 @@ public sealed class AnnouncementRepository : IAnnouncementRepository
 
     public async Task<IReadOnlyList<Announcement>> GetAllAsync(CancellationToken ct = default)
     {
-        return await _context.Announcements
+        return await context.Announcements
             .OrderByDescending(a => a.CreatedAt)
             .ToListAsync(ct);
     }
 
     public async Task AddAsync(Announcement announcement, CancellationToken ct = default)
     {
-        await _context.Announcements.AddAsync(announcement, ct);
-        await _context.SaveChangesAsync(ct);
+        await context.Announcements.AddAsync(announcement, ct);
+        await context.SaveChangesAsync(ct);
     }
 
     public async Task UpdateAsync(Announcement announcement, CancellationToken ct = default)
     {
-        _context.Announcements.Update(announcement);
-        await _context.SaveChangesAsync(ct);
+        context.Announcements.Update(announcement);
+        await context.SaveChangesAsync(ct);
     }
 }

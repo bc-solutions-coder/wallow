@@ -2,13 +2,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Foundry.Shared.Infrastructure.Core.Auditing;
 
-public sealed class AuditDbContext : DbContext
+public sealed class AuditDbContext(DbContextOptions<AuditDbContext> options) : DbContext(options)
 {
     public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
-
-    public AuditDbContext(DbContextOptions<AuditDbContext> options) : base(options)
-    {
-    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

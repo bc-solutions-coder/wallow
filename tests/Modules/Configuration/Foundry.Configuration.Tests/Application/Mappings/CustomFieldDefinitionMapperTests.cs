@@ -65,8 +65,8 @@ public class CustomFieldDefinitionMapperTests
         CustomFieldDefinition definition = CreateDefinition(fieldType: CustomFieldType.Dropdown);
         List<CustomFieldOption> options =
         [
-            new CustomFieldOption { Value = "a", Label = "Option A" },
-            new CustomFieldOption { Value = "b", Label = "Option B" }
+            new() { Value = "a", Label = "Option A" },
+            new() { Value = "b", Label = "Option B" }
         ];
         definition.SetOptions(options, Guid.Empty, TimeProvider.System);
 
@@ -109,7 +109,7 @@ public class CustomFieldDefinitionMapperTests
     [Fact]
     public void ToDtoList_WithEmptyList_ReturnsEmptyList()
     {
-        List<CustomFieldDefinition> definitions = [];
+        CustomFieldDefinition[] definitions = [];
 
         IReadOnlyList<CustomFieldDefinitionDto> dtos = definitions.ToDtoList();
 

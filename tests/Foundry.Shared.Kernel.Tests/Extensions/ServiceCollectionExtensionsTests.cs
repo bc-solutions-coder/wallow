@@ -9,7 +9,7 @@ public class ServiceCollectionExtensionsTests
     [Fact]
     public void AddSharedKernel_RegistersTimeProvider()
     {
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = new();
 
         services.AddSharedKernel();
 
@@ -21,7 +21,7 @@ public class ServiceCollectionExtensionsTests
     [Fact]
     public void AddSharedKernel_RegistersTenantContext_AsScoped()
     {
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = new();
 
         services.AddSharedKernel();
 
@@ -34,7 +34,7 @@ public class ServiceCollectionExtensionsTests
     [Fact]
     public void AddSharedKernel_RegistersITenantContext_ResolvesToTenantContext()
     {
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = new();
 
         services.AddSharedKernel();
 
@@ -49,7 +49,7 @@ public class ServiceCollectionExtensionsTests
     [Fact]
     public void AddSharedKernel_RegistersTenantSaveChangesInterceptor_AsScoped()
     {
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = new();
 
         services.AddSharedKernel();
 
@@ -62,7 +62,7 @@ public class ServiceCollectionExtensionsTests
     [Fact]
     public void AddSharedKernel_RegistersITenantContextFactory_AsScoped()
     {
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = new();
 
         services.AddSharedKernel();
 
@@ -75,7 +75,7 @@ public class ServiceCollectionExtensionsTests
     [Fact]
     public void AddSharedKernel_CanResolveAllRegisteredServices()
     {
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = new();
 
         services.AddSharedKernel();
 
@@ -93,7 +93,7 @@ public class ServiceCollectionExtensionsTests
     [Fact]
     public void AddSharedKernel_ReturnsServiceCollection_ForChaining()
     {
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = new();
 
         IServiceCollection result = services.AddSharedKernel();
 

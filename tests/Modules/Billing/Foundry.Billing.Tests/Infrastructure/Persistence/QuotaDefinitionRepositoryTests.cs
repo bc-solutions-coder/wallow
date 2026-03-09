@@ -11,14 +11,12 @@ namespace Foundry.Billing.Tests.Infrastructure.Persistence;
 
 [Collection("PostgresDatabase")]
 [Trait("Category", "Integration")]
-public class QuotaDefinitionRepositoryTests : DbContextIntegrationTestBase<BillingDbContext>
+public class QuotaDefinitionRepositoryTests(PostgresContainerFixture fixture) : DbContextIntegrationTestBase<BillingDbContext>(fixture)
 {
-    public QuotaDefinitionRepositoryTests(PostgresContainerFixture fixture) : base(fixture) { }
-
     protected override bool UseMigrateAsync => true;
 
     private QuotaDefinitionRepository CreateRepository() =>
-        new QuotaDefinitionRepository(DbContext, TenantContext);
+        new(DbContext, TenantContext);
 
     [Fact]
     public async Task Add_And_GetByIdAsync_ReturnsQuotaDefinition()

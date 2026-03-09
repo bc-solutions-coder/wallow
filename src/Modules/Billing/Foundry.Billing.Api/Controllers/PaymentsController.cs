@@ -22,16 +22,8 @@ namespace Foundry.Billing.Api.Controllers;
 [Tags("Payments")]
 [Produces("application/json")]
 [Consumes("application/json")]
-public class PaymentsController : ControllerBase
+public class PaymentsController(IMessageBus bus, ICurrentUserService currentUserService) : ControllerBase
 {
-    private readonly IMessageBus _bus;
-    private readonly ICurrentUserService _currentUserService;
-
-    public PaymentsController(IMessageBus bus, ICurrentUserService currentUserService)
-    {
-        _bus = bus;
-        _currentUserService = currentUserService;
-    }
 
     /// <summary>
     /// Get a specific payment by ID.
@@ -42,7 +34,7 @@ public class PaymentsController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
     {
-        Result<PaymentDto> result = await _bus.InvokeAsync<Result<PaymentDto>>(
+        Result<PaymentDto> result = await bus.InvokeAsync<Result<PaymentDto>>(
             new GetPaymentByIdQuery(id), cancellationToken);
 
         return result.Map(ToPaymentResponse).ToActionResult();
@@ -56,7 +48,7 @@ public class PaymentsController : ControllerBase
     [ProducesResponseType(typeof(IReadOnlyList<PaymentResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetByInvoiceId(Guid invoiceId, CancellationToken cancellationToken)
     {
-        Result<IReadOnlyList<PaymentDto>> result = await _bus.InvokeAsync<Result<IReadOnlyList<PaymentDto>>>(
+        Result<IReadOnlyList<PaymentDto>> result = await bus.InvokeAsync<Result<IReadOnlyList<PaymentDto>>>(
             new GetPaymentsByInvoiceIdQuery(invoiceId), cancellationToken);
 
         return result.Map(payments =>
@@ -77,20 +69,20 @@ public class PaymentsController : ControllerBase
         [FromBody] ProcessPaymentRequest request,
         CancellationToken cancellationToken)
     {
-        Guid? currentUserId = _currentUserService.GetCurrentUserId();
+        Guid? currentUserId = currentUserService.GetCurrentUserId();
         if (currentUserId is null)
         {
             return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
         }
 
-        ProcessPaymentCommand command = new ProcessPaymentCommand(
+        ProcessPaymentCommand command = new(
             invoiceId,
             currentUserId.Value,
             request.Amount,
             request.Currency,
             request.PaymentMethod);
 
-        Result<PaymentDto> result = await _bus.InvokeAsync<Result<PaymentDto>>(command, cancellationToken);
+        Result<PaymentDto> result = await bus.InvokeAsync<Result<PaymentDto>>(command, cancellationToken);
 
         if (!result.IsSuccess)
         {

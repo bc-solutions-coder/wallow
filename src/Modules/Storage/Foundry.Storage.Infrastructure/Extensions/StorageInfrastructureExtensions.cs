@@ -72,7 +72,7 @@ public static class StorageInfrastructureExtensions
                 services.AddSingleton<IAmazonS3>(sp =>
                 {
                     S3StorageOptions s3Options = sp.GetRequiredService<IOptions<StorageOptions>>().Value.S3;
-                    AmazonS3Config config = new AmazonS3Config
+                    AmazonS3Config config = new()
                     {
                         ServiceURL = s3Options.Endpoint,
                         ForcePathStyle = s3Options.UsePathStyle,

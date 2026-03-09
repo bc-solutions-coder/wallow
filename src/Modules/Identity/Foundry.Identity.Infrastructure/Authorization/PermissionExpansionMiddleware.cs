@@ -5,14 +5,8 @@ using Microsoft.AspNetCore.Http;
 
 namespace Foundry.Identity.Infrastructure.Authorization;
 
-public class PermissionExpansionMiddleware
+public class PermissionExpansionMiddleware(RequestDelegate next)
 {
-    private readonly RequestDelegate _next;
-
-    public PermissionExpansionMiddleware(RequestDelegate next)
-    {
-        _next = next;
-    }
 
     public async Task InvokeAsync(HttpContext context)
     {
@@ -39,7 +33,7 @@ public class PermissionExpansionMiddleware
             }
         }
 
-        await _next(context);
+        await next(context);
     }
 
     private static void ExpandUserRoles(HttpContext context, ClaimsIdentity? identity)

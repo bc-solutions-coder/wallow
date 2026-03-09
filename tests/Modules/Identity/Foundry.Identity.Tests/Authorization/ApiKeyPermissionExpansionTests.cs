@@ -18,7 +18,7 @@ public class ApiKeyPermissionExpansionTests
         };
 
         ClaimsIdentity identity = new(claims, "ApiKey");
-        DefaultHttpContext context = new()
+        DefaultHttpContext context = new DefaultHttpContext()
         {
             User = new ClaimsPrincipal(identity)
         };
@@ -42,7 +42,7 @@ public class ApiKeyPermissionExpansionTests
         };
 
         ClaimsIdentity identity = new(claims, "ApiKey");
-        DefaultHttpContext context = new()
+        DefaultHttpContext context = new DefaultHttpContext()
         {
             User = new ClaimsPrincipal(identity)
         };
@@ -66,7 +66,7 @@ public class ApiKeyPermissionExpansionTests
         };
 
         ClaimsIdentity identity = new(claims, "ApiKey");
-        DefaultHttpContext context = new()
+        DefaultHttpContext context = new DefaultHttpContext()
         {
             User = new ClaimsPrincipal(identity)
         };

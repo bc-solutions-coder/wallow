@@ -18,7 +18,7 @@ public class UsageReportServiceTests
     {
         using BillingDbContext dbContext = CreateDbContext();
 
-        UsageReportService service = new UsageReportService(dbContext);
+        UsageReportService service = new(dbContext);
 
         service.Should().NotBeNull();
     }
@@ -27,10 +27,10 @@ public class UsageReportServiceTests
     public async Task GetUsageAsync_ReturnsGroupedUsageByMeterCode()
     {
         await using BillingDbContext dbContext = CreateDbContext();
-        DateTime from = new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc);
-        DateTime to = new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc);
-        DateTime periodStart = new DateTime(2026, 2, 15, 0, 0, 0, DateTimeKind.Utc);
-        DateTime periodEnd = new DateTime(2026, 2, 16, 0, 0, 0, DateTimeKind.Utc);
+        DateTime from = new(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc);
+        DateTime to = new(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc);
+        DateTime periodStart = new(2026, 2, 15, 0, 0, 0, DateTimeKind.Utc);
+        DateTime periodEnd = new(2026, 2, 16, 0, 0, 0, DateTimeKind.Utc);
 
         MeterDefinition meter = MeterDefinition.Create(
             "api.calls", "API Calls", "requests", MeterAggregation.Sum, true);
@@ -41,7 +41,7 @@ public class UsageReportServiceTests
         dbContext.UsageRecords.AddRange(record1, record2);
         await dbContext.SaveChangesAsync();
 
-        UsageReportService service = new UsageReportService(dbContext);
+        UsageReportService service = new(dbContext);
 
         IReadOnlyList<UsageReportRow> results = await service.GetUsageAsync(
             _tenantId.Value, from, to);
@@ -56,10 +56,10 @@ public class UsageReportServiceTests
     public async Task GetUsageAsync_ReturnsEmptyWhenNoRecords()
     {
         await using BillingDbContext dbContext = CreateDbContext();
-        DateTime from = new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc);
-        DateTime to = new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc);
+        DateTime from = new(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc);
+        DateTime to = new(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc);
 
-        UsageReportService service = new UsageReportService(dbContext);
+        UsageReportService service = new(dbContext);
 
         IReadOnlyList<UsageReportRow> results = await service.GetUsageAsync(
             _tenantId.Value, from, to);
@@ -71,8 +71,8 @@ public class UsageReportServiceTests
     public async Task GetUsageAsync_FiltersOutRecordsOutsideDateRange()
     {
         await using BillingDbContext dbContext = CreateDbContext();
-        DateTime from = new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc);
-        DateTime to = new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc);
+        DateTime from = new(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc);
+        DateTime to = new(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc);
 
         MeterDefinition meter = MeterDefinition.Create(
             "storage.bytes", "Storage", "bytes", MeterAggregation.Sum, true);
@@ -83,7 +83,7 @@ public class UsageReportServiceTests
         dbContext.UsageRecords.AddRange(inside, outside);
         await dbContext.SaveChangesAsync();
 
-        UsageReportService service = new UsageReportService(dbContext);
+        UsageReportService service = new(dbContext);
 
         IReadOnlyList<UsageReportRow> results = await service.GetUsageAsync(
             _tenantId.Value, from, to);
@@ -96,8 +96,8 @@ public class UsageReportServiceTests
     public async Task GetUsageAsync_RespectsTenantIsolation()
     {
         await using BillingDbContext dbContext = CreateDbContext();
-        DateTime from = new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc);
-        DateTime to = new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc);
+        DateTime from = new(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc);
+        DateTime to = new(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc);
 
         MeterDefinition meter = MeterDefinition.Create(
             "api.requests", "API Requests", "requests", MeterAggregation.Sum, true);
@@ -109,7 +109,7 @@ public class UsageReportServiceTests
 
         Guid otherTenantId = Guid.NewGuid();
 
-        UsageReportService service = new UsageReportService(dbContext);
+        UsageReportService service = new(dbContext);
 
         IReadOnlyList<UsageReportRow> results = await service.GetUsageAsync(
             otherTenantId, from, to);

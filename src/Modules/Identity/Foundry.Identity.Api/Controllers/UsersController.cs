@@ -20,21 +20,8 @@ namespace Foundry.Identity.Api.Controllers;
 [Tags("Users")]
 [Produces("application/json")]
 [Consumes("application/json")]
-public class UsersController : ControllerBase
+public class UsersController(IKeycloakAdminService keycloakAdmin, IKeycloakOrganizationService keycloakOrg, ITenantContext tenantContext) : ControllerBase
 {
-    private readonly IKeycloakAdminService _keycloakAdmin;
-    private readonly IKeycloakOrganizationService _keycloakOrg;
-    private readonly ITenantContext _tenantContext;
-
-    public UsersController(
-        IKeycloakAdminService keycloakAdmin,
-        IKeycloakOrganizationService keycloakOrg,
-        ITenantContext tenantContext)
-    {
-        _keycloakAdmin = keycloakAdmin;
-        _keycloakOrg = keycloakOrg;
-        _tenantContext = tenantContext;
-    }
 
     /// <summary>
     /// Get a paginated list of users with optional search filtering.
@@ -47,8 +34,8 @@ public class UsersController : ControllerBase
         [FromQuery] int max = 20,
         CancellationToken ct = default)
     {
-        Guid tenantId = _tenantContext.TenantId.Value;
-        IReadOnlyList<UserDto> members = await _keycloakOrg.GetMembersAsync(tenantId, ct);
+        Guid tenantId = tenantContext.TenantId.Value;
+        IReadOnlyList<UserDto> members = await keycloakOrg.GetMembersAsync(tenantId, ct);
 
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -74,7 +61,7 @@ public class UsersController : ControllerBase
     [HasPermission(PermissionType.UsersRead)]
     public async Task<ActionResult<UserDto>> GetUserById(Guid id, CancellationToken ct)
     {
-        UserDto? user = await _keycloakAdmin.GetUserByIdAsync(id, ct);
+        UserDto? user = await keycloakAdmin.GetUserByIdAsync(id, ct);
         if (user is null)
         {
             return NotFound();
@@ -112,17 +99,17 @@ public class UsersController : ControllerBase
     [HasPermission(PermissionType.UsersCreate)]
     public async Task<ActionResult> CreateUser(CreateUserRequest request, CancellationToken ct)
     {
-        Guid userId = await _keycloakAdmin.CreateUserAsync(
+        Guid userId = await keycloakAdmin.CreateUserAsync(
             request.Email,
             request.FirstName,
             request.LastName,
             request.Password,
             ct);
 
-        Guid tenantId = _tenantContext.TenantId.Value;
-        await _keycloakOrg.AddMemberAsync(tenantId, userId, ct);
+        Guid tenantId = tenantContext.TenantId.Value;
+        await keycloakOrg.AddMemberAsync(tenantId, userId, ct);
 
-        UserDto? user = await _keycloakAdmin.GetUserByIdAsync(userId, ct);
+        UserDto? user = await keycloakAdmin.GetUserByIdAsync(userId, ct);
         return CreatedAtAction(nameof(GetUserById), new { id = userId }, user);
     }
 
@@ -138,7 +125,7 @@ public class UsersController : ControllerBase
             return NotFound();
         }
 
-        await _keycloakAdmin.DeactivateUserAsync(id, ct);
+        await keycloakAdmin.DeactivateUserAsync(id, ct);
         return NoContent();
     }
 
@@ -154,7 +141,7 @@ public class UsersController : ControllerBase
             return NotFound();
         }
 
-        await _keycloakAdmin.ActivateUserAsync(id, ct);
+        await keycloakAdmin.ActivateUserAsync(id, ct);
         return NoContent();
     }
 
@@ -173,7 +160,7 @@ public class UsersController : ControllerBase
             return NotFound();
         }
 
-        await _keycloakAdmin.AssignRoleAsync(userId, request.RoleName, ct);
+        await keycloakAdmin.AssignRoleAsync(userId, request.RoleName, ct);
         return NoContent();
     }
 
@@ -189,13 +176,13 @@ public class UsersController : ControllerBase
             return NotFound();
         }
 
-        await _keycloakAdmin.RemoveRoleAsync(userId, roleName, ct);
+        await keycloakAdmin.RemoveRoleAsync(userId, roleName, ct);
         return NoContent();
     }
 
     private async Task<bool> UserBelongsToTenantAsync(Guid userId, CancellationToken ct)
     {
-        IReadOnlyList<OrganizationDto> userOrgs = await _keycloakOrg.GetUserOrganizationsAsync(userId, ct);
-        return userOrgs.Any(o => o.Id == _tenantContext.TenantId.Value);
+        IReadOnlyList<OrganizationDto> userOrgs = await keycloakOrg.GetUserOrganizationsAsync(userId, ct);
+        return userOrgs.Any(o => o.Id == tenantContext.TenantId.Value);
     }
 }

@@ -14,7 +14,7 @@ public class CqrsConventionTests
     {
         foreach (string moduleName in TestConstants.AllModules)
         {
-            yield return new object[] { moduleName };
+            yield return [moduleName];
         }
     }
 
@@ -216,7 +216,7 @@ public class CqrsConventionTests
             .Inherit(typeof(AbstractValidator<>))
             .GetTypes();
 
-        foreach (Type? validator in validatorTypes)
+        foreach (Type validator in validatorTypes)
         {
             validator.Name.Should().EndWith("Validator",
                 $"Validator class {validator.FullName} should end with 'Validator' suffix");

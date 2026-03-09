@@ -10,21 +10,11 @@ namespace Foundry.Identity.Infrastructure.Services;
 /// <summary>
 /// Redis-backed API key service for service-to-service authentication.
 /// </summary>
-public sealed partial class RedisApiKeyService : IApiKeyService
+public sealed partial class RedisApiKeyService(IConnectionMultiplexer redis, ILogger<RedisApiKeyService> logger) : IApiKeyService
 {
-    private readonly IConnectionMultiplexer _redis;
-    private readonly ILogger<RedisApiKeyService> _logger;
 
     private const string KeyPrefix = "apikey:";
     private const string UserKeysPrefix = "apikeys:user:";
-
-    public RedisApiKeyService(
-        IConnectionMultiplexer redis,
-        ILogger<RedisApiKeyService> logger)
-    {
-        _redis = redis;
-        _logger = logger;
-    }
 
     public async Task<ApiKeyCreateResult> CreateApiKeyAsync(
         string name,
@@ -62,7 +52,7 @@ public sealed partial class RedisApiKeyService : IApiKeyService
                 LastUsedAt = null
             };
 
-            IDatabase db = _redis.GetDatabase();
+            IDatabase db = redis.GetDatabase();
             string json = JsonSerializer.Serialize(metadata);
 
             // Store by hash for validation lookups
@@ -117,7 +107,7 @@ public sealed partial class RedisApiKeyService : IApiKeyService
         try
         {
             string keyHash = HashApiKey(apiKey);
-            IDatabase db = _redis.GetDatabase();
+            IDatabase db = redis.GetDatabase();
 
             RedisValue json = await db.StringGetAsync($"{KeyPrefix}{keyHash}");
             if (json.IsNullOrEmpty)
@@ -183,7 +173,7 @@ public sealed partial class RedisApiKeyService : IApiKeyService
     {
         try
         {
-            IDatabase db = _redis.GetDatabase();
+            IDatabase db = redis.GetDatabase();
             RedisValue[] keyIds = await db.SetMembersAsync($"{UserKeysPrefix}{userId}");
 
             List<ApiKeyMetadata> results = [];
@@ -218,7 +208,7 @@ public sealed partial class RedisApiKeyService : IApiKeyService
         catch (Exception ex)
         {
             LogListApiKeysFailed(ex, userId);
-            return Array.Empty<ApiKeyMetadata>();
+            return [];
         }
     }
 
@@ -226,7 +216,7 @@ public sealed partial class RedisApiKeyService : IApiKeyService
     {
         try
         {
-            IDatabase db = _redis.GetDatabase();
+            IDatabase db = redis.GetDatabase();
 
             // Get the key data first
             RedisValue json = await db.StringGetAsync($"{KeyPrefix}id:{keyId}");
@@ -265,7 +255,7 @@ public sealed partial class RedisApiKeyService : IApiKeyService
         try
         {
             data.LastUsedAt = DateTimeOffset.UtcNow;
-            IDatabase db = _redis.GetDatabase();
+            IDatabase db = redis.GetDatabase();
             string json = JsonSerializer.Serialize(data);
 
             TimeSpan? expiry = data.ExpiresAt.HasValue

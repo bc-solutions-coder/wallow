@@ -33,7 +33,7 @@ public class CreateBucketValidatorTests
     [Fact]
     public void Should_Have_Error_When_NameExceeds100Characters()
     {
-        string longName = new string('a', 101);
+        string longName = new('a', 101);
         CreateBucketCommand command = new(longName);
 
         TestValidationResult<CreateBucketCommand> result = _validator.TestValidate(command);
@@ -74,7 +74,7 @@ public class CreateBucketValidatorTests
     [Fact]
     public void Should_Have_Error_When_DescriptionExceeds500Characters()
     {
-        string longDescription = new string('x', 501);
+        string longDescription = new('x', 501);
         CreateBucketCommand command = new("valid", Description: longDescription);
 
         TestValidationResult<CreateBucketCommand> result = _validator.TestValidate(command);

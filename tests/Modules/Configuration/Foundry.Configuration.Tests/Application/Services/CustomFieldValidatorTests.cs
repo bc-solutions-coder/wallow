@@ -467,8 +467,8 @@ public class CustomFieldValidatorTests
         CustomFieldDefinition def = CreateDefinition("status", CustomFieldType.Dropdown);
         List<CustomFieldOption> options =
         [
-            new CustomFieldOption { Value = "active", Label = "Active" },
-            new CustomFieldOption { Value = "inactive", Label = "Inactive" }
+            new() { Value = "active", Label = "Active" },
+            new() { Value = "inactive", Label = "Inactive" }
         ];
         def.SetOptions(options, Guid.Empty, TimeProvider.System);
         _repository.GetByEntityTypeAsync("Invoice", false, Arg.Any<CancellationToken>())
@@ -492,8 +492,8 @@ public class CustomFieldValidatorTests
         CustomFieldDefinition def = CreateDefinition("status", CustomFieldType.Dropdown);
         List<CustomFieldOption> options =
         [
-            new CustomFieldOption { Value = "active", Label = "Active" },
-            new CustomFieldOption { Value = "inactive", Label = "Inactive" }
+            new() { Value = "active", Label = "Active" },
+            new() { Value = "inactive", Label = "Inactive" }
         ];
         def.SetOptions(options, Guid.Empty, TimeProvider.System);
         _repository.GetByEntityTypeAsync("Invoice", false, Arg.Any<CancellationToken>())
@@ -515,8 +515,8 @@ public class CustomFieldValidatorTests
         CustomFieldDefinition def = CreateDefinition("status", CustomFieldType.Dropdown);
         List<CustomFieldOption> options =
         [
-            new CustomFieldOption { Value = "active", Label = "Active" },
-            new CustomFieldOption { Value = "archived", Label = "Archived", IsActive = false }
+            new() { Value = "active", Label = "Active" },
+            new() { Value = "archived", Label = "Archived", IsActive = false }
         ];
         def.SetOptions(options, Guid.Empty, TimeProvider.System);
         _repository.GetByEntityTypeAsync("Invoice", false, Arg.Any<CancellationToken>())

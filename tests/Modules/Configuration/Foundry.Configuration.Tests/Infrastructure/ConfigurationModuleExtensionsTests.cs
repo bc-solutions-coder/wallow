@@ -25,7 +25,7 @@ public class ConfigurationModuleExtensionsTests
             .AddInMemoryCollection(configValues)
             .Build();
         services.AddSingleton(configuration);
-        services.AddSingleton<IConfiguration>(configuration);
+        services.AddSingleton(configuration);
         services.AddScoped<ITenantContext, TenantContext>();
         services.AddSingleton(Substitute.For<IDistributedCache>());
         services.AddSingleton(new TenantSaveChangesInterceptor(new TenantContext()));

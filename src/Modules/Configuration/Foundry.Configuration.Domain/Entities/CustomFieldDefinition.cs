@@ -70,7 +70,7 @@ public sealed partial class CustomFieldDefinition : AggregateRoot<CustomFieldDef
         ValidateFieldKey(fieldKey);
         ValidateDisplayName(displayName);
 
-        CustomFieldDefinition definition = new CustomFieldDefinition
+        CustomFieldDefinition definition = new()
         {
             Id = CustomFieldDefinitionId.New(),
             TenantId = tenantId,

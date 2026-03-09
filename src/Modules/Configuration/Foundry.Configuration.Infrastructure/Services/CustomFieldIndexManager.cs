@@ -9,18 +9,11 @@ namespace Foundry.Configuration.Infrastructure.Services;
 /// Manages dynamic indexes for heavily-queried custom fields.
 /// Call this periodically or when field definitions change.
 /// </summary>
-public sealed partial class CustomFieldIndexManager
+public sealed partial class CustomFieldIndexManager(ILogger<CustomFieldIndexManager> logger)
 {
     // Only alphanumeric and underscore, must start with letter or underscore
     [GeneratedRegex(@"^[a-zA-Z_][a-zA-Z0-9_]{0,62}$", RegexOptions.NonBacktracking)]
     private static partial Regex SafeIdentifierRegex();
-
-    private readonly ILogger<CustomFieldIndexManager> _logger;
-
-    public CustomFieldIndexManager(ILogger<CustomFieldIndexManager> logger)
-    {
-        _logger = logger;
-    }
 
     /// <summary>
     /// Creates an expression index for a specific custom field.
@@ -58,7 +51,7 @@ public sealed partial class CustomFieldIndexManager
 
         if (exists)
         {
-            LogIndexAlreadyExists(_logger, indexName);
+            LogIndexAlreadyExists(logger, indexName);
             return;
         }
 
@@ -70,7 +63,7 @@ public sealed partial class CustomFieldIndexManager
             WHERE custom_fields->>'{fieldKey}' IS NOT NULL;
             """;
 
-        LogCreatingExpressionIndex(_logger, indexName, fieldKey);
+        LogCreatingExpressionIndex(logger, indexName, fieldKey);
 
         await context.Database.ExecuteSqlRawAsync(createSql, cancellationToken);
     }
@@ -94,7 +87,7 @@ public sealed partial class CustomFieldIndexManager
         // DDL doesn't support parameterized identifiers — values validated above.
         string dropSql = $"DROP INDEX CONCURRENTLY IF EXISTS {schemaName}.{indexName};";
 
-        LogDroppingExpressionIndex(_logger, indexName);
+        LogDroppingExpressionIndex(logger, indexName);
 
         await context.Database.ExecuteSqlRawAsync(dropSql, cancellationToken);
     }

@@ -13,11 +13,9 @@ public class TenantQueryExtensionsTests
         public TenantId TenantId { get; init; }
     }
 
-    private sealed class TestDbContext : DbContext
+    private sealed class TestDbContext(DbContextOptions<TestDbContext> options) : DbContext(options)
     {
         public DbSet<TestEntity> Entities => Set<TestEntity>();
-
-        public TestDbContext(DbContextOptions<TestDbContext> options) : base(options) { }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

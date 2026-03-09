@@ -13,7 +13,7 @@ public sealed class EvaluateFlagHandler(IFeatureFlagService featureFlagService)
         bool isEnabled = await featureFlagService.IsEnabledAsync(query.Key, query.TenantId, query.UserId, ct);
         string? variant = await featureFlagService.GetVariantAsync(query.Key, query.TenantId, query.UserId, ct);
 
-        FlagEvaluationResultDto result = new FlagEvaluationResultDto(query.Key, isEnabled, variant);
+        FlagEvaluationResultDto result = new(query.Key, isEnabled, variant);
         return Result.Success(result);
     }
 }

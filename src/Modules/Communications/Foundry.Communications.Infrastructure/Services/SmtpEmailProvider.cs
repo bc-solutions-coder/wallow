@@ -37,7 +37,7 @@ public sealed partial class SmtpEmailProvider(
 
     private MimeMessage BuildMessage(EmailDeliveryRequest request)
     {
-        MimeMessage message = new MimeMessage();
+        MimeMessage message = new();
 
         message.From.Add(string.IsNullOrWhiteSpace(request.From)
             ? new MailboxAddress(_settings.DefaultFromName, _settings.DefaultFromAddress)
@@ -66,7 +66,7 @@ public sealed partial class SmtpEmailProvider(
                 $"Attachment size ({attachment.Length / 1024 / 1024}MB) exceeds maximum allowed size (10MB)");
         }
 
-        MimeMessage message = new MimeMessage();
+        MimeMessage message = new();
 
         message.From.Add(string.IsNullOrWhiteSpace(request.From)
             ? new MailboxAddress(_settings.DefaultFromName, _settings.DefaultFromAddress)
@@ -75,7 +75,7 @@ public sealed partial class SmtpEmailProvider(
         message.To.Add(MailboxAddress.Parse(request.To));
         message.Subject = request.Subject ?? string.Empty;
 
-        BodyBuilder builder = new BodyBuilder
+        BodyBuilder builder = new()
         {
             HtmlBody = request.Body
         };
@@ -111,7 +111,7 @@ public sealed partial class SmtpEmailProvider(
             LogEmailFailed(logger, ex, message.To.ToString());
 
             activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
-            activity?.AddEvent(new ActivityEvent("exception", tags: new ActivityTagsCollection
+            activity?.AddEvent(new ActivityEvent("exception", tags: new()
             {
                 { "exception.type", ex.GetType().FullName },
                 { "exception.message", ex.Message }

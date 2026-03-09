@@ -10,9 +10,8 @@ namespace Foundry.Identity.IntegrationTests.OAuth2;
 /// Validates the complete flow: acquire token -> call API -> verify response.
 /// </summary>
 [Trait("Category", "Integration")]
-public class ServiceAccountFlowTests : KeycloakIntegrationTestBase
+public class ServiceAccountFlowTests(KeycloakTestFixture fixture) : KeycloakIntegrationTestBase(fixture)
 {
-    public ServiceAccountFlowTests(KeycloakTestFixture fixture) : base(fixture) { }
 
     [Fact]
     public async Task Complete_Flow_Acquire_Token_And_Call_API()
@@ -82,15 +81,13 @@ public class ServiceAccountFlowTests : KeycloakIntegrationTestBase
         using HttpClient httpClient = new();
         string tokenEndpoint = Fixture.KeycloakFixture.TokenEndpoint;
 
-        using HttpRequestMessage request = new(HttpMethod.Post, tokenEndpoint)
+        using HttpRequestMessage request = new(HttpMethod.Post, tokenEndpoint);
+        request.Content = new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            Content = new FormUrlEncodedContent(new Dictionary<string, string>
-            {
-                ["grant_type"] = "client_credentials",
-                ["client_id"] = Fixture.KeycloakFixture.ClientId,
-                ["client_secret"] = Fixture.KeycloakFixture.ClientSecret
-            })
-        };
+            ["grant_type"] = "client_credentials",
+            ["client_id"] = Fixture.KeycloakFixture.ClientId,
+            ["client_secret"] = Fixture.KeycloakFixture.ClientSecret
+        });
 
         HttpResponseMessage response = await httpClient.SendAsync(request);
 

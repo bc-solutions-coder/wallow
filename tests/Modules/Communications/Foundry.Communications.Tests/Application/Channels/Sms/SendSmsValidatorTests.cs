@@ -42,7 +42,7 @@ public class SendSmsValidatorTests
     [Fact]
     public void Should_Not_Have_Error_When_From_Is_Null()
     {
-        SendSmsCommand command = new("+15551234567", "Hello world", null);
+        SendSmsCommand command = new("+15551234567", "Hello world");
 
         TestValidationResult<SendSmsCommand> result = _validator.TestValidate(command);
 

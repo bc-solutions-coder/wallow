@@ -10,7 +10,7 @@ public class IssueInvoiceValidatorTests
     [Fact]
     public void Should_Have_Error_When_InvoiceId_Is_Empty()
     {
-        IssueInvoiceCommand command = new IssueInvoiceCommand(
+        IssueInvoiceCommand command = new(
             Guid.Empty,
             Guid.NewGuid()
         );
@@ -24,7 +24,7 @@ public class IssueInvoiceValidatorTests
     [Fact]
     public void Should_Have_Error_When_IssuedByUserId_Is_Empty()
     {
-        IssueInvoiceCommand command = new IssueInvoiceCommand(
+        IssueInvoiceCommand command = new(
             Guid.NewGuid(),
             Guid.Empty
         );
@@ -38,7 +38,7 @@ public class IssueInvoiceValidatorTests
     [Fact]
     public void Should_Have_Multiple_Errors_When_Both_Ids_Are_Empty()
     {
-        IssueInvoiceCommand command = new IssueInvoiceCommand(
+        IssueInvoiceCommand command = new(
             Guid.Empty,
             Guid.Empty
         );
@@ -52,7 +52,7 @@ public class IssueInvoiceValidatorTests
     [Fact]
     public void Should_Not_Have_Error_When_Command_Is_Valid()
     {
-        IssueInvoiceCommand command = new IssueInvoiceCommand(
+        IssueInvoiceCommand command = new(
             Guid.NewGuid(),
             Guid.NewGuid()
         );

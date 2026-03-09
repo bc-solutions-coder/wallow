@@ -27,7 +27,7 @@ public class PaymentsControllerTests
         _currentUserService.GetCurrentUserId().Returns(_userId);
         _controller = new PaymentsController(_bus, _currentUserService);
 
-        ClaimsPrincipal user = new ClaimsPrincipal(new ClaimsIdentity(new[]
+        ClaimsPrincipal user = new(new ClaimsIdentity(new[]
         {
             new Claim(ClaimTypes.NameIdentifier, _userId.ToString())
         }, "TestAuth"));
@@ -141,7 +141,7 @@ public class PaymentsControllerTests
     {
         Guid invoiceId = Guid.NewGuid();
         _bus.InvokeAsync<Result<IReadOnlyList<PaymentDto>>>(Arg.Any<GetPaymentsByInvoiceIdQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success<IReadOnlyList<PaymentDto>>(new List<PaymentDto>()));
+            .Returns(Result.Success<IReadOnlyList<PaymentDto>>([]));
 
         IActionResult result = await _controller.GetByInvoiceId(invoiceId, CancellationToken.None);
 
@@ -155,7 +155,7 @@ public class PaymentsControllerTests
     {
         Guid invoiceId = Guid.NewGuid();
         _bus.InvokeAsync<Result<IReadOnlyList<PaymentDto>>>(Arg.Any<GetPaymentsByInvoiceIdQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success<IReadOnlyList<PaymentDto>>(new List<PaymentDto>()));
+            .Returns(Result.Success<IReadOnlyList<PaymentDto>>([]));
 
         await _controller.GetByInvoiceId(invoiceId, CancellationToken.None);
 

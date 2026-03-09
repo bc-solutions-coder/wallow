@@ -515,7 +515,7 @@ static Task WriteHealthCheckResponse(HttpContext context, HealthReport report)
 
     IHostEnvironment env = context.RequestServices.GetRequiredService<IHostEnvironment>();
 
-    if (!env.IsDevelopment())
+    if (!env.IsDevelopment() && !env.IsEnvironment("Testing"))
     {
         context.Response.StatusCode = report.Status == HealthStatus.Healthy
             ? StatusCodes.Status200OK

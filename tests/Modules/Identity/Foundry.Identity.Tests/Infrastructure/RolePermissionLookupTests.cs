@@ -5,7 +5,7 @@ namespace Foundry.Identity.Tests.Infrastructure;
 
 public class RolePermissionLookupTests
 {
-    private readonly RolePermissionLookup _lookup = new();
+    private readonly RolePermissionLookup _lookup = new RolePermissionLookup();
 
     [Fact]
     public void GetPermissions_AdminRole_ReturnsAllPermissions()
@@ -20,7 +20,7 @@ public class RolePermissionLookupTests
     [Fact]
     public void GetPermissions_EmptyRoles_ReturnsEmpty()
     {
-        IEnumerable<string> roles = Array.Empty<string>();
+        IEnumerable<string> roles = [];
 
         IReadOnlyCollection<string> result = _lookup.GetPermissions(roles);
 

@@ -16,7 +16,7 @@ public class FeatureFlagServiceTests
     {
         _repository = Substitute.For<IFeatureFlagRepository>();
         _messageBus = Substitute.For<IMessageBus>();
-        _sut = new FeatureFlagService(_repository, _messageBus, TimeProvider.System);
+        _sut = new(_repository, _messageBus, TimeProvider.System);
     }
 
     #region IsEnabledAsync - Boolean flags
@@ -185,11 +185,8 @@ public class FeatureFlagServiceTests
     public async Task GetVariantAsync_WithOverrideVariant_ReturnsOverrideVariant()
     {
         Guid tenantId = Guid.NewGuid();
-        List<VariantWeight> variants = new List<VariantWeight>
-        {
-            new VariantWeight("A", 50),
-            new VariantWeight("B", 50)
-        };
+        List<VariantWeight> variants = [new("A", 50),
+            new("B", 50)];
         FeatureFlag flag = FeatureFlag.CreateVariant("ab-test", "AB Test", variants, "A", TimeProvider.System);
         AddOverride(flag, FeatureFlagOverride.CreateForTenant(flag.Id, tenantId, isEnabled: null, TimeProvider.System, variant: "B"));
         _repository.GetByKeyAsync("ab-test", Arg.Any<CancellationToken>()).Returns(flag);
@@ -202,11 +199,8 @@ public class FeatureFlagServiceTests
     [Fact]
     public async Task GetVariantAsync_VariantFlag_ReturnsOneOfDefinedVariants()
     {
-        List<VariantWeight> variants = new List<VariantWeight>
-        {
-            new VariantWeight("A", 50),
-            new VariantWeight("B", 50)
-        };
+        List<VariantWeight> variants = [new("A", 50),
+            new("B", 50)];
         FeatureFlag flag = FeatureFlag.CreateVariant("ab-test", "AB Test", variants, "A", TimeProvider.System);
         _repository.GetByKeyAsync("ab-test", Arg.Any<CancellationToken>()).Returns(flag);
 
@@ -218,11 +212,8 @@ public class FeatureFlagServiceTests
     [Fact]
     public async Task GetVariantAsync_VariantFlag_ConsistentForSameUser()
     {
-        List<VariantWeight> variants = new List<VariantWeight>
-        {
-            new VariantWeight("A", 50),
-            new VariantWeight("B", 50)
-        };
+        List<VariantWeight> variants = [new("A", 50),
+            new("B", 50)];
         FeatureFlag flag = FeatureFlag.CreateVariant("ab-test", "AB Test", variants, "A", TimeProvider.System);
         _repository.GetByKeyAsync("ab-test", Arg.Any<CancellationToken>()).Returns(flag);
         Guid tenantId = Guid.NewGuid();
@@ -254,11 +245,8 @@ public class FeatureFlagServiceTests
     public async Task GetAllFlagsAsync_ReturnsBooleanAndVariantFlags()
     {
         Guid tenantId = Guid.NewGuid();
-        List<VariantWeight> variants = new List<VariantWeight>
-        {
-            new VariantWeight("A", 50),
-            new VariantWeight("B", 50)
-        };
+        List<VariantWeight> variants = [new("A", 50),
+            new("B", 50)];
         FeatureFlag boolFlag = FeatureFlag.CreateBoolean("bool-flag", "Bool", defaultEnabled: true, TimeProvider.System);
         FeatureFlag variantFlag = FeatureFlag.CreateVariant("var-flag", "Var", variants, "A", TimeProvider.System);
         _repository.GetAllAsync(Arg.Any<CancellationToken>())
@@ -303,10 +291,7 @@ public class FeatureFlagServiceTests
     [Fact]
     public async Task GetVariantAsync_PublishesEvaluationEvent()
     {
-        List<VariantWeight> variants = new List<VariantWeight>
-        {
-            new VariantWeight("A", 100)
-        };
+        List<VariantWeight> variants = [new("A", 100)];
         FeatureFlag flag = FeatureFlag.CreateVariant("ab-test", "AB Test", variants, "A", TimeProvider.System);
         _repository.GetByKeyAsync("ab-test", Arg.Any<CancellationToken>()).Returns(flag);
 

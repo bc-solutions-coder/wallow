@@ -5,18 +5,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Foundry.Communications.Infrastructure.Persistence.Repositories;
 
-public sealed class ChannelPreferenceRepository : IChannelPreferenceRepository
+public sealed class ChannelPreferenceRepository(CommunicationsDbContext context) : IChannelPreferenceRepository
 {
-    private readonly CommunicationsDbContext _context;
-
-    public ChannelPreferenceRepository(CommunicationsDbContext context)
-    {
-        _context = context;
-    }
 
     public Task<ChannelPreference?> GetByUserChannelAndNotificationTypeAsync(Guid userId, ChannelType channelType, string notificationType, CancellationToken cancellationToken = default)
     {
-        return _context.ChannelPreferences
+        return context.ChannelPreferences
             .AsTracking()
             .FirstOrDefaultAsync(
                 cp => cp.UserId == userId && cp.ChannelType == channelType && cp.NotificationType == notificationType,
@@ -25,18 +19,18 @@ public sealed class ChannelPreferenceRepository : IChannelPreferenceRepository
 
     public async Task<IReadOnlyList<ChannelPreference>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
     {
-        return await _context.ChannelPreferences
+        return await context.ChannelPreferences
             .Where(cp => cp.UserId == userId)
             .ToListAsync(cancellationToken);
     }
 
     public void Add(ChannelPreference preference)
     {
-        _context.ChannelPreferences.Add(preference);
+        context.ChannelPreferences.Add(preference);
     }
 
     public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        await _context.SaveChangesAsync(cancellationToken);
+        await context.SaveChangesAsync(cancellationToken);
     }
 }

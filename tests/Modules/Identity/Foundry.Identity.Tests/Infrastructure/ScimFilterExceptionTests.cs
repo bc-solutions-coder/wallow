@@ -46,7 +46,7 @@ public class ScimFilterExceptionTests
     [Fact]
     public void Constructor_Default_HasDefaultMessage()
     {
-        ScimFilterException ex = new();
+        ScimFilterException ex = new ScimFilterException();
 
         ex.Message.Should().NotBeNullOrEmpty();
         ex.Position.Should().Be(0);

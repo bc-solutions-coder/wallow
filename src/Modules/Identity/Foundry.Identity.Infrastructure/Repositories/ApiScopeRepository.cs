@@ -5,18 +5,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Foundry.Identity.Infrastructure.Repositories;
 
-public sealed class ApiScopeRepository : IApiScopeRepository
+public sealed class ApiScopeRepository(IdentityDbContext context) : IApiScopeRepository
 {
-    private readonly IdentityDbContext _context;
-
-    public ApiScopeRepository(IdentityDbContext context)
-    {
-        _context = context;
-    }
 
     public async Task<IReadOnlyList<ApiScope>> GetAllAsync(string? category = null, CancellationToken ct = default)
     {
-        IQueryable<ApiScope> query = _context.ApiScopes.AsQueryable();
+        IQueryable<ApiScope> query = context.ApiScopes.AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(category))
         {
@@ -32,18 +26,18 @@ public sealed class ApiScopeRepository : IApiScopeRepository
     public async Task<IReadOnlyList<ApiScope>> GetByCodesAsync(IEnumerable<string> codes, CancellationToken ct = default)
     {
         List<string> codeList = codes.ToList();
-        return await _context.ApiScopes
+        return await context.ApiScopes
             .Where(x => codeList.Contains(x.Code))
             .ToListAsync(ct);
     }
 
     public void Add(ApiScope scope)
     {
-        _context.ApiScopes.Add(scope);
+        context.ApiScopes.Add(scope);
     }
 
     public async Task SaveChangesAsync(CancellationToken ct = default)
     {
-        await _context.SaveChangesAsync(ct);
+        await context.SaveChangesAsync(ct);
     }
 }

@@ -9,18 +9,10 @@ namespace Foundry.Api.Middleware;
 /// Global exception handler that converts exceptions to Problem Details responses.
 /// Implements RFC 7807 for consistent error responses across the API.
 /// </summary>
-internal partial class GlobalExceptionHandler : IExceptionHandler
+internal partial class GlobalExceptionHandler(
+    ILogger<GlobalExceptionHandler> logger,
+    IHostEnvironment environment) : IExceptionHandler
 {
-    private readonly ILogger<GlobalExceptionHandler> _logger;
-    private readonly IHostEnvironment _environment;
-
-    public GlobalExceptionHandler(
-        ILogger<GlobalExceptionHandler> logger,
-        IHostEnvironment environment)
-    {
-        _logger = logger;
-        _environment = environment;
-    }
 
     public async ValueTask<bool> TryHandleAsync(
         HttpContext httpContext,
@@ -37,7 +29,7 @@ internal partial class GlobalExceptionHandler : IExceptionHandler
             // Do not mark the span as error for cancellations
             System.Diagnostics.Activity.Current?.SetStatus(System.Diagnostics.ActivityStatusCode.Ok);
 
-            ProblemDetails cancelledProblem = new ProblemDetails
+            ProblemDetails cancelledProblem = new()
             {
                 Status = 499,
                 Title = "Client Closed Request",
@@ -128,7 +120,7 @@ internal partial class GlobalExceptionHandler : IExceptionHandler
                 .Select(e => new { field = e.PropertyName, message = e.ErrorMessage })
                 .ToArray();
         }
-        else if (_environment.IsDevelopment())
+        else if (environment.IsDevelopment())
         {
             // Only expose exception details in development
             problemDetails.Detail = exception.Message;

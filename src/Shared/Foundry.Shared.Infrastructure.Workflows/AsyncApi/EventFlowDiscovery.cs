@@ -49,13 +49,13 @@ public sealed class EventFlowDiscovery
             .Where(IsSagaType)
             .ToList();
 
-        List<EventFlowInfo> flows = new List<EventFlowInfo>();
+        List<EventFlowInfo> flows = [];
         foreach (Type eventType in eventTypes)
         {
             string sourceModule = ExtractModuleFromContractsNamespace(eventType);
             string exchangeName = eventType.FullName ?? eventType.Name;
 
-            List<ConsumerInfo> consumers = new List<ConsumerInfo>();
+            List<ConsumerInfo> consumers = [];
 
             foreach ((MethodInfo method, Type declaringType) in handlers)
             {

@@ -38,12 +38,11 @@ public class FlushUsageJobTests
     public async Task Execute_ShouldFlushAllMeterKeys()
     {
         Guid tenantId = Guid.NewGuid();
-        RedisValue[] members = new RedisValue[]
-        {
+        RedisValue[] members = [
             $"meter:{tenantId}:api.calls:2024-02",
             $"meter:{tenantId}:storage.bytes:2024-02",
             $"meter:{tenantId}:emails.sent:2024-02"
-        };
+        ];
 
         _database.SetMembersAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
             .Returns(members);
@@ -70,7 +69,7 @@ public class FlushUsageJobTests
         string key = $"meter:{tenantId}:api.calls:2024-02";
 
         _database.SetMembersAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
-            .Returns(new RedisValue[] { key });
+            .Returns([key]);
 
         _database.StringGetSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<CommandFlags>())
             .Returns(new RedisValue("500"));
@@ -97,7 +96,7 @@ public class FlushUsageJobTests
         string key = $"meter:{tenantId}:api.calls:2024-02";
 
         _database.SetMembersAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
-            .Returns(new RedisValue[] { key });
+            .Returns([key]);
 
         _database.StringGetSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<CommandFlags>())
             .Returns(new RedisValue("0"));
@@ -114,7 +113,7 @@ public class FlushUsageJobTests
         string key = $"meter:{tenantId}:api.calls:2024-02";
 
         _database.SetMembersAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
-            .Returns(new RedisValue[] { key });
+            .Returns([key]);
 
         _database.StringGetSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<CommandFlags>())
             .Returns(new RedisValue("100"));
@@ -139,7 +138,7 @@ public class FlushUsageJobTests
         string key = $"meter:{tenantId.Value}:api.calls:2024-02";
 
         _database.SetMembersAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
-            .Returns(new RedisValue[] { key });
+            .Returns([key]);
 
         _database.StringGetSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<CommandFlags>())
             .Returns(new RedisValue("100"));
@@ -171,7 +170,7 @@ public class ParsePeriodTests
         MethodInfo? method = typeof(FlushUsageJob).GetMethod("ParsePeriod",
             BindingFlags.NonPublic | BindingFlags.Static);
 
-        (DateTime, DateTime)? result = method!.Invoke(null, new object[] { input }) as (DateTime, DateTime)?;
+        (DateTime, DateTime)? result = method!.Invoke(null, [input]) as (DateTime, DateTime)?;
 
         result.Should().NotBeNull();
         result.Value.Item1.Should().Be(DateTime.Parse(expectedStart).ToUniversalTime());
@@ -186,7 +185,7 @@ public class ParsePeriodTests
         MethodInfo? method = typeof(FlushUsageJob).GetMethod("ParsePeriod",
             BindingFlags.NonPublic | BindingFlags.Static);
 
-        (DateTime, DateTime)? result = method!.Invoke(null, new object[] { input }) as (DateTime, DateTime)?;
+        (DateTime, DateTime)? result = method!.Invoke(null, [input]) as (DateTime, DateTime)?;
 
         result.Should().NotBeNull();
         result.Value.Item1.Should().Be(DateTime.Parse(expectedStart).ToUniversalTime());
@@ -201,7 +200,7 @@ public class ParsePeriodTests
         MethodInfo? method = typeof(FlushUsageJob).GetMethod("ParsePeriod",
             BindingFlags.NonPublic | BindingFlags.Static);
 
-        (DateTime, DateTime)? result = method!.Invoke(null, new object[] { input }) as (DateTime, DateTime)?;
+        (DateTime, DateTime)? result = method!.Invoke(null, [input]) as (DateTime, DateTime)?;
 
         result.Should().NotBeNull();
         result.Value.Item1.Should().Be(DateTime.Parse(expectedStart).ToUniversalTime());
@@ -214,7 +213,7 @@ public class ParsePeriodTests
         MethodInfo? method = typeof(FlushUsageJob).GetMethod("ParsePeriod",
             BindingFlags.NonPublic | BindingFlags.Static);
 
-        Action act = () => method!.Invoke(null, new object[] { "invalid" });
+        Action act = () => method!.Invoke(null, ["invalid"]);
 
         act.Should().Throw<TargetInvocationException>()
             .WithInnerException<ArgumentException>();

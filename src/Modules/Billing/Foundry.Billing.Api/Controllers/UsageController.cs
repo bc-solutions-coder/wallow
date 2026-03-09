@@ -19,14 +19,8 @@ namespace Foundry.Billing.Api.Controllers;
 [Authorize]
 [Tags("Metering")]
 [Produces("application/json")]
-public class UsageController : ControllerBase
+public class UsageController(IMessageBus bus) : ControllerBase
 {
-    private readonly IMessageBus _bus;
-
-    public UsageController(IMessageBus bus)
-    {
-        _bus = bus;
-    }
 
     /// <summary>
     /// Get current usage for all meters.
@@ -38,7 +32,7 @@ public class UsageController : ControllerBase
         [FromQuery] QuotaPeriod? period,
         CancellationToken cancellationToken)
     {
-        Result<IReadOnlyList<UsageSummaryDto>> result = await _bus.InvokeAsync<Result<IReadOnlyList<UsageSummaryDto>>>(
+        Result<IReadOnlyList<UsageSummaryDto>> result = await bus.InvokeAsync<Result<IReadOnlyList<UsageSummaryDto>>>(
             new GetCurrentUsageQuery(null, period), cancellationToken);
 
         return result.ToActionResult();
@@ -55,7 +49,7 @@ public class UsageController : ControllerBase
         [FromQuery] QuotaPeriod? period,
         CancellationToken cancellationToken)
     {
-        Result<IReadOnlyList<UsageSummaryDto>> result = await _bus.InvokeAsync<Result<IReadOnlyList<UsageSummaryDto>>>(
+        Result<IReadOnlyList<UsageSummaryDto>> result = await bus.InvokeAsync<Result<IReadOnlyList<UsageSummaryDto>>>(
             new GetCurrentUsageQuery(meterCode, period), cancellationToken);
 
         return result.ToActionResult();
@@ -73,7 +67,7 @@ public class UsageController : ControllerBase
         [FromQuery] DateTime to,
         CancellationToken cancellationToken)
     {
-        Result<IReadOnlyList<UsageRecordDto>> result = await _bus.InvokeAsync<Result<IReadOnlyList<UsageRecordDto>>>(
+        Result<IReadOnlyList<UsageRecordDto>> result = await bus.InvokeAsync<Result<IReadOnlyList<UsageRecordDto>>>(
             new GetUsageHistoryQuery(meterCode, from, to), cancellationToken);
 
         return result.ToActionResult();

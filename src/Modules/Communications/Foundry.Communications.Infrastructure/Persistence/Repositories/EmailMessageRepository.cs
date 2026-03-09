@@ -5,23 +5,17 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Foundry.Communications.Infrastructure.Persistence.Repositories;
 
-public sealed class EmailMessageRepository : IEmailMessageRepository
+public sealed class EmailMessageRepository(CommunicationsDbContext context) : IEmailMessageRepository
 {
-    private readonly CommunicationsDbContext _context;
-
-    public EmailMessageRepository(CommunicationsDbContext context)
-    {
-        _context = context;
-    }
 
     public void Add(EmailMessage emailMessage)
     {
-        _context.EmailMessages.Add(emailMessage);
+        context.EmailMessages.Add(emailMessage);
     }
 
     public async Task<IReadOnlyList<EmailMessage>> GetPendingAsync(int limit, CancellationToken cancellationToken = default)
     {
-        return await _context.EmailMessages
+        return await context.EmailMessages
             .AsTracking()
             .Where(e => e.Status == EmailStatus.Pending)
             .OrderBy(e => e.CreatedAt)
@@ -31,7 +25,7 @@ public sealed class EmailMessageRepository : IEmailMessageRepository
 
     public async Task<IReadOnlyList<EmailMessage>> GetFailedRetryableAsync(int maxRetries, int limit, CancellationToken cancellationToken = default)
     {
-        return await _context.EmailMessages
+        return await context.EmailMessages
             .AsTracking()
             .Where(e => e.Status == EmailStatus.Failed && e.RetryCount < maxRetries)
             .OrderBy(e => e.RetryCount)
@@ -41,6 +35,6 @@ public sealed class EmailMessageRepository : IEmailMessageRepository
 
     public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        await _context.SaveChangesAsync(cancellationToken);
+        await context.SaveChangesAsync(cancellationToken);
     }
 }

@@ -25,14 +25,8 @@ namespace Foundry.Showcases.Api.Controllers;
 [Tags("Showcases")]
 [Produces("application/json")]
 [Consumes("application/json")]
-public class ShowcasesController : ControllerBase
+public class ShowcasesController(IMessageBus bus) : ControllerBase
 {
-    private readonly IMessageBus _bus;
-
-    public ShowcasesController(IMessageBus bus)
-    {
-        _bus = bus;
-    }
 
     [HttpGet]
     [AllowAnonymous]
@@ -42,7 +36,7 @@ public class ShowcasesController : ControllerBase
         [FromQuery] string? tag,
         CancellationToken cancellationToken)
     {
-        Result<IReadOnlyList<ShowcaseDto>> result = await _bus.InvokeAsync<Result<IReadOnlyList<ShowcaseDto>>>(
+        Result<IReadOnlyList<ShowcaseDto>> result = await bus.InvokeAsync<Result<IReadOnlyList<ShowcaseDto>>>(
             new GetShowcasesQuery(category, tag), cancellationToken);
 
         return result.ToActionResult();
@@ -54,7 +48,7 @@ public class ShowcasesController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
     {
-        Result<ShowcaseDto> result = await _bus.InvokeAsync<Result<ShowcaseDto>>(
+        Result<ShowcaseDto> result = await bus.InvokeAsync<Result<ShowcaseDto>>(
             new GetShowcaseQuery(new ShowcaseId(id)), cancellationToken);
 
         return result.ToActionResult();
@@ -68,7 +62,7 @@ public class ShowcasesController : ControllerBase
         [FromBody] CreateShowcaseRequest request,
         CancellationToken cancellationToken)
     {
-        CreateShowcaseCommand command = new CreateShowcaseCommand(
+        CreateShowcaseCommand command = new(
             request.Title,
             request.Description,
             request.Category,
@@ -79,7 +73,7 @@ public class ShowcasesController : ControllerBase
             request.DisplayOrder,
             request.IsPublished);
 
-        Result<ShowcaseId> result = await _bus.InvokeAsync<Result<ShowcaseId>>(command, cancellationToken);
+        Result<ShowcaseId> result = await bus.InvokeAsync<Result<ShowcaseId>>(command, cancellationToken);
 
         if (!result.IsSuccess)
         {
@@ -99,7 +93,7 @@ public class ShowcasesController : ControllerBase
         [FromBody] UpdateShowcaseRequest request,
         CancellationToken cancellationToken)
     {
-        UpdateShowcaseCommand command = new UpdateShowcaseCommand(
+        UpdateShowcaseCommand command = new(
             new ShowcaseId(id),
             request.Title,
             request.Description,
@@ -111,7 +105,7 @@ public class ShowcasesController : ControllerBase
             request.DisplayOrder,
             request.IsPublished);
 
-        Result result = await _bus.InvokeAsync<Result>(command, cancellationToken);
+        Result result = await bus.InvokeAsync<Result>(command, cancellationToken);
 
         return result.ToActionResult();
     }
@@ -122,9 +116,9 @@ public class ShowcasesController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
-        DeleteShowcaseCommand command = new DeleteShowcaseCommand(new ShowcaseId(id));
+        DeleteShowcaseCommand command = new(new ShowcaseId(id));
 
-        Result result = await _bus.InvokeAsync<Result>(command, cancellationToken);
+        Result result = await bus.InvokeAsync<Result>(command, cancellationToken);
 
         if (result.IsSuccess)
         {

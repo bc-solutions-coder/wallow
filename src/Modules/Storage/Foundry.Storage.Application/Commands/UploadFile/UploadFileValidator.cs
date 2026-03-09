@@ -9,11 +9,11 @@ public sealed class UploadFileValidator : AbstractValidator<UploadFileCommand>
 {
     private static readonly FrozenDictionary<string, byte[][]> _magicBytesByContentType = new Dictionary<string, byte[][]>
     {
-        ["image/jpeg"] = [new byte[] { 0xFF, 0xD8, 0xFF }],
-        ["image/png"] = [new byte[] { 0x89, 0x50, 0x4E, 0x47 }],
-        ["application/pdf"] = [new byte[] { 0x25, 0x50, 0x44, 0x46 }],
-        ["image/gif"] = [new byte[] { 0x47, 0x49, 0x46, 0x38 }],
-        ["application/zip"] = [new byte[] { 0x50, 0x4B, 0x03, 0x04 }],
+        ["image/jpeg"] = [[0xFF, 0xD8, 0xFF]],
+        ["image/png"] = [[0x89, 0x50, 0x4E, 0x47]],
+        ["application/pdf"] = [[0x25, 0x50, 0x44, 0x46]],
+        ["image/gif"] = [[0x47, 0x49, 0x46, 0x38]],
+        ["application/zip"] = [[0x50, 0x4B, 0x03, 0x04]],
     }.ToFrozenDictionary();
 
     // PE executables and DLLs share the MZ header

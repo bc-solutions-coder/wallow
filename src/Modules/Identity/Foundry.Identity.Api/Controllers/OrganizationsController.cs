@@ -19,18 +19,10 @@ namespace Foundry.Identity.Api.Controllers;
 [Tags("Organizations")]
 [Produces("application/json")]
 [Consumes("application/json")]
-public class OrganizationsController : ControllerBase
+public class OrganizationsController(IKeycloakOrganizationService orgService, ITenantContext tenantContext) : ControllerBase
 {
-    private readonly IKeycloakOrganizationService _orgService;
-    private readonly ITenantContext _tenantContext;
 
-    public OrganizationsController(IKeycloakOrganizationService orgService, ITenantContext tenantContext)
-    {
-        _orgService = orgService;
-        _tenantContext = tenantContext;
-    }
-
-    private bool IsCurrentTenantOrg(Guid orgId) => orgId == _tenantContext.TenantId.Value;
+    private bool IsCurrentTenantOrg(Guid orgId) => orgId == tenantContext.TenantId.Value;
 
     /// <summary>
     /// Create a new organization.
@@ -40,7 +32,7 @@ public class OrganizationsController : ControllerBase
     public async Task<ActionResult<CreateOrganizationResponse>> Create(
         CreateOrganizationRequest request, CancellationToken ct)
     {
-        Guid orgId = await _orgService.CreateOrganizationAsync(request.Name, request.Domain, ct);
+        Guid orgId = await orgService.CreateOrganizationAsync(request.Name, request.Domain, ct);
         return CreatedAtAction(nameof(GetById), new { id = orgId },
             new CreateOrganizationResponse(orgId));
     }
@@ -54,8 +46,8 @@ public class OrganizationsController : ControllerBase
         [FromQuery] string? search, [FromQuery] int first = 0, [FromQuery] int max = 20,
         CancellationToken ct = default)
     {
-        IReadOnlyList<OrganizationDto> orgs = await _orgService.GetOrganizationsAsync(search, first, max, ct);
-        Guid tenantId = _tenantContext.TenantId.Value;
+        IReadOnlyList<OrganizationDto> orgs = await orgService.GetOrganizationsAsync(search, first, max, ct);
+        Guid tenantId = tenantContext.TenantId.Value;
         IReadOnlyList<OrganizationDto> filtered = orgs.Where(o => o.Id == tenantId).ToList();
         return Ok(filtered);
     }
@@ -72,7 +64,7 @@ public class OrganizationsController : ControllerBase
             return NotFound();
         }
 
-        OrganizationDto? org = await _orgService.GetOrganizationByIdAsync(id, ct);
+        OrganizationDto? org = await orgService.GetOrganizationByIdAsync(id, ct);
         return org is null ? NotFound() : Ok(org);
     }
 
@@ -88,7 +80,7 @@ public class OrganizationsController : ControllerBase
             return NotFound();
         }
 
-        return Ok(await _orgService.GetMembersAsync(id, ct));
+        return Ok(await orgService.GetMembersAsync(id, ct));
     }
 
     /// <summary>
@@ -103,7 +95,7 @@ public class OrganizationsController : ControllerBase
             return NotFound();
         }
 
-        await _orgService.AddMemberAsync(id, request.UserId, ct);
+        await orgService.AddMemberAsync(id, request.UserId, ct);
         return NoContent();
     }
 
@@ -119,7 +111,7 @@ public class OrganizationsController : ControllerBase
             return NotFound();
         }
 
-        await _orgService.RemoveMemberAsync(id, userId, ct);
+        await orgService.RemoveMemberAsync(id, userId, ct);
         return NoContent();
     }
 
@@ -130,6 +122,6 @@ public class OrganizationsController : ControllerBase
     public async Task<ActionResult<IReadOnlyList<OrganizationDto>>> GetMyOrganizations(CancellationToken ct)
     {
         Guid userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        return Ok(await _orgService.GetUserOrganizationsAsync(userId, ct));
+        return Ok(await orgService.GetUserOrganizationsAsync(userId, ct));
     }
 }

@@ -3,18 +3,11 @@ using Hangfire.Dashboard;
 
 namespace Foundry.Api.Middleware;
 
-internal sealed class HangfireDashboardAuthFilter : IDashboardAuthorizationFilter
+internal sealed class HangfireDashboardAuthFilter(IWebHostEnvironment environment) : IDashboardAuthorizationFilter
 {
-    private readonly IWebHostEnvironment _environment;
-
-    public HangfireDashboardAuthFilter(IWebHostEnvironment environment)
-    {
-        _environment = environment;
-    }
-
     public bool Authorize(DashboardContext context)
     {
-        if (_environment.IsDevelopment())
+        if (environment.IsDevelopment())
         {
             return true;
         }

@@ -21,14 +21,8 @@ namespace Foundry.Billing.Api.Controllers;
 [Tags("Metering")]
 [Produces("application/json")]
 [Consumes("application/json")]
-public class QuotasController : ControllerBase
+public class QuotasController(IMessageBus bus) : ControllerBase
 {
-    private readonly IMessageBus _bus;
-
-    public QuotasController(IMessageBus bus)
-    {
-        _bus = bus;
-    }
 
     /// <summary>
     /// Get quota status for current tenant.
@@ -38,7 +32,7 @@ public class QuotasController : ControllerBase
     [ProducesResponseType(typeof(IReadOnlyList<QuotaStatusDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
     {
-        Result<IReadOnlyList<QuotaStatusDto>> result = await _bus.InvokeAsync<Result<IReadOnlyList<QuotaStatusDto>>>(
+        Result<IReadOnlyList<QuotaStatusDto>> result = await bus.InvokeAsync<Result<IReadOnlyList<QuotaStatusDto>>>(
             new GetQuotaStatusQuery(), cancellationToken);
 
         return result.ToActionResult();
@@ -56,14 +50,14 @@ public class QuotasController : ControllerBase
         [FromBody] SetQuotaOverrideRequest request,
         CancellationToken cancellationToken)
     {
-        SetQuotaOverrideCommand command = new SetQuotaOverrideCommand(
+        SetQuotaOverrideCommand command = new(
             tenantId,
             request.MeterCode,
             request.Limit,
             request.Period,
             request.OnExceeded);
 
-        Result result = await _bus.InvokeAsync<Result>(command, cancellationToken);
+        Result result = await bus.InvokeAsync<Result>(command, cancellationToken);
 
         return result.ToActionResult();
     }
@@ -80,9 +74,9 @@ public class QuotasController : ControllerBase
         string meterCode,
         CancellationToken cancellationToken)
     {
-        RemoveQuotaOverrideCommand command = new RemoveQuotaOverrideCommand(tenantId, meterCode);
+        RemoveQuotaOverrideCommand command = new(tenantId, meterCode);
 
-        Result result = await _bus.InvokeAsync<Result>(command, cancellationToken);
+        Result result = await bus.InvokeAsync<Result>(command, cancellationToken);
 
         if (result.IsSuccess)
         {

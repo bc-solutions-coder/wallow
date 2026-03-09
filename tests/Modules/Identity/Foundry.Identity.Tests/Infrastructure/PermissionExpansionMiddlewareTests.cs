@@ -11,7 +11,7 @@ public class PermissionExpansionMiddlewareTests
     public async Task InvokeAsync_WithUnauthenticatedUser_DoesNotAddPermissions()
     {
         // Arrange
-        DefaultHttpContext context = new()
+        DefaultHttpContext context = new DefaultHttpContext()
         {
             User = new ClaimsPrincipal() // Not authenticated
         };
@@ -42,7 +42,7 @@ public class PermissionExpansionMiddlewareTests
         };
 
         ClaimsIdentity identity = new(claims, "Bearer");
-        DefaultHttpContext context = new()
+        DefaultHttpContext context = new DefaultHttpContext()
         {
             User = new ClaimsPrincipal(identity)
         };
@@ -70,7 +70,7 @@ public class PermissionExpansionMiddlewareTests
         };
 
         ClaimsIdentity identity = new(claims, "Bearer");
-        DefaultHttpContext context = new()
+        DefaultHttpContext context = new DefaultHttpContext()
         {
             User = new ClaimsPrincipal(identity)
         };
@@ -97,7 +97,7 @@ public class PermissionExpansionMiddlewareTests
         };
 
         ClaimsIdentity identity = new(claims, "Bearer");
-        DefaultHttpContext context = new()
+        DefaultHttpContext context = new DefaultHttpContext()
         {
             User = new ClaimsPrincipal(identity)
         };
@@ -124,7 +124,7 @@ public class PermissionExpansionMiddlewareTests
         };
 
         ClaimsIdentity identity = new(claims, "Bearer");
-        DefaultHttpContext context = new()
+        DefaultHttpContext context = new DefaultHttpContext()
         {
             User = new ClaimsPrincipal(identity)
         };
@@ -155,7 +155,7 @@ public class PermissionExpansionMiddlewareTests
         };
 
         ClaimsIdentity identity = new(claims, "Bearer");
-        DefaultHttpContext context = new()
+        DefaultHttpContext context = new DefaultHttpContext()
         {
             User = new ClaimsPrincipal(identity)
         };
@@ -182,7 +182,7 @@ public class PermissionExpansionMiddlewareTests
         };
 
         ClaimsIdentity identity = new(claims, "Bearer");
-        DefaultHttpContext context = new()
+        DefaultHttpContext context = new DefaultHttpContext()
         {
             User = new ClaimsPrincipal(identity)
         };
@@ -209,7 +209,7 @@ public class PermissionExpansionMiddlewareTests
         };
 
         ClaimsIdentity identity = new(claims, "Bearer");
-        DefaultHttpContext context = new()
+        DefaultHttpContext context = new DefaultHttpContext()
         {
             User = new ClaimsPrincipal(identity)
         };
@@ -235,7 +235,7 @@ public class PermissionExpansionMiddlewareTests
         };
 
         ClaimsIdentity identity = new(claims, "Bearer");
-        DefaultHttpContext context = new()
+        DefaultHttpContext context = new DefaultHttpContext()
         {
             User = new ClaimsPrincipal(identity)
         };
@@ -260,7 +260,7 @@ public class PermissionExpansionMiddlewareTests
         };
 
         ClaimsIdentity identity = new(claims, "Bearer");
-        DefaultHttpContext context = new()
+        DefaultHttpContext context = new DefaultHttpContext()
         {
             User = new ClaimsPrincipal(identity)
         };
@@ -279,7 +279,7 @@ public class PermissionExpansionMiddlewareTests
     public async Task InvokeAsync_CallsNextMiddleware()
     {
         // Arrange
-        DefaultHttpContext context = new();
+        DefaultHttpContext context = new DefaultHttpContext();
         bool nextCalled = false;
 
         PermissionExpansionMiddleware middleware = new(_ =>

@@ -33,12 +33,13 @@ public class RolesControllerTests
             new { Name = "offline_access", Description = "Offline" },
             new { Name = "default-roles-foundry", Description = "Default" }
         ];
-        HttpResponseMessage response = new(HttpStatusCode.OK)
+        using HttpResponseMessage response = new HttpResponseMessage(HttpStatusCode.OK)
         {
             Content = JsonContent.Create(keycloakRoles)
         };
         using FakeHttpMessageHandler handler = new(response);
-        using HttpClient client = new(handler) { BaseAddress = new Uri("https://keycloak") };
+        using HttpClient client = new(handler);
+        client.BaseAddress = new Uri("https://keycloak");
         _httpClientFactory.CreateClient("KeycloakAdminClient").Returns(client);
 
         ActionResult result = await _controller.GetRoles(CancellationToken.None);
@@ -69,7 +70,7 @@ public class RolesControllerTests
     public void GetRolePermissions_WithNoPermissions_ReturnsEmptyList()
     {
         _rolePermissionLookup.GetPermissions(Arg.Any<IEnumerable<string>>())
-            .Returns(Array.Empty<string>());
+            .Returns([]);
 
         ActionResult result = _controller.GetRolePermissions("guest");
 
@@ -80,17 +81,10 @@ public class RolesControllerTests
     #endregion
 }
 
-internal sealed class FakeHttpMessageHandler : HttpMessageHandler
+internal sealed class FakeHttpMessageHandler(HttpResponseMessage response) : HttpMessageHandler
 {
-    private readonly HttpResponseMessage _response;
-
-    public FakeHttpMessageHandler(HttpResponseMessage response)
-    {
-        _response = response;
-    }
-
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
-        return Task.FromResult(_response);
+        return Task.FromResult(response);
     }
 }

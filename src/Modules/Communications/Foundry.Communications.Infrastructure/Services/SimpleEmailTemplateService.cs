@@ -5,21 +5,15 @@ using Microsoft.Extensions.Logging;
 
 namespace Foundry.Communications.Infrastructure.Services;
 
-public sealed partial class SimpleEmailTemplateService : IEmailTemplateService
+public sealed partial class SimpleEmailTemplateService(ILogger<SimpleEmailTemplateService> logger) : IEmailTemplateService
 {
-    private readonly ILogger<SimpleEmailTemplateService> _logger;
-
-    public SimpleEmailTemplateService(ILogger<SimpleEmailTemplateService> logger)
-    {
-        _logger = logger;
-    }
 
     public Task<string> RenderAsync(string templateName, object model, CancellationToken cancellationToken = default)
     {
         string template = GetTemplate(templateName);
         string rendered = RenderTemplate(template, model);
 
-        LogRenderedTemplate(_logger, templateName);
+        LogRenderedTemplate(logger, templateName);
 
         return Task.FromResult(rendered);
     }

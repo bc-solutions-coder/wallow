@@ -111,8 +111,7 @@ public class SignalRNotificationServiceEdgeCaseTests
 
         await _dispatcher.Received(1).SendToUserAsync(
             Arg.Any<string>(),
-            Arg.Any<RealtimeEnvelope>(),
-            default);
+            Arg.Any<RealtimeEnvelope>());
     }
 
     [Fact]
@@ -124,8 +123,7 @@ public class SignalRNotificationServiceEdgeCaseTests
 
         await _dispatcher.Received(1).SendToGroupAsync(
             Arg.Any<string>(),
-            Arg.Any<RealtimeEnvelope>(),
-            default);
+            Arg.Any<RealtimeEnvelope>());
     }
 
     [Fact]

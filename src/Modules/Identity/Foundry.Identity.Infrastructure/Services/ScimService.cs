@@ -9,37 +9,12 @@ using Microsoft.Extensions.Logging;
 
 namespace Foundry.Identity.Infrastructure.Services;
 
-public sealed partial class ScimService : IScimService
+public sealed partial class ScimService(IScimConfigurationRepository scimRepository, IScimSyncLogRepository syncLogRepository, ITenantContext tenantContext, ScimUserService userService, ScimGroupService groupService, ILogger<ScimService> logger, TimeProvider timeProvider) : IScimService
 {
-    private readonly IScimConfigurationRepository _scimRepository;
-    private readonly IScimSyncLogRepository _syncLogRepository;
-    private readonly ITenantContext _tenantContext;
-    private readonly ScimUserService _userService;
-    private readonly ScimGroupService _groupService;
-    private readonly ILogger<ScimService> _logger;
-    private readonly TimeProvider _timeProvider;
-
-    public ScimService(
-        IScimConfigurationRepository scimRepository,
-        IScimSyncLogRepository syncLogRepository,
-        ITenantContext tenantContext,
-        ScimUserService userService,
-        ScimGroupService groupService,
-        ILogger<ScimService> logger,
-        TimeProvider timeProvider)
-    {
-        _scimRepository = scimRepository;
-        _syncLogRepository = syncLogRepository;
-        _tenantContext = tenantContext;
-        _userService = userService;
-        _groupService = groupService;
-        _logger = logger;
-        _timeProvider = timeProvider;
-    }
 
     public async Task<ScimConfigurationDto?> GetConfigurationAsync(CancellationToken ct = default)
     {
-        ScimConfiguration? config = await _scimRepository.GetAsync(ct);
+        ScimConfiguration? config = await scimRepository.GetAsync(ct);
         if (config == null)
         {
             return null;
@@ -50,18 +25,18 @@ public sealed partial class ScimService : IScimService
 
     public async Task<EnableScimResponse> EnableScimAsync(EnableScimRequest request, CancellationToken ct = default)
     {
-        TenantId tenantId = _tenantContext.TenantId;
+        TenantId tenantId = tenantContext.TenantId;
 
         LogEnablingScim(tenantId.Value);
 
         string? plainTextToken = null;
-        ScimConfiguration? config = await _scimRepository.GetAsync(ct);
+        ScimConfiguration? config = await scimRepository.GetAsync(ct);
         if (config == null)
         {
-            (ScimConfiguration newConfig, string token) = ScimConfiguration.Create(tenantId, Guid.Empty, _timeProvider);
+            (ScimConfiguration newConfig, string token) = ScimConfiguration.Create(tenantId, Guid.Empty, timeProvider);
             config = newConfig;
             plainTextToken = token;
-            _scimRepository.Add(config);
+            scimRepository.Add(config);
         }
 
         config.UpdateSettings(
@@ -69,11 +44,11 @@ public sealed partial class ScimService : IScimService
             request.DefaultRole,
             request.DeprovisionOnDelete,
             Guid.Empty,
-            _timeProvider);
+            timeProvider);
 
-        config.Enable(Guid.Empty, _timeProvider);
+        config.Enable(Guid.Empty, timeProvider);
 
-        await _scimRepository.SaveChangesAsync(ct);
+        await scimRepository.SaveChangesAsync(ct);
 
         LogScimEnabled(tenantId.Value);
 
@@ -82,72 +57,72 @@ public sealed partial class ScimService : IScimService
 
     public async Task DisableScimAsync(CancellationToken ct = default)
     {
-        ScimConfiguration? config = await _scimRepository.GetAsync(ct);
+        ScimConfiguration? config = await scimRepository.GetAsync(ct);
         if (config == null)
         {
             throw new InvalidOperationException("SCIM configuration not found");
         }
 
-        LogDisablingScim(_tenantContext.TenantId.Value);
+        LogDisablingScim(tenantContext.TenantId.Value);
 
-        config.Disable(Guid.Empty, _timeProvider);
-        await _scimRepository.SaveChangesAsync(ct);
+        config.Disable(Guid.Empty, timeProvider);
+        await scimRepository.SaveChangesAsync(ct);
 
-        LogScimDisabled(_tenantContext.TenantId.Value);
+        LogScimDisabled(tenantContext.TenantId.Value);
     }
 
     public async Task<string> RegenerateTokenAsync(CancellationToken ct = default)
     {
-        ScimConfiguration? config = await _scimRepository.GetAsync(ct);
+        ScimConfiguration? config = await scimRepository.GetAsync(ct);
         if (config == null)
         {
             throw new InvalidOperationException("SCIM configuration not found");
         }
 
-        LogRegeneratingToken(_tenantContext.TenantId.Value);
+        LogRegeneratingToken(tenantContext.TenantId.Value);
 
-        string plainTextToken = config.RegenerateToken(Guid.Empty, _timeProvider);
-        await _scimRepository.SaveChangesAsync(ct);
+        string plainTextToken = config.RegenerateToken(Guid.Empty, timeProvider);
+        await scimRepository.SaveChangesAsync(ct);
 
         return plainTextToken;
     }
 
     public Task<ScimUser> CreateUserAsync(ScimUserRequest request, CancellationToken ct = default)
-        => _userService.CreateUserAsync(request, ct);
+        => userService.CreateUserAsync(request, ct);
 
     public Task<ScimUser> UpdateUserAsync(string id, ScimUserRequest request, CancellationToken ct = default)
-        => _userService.UpdateUserAsync(id, request, ct);
+        => userService.UpdateUserAsync(id, request, ct);
 
     public Task<ScimUser> PatchUserAsync(string id, ScimPatchRequest request, CancellationToken ct = default)
-        => _userService.PatchUserAsync(id, request, ct);
+        => userService.PatchUserAsync(id, request, ct);
 
     public Task DeleteUserAsync(string id, CancellationToken ct = default)
-        => _userService.DeleteUserAsync(id, ct);
+        => userService.DeleteUserAsync(id, ct);
 
     public Task<ScimUser?> GetUserAsync(string id, CancellationToken ct = default)
-        => _userService.GetUserAsync(id, ct);
+        => userService.GetUserAsync(id, ct);
 
     public Task<ScimListResponse<ScimUser>> ListUsersAsync(ScimListRequest request, CancellationToken ct = default)
-        => _userService.ListUsersAsync(request, ct);
+        => userService.ListUsersAsync(request, ct);
 
     public Task<ScimGroup?> GetGroupAsync(string id, CancellationToken ct = default)
-        => _groupService.GetGroupAsync(id, ct);
+        => groupService.GetGroupAsync(id, ct);
 
     public Task<ScimGroup> CreateGroupAsync(ScimGroupRequest request, CancellationToken ct = default)
-        => _groupService.CreateGroupAsync(request, ct);
+        => groupService.CreateGroupAsync(request, ct);
 
     public Task<ScimGroup> UpdateGroupAsync(string id, ScimGroupRequest request, CancellationToken ct = default)
-        => _groupService.UpdateGroupAsync(id, request, ct);
+        => groupService.UpdateGroupAsync(id, request, ct);
 
     public Task DeleteGroupAsync(string id, CancellationToken ct = default)
-        => _groupService.DeleteGroupAsync(id, ct);
+        => groupService.DeleteGroupAsync(id, ct);
 
     public Task<ScimListResponse<ScimGroup>> ListGroupsAsync(ScimListRequest request, CancellationToken ct = default)
-        => _groupService.ListGroupsAsync(request, ct);
+        => groupService.ListGroupsAsync(request, ct);
 
     public async Task<IReadOnlyList<ScimSyncLogDto>> GetSyncLogsAsync(int limit = 100, CancellationToken ct = default)
     {
-        IReadOnlyList<ScimSyncLog> logs = await _syncLogRepository.GetRecentAsync(limit, ct);
+        IReadOnlyList<ScimSyncLog> logs = await syncLogRepository.GetRecentAsync(limit, ct);
         return logs.Select(l => new ScimSyncLogDto(
             l.Id,
             l.Operation,
@@ -161,8 +136,8 @@ public sealed partial class ScimService : IScimService
 
     public async Task<bool> ValidateTokenAsync(string token, CancellationToken ct = default)
     {
-        ScimConfiguration? config = await _scimRepository.GetAsync(ct);
-        if (config == null || !config.IsTokenValid(_timeProvider))
+        ScimConfiguration? config = await scimRepository.GetAsync(ct);
+        if (config == null || !config.IsTokenValid(timeProvider))
         {
             return false;
         }

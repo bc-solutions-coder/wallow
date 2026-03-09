@@ -1,15 +1,8 @@
 namespace Foundry.Api.Middleware;
 
-internal sealed class SecurityHeadersMiddleware
+internal sealed class SecurityHeadersMiddleware(RequestDelegate next, IWebHostEnvironment environment)
 {
-    private readonly RequestDelegate _next;
-    private readonly bool _isProduction;
-
-    public SecurityHeadersMiddleware(RequestDelegate next, IWebHostEnvironment environment)
-    {
-        _next = next;
-        _isProduction = environment.IsProduction();
-    }
+    private readonly bool _isProduction = environment.IsProduction();
 
     public async Task InvokeAsync(HttpContext context)
     {
@@ -33,7 +26,7 @@ internal sealed class SecurityHeadersMiddleware
             return Task.CompletedTask;
         });
 
-        await _next(context);
+        await next(context);
     }
 
     private static string GetContentSecurityPolicy(PathString path)

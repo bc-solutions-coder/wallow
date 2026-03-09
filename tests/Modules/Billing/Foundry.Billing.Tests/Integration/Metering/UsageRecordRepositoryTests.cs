@@ -10,11 +10,9 @@ namespace Foundry.Billing.Tests.Integration.Metering;
 
 [Collection("PostgresDatabase")]
 [Trait("Category", "Integration")]
-public class UsageRecordRepositoryTests : DbContextIntegrationTestBase<BillingDbContext>
+public class UsageRecordRepositoryTests(PostgresContainerFixture fixture) : DbContextIntegrationTestBase<BillingDbContext>(fixture)
 {
     private UsageRecordRepository _repository = null!;
-
-    public UsageRecordRepositoryTests(PostgresContainerFixture fixture) : base(fixture) { }
 
     protected override bool UseMigrateAsync => true;
 
@@ -27,8 +25,8 @@ public class UsageRecordRepositoryTests : DbContextIntegrationTestBase<BillingDb
     [Fact]
     public async Task Add_PersistsUsageRecord()
     {
-        DateTime periodStart = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-        DateTime periodEnd = new DateTime(2026, 1, 31, 23, 59, 59, DateTimeKind.Utc);
+        DateTime periodStart = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        DateTime periodEnd = new(2026, 1, 31, 23, 59, 59, DateTimeKind.Utc);
 
         UsageRecord record = UsageRecord.Create(TestTenantId, "api_calls", periodStart, periodEnd, 1500, TimeProvider.System);
 
@@ -90,8 +88,8 @@ public class UsageRecordRepositoryTests : DbContextIntegrationTestBase<BillingDb
     [Fact]
     public async Task GetForPeriodAsync_FindsExactPeriod()
     {
-        DateTime periodStart = new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc);
-        DateTime periodEnd = new DateTime(2026, 2, 28, 23, 59, 59, DateTimeKind.Utc);
+        DateTime periodStart = new(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc);
+        DateTime periodEnd = new(2026, 2, 28, 23, 59, 59, DateTimeKind.Utc);
 
         UsageRecord record = UsageRecord.Create(TestTenantId, "bandwidth_gb", periodStart, periodEnd, 750, TimeProvider.System);
         _repository.Add(record);
@@ -142,10 +140,10 @@ public class UsageRecordRepositoryTests : DbContextIntegrationTestBase<BillingDb
         await _repository.SaveChangesAsync();
 
         TenantId otherTenantId = TenantId.New();
-        TenantContext otherTenantContext = new TenantContext();
+        TenantContext otherTenantContext = new();
         otherTenantContext.SetTenant(otherTenantId, "OtherTenant");
         await using BillingDbContext otherDbContext = CreateDbContextForTenant(otherTenantId);
-        UsageRecordRepository otherRepository = new UsageRecordRepository(otherDbContext, otherTenantContext);
+        UsageRecordRepository otherRepository = new(otherDbContext, otherTenantContext);
 
         UsageRecord record2 = UsageRecord.Create(otherTenantId, "api_calls", new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), new DateTime(2026, 1, 31, 0, 0, 0, DateTimeKind.Utc), 200, TimeProvider.System);
         otherRepository.Add(record2);

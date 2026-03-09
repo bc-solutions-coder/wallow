@@ -15,7 +15,7 @@ public class PaymentReportServiceTests
         ITenantContext tenantContext = Substitute.For<ITenantContext>();
         tenantContext.TenantId.Returns(TenantId.Create(Guid.NewGuid()));
 
-        PaymentReportService service = new PaymentReportService(dbContext, tenantContext);
+        PaymentReportService service = new(dbContext, tenantContext);
 
         service.Should().NotBeNull();
     }

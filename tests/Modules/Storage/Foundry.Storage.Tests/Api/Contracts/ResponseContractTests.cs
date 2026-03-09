@@ -11,7 +11,7 @@ public class ResponseContractTests
     {
         Guid id = Guid.NewGuid();
         DateTime createdAt = DateTime.UtcNow;
-        List<string> contentTypes = new() { "image/png", "image/jpeg" };
+        List<string> contentTypes = ["image/png", "image/jpeg"];
         RetentionPolicyResponse retention = new(30, "Delete");
 
         BucketResponse response = new(id, "bucket-name", "desc", "Public", 1024, contentTypes, retention, true, createdAt);

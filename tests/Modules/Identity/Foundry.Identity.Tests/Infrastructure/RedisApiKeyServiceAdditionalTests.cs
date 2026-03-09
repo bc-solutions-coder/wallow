@@ -130,7 +130,7 @@ public class RedisApiKeyServiceAdditionalTests
             KeyHash = "somehash",
             UserId = userId,
             TenantId = tenantId,
-            Scopes = Array.Empty<string>(),
+            Scopes = new List<string>(),
             CreatedAt = DateTimeOffset.UtcNow.AddDays(-1),
             ExpiresAt = (DateTimeOffset?)null,
             LastUsedAt = (DateTimeOffset?)null

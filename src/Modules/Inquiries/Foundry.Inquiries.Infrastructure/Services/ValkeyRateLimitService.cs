@@ -3,21 +3,14 @@ using StackExchange.Redis;
 
 namespace Foundry.Inquiries.Infrastructure.Services;
 
-public class ValkeyRateLimitService : IRateLimitService
+public class ValkeyRateLimitService(IConnectionMultiplexer redis) : IRateLimitService
 {
-    private readonly IConnectionMultiplexer _redis;
-
     private const int MaxRequests = 5;
     private static readonly TimeSpan _window = TimeSpan.FromMinutes(15);
 
-    public ValkeyRateLimitService(IConnectionMultiplexer redis)
-    {
-        _redis = redis;
-    }
-
     public async Task<bool> IsAllowedAsync(string key, CancellationToken cancellationToken = default)
     {
-        IDatabase db = _redis.GetDatabase();
+        IDatabase db = redis.GetDatabase();
         long count = await db.StringIncrementAsync(key);
 
         if (count == 1)

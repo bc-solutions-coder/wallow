@@ -22,7 +22,7 @@ public class CreateInvoiceHandlerTests
     {
         // Arrange
         Guid userId = Guid.NewGuid();
-        CreateInvoiceCommand command = new CreateInvoiceCommand(
+        CreateInvoiceCommand command = new(
             UserId: userId,
             InvoiceNumber: "INV-001",
             Currency: "USD",
@@ -48,7 +48,7 @@ public class CreateInvoiceHandlerTests
     public async Task Handle_WithDuplicateInvoiceNumber_ReturnsFailure()
     {
         // Arrange
-        CreateInvoiceCommand command = new CreateInvoiceCommand(
+        CreateInvoiceCommand command = new(
             UserId: Guid.NewGuid(),
             InvoiceNumber: "INV-001",
             Currency: "USD",
@@ -77,7 +77,7 @@ public class CreateInvoiceHandlerTests
             { "Department", "Engineering" }
         };
 
-        CreateInvoiceCommand command = new CreateInvoiceCommand(
+        CreateInvoiceCommand command = new(
             UserId: Guid.NewGuid(),
             InvoiceNumber: "INV-002",
             Currency: "EUR",
@@ -99,7 +99,7 @@ public class CreateInvoiceHandlerTests
     public async Task Handle_WhenExecutedTwiceWithSameInvoiceNumber_SecondExecutionFails()
     {
         // Arrange
-        CreateInvoiceCommand command = new CreateInvoiceCommand(
+        CreateInvoiceCommand command = new(
             UserId: Guid.NewGuid(),
             InvoiceNumber: "INV-DUPLICATE",
             Currency: "USD",
@@ -127,9 +127,9 @@ public class CreateInvoiceHandlerTests
             .Returns(false);
 
         Guid userId = Guid.NewGuid();
-        CreateInvoiceCommand command1 = new CreateInvoiceCommand(userId, "INV-001", "USD", DateTime.UtcNow.AddDays(30));
-        CreateInvoiceCommand command2 = new CreateInvoiceCommand(userId, "INV-002", "USD", DateTime.UtcNow.AddDays(30));
-        CreateInvoiceCommand command3 = new CreateInvoiceCommand(userId, "INV-003", "EUR", DateTime.UtcNow.AddDays(60));
+        CreateInvoiceCommand command1 = new(userId, "INV-001", "USD", DateTime.UtcNow.AddDays(30));
+        CreateInvoiceCommand command2 = new(userId, "INV-002", "USD", DateTime.UtcNow.AddDays(30));
+        CreateInvoiceCommand command3 = new(userId, "INV-003", "EUR", DateTime.UtcNow.AddDays(60));
 
         // Act
         Task<Result<InvoiceDto>>[] tasks = new[]

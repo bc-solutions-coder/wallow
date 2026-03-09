@@ -42,7 +42,7 @@ public class ApiKeysControllerScopeValidationTests
     [Fact]
     public async Task CreateApiKey_WithInvalidScopes_ReturnsBadRequest()
     {
-        List<string> invalidScopes = ["invalid.scope", "also.bad"];
+        string[] invalidScopes = ["invalid.scope", "also.bad"];
         CreateApiKeyRequest request = new("Test Key", invalidScopes);
 
         IActionResult result = await _controller.CreateApiKey(request, CancellationToken.None);
@@ -57,7 +57,7 @@ public class ApiKeysControllerScopeValidationTests
     [Fact]
     public async Task CreateApiKey_WithMixOfValidAndInvalidScopes_ReturnsBadRequest()
     {
-        List<string> scopes = ["invoices.read", "bad.scope"];
+        string[] scopes = ["invoices.read", "bad.scope"];
         CreateApiKeyRequest request = new("Test Key", scopes);
 
         IActionResult result = await _controller.CreateApiKey(request, CancellationToken.None);
@@ -71,7 +71,7 @@ public class ApiKeysControllerScopeValidationTests
     [Fact]
     public async Task CreateApiKey_WithAllValidScopes_DoesNotReturnBadRequestForScopes()
     {
-        List<string> allValid =
+        string[] allValid =
         [
             "invoices.read", "invoices.write",
             "payments.read", "payments.write",

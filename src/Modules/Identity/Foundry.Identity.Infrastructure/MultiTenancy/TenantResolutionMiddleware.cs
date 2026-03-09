@@ -11,21 +11,12 @@ using Serilog.Context;
 
 namespace Foundry.Identity.Infrastructure.MultiTenancy;
 
-public partial class TenantResolutionMiddleware
+public partial class TenantResolutionMiddleware(RequestDelegate next, ILogger<TenantResolutionMiddleware> logger)
 {
     private static readonly Meter _meter = Diagnostics.CreateMeter("Foundry");
     private static readonly Counter<long> _requestsByTenantCounter = _meter.CreateCounter<long>(
         "foundry.requests_by_tenant_total",
         description: "Total requests by tenant");
-
-    private readonly RequestDelegate _next;
-    private readonly ILogger<TenantResolutionMiddleware> _logger;
-
-    public TenantResolutionMiddleware(RequestDelegate next, ILogger<TenantResolutionMiddleware> logger)
-    {
-        _next = next;
-        _logger = logger;
-    }
 
     public async Task InvokeAsync(HttpContext context, ITenantContextSetter tenantSetter)
     {
@@ -106,7 +97,7 @@ public partial class TenantResolutionMiddleware
         using (LogContext.PushProperty("TenantId", resolvedTenantId, destructureObjects: false))
         using (LogContext.PushProperty("UserId", userId, destructureObjects: false))
         {
-            await _next(context);
+            await next(context);
         }
     }
 

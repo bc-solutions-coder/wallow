@@ -24,14 +24,8 @@ namespace Foundry.Configuration.Api.Controllers;
 [Tags("Configuration")]
 [Produces("application/json")]
 [Consumes("application/json")]
-public class CustomFieldsController : ControllerBase
+public class CustomFieldsController(IMessageBus bus) : ControllerBase
 {
-    private readonly IMessageBus _bus;
-
-    public CustomFieldsController(IMessageBus bus)
-    {
-        _bus = bus;
-    }
 
     /// <summary>
     /// Get all entity types that support custom fields.
@@ -41,7 +35,7 @@ public class CustomFieldsController : ControllerBase
     public async Task<ActionResult<IReadOnlyList<EntityTypeDto>>> GetEntityTypes(
         CancellationToken cancellationToken)
     {
-        IReadOnlyList<EntityTypeDto> result = await _bus.InvokeAsync<IReadOnlyList<EntityTypeDto>>(
+        IReadOnlyList<EntityTypeDto> result = await bus.InvokeAsync<IReadOnlyList<EntityTypeDto>>(
             new GetSupportedEntityTypes(),
             cancellationToken);
         return Ok(result);
@@ -60,7 +54,7 @@ public class CustomFieldsController : ControllerBase
         [FromQuery] bool includeInactive = false,
         CancellationToken cancellationToken = default)
     {
-        IReadOnlyList<CustomFieldDefinitionDto> result = await _bus.InvokeAsync<IReadOnlyList<CustomFieldDefinitionDto>>(
+        IReadOnlyList<CustomFieldDefinitionDto> result = await bus.InvokeAsync<IReadOnlyList<CustomFieldDefinitionDto>>(
             new GetCustomFieldDefinitions(entityType, includeInactive),
             cancellationToken);
         return Ok(result);
@@ -76,7 +70,7 @@ public class CustomFieldsController : ControllerBase
         Guid id,
         CancellationToken cancellationToken)
     {
-        CustomFieldDefinitionDto? result = await _bus.InvokeAsync<CustomFieldDefinitionDto?>(
+        CustomFieldDefinitionDto? result = await bus.InvokeAsync<CustomFieldDefinitionDto?>(
             new GetCustomFieldDefinitionById(id),
             cancellationToken);
 
@@ -98,7 +92,7 @@ public class CustomFieldsController : ControllerBase
         CreateCustomFieldRequest request,
         CancellationToken cancellationToken)
     {
-        CreateCustomFieldDefinitionCommand command = new CreateCustomFieldDefinitionCommand(
+        CreateCustomFieldDefinitionCommand command = new(
             request.EntityType,
             request.FieldKey,
             request.DisplayName,
@@ -108,7 +102,7 @@ public class CustomFieldsController : ControllerBase
             request.ValidationRules,
             request.Options);
 
-        Result<CustomFieldDefinitionDto> result = await _bus.InvokeAsync<Result<CustomFieldDefinitionDto>>(command, cancellationToken);
+        Result<CustomFieldDefinitionDto> result = await bus.InvokeAsync<Result<CustomFieldDefinitionDto>>(command, cancellationToken);
 
         return result.ToCreatedResult(
             nameof(GetById),
@@ -128,7 +122,7 @@ public class CustomFieldsController : ControllerBase
         UpdateCustomFieldRequest request,
         CancellationToken cancellationToken)
     {
-        UpdateCustomFieldDefinitionCommand command = new UpdateCustomFieldDefinitionCommand(
+        UpdateCustomFieldDefinitionCommand command = new(
             id,
             request.DisplayName,
             request.Description,
@@ -138,7 +132,7 @@ public class CustomFieldsController : ControllerBase
             request.ValidationRules,
             request.Options);
 
-        CustomFieldDefinitionDto result = await _bus.InvokeAsync<CustomFieldDefinitionDto>(command, cancellationToken);
+        CustomFieldDefinitionDto result = await bus.InvokeAsync<CustomFieldDefinitionDto>(command, cancellationToken);
         return Ok(result);
     }
 
@@ -152,7 +146,7 @@ public class CustomFieldsController : ControllerBase
         Guid id,
         CancellationToken cancellationToken)
     {
-        await _bus.InvokeAsync(new DeactivateCustomFieldDefinitionCommand(id), cancellationToken);
+        await bus.InvokeAsync(new DeactivateCustomFieldDefinitionCommand(id), cancellationToken);
         return NoContent();
     }
 
@@ -167,7 +161,7 @@ public class CustomFieldsController : ControllerBase
         ReorderFieldsRequest request,
         CancellationToken cancellationToken)
     {
-        await _bus.InvokeAsync(
+        await bus.InvokeAsync(
             new ReorderCustomFieldsCommand(entityType, request.FieldIds),
             cancellationToken);
         return NoContent();

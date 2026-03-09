@@ -16,11 +16,8 @@ public class SmsCommunicationsTestCollection : ICollectionFixture<FoundryApiFact
 
 [Collection(nameof(SmsCommunicationsTestCollection))]
 [Trait("Category", "Integration")]
-public sealed class SmsIntegrationTests : FoundryIntegrationTestBase
+public sealed class SmsIntegrationTests(FoundryApiFactory factory) : FoundryIntegrationTestBase(factory)
 {
-    public SmsIntegrationTests(FoundryApiFactory factory) : base(factory)
-    {
-    }
 
     [Fact]
     public async Task SendSms_WithValidCommand_PersistsMessageAndMarksAsSent()

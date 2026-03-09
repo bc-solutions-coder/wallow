@@ -22,8 +22,8 @@ public class GetActiveAnnouncementsHandlerTests
         Guid userId = Guid.NewGuid();
         Guid tenantId = Guid.NewGuid();
 
-        List<AnnouncementDto> expected = new()
-        {
+        List<AnnouncementDto> expected =
+        [
             new AnnouncementDto(
                 Guid.NewGuid(), "Title", "Content",
                 Communications.Domain.Announcements.Enums.AnnouncementType.Feature,
@@ -31,12 +31,12 @@ public class GetActiveAnnouncementsHandlerTests
                 null, null, null, false, true, null, null, null,
                 Communications.Domain.Announcements.Enums.AnnouncementStatus.Published,
                 DateTime.UtcNow)
-        };
+        ];
 
         _targetingService.GetActiveAnnouncementsForUserAsync(Arg.Any<UserContext>(), Arg.Any<CancellationToken>())
             .Returns(expected);
 
-        GetActiveAnnouncementsQuery query = new(userId, tenantId, "Pro", new List<string> { "Admin" });
+        GetActiveAnnouncementsQuery query = new(userId, tenantId, "Pro", ["Admin"]);
 
         Result<IReadOnlyList<AnnouncementDto>> result = await _handler.Handle(query, CancellationToken.None);
 
@@ -49,10 +49,10 @@ public class GetActiveAnnouncementsHandlerTests
     {
         Guid userId = Guid.NewGuid();
         Guid tenantId = Guid.NewGuid();
-        List<string> roles = new() { "Admin", "User" };
+        List<string> roles = ["Admin", "User"];
 
         _targetingService.GetActiveAnnouncementsForUserAsync(Arg.Any<UserContext>(), Arg.Any<CancellationToken>())
-            .Returns(new List<AnnouncementDto>());
+            .Returns([]);
 
         GetActiveAnnouncementsQuery query = new(userId, tenantId, "Enterprise", roles);
 
@@ -71,9 +71,9 @@ public class GetActiveAnnouncementsHandlerTests
     public async Task Handle_WhenNoAnnouncements_ReturnsEmptyList()
     {
         _targetingService.GetActiveAnnouncementsForUserAsync(Arg.Any<UserContext>(), Arg.Any<CancellationToken>())
-            .Returns(new List<AnnouncementDto>());
+            .Returns([]);
 
-        GetActiveAnnouncementsQuery query = new(Guid.NewGuid(), Guid.NewGuid(), null, new List<string>());
+        GetActiveAnnouncementsQuery query = new(Guid.NewGuid(), Guid.NewGuid(), null, []);
 
         Result<IReadOnlyList<AnnouncementDto>> result = await _handler.Handle(query, CancellationToken.None);
 
@@ -86,9 +86,9 @@ public class GetActiveAnnouncementsHandlerTests
     {
         using CancellationTokenSource cts = new();
         _targetingService.GetActiveAnnouncementsForUserAsync(Arg.Any<UserContext>(), Arg.Any<CancellationToken>())
-            .Returns(new List<AnnouncementDto>());
+            .Returns([]);
 
-        GetActiveAnnouncementsQuery query = new(Guid.NewGuid(), Guid.NewGuid(), null, new List<string>());
+        GetActiveAnnouncementsQuery query = new(Guid.NewGuid(), Guid.NewGuid(), null, []);
 
         await _handler.Handle(query, cts.Token);
 

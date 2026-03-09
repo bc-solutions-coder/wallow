@@ -4,11 +4,9 @@ using Foundry.Identity.Application.DTOs;
 namespace Foundry.Identity.IntegrationTests.ServiceAccounts;
 
 [Trait("Category", "Integration")]
-public class RevokeServiceAccountTests : ServiceAccountIntegrationTestBase
+public class RevokeServiceAccountTests(ServiceAccountTestFactory factory) : ServiceAccountIntegrationTestBase(factory)
 {
     private static readonly string[] _invoicesReadScope = ["invoices.read"];
-
-    public RevokeServiceAccountTests(ServiceAccountTestFactory factory) : base(factory) { }
 
     [Fact]
     public async Task Should_Revoke_ServiceAccount_Successfully()

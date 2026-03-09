@@ -161,7 +161,7 @@ public class KeycloakAdminServiceTests
     public async Task GetUserByEmailAsync_NoUsers_ReturnsNull()
     {
         _userClient.GetUsersAsync("foundry", Arg.Any<GetUsersRequestParameters>(), Arg.Any<CancellationToken>())
-            .Returns(Enumerable.Empty<UserRepresentation>());
+            .Returns([]);
 
         KeycloakAdminService service = CreateService(new MockHttpHandler());
 
@@ -374,7 +374,7 @@ public class KeycloakAdminServiceTests
 
     private sealed class MockHttpHandler : HttpMessageHandler
     {
-        private readonly Dictionary<string, (HttpStatusCode Status, object? Content)> _routes = [];
+        private readonly Dictionary<string, (HttpStatusCode Status, object? Content)> _routes = new Dictionary<string, (HttpStatusCode Status, object? Content)>();
 
         public MockHttpHandler WithGet(string path, object content)
         {

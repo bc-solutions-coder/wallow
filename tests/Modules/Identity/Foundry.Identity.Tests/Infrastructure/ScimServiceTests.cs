@@ -268,7 +268,7 @@ public class ScimServiceTests
 
         ScimService service = CreateService(handler);
 
-        ScimUserRequest request = new()
+        ScimUserRequest request = new ScimUserRequest()
         {
             UserName = "john.doe",
             ExternalId = "ext-123",
@@ -307,7 +307,7 @@ public class ScimServiceTests
 
         ScimService service = CreateService(handler);
 
-        ScimUserRequest request = new()
+        ScimUserRequest request = new ScimUserRequest()
         {
             UserName = "john.doe",
             ExternalId = "ext-123",
@@ -351,7 +351,7 @@ public class ScimServiceTests
 
         ScimService service = CreateService(handler);
 
-        ScimUserRequest request = new()
+        ScimUserRequest request = new ScimUserRequest()
         {
             UserName = "john.updated",
             ExternalId = "ext-123",
@@ -388,7 +388,7 @@ public class ScimServiceTests
 
         ScimService service = CreateService(handler);
 
-        ScimUserRequest request = new()
+        ScimUserRequest request = new ScimUserRequest()
         {
             UserName = "john.doe",
             Active = true
@@ -429,7 +429,7 @@ public class ScimServiceTests
 
         ScimService service = CreateService(handler);
 
-        ScimPatchRequest request = new()
+        ScimPatchRequest request = new ScimPatchRequest()
         {
             Operations = new[]
             {
@@ -462,7 +462,7 @@ public class ScimServiceTests
 
         ScimService service = CreateService(handler);
 
-        ScimPatchRequest request = new()
+        ScimPatchRequest request = new ScimPatchRequest()
         {
             Operations = new[]
             {
@@ -669,7 +669,7 @@ public class ScimServiceTests
 
         ScimService service = CreateService(handler);
 
-        ScimGroupRequest request = new()
+        ScimGroupRequest request = new ScimGroupRequest()
         {
             DisplayName = "Developers",
             ExternalId = "ext-grp-123"
@@ -710,7 +710,7 @@ public class ScimServiceTests
 
         ScimService service = CreateService(handler);
 
-        ScimGroupRequest request = new()
+        ScimGroupRequest request = new ScimGroupRequest()
         {
             DisplayName = "Updated Developers",
             ExternalId = "ext-grp-123"
@@ -818,8 +818,7 @@ public class ScimServiceTests
         IHttpClientFactory httpClientFactory = Substitute.For<IHttpClientFactory>();
 
         HttpClient keycloakClient = handler != null
-            ? new HttpClient(handler)
-            : new HttpClient(new MockKeycloakHttpHandler());
+            ? new HttpClient(handler) : new HttpClient(new MockKeycloakHttpHandler());
         keycloakClient.BaseAddress = new Uri("https://keycloak.test/");
 
         httpClientFactory.CreateClient("KeycloakAdminClient").Returns(keycloakClient);
@@ -856,7 +855,7 @@ public class ScimServiceTests
 
     private sealed class MockKeycloakHttpHandler : HttpMessageHandler
     {
-        private readonly Dictionary<string, (HttpStatusCode Status, object? Content, string? LocationHeader)> _routes = [];
+        private readonly Dictionary<string, (HttpStatusCode Status, object? Content, string? LocationHeader)> _routes = new Dictionary<string, (HttpStatusCode Status, object? Content, string? LocationHeader)>();
 
         public MockKeycloakHttpHandler WithKeycloakGet(string path, HttpStatusCode status, object? content = null)
         {

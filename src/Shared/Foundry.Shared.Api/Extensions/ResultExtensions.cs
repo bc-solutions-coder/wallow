@@ -71,7 +71,7 @@ public static class ResultExtensions
     {
         int statusCode = GetStatusCode(error.Code);
 
-        ProblemDetails problemDetails = new ProblemDetails
+        ProblemDetails problemDetails = new()
         {
             Status = statusCode,
             Title = GetTitle(statusCode),

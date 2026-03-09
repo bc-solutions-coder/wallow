@@ -28,20 +28,8 @@ namespace Foundry.Communications.Api.Controllers;
 [Tags("Conversations")]
 [Produces("application/json")]
 [Consumes("application/json")]
-public class ConversationsController : ControllerBase
+public class ConversationsController(IMessageBus bus, IHtmlSanitizationService sanitizer, ICurrentUserService currentUserService, IMessagingQueryService messagingQueryService) : ControllerBase
 {
-    private readonly IMessageBus _bus;
-    private readonly IHtmlSanitizationService _sanitizer;
-    private readonly ICurrentUserService _currentUserService;
-    private readonly IMessagingQueryService _messagingQueryService;
-
-    public ConversationsController(IMessageBus bus, IHtmlSanitizationService sanitizer, ICurrentUserService currentUserService, IMessagingQueryService messagingQueryService)
-    {
-        _bus = bus;
-        _sanitizer = sanitizer;
-        _currentUserService = currentUserService;
-        _messagingQueryService = messagingQueryService;
-    }
 
     [HttpPost]
     [HasPermission(PermissionType.MessagingAccess)]
@@ -52,7 +40,7 @@ public class ConversationsController : ControllerBase
         [FromBody] CreateConversationRequest request,
         CancellationToken cancellationToken)
     {
-        Guid? userId = _currentUserService.GetCurrentUserId();
+        Guid? userId = currentUserService.GetCurrentUserId();
         if (userId is null)
         {
             return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
@@ -68,7 +56,7 @@ public class ConversationsController : ControllerBase
             type,
             request.Subject);
 
-        Result<Guid> result = await _bus.InvokeAsync<Result<Guid>>(command, cancellationToken);
+        Result<Guid> result = await bus.InvokeAsync<Result<Guid>>(command, cancellationToken);
 
         if (!result.IsSuccess)
         {
@@ -87,13 +75,13 @@ public class ConversationsController : ControllerBase
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        Guid? userId = _currentUserService.GetCurrentUserId();
+        Guid? userId = currentUserService.GetCurrentUserId();
         if (userId is null)
         {
             return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
         }
 
-        Result<IReadOnlyList<ConversationDto>> result = await _bus.InvokeAsync<Result<IReadOnlyList<ConversationDto>>>(
+        Result<IReadOnlyList<ConversationDto>> result = await bus.InvokeAsync<Result<IReadOnlyList<ConversationDto>>>(
             new GetConversationsQuery(userId.Value, page, pageSize), cancellationToken);
 
         return result.Map(conversations =>
@@ -112,19 +100,19 @@ public class ConversationsController : ControllerBase
         [FromQuery] int pageSize = 50,
         CancellationToken cancellationToken = default)
     {
-        Guid? userId = _currentUserService.GetCurrentUserId();
+        Guid? userId = currentUserService.GetCurrentUserId();
         if (userId is null)
         {
             return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
         }
 
-        bool isParticipant = await _messagingQueryService.IsParticipantAsync(id, userId.Value, cancellationToken);
+        bool isParticipant = await messagingQueryService.IsParticipantAsync(id, userId.Value, cancellationToken);
         if (!isParticipant)
         {
             return Problem(statusCode: 403, title: "Forbidden", detail: "Access denied");
         }
 
-        Result<IReadOnlyList<MessageDto>> result = await _bus.InvokeAsync<Result<IReadOnlyList<MessageDto>>>(
+        Result<IReadOnlyList<MessageDto>> result = await bus.InvokeAsync<Result<IReadOnlyList<MessageDto>>>(
             new GetMessagesQuery(id, userId.Value, cursor, pageSize), cancellationToken);
 
         return result.Map(messages =>
@@ -148,21 +136,21 @@ public class ConversationsController : ControllerBase
         [FromBody] SendMessageRequest request,
         CancellationToken cancellationToken)
     {
-        Guid? userId = _currentUserService.GetCurrentUserId();
+        Guid? userId = currentUserService.GetCurrentUserId();
         if (userId is null)
         {
             return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
         }
 
-        bool isParticipant = await _messagingQueryService.IsParticipantAsync(id, userId.Value, cancellationToken);
+        bool isParticipant = await messagingQueryService.IsParticipantAsync(id, userId.Value, cancellationToken);
         if (!isParticipant)
         {
             return Problem(statusCode: 403, title: "Forbidden", detail: "Access denied");
         }
 
-        string sanitizedBody = _sanitizer.Sanitize(request.Body);
+        string sanitizedBody = sanitizer.Sanitize(request.Body);
 
-        Result<Guid> result = await _bus.InvokeAsync<Result<Guid>>(
+        Result<Guid> result = await bus.InvokeAsync<Result<Guid>>(
             new SendMessageCommand(id, userId.Value, sanitizedBody), cancellationToken);
 
         return result.ToCreatedResult($"/api/v1/conversations/{id}/messages");
@@ -175,13 +163,13 @@ public class ConversationsController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> MarkAsRead(Guid id, CancellationToken cancellationToken)
     {
-        Guid? userId = _currentUserService.GetCurrentUserId();
+        Guid? userId = currentUserService.GetCurrentUserId();
         if (userId is null)
         {
             return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
         }
 
-        Result result = await _bus.InvokeAsync<Result>(
+        Result result = await bus.InvokeAsync<Result>(
             new MarkConversationReadCommand(id, userId.Value), cancellationToken);
 
         return result.ToNoContentResult();
@@ -193,13 +181,13 @@ public class ConversationsController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> GetUnreadCount(CancellationToken cancellationToken)
     {
-        Guid? userId = _currentUserService.GetCurrentUserId();
+        Guid? userId = currentUserService.GetCurrentUserId();
         if (userId is null)
         {
             return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
         }
 
-        Result<int> result = await _bus.InvokeAsync<Result<int>>(
+        Result<int> result = await bus.InvokeAsync<Result<int>>(
             new GetUnreadConversationCountQuery(userId.Value), cancellationToken);
 
         return result.Map(count => new UnreadCountResponse(count)).ToActionResult();

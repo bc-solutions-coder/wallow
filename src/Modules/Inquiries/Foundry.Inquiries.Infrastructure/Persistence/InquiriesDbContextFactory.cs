@@ -7,7 +7,7 @@ public sealed class InquiriesDbContextFactory : IDesignTimeDbContextFactory<Inqu
 {
     public InquiriesDbContext CreateDbContext(string[] args)
     {
-        DbContextOptionsBuilder<InquiriesDbContext> optionsBuilder = new DbContextOptionsBuilder<InquiriesDbContext>();
+        DbContextOptionsBuilder<InquiriesDbContext> optionsBuilder = new();
 
         string password = Environment.GetEnvironmentVariable("FOUNDRY_DB_PASSWORD") ?? "foundry";
         optionsBuilder.UseNpgsql(

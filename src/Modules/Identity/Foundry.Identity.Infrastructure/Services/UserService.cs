@@ -4,18 +4,12 @@ using Foundry.Shared.Contracts.Identity;
 
 namespace Foundry.Identity.Infrastructure.Services;
 
-public class UserService : IUserService
+public class UserService(IKeycloakAdminService keycloakAdmin) : IUserService
 {
-    private readonly IKeycloakAdminService _keycloakAdmin;
-
-    public UserService(IKeycloakAdminService keycloakAdmin)
-    {
-        _keycloakAdmin = keycloakAdmin;
-    }
 
     public async Task<UserInfo?> GetUserByIdAsync(Guid userId, CancellationToken ct = default)
     {
-        UserDto? user = await _keycloakAdmin.GetUserByIdAsync(userId, ct);
+        UserDto? user = await keycloakAdmin.GetUserByIdAsync(userId, ct);
 
         if (user == null)
         {
@@ -32,7 +26,7 @@ public class UserService : IUserService
 
     public async Task<UserInfo?> GetUserByEmailAsync(string email, CancellationToken ct = default)
     {
-        UserDto? user = await _keycloakAdmin.GetUserByEmailAsync(email, ct);
+        UserDto? user = await keycloakAdmin.GetUserByEmailAsync(email, ct);
 
         if (user == null)
         {

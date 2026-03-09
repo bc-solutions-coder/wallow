@@ -166,7 +166,7 @@ public class UserQueryServiceTests
 
     private sealed class MockHttpHandler : HttpMessageHandler
     {
-        private readonly Dictionary<string, (HttpStatusCode Status, object? Content)> _routes = [];
+        private readonly Dictionary<string, (HttpStatusCode Status, object? Content)> _routes = new Dictionary<string, (HttpStatusCode Status, object? Content)>();
         private readonly HashSet<string> _throwRoutes = [];
 
         public MockHttpHandler WithGet(string path, object content)

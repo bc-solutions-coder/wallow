@@ -16,10 +16,12 @@ public class MetersControllerTests
     public MetersControllerTests()
     {
         _bus = Substitute.For<IMessageBus>();
-        _controller = new MetersController(_bus);
-        _controller.ControllerContext = new ControllerContext
+        _controller = new MetersController(_bus)
         {
-            HttpContext = new DefaultHttpContext()
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext()
+            }
         };
     }
 
@@ -47,7 +49,7 @@ public class MetersControllerTests
     public async Task GetAll_WhenEmpty_ReturnsOkWithEmptyList()
     {
         _bus.InvokeAsync<Result<IReadOnlyList<MeterDefinitionDto>>>(Arg.Any<GetMeterDefinitionsQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success<IReadOnlyList<MeterDefinitionDto>>(new List<MeterDefinitionDto>()));
+            .Returns(Result.Success<IReadOnlyList<MeterDefinitionDto>>([]));
 
         IActionResult result = await _controller.GetAll(CancellationToken.None);
 
@@ -72,7 +74,7 @@ public class MetersControllerTests
     public async Task GetAll_InvokesCorrectQuery()
     {
         _bus.InvokeAsync<Result<IReadOnlyList<MeterDefinitionDto>>>(Arg.Any<GetMeterDefinitionsQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success<IReadOnlyList<MeterDefinitionDto>>(new List<MeterDefinitionDto>()));
+            .Returns(Result.Success<IReadOnlyList<MeterDefinitionDto>>([]));
 
         await _controller.GetAll(CancellationToken.None);
 

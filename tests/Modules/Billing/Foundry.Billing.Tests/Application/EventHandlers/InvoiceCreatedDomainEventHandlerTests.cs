@@ -34,7 +34,7 @@ public class InvoiceCreatedDomainEventHandlerTests
 
         Invoice invoice = Invoice.Create(userId, "INV-001", "USD", userId, TimeProvider.System, dueDate);
 
-        InvoiceCreatedDomainEvent domainEvent = new InvoiceCreatedDomainEvent(
+        InvoiceCreatedDomainEvent domainEvent = new(
             invoiceId,
             userId,
             100m,
@@ -64,7 +64,7 @@ public class InvoiceCreatedDomainEventHandlerTests
     public async Task HandleAsync_RetrievesInvoiceFromRepository()
     {
         Guid invoiceId = Guid.NewGuid();
-        InvoiceCreatedDomainEvent domainEvent = new InvoiceCreatedDomainEvent(
+        InvoiceCreatedDomainEvent domainEvent = new(
             invoiceId,
             Guid.NewGuid(),
             100m,
@@ -91,7 +91,7 @@ public class InvoiceCreatedDomainEventHandlerTests
     public async Task HandleAsync_PassesCancellationToken()
     {
         Guid invoiceId = Guid.NewGuid();
-        InvoiceCreatedDomainEvent domainEvent = new InvoiceCreatedDomainEvent(
+        InvoiceCreatedDomainEvent domainEvent = new(
             invoiceId,
             Guid.NewGuid(),
             100m,
@@ -102,7 +102,7 @@ public class InvoiceCreatedDomainEventHandlerTests
         _invoiceRepository.GetByIdAsync(Arg.Any<InvoiceId>(), Arg.Any<CancellationToken>())
             .Returns(invoice);
 
-        using CancellationTokenSource cts = new CancellationTokenSource();
+        using CancellationTokenSource cts = new();
 
         await InvoiceCreatedDomainEventHandler.HandleAsync(
             domainEvent,
@@ -120,7 +120,7 @@ public class InvoiceCreatedDomainEventHandlerTests
     public async Task HandleAsync_LogsInformation()
     {
         Guid invoiceId = Guid.NewGuid();
-        InvoiceCreatedDomainEvent domainEvent = new InvoiceCreatedDomainEvent(
+        InvoiceCreatedDomainEvent domainEvent = new(
             invoiceId,
             Guid.NewGuid(),
             100m,
@@ -151,7 +151,7 @@ public class InvoiceCreatedDomainEventHandlerTests
     {
         Guid invoiceId = Guid.NewGuid();
         Guid userId = Guid.NewGuid();
-        InvoiceCreatedDomainEvent domainEvent = new InvoiceCreatedDomainEvent(
+        InvoiceCreatedDomainEvent domainEvent = new(
             invoiceId,
             userId,
             100m,

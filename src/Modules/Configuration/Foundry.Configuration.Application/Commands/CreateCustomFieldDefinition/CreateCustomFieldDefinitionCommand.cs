@@ -18,69 +18,57 @@ public sealed record CreateCustomFieldDefinitionCommand(
     FieldValidationRules? ValidationRules = null,
     IReadOnlyList<CustomFieldOption>? Options = null);
 
-public sealed class CreateCustomFieldDefinitionHandler
+public sealed class CreateCustomFieldDefinitionHandler(
+    ICustomFieldDefinitionRepository repository,
+    ITenantContext tenantContext,
+    ICurrentUserService currentUserService,
+    TimeProvider timeProvider)
 {
-    private readonly ICustomFieldDefinitionRepository _repository;
-    private readonly ITenantContext _tenantContext;
-    private readonly ICurrentUserService _currentUserService;
-    private readonly TimeProvider _timeProvider;
-
-    public CreateCustomFieldDefinitionHandler(
-        ICustomFieldDefinitionRepository repository,
-        ITenantContext tenantContext,
-        ICurrentUserService currentUserService,
-        TimeProvider timeProvider)
-    {
-        _repository = repository;
-        _tenantContext = tenantContext;
-        _currentUserService = currentUserService;
-        _timeProvider = timeProvider;
-    }
 
     public async Task<Result<CustomFieldDefinitionDto>> Handle(
         CreateCustomFieldDefinitionCommand command,
         CancellationToken cancellationToken)
     {
-        if (await _repository.FieldKeyExistsAsync(command.EntityType, command.FieldKey, cancellationToken))
+        if (await repository.FieldKeyExistsAsync(command.EntityType, command.FieldKey, cancellationToken))
         {
             return Result.Failure<CustomFieldDefinitionDto>(
                 Error.Conflict(
                     $"A field with key '{command.FieldKey}' already exists for entity type '{command.EntityType}'"));
         }
 
-        Guid userId = _currentUserService.GetCurrentUserId() ?? Guid.Empty;
+        Guid userId = currentUserService.GetCurrentUserId() ?? Guid.Empty;
 
         CustomFieldDefinition definition = CustomFieldDefinition.Create(
-            _tenantContext.TenantId,
+            tenantContext.TenantId,
             command.EntityType,
             command.FieldKey,
             command.DisplayName,
             command.FieldType,
             userId,
-            _timeProvider);
+            timeProvider);
 
         if (!string.IsNullOrWhiteSpace(command.Description))
         {
-            definition.UpdateDescription(command.Description, userId, _timeProvider);
+            definition.UpdateDescription(command.Description, userId, timeProvider);
         }
 
         if (command.IsRequired)
         {
-            definition.SetRequired(true, userId, _timeProvider);
+            definition.SetRequired(true, userId, timeProvider);
         }
 
         if (command.ValidationRules != null)
         {
-            definition.SetValidationRules(command.ValidationRules, userId, _timeProvider);
+            definition.SetValidationRules(command.ValidationRules, userId, timeProvider);
         }
 
         if (command.Options != null && command.Options.Count > 0)
         {
-            definition.SetOptions(command.Options, userId, _timeProvider);
+            definition.SetOptions(command.Options, userId, timeProvider);
         }
 
-        await _repository.AddAsync(definition, cancellationToken);
-        await _repository.SaveChangesAsync(cancellationToken);
+        await repository.AddAsync(definition, cancellationToken);
+        await repository.SaveChangesAsync(cancellationToken);
 
         return Result.Success(definition.ToDto());
     }

@@ -27,8 +27,7 @@ public sealed partial class ScimBearerAuthenticationHandler
         UrlEncoder encoder,
         IdentityDbContext dbContext,
         TenantContext tenantContext,
-        TimeProvider timeProvider)
-        : base(options, logger, encoder)
+        TimeProvider timeProvider) : base(options, logger, encoder)
     {
         _dbContext = dbContext;
         _tenantContext = tenantContext;

@@ -99,7 +99,7 @@ public class GetCurrentUsageHandlerTests
     [Fact]
     public async Task Handle_WithQuotaLimit_ReturnsLimitAndPercent()
     {
-        GetCurrentUsageQuery query = new("api.calls", null);
+        GetCurrentUsageQuery query = new("api.calls");
 
         MeterDefinition meter = MeterDefinition.Create("api.calls", "API Calls", "requests", MeterAggregation.Sum, true);
         _meterRepository.GetAllAsync(Arg.Any<CancellationToken>())

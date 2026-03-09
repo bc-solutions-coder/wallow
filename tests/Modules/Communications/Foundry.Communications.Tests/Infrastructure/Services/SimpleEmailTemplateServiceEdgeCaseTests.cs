@@ -89,7 +89,7 @@ public class SimpleEmailTemplateServiceEdgeCaseTests
     [Fact]
     public async Task RenderAsync_WithDateTimeProperty_ConvertsToString()
     {
-        DateTime date = new DateTime(2026, 3, 15, 0, 0, 0, DateTimeKind.Utc);
+        DateTime date = new(2026, 3, 15, 0, 0, 0, DateTimeKind.Utc);
         object model = new { RequestType = "export", RequestId = "REQ-100", RequestedAt = date.ToString("o") };
 
         string result = await _service.RenderAsync("datarequestreceived", model);

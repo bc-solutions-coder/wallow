@@ -12,13 +12,9 @@ public class CommunicationsIntegrationTestCollection : ICollectionFixture<Foundr
 
 [Collection(nameof(CommunicationsIntegrationTestCollection))]
 [Trait("Category", "Integration")]
-public sealed class ConversationIntegrationTests : FoundryIntegrationTestBase
+public sealed class ConversationIntegrationTests(FoundryApiFactory factory) : FoundryIntegrationTestBase(factory)
 {
     private const string BaseUrl = "/api/v1/conversations";
-
-    public ConversationIntegrationTests(FoundryApiFactory factory) : base(factory)
-    {
-    }
 
     [Fact]
     public async Task CreateConversation_WithValidRequest_Returns201Created()

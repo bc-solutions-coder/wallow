@@ -13,16 +13,10 @@ using Microsoft.Extensions.Logging;
 
 namespace Foundry.Shared.Infrastructure.Core.Auditing;
 
-public sealed partial class AuditInterceptor : SaveChangesInterceptor
+public sealed partial class AuditInterceptor(
+    IServiceProvider serviceProvider,
+    ILogger<AuditInterceptor> logger) : SaveChangesInterceptor
 {
-    private readonly IServiceProvider _serviceProvider;
-    private readonly ILogger<AuditInterceptor> _logger;
-
-    public AuditInterceptor(IServiceProvider serviceProvider, ILogger<AuditInterceptor> logger)
-    {
-        _serviceProvider = serviceProvider;
-        _logger = logger;
-    }
 
     public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(
         DbContextEventData eventData, InterceptionResult<int> result,
@@ -47,14 +41,14 @@ public sealed partial class AuditInterceptor : SaveChangesInterceptor
 
     private List<AuditEntry> CaptureChanges(DbContext context)
     {
-        List<AuditEntry> entries = new List<AuditEntry>();
+        List<AuditEntry> entries = [];
 
         string? userId = null;
         Guid? tenantId = null;
 
         try
         {
-            using IServiceScope scope = _serviceProvider.CreateScope();
+            using IServiceScope scope = serviceProvider.CreateScope();
             IHttpContextAccessor? httpContextAccessor = scope.ServiceProvider.GetService<IHttpContextAccessor>();
             userId = httpContextAccessor?.HttpContext?.User.FindFirst("sub")?.Value;
 
@@ -116,7 +110,7 @@ public sealed partial class AuditInterceptor : SaveChangesInterceptor
 
     private async Task SaveAuditEntriesAsync(List<AuditEntry> entries, CancellationToken cancellationToken)
     {
-        await using AsyncServiceScope scope = _serviceProvider.CreateAsyncScope();
+        await using AsyncServiceScope scope = serviceProvider.CreateAsyncScope();
         AuditDbContext auditDbContext = scope.ServiceProvider.GetRequiredService<AuditDbContext>();
         auditDbContext.AuditEntries.AddRange(entries);
         await auditDbContext.SaveChangesAsync(cancellationToken);
@@ -141,7 +135,7 @@ public sealed partial class AuditInterceptor : SaveChangesInterceptor
 
     private static string SerializeValues(PropertyValues propertyValues)
     {
-        Dictionary<string, object?> dict = new Dictionary<string, object?>();
+        Dictionary<string, object?> dict = new();
         foreach (IProperty property in propertyValues.Properties)
         {
             PropertyInfo? propertyInfo = property.PropertyInfo;

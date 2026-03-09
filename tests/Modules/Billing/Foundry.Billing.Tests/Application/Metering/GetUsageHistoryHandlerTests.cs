@@ -50,7 +50,7 @@ public class GetUsageHistoryHandlerTests
         DateTime to = DateTime.UtcNow;
 
         _usageRepository.GetHistoryAsync("api.calls", from, to, Arg.Any<CancellationToken>())
-            .Returns(Array.Empty<UsageRecord>());
+            .Returns([]);
 
         GetUsageHistoryQuery query = new("api.calls", from, to);
 
@@ -63,11 +63,11 @@ public class GetUsageHistoryHandlerTests
     [Fact]
     public async Task Handle_PassesCorrectParametersToRepository()
     {
-        DateTime from = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-        DateTime to = new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc);
+        DateTime from = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        DateTime to = new(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc);
 
         _usageRepository.GetHistoryAsync("storage.bytes", from, to, Arg.Any<CancellationToken>())
-            .Returns(Array.Empty<UsageRecord>());
+            .Returns([]);
 
         GetUsageHistoryQuery query = new("storage.bytes", from, to);
 

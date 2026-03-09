@@ -4,11 +4,9 @@ using Foundry.Identity.Application.DTOs;
 namespace Foundry.Identity.IntegrationTests.ServiceAccounts;
 
 [Trait("Category", "Integration")]
-public class RotateSecretTests : ServiceAccountIntegrationTestBase
+public class RotateSecretTests(ServiceAccountTestFactory factory) : ServiceAccountIntegrationTestBase(factory)
 {
     private static readonly string[] _invoicesReadScope = ["invoices.read"];
-
-    public RotateSecretTests(ServiceAccountTestFactory factory) : base(factory) { }
 
     [Fact]
     public async Task Should_Rotate_Secret_Successfully()

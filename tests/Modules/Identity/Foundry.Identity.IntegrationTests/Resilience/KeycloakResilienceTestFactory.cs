@@ -65,10 +65,17 @@ public class KeycloakResilienceTestFactory : FoundryApiFactory
                 options.AttemptTimeout.Timeout = TimeSpan.FromSeconds(10);
             });
 
-            // Remove all health checks so the app starts without infrastructure
+            // Remove infrastructure health checks that require real containers,
+            // but keep keycloak so resilience tests can exercise it
             services.Configure<HealthCheckServiceOptions>(options =>
             {
-                options.Registrations.Clear();
+                List<HealthCheckRegistration> toRemove = options.Registrations
+                    .Where(r => r.Name != "keycloak")
+                    .ToList();
+                foreach (HealthCheckRegistration reg in toRemove)
+                {
+                    options.Registrations.Remove(reg);
+                }
             });
         });
     }

@@ -21,18 +21,8 @@ namespace Foundry.Communications.Api.Controllers;
 [Authorize]
 [Tags("Announcements")]
 [Produces("application/json")]
-public class AnnouncementsController : ControllerBase
+public class AnnouncementsController(IMessageBus bus, ITenantContext tenantContext, ICurrentUserService currentUserService) : ControllerBase
 {
-    private readonly IMessageBus _bus;
-    private readonly ITenantContext _tenantContext;
-    private readonly ICurrentUserService _currentUserService;
-
-    public AnnouncementsController(IMessageBus bus, ITenantContext tenantContext, ICurrentUserService currentUserService)
-    {
-        _bus = bus;
-        _tenantContext = tenantContext;
-        _currentUserService = currentUserService;
-    }
 
     /// <summary>
     /// Get active announcements for the current user.
@@ -43,7 +33,7 @@ public class AnnouncementsController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> GetAnnouncements(CancellationToken ct)
     {
-        Guid? userId = _currentUserService.GetCurrentUserId();
+        Guid? userId = currentUserService.GetCurrentUserId();
         if (userId is null)
         {
             return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
@@ -52,10 +42,10 @@ public class AnnouncementsController : ControllerBase
         IReadOnlyList<string> roles = GetUserRoles();
         string? planName = GetUserPlan();
 
-        Result<IReadOnlyList<AnnouncementDto>> result = await _bus.InvokeAsync<Result<IReadOnlyList<AnnouncementDto>>>(
+        Result<IReadOnlyList<AnnouncementDto>> result = await bus.InvokeAsync<Result<IReadOnlyList<AnnouncementDto>>>(
             new GetActiveAnnouncementsQuery(
                 userId.Value,
-                _tenantContext.TenantId.Value,
+                tenantContext.TenantId.Value,
                 planName,
                 roles),
             ct);
@@ -76,13 +66,13 @@ public class AnnouncementsController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> DismissAnnouncement(Guid id, CancellationToken ct)
     {
-        Guid? userId = _currentUserService.GetCurrentUserId();
+        Guid? userId = currentUserService.GetCurrentUserId();
         if (userId is null)
         {
             return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
         }
 
-        Result result = await _bus.InvokeAsync<Result>(
+        Result result = await bus.InvokeAsync<Result>(
             new DismissAnnouncementCommand(id, userId.Value),
             ct);
 

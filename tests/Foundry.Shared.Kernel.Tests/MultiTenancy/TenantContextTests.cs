@@ -8,7 +8,7 @@ public class TenantContextTests
     [Fact]
     public void SetTenant_WithValidId_SetsTenantIdAndResolved()
     {
-        TenantContext context = new TenantContext();
+        TenantContext context = new();
         TenantId tenantId = TenantId.New();
 
         context.SetTenant(tenantId, "Test Tenant");
@@ -21,7 +21,7 @@ public class TenantContextTests
     [Fact]
     public void SetTenant_WithoutName_DefaultsToEmptyString()
     {
-        TenantContext context = new TenantContext();
+        TenantContext context = new();
         TenantId tenantId = TenantId.New();
 
         context.SetTenant(tenantId);
@@ -34,7 +34,7 @@ public class TenantContextTests
     [Fact]
     public void Clear_AfterSetTenant_ResetsAllProperties()
     {
-        TenantContext context = new TenantContext();
+        TenantContext context = new();
         context.SetTenant(TenantId.New(), "Test Tenant");
 
         context.Clear();
@@ -47,7 +47,7 @@ public class TenantContextTests
     [Fact]
     public void IsResolved_WhenNewlyCreated_ReturnsFalse()
     {
-        TenantContext context = new TenantContext();
+        TenantContext context = new();
 
         context.IsResolved.Should().BeFalse();
     }
@@ -55,7 +55,7 @@ public class TenantContextTests
     [Fact]
     public void TenantId_WhenNewlyCreated_ReturnsDefault()
     {
-        TenantContext context = new TenantContext();
+        TenantContext context = new();
 
         context.TenantId.Should().Be(default(TenantId));
     }
@@ -63,7 +63,7 @@ public class TenantContextTests
     [Fact]
     public void TenantName_WhenNewlyCreated_ReturnsEmptyString()
     {
-        TenantContext context = new TenantContext();
+        TenantContext context = new();
 
         context.TenantName.Should().BeEmpty();
     }
@@ -71,7 +71,7 @@ public class TenantContextTests
     [Fact]
     public void SetTenant_CalledTwice_OverwritesPreviousValues()
     {
-        TenantContext context = new TenantContext();
+        TenantContext context = new();
         TenantId firstId = TenantId.New();
         TenantId secondId = TenantId.New();
 

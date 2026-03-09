@@ -5,33 +5,21 @@ using Microsoft.Extensions.Logging;
 
 namespace Foundry.Communications.Infrastructure.Jobs;
 
-public sealed partial class RetryFailedEmailsJob
+public sealed partial class RetryFailedEmailsJob(
+    IEmailMessageRepository emailMessageRepository,
+    IEmailService emailService,
+    TimeProvider timeProvider,
+    ILogger<RetryFailedEmailsJob> logger)
 {
-    private readonly IEmailMessageRepository _emailMessageRepository;
-    private readonly IEmailService _emailService;
-    private readonly TimeProvider _timeProvider;
-    private readonly ILogger<RetryFailedEmailsJob> _logger;
-
-    public RetryFailedEmailsJob(
-        IEmailMessageRepository emailMessageRepository,
-        IEmailService emailService,
-        TimeProvider timeProvider,
-        ILogger<RetryFailedEmailsJob> logger)
-    {
-        _emailMessageRepository = emailMessageRepository;
-        _emailService = emailService;
-        _timeProvider = timeProvider;
-        _logger = logger;
-    }
 
     public async Task ExecuteAsync(CancellationToken cancellationToken = default)
     {
-        LogRetryJobStarted(_logger);
+        LogRetryJobStarted(logger);
         int retriedCount = 0;
 
         try
         {
-            IReadOnlyList<EmailMessage> failedMessages = await _emailMessageRepository
+            IReadOnlyList<EmailMessage> failedMessages = await emailMessageRepository
                 .GetFailedRetryableAsync(maxRetries: 3, limit: 100, cancellationToken);
 
             foreach (EmailMessage message in failedMessages)
@@ -43,32 +31,32 @@ public sealed partial class RetryFailedEmailsJob
 
                 try
                 {
-                    message.ResetForRetry(_timeProvider);
+                    message.ResetForRetry(timeProvider);
 
-                    await _emailService.SendAsync(
+                    await emailService.SendAsync(
                         message.To.Value,
                         message.From?.Value,
                         message.Content.Subject,
                         message.Content.Body,
                         cancellationToken);
 
-                    message.MarkAsSent(_timeProvider);
+                    message.MarkAsSent(timeProvider);
                     retriedCount++;
-                    LogEmailRetrySucceeded(_logger, message.Id.Value);
+                    LogEmailRetrySucceeded(logger, message.Id.Value);
                 }
                 catch (Exception ex)
                 {
-                    message.MarkAsFailed(ex.Message, _timeProvider);
-                    LogEmailRetryFailed(_logger, ex, message.Id.Value);
+                    message.MarkAsFailed(ex.Message, timeProvider);
+                    LogEmailRetryFailed(logger, ex, message.Id.Value);
                 }
             }
 
-            await _emailMessageRepository.SaveChangesAsync(cancellationToken);
-            LogRetryJobCompleted(_logger, retriedCount, failedMessages.Count);
+            await emailMessageRepository.SaveChangesAsync(cancellationToken);
+            LogRetryJobCompleted(logger, retriedCount, failedMessages.Count);
         }
         catch (Exception ex)
         {
-            LogRetryJobError(_logger, ex);
+            LogRetryJobError(logger, ex);
             throw;
         }
     }

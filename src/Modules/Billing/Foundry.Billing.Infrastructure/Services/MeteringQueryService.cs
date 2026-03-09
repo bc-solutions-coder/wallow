@@ -5,22 +5,14 @@ using Foundry.Shared.Contracts.Metering;
 
 namespace Foundry.Billing.Infrastructure.Services;
 
-public sealed class MeteringQueryService : IMeteringQueryService
+public sealed class MeteringQueryService(
+    IUsageRecordRepository usageRecordRepository,
+    IQuotaDefinitionRepository quotaDefinitionRepository) : IMeteringQueryService
 {
-    private readonly IUsageRecordRepository _usageRecordRepository;
-    private readonly IQuotaDefinitionRepository _quotaDefinitionRepository;
-
-    public MeteringQueryService(
-        IUsageRecordRepository usageRecordRepository,
-        IQuotaDefinitionRepository quotaDefinitionRepository)
-    {
-        _usageRecordRepository = usageRecordRepository;
-        _quotaDefinitionRepository = quotaDefinitionRepository;
-    }
 
     public async Task<QuotaStatus?> CheckQuotaAsync(Guid tenantId, string meterCode, CancellationToken ct = default)
     {
-        QuotaDefinition? quota = await _quotaDefinitionRepository.GetEffectiveQuotaAsync(
+        QuotaDefinition? quota = await quotaDefinitionRepository.GetEffectiveQuotaAsync(
             meterCode,
             planCode: null,
             ct);
@@ -32,7 +24,7 @@ public sealed class MeteringQueryService : IMeteringQueryService
 
         (DateTime periodStart, DateTime periodEnd) = GetCurrentPeriodBounds(quota.Period);
 
-        IReadOnlyList<UsageRecord> usageRecords = await _usageRecordRepository.GetHistoryAsync(
+        IReadOnlyList<UsageRecord> usageRecords = await usageRecordRepository.GetHistoryAsync(
             meterCode,
             periodStart,
             periodEnd,

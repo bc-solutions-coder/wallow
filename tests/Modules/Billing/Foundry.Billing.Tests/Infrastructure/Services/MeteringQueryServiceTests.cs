@@ -104,7 +104,7 @@ public class MeteringQueryServiceTests
 
         _usageRecordRepository.GetHistoryAsync(
                 "api.calls", Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
-            .Returns(new List<UsageRecord>());
+            .Returns([]);
 
         QuotaStatus? result = await _service.CheckQuotaAsync(tenantId, "api.calls");
 
@@ -126,7 +126,7 @@ public class MeteringQueryServiceTests
 
         _usageRecordRepository.GetHistoryAsync(
                 "api.calls", Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
-            .Returns(new List<UsageRecord>());
+            .Returns([]);
 
         await _service.CheckQuotaAsync(tenantId, "api.calls");
 
@@ -149,7 +149,7 @@ public class MeteringQueryServiceTests
 
         _usageRecordRepository.GetHistoryAsync(
                 "api.calls", Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
-            .Returns(new List<UsageRecord>());
+            .Returns([]);
 
         await _service.CheckQuotaAsync(tenantId, "api.calls");
 

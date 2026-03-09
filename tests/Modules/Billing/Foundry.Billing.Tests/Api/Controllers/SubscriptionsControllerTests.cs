@@ -28,7 +28,7 @@ public class SubscriptionsControllerTests
         _currentUserService.GetCurrentUserId().Returns(_userId);
         _controller = new SubscriptionsController(_bus, _currentUserService);
 
-        ClaimsPrincipal user = new ClaimsPrincipal(new ClaimsIdentity(new[]
+        ClaimsPrincipal user = new(new ClaimsIdentity(new[]
         {
             new Claim(ClaimTypes.NameIdentifier, _userId.ToString())
         }, "TestAuth"));
@@ -147,7 +147,7 @@ public class SubscriptionsControllerTests
     public async Task GetByUserId_WhenEmpty_ReturnsOkWithEmptyList()
     {
         _bus.InvokeAsync<Result<IReadOnlyList<SubscriptionDto>>>(Arg.Any<GetSubscriptionsByUserIdQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success<IReadOnlyList<SubscriptionDto>>(new List<SubscriptionDto>()));
+            .Returns(Result.Success<IReadOnlyList<SubscriptionDto>>([]));
 
         IActionResult result = await _controller.GetByUserId(Guid.NewGuid(), CancellationToken.None);
 
@@ -161,7 +161,7 @@ public class SubscriptionsControllerTests
     {
         Guid userId = Guid.NewGuid();
         _bus.InvokeAsync<Result<IReadOnlyList<SubscriptionDto>>>(Arg.Any<GetSubscriptionsByUserIdQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success<IReadOnlyList<SubscriptionDto>>(new List<SubscriptionDto>()));
+            .Returns(Result.Success<IReadOnlyList<SubscriptionDto>>([]));
 
         await _controller.GetByUserId(userId, CancellationToken.None);
 

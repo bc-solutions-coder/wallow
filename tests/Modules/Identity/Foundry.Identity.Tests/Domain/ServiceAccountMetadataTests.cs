@@ -45,7 +45,7 @@ public class ServiceAccountMetadataTests
             "",
             "Test Service Account",
             null,
-            Array.Empty<string>(),
+            [],
             _testUserId, TimeProvider.System);
 
         // Assert
@@ -62,7 +62,7 @@ public class ServiceAccountMetadataTests
             "sa-test-client",
             "",
             null,
-            Array.Empty<string>(),
+            [],
             _testUserId, TimeProvider.System);
 
         // Assert
@@ -79,7 +79,7 @@ public class ServiceAccountMetadataTests
             "sa-test-client",
             "Test",
             null,
-            Array.Empty<string>(),
+            [],
             _testUserId, TimeProvider.System);
         DateTime beforeMark = DateTime.UtcNow;
 
@@ -101,7 +101,7 @@ public class ServiceAccountMetadataTests
             "sa-test-client",
             "Test",
             null,
-            Array.Empty<string>(),
+            [],
             _testUserId, TimeProvider.System);
 
         // Act
@@ -120,7 +120,7 @@ public class ServiceAccountMetadataTests
             "sa-test-client",
             "Test",
             null,
-            Array.Empty<string>(),
+            [],
             _testUserId, TimeProvider.System);
         metadata.Revoke(_testUserId, TimeProvider.System);
 
@@ -160,7 +160,7 @@ public class ServiceAccountMetadataTests
             "sa-test-client",
             "Test",
             null,
-            Array.Empty<string>(),
+            [],
             _testUserId, TimeProvider.System);
         metadata.Revoke(_testUserId, TimeProvider.System);
 
@@ -181,7 +181,7 @@ public class ServiceAccountMetadataTests
             "sa-test-client",
             "Original Name",
             "Original Description",
-            Array.Empty<string>(),
+            [],
             _testUserId, TimeProvider.System);
 
         // Act
@@ -201,7 +201,7 @@ public class ServiceAccountMetadataTests
             "sa-test-client",
             "Test",
             null,
-            Array.Empty<string>(),
+            [],
             _testUserId, TimeProvider.System);
         metadata.Revoke(_testUserId, TimeProvider.System);
 
@@ -222,7 +222,7 @@ public class ServiceAccountMetadataTests
             "sa-test-client",
             "Test",
             null,
-            Array.Empty<string>(),
+            [],
             _testUserId, TimeProvider.System);
 
         // Act

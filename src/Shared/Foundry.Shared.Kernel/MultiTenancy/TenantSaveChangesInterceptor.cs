@@ -4,14 +4,8 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace Foundry.Shared.Kernel.MultiTenancy;
 
-public class TenantSaveChangesInterceptor : SaveChangesInterceptor
+public class TenantSaveChangesInterceptor(ITenantContext tenantContext) : SaveChangesInterceptor
 {
-    private readonly ITenantContext _tenantContext;
-
-    public TenantSaveChangesInterceptor(ITenantContext tenantContext)
-    {
-        _tenantContext = tenantContext;
-    }
 
     public override InterceptionResult<int> SavingChanges(
         DbContextEventData eventData, InterceptionResult<int> result)
@@ -30,7 +24,7 @@ public class TenantSaveChangesInterceptor : SaveChangesInterceptor
 
     private void SetTenantId(DbContext? context)
     {
-        if (context == null || !_tenantContext.IsResolved)
+        if (context == null || !tenantContext.IsResolved)
         {
             return;
         }
@@ -41,7 +35,7 @@ public class TenantSaveChangesInterceptor : SaveChangesInterceptor
 
         foreach (EntityEntry<ITenantScoped> entry in entries)
         {
-            entry.Property(nameof(ITenantScoped.TenantId)).CurrentValue = _tenantContext.TenantId;
+            entry.Property(nameof(ITenantScoped.TenantId)).CurrentValue = tenantContext.TenantId;
         }
 
         IEnumerable<EntityEntry<ITenantScoped>> modified = context.ChangeTracker

@@ -42,7 +42,7 @@ public class ResponseContractTests
     public void CurrentUserResponse_WithAllFields_CreatesInstance()
     {
         Guid id = Guid.NewGuid();
-        CurrentUserResponse response = new()
+        CurrentUserResponse response = new CurrentUserResponse()
         {
             Id = id,
             Email = "user@test.com",
@@ -63,7 +63,7 @@ public class ResponseContractTests
     [Fact]
     public void CurrentUserResponse_Defaults_HaveEmptyValues()
     {
-        CurrentUserResponse response = new();
+        CurrentUserResponse response = new CurrentUserResponse();
 
         response.Id.Should().Be(Guid.Empty);
         response.Email.Should().Be(string.Empty);
@@ -110,7 +110,7 @@ public class ResponseContractTests
     public void ApiKeyCreatedResponse_WithNullExpiry_CreatesCorrectly()
     {
         ApiKeyCreatedResponse response = new(
-            "k1", "key", "pfx", "Name", Array.Empty<string>(), null);
+            "k1", "key", "pfx", "Name", [], null);
 
         response.ExpiresAt.Should().BeNull();
     }
@@ -142,7 +142,7 @@ public class ResponseContractTests
     public void ApiKeyResponse_WithNullOptionalFields_CreatesCorrectly()
     {
         DateTimeOffset created = DateTimeOffset.UtcNow;
-        ApiKeyResponse response = new("k1", "Key", "pfx", Array.Empty<string>(), created, null, null);
+        ApiKeyResponse response = new("k1", "Key", "pfx", [], created, null, null);
 
         response.ExpiresAt.Should().BeNull();
         response.LastUsedAt.Should().BeNull();
@@ -155,7 +155,7 @@ public class ResponseContractTests
     [Fact]
     public void ServiceAccountCreatedResponse_WithAllFields_CreatesInstance()
     {
-        ServiceAccountCreatedResponse response = new()
+        ServiceAccountCreatedResponse response = new ServiceAccountCreatedResponse()
         {
             Id = "sa-id",
             ClientId = "client-backend",
@@ -180,7 +180,7 @@ public class ResponseContractTests
     public void SecretRotatedResponse_WithAllFields_CreatesInstance()
     {
         DateTime rotatedAt = DateTime.UtcNow;
-        SecretRotatedResponse response = new()
+        SecretRotatedResponse response = new SecretRotatedResponse()
         {
             NewClientSecret = "new-secret",
             RotatedAt = rotatedAt

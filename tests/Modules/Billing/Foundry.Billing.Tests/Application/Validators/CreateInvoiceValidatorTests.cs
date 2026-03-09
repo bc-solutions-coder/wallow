@@ -10,7 +10,7 @@ public class CreateInvoiceValidatorTests
     [Fact]
     public void Should_Have_Error_When_UserId_Is_Empty()
     {
-        CreateInvoiceCommand command = new CreateInvoiceCommand(
+        CreateInvoiceCommand command = new(
             Guid.Empty,
             "INV-001",
             "USD",
@@ -26,7 +26,7 @@ public class CreateInvoiceValidatorTests
     [Fact]
     public void Should_Have_Error_When_InvoiceNumber_Is_Empty()
     {
-        CreateInvoiceCommand command = new CreateInvoiceCommand(
+        CreateInvoiceCommand command = new(
             Guid.NewGuid(),
             "",
             "USD",
@@ -42,7 +42,7 @@ public class CreateInvoiceValidatorTests
     [Fact]
     public void Should_Have_Error_When_InvoiceNumber_Exceeds_MaxLength()
     {
-        CreateInvoiceCommand command = new CreateInvoiceCommand(
+        CreateInvoiceCommand command = new(
             Guid.NewGuid(),
             new string('A', 51),
             "USD",
@@ -58,7 +58,7 @@ public class CreateInvoiceValidatorTests
     [Fact]
     public void Should_Have_Error_When_Currency_Is_Empty()
     {
-        CreateInvoiceCommand command = new CreateInvoiceCommand(
+        CreateInvoiceCommand command = new(
             Guid.NewGuid(),
             "INV-001",
             "",
@@ -77,7 +77,7 @@ public class CreateInvoiceValidatorTests
     [InlineData("U")]
     public void Should_Have_Error_When_Currency_Is_Not_3_Characters(string currency)
     {
-        CreateInvoiceCommand command = new CreateInvoiceCommand(
+        CreateInvoiceCommand command = new(
             Guid.NewGuid(),
             "INV-001",
             currency,
@@ -93,7 +93,7 @@ public class CreateInvoiceValidatorTests
     [Fact]
     public void Should_Not_Have_Error_When_Command_Is_Valid()
     {
-        CreateInvoiceCommand command = new CreateInvoiceCommand(
+        CreateInvoiceCommand command = new(
             Guid.NewGuid(),
             "INV-001",
             "USD",
@@ -108,7 +108,7 @@ public class CreateInvoiceValidatorTests
     [Fact]
     public void Should_Not_Have_Error_When_DueDate_Is_Null()
     {
-        CreateInvoiceCommand command = new CreateInvoiceCommand(
+        CreateInvoiceCommand command = new(
             Guid.NewGuid(),
             "INV-001",
             "USD",

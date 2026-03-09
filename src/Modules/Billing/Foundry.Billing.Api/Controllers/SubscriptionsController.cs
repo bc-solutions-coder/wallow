@@ -23,16 +23,8 @@ namespace Foundry.Billing.Api.Controllers;
 [Tags("Subscriptions")]
 [Produces("application/json")]
 [Consumes("application/json")]
-public class SubscriptionsController : ControllerBase
+public class SubscriptionsController(IMessageBus bus, ICurrentUserService currentUserService) : ControllerBase
 {
-    private readonly IMessageBus _bus;
-    private readonly ICurrentUserService _currentUserService;
-
-    public SubscriptionsController(IMessageBus bus, ICurrentUserService currentUserService)
-    {
-        _bus = bus;
-        _currentUserService = currentUserService;
-    }
 
     /// <summary>
     /// Get a specific subscription by ID.
@@ -43,7 +35,7 @@ public class SubscriptionsController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
     {
-        Result<SubscriptionDto> result = await _bus.InvokeAsync<Result<SubscriptionDto>>(
+        Result<SubscriptionDto> result = await bus.InvokeAsync<Result<SubscriptionDto>>(
             new GetSubscriptionByIdQuery(id), cancellationToken);
 
         return result.Map(ToSubscriptionResponse).ToActionResult();
@@ -57,7 +49,7 @@ public class SubscriptionsController : ControllerBase
     [ProducesResponseType(typeof(IReadOnlyList<SubscriptionResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetByUserId(Guid userId, CancellationToken cancellationToken)
     {
-        Result<IReadOnlyList<SubscriptionDto>> result = await _bus.InvokeAsync<Result<IReadOnlyList<SubscriptionDto>>>(
+        Result<IReadOnlyList<SubscriptionDto>> result = await bus.InvokeAsync<Result<IReadOnlyList<SubscriptionDto>>>(
             new GetSubscriptionsByUserIdQuery(userId), cancellationToken);
 
         return result.Map(subscriptions =>
@@ -76,13 +68,13 @@ public class SubscriptionsController : ControllerBase
         [FromBody] CreateSubscriptionRequest request,
         CancellationToken cancellationToken)
     {
-        Guid? currentUserId = _currentUserService.GetCurrentUserId();
+        Guid? currentUserId = currentUserService.GetCurrentUserId();
         if (currentUserId is null)
         {
             return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
         }
 
-        CreateSubscriptionCommand command = new CreateSubscriptionCommand(
+        CreateSubscriptionCommand command = new(
             currentUserId.Value,
             request.PlanName,
             request.Price,
@@ -90,7 +82,7 @@ public class SubscriptionsController : ControllerBase
             request.StartDate,
             request.PeriodEnd);
 
-        Result<SubscriptionDto> result = await _bus.InvokeAsync<Result<SubscriptionDto>>(command, cancellationToken);
+        Result<SubscriptionDto> result = await bus.InvokeAsync<Result<SubscriptionDto>>(command, cancellationToken);
 
         if (!result.IsSuccess)
         {
@@ -111,15 +103,15 @@ public class SubscriptionsController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Cancel(Guid id, CancellationToken cancellationToken)
     {
-        Guid? currentUserId = _currentUserService.GetCurrentUserId();
+        Guid? currentUserId = currentUserService.GetCurrentUserId();
         if (currentUserId is null)
         {
             return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
         }
 
-        CancelSubscriptionCommand command = new CancelSubscriptionCommand(id, currentUserId.Value);
+        CancelSubscriptionCommand command = new(id, currentUserId.Value);
 
-        Result result = await _bus.InvokeAsync<Result>(command, cancellationToken);
+        Result result = await bus.InvokeAsync<Result>(command, cancellationToken);
 
         if (result.IsSuccess)
         {

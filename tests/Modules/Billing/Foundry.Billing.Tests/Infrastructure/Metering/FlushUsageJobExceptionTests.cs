@@ -47,11 +47,10 @@ public class FlushUsageJobExceptionTests
     {
         Guid tenantId1 = Guid.NewGuid();
         Guid tenantId2 = Guid.NewGuid();
-        RedisValue[] members = new RedisValue[]
-        {
+        RedisValue[] members = [
             $"meter:{tenantId1}:api.calls:2024-02",
             $"meter:{tenantId2}:api.calls:2024-02"
-        };
+        ];
 
         _database.SetMembersAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
             .Returns(members);
@@ -87,7 +86,7 @@ public class FlushUsageJobExceptionTests
         string key = $"meter:{tenantId}:api.calls:2024-02";
 
         _database.SetMembersAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
-            .Returns(new RedisValue[] { key });
+            .Returns([key]);
 
         _database.StringGetSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<CommandFlags>())
             .Returns(new RedisValue("-5"));
@@ -105,7 +104,7 @@ public class FlushUsageJobExceptionTests
         string key = "other:00000000-0000-0000-0000-000000000001:api.calls:2024-02";
 
         _database.SetMembersAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
-            .Returns(new RedisValue[] { key });
+            .Returns([key]);
 
         await _job.ExecuteAsync(CancellationToken.None);
 
@@ -119,7 +118,7 @@ public class FlushUsageJobExceptionTests
         System.Reflection.MethodInfo? method = typeof(FlushUsageJob).GetMethod("ParsePeriod",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
 
-        Action act = () => method!.Invoke(null, new object[] { "2024-02-06-14-30" });
+        Action act = () => method!.Invoke(null, ["2024-02-06-14-30"]);
 
         act.Should().Throw<System.Reflection.TargetInvocationException>()
             .WithInnerException<ArgumentException>()

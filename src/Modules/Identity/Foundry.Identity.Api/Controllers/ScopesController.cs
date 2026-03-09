@@ -18,14 +18,8 @@ namespace Foundry.Identity.Api.Controllers;
 [Authorize]
 [Tags("API Scopes")]
 [Produces("application/json")]
-public class ScopesController : ControllerBase
+public class ScopesController(IApiScopeRepository apiScopeRepository) : ControllerBase
 {
-    private readonly IApiScopeRepository _apiScopeRepository;
-
-    public ScopesController(IApiScopeRepository apiScopeRepository)
-    {
-        _apiScopeRepository = apiScopeRepository;
-    }
 
     /// <summary>
     /// List available API scopes with optional category filter.
@@ -37,7 +31,7 @@ public class ScopesController : ControllerBase
         [FromQuery] string? category = null,
         CancellationToken ct = default)
     {
-        IReadOnlyList<ApiScope> scopes = await _apiScopeRepository.GetAllAsync(category, ct);
+        IReadOnlyList<ApiScope> scopes = await apiScopeRepository.GetAllAsync(category, ct);
 
         List<ApiScopeDto> dtos = scopes
             .Select(s => new ApiScopeDto(

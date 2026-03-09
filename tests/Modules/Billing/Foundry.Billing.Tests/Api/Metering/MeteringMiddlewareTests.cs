@@ -42,8 +42,7 @@ public class MeteringMiddlewareTests
     [InlineData("/")]
     public async Task InvokeAsync_NonApiRoute_ShouldSkipMetering(string path)
     {
-        DefaultHttpContext context = new();
-        context.Request.Path = path;
+        DefaultHttpContext context = new() { Request = { Path = path } };
 
         await _middleware.InvokeAsync(context, _meteringService, _tenantContext, _messageBus);
 
@@ -54,8 +53,7 @@ public class MeteringMiddlewareTests
     [Fact]
     public async Task InvokeAsync_QuotaExceeded_ShouldReturn429()
     {
-        DefaultHttpContext context = new();
-        context.Request.Path = "/api/users";
+        DefaultHttpContext context = new() { Request = { Path = "/api/users" } };
         context.Response.Body = new MemoryStream();
 
         _meteringService.CheckQuotaAsync("api.calls")
@@ -78,8 +76,7 @@ public class MeteringMiddlewareTests
     [Fact]
     public async Task InvokeAsync_QuotaExceededWithWarnAction_ShouldAllowRequest()
     {
-        DefaultHttpContext context = new();
-        context.Request.Path = "/api/users";
+        DefaultHttpContext context = new() { Request = { Path = "/api/users" } };
         context.Response.Body = new MemoryStream();
 
         _meteringService.CheckQuotaAsync("api.calls")
@@ -99,8 +96,7 @@ public class MeteringMiddlewareTests
     [Fact]
     public async Task InvokeAsync_SuccessfulRequest_ShouldIncrementCounter()
     {
-        DefaultHttpContext context = new();
-        context.Request.Path = "/api/users";
+        DefaultHttpContext context = new() { Request = { Path = "/api/users" } };
         context.Response.StatusCode = 200;
 
         _meteringService.CheckQuotaAsync("api.calls")
@@ -122,8 +118,7 @@ public class MeteringMiddlewareTests
     [InlineData(500)]
     public async Task InvokeAsync_FailedRequest_ShouldNotIncrementCounter(int statusCode)
     {
-        DefaultHttpContext context = new();
-        context.Request.Path = "/api/users";
+        DefaultHttpContext context = new() { Request = { Path = "/api/users" } };
         context.Response.StatusCode = statusCode;
 
         _meteringService.CheckQuotaAsync("api.calls")
@@ -142,8 +137,7 @@ public class MeteringMiddlewareTests
     [Fact]
     public async Task InvokeAsync_Above80Percent_ShouldAddWarningHeader()
     {
-        DefaultHttpContext context = new();
-        context.Request.Path = "/api/users";
+        DefaultHttpContext context = new() { Request = { Path = "/api/users" } };
         context.Response.StatusCode = 200;
 
         _meteringService.CheckQuotaAsync("api.calls")
@@ -162,8 +156,7 @@ public class MeteringMiddlewareTests
     [Fact]
     public async Task InvokeAsync_Below80Percent_ShouldNotAddWarningHeader()
     {
-        DefaultHttpContext context = new();
-        context.Request.Path = "/api/users";
+        DefaultHttpContext context = new() { Request = { Path = "/api/users" } };
         context.Response.StatusCode = 200;
 
         _meteringService.CheckQuotaAsync("api.calls")
@@ -182,8 +175,7 @@ public class MeteringMiddlewareTests
     [Fact]
     public async Task InvokeAsync_WithQuota_ShouldAddRateLimitHeaders()
     {
-        DefaultHttpContext context = new();
-        context.Request.Path = "/api/users";
+        DefaultHttpContext context = new() { Request = { Path = "/api/users" } };
         context.Response.StatusCode = 200;
 
         _meteringService.CheckQuotaAsync("api.calls")
@@ -204,8 +196,7 @@ public class MeteringMiddlewareTests
     [Fact]
     public async Task InvokeAsync_WithUnlimitedQuota_ShouldNotAddRateLimitHeaders()
     {
-        DefaultHttpContext context = new();
-        context.Request.Path = "/api/users";
+        DefaultHttpContext context = new() { Request = { Path = "/api/users" } };
         context.Response.StatusCode = 200;
 
         _meteringService.CheckQuotaAsync("api.calls")
@@ -225,8 +216,7 @@ public class MeteringMiddlewareTests
     [Fact]
     public async Task InvokeAsync_ShouldCheckQuotaBeforeProcessing()
     {
-        DefaultHttpContext context = new();
-        context.Request.Path = "/api/users";
+        DefaultHttpContext context = new() { Request = { Path = "/api/users" } };
         bool checkQuotaCalled = false;
 
         _meteringService.CheckQuotaAsync("api.calls")

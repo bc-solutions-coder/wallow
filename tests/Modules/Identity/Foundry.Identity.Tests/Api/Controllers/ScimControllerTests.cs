@@ -27,7 +27,7 @@ public class ScimControllerTests
     [Fact]
     public async Task ListUsers_ReturnsOkWithScimListResponse()
     {
-        ScimListResponse<ScimUser> listResponse = new()
+        ScimListResponse<ScimUser> listResponse = new ScimListResponse<ScimUser>()
         {
             TotalResults = 1,
             StartIndex = 1,
@@ -47,7 +47,7 @@ public class ScimControllerTests
     [Fact]
     public async Task ListUsers_PassesParametersToService()
     {
-        ScimListResponse<ScimUser> listResponse = new() { Resources = new List<ScimUser>() };
+        ScimListResponse<ScimUser> listResponse = new ScimListResponse<ScimUser>() { Resources = [] };
         ScimListRequest? capturedRequest = null;
         _scimService.ListUsersAsync(Arg.Do<ScimListRequest>(r => capturedRequest = r), Arg.Any<CancellationToken>())
             .Returns(listResponse);
@@ -98,7 +98,7 @@ public class ScimControllerTests
     [Fact]
     public async Task CreateUser_WithValidRequest_ReturnsCreated()
     {
-        ScimUserRequest request = new();
+        ScimUserRequest request = new ScimUserRequest();
         ScimUser createdUser = CreateScimUser("new-user");
         _scimService.CreateUserAsync(Arg.Any<ScimUserRequest>(), Arg.Any<CancellationToken>())
             .Returns(createdUser);
@@ -112,7 +112,7 @@ public class ScimControllerTests
     [Fact]
     public async Task CreateUser_WhenServiceThrows_ReturnsBadRequest()
     {
-        ScimUserRequest request = new();
+        ScimUserRequest request = new ScimUserRequest();
         _scimService.CreateUserAsync(Arg.Any<ScimUserRequest>(), Arg.Any<CancellationToken>())
             .Throws(new InvalidOperationException("Duplicate user"));
 
@@ -132,7 +132,7 @@ public class ScimControllerTests
     [Fact]
     public async Task UpdateUser_WhenSuccess_ReturnsOk()
     {
-        ScimUserRequest request = new();
+        ScimUserRequest request = new ScimUserRequest();
         ScimUser updatedUser = CreateScimUser("user-1");
         _scimService.UpdateUserAsync("user-1", Arg.Any<ScimUserRequest>(), Arg.Any<CancellationToken>())
             .Returns(updatedUser);
@@ -145,7 +145,7 @@ public class ScimControllerTests
     [Fact]
     public async Task UpdateUser_WhenServiceThrows_ReturnsBadRequest()
     {
-        ScimUserRequest request = new();
+        ScimUserRequest request = new ScimUserRequest();
         _scimService.UpdateUserAsync("user-1", Arg.Any<ScimUserRequest>(), Arg.Any<CancellationToken>())
             .Throws(new InvalidOperationException("Invalid update"));
 
@@ -163,7 +163,7 @@ public class ScimControllerTests
     [Fact]
     public async Task PatchUser_WhenSuccess_ReturnsOk()
     {
-        ScimPatchRequest request = new();
+        ScimPatchRequest request = new ScimPatchRequest();
         ScimUser patchedUser = CreateScimUser("user-1");
         _scimService.PatchUserAsync("user-1", Arg.Any<ScimPatchRequest>(), Arg.Any<CancellationToken>())
             .Returns(patchedUser);
@@ -176,7 +176,7 @@ public class ScimControllerTests
     [Fact]
     public async Task PatchUser_WhenServiceThrows_ReturnsBadRequest()
     {
-        ScimPatchRequest request = new();
+        ScimPatchRequest request = new ScimPatchRequest();
         _scimService.PatchUserAsync("user-1", Arg.Any<ScimPatchRequest>(), Arg.Any<CancellationToken>())
             .Throws(new InvalidOperationException("Patch failed"));
 
@@ -220,10 +220,10 @@ public class ScimControllerTests
     [Fact]
     public async Task ListGroups_ReturnsOkWithGroups()
     {
-        ScimListResponse<ScimGroup> listResponse = new()
+        ScimListResponse<ScimGroup> listResponse = new ScimListResponse<ScimGroup>()
         {
             TotalResults = 0,
-            Resources = new List<ScimGroup>()
+            Resources = []
         };
         _scimService.ListGroupsAsync(Arg.Any<ScimListRequest>(), Arg.Any<CancellationToken>())
             .Returns(listResponse);
@@ -240,7 +240,7 @@ public class ScimControllerTests
     [Fact]
     public async Task GetGroup_WhenFound_ReturnsOk()
     {
-        ScimGroup group = new() { Id = "group-1", DisplayName = "Test Group" };
+        ScimGroup group = new ScimGroup() { Id = "group-1", DisplayName = "Test Group" };
         _scimService.GetGroupAsync("group-1", Arg.Any<CancellationToken>())
             .Returns(group);
 
@@ -271,8 +271,8 @@ public class ScimControllerTests
     [Fact]
     public async Task CreateGroup_WhenSuccess_ReturnsCreated()
     {
-        ScimGroupRequest request = new();
-        ScimGroup group = new() { Id = "group-new", DisplayName = "Developers" };
+        ScimGroupRequest request = new ScimGroupRequest();
+        ScimGroup group = new ScimGroup() { Id = "group-new", DisplayName = "Developers" };
         _scimService.CreateGroupAsync(Arg.Any<ScimGroupRequest>(), Arg.Any<CancellationToken>())
             .Returns(group);
 
@@ -285,7 +285,7 @@ public class ScimControllerTests
     [Fact]
     public async Task CreateGroup_WhenServiceThrows_ReturnsBadRequest()
     {
-        ScimGroupRequest request = new();
+        ScimGroupRequest request = new ScimGroupRequest();
         _scimService.CreateGroupAsync(Arg.Any<ScimGroupRequest>(), Arg.Any<CancellationToken>())
             .Throws(new InvalidOperationException("Group exists"));
 
@@ -301,8 +301,8 @@ public class ScimControllerTests
     [Fact]
     public async Task UpdateGroup_WhenSuccess_ReturnsOk()
     {
-        ScimGroupRequest request = new();
-        ScimGroup group = new() { Id = "group-1" };
+        ScimGroupRequest request = new ScimGroupRequest();
+        ScimGroup group = new ScimGroup() { Id = "group-1" };
         _scimService.UpdateGroupAsync("group-1", Arg.Any<ScimGroupRequest>(), Arg.Any<CancellationToken>())
             .Returns(group);
 
@@ -314,7 +314,7 @@ public class ScimControllerTests
     [Fact]
     public async Task UpdateGroup_WhenServiceThrows_ReturnsBadRequest()
     {
-        ScimGroupRequest request = new();
+        ScimGroupRequest request = new ScimGroupRequest();
         _scimService.UpdateGroupAsync("group-1", Arg.Any<ScimGroupRequest>(), Arg.Any<CancellationToken>())
             .Throws(new InvalidOperationException("Update failed"));
 

@@ -16,7 +16,7 @@ public class RevenueReportServiceTests
         ITenantContext tenantContext = Substitute.For<ITenantContext>();
         tenantContext.TenantId.Returns(TenantId.Create(Guid.NewGuid()));
 
-        RevenueReportService service = new RevenueReportService(dbContext, tenantContext);
+        RevenueReportService service = new(dbContext, tenantContext);
 
         service.Should().NotBeNull();
     }

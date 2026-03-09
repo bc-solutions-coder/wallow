@@ -1,4 +1,5 @@
 // ReSharper disable UnusedAutoPropertyAccessor.Global
+// ReSharper disable UnusedAutoPropertyAccessor.Local
 namespace Foundry.Messaging.IntegrationTests.TestHandlers;
 
 public class CrossModuleEventTracker : ICrossModuleEventTracker

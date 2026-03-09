@@ -10,33 +10,17 @@ using Microsoft.Extensions.Options;
 
 namespace Foundry.Identity.Infrastructure.Services;
 
-public sealed partial class ScimGroupService
+public sealed partial class ScimGroupService(
+    IHttpClientFactory httpClientFactory,
+    IScimConfigurationRepository scimRepository,
+    IScimSyncLogRepository syncLogRepository,
+    ITenantContext tenantContext,
+    IOptions<KeycloakOptions> keycloakOptions,
+    ILogger<ScimGroupService> logger,
+    TimeProvider timeProvider)
 {
-    private readonly HttpClient _httpClient;
-    private readonly IScimConfigurationRepository _scimRepository;
-    private readonly IScimSyncLogRepository _syncLogRepository;
-    private readonly ITenantContext _tenantContext;
-    private readonly ILogger<ScimGroupService> _logger;
-    private readonly TimeProvider _timeProvider;
-    private readonly string _realm;
-
-    public ScimGroupService(
-        IHttpClientFactory httpClientFactory,
-        IScimConfigurationRepository scimRepository,
-        IScimSyncLogRepository syncLogRepository,
-        ITenantContext tenantContext,
-        IOptions<KeycloakOptions> keycloakOptions,
-        ILogger<ScimGroupService> logger,
-        TimeProvider timeProvider)
-    {
-        _httpClient = httpClientFactory.CreateClient("KeycloakAdminClient");
-        _scimRepository = scimRepository;
-        _syncLogRepository = syncLogRepository;
-        _tenantContext = tenantContext;
-        _realm = keycloakOptions.Value.Realm;
-        _logger = logger;
-        _timeProvider = timeProvider;
-    }
+    private readonly HttpClient _httpClient = httpClientFactory.CreateClient("KeycloakAdminClient");
+    private readonly string _realm = keycloakOptions.Value.Realm;
 
     public async Task<ScimGroup> CreateGroupAsync(ScimGroupRequest request, CancellationToken ct = default)
     {
@@ -291,24 +275,24 @@ public sealed partial class ScimGroupService
         try
         {
             ScimSyncLog log = ScimSyncLog.Create(
-                _tenantContext.TenantId,
+                tenantContext.TenantId,
                 operation,
                 resourceType,
                 externalId,
                 internalId,
                 success,
-                _timeProvider,
+                timeProvider,
                 errorMessage,
                 requestBody);
 
-            _syncLogRepository.Add(log);
-            await _syncLogRepository.SaveChangesAsync(ct);
+            syncLogRepository.Add(log);
+            await syncLogRepository.SaveChangesAsync(ct);
 
-            ScimConfiguration? config = await _scimRepository.GetAsync(ct);
+            ScimConfiguration? config = await scimRepository.GetAsync(ct);
             if (config != null)
             {
-                config.RecordSync(Guid.Empty, _timeProvider);
-                await _scimRepository.SaveChangesAsync(ct);
+                config.RecordSync(Guid.Empty, timeProvider);
+                await scimRepository.SaveChangesAsync(ct);
             }
         }
         catch (Exception ex)

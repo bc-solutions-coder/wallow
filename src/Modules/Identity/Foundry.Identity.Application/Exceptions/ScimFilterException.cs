@@ -10,20 +10,17 @@ public sealed class ScimFilterException : Exception
     {
     }
 
-    public ScimFilterException(string message, int position = -1)
-        : base(position >= 0 ? $"{message} at position {position}" : message)
+    public ScimFilterException(string message, int position = -1) : base(position >= 0 ? $"{message} at position {position}" : message)
     {
         Position = position;
     }
 
-    public ScimFilterException(string message, int position, Exception innerException)
-        : base(position >= 0 ? $"{message} at position {position}" : message, innerException)
+    public ScimFilterException(string message, int position, Exception innerException) : base(position >= 0 ? $"{message} at position {position}" : message, innerException)
     {
         Position = position;
     }
 
-    public ScimFilterException(string message, Exception innerException)
-        : base(message, innerException)
+    public ScimFilterException(string message, Exception innerException) : base(message, innerException)
     {
     }
 }

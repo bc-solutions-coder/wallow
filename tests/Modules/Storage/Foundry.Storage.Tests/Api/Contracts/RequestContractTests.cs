@@ -24,7 +24,7 @@ public class RequestContractTests
     [Fact]
     public void CreateBucketRequest_WithAllFields_CreatesInstance()
     {
-        List<string> contentTypes = new() { "image/png" };
+        List<string> contentTypes = ["image/png"];
         CreateBucketRequest request = new(
             "my-bucket",
             "A description",

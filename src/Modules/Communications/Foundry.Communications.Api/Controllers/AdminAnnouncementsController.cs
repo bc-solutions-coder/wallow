@@ -23,16 +23,8 @@ namespace Foundry.Communications.Api.Controllers;
 [HasPermission(PermissionType.AnnouncementManage)]
 [Tags("Admin - Announcements")]
 [Produces("application/json")]
-public class AdminAnnouncementsController : ControllerBase
+public class AdminAnnouncementsController(IMessageBus bus, IHtmlSanitizationService sanitizer) : ControllerBase
 {
-    private readonly IMessageBus _bus;
-    private readonly IHtmlSanitizationService _sanitizer;
-
-    public AdminAnnouncementsController(IMessageBus bus, IHtmlSanitizationService sanitizer)
-    {
-        _bus = bus;
-        _sanitizer = sanitizer;
-    }
 
     /// <summary>
     /// Get all announcements (admin view).
@@ -41,7 +33,7 @@ public class AdminAnnouncementsController : ControllerBase
     [ProducesResponseType(typeof(IReadOnlyList<AnnouncementResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAllAnnouncements(CancellationToken ct)
     {
-        Result<IReadOnlyList<AnnouncementDto>> result = await _bus.InvokeAsync<Result<IReadOnlyList<AnnouncementDto>>>(
+        Result<IReadOnlyList<AnnouncementDto>> result = await bus.InvokeAsync<Result<IReadOnlyList<AnnouncementDto>>>(
             new GetAllAnnouncementsQuery(), ct);
 
         return result.Map(dtos =>
@@ -59,10 +51,10 @@ public class AdminAnnouncementsController : ControllerBase
         [FromBody] CreateAnnouncementRequest request,
         CancellationToken ct)
     {
-        Result<AnnouncementDto> result = await _bus.InvokeAsync<Result<AnnouncementDto>>(
+        Result<AnnouncementDto> result = await bus.InvokeAsync<Result<AnnouncementDto>>(
             new CreateAnnouncementCommand(
-                _sanitizer.Sanitize(request.Title),
-                _sanitizer.Sanitize(request.Content),
+                sanitizer.Sanitize(request.Title),
+                sanitizer.Sanitize(request.Content),
                 request.Type,
                 request.Target,
                 request.TargetValue,
@@ -90,11 +82,11 @@ public class AdminAnnouncementsController : ControllerBase
         [FromBody] UpdateAnnouncementRequest request,
         CancellationToken ct)
     {
-        Result<AnnouncementDto> result = await _bus.InvokeAsync<Result<AnnouncementDto>>(
+        Result<AnnouncementDto> result = await bus.InvokeAsync<Result<AnnouncementDto>>(
             new UpdateAnnouncementCommand(
                 id,
-                _sanitizer.Sanitize(request.Title),
-                _sanitizer.Sanitize(request.Content),
+                sanitizer.Sanitize(request.Title),
+                sanitizer.Sanitize(request.Content),
                 request.Type,
                 request.Target,
                 request.TargetValue,
@@ -118,7 +110,7 @@ public class AdminAnnouncementsController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> PublishAnnouncement(Guid id, CancellationToken ct)
     {
-        Result result = await _bus.InvokeAsync<Result>(new PublishAnnouncementCommand(id), ct);
+        Result result = await bus.InvokeAsync<Result>(new PublishAnnouncementCommand(id), ct);
         return result.ToNoContentResult();
     }
 
@@ -130,7 +122,7 @@ public class AdminAnnouncementsController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> ArchiveAnnouncement(Guid id, CancellationToken ct)
     {
-        Result result = await _bus.InvokeAsync<Result>(new ArchiveAnnouncementCommand(id), ct);
+        Result result = await bus.InvokeAsync<Result>(new ArchiveAnnouncementCommand(id), ct);
         return result.ToNoContentResult();
     }
 

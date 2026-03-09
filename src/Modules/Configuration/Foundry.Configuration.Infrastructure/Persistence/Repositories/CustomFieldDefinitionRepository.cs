@@ -5,20 +5,14 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Foundry.Configuration.Infrastructure.Persistence.Repositories;
 
-public sealed class CustomFieldDefinitionRepository : ICustomFieldDefinitionRepository
+public sealed class CustomFieldDefinitionRepository(ConfigurationDbContext context) : ICustomFieldDefinitionRepository
 {
-    private readonly ConfigurationDbContext _context;
-
-    public CustomFieldDefinitionRepository(ConfigurationDbContext context)
-    {
-        _context = context;
-    }
 
     public Task<CustomFieldDefinition?> GetByIdAsync(
         CustomFieldDefinitionId id,
         CancellationToken cancellationToken = default)
     {
-        return _context.CustomFieldDefinitions
+        return context.CustomFieldDefinitions
             .AsTracking()
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
     }
@@ -28,7 +22,7 @@ public sealed class CustomFieldDefinitionRepository : ICustomFieldDefinitionRepo
         bool includeInactive = false,
         CancellationToken cancellationToken = default)
     {
-        IQueryable<CustomFieldDefinition> query = _context.CustomFieldDefinitions
+        IQueryable<CustomFieldDefinition> query = context.CustomFieldDefinitions
             .Where(x => x.EntityType == entityType);
 
         if (!includeInactive)
@@ -47,23 +41,23 @@ public sealed class CustomFieldDefinitionRepository : ICustomFieldDefinitionRepo
         string fieldKey,
         CancellationToken cancellationToken = default)
     {
-        return _context.CustomFieldDefinitions
+        return context.CustomFieldDefinitions
             .AnyAsync(x => x.EntityType == entityType && x.FieldKey == fieldKey, cancellationToken);
     }
 
     public async Task AddAsync(CustomFieldDefinition definition, CancellationToken cancellationToken = default)
     {
-        await _context.CustomFieldDefinitions.AddAsync(definition, cancellationToken);
+        await context.CustomFieldDefinitions.AddAsync(definition, cancellationToken);
     }
 
     public Task UpdateAsync(CustomFieldDefinition definition, CancellationToken cancellationToken = default)
     {
-        _context.CustomFieldDefinitions.Update(definition);
+        context.CustomFieldDefinitions.Update(definition);
         return Task.CompletedTask;
     }
 
     public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        await _context.SaveChangesAsync(cancellationToken);
+        await context.SaveChangesAsync(cancellationToken);
     }
 }

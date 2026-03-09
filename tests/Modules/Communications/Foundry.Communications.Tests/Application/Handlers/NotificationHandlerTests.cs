@@ -164,12 +164,12 @@ public class NotificationHandlerTests
     public async Task MarkAllRead_WithUnreadNotifications_MarksAllAsRead()
     {
         Guid userId = Guid.NewGuid();
-        List<Notification> notifications = new()
-        {
+        List<Notification> notifications =
+        [
             Notification.Create(_tenantId, userId, NotificationType.SystemAlert, "Title 1", "Message 1", TimeProvider.System),
             Notification.Create(_tenantId, userId, NotificationType.TaskAssigned, "Title 2", "Message 2", TimeProvider.System),
             Notification.Create(_tenantId, userId, NotificationType.Mention, "Title 3", "Message 3", TimeProvider.System)
-        };
+        ];
 
         _repository.GetUnreadByUserIdAsync(userId, Arg.Any<CancellationToken>())
             .Returns(notifications);
@@ -188,7 +188,7 @@ public class NotificationHandlerTests
     {
         Guid userId = Guid.NewGuid();
         _repository.GetUnreadByUserIdAsync(userId, Arg.Any<CancellationToken>())
-            .Returns(new List<Notification>());
+            .Returns([]);
 
         MarkAllNotificationsReadCommand command = new(userId);
 
@@ -208,12 +208,12 @@ public class NotificationHandlerTests
         SendNotificationCommand command2 = new(userId, NotificationType.TaskAssigned, "Task 1", "Body 2");
         SendNotificationCommand command3 = new(userId, NotificationType.Mention, "Mention 1", "Body 3");
 
-        Task<Result<NotificationDto>>[] tasks = new[]
-        {
+        Task<Result<NotificationDto>>[] tasks =
+        [
             _sendHandler.Handle(command1, CancellationToken.None),
             _sendHandler.Handle(command2, CancellationToken.None),
             _sendHandler.Handle(command3, CancellationToken.None)
-        };
+        ];
         Result<NotificationDto>[] results = await Task.WhenAll(tasks);
 
         results.Should().AllSatisfy(r => r.IsSuccess.Should().BeTrue());

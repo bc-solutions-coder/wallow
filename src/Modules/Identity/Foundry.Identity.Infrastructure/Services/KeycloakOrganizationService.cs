@@ -10,27 +10,15 @@ using Wolverine;
 
 namespace Foundry.Identity.Infrastructure.Services;
 
-public sealed partial class KeycloakOrganizationService : IKeycloakOrganizationService
+public sealed partial class KeycloakOrganizationService(
+    IHttpClientFactory httpClientFactory,
+    IMessageBus messageBus,
+    ITenantContext tenantContext,
+    IOptions<KeycloakOptions> keycloakOptions,
+    ILogger<KeycloakOrganizationService> logger) : IKeycloakOrganizationService
 {
-    private readonly HttpClient _httpClient;
-    private readonly IMessageBus _messageBus;
-    private readonly ITenantContext _tenantContext;
-    private readonly ILogger<KeycloakOrganizationService> _logger;
-    private readonly string _realm;
-
-    public KeycloakOrganizationService(
-        IHttpClientFactory httpClientFactory,
-        IMessageBus messageBus,
-        ITenantContext tenantContext,
-        IOptions<KeycloakOptions> keycloakOptions,
-        ILogger<KeycloakOrganizationService> logger)
-    {
-        _httpClient = httpClientFactory.CreateClient("KeycloakAdminClient");
-        _messageBus = messageBus;
-        _tenantContext = tenantContext;
-        _realm = keycloakOptions.Value.Realm;
-        _logger = logger;
-    }
+    private readonly HttpClient _httpClient = httpClientFactory.CreateClient("KeycloakAdminClient");
+    private readonly string _realm = keycloakOptions.Value.Realm;
 
     public async Task<Guid> CreateOrganizationAsync(string name, string? domain = null, CancellationToken ct = default)
     {
@@ -51,10 +39,10 @@ public sealed partial class KeycloakOrganizationService : IKeycloakOrganizationS
 
         Guid orgId = Guid.Parse(locationHeader.Split('/').Last());
 
-        await _messageBus.PublishAsync(new OrganizationCreatedEvent
+        await messageBus.PublishAsync(new OrganizationCreatedEvent
         {
             OrganizationId = orgId,
-            TenantId = _tenantContext.TenantId.Value,
+            TenantId = tenantContext.TenantId.Value,
             Name = name,
             Domain = domain
         });
@@ -122,7 +110,7 @@ public sealed partial class KeycloakOrganizationService : IKeycloakOrganizationS
             List<OrgRepresentation>? orgs = await response.Content.ReadFromJsonAsync<List<OrgRepresentation>>(ct);
             if (orgs == null || orgs.Count == 0)
             {
-                return Array.Empty<OrganizationDto>();
+                return [];
             }
 
             List<OrgRepresentation> validOrgs = orgs
@@ -131,7 +119,7 @@ public sealed partial class KeycloakOrganizationService : IKeycloakOrganizationS
 
             if (validOrgs.Count == 0)
             {
-                return Array.Empty<OrganizationDto>();
+                return [];
             }
 
             Task<int>[] countTasks = validOrgs
@@ -156,7 +144,7 @@ public sealed partial class KeycloakOrganizationService : IKeycloakOrganizationS
         catch (Exception ex)
         {
             LogGetOrganizationsFailed(ex);
-            return Array.Empty<OrganizationDto>();
+            return [];
         }
     }
 
@@ -174,10 +162,10 @@ public sealed partial class KeycloakOrganizationService : IKeycloakOrganizationS
 
         string userEmail = await GetUserEmailAsync(userId, ct);
 
-        await _messageBus.PublishAsync(new OrganizationMemberAddedEvent
+        await messageBus.PublishAsync(new OrganizationMemberAddedEvent
         {
             OrganizationId = orgId,
-            TenantId = _tenantContext.TenantId.Value,
+            TenantId = tenantContext.TenantId.Value,
             UserId = userId,
             Email = userEmail
         });
@@ -207,7 +195,7 @@ public sealed partial class KeycloakOrganizationService : IKeycloakOrganizationS
             List<OrgUserRepresentation>? users = await response.Content.ReadFromJsonAsync<List<OrgUserRepresentation>>(ct);
             if (users == null || users.Count == 0)
             {
-                return Array.Empty<UserDto>();
+                return [];
             }
 
             List<OrgUserRepresentation> validUsers = users
@@ -216,7 +204,7 @@ public sealed partial class KeycloakOrganizationService : IKeycloakOrganizationS
 
             if (validUsers.Count == 0)
             {
-                return Array.Empty<UserDto>();
+                return [];
             }
 
             Task<IReadOnlyList<string>>[] roleTasks = validUsers
@@ -244,7 +232,7 @@ public sealed partial class KeycloakOrganizationService : IKeycloakOrganizationS
         catch (Exception ex)
         {
             LogGetMembersFailed(ex, orgId);
-            return Array.Empty<UserDto>();
+            return [];
         }
     }
 
@@ -258,7 +246,7 @@ public sealed partial class KeycloakOrganizationService : IKeycloakOrganizationS
             List<OrgRepresentation>? orgs = await response.Content.ReadFromJsonAsync<List<OrgRepresentation>>(ct);
             if (orgs == null || orgs.Count == 0)
             {
-                return Array.Empty<OrganizationDto>();
+                return [];
             }
 
             List<OrgRepresentation> validOrgs = orgs
@@ -267,7 +255,7 @@ public sealed partial class KeycloakOrganizationService : IKeycloakOrganizationS
 
             if (validOrgs.Count == 0)
             {
-                return Array.Empty<OrganizationDto>();
+                return [];
             }
 
             Task<int>[] countTasks = validOrgs
@@ -292,7 +280,7 @@ public sealed partial class KeycloakOrganizationService : IKeycloakOrganizationS
         catch (Exception ex)
         {
             LogGetUserOrganizationsFailed(ex, userId);
-            return Array.Empty<OrganizationDto>();
+            return [];
         }
     }
 
@@ -341,20 +329,20 @@ public sealed partial class KeycloakOrganizationService : IKeycloakOrganizationS
             HttpResponseMessage response = await _httpClient.GetAsync($"/admin/realms/{_realm}/users/{userId}/role-mappings/realm", ct);
             if (!response.IsSuccessStatusCode)
             {
-                return Array.Empty<string>();
+                return [];
             }
 
             List<OrgRoleRepresentation>? roles = await response.Content.ReadFromJsonAsync<List<OrgRoleRepresentation>>(ct);
             if (roles == null)
             {
-                return Array.Empty<string>();
+                return [];
             }
 
             return roles.Select(r => r.Name ?? string.Empty).Where(n => !string.IsNullOrWhiteSpace(n)).ToList();
         }
         catch
         {
-            return Array.Empty<string>();
+            return [];
         }
     }
 

@@ -24,7 +24,7 @@ public sealed class ScimFilterLexer
     {
         if (string.IsNullOrWhiteSpace(filter))
         {
-            return new List<ScimToken>();
+            return [];
         }
 
         List<ScimToken> tokens = [];

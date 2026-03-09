@@ -9,9 +9,8 @@ namespace Foundry.Billing.Tests.Infrastructure.Persistence;
 
 [Collection("PostgresDatabase")]
 [Trait("Category", "Integration")]
-public class InvoiceRepositoryExtensionsTests : DbContextIntegrationTestBase<BillingDbContext>
+public class InvoiceRepositoryExtensionsTests(PostgresContainerFixture fixture) : DbContextIntegrationTestBase<BillingDbContext>(fixture)
 {
-    public InvoiceRepositoryExtensionsTests(PostgresContainerFixture fixture) : base(fixture) { }
 
     protected override bool UseMigrateAsync => true;
 

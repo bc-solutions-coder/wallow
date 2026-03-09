@@ -106,7 +106,7 @@ internal static class ServiceCollectionExtensions
                 string rabbitHost = config["RabbitMQ:Host"]!;
                 string rabbitUser = config["RabbitMQ:Username"]!;
                 string rabbitPass = config["RabbitMQ:Password"]!;
-                Uri rabbitUri = new Uri($"amqp://{rabbitUser}:{rabbitPass}@{rabbitHost}:5672");
+                Uri rabbitUri = new($"amqp://{rabbitUser}:{rabbitPass}@{rabbitHost}:5672");
                 ConnectionFactory factory = new() { Uri = rabbitUri };
                 return factory.CreateConnectionAsync();
             }, name: "rabbitmq", tags: ["messaging", "ready"]);
@@ -244,11 +244,11 @@ internal static class ServiceCollectionExtensions
                     serviceNamespace: "Foundry",
                     serviceVersion: typeof(ServiceCollectionExtensions).Assembly
                         .GetName().Version?.ToString() ?? "1.0.0")
-                .AddAttributes(new KeyValuePair<string, object>[]
-                {
-                    new("deployment.environment", environment.EnvironmentName),
-                    new("service.instance.id", Environment.MachineName)
-                }))
+                .AddAttributes(
+                [
+                    new KeyValuePair<string, object>("deployment.environment", environment.EnvironmentName),
+                    new KeyValuePair<string, object>("service.instance.id", Environment.MachineName)
+                ]))
             .WithTracing(tracing =>
             {
                 double samplingRatio = configuration.GetValue<double?>("Observability:TraceSamplingRatio")

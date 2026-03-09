@@ -18,7 +18,7 @@ public class CreateInvoiceValidatorBoundaryTests
     [Fact]
     public void Should_Not_Have_Error_When_InvoiceNumber_Is_Exactly_50_Characters()
     {
-        CreateInvoiceCommand command = new CreateInvoiceCommand(
+        CreateInvoiceCommand command = new(
             Guid.NewGuid(),
             new string('A', 50),
             "USD",
@@ -33,7 +33,7 @@ public class CreateInvoiceValidatorBoundaryTests
     [Fact]
     public void Should_Have_Error_When_InvoiceNumber_Is_Whitespace()
     {
-        CreateInvoiceCommand command = new CreateInvoiceCommand(
+        CreateInvoiceCommand command = new(
             Guid.NewGuid(),
             "   ",
             "USD",
@@ -48,7 +48,7 @@ public class CreateInvoiceValidatorBoundaryTests
     [Fact]
     public void Should_Not_Have_Error_When_DueDate_Is_In_The_Past()
     {
-        CreateInvoiceCommand command = new CreateInvoiceCommand(
+        CreateInvoiceCommand command = new(
             Guid.NewGuid(),
             "INV-001",
             "USD",
@@ -66,7 +66,7 @@ public class CreateInvoiceValidatorBoundaryTests
     [InlineData("GBP")]
     public void Should_Not_Have_Error_When_Currency_Is_Valid_3_Letter_Code(string currency)
     {
-        CreateInvoiceCommand command = new CreateInvoiceCommand(
+        CreateInvoiceCommand command = new(
             Guid.NewGuid(),
             "INV-001",
             currency,
@@ -88,7 +88,7 @@ public class ProcessPaymentValidatorBoundaryTests
     [Fact]
     public void Should_Not_Have_Error_When_Amount_Is_Minimal_Positive_Value()
     {
-        ProcessPaymentCommand command = new ProcessPaymentCommand(
+        ProcessPaymentCommand command = new(
             Guid.NewGuid(),
             Guid.NewGuid(),
             0.01m,
@@ -104,7 +104,7 @@ public class ProcessPaymentValidatorBoundaryTests
     [Fact]
     public void Should_Have_Error_When_Amount_Is_Exactly_Zero()
     {
-        ProcessPaymentCommand command = new ProcessPaymentCommand(
+        ProcessPaymentCommand command = new(
             Guid.NewGuid(),
             Guid.NewGuid(),
             0m,
@@ -121,7 +121,7 @@ public class ProcessPaymentValidatorBoundaryTests
     [Fact]
     public void Should_Not_Have_Error_When_Amount_Is_Very_Large()
     {
-        ProcessPaymentCommand command = new ProcessPaymentCommand(
+        ProcessPaymentCommand command = new(
             Guid.NewGuid(),
             Guid.NewGuid(),
             999_999_999.99m,
@@ -137,7 +137,7 @@ public class ProcessPaymentValidatorBoundaryTests
     [Fact]
     public void Should_Have_Error_When_PaymentMethod_Is_Whitespace()
     {
-        ProcessPaymentCommand command = new ProcessPaymentCommand(
+        ProcessPaymentCommand command = new(
             Guid.NewGuid(),
             Guid.NewGuid(),
             100.00m,
@@ -153,13 +153,12 @@ public class ProcessPaymentValidatorBoundaryTests
     [Fact]
     public void Should_Not_Have_Error_When_CustomFields_Is_Null()
     {
-        ProcessPaymentCommand command = new ProcessPaymentCommand(
+        ProcessPaymentCommand command = new(
             Guid.NewGuid(),
             Guid.NewGuid(),
             50.00m,
             "EUR",
-            "BankTransfer",
-            null
+            "BankTransfer"
         );
 
         TestValidationResult<ProcessPaymentCommand> result = _validator.TestValidate(command);
@@ -170,7 +169,7 @@ public class ProcessPaymentValidatorBoundaryTests
     [Fact]
     public void Should_Not_Have_Error_When_CustomFields_Is_Provided()
     {
-        ProcessPaymentCommand command = new ProcessPaymentCommand(
+        ProcessPaymentCommand command = new(
             Guid.NewGuid(),
             Guid.NewGuid(),
             50.00m,
@@ -189,7 +188,7 @@ public class ProcessPaymentValidatorBoundaryTests
     [InlineData(-999.99)]
     public void Should_Have_Error_When_Amount_Is_Negative(decimal amount)
     {
-        ProcessPaymentCommand command = new ProcessPaymentCommand(
+        ProcessPaymentCommand command = new(
             Guid.NewGuid(),
             Guid.NewGuid(),
             amount,
@@ -213,7 +212,7 @@ public class AddLineItemValidatorBoundaryTests
     [Fact]
     public void Should_Not_Have_Error_When_Description_Is_Exactly_500_Characters()
     {
-        AddLineItemCommand command = new AddLineItemCommand(
+        AddLineItemCommand command = new(
             Guid.NewGuid(),
             new string('A', 500),
             150.00m,
@@ -229,7 +228,7 @@ public class AddLineItemValidatorBoundaryTests
     [Fact]
     public void Should_Have_Error_When_Quantity_Is_Exactly_Zero()
     {
-        AddLineItemCommand command = new AddLineItemCommand(
+        AddLineItemCommand command = new(
             Guid.NewGuid(),
             "Service",
             100.00m,
@@ -246,7 +245,7 @@ public class AddLineItemValidatorBoundaryTests
     [Fact]
     public void Should_Not_Have_Error_When_Quantity_Is_One()
     {
-        AddLineItemCommand command = new AddLineItemCommand(
+        AddLineItemCommand command = new(
             Guid.NewGuid(),
             "Service",
             100.00m,
@@ -262,7 +261,7 @@ public class AddLineItemValidatorBoundaryTests
     [Fact]
     public void Should_Not_Have_Error_When_UnitPrice_Is_Exactly_Zero()
     {
-        AddLineItemCommand command = new AddLineItemCommand(
+        AddLineItemCommand command = new(
             Guid.NewGuid(),
             "Free Consultation",
             0m,
@@ -285,7 +284,7 @@ public class CreateSubscriptionValidatorBoundaryTests
     [Fact]
     public void Should_Not_Have_Error_When_PlanName_Is_Exactly_100_Characters()
     {
-        CreateSubscriptionCommand command = new CreateSubscriptionCommand(
+        CreateSubscriptionCommand command = new(
             Guid.NewGuid(),
             new string('P', 100),
             29.99m,
@@ -302,7 +301,7 @@ public class CreateSubscriptionValidatorBoundaryTests
     [Fact]
     public void Should_Not_Have_Error_When_Price_Is_Exactly_Zero()
     {
-        CreateSubscriptionCommand command = new CreateSubscriptionCommand(
+        CreateSubscriptionCommand command = new(
             Guid.NewGuid(),
             "Free Plan",
             0m,
@@ -321,7 +320,7 @@ public class CreateSubscriptionValidatorBoundaryTests
     [InlineData(-100.00)]
     public void Should_Have_Error_When_Price_Is_Negative(decimal price)
     {
-        CreateSubscriptionCommand command = new CreateSubscriptionCommand(
+        CreateSubscriptionCommand command = new(
             Guid.NewGuid(),
             "Plan",
             price,
@@ -339,7 +338,7 @@ public class CreateSubscriptionValidatorBoundaryTests
     [Fact]
     public void Should_Not_Have_Error_When_PeriodEnd_Is_Far_In_The_Future()
     {
-        CreateSubscriptionCommand command = new CreateSubscriptionCommand(
+        CreateSubscriptionCommand command = new(
             Guid.NewGuid(),
             "Annual Plan",
             99.99m,
@@ -356,7 +355,7 @@ public class CreateSubscriptionValidatorBoundaryTests
     [Fact]
     public void Should_Not_Have_Error_When_CustomFields_Is_Provided()
     {
-        CreateSubscriptionCommand command = new CreateSubscriptionCommand(
+        CreateSubscriptionCommand command = new(
             Guid.NewGuid(),
             "Premium Plan",
             29.99m,
@@ -381,7 +380,7 @@ public class CancelInvoiceValidatorBoundaryTests
     [Fact]
     public void Should_Not_Have_Error_When_Both_Ids_Are_Valid()
     {
-        CancelInvoiceCommand command = new CancelInvoiceCommand(
+        CancelInvoiceCommand command = new(
             Guid.NewGuid(),
             Guid.NewGuid()
         );
@@ -394,7 +393,7 @@ public class CancelInvoiceValidatorBoundaryTests
     [Fact]
     public void Should_Have_Error_When_InvoiceId_Is_Default()
     {
-        CancelInvoiceCommand command = new CancelInvoiceCommand(
+        CancelInvoiceCommand command = new(
             default,
             Guid.NewGuid()
         );
@@ -415,7 +414,7 @@ public class IssueInvoiceValidatorBoundaryTests
     [Fact]
     public void Should_Not_Have_Error_When_Both_Ids_Are_Valid()
     {
-        IssueInvoiceCommand command = new IssueInvoiceCommand(
+        IssueInvoiceCommand command = new(
             Guid.NewGuid(),
             Guid.NewGuid()
         );
@@ -428,7 +427,7 @@ public class IssueInvoiceValidatorBoundaryTests
     [Fact]
     public void Should_Have_Error_When_IssuedByUserId_Is_Default()
     {
-        IssueInvoiceCommand command = new IssueInvoiceCommand(
+        IssueInvoiceCommand command = new(
             Guid.NewGuid(),
             default
         );
@@ -449,7 +448,7 @@ public class CancelSubscriptionValidatorBoundaryTests
     [Fact]
     public void Should_Not_Have_Error_When_Both_Ids_Are_Valid()
     {
-        CancelSubscriptionCommand command = new CancelSubscriptionCommand(
+        CancelSubscriptionCommand command = new(
             Guid.NewGuid(),
             Guid.NewGuid()
         );
@@ -462,7 +461,7 @@ public class CancelSubscriptionValidatorBoundaryTests
     [Fact]
     public void Should_Have_Error_When_SubscriptionId_Is_Default()
     {
-        CancelSubscriptionCommand command = new CancelSubscriptionCommand(
+        CancelSubscriptionCommand command = new(
             default,
             Guid.NewGuid()
         );

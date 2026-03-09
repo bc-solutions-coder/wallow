@@ -452,8 +452,8 @@ public class KeycloakIdpServiceTests
 
     private sealed class MockHttpHandler : HttpMessageHandler
     {
-        private readonly Dictionary<string, (HttpStatusCode Status, object? Content)> _routes = [];
-        private readonly Dictionary<string, (HttpStatusCode Status, object? Content)> _externalRoutes = [];
+        private readonly Dictionary<string, (HttpStatusCode Status, object? Content)> _routes = new Dictionary<string, (HttpStatusCode Status, object? Content)>();
+        private readonly Dictionary<string, (HttpStatusCode Status, object? Content)> _externalRoutes = new Dictionary<string, (HttpStatusCode Status, object? Content)>();
         private readonly HashSet<string> _throwRoutes = [];
         private readonly HashSet<string> _throwExternalRoutes = [];
 

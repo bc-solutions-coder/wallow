@@ -5,23 +5,17 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Foundry.Communications.Infrastructure.Persistence.Repositories;
 
-public sealed class SmsMessageRepository : ISmsMessageRepository
+public sealed class SmsMessageRepository(CommunicationsDbContext context) : ISmsMessageRepository
 {
-    private readonly CommunicationsDbContext _context;
-
-    public SmsMessageRepository(CommunicationsDbContext context)
-    {
-        _context = context;
-    }
 
     public void Add(SmsMessage message)
     {
-        _context.SmsMessages.Add(message);
+        context.SmsMessages.Add(message);
     }
 
     public async Task<IReadOnlyList<SmsMessage>> GetPendingAsync(int limit, CancellationToken cancellationToken = default)
     {
-        return await _context.SmsMessages
+        return await context.SmsMessages
             .AsTracking()
             .Where(e => e.Status == SmsStatus.Pending)
             .OrderBy(e => e.CreatedAt)
@@ -31,6 +25,6 @@ public sealed class SmsMessageRepository : ISmsMessageRepository
 
     public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        await _context.SaveChangesAsync(cancellationToken);
+        await context.SaveChangesAsync(cancellationToken);
     }
 }

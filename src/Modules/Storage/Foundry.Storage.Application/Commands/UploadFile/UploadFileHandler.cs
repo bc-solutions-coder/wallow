@@ -93,11 +93,11 @@ public sealed class UploadFileHandler(
         Guid fileId,
         string extension)
     {
-        List<string> parts = new List<string>
-        {
+        List<string> parts =
+        [
             $"tenant-{tenantId}",
             bucketName
-        };
+        ];
 
         if (!string.IsNullOrWhiteSpace(path))
         {

@@ -65,7 +65,7 @@ public sealed class RealtimeHubIntegrationTests
     {
         const string userId = "user-notif";
         await using HubConnection connection = CreateHubConnection(userId);
-        TaskCompletionSource<RealtimeEnvelope> tcs = new TaskCompletionSource<RealtimeEnvelope>();
+        TaskCompletionSource<RealtimeEnvelope> tcs = new();
 
         connection.On<RealtimeEnvelope>("ReceiveNotifications", envelope => tcs.TrySetResult(envelope));
         await connection.StartAsync();
@@ -86,15 +86,16 @@ public sealed class RealtimeHubIntegrationTests
     public async Task Client_JoinsGroup_ReceivesGroupMessages()
     {
         await using HubConnection connection = CreateHubConnection("user-group");
-        TaskCompletionSource<RealtimeEnvelope> tcs = new TaskCompletionSource<RealtimeEnvelope>();
+        TaskCompletionSource<RealtimeEnvelope> tcs = new();
 
         connection.On<RealtimeEnvelope>("ReceiveBilling", envelope => tcs.TrySetResult(envelope));
         await connection.StartAsync();
-        await connection.InvokeAsync("JoinGroup", "tenant:test-id");
+        string tenantGroup = $"tenant:{TestConstants.TestTenantId}";
+        await connection.InvokeAsync("JoinGroup", tenantGroup);
         await Task.Delay(500); // Allow LongPolling cycle to establish
 
         IRealtimeDispatcher dispatcher = _factory.Services.GetRequiredService<IRealtimeDispatcher>();
-        await dispatcher.SendToGroupAsync("tenant:test-id", RealtimeEnvelope.Create("Billing", "InvoiceCreated", new { TaskId = 7 }));
+        await dispatcher.SendToGroupAsync(tenantGroup, RealtimeEnvelope.Create("Billing", "InvoiceCreated", new { TaskId = 7 }));
 
         RealtimeEnvelope received = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(10));
 
@@ -110,8 +111,8 @@ public sealed class RealtimeHubIntegrationTests
         await using HubConnection conn1 = CreateHubConnection("user-page-1");
         await using HubConnection conn2 = CreateHubConnection("user-page-2");
 
-        TaskCompletionSource<RealtimeEnvelope> tcs1 = new TaskCompletionSource<RealtimeEnvelope>();
-        TaskCompletionSource<RealtimeEnvelope> tcs2 = new TaskCompletionSource<RealtimeEnvelope>();
+        TaskCompletionSource<RealtimeEnvelope> tcs1 = new();
+        TaskCompletionSource<RealtimeEnvelope> tcs2 = new();
 
         conn1.On<RealtimeEnvelope>("ReceivePresence", e =>
         {

@@ -10,7 +10,7 @@ public class CreateSubscriptionValidatorTests
     [Fact]
     public void Should_Have_Error_When_UserId_Is_Empty()
     {
-        CreateSubscriptionCommand command = new CreateSubscriptionCommand(
+        CreateSubscriptionCommand command = new(
             Guid.Empty,
             "Premium Plan",
             29.99m,
@@ -28,7 +28,7 @@ public class CreateSubscriptionValidatorTests
     [Fact]
     public void Should_Have_Error_When_PlanName_Is_Empty()
     {
-        CreateSubscriptionCommand command = new CreateSubscriptionCommand(
+        CreateSubscriptionCommand command = new(
             Guid.NewGuid(),
             "",
             29.99m,
@@ -46,7 +46,7 @@ public class CreateSubscriptionValidatorTests
     [Fact]
     public void Should_Have_Error_When_PlanName_Exceeds_MaxLength()
     {
-        CreateSubscriptionCommand command = new CreateSubscriptionCommand(
+        CreateSubscriptionCommand command = new(
             Guid.NewGuid(),
             new string('A', 101),
             29.99m,
@@ -64,7 +64,7 @@ public class CreateSubscriptionValidatorTests
     [Fact]
     public void Should_Have_Error_When_Price_Is_Negative()
     {
-        CreateSubscriptionCommand command = new CreateSubscriptionCommand(
+        CreateSubscriptionCommand command = new(
             Guid.NewGuid(),
             "Premium Plan",
             -10.00m,
@@ -82,7 +82,7 @@ public class CreateSubscriptionValidatorTests
     [Fact]
     public void Should_Not_Have_Error_When_Price_Is_Zero()
     {
-        CreateSubscriptionCommand command = new CreateSubscriptionCommand(
+        CreateSubscriptionCommand command = new(
             Guid.NewGuid(),
             "Free Plan",
             0m,
@@ -99,7 +99,7 @@ public class CreateSubscriptionValidatorTests
     [Fact]
     public void Should_Have_Error_When_Currency_Is_Empty()
     {
-        CreateSubscriptionCommand command = new CreateSubscriptionCommand(
+        CreateSubscriptionCommand command = new(
             Guid.NewGuid(),
             "Premium Plan",
             29.99m,
@@ -120,7 +120,7 @@ public class CreateSubscriptionValidatorTests
     [InlineData("$")]
     public void Should_Have_Error_When_Currency_Is_Not_3_Characters(string currency)
     {
-        CreateSubscriptionCommand command = new CreateSubscriptionCommand(
+        CreateSubscriptionCommand command = new(
             Guid.NewGuid(),
             "Premium Plan",
             29.99m,
@@ -139,7 +139,7 @@ public class CreateSubscriptionValidatorTests
     public void Should_Have_Error_When_PeriodEnd_Is_Before_StartDate()
     {
         DateTime startDate = DateTime.UtcNow;
-        CreateSubscriptionCommand command = new CreateSubscriptionCommand(
+        CreateSubscriptionCommand command = new(
             Guid.NewGuid(),
             "Premium Plan",
             29.99m,
@@ -158,7 +158,7 @@ public class CreateSubscriptionValidatorTests
     public void Should_Have_Error_When_PeriodEnd_Equals_StartDate()
     {
         DateTime date = DateTime.UtcNow;
-        CreateSubscriptionCommand command = new CreateSubscriptionCommand(
+        CreateSubscriptionCommand command = new(
             Guid.NewGuid(),
             "Premium Plan",
             29.99m,
@@ -176,7 +176,7 @@ public class CreateSubscriptionValidatorTests
     [Fact]
     public void Should_Not_Have_Error_When_Command_Is_Valid()
     {
-        CreateSubscriptionCommand command = new CreateSubscriptionCommand(
+        CreateSubscriptionCommand command = new(
             Guid.NewGuid(),
             "Premium Plan",
             29.99m,

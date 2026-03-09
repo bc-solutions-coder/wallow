@@ -46,10 +46,10 @@ public class ResponseContractTests
     [Fact]
     public void PagedNotificationResponse_CreatesWithAllFields()
     {
-        List<NotificationResponse> items = new()
-        {
+        List<NotificationResponse> items =
+        [
             new(Guid.NewGuid(), Guid.NewGuid(), "Type", "Title", "Msg", false, null, DateTime.UtcNow, null)
-        };
+        ];
 
         PagedNotificationResponse response = new(items, 100, 1, 20, 5, false, true);
 
@@ -119,10 +119,10 @@ public class ResponseContractTests
     {
         Guid id = Guid.NewGuid();
         DateTime releasedAt = DateTime.UtcNow;
-        List<ChangelogItemResponse> items = new()
-        {
+        List<ChangelogItemResponse> items =
+        [
             new(Guid.NewGuid(), "Added feature", "Feature")
-        };
+        ];
 
         ChangelogEntryResponse response = new(id, "1.0.0", "Release 1.0", "Content", releasedAt, items);
 
@@ -137,7 +137,7 @@ public class ResponseContractTests
     [Fact]
     public void ChangelogEntryResponse_WithEmptyItems_CreatesCorrectly()
     {
-        ChangelogEntryResponse response = new(Guid.NewGuid(), "1.0.0", "Release", "Content", DateTime.UtcNow, new List<ChangelogItemResponse>());
+        ChangelogEntryResponse response = new(Guid.NewGuid(), "1.0.0", "Release", "Content", DateTime.UtcNow, []);
 
         response.Items.Should().BeEmpty();
     }

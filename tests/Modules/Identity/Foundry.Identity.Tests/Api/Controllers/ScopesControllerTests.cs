@@ -47,7 +47,7 @@ public class ScopesControllerTests
     public async Task List_WithCategory_PassesCategoryToRepository()
     {
         _apiScopeRepository.GetAllAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>())
-            .Returns(new List<ApiScope>());
+            .Returns([]);
 
         await _controller.List("Billing", CancellationToken.None);
 
@@ -58,7 +58,7 @@ public class ScopesControllerTests
     public async Task List_WhenEmpty_ReturnsEmptyList()
     {
         _apiScopeRepository.GetAllAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>())
-            .Returns(new List<ApiScope>());
+            .Returns([]);
 
         ActionResult<IReadOnlyList<ApiScopeDto>> result = await _controller.List(null, CancellationToken.None);
 

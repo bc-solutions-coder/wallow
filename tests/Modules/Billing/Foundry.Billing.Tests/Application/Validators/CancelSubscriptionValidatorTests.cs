@@ -10,7 +10,7 @@ public class CancelSubscriptionValidatorTests
     [Fact]
     public void Should_Have_Error_When_SubscriptionId_Is_Empty()
     {
-        CancelSubscriptionCommand command = new CancelSubscriptionCommand(
+        CancelSubscriptionCommand command = new(
             Guid.Empty,
             Guid.NewGuid()
         );
@@ -24,7 +24,7 @@ public class CancelSubscriptionValidatorTests
     [Fact]
     public void Should_Have_Error_When_CancelledByUserId_Is_Empty()
     {
-        CancelSubscriptionCommand command = new CancelSubscriptionCommand(
+        CancelSubscriptionCommand command = new(
             Guid.NewGuid(),
             Guid.Empty
         );
@@ -38,7 +38,7 @@ public class CancelSubscriptionValidatorTests
     [Fact]
     public void Should_Have_Multiple_Errors_When_Both_Ids_Are_Empty()
     {
-        CancelSubscriptionCommand command = new CancelSubscriptionCommand(
+        CancelSubscriptionCommand command = new(
             Guid.Empty,
             Guid.Empty
         );
@@ -52,7 +52,7 @@ public class CancelSubscriptionValidatorTests
     [Fact]
     public void Should_Not_Have_Error_When_Command_Is_Valid()
     {
-        CancelSubscriptionCommand command = new CancelSubscriptionCommand(
+        CancelSubscriptionCommand command = new(
             Guid.NewGuid(),
             Guid.NewGuid()
         );

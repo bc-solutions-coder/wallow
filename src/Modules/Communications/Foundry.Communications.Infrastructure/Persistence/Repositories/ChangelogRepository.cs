@@ -5,18 +5,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Foundry.Communications.Infrastructure.Persistence.Repositories;
 
-public sealed class ChangelogRepository : IChangelogRepository
+public sealed class ChangelogRepository(CommunicationsDbContext context) : IChangelogRepository
 {
-    private readonly CommunicationsDbContext _context;
-
-    public ChangelogRepository(CommunicationsDbContext context)
-    {
-        _context = context;
-    }
 
     public Task<ChangelogEntry?> GetByIdAsync(ChangelogEntryId id, CancellationToken ct = default)
     {
-        return _context.ChangelogEntries
+        return context.ChangelogEntries
             .AsTracking()
             .Include(e => e.Items)
             .FirstOrDefaultAsync(e => e.Id == id, ct);
@@ -24,7 +18,7 @@ public sealed class ChangelogRepository : IChangelogRepository
 
     public Task<ChangelogEntry?> GetByVersionAsync(string version, CancellationToken ct = default)
     {
-        return _context.ChangelogEntries
+        return context.ChangelogEntries
             .AsTracking()
             .Include(e => e.Items)
             .FirstOrDefaultAsync(e => e.Version == version, ct);
@@ -32,7 +26,7 @@ public sealed class ChangelogRepository : IChangelogRepository
 
     public Task<ChangelogEntry?> GetLatestPublishedAsync(CancellationToken ct = default)
     {
-        return _context.ChangelogEntries
+        return context.ChangelogEntries
             .Include(e => e.Items)
             .Where(e => e.IsPublished)
             .OrderByDescending(e => e.ReleasedAt)
@@ -41,7 +35,7 @@ public sealed class ChangelogRepository : IChangelogRepository
 
     public async Task<IReadOnlyList<ChangelogEntry>> GetPublishedAsync(int limit = 50, CancellationToken ct = default)
     {
-        return await _context.ChangelogEntries
+        return await context.ChangelogEntries
             .Include(e => e.Items)
             .AsSplitQuery()
             .Where(e => e.IsPublished)
@@ -52,13 +46,13 @@ public sealed class ChangelogRepository : IChangelogRepository
 
     public async Task AddAsync(ChangelogEntry entry, CancellationToken ct = default)
     {
-        await _context.ChangelogEntries.AddAsync(entry, ct);
-        await _context.SaveChangesAsync(ct);
+        await context.ChangelogEntries.AddAsync(entry, ct);
+        await context.SaveChangesAsync(ct);
     }
 
     public async Task UpdateAsync(ChangelogEntry entry, CancellationToken ct = default)
     {
-        _context.ChangelogEntries.Update(entry);
-        await _context.SaveChangesAsync(ct);
+        context.ChangelogEntries.Update(entry);
+        await context.SaveChangesAsync(ct);
     }
 }

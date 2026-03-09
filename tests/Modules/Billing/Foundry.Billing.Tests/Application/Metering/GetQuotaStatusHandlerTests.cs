@@ -126,7 +126,7 @@ public class GetQuotaStatusHandlerTests
     public async Task Handle_WithNoMeters_ReturnsEmptyList()
     {
         _meterRepository.GetAllAsync(Arg.Any<CancellationToken>())
-            .Returns(Array.Empty<MeterDefinition>());
+            .Returns([]);
 
         Result<IReadOnlyList<QuotaStatusDto>> result = await _handler.Handle(
             new GetQuotaStatusQuery(), CancellationToken.None);

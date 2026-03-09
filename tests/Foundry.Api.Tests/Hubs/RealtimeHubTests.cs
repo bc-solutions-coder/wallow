@@ -40,19 +40,19 @@ public sealed class RealtimeHubTests : IDisposable
 
     private void SetupAuthenticatedUser(string userId)
     {
-        ClaimsIdentity identity = new ClaimsIdentity("test");
+        ClaimsIdentity identity = new("test");
         identity.AddClaim(new Claim(ClaimTypes.NameIdentifier, userId));
         identity.AddClaim(new Claim("organization", _tenantGuid.ToString()));
-        ClaimsPrincipal principal = new ClaimsPrincipal(identity);
+        ClaimsPrincipal principal = new(identity);
         _context.User.Returns(principal);
         _context.ConnectionId.Returns($"conn-{userId}");
     }
 
     private void SetupUserWithSubClaim(string userId)
     {
-        ClaimsIdentity identity = new ClaimsIdentity("test");
+        ClaimsIdentity identity = new("test");
         identity.AddClaim(new Claim("sub", userId));
-        ClaimsPrincipal principal = new ClaimsPrincipal(identity);
+        ClaimsPrincipal principal = new(identity);
         _context.User.Returns(principal);
         _context.ConnectionId.Returns($"conn-{userId}");
     }
@@ -103,9 +103,9 @@ public sealed class RealtimeHubTests : IDisposable
     [Fact]
     public async Task OnConnectedAsync_WithNoUserIdClaims_AbortsConnection()
     {
-        ClaimsIdentity identity = new ClaimsIdentity("test");
+        ClaimsIdentity identity = new("test");
         identity.AddClaim(new Claim(ClaimTypes.Email, "test@example.com"));
-        ClaimsPrincipal principal = new ClaimsPrincipal(identity);
+        ClaimsPrincipal principal = new(identity);
         _context.User.Returns(principal);
         _context.ConnectionId.Returns("conn-no-id");
 

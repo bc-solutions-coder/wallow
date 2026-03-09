@@ -7,20 +7,14 @@ namespace Foundry.Configuration.Application.Queries;
 
 public sealed record GetCustomFieldDefinitionById(Guid Id);
 
-public sealed class GetCustomFieldDefinitionByIdHandler
+public sealed class GetCustomFieldDefinitionByIdHandler(ICustomFieldDefinitionRepository repository)
 {
-    private readonly ICustomFieldDefinitionRepository _repository;
-
-    public GetCustomFieldDefinitionByIdHandler(ICustomFieldDefinitionRepository repository)
-    {
-        _repository = repository;
-    }
 
     public async Task<CustomFieldDefinitionDto?> Handle(
         GetCustomFieldDefinitionById query,
         CancellationToken cancellationToken)
     {
-        CustomFieldDefinition? definition = await _repository.GetByIdAsync(
+        CustomFieldDefinition? definition = await repository.GetByIdAsync(
             CustomFieldDefinitionId.Create(query.Id),
             cancellationToken);
 

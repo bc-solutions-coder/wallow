@@ -8,14 +8,8 @@ namespace Foundry.Identity.Infrastructure.Data;
 /// <summary>
 /// Seeds default API scopes that can be assigned to service accounts.
 /// </summary>
-public sealed partial class ApiScopeSeeder
+public sealed partial class ApiScopeSeeder(ILogger<ApiScopeSeeder> logger)
 {
-    private readonly ILogger<ApiScopeSeeder> _logger;
-
-    public ApiScopeSeeder(ILogger<ApiScopeSeeder> logger)
-    {
-        _logger = logger;
-    }
 
     /// <summary>
     /// Seeds default API scopes to the database.

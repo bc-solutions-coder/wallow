@@ -24,11 +24,9 @@ public class PostgresDatabaseCollection : ICollectionFixture<PostgresContainerFi
 /// </summary>
 [Collection("PostgresDatabase")]
 [Trait("Category", "Integration")]
-public class DapperQueryTests : DbContextIntegrationTestBase<BillingDbContext>
+public class DapperQueryTests(PostgresContainerFixture fixture) : DbContextIntegrationTestBase<BillingDbContext>(fixture)
 {
     private TenantId _otherTenantId;
-
-    public DapperQueryTests(PostgresContainerFixture fixture) : base(fixture) { }
 
     protected override bool UseMigrateAsync => true;
 

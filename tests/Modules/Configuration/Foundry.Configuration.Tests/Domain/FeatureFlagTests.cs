@@ -95,8 +95,8 @@ public class FeatureFlagCreateVariantTests
     {
         List<VariantWeight> variants =
         [
-            new VariantWeight("control", 50),
-            new VariantWeight("treatment", 50)
+            new("control", 50),
+            new("treatment", 50)
         ];
 
         FeatureFlag flag = FeatureFlag.CreateVariant("ab_test", "A/B Test", variants, "control", TimeProvider.System, "Test description");
@@ -112,7 +112,7 @@ public class FeatureFlagCreateVariantTests
     [Fact]
     public void CreateVariant_WithEmptyVariants_ThrowsArgumentException()
     {
-        List<VariantWeight> variants = [];
+        VariantWeight[] variants = [];
 
         Action act = () => FeatureFlag.CreateVariant("ab_test", "A/B Test", variants, "control", TimeProvider.System);
 
@@ -125,8 +125,8 @@ public class FeatureFlagCreateVariantTests
     {
         List<VariantWeight> variants =
         [
-            new VariantWeight("control", 50),
-            new VariantWeight("treatment", 50)
+            new("control", 50),
+            new("treatment", 50)
         ];
 
         Action act = () => FeatureFlag.CreateVariant("ab_test", "A/B Test", variants, "missing", TimeProvider.System);
@@ -220,16 +220,16 @@ public class FeatureFlagSetVariantsTests
     {
         List<VariantWeight> original =
         [
-            new VariantWeight("control", 50),
-            new VariantWeight("treatment", 50)
+            new("control", 50),
+            new("treatment", 50)
         ];
         FeatureFlag flag = FeatureFlag.CreateVariant("ab_test", "Test", original, "control", TimeProvider.System);
 
         List<VariantWeight> updated =
         [
-            new VariantWeight("control", 33),
-            new VariantWeight("treatment_a", 33),
-            new VariantWeight("treatment_b", 34)
+            new("control", 33),
+            new("treatment_a", 33),
+            new("treatment_b", 34)
         ];
 
         flag.SetVariants(updated, TimeProvider.System);
@@ -241,7 +241,7 @@ public class FeatureFlagSetVariantsTests
     [Fact]
     public void SetVariants_WithEmptyList_ThrowsArgumentException()
     {
-        List<VariantWeight> original = [new VariantWeight("control", 100)];
+        List<VariantWeight> original = [new("control", 100)];
         FeatureFlag flag = FeatureFlag.CreateVariant("ab_test", "Test", original, "control", TimeProvider.System);
 
         Action act = () => flag.SetVariants([], TimeProvider.System);
@@ -255,12 +255,12 @@ public class FeatureFlagSetVariantsTests
     {
         List<VariantWeight> original =
         [
-            new VariantWeight("control", 50),
-            new VariantWeight("treatment", 50)
+            new("control", 50),
+            new("treatment", 50)
         ];
         FeatureFlag flag = FeatureFlag.CreateVariant("ab_test", "Test", original, "control", TimeProvider.System);
 
-        List<VariantWeight> updated = [new VariantWeight("new_variant", 100)];
+        List<VariantWeight> updated = [new("new_variant", 100)];
 
         Action act = () => flag.SetVariants(updated, TimeProvider.System);
 
@@ -273,7 +273,7 @@ public class FeatureFlagSetVariantsTests
     {
         FeatureFlag flag = FeatureFlag.CreateBoolean("key", "Boolean", true, TimeProvider.System);
 
-        Action act = () => flag.SetVariants([new VariantWeight("v1", 100)], TimeProvider.System);
+        Action act = () => flag.SetVariants([new("v1", 100)], TimeProvider.System);
 
         act.Should().Throw<FeatureFlagException>()
             .WithMessage("*Variant*");

@@ -17,7 +17,7 @@ public class ResultTests
     [Fact]
     public void Failure_ReturnsFailedResult()
     {
-        Error error = new Error("Test.Error", "Test error message");
+        Error error = new("Test.Error", "Test error message");
 
         Result result = Result.Failure(error);
 
@@ -55,7 +55,7 @@ public class ResultTests
     [Fact]
     public void Constructor_SuccessWithNonNoneError_ThrowsInvalidOperationException()
     {
-        Error error = new Error("Test.Error", "Should not be on success");
+        Error error = new("Test.Error", "Should not be on success");
 
         Func<TestableResult> act = () => new TestableResult(true, error);
 
@@ -85,7 +85,7 @@ public class ResultTests
     [Fact]
     public void FailureGeneric_ReturnsFailureWithError()
     {
-        Error error = new Error("Test.Error", "Test");
+        Error error = new("Test.Error", "Test");
 
         Result<string> result = Result.Failure<string>(error);
 
@@ -93,10 +93,7 @@ public class ResultTests
         result.Error.Should().Be(error);
     }
 
-    private sealed class TestableResult : Result
-    {
-        public TestableResult(bool isSuccess, Error error) : base(isSuccess, error) { }
-    }
+    private sealed class TestableResult(bool isSuccess, Error error) : Result(isSuccess, error);
 }
 
 public class ResultOfTTests
@@ -144,7 +141,7 @@ public class ResultOfTTests
     [Fact]
     public void Map_WhenFailure_PropagatesError()
     {
-        Error error = new Error("Test.Error", "Test");
+        Error error = new("Test.Error", "Test");
         Result<int> result = Result.Failure<int>(error);
 
         Result<int> mapped = result.Map(x => x * 2);
@@ -167,7 +164,7 @@ public class ResultOfTTests
     [Fact]
     public void Bind_WhenFirstFails_PropagatesError()
     {
-        Error error = new Error("Test.Error", "Test");
+        Error error = new("Test.Error", "Test");
         Result<int> result = Result.Failure<int>(error);
 
         Result<string> bound = result.Bind(x => Result.Success(x.ToString()));
@@ -180,7 +177,7 @@ public class ResultOfTTests
     public void Bind_WhenSecondFails_ReturnsSecondError()
     {
         Result<int> result = Result.Success(5);
-        Error secondError = new Error("Second.Error", "Second failed");
+        Error secondError = new("Second.Error", "Second failed");
 
         Result<string> bound = result.Bind<string>(_ => Result.Failure<string>(secondError));
 

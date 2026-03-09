@@ -12,20 +12,10 @@ namespace Foundry.Identity.Infrastructure.Authorization;
 /// Middleware that authenticates requests using API keys (X-Api-Key header).
 /// Falls through to JWT authentication if no API key is present.
 /// </summary>
-public sealed partial class ApiKeyAuthenticationMiddleware
+public sealed partial class ApiKeyAuthenticationMiddleware(RequestDelegate next, ILogger<ApiKeyAuthenticationMiddleware> logger)
 {
-    private readonly RequestDelegate _next;
-    private readonly ILogger<ApiKeyAuthenticationMiddleware> _logger;
 
     private const string ApiKeyHeader = "X-Api-Key";
-
-    public ApiKeyAuthenticationMiddleware(
-        RequestDelegate next,
-        ILogger<ApiKeyAuthenticationMiddleware> logger)
-    {
-        _next = next;
-        _logger = logger;
-    }
 
     public async Task InvokeAsync(
         HttpContext context,
@@ -36,14 +26,14 @@ public sealed partial class ApiKeyAuthenticationMiddleware
         if (!context.Request.Headers.TryGetValue(ApiKeyHeader, out StringValues apiKeyHeader))
         {
             // No API key, continue to next middleware (JWT auth)
-            await _next(context);
+            await next(context);
             return;
         }
 
         string apiKey = apiKeyHeader.ToString();
         if (string.IsNullOrWhiteSpace(apiKey))
         {
-            await _next(context);
+            await next(context);
             return;
         }
 
@@ -92,7 +82,7 @@ public sealed partial class ApiKeyAuthenticationMiddleware
         // Set tenant context (same pattern as TenantResolutionMiddleware)
         tenantContext.SetTenant(TenantId.Create(result.TenantId!.Value), $"api-key-{result.KeyId}");
 
-        await _next(context);
+        await next(context);
     }
 }
 

@@ -7,20 +7,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Foundry.Billing.Infrastructure.Services;
 
-public sealed class InvoiceQueryService : IInvoiceQueryService
+public sealed class InvoiceQueryService(BillingDbContext context, ITenantContext tenantContext) : IInvoiceQueryService
 {
-    private readonly BillingDbContext _context;
-    private readonly ITenantContext _tenantContext;
-
-    public InvoiceQueryService(BillingDbContext context, ITenantContext tenantContext)
-    {
-        _context = context;
-        _tenantContext = tenantContext;
-    }
 
     public async Task<decimal> GetTotalRevenueAsync(DateTime from, DateTime to, CancellationToken ct = default)
     {
-        DbConnection connection = _context.Database.GetDbConnection();
+        DbConnection connection = context.Database.GetDbConnection();
 
         const string sql = """
             SELECT COALESCE(SUM(i."TotalAmount_Amount"), 0)
@@ -33,7 +25,7 @@ public sealed class InvoiceQueryService : IInvoiceQueryService
 
         CommandDefinition command = new(
             sql,
-            new { TenantId = _tenantContext.TenantId.Value, From = from, To = to },
+            new { TenantId = tenantContext.TenantId.Value, From = from, To = to },
             cancellationToken: ct);
 
         decimal result = await connection.QuerySingleAsync<decimal>(command);
@@ -43,7 +35,7 @@ public sealed class InvoiceQueryService : IInvoiceQueryService
 
     public async Task<int> GetCountAsync(DateTime from, DateTime to, CancellationToken ct = default)
     {
-        DbConnection connection = _context.Database.GetDbConnection();
+        DbConnection connection = context.Database.GetDbConnection();
 
         const string sql = """
             SELECT COUNT(*)
@@ -55,7 +47,7 @@ public sealed class InvoiceQueryService : IInvoiceQueryService
 
         CommandDefinition command = new(
             sql,
-            new { TenantId = _tenantContext.TenantId.Value, From = from, To = to },
+            new { TenantId = tenantContext.TenantId.Value, From = from, To = to },
             cancellationToken: ct);
 
         int result = await connection.QuerySingleAsync<int>(command);
@@ -65,7 +57,7 @@ public sealed class InvoiceQueryService : IInvoiceQueryService
 
     public async Task<int> GetPendingCountAsync(CancellationToken ct = default)
     {
-        DbConnection connection = _context.Database.GetDbConnection();
+        DbConnection connection = context.Database.GetDbConnection();
 
         const string sql = """
             SELECT COUNT(*)
@@ -76,7 +68,7 @@ public sealed class InvoiceQueryService : IInvoiceQueryService
 
         CommandDefinition command = new(
             sql,
-            new { TenantId = _tenantContext.TenantId.Value },
+            new { TenantId = tenantContext.TenantId.Value },
             cancellationToken: ct);
 
         int result = await connection.QuerySingleAsync<int>(command);
@@ -86,7 +78,7 @@ public sealed class InvoiceQueryService : IInvoiceQueryService
 
     public async Task<decimal> GetOutstandingAmountAsync(CancellationToken ct = default)
     {
-        DbConnection connection = _context.Database.GetDbConnection();
+        DbConnection connection = context.Database.GetDbConnection();
 
         const string sql = """
             SELECT COALESCE(SUM(i."TotalAmount_Amount"), 0)
@@ -97,7 +89,7 @@ public sealed class InvoiceQueryService : IInvoiceQueryService
 
         CommandDefinition command = new(
             sql,
-            new { TenantId = _tenantContext.TenantId.Value },
+            new { TenantId = tenantContext.TenantId.Value },
             cancellationToken: ct);
 
         decimal result = await connection.QuerySingleAsync<decimal>(command);

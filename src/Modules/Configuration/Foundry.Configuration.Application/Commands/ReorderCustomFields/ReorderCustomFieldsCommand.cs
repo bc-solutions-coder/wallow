@@ -6,22 +6,16 @@ namespace Foundry.Configuration.Application.Commands.ReorderCustomFields;
 
 public sealed record ReorderCustomFieldsCommand(string EntityType, IReadOnlyList<Guid> FieldIdsInOrder);
 
-public sealed class ReorderCustomFieldsHandler
+public sealed class ReorderCustomFieldsHandler(
+    ICustomFieldDefinitionRepository repository,
+    TimeProvider timeProvider)
 {
-    private readonly ICustomFieldDefinitionRepository _repository;
-    private readonly TimeProvider _timeProvider;
-
-    public ReorderCustomFieldsHandler(ICustomFieldDefinitionRepository repository, TimeProvider timeProvider)
-    {
-        _repository = repository;
-        _timeProvider = timeProvider;
-    }
 
     public async Task Handle(
         ReorderCustomFieldsCommand command,
         CancellationToken cancellationToken)
     {
-        IReadOnlyList<CustomFieldDefinition> definitions = await _repository.GetByEntityTypeAsync(
+        IReadOnlyList<CustomFieldDefinition> definitions = await repository.GetByEntityTypeAsync(
             command.EntityType,
             includeInactive: true,
             cancellationToken);
@@ -38,10 +32,10 @@ public sealed class ReorderCustomFieldsHandler
                 throw new CustomFieldException($"Field with ID '{fieldId}' not found for entity type '{command.EntityType}'");
             }
 
-            definition.SetDisplayOrder(i, userId, _timeProvider);
-            await _repository.UpdateAsync(definition, cancellationToken);
+            definition.SetDisplayOrder(i, userId, timeProvider);
+            await repository.UpdateAsync(definition, cancellationToken);
         }
 
-        await _repository.SaveChangesAsync(cancellationToken);
+        await repository.SaveChangesAsync(cancellationToken);
     }
 }

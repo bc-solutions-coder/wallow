@@ -24,7 +24,7 @@ public class GetApiScopesQueryTests
         _apiScopeRepository.GetAllAsync(null, Arg.Any<CancellationToken>())
             .Returns(scopes);
 
-        GetApiScopesQuery query = new();
+        GetApiScopesQuery query = new GetApiScopesQuery();
         GetApiScopesHandler handler = new(_apiScopeRepository);
 
         // Act
@@ -81,7 +81,7 @@ public class GetApiScopesQueryTests
         _apiScopeRepository.GetAllAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(new List<ApiScope> { scope });
 
-        GetApiScopesQuery query = new();
+        GetApiScopesQuery query = new GetApiScopesQuery();
         GetApiScopesHandler handler = new(_apiScopeRepository);
 
         // Act
@@ -102,9 +102,9 @@ public class GetApiScopesQueryTests
     {
         // Arrange
         _apiScopeRepository.GetAllAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>())
-            .Returns(new List<ApiScope>());
+            .Returns([]);
 
-        GetApiScopesQuery query = new();
+        GetApiScopesQuery query = new GetApiScopesQuery();
         GetApiScopesHandler handler = new(_apiScopeRepository);
 
         // Act
@@ -119,11 +119,11 @@ public class GetApiScopesQueryTests
     public async Task Handle_PropagatesCancellationToken()
     {
         // Arrange
-        using CancellationTokenSource cts = new();
+        using CancellationTokenSource cts = new CancellationTokenSource();
         _apiScopeRepository.GetAllAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>())
-            .Returns(new List<ApiScope>());
+            .Returns([]);
 
-        GetApiScopesQuery query = new();
+        GetApiScopesQuery query = new GetApiScopesQuery();
         GetApiScopesHandler handler = new(_apiScopeRepository);
 
         // Act

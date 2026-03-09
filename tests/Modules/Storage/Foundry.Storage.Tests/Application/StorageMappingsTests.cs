@@ -58,7 +58,7 @@ public class StorageMappingsTests
         RetentionPolicy retention = new(90, RetentionAction.Archive);
         StorageBucket bucket = StorageBucket.Create(
             tenantId, "my-bucket", "A description", AccessLevel.Public,
-            1024 * 1024, new[] { "image/png", "image/jpeg" }, retention, true);
+            1024 * 1024, ["image/png", "image/jpeg"], retention, true);
 
         BucketDto dto = bucket.ToDto();
 

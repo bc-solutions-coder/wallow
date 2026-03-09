@@ -16,7 +16,7 @@ public sealed class GetCurrentUsageHandler(
         CancellationToken cancellationToken)
     {
         IReadOnlyList<MeterDefinition> meters = await meterRepository.GetAllAsync(cancellationToken);
-        List<UsageSummaryDto> results = new List<UsageSummaryDto>();
+        List<UsageSummaryDto> results = [];
 
         foreach (MeterDefinition meter in meters)
         {

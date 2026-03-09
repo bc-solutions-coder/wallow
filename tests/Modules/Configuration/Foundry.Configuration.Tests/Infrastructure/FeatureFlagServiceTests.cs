@@ -17,7 +17,7 @@ public class FeatureFlagServiceIsEnabledTests
     {
         _repository = Substitute.For<IFeatureFlagRepository>();
         _messageBus = Substitute.For<IMessageBus>();
-        _service = new FeatureFlagService(_repository, _messageBus, TimeProvider.System);
+        _service = new(_repository, _messageBus, TimeProvider.System);
     }
 
     [Fact]
@@ -204,7 +204,7 @@ public class FeatureFlagServiceGetVariantTests
     {
         _repository = Substitute.For<IFeatureFlagRepository>();
         _messageBus = Substitute.For<IMessageBus>();
-        _service = new FeatureFlagService(_repository, _messageBus, TimeProvider.System);
+        _service = new(_repository, _messageBus, TimeProvider.System);
     }
 
     [Fact]
@@ -223,8 +223,8 @@ public class FeatureFlagServiceGetVariantTests
     {
         VariantWeight[] variants =
         [
-            new VariantWeight("control", 100),
-            new VariantWeight("treatment", 0)
+            new("control", 100),
+            new("treatment", 0)
         ];
         FeatureFlag flag = FeatureFlag.CreateVariant("ab_test", "Test", variants, "control", TimeProvider.System);
         _repository.GetByKeyAsync("ab_test", Arg.Any<CancellationToken>()).Returns(flag);
@@ -250,8 +250,8 @@ public class FeatureFlagServiceGetVariantTests
     {
         VariantWeight[] variants =
         [
-            new VariantWeight("control", 50),
-            new VariantWeight("treatment", 50)
+            new("control", 50),
+            new("treatment", 50)
         ];
         FeatureFlag flag = FeatureFlag.CreateVariant("ab_test", "Test", variants, "control", TimeProvider.System);
         Guid tenantId = Guid.NewGuid();
@@ -286,8 +286,8 @@ public class FeatureFlagServiceGetVariantTests
     {
         VariantWeight[] variants =
         [
-            new VariantWeight("control", 0),
-            new VariantWeight("treatment", 0)
+            new("control", 0),
+            new("treatment", 0)
         ];
         FeatureFlag flag = FeatureFlag.CreateVariant("ab_test", "Test", variants, "control", TimeProvider.System);
         _repository.GetByKeyAsync("ab_test", Arg.Any<CancellationToken>()).Returns(flag);
@@ -307,7 +307,7 @@ public class FeatureFlagServiceGetAllFlagsTests
     {
         _repository = Substitute.For<IFeatureFlagRepository>();
         IMessageBus messageBus = Substitute.For<IMessageBus>();
-        _service = new FeatureFlagService(_repository, messageBus, TimeProvider.System);
+        _service = new(_repository, messageBus, TimeProvider.System);
     }
 
     [Fact]
@@ -340,7 +340,7 @@ public class FeatureFlagServiceGetAllFlagsTests
     {
         VariantWeight[] variants =
         [
-            new VariantWeight("control", 100)
+            new("control", 100)
         ];
         FeatureFlag flag = FeatureFlag.CreateVariant("ab_test", "Test", variants, "control", TimeProvider.System);
         _repository.GetAllAsync(Arg.Any<CancellationToken>())

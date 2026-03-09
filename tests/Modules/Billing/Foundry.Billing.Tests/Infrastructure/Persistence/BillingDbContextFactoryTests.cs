@@ -7,7 +7,7 @@ public class BillingDbContextFactoryTests
     [Fact]
     public void CreateDbContext_ReturnsNonNullContext()
     {
-        BillingDbContextFactory factory = new BillingDbContextFactory();
+        BillingDbContextFactory factory = new();
 
         BillingDbContext context = factory.CreateDbContext(Array.Empty<string>());
 
@@ -17,7 +17,7 @@ public class BillingDbContextFactoryTests
     [Fact]
     public void CreateDbContext_ContextHasInvoicesDbSet()
     {
-        BillingDbContextFactory factory = new BillingDbContextFactory();
+        BillingDbContextFactory factory = new();
 
         BillingDbContext context = factory.CreateDbContext(Array.Empty<string>());
 
@@ -27,7 +27,7 @@ public class BillingDbContextFactoryTests
     [Fact]
     public void CreateDbContext_ContextHasPaymentsDbSet()
     {
-        BillingDbContextFactory factory = new BillingDbContextFactory();
+        BillingDbContextFactory factory = new();
 
         BillingDbContext context = factory.CreateDbContext(Array.Empty<string>());
 
@@ -37,7 +37,7 @@ public class BillingDbContextFactoryTests
     [Fact]
     public void CreateDbContext_ContextHasSubscriptionsDbSet()
     {
-        BillingDbContextFactory factory = new BillingDbContextFactory();
+        BillingDbContextFactory factory = new();
 
         BillingDbContext context = factory.CreateDbContext(Array.Empty<string>());
 
@@ -47,7 +47,7 @@ public class BillingDbContextFactoryTests
     [Fact]
     public void CreateDbContext_ContextHasMeterDefinitionsDbSet()
     {
-        BillingDbContextFactory factory = new BillingDbContextFactory();
+        BillingDbContextFactory factory = new();
 
         BillingDbContext context = factory.CreateDbContext(Array.Empty<string>());
 

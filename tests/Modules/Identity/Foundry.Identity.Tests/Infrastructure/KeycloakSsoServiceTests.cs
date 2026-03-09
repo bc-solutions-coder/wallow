@@ -780,13 +780,11 @@ public class KeycloakSsoServiceTests
         ICurrentUserService currentUserService = Substitute.For<ICurrentUserService>();
 
         HttpClient keycloakClient = handler != null
-            ? new HttpClient(handler)
-            : new HttpClient(new MockKeycloakHttpHandler());
+            ? new HttpClient(handler) : new HttpClient(new MockKeycloakHttpHandler());
         keycloakClient.BaseAddress = new Uri("https://keycloak.test/");
 
         HttpClient externalClient = handler != null
-            ? new HttpClient(handler)
-            : new HttpClient(new MockKeycloakHttpHandler());
+            ? new HttpClient(handler) : new HttpClient(new MockKeycloakHttpHandler());
 
         httpClientFactory.CreateClient("KeycloakAdminClient").Returns(keycloakClient);
         httpClientFactory.CreateClient().Returns(externalClient);
@@ -826,8 +824,8 @@ public class KeycloakSsoServiceTests
 
     private sealed class MockKeycloakHttpHandler : HttpMessageHandler
     {
-        private readonly Dictionary<string, (HttpStatusCode Status, object? Content)> _keycloakRoutes = [];
-        private readonly Dictionary<string, (HttpStatusCode Status, object? Content)> _externalRoutes = [];
+        private readonly Dictionary<string, (HttpStatusCode Status, object? Content)> _keycloakRoutes = new Dictionary<string, (HttpStatusCode Status, object? Content)>();
+        private readonly Dictionary<string, (HttpStatusCode Status, object? Content)> _externalRoutes = new Dictionary<string, (HttpStatusCode Status, object? Content)>();
 
         public MockKeycloakHttpHandler WithKeycloakGet(string path, HttpStatusCode status, object? content = null)
         {

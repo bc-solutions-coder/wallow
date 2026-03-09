@@ -3,15 +3,9 @@ using System.Text.Json.Nodes;
 
 namespace Foundry.Shared.Infrastructure.Workflows.AsyncApi;
 
-public sealed class AsyncApiDocumentGenerator
+public sealed class AsyncApiDocumentGenerator(EventFlowInfo[] flows)
 {
-    private readonly EventFlowInfo[] _flows;
     private JsonObject? _cached;
-
-    public AsyncApiDocumentGenerator(EventFlowInfo[] flows)
-    {
-        _flows = flows;
-    }
 
     public JsonObject GenerateDocument()
     {
@@ -20,7 +14,7 @@ public sealed class AsyncApiDocumentGenerator
             return _cached;
         }
 
-        JsonObject doc = new JsonObject
+        JsonObject doc = new()
         {
             ["asyncapi"] = "3.0.0",
             ["info"] = BuildInfo(),
@@ -49,9 +43,9 @@ public sealed class AsyncApiDocumentGenerator
 
     private JsonObject BuildChannels()
     {
-        JsonObject channels = new JsonObject();
+        JsonObject channels = new();
 
-        foreach (EventFlowInfo flow in _flows)
+        foreach (EventFlowInfo flow in flows)
         {
             channels[flow.EventTypeName] = new JsonObject
             {
@@ -83,9 +77,9 @@ public sealed class AsyncApiDocumentGenerator
 
     private JsonObject BuildOperations()
     {
-        JsonObject operations = new JsonObject();
+        JsonObject operations = new();
 
-        foreach (EventFlowInfo flow in _flows)
+        foreach (EventFlowInfo flow in flows)
         {
             // Send operation from the producing module
             operations[$"{flow.SourceModule}.publish.{flow.EventTypeName}"] = new JsonObject
@@ -128,9 +122,9 @@ public sealed class AsyncApiDocumentGenerator
 
     private JsonObject BuildSchemas()
     {
-        JsonObject schemas = new JsonObject();
+        JsonObject schemas = new();
 
-        foreach (EventFlowInfo flow in _flows)
+        foreach (EventFlowInfo flow in flows)
         {
             schemas[flow.EventTypeName] = JsonSchemaGenerator.GenerateSchema(flow.EventType);
         }

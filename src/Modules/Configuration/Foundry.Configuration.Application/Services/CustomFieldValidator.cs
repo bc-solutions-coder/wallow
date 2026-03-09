@@ -11,24 +11,16 @@ namespace Foundry.Configuration.Application.Services;
 /// <summary>
 /// Validates entity custom fields against tenant's configured field definitions.
 /// </summary>
-public sealed partial class CustomFieldValidator : ICustomFieldValidator
+public sealed partial class CustomFieldValidator(
+    ICustomFieldDefinitionRepository repository,
+    ITenantContext tenantContext) : ICustomFieldValidator
 {
-    private readonly ICustomFieldDefinitionRepository _repository;
-    private readonly ITenantContext _tenantContext;
-
-    public CustomFieldValidator(
-        ICustomFieldDefinitionRepository repository,
-        ITenantContext tenantContext)
-    {
-        _repository = repository;
-        _tenantContext = tenantContext;
-    }
 
     public async Task<CustomFieldValidationResult> ValidateAsync<T>(
         T entity,
         CancellationToken cancellationToken = default) where T : IHasCustomFields
     {
-        if (!_tenantContext.IsResolved)
+        if (!tenantContext.IsResolved)
         {
             return CustomFieldValidationResult.Success(); // No tenant = no validation
         }
@@ -40,7 +32,7 @@ public sealed partial class CustomFieldValidator : ICustomFieldValidator
             return CustomFieldValidationResult.Success(); // Entity type not configured for custom fields
         }
 
-        IReadOnlyList<CustomFieldDefinition> definitions = await _repository.GetByEntityTypeAsync(
+        IReadOnlyList<CustomFieldDefinition> definitions = await repository.GetByEntityTypeAsync(
             entityType,
             includeInactive: false,
             cancellationToken);
@@ -50,8 +42,8 @@ public sealed partial class CustomFieldValidator : ICustomFieldValidator
             return CustomFieldValidationResult.Success(); // No fields defined
         }
 
-        List<CustomFieldValidationError> errors = new List<CustomFieldValidationError>();
-        Dictionary<string, object> customFields = entity.CustomFields ?? new Dictionary<string, object>();
+        List<CustomFieldValidationError> errors = [];
+        Dictionary<string, object> customFields = entity.CustomFields ?? [];
 
         foreach (CustomFieldDefinition definition in definitions)
         {
@@ -68,7 +60,7 @@ public sealed partial class CustomFieldValidator : ICustomFieldValidator
         CustomFieldDefinition definition,
         Dictionary<string, object> customFields)
     {
-        List<CustomFieldValidationError> errors = new List<CustomFieldValidationError>();
+        List<CustomFieldValidationError> errors = [];
         string fieldKey = definition.FieldKey;
         string displayName = definition.DisplayName;
 
@@ -80,7 +72,7 @@ public sealed partial class CustomFieldValidator : ICustomFieldValidator
         // Required check
         if (definition.IsRequired && (!hasValue || isEmpty))
         {
-            errors.Add(new CustomFieldValidationError(fieldKey, $"{displayName} is required"));
+            errors.Add(new(fieldKey, $"{displayName} is required"));
             return errors; // No point validating further
         }
 
@@ -94,7 +86,7 @@ public sealed partial class CustomFieldValidator : ICustomFieldValidator
         string? typeError = ValidateType(definition, value, displayName);
         if (typeError != null)
         {
-            errors.Add(new CustomFieldValidationError(fieldKey, typeError));
+            errors.Add(new(fieldKey, typeError));
             return errors; // Type mismatch, skip rule validation
         }
 
@@ -183,7 +175,7 @@ public sealed partial class CustomFieldValidator : ICustomFieldValidator
         FieldValidationRules rules,
         string displayName)
     {
-        List<string> errors = new List<string>();
+        List<string> errors = [];
 
         // String length validation
         if (rules.MinLength.HasValue && stringValue.Length < rules.MinLength.Value)
@@ -248,7 +240,7 @@ public sealed partial class CustomFieldValidator : ICustomFieldValidator
         object? value,
         string displayName)
     {
-        List<string> errors = new List<string>();
+        List<string> errors = [];
         IReadOnlyList<CustomFieldOption> options = definition.GetOptions();
 
         if (options.Count == 0)

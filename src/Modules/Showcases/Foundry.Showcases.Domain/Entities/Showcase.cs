@@ -48,7 +48,7 @@ public sealed class Showcase : AggregateRoot<ShowcaseId>
             return Result.Failure<Showcase>(Error.Validation("Showcase.UrlRequired", "At least one of DemoUrl, GitHubUrl, or VideoUrl must be provided"));
         }
 
-        Showcase showcase = new Showcase
+        Showcase showcase = new()
         {
             Id = ShowcaseId.New(),
             Title = title.Trim(),

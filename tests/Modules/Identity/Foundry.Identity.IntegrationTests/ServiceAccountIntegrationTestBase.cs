@@ -15,12 +15,10 @@ using Microsoft.Extensions.Logging;
 namespace Foundry.Identity.IntegrationTests;
 
 [Trait("Category", "Integration")]
-public class ServiceAccountIntegrationTestBase : FoundryIntegrationTestBase, IClassFixture<ServiceAccountTestFactory>
+public class ServiceAccountIntegrationTestBase(ServiceAccountTestFactory factory) : FoundryIntegrationTestBase(factory), IClassFixture<ServiceAccountTestFactory>
 {
     protected IServiceAccountService ServiceAccountService { get; set; } = null!;
     protected IApiScopeRepository ApiScopeRepository { get; set; } = null!;
-
-    public ServiceAccountIntegrationTestBase(ServiceAccountTestFactory factory) : base(factory) { }
 
     public override async Task InitializeAsync()
     {

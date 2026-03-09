@@ -11,7 +11,7 @@ public static class MermaidFlowGenerator
             return "flowchart LR";
         }
 
-        StringBuilder sb = new StringBuilder();
+        StringBuilder sb = new();
         sb.AppendLine("flowchart LR");
         sb.AppendLine();
         sb.AppendLine("    exchange{{RabbitMQ}}");

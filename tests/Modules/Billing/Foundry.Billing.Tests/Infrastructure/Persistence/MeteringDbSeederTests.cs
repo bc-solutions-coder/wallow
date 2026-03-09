@@ -7,9 +7,8 @@ namespace Foundry.Billing.Tests.Infrastructure.Persistence;
 
 [Collection("PostgresDatabase")]
 [Trait("Category", "Integration")]
-public class MeteringDbSeederTests : DbContextIntegrationTestBase<BillingDbContext>
+public class MeteringDbSeederTests(PostgresContainerFixture fixture) : DbContextIntegrationTestBase<BillingDbContext>(fixture)
 {
-    public MeteringDbSeederTests(PostgresContainerFixture fixture) : base(fixture) { }
 
     protected override bool UseMigrateAsync => true;
 

@@ -41,7 +41,7 @@ public class ValkeyMeteringServiceTests
     [Fact]
     public async Task IncrementAsync_ShouldIncrementCounter()
     {
-        await _service.IncrementAsync("api.calls", 1);
+        await _service.IncrementAsync("api.calls");
 
         await _database.Received(1).StringIncrementAsync(
             Arg.Is<RedisKey>(k => k.ToString().Contains("api.calls")),
@@ -52,7 +52,7 @@ public class ValkeyMeteringServiceTests
     [Fact]
     public async Task IncrementAsync_ShouldSetExpiry()
     {
-        await _service.IncrementAsync("api.calls", 1);
+        await _service.IncrementAsync("api.calls");
 
         await _database.Received(1).KeyExpireAsync(
             Arg.Is<RedisKey>(k => k.ToString().Contains("api.calls")),

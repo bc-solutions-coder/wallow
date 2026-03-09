@@ -7,9 +7,8 @@ namespace Foundry.Identity.IntegrationTests.OAuth2;
 /// Validates that Keycloak-issued tokens are properly validated by the API.
 /// </summary>
 [Trait("Category", "Integration")]
-public class TokenValidationTests : KeycloakIntegrationTestBase
+public class TokenValidationTests(KeycloakTestFixture fixture) : KeycloakIntegrationTestBase(fixture)
 {
-    public TokenValidationTests(KeycloakTestFixture fixture) : base(fixture) { }
 
     [Fact]
     public async Task Should_Reject_Request_Without_Token()

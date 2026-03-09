@@ -84,7 +84,8 @@ public class TenantSaveChangesInterceptorTests
         using TestDbContext dbContext = CreateDbContext();
         dbContext.NonTenantEntities.Add(new TestNonTenantEntity { Name = "Test" });
 
-        dbContext.Invoking(ctx => ctx.SaveChanges()).Should().NotThrow();
+        Action act = () => dbContext.SaveChanges();
+        act.Should().NotThrow();
 
         dbContext.NonTenantEntities.Should().ContainSingle()
             .Which.Name.Should().Be("Test");
@@ -130,9 +131,8 @@ public class TenantSaveChangesInterceptorTests
         public string Name { get; set; } = string.Empty;
     }
 
-    private sealed class TestDbContext : DbContext
+    private sealed class TestDbContext(DbContextOptions<TestDbContext> options) : DbContext(options)
     {
-        public TestDbContext(DbContextOptions<TestDbContext> options) : base(options) { }
 
         public DbSet<TestTenantEntity> TenantEntities => Set<TestTenantEntity>();
         public DbSet<TestNonTenantEntity> NonTenantEntities => Set<TestNonTenantEntity>();

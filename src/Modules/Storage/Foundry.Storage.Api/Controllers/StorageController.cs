@@ -33,18 +33,8 @@ namespace Foundry.Storage.Api.Controllers;
 [Authorize]
 [Tags("Storage")]
 [Produces("application/json")]
-public sealed class StorageController : ControllerBase
+public sealed class StorageController(IMessageBus bus, ITenantContext tenantContext, ICurrentUserService currentUserService) : ControllerBase
 {
-    private readonly IMessageBus _bus;
-    private readonly ITenantContext _tenantContext;
-    private readonly ICurrentUserService _currentUserService;
-
-    public StorageController(IMessageBus bus, ITenantContext tenantContext, ICurrentUserService currentUserService)
-    {
-        _bus = bus;
-        _tenantContext = tenantContext;
-        _currentUserService = currentUserService;
-    }
 
     #region Bucket Operations
 
@@ -71,7 +61,7 @@ public sealed class StorageController : ControllerBase
             retentionAction = action;
         }
 
-        CreateBucketCommand command = new CreateBucketCommand(
+        CreateBucketCommand command = new(
             request.Name,
             request.Description,
             access,
@@ -81,7 +71,7 @@ public sealed class StorageController : ControllerBase
             retentionAction,
             request.Versioning);
 
-        Result<BucketDto> result = await _bus.InvokeAsync<Result<BucketDto>>(command, cancellationToken);
+        Result<BucketDto> result = await bus.InvokeAsync<Result<BucketDto>>(command, cancellationToken);
 
         return result.Map(ToBucketResponse)
             .ToCreatedResult($"/api/v1/storage/buckets/{request.Name}");
@@ -96,7 +86,7 @@ public sealed class StorageController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetBucket(string name, CancellationToken cancellationToken)
     {
-        Result<BucketDto> result = await _bus.InvokeAsync<Result<BucketDto>>(
+        Result<BucketDto> result = await bus.InvokeAsync<Result<BucketDto>>(
             new GetBucketByNameQuery(name), cancellationToken);
 
         return result.Map(ToBucketResponse).ToActionResult();
@@ -115,8 +105,8 @@ public sealed class StorageController : ControllerBase
         [FromQuery] bool force = false,
         CancellationToken cancellationToken = default)
     {
-        Result result = await _bus.InvokeAsync<Result>(
-            new DeleteBucketCommand(_tenantContext.TenantId.Value, name, force), cancellationToken);
+        Result result = await bus.InvokeAsync<Result>(
+            new DeleteBucketCommand(tenantContext.TenantId.Value, name, force), cancellationToken);
 
         if (result.IsSuccess)
         {
@@ -157,7 +147,7 @@ public sealed class StorageController : ControllerBase
             });
         }
 
-        Guid? userId = _currentUserService.GetCurrentUserId();
+        Guid? userId = currentUserService.GetCurrentUserId();
         if (userId is null)
         {
             return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
@@ -165,8 +155,8 @@ public sealed class StorageController : ControllerBase
 
         await using Stream stream = file.OpenReadStream();
 
-        UploadFileCommand command = new UploadFileCommand(
-            _tenantContext.TenantId.Value,
+        UploadFileCommand command = new(
+            tenantContext.TenantId.Value,
             userId.Value,
             bucket,
             file.FileName,
@@ -176,7 +166,7 @@ public sealed class StorageController : ControllerBase
             path,
             isPublic);
 
-        Result<UploadResult> result = await _bus.InvokeAsync<Result<UploadResult>>(command, cancellationToken);
+        Result<UploadResult> result = await bus.InvokeAsync<Result<UploadResult>>(command, cancellationToken);
 
         if (!result.IsSuccess)
         {
@@ -196,8 +186,8 @@ public sealed class StorageController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetFile(Guid id, CancellationToken cancellationToken)
     {
-        Result<StoredFileDto> result = await _bus.InvokeAsync<Result<StoredFileDto>>(
-            new GetFileByIdQuery(_tenantContext.TenantId.Value, id), cancellationToken);
+        Result<StoredFileDto> result = await bus.InvokeAsync<Result<StoredFileDto>>(
+            new GetFileByIdQuery(tenantContext.TenantId.Value, id), cancellationToken);
 
         return result.Map(ToFileMetadataResponse).ToActionResult();
     }
@@ -211,8 +201,8 @@ public sealed class StorageController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Download(Guid id, CancellationToken cancellationToken)
     {
-        Result<PresignedUrlResult> result = await _bus.InvokeAsync<Result<PresignedUrlResult>>(
-            new GetPresignedUrlQuery(_tenantContext.TenantId.Value, id), cancellationToken);
+        Result<PresignedUrlResult> result = await bus.InvokeAsync<Result<PresignedUrlResult>>(
+            new GetPresignedUrlQuery(tenantContext.TenantId.Value, id), cancellationToken);
 
         if (result.IsFailure)
         {
@@ -231,8 +221,8 @@ public sealed class StorageController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
-        Result result = await _bus.InvokeAsync<Result>(
-            new DeleteFileCommand(_tenantContext.TenantId.Value, id), cancellationToken);
+        Result result = await bus.InvokeAsync<Result>(
+            new DeleteFileCommand(tenantContext.TenantId.Value, id), cancellationToken);
 
         if (result.IsSuccess)
         {
@@ -256,8 +246,8 @@ public sealed class StorageController : ControllerBase
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        Result<PagedResult<StoredFileDto>> result = await _bus.InvokeAsync<Result<PagedResult<StoredFileDto>>>(
-            new GetFilesByBucketQuery(_tenantContext.TenantId.Value, bucket, path, page, pageSize), cancellationToken);
+        Result<PagedResult<StoredFileDto>> result = await bus.InvokeAsync<Result<PagedResult<StoredFileDto>>>(
+            new GetFilesByBucketQuery(tenantContext.TenantId.Value, bucket, path, page, pageSize), cancellationToken);
 
         return result.Map(paged => new PagedResult<FileMetadataResponse>(
                 paged.Items.Select(ToFileMetadataResponse).ToList(),
@@ -287,11 +277,11 @@ public sealed class StorageController : ControllerBase
             ? TimeSpan.FromMinutes(request.ExpiryMinutes.Value)
             : null;
 
-        Guid userId = _currentUserService.GetCurrentUserId() ?? Guid.Empty;
+        Guid userId = currentUserService.GetCurrentUserId() ?? Guid.Empty;
 
-        Result<PresignedUploadResult> result = await _bus.InvokeAsync<Result<PresignedUploadResult>>(
+        Result<PresignedUploadResult> result = await bus.InvokeAsync<Result<PresignedUploadResult>>(
             new GetUploadPresignedUrlQuery(
-                _tenantContext.TenantId.Value,
+                tenantContext.TenantId.Value,
                 userId,
                 request.BucketName,
                 request.FileName,
@@ -321,8 +311,8 @@ public sealed class StorageController : ControllerBase
             ? TimeSpan.FromMinutes(expiryMinutes.Value)
             : null;
 
-        Result<PresignedUrlResult> result = await _bus.InvokeAsync<Result<PresignedUrlResult>>(
-            new GetPresignedUrlQuery(_tenantContext.TenantId.Value, id, expiry), cancellationToken);
+        Result<PresignedUrlResult> result = await bus.InvokeAsync<Result<PresignedUrlResult>>(
+            new GetPresignedUrlQuery(tenantContext.TenantId.Value, id, expiry), cancellationToken);
 
         return result.Map(r => new PresignedUrlResponse(r.Url, r.ExpiresAt))
             .ToActionResult();

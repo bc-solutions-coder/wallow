@@ -7,14 +7,9 @@ namespace Foundry.Storage.Infrastructure.Providers;
 /// <summary>
 /// Local filesystem storage provider for development environments.
 /// </summary>
-public sealed class LocalStorageProvider : IStorageProvider
+public sealed class LocalStorageProvider(IOptions<StorageOptions> options) : IStorageProvider
 {
-    private readonly LocalStorageOptions _options;
-
-    public LocalStorageProvider(IOptions<StorageOptions> options)
-    {
-        _options = options.Value.Local;
-    }
+    private readonly LocalStorageOptions _options = options.Value.Local;
 
     public async Task<string> UploadAsync(Stream content, string key, string contentType, CancellationToken ct = default)
     {
@@ -26,7 +21,7 @@ public sealed class LocalStorageProvider : IStorageProvider
             Directory.CreateDirectory(directory);
         }
 
-        await using FileStream fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None);
+        await using FileStream fileStream = new(filePath, FileMode.Create, FileAccess.Write, FileShare.None);
         await content.CopyToAsync(fileStream, ct);
 
         // Return file hash as ETag equivalent
@@ -42,7 +37,7 @@ public sealed class LocalStorageProvider : IStorageProvider
             throw new FileNotFoundException($"File not found: {key}", key);
         }
 
-        FileStream stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        FileStream stream = new(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
         return Task.FromResult<Stream>(stream);
     }
 

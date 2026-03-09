@@ -15,18 +15,8 @@ namespace Foundry.Identity.Api.Controllers;
 [Tags("Roles")]
 [Produces("application/json")]
 [Consumes("application/json")]
-public class RolesController : ControllerBase
+public class RolesController(IHttpClientFactory httpClientFactory, IRolePermissionLookup rolePermissionLookup) : ControllerBase
 {
-    private readonly IHttpClientFactory _httpClientFactory;
-    private readonly IRolePermissionLookup _rolePermissionLookup;
-
-    public RolesController(
-        IHttpClientFactory httpClientFactory,
-        IRolePermissionLookup rolePermissionLookup)
-    {
-        _httpClientFactory = httpClientFactory;
-        _rolePermissionLookup = rolePermissionLookup;
-    }
 
     /// <summary>
     /// Get all available roles in the system.
@@ -35,7 +25,7 @@ public class RolesController : ControllerBase
     [HasPermission(PermissionType.RolesRead)]
     public async Task<ActionResult> GetRoles(CancellationToken ct)
     {
-        HttpClient client = _httpClientFactory.CreateClient("KeycloakAdminClient");
+        HttpClient client = httpClientFactory.CreateClient("KeycloakAdminClient");
         HttpResponseMessage response = await client.GetAsync("/admin/realms/foundry/roles", ct);
         response.EnsureSuccessStatusCode();
 
@@ -56,7 +46,7 @@ public class RolesController : ControllerBase
     [HasPermission(PermissionType.RolesRead)]
     public ActionResult GetRolePermissions(string roleName)
     {
-        IReadOnlyCollection<string> permissions = _rolePermissionLookup.GetPermissions(new[] { roleName });
+        IReadOnlyCollection<string> permissions = rolePermissionLookup.GetPermissions(new[] { roleName });
         return Ok(permissions);
     }
 

@@ -31,7 +31,7 @@ public sealed class Inquiry : AggregateRoot<InquiryId>
         string submitterIpAddress,
         TimeProvider timeProvider)
     {
-        Inquiry inquiry = new Inquiry
+        Inquiry inquiry = new()
         {
             Id = InquiryId.New(),
             Name = name,

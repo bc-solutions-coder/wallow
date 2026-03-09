@@ -11,7 +11,7 @@ public class FeatureFlagCreatedEventTests
     {
         Guid flagId = Guid.NewGuid();
 
-        FeatureFlagCreatedEvent evt = new FeatureFlagCreatedEvent(flagId, "dark_mode", FlagType.Boolean);
+        FeatureFlagCreatedEvent evt = new(flagId, "dark_mode", FlagType.Boolean);
 
         evt.FlagId.Should().Be(flagId);
         evt.Key.Should().Be("dark_mode");
@@ -26,7 +26,7 @@ public class FeatureFlagUpdatedEventTests
     {
         Guid flagId = Guid.NewGuid();
 
-        FeatureFlagUpdatedEvent evt = new FeatureFlagUpdatedEvent(flagId, "dark_mode", "Name,Description");
+        FeatureFlagUpdatedEvent evt = new(flagId, "dark_mode", "Name,Description");
 
         evt.FlagId.Should().Be(flagId);
         evt.Key.Should().Be("dark_mode");
@@ -41,7 +41,7 @@ public class FeatureFlagDeletedEventTests
     {
         Guid flagId = Guid.NewGuid();
 
-        FeatureFlagDeletedEvent evt = new FeatureFlagDeletedEvent(flagId, "dark_mode");
+        FeatureFlagDeletedEvent evt = new(flagId, "dark_mode");
 
         evt.FlagId.Should().Be(flagId);
         evt.Key.Should().Be("dark_mode");
@@ -57,7 +57,7 @@ public class FeatureFlagEvaluatedEventTests
         Guid userId = Guid.NewGuid();
         DateTimeOffset timestamp = DateTimeOffset.UtcNow;
 
-        FeatureFlagEvaluatedEvent evt = new FeatureFlagEvaluatedEvent(
+        FeatureFlagEvaluatedEvent evt = new(
             "dark_mode", tenantId, userId, "True", "Default value", timestamp);
 
         evt.FlagKey.Should().Be("dark_mode");
@@ -71,7 +71,7 @@ public class FeatureFlagEvaluatedEventTests
     [Fact]
     public void Constructor_WithNullUserId_SetsNull()
     {
-        FeatureFlagEvaluatedEvent evt = new FeatureFlagEvaluatedEvent(
+        FeatureFlagEvaluatedEvent evt = new(
             "feature", Guid.NewGuid(), null, "False", "reason", DateTimeOffset.UtcNow);
 
         evt.UserId.Should().BeNull();
@@ -86,7 +86,7 @@ public class CustomFieldDefinitionCreatedEventTests
         Guid definitionId = Guid.NewGuid();
         Guid tenantId = Guid.NewGuid();
 
-        CustomFieldDefinitionCreatedEvent evt = new CustomFieldDefinitionCreatedEvent(
+        CustomFieldDefinitionCreatedEvent evt = new(
             definitionId, tenantId, "Invoice", "po_number", "PO Number", CustomFieldType.Text);
 
         evt.DefinitionId.Should().Be(definitionId);
@@ -106,7 +106,7 @@ public class CustomFieldDefinitionDeactivatedEventTests
         Guid definitionId = Guid.NewGuid();
         Guid tenantId = Guid.NewGuid();
 
-        CustomFieldDefinitionDeactivatedEvent evt = new CustomFieldDefinitionDeactivatedEvent(
+        CustomFieldDefinitionDeactivatedEvent evt = new(
             definitionId, tenantId, "Invoice", "po_number");
 
         evt.DefinitionId.Should().Be(definitionId);

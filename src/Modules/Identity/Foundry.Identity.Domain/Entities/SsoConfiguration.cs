@@ -11,7 +11,7 @@ namespace Foundry.Identity.Domain.Entities;
 /// SSO identity provider configuration for a tenant, supporting SAML and OIDC protocols.
 /// </summary>
 /// <remarks>
-/// State machine (SsoStatus):
+/// State machine (SsoStatus) :
 /// <code>
 ///                    ┌──────────────────────┐
 ///                    │                      │

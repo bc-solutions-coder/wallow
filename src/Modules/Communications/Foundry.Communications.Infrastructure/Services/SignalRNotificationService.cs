@@ -5,21 +5,11 @@ using Microsoft.Extensions.Logging;
 
 namespace Foundry.Communications.Infrastructure.Services;
 
-public sealed partial class SignalRNotificationService : INotificationService
+public sealed partial class SignalRNotificationService(
+    IRealtimeDispatcher dispatcher,
+    TimeProvider timeProvider,
+    ILogger<SignalRNotificationService> logger) : INotificationService
 {
-    private readonly IRealtimeDispatcher _dispatcher;
-    private readonly TimeProvider _timeProvider;
-    private readonly ILogger<SignalRNotificationService> _logger;
-
-    public SignalRNotificationService(
-        IRealtimeDispatcher dispatcher,
-        TimeProvider timeProvider,
-        ILogger<SignalRNotificationService> logger)
-    {
-        _dispatcher = dispatcher;
-        _timeProvider = timeProvider;
-        _logger = logger;
-    }
 
     public async Task SendToUserAsync(
         Guid userId,
@@ -33,13 +23,13 @@ public sealed partial class SignalRNotificationService : INotificationService
             Title = title,
             Message = message,
             Type = type,
-            CreatedAt = _timeProvider.GetUtcNow().UtcDateTime
+            CreatedAt = timeProvider.GetUtcNow().UtcDateTime
         };
 
         RealtimeEnvelope envelope = RealtimeEnvelope.Create("Notifications", "NotificationCreated", payload);
-        await _dispatcher.SendToUserAsync(userId.ToString(), envelope, cancellationToken);
+        await dispatcher.SendToUserAsync(userId.ToString(), envelope, cancellationToken);
 
-        LogSentToUser(_logger, userId, title);
+        LogSentToUser(logger, userId, title);
     }
 
     public async Task BroadcastToTenantAsync(
@@ -54,15 +44,15 @@ public sealed partial class SignalRNotificationService : INotificationService
             Title = title,
             Message = message,
             Type = type,
-            CreatedAt = _timeProvider.GetUtcNow().UtcDateTime
+            CreatedAt = timeProvider.GetUtcNow().UtcDateTime
         };
 
         RealtimeEnvelope envelope = RealtimeEnvelope.Create("Notifications", "AnnouncementPublished", payload);
 
         // Use tenant ID as the group ID - clients should join their tenant's group
-        await _dispatcher.SendToGroupAsync($"tenant:{tenantId.Value}", envelope, cancellationToken);
+        await dispatcher.SendToGroupAsync($"tenant:{tenantId.Value}", envelope, cancellationToken);
 
-        LogBroadcastToTenant(_logger, tenantId.Value, title);
+        LogBroadcastToTenant(logger, tenantId.Value, title);
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Sent real-time notification to user {UserId}: {Title}")]

@@ -83,8 +83,7 @@ public sealed class Invoice : AggregateRoot<InvoiceId>, ITenantScoped, IHasCusto
             throw new BusinessRuleException("Billing.UserIdRequired", "User ID is required");
         }
 
-        Invoice invoice = new Invoice(userId, invoiceNumber, currency, dueDate);
-        invoice.CustomFields = customFields;
+        Invoice invoice = new(userId, invoiceNumber, currency, dueDate) { CustomFields = customFields };
         invoice.SetCreated(timeProvider.GetUtcNow(), createdByUserId);
 
         invoice.RaiseDomainEvent(new InvoiceCreatedDomainEvent(

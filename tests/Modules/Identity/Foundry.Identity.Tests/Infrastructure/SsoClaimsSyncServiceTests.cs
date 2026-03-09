@@ -456,7 +456,7 @@ public class SsoClaimsSyncServiceTests
                 id = userId.ToString(),
                 attributes = new Dictionary<string, IEnumerable<string>>
                 {
-                    ["groups"] = Array.Empty<string>()
+                    ["groups"] = []
                 }
             })
             .WithGet($"/admin/realms/foundry/users/{userId}/role-mappings/realm",
@@ -538,8 +538,7 @@ public class SsoClaimsSyncServiceTests
         IHttpClientFactory httpClientFactory = Substitute.For<IHttpClientFactory>();
 
         HttpClient httpClient = handler != null
-            ? new HttpClient(handler)
-            : new HttpClient(new MockHttpHandler());
+            ? new HttpClient(handler) : new HttpClient(new MockHttpHandler());
         httpClient.BaseAddress = new Uri("https://keycloak.test/");
         httpClientFactory.CreateClient("KeycloakAdminClient").Returns(httpClient);
 
@@ -550,7 +549,7 @@ public class SsoClaimsSyncServiceTests
 
     private sealed class MockHttpHandler : HttpMessageHandler
     {
-        private readonly Dictionary<string, (HttpStatusCode Status, object? Content)> _routes = [];
+        private readonly Dictionary<string, (HttpStatusCode Status, object? Content)> _routes = new Dictionary<string, (HttpStatusCode Status, object? Content)>();
         private readonly HashSet<string> _throwRoutes = [];
 
         public MockHttpHandler WithGet(string path, object content)

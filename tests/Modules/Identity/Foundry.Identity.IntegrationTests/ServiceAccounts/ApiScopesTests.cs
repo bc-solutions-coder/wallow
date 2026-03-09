@@ -5,9 +5,8 @@ using Foundry.Identity.Domain.Entities;
 namespace Foundry.Identity.IntegrationTests.ServiceAccounts;
 
 [Trait("Category", "Integration")]
-public class ApiScopesTests : ServiceAccountIntegrationTestBase
+public class ApiScopesTests(ServiceAccountTestFactory factory) : ServiceAccountIntegrationTestBase(factory)
 {
-    public ApiScopesTests(ServiceAccountTestFactory factory) : base(factory) { }
 
     [Fact]
     public async Task Should_List_All_Available_Scopes()

@@ -13,44 +13,28 @@ namespace Foundry.Billing.Infrastructure.Jobs;
 /// Hangfire job that flushes Valkey counters to PostgreSQL for billing accuracy.
 /// Uses atomic get-and-reset to prevent data loss.
 /// </summary>
-public sealed partial class FlushUsageJob
+public sealed partial class FlushUsageJob(
+    IConnectionMultiplexer redis,
+    IUsageRecordRepository usageRepository,
+    IMessageBus messageBus,
+    ITenantContextFactory tenantContextFactory,
+    TimeProvider timeProvider,
+    ILogger<FlushUsageJob> logger)
 {
     private const string MeterIndexKey = "meter:__index";
-    private readonly IConnectionMultiplexer _redis;
-    private readonly IUsageRecordRepository _usageRepository;
-    private readonly IMessageBus _messageBus;
-    private readonly ITenantContextFactory _tenantContextFactory;
-    private readonly TimeProvider _timeProvider;
-    private readonly ILogger<FlushUsageJob> _logger;
-
-    public FlushUsageJob(
-        IConnectionMultiplexer redis,
-        IUsageRecordRepository usageRepository,
-        IMessageBus messageBus,
-        ITenantContextFactory tenantContextFactory,
-        TimeProvider timeProvider,
-        ILogger<FlushUsageJob> logger)
-    {
-        _redis = redis;
-        _usageRepository = usageRepository;
-        _messageBus = messageBus;
-        _tenantContextFactory = tenantContextFactory;
-        _timeProvider = timeProvider;
-        _logger = logger;
-    }
 
     public async Task ExecuteAsync(CancellationToken cancellationToken = default)
     {
-        LogStartingFlushJob(_logger);
+        LogStartingFlushJob(logger);
         int flushedCount = 0;
 
         try
         {
-            IDatabase db = _redis.GetDatabase();
+            IDatabase db = redis.GetDatabase();
             RedisValue[] members = await db.SetMembersAsync(MeterIndexKey);
             List<string> keys = members.Select(m => m.ToString()).ToList();
 
-            LogFoundMeterKeys(_logger, keys.Count);
+            LogFoundMeterKeys(logger, keys.Count);
 
             foreach (string key in keys)
             {
@@ -68,14 +52,14 @@ public sealed partial class FlushUsageJob
 
             if (flushedCount > 0)
             {
-                await _messageBus.PublishAsync(new UsageFlushedEvent(_timeProvider.GetUtcNow().UtcDateTime, flushedCount));
+                await messageBus.PublishAsync(new UsageFlushedEvent(timeProvider.GetUtcNow().UtcDateTime, flushedCount));
             }
 
-            LogFlushCompleted(_logger, flushedCount);
+            LogFlushCompleted(logger, flushedCount);
         }
         catch (Exception ex)
         {
-            LogFlushJobError(_logger, ex);
+            LogFlushJobError(logger, ex);
             throw;
         }
     }
@@ -88,13 +72,13 @@ public sealed partial class FlushUsageJob
             string[] parts = key.Split(':');
             if (parts.Length != 4 || parts[0] != "meter")
             {
-                LogInvalidKeyFormat(_logger, key);
+                LogInvalidKeyFormat(logger, key);
                 return false;
             }
 
             if (!Guid.TryParse(parts[1], out Guid tenantGuid))
             {
-                LogInvalidTenantIdInKey(_logger, key);
+                LogInvalidTenantIdInKey(logger, key);
                 return false;
             }
 
@@ -103,7 +87,7 @@ public sealed partial class FlushUsageJob
             string period = parts[3];
 
             // Atomic get-and-reset
-            IDatabase db = _redis.GetDatabase();
+            IDatabase db = redis.GetDatabase();
             long value = (long?)await db.StringGetSetAsync(key, 0) ?? 0;
 
             if (value <= 0)
@@ -114,10 +98,10 @@ public sealed partial class FlushUsageJob
             (DateTime periodStart, DateTime periodEnd) = ParsePeriod(period);
 
             // Set tenant context so repository queries filter correctly
-            using (_tenantContextFactory.CreateScope(tenantId))
+            using (tenantContextFactory.CreateScope(tenantId))
             {
                 // Upsert: find existing record or create new
-                UsageRecord? existing = await _usageRepository.GetForPeriodAsync(
+                UsageRecord? existing = await usageRepository.GetForPeriodAsync(
                     meterCode,
                     periodStart,
                     periodEnd,
@@ -125,8 +109,8 @@ public sealed partial class FlushUsageJob
 
                 if (existing is not null)
                 {
-                    existing.AddValue(value, _timeProvider);
-                    _usageRepository.Update(existing);
+                    existing.AddValue(value, timeProvider);
+                    usageRepository.Update(existing);
                 }
                 else
                 {
@@ -136,23 +120,23 @@ public sealed partial class FlushUsageJob
                         periodStart,
                         periodEnd,
                         value,
-                        _timeProvider);
+                        timeProvider);
 
-                    _usageRepository.Add(record);
+                    usageRepository.Add(record);
                 }
 
-                await _usageRepository.SaveChangesAsync(CancellationToken.None);
+                await usageRepository.SaveChangesAsync(CancellationToken.None);
             }
 
             // Remove from index Set after successful flush
             await db.SetRemoveAsync(MeterIndexKey, key);
 
-            LogFlushedMeterValue(_logger, value, meterCode, tenantId.Value);
+            LogFlushedMeterValue(logger, value, meterCode, tenantId.Value);
             return true;
         }
         catch (Exception ex)
         {
-            LogProcessKeyError(_logger, ex, key);
+            LogProcessKeyError(logger, ex, key);
             return false;
         }
     }

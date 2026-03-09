@@ -11,13 +11,11 @@ namespace Foundry.Billing.Tests.Infrastructure.Persistence;
 
 [Collection("PostgresDatabase")]
 [Trait("Category", "Integration")]
-public class InvoiceRepositoryTests : DbContextIntegrationTestBase<BillingDbContext>
+public class InvoiceRepositoryTests(PostgresContainerFixture fixture) : DbContextIntegrationTestBase<BillingDbContext>(fixture)
 {
-    public InvoiceRepositoryTests(PostgresContainerFixture fixture) : base(fixture) { }
-
     protected override bool UseMigrateAsync => true;
 
-    private InvoiceRepository CreateRepository() => new InvoiceRepository(DbContext);
+    private InvoiceRepository CreateRepository() => new(DbContext);
 
     [Fact]
     public async Task Add_And_GetByIdAsync_ReturnsInvoice()

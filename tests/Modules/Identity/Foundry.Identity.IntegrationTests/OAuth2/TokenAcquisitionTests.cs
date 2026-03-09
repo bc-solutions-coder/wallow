@@ -7,9 +7,8 @@ namespace Foundry.Identity.IntegrationTests.OAuth2;
 /// Validates client credentials flow and JWT token structure.
 /// </summary>
 [Trait("Category", "Integration")]
-public class TokenAcquisitionTests : KeycloakIntegrationTestBase
+public class TokenAcquisitionTests(KeycloakTestFixture fixture) : KeycloakIntegrationTestBase(fixture)
 {
-    public TokenAcquisitionTests(KeycloakTestFixture fixture) : base(fixture) { }
 
     [Fact]
     public async Task Should_Acquire_Token_With_Client_Credentials()

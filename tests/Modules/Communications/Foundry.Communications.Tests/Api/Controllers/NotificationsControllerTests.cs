@@ -29,10 +29,10 @@ public class NotificationsControllerTests
         _currentUserService.GetCurrentUserId().Returns(_userId);
         _controller = new NotificationsController(_bus, _currentUserService);
 
-        ClaimsPrincipal user = new ClaimsPrincipal(new ClaimsIdentity(new[]
-        {
+        ClaimsPrincipal user = new(new ClaimsIdentity(
+        [
             new Claim(ClaimTypes.NameIdentifier, _userId.ToString())
-        }, "TestAuth"));
+        ], "TestAuth"));
         _controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext { User = user }
@@ -45,7 +45,7 @@ public class NotificationsControllerTests
     public async Task GetNotifications_WithValidUser_ReturnsOkWithPagedResponse()
     {
         NotificationDto dto = new(Guid.NewGuid(), _userId, "TaskAssigned", "Title", "Message", false, null, DateTime.UtcNow, null);
-        PagedResult<NotificationDto> pagedResult = new(new List<NotificationDto> { dto }, 1, 1, 20);
+        PagedResult<NotificationDto> pagedResult = new([dto], 1, 1, 20);
         _bus.InvokeAsync<Result<PagedResult<NotificationDto>>>(Arg.Any<GetUserNotificationsQuery>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(pagedResult));
 
@@ -77,7 +77,7 @@ public class NotificationsControllerTests
     [Fact]
     public async Task GetNotifications_PassesCorrectParametersToQuery()
     {
-        PagedResult<NotificationDto> pagedResult = new(new List<NotificationDto>(), 0, 2, 10);
+        PagedResult<NotificationDto> pagedResult = new([], 0, 2, 10);
         _bus.InvokeAsync<Result<PagedResult<NotificationDto>>>(Arg.Any<GetUserNotificationsQuery>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(pagedResult));
 
@@ -94,7 +94,7 @@ public class NotificationsControllerTests
         DateTime createdAt = DateTime.UtcNow;
         DateTime readAt = DateTime.UtcNow.AddMinutes(-5);
         NotificationDto dto = new(Guid.NewGuid(), _userId, "TaskCompleted", "Done", "Task completed", true, readAt, createdAt, createdAt);
-        PagedResult<NotificationDto> pagedResult = new(new List<NotificationDto> { dto }, 1, 1, 20);
+        PagedResult<NotificationDto> pagedResult = new([dto], 1, 1, 20);
         _bus.InvokeAsync<Result<PagedResult<NotificationDto>>>(Arg.Any<GetUserNotificationsQuery>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(pagedResult));
 
@@ -130,10 +130,10 @@ public class NotificationsControllerTests
         {
             HttpContext = new DefaultHttpContext
             {
-                User = new ClaimsPrincipal(new ClaimsIdentity(new[]
-                {
+                User = new ClaimsPrincipal(new ClaimsIdentity(
+                [
                     new Claim(ClaimTypes.NameIdentifier, "not-a-guid")
-                }, "TestAuth"))
+                ], "TestAuth"))
             }
         };
 
@@ -152,14 +152,14 @@ public class NotificationsControllerTests
         {
             HttpContext = new DefaultHttpContext
             {
-                User = new ClaimsPrincipal(new ClaimsIdentity(new[]
-                {
+                User = new ClaimsPrincipal(new ClaimsIdentity(
+                [
                     new Claim("sub", subUserId.ToString())
-                }, "TestAuth"))
+                ], "TestAuth"))
             }
         };
         _currentUserService.GetCurrentUserId().Returns(subUserId);
-        PagedResult<NotificationDto> pagedResult = new(new List<NotificationDto>(), 0, 1, 20);
+        PagedResult<NotificationDto> pagedResult = new([], 0, 1, 20);
         _bus.InvokeAsync<Result<PagedResult<NotificationDto>>>(Arg.Any<GetUserNotificationsQuery>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(pagedResult));
 

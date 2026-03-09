@@ -2,7 +2,6 @@ using System.Diagnostics;
 using System.Text.Json;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Diagnostics.HealthChecks;
 using WireMock.RequestBuilders;
 using WireMock.ResponseBuilders;
 
@@ -30,17 +29,7 @@ public class HealthCheckResilienceTests : IClassFixture<KeycloakResilienceTestFa
                 // delays and timeouts work correctly in health check tests
                 services.AddSingleton(TimeProvider.System);
 
-                // Remove all health checks except keycloak so tests are fast and isolated
-                services.Configure<HealthCheckServiceOptions>(options =>
-                {
-                    List<HealthCheckRegistration> nonKeycloak = options.Registrations
-                        .Where(r => r.Name != "keycloak")
-                        .ToList();
-                    foreach (HealthCheckRegistration reg in nonKeycloak)
-                    {
-                        options.Registrations.Remove(reg);
-                    }
-                });
+                // Factory already keeps only the keycloak check; nothing more to configure here
             });
         }).CreateClient();
 

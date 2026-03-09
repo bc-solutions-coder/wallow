@@ -62,7 +62,7 @@ public class FileNameSanitizerTests
     [Fact]
     public void Sanitize_VeryLongName_TruncatesPreservingExtension()
     {
-        string longStem = new string('a', 300);
+        string longStem = new('a', 300);
         string input = longStem + ".pdf";
 
         string result = FileNameSanitizer.Sanitize(input);
@@ -74,7 +74,7 @@ public class FileNameSanitizerTests
     [Fact]
     public void Sanitize_VeryLongNameWithoutExtension_TruncatesTo255()
     {
-        string input = new string('b', 300);
+        string input = new('b', 300);
 
         string result = FileNameSanitizer.Sanitize(input);
 
@@ -105,7 +105,7 @@ public class FileNameSanitizerTests
     [Fact]
     public void Sanitize_ExtensionPreservedOnTruncation()
     {
-        string longStem = new string('x', 260);
+        string longStem = new('x', 260);
         string input = longStem + ".docx";
 
         string result = FileNameSanitizer.Sanitize(input);

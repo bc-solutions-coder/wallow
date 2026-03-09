@@ -42,13 +42,10 @@ public class FeatureFlagsControllerTests
 
         tenantContext.TenantId.Returns(new TenantId(_tenantId));
 
-        _controller = new FeatureFlagsController(_bus, tenantContext, _featureFlagService, _currentUserService);
+        _controller = new(_bus, tenantContext, _featureFlagService, _currentUserService);
 
-        ClaimsPrincipal user = new ClaimsPrincipal(new ClaimsIdentity(new[]
-        {
-            new Claim(ClaimTypes.NameIdentifier, _userId.ToString())
-        }, "TestAuth"));
-        _controller.ControllerContext = new ControllerContext
+        ClaimsPrincipal user = new ClaimsPrincipal(new ClaimsIdentity([new(ClaimTypes.NameIdentifier, _userId.ToString())], "TestAuth"));
+        _controller.ControllerContext = new()
         {
             HttpContext = new DefaultHttpContext { User = user }
         };
@@ -59,11 +56,8 @@ public class FeatureFlagsControllerTests
     [Fact]
     public async Task GetAll_WhenSuccess_ReturnsOkWithFeatureFlagResponses()
     {
-        List<FeatureFlagDto> flags = new()
-        {
-            CreateFlagDto("dark-mode", "Dark Mode"),
-            CreateFlagDto("beta-feature", "Beta Feature")
-        };
+        List<FeatureFlagDto> flags = [CreateFlagDto("dark-mode", "Dark Mode"),
+            CreateFlagDto("beta-feature", "Beta Feature")];
         _bus.InvokeAsync<Result<IReadOnlyList<FeatureFlagDto>>>(Arg.Any<GetAllFlagsQuery>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success<IReadOnlyList<FeatureFlagDto>>(flags));
 
@@ -107,7 +101,7 @@ public class FeatureFlagsControllerTests
         Guid flagId = Guid.NewGuid();
         DateTime createdAt = DateTime.UtcNow.AddDays(-1);
         DateTime updatedAt = DateTime.UtcNow;
-        List<VariantWeightDto> variants = new() { new VariantWeightDto("control", 50), new VariantWeightDto("treatment", 50) };
+        List<VariantWeightDto> variants = [new("control", 50), new("treatment", 50)];
         FeatureFlagDto dto = new(flagId, "ab-test", "A/B Test", "Testing", FlagType.Variant,
             false, null, variants, "control", createdAt, updatedAt);
         _bus.InvokeAsync<Result<IReadOnlyList<FeatureFlagDto>>>(Arg.Any<GetAllFlagsQuery>(), Arg.Any<CancellationToken>())
@@ -154,7 +148,7 @@ public class FeatureFlagsControllerTests
     [Fact]
     public async Task Create_PassesCorrectFieldsToCommand()
     {
-        List<VariantWeightDto> variants = new() { new VariantWeightDto("a", 50), new VariantWeightDto("b", 50) };
+        List<VariantWeightDto> variants = [new("a", 50), new("b", 50)];
         CreateFeatureFlagRequest request = new("ab-test", "A/B Test", "Description", ApiFlagType.Variant, false, 50, variants, "a");
         FeatureFlagDto dto = CreateFlagDto("ab-test", "A/B Test");
         _bus.InvokeAsync<Result<FeatureFlagDto>>(Arg.Any<CreateFeatureFlagCommand>(), Arg.Any<CancellationToken>())
@@ -335,11 +329,8 @@ public class FeatureFlagsControllerTests
     public async Task GetOverrides_WhenSuccess_ReturnsOkWithOverrides()
     {
         Guid flagId = Guid.NewGuid();
-        List<FeatureFlagOverrideDto> overrides = new()
-        {
-            CreateOverrideDto(flagId),
-            CreateOverrideDto(flagId)
-        };
+        List<FeatureFlagOverrideDto> overrides = [CreateOverrideDto(flagId),
+            CreateOverrideDto(flagId)];
         _bus.InvokeAsync<Result<IReadOnlyList<FeatureFlagOverrideDto>>>(Arg.Any<GetOverridesForFlagQuery>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success<IReadOnlyList<FeatureFlagOverrideDto>>(overrides));
 
@@ -566,7 +557,7 @@ public class FeatureFlagsControllerTests
     [Fact]
     public async Task Evaluate_WithNoUserClaim_PassesNullUserId()
     {
-        _controller.ControllerContext = new ControllerContext
+        _controller.ControllerContext = new()
         {
             HttpContext = new DefaultHttpContext
             {
@@ -589,14 +580,11 @@ public class FeatureFlagsControllerTests
     public async Task Evaluate_WithSubClaim_UsesSubClaimAsUserId()
     {
         Guid subUserId = Guid.NewGuid();
-        _controller.ControllerContext = new ControllerContext
+        _controller.ControllerContext = new()
         {
             HttpContext = new DefaultHttpContext
             {
-                User = new ClaimsPrincipal(new ClaimsIdentity(new[]
-                {
-                    new Claim("sub", subUserId.ToString())
-                }, "TestAuth"))
+                User = new ClaimsPrincipal(new ClaimsIdentity([new("sub", subUserId.ToString())], "TestAuth"))
             }
         };
         _currentUserService.GetCurrentUserId().Returns(subUserId);
@@ -614,14 +602,11 @@ public class FeatureFlagsControllerTests
     [Fact]
     public async Task Evaluate_WithNonGuidUserClaim_PassesNullUserId()
     {
-        _controller.ControllerContext = new ControllerContext
+        _controller.ControllerContext = new()
         {
             HttpContext = new DefaultHttpContext
             {
-                User = new ClaimsPrincipal(new ClaimsIdentity(new[]
-                {
-                    new Claim(ClaimTypes.NameIdentifier, "not-a-guid")
-                }, "TestAuth"))
+                User = new ClaimsPrincipal(new ClaimsIdentity([new(ClaimTypes.NameIdentifier, "not-a-guid")], "TestAuth"))
             }
         };
         _currentUserService.GetCurrentUserId().Returns((Guid?)null);

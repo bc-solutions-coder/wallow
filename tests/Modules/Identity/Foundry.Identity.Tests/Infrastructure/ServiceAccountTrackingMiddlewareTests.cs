@@ -63,7 +63,7 @@ public class ServiceAccountTrackingMiddlewareTests
     public async Task InvokeAsync_WithNoAzpClaim_DoesNotTrack()
     {
         // Arrange
-        DefaultHttpContext context = new()
+        DefaultHttpContext context = new DefaultHttpContext()
         {
             User = new ClaimsPrincipal(new ClaimsIdentity()) // No claims
         };
@@ -95,7 +95,7 @@ public class ServiceAccountTrackingMiddlewareTests
             "sa-test-client",
             "Test",
             null,
-            Array.Empty<string>(),
+            [],
             Guid.Empty, TimeProvider.System);
         metadata.MarkUsed(TimeProvider.System); // Initial mark
 
@@ -136,7 +136,7 @@ public class ServiceAccountTrackingMiddlewareTests
 
     private ServiceProvider BuildServiceProvider()
     {
-        ServiceCollection services = new();
+        ServiceCollection services = new ServiceCollection();
         services.AddScoped<IServiceAccountUnfilteredRepository>(_ => _repository);
         services.AddSingleton(TimeProvider.System);
         return services.BuildServiceProvider();
@@ -151,7 +151,7 @@ public class ServiceAccountTrackingMiddlewareTests
 
     private DefaultHttpContext CreateHttpContext(string clientId, int statusCode)
     {
-        DefaultHttpContext context = new()
+        DefaultHttpContext context = new DefaultHttpContext()
         {
             User = new ClaimsPrincipal(new ClaimsIdentity(new[]
             {

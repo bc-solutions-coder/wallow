@@ -42,7 +42,7 @@ public class RegionSettingsTests
     [Fact]
     public void Constructor_SetsAllProperties()
     {
-        RegionSettings settings = new RegionSettings("us-east-1", true, true);
+        RegionSettings settings = new("us-east-1", true, true);
 
         settings.Name.Should().Be("us-east-1");
         settings.IsPrimary.Should().BeTrue();
@@ -52,7 +52,7 @@ public class RegionSettingsTests
     [Fact]
     public void Constructor_WithInactiveNonPrimary_SetsPropertiesCorrectly()
     {
-        RegionSettings settings = new RegionSettings("eu-west-1", false, false);
+        RegionSettings settings = new("eu-west-1", false, false);
 
         settings.Name.Should().Be("eu-west-1");
         settings.IsPrimary.Should().BeFalse();
@@ -62,8 +62,8 @@ public class RegionSettingsTests
     [Fact]
     public void Equality_WithSameValues_AreEqual()
     {
-        RegionSettings settings1 = new RegionSettings("us-east-1", true, true);
-        RegionSettings settings2 = new RegionSettings("us-east-1", true, true);
+        RegionSettings settings1 = new("us-east-1", true, true);
+        RegionSettings settings2 = new("us-east-1", true, true);
 
         settings1.Should().Be(settings2);
     }
@@ -71,8 +71,8 @@ public class RegionSettingsTests
     [Fact]
     public void Equality_WithDifferentValues_AreNotEqual()
     {
-        RegionSettings settings1 = new RegionSettings("us-east-1", true, true);
-        RegionSettings settings2 = new RegionSettings("eu-west-1", false, true);
+        RegionSettings settings1 = new("us-east-1", true, true);
+        RegionSettings settings2 = new("eu-west-1", false, true);
 
         settings1.Should().NotBe(settings2);
     }

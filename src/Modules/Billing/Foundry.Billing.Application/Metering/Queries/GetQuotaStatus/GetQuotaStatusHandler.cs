@@ -16,7 +16,7 @@ public sealed class GetQuotaStatusHandler(
         CancellationToken cancellationToken)
     {
         IReadOnlyList<MeterDefinition> meters = await meterRepository.GetAllAsync(cancellationToken);
-        List<QuotaStatusDto> results = new List<QuotaStatusDto>();
+        List<QuotaStatusDto> results = [];
 
         foreach (MeterDefinition meter in meters)
         {

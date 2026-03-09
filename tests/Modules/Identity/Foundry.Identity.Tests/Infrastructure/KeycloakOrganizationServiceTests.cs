@@ -273,7 +273,7 @@ public class KeycloakOrganizationServiceTests
 
     private sealed class MockHttpHandler : HttpMessageHandler
     {
-        private readonly Dictionary<string, (HttpStatusCode Status, object? Content, string? LocationHeader)> _routes = [];
+        private readonly Dictionary<string, (HttpStatusCode Status, object? Content, string? LocationHeader)> _routes = new Dictionary<string, (HttpStatusCode Status, object? Content, string? LocationHeader)>();
         private readonly HashSet<string> _throwRoutes = [];
 
         public MockHttpHandler WithGet(string path, object content)

@@ -46,8 +46,8 @@ public class ValkeyMeteringServiceAdditionalTests
     [Fact]
     public async Task GetUsageHistoryAsync_ReturnsMappedDtos()
     {
-        DateTime from = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-        DateTime to = new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc);
+        DateTime from = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        DateTime to = new(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc);
 
         UsageRecord record = UsageRecord.Create(_tenantId, "api.calls", from, to, 500, TimeProvider.System);
 
@@ -67,8 +67,8 @@ public class ValkeyMeteringServiceAdditionalTests
     [Fact]
     public async Task GetUsageHistoryAsync_WithNoRecords_ReturnsEmptyList()
     {
-        DateTime from = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-        DateTime to = new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc);
+        DateTime from = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        DateTime to = new(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc);
 
         _usageRepository.GetHistoryAsync("api.calls", from, to, Arg.Any<CancellationToken>())
             .Returns(new List<UsageRecord>());

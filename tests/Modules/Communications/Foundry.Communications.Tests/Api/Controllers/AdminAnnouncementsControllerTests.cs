@@ -27,10 +27,12 @@ public class AdminAnnouncementsControllerTests
         _sanitizer = Substitute.For<IHtmlSanitizationService>();
         _sanitizer.Sanitize(Arg.Any<string>()).Returns(x => x.Arg<string>());
 
-        _controller = new AdminAnnouncementsController(_bus, _sanitizer);
-        _controller.ControllerContext = new ControllerContext
+        _controller = new AdminAnnouncementsController(_bus, _sanitizer)
         {
-            HttpContext = new DefaultHttpContext()
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext()
+            }
         };
     }
 
@@ -41,7 +43,7 @@ public class AdminAnnouncementsControllerTests
     {
         AnnouncementDto dto = CreateAnnouncementDto();
         _bus.InvokeAsync<Result<IReadOnlyList<AnnouncementDto>>>(Arg.Any<GetAllAnnouncementsQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success<IReadOnlyList<AnnouncementDto>>(new List<AnnouncementDto> { dto }));
+            .Returns(Result.Success<IReadOnlyList<AnnouncementDto>>([dto]));
 
         IActionResult result = await _controller.GetAllAnnouncements(CancellationToken.None);
 
@@ -54,7 +56,7 @@ public class AdminAnnouncementsControllerTests
     public async Task GetAllAnnouncements_WhenEmpty_ReturnsOkWithEmptyList()
     {
         _bus.InvokeAsync<Result<IReadOnlyList<AnnouncementDto>>>(Arg.Any<GetAllAnnouncementsQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success<IReadOnlyList<AnnouncementDto>>(new List<AnnouncementDto>()));
+            .Returns(Result.Success<IReadOnlyList<AnnouncementDto>>([]));
 
         IActionResult result = await _controller.GetAllAnnouncements(CancellationToken.None);
 

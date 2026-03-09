@@ -249,7 +249,7 @@ public record ScimPatchRequest
     public IReadOnlyList<string> Schemas { get; init; } = new[] { "urn:ietf:params:scim:api:messages:2.0:PatchOp" };
 
     [JsonPropertyName("Operations")]
-    public IReadOnlyList<ScimPatchOperation> Operations { get; init; } = Array.Empty<ScimPatchOperation>();
+    public IReadOnlyList<ScimPatchOperation> Operations { get; init; } = [];
 }
 
 /// <summary>
@@ -298,7 +298,7 @@ public record ScimListResponse<T>
     public int ItemsPerPage { get; init; }
 
     [JsonPropertyName("Resources")]
-    public IReadOnlyList<T> Resources { get; init; } = Array.Empty<T>();
+    public IReadOnlyList<T> Resources { get; init; } = [];
 }
 
 /// <summary>

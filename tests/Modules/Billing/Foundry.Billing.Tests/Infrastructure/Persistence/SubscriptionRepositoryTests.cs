@@ -11,13 +11,11 @@ namespace Foundry.Billing.Tests.Infrastructure.Persistence;
 
 [Collection("PostgresDatabase")]
 [Trait("Category", "Integration")]
-public class SubscriptionRepositoryTests : DbContextIntegrationTestBase<BillingDbContext>
+public class SubscriptionRepositoryTests(PostgresContainerFixture fixture) : DbContextIntegrationTestBase<BillingDbContext>(fixture)
 {
-    public SubscriptionRepositoryTests(PostgresContainerFixture fixture) : base(fixture) { }
-
     protected override bool UseMigrateAsync => true;
 
-    private SubscriptionRepository CreateRepository() => new SubscriptionRepository(DbContext);
+    private SubscriptionRepository CreateRepository() => new(DbContext);
 
     [Fact]
     public async Task Add_And_GetByIdAsync_ReturnsSubscription()

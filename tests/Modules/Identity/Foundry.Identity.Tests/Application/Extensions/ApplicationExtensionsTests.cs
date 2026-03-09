@@ -11,7 +11,7 @@ public class ApplicationExtensionsTests
     [Fact]
     public void AddIdentityApplication_RegistersValidatorsFromAssembly()
     {
-        ServiceCollection services = new();
+        ServiceCollection services = new ServiceCollection();
 
         services.AddIdentityApplication();
 
@@ -28,7 +28,7 @@ public class ApplicationExtensionsTests
     [Fact]
     public void AddIdentityApplication_ReturnsServiceCollection()
     {
-        ServiceCollection services = new();
+        ServiceCollection services = new ServiceCollection();
 
         IServiceCollection result = services.AddIdentityApplication();
 

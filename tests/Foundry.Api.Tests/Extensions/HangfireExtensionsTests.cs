@@ -10,7 +10,7 @@ public class HangfireExtensionsTests
 {
     private static (IServiceCollection Services, IConfiguration Configuration) CreateTestDependencies()
     {
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = new();
         services.AddLogging();
 
         IConfigurationRoot configuration = new ConfigurationBuilder()

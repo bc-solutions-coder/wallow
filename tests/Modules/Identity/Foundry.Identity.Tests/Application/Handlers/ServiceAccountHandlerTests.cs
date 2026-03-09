@@ -205,7 +205,7 @@ public class RevokeServiceAccountHandlerTests
     {
         ServiceAccountMetadataId accountId = ServiceAccountMetadataId.New();
         RevokeServiceAccountCommand command = new(accountId);
-        using CancellationTokenSource cts = new();
+        using CancellationTokenSource cts = new CancellationTokenSource();
 
         await _handler.Handle(command, cts.Token);
 

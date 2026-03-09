@@ -25,23 +25,9 @@ namespace Foundry.Identity.Api.Controllers;
 [Tags("SCIM")]
 [Produces("application/scim+json", "application/json")]
 [Consumes("application/scim+json", "application/json")]
-public partial class ScimController : ControllerBase
+public partial class ScimController(IScimService scimService, ILogger<ScimController> logger, IHostEnvironment environment) : ControllerBase
 {
     private static readonly string[] _resourceTypeSchema = ["urn:ietf:params:scim:schemas:core:2.0:ResourceType"];
-
-    private readonly IScimService _scimService;
-    private readonly ILogger<ScimController> _logger;
-    private readonly IHostEnvironment _environment;
-
-    public ScimController(
-        IScimService scimService,
-        ILogger<ScimController> logger,
-        IHostEnvironment environment)
-    {
-        _scimService = scimService;
-        _logger = logger;
-        _environment = environment;
-    }
 
     #region Users
 
@@ -62,7 +48,7 @@ public partial class ScimController : ControllerBase
         try
         {
             ScimListRequest request = new(filter, startIndex, count, sortBy, sortOrder);
-            ScimListResponse<ScimUser> result = await _scimService.ListUsersAsync(request, ct);
+            ScimListResponse<ScimUser> result = await scimService.ListUsersAsync(request, ct);
             return Ok(result);
         }
         catch (ScimFilterException ex)
@@ -84,7 +70,7 @@ public partial class ScimController : ControllerBase
     [ProducesResponseType(typeof(ScimError), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ScimUser>> GetScimUser(string id, CancellationToken ct)
     {
-        ScimUser? user = await _scimService.GetUserAsync(id, ct);
+        ScimUser? user = await scimService.GetUserAsync(id, ct);
         if (user is null)
         {
             return NotFound(new ScimError
@@ -109,7 +95,7 @@ public partial class ScimController : ControllerBase
     {
         try
         {
-            ScimUser user = await _scimService.CreateUserAsync(request, ct);
+            ScimUser user = await scimService.CreateUserAsync(request, ct);
             return Created($"/scim/v2/Users/{user.Id}", user);
         }
         catch (KeycloakConflictException ex)
@@ -129,7 +115,7 @@ public partial class ScimController : ControllerBase
             {
                 Status = 400,
                 ScimType = "invalidValue",
-                Detail = _environment.IsDevelopment() ? ex.Message : "An unexpected error occurred"
+                Detail = environment.IsDevelopment() ? ex.Message : "An unexpected error occurred"
             });
         }
     }
@@ -147,7 +133,7 @@ public partial class ScimController : ControllerBase
     {
         try
         {
-            ScimUser user = await _scimService.UpdateUserAsync(id, request, ct);
+            ScimUser user = await scimService.UpdateUserAsync(id, request, ct);
             return Ok(user);
         }
         catch (Exception ex)
@@ -156,7 +142,7 @@ public partial class ScimController : ControllerBase
             return BadRequest(new ScimError
             {
                 Status = 400,
-                Detail = _environment.IsDevelopment() ? ex.Message : "An unexpected error occurred"
+                Detail = environment.IsDevelopment() ? ex.Message : "An unexpected error occurred"
             });
         }
     }
@@ -174,7 +160,7 @@ public partial class ScimController : ControllerBase
     {
         try
         {
-            ScimUser user = await _scimService.PatchUserAsync(id, request, ct);
+            ScimUser user = await scimService.PatchUserAsync(id, request, ct);
             return Ok(user);
         }
         catch (Exception ex)
@@ -183,7 +169,7 @@ public partial class ScimController : ControllerBase
             return BadRequest(new ScimError
             {
                 Status = 400,
-                Detail = _environment.IsDevelopment() ? ex.Message : "An unexpected error occurred"
+                Detail = environment.IsDevelopment() ? ex.Message : "An unexpected error occurred"
             });
         }
     }
@@ -198,7 +184,7 @@ public partial class ScimController : ControllerBase
     {
         try
         {
-            await _scimService.DeleteUserAsync(id, ct);
+            await scimService.DeleteUserAsync(id, ct);
             return NoContent();
         }
         catch (Exception ex)
@@ -207,7 +193,7 @@ public partial class ScimController : ControllerBase
             return BadRequest(new ScimError
             {
                 Status = 400,
-                Detail = _environment.IsDevelopment() ? ex.Message : "An unexpected error occurred"
+                Detail = environment.IsDevelopment() ? ex.Message : "An unexpected error occurred"
             });
         }
     }
@@ -230,7 +216,7 @@ public partial class ScimController : ControllerBase
         try
         {
             ScimListRequest request = new(filter, startIndex, count);
-            ScimListResponse<ScimGroup> result = await _scimService.ListGroupsAsync(request, ct);
+            ScimListResponse<ScimGroup> result = await scimService.ListGroupsAsync(request, ct);
             return Ok(result);
         }
         catch (ScimFilterException ex)
@@ -252,7 +238,7 @@ public partial class ScimController : ControllerBase
     [ProducesResponseType(typeof(ScimError), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ScimGroup>> GetGroup(string id, CancellationToken ct)
     {
-        ScimGroup? group = await _scimService.GetGroupAsync(id, ct);
+        ScimGroup? group = await scimService.GetGroupAsync(id, ct);
         if (group is null)
         {
             return NotFound(new ScimError
@@ -276,7 +262,7 @@ public partial class ScimController : ControllerBase
     {
         try
         {
-            ScimGroup group = await _scimService.CreateGroupAsync(request, ct);
+            ScimGroup group = await scimService.CreateGroupAsync(request, ct);
             return Created($"/scim/v2/Groups/{group.Id}", group);
         }
         catch (Exception ex)
@@ -285,7 +271,7 @@ public partial class ScimController : ControllerBase
             return BadRequest(new ScimError
             {
                 Status = 400,
-                Detail = _environment.IsDevelopment() ? ex.Message : "An unexpected error occurred"
+                Detail = environment.IsDevelopment() ? ex.Message : "An unexpected error occurred"
             });
         }
     }
@@ -303,7 +289,7 @@ public partial class ScimController : ControllerBase
     {
         try
         {
-            ScimGroup group = await _scimService.UpdateGroupAsync(id, request, ct);
+            ScimGroup group = await scimService.UpdateGroupAsync(id, request, ct);
             return Ok(group);
         }
         catch (Exception ex)
@@ -312,7 +298,7 @@ public partial class ScimController : ControllerBase
             return BadRequest(new ScimError
             {
                 Status = 400,
-                Detail = _environment.IsDevelopment() ? ex.Message : "An unexpected error occurred"
+                Detail = environment.IsDevelopment() ? ex.Message : "An unexpected error occurred"
             });
         }
     }
@@ -327,7 +313,7 @@ public partial class ScimController : ControllerBase
     {
         try
         {
-            await _scimService.DeleteGroupAsync(id, ct);
+            await scimService.DeleteGroupAsync(id, ct);
             return NoContent();
         }
         catch (Exception ex)
@@ -336,7 +322,7 @@ public partial class ScimController : ControllerBase
             return BadRequest(new ScimError
             {
                 Status = 400,
-                Detail = _environment.IsDevelopment() ? ex.Message : "An unexpected error occurred"
+                Detail = environment.IsDevelopment() ? ex.Message : "An unexpected error occurred"
             });
         }
     }
@@ -467,7 +453,7 @@ public partial class ScimController
 public record ScimServiceProviderConfig
 {
     [JsonPropertyName("schemas")]
-    public IReadOnlyList<string> Schemas { get; init; } = Array.Empty<string>();
+    public IReadOnlyList<string> Schemas { get; init; } = [];
 
     [JsonPropertyName("documentationUri")]
     public string? DocumentationUri { get; init; }
@@ -572,7 +558,7 @@ public record ScimSchema
 public record ScimResourceType
 {
     [JsonPropertyName("schemas")]
-    public IReadOnlyList<string> Schemas { get; init; } = Array.Empty<string>();
+    public IReadOnlyList<string> Schemas { get; init; } = [];
 
     [JsonPropertyName("id")]
     public string Id { get; init; } = string.Empty;

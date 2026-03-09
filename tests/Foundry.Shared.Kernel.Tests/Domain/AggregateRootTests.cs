@@ -8,8 +8,8 @@ public class AggregateRootTests
     [Fact]
     public void RaiseDomainEvent_AddEventToDomainEvents()
     {
-        TestAggregate aggregate = new TestAggregate(TestAggregateId.New());
-        TestDomainEvent testEvent = new TestDomainEvent();
+        TestAggregate aggregate = new(TestAggregateId.New());
+        TestDomainEvent testEvent = new();
 
         aggregate.RaiseTestEvent(testEvent);
 
@@ -20,10 +20,10 @@ public class AggregateRootTests
     [Fact]
     public void RaiseDomainEvent_MultipleEvents_AddsAllEvents()
     {
-        TestAggregate aggregate = new TestAggregate(TestAggregateId.New());
-        TestDomainEvent event1 = new TestDomainEvent();
-        TestDomainEvent event2 = new TestDomainEvent();
-        TestDomainEvent event3 = new TestDomainEvent();
+        TestAggregate aggregate = new(TestAggregateId.New());
+        TestDomainEvent event1 = new();
+        TestDomainEvent event2 = new();
+        TestDomainEvent event3 = new();
 
         aggregate.RaiseTestEvent(event1);
         aggregate.RaiseTestEvent(event2);
@@ -36,7 +36,7 @@ public class AggregateRootTests
     [Fact]
     public void ClearDomainEvents_RemovesAllEvents()
     {
-        TestAggregate aggregate = new TestAggregate(TestAggregateId.New());
+        TestAggregate aggregate = new(TestAggregateId.New());
         aggregate.RaiseTestEvent(new TestDomainEvent());
         aggregate.RaiseTestEvent(new TestDomainEvent());
 
@@ -48,7 +48,7 @@ public class AggregateRootTests
     [Fact]
     public void ClearDomainEvents_WhenNoEvents_DoesNotThrow()
     {
-        TestAggregate aggregate = new TestAggregate(TestAggregateId.New());
+        TestAggregate aggregate = new(TestAggregateId.New());
 
         Action act = () => aggregate.ClearDomainEvents();
 
@@ -59,7 +59,7 @@ public class AggregateRootTests
     [Fact]
     public void DomainEvents_IsReadOnly()
     {
-        TestAggregate aggregate = new TestAggregate(TestAggregateId.New());
+        TestAggregate aggregate = new(TestAggregateId.New());
         aggregate.RaiseTestEvent(new TestDomainEvent());
 
         aggregate.DomainEvents.Should().BeAssignableTo<IReadOnlyList<IDomainEvent>>();
@@ -68,7 +68,7 @@ public class AggregateRootTests
     [Fact]
     public void DomainEvents_InitiallyEmpty()
     {
-        TestAggregate aggregate = new TestAggregate(TestAggregateId.New());
+        TestAggregate aggregate = new(TestAggregateId.New());
 
         aggregate.DomainEvents.Should().BeEmpty();
     }
@@ -76,11 +76,11 @@ public class AggregateRootTests
     [Fact]
     public void RaiseDomainEvent_AfterClear_CanAddNewEvents()
     {
-        TestAggregate aggregate = new TestAggregate(TestAggregateId.New());
+        TestAggregate aggregate = new(TestAggregateId.New());
         aggregate.RaiseTestEvent(new TestDomainEvent());
         aggregate.ClearDomainEvents();
 
-        TestDomainEvent newEvent = new TestDomainEvent();
+        TestDomainEvent newEvent = new();
         aggregate.RaiseTestEvent(newEvent);
 
         aggregate.DomainEvents.Should().ContainSingle();
@@ -90,7 +90,7 @@ public class AggregateRootTests
     [Fact]
     public void InheritsFromAuditableEntity()
     {
-        TestAggregate aggregate = new TestAggregate(TestAggregateId.New());
+        TestAggregate aggregate = new(TestAggregateId.New());
 
         aggregate.Should().BeAssignableTo<AuditableEntity<TestAggregateId>>();
     }
@@ -98,7 +98,7 @@ public class AggregateRootTests
     [Fact]
     public void InheritsFromEntity()
     {
-        TestAggregate aggregate = new TestAggregate(TestAggregateId.New());
+        TestAggregate aggregate = new(TestAggregateId.New());
 
         aggregate.Should().BeAssignableTo<Entity<TestAggregateId>>();
     }
@@ -106,7 +106,7 @@ public class AggregateRootTests
     [Fact]
     public void ParameterlessCtor_InitializesWithDefaultId()
     {
-        TestAggregate aggregate = new TestAggregate();
+        TestAggregate aggregate = new();
 
         aggregate.Id.Should().Be(default(TestAggregateId));
         aggregate.DomainEvents.Should().BeEmpty();

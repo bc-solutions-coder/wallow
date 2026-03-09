@@ -18,22 +18,12 @@ namespace Foundry.Identity.Infrastructure.Authorization;
 /// Queries ScimConfiguration with IgnoreQueryFilters to bypass tenant filtering,
 /// then sets the tenant context from the matched configuration.
 /// </summary>
-public sealed partial class ScimAuthenticationMiddleware
+public sealed partial class ScimAuthenticationMiddleware(RequestDelegate next, ILogger<ScimAuthenticationMiddleware> logger)
 {
-    private readonly RequestDelegate _next;
-    private readonly ILogger<ScimAuthenticationMiddleware> _logger;
 
     private const string AuthorizationHeader = "Authorization";
     private const string BearerPrefix = "Bearer ";
     private const string ScimPathPrefix = "/scim/v2";
-
-    public ScimAuthenticationMiddleware(
-        RequestDelegate next,
-        ILogger<ScimAuthenticationMiddleware> logger)
-    {
-        _next = next;
-        _logger = logger;
-    }
 
     public async Task InvokeAsync(
         HttpContext context,
@@ -44,14 +34,14 @@ public sealed partial class ScimAuthenticationMiddleware
         // Only apply to SCIM endpoints
         if (!context.Request.Path.StartsWithSegments(ScimPathPrefix, StringComparison.OrdinalIgnoreCase))
         {
-            await _next(context);
+            await next(context);
             return;
         }
 
         // Discovery endpoints don't require authentication per SCIM spec
         if (IsDiscoveryEndpoint(context.Request.Path))
         {
-            await _next(context);
+            await next(context);
             return;
         }
 
@@ -119,7 +109,7 @@ public sealed partial class ScimAuthenticationMiddleware
         ClaimsIdentity identity = new(claims, "ScimBearer");
         context.User = new ClaimsPrincipal(identity);
 
-        await _next(context);
+        await next(context);
     }
 
     private static bool IsDiscoveryEndpoint(PathString path)

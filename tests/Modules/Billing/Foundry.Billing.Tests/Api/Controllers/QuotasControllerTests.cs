@@ -19,10 +19,12 @@ public class QuotasControllerTests
     public QuotasControllerTests()
     {
         _bus = Substitute.For<IMessageBus>();
-        _controller = new QuotasController(_bus);
-        _controller.ControllerContext = new ControllerContext
+        _controller = new QuotasController(_bus)
         {
-            HttpContext = new DefaultHttpContext()
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext()
+            }
         };
     }
 
@@ -50,7 +52,7 @@ public class QuotasControllerTests
     public async Task GetAll_WhenEmpty_ReturnsOkWithEmptyList()
     {
         _bus.InvokeAsync<Result<IReadOnlyList<QuotaStatusDto>>>(Arg.Any<GetQuotaStatusQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success<IReadOnlyList<QuotaStatusDto>>(new List<QuotaStatusDto>()));
+            .Returns(Result.Success<IReadOnlyList<QuotaStatusDto>>([]));
 
         IActionResult result = await _controller.GetAll(CancellationToken.None);
 

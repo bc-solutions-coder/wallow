@@ -233,7 +233,7 @@ public class AnnouncementTargetingEdgeCaseTests
         string? targetValue = null,
         DateTime? expiresAt = null)
     {
-        Announcement announcement = Announcement.Create(_testTenantId, title, "Content", AnnouncementType.Feature, TimeProvider.System, target, targetValue, null, expiresAt, false, true);
+        Announcement announcement = Announcement.Create(_testTenantId, title, "Content", AnnouncementType.Feature, TimeProvider.System, target, targetValue, null, expiresAt);
         announcement.Publish(TimeProvider.System);
         return announcement;
     }

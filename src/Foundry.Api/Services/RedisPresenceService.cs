@@ -115,7 +115,7 @@ internal sealed partial class RedisPresenceService(
         HashEntry[] allEntries = await db.HashGetAllAsync(ConnectionToUserKey(tenantId));
 
         // Group connections by userId
-        Dictionary<string, List<string>> userConnections = new();
+        Dictionary<string, List<string>> userConnections = [];
         foreach (HashEntry entry in allEntries)
         {
             string connId = entry.Name!;
@@ -128,10 +128,10 @@ internal sealed partial class RedisPresenceService(
             list.Add(connId);
         }
 
-        List<UserPresence> result = new();
+        List<UserPresence> result = [];
         foreach ((string userId, List<string> connectionIds) in userConnections)
         {
-            List<string> pages = new();
+            List<string> pages = [];
             foreach (string connId in connectionIds)
             {
                 RedisValue page = await db.StringGetAsync(ConnectionPagePrefix + connId);
@@ -152,7 +152,7 @@ internal sealed partial class RedisPresenceService(
         IDatabase db = Db;
         RedisValue[] connectionIds = await db.SetMembersAsync(PageViewersKey(tenantId, pageContext));
 
-        Dictionary<string, List<string>> userConnections = new();
+        Dictionary<string, List<string>> userConnections = [];
         foreach (RedisValue connId in connectionIds)
         {
             RedisValue userId = await db.HashGetAsync(ConnectionToUserKey(tenantId), connId!);

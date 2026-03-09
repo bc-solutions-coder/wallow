@@ -7,7 +7,7 @@ public sealed class ShowcasesDbContextFactory : IDesignTimeDbContextFactory<Show
 {
     public ShowcasesDbContext CreateDbContext(string[] args)
     {
-        DbContextOptionsBuilder<ShowcasesDbContext> optionsBuilder = new DbContextOptionsBuilder<ShowcasesDbContext>();
+        DbContextOptionsBuilder<ShowcasesDbContext> optionsBuilder = new();
 
         string password = Environment.GetEnvironmentVariable("FOUNDRY_DB_PASSWORD") ?? "foundry";
         optionsBuilder.UseNpgsql(

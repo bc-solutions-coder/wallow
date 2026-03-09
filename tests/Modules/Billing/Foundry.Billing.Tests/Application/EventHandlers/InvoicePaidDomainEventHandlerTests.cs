@@ -38,7 +38,7 @@ public class InvoicePaidDomainEventHandlerTests
 
         invoice.AddLineItem("Test Item", Money.Create(100m, "USD"), 1, userId, TimeProvider.System);
 
-        InvoicePaidDomainEvent domainEvent = new InvoicePaidDomainEvent(
+        InvoicePaidDomainEvent domainEvent = new(
             invoiceId,
             paymentId,
             paidAt);
@@ -68,7 +68,7 @@ public class InvoicePaidDomainEventHandlerTests
     public async Task HandleAsync_WhenInvoiceNotFound_DoesNotPublish()
     {
         Guid invoiceId = Guid.NewGuid();
-        InvoicePaidDomainEvent domainEvent = new InvoicePaidDomainEvent(
+        InvoicePaidDomainEvent domainEvent = new(
             invoiceId,
             Guid.NewGuid(),
             DateTime.UtcNow);
@@ -90,7 +90,7 @@ public class InvoicePaidDomainEventHandlerTests
     public async Task HandleAsync_WhenInvoiceNotFound_LogsWarning()
     {
         Guid invoiceId = Guid.NewGuid();
-        InvoicePaidDomainEvent domainEvent = new InvoicePaidDomainEvent(
+        InvoicePaidDomainEvent domainEvent = new(
             invoiceId,
             Guid.NewGuid(),
             DateTime.UtcNow);
@@ -117,7 +117,7 @@ public class InvoicePaidDomainEventHandlerTests
     public async Task HandleAsync_RetrievesInvoiceFromRepository()
     {
         Guid invoiceId = Guid.NewGuid();
-        InvoicePaidDomainEvent domainEvent = new InvoicePaidDomainEvent(
+        InvoicePaidDomainEvent domainEvent = new(
             invoiceId,
             Guid.NewGuid(),
             DateTime.UtcNow);
@@ -143,7 +143,7 @@ public class InvoicePaidDomainEventHandlerTests
     public async Task HandleAsync_PassesCancellationToken()
     {
         Guid invoiceId = Guid.NewGuid();
-        InvoicePaidDomainEvent domainEvent = new InvoicePaidDomainEvent(
+        InvoicePaidDomainEvent domainEvent = new(
             invoiceId,
             Guid.NewGuid(),
             DateTime.UtcNow);
@@ -153,7 +153,7 @@ public class InvoicePaidDomainEventHandlerTests
         _invoiceRepository.GetByIdAsync(Arg.Any<InvoiceId>(), Arg.Any<CancellationToken>())
             .Returns(invoice);
 
-        using CancellationTokenSource cts = new CancellationTokenSource();
+        using CancellationTokenSource cts = new();
 
         await InvoicePaidDomainEventHandler.HandleAsync(
             domainEvent,
@@ -171,7 +171,7 @@ public class InvoicePaidDomainEventHandlerTests
     public async Task HandleAsync_LogsInformation()
     {
         Guid invoiceId = Guid.NewGuid();
-        InvoicePaidDomainEvent domainEvent = new InvoicePaidDomainEvent(
+        InvoicePaidDomainEvent domainEvent = new(
             invoiceId,
             Guid.NewGuid(),
             DateTime.UtcNow);

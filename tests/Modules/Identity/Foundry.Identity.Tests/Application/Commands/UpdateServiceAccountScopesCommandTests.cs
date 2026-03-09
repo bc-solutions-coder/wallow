@@ -46,7 +46,7 @@ public class UpdateServiceAccountScopesCommandTests
         UpdateServiceAccountScopesCommand command = new(
             ServiceAccountMetadataId.New(), _oneScope);
         UpdateServiceAccountScopesHandler handler = new(_serviceAccountService);
-        using CancellationTokenSource cts = new();
+        using CancellationTokenSource cts = new CancellationTokenSource();
 
         await handler.Handle(command, cts.Token);
 

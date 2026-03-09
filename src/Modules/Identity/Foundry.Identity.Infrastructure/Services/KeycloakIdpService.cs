@@ -9,23 +9,14 @@ using Microsoft.Extensions.Options;
 
 namespace Foundry.Identity.Infrastructure.Services;
 
-public sealed partial class KeycloakIdpService
+public sealed partial class KeycloakIdpService(
+    IHttpClientFactory httpClientFactory,
+    IOptions<KeycloakOptions> keycloakOptions,
+    ILogger<KeycloakIdpService> logger)
 {
-    private readonly HttpClient _httpClient;
-    private readonly HttpClient _externalHttpClient;
-    private readonly ILogger<KeycloakIdpService> _logger;
-    private readonly string _realm;
-
-    public KeycloakIdpService(
-        IHttpClientFactory httpClientFactory,
-        IOptions<KeycloakOptions> keycloakOptions,
-        ILogger<KeycloakIdpService> logger)
-    {
-        _httpClient = httpClientFactory.CreateClient("KeycloakAdminClient");
-        _externalHttpClient = httpClientFactory.CreateClient();
-        _realm = keycloakOptions.Value.Realm;
-        _logger = logger;
-    }
+    private readonly HttpClient _httpClient = httpClientFactory.CreateClient("KeycloakAdminClient");
+    private readonly HttpClient _externalHttpClient = httpClientFactory.CreateClient();
+    private readonly string _realm = keycloakOptions.Value.Realm;
 
     public async Task<bool> IdentityProviderExistsAsync(string alias, CancellationToken ct)
     {

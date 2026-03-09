@@ -36,7 +36,7 @@ public class KeycloakServiceAccountServiceTests
         // Arrange
         List<ServiceAccountMetadata> accounts =
         [
-            ServiceAccountMetadata.Create(_tenantId, "sa-client-1", "Account 1", null, Array.Empty<string>(), Guid.Empty, TimeProvider.System),
+            ServiceAccountMetadata.Create(_tenantId, "sa-client-1", "Account 1", null, [], Guid.Empty, TimeProvider.System),
             ServiceAccountMetadata.Create(_tenantId, "sa-client-2", "Account 2", "Description", _oneScope, Guid.Empty, TimeProvider.System)
         ];
 
@@ -153,8 +153,7 @@ public class KeycloakServiceAccountServiceTests
     {
         IHttpClientFactory httpClientFactory = Substitute.For<IHttpClientFactory>();
         HttpClient httpClient = handler != null
-            ? new HttpClient(handler)
-            : new HttpClient(new MockHttpMessageHandler());
+            ? new HttpClient(handler) : new HttpClient(new MockHttpMessageHandler());
         httpClient.BaseAddress = new Uri("https://keycloak.test/");
         httpClientFactory.CreateClient("KeycloakAdminClient").Returns(httpClient);
 

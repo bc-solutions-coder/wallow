@@ -23,7 +23,7 @@ public sealed class FeatureFlag : AggregateRoot<FeatureFlagId>
     /// <summary>For Percentage type: 0-100.</summary>
     public int? RolloutPercentage { get; private set; }
 
-    private readonly List<VariantWeight> _variants = new();
+    private readonly List<VariantWeight> _variants = [];
 
     /// <summary>For Variant type: weighted variant definitions.</summary>
     public IReadOnlyCollection<VariantWeight> Variants => _variants.AsReadOnly();
@@ -32,14 +32,14 @@ public sealed class FeatureFlag : AggregateRoot<FeatureFlagId>
     public string? DefaultVariant { get; private set; }
 
     // ReSharper disable once CollectionNeverUpdated.Local — EF Core populates via navigation property mapping
-    private readonly List<FeatureFlagOverride> _overrides = new();
+    private readonly List<FeatureFlagOverride> _overrides = [];
     public IReadOnlyCollection<FeatureFlagOverride> Overrides => _overrides.AsReadOnly();
 
     private FeatureFlag() { } // EF Core
 
     public static FeatureFlag CreateBoolean(string key, string name, bool defaultEnabled, TimeProvider timeProvider, string? description = null)
     {
-        FeatureFlag flag = new FeatureFlag
+        FeatureFlag flag = new()
         {
             Id = FeatureFlagId.New(),
             Key = key,
@@ -61,7 +61,7 @@ public sealed class FeatureFlag : AggregateRoot<FeatureFlagId>
             throw new ArgumentOutOfRangeException(nameof(percentage), "Must be 0-100");
         }
 
-        FeatureFlag flag = new FeatureFlag
+        FeatureFlag flag = new()
         {
             Id = FeatureFlagId.New(),
             Key = key,
@@ -89,7 +89,7 @@ public sealed class FeatureFlag : AggregateRoot<FeatureFlagId>
             throw new ArgumentException("Default variant must be in variants list.", nameof(defaultVariant));
         }
 
-        FeatureFlag flag = new FeatureFlag
+        FeatureFlag flag = new()
         {
             Id = FeatureFlagId.New(),
             Key = key,
@@ -108,7 +108,7 @@ public sealed class FeatureFlag : AggregateRoot<FeatureFlagId>
 
     public void Update(string name, string? description, bool defaultEnabled, TimeProvider timeProvider)
     {
-        List<string> changedProperties = new();
+        List<string> changedProperties = [];
 
         if (Name != name)
         {

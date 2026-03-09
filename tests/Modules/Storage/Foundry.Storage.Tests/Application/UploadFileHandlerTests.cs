@@ -49,7 +49,7 @@ public class UploadFileHandlerTests
     public async Task Handle_WhenContentTypeNotAllowed_ReturnsFailure()
     {
         // Arrange
-        StorageBucket bucket = StorageBucket.Create(TenantId.New(), "test-bucket", allowedContentTypes: new[] { "image/*" });
+        StorageBucket bucket = StorageBucket.Create(TenantId.New(), "test-bucket", allowedContentTypes: ["image/*"]);
         UploadFileCommand command = CreateCommand(contentType: "application/pdf");
 
         _bucketRepository.GetByNameAsync(command.BucketName, Arg.Any<CancellationToken>())

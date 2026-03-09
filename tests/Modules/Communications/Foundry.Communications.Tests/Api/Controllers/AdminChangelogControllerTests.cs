@@ -22,10 +22,12 @@ public class AdminChangelogControllerTests
     {
         _bus = Substitute.For<IMessageBus>();
         _sanitizer = Substitute.For<IHtmlSanitizationService>();
-        _controller = new AdminChangelogController(_bus, _sanitizer);
-        _controller.ControllerContext = new ControllerContext
+        _controller = new AdminChangelogController(_bus, _sanitizer)
         {
-            HttpContext = new DefaultHttpContext()
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext()
+            }
         };
     }
 
@@ -37,7 +39,7 @@ public class AdminChangelogControllerTests
         DateTime releasedAt = DateTime.UtcNow;
         CreateChangelogEntryRequest request = new("1.0.0", "Release 1.0", "Content", releasedAt);
         ChangelogEntryDto dto = new(Guid.NewGuid(), "1.0.0", "Release 1.0", "Content", releasedAt, false,
-            new List<ChangelogItemDto>(), DateTime.UtcNow);
+            [], DateTime.UtcNow);
         _bus.InvokeAsync<Result<ChangelogEntryDto>>(Arg.Any<CreateChangelogEntryCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(dto));
 
@@ -58,7 +60,7 @@ public class AdminChangelogControllerTests
         _sanitizer.Sanitize("Release 2.0").Returns("Release 2.0 sanitized");
         _sanitizer.Sanitize("New features").Returns("New features sanitized");
         ChangelogEntryDto dto = new(Guid.NewGuid(), "2.0.0", "Release 2.0 sanitized", "New features sanitized", releasedAt, false,
-            new List<ChangelogItemDto>(), DateTime.UtcNow);
+            [], DateTime.UtcNow);
         _bus.InvokeAsync<Result<ChangelogEntryDto>>(Arg.Any<CreateChangelogEntryCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(dto));
 
@@ -91,7 +93,7 @@ public class AdminChangelogControllerTests
     {
         CreateChangelogEntryRequest request = new("1.0.0", "Release", "Content", DateTime.UtcNow);
         ChangelogEntryDto dto = new(Guid.NewGuid(), "1.0.0", "Release", "Content", DateTime.UtcNow, false,
-            new List<ChangelogItemDto>(), DateTime.UtcNow);
+            [], DateTime.UtcNow);
         _bus.InvokeAsync<Result<ChangelogEntryDto>>(Arg.Any<CreateChangelogEntryCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(dto));
 
@@ -108,7 +110,7 @@ public class AdminChangelogControllerTests
         CreateChangelogEntryRequest request = new("1.0.0", "Release", "Content", releasedAt);
         ChangelogItemDto item = new(Guid.NewGuid(), "New feature added", ChangeType.Feature);
         ChangelogEntryDto dto = new(Guid.NewGuid(), "1.0.0", "Release", "Content", releasedAt, false,
-            new List<ChangelogItemDto> { item }, DateTime.UtcNow);
+            [item], DateTime.UtcNow);
         _bus.InvokeAsync<Result<ChangelogEntryDto>>(Arg.Any<CreateChangelogEntryCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(dto));
 

@@ -7,7 +7,8 @@ using Microsoft.Extensions.Logging;
 
 using Foundry.Identity.Infrastructure;
 using Microsoft.Extensions.Options;
-#pragma warning disable CA2000 // HttpClient/HttpMessageHandler lifetime is managed by test framework
+#pragma warning disable CA2000
+// HttpClient/HttpMessageHandler lifetime is managed by test framework
 
 namespace Foundry.Identity.Tests.Infrastructure;
 
@@ -132,7 +133,7 @@ public class UserQueryServiceAdditionalTests
 
     private sealed class MockHttpHandler : HttpMessageHandler
     {
-        private readonly Dictionary<string, (HttpStatusCode Status, object? Content)> _routes = [];
+        private readonly Dictionary<string, (HttpStatusCode Status, object? Content)> _routes = new Dictionary<string, (HttpStatusCode Status, object? Content)>();
         private readonly HashSet<string> _nullRoutes = [];
 
         public MockHttpHandler WithGet(string path, object content)

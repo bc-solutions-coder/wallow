@@ -57,7 +57,7 @@ public class PublishAnnouncementHandlerTests
     [Fact]
     public async Task Handle_PublishesIntegrationEvent()
     {
-        Announcement announcement = Announcement.Create(_testTenantId, "Test Title", "Test Content", AnnouncementType.Alert, TimeProvider.System, AnnouncementTarget.All, null, null, null, true, true);
+        Announcement announcement = Announcement.Create(_testTenantId, "Test Title", "Test Content", AnnouncementType.Alert, TimeProvider.System, AnnouncementTarget.All, null, null, null, true);
 
         _repository.GetByIdAsync(Arg.Any<AnnouncementId>(), Arg.Any<CancellationToken>())
             .Returns(announcement);

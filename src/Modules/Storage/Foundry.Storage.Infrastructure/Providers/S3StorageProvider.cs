@@ -10,26 +10,16 @@ namespace Foundry.Storage.Infrastructure.Providers;
 /// <summary>
 /// S3-compatible storage provider. Works with AWS S3, Garage, MinIO, and Cloudflare R2.
 /// </summary>
-public sealed class S3StorageProvider : IStorageProvider, IDisposable
+public sealed class S3StorageProvider(IAmazonS3 s3Client, IOptions<StorageOptions> options, ITenantContext tenantContext) : IStorageProvider, IDisposable
 {
-    private readonly IAmazonS3 _s3Client;
-    private readonly S3StorageOptions _options;
-    private readonly ITenantContext _tenantContext;
-    private readonly bool _ownsClient;
-
-    public S3StorageProvider(IAmazonS3 s3Client, IOptions<StorageOptions> options, ITenantContext tenantContext)
-    {
-        _s3Client = s3Client;
-        _options = options.Value.S3;
-        _tenantContext = tenantContext;
-        _ownsClient = false;
-    }
-
+    private readonly IAmazonS3 _s3Client = s3Client;
+    private readonly S3StorageOptions _options = options.Value.S3;
+    private readonly ITenantContext _tenantContext = tenantContext;
     private string ResolveBucket() => _options.GetBucketForRegion(_tenantContext.Region);
 
     public async Task<string> UploadAsync(Stream content, string key, string contentType, CancellationToken ct = default)
     {
-        PutObjectRequest request = new PutObjectRequest
+        PutObjectRequest request = new()
         {
             BucketName = ResolveBucket(),
             Key = key,
@@ -43,7 +33,7 @@ public sealed class S3StorageProvider : IStorageProvider, IDisposable
 
     public async Task<Stream> DownloadAsync(string key, CancellationToken ct = default)
     {
-        GetObjectRequest request = new GetObjectRequest
+        GetObjectRequest request = new()
         {
             BucketName = ResolveBucket(),
             Key = key
@@ -55,7 +45,7 @@ public sealed class S3StorageProvider : IStorageProvider, IDisposable
 
     public async Task DeleteAsync(string key, CancellationToken ct = default)
     {
-        DeleteObjectRequest request = new DeleteObjectRequest
+        DeleteObjectRequest request = new()
         {
             BucketName = ResolveBucket(),
             Key = key
@@ -68,7 +58,7 @@ public sealed class S3StorageProvider : IStorageProvider, IDisposable
     {
         try
         {
-            GetObjectMetadataRequest request = new GetObjectMetadataRequest
+            GetObjectMetadataRequest request = new()
             {
                 BucketName = ResolveBucket(),
                 Key = key
@@ -85,7 +75,7 @@ public sealed class S3StorageProvider : IStorageProvider, IDisposable
 
     public Task<string> GetPresignedUrlAsync(string key, TimeSpan expiry, bool forUpload = false, CancellationToken ct = default)
     {
-        GetPreSignedUrlRequest request = new GetPreSignedUrlRequest
+        GetPreSignedUrlRequest request = new()
         {
             BucketName = ResolveBucket(),
             Key = key,
@@ -98,9 +88,6 @@ public sealed class S3StorageProvider : IStorageProvider, IDisposable
 
     public void Dispose()
     {
-        if (_ownsClient)
-        {
-            _s3Client.Dispose();
-        }
+        _s3Client.Dispose();
     }
 }

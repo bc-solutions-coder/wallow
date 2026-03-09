@@ -7,50 +7,38 @@ using Microsoft.Extensions.Options;
 
 namespace Foundry.Identity.Infrastructure.Services;
 
-public sealed partial class SsoClaimsSyncService
+public sealed partial class SsoClaimsSyncService(
+    IHttpClientFactory httpClientFactory,
+    ISsoConfigurationRepository repository,
+    ITenantContext tenantContext,
+    IOptions<KeycloakOptions> keycloakOptions,
+    ILogger<SsoClaimsSyncService> logger)
 {
-    private readonly HttpClient _httpClient;
-    private readonly ISsoConfigurationRepository _repository;
-    private readonly ITenantContext _tenantContext;
-    private readonly ILogger<SsoClaimsSyncService> _logger;
-    private readonly string _realm;
-
-    public SsoClaimsSyncService(
-        IHttpClientFactory httpClientFactory,
-        ISsoConfigurationRepository repository,
-        ITenantContext tenantContext,
-        IOptions<KeycloakOptions> keycloakOptions,
-        ILogger<SsoClaimsSyncService> logger)
-    {
-        _httpClient = httpClientFactory.CreateClient("KeycloakAdminClient");
-        _repository = repository;
-        _tenantContext = tenantContext;
-        _realm = keycloakOptions.Value.Realm;
-        _logger = logger;
-    }
+    private readonly HttpClient _httpClient = httpClientFactory.CreateClient("KeycloakAdminClient");
+    private readonly string _realm = keycloakOptions.Value.Realm;
 
     public async Task SyncUserClaimsAsync(Guid userId, CancellationToken ct = default)
     {
-        Domain.Entities.SsoConfiguration? config = await _repository.GetAsync(ct);
+        Domain.Entities.SsoConfiguration? config = await repository.GetAsync(ct);
         if (config == null)
         {
-            LogSkippingClaimsSyncNoConfig(_tenantContext.TenantId.Value);
+            LogSkippingClaimsSyncNoConfig(tenantContext.TenantId.Value);
             return;
         }
 
         if (!config.SyncGroupsAsRoles)
         {
-            LogSkippingClaimsSyncDisabled(_tenantContext.TenantId.Value);
+            LogSkippingClaimsSyncDisabled(tenantContext.TenantId.Value);
             return;
         }
 
         if (string.IsNullOrWhiteSpace(config.GroupsAttribute))
         {
-            LogSkippingClaimsSyncNoAttribute(_tenantContext.TenantId.Value);
+            LogSkippingClaimsSyncNoAttribute(tenantContext.TenantId.Value);
             return;
         }
 
-        LogSyncingUserClaims(userId, _tenantContext.TenantId.Value);
+        LogSyncingUserClaims(userId, tenantContext.TenantId.Value);
 
         try
         {
@@ -75,7 +63,7 @@ public sealed partial class SsoClaimsSyncService
 
             await SyncGroupsToRolesAsync(userId, groups, currentRoles, config.DefaultRole, ct);
 
-            LogUserClaimsSynced(userId, _tenantContext.TenantId.Value);
+            LogUserClaimsSynced(userId, tenantContext.TenantId.Value);
         }
         catch (Exception ex)
         {

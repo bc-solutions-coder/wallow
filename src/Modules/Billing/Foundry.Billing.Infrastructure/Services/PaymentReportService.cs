@@ -7,23 +7,15 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Foundry.Billing.Infrastructure.Services;
 
-public sealed class PaymentReportService : IPaymentReportService
+public sealed class PaymentReportService(BillingDbContext context, ITenantContext tenantContext) : IPaymentReportService
 {
-    private readonly BillingDbContext _context;
-    private readonly ITenantContext _tenantContext;
-
-    public PaymentReportService(BillingDbContext context, ITenantContext tenantContext)
-    {
-        _context = context;
-        _tenantContext = tenantContext;
-    }
 
     public async Task<IReadOnlyList<PaymentReportRow>> GetPaymentsAsync(
         DateTime from,
         DateTime to,
         CancellationToken ct = default)
     {
-        DbConnection connection = _context.Database.GetDbConnection();
+        DbConnection connection = context.Database.GetDbConnection();
 
         const string sql = """
             SELECT
@@ -44,7 +36,7 @@ public sealed class PaymentReportService : IPaymentReportService
 
         CommandDefinition command = new(
             sql,
-            new { TenantId = _tenantContext.TenantId.Value, From = from, To = to },
+            new { TenantId = tenantContext.TenantId.Value, From = from, To = to },
             cancellationToken: ct);
 
         IEnumerable<PaymentReportRow> results = await connection.QueryAsync<PaymentReportRow>(command);

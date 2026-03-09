@@ -26,16 +26,8 @@ namespace Foundry.Billing.Api.Controllers;
 [Tags("Invoices")]
 [Produces("application/json")]
 [Consumes("application/json")]
-public class InvoicesController : ControllerBase
+public class InvoicesController(IMessageBus bus, ICurrentUserService currentUserService) : ControllerBase
 {
-    private readonly IMessageBus _bus;
-    private readonly ICurrentUserService _currentUserService;
-
-    public InvoicesController(IMessageBus bus, ICurrentUserService currentUserService)
-    {
-        _bus = bus;
-        _currentUserService = currentUserService;
-    }
 
     /// <summary>
     /// Get all invoices.
@@ -45,7 +37,7 @@ public class InvoicesController : ControllerBase
     [ProducesResponseType(typeof(IReadOnlyList<InvoiceResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
     {
-        Result<IReadOnlyList<InvoiceDto>> result = await _bus.InvokeAsync<Result<IReadOnlyList<InvoiceDto>>>(
+        Result<IReadOnlyList<InvoiceDto>> result = await bus.InvokeAsync<Result<IReadOnlyList<InvoiceDto>>>(
             new GetAllInvoicesQuery(), cancellationToken);
 
         return result.Map(invoices =>
@@ -62,7 +54,7 @@ public class InvoicesController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
     {
-        Result<InvoiceDto> result = await _bus.InvokeAsync<Result<InvoiceDto>>(
+        Result<InvoiceDto> result = await bus.InvokeAsync<Result<InvoiceDto>>(
             new GetInvoiceByIdQuery(id), cancellationToken);
 
         return result.Map(ToInvoiceResponse).ToActionResult();
@@ -76,7 +68,7 @@ public class InvoicesController : ControllerBase
     [ProducesResponseType(typeof(IReadOnlyList<InvoiceResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetByUserId(Guid userId, CancellationToken cancellationToken)
     {
-        Result<IReadOnlyList<InvoiceDto>> result = await _bus.InvokeAsync<Result<IReadOnlyList<InvoiceDto>>>(
+        Result<IReadOnlyList<InvoiceDto>> result = await bus.InvokeAsync<Result<IReadOnlyList<InvoiceDto>>>(
             new GetInvoicesByUserIdQuery(userId), cancellationToken);
 
         return result.Map(invoices =>
@@ -95,7 +87,7 @@ public class InvoicesController : ControllerBase
         [FromBody] CreateInvoiceRequest request,
         CancellationToken cancellationToken)
     {
-        Guid? currentUserId = _currentUserService.GetCurrentUserId();
+        Guid? currentUserId = currentUserService.GetCurrentUserId();
         if (currentUserId is null)
         {
             return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
@@ -105,13 +97,13 @@ public class InvoicesController : ControllerBase
             ? request.UserId.Value
             : currentUserId.Value;
 
-        CreateInvoiceCommand command = new CreateInvoiceCommand(
+        CreateInvoiceCommand command = new(
             targetUserId,
             request.InvoiceNumber,
             request.Currency,
             request.DueDate);
 
-        Result<InvoiceDto> result = await _bus.InvokeAsync<Result<InvoiceDto>>(command, cancellationToken);
+        Result<InvoiceDto> result = await bus.InvokeAsync<Result<InvoiceDto>>(command, cancellationToken);
 
         if (!result.IsSuccess)
         {
@@ -135,20 +127,20 @@ public class InvoicesController : ControllerBase
         [FromBody] AddLineItemRequest request,
         CancellationToken cancellationToken)
     {
-        Guid? currentUserId = _currentUserService.GetCurrentUserId();
+        Guid? currentUserId = currentUserService.GetCurrentUserId();
         if (currentUserId is null)
         {
             return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
         }
 
-        AddLineItemCommand command = new AddLineItemCommand(
+        AddLineItemCommand command = new(
             id,
             request.Description,
             request.UnitPrice,
             request.Quantity,
             currentUserId.Value);
 
-        Result<InvoiceDto> result = await _bus.InvokeAsync<Result<InvoiceDto>>(command, cancellationToken);
+        Result<InvoiceDto> result = await bus.InvokeAsync<Result<InvoiceDto>>(command, cancellationToken);
 
         return result.Map(ToInvoiceResponse).ToActionResult();
     }
@@ -163,15 +155,15 @@ public class InvoicesController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Issue(Guid id, CancellationToken cancellationToken)
     {
-        Guid? currentUserId = _currentUserService.GetCurrentUserId();
+        Guid? currentUserId = currentUserService.GetCurrentUserId();
         if (currentUserId is null)
         {
             return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
         }
 
-        IssueInvoiceCommand command = new IssueInvoiceCommand(id, currentUserId.Value);
+        IssueInvoiceCommand command = new(id, currentUserId.Value);
 
-        Result<InvoiceDto> result = await _bus.InvokeAsync<Result<InvoiceDto>>(command, cancellationToken);
+        Result<InvoiceDto> result = await bus.InvokeAsync<Result<InvoiceDto>>(command, cancellationToken);
 
         return result.Map(ToInvoiceResponse).ToActionResult();
     }
@@ -186,15 +178,15 @@ public class InvoicesController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Cancel(Guid id, CancellationToken cancellationToken)
     {
-        Guid? currentUserId = _currentUserService.GetCurrentUserId();
+        Guid? currentUserId = currentUserService.GetCurrentUserId();
         if (currentUserId is null)
         {
             return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
         }
 
-        CancelInvoiceCommand command = new CancelInvoiceCommand(id, currentUserId.Value);
+        CancelInvoiceCommand command = new(id, currentUserId.Value);
 
-        Result result = await _bus.InvokeAsync<Result>(command, cancellationToken);
+        Result result = await bus.InvokeAsync<Result>(command, cancellationToken);
 
         if (result.IsSuccess)
         {

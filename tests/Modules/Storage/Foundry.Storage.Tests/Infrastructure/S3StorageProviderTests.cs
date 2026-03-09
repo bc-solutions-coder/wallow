@@ -45,7 +45,7 @@ public sealed class S3StorageProviderTests : IDisposable
         // Arrange
         string key = "test-tenant/bucket/test-file.txt";
         byte[] content = "Hello, World!"u8.ToArray();
-        using MemoryStream stream = new MemoryStream(content);
+        using MemoryStream stream = new(content);
         string etag = "\"abc123\"";
 
         _mockS3Client.PutObjectAsync(
@@ -54,7 +54,7 @@ public sealed class S3StorageProviderTests : IDisposable
                 r.Key == key &&
                 r.ContentType == "text/plain"),
             Arg.Any<CancellationToken>())
-            .Returns(new PutObjectResponse { ETag = etag });
+            .Returns(_ => new PutObjectResponse { ETag = etag });
 
         // Act
         string result = await _provider.UploadAsync(stream, key, "text/plain");
@@ -71,12 +71,12 @@ public sealed class S3StorageProviderTests : IDisposable
     {
         // Arrange
         string key = "images/photo.jpg";
-        using MemoryStream stream = new MemoryStream([1, 2, 3]);
+        using MemoryStream stream = new([1, 2, 3]);
 
         _mockS3Client.PutObjectAsync(
             Arg.Any<PutObjectRequest>(),
             Arg.Any<CancellationToken>())
-            .Returns(new PutObjectResponse { ETag = "\"xyz\"" });
+            .Returns(_ => new PutObjectResponse { ETag = "\"xyz\"" });
 
         // Act
         await _provider.UploadAsync(stream, key, "image/jpeg");
@@ -93,8 +93,8 @@ public sealed class S3StorageProviderTests : IDisposable
         // Arrange
         string key = "test/download.txt";
         byte[] content = "Download test content"u8.ToArray();
-        MemoryStream responseStream = new MemoryStream(content);
-        using GetObjectResponse getObjectResponse = new GetObjectResponse { ResponseStream = responseStream };
+        MemoryStream responseStream = new(content);
+        using GetObjectResponse getObjectResponse = new() { ResponseStream = responseStream };
 
         _mockS3Client.GetObjectAsync(
             Arg.Is<GetObjectRequest>(r =>
@@ -105,7 +105,7 @@ public sealed class S3StorageProviderTests : IDisposable
 
         // Act
         Stream downloadStream = await _provider.DownloadAsync(key);
-        using MemoryStream memoryStream = new MemoryStream();
+        using MemoryStream memoryStream = new();
         await downloadStream.CopyToAsync(memoryStream);
 
         // Assert
@@ -120,7 +120,7 @@ public sealed class S3StorageProviderTests : IDisposable
     {
         // Arrange
         string key = "non-existent/file.txt";
-        AmazonS3Exception s3Exception = new AmazonS3Exception("Not found")
+        AmazonS3Exception s3Exception = new("Not found")
         {
             StatusCode = HttpStatusCode.NotFound
         };
@@ -149,7 +149,7 @@ public sealed class S3StorageProviderTests : IDisposable
                 r.BucketName == TestBucket &&
                 r.Key == key),
             Arg.Any<CancellationToken>())
-            .Returns(new DeleteObjectResponse());
+            .Returns(_ => new DeleteObjectResponse());
 
         // Act
         await _provider.DeleteAsync(key);
@@ -169,7 +169,7 @@ public sealed class S3StorageProviderTests : IDisposable
         _mockS3Client.DeleteObjectAsync(
             Arg.Any<DeleteObjectRequest>(),
             Arg.Any<CancellationToken>())
-            .Returns(new DeleteObjectResponse());
+            .Returns(_ => new DeleteObjectResponse());
 
         // Act
         Func<Task> act = () => _provider.DeleteAsync(key);
@@ -189,7 +189,7 @@ public sealed class S3StorageProviderTests : IDisposable
                 r.BucketName == TestBucket &&
                 r.Key == key),
             Arg.Any<CancellationToken>())
-            .Returns(new GetObjectMetadataResponse());
+            .Returns(_ => new GetObjectMetadataResponse());
 
         // Act
         bool exists = await _provider.ExistsAsync(key);
@@ -203,7 +203,7 @@ public sealed class S3StorageProviderTests : IDisposable
     {
         // Arrange
         string key = "non-existent/file.txt";
-        AmazonS3Exception s3Exception = new AmazonS3Exception("Not found")
+        AmazonS3Exception s3Exception = new("Not found")
         {
             StatusCode = HttpStatusCode.NotFound
         };
@@ -225,7 +225,7 @@ public sealed class S3StorageProviderTests : IDisposable
     {
         // Arrange
         string key = "test/error.txt";
-        AmazonS3Exception s3Exception = new AmazonS3Exception("Internal server error")
+        AmazonS3Exception s3Exception = new("Internal server error")
         {
             StatusCode = HttpStatusCode.InternalServerError
         };

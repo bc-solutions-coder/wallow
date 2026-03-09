@@ -7,7 +7,7 @@ public class VariantWeightConstructionTests
     [Fact]
     public void Constructor_WithValidData_SetsProperties()
     {
-        VariantWeight variant = new VariantWeight("control", 50);
+        VariantWeight variant = new("control", 50);
 
         variant.Name.Should().Be("control");
         variant.Weight.Should().Be(50);
@@ -16,7 +16,7 @@ public class VariantWeightConstructionTests
     [Fact]
     public void Constructor_WithZeroWeight_Succeeds()
     {
-        VariantWeight variant = new VariantWeight("disabled", 0);
+        VariantWeight variant = new("disabled", 0);
 
         variant.Weight.Should().Be(0);
     }
@@ -56,8 +56,8 @@ public class VariantWeightEqualityTests
     [Fact]
     public void Equals_WithSameNameAndWeight_ReturnsTrue()
     {
-        VariantWeight a = new VariantWeight("control", 50);
-        VariantWeight b = new VariantWeight("control", 50);
+        VariantWeight a = new("control", 50);
+        VariantWeight b = new("control", 50);
 
         a.Should().Be(b);
     }
@@ -65,8 +65,8 @@ public class VariantWeightEqualityTests
     [Fact]
     public void Equals_WithDifferentName_ReturnsFalse()
     {
-        VariantWeight a = new VariantWeight("control", 50);
-        VariantWeight b = new VariantWeight("treatment", 50);
+        VariantWeight a = new("control", 50);
+        VariantWeight b = new("treatment", 50);
 
         a.Should().NotBe(b);
     }
@@ -74,8 +74,8 @@ public class VariantWeightEqualityTests
     [Fact]
     public void Equals_WithDifferentWeight_ReturnsFalse()
     {
-        VariantWeight a = new VariantWeight("control", 50);
-        VariantWeight b = new VariantWeight("control", 75);
+        VariantWeight a = new("control", 50);
+        VariantWeight b = new("control", 75);
 
         a.Should().NotBe(b);
     }
@@ -83,8 +83,8 @@ public class VariantWeightEqualityTests
     [Fact]
     public void GetHashCode_WithSameValues_ReturnsSameHash()
     {
-        VariantWeight a = new VariantWeight("control", 50);
-        VariantWeight b = new VariantWeight("control", 50);
+        VariantWeight a = new("control", 50);
+        VariantWeight b = new("control", 50);
 
         a.GetHashCode().Should().Be(b.GetHashCode());
     }

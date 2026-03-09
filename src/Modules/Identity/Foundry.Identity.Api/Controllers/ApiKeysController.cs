@@ -19,21 +19,8 @@ namespace Foundry.Identity.Api.Controllers;
 [ApiVersion(1)]
 [Route("api/v{version:apiVersion}/identity/auth/keys")]
 [Authorize]
-public sealed class ApiKeysController : ControllerBase
+public sealed class ApiKeysController(IApiKeyService apiKeyService, ITenantContext tenantContext, ICurrentUserService currentUserService) : ControllerBase
 {
-    private readonly IApiKeyService _apiKeyService;
-    private readonly ITenantContext _tenantContext;
-    private readonly ICurrentUserService _currentUserService;
-
-    public ApiKeysController(
-        IApiKeyService apiKeyService,
-        ITenantContext tenantContext,
-        ICurrentUserService currentUserService)
-    {
-        _apiKeyService = apiKeyService;
-        _tenantContext = tenantContext;
-        _currentUserService = currentUserService;
-    }
 
     /// <summary>
     /// Create a new API key for the current user.
@@ -71,13 +58,13 @@ public sealed class ApiKeysController : ControllerBase
             });
         }
 
-        Guid? userId = _currentUserService.GetCurrentUserId();
+        Guid? userId = currentUserService.GetCurrentUserId();
         if (userId == null)
         {
             return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
         }
 
-        Guid tenantId = _tenantContext.TenantId.Value;
+        Guid tenantId = tenantContext.TenantId.Value;
         if (tenantId == Guid.Empty)
         {
             return BadRequest(new ProblemDetails
@@ -105,7 +92,7 @@ public sealed class ApiKeysController : ControllerBase
             }
         }
 
-        ApiKeyCreateResult result = await _apiKeyService.CreateApiKeyAsync(
+        ApiKeyCreateResult result = await apiKeyService.CreateApiKeyAsync(
             request.Name,
             userId.Value,
             tenantId,
@@ -146,13 +133,13 @@ public sealed class ApiKeysController : ControllerBase
     [ProducesResponseType(typeof(List<ApiKeyResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> ListApiKeys(CancellationToken ct)
     {
-        Guid? userId = _currentUserService.GetCurrentUserId();
+        Guid? userId = currentUserService.GetCurrentUserId();
         if (userId == null)
         {
             return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
         }
 
-        IReadOnlyList<ApiKeyMetadata> keys = await _apiKeyService.ListApiKeysAsync(userId.Value, ct);
+        IReadOnlyList<ApiKeyMetadata> keys = await apiKeyService.ListApiKeysAsync(userId.Value, ct);
 
         List<ApiKeyResponse> response = keys.Select(k => new ApiKeyResponse(
             KeyId: k.KeyId,
@@ -179,13 +166,13 @@ public sealed class ApiKeysController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> RevokeApiKey(string keyId, CancellationToken ct)
     {
-        Guid? userId = _currentUserService.GetCurrentUserId();
+        Guid? userId = currentUserService.GetCurrentUserId();
         if (userId == null)
         {
             return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
         }
 
-        bool revoked = await _apiKeyService.RevokeApiKeyAsync(keyId, userId.Value, ct);
+        bool revoked = await apiKeyService.RevokeApiKeyAsync(keyId, userId.Value, ct);
 
         if (!revoked)
         {

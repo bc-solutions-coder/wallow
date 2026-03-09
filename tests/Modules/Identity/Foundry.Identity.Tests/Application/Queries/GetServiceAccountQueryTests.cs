@@ -61,7 +61,7 @@ public class GetServiceAccountQueryTests
     public async Task Handle_PropagatesCancellationToken()
     {
         ServiceAccountMetadataId accountId = ServiceAccountMetadataId.New();
-        using CancellationTokenSource cts = new();
+        using CancellationTokenSource cts = new CancellationTokenSource();
 
         _serviceAccountService.GetAsync(Arg.Any<ServiceAccountMetadataId>(), Arg.Any<CancellationToken>())
             .Returns((ServiceAccountDto?)null);

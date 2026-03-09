@@ -42,7 +42,7 @@ public class ResponseContractTests
     public void InvoiceResponse_WithNullOptionalFields_CreatesCorrectly()
     {
         InvoiceResponse response = new(Guid.NewGuid(), Guid.NewGuid(), "INV-001", "Draft", 0m, "USD",
-            null, null, DateTime.UtcNow, null, new List<InvoiceLineItemResponse>());
+            null, null, DateTime.UtcNow, null, []);
 
         response.DueDate.Should().BeNull();
         response.PaidAt.Should().BeNull();

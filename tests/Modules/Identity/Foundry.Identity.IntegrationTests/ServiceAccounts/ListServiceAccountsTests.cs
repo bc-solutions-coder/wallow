@@ -4,12 +4,10 @@ using Foundry.Identity.Application.DTOs;
 namespace Foundry.Identity.IntegrationTests.ServiceAccounts;
 
 [Trait("Category", "Integration")]
-public class ListServiceAccountsTests : ServiceAccountIntegrationTestBase
+public class ListServiceAccountsTests(ServiceAccountTestFactory factory) : ServiceAccountIntegrationTestBase(factory)
 {
     private static readonly string[] _invoicesReadScope = ["invoices.read"];
     private static readonly string[] _paymentsReadScope = ["payments.read"];
-
-    public ListServiceAccountsTests(ServiceAccountTestFactory factory) : base(factory) { }
 
     [Fact]
     public async Task Should_List_All_ServiceAccounts_For_Tenant()

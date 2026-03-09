@@ -5,23 +5,17 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Foundry.Communications.Infrastructure.Persistence.Repositories;
 
-public sealed class ConversationRepository : IConversationRepository
+public sealed class ConversationRepository(CommunicationsDbContext context) : IConversationRepository
 {
-    private readonly CommunicationsDbContext _context;
-
-    public ConversationRepository(CommunicationsDbContext context)
-    {
-        _context = context;
-    }
 
     public void Add(Conversation conversation)
     {
-        _context.Conversations.Add(conversation);
+        context.Conversations.Add(conversation);
     }
 
     public Task<Conversation?> GetByIdAsync(ConversationId id, CancellationToken cancellationToken = default)
     {
-        return _context.Conversations
+        return context.Conversations
             .AsTracking()
             .Include(c => c.Participants)
             .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
@@ -29,6 +23,6 @@ public sealed class ConversationRepository : IConversationRepository
 
     public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        await _context.SaveChangesAsync(cancellationToken);
+        await context.SaveChangesAsync(cancellationToken);
     }
 }

@@ -13,10 +13,8 @@ namespace Foundry.Billing.Api.Middleware;
 /// Middleware that checks quotas before requests and increments counters after successful responses.
 /// Only tracks API routes (/api/*). Caches quota lookups per tenant to reduce DB hits.
 /// </summary>
-public sealed class MeteringMiddleware
+public sealed class MeteringMiddleware(RequestDelegate next, HybridCache cache)
 {
-    private readonly RequestDelegate _next;
-    private readonly HybridCache _cache;
     private const string ApiCallsMeterCode = "api.calls";
     private static readonly HybridCacheEntryOptions _cacheOptions = new()
     {
@@ -24,24 +22,18 @@ public sealed class MeteringMiddleware
         LocalCacheExpiration = TimeSpan.FromSeconds(30)
     };
 
-    public MeteringMiddleware(RequestDelegate next, HybridCache cache)
-    {
-        _next = next;
-        _cache = cache;
-    }
-
     public async Task InvokeAsync(HttpContext context, IMeteringService meteringService, ITenantContext tenantContext, IMessageBus messageBus)
     {
         // Skip non-API routes
         if (!context.Request.Path.StartsWithSegments("/api"))
         {
-            await _next(context);
+            await next(context);
             return;
         }
 
         // Check quota with caching by tenant ID to avoid per-request DB lookups
         string cacheKey = $"quota:{tenantContext.TenantId.Value}:{ApiCallsMeterCode}";
-        QuotaCheckResult quotaCheck = await _cache.GetOrCreateAsync(cacheKey,
+        QuotaCheckResult quotaCheck = await cache.GetOrCreateAsync(cacheKey,
             _ => new ValueTask<QuotaCheckResult>(meteringService.CheckQuotaAsync(ApiCallsMeterCode)),
             _cacheOptions);
 
@@ -77,7 +69,7 @@ public sealed class MeteringMiddleware
         }
 
         // Process the request
-        await _next(context);
+        await next(context);
 
         // Only count successful requests (status < 400)
         // Dispatch via Wolverine so the handler runs in its own DI scope

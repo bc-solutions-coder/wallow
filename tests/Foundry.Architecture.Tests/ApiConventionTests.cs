@@ -12,7 +12,7 @@ public class ApiConventionTests
     {
         foreach (string moduleName in TestConstants.AllModules)
         {
-            yield return new object[] { moduleName };
+            yield return [moduleName];
         }
     }
 

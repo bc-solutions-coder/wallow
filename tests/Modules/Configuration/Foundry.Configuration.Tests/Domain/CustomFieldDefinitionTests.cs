@@ -420,7 +420,7 @@ public class CustomFieldDefinitionValidationRulesTests
     public void SetValidationRules_ForDateTypes_WithDateRangeRules_Succeeds(CustomFieldType fieldType)
     {
         CustomFieldDefinition definition = CreateDefinition(fieldType);
-        FieldValidationRules rules = new FieldValidationRules
+        FieldValidationRules rules = new()
         {
             MinDate = new DateTime(2020, 1, 1),
             MaxDate = new DateTime(2030, 12, 31)
@@ -528,11 +528,11 @@ public class CustomFieldDefinitionOptionsTests
     public void SetOptions_ForDropdownType_SetsOptions()
     {
         CustomFieldDefinition definition = CreateDropdownDefinition();
-        List<CustomFieldOption> options = new()
-        {
-            new CustomFieldOption { Value = "draft", Label = "Draft", Order = 1 },
-            new CustomFieldOption { Value = "published", Label = "Published", Order = 2 }
-        };
+        List<CustomFieldOption> options = [
+
+            new() { Value = "draft", Label = "Draft", Order = 1 },
+            new() { Value = "published", Label = "Published", Order = 2 }
+        ];
 
         definition.SetOptions(options, Guid.NewGuid(), TimeProvider.System);
 
@@ -546,11 +546,11 @@ public class CustomFieldDefinitionOptionsTests
     public void SetOptions_ForMultiSelectType_SetsOptions()
     {
         CustomFieldDefinition definition = CreateMultiSelectDefinition();
-        List<CustomFieldOption> options = new()
-        {
-            new CustomFieldOption { Value = "red", Label = "Red" },
-            new CustomFieldOption { Value = "blue", Label = "Blue" }
-        };
+        List<CustomFieldOption> options = [
+
+            new() { Value = "red", Label = "Red" },
+            new() { Value = "blue", Label = "Blue" }
+        ];
 
         definition.SetOptions(options, Guid.NewGuid(), TimeProvider.System);
 
@@ -562,10 +562,10 @@ public class CustomFieldDefinitionOptionsTests
     {
         CustomFieldDefinition definition = CustomFieldDefinition.Create(
             TenantId.New(), "Invoice", "text_field", "Text", CustomFieldType.Text, Guid.NewGuid(), TimeProvider.System);
-        List<CustomFieldOption> options = new()
-        {
-            new CustomFieldOption { Value = "a", Label = "A" }
-        };
+        List<CustomFieldOption> options = [
+
+            new() { Value = "a", Label = "A" }
+        ];
 
         Action act = () => definition.SetOptions(options, Guid.NewGuid(), TimeProvider.System);
 
@@ -577,11 +577,11 @@ public class CustomFieldDefinitionOptionsTests
     public void SetOptions_WithDuplicateValues_ThrowsCustomFieldException()
     {
         CustomFieldDefinition definition = CreateDropdownDefinition();
-        List<CustomFieldOption> options = new()
-        {
-            new CustomFieldOption { Value = "draft", Label = "Draft 1" },
-            new CustomFieldOption { Value = "draft", Label = "Draft 2" }
-        };
+        List<CustomFieldOption> options = [
+
+            new() { Value = "draft", Label = "Draft 1" },
+            new() { Value = "draft", Label = "Draft 2" }
+        ];
 
         Action act = () => definition.SetOptions(options, Guid.NewGuid(), TimeProvider.System);
 
@@ -595,7 +595,7 @@ public class CustomFieldDefinitionOptionsTests
         CustomFieldDefinition definition = CreateDropdownDefinition();
         definition.SetOptions(new List<CustomFieldOption>
         {
-            new CustomFieldOption { Value = "a", Label = "A" }
+            new() { Value = "a", Label = "A" }
         }, Guid.NewGuid(), TimeProvider.System);
 
         definition.SetOptions(null, Guid.NewGuid(), TimeProvider.System);
@@ -609,7 +609,7 @@ public class CustomFieldDefinitionOptionsTests
         CustomFieldDefinition definition = CreateDropdownDefinition();
         definition.SetOptions(new List<CustomFieldOption>
         {
-            new CustomFieldOption { Value = "a", Label = "A" }
+            new() { Value = "a", Label = "A" }
         }, Guid.NewGuid(), TimeProvider.System);
 
         definition.SetOptions(new List<CustomFieldOption>(), Guid.NewGuid(), TimeProvider.System);

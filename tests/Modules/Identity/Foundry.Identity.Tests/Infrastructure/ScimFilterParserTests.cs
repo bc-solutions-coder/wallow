@@ -5,8 +5,8 @@ namespace Foundry.Identity.Tests.Infrastructure;
 
 public class ScimFilterParserTests
 {
-    private readonly ScimFilterLexer _lexer = new();
-    private readonly ScimFilterParser _parser = new();
+    private readonly ScimFilterLexer _lexer = new ScimFilterLexer();
+    private readonly ScimFilterParser _parser = new ScimFilterParser();
 
     private ScimFilterNode Parse(string filter)
     {
@@ -18,7 +18,7 @@ public class ScimFilterParserTests
     public void Parse_EmptyTokenList_ThrowsException()
     {
         // Arrange
-        IReadOnlyList<ScimToken> tokens = Array.Empty<ScimToken>();
+        IReadOnlyList<ScimToken> tokens = [];
 
         // Act & Assert
         ScimFilterException exception = Assert.Throws<ScimFilterException>(() => _parser.Parse(tokens));
@@ -550,7 +550,7 @@ public class ScimFilterParserTests
     public void Parse_MissingAttributePath_ThrowsException()
     {
         // Arrange
-        List<ScimToken> tokens =
+        ScimToken[] tokens =
         [
             new(TokenType.Op, "eq", 0),
             new(TokenType.String, "value", 3)
@@ -565,7 +565,7 @@ public class ScimFilterParserTests
     public void Parse_MissingOperator_ThrowsException()
     {
         // Arrange
-        List<ScimToken> tokens =
+        ScimToken[] tokens =
         [
             new(TokenType.Attr, "userName", 0)
         ];
@@ -579,7 +579,7 @@ public class ScimFilterParserTests
     public void Parse_MissingValue_ThrowsException()
     {
         // Arrange
-        List<ScimToken> tokens =
+        ScimToken[] tokens =
         [
             new(TokenType.Attr, "userName", 0),
             new(TokenType.Op, "eq", 9)
@@ -610,7 +610,7 @@ public class ScimFilterParserTests
     public void Parse_InvalidValueType_ThrowsException()
     {
         // Arrange - operator followed by operator instead of value
-        List<ScimToken> tokens =
+        ScimToken[] tokens =
         [
             new(TokenType.Attr, "userName", 0),
             new(TokenType.Op, "eq", 9),
@@ -626,7 +626,7 @@ public class ScimFilterParserTests
     public void Parse_MissingRightOperand_ThrowsException()
     {
         // Arrange
-        List<ScimToken> tokens =
+        ScimToken[] tokens =
         [
             new(TokenType.Attr, "a", 0),
             new(TokenType.Op, "eq", 2),
@@ -643,7 +643,7 @@ public class ScimFilterParserTests
     public void Parse_NotWithoutExpression_ThrowsException()
     {
         // Arrange
-        List<ScimToken> tokens =
+        ScimToken[] tokens =
         [
             new(TokenType.Logic, "not", 0)
         ];
@@ -665,7 +665,7 @@ public class ScimFilterParserTests
     public void Parse_AttributeFollowedByLogic_WithoutComparison_ThrowsException()
     {
         // Arrange
-        List<ScimToken> tokens =
+        ScimToken[] tokens =
         [
             new(TokenType.Attr, "userName", 0),
             new(TokenType.Logic, "and", 9)
@@ -680,7 +680,7 @@ public class ScimFilterParserTests
     public void Parse_TrailingTokens_ThrowsException()
     {
         // Arrange
-        List<ScimToken> tokens =
+        ScimToken[] tokens =
         [
             new(TokenType.Attr, "a", 0),
             new(TokenType.Op, "eq", 2),
@@ -698,7 +698,7 @@ public class ScimFilterParserTests
     {
         // Presence operator should not be followed by a value, but parser will consume it as trailing token
         // Arrange
-        List<ScimToken> tokens =
+        ScimToken[] tokens =
         [
             new(TokenType.Attr, "emails", 0),
             new(TokenType.Op, "pr", 7),

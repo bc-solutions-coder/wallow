@@ -23,16 +23,8 @@ namespace Foundry.Communications.Api.Controllers;
 [Tags("Email Preferences")]
 [Produces("application/json")]
 [Consumes("application/json")]
-public class EmailPreferencesController : ControllerBase
+public class EmailPreferencesController(IMessageBus bus, ICurrentUserService currentUserService) : ControllerBase
 {
-    private readonly IMessageBus _bus;
-    private readonly ICurrentUserService _currentUserService;
-
-    public EmailPreferencesController(IMessageBus bus, ICurrentUserService currentUserService)
-    {
-        _bus = bus;
-        _currentUserService = currentUserService;
-    }
 
     /// <summary>
     /// Get the current user's email preferences.
@@ -43,13 +35,13 @@ public class EmailPreferencesController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> GetPreferences(CancellationToken cancellationToken)
     {
-        Guid? userId = _currentUserService.GetCurrentUserId();
+        Guid? userId = currentUserService.GetCurrentUserId();
         if (userId is null)
         {
             return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
         }
 
-        Result<IReadOnlyList<EmailPreferenceDto>> result = await _bus.InvokeAsync<Result<IReadOnlyList<EmailPreferenceDto>>>(
+        Result<IReadOnlyList<EmailPreferenceDto>> result = await bus.InvokeAsync<Result<IReadOnlyList<EmailPreferenceDto>>>(
             new GetEmailPreferencesQuery(userId.Value), cancellationToken);
 
         return result.Map(prefs => (IReadOnlyList<EmailPreferenceResponse>)prefs.Select(ToResponse).ToList()).ToActionResult();
@@ -67,18 +59,18 @@ public class EmailPreferencesController : ControllerBase
         [FromBody] UpdateEmailPreferenceRequest request,
         CancellationToken cancellationToken)
     {
-        Guid? userId = _currentUserService.GetCurrentUserId();
+        Guid? userId = currentUserService.GetCurrentUserId();
         if (userId is null)
         {
             return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
         }
 
-        UpdateEmailPreferencesCommand command = new UpdateEmailPreferencesCommand(
+        UpdateEmailPreferencesCommand command = new(
             userId.Value,
             request.NotificationType.ToDomain(),
             request.IsEnabled);
 
-        Result result = await _bus.InvokeAsync<Result>(command, cancellationToken);
+        Result result = await bus.InvokeAsync<Result>(command, cancellationToken);
 
         if (result.IsFailure)
         {

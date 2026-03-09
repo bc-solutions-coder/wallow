@@ -7,22 +7,16 @@ namespace Foundry.Configuration.Application.Commands.DeactivateCustomFieldDefini
 
 public sealed record DeactivateCustomFieldDefinitionCommand(Guid Id);
 
-public sealed class DeactivateCustomFieldDefinitionHandler
+public sealed class DeactivateCustomFieldDefinitionHandler(
+    ICustomFieldDefinitionRepository repository,
+    TimeProvider timeProvider)
 {
-    private readonly ICustomFieldDefinitionRepository _repository;
-    private readonly TimeProvider _timeProvider;
-
-    public DeactivateCustomFieldDefinitionHandler(ICustomFieldDefinitionRepository repository, TimeProvider timeProvider)
-    {
-        _repository = repository;
-        _timeProvider = timeProvider;
-    }
 
     public async Task Handle(
         DeactivateCustomFieldDefinitionCommand command,
         CancellationToken cancellationToken)
     {
-        CustomFieldDefinition? definition = await _repository.GetByIdAsync(
+        CustomFieldDefinition? definition = await repository.GetByIdAsync(
             CustomFieldDefinitionId.Create(command.Id),
             cancellationToken);
 
@@ -31,9 +25,9 @@ public sealed class DeactivateCustomFieldDefinitionHandler
             throw new CustomFieldException($"Custom field definition with ID '{command.Id}' not found");
         }
 
-        definition.Deactivate(Guid.Empty, _timeProvider);
+        definition.Deactivate(Guid.Empty, timeProvider);
 
-        await _repository.UpdateAsync(definition, cancellationToken);
-        await _repository.SaveChangesAsync(cancellationToken);
+        await repository.UpdateAsync(definition, cancellationToken);
+        await repository.SaveChangesAsync(cancellationToken);
     }
 }

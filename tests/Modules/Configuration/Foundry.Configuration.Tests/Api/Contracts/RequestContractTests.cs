@@ -13,7 +13,7 @@ public class RequestContractTests
     [Fact]
     public void CreateFeatureFlagRequest_WithAllFields_CreatesInstance()
     {
-        List<VariantWeightDto> variants = new() { new VariantWeightDto("a", 50), new VariantWeightDto("b", 50) };
+        List<VariantWeightDto> variants = [new("a", 50), new("b", 50)];
         CreateFeatureFlagRequest request = new("dark-mode", "Dark Mode", "A dark theme", ApiFlagType.Variant, true, 50, variants, "a");
 
         request.Key.Should().Be("dark-mode");
@@ -100,11 +100,11 @@ public class RequestContractTests
     public void CreateCustomFieldRequest_WithAllFields_CreatesInstance()
     {
         FieldValidationRules rules = new() { MinLength = 1, MaxLength = 255 };
-        List<CustomFieldOption> options = new()
-        {
-            new CustomFieldOption { Value = "low", Label = "Low", Order = 0 },
-            new CustomFieldOption { Value = "high", Label = "High", Order = 1 }
-        };
+        List<CustomFieldOption> options = [
+
+            new() { Value = "low", Label = "Low", Order = 0 },
+            new() { Value = "high", Label = "High", Order = 1 }
+        ];
         CreateCustomFieldRequest request = new()
         {
             EntityType = "Invoice",
@@ -153,10 +153,10 @@ public class RequestContractTests
     public void UpdateCustomFieldRequest_WithAllFields_CreatesInstance()
     {
         FieldValidationRules rules = new() { Min = 0, Max = 100 };
-        List<CustomFieldOption> options = new()
-        {
-            new CustomFieldOption { Value = "a", Label = "A" }
-        };
+        List<CustomFieldOption> options = [
+
+            new() { Value = "a", Label = "A" }
+        ];
         UpdateCustomFieldRequest request = new()
         {
             DisplayName = "Updated",
@@ -195,7 +195,7 @@ public class RequestContractTests
     [Fact]
     public void ReorderFieldsRequest_WithFieldIds_CreatesInstance()
     {
-        List<Guid> fieldIds = new() { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() };
+        List<Guid> fieldIds = [Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid()];
         ReorderFieldsRequest request = new() { FieldIds = fieldIds };
 
         request.FieldIds.Should().HaveCount(3);

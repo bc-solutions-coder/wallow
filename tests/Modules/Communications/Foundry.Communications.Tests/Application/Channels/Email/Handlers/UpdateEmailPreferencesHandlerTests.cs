@@ -58,7 +58,7 @@ public class UpdateEmailPreferencesHandlerTests
     public async Task Handle_WhenPreferenceExists_UpdatesToDisabled()
     {
         Guid userId = Guid.NewGuid();
-        EmailPreference preference = EmailPreference.Create(userId, NotificationType.SystemNotification, true);
+        EmailPreference preference = EmailPreference.Create(userId, NotificationType.SystemNotification);
 
         _repository.GetByUserAndTypeAsync(userId, NotificationType.SystemNotification, Arg.Any<CancellationToken>())
             .Returns(preference);

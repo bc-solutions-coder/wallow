@@ -5,14 +5,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Foundry.Billing.Infrastructure.Services;
 
-public sealed class UsageReportService : IUsageReportService
+public sealed class UsageReportService(BillingDbContext dbContext) : IUsageReportService
 {
-    private readonly BillingDbContext _dbContext;
-
-    public UsageReportService(BillingDbContext dbContext)
-    {
-        _dbContext = dbContext;
-    }
 
     public async Task<IReadOnlyList<UsageReportRow>> GetUsageAsync(
         Guid tenantId,
@@ -20,14 +14,14 @@ public sealed class UsageReportService : IUsageReportService
         DateTime to,
         CancellationToken ct = default)
     {
-        TenantId tenantIdTyped = new TenantId(tenantId);
+        TenantId tenantIdTyped = new(tenantId);
 
-        List<UsageReportRow> results = await _dbContext.UsageRecords
+        List<UsageReportRow> results = await dbContext.UsageRecords
             .Where(ur => ur.TenantId == tenantIdTyped
                 && ur.PeriodStart >= from
                 && ur.PeriodStart < to)
             .Join(
-                _dbContext.MeterDefinitions,
+                dbContext.MeterDefinitions,
                 ur => ur.MeterCode,
                 md => md.Code,
                 (ur, md) => new

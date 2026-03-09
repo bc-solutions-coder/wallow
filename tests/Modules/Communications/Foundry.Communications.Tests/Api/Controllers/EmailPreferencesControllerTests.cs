@@ -29,10 +29,10 @@ public class EmailPreferencesControllerTests
         _currentUserService.GetCurrentUserId().Returns(_userId);
         _controller = new EmailPreferencesController(_bus, _currentUserService);
 
-        ClaimsPrincipal user = new ClaimsPrincipal(new ClaimsIdentity(new[]
-        {
+        ClaimsPrincipal user = new(new ClaimsIdentity(
+        [
             new Claim(ClaimTypes.NameIdentifier, _userId.ToString())
-        }, "TestAuth"));
+        ], "TestAuth"));
         _controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext { User = user }
@@ -46,7 +46,7 @@ public class EmailPreferencesControllerTests
     {
         EmailPreferenceDto dto = new(Guid.NewGuid(), _userId, NotificationType.TaskAssigned, true, DateTime.UtcNow, null);
         _bus.InvokeAsync<Result<IReadOnlyList<EmailPreferenceDto>>>(Arg.Any<GetEmailPreferencesQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success<IReadOnlyList<EmailPreferenceDto>>(new List<EmailPreferenceDto> { dto }));
+            .Returns(Result.Success<IReadOnlyList<EmailPreferenceDto>>([dto]));
 
         IActionResult result = await _controller.GetPreferences(CancellationToken.None);
 
@@ -76,7 +76,7 @@ public class EmailPreferencesControllerTests
     public async Task GetPreferences_PassesUserIdToQuery()
     {
         _bus.InvokeAsync<Result<IReadOnlyList<EmailPreferenceDto>>>(Arg.Any<GetEmailPreferencesQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success<IReadOnlyList<EmailPreferenceDto>>(new List<EmailPreferenceDto>()));
+            .Returns(Result.Success<IReadOnlyList<EmailPreferenceDto>>([]));
 
         await _controller.GetPreferences(CancellationToken.None);
 
@@ -93,7 +93,7 @@ public class EmailPreferencesControllerTests
         Guid prefId = Guid.NewGuid();
         EmailPreferenceDto dto = new(prefId, _userId, NotificationType.BillingInvoice, false, createdAt, updatedAt);
         _bus.InvokeAsync<Result<IReadOnlyList<EmailPreferenceDto>>>(Arg.Any<GetEmailPreferencesQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success<IReadOnlyList<EmailPreferenceDto>>(new List<EmailPreferenceDto> { dto }));
+            .Returns(Result.Success<IReadOnlyList<EmailPreferenceDto>>([dto]));
 
         IActionResult result = await _controller.GetPreferences(CancellationToken.None);
 

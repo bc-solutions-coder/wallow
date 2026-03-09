@@ -25,7 +25,7 @@ public class CreateBucketHandlerTests
     [Fact]
     public async Task Handle_WithValidCommand_CreatesBucket()
     {
-        CreateBucketCommand command = new CreateBucketCommand(Name: "my-bucket");
+        CreateBucketCommand command = new(Name: "my-bucket");
 
         _repository.ExistsByNameAsync(command.Name, Arg.Any<CancellationToken>())
             .Returns(false);
@@ -43,7 +43,7 @@ public class CreateBucketHandlerTests
     [Fact]
     public async Task Handle_WithDuplicateName_ReturnsFailure()
     {
-        CreateBucketCommand command = new CreateBucketCommand(Name: "existing-bucket");
+        CreateBucketCommand command = new(Name: "existing-bucket");
 
         _repository.ExistsByNameAsync(command.Name, Arg.Any<CancellationToken>())
             .Returns(true);
@@ -59,12 +59,12 @@ public class CreateBucketHandlerTests
     [Fact]
     public async Task Handle_WithAllOptions_CreatesBucketWithOptions()
     {
-        CreateBucketCommand command = new CreateBucketCommand(
+        CreateBucketCommand command = new(
             Name: "full-bucket",
             Description: "A fully configured bucket",
             Access: AccessLevel.Public,
             MaxFileSizeBytes: 10_485_760,
-            AllowedContentTypes: new List<string> { "image/png", "image/jpeg" },
+            AllowedContentTypes: ["image/png", "image/jpeg"],
             RetentionDays: 30,
             RetentionAction: RetentionAction.Archive,
             Versioning: true);
@@ -87,7 +87,7 @@ public class CreateBucketHandlerTests
     [Fact]
     public async Task Handle_WhenExecutedTwiceWithSameName_SecondExecutionFails()
     {
-        CreateBucketCommand command = new CreateBucketCommand(Name: "duplicate-bucket");
+        CreateBucketCommand command = new(Name: "duplicate-bucket");
 
         _repository.ExistsByNameAsync(command.Name, Arg.Any<CancellationToken>())
             .Returns(false, true);
@@ -104,7 +104,7 @@ public class CreateBucketHandlerTests
     [Fact]
     public async Task Handle_WithoutRetention_CreatesBucketWithNoRetention()
     {
-        CreateBucketCommand command = new CreateBucketCommand(
+        CreateBucketCommand command = new(
             Name: "no-retention",
             RetentionDays: null,
             RetentionAction: null);

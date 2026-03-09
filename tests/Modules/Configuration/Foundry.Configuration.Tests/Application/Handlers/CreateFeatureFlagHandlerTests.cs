@@ -18,7 +18,7 @@ public class CreateFeatureFlagHandlerTests
     {
         _repository = Substitute.For<IFeatureFlagRepository>();
         _cache = Substitute.For<IDistributedCache>();
-        _handler = new CreateFeatureFlagHandler(_repository, _cache, TimeProvider.System);
+        _handler = new(_repository, _cache, TimeProvider.System);
     }
 
     [Fact]
@@ -99,8 +99,8 @@ public class CreateFeatureFlagHandlerTests
     {
         List<VariantWeightDto> variants =
         [
-            new VariantWeightDto("control", 50),
-            new VariantWeightDto("treatment", 50)
+            new("control", 50),
+            new("treatment", 50)
         ];
 
         CreateFeatureFlagCommand command = new(

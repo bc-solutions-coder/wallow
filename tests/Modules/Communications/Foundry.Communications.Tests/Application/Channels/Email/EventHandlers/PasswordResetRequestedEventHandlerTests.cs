@@ -81,7 +81,7 @@ public class PasswordResetRequestedEventHandlerTests
     public async Task HandleAsync_WhenPreferenceEnabled_SendsEmail()
     {
         Guid userId = Guid.NewGuid();
-        EmailPreference preference = EmailPreference.Create(userId, NotificationType.SystemNotification, true);
+        EmailPreference preference = EmailPreference.Create(userId, NotificationType.SystemNotification);
 
         _preferenceRepository.GetByUserAndTypeAsync(userId, NotificationType.SystemNotification, Arg.Any<CancellationToken>())
             .Returns(preference);

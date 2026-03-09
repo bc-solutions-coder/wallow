@@ -7,20 +7,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Foundry.Billing.Infrastructure.Persistence.Repositories;
 
-public sealed class QuotaDefinitionRepository : IQuotaDefinitionRepository
+public sealed class QuotaDefinitionRepository(BillingDbContext context, ITenantContext tenantContext) : IQuotaDefinitionRepository
 {
-    private readonly BillingDbContext _context;
-    private readonly ITenantContext _tenantContext;
-
-    public QuotaDefinitionRepository(BillingDbContext context, ITenantContext tenantContext)
-    {
-        _context = context;
-        _tenantContext = tenantContext;
-    }
 
     public Task<QuotaDefinition?> GetByIdAsync(QuotaDefinitionId id, CancellationToken cancellationToken = default)
     {
-        return _context.QuotaDefinitions
+        return context.QuotaDefinitions
             .AsTracking()
             .FirstOrDefaultAsync(q => q.Id == id, cancellationToken);
     }
@@ -41,7 +33,7 @@ public sealed class QuotaDefinitionRepository : IQuotaDefinitionRepository
         if (!string.IsNullOrEmpty(planCode))
         {
             TenantId systemTenantId = TenantId.Create(Guid.Empty);
-            return await _context.QuotaDefinitions
+            return await context.QuotaDefinitions
                 .AsTracking()
                 .IgnoreQueryFilters()
                 .FirstOrDefaultAsync(q =>
@@ -58,8 +50,8 @@ public sealed class QuotaDefinitionRepository : IQuotaDefinitionRepository
         string meterCode,
         CancellationToken cancellationToken = default)
     {
-        TenantId tenantId = _tenantContext.TenantId;
-        return _context.QuotaDefinitions
+        TenantId tenantId = tenantContext.TenantId;
+        return context.QuotaDefinitions
             .AsTracking()
             .FirstOrDefaultAsync(q =>
                 q.TenantId == tenantId &&
@@ -71,8 +63,8 @@ public sealed class QuotaDefinitionRepository : IQuotaDefinitionRepository
     public async Task<IReadOnlyList<QuotaDefinition>> GetAllForTenantAsync(
         CancellationToken cancellationToken = default)
     {
-        TenantId tenantId = _tenantContext.TenantId;
-        return await _context.QuotaDefinitions
+        TenantId tenantId = tenantContext.TenantId;
+        return await context.QuotaDefinitions
             .Where(q => q.TenantId == tenantId)
             .OrderBy(q => q.MeterCode)
             .ToListAsync(cancellationToken);
@@ -80,16 +72,16 @@ public sealed class QuotaDefinitionRepository : IQuotaDefinitionRepository
 
     public void Add(QuotaDefinition quotaDefinition)
     {
-        _context.QuotaDefinitions.Add(quotaDefinition);
+        context.QuotaDefinitions.Add(quotaDefinition);
     }
 
     public void Remove(QuotaDefinition quotaDefinition)
     {
-        _context.QuotaDefinitions.Remove(quotaDefinition);
+        context.QuotaDefinitions.Remove(quotaDefinition);
     }
 
     public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        await _context.SaveChangesAsync(cancellationToken);
+        await context.SaveChangesAsync(cancellationToken);
     }
 }

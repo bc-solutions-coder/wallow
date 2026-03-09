@@ -97,8 +97,7 @@ public sealed class Subscription : AggregateRoot<SubscriptionId>, ITenantScoped,
                 "Subscription plan name cannot be empty");
         }
 
-        Subscription subscription = new Subscription(userId, planName, price, startDate, periodEnd, createdByUserId, timeProvider);
-        subscription.CustomFields = customFields;
+        Subscription subscription = new(userId, planName, price, startDate, periodEnd, createdByUserId, timeProvider) { CustomFields = customFields };
 
         subscription.RaiseDomainEvent(new SubscriptionCreatedDomainEvent(
             subscription.Id.Value,

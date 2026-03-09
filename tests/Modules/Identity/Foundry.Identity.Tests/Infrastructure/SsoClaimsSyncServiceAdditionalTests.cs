@@ -257,8 +257,7 @@ public class SsoClaimsSyncServiceAdditionalTests
         IHttpClientFactory httpClientFactory = Substitute.For<IHttpClientFactory>();
 
         HttpClient httpClient = handler != null
-            ? new HttpClient(handler)
-            : new HttpClient(new MockHttpHandler());
+            ? new HttpClient(handler) : new HttpClient(new MockHttpHandler());
         httpClient.BaseAddress = new Uri("https://keycloak.test/");
         httpClientFactory.CreateClient("KeycloakAdminClient").Returns(httpClient);
 
@@ -269,7 +268,7 @@ public class SsoClaimsSyncServiceAdditionalTests
 
     private sealed class MockHttpHandler : HttpMessageHandler
     {
-        private readonly Dictionary<string, (HttpStatusCode Status, object? Content)> _routes = [];
+        private readonly Dictionary<string, (HttpStatusCode Status, object? Content)> _routes = new Dictionary<string, (HttpStatusCode Status, object? Content)>();
         private readonly HashSet<string> _throwRoutes = [];
         private readonly HashSet<string> _nullRoutes = [];
 

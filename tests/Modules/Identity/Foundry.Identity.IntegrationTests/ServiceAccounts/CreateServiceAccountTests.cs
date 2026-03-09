@@ -6,12 +6,10 @@ using Foundry.Identity.Domain.Enums;
 namespace Foundry.Identity.IntegrationTests.ServiceAccounts;
 
 [Trait("Category", "Integration")]
-public class CreateServiceAccountTests : ServiceAccountIntegrationTestBase
+public class CreateServiceAccountTests(ServiceAccountTestFactory factory) : ServiceAccountIntegrationTestBase(factory)
 {
     private static readonly string[] _invoicesAndPaymentsScopes = ["invoices.read", "payments.read"];
     private static readonly string[] _invoicesReadScope = ["invoices.read"];
-
-    public CreateServiceAccountTests(ServiceAccountTestFactory factory) : base(factory) { }
 
     [Fact]
     public async Task Should_Create_ServiceAccount_With_Valid_ClientId_And_Secret()

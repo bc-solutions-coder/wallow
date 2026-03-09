@@ -23,11 +23,11 @@ public class GetAllAnnouncementsHandlerTests
     [Fact]
     public async Task Handle_ReturnsAllAnnouncements()
     {
-        List<Announcement> announcements = new()
-        {
+        List<Announcement> announcements =
+        [
             Announcement.Create(_testTenantId, "Title 1", "Content 1", AnnouncementType.Feature, TimeProvider.System),
             Announcement.Create(_testTenantId, "Title 2", "Content 2", AnnouncementType.Alert, TimeProvider.System)
-        };
+        ];
 
         _repository.GetAllAsync(Arg.Any<CancellationToken>())
             .Returns(announcements);
@@ -44,7 +44,7 @@ public class GetAllAnnouncementsHandlerTests
     public async Task Handle_WhenNoAnnouncements_ReturnsEmptyList()
     {
         _repository.GetAllAsync(Arg.Any<CancellationToken>())
-            .Returns(new List<Announcement>());
+            .Returns([]);
 
         GetAllAnnouncementsQuery query = new();
 
@@ -60,7 +60,7 @@ public class GetAllAnnouncementsHandlerTests
         Announcement announcement = Announcement.Create(_testTenantId, "Feature Title", "Feature Content", AnnouncementType.Feature, TimeProvider.System, AnnouncementTarget.Role, "Admin", null, null, true, false, "https://example.com", "Learn More", "https://example.com/img.png");
 
         _repository.GetAllAsync(Arg.Any<CancellationToken>())
-            .Returns(new List<Announcement> { announcement });
+            .Returns([announcement]);
 
         GetAllAnnouncementsQuery query = new();
 
@@ -84,7 +84,7 @@ public class GetAllAnnouncementsHandlerTests
     {
         using CancellationTokenSource cts = new();
         _repository.GetAllAsync(Arg.Any<CancellationToken>())
-            .Returns(new List<Announcement>());
+            .Returns([]);
 
         GetAllAnnouncementsQuery query = new();
 

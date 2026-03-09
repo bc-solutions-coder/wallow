@@ -191,7 +191,7 @@ public class GetUploadPresignedUrlHandlerTests
     public async Task Handle_WhenContentTypeNotAllowed_ReturnsValidationFailure()
     {
         StorageBucket bucket = StorageBucket.Create(
-            TenantId.New(), "images-only", allowedContentTypes: new[] { "image/*" });
+            TenantId.New(), "images-only", allowedContentTypes: ["image/*"]);
         GetUploadPresignedUrlQuery query = new(
             Guid.NewGuid(), Guid.NewGuid(), "images-only", "doc.pdf", "application/pdf", 100);
 
@@ -304,7 +304,7 @@ public class GetUploadPresignedUrlHandlerTests
     public async Task Handle_DoesNotCallStorageProvider_WhenContentTypeNotAllowed()
     {
         StorageBucket bucket = StorageBucket.Create(
-            TenantId.New(), "restricted", allowedContentTypes: new[] { "image/png" });
+            TenantId.New(), "restricted", allowedContentTypes: ["image/png"]);
         GetUploadPresignedUrlQuery query = new(
             Guid.NewGuid(), Guid.NewGuid(), "restricted", "file.exe", "application/octet-stream", 100);
 

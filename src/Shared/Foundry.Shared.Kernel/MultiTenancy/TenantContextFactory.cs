@@ -2,33 +2,19 @@ using Foundry.Shared.Kernel.Identity;
 
 namespace Foundry.Shared.Kernel.MultiTenancy;
 
-public sealed class TenantContextFactory : ITenantContextFactory
+public sealed class TenantContextFactory(ITenantContextSetter tenantContextSetter) : ITenantContextFactory
 {
-    private readonly ITenantContextSetter _tenantContextSetter;
-
-    public TenantContextFactory(ITenantContextSetter tenantContextSetter)
-    {
-        _tenantContextSetter = tenantContextSetter;
-    }
-
     public IDisposable CreateScope(TenantId tenantId)
     {
-        _tenantContextSetter.SetTenant(tenantId);
-        return new TenantContextScope(_tenantContextSetter);
+        tenantContextSetter.SetTenant(tenantId);
+        return new TenantContextScope(tenantContextSetter);
     }
 
-    private sealed class TenantContextScope : IDisposable
+    private sealed class TenantContextScope(ITenantContextSetter setter) : IDisposable
     {
-        private readonly ITenantContextSetter _setter;
-
-        public TenantContextScope(ITenantContextSetter setter)
-        {
-            _setter = setter;
-        }
-
         public void Dispose()
         {
-            _setter.Clear();
+            setter.Clear();
         }
     }
 }
