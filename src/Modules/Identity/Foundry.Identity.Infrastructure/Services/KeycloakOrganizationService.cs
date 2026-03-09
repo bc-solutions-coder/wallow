@@ -1,3 +1,4 @@
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 using System.Net.Http.Json;
 using Foundry.Identity.Infrastructure.Extensions;
 using Foundry.Identity.Application.DTOs;

@@ -1,3 +1,4 @@
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 namespace Foundry.Shared.Contracts.Communications.Sms.Events;
 
 public sealed record SendSmsRequestedEvent : IntegrationEvent

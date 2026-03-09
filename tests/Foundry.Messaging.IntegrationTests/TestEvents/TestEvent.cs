@@ -1,3 +1,4 @@
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 using Foundry.Shared.Contracts;
 
 namespace Foundry.Messaging.IntegrationTests.TestEvents;

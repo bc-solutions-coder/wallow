@@ -1,3 +1,4 @@
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 using System.Text.Json.Serialization;
 using Foundry.Identity.Domain.Enums;
 using Foundry.Identity.Domain.Identity;

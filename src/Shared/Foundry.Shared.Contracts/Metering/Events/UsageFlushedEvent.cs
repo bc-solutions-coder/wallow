@@ -1,3 +1,4 @@
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 namespace Foundry.Shared.Contracts.Metering.Events;
 
 /// <summary>
