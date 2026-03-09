@@ -14,7 +14,8 @@ public class RolePermissionLookupTests
 
         IReadOnlyCollection<string> result = _lookup.GetPermissions(roles);
 
-        result.Should().BeEquivalentTo(PermissionType.All);
+        string[] allExceptNone = PermissionType.All.Where(p => p != PermissionType.None).ToArray();
+        result.Should().BeEquivalentTo(allExceptNone);
     }
 
     [Fact]

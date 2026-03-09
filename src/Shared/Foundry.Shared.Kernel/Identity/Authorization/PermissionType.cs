@@ -36,7 +36,7 @@ public static class PermissionType
     public const string OrganizationsUpdate = "OrganizationsUpdate";
     public const string OrganizationsManageMembers = "OrganizationsManageMembers";
 
-    // API Keys / Service Accounts
+    // API Keys
     public const string ApiKeysRead = "ApiKeysRead";
     public const string ApiKeysCreate = "ApiKeysCreate";
     public const string ApiKeysUpdate = "ApiKeysUpdate";
@@ -81,6 +81,11 @@ public static class PermissionType
     // Showcases
     public const string ShowcasesRead = "ShowcasesRead";
     public const string ShowcasesManage = "ShowcasesManage";
+
+    // Service Accounts
+    public const string ServiceAccountsRead = "ServiceAccountsRead";
+    public const string ServiceAccountsWrite = "ServiceAccountsWrite";
+    public const string ServiceAccountsManage = "ServiceAccountsManage";
 
     // Scope management
     public const string ScopeRead = "ScopeRead";

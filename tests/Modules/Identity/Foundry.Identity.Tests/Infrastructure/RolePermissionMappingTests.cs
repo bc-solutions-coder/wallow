@@ -12,7 +12,8 @@ public class RolePermissionMappingTests
 
         IEnumerable<string> result = RolePermissionMapping.GetPermissions(roles);
 
-        result.Should().BeEquivalentTo(PermissionType.All);
+        string[] allExceptNone = PermissionType.All.Where(p => p != PermissionType.None).ToArray();
+        result.Should().BeEquivalentTo(allExceptNone);
     }
 
     [Fact]
@@ -87,7 +88,8 @@ public class RolePermissionMappingTests
 
         IEnumerable<string> result = RolePermissionMapping.GetPermissions(roles);
 
-        result.Should().BeEquivalentTo(PermissionType.All);
+        string[] allExceptNone = PermissionType.All.Where(p => p != PermissionType.None).ToArray();
+        result.Should().BeEquivalentTo(allExceptNone);
     }
 
     [Theory]

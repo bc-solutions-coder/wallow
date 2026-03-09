@@ -161,6 +161,11 @@ public class PermissionExpansionMiddleware(RequestDelegate next)
             "showcases.read" => PermissionType.ShowcasesRead,
             "showcases.manage" => PermissionType.ShowcasesManage,
 
+            // Identity - Service Accounts
+            "serviceaccounts.read" => PermissionType.ServiceAccountsRead,
+            "serviceaccounts.write" => PermissionType.ServiceAccountsWrite,
+            "serviceaccounts.manage" => PermissionType.ServiceAccountsManage,
+
             // Platform
             "webhooks.manage" => PermissionType.WebhooksManage,
 

@@ -496,6 +496,12 @@ try
         }
     }
 
+    lifetime.ApplicationStarted.Register(() =>
+    {
+        string urls = string.Join(", ", app.Urls);
+        Log.Information("Foundry API is now listening on {Urls}", urls);
+    });
+
     await app.RunAsync();
 }
 catch (Exception ex)

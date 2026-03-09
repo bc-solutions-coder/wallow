@@ -150,7 +150,7 @@ services:
   # ANTIVIRUS (ClamAV)
   # ============================================
   clamav:
-    image: clamav/clamav:1.4.2
+    image: clamav/clamav:1.5.2
     platform: linux/amd64
     container_name: ${COMPOSE_PROJECT_NAME:-foundry}-clamav
     ports:

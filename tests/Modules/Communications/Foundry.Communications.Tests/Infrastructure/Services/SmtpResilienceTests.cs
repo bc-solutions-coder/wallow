@@ -58,7 +58,7 @@ public class SmtpResilienceTests
 
         Func<Task> act = async () =>
         {
-            await pipeline.ExecuteAsync(async _ =>
+            await pipeline.ExecuteAsync(_ =>
             {
                 attemptCount++;
                 throw new SocketException((int)SocketError.ConnectionRefused);
@@ -83,13 +83,15 @@ public class SmtpResilienceTests
         using CancellationTokenSource cts = new();
         AdvanceTimeInBackground(fakeTime, cts.Token);
 
-        await pipeline.ExecuteAsync(async _ =>
+        await pipeline.ExecuteAsync(_ =>
         {
             attemptCount++;
             if (attemptCount < 2)
             {
                 throw new SocketException((int)SocketError.ConnectionRefused);
             }
+
+            return ValueTask.CompletedTask;
         });
 
         await cts.CancelAsync();
