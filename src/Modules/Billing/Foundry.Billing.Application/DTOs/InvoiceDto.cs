@@ -1,5 +1,8 @@
+using JetBrains.Annotations;
+
 namespace Foundry.Billing.Application.DTOs;
 
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed record InvoiceDto(
     Guid Id,
     Guid UserId,

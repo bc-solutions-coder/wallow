@@ -30,7 +30,7 @@ public class GetBucketByNameHandlerTests
         Result<BucketDto> result = await _handler.Handle(query, CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value!.Name.Should().Be("my-bucket");
+        result.Value.Name.Should().Be("my-bucket");
         result.Value.Description.Should().Be("A description");
     }
 

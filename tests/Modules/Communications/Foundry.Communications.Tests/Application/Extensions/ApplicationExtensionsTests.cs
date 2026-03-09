@@ -16,7 +16,7 @@ public class ApplicationExtensionsTests
         ServiceDescriptor? descriptor = services.FirstOrDefault(
             d => d.ServiceType == typeof(IAnnouncementTargetingService));
         descriptor.Should().NotBeNull();
-        descriptor!.ImplementationType.Should().Be<AnnouncementTargetingService>();
+        descriptor.ImplementationType.Should().Be<AnnouncementTargetingService>();
         descriptor.Lifetime.Should().Be(ServiceLifetime.Scoped);
     }
 

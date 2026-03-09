@@ -33,7 +33,7 @@ public class CustomFieldRegistryTests
 
         EntityTypeInfo? info = CustomFieldRegistry.GetEntityType("TestEntity_Overwrite");
         info.Should().NotBeNull();
-        info!.Module.Should().Be("NewModule");
+        info.Module.Should().Be("NewModule");
         info.Description.Should().Be("New description");
     }
 
@@ -45,7 +45,7 @@ public class CustomFieldRegistryTests
         EntityTypeInfo? info = CustomFieldRegistry.GetEntityType("TestEntity_Get");
 
         info.Should().NotBeNull();
-        info!.EntityType.Should().Be("TestEntity_Get");
+        info.EntityType.Should().Be("TestEntity_Get");
         info.Module.Should().Be("TestModule");
         info.Description.Should().Be("A test entity");
     }

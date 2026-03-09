@@ -2,12 +2,14 @@
 using System.Text.Json.Serialization;
 using Foundry.Identity.Domain.Enums;
 using Foundry.Identity.Domain.Identity;
+using JetBrains.Annotations;
 
 namespace Foundry.Identity.Application.DTOs;
 
 /// <summary>
 /// SCIM configuration details for a tenant.
 /// </summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public record ScimConfigurationDto(
     bool IsEnabled,
     string? TokenPrefix,
@@ -21,6 +23,7 @@ public record ScimConfigurationDto(
 /// <summary>
 /// Request to enable SCIM provisioning.
 /// </summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public record EnableScimRequest(
     bool AutoActivateUsers = true,
     string? DefaultRole = null,
@@ -29,11 +32,13 @@ public record EnableScimRequest(
 /// <summary>
 /// Response from enabling SCIM. Contains the plaintext token only when a new configuration is created.
 /// </summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public record EnableScimResponse(ScimConfigurationDto Configuration, string? PlainTextToken);
 
 /// <summary>
 /// SCIM 2.0 User resource representation.
 /// </summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public record ScimUser
 {
     [JsonPropertyName("schemas")]
@@ -70,6 +75,7 @@ public record ScimUser
 /// <summary>
 /// SCIM name component.
 /// </summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public record ScimName
 {
     [JsonPropertyName("formatted")]
@@ -88,6 +94,7 @@ public record ScimName
 /// <summary>
 /// SCIM email component.
 /// </summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public record ScimEmail
 {
     [JsonPropertyName("value")]
@@ -103,6 +110,7 @@ public record ScimEmail
 /// <summary>
 /// SCIM group reference within a user.
 /// </summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public record ScimGroupReference
 {
     [JsonPropertyName("value")]
@@ -118,6 +126,7 @@ public record ScimGroupReference
 /// <summary>
 /// SCIM resource metadata.
 /// </summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public record ScimMeta
 {
     [JsonPropertyName("resourceType")]
@@ -139,6 +148,7 @@ public record ScimMeta
 /// <summary>
 /// SCIM 2.0 Group resource representation.
 /// </summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public record ScimGroup
 {
     [JsonPropertyName("schemas")]
@@ -163,6 +173,7 @@ public record ScimGroup
 /// <summary>
 /// SCIM group member reference.
 /// </summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public record ScimMember
 {
     [JsonPropertyName("value")]
@@ -181,6 +192,7 @@ public record ScimMember
 /// <summary>
 /// SCIM user creation/update request.
 /// </summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public record ScimUserRequest
 {
     [JsonPropertyName("schemas")]
@@ -211,6 +223,7 @@ public record ScimUserRequest
 /// <summary>
 /// SCIM group creation/update request.
 /// </summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public record ScimGroupRequest
 {
     [JsonPropertyName("schemas")]
@@ -229,6 +242,7 @@ public record ScimGroupRequest
 /// <summary>
 /// SCIM PATCH request for partial updates.
 /// </summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public record ScimPatchRequest
 {
     [JsonPropertyName("schemas")]
@@ -241,6 +255,7 @@ public record ScimPatchRequest
 /// <summary>
 /// Individual SCIM PATCH operation.
 /// </summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public record ScimPatchOperation
 {
     [JsonPropertyName("op")]
@@ -256,6 +271,7 @@ public record ScimPatchOperation
 /// <summary>
 /// SCIM list/query request.
 /// </summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public record ScimListRequest(
     string? Filter = null,
     int StartIndex = 1,
@@ -266,6 +282,7 @@ public record ScimListRequest(
 /// <summary>
 /// SCIM list response with pagination.
 /// </summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public record ScimListResponse<T>
 {
     [JsonPropertyName("schemas")]
@@ -287,6 +304,7 @@ public record ScimListResponse<T>
 /// <summary>
 /// SCIM sync log entry for auditing.
 /// </summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public record ScimSyncLogDto(
     ScimSyncLogId Id,
     ScimOperation Operation,
@@ -300,6 +318,7 @@ public record ScimSyncLogDto(
 /// <summary>
 /// SCIM error response (RFC 7644).
 /// </summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public record ScimError
 {
     [JsonPropertyName("schemas")]

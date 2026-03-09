@@ -28,7 +28,7 @@ public class ServiceCollectionExtensionsTests
         ServiceDescriptor? descriptor = services.FirstOrDefault(
             d => d.ServiceType == typeof(TenantContext));
         descriptor.Should().NotBeNull();
-        descriptor!.Lifetime.Should().Be(ServiceLifetime.Scoped);
+        descriptor.Lifetime.Should().Be(ServiceLifetime.Scoped);
     }
 
     [Fact]
@@ -56,7 +56,7 @@ public class ServiceCollectionExtensionsTests
         ServiceDescriptor? descriptor = services.FirstOrDefault(
             d => d.ServiceType == typeof(TenantSaveChangesInterceptor));
         descriptor.Should().NotBeNull();
-        descriptor!.Lifetime.Should().Be(ServiceLifetime.Scoped);
+        descriptor.Lifetime.Should().Be(ServiceLifetime.Scoped);
     }
 
     [Fact]
@@ -69,7 +69,7 @@ public class ServiceCollectionExtensionsTests
         ServiceDescriptor? descriptor = services.FirstOrDefault(
             d => d.ServiceType == typeof(ITenantContextFactory));
         descriptor.Should().NotBeNull();
-        descriptor!.Lifetime.Should().Be(ServiceLifetime.Scoped);
+        descriptor.Lifetime.Should().Be(ServiceLifetime.Scoped);
     }
 
     [Fact]

@@ -59,7 +59,7 @@ public class ApiVersioningTests
             routeAttribute.Should().NotBeNull(
                 $"Controller {controller.Name} in {moduleName} module should have a [Route] attribute");
 
-            routeAttribute!.Template.Should().Contain("v{version:apiVersion}",
+            routeAttribute.Template.Should().Contain("v{version:apiVersion}",
                 $"Controller {controller.Name} in {moduleName} module route template should contain 'v{{version:apiVersion}}'");
         }
     }

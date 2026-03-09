@@ -39,7 +39,7 @@ public sealed class SmsIntegrationTests : FoundryIntegrationTestBase
             .FirstOrDefaultAsync(m => m.To.Value == "+15551234567");
 
         smsMessage.Should().NotBeNull();
-        smsMessage!.Body.Should().Be("Integration test SMS");
+        smsMessage.Body.Should().Be("Integration test SMS");
         smsMessage.Status.Should().Be(SmsStatus.Sent);
         smsMessage.SentAt.Should().NotBeNull();
     }

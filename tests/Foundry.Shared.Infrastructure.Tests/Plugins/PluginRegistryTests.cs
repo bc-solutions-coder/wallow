@@ -20,7 +20,7 @@ public class PluginRegistryTests
 
         PluginRegistryEntry? entry = _sut.GetEntry(manifest.Id);
         entry.Should().NotBeNull();
-        entry!.Manifest.Should().Be(manifest);
+        entry.Manifest.Should().Be(manifest);
         entry.State.Should().Be(PluginLifecycleState.Discovered);
         entry.Instance.Should().BeNull();
         entry.LoadContext.Should().BeNull();

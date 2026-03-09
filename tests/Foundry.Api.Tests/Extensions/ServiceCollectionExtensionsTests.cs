@@ -71,7 +71,7 @@ public class ServiceCollectionExtensionsTests
 
         ServiceDescriptor? descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IExceptionHandler));
         descriptor.Should().NotBeNull();
-        descriptor!.ImplementationType.Should().Be<GlobalExceptionHandler>();
+        descriptor.ImplementationType.Should().Be<GlobalExceptionHandler>();
     }
 
     [Fact]

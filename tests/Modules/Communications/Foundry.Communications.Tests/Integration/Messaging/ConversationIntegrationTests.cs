@@ -80,7 +80,7 @@ public sealed class ConversationIntegrationTests : FoundryIntegrationTestBase
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         MessagePageResponse? page = await response.Content.ReadFromJsonAsync<MessagePageResponse>();
         page.Should().NotBeNull();
-        page!.Items.Should().NotBeEmpty();
+        page.Items.Should().NotBeEmpty();
     }
 
     [Fact]
@@ -129,7 +129,7 @@ public sealed class ConversationIntegrationTests : FoundryIntegrationTestBase
         List<ConversationResponse>? conversations =
             await response.Content.ReadFromJsonAsync<List<ConversationResponse>>();
         conversations.Should().NotBeNull();
-        conversations!.Should().HaveCountGreaterThanOrEqualTo(2);
+        conversations.Should().HaveCountGreaterThanOrEqualTo(2);
 
         // Verify sorted by LastActivityAt descending
         for (int i = 0; i < conversations.Count - 1; i++)

@@ -97,7 +97,7 @@ public class GetUploadPresignedUrlHandlerTests
         Result<PresignedUploadResult> result = await _handler.Handle(query, CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value!.UploadUrl.Should().Be("https://storage.example.com/upload-url");
+        result.Value.UploadUrl.Should().Be("https://storage.example.com/upload-url");
         result.Value.ExpiresAt.Should().BeAfter(DateTime.UtcNow);
     }
 

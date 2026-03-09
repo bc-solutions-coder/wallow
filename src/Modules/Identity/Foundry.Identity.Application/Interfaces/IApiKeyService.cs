@@ -1,3 +1,5 @@
+using JetBrains.Annotations;
+
 namespace Foundry.Identity.Application.Interfaces;
 
 /// <summary>
@@ -42,6 +44,7 @@ public interface IApiKeyService
 /// <summary>
 /// Result of creating an API key.
 /// </summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed record ApiKeyCreateResult(
     bool Success,
     string? KeyId,
@@ -52,6 +55,7 @@ public sealed record ApiKeyCreateResult(
 /// <summary>
 /// Result of validating an API key.
 /// </summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed record ApiKeyValidationResult(
     bool IsValid,
     string? KeyId,
@@ -63,6 +67,7 @@ public sealed record ApiKeyValidationResult(
 /// <summary>
 /// API key metadata (does not include the actual key).
 /// </summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed record ApiKeyMetadata(
     string KeyId,
     string Name,

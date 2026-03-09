@@ -35,7 +35,7 @@ public class MeterDefinitionRepositoryTests : DbContextIntegrationTestBase<Billi
         MeterDefinition? result = await repository.GetByIdAsync(meter.Id);
 
         result.Should().NotBeNull();
-        result!.DisplayName.Should().Be("Test Meter");
+        result.DisplayName.Should().Be("Test Meter");
     }
 
     [Fact]
@@ -52,7 +52,7 @@ public class MeterDefinitionRepositoryTests : DbContextIntegrationTestBase<Billi
         MeterDefinition? result = await repository.GetByCodeAsync(code);
 
         result.Should().NotBeNull();
-        result!.Code.Should().Be(code);
+        result.Code.Should().Be(code);
         result.Unit.Should().Be("bytes");
     }
 

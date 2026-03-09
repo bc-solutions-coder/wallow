@@ -292,7 +292,7 @@ public class PluginServiceExtensionsTests
             PluginRegistry registry = app.Services.GetRequiredService<PluginRegistry>();
             PluginRegistryEntry? entry = registry.GetEntry("test-plugin");
             entry.Should().NotBeNull();
-            entry!.Manifest.Id.Should().Be("test-plugin");
+            entry.Manifest.Id.Should().Be("test-plugin");
             // Plugin was discovered but load failed (no real assembly), so state stays Discovered
             entry.State.Should().Be(PluginLifecycleState.Discovered);
         }

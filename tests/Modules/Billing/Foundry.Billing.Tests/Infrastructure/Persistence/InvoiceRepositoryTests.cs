@@ -31,7 +31,7 @@ public class InvoiceRepositoryTests : DbContextIntegrationTestBase<BillingDbCont
         Invoice? result = await repository.GetByIdAsync(invoice.Id);
 
         result.Should().NotBeNull();
-        result!.InvoiceNumber.Should().Be("INV-REPO-001");
+        result.InvoiceNumber.Should().Be("INV-REPO-001");
     }
 
     [Fact]
@@ -47,7 +47,7 @@ public class InvoiceRepositoryTests : DbContextIntegrationTestBase<BillingDbCont
         Invoice? result = await repository.GetByIdWithLineItemsAsync(invoice.Id);
 
         result.Should().NotBeNull();
-        result!.LineItems.Should().HaveCount(1);
+        result.LineItems.Should().HaveCount(1);
         result.LineItems.First().Description.Should().Be("Test Service");
     }
 
@@ -125,7 +125,7 @@ public class InvoiceRepositoryTests : DbContextIntegrationTestBase<BillingDbCont
 
         Invoice? result = await repository.GetByIdAsync(invoice.Id);
         result.Should().NotBeNull();
-        result!.Status.Should().Be(InvoiceStatus.Issued);
+        result.Status.Should().Be(InvoiceStatus.Issued);
     }
 
     [Fact]

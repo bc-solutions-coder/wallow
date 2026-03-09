@@ -33,7 +33,7 @@ public class QuotaDefinitionRepositoryTests : DbContextIntegrationTestBase<Billi
         QuotaDefinition? result = await repository.GetByIdAsync(quota.Id);
 
         result.Should().NotBeNull();
-        result!.Limit.Should().Be(5000);
+        result.Limit.Should().Be(5000);
     }
 
     [Fact]
@@ -50,7 +50,7 @@ public class QuotaDefinitionRepositoryTests : DbContextIntegrationTestBase<Billi
         QuotaDefinition? result = await repository.GetTenantOverrideAsync(meterCode);
 
         result.Should().NotBeNull();
-        result!.MeterCode.Should().Be(meterCode);
+        result.MeterCode.Should().Be(meterCode);
         result.Limit.Should().Be(10000);
     }
 
@@ -78,7 +78,7 @@ public class QuotaDefinitionRepositoryTests : DbContextIntegrationTestBase<Billi
         QuotaDefinition? result = await repository.GetEffectiveQuotaAsync(meterCode, "pro");
 
         result.Should().NotBeNull();
-        result!.Limit.Should().Be(20000);
+        result.Limit.Should().Be(20000);
     }
 
     [Fact]
@@ -108,7 +108,7 @@ public class QuotaDefinitionRepositoryTests : DbContextIntegrationTestBase<Billi
         QuotaDefinition? result = await repository.GetEffectiveQuotaAsync(meterCode, "enterprise");
 
         result.Should().NotBeNull();
-        result!.Limit.Should().Be(500000);
+        result.Limit.Should().Be(500000);
         result.PlanCode.Should().Be("enterprise");
     }
 

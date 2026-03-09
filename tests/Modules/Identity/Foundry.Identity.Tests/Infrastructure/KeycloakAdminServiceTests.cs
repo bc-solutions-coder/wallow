@@ -46,7 +46,7 @@ public class KeycloakAdminServiceTests
         Guid result = await service.CreateUserAsync("test@test.com", "John", "Doe", "password123");
 
         result.Should().Be(userId);
-        await _messageBus.ReceivedWithAnyArgs(2).PublishAsync(default(object)!);
+        await _messageBus.ReceivedWithAnyArgs(2).PublishAsync(default(object));
     }
 
     [Fact]

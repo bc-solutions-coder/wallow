@@ -78,7 +78,7 @@ public class GetPresignedUrlHandlerTests
         Result<PresignedUrlResult> result = await _handler.Handle(query, CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value!.Url.Should().Be("https://storage.example.com/presigned-url");
+        result.Value.Url.Should().Be("https://storage.example.com/presigned-url");
         result.Value.ExpiresAt.Should().BeAfter(DateTime.UtcNow);
     }
 
@@ -240,7 +240,7 @@ public class GetUploadPresignedUrlHandlerTests
         Result<PresignedUploadResult> result = await _handler.Handle(query, CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value!.UploadUrl.Should().Be("https://storage.example.com/upload-url");
+        result.Value.UploadUrl.Should().Be("https://storage.example.com/upload-url");
         result.Value.ExpiresAt.Should().BeAfter(DateTime.UtcNow);
     }
 

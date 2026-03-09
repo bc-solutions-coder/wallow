@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <PackageReference Include="FluentValidation" />
+    <PackageReference Include="JetBrains.Annotations" />
   </ItemGroup>
 
 </Project>

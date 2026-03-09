@@ -50,7 +50,7 @@ public sealed class StoredFileRepositoryTests : DbContextIntegrationTestBase<Sto
         StoredFile? retrieved = await _repository.GetByIdAsync(file.Id);
 
         retrieved.Should().NotBeNull();
-        retrieved!.FileName.Should().Be(file.FileName);
+        retrieved.FileName.Should().Be(file.FileName);
         retrieved.ContentType.Should().Be("application/pdf");
         retrieved.SizeBytes.Should().Be(1024 * 100);
         retrieved.Path.Should().Be("documents/invoices");

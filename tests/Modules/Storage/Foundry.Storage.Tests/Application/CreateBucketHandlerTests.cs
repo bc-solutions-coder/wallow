@@ -33,7 +33,7 @@ public class CreateBucketHandlerTests
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().NotBeNull();
-        result.Value!.Name.Should().Be("test-bucket");
+        result.Value.Name.Should().Be("test-bucket");
         result.Value.Description.Should().Be("A test bucket");
         _bucketRepository.Received(1).Add(Arg.Any<StorageBucket>());
         await _bucketRepository.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
@@ -67,8 +67,8 @@ public class CreateBucketHandlerTests
         Result<BucketDto> result = await _handler.Handle(command, CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value!.Retention.Should().NotBeNull();
-        result.Value.Retention!.Days.Should().Be(30);
+        result.Value.Retention.Should().NotBeNull();
+        result.Value.Retention.Days.Should().Be(30);
         result.Value.Retention.Action.Should().Be("Archive");
     }
 
@@ -82,7 +82,7 @@ public class CreateBucketHandlerTests
         Result<BucketDto> result = await _handler.Handle(command, CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value!.Retention.Should().BeNull();
+        result.Value.Retention.Should().BeNull();
     }
 
     [Fact]
@@ -103,7 +103,7 @@ public class CreateBucketHandlerTests
         Result<BucketDto> result = await _handler.Handle(command, CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value!.Name.Should().Be("full-bucket");
+        result.Value.Name.Should().Be("full-bucket");
         result.Value.Description.Should().Be("Full options");
         result.Value.Access.Should().Be("Public");
         result.Value.MaxFileSizeBytes.Should().Be(1024 * 1024);
@@ -123,6 +123,6 @@ public class CreateBucketHandlerTests
         Result<BucketDto> result = await _handler.Handle(command, CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value!.Retention.Should().BeNull();
+        result.Value.Retention.Should().BeNull();
     }
 }

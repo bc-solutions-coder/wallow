@@ -38,7 +38,7 @@ public sealed class AnnouncementRepositoryTests : IDisposable
 
         Announcement? found = await _dbContext.Announcements.FindAsync(announcement.Id);
         found.Should().NotBeNull();
-        found!.Title.Should().Be("Test");
+        found.Title.Should().Be("Test");
     }
 
     [Fact]
@@ -51,7 +51,7 @@ public sealed class AnnouncementRepositoryTests : IDisposable
         Announcement? result = await _repository.GetByIdAsync(announcement.Id);
 
         result.Should().NotBeNull();
-        result!.Title.Should().Be("Existing");
+        result.Title.Should().Be("Existing");
     }
 
     [Fact]

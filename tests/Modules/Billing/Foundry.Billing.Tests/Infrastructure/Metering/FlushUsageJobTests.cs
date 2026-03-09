@@ -174,7 +174,7 @@ public class ParsePeriodTests
         (DateTime, DateTime)? result = method!.Invoke(null, new object[] { input }) as (DateTime, DateTime)?;
 
         result.Should().NotBeNull();
-        result!.Value.Item1.Should().Be(DateTime.Parse(expectedStart).ToUniversalTime());
+        result.Value.Item1.Should().Be(DateTime.Parse(expectedStart).ToUniversalTime());
         result.Value.Item2.Should().Be(DateTime.Parse(expectedEnd).ToUniversalTime());
     }
 
@@ -189,7 +189,7 @@ public class ParsePeriodTests
         (DateTime, DateTime)? result = method!.Invoke(null, new object[] { input }) as (DateTime, DateTime)?;
 
         result.Should().NotBeNull();
-        result!.Value.Item1.Should().Be(DateTime.Parse(expectedStart).ToUniversalTime());
+        result.Value.Item1.Should().Be(DateTime.Parse(expectedStart).ToUniversalTime());
         result.Value.Item2.Should().Be(DateTime.Parse(expectedEnd).ToUniversalTime());
     }
 
@@ -204,7 +204,7 @@ public class ParsePeriodTests
         (DateTime, DateTime)? result = method!.Invoke(null, new object[] { input }) as (DateTime, DateTime)?;
 
         result.Should().NotBeNull();
-        result!.Value.Item1.Should().Be(DateTime.Parse(expectedStart).ToUniversalTime());
+        result.Value.Item1.Should().Be(DateTime.Parse(expectedStart).ToUniversalTime());
         result.Value.Item2.Should().Be(DateTime.Parse(expectedEnd).ToUniversalTime());
     }
 

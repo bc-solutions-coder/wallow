@@ -30,7 +30,7 @@ public sealed class TenantAwareDbContextTests : IDisposable
         IEntityType? entityType = context.Model.FindEntityType(typeof(TenantScopedEntity));
 
         entityType.Should().NotBeNull();
-        entityType!.GetDeclaredQueryFilters().Should().NotBeEmpty(
+        entityType.GetDeclaredQueryFilters().Should().NotBeEmpty(
             "ITenantScoped entities should have a tenant query filter applied");
     }
 
@@ -42,7 +42,7 @@ public sealed class TenantAwareDbContextTests : IDisposable
         IEntityType? entityType = context.Model.FindEntityType(typeof(NonTenantEntity));
 
         entityType.Should().NotBeNull();
-        entityType!.GetDeclaredQueryFilters().Should().BeEmpty(
+        entityType.GetDeclaredQueryFilters().Should().BeEmpty(
             "non-ITenantScoped entities should not have a tenant query filter");
     }
 

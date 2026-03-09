@@ -1,5 +1,8 @@
+using JetBrains.Annotations;
+
 namespace Foundry.Communications.Application.Channels.Sms.Interfaces;
 
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public readonly record struct SmsDeliveryResult(bool Success, string? MessageSid, string? ErrorMessage);
 
 public interface ISmsProvider

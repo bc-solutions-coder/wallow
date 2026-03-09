@@ -42,7 +42,7 @@ public class PaymentRepositoryTests : DbContextIntegrationTestBase<BillingDbCont
         Payment? result = await repository.GetByIdAsync(payment.Id);
 
         result.Should().NotBeNull();
-        result!.Amount.Amount.Should().Be(100m);
+        result.Amount.Amount.Should().Be(100m);
     }
 
     [Fact]
@@ -117,7 +117,7 @@ public class PaymentRepositoryTests : DbContextIntegrationTestBase<BillingDbCont
 
         Payment? result = await repository.GetByIdAsync(payment.Id);
         result.Should().NotBeNull();
-        result!.Status.Should().Be(PaymentStatus.Completed);
+        result.Status.Should().Be(PaymentStatus.Completed);
     }
 
     [Fact]

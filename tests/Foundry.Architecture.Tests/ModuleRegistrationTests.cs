@@ -14,7 +14,7 @@ public class ModuleRegistrationTests
 
         foundryModulesType.Should().NotBeNull("FoundryModules class should exist in Foundry.Api");
 
-        MethodInfo? addModulesMethod = foundryModulesType!.GetMethod(
+        MethodInfo? addModulesMethod = foundryModulesType.GetMethod(
             "AddFoundryModules",
             BindingFlags.Public | BindingFlags.Static);
 
@@ -45,7 +45,7 @@ public class ModuleRegistrationTests
 
         foundryModulesType.Should().NotBeNull("FoundryModules class should exist in Foundry.Api");
 
-        MethodInfo? initializeModulesMethod = foundryModulesType!.GetMethod(
+        MethodInfo? initializeModulesMethod = foundryModulesType.GetMethod(
             "InitializeFoundryModulesAsync",
             BindingFlags.Public | BindingFlags.Static);
 
@@ -83,14 +83,14 @@ public class ModuleRegistrationTests
         extensionType.Should().NotBeNull(
             $"{moduleName} module should have {moduleName}ModuleExtensions static class in Infrastructure");
 
-        MethodInfo? addModuleMethod = extensionType!.GetMethod(
+        MethodInfo? addModuleMethod = extensionType.GetMethod(
             $"Add{moduleName}Module",
             BindingFlags.Public | BindingFlags.Static);
 
         addModuleMethod.Should().NotBeNull(
             $"{moduleName}ModuleExtensions should have Add{moduleName}Module method");
 
-        addModuleMethod!.IsStatic.Should().BeTrue();
+        addModuleMethod.IsStatic.Should().BeTrue();
         addModuleMethod.GetParameters().Should().HaveCount(2);
         addModuleMethod.GetParameters()[0].ParameterType.Name.Should().Be("IServiceCollection");
         addModuleMethod.GetParameters()[1].ParameterType.Name.Should().Be("IConfiguration");
@@ -117,14 +117,14 @@ public class ModuleRegistrationTests
         extensionType.Should().NotBeNull(
             $"{moduleName} module should have {moduleName}ModuleExtensions static class in Infrastructure");
 
-        MethodInfo? initializeModuleMethod = extensionType!.GetMethod(
+        MethodInfo? initializeModuleMethod = extensionType.GetMethod(
             $"Initialize{moduleName}ModuleAsync",
             BindingFlags.Public | BindingFlags.Static);
 
         initializeModuleMethod.Should().NotBeNull(
             $"{moduleName}ModuleExtensions should have Initialize{moduleName}ModuleAsync method");
 
-        initializeModuleMethod!.IsStatic.Should().BeTrue();
+        initializeModuleMethod.IsStatic.Should().BeTrue();
         initializeModuleMethod.GetParameters().Should().HaveCount(1);
         initializeModuleMethod.GetParameters()[0].ParameterType.Name.Should().Be("WebApplication");
     }

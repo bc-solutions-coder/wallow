@@ -125,7 +125,7 @@ public class WorkflowActivityBaseTests
             BindingFlags.NonPublic | BindingFlags.Instance);
 
         method.Should().NotBeNull();
-        method!.IsAbstract.Should().BeTrue();
+        method.IsAbstract.Should().BeTrue();
     }
 
     [Fact]
@@ -136,7 +136,7 @@ public class WorkflowActivityBaseTests
             BindingFlags.NonPublic | BindingFlags.Instance);
 
         method.Should().NotBeNull();
-        method!.IsFamily.Should().BeTrue("ExecuteActivityAsync should be protected");
+        method.IsFamily.Should().BeTrue("ExecuteActivityAsync should be protected");
     }
 
     [Fact]
@@ -147,7 +147,7 @@ public class WorkflowActivityBaseTests
             BindingFlags.NonPublic | BindingFlags.Instance);
 
         method.Should().NotBeNull();
-        method!.DeclaringType.Should().Be<WorkflowActivityBase>();
+        method.DeclaringType.Should().Be<WorkflowActivityBase>();
         method.GetBaseDefinition().DeclaringType.Should().NotBe<WorkflowActivityBase>(
             "ExecuteAsync should override a base class method");
     }
@@ -160,7 +160,7 @@ public class WorkflowActivityBaseTests
             BindingFlags.NonPublic | BindingFlags.Instance);
 
         method.Should().NotBeNull();
-        ParameterInfo[] parameters = method!.GetParameters();
+        ParameterInfo[] parameters = method.GetParameters();
         parameters.Should().HaveCount(1);
         parameters[0].ParameterType.Should().Be<ActivityExecutionContext>();
     }
@@ -173,7 +173,7 @@ public class WorkflowActivityBaseTests
             BindingFlags.NonPublic | BindingFlags.Instance);
 
         method.Should().NotBeNull();
-        method!.ReturnType.Should().Be<ValueTask>();
+        method.ReturnType.Should().Be<ValueTask>();
     }
 
     [Fact]
@@ -182,7 +182,7 @@ public class WorkflowActivityBaseTests
         PropertyInfo? property = typeof(WorkflowActivityBase).GetProperty(nameof(WorkflowActivityBase.ModuleName));
 
         property.Should().NotBeNull();
-        property!.GetMethod!.IsVirtual.Should().BeTrue();
+        property.GetMethod!.IsVirtual.Should().BeTrue();
         property.GetMethod.IsFinal.Should().BeFalse();
     }
 

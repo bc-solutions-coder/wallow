@@ -74,7 +74,7 @@ public class GetPresignedUrlHandlerTests
         Result<PresignedUrlResult> result = await _handler.Handle(query, CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value!.Url.Should().Be("https://storage.example.com/presigned-url");
+        result.Value.Url.Should().Be("https://storage.example.com/presigned-url");
         result.Value.ExpiresAt.Should().BeAfter(DateTime.UtcNow);
     }
 

@@ -57,7 +57,7 @@ public class MeteringQueryServiceTests
         QuotaStatus? result = await _service.CheckQuotaAsync(tenantId, "api.calls");
 
         result.Should().NotBeNull();
-        result!.MeterCode.Should().Be("api.calls");
+        result.MeterCode.Should().Be("api.calls");
         result.Used.Should().Be(500);
         result.Limit.Should().Be(1000);
         result.IsExceeded.Should().BeFalse();
@@ -87,7 +87,7 @@ public class MeteringQueryServiceTests
         QuotaStatus? result = await _service.CheckQuotaAsync(tenantId, "api.calls");
 
         result.Should().NotBeNull();
-        result!.IsExceeded.Should().BeTrue();
+        result.IsExceeded.Should().BeTrue();
         result.Used.Should().Be(150);
         result.Limit.Should().Be(100);
     }
@@ -109,7 +109,7 @@ public class MeteringQueryServiceTests
         QuotaStatus? result = await _service.CheckQuotaAsync(tenantId, "api.calls");
 
         result.Should().NotBeNull();
-        result!.Used.Should().Be(0);
+        result.Used.Should().Be(0);
         result.IsExceeded.Should().BeFalse();
         result.PercentUsed.Should().Be(0m);
     }

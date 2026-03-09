@@ -1,3 +1,5 @@
+using JetBrains.Annotations;
+
 namespace Foundry.Shared.Contracts.Metering;
 
 public interface IUsageReportService
@@ -9,6 +11,7 @@ public interface IUsageReportService
         CancellationToken ct = default);
 }
 
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed record UsageReportRow(
     DateTime Date,
     string Metric,

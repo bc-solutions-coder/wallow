@@ -126,9 +126,9 @@ public class AuditInterceptorTests : IAsyncLifetime
         audit.OldValues.Should().BeNull();
         audit.NewValues.Should().NotBeNull();
 
-        Dictionary<string, JsonElement>? newValues = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(audit.NewValues!);
+        Dictionary<string, JsonElement>? newValues = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(audit.NewValues);
         newValues.Should().ContainKey("Name");
-        newValues!["Name"].GetString().Should().Be("Test");
+        newValues["Name"].GetString().Should().Be("Test");
     }
 
     [Fact]

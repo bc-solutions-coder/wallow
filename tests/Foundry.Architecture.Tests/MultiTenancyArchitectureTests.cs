@@ -73,7 +73,7 @@ public class MultiTenancyArchitectureTests
             tenantIdProperty.Should().NotBeNull(
                 $"Entity {entity.Name} in {moduleName} module must have a TenantId property");
 
-            tenantIdProperty!.PropertyType.Name.Should().Be("TenantId",
+            tenantIdProperty.PropertyType.Name.Should().Be("TenantId",
                 $"TenantId property on {entity.Name} should be of type TenantId");
 
             tenantIdProperty.CanWrite.Should().BeTrue(
@@ -124,7 +124,7 @@ public class MultiTenancyArchitectureTests
             onModelCreatingMethod.Should().NotBeNull(
                 $"DbContext {dbContext.Name} in {moduleName} should override OnModelCreating to configure query filters");
 
-            MethodBody? methodBody = onModelCreatingMethod!.GetMethodBody();
+            MethodBody? methodBody = onModelCreatingMethod.GetMethodBody();
             methodBody.Should().NotBeNull(
                 $"OnModelCreating in {dbContext.Name} should have a method body");
         }

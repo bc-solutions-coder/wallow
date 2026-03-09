@@ -360,7 +360,8 @@ public class CustomFieldDefinitionValidationRulesTests
 
         definition.SetValidationRules(rules, Guid.NewGuid(), TimeProvider.System);
 
-        definition.GetValidationRules()!.MaxLength.Should().Be(100);
+        FieldValidationRules validationRules = definition.GetValidationRules()!;
+        validationRules.MaxLength.Should().Be(100);
     }
 
     [Theory]
@@ -392,8 +393,8 @@ public class CustomFieldDefinitionValidationRulesTests
 
         definition.SetValidationRules(rules, Guid.NewGuid(), TimeProvider.System);
 
-        FieldValidationRules? stored = definition.GetValidationRules();
-        stored!.Min.Should().Be(0);
+        FieldValidationRules stored = definition.GetValidationRules()!;
+        stored.Min.Should().Be(0);
         stored.Max.Should().Be(1000);
     }
 
@@ -427,8 +428,8 @@ public class CustomFieldDefinitionValidationRulesTests
 
         definition.SetValidationRules(rules, Guid.NewGuid(), TimeProvider.System);
 
-        FieldValidationRules? stored = definition.GetValidationRules();
-        stored!.MinDate.Should().Be(new DateTime(2020, 1, 1));
+        FieldValidationRules stored = definition.GetValidationRules()!;
+        stored.MinDate.Should().Be(new DateTime(2020, 1, 1));
         stored.MaxDate.Should().Be(new DateTime(2030, 12, 31));
     }
 
@@ -455,7 +456,8 @@ public class CustomFieldDefinitionValidationRulesTests
 
         definition.SetValidationRules(rules, Guid.NewGuid(), TimeProvider.System);
 
-        definition.GetValidationRules()!.Pattern.Should().Be(@"^\d{3}-\d{4}$");
+        FieldValidationRules validationRules = definition.GetValidationRules()!;
+        validationRules.Pattern.Should().Be(@"^\d{3}-\d{4}$");
     }
 
     [Fact]
@@ -466,7 +468,8 @@ public class CustomFieldDefinitionValidationRulesTests
 
         definition.SetValidationRules(rules, Guid.NewGuid(), TimeProvider.System);
 
-        definition.GetValidationRules()!.Pattern.Should().Be(@"^[A-Z]+$");
+        FieldValidationRules validationRules = definition.GetValidationRules()!;
+        validationRules.Pattern.Should().Be(@"^[A-Z]+$");
     }
 
     [Theory]

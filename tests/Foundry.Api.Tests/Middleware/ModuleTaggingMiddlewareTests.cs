@@ -30,7 +30,7 @@ public sealed class ModuleTaggingMiddlewareTests : IDisposable
 
         await sut.InvokeAsync(httpContext);
 
-        activity!.GetTagItem("foundry.module").Should().Be("Billing");
+        activity.GetTagItem("foundry.module").Should().Be("Billing");
         nextCalled.Should().BeTrue();
     }
 
@@ -46,7 +46,7 @@ public sealed class ModuleTaggingMiddlewareTests : IDisposable
 
         await sut.InvokeAsync(httpContext);
 
-        activity!.GetTagItem("foundry.module").Should().BeNull();
+        activity.GetTagItem("foundry.module").Should().BeNull();
     }
 
     [Fact]
@@ -61,7 +61,7 @@ public sealed class ModuleTaggingMiddlewareTests : IDisposable
 
         await sut.InvokeAsync(httpContext);
 
-        activity!.GetTagItem("foundry.module").Should().BeNull();
+        activity.GetTagItem("foundry.module").Should().BeNull();
     }
 
     [Fact]

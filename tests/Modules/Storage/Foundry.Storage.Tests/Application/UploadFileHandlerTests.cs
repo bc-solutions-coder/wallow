@@ -101,7 +101,7 @@ public class UploadFileHandlerTests
         // Assert
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().NotBeNull();
-        result.Value!.FileName.Should().Be(command.FileName);
+        result.Value.FileName.Should().Be(command.FileName);
         result.Value.SizeBytes.Should().Be(command.SizeBytes);
         result.Value.ContentType.Should().Be(command.ContentType);
 
@@ -162,7 +162,7 @@ public class UploadFileHandlerTests
         // Assert
         result1.IsSuccess.Should().BeTrue();
         result2.IsSuccess.Should().BeTrue();
-        result1.Value!.FileName.Should().Be(result2.Value!.FileName);
+        result1.Value.FileName.Should().Be(result2.Value.FileName);
         result1.Value.ContentType.Should().Be(result2.Value.ContentType);
         result1.Value.SizeBytes.Should().Be(result2.Value.SizeBytes);
 

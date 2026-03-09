@@ -29,7 +29,7 @@ public sealed class HealthCheckTests : IDisposable
 
         HealthResponse? healthReport = await response.Content.ReadFromJsonAsync<HealthResponse>();
         healthReport.Should().NotBeNull();
-        healthReport!.Status.Should().BeOneOf("Healthy", "Degraded", "Unhealthy");
+        healthReport.Status.Should().BeOneOf("Healthy", "Degraded", "Unhealthy");
     }
 
     [Fact]
@@ -57,7 +57,7 @@ public sealed class HealthCheckTests : IDisposable
 
         ApiInfo? info = await response.Content.ReadFromJsonAsync<ApiInfo>();
         info.Should().NotBeNull();
-        info!.Name.Should().Be("Foundry API");
+        info.Name.Should().Be("Foundry API");
         info.Version.Should().NotBeNullOrEmpty();
         info.Health.Should().NotBeNullOrEmpty();
     }

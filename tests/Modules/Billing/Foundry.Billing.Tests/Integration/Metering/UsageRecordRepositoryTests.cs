@@ -38,7 +38,7 @@ public class UsageRecordRepositoryTests : DbContextIntegrationTestBase<BillingDb
         UsageRecord? retrieved = await _repository.GetByIdAsync(record.Id);
 
         retrieved.Should().NotBeNull();
-        retrieved!.MeterCode.Should().Be("api_calls");
+        retrieved.MeterCode.Should().Be("api_calls");
         retrieved.Value.Should().Be(1500);
         retrieved.PeriodStart.Should().Be(periodStart);
         retrieved.PeriodEnd.Should().Be(periodEnd);
@@ -101,7 +101,7 @@ public class UsageRecordRepositoryTests : DbContextIntegrationTestBase<BillingDb
         UsageRecord? retrieved = await _repository.GetForPeriodAsync("bandwidth_gb", periodStart, periodEnd);
 
         retrieved.Should().NotBeNull();
-        retrieved!.Value.Should().Be(750);
+        retrieved.Value.Should().Be(750);
     }
 
     [Fact]

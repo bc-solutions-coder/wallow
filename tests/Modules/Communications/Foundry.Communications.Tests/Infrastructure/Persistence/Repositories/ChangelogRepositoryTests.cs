@@ -47,7 +47,7 @@ public sealed class ChangelogRepositoryTests : IDisposable
         ChangelogEntry? result = await _repository.GetByIdAsync(entry.Id);
 
         result.Should().NotBeNull();
-        result!.Version.Should().Be("1.0.0");
+        result.Version.Should().Be("1.0.0");
     }
 
     [Fact]
@@ -68,7 +68,7 @@ public sealed class ChangelogRepositoryTests : IDisposable
         ChangelogEntry? result = await _repository.GetByVersionAsync("2.0.0");
 
         result.Should().NotBeNull();
-        result!.Title.Should().Be("Major");
+        result.Title.Should().Be("Major");
     }
 
     [Fact]
@@ -94,7 +94,7 @@ public sealed class ChangelogRepositoryTests : IDisposable
         ChangelogEntry? result = await _repository.GetLatestPublishedAsync();
 
         result.Should().NotBeNull();
-        result!.Version.Should().Be("2.0.0");
+        result.Version.Should().Be("2.0.0");
     }
 
     [Fact]

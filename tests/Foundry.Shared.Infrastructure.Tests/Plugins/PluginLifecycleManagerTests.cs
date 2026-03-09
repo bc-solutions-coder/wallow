@@ -228,7 +228,7 @@ public class PluginLifecycleManagerTests
 
             PluginRegistryEntry? entry = _registry.GetEntry("my-plugin");
             entry.Should().NotBeNull();
-            entry!.State.Should().Be(PluginLifecycleState.Discovered);
+            entry.State.Should().Be(PluginLifecycleState.Discovered);
         }
         finally
         {

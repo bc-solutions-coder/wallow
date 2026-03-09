@@ -7,7 +7,6 @@ using Foundry.Shared.Kernel.Results;
 namespace Foundry.Communications.Application.Preferences.Commands;
 
 public sealed record SetChannelPreferenceCommand(
-    Guid TenantId,
     Guid UserId,
     ChannelType ChannelType,
     string NotificationType,

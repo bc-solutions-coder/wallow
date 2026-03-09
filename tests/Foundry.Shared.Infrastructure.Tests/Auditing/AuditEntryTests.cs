@@ -84,10 +84,10 @@ public class AuditEntryTests
         };
 
         Dictionary<string, JsonElement>? deserialized =
-            JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(entry.NewValues!);
+            JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(entry.NewValues);
 
         deserialized.Should().NotBeNull();
-        deserialized!["Name"].GetString().Should().Be("Test");
+        deserialized["Name"].GetString().Should().Be("Test");
         deserialized["Amount"].GetInt32().Should().Be(42);
     }
 
@@ -110,10 +110,10 @@ public class AuditEntryTests
         };
 
         Dictionary<string, JsonElement>? deserialized =
-            JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(entry.OldValues!);
+            JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(entry.OldValues);
 
         deserialized.Should().NotBeNull();
-        deserialized!["Status"].GetString().Should().Be("Draft");
+        deserialized["Status"].GetString().Should().Be("Draft");
         deserialized["Total"].GetDouble().Should().BeApproximately(99.99, 0.001);
     }
 

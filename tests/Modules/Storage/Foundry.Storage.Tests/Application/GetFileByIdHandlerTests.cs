@@ -34,7 +34,7 @@ public class GetFileByIdHandlerTests
         Result<StoredFileDto> result = await _handler.Handle(query, CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value!.FileName.Should().Be("test.pdf");
+        result.Value.FileName.Should().Be("test.pdf");
         result.Value.ContentType.Should().Be("application/pdf");
         result.Value.SizeBytes.Should().Be(5000);
     }

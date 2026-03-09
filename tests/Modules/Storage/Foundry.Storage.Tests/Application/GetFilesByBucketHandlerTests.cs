@@ -57,7 +57,7 @@ public class GetFilesByBucketHandlerTests
         Result<PagedResult<StoredFileDto>> result = await _handler.Handle(query, CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value!.Items.Should().HaveCount(1);
+        result.Value.Items.Should().HaveCount(1);
         result.Value.Items[0].FileName.Should().Be("mine.txt");
         result.Value.TotalCount.Should().Be(1);
     }
@@ -80,7 +80,7 @@ public class GetFilesByBucketHandlerTests
         Result<PagedResult<StoredFileDto>> result = await _handler.Handle(query, CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value!.Items.Should().BeEmpty();
+        result.Value.Items.Should().BeEmpty();
         result.Value.TotalCount.Should().Be(0);
     }
 

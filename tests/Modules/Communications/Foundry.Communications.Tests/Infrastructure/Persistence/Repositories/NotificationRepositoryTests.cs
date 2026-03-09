@@ -55,7 +55,7 @@ public sealed class NotificationRepositoryTests : IDisposable
         Notification? result = await _repository.GetByIdAsync(notification.Id);
 
         result.Should().NotBeNull();
-        result!.Title.Should().Be("Task");
+        result.Title.Should().Be("Task");
     }
 
     [Fact]

@@ -31,7 +31,7 @@ public class SubscriptionRepositoryTests : DbContextIntegrationTestBase<BillingD
         Subscription? result = await repository.GetByIdAsync(subscription.Id);
 
         result.Should().NotBeNull();
-        result!.PlanName.Should().Be("pro");
+        result.PlanName.Should().Be("pro");
     }
 
     [Fact]
@@ -78,7 +78,7 @@ public class SubscriptionRepositoryTests : DbContextIntegrationTestBase<BillingD
         Subscription? result = await repository.GetActiveByUserIdAsync(userId);
 
         result.Should().NotBeNull();
-        result!.Status.Should().Be(SubscriptionStatus.Active);
+        result.Status.Should().Be(SubscriptionStatus.Active);
         result.PlanName.Should().Be("pro");
     }
 
@@ -113,7 +113,7 @@ public class SubscriptionRepositoryTests : DbContextIntegrationTestBase<BillingD
 
         Subscription? result = await repository.GetByIdAsync(subscription.Id);
         result.Should().NotBeNull();
-        result!.Status.Should().Be(SubscriptionStatus.Cancelled);
+        result.Status.Should().Be(SubscriptionStatus.Cancelled);
     }
 
     [Fact]
