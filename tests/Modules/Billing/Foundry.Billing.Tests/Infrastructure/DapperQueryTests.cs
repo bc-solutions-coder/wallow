@@ -128,8 +128,8 @@ public class DapperQueryTests : DbContextIntegrationTestBase<BillingDbContext>
         result.InvoiceNumber.Should().Be("INV-DETAILS");
         result.Amount.Should().Be(150m);
         result.Currency.Should().Be("EUR");
-        result.Method.Should().Be(PaymentMethod.PayPal.ToString());
-        result.Status.Should().Be(PaymentStatus.Completed.ToString());
+        result.Method.Should().Be(nameof(PaymentMethod.PayPal));
+        result.Status.Should().Be(nameof(PaymentStatus.Completed));
         result.PaymentDate.Should().BeCloseTo(completedDate, TimeSpan.FromSeconds(1));
     }
 
@@ -310,7 +310,7 @@ public class DapperQueryTests : DbContextIntegrationTestBase<BillingDbContext>
         result.CustomerName.Should().Be($"User_{TestUserId}");
         result.Amount.Should().Be(150m);
         result.Currency.Should().Be("GBP");
-        result.Status.Should().Be(InvoiceStatus.Issued.ToString());
+        result.Status.Should().Be(nameof(InvoiceStatus.Issued));
         result.DueDate.Should().BeCloseTo(dueDate, TimeSpan.FromSeconds(1));
     }
 

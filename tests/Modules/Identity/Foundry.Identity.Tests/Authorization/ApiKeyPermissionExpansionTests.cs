@@ -28,8 +28,8 @@ public class ApiKeyPermissionExpansionTests
         await middleware.InvokeAsync(context);
 
         List<string> permissions = context.User.FindAll("permission").Select(c => c.Value).ToList();
-        permissions.Should().Contain(PermissionType.InvoicesRead.ToString());
-        permissions.Should().Contain(PermissionType.InvoicesWrite.ToString());
+        permissions.Should().Contain(PermissionType.InvoicesRead);
+        permissions.Should().Contain(PermissionType.InvoicesWrite);
     }
 
     [Fact]
@@ -53,7 +53,7 @@ public class ApiKeyPermissionExpansionTests
 
         List<string> permissions = context.User.FindAll("permission").Select(c => c.Value).ToList();
         permissions.Should().ContainSingle();
-        permissions.Should().Contain(PermissionType.InvoicesRead.ToString());
+        permissions.Should().Contain(PermissionType.InvoicesRead);
     }
 
     [Fact]
@@ -77,11 +77,11 @@ public class ApiKeyPermissionExpansionTests
 
         List<string> permissions = context.User.FindAll("permission").Select(c => c.Value).ToList();
         permissions.Should().HaveCount(5);
-        permissions.Should().Contain(PermissionType.InvoicesRead.ToString());
-        permissions.Should().Contain(PermissionType.PaymentsWrite.ToString());
-        permissions.Should().Contain(PermissionType.UsersRead.ToString());
-        permissions.Should().Contain(PermissionType.NotificationsWrite.ToString());
-        permissions.Should().Contain(PermissionType.WebhooksManage.ToString());
+        permissions.Should().Contain(PermissionType.InvoicesRead);
+        permissions.Should().Contain(PermissionType.PaymentsWrite);
+        permissions.Should().Contain(PermissionType.UsersRead);
+        permissions.Should().Contain(PermissionType.NotificationsWrite);
+        permissions.Should().Contain(PermissionType.WebhooksManage);
     }
 
     [Fact]

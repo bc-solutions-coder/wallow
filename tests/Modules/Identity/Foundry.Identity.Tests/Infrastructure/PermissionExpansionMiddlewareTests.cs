@@ -54,8 +54,8 @@ public class PermissionExpansionMiddlewareTests
 
         // Assert
         List<string> permissions = context.User.FindAll("permission").Select(c => c.Value).ToList();
-        permissions.Should().Contain(PermissionType.InvoicesRead.ToString());
-        permissions.Should().Contain(PermissionType.InvoicesWrite.ToString());
+        permissions.Should().Contain(PermissionType.InvoicesRead);
+        permissions.Should().Contain(PermissionType.InvoicesWrite);
     }
 
     [Fact]
@@ -82,8 +82,8 @@ public class PermissionExpansionMiddlewareTests
 
         // Assert
         List<string> permissions = context.User.FindAll("permission").Select(c => c.Value).ToList();
-        permissions.Should().Contain(PermissionType.InvoicesRead.ToString());
-        permissions.Should().Contain(PermissionType.PaymentsWrite.ToString());
+        permissions.Should().Contain(PermissionType.InvoicesRead);
+        permissions.Should().Contain(PermissionType.PaymentsWrite);
     }
 
     [Fact]
@@ -110,7 +110,7 @@ public class PermissionExpansionMiddlewareTests
         // Assert
         List<string> permissions = context.User.FindAll("permission").Select(c => c.Value).ToList();
         permissions.Should().ContainSingle();
-        permissions.Should().Contain(PermissionType.InvoicesRead.ToString());
+        permissions.Should().Contain(PermissionType.InvoicesRead);
     }
 
     [Fact]
@@ -136,12 +136,12 @@ public class PermissionExpansionMiddlewareTests
 
         // Assert
         List<string> permissions = context.User.FindAll("permission").Select(c => c.Value).ToList();
-        permissions.Should().Contain(PermissionType.InvoicesRead.ToString());
-        permissions.Should().Contain(PermissionType.InvoicesWrite.ToString());
-        permissions.Should().Contain(PermissionType.PaymentsRead.ToString());
-        permissions.Should().Contain(PermissionType.PaymentsWrite.ToString());
-        permissions.Should().Contain(PermissionType.SubscriptionsRead.ToString());
-        permissions.Should().Contain(PermissionType.SubscriptionsWrite.ToString());
+        permissions.Should().Contain(PermissionType.InvoicesRead);
+        permissions.Should().Contain(PermissionType.InvoicesWrite);
+        permissions.Should().Contain(PermissionType.PaymentsRead);
+        permissions.Should().Contain(PermissionType.PaymentsWrite);
+        permissions.Should().Contain(PermissionType.SubscriptionsRead);
+        permissions.Should().Contain(PermissionType.SubscriptionsWrite);
     }
 
     [Fact]
@@ -167,8 +167,8 @@ public class PermissionExpansionMiddlewareTests
 
         // Assert
         List<string> permissions = context.User.FindAll("permission").Select(c => c.Value).ToList();
-        permissions.Should().Contain(PermissionType.UsersRead.ToString());
-        permissions.Should().Contain(PermissionType.UsersUpdate.ToString()); // users.write maps to UsersUpdate
+        permissions.Should().Contain(PermissionType.UsersRead);
+        permissions.Should().Contain(PermissionType.UsersUpdate); // users.write maps to UsersUpdate
     }
 
     [Fact]
@@ -194,8 +194,8 @@ public class PermissionExpansionMiddlewareTests
 
         // Assert
         List<string> permissions = context.User.FindAll("permission").Select(c => c.Value).ToList();
-        permissions.Should().Contain(PermissionType.NotificationsRead.ToString());
-        permissions.Should().Contain(PermissionType.NotificationsWrite.ToString());
+        permissions.Should().Contain(PermissionType.NotificationsRead);
+        permissions.Should().Contain(PermissionType.NotificationsWrite);
     }
 
     [Fact]
@@ -221,7 +221,7 @@ public class PermissionExpansionMiddlewareTests
 
         // Assert
         List<string> permissions = context.User.FindAll("permission").Select(c => c.Value).ToList();
-        permissions.Should().Contain(PermissionType.WebhooksManage.ToString());
+        permissions.Should().Contain(PermissionType.WebhooksManage);
     }
 
     [Fact]

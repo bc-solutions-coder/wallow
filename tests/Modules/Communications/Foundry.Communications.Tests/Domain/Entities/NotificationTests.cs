@@ -60,7 +60,7 @@ public class NotificationCreateTests
             .OfType<NotificationCreatedDomainEvent>().Single();
 
         domainEvent.Title.Should().Be("You were mentioned");
-        domainEvent.Type.Should().Be(NotificationType.Mention.ToString());
+        domainEvent.Type.Should().Be(nameof(NotificationType.Mention));
     }
 }
 
