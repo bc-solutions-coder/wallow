@@ -19,9 +19,7 @@ public static class BillingInfrastructureExtensions
     public static IServiceCollection AddBillingInfrastructure(
         this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddBillingPersistence(configuration);
-
-        return services;
+        return services.AddBillingPersistence(configuration);
     }
 
     private static IServiceCollection AddBillingPersistence(

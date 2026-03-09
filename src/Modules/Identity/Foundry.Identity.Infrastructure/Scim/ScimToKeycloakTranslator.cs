@@ -92,7 +92,6 @@ public sealed class ScimToKeycloakTranslator
         {
             // Keycloak doesn't support negation in query params
             // Must use in-memory filtering
-            KeycloakQueryParams inner = node.InnerExpression.Accept(this);
             return new KeycloakQueryParams(
                 InMemoryFilter: user => !EvaluateFilter(user, node.InnerExpression));
         }

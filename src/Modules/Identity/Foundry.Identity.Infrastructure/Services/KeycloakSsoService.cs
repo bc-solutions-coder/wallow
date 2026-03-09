@@ -441,7 +441,6 @@ public sealed partial class KeycloakSsoService : ISsoService
             SamlNameIdFormat.Email => "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress",
             SamlNameIdFormat.Persistent => "urn:oasis:names:tc:SAML:2.0:nameid-format:persistent",
             SamlNameIdFormat.Transient => "urn:oasis:names:tc:SAML:2.0:nameid-format:transient",
-            SamlNameIdFormat.Unspecified => "urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified",
             _ => "urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified"
         };
     }

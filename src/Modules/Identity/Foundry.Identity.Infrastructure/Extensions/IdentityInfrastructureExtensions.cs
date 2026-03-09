@@ -30,10 +30,11 @@ public static class IdentityInfrastructureExtensions
                 options.Audience = "foundry-api";
             }, "Keycloak");
 
-        services.AddIdentityAuthorization();
-        services.AddMultiTenancy();
-        services.AddIdentityPersistence(configuration);
-        services.AddKeycloakAdmin(configuration);
+        services
+            .AddIdentityAuthorization()
+            .AddMultiTenancy()
+            .AddIdentityPersistence(configuration)
+            .AddKeycloakAdmin(configuration);
 
         return services;
     }

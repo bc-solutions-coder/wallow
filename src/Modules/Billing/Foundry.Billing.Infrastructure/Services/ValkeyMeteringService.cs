@@ -198,7 +198,6 @@ public sealed partial class ValkeyMeteringService : IMeteringService
         {
             QuotaPeriod.Hourly => now.ToString("yyyy-MM-dd-HH"),
             QuotaPeriod.Daily => now.ToString("yyyy-MM-dd"),
-            QuotaPeriod.Monthly => now.ToString("yyyy-MM"),
             _ => now.ToString("yyyy-MM")
         };
     }

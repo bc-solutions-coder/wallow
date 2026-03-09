@@ -65,7 +65,7 @@ internal partial class GlobalExceptionHandler : IExceptionHandler
 
     private ProblemDetails CreateProblemDetails(Exception exception, string traceId)
     {
-        (int statusCode, string? title, string? type) = exception switch
+        (int statusCode, string title, string type) = exception switch
         {
             EntityNotFoundException => (
                 StatusCodes.Status404NotFound,

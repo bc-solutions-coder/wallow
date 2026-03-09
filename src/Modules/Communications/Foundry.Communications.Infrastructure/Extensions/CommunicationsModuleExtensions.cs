@@ -32,8 +32,9 @@ public static partial class CommunicationsModuleExtensions
         IConfiguration configuration)
     {
         services.AddCommunicationsApplication();
-        services.AddCommunicationsPersistence(configuration);
-        services.AddCommunicationsServices(configuration);
+        services
+            .AddCommunicationsPersistence(configuration)
+            .AddCommunicationsServices(configuration);
 
         return services;
     }
