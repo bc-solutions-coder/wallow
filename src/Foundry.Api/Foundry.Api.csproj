@@ -53,6 +53,9 @@
     <PackageReference Include="WolverineFx.EntityFrameworkCore" />
     <PackageReference Include="WolverineFx.Postgresql" />
 
+    <!-- Feature Management -->
+    <PackageReference Include="Microsoft.FeatureManagement.AspNetCore" />
+
     <!-- Background Jobs -->
     <PackageReference Include="Hangfire.AspNetCore" />
     <PackageReference Include="Hangfire.PostgreSql" />
