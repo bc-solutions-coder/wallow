@@ -1,5 +1,19 @@
 namespace Foundry.Shared.Kernel.Settings;
 
+public enum SettingKeyValidationResult
+{
+    Valid,
+    InvalidKey,
+    CustomKeyLimitExceeded,
+    SystemKeyUnauthorized,
+
+    // Legacy values used by existing controllers
+    CodeDefined,
+    Custom,
+    System,
+    Unknown
+}
+
 public static class SettingKeyValidator
 {
     public const string CustomPrefix = "custom.";
@@ -8,8 +22,43 @@ public static class SettingKeyValidator
 
     public static bool IsCustomKey(string key) => key.StartsWith(CustomPrefix, StringComparison.Ordinal);
     public static bool IsSystemKey(string key) => key.StartsWith(SystemPrefix, StringComparison.Ordinal);
-    public static bool IsCodeDefinedKey(string key, ISettingRegistry registry) => registry.IsCodeDefinedKey(key);
 
+    /// <summary>
+    /// Full validation with authorization and custom key limit enforcement.
+    /// </summary>
+    public static SettingKeyValidationResult Validate(
+        string key,
+        ISettingRegistry registry,
+        bool isPlatformAdmin,
+        int currentCustomKeyCount)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            return SettingKeyValidationResult.InvalidKey;
+        }
+
+        if (IsSystemKey(key))
+        {
+            return isPlatformAdmin
+                ? SettingKeyValidationResult.Valid
+                : SettingKeyValidationResult.SystemKeyUnauthorized;
+        }
+
+        if (IsCustomKey(key))
+        {
+            return currentCustomKeyCount >= MaxCustomKeysPerTenant
+                ? SettingKeyValidationResult.CustomKeyLimitExceeded
+                : SettingKeyValidationResult.Valid;
+        }
+
+        return registry.IsCodeDefinedKey(key)
+            ? SettingKeyValidationResult.Valid
+            : SettingKeyValidationResult.InvalidKey;
+    }
+
+    /// <summary>
+    /// Classifies a key by namespace without enforcing authorization or limits.
+    /// </summary>
     public static SettingKeyValidationResult Validate(string key, ISettingRegistry registry)
     {
         if (IsCustomKey(key))
@@ -22,7 +71,7 @@ public static class SettingKeyValidator
             return SettingKeyValidationResult.System;
         }
 
-        if (IsCodeDefinedKey(key, registry))
+        if (registry.IsCodeDefinedKey(key))
         {
             return SettingKeyValidationResult.CodeDefined;
         }
@@ -30,5 +79,3 @@ public static class SettingKeyValidator
         return SettingKeyValidationResult.Unknown;
     }
 }
-
-public enum SettingKeyValidationResult { CodeDefined, Custom, System, Unknown }
