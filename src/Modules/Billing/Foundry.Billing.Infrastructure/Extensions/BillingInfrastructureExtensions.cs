@@ -1,12 +1,14 @@
 using Foundry.Billing.Application.Interfaces;
 using Foundry.Billing.Application.Metering.Interfaces;
 using Foundry.Billing.Application.Metering.Services;
+using Foundry.Billing.Application.Settings;
 using Foundry.Billing.Infrastructure.Jobs;
 using Foundry.Billing.Infrastructure.Persistence;
 using Foundry.Billing.Infrastructure.Persistence.Repositories;
 using Foundry.Billing.Infrastructure.Services;
 using Foundry.Shared.Contracts.Billing;
 using Foundry.Shared.Contracts.Metering;
+using Foundry.Shared.Infrastructure.Settings;
 using Foundry.Shared.Kernel.MultiTenancy;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -20,6 +22,7 @@ public static class BillingInfrastructureExtensions
         this IServiceCollection services, IConfiguration configuration)
     {
         services.AddBillingPersistence(configuration);
+        services.AddSettings<BillingDbContext, BillingSettingKeys>();
         return services;
     }
 

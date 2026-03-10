@@ -20,28 +20,28 @@ internal static class FoundryModules
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        IConfigurationSection modules = configuration.GetSection("FeatureManagement");
+        IConfigurationSection modules = configuration.GetSection("Foundry:Modules");
 
         // ============================================================================
         // PLATFORM MODULES
         // Core infrastructure services used across all domain modules
         // ============================================================================
-        if (modules.GetValue("Modules.Identity", defaultValue: true))
+        if (modules.GetValue("Identity", defaultValue: true))
         {
             services.AddIdentityModule(configuration);
         }
 
-        if (modules.GetValue("Modules.Billing", defaultValue: true))
+        if (modules.GetValue("Billing", defaultValue: true))
         {
             services.AddBillingModule(configuration);
         }
 
-        if (modules.GetValue("Modules.Communications", defaultValue: true))
+        if (modules.GetValue("Communications", defaultValue: true))
         {
             services.AddCommunicationsModule(configuration);
         }
 
-        if (modules.GetValue("Modules.Storage", defaultValue: true))
+        if (modules.GetValue("Storage", defaultValue: true))
         {
             services.AddStorageModule(configuration);
         }
@@ -50,17 +50,17 @@ internal static class FoundryModules
         // FEATURE MODULES
         // Higher-level application features built on platform and domain modules
         // ============================================================================
-        if (modules.GetValue("Modules.Configuration", defaultValue: true))
+        if (modules.GetValue("Configuration", defaultValue: true))
         {
             services.AddConfigurationModule(configuration);
         }
 
-        if (modules.GetValue("Modules.Inquiries", defaultValue: true))
+        if (modules.GetValue("Inquiries", defaultValue: true))
         {
             services.AddInquiriesModule(configuration);
         }
 
-        if (modules.GetValue("Modules.Showcases", defaultValue: true))
+        if (modules.GetValue("Showcases", defaultValue: true))
         {
             services.AddShowcasesModule(configuration);
         }
@@ -76,28 +76,28 @@ internal static class FoundryModules
 
     public static async Task InitializeFoundryModulesAsync(this WebApplication app)
     {
-        IConfigurationSection modules = app.Configuration.GetSection("FeatureManagement");
+        IConfigurationSection modules = app.Configuration.GetSection("Foundry:Modules");
 
         // ============================================================================
         // PLATFORM MODULES
         // Core infrastructure services - runs DB migrations
         // ============================================================================
-        if (modules.GetValue("Modules.Identity", defaultValue: true))
+        if (modules.GetValue("Identity", defaultValue: true))
         {
             await app.InitializeIdentityModuleAsync();
         }
 
-        if (modules.GetValue("Modules.Billing", defaultValue: true))
+        if (modules.GetValue("Billing", defaultValue: true))
         {
             await app.InitializeBillingModuleAsync();
         }
 
-        if (modules.GetValue("Modules.Communications", defaultValue: true))
+        if (modules.GetValue("Communications", defaultValue: true))
         {
             await app.InitializeCommunicationsModuleAsync();
         }
 
-        if (modules.GetValue("Modules.Storage", defaultValue: true))
+        if (modules.GetValue("Storage", defaultValue: true))
         {
             await app.InitializeStorageModuleAsync();
         }
@@ -106,17 +106,17 @@ internal static class FoundryModules
         // FEATURE MODULES
         // EF Core modules run migrations
         // ============================================================================
-        if (modules.GetValue("Modules.Configuration", defaultValue: true))
+        if (modules.GetValue("Configuration", defaultValue: true))
         {
             await app.InitializeConfigurationModuleAsync();
         }
 
-        if (modules.GetValue("Modules.Inquiries", defaultValue: true))
+        if (modules.GetValue("Inquiries", defaultValue: true))
         {
             await app.InitializeInquiriesModuleAsync();
         }
 
-        if (modules.GetValue("Modules.Showcases", defaultValue: true))
+        if (modules.GetValue("Showcases", defaultValue: true))
         {
             await app.InitializeShowcasesModuleAsync();
         }

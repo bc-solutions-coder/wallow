@@ -1,6 +1,7 @@
 using Foundry.Billing.Domain.Entities;
 using Foundry.Billing.Domain.Metering.Entities;
 using Foundry.Shared.Infrastructure.Core.Persistence;
+using Foundry.Shared.Infrastructure.Settings;
 using Foundry.Shared.Kernel.MultiTenancy;
 using Microsoft.EntityFrameworkCore;
 
@@ -15,6 +16,8 @@ public sealed class BillingDbContext : TenantAwareDbContext<BillingDbContext>
     public DbSet<MeterDefinition> MeterDefinitions => Set<MeterDefinition>();
     public DbSet<QuotaDefinition> QuotaDefinitions => Set<QuotaDefinition>();
     public DbSet<UsageRecord> UsageRecords => Set<UsageRecord>();
+    public DbSet<TenantSettingEntity> TenantSettings => Set<TenantSettingEntity>();
+    public DbSet<UserSettingEntity> UserSettings => Set<UserSettingEntity>();
 
     public BillingDbContext(DbContextOptions<BillingDbContext> options, ITenantContext tenantContext)
         : base(options, tenantContext)
@@ -26,6 +29,7 @@ public sealed class BillingDbContext : TenantAwareDbContext<BillingDbContext>
     {
         modelBuilder.HasDefaultSchema("billing");
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(BillingDbContext).Assembly);
+        modelBuilder.ApplySettingsConfigurations();
 
         ApplyTenantQueryFilters(modelBuilder);
     }
