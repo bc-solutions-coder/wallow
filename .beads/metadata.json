@@ -1,6 +1,8 @@
 {
   "database": "dolt",
-  "jsonl_export": "issues.jsonl",
   "backend": "dolt",
-  "dolt_database": "beads_foundry"
+  "dolt_mode": "server",
+  "dolt_database": "beads_foundry",
+  "project_id": "e14eb1f1-e6d6-4e0b-a078-05e9c6adb609",
+  "last_bd_version": "0.59.0"
 }

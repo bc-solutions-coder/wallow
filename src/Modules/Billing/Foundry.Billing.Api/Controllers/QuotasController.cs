@@ -16,7 +16,7 @@ namespace Foundry.Billing.Api.Controllers;
 
 [ApiController]
 [ApiVersion(1)]
-[Route("api/v{version:apiVersion}/metering/quotas")]
+[Route("api/v{version:apiVersion}/billing/metering/quotas")]
 [Authorize]
 [Tags("Metering")]
 [Produces("application/json")]
