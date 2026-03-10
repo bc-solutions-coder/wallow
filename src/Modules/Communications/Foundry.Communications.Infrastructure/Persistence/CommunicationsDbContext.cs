@@ -5,6 +5,7 @@ using Foundry.Communications.Domain.Channels.Sms.Entities;
 using Foundry.Communications.Domain.Messaging.Entities;
 using Foundry.Communications.Domain.Preferences.Entities;
 using Foundry.Shared.Infrastructure.Core.Persistence;
+using Foundry.Shared.Infrastructure.Settings;
 using Foundry.Shared.Kernel.MultiTenancy;
 using Microsoft.EntityFrameworkCore;
 
@@ -37,6 +38,10 @@ public sealed class CommunicationsDbContext : TenantAwareDbContext<Communication
     public DbSet<ChangelogEntry> ChangelogEntries => Set<ChangelogEntry>();
     public DbSet<ChangelogItem> ChangelogItems => Set<ChangelogItem>();
 
+    // Settings
+    public DbSet<TenantSettingEntity> TenantSettings => Set<TenantSettingEntity>();
+    public DbSet<UserSettingEntity> UserSettings => Set<UserSettingEntity>();
+
     public CommunicationsDbContext(
         DbContextOptions<CommunicationsDbContext> options,
         ITenantContext tenantContext) : base(options, tenantContext)
@@ -48,6 +53,7 @@ public sealed class CommunicationsDbContext : TenantAwareDbContext<Communication
     {
         modelBuilder.HasDefaultSchema("communications");
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(CommunicationsDbContext).Assembly);
+        modelBuilder.ApplySettingsConfigurations();
 
         ApplyTenantQueryFilters(modelBuilder);
     }

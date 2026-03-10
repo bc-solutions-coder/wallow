@@ -2,8 +2,10 @@ using System.Net.Sockets;
 using Amazon;
 using Amazon.S3;
 using Foundry.Shared.Contracts.Storage;
+using Foundry.Shared.Infrastructure.Settings;
 using Foundry.Shared.Kernel.MultiTenancy;
 using Foundry.Storage.Application.Configuration;
+using Foundry.Storage.Application.Settings;
 using Foundry.Storage.Application.Interfaces;
 using Foundry.Storage.Domain.Enums;
 using Foundry.Storage.Infrastructure.Configuration;
@@ -27,6 +29,7 @@ public static class StorageInfrastructureExtensions
     {
         services.Configure<PresignedUrlOptions>(configuration.GetSection(PresignedUrlOptions.SectionName));
         services.AddStoragePersistence(configuration);
+        services.AddSettings<StorageDbContext, StorageSettingKeys>();
         services.AddStorageProvider(configuration);
         services.AddScoped<IFileScanner, ClamAvFileScanner>();
         services.AddClamAvHealthCheck(configuration);

@@ -5,11 +5,13 @@ using Foundry.Communications.Application.Channels.Sms.Interfaces;
 using Foundry.Communications.Application.Extensions;
 using Foundry.Communications.Application.Messaging.Interfaces;
 using Foundry.Communications.Application.Preferences.Interfaces;
+using Foundry.Communications.Application.Settings;
 using Foundry.Communications.Infrastructure.Jobs;
 using Foundry.Communications.Infrastructure.Persistence;
 using Foundry.Communications.Infrastructure.Persistence.Repositories;
 using Foundry.Communications.Infrastructure.Services;
 using Foundry.Shared.Contracts.Communications.Email;
+using Foundry.Shared.Infrastructure.Settings;
 using Foundry.Shared.Kernel.MultiTenancy;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
@@ -35,6 +37,7 @@ public static partial class CommunicationsModuleExtensions
         services
             .AddCommunicationsPersistence(configuration)
             .AddCommunicationsServices(configuration);
+        services.AddSettings<CommunicationsDbContext, CommunicationsSettingKeys>();
 
         return services;
     }

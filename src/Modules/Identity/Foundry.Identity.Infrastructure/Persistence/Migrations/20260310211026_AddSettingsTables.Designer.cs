@@ -3,17 +3,20 @@ using System;
 using Foundry.Identity.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace Foundry.Identity.Infrastructure.Persistence.Migrations
+namespace Foundry.Identity.Infrastructure.Persistence.Migrations;
+
+[DbContext(typeof(IdentityDbContext))]
+[Migration("20260310211026_AddSettingsTables")]
+partial class AddSettingsTables
 {
-    [DbContext(typeof(IdentityDbContext))]
-    partial class IdentityDbContextModelSnapshot : ModelSnapshot
-    {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -534,5 +537,4 @@ namespace Foundry.Identity.Infrastructure.Persistence.Migrations
                 });
 #pragma warning restore 612, 618
         }
-    }
 }

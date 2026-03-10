@@ -1,6 +1,7 @@
 using Foundry.Identity.Domain.Entities;
 using Foundry.Identity.Infrastructure.Persistence.Converters;
 using Foundry.Shared.Infrastructure.Core.Persistence;
+using Foundry.Shared.Infrastructure.Settings;
 using Foundry.Shared.Kernel.MultiTenancy;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
@@ -16,6 +17,8 @@ public sealed class IdentityDbContext : TenantAwareDbContext<IdentityDbContext>
     public DbSet<SsoConfiguration> SsoConfigurations => Set<SsoConfiguration>();
     public DbSet<ScimConfiguration> ScimConfigurations => Set<ScimConfiguration>();
     public DbSet<ScimSyncLog> ScimSyncLogs => Set<ScimSyncLog>();
+    public DbSet<TenantSettingEntity> TenantSettings => Set<TenantSettingEntity>();
+    public DbSet<UserSettingEntity> UserSettings => Set<UserSettingEntity>();
 
     public IdentityDbContext(
         DbContextOptions<IdentityDbContext> options,
@@ -30,6 +33,7 @@ public sealed class IdentityDbContext : TenantAwareDbContext<IdentityDbContext>
     {
         modelBuilder.HasDefaultSchema("identity");
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(IdentityDbContext).Assembly);
+        modelBuilder.ApplySettingsConfigurations();
 
         IDataProtector protector = _dataProtectionProvider.CreateProtector("Foundry.Identity.SsoSecrets");
         EncryptedStringConverter encryptedStringConverter = new(protector);

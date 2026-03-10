@@ -1,8 +1,10 @@
 using Foundry.Identity.Application.Interfaces;
+using Foundry.Identity.Application.Settings;
 using Foundry.Identity.Infrastructure.Authorization;
 using Foundry.Identity.Infrastructure.Persistence;
 using Foundry.Identity.Infrastructure.Repositories;
 using Foundry.Identity.Infrastructure.Services;
+using Foundry.Shared.Infrastructure.Settings;
 using Foundry.Shared.Kernel.MultiTenancy;
 using Keycloak.AuthServices.Authentication;
 using Keycloak.AuthServices.Sdk;
@@ -33,6 +35,7 @@ public static class IdentityInfrastructureExtensions
         services.AddIdentityAuthorization();
         services.AddMultiTenancy();
         services.AddIdentityPersistence(configuration);
+        services.AddSettings<IdentityDbContext, IdentitySettingKeys>();
         services.AddKeycloakAdmin(configuration);
 
         return services;
