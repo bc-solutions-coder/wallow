@@ -1,6 +1,7 @@
 #!/bin/bash
 # Discord notification hook for Claude Code
-# Reads hook event JSON from stdin and sends a formatted Discord message.
+# Fires on PostToolUse(Bash) — only sends if a git commit just happened.
+# Also handles SessionStart and SessionEnd events.
 
 WEBHOOK_URL="https://discord.com/api/webhooks/1481020848302456924/M4h5jmZ1l9HNAQ0MwaX28WiYoa0DL68CZJ4xB-MS1VWE2WILZZtgpr5j4KJ6Z31VxxGs"
 
@@ -11,49 +12,48 @@ SESSION_ID=$(echo "$EVENT" | jq -r '.session_id // "unknown"' | cut -c1-8)
 CWD=$(echo "$EVENT" | jq -r '.cwd // "unknown"')
 PROJECT=$(basename "$CWD")
 
-# Build message based on event type
 case "$HOOK_EVENT" in
   SessionStart)
     TITLE="Session Started"
     DESC="Claude Code session started in **${PROJECT}**"
-    COLOR=3066993  # green
+    COLOR=3066993
     ;;
   SessionEnd)
     TITLE="Session Ended"
     DESC="Claude Code session ended in **${PROJECT}**"
-    COLOR=15158332  # red
+    COLOR=15158332
     ;;
-  Stop)
-    TITLE="Task Complete"
-    COLOR=3447003  # blue
+  PostToolUse)
+    # Only proceed if the Bash command was a git commit (not add, push, etc.)
+    COMMAND=$(echo "$EVENT" | jq -r '.tool_input.command // ""')
+    echo "$COMMAND" | grep -q "git commit" || exit 0
 
-    # Pull active bead info
-    BEAD_INFO=$(cd "$CWD" && bd list --status=in_progress --flat 2>/dev/null | head -5)
+    # Skip if the command failed (no tool_response or error)
+    RESPONSE=$(echo "$EVENT" | jq -r '.tool_response // ""')
+    echo "$RESPONSE" | grep -qi "nothing to commit\|error\|fatal" && exit 0
+
+    # Get the latest commit info
+    COMMIT_HASH=$(cd "$CWD" && git log -1 --format="%h" 2>/dev/null)
+    COMMIT_MSG=$(cd "$CWD" && git log -1 --format="%s" 2>/dev/null)
+    COMMIT_BODY=$(cd "$CWD" && git log -1 --format="%b" 2>/dev/null | head -5)
+    BRANCH=$(cd "$CWD" && git branch --show-current 2>/dev/null)
+
+    TITLE="Commit — ${PROJECT}"
     NL=$'\n'
-    if [ -n "$BEAD_INFO" ]; then
-      BEAD_LINES=""
-      while IFS= read -r line; do
-        BEAD_ID=$(echo "$line" | awk '{print $2}')
-        BEAD_TITLE=$(echo "$line" | sed 's/^.*- //')
-        BEAD_LINES="${BEAD_LINES}${NL}• \`${BEAD_ID}\` — ${BEAD_TITLE}"
-      done <<< "$BEAD_INFO"
-      DESC="Claude Code finished a response in **${PROJECT}**${NL}${NL}**Active beads:**${BEAD_LINES}"
-    else
-      DESC="Claude Code finished a response in **${PROJECT}**${NL}${NL}No active beads."
-    fi
+    DESC="\`${COMMIT_HASH}\` on \`${BRANCH}\`${NL}${NL}**${COMMIT_MSG}**"
+    [ -n "$COMMIT_BODY" ] && DESC="${DESC}${NL}${COMMIT_BODY}"
+
+    COLOR=3447003
     ;;
   *)
-    TITLE="$HOOK_EVENT"
-    DESC="Event in **${PROJECT}**"
-    COLOR=9807270  # grey
+    exit 0
     ;;
 esac
 
-# Send to Discord
 PAYLOAD=$(jq -n \
   --arg title "$TITLE" \
   --arg desc "$DESC" \
-  --argjson color "$COLOR" \
+  --argjson color "${COLOR:-9807270}" \
   --arg footer "Session: $SESSION_ID | Project: $PROJECT" \
   '{
     "embeds": [{
