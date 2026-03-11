@@ -38,7 +38,6 @@ public static class FoundryModules
         services.AddBillingModule(configuration);
         services.AddCommunicationsModule(configuration);
         services.AddStorageModule(configuration);
-        services.AddConfigurationModule(configuration);
         services.AddFoundryPlugins(configuration);
         return services;
     }
@@ -49,7 +48,6 @@ public static class FoundryModules
         await app.InitializeBillingModuleAsync();
         await app.InitializeCommunicationsModuleAsync();
         await app.InitializeStorageModuleAsync();
-        await app.InitializeConfigurationModuleAsync();
         await app.InitializeFoundryPluginsAsync();
     }
 }

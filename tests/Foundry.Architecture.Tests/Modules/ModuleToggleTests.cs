@@ -1,7 +1,6 @@
 using System.Reflection;
 using Foundry.Billing.Infrastructure.Persistence;
 using Foundry.Communications.Infrastructure.Persistence;
-using Foundry.Configuration.Infrastructure.Persistence;
 using Foundry.Identity.Infrastructure.Persistence;
 using Foundry.Storage.Infrastructure.Persistence;
 using Microsoft.Extensions.Configuration;
@@ -22,7 +21,6 @@ public class ModuleToggleTests
                 ["FeatureManagement:Modules.Billing"] = "true",
                 ["FeatureManagement:Modules.Communications"] = "true",
                 ["FeatureManagement:Modules.Storage"] = "true",
-                ["FeatureManagement:Modules.Configuration"] = "true",
                 ["FeatureManagement:Modules.Inquiries"] = "true",
                 ["FeatureManagement:Modules.Showcases"] = "true",
                 ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Database=test",
@@ -49,7 +47,6 @@ public class ModuleToggleTests
                 ["FeatureManagement:Modules.Billing"] = "true",
                 ["FeatureManagement:Modules.Communications"] = "true",
                 ["FeatureManagement:Modules.Storage"] = "true",
-                ["FeatureManagement:Modules.Configuration"] = "true",
                 ["FeatureManagement:Modules.Inquiries"] = "true",
                 ["FeatureManagement:Modules.Showcases"] = "true",
                 ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Database=test",
@@ -66,8 +63,6 @@ public class ModuleToggleTests
             "Communications module should be registered by default");
         services.Should().Contain(sd => sd.ServiceType == typeof(StorageDbContext),
             "Storage module should be registered by default");
-        services.Should().Contain(sd => sd.ServiceType == typeof(ConfigurationDbContext),
-            "Configuration module should be registered by default");
     }
 
     private static void InvokeAddFoundryModules(IServiceCollection services, IConfiguration configuration)

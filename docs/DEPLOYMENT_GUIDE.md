@@ -610,7 +610,6 @@ suspend fun login(email: String, password: String): TokenResponse {
 | Billing | `/api/billing` | `/invoices`, `/payments` |
 | Communications | `/api/communications` | `/notifications`, `/announcements` |
 | Storage | `/api/storage` | `/files` |
-| Configuration | `/api/configuration` | `/feature-flags`, `/settings` |
 
 ### 6.9 Real-time Updates (SignalR)
 

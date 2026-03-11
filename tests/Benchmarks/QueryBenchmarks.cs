@@ -3,10 +3,6 @@ using Foundry.Billing.Domain.Entities;
 using Foundry.Billing.Domain.Identity;
 using Foundry.Billing.Infrastructure.Persistence;
 using Foundry.Billing.Infrastructure.Persistence.Repositories;
-using Foundry.Configuration.Domain.Entities;
-using Foundry.Configuration.Domain.Identity;
-using Foundry.Configuration.Infrastructure.Persistence;
-using Foundry.Configuration.Infrastructure.Persistence.Repositories;
 using Foundry.Identity.Domain.Entities;
 using Foundry.Identity.Infrastructure.Persistence;
 using Foundry.Identity.Infrastructure.Repositories;
@@ -27,24 +23,19 @@ namespace Foundry.Benchmarks;
 public sealed class QueryBenchmarks : IDisposable
 {
     private SqliteConnection _identityConnection = null!;
-    private SqliteConnection _configConnection = null!;
     private SqliteConnection _storageConnection = null!;
     private SqliteConnection _billingConnection = null!;
 
     private IdentityDbContext _identityDbContext = null!;
-    private ConfigurationDbContext _configDbContext = null!;
     private StorageDbContext _storageDbContext = null!;
     private BillingDbContext _billingDbContext = null!;
 
     private ScimConfigurationRepository _scimConfigRepo = null!;
-    private FeatureFlagRepository _featureFlagRepo = null!;
     private StorageBucketRepository _storageBucketRepo = null!;
     private StoredFileRepository _storedFileRepo = null!;
     private InvoiceRepository _invoiceRepo = null!;
     private SubscriptionRepository _subscriptionRepo = null!;
 
-    private FeatureFlagId _testFeatureFlagId;
-    private string _testFeatureFlagKey = null!;
     private StoredFileId _testStoredFileId;
     private string _testBucketName = null!;
     private InvoiceId _testInvoiceId;
@@ -66,23 +57,6 @@ public sealed class QueryBenchmarks : IDisposable
         _identityDbContext.Database.EnsureCreated();
         _scimConfigRepo = new ScimConfigurationRepository(_identityDbContext);
 
-        // Configuration
-        _configConnection = new SqliteConnection("DataSource=:memory:");
-        _configConnection.Open();
-        DbContextOptions<ConfigurationDbContext> configOptions = new DbContextOptionsBuilder<ConfigurationDbContext>()
-            .UseSqlite(_configConnection)
-            .Options;
-        _configDbContext = new ConfigurationDbContext(configOptions, tenantContext);
-        _configDbContext.Database.EnsureCreated();
-        _featureFlagRepo = new FeatureFlagRepository(_configDbContext);
-
-        // Seed configuration data
-        _testFeatureFlagKey = "bench-feature";
-        FeatureFlag featureFlag = FeatureFlag.CreateBoolean(_testFeatureFlagKey, "Benchmark Flag", true, TimeProvider.System);
-        _testFeatureFlagId = featureFlag.Id;
-        _configDbContext.FeatureFlags.Add(featureFlag);
-        _configDbContext.SaveChanges();
-        _configDbContext.ChangeTracker.Clear();
 
         // Storage
         _storageConnection = new SqliteConnection("DataSource=:memory:");
@@ -143,8 +117,6 @@ public sealed class QueryBenchmarks : IDisposable
     {
         _identityDbContext.Dispose();
         _identityConnection.Dispose();
-        _configDbContext.Dispose();
-        _configConnection.Dispose();
         _storageDbContext.Dispose();
         _storageConnection.Dispose();
         _billingDbContext.Dispose();
@@ -157,20 +129,6 @@ public sealed class QueryBenchmarks : IDisposable
     {
         _identityDbContext.ChangeTracker.Clear();
         return _scimConfigRepo.GetAsync();
-    }
-
-    [Benchmark]
-    public Task<FeatureFlag?> FeatureFlag_GetByKey()
-    {
-        _configDbContext.ChangeTracker.Clear();
-        return _featureFlagRepo.GetByKeyAsync(_testFeatureFlagKey);
-    }
-
-    [Benchmark]
-    public Task<FeatureFlag?> FeatureFlag_GetById()
-    {
-        _configDbContext.ChangeTracker.Clear();
-        return _featureFlagRepo.GetByIdAsync(_testFeatureFlagId);
     }
 
     [Benchmark]

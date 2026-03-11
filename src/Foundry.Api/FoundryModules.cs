@@ -1,7 +1,6 @@
 // Infrastructure extensions - canonical source for module registration
 using Foundry.Billing.Infrastructure.Extensions;
 using Foundry.Communications.Infrastructure.Extensions;
-using Foundry.Configuration.Infrastructure.Extensions;
 using Foundry.Identity.Infrastructure.Extensions;
 using Foundry.Inquiries.Infrastructure.Extensions;
 using Foundry.Shared.Infrastructure.Plugins;
@@ -56,11 +55,6 @@ internal static class FoundryModules
         // FEATURE MODULES
         // Higher-level application features built on platform and domain modules
         // ============================================================================
-        if (featureManager.IsEnabledAsync("Modules.Configuration").GetAwaiter().GetResult())
-        {
-            services.AddConfigurationModule(configuration);
-        }
-
         if (featureManager.IsEnabledAsync("Modules.Inquiries").GetAwaiter().GetResult())
         {
             services.AddInquiriesModule(configuration);
@@ -112,11 +106,6 @@ internal static class FoundryModules
         // FEATURE MODULES
         // EF Core modules run migrations
         // ============================================================================
-        if (await featureManager.IsEnabledAsync("Modules.Configuration"))
-        {
-            await app.InitializeConfigurationModuleAsync();
-        }
-
         if (await featureManager.IsEnabledAsync("Modules.Inquiries"))
         {
             await app.InitializeInquiriesModuleAsync();

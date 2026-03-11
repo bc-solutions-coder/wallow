@@ -1,3 +1,4 @@
+using Foundry.Billing.Domain.CustomFields.Entities;
 using Foundry.Billing.Domain.Entities;
 using Foundry.Billing.Domain.Metering.Entities;
 using Foundry.Shared.Infrastructure.Core.Persistence;
@@ -16,6 +17,7 @@ public sealed class BillingDbContext : TenantAwareDbContext<BillingDbContext>
     public DbSet<MeterDefinition> MeterDefinitions => Set<MeterDefinition>();
     public DbSet<QuotaDefinition> QuotaDefinitions => Set<QuotaDefinition>();
     public DbSet<UsageRecord> UsageRecords => Set<UsageRecord>();
+    public DbSet<CustomFieldDefinition> CustomFieldDefinitions => Set<CustomFieldDefinition>();
     public DbSet<TenantSettingEntity> TenantSettings => Set<TenantSettingEntity>();
     public DbSet<UserSettingEntity> UserSettings => Set<UserSettingEntity>();
 

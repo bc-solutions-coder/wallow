@@ -22,11 +22,6 @@ public class CqrsConventionTests
     [MemberData(nameof(GetModuleNames))]
     public void CommandConventions_ShouldBeFollowed(string moduleName)
     {
-        if (moduleName == "Configuration")
-        {
-            return;
-        }
-
         Assembly applicationAssembly = GetModuleAssembly(moduleName, "Application");
 
         // Commands should end with "Command" and reside in Commands namespace
@@ -119,11 +114,6 @@ public class CqrsConventionTests
     [MemberData(nameof(GetModuleNames))]
     public void QueryConventions_ShouldBeFollowed(string moduleName)
     {
-        if (moduleName is "Configuration")
-        {
-            return;
-        }
-
         Assembly applicationAssembly = GetModuleAssembly(moduleName, "Application");
 
         // Queries should end with "Query"

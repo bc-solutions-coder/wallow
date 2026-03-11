@@ -86,7 +86,7 @@ cd docker && docker compose down -v && docker compose up -d
 
 Foundry is a modular monolith. Each module is an autonomous bounded context that follows Clean Architecture internally and communicates with other modules exclusively through integration events over RabbitMQ. Modules never reference each other directly.
 
-**Modules:** Identity, Storage, Communications, Billing, Configuration
+**Modules:** Identity, Storage, Communications, Billing
 
 **Shared libraries:**
 - `Foundry.Shared.Contracts` -- Cross-module integration events and DTOs
@@ -155,7 +155,6 @@ src/
     Billing/                          # Same four-layer pattern
     Storage/
     Communications/
-    Configuration/
   Shared/
     Foundry.Shared.Contracts/         # Cross-module events and DTOs
     Foundry.Shared.Kernel/            # Base classes, multi-tenancy, shared abstractions
@@ -433,17 +432,17 @@ See the Billing module: `src/Modules/Billing/Foundry.Billing.Infrastructure/Exte
 
 #### Stateless Module (no persistence)
 ```csharp
-public static class ConfigurationModuleExtensions
+public static class ExampleModuleExtensions
 {
-    public static IServiceCollection AddConfigurationModule(
+    public static IServiceCollection AddExampleModule(
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        services.AddConfigurationInfrastructure(configuration);
+        services.AddExampleInfrastructure(configuration);
         return services;
     }
 
-    public static Task<WebApplication> InitializeConfigurationModuleAsync(
+    public static Task<WebApplication> InitializeExampleModuleAsync(
         this WebApplication app) => Task.FromResult(app);
 }
 ```

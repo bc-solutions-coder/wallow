@@ -46,9 +46,6 @@
     <ProjectReference Include="..\..\src\Modules\Storage\Foundry.Storage.Infrastructure\Foundry.Storage.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Modules\Storage\Foundry.Storage.Api\Foundry.Storage.Api.csproj" />
 
-    <ProjectReference Include="..\..\src\Modules\Configuration\Foundry.Configuration.Domain\Foundry.Configuration.Domain.csproj" />    <ProjectReference Include="..\..\src\Modules\Configuration\Foundry.Configuration.Application\Foundry.Configuration.Application.csproj" />
-    <ProjectReference Include="..\..\src\Modules\Configuration\Foundry.Configuration.Infrastructure\Foundry.Configuration.Infrastructure.csproj" />
-    <ProjectReference Include="..\..\src\Modules\Configuration\Foundry.Configuration.Api\Foundry.Configuration.Api.csproj" />
 
     <ProjectReference Include="..\..\src\Shared\Foundry.Shared.Infrastructure\Foundry.Shared.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Shared\Foundry.Shared.Kernel\Foundry.Shared.Kernel.csproj" />

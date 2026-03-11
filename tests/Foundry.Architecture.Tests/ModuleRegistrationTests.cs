@@ -36,7 +36,7 @@ public class ModuleRegistrationTests
     {
         string[] modulesWithDbContext =
         [
-            "Billing", "Communications", "Configuration",
+            "Billing", "Communications",
             "Identity", "Storage"
         ];
 
@@ -65,7 +65,6 @@ public class ModuleRegistrationTests
     [Theory]
     [InlineData("Billing")]
     [InlineData("Communications")]
-    [InlineData("Configuration")]
     [InlineData("Identity")]
     [InlineData("Storage")]
     public void Module_ShouldProvide_AddModuleExtensionMethod(string moduleName)
@@ -99,7 +98,6 @@ public class ModuleRegistrationTests
     [Theory]
     [InlineData("Billing")]
     [InlineData("Communications")]
-    [InlineData("Configuration")]
     [InlineData("Identity")]
     [InlineData("Storage")]
     public void Module_ShouldProvide_InitializeModuleExtensionMethod(string moduleName)
