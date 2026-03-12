@@ -15,7 +15,7 @@ using Foundry.Api.Jobs;
 using Foundry.Api.Logging;
 using Foundry.Api.Middleware;
 using Foundry.Api.Services;
-using Foundry.Communications.Infrastructure.Jobs;
+using Foundry.Notifications.Infrastructure.Jobs;
 using Foundry.Identity.Infrastructure.Authorization;
 using Foundry.Identity.Infrastructure.Middleware;
 using Foundry.Identity.Infrastructure.MultiTenancy;

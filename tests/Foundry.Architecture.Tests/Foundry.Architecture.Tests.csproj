@@ -36,10 +36,20 @@
     <ProjectReference Include="..\..\src\Modules\Billing\Foundry.Billing.Infrastructure\Foundry.Billing.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Modules\Billing\Foundry.Billing.Api\Foundry.Billing.Api.csproj" />
 
-    <ProjectReference Include="..\..\src\Modules\Communications\Foundry.Communications.Domain\Foundry.Communications.Domain.csproj" />
-    <ProjectReference Include="..\..\src\Modules\Communications\Foundry.Communications.Application\Foundry.Communications.Application.csproj" />
-    <ProjectReference Include="..\..\src\Modules\Communications\Foundry.Communications.Infrastructure\Foundry.Communications.Infrastructure.csproj" />
-    <ProjectReference Include="..\..\src\Modules\Communications\Foundry.Communications.Api\Foundry.Communications.Api.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Notifications\Foundry.Notifications.Domain\Foundry.Notifications.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Notifications\Foundry.Notifications.Application\Foundry.Notifications.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Notifications\Foundry.Notifications.Infrastructure\Foundry.Notifications.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Notifications\Foundry.Notifications.Api\Foundry.Notifications.Api.csproj" />
+
+    <ProjectReference Include="..\..\src\Modules\Messaging\Foundry.Messaging.Domain\Foundry.Messaging.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Messaging\Foundry.Messaging.Application\Foundry.Messaging.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Messaging\Foundry.Messaging.Infrastructure\Foundry.Messaging.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Messaging\Foundry.Messaging.Api\Foundry.Messaging.Api.csproj" />
+
+    <ProjectReference Include="..\..\src\Modules\Announcements\Foundry.Announcements.Domain\Foundry.Announcements.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Announcements\Foundry.Announcements.Application\Foundry.Announcements.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Announcements\Foundry.Announcements.Infrastructure\Foundry.Announcements.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Announcements\Foundry.Announcements.Api\Foundry.Announcements.Api.csproj" />
 
     <ProjectReference Include="..\..\src\Modules\Storage\Foundry.Storage.Domain\Foundry.Storage.Domain.csproj" />
     <ProjectReference Include="..\..\src\Modules\Storage\Foundry.Storage.Application\Foundry.Storage.Application.csproj" />

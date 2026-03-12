@@ -1,7 +1,9 @@
 using System.Reflection;
 using Foundry.Billing.Infrastructure.Persistence;
-using Foundry.Communications.Infrastructure.Persistence;
 using Foundry.Identity.Infrastructure.Persistence;
+using Foundry.Notifications.Infrastructure.Persistence;
+using Foundry.Messaging.Infrastructure.Persistence;
+using Foundry.Announcements.Infrastructure.Persistence;
 using Foundry.Storage.Infrastructure.Persistence;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,7 +21,9 @@ public class ModuleToggleTests
             {
                 ["FeatureManagement:Modules.Identity"] = "false",
                 ["FeatureManagement:Modules.Billing"] = "true",
-                ["FeatureManagement:Modules.Communications"] = "true",
+                ["FeatureManagement:Modules.Notifications"] = "true",
+                ["FeatureManagement:Modules.Messaging"] = "true",
+                ["FeatureManagement:Modules.Announcements"] = "true",
                 ["FeatureManagement:Modules.Storage"] = "true",
                 ["FeatureManagement:Modules.Inquiries"] = "true",
                 ["FeatureManagement:Modules.Showcases"] = "true",
@@ -45,7 +49,9 @@ public class ModuleToggleTests
             {
                 ["FeatureManagement:Modules.Identity"] = "true",
                 ["FeatureManagement:Modules.Billing"] = "true",
-                ["FeatureManagement:Modules.Communications"] = "true",
+                ["FeatureManagement:Modules.Notifications"] = "true",
+                ["FeatureManagement:Modules.Messaging"] = "true",
+                ["FeatureManagement:Modules.Announcements"] = "true",
                 ["FeatureManagement:Modules.Storage"] = "true",
                 ["FeatureManagement:Modules.Inquiries"] = "true",
                 ["FeatureManagement:Modules.Showcases"] = "true",
@@ -59,8 +65,12 @@ public class ModuleToggleTests
             "Identity module should be registered by default");
         services.Should().Contain(sd => sd.ServiceType == typeof(BillingDbContext),
             "Billing module should be registered by default");
-        services.Should().Contain(sd => sd.ServiceType == typeof(CommunicationsDbContext),
-            "Communications module should be registered by default");
+        services.Should().Contain(sd => sd.ServiceType == typeof(NotificationsDbContext),
+            "Notifications module should be registered by default");
+        services.Should().Contain(sd => sd.ServiceType == typeof(MessagingDbContext),
+            "Messaging module should be registered by default");
+        services.Should().Contain(sd => sd.ServiceType == typeof(AnnouncementsDbContext),
+            "Announcements module should be registered by default");
         services.Should().Contain(sd => sd.ServiceType == typeof(StorageDbContext),
             "Storage module should be registered by default");
     }

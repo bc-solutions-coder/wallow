@@ -4,12 +4,20 @@ using Foundry.Inquiries.Domain.Entities;
 using Foundry.Inquiries.Domain.Events;
 using Foundry.Inquiries.Domain.Identity;
 using Foundry.Shared.Contracts.Inquiries.Events;
+using Microsoft.Extensions.Configuration;
 using Wolverine;
 
 namespace Foundry.Inquiries.Tests.Application.EventHandlers;
 
 public class InquirySubmittedDomainEventHandlerTests
 {
+    private readonly IConfiguration _configuration = new ConfigurationBuilder()
+        .AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Inquiries:AdminEmail"] = "admin@test.local"
+        })
+        .Build();
+
     [Fact]
     public async Task HandleAsync_PublishesIntegrationEvent()
     {
@@ -29,7 +37,7 @@ public class InquirySubmittedDomainEventHandlerTests
             inquiry.Timeline,
             inquiry.Message);
 
-        await InquirySubmittedDomainEventHandler.HandleAsync(domainEvent, repository, bus, CancellationToken.None);
+        await InquirySubmittedDomainEventHandler.HandleAsync(domainEvent, repository, _configuration, bus, CancellationToken.None);
 
         await bus.Received(1).PublishAsync(Arg.Is<InquirySubmittedEvent>(e =>
             e.InquiryId == domainEvent.InquiryId &&
@@ -37,7 +45,8 @@ public class InquirySubmittedDomainEventHandlerTests
             e.Email == domainEvent.Email &&
             e.Company == domainEvent.Company &&
             e.Subject == domainEvent.ProjectType &&
-            e.Message == domainEvent.Message));
+            e.Message == domainEvent.Message &&
+            e.AdminEmail == "admin@test.local"));
     }
 
     [Fact]
@@ -60,7 +69,7 @@ public class InquirySubmittedDomainEventHandlerTests
             inquiry.Timeline,
             inquiry.Message);
 
-        await InquirySubmittedDomainEventHandler.HandleAsync(domainEvent, repository, bus, CancellationToken.None);
+        await InquirySubmittedDomainEventHandler.HandleAsync(domainEvent, repository, _configuration, bus, CancellationToken.None);
 
         await repository.Received(1).GetByIdAsync(Arg.Is<InquiryId>(id => id.Value == inquiryId.Value), Arg.Any<CancellationToken>());
     }

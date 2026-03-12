@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Foundry.Messaging.Api</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="JetBrains.Annotations" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Foundry.Messaging.Application\Foundry.Messaging.Application.csproj" />
+    <ProjectReference Include="..\..\..\Shared\Foundry.Shared.Infrastructure\Foundry.Shared.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\Shared\Foundry.Shared.Api\Foundry.Shared.Api.csproj" />
+  </ItemGroup>
+
+</Project>
