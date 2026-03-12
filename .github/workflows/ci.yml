@@ -33,7 +33,7 @@ jobs:
         run: dotnet build --no-restore --configuration Release
 
       - name: Check code formatting
-        run: dotnet format Foundry.sln --verify-no-changes --no-restore
+        run: dotnet format Foundry.slnx --verify-no-changes --no-restore
 
   unit-tests:
     needs: build

@@ -51,7 +51,7 @@ find src tests -name 'Foundry.*.csproj' | while read f; do
 done
 
 # Rename the solution file
-mv Foundry.sln YourProduct.sln
+mv Foundry.slnx YourProduct.slnx
 ```
 
 **Replace namespace strings across all source files:**

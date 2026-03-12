@@ -190,7 +190,7 @@ public class ModuleRegistrationTests
     private static string GetSolutionRoot()
     {
         DirectoryInfo? directory = new(AppContext.BaseDirectory);
-        while (directory != null && !File.Exists(Path.Combine(directory.FullName, "Foundry.sln")))
+        while (directory != null && !File.Exists(Path.Combine(directory.FullName, "Foundry.slnx")))
         {
             directory = directory.Parent;
         }

@@ -13,13 +13,13 @@ WORKDIR /src
 COPY ["Directory.Build.props", "./"]
 COPY ["Directory.Packages.props", "./"]
 COPY ["global.json", "./"]
-COPY ["Foundry.sln", "./"]
+COPY ["Foundry.slnx", "./"]
 
 # Copy all .csproj files preserving directory structure (requires BuildKit)
 COPY --parents src/**/*.csproj ./
 COPY --parents tests/**/*.csproj ./
 
-RUN dotnet restore "Foundry.sln"
+RUN dotnet restore "Foundry.slnx"
 
 # Now copy everything and build
 COPY . .
