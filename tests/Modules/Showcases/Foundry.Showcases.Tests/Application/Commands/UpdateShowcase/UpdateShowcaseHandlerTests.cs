@@ -93,4 +93,57 @@ public class UpdateShowcaseHandlerTests
         result.Error.Code.Should().Be("Showcase.TitleRequired");
         await _repository.DidNotReceive().UpdateAsync(Arg.Any<Showcase>(), Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task Handle_WithNoUrls_ReturnsFailure()
+    {
+        Showcase showcase = CreateValidShowcase();
+        _repository.GetByIdAsync(showcase.Id, Arg.Any<CancellationToken>()).Returns(showcase);
+
+        UpdateShowcaseCommand command = new(
+            ShowcaseId: showcase.Id,
+            Title: "Updated Title",
+            Description: null,
+            Category: ShowcaseCategory.WebApp,
+            DemoUrl: null,
+            GitHubUrl: null,
+            VideoUrl: null);
+
+        Result result = await _handler.Handle(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Be("Showcase.UrlRequired");
+        await _repository.DidNotReceive().UpdateAsync(Arg.Any<Showcase>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_UpdatesEntityWithCorrectValues()
+    {
+        Showcase showcase = CreateValidShowcase();
+        _repository.GetByIdAsync(showcase.Id, Arg.Any<CancellationToken>()).Returns(showcase);
+
+        UpdateShowcaseCommand command = new(
+            ShowcaseId: showcase.Id,
+            Title: "New Title",
+            Description: "New Description",
+            Category: ShowcaseCategory.Mobile,
+            DemoUrl: null,
+            GitHubUrl: "https://github.com/new",
+            VideoUrl: "https://video.example.com",
+            Tags: ["blazor"],
+            DisplayOrder: 10,
+            IsPublished: true);
+
+        Result result = await _handler.Handle(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        showcase.Title.Should().Be("New Title");
+        showcase.Description.Should().Be("New Description");
+        showcase.Category.Should().Be(ShowcaseCategory.Mobile);
+        showcase.GitHubUrl.Should().Be("https://github.com/new");
+        showcase.VideoUrl.Should().Be("https://video.example.com");
+        showcase.Tags.Should().BeEquivalentTo(["blazor"]);
+        showcase.DisplayOrder.Should().Be(10);
+        showcase.IsPublished.Should().BeTrue();
+    }
 }

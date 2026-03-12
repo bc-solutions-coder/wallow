@@ -84,4 +84,47 @@ public class CreateShowcaseHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Code.Should().Be("Showcase.UrlRequired");
     }
+
+    [Fact]
+    public async Task Handle_WithTagsAndDisplayOrder_PersistsShowcaseWithValues()
+    {
+        Showcase? capturedShowcase = null;
+        await _repository.AddAsync(Arg.Do<Showcase>(s => capturedShowcase = s), Arg.Any<CancellationToken>());
+
+        CreateShowcaseCommand command = new(
+            Title: "Tagged Showcase",
+            Description: "With tags",
+            Category: ShowcaseCategory.Tool,
+            DemoUrl: "https://demo.example.com",
+            GitHubUrl: null,
+            VideoUrl: null,
+            Tags: ["dotnet", "csharp"],
+            DisplayOrder: 7,
+            IsPublished: true);
+
+        Result<ShowcaseId> result = await _handler.Handle(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        capturedShowcase.Should().NotBeNull();
+        capturedShowcase!.Tags.Should().BeEquivalentTo(["dotnet", "csharp"]);
+        capturedShowcase.DisplayOrder.Should().Be(7);
+        capturedShowcase.IsPublished.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Handle_WithTitleTooLong_ReturnsFailure()
+    {
+        CreateShowcaseCommand command = new(
+            Title: new string('a', 201),
+            Description: null,
+            Category: ShowcaseCategory.WebApp,
+            DemoUrl: "https://demo.example.com",
+            GitHubUrl: null,
+            VideoUrl: null);
+
+        Result<ShowcaseId> result = await _handler.Handle(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Be("Showcase.TitleTooLong");
+    }
 }
