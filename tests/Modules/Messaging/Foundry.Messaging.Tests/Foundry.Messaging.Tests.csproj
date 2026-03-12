@@ -27,6 +27,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\..\..\src\Shared\Foundry.Shared.Kernel\Foundry.Shared.Kernel.csproj" />
     <ProjectReference Include="..\..\..\..\src\Modules\Messaging\Foundry.Messaging.Domain\Foundry.Messaging.Domain.csproj" />
     <ProjectReference Include="..\..\..\..\src\Modules\Messaging\Foundry.Messaging.Application\Foundry.Messaging.Application.csproj" />
     <ProjectReference Include="..\..\..\..\src\Modules\Messaging\Foundry.Messaging.Infrastructure\Foundry.Messaging.Infrastructure.csproj" />

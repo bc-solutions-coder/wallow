@@ -1,5 +1,7 @@
 using Foundry.Shared.Kernel.Identity;
 using Foundry.Storage.Domain.Entities;
+using Foundry.Storage.Domain.Enums;
+using Foundry.Storage.Domain.Events;
 using Foundry.Storage.Domain.Identity;
 
 namespace Foundry.Storage.Tests.Domain.Entities;
@@ -46,6 +48,14 @@ public class StoredFileCreateTests
     }
 
     [Fact]
+    public void Create_WithValidData_SetsStatusToAvailable()
+    {
+        StoredFile file = CreateTestFile();
+
+        file.Status.Should().Be(FileStatus.Available);
+    }
+
+    [Fact]
     public void Create_WithDefaultOptionalParameters_UsesDefaults()
     {
         TenantId tenantId = TenantId.New();
@@ -87,6 +97,97 @@ public class StoredFileCreateTests
         file.UploadedAt.Should().BeOnOrBefore(after);
     }
 
+    [Fact]
+    public void Create_RaisesFileUploadedDomainEvent()
+    {
+        TenantId tenantId = TenantId.New();
+        StorageBucketId bucketId = StorageBucketId.New();
+
+        StoredFile file = StoredFile.Create(
+            tenantId,
+            bucketId,
+            "test.txt",
+            "text/plain",
+            100,
+            "key/test.txt",
+            Guid.NewGuid());
+
+        file.DomainEvents.Should().ContainSingle()
+            .Which.Should().BeOfType<FileUploadedEvent>()
+            .Which.Should().Match<FileUploadedEvent>(e =>
+                e.FileId == file.Id &&
+                e.BucketId == bucketId &&
+                e.TenantId == tenantId);
+    }
+
+    [Fact]
+    public void CreatePendingValidation_WithValidData_SetsStatusToPendingValidation()
+    {
+        StoredFile file = StoredFile.CreatePendingValidation(
+            TenantId.New(),
+            StorageBucketId.New(),
+            "test.txt",
+            "text/plain",
+            100,
+            "key/test.txt",
+            Guid.NewGuid());
+
+        file.Status.Should().Be(FileStatus.PendingValidation);
+    }
+
+    [Fact]
+    public void CreatePendingValidation_WithValidData_SetsAllProperties()
+    {
+        TenantId tenantId = TenantId.New();
+        StorageBucketId bucketId = StorageBucketId.New();
+        string fileName = "scan-me.pdf";
+        string contentType = "application/pdf";
+        long sizeBytes = 5000L;
+        string storageKey = "key/scan-me.pdf";
+        Guid uploadedBy = Guid.NewGuid();
+        string path = "uploads";
+        string metadata = """{"scan": true}""";
+
+        StoredFile file = StoredFile.CreatePendingValidation(
+            tenantId,
+            bucketId,
+            fileName,
+            contentType,
+            sizeBytes,
+            storageKey,
+            uploadedBy,
+            path,
+            isPublic: true,
+            metadata);
+
+        file.Id.Value.Should().NotBeEmpty();
+        file.TenantId.Should().Be(tenantId);
+        file.BucketId.Should().Be(bucketId);
+        file.FileName.Should().Be(fileName);
+        file.ContentType.Should().Be(contentType);
+        file.SizeBytes.Should().Be(sizeBytes);
+        file.StorageKey.Should().Be(storageKey);
+        file.Path.Should().Be(path);
+        file.IsPublic.Should().BeTrue();
+        file.UploadedBy.Should().Be(uploadedBy);
+        file.Metadata.Should().Be(metadata);
+    }
+
+    [Fact]
+    public void CreatePendingValidation_DoesNotRaiseDomainEvent()
+    {
+        StoredFile file = StoredFile.CreatePendingValidation(
+            TenantId.New(),
+            StorageBucketId.New(),
+            "test.txt",
+            "text/plain",
+            100,
+            "key/test.txt",
+            Guid.NewGuid());
+
+        file.DomainEvents.Should().BeEmpty();
+    }
+
     private static StoredFile CreateTestFile()
     {
         return StoredFile.Create(
@@ -97,99 +198,5 @@ public class StoredFileCreateTests
             100,
             "key/test.txt",
             Guid.NewGuid());
-    }
-}
-
-public class StoredFileUpdateMetadataTests
-{
-    [Fact]
-    public void UpdateMetadata_WithNewValue_ChangesMetadata()
-    {
-        StoredFile file = CreateTestFile();
-        string newMetadata = """{"category": "updated"}""";
-
-        file.UpdateMetadata(newMetadata);
-
-        file.Metadata.Should().Be(newMetadata);
-    }
-
-    [Fact]
-    public void UpdateMetadata_WithNull_ClearsMetadata()
-    {
-        StoredFile file = CreateTestFile(metadata: """{"key": "value"}""");
-
-        file.UpdateMetadata(null);
-
-        file.Metadata.Should().BeNull();
-    }
-
-    [Fact]
-    public void UpdateMetadata_ReplacesExistingMetadata()
-    {
-        StoredFile file = CreateTestFile(metadata: """{"old": "data"}""");
-        string newMetadata = """{"new": "data"}""";
-
-        file.UpdateMetadata(newMetadata);
-
-        file.Metadata.Should().Be(newMetadata);
-    }
-
-    private static StoredFile CreateTestFile(string? metadata = null)
-    {
-        return StoredFile.Create(
-            TenantId.New(),
-            StorageBucketId.New(),
-            "test.txt",
-            "text/plain",
-            100,
-            "key/test.txt",
-            Guid.NewGuid(),
-            metadata: metadata);
-    }
-}
-
-public class StoredFileSetPublicTests
-{
-    [Fact]
-    public void SetPublic_WithTrue_SetsIsPublicToTrue()
-    {
-        StoredFile file = CreateTestFile(isPublic: false);
-
-        file.SetPublic(true);
-
-        file.IsPublic.Should().BeTrue();
-    }
-
-    [Fact]
-    public void SetPublic_WithFalse_SetsIsPublicToFalse()
-    {
-        StoredFile file = CreateTestFile(isPublic: true);
-
-        file.SetPublic(false);
-
-        file.IsPublic.Should().BeFalse();
-    }
-
-    [Fact]
-    public void SetPublic_WithSameValue_RemainsUnchanged()
-    {
-        StoredFile file = CreateTestFile(isPublic: true);
-
-        file.SetPublic(true);
-
-        file.IsPublic.Should().BeTrue();
-    }
-
-    private static StoredFile CreateTestFile(bool isPublic = false)
-    {
-        return StoredFile.Create(
-            TenantId.New(),
-            StorageBucketId.New(),
-            "test.txt",
-            "text/plain",
-            100,
-            "key/test.txt",
-            Guid.NewGuid(),
-            isPublic: isPublic);
     }
 }
