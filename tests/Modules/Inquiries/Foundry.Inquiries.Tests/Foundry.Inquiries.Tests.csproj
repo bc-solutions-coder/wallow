@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Foundry.Inquiries.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="FluentAssertions" />
+    <PackageReference Include="NSubstitute" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <Using Include="FluentAssertions" />
+    <Using Include="NSubstitute" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\src\Modules\Inquiries\Foundry.Inquiries.Domain\Foundry.Inquiries.Domain.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Modules\Inquiries\Foundry.Inquiries.Application\Foundry.Inquiries.Application.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Shared\Foundry.Shared.Contracts\Foundry.Shared.Contracts.csproj" />
+  </ItemGroup>
+</Project>
