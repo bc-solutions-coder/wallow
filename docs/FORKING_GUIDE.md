@@ -22,7 +22,7 @@ cd YourProduct
 ### 2. Rename the solution file
 
 ```bash
-mv Foundry.sln YourProduct.sln
+mv Foundry.slnx YourProduct.slnx
 ```
 
 ### 3. Rename namespaces across the codebase
@@ -116,7 +116,7 @@ In `.github/workflows/`:
 
 ### 8. Update Dockerfile
 
-The `Dockerfile` references `Foundry.sln` and `Foundry.Api.dll`. After the sed pass, verify:
+The `Dockerfile` references `Foundry.slnx` and `Foundry.Api.dll`. After the sed pass, verify:
 
 ```bash
 grep -i foundry Dockerfile
