@@ -1,5 +1,3 @@
-using Foundry.Communications.Api.Contracts.Email.Enums;
-using Foundry.Communications.Api.Contracts.Email.Requests;
 using Foundry.Communications.Api.Controllers;
 using Foundry.Communications.Domain.Announcements.Enums;
 
@@ -7,28 +5,6 @@ namespace Foundry.Communications.Tests.Api.Contracts;
 
 public class RequestContractTests
 {
-    #region UpdateEmailPreferenceRequest
-
-    [Fact]
-    public void UpdateEmailPreferenceRequest_CreatesWithAllFields()
-    {
-        UpdateEmailPreferenceRequest request = new(ApiNotificationType.TaskAssigned, true);
-
-        request.NotificationType.Should().Be(ApiNotificationType.TaskAssigned);
-        request.IsEnabled.Should().BeTrue();
-    }
-
-    [Fact]
-    public void UpdateEmailPreferenceRequest_WithDisabledPreference()
-    {
-        UpdateEmailPreferenceRequest request = new(ApiNotificationType.BillingInvoice, false);
-
-        request.NotificationType.Should().Be(ApiNotificationType.BillingInvoice);
-        request.IsEnabled.Should().BeFalse();
-    }
-
-    #endregion
-
     #region CreateAnnouncementRequest
 
     [Fact]

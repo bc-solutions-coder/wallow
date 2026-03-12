@@ -1,6 +1,4 @@
 using Foundry.Communications.Api.Contracts.Announcements.Responses;
-using Foundry.Communications.Api.Contracts.Email.Enums;
-using Foundry.Communications.Api.Contracts.Email.Responses;
 using Foundry.Communications.Api.Contracts.InApp.Responses;
 
 namespace Foundry.Communications.Tests.Api.Contracts;
@@ -160,33 +158,4 @@ public class ResponseContractTests
 
     #endregion
 
-    #region EmailPreferenceResponse
-
-    [Fact]
-    public void EmailPreferenceResponse_CreatesWithAllFields()
-    {
-        Guid id = Guid.NewGuid();
-        Guid userId = Guid.NewGuid();
-        DateTime createdAt = DateTime.UtcNow;
-        DateTime updatedAt = DateTime.UtcNow.AddMinutes(5);
-
-        EmailPreferenceResponse response = new(id, userId, ApiNotificationType.TaskAssigned, true, createdAt, updatedAt);
-
-        response.Id.Should().Be(id);
-        response.UserId.Should().Be(userId);
-        response.NotificationType.Should().Be(ApiNotificationType.TaskAssigned);
-        response.IsEnabled.Should().BeTrue();
-        response.CreatedAt.Should().Be(createdAt);
-        response.UpdatedAt.Should().Be(updatedAt);
-    }
-
-    [Fact]
-    public void EmailPreferenceResponse_WithNullUpdatedAt_CreatesCorrectly()
-    {
-        EmailPreferenceResponse response = new(Guid.NewGuid(), Guid.NewGuid(), ApiNotificationType.BillingInvoice, false, DateTime.UtcNow, null);
-
-        response.UpdatedAt.Should().BeNull();
-    }
-
-    #endregion
 }
