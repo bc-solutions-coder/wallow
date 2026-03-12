@@ -60,7 +60,7 @@ public class PaymentEventHandlerTests
 
         // Act
         await InvoicePaidDomainEventHandler.HandleAsync(
-            domainEvent, _invoiceRepository, _messageBus, _invoicePaidLogger, CancellationToken.None);
+            domainEvent, _invoiceRepository, _userQueryService, _messageBus, _invoicePaidLogger, CancellationToken.None);
 
         // Assert
         await _messageBus.Received(1).PublishAsync(Arg.Is<InvoicePaidEvent>(e =>
@@ -85,7 +85,7 @@ public class PaymentEventHandlerTests
 
         // Act
         await InvoicePaidDomainEventHandler.HandleAsync(
-            domainEvent, _invoiceRepository, _messageBus, _invoicePaidLogger, CancellationToken.None);
+            domainEvent, _invoiceRepository, _userQueryService, _messageBus, _invoicePaidLogger, CancellationToken.None);
 
         // Assert
         await _messageBus.DidNotReceive().PublishAsync(Arg.Any<InvoicePaidEvent>());
@@ -111,9 +111,9 @@ public class PaymentEventHandlerTests
 
         // Act
         await InvoicePaidDomainEventHandler.HandleAsync(
-            domainEvent, _invoiceRepository, _messageBus, _invoicePaidLogger, CancellationToken.None);
+            domainEvent, _invoiceRepository, _userQueryService, _messageBus, _invoicePaidLogger, CancellationToken.None);
         await InvoicePaidDomainEventHandler.HandleAsync(
-            domainEvent, _invoiceRepository, _messageBus, _invoicePaidLogger, CancellationToken.None);
+            domainEvent, _invoiceRepository, _userQueryService, _messageBus, _invoicePaidLogger, CancellationToken.None);
 
         // Assert - handler is stateless, so duplicate calls just publish again (idempotency is upstream)
         await _messageBus.Received(2).PublishAsync(Arg.Any<InvoicePaidEvent>());

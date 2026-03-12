@@ -20,7 +20,7 @@ public sealed partial class KeycloakOrganizationService(
     private readonly HttpClient _httpClient = httpClientFactory.CreateClient("KeycloakAdminClient");
     private readonly string _realm = keycloakOptions.Value.Realm;
 
-    public async Task<Guid> CreateOrganizationAsync(string name, string? domain = null, CancellationToken ct = default)
+    public async Task<Guid> CreateOrganizationAsync(string name, string? domain = null, string? creatorEmail = null, CancellationToken ct = default)
     {
         LogCreatingOrganization(name);
 
@@ -44,7 +44,8 @@ public sealed partial class KeycloakOrganizationService(
             OrganizationId = orgId,
             TenantId = tenantContext.TenantId.Value,
             Name = name,
-            Domain = domain
+            Domain = domain,
+            CreatorEmail = creatorEmail ?? string.Empty
         });
 
         LogOrganizationCreated(name, orgId);
@@ -177,10 +178,20 @@ public sealed partial class KeycloakOrganizationService(
     {
         LogRemovingMember(userId, orgId);
 
+        string userEmail = await GetUserEmailAsync(userId, ct);
+
         HttpResponseMessage response = await _httpClient.DeleteAsync(
             $"/admin/realms/{_realm}/organizations/{orgId}/members/{userId}",
             ct);
         await response.EnsureSuccessOrThrowAsync();
+
+        await messageBus.PublishAsync(new OrganizationMemberRemovedEvent
+        {
+            OrganizationId = orgId,
+            TenantId = tenantContext.TenantId.Value,
+            UserId = userId,
+            Email = userEmail
+        });
 
         LogMemberRemoved(userId, orgId);
     }

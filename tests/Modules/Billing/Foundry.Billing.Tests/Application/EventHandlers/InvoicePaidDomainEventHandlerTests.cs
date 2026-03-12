@@ -5,6 +5,7 @@ using Foundry.Billing.Domain.Events;
 using Foundry.Billing.Domain.Identity;
 using Foundry.Billing.Domain.ValueObjects;
 using Foundry.Shared.Contracts.Billing.Events;
+using Foundry.Shared.Contracts.Identity;
 using Microsoft.Extensions.Logging;
 using NSubstitute.Core;
 using Wolverine;
@@ -15,12 +16,16 @@ namespace Foundry.Billing.Tests.Application.EventHandlers;
 public class InvoicePaidDomainEventHandlerTests
 {
     private readonly IInvoiceRepository _invoiceRepository;
+    private readonly IUserQueryService _userQueryService;
     private readonly IMessageBus _messageBus;
     private readonly ILogger<InvoicePaidDomainEventHandler> _logger;
 
     public InvoicePaidDomainEventHandlerTests()
     {
         _invoiceRepository = Substitute.For<IInvoiceRepository>();
+        _userQueryService = Substitute.For<IUserQueryService>();
+        _userQueryService.GetUserEmailAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns("test@example.com");
         _messageBus = Substitute.For<IMessageBus>();
         _logger = Substitute.For<ILogger<InvoicePaidDomainEventHandler>>();
         _logger.IsEnabled(Arg.Any<LogLevel>()).Returns(true);
@@ -49,6 +54,7 @@ public class InvoicePaidDomainEventHandlerTests
         await InvoicePaidDomainEventHandler.HandleAsync(
             domainEvent,
             _invoiceRepository,
+            _userQueryService,
             _messageBus,
             _logger,
             CancellationToken.None);
@@ -79,6 +85,7 @@ public class InvoicePaidDomainEventHandlerTests
         await InvoicePaidDomainEventHandler.HandleAsync(
             domainEvent,
             _invoiceRepository,
+            _userQueryService,
             _messageBus,
             _logger,
             CancellationToken.None);
@@ -101,6 +108,7 @@ public class InvoicePaidDomainEventHandlerTests
         await InvoicePaidDomainEventHandler.HandleAsync(
             domainEvent,
             _invoiceRepository,
+            _userQueryService,
             _messageBus,
             _logger,
             CancellationToken.None);
@@ -130,6 +138,7 @@ public class InvoicePaidDomainEventHandlerTests
         await InvoicePaidDomainEventHandler.HandleAsync(
             domainEvent,
             _invoiceRepository,
+            _userQueryService,
             _messageBus,
             _logger,
             CancellationToken.None);
@@ -158,6 +167,7 @@ public class InvoicePaidDomainEventHandlerTests
         await InvoicePaidDomainEventHandler.HandleAsync(
             domainEvent,
             _invoiceRepository,
+            _userQueryService,
             _messageBus,
             _logger,
             cts.Token);
@@ -184,6 +194,7 @@ public class InvoicePaidDomainEventHandlerTests
         await InvoicePaidDomainEventHandler.HandleAsync(
             domainEvent,
             _invoiceRepository,
+            _userQueryService,
             _messageBus,
             _logger,
             CancellationToken.None);

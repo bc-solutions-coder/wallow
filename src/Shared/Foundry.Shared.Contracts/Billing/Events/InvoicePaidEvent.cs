@@ -11,6 +11,7 @@ public sealed record InvoicePaidEvent : IntegrationEvent
     public required Guid TenantId { get; init; }
     public required Guid PaymentId { get; init; }
     public required Guid UserId { get; init; }
+    public required string UserEmail { get; init; }
     public required string InvoiceNumber { get; init; }
     public required decimal Amount { get; init; }
     public required string Currency { get; init; }

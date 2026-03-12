@@ -32,7 +32,8 @@ public class OrganizationsController(IKeycloakOrganizationService orgService, IT
     public async Task<ActionResult<CreateOrganizationResponse>> Create(
         CreateOrganizationRequest request, CancellationToken ct)
     {
-        Guid orgId = await orgService.CreateOrganizationAsync(request.Name, request.Domain, ct);
+        string? creatorEmail = User.FindFirstValue(ClaimTypes.Email);
+        Guid orgId = await orgService.CreateOrganizationAsync(request.Name, request.Domain, creatorEmail, ct);
         return CreatedAtAction(nameof(GetById), new { id = orgId },
             new CreateOrganizationResponse(orgId));
     }

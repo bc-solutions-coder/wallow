@@ -4,7 +4,7 @@ namespace Foundry.Identity.Application.Interfaces;
 
 public interface IKeycloakOrganizationService
 {
-    Task<Guid> CreateOrganizationAsync(string name, string? domain = null, CancellationToken ct = default);
+    Task<Guid> CreateOrganizationAsync(string name, string? domain = null, string? creatorEmail = null, CancellationToken ct = default);
     Task<OrganizationDto?> GetOrganizationByIdAsync(Guid orgId, CancellationToken ct = default);
     Task<IReadOnlyList<OrganizationDto>> GetOrganizationsAsync(string? search = null, int first = 0, int max = 20, CancellationToken ct = default);
     Task AddMemberAsync(Guid orgId, Guid userId, CancellationToken ct = default);

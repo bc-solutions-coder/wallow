@@ -3,6 +3,7 @@ using Foundry.Billing.Domain.Entities;
 using Foundry.Billing.Domain.Events;
 using Foundry.Billing.Domain.Identity;
 using Foundry.Shared.Contracts.Billing.Events;
+using Foundry.Shared.Contracts.Identity;
 using Microsoft.Extensions.Logging;
 using Wolverine;
 
@@ -13,6 +14,7 @@ public sealed partial class InvoicePaidDomainEventHandler
     public static async Task HandleAsync(
         InvoicePaidDomainEvent domainEvent,
         IInvoiceRepository invoiceRepository,
+        IUserQueryService userQueryService,
         IMessageBus bus,
         ILogger<InvoicePaidDomainEventHandler> logger,
         CancellationToken cancellationToken)
@@ -28,12 +30,15 @@ public sealed partial class InvoicePaidDomainEventHandler
             return;
         }
 
+        string userEmail = await userQueryService.GetUserEmailAsync(invoice.UserId, cancellationToken);
+
         await bus.PublishAsync(new InvoicePaidEvent
         {
             InvoiceId = domainEvent.InvoiceId,
             TenantId = invoice.TenantId.Value,
             PaymentId = domainEvent.PaymentId,
             UserId = invoice.UserId,
+            UserEmail = userEmail,
             InvoiceNumber = invoice.InvoiceNumber,
             Amount = invoice.TotalAmount.Amount,
             Currency = invoice.TotalAmount.Currency,

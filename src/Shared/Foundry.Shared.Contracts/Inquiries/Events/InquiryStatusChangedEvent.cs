@@ -6,4 +6,5 @@ public sealed record InquiryStatusChangedEvent : IntegrationEvent
     public required string OldStatus { get; init; }
     public required string NewStatus { get; init; }
     public required DateTime ChangedAt { get; init; }
+    public required string SubmitterEmail { get; init; }
 }
