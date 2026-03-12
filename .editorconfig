@@ -2026,3 +2026,7 @@ dotnet_diagnostic.MA0160.severity = suggestion
 # Suppressed in EF Core migrations (auto-generated code, not hand-written)
 [**/Migrations/**.cs]
 dotnet_diagnostic.CA1861.severity = none
+dotnet_diagnostic.CA1825.severity = none
+dotnet_diagnostic.MA0005.severity = none
+dotnet_diagnostic.IDE0161.severity = none
+dotnet_diagnostic.IDE0005.severity = none

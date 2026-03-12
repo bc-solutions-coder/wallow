@@ -12,7 +12,9 @@ public class ModuleEnricherTests
     [Theory]
     [InlineData("Foundry.Billing.Application.Handlers", "Billing")]
     [InlineData("Foundry.Identity.Infrastructure.Services", "Identity")]
-    [InlineData("Foundry.Communications.Domain.Events", "Communications")]
+    [InlineData("Foundry.Notifications.Domain.Events", "Notifications")]
+    [InlineData("Foundry.Messaging.Application.Handlers", "Messaging")]
+    [InlineData("Foundry.Announcements.Infrastructure.Services", "Announcements")]
     [InlineData("Foundry.Api", "Api")]
     public void Enrich_WithFoundrySourceContext_ExtractsModuleName(string sourceContext, string expectedModule)
     {

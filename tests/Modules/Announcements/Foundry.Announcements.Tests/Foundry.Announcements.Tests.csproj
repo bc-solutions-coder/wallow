@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Foundry.Announcements.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="FluentAssertions" />
+    <PackageReference Include="NSubstitute" />
+    <PackageReference Include="Bogus" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <Using Include="FluentAssertions" />
+    <Using Include="NSubstitute" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\src\Modules\Announcements\Foundry.Announcements.Domain\Foundry.Announcements.Domain.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Modules\Announcements\Foundry.Announcements.Application\Foundry.Announcements.Application.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Modules\Announcements\Foundry.Announcements.Infrastructure\Foundry.Announcements.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Modules\Announcements\Foundry.Announcements.Api\Foundry.Announcements.Api.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Shared\Foundry.Shared.Api\Foundry.Shared.Api.csproj" />
+    <ProjectReference Include="..\..\..\Foundry.Tests.Common\Foundry.Tests.Common.csproj" />
+  </ItemGroup>
+</Project>

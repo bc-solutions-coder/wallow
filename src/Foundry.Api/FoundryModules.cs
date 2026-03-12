@@ -1,8 +1,10 @@
 // Infrastructure extensions - canonical source for module registration
+using Foundry.Announcements.Infrastructure.Extensions;
 using Foundry.Billing.Infrastructure.Extensions;
-using Foundry.Communications.Infrastructure.Extensions;
 using Foundry.Identity.Infrastructure.Extensions;
 using Foundry.Inquiries.Infrastructure.Extensions;
+using Foundry.Messaging.Infrastructure.Extensions;
+using Foundry.Notifications.Infrastructure.Extensions;
 using Foundry.Shared.Infrastructure.Plugins;
 using Foundry.Showcases.Infrastructure.Extensions;
 using Foundry.Storage.Infrastructure.Extensions;
@@ -41,9 +43,19 @@ internal static class FoundryModules
             services.AddBillingModule(configuration);
         }
 
-        if (featureManager.IsEnabledAsync("Modules.Communications").GetAwaiter().GetResult())
+        if (featureManager.IsEnabledAsync("Modules.Notifications").GetAwaiter().GetResult())
         {
-            services.AddCommunicationsModule(configuration);
+            services.AddNotificationsModule(configuration);
+        }
+
+        if (featureManager.IsEnabledAsync("Modules.Messaging").GetAwaiter().GetResult())
+        {
+            services.AddMessagingModule(configuration);
+        }
+
+        if (featureManager.IsEnabledAsync("Modules.Announcements").GetAwaiter().GetResult())
+        {
+            services.AddAnnouncementsModule(configuration);
         }
 
         if (featureManager.IsEnabledAsync("Modules.Storage").GetAwaiter().GetResult())
@@ -92,9 +104,19 @@ internal static class FoundryModules
             await app.InitializeBillingModuleAsync();
         }
 
-        if (await featureManager.IsEnabledAsync("Modules.Communications"))
+        if (await featureManager.IsEnabledAsync("Modules.Notifications"))
         {
-            await app.InitializeCommunicationsModuleAsync();
+            await app.InitializeNotificationsModuleAsync();
+        }
+
+        if (await featureManager.IsEnabledAsync("Modules.Messaging"))
+        {
+            await app.InitializeMessagingModuleAsync();
+        }
+
+        if (await featureManager.IsEnabledAsync("Modules.Announcements"))
+        {
+            await app.InitializeAnnouncementsModuleAsync();
         }
 
         if (await featureManager.IsEnabledAsync("Modules.Storage"))

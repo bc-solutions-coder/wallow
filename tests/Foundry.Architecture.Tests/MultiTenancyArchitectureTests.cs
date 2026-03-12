@@ -16,7 +16,9 @@ public class MultiTenancyArchitectureTests
     private static readonly string[] _tenantAwareModules =
     [
         "Billing",
-        "Communications"
+        "Notifications",
+        "Messaging",
+        "Announcements"
     ];
 
     public static IEnumerable<object[]> GetTenantAwareModuleNames()
