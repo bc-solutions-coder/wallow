@@ -43,10 +43,10 @@ tests/
 ├── Foundry.Shared.Infrastructure.Tests/ # Shared infrastructure tests
 └── Modules/
     └── {Module}/
-        └── {Module}.{Layer}.Tests/ # Module-specific tests
+        └── Foundry.{Module}.Tests/ # Module-specific tests (single project per module)
             ├── Domain/             # Domain entity tests
-            ├── Handlers/           # Command/query handler tests
-            └── Validators/         # Validator tests
+            ├── Application/        # Command/query handler and validator tests
+            └── Infrastructure/     # Repository and query tests
 ```
 
 ### Project Setup
@@ -74,7 +74,7 @@ Test projects inherit common settings from `tests/Directory.Build.props`:
 
 ### Module Test Project Configuration
 
-Example test project file (`Billing.Application.Tests.csproj`):
+Example test project file (`Foundry.Billing.Tests.csproj`):
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
@@ -670,17 +670,18 @@ When creating a new module, add it to `TestConstants.AllModules`:
 
 ```csharp
 // tests/Foundry.Architecture.Tests/TestConstants.cs
-public static class TestConstants
+internal static class TestConstants
 {
-    public static readonly string[] AllModules =
-    [
-        "Billing",
-        "Communications",
-        "Configuration",
-        "Identity",
-        "Storage"
-        // Add new module here
-    ];
+    // AllModules is populated dynamically at runtime by scanning for Foundry.*.Domain.dll files.
+    // No manual registration is needed when adding a new module.
+    public static readonly string[] AllModules = Directory
+        .GetFiles(AppDomain.CurrentDomain.BaseDirectory, "Foundry.*.Domain.dll")
+        .Select(Path.GetFileNameWithoutExtension)
+        .Where(name => name is not null)
+        .Select(name => name!.Split('.')[1])
+        .Distinct()
+        .Order()
+        .ToArray();
 
     public static readonly string[] EventSourcedModules =
     [
@@ -691,12 +692,25 @@ public static class TestConstants
 
 ## 6. Test Fixtures and Factories
 
-### IClassFixture for Shared State
+### ICollectionFixture for Shared State (Preferred)
 
-Use `IClassFixture<T>` when multiple tests share expensive setup:
+Use `ICollectionFixture<T>` (not `IClassFixture<T>`) when multiple test classes share expensive setup such as containers. `IClassFixture` creates a new fixture instance per test class, which means a new set of containers per class — very slow for integration tests.
 
 ```csharp
-public class CrossModuleEventPropagationTests : IClassFixture<MessagingTestFixture>, IAsyncLifetime
+[CollectionDefinition(nameof(BillingTestCollection))]
+public class BillingTestCollection : ICollectionFixture<FoundryApiFactory> { }
+
+[Collection(nameof(BillingTestCollection))]
+public class InvoiceTests : BillingIntegrationTestBase
+{
+    public InvoiceTests(FoundryApiFactory factory) : base(factory) { }
+}
+```
+
+For messaging tests, the fixture implements `ICollectionFixture` similarly:
+
+```csharp
+public class CrossModuleEventPropagationTests : ICollectionFixture<MessagingTestFixture>, IAsyncLifetime
 {
     private readonly MessagingTestFixture _fixture;
 
@@ -956,7 +970,7 @@ dotnet test
 dotnet test --logger "console;verbosity=detailed"
 
 # Run specific test project
-dotnet test tests/Modules/Billing/Billing.Application.Tests
+dotnet test tests/Modules/Billing/Foundry.Billing.Tests
 
 # Run tests matching a filter
 dotnet test --filter "FullyQualifiedName~CreateInvoice"
@@ -995,7 +1009,7 @@ public class DatabaseTests
 
 ## 9. Event Sourcing and Saga Tests (Removed)
 
-The event-sourced modules and Wolverine Sagas were removed during the module simplification from ~24 modules to 5. The `MartenFixture` in `Foundry.Tests.Common` remains available if event sourcing is reintroduced in the future.
+The event-sourced modules and Wolverine Sagas were removed during the module simplification. The platform currently has 8 modules: Identity, Billing, Storage, Notifications, Messaging, Announcements, Inquiries, and Showcases. There is no `MartenFixture` in `Foundry.Tests.Common`.
 
 ## 10. Bogus Test Data Generation
 

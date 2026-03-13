@@ -35,23 +35,25 @@ JWT with role claims
 Permissions are defined in `PermissionType.cs`:
 
 ```
-src/Modules/Identity/Foundry.Identity.Domain/Enums/PermissionType.cs
+src/Shared/Foundry.Shared.Kernel/Identity/Authorization/PermissionType.cs
 ```
 
 ```csharp
-public enum PermissionType
+public static class PermissionType
 {
-    // Group by domain, use ranges for organization
-    UsersRead = 100,
-    UsersCreate = 101,
-    UsersUpdate = 102,
-    UsersDelete = 103,
+    public const string None = "None";
 
-    // Billing permissions
-    BillingRead = 500,
-    BillingManage = 501,
-    InvoicesRead = 502,
-    InvoicesWrite = 503,
+    // User management
+    public const string UsersRead = "UsersRead";
+    public const string UsersCreate = "UsersCreate";
+    public const string UsersUpdate = "UsersUpdate";
+    public const string UsersDelete = "UsersDelete";
+
+    // Billing
+    public const string BillingRead = "BillingRead";
+    public const string BillingManage = "BillingManage";
+    public const string InvoicesRead = "InvoicesRead";
+    public const string InvoicesWrite = "InvoicesWrite";
     // ...
 }
 ```
@@ -69,9 +71,9 @@ src/Modules/Identity/Foundry.Identity.Infrastructure/Authorization/RolePermissio
 ```csharp
 public static class RolePermissionMapping
 {
-    private static readonly Dictionary<string, PermissionType[]> RolePermissions = new()
+    private static readonly Dictionary<string, string[]> RolePermissions = new()
     {
-        ["admin"] = Enum.GetValues<PermissionType>(), // Admin gets everything
+        ["admin"] = PermissionType.All.ToArray(), // Admin gets everything
 
         ["manager"] = new[]
         {
@@ -97,7 +99,7 @@ Add the `[HasPermission]` attribute:
 
 ```csharp
 using Foundry.Identity.Api.Authorization;
-using Foundry.Identity.Domain.Enums;
+using Foundry.Shared.Kernel.Identity.Authorization;
 
 [ApiController]
 [Route("api/billing/invoices")]
@@ -131,10 +133,10 @@ If your module doesn't reference the Identity module, add the reference to acces
 <ProjectReference Include="..\..\Identity\Foundry.Identity.Api\Foundry.Identity.Api.csproj" />
 ```
 
-Or reference just the Domain project if you only need `PermissionType`:
+Or reference the Shared.Kernel project if you only need `PermissionType`:
 
 ```xml
-<ProjectReference Include="..\..\Identity\Foundry.Identity.Domain\Foundry.Identity.Domain.csproj" />
+<ProjectReference Include="..\..\..\Shared\Foundry.Shared.Kernel\Foundry.Shared.Kernel.csproj" />
 ```
 
 ---
@@ -161,9 +163,9 @@ docker/keycloak/realm-export.json
 Add the role to `RolePermissionMapping.cs`:
 
 ```csharp
-private static readonly Dictionary<string, PermissionType[]> RolePermissions = new()
+private static readonly Dictionary<string, string[]> RolePermissions = new()
 {
-    ["admin"] = Enum.GetValues<PermissionType>(),
+    ["admin"] = PermissionType.All.ToArray(),
 
     ["billing-admin"] = new[]  // New role
     {
@@ -202,7 +204,7 @@ Service accounts (machine-to-machine) use OAuth2 scopes instead of roles. The mi
 Edit `PermissionExpansionMiddleware.cs`:
 
 ```csharp
-private static PermissionType? MapScopeToPermission(string scope)
+private static string? MapScopeToPermission(string scope)
 {
     return scope switch
     {
@@ -226,7 +228,7 @@ private static PermissionType? MapScopeToPermission(string scope)
 
 | Task | File |
 |------|------|
-| Add permission | `Identity.Domain/Enums/PermissionType.cs` |
+| Add permission | `Shared/Foundry.Shared.Kernel/Identity/Authorization/PermissionType.cs` |
 | Map permission to role | `Identity.Infrastructure/Authorization/RolePermissionMapping.cs` |
 | Map scope to permission | `Identity.Infrastructure/Authorization/PermissionExpansionMiddleware.cs` |
 | Apply to route | Your controller with `[HasPermission(...)]` |
@@ -239,25 +241,7 @@ private static PermissionType? MapScopeToPermission(string scope)
 | `manager` | Team management, projects, tasks, billing read, API keys |
 | `user` | Basic access — read tasks/projects, create tasks |
 
-### Permission Ranges
-
-| Range | Domain |
-|-------|--------|
-| 100-199 | Users |
-| 200-299 | Roles |
-| 300-399 | Tasks (reserved) |
-| 400-499 | Projects (reserved) |
-| 500-599 | Billing (BillingRead, BillingManage, Invoices*, Payments*, Subscriptions*) |
-| 600-699 | Organizations |
-| 700-749 | API Keys |
-| 750-799 | Notifications |
-| 800-809 | Catalog (reserved) |
-| 810-819 | Orders (reserved) |
-| 850-859 | Webhooks |
-| 860-899 | SSO / SCIM |
-| 900+ | Admin |
-
-> **Note:** Some permission ranges (Tasks, Projects, Catalog, Orders) are reserved in the enum for future use or extension modules. The current active modules are: Identity, Billing, Communications, Storage, and Configuration.
+> **Note:** `PermissionType` is a static class with string constants (not a numeric enum). Permissions are grouped by domain area. The current active modules are: Identity, Billing, Storage, Notifications, Messaging, Announcements, Inquiries, and Showcases.
 
 ---
 

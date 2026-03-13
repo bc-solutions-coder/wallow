@@ -297,16 +297,20 @@ public sealed partial class UserRegisteredEventHandler
 
 ### Configuration in Program.cs
 
-RabbitMQ is configured as the transport for async messaging:
+RabbitMQ is enabled by setting `ModuleMessaging:Transport` to `"RabbitMq"`:
 
 ```csharp
 builder.Host.UseWolverine(opts =>
 {
-    // RabbitMQ transport - inter-module async messaging
-    var rabbitMqConnection = builder.Configuration.GetConnectionString("RabbitMq");
-    if (!string.IsNullOrEmpty(rabbitMqConnection))
+    string transport = builder.Configuration.GetValue<string>("ModuleMessaging:Transport") ?? "InMemory";
+
+    if (transport.Equals("RabbitMq", StringComparison.OrdinalIgnoreCase))
     {
-        var rabbitMq = opts.UseRabbitMq(new Uri(rabbitMqConnection))
+        string rabbitMqConnection = builder.Configuration.GetConnectionString("RabbitMq")
+            ?? throw new InvalidOperationException(
+                "RabbitMq connection string is required when ModuleMessaging:Transport is 'RabbitMq'");
+
+        RabbitMqTransportExpression rabbitMq = opts.UseRabbitMq(new Uri(rabbitMqConnection))
             .AutoProvision()          // Auto-create queues/exchanges
             .UseConventionalRouting(); // Automatic routing based on message types
 
@@ -366,18 +370,22 @@ if (builder.Environment.IsEnvironment("Testing"))
 
 ## 5. In-Memory Transport (Development/Testing)
 
-### How to Disable RabbitMQ for Local Dev
+### How to Use In-Memory Transport
 
-When the `RabbitMq` connection string is not configured, Wolverine automatically falls back to in-memory transport:
+Transport selection is controlled by the `ModuleMessaging:Transport` configuration key. Set it to `"InMemory"` (or omit it, as `"InMemory"` is the default) to use in-memory transport instead of RabbitMQ:
 
 ```csharp
-var rabbitMqConnection = builder.Configuration.GetConnectionString("RabbitMq");
-if (!string.IsNullOrEmpty(rabbitMqConnection))
+// Program.cs — transport switching logic
+string transport = builder.Configuration.GetValue<string>("ModuleMessaging:Transport") ?? "InMemory";
+
+if (transport.Equals("RabbitMq", StringComparison.OrdinalIgnoreCase))
 {
-    // Use RabbitMQ
-    opts.UseRabbitMq(new Uri(rabbitMqConnection))...
+    // Use RabbitMQ transport
+    opts.UseRabbitMq(new Uri(rabbitMqConnection))
+        .AutoProvision()
+        .UseConventionalRouting();
 }
-// If rabbitMqConnection is null/empty, Wolverine uses in-memory transport
+// Otherwise: in-memory transport (Wolverine default)
 ```
 
 ### When to Use In-Memory vs RabbitMQ
@@ -387,11 +395,14 @@ if (!string.IsNullOrEmpty(rabbitMqConnection))
 | **In-Memory** | Unit tests, simple development scenarios, when RabbitMQ is unavailable |
 | **RabbitMQ** | Integration tests, staging, production, multi-instance deployments |
 
-### Configuration Approach: Remove RabbitMq Connection String
+### Configuration Approach: ModuleMessaging:Transport
 
 **With RabbitMQ** (`appsettings.Development.json`):
 ```json
 {
+  "ModuleMessaging": {
+    "Transport": "RabbitMq"
+  },
   "ConnectionStrings": {
     "DefaultConnection": "Host=localhost;Database=foundry;...",
     "RabbitMq": "amqp://guest:guest@localhost:5672"
@@ -399,12 +410,14 @@ if (!string.IsNullOrEmpty(rabbitMqConnection))
 }
 ```
 
-**Without RabbitMQ** (in-memory transport):
+**With in-memory transport** (default):
 ```json
 {
+  "ModuleMessaging": {
+    "Transport": "InMemory"
+  },
   "ConnectionStrings": {
     "DefaultConnection": "Host=localhost;Database=foundry;..."
-    // RabbitMq connection string omitted or empty = in-memory transport
   }
 }
 ```
@@ -676,11 +689,13 @@ public sealed class InvoiceCreatedDomainEventHandler
 
 ### Configuration-Based Switching
 
-The transport is selected based on the presence of the `RabbitMq` connection string:
+The transport is selected based on the `ModuleMessaging:Transport` configuration key (`"InMemory"` or `"RabbitMq"`). `"InMemory"` is the default when the key is absent:
 
 ```csharp
-var rabbitMqConnection = builder.Configuration.GetConnectionString("RabbitMq");
-if (!string.IsNullOrEmpty(rabbitMqConnection))
+// Program.cs — transport switching logic
+string transport = builder.Configuration.GetValue<string>("ModuleMessaging:Transport") ?? "InMemory";
+
+if (transport.Equals("RabbitMq", StringComparison.OrdinalIgnoreCase))
 {
     // Use RabbitMQ
     opts.UseRabbitMq(new Uri(rabbitMqConnection))
@@ -690,11 +705,14 @@ if (!string.IsNullOrEmpty(rabbitMqConnection))
 // Otherwise: in-memory transport (Wolverine default)
 ```
 
-### Development: Remove ConnectionStrings:RabbitMq to Use In-Memory
+### Development: Set ModuleMessaging:Transport to Switch
 
 **With RabbitMQ** (`appsettings.Development.json`):
 ```json
 {
+  "ModuleMessaging": {
+    "Transport": "RabbitMq"
+  },
   "ConnectionStrings": {
     "DefaultConnection": "Host=localhost;Database=foundry;Username=postgres;Password=postgres",
     "RabbitMq": "amqp://guest:guest@localhost:5672"
@@ -702,7 +720,7 @@ if (!string.IsNullOrEmpty(rabbitMqConnection))
 }
 ```
 
-**Without RabbitMQ** (in-memory):
+**With in-memory transport** (default — omit key or set to `"InMemory"`):
 ```json
 {
   "ConnectionStrings": {
@@ -713,10 +731,13 @@ if (!string.IsNullOrEmpty(rabbitMqConnection))
 
 ### Production: Always Use RabbitMQ for Durability
 
-**Production configuration** should always include RabbitMQ:
+**Production configuration** should always use RabbitMQ transport:
 
 ```json
 {
+  "ModuleMessaging": {
+    "Transport": "RabbitMq"
+  },
   "ConnectionStrings": {
     "DefaultConnection": "Host=db.example.com;Database=foundry;...",
     "RabbitMq": "amqps://user:pass@rabbitmq.example.com:5671"

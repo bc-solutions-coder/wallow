@@ -520,14 +520,14 @@ public bool IsFileSizeAllowed(long sizeBytes)
 Configure upload size limits in Program.cs:
 
 ```csharp
-// Global limit
+// Global limit (1MB default in Kestrel configuration)
 builder.WebHost.ConfigureKestrel(options =>
 {
-    options.Limits.MaxRequestBodySize = 100 * 1024 * 1024; // 100MB
+    options.Limits.MaxRequestBodySize = 1_048_576; // 1MB
 });
 
-// Per-endpoint via attribute
-[RequestSizeLimit(100 * 1024 * 1024)] // 100MB
+// Per-endpoint via attribute to allow larger uploads on specific routes
+[RequestSizeLimit(100 * 1024 * 1024)] // 100MB per-endpoint override
 ```
 
 ---

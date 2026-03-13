@@ -8,8 +8,6 @@ Comprehensive catalog of all test projects in the Foundry codebase. Counts sourc
 |---------|-------|----------------|
 | Foundry.Billing.Tests | 581 | Domain, Application, Infrastructure, Api, Integration |
 | Foundry.Storage.Tests | 240 | Domain, Application, Infrastructure, Api, Integration |
-| Foundry.Configuration.Tests | 451 | Domain, Application, Infrastructure, Api |
-| Foundry.Communications.Tests | 629 | Domain, Application, Infrastructure, Api |
 | Foundry.Identity.Tests | 819 | Domain, Application, Infrastructure, Api, Integration |
 | Foundry.Identity.IntegrationTests | 55 | OAuth2, ServiceAccounts, Scim, Sso |
 | Foundry.Shared.Kernel.Tests | 287 | Domain, Identity, MultiTenancy, Results, Extensions, CustomFields, Plugins, Diagnostics, Messaging |
@@ -17,7 +15,9 @@ Comprehensive catalog of all test projects in the Foundry codebase. Counts sourc
 | Foundry.Api.Tests | 215 | Extensions, Middleware, Services, Hubs, Health, Integration, Jobs, Logging |
 | Foundry.Architecture.Tests | 112 | CleanArchitecture, ModuleIsolation, CQRS, Wolverine, ApiVersioning, MultiTenancy |
 | Foundry.Messaging.IntegrationTests | 12 | CrossModule, PublishConsume, Retry, DeadLetter |
-| **Total** | **3,730** | |
+| **Total** | **2,650** | |
+
+> **Note:** This inventory needs updating. The Notifications, Announcements, Messaging, Inquiries, and Showcases module test projects are not yet listed here. Foundry.Configuration.Tests and Foundry.Communications.Tests have been removed (those modules no longer exist).
 
 ---
 
@@ -241,278 +241,7 @@ Comprehensive catalog of all test projects in the Foundry codebase. Counts sourc
 
 ---
 
-## 3. Configuration Module (451 tests)
-
-### Domain (127 tests)
-
-| Test Class | Tests | Description |
-|------------|-------|-------------|
-| CustomFieldDefinitionValidationRulesTests | 31 | Custom field validation rules (min/max length, regex, range) |
-| CustomFieldDefinitionCreateTests | 18 | Creating custom field definitions with types, options, and validation |
-| CustomFieldDefinitionUpdateTests | 11 | Updating custom field definitions |
-| CustomFieldDefinitionOptionsTests | 7 | Custom field option management |
-| FeatureFlagCreatePercentageTests | 7 | Creating percentage-based rollout flags with validation |
-| VariantWeightConstructionTests | 6 | Variant weight value object construction |
-| CustomFieldDefinitionLifecycleTests | 5 | Custom field lifecycle (activate/deactivate) |
-| FeatureFlagUpdatePercentageTests | 5 | Updating rollout percentage, disabling at 0%, type guard |
-| FeatureFlagSetVariantsTests | 4 | Replacing variants, empty list guard, default variant check |
-| FeatureFlagOverrideCreateForTenantTests | 4 | Creating tenant-level overrides with variants and expiration |
-| VariantWeightEqualityTests | 4 | Variant weight equality comparisons |
-| FeatureFlagOverrideExpirationTests | 3 | Override expiration: past, future, no-expiration |
-| FeatureFlagCreateVariantTests | 3 | Creating variant (A/B test) flags with weighted variants |
-| FeatureFlagCreateBooleanTests | 3 | Creating boolean feature flags with enabled/disabled defaults |
-| FeatureFlagIdTests | 3 | Feature flag ID generation and comparison |
-| CustomFieldDefinitionIdTests | 3 | Custom field definition ID generation |
-| CustomFieldExceptionTests | 3 | Custom field exception handling |
-| FeatureFlagUpdateTests | 2 | Updating flag name, description, and enabled state |
-| FeatureFlagOverrideCreateForUserTests | 2 | Creating user-level overrides with variants |
-| FeatureFlagOverrideCreateForTenantUserTests | 2 | Creating tenant+user overrides with combined scope |
-| FeatureFlagOverrideIdTests | 2 | Override ID generation |
-| FeatureFlagEvaluatedEventTests | 2 | Feature flag evaluated domain event |
-| FeatureFlagOverridesCollectionTests | 1 | New flags have empty overrides collection |
-| FeatureFlagOverrideIdGenerationTests | 1 | Unique ID generation for overrides |
-| FeatureFlagUpdatedEventTests | 1 | Flag updated domain event |
-| FeatureFlagDeletedEventTests | 1 | Flag deleted domain event |
-| FeatureFlagCreatedEventTests | 1 | Flag created domain event |
-| CustomFieldDefinitionDeactivatedEventTests | 1 | Deactivated domain event |
-| CustomFieldDefinitionCreatedEventTests | 1 | Created domain event |
-
-### Application / Handlers (59 tests)
-
-| Test Class | Tests | Description |
-|------------|-------|-------------|
-| UpdateCustomFieldDefinitionHandlerTests | 8 | Updating custom field definitions: validation, not-found |
-| CreateOverrideHandlerTests | 7 | Override creation: tenant/user/tenant+user scopes, conflict detection, cache invalidation |
-| UpdateFeatureFlagHandlerTests | 6 | Updating feature flags |
-| CreateCustomFieldDefinitionHandlerTests | 6 | Custom field definition creation: duplicate key detection |
-| CreateFeatureFlagHandlerTests | 5 | Feature flag creation: boolean/percentage/variant types, duplicate detection |
-| ReorderCustomFieldsHandlerTests | 4 | Reordering custom field display order |
-| GetCustomFieldDefinitionsHandlerTests | 4 | Querying custom field definitions |
-| DeleteOverrideHandlerTests | 4 | Deleting feature flag overrides |
-| DeleteFeatureFlagHandlerTests | 4 | Deleting feature flags |
-| GetSupportedEntityTypesHandlerTests | 3 | Querying supported entity types |
-| GetOverridesForFlagHandlerTests | 3 | Querying overrides for a flag |
-| GetFlagByKeyHandlerTests | 3 | Querying flag by key |
-| GetAllFlagsHandlerTests | 3 | Querying all flags |
-| DeactivateCustomFieldDefinitionHandlerTests | 3 | Deactivating custom fields |
-| GetCustomFieldDefinitionByIdHandlerTests | 2 | Querying custom field by ID |
-
-### Application / Mappings (13 tests)
-
-| Test Class | Tests | Description |
-|------------|-------|-------------|
-| CustomFieldDefinitionMapperTests | 7 | Custom field DTO mapping |
-| FeatureFlagMappingsTests | 6 | Feature flag DTO mapping |
-
-### Application / Services (32 tests)
-
-| Test Class | Tests | Description |
-|------------|-------|-------------|
-| CustomFieldValidatorTests | 32 | Custom field runtime validation service |
-
-### Infrastructure (93 tests)
-
-| Test Class | Tests | Description |
-|------------|-------|-------------|
-| CustomFieldIndexManagerValidationTests | 25 | Custom field index manager SQL injection protection and validation |
-| FeatureFlagServiceIsEnabledTests | 12 | Feature flag IsEnabled evaluation logic |
-| FeatureFlagServiceGetVariantTests | 6 | Feature flag GetVariant evaluation |
-| ConfigurationModuleExtensionsTests | 6 | Module DI registration |
-| CachedFeatureFlagServiceIsEnabledTests | 5 | Cached feature flag IsEnabled with Redis |
-| FeatureFlagServiceGetAllFlagsTests | 4 | GetAllFlags query service |
-| CachedFeatureFlagServiceGetVariantTests | 3 | Cached GetVariant with Redis |
-| CachedFeatureFlagServiceInvalidateTests | 1 | Cache invalidation |
-| CachedFeatureFlagServiceGetAllFlagsTests | 1 | Cached GetAllFlags |
-
-### Infrastructure / Persistence (43 tests)
-
-| Test Class | Tests | Description |
-|------------|-------|-------------|
-| ConfigurationDbContextModelTests | 12 | DbContext model configuration tests |
-| CustomFieldDefinitionRepositoryTests | 11 | EF Core repository for custom field definitions |
-| FeatureFlagOverrideRepositoryTests | 9 | EF Core repository for feature flag overrides |
-| FeatureFlagRepositoryTests | 8 | EF Core repository for feature flags |
-| ConfigurationDbContextFactoryTests | 2 | DbContext factory for design-time |
-| DesignTimeTenantContextTests | 1 | Design-time tenant context |
-
-### Api (84 tests)
-
-| Test Class | Tests | Description |
-|------------|-------|-------------|
-| FeatureFlagsControllerTests | 32 | Feature flag REST endpoints |
-| ResultExtensionsTests | 19 | Result-to-ActionResult mapping |
-| CustomFieldsControllerTests | 17 | Custom field REST endpoints |
-| EnumMappingsTests | 14 | Enum-to-string mapping tests |
-| RequestContractTests | 11 | Request DTO contract validation |
-| ResponseContractTests | 4 | Response DTO contract validation |
-
----
-
-## 4. Communications Module (629 tests)
-
-### Domain / Email (37 tests)
-
-| Test Class | Tests | Description |
-|------------|-------|-------------|
-| EmailAddressCreateTests | 8 | EmailAddress value object creation and validation |
-| EmailContentCreateTests | 8 | EmailContent value object creation |
-| EmailPreferenceStateTests | 8 | Email preference state management |
-| EmailPreferenceCreateTests | 4 | EmailPreference creation |
-| InvalidEmailAddressExceptionTests | 3 | Exception for invalid emails |
-| EmailContentEqualityTests | 3 | EmailContent equality comparisons |
-| EmailAddressEqualityTests | 3 | EmailAddress equality comparisons |
-| EmailAddressConversionTests | 2 | EmailAddress type conversions |
-
-### Domain / InApp (9 tests)
-
-| Test Class | Tests | Description |
-|------------|-------|-------------|
-| EmailMessageSendingTests | 4 | Marking emails as sent/failed, domain events, retry count |
-| EmailMessageRetryTests | 3 | Retry reset, retry limit enforcement |
-| EmailMessageCreateTests | 2 | EmailMessage.Create with sender/null sender |
-
-### Domain / Notifications (5 tests)
-
-| Test Class | Tests | Description |
-|------------|-------|-------------|
-| NotificationMarkAsReadTests | 3 | Marking notifications as read, ReadAt timestamp, repeat reads |
-| NotificationCreateTests | 2 | Notification.Create with unread state and NotificationCreatedDomainEvent |
-
-### Domain / Announcements (62 tests)
-
-| Test Class | Tests | Description |
-|------------|-------|-------------|
-| ChangelogEntryUpdateTests | 11 | Updating changelog entries |
-| ChangelogEntryCreateTests | 11 | Creating changelog entries |
-| AnnouncementCreateTests | 11 | Creating announcements |
-| AnnouncementUpdateTests | 8 | Updating announcements |
-| AnnouncementStatusTests | 6 | Announcement status transitions |
-| ChangelogEntryItemTests | 6 | Changelog entry item management |
-| ChangelogItemCreateTests | 5 | Creating changelog items |
-| ChangelogItemUpdateTests | 4 | Updating changelog items |
-| ChangelogEntryPublishTests | 4 | Publishing changelog entries |
-| AnnouncementDismissalCreateTests | 2 | Creating announcement dismissals |
-
-### Domain / Identity & Events (20 tests)
-
-| Test Class | Tests | Description |
-|------------|-------|-------------|
-| CommunicationsStronglyTypedIdTests | 16 | Strongly-typed ID creation and comparison |
-| NotificationReadDomainEventTests | 1 | Notification read event |
-| NotificationCreatedDomainEventTests | 1 | Notification created event |
-| EmailSentDomainEventTests | 1 | Email sent event |
-| EmailFailedDomainEventTests | 1 | Email failed event |
-
-### Application / Announcements (87 tests)
-
-| Test Class | Tests | Description |
-|------------|-------|-------------|
-| CreateAnnouncementValidatorTests | 12 | Validation for CreateAnnouncementCommand |
-| AnnouncementTargetingServiceTests | 12 | Announcement targeting service |
-| AnnouncementTargetingEdgeCaseTests | 9 | Targeting service edge cases |
-| CreateChangelogEntryValidatorTests | 8 | Validation for CreateChangelogEntryCommand |
-| CreateAnnouncementHandlerTests | 7 | Announcement creation handler |
-| ChangelogMappingTests | 6 | Changelog DTO mapping |
-| GetChangelogHandlerTests | 5 | Querying changelog |
-| DismissAnnouncementHandlerTests | 5 | Dismissing announcements |
-| GetChangelogByVersionHandlerTests | 4 | Querying changelog by version |
-| GetAllAnnouncementsHandlerTests | 4 | Querying all announcements |
-| GetActiveAnnouncementsHandlerTests | 4 | Querying active announcements |
-| UpdateAnnouncementHandlerTests | 4 | Updating announcements |
-| PublishChangelogEntryHandlerTests | 4 | Publishing changelog entries |
-| PublishAnnouncementHandlerTests | 4 | Publishing announcements |
-| CreateChangelogEntryHandlerTests | 4 | Creating changelog entries |
-| ArchiveAnnouncementHandlerTests | 4 | Archiving announcements |
-| UpdateAnnouncementValidatorTests | 4 | Validation for UpdateAnnouncementCommand |
-| GetLatestChangelogHandlerTests | 3 | Querying latest changelog |
-| CreateChangelogEntryMappingTests | 3 | Changelog entry DTO mapping |
-| DismissAnnouncementValidatorTests | 3 | Validation for dismiss command |
-| PublishChangelogEntryValidatorTests | 2 | Validation for publish command |
-| PublishAnnouncementValidatorTests | 2 | Validation for publish command |
-| ArchiveAnnouncementValidatorTests | 2 | Validation for archive command |
-| AnnouncementDtoTests | 3 | Announcement DTO tests |
-
-### Application / Channels / Email (53 tests)
-
-| Test Class | Tests | Description |
-|------------|-------|-------------|
-| SendEmailValidatorTests | 8 | Validation for SendEmailCommand |
-| SendEmailHandlerTests | 8 | Email sending handler |
-| UpdateEmailPreferencesValidatorTests | 7 | Validation for UpdateEmailPreferencesCommand |
-| EmailMappingsTests | 6 | Email DTO mapping |
-| UpdateEmailPreferencesHandlerTests | 5 | Updating email preferences |
-| UserRegisteredEmailEventHandlerTests | 5 | Handling user registration email event |
-| SendEmailRequestedEventHandlerTests | 5 | Handling send email requested event |
-| PasswordResetRequestedEventHandlerTests | 5 | Handling password reset event |
-| GetEmailPreferencesHandlerTests | 4 | Querying email preferences |
-
-### Application / Channels / InApp (42 tests)
-
-| Test Class | Tests | Description |
-|------------|-------|-------------|
-| AnnouncementPublishedEventHandlerTests | 12 | Handling announcement published event |
-| AnnouncementPublishedMarkdownTests | 10 | Markdown processing for announcements |
-| SendNotificationValidatorTests | 5 | Validation for SendNotificationCommand |
-| SendNotificationHandlerTests | 5 | Notification sending handler |
-| GetUserNotificationsHandlerTests | 4 | Querying user notifications |
-| MarkNotificationReadHandlerTests | 4 | Marking notifications as read |
-| UserRegisteredInAppEventHandlerTests | 4 | Handling user registration notification event |
-| GetUnreadCountHandlerTests | 3 | Querying unread count |
-| MarkAllNotificationsReadHandlerTests | 3 | Marking all notifications as read |
-| NotificationMappingsTests | 2 | Notification DTO mapping |
-
-### Application / Other (21 tests)
-
-| Test Class | Tests | Description |
-|------------|-------|-------------|
-| NotificationsModuleTelemetryTests | 6 | Notification module telemetry |
-| EmailModuleTelemetryTests | 6 | Email module telemetry |
-| EmailDtoTests | 4 | Email DTO tests |
-| ApplicationExtensionsTests | 3 | Application DI registration |
-| InAppApplicationExtensionsTests | 2 | InApp DI registration |
-| EmailApplicationExtensionsTests | 2 | Email DI registration |
-
-### Infrastructure / Services (52 tests)
-
-| Test Class | Tests | Description |
-|------------|-------|-------------|
-| SimpleEmailTemplateServiceTests | 16 | Email template rendering |
-| SmtpEmailServiceTests | 15 | SMTP email sending |
-| SignalRNotificationServiceEdgeCaseTests | 10 | SignalR notification edge cases |
-| SimpleEmailTemplateServiceEdgeCaseTests | 8 | Template service edge cases |
-| SignalRNotificationServiceTests | 6 | SignalR real-time notifications |
-| SmtpSettingsTests | 2 | SMTP configuration validation |
-
-### Infrastructure / Persistence (50 tests)
-
-| Test Class | Tests | Description |
-|------------|-------|-------------|
-| ChangelogRepositoryTests | 12 | EF Core repository for changelog entries |
-| CommunicationsDbContextTests | 9 | DbContext configuration tests |
-| NotificationRepositoryTests | 9 | EF Core repository for notifications |
-| EmailPreferenceRepositoryTests | 7 | EF Core repository for email preferences |
-| AnnouncementRepositoryTests | 7 | EF Core repository for announcements |
-| EmailMessageRepositoryTests | 6 | EF Core repository for email messages |
-| AnnouncementDismissalRepositoryTests | 4 | EF Core repository for dismissals |
-
-### Api (100 tests)
-
-| Test Class | Tests | Description |
-|------------|-------|-------------|
-| ResultExtensionsTests | 21 | Result-to-ActionResult mapping |
-| NotificationsControllerTests | 18 | Notification REST endpoints |
-| AdminAnnouncementsControllerTests | 17 | Admin announcement REST endpoints |
-| ResponseContractTests | 11 | Response DTO contract validation |
-| EnumMappingsTests | 10 | Enum-to-string mapping tests |
-| EmailPreferencesControllerTests | 10 | Email preferences REST endpoints |
-| ChangelogControllerTests | 10 | Changelog REST endpoints |
-| AnnouncementsControllerTests | 10 | Announcement REST endpoints (public) |
-| AdminChangelogControllerTests | 8 | Admin changelog REST endpoints |
-| RequestContractTests | 6 | Request DTO contract validation |
-
----
-
-## 5. Identity Module - Unit Tests (819 tests)
+## 3. Identity Module - Unit Tests (819 tests)
 
 ### Domain (63 tests)
 
@@ -628,7 +357,7 @@ Comprehensive catalog of all test projects in the Foundry codebase. Counts sourc
 
 ---
 
-## 6. Identity Module - Integration Tests (55 tests)
+## 4. Identity Module - Integration Tests (55 tests)
 
 ### OAuth2 (15 tests)
 
@@ -662,7 +391,7 @@ Comprehensive catalog of all test projects in the Foundry codebase. Counts sourc
 
 ---
 
-## 7. Shared.Kernel Tests (287 tests)
+## 5. Shared.Kernel Tests (287 tests)
 
 ### Domain (55 tests)
 
@@ -747,7 +476,7 @@ Comprehensive catalog of all test projects in the Foundry codebase. Counts sourc
 
 ---
 
-## 8. Shared.Infrastructure Tests (329 tests)
+## 6. Shared.Infrastructure Tests (329 tests)
 
 ### Auditing (29 tests)
 
@@ -831,7 +560,7 @@ Comprehensive catalog of all test projects in the Foundry codebase. Counts sourc
 
 ---
 
-## 9. Api Tests (215 tests)
+## 7. Api Tests (215 tests)
 
 ### Extensions (66 tests)
 
@@ -894,7 +623,7 @@ Comprehensive catalog of all test projects in the Foundry codebase. Counts sourc
 
 ---
 
-## 10. Architecture Tests (112 tests)
+## 8. Architecture Tests (112 tests)
 
 | Test Class | Tests | Description |
 |------------|-------|-------------|
@@ -910,7 +639,7 @@ Comprehensive catalog of all test projects in the Foundry codebase. Counts sourc
 
 ---
 
-## 11. Messaging Integration Tests (12 tests)
+## 9. Messaging Integration Tests (12 tests)
 
 | Test Class | Tests | Description |
 |------------|-------|-------------|

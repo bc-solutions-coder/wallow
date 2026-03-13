@@ -92,45 +92,40 @@ Security-focused audit logs for compliance and security monitoring.
 - Compliance audits
 - Debugging and troubleshooting
 
-### Communications Data
+### Notifications Data
 
-The Communications module consolidates notifications, email, announcements, and changelog functionality.
-
-#### In-App Notifications
+In-app notification delivery.
 
 | Data Element | Description | Storage Location | Purpose | Legal Basis | Sensitive | Retention |
 |-------------|-------------|------------------|---------|-------------|-----------|-----------|
-| Notifications | In-app notification records | `communications.notifications` table | Deliver notifications to users | Legitimate interest | No | 30 days |
-| Notification Content | Title, message, type | `communications.notifications` table | User communication | Legitimate interest | No | 30 days |
-| Read Status | IsRead flag and ReadAt timestamp | `communications.notifications` table | Track notification state | Legitimate interest | No | 30 days |
-
-#### Email Communications
-
-| Data Element | Description | Storage Location | Purpose | Legal Basis | Sensitive | Retention |
-|-------------|-------------|------------------|---------|-------------|-----------|-----------|
-| Email Messages | Records of emails with status and content | `communications.email_messages` table | Audit trail and delivery confirmation | Legitimate interest | No | 90 days |
-| Email Preferences | Per-user email opt-in/opt-out by notification type | `communications.email_preferences` table | Respect user communication preferences | Consent | No | Until user deletion |
-| Email Addresses | Recipient and sender addresses (value objects) | `communications.email_messages` table | Email routing | Contractual necessity | No | 90 days |
-| Email Content | Subject and body (value object) | `communications.email_messages` table | Email delivery | Contractual necessity | No | 90 days |
-
-#### Announcements and Changelog
-
-| Data Element | Description | Storage Location | Purpose | Legal Basis | Sensitive | Retention |
-|-------------|-------------|------------------|---------|-------------|-----------|-----------|
-| Announcements | System announcements with targeting | `communications.announcements` table | System announcements | Legitimate interest | No | Until deletion |
-| Announcement Dismissals | Per-user dismissal records | `communications.announcement_dismissals` table | Track user dismissals | Legitimate interest | No | Until deletion |
-| Changelog Entries | Version changelog with items | `communications.changelog_entries` table | Product changelog | Legitimate interest | No | Until deletion |
+| Notifications | In-app notification records | `notifications.notifications` table | Deliver notifications to users | Legitimate interest | No | 30 days |
+| Notification Content | Title, message, type | `notifications.notifications` table | User communication | Legitimate interest | No | 30 days |
+| Read Status | IsRead flag and ReadAt timestamp | `notifications.notifications` table | Track notification state | Legitimate interest | No | 30 days |
+| Email Messages | Records of emails with status and content | `notifications.email_messages` table | Audit trail and delivery confirmation | Legitimate interest | No | 90 days |
+| Email Preferences | Per-user email opt-in/opt-out by notification type | `notifications.email_preferences` table | Respect user communication preferences | Consent | No | Until user deletion |
 
 **Processing Activities:**
 - Sending in-app notifications and real-time delivery via SignalR
 - Transactional emails (password reset, account confirmation)
 - Notification emails (based on user preferences)
-- System announcements and changelog management
 - Retry handling with exponential backoff
 
 **Third-Party Sharing:** SMTP provider (Mailpit in development, configurable SMTP in production)
 
 **Note:** Email preferences are checked before every send to respect user opt-out settings.
+
+### Announcements Data
+
+System announcements and changelog.
+
+| Data Element | Description | Storage Location | Purpose | Legal Basis | Sensitive | Retention |
+|-------------|-------------|------------------|---------|-------------|-----------|-----------|
+| Announcements | System announcements with targeting | `announcements.announcements` table | System announcements | Legitimate interest | No | Until deletion |
+| Announcement Dismissals | Per-user dismissal records | `announcements.announcement_dismissals` table | Track user dismissals | Legitimate interest | No | Until deletion |
+| Changelog Entries | Version changelog with items | `announcements.changelog_entries` table | Product changelog | Legitimate interest | No | Until deletion |
+
+**Processing Activities:**
+- System announcements and changelog management
 
 ### Storage Data
 
@@ -146,21 +141,6 @@ File storage management.
 - File upload and storage
 - Access control (public/private files)
 - Presigned URL generation
-
-### Configuration Data
-
-Tenant customization and feature management.
-
-| Data Element | Description | Storage Location | Purpose | Legal Basis | Sensitive | Retention |
-|-------------|-------------|------------------|---------|-------------|-----------|-----------|
-| Custom Field Definitions | Tenant-defined custom fields | `configuration.custom_field_definitions` table | Tenant customization | Contractual necessity | No | Until deletion |
-| Feature Flags | Feature flag configurations | `configuration.feature_flags` table | Feature management | Contractual necessity | No | Until deletion |
-| Feature Flag Overrides | Per-tenant/user flag overrides | `configuration.feature_flag_overrides` table | Targeted rollout | Contractual necessity | No | Until deletion |
-
-**Processing Activities:**
-- Custom field management per entity type
-- Feature flag evaluation and targeting
-- A/B testing via variant flags
 
 ## Data Processing Principles
 
@@ -193,8 +173,8 @@ Foundry implements automated retention policies to ensure data is not kept longe
 |---------------|------------------|------------------------|-------------|
 | Security Audit Logs (`audit` schema) | 7 years | Archive | Compliance requirements |
 | Invoices & Billing Records | 7 years | Archive | Tax and accounting requirements |
-| In-App Notifications | 30 days | Delete | No legal requirement; 30 days sufficient for user reference |
-| Email Messages | 90 days | Delete | Sufficient for delivery tracking |
+| In-App Notifications (`notifications` schema) | 30 days | Delete | No legal requirement; 30 days sufficient for user reference |
+| Email Messages (`notifications` schema) | 90 days | Delete | Sufficient for delivery tracking |
 | Session & Login Logs | 1 year | Anonymize | Security monitoring; anonymize after 1 year |
 | SCIM Sync Logs | 90 days | Delete | Sufficient for debugging |
 | User Data (general) | 7 years after account closure | Delete | Contractual necessity ends at account closure |
@@ -221,9 +201,9 @@ Users can request erasure of their personal data. Foundry implements the followi
 |---------------|----------------|------------|
 | Identity | Delete from Keycloak and application | Legal hold or active legal proceedings |
 | Billing | Anonymize (retain for tax compliance) | Cannot delete for 7 years due to legal requirements |
-| Communications | Delete notifications and email records | None |
+| Notifications | Delete notifications and email records | None |
+| Announcements | Delete announcements and dismissals | None |
 | Storage | Delete files and metadata | None |
-| Configuration | Delete custom fields and overrides | None |
 | Audit Logs | Retain for compliance period | Cannot delete for 7 years due to legal requirements |
 
 **Anonymization:** Where deletion is not possible due to legal requirements, data is anonymized by removing all identifiable information while preserving aggregate statistics.
@@ -307,9 +287,12 @@ Personal data is stored across multiple PostgreSQL schemas:
 **Module Schemas:**
 - `identity` - Service account metadata, SSO/SCIM configs, API scopes (user data in Keycloak)
 - `billing` - Invoices, payments, subscriptions, metering (meter definitions, quotas, usage records)
-- `communications` - Notifications, email messages, email preferences, announcements, changelog
-- `configuration` - Custom field definitions, feature flags, feature flag overrides
+- `notifications` - In-app notifications, email messages, email preferences
+- `announcements` - Announcements, announcement dismissals, changelog entries
+- `messaging` - Messaging-related data (direct messages, conversations)
 - `storage` - File metadata and buckets
+- `inquiries` - Inquiry/contact form submissions
+- `showcases` - Showcase listings and related data
 
 **Shared Infrastructure Schemas:**
 - `audit` - Security audit logs (via Audit.NET interceptor)
