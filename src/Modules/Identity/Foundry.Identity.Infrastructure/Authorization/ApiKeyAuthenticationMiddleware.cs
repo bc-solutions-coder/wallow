@@ -45,13 +45,14 @@ public sealed partial class ApiKeyAuthenticationMiddleware(RequestDelegate next,
             LogInvalidApiKeyAttempt(result.Error);
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
             context.Response.ContentType = "application/problem+json";
-            await context.Response.WriteAsJsonAsync(new
+            string body = System.Text.Json.JsonSerializer.Serialize(new
             {
                 type = "https://tools.ietf.org/html/rfc7231#section-6.5.1",
                 title = "Unauthorized",
                 status = 401,
                 detail = result.Error ?? "Invalid API key"
             });
+            await context.Response.WriteAsync(body);
             return;
         }
 

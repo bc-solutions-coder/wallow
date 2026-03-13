@@ -1,5 +1,5 @@
-using Foundry.Notifications.Domain.Enums;
 using Foundry.Notifications.Domain.Channels.Email.Identity;
+using Foundry.Notifications.Domain.Enums;
 using Foundry.Shared.Kernel.Domain;
 using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.MultiTenancy;

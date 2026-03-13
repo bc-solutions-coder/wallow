@@ -1,16 +1,15 @@
 using System.Net;
 using System.Net.Http.Json;
 using Foundry.Identity.Application.DTOs;
-using Foundry.Shared.Kernel.Domain;
 using Foundry.Identity.Application.Interfaces;
 using Foundry.Identity.Domain.Entities;
 using Foundry.Identity.Domain.Enums;
+using Foundry.Identity.Infrastructure;
 using Foundry.Identity.Infrastructure.Services;
+using Foundry.Shared.Kernel.Domain;
 using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.MultiTenancy;
 using Microsoft.Extensions.Logging;
-
-using Foundry.Identity.Infrastructure;
 using Microsoft.Extensions.Options;
 #pragma warning disable CA2000 // HttpClient/HttpMessageHandler lifetime is managed by test framework
 

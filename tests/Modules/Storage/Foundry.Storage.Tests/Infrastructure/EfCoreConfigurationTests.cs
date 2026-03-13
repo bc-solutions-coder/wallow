@@ -1,3 +1,4 @@
+using Foundry.Shared.Infrastructure.Settings;
 using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.MultiTenancy;
 using Foundry.Storage.Domain.Entities;
@@ -229,5 +230,83 @@ public sealed class EfCoreConfigurationTests : IDisposable
         string? schema = _model.GetDefaultSchema();
 
         schema.Should().Be("storage");
+    }
+
+    [Fact]
+    public void StorageDbContext_SetsQueryTrackingBehaviorToNoTracking()
+    {
+        _context.ChangeTracker.QueryTrackingBehavior.Should().Be(QueryTrackingBehavior.NoTracking);
+    }
+
+    [Fact]
+    public void StorageDbContext_ExposesDbSetForBuckets()
+    {
+        _context.Buckets.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void StorageDbContext_ExposesDbSetForFiles()
+    {
+        _context.Files.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void StorageDbContext_ExposesDbSetForTenantSettings()
+    {
+        _context.TenantSettings.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void StorageDbContext_ExposesDbSetForUserSettings()
+    {
+        _context.UserSettings.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void StorageDbContext_RegistersTenantSettingEntity()
+    {
+        IEntityType? entityType = _model.FindEntityType(typeof(TenantSettingEntity));
+
+        entityType.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void StorageDbContext_RegistersUserSettingEntity()
+    {
+        IEntityType? entityType = _model.FindEntityType(typeof(UserSettingEntity));
+
+        entityType.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void StorageDbContext_AppliesTenantQueryFilter_ToStorageBucket()
+    {
+        IEntityType? entityType = _model.FindEntityType(typeof(StorageBucket));
+
+        entityType!.GetDeclaredQueryFilters().Should().NotBeEmpty();
+    }
+
+    [Fact]
+    public void StorageDbContext_AppliesTenantQueryFilter_ToStoredFile()
+    {
+        IEntityType? entityType = _model.FindEntityType(typeof(StoredFile));
+
+        entityType!.GetDeclaredQueryFilters().Should().NotBeEmpty();
+    }
+
+    [Fact]
+    public void StorageDbContext_AppliesTenantQueryFilter_ToTenantSettingEntity()
+    {
+        IEntityType? entityType = _model.FindEntityType(typeof(TenantSettingEntity));
+
+        entityType!.GetDeclaredQueryFilters().Should().NotBeEmpty();
+    }
+
+    [Fact]
+    public void StorageDbContext_AppliesTenantQueryFilter_ToUserSettingEntity()
+    {
+        IEntityType? entityType = _model.FindEntityType(typeof(UserSettingEntity));
+
+        entityType!.GetDeclaredQueryFilters().Should().NotBeEmpty();
     }
 }

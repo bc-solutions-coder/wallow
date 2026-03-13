@@ -134,6 +134,98 @@ public class RetryFailedEmailsJobTests
             Arg.Any<CancellationToken>());
     }
 
+    [Fact]
+    public async Task ExecuteAsync_WithMultipleSuccessfulRetries_IncrementsRetriedCount()
+    {
+        EmailMessage message1 = CreateFailedEmailMessage();
+        EmailMessage message2 = CreateFailedEmailMessage();
+        EmailMessage message3 = CreateFailedEmailMessage();
+        IReadOnlyList<EmailMessage> failedMessages = new List<EmailMessage> { message1, message2, message3 };
+
+        _emailMessageRepository
+            .GetFailedRetryableAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(failedMessages);
+
+        await _sut.ExecuteAsync(CancellationToken.None);
+
+        await _emailService.Received(3).SendAsync(
+            Arg.Any<string>(),
+            Arg.Any<string?>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<CancellationToken>());
+
+        await _emailMessageRepository.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenSaveChangesThrows_PropagatesException()
+    {
+        EmailMessage message = CreateFailedEmailMessage();
+        IReadOnlyList<EmailMessage> failedMessages = new List<EmailMessage> { message };
+
+        _emailMessageRepository
+            .GetFailedRetryableAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(failedMessages);
+
+        _emailMessageRepository
+            .SaveChangesAsync(Arg.Any<CancellationToken>())
+            .Returns<Task>(_ => throw new InvalidOperationException("Save failed"));
+
+        Func<Task> act = () => _sut.ExecuteAsync(CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*Save failed*");
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithDefaultCancellationToken_CompletesSuccessfully()
+    {
+        IReadOnlyList<EmailMessage> emptyList = new List<EmailMessage>();
+
+        _emailMessageRepository
+            .GetFailedRetryableAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(emptyList);
+
+        await _sut.ExecuteAsync();
+
+        await _emailMessageRepository.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_PassesCorrectParametersToRepository()
+    {
+        IReadOnlyList<EmailMessage> emptyList = new List<EmailMessage>();
+
+        _emailMessageRepository
+            .GetFailedRetryableAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(emptyList);
+
+        await _sut.ExecuteAsync(CancellationToken.None);
+
+        await _emailMessageRepository.Received(1).GetFailedRetryableAsync(3, 100, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenAllSendsFail_StillSavesChanges()
+    {
+        EmailMessage message1 = CreateFailedEmailMessage();
+        EmailMessage message2 = CreateFailedEmailMessage();
+        IReadOnlyList<EmailMessage> failedMessages = new List<EmailMessage> { message1, message2 };
+
+        _emailMessageRepository
+            .GetFailedRetryableAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(failedMessages);
+
+        _emailService
+            .SendAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns<Task>(_ => throw new InvalidOperationException("SMTP down"));
+
+        await _sut.ExecuteAsync(CancellationToken.None);
+
+        await _emailMessageRepository.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
     private EmailMessage CreateFailedEmailMessage()
     {
         EmailAddress to = EmailAddress.Create($"test-{Guid.NewGuid():N}@example.com");

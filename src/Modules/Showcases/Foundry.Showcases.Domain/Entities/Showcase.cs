@@ -1,7 +1,7 @@
-using Foundry.Showcases.Domain.Enums;
-using Foundry.Showcases.Domain.Identity;
 using Foundry.Shared.Kernel.Domain;
 using Foundry.Shared.Kernel.Results;
+using Foundry.Showcases.Domain.Enums;
+using Foundry.Showcases.Domain.Identity;
 
 namespace Foundry.Showcases.Domain.Entities;
 

@@ -1,8 +1,8 @@
-using Foundry.Shared.Contracts.Identity.Events;
 using Foundry.Messaging.IntegrationTests.Fixtures;
 using Foundry.Messaging.IntegrationTests.Helpers;
 using Foundry.Messaging.IntegrationTests.TestEvents;
 using Foundry.Messaging.IntegrationTests.TestHandlers;
+using Foundry.Shared.Contracts.Identity.Events;
 using Wolverine;
 
 namespace Foundry.Messaging.IntegrationTests.Tests;

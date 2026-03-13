@@ -1,12 +1,12 @@
 using Foundry.Shared.Contracts.Storage;
-using Foundry.Storage.Application.Configuration;
-using Microsoft.Extensions.Options;
 using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.Results;
+using Foundry.Storage.Application.Configuration;
 using Foundry.Storage.Application.DTOs;
 using Foundry.Storage.Application.Interfaces;
 using Foundry.Storage.Application.Queries.GetUploadPresignedUrl;
 using Foundry.Storage.Domain.Entities;
+using Microsoft.Extensions.Options;
 using Wolverine;
 
 #pragma warning disable CA1861 // Inline arrays in test data initializers

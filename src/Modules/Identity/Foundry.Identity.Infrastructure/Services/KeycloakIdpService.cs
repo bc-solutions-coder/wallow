@@ -3,8 +3,8 @@ using System.Net.Http.Json;
 using System.Security.Cryptography.X509Certificates;
 using Foundry.Identity.Application.DTOs;
 using Foundry.Identity.Domain.Entities;
-using Microsoft.Extensions.Logging;
 using Foundry.Identity.Infrastructure.Extensions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Foundry.Identity.Infrastructure.Services;

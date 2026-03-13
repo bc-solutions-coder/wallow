@@ -55,11 +55,16 @@ public sealed partial class RedisApiKeyService(IConnectionMultiplexer redis, ILo
             IDatabase db = redis.GetDatabase();
             string json = JsonSerializer.Serialize(metadata);
 
+            TimeSpan? ttl = expiresAt.HasValue ? expiresAt.Value - DateTimeOffset.UtcNow : null;
+
             // Store by hash for validation lookups
             await db.StringSetAsync(
                 $"{KeyPrefix}{keyHash}",
                 json,
-                expiresAt.HasValue ? expiresAt.Value - DateTimeOffset.UtcNow : null);
+                ttl,
+                keepTtl: false,
+                When.Always,
+                CommandFlags.None);
 
             // Add to user's key list for management
             await db.SetAddAsync($"{UserKeysPrefix}{userId}", keyId);
@@ -68,7 +73,10 @@ public sealed partial class RedisApiKeyService(IConnectionMultiplexer redis, ILo
             await db.StringSetAsync(
                 $"{KeyPrefix}id:{keyId}",
                 json,
-                expiresAt.HasValue ? expiresAt.Value - DateTimeOffset.UtcNow : null);
+                ttl,
+                keepTtl: false,
+                When.Always,
+                CommandFlags.None);
 
             LogApiKeyCreated(keyId, userId, tenantId);
 
@@ -262,8 +270,8 @@ public sealed partial class RedisApiKeyService(IConnectionMultiplexer redis, ILo
                 ? data.ExpiresAt.Value - DateTimeOffset.UtcNow
                 : null;
 
-            await db.StringSetAsync($"{KeyPrefix}{keyHash}", json, expiry);
-            await db.StringSetAsync($"{KeyPrefix}id:{data.KeyId}", json, expiry);
+            await db.StringSetAsync($"{KeyPrefix}{keyHash}", json, expiry, keepTtl: false, When.Always, CommandFlags.None);
+            await db.StringSetAsync($"{KeyPrefix}id:{data.KeyId}", json, expiry, keepTtl: false, When.Always, CommandFlags.None);
         }
         catch (Exception ex)
         {

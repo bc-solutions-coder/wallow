@@ -1,12 +1,12 @@
 using Asp.Versioning;
 using Foundry.Billing.Api.Contracts.Payments;
-using Foundry.Shared.Api.Extensions;
 using Foundry.Billing.Application.Commands.ProcessPayment;
 using Foundry.Billing.Application.DTOs;
 using Foundry.Billing.Application.Queries.GetPaymentById;
 using Foundry.Billing.Application.Queries.GetPaymentsByInvoiceId;
-using Foundry.Shared.Kernel.Results;
+using Foundry.Shared.Api.Extensions;
 using Foundry.Shared.Kernel.Identity.Authorization;
+using Foundry.Shared.Kernel.Results;
 using Foundry.Shared.Kernel.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;

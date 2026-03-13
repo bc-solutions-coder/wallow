@@ -1,9 +1,9 @@
 using System.Reflection;
+using Foundry.Announcements.Infrastructure.Persistence;
 using Foundry.Billing.Infrastructure.Persistence;
 using Foundry.Identity.Infrastructure.Persistence;
-using Foundry.Notifications.Infrastructure.Persistence;
 using Foundry.Messaging.Infrastructure.Persistence;
-using Foundry.Announcements.Infrastructure.Persistence;
+using Foundry.Notifications.Infrastructure.Persistence;
 using Foundry.Storage.Infrastructure.Persistence;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

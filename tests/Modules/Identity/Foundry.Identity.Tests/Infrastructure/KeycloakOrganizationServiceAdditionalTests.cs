@@ -1,14 +1,13 @@
 using System.Net;
 using System.Net.Http.Json;
 using Foundry.Identity.Application.DTOs;
+using Foundry.Identity.Infrastructure;
 using Foundry.Identity.Infrastructure.Services;
 using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.MultiTenancy;
 using Microsoft.Extensions.Logging;
-using Wolverine;
-
-using Foundry.Identity.Infrastructure;
 using Microsoft.Extensions.Options;
+using Wolverine;
 #pragma warning disable CA2000 // HttpClient/HttpMessageHandler lifetime is managed by test framework
 
 namespace Foundry.Identity.Tests.Infrastructure;

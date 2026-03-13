@@ -1,8 +1,8 @@
 using System.Net;
 using System.Text;
 using Foundry.Identity.Application.Interfaces;
-using Foundry.Identity.Infrastructure.Services;
 using Foundry.Identity.Infrastructure;
+using Foundry.Identity.Infrastructure.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 

@@ -1,15 +1,15 @@
 using Asp.Versioning;
 using Foundry.Notifications.Api.Contracts.InApp.Responses;
-using Foundry.Shared.Api.Extensions;
 using Foundry.Notifications.Application.Channels.InApp.Commands.MarkAllNotificationsRead;
 using Foundry.Notifications.Application.Channels.InApp.Commands.MarkNotificationRead;
 using Foundry.Notifications.Application.Channels.InApp.DTOs;
 using Foundry.Notifications.Application.Channels.InApp.Queries.GetUnreadCount;
 using Foundry.Notifications.Application.Channels.InApp.Queries.GetUserNotifications;
+using Foundry.Shared.Api.Extensions;
+using Foundry.Shared.Kernel.Identity.Authorization;
 using Foundry.Shared.Kernel.Pagination;
 using Foundry.Shared.Kernel.Results;
 using Foundry.Shared.Kernel.Services;
-using Foundry.Shared.Kernel.Identity.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;

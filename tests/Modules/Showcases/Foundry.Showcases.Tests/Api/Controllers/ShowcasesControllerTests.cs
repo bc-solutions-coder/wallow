@@ -1,3 +1,4 @@
+using Foundry.Shared.Kernel.Results;
 using Foundry.Showcases.Api.Contracts.Requests;
 using Foundry.Showcases.Api.Controllers;
 using Foundry.Showcases.Application.Commands.CreateShowcase;
@@ -8,7 +9,6 @@ using Foundry.Showcases.Application.Queries.GetShowcase;
 using Foundry.Showcases.Application.Queries.GetShowcases;
 using Foundry.Showcases.Domain.Enums;
 using Foundry.Showcases.Domain.Identity;
-using Foundry.Shared.Kernel.Results;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Wolverine;

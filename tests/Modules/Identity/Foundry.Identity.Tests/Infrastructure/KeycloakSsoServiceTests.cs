@@ -4,6 +4,7 @@ using Foundry.Identity.Application.DTOs;
 using Foundry.Identity.Application.Interfaces;
 using Foundry.Identity.Domain.Entities;
 using Foundry.Identity.Domain.Enums;
+using Foundry.Identity.Infrastructure;
 using Foundry.Identity.Infrastructure.Services;
 using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.MultiTenancy;
@@ -11,8 +12,6 @@ using Foundry.Shared.Kernel.Services;
 using Keycloak.AuthServices.Authentication;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-
-using Foundry.Identity.Infrastructure;
 #pragma warning disable CA2000 // HttpClient/HttpMessageHandler lifetime is managed by test framework
 
 namespace Foundry.Identity.Tests.Infrastructure;

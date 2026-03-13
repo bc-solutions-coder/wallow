@@ -1,11 +1,10 @@
 using System.Net;
 using System.Net.Http.Json;
+using Foundry.Identity.Infrastructure;
 using Foundry.Identity.Infrastructure.Services;
 using Foundry.Tests.Common.Fakes;
 using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Logging;
-
-using Foundry.Identity.Infrastructure;
 using Microsoft.Extensions.Options;
 #pragma warning disable CA2000
 // HttpClient/HttpMessageHandler lifetime is managed by test framework

@@ -1,17 +1,17 @@
 using System.Threading.RateLimiting;
 using Foundry.Api.HealthChecks;
 using Foundry.Api.Middleware;
+using Foundry.Shared.Infrastructure.Core.Resilience;
 using Foundry.Storage.Domain.Enums;
 using Foundry.Storage.Infrastructure.Configuration;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OpenApi;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.OpenApi;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
-using Foundry.Shared.Infrastructure.Core.Resilience;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.OpenApi;
 using RabbitMQ.Client;
 using Serilog;
 

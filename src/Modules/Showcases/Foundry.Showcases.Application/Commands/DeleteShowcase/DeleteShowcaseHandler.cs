@@ -1,7 +1,7 @@
+using Foundry.Shared.Kernel.Results;
 using Foundry.Showcases.Application.Contracts;
 using Foundry.Showcases.Domain.Entities;
 using Foundry.Showcases.Domain.Identity;
-using Foundry.Shared.Kernel.Results;
 
 namespace Foundry.Showcases.Application.Commands.DeleteShowcase;
 

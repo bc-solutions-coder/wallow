@@ -3,12 +3,12 @@ using Foundry.Identity.Api.Contracts.Requests;
 using Foundry.Identity.Api.Contracts.Responses;
 using Foundry.Identity.Application.Constants;
 using Foundry.Identity.Application.Interfaces;
-using Foundry.Shared.Kernel.MultiTenancy;
 using Foundry.Shared.Kernel.Identity.Authorization;
+using Foundry.Shared.Kernel.MultiTenancy;
+using Foundry.Shared.Kernel.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Foundry.Shared.Kernel.Services;
 
 namespace Foundry.Identity.Api.Controllers;
 

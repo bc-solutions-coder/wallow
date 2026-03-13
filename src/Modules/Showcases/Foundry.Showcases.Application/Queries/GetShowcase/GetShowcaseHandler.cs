@@ -1,6 +1,6 @@
+using Foundry.Shared.Kernel.Results;
 using Foundry.Showcases.Application.Contracts;
 using Foundry.Showcases.Domain.Entities;
-using Foundry.Shared.Kernel.Results;
 
 namespace Foundry.Showcases.Application.Queries.GetShowcase;
 

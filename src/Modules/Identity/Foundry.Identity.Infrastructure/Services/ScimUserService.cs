@@ -1,12 +1,12 @@
 using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
-using Foundry.Identity.Infrastructure.Extensions;
 using Foundry.Identity.Application.DTOs;
 using Foundry.Identity.Application.Exceptions;
 using Foundry.Identity.Application.Interfaces;
 using Foundry.Identity.Domain.Entities;
 using Foundry.Identity.Domain.Enums;
+using Foundry.Identity.Infrastructure.Extensions;
 using Foundry.Identity.Infrastructure.Scim;
 using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.MultiTenancy;

@@ -1,6 +1,5 @@
 using Asp.Versioning;
 using Foundry.Billing.Api.Contracts.Invoices;
-using Foundry.Shared.Api.Extensions;
 using Foundry.Billing.Application.Commands.AddLineItem;
 using Foundry.Billing.Application.Commands.CancelInvoice;
 using Foundry.Billing.Application.Commands.CreateInvoice;
@@ -9,8 +8,9 @@ using Foundry.Billing.Application.DTOs;
 using Foundry.Billing.Application.Queries.GetAllInvoices;
 using Foundry.Billing.Application.Queries.GetInvoiceById;
 using Foundry.Billing.Application.Queries.GetInvoicesByUserId;
-using Foundry.Shared.Kernel.Results;
+using Foundry.Shared.Api.Extensions;
 using Foundry.Shared.Kernel.Identity.Authorization;
+using Foundry.Shared.Kernel.Results;
 using Foundry.Shared.Kernel.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;

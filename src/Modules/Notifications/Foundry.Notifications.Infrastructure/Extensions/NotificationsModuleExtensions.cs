@@ -1,15 +1,15 @@
-using Foundry.Shared.Infrastructure.Core.Resilience;
 using Foundry.Notifications.Application.Channels.Email.Interfaces;
-using Foundry.Notifications.Application.Extensions;
 using Foundry.Notifications.Application.Channels.InApp.Interfaces;
 using Foundry.Notifications.Application.Channels.Push.Interfaces;
 using Foundry.Notifications.Application.Channels.Sms.Interfaces;
+using Foundry.Notifications.Application.Extensions;
 using Foundry.Notifications.Application.Preferences.Interfaces;
 using Foundry.Notifications.Infrastructure.Jobs;
 using Foundry.Notifications.Infrastructure.Persistence;
 using Foundry.Notifications.Infrastructure.Persistence.Repositories;
 using Foundry.Notifications.Infrastructure.Services;
 using Foundry.Shared.Contracts.Communications.Email;
+using Foundry.Shared.Infrastructure.Core.Resilience;
 using Foundry.Shared.Kernel.MultiTenancy;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;

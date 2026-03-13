@@ -78,4 +78,61 @@ public class SignalRNotificationServiceTests
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("Broker unavailable");
     }
+
+    [Fact]
+    public async Task SendToUserAsync_PassesCancellationToken_ToDispatcher()
+    {
+        Guid userId = Guid.NewGuid();
+        using CancellationTokenSource cts = new();
+        CancellationToken token = cts.Token;
+
+        await _sut.SendToUserAsync(userId, "Title", "Message", "info", token);
+
+        await _dispatcher.Received(1).SendToUserAsync(
+            Arg.Any<string>(),
+            Arg.Any<RealtimeEnvelope>(),
+            token);
+    }
+
+    [Fact]
+    public async Task BroadcastToTenantAsync_PassesCancellationToken_ToDispatcher()
+    {
+        TenantId tenantId = TenantId.New();
+        using CancellationTokenSource cts = new();
+        CancellationToken token = cts.Token;
+
+        await _sut.BroadcastToTenantAsync(tenantId, "Title", "Message", "info", token);
+
+        await _dispatcher.Received(1).SendToGroupAsync(
+            Arg.Any<string>(),
+            Arg.Any<RealtimeEnvelope>(),
+            token);
+    }
+
+    [Fact]
+    public async Task SendToUserAsync_UsesUserIdAsStringTarget()
+    {
+        Guid userId = Guid.NewGuid();
+
+        await _sut.SendToUserAsync(userId, "Title", "Message", "info");
+
+        await _dispatcher.Received(1).SendToUserAsync(
+            userId.ToString(),
+            Arg.Any<RealtimeEnvelope>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task BroadcastToTenantAsync_UsesTenantPrefixedGroupId()
+    {
+        TenantId tenantId = TenantId.New();
+
+        await _sut.BroadcastToTenantAsync(tenantId, "Title", "Message", "info");
+
+        await _dispatcher.Received(1).SendToGroupAsync(
+            $"tenant:{tenantId.Value}",
+            Arg.Any<RealtimeEnvelope>(),
+            Arg.Any<CancellationToken>());
+    }
+
 }

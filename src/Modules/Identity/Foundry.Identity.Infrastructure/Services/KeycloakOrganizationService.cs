@@ -1,7 +1,7 @@
 using System.Net.Http.Json;
-using Foundry.Identity.Infrastructure.Extensions;
 using Foundry.Identity.Application.DTOs;
 using Foundry.Identity.Application.Interfaces;
+using Foundry.Identity.Infrastructure.Extensions;
 using Foundry.Shared.Contracts.Identity.Events;
 using Foundry.Shared.Kernel.MultiTenancy;
 using Microsoft.Extensions.Logging;

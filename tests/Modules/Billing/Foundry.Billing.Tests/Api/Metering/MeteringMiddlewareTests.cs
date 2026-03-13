@@ -4,8 +4,8 @@ using Foundry.Billing.Application.Metering.Services;
 using Foundry.Billing.Domain.Metering.Enums;
 using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.MultiTenancy;
-using Microsoft.AspNetCore.Http;
 using Foundry.Tests.Common.Fakes;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Hybrid;
 using Wolverine;
 

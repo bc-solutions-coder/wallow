@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using Foundry.Identity.Application.DTOs;
+using Foundry.Identity.Infrastructure;
 using Foundry.Identity.Infrastructure.Services;
 using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.MultiTenancy;
@@ -8,11 +9,9 @@ using Keycloak.AuthServices.Sdk.Admin;
 using Keycloak.AuthServices.Sdk.Admin.Models;
 using Keycloak.AuthServices.Sdk.Admin.Requests.Users;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using NSubstitute.ExceptionExtensions;
 using Wolverine;
-
-using Foundry.Identity.Infrastructure;
-using Microsoft.Extensions.Options;
 #pragma warning disable CA2000 // HttpClient/HttpMessageHandler lifetime is managed by test framework
 
 namespace Foundry.Identity.Tests.Infrastructure;

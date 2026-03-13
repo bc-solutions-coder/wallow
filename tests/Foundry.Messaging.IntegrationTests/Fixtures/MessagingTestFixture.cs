@@ -1,6 +1,6 @@
-using Foundry.Tests.Common.Factories;
 using Foundry.Messaging.IntegrationTests.Helpers;
 using Foundry.Messaging.IntegrationTests.TestHandlers;
+using Foundry.Tests.Common.Factories;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;

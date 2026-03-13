@@ -1,10 +1,10 @@
 using System.Net.Http.Json;
 using System.Text.RegularExpressions;
-using Foundry.Identity.Infrastructure.Extensions;
 using Foundry.Identity.Application.DTOs;
 using Foundry.Identity.Application.Interfaces;
 using Foundry.Identity.Domain.Entities;
 using Foundry.Identity.Domain.Identity;
+using Foundry.Identity.Infrastructure.Extensions;
 using Foundry.Shared.Kernel.Domain;
 using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.MultiTenancy;

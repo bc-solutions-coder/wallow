@@ -1,13 +1,13 @@
 using Asp.Versioning;
 using Foundry.Billing.Api.Contracts.Subscriptions;
-using Foundry.Shared.Api.Extensions;
 using Foundry.Billing.Application.Commands.CancelSubscription;
 using Foundry.Billing.Application.Commands.CreateSubscription;
 using Foundry.Billing.Application.DTOs;
 using Foundry.Billing.Application.Queries.GetSubscriptionById;
 using Foundry.Billing.Application.Queries.GetSubscriptionsByUserId;
-using Foundry.Shared.Kernel.Results;
+using Foundry.Shared.Api.Extensions;
 using Foundry.Shared.Kernel.Identity.Authorization;
+using Foundry.Shared.Kernel.Results;
 using Foundry.Shared.Kernel.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;

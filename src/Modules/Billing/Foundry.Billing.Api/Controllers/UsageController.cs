@@ -1,9 +1,9 @@
 using Asp.Versioning;
-using Foundry.Shared.Api.Extensions;
 using Foundry.Billing.Application.Metering.DTOs;
 using Foundry.Billing.Application.Metering.Queries.GetCurrentUsage;
 using Foundry.Billing.Application.Metering.Queries.GetUsageHistory;
 using Foundry.Billing.Domain.Metering.Enums;
+using Foundry.Shared.Api.Extensions;
 using Foundry.Shared.Kernel.Identity.Authorization;
 using Foundry.Shared.Kernel.Results;
 using Microsoft.AspNetCore.Authorization;
