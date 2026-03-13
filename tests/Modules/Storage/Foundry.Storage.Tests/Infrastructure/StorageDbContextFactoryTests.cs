@@ -1,6 +1,5 @@
 using Foundry.Shared.Kernel.MultiTenancy;
 using Foundry.Storage.Infrastructure.Persistence;
-using Microsoft.EntityFrameworkCore;
 
 namespace Foundry.Storage.Tests.Infrastructure;
 
