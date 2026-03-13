@@ -33,6 +33,8 @@
   <PropertyGroup>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591;DAP005</NoWarn> <!-- Missing XML comments; Dapper AOT not used -->
+    <!-- Prevent recursive bin/obj nesting when content files are copied to output -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);**/bin/**;**/obj/**</DefaultItemExcludes>
   </PropertyGroup>
 
   <!-- Code Analysis Configuration -->
