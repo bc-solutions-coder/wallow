@@ -14,7 +14,13 @@ public class MessageSentEventHandlerTests
 {
     private readonly IConversationRepository _repository = Substitute.For<IConversationRepository>();
     private readonly IMessageBus _bus = Substitute.For<IMessageBus>();
-    private readonly ILogger<MessageSentEventHandler> _logger = Substitute.For<ILogger<MessageSentEventHandler>>();
+    private readonly ILogger<MessageSentEventHandler> _logger;
+
+    public MessageSentEventHandlerTests()
+    {
+        _logger = Substitute.For<ILogger<MessageSentEventHandler>>();
+        _logger.IsEnabled(Arg.Any<LogLevel>()).Returns(true);
+    }
 
     [Fact]
     public async Task HandleAsync_PublishesIntegrationEvent()
@@ -74,6 +80,25 @@ public class MessageSentEventHandlerTests
             .Returns((Conversation?)null);
 
         MessageSentDomainEvent domainEvent = new(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+
+        await MessageSentEventHandler.HandleAsync(
+            domainEvent, _repository, _bus, _logger, CancellationToken.None);
+
+        await _bus.DidNotReceive().PublishAsync(Arg.Any<MessageSentIntegrationEvent>());
+    }
+
+    [Fact]
+    public async Task HandleAsync_WhenMessageNotFoundInConversation_DoesNotPublish()
+    {
+        TenantId tenantId = TenantId.New();
+        Guid senderId = Guid.NewGuid();
+        Conversation conversation = Conversation.CreateDirect(tenantId, senderId, Guid.NewGuid(), TimeProvider.System);
+        _repository.GetByIdAsync(Arg.Any<ConversationId>(), Arg.Any<CancellationToken>())
+            .Returns(conversation);
+
+        // Use a messageId that doesn't exist in the conversation
+        MessageSentDomainEvent domainEvent = new(
+            conversation.Id.Value, Guid.NewGuid(), senderId, tenantId.Value);
 
         await MessageSentEventHandler.HandleAsync(
             domainEvent, _repository, _bus, _logger, CancellationToken.None);

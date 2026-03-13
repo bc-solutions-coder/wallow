@@ -14,7 +14,13 @@ public class ConversationCreatedEventHandlerTests
 {
     private readonly IConversationRepository _repository = Substitute.For<IConversationRepository>();
     private readonly IMessageBus _bus = Substitute.For<IMessageBus>();
-    private readonly ILogger<ConversationCreatedEventHandler> _logger = Substitute.For<ILogger<ConversationCreatedEventHandler>>();
+    private readonly ILogger<ConversationCreatedEventHandler> _logger;
+
+    public ConversationCreatedEventHandlerTests()
+    {
+        _logger = Substitute.For<ILogger<ConversationCreatedEventHandler>>();
+        _logger.IsEnabled(Arg.Any<LogLevel>()).Returns(true);
+    }
 
     [Fact]
     public async Task HandleAsync_PublishesIntegrationEvent()

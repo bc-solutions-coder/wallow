@@ -11,6 +11,8 @@
     <PackageReference Include="xunit.runner.visualstudio" />
     <PackageReference Include="FluentAssertions" />
     <PackageReference Include="NSubstitute" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="FluentValidation" />
   </ItemGroup>
 
   <ItemGroup>
@@ -20,7 +22,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\..\..\src\Modules\Showcases\Foundry.Showcases.Domain\Foundry.Showcases.Domain.csproj" />
     <ProjectReference Include="..\..\..\..\src\Modules\Showcases\Foundry.Showcases.Application\Foundry.Showcases.Application.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Modules\Showcases\Foundry.Showcases.Infrastructure\Foundry.Showcases.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Modules\Showcases\Foundry.Showcases.Api\Foundry.Showcases.Api.csproj" />
+    <ProjectReference Include="..\..\..\Foundry.Tests.Common\Foundry.Tests.Common.csproj" />
   </ItemGroup>
 </Project>

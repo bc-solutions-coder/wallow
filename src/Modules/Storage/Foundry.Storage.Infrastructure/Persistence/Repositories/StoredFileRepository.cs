@@ -1,3 +1,4 @@
+using Foundry.Shared.Kernel.Identity;
 using Foundry.Shared.Kernel.Pagination;
 using Foundry.Storage.Application.Interfaces;
 using Foundry.Storage.Domain.Entities;
@@ -44,8 +45,9 @@ public sealed class StoredFileRepository(StorageDbContext context) : IStoredFile
         int pageSize,
         CancellationToken cancellationToken = default)
     {
+        TenantId tenantIdValue = TenantId.Create(tenantId);
         IQueryable<StoredFile> query = context.Files
-            .Where(f => f.BucketId == bucketId && f.TenantId.Value == tenantId);
+            .Where(f => f.BucketId == bucketId && f.TenantId == tenantIdValue);
 
         if (!string.IsNullOrWhiteSpace(pathPrefix))
         {
