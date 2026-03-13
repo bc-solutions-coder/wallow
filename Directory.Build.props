@@ -32,7 +32,7 @@
   <!-- Build configuration -->
   <PropertyGroup>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <NoWarn>$(NoWarn);CS1591;DAP005</NoWarn> <!-- Missing XML comments; Dapper AOT not used -->
+    <NoWarn>$(NoWarn);CS1591;DAP005;NU1608</NoWarn> <!-- Missing XML comments; Dapper AOT not used; Humanizer 2.x locale satellites vs 3.x core -->
     <!-- Prevent recursive bin/obj nesting when content files are copied to output -->
     <DefaultItemExcludes>$(DefaultItemExcludes);**/bin/**;**/obj/**</DefaultItemExcludes>
   </PropertyGroup>

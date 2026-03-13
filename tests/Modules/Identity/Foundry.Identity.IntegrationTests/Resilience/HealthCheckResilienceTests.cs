@@ -61,7 +61,7 @@ public class HealthCheckResilienceTests : IClassFixture<KeycloakResilienceTestFa
 
         List<WireMock.Logging.ILogEntry> entries = _factory.WireMock.LogEntries.ToList();
         int keycloakRequests = entries.Count(e =>
-            e.RequestMessage.Path.Contains("openid-configuration", StringComparison.OrdinalIgnoreCase));
+            e.RequestMessage?.Path?.Contains("openid-configuration", StringComparison.OrdinalIgnoreCase) == true);
         keycloakRequests.Should().Be(2, "health-check profile retries once (1 original + 1 retry)");
     }
 
