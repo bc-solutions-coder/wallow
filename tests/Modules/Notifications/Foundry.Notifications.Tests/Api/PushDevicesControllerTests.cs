@@ -126,4 +126,63 @@ public class PushDevicesControllerTests
         ObjectResult problemResult = response.Should().BeOfType<ObjectResult>().Subject;
         problemResult.StatusCode.Should().Be(401);
     }
+
+    [Fact]
+    public async Task RegisterDevice_WhenFailure_ReturnsError()
+    {
+        _currentUserService.GetCurrentUserId().Returns(Guid.NewGuid());
+        Error error = new("Device.NotFound", "Device not found");
+        _bus.InvokeAsync<Result>(Arg.Any<object>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Failure(error));
+
+        RegisterDeviceRequest request = new(PushPlatform.Fcm, "device-token");
+        IActionResult response = await _controller.RegisterDevice(request, CancellationToken.None);
+
+        ObjectResult problemResult = response.Should().BeOfType<ObjectResult>().Subject;
+        problemResult.StatusCode.Should().Be(404);
+    }
+
+    [Fact]
+    public async Task DeregisterDevice_WhenFailure_ReturnsError()
+    {
+        _currentUserService.GetCurrentUserId().Returns(Guid.NewGuid());
+        Error error = new("Device.NotFound", "Device not found");
+        _bus.InvokeAsync<Result>(Arg.Any<object>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Failure(error));
+
+        IActionResult response = await _controller.DeregisterDevice(Guid.NewGuid(), CancellationToken.None);
+
+        ObjectResult problemResult = response.Should().BeOfType<ObjectResult>().Subject;
+        problemResult.StatusCode.Should().Be(404);
+    }
+
+    [Fact]
+    public async Task GetUserDevices_WhenFailure_ReturnsError()
+    {
+        _currentUserService.GetCurrentUserId().Returns(Guid.NewGuid());
+        Error error = new("Device.NotFound", "Devices not found");
+        _bus.InvokeAsync<Result<IReadOnlyList<DeviceRegistrationDto>>>(
+            Arg.Any<GetUserDevicesQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Failure<IReadOnlyList<DeviceRegistrationDto>>(error));
+
+        IActionResult response = await _controller.GetUserDevices(CancellationToken.None);
+
+        ObjectResult problemResult = response.Should().BeOfType<ObjectResult>().Subject;
+        problemResult.StatusCode.Should().Be(404);
+    }
+
+    [Fact]
+    public async Task SendPush_WhenFailure_ReturnsError()
+    {
+        _currentUserService.GetCurrentUserId().Returns(Guid.NewGuid());
+        Error error = new("Device.NotFound", "Device not found");
+        _bus.InvokeAsync<Result>(Arg.Any<object>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Failure(error));
+
+        SendPushRequest request = new(Guid.NewGuid(), "Title", "Body", "Alert");
+        IActionResult response = await _controller.SendPush(request, CancellationToken.None);
+
+        ObjectResult problemResult = response.Should().BeOfType<ObjectResult>().Subject;
+        problemResult.StatusCode.Should().Be(404);
+    }
 }

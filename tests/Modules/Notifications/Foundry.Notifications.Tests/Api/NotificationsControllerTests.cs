@@ -1,4 +1,6 @@
 using Foundry.Notifications.Api.Controllers;
+using Foundry.Notifications.Application.Channels.InApp.Commands.MarkAllNotificationsRead;
+using Foundry.Notifications.Application.Channels.InApp.Commands.MarkNotificationRead;
 using Foundry.Notifications.Application.Channels.InApp.DTOs;
 using Foundry.Notifications.Application.Channels.InApp.Queries.GetUnreadCount;
 using Foundry.Notifications.Application.Channels.InApp.Queries.GetUserNotifications;
@@ -128,5 +130,78 @@ public class NotificationsControllerTests
 
         ObjectResult problemResult = response.Should().BeOfType<ObjectResult>().Subject;
         problemResult.StatusCode.Should().Be(401);
+    }
+
+    [Fact]
+    public async Task MarkAsRead_WhenFailure_ReturnsErrorResult()
+    {
+        Guid userId = Guid.NewGuid();
+        Guid notificationId = Guid.NewGuid();
+        _currentUserService.GetCurrentUserId().Returns(userId);
+
+        Error error = Error.NotFound("Notification", notificationId);
+        _bus.InvokeAsync<Result>(
+            Arg.Any<MarkNotificationReadCommand>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Failure(error));
+
+        IActionResult response = await _controller.MarkAsRead(notificationId, CancellationToken.None);
+
+        ObjectResult problemResult = response.Should().BeOfType<ObjectResult>().Subject;
+        problemResult.StatusCode.Should().Be(404);
+    }
+
+    [Fact]
+    public async Task MarkAllAsRead_WhenFailure_ReturnsErrorResult()
+    {
+        Guid userId = Guid.NewGuid();
+        _currentUserService.GetCurrentUserId().Returns(userId);
+
+        Error error = Error.Validation("No notifications to mark as read");
+        _bus.InvokeAsync<Result>(
+            Arg.Any<MarkAllNotificationsReadCommand>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Failure(error));
+
+        IActionResult response = await _controller.MarkAllAsRead(CancellationToken.None);
+
+        ObjectResult problemResult = response.Should().BeOfType<ObjectResult>().Subject;
+        problemResult.StatusCode.Should().Be(400);
+    }
+
+    [Fact]
+    public async Task GetNotifications_WhenFailure_ReturnsErrorResult()
+    {
+        Guid userId = Guid.NewGuid();
+        _currentUserService.GetCurrentUserId().Returns(userId);
+
+        Error error = Error.Validation("Invalid page number");
+        Result<PagedResult<NotificationDto>> failureResult = Result.Failure<PagedResult<NotificationDto>>(error);
+
+        _bus.InvokeAsync<Result<PagedResult<NotificationDto>>>(
+            Arg.Any<GetUserNotificationsQuery>(), Arg.Any<CancellationToken>())
+            .Returns(failureResult);
+
+        IActionResult response = await _controller.GetNotifications(0, 20, CancellationToken.None);
+
+        ObjectResult problemResult = response.Should().BeOfType<ObjectResult>().Subject;
+        problemResult.StatusCode.Should().Be(400);
+    }
+
+    [Fact]
+    public async Task GetUnreadCount_WhenFailure_ReturnsErrorResult()
+    {
+        Guid userId = Guid.NewGuid();
+        _currentUserService.GetCurrentUserId().Returns(userId);
+
+        Error error = Error.Validation("Unable to retrieve count");
+        Result<int> failureResult = Result.Failure<int>(error);
+
+        _bus.InvokeAsync<Result<int>>(
+            Arg.Any<GetUnreadCountQuery>(), Arg.Any<CancellationToken>())
+            .Returns(failureResult);
+
+        IActionResult response = await _controller.GetUnreadCount(CancellationToken.None);
+
+        ObjectResult problemResult = response.Should().BeOfType<ObjectResult>().Subject;
+        problemResult.StatusCode.Should().Be(400);
     }
 }
