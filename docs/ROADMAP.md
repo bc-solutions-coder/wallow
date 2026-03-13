@@ -58,7 +58,7 @@
 ### Security High Priority
 
 #### 2.1 XSS Sanitization Across All User Content
-- **Modules:** Communications (Announcements, Notifications), SignalR
+- **Modules:** Announcements, Notifications, Messaging, SignalR
 - **Fix:** Add HtmlSanitizer NuGet package, sanitize all HTML before storage
 - **Effort:** 16 hours
 - **Impact:** Prevents stored XSS attacks
@@ -90,16 +90,10 @@
 ### Functionality High Priority
 
 #### 2.6 FluentValidation for All Commands
-- **Modules:** Communications (Announcements)
+- **Modules:** Announcements, Messaging, Notifications
 - **Fix:** Add validators to all command handlers
 - **Effort:** 8 hours
 - **Impact:** Consistent validation, better error messages
-
-#### 2.7 Feature Flag Evaluation Service
-- **Module:** Configuration
-- **Fix:** Implement percentage rollout and variant evaluation logic
-- **Effort:** 24 hours
-- **Impact:** Enables advanced feature rollout strategies
 
 ---
 
@@ -116,13 +110,13 @@
 - **Impact:** Enables breaking changes without disrupting existing clients
 
 #### 3.2 Notification Preferences System
-- **Module:** Communications (InApp channel)
+- **Module:** Notifications, Messaging
 - **Features:** Per-channel preferences, quiet hours, frequency limits
 - **Effort:** 40 hours
 - **Impact:** Reduces notification fatigue, improves user experience
 
 #### 3.3 Notification Cleanup and Retention
-- **Module:** Communications (InApp channel)
+- **Module:** Messaging
 - **Fix:** Auto-delete read notifications after 90 days, archive after 30 days
 - **Effort:** 16 hours
 - **Impact:** Prevents unbounded database growth
@@ -134,7 +128,7 @@
 - **Impact:** Compliance + cost optimization
 
 #### 3.5 Custom Fields System Completion
-- **Module:** Configuration
+- **Module:** Identity (per-tenant profile fields)
 - **Features:** Field validation rules, conditional visibility, calculated fields
 - **Effort:** 40 hours
 - **Impact:** Unlocks full custom field power
@@ -193,7 +187,7 @@
 
 #### 4.3 Microservice Extraction Toolkit
 - **Scope:** Service template, database splitting, API gateway patterns
-- **Approach:** Extract Communications → Billing → Identity
+- **Approach:** Extract Notifications → Billing → Identity
 - **Effort:** 200+ hours
 - **Impact:** Independent scaling, team autonomy
 
@@ -248,7 +242,7 @@
 
 ## 5. Module Enhancement Ideas
 
-**Specific enhancements for each of the 5 core modules and shared infrastructure.**
+**Specific enhancements for each of the 8 core modules and shared infrastructure.**
 
 ### Identity
 - Multi-factor authentication (TOTP, SMS, hardware keys)
@@ -265,13 +259,22 @@
 - Multi-currency support with exchange rates
 - Usage-based billing integration with metering
 
-### Communications
+### Notifications
 - Rich HTML email templating engine (Liquid or Handlebars)
-- Per-channel notification preferences (email, push, in-app)
+- Per-channel notification preferences (email, push)
 - Digest mode (daily/weekly notification summaries)
 - Push notification support (FCM, APNs)
-- Scheduled announcement publishing and expiration
 - Email analytics (open rate, click rate, bounce handling)
+
+### Messaging
+- Per-user message preferences and quiet hours
+- Message threading and reactions
+- Read receipts and delivery status
+
+### Announcements
+- Scheduled announcement publishing and expiration
+- Audience targeting by role or tenant segment
+- Announcement analytics (views, dismissals)
 
 ### Storage
 - Multiple storage providers (Azure Blob, GCS, Backblaze)
@@ -280,12 +283,15 @@
 - Virus scanning integration (ClamAV, VirusTotal)
 - File versioning with rollback
 
-### Configuration
-- Feature flag A/B testing framework
-- Feature flag usage analytics
-- Remote config sync (pull updates without deploy)
-- Configuration versioning and rollback
-- Environment-specific overrides UI
+### Inquiries
+- Spam filtering and rate limiting per submitter
+- Inquiry routing rules by category or tenant
+- Email auto-reply on submission
+
+### Showcases
+- Rich media attachments (video, gallery)
+- Public SEO-friendly URLs
+- View analytics and engagement tracking
 
 ### Shared Infrastructure
 
@@ -468,7 +474,7 @@
 ### Q1 2026 (Current Quarter)
 - Fix all P0 critical issues (security + architecture)
 - Implement P1 security hardening
-- Module simplification (24 -> 5 modules)
+- Module simplification (24 -> 8 modules)
 
 ### Q2 2026
 - API versioning strategy

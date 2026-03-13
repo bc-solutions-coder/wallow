@@ -623,10 +623,10 @@ public sealed class S3StorageOptions
 }
 ```
 
-### Communications Module (Email/SMTP)
+### Notifications Module (Email/SMTP)
 
 ```csharp
-// SmtpSettings.cs (in Foundry.Communications.Infrastructure)
+// SmtpSettings.cs (in Foundry.Notifications.Infrastructure)
 public sealed class SmtpSettings
 {
     public string Host { get; set; } = "localhost";

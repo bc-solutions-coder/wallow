@@ -26,7 +26,7 @@ dotnet ef migrations add MigrationName \
 
 ## Architecture
 
-**Modules:** Identity, Storage, Communications, Billing
+**Modules:** Identity, Billing, Storage, Notifications, Messaging, Announcements, Inquiries, Showcases
 
 - Modules communicate via RabbitMQ events, never direct references
 - Modules only reference `Shared.Contracts` for cross-module communication

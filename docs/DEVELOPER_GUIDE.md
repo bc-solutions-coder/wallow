@@ -86,7 +86,7 @@ cd docker && docker compose down -v && docker compose up -d
 
 Foundry is a modular monolith. Each module is an autonomous bounded context that follows Clean Architecture internally and communicates with other modules exclusively through integration events over RabbitMQ. Modules never reference each other directly.
 
-**Modules:** Identity, Storage, Communications, Billing
+**Modules:** Identity, Billing, Storage, Notifications, Messaging, Announcements, Inquiries, Showcases
 
 **Shared libraries:**
 - `Foundry.Shared.Contracts` -- Cross-module integration events and DTOs
@@ -128,7 +128,7 @@ Elsa 3 workflow engine integration for long-running, multi-step business process
 ```csharp
 public class SendWelcomeEmailActivity : WorkflowActivityBase
 {
-    public override string ModuleName => "Communications";
+    public override string ModuleName => "Notifications";
 
     protected override async ValueTask ExecuteActivityAsync(ActivityExecutionContext context)
     {
@@ -154,14 +154,19 @@ src/
       Foundry.Identity.Api/
     Billing/                          # Same four-layer pattern
     Storage/
-    Communications/
+    Notifications/
+    Messaging/
+    Announcements/
+    Inquiries/
+    Showcases/
   Shared/
     Foundry.Shared.Contracts/         # Cross-module events and DTOs
     Foundry.Shared.Kernel/            # Base classes, multi-tenancy, shared abstractions
-    Foundry.Shared.Infrastructure/    # Cross-cutting infrastructure
-      Auditing/                       # EF Core audit interceptor
-      BackgroundJobs/                 # IJobScheduler / Hangfire
-      Workflows/                      # Elsa 3 workflow engine
+    Foundry.Shared.Infrastructure/          # Cross-cutting infrastructure base
+    Foundry.Shared.Infrastructure.Core/    # Shared infrastructure core
+    Foundry.Shared.Infrastructure.Plugins/ # Plugin abstractions
+    Foundry.Shared.Infrastructure.BackgroundJobs/ # IJobScheduler / Hangfire
+    Foundry.Shared.Infrastructure.Workflows/      # Elsa 3 workflow engine
 
 tests/
   Foundry.Api.Tests/
@@ -169,7 +174,7 @@ tests/
   Foundry.Shared.Kernel.Tests/
   Foundry.Shared.Infrastructure.Tests/
   Foundry.Tests.Common/               # Shared test utilities, fixtures, factories
-  Messaging.IntegrationTests/
+  Foundry.Messaging.IntegrationTests/
   Modules/
     {Module}/
       {Module}.Domain.Tests/          # Unit tests for domain layer

@@ -3,7 +3,7 @@
 > Visual architecture documentation for the Foundry modular monolith platform
 
 **Date:** 2026-02-28
-**System:** Foundry Platform - 5 Modules + Shared Infrastructure
+**System:** Foundry Platform - 8 Modules + Shared Infrastructure
 **Technology:** .NET 10, PostgreSQL, RabbitMQ, Wolverine, Keycloak, Hangfire, Elsa 3
 
 ---
@@ -21,16 +21,19 @@
 
 ## 1. System Overview
 
-High-level view of all 5 modules and shared infrastructure.
+High-level view of all 8 modules and shared infrastructure.
 
 ```mermaid
 graph TB
-    subgraph "Platform Modules (5)"
+    subgraph "Platform Modules (8)"
         Identity[Identity<br/>Users, SSO, SCIM, API Keys, Service Accounts]
         Billing[Billing<br/>Invoices, Payments, Subscriptions, Metering]
-        Communications[Communications<br/>Email, In-App Notifications, Announcements]
+        Notifications[Notifications<br/>Email Delivery via MailKit]
+        Messaging[Messaging<br/>In-App Real-Time via SignalR]
+        Announcements[Announcements<br/>Broadcast Announcements]
         Storage[Storage<br/>S3, Local FS, Buckets]
-        Configuration[Configuration<br/>Feature Flags, Tenant Settings]
+        Inquiries[Inquiries<br/>Contact Form Processing]
+        Showcases[Showcases<br/>Public Showcase Listings]
     end
 
     subgraph "Shared Infrastructure"
@@ -45,13 +48,16 @@ graph TB
 
     Identity -.-> SharedContracts
     Billing -.-> SharedContracts
-    Communications -.-> SharedContracts
+    Notifications -.-> SharedContracts
 
     Api --> Identity
     Api --> Billing
-    Api --> Communications
+    Api --> Notifications
+    Api --> Messaging
+    Api --> Announcements
     Api --> Storage
-    Api --> Configuration
+    Api --> Inquiries
+    Api --> Showcases
 ```
 
 ---
@@ -68,20 +74,20 @@ graph LR
     end
 
     subgraph Consumers
-        Communications[Communications]
+        Notifications[Notifications]
     end
 
-    Identity -->|UserRegistered| Communications
-    Identity -->|PasswordResetRequested| Communications
-    Billing -->|InvoiceCreated| Communications
-    Billing -->|InvoicePaid| Communications
-    Billing -->|InvoiceOverdue| Communications
+    Identity -->|UserRegistered| Notifications
+    Identity -->|PasswordResetRequested| Notifications
+    Billing -->|InvoiceCreated| Notifications
+    Billing -->|InvoicePaid| Notifications
+    Billing -->|InvoiceOverdue| Notifications
 ```
 
 **Key Points:**
 - Modules communicate only via integration events through Shared.Contracts
-- Communications subscribes to events from other modules and delivers through appropriate channels
-- Modules never call Communications directly
+- Notifications subscribes to events from other modules and delivers through appropriate channels
+- Modules never call Notifications directly
 
 ---
 
@@ -277,7 +283,7 @@ graph TB
 1. **Authentication**: API Key OR JWT OR SCIM token
 2. **Tenant Resolution**: Extract `org` claim from JWT → ITenantContext
 3. **Permission Expansion**: Roles → Permissions via RolePermissionMapping
-4. **Authorization**: `[HasPermission("billing:invoices:read")]` attribute
+4. **Authorization**: `[HasPermission("InvoicesRead")]` attribute
 5. **Data Isolation**:
    - **Writes**: TenantSaveChangesInterceptor auto-stamps TenantId
    - **Reads**: Query filters auto-add `WHERE TenantId = @current`
@@ -290,12 +296,15 @@ Shows module dependencies on shared infrastructure and cross-module service inte
 
 ```mermaid
 graph TB
-    subgraph "5 Modules"
+    subgraph "8 Modules"
         M1[Identity]
         M2[Billing]
-        M3[Communications]
-        M4[Storage]
-        M5[Configuration]
+        M3[Notifications]
+        M4[Messaging]
+        M5[Announcements]
+        M6[Storage]
+        M7[Inquiries]
+        M8[Showcases]
     end
 
     subgraph "Shared Infrastructure"
@@ -311,6 +320,9 @@ graph TB
     M3 --> SK
     M4 --> SK
     M5 --> SK
+    M6 --> SK
+    M7 --> SK
+    M8 --> SK
 
     M1 -.->|publishes events| SC
     M2 -.->|publishes events| SC
@@ -339,7 +351,7 @@ graph TB
 
     M1 --> Keycloak
     M3 --> MailKit
-    M4 --> S3
+    M6 --> S3
     SI --> Elsa
 ```
 
@@ -357,9 +369,12 @@ graph TB
 |--------|-------------|-------------|--------|
 | **Identity** | EF Core | Keycloak integration, API keys, service accounts, SSO, SCIM, RBAC | Production |
 | **Billing** | EF Core | Invoices, payments, subscriptions, metered usage tracking | Production |
-| **Communications** | EF Core | Email (MailKit), in-app notifications (SignalR), announcements, changelog | Production |
+| **Notifications** | EF Core | Email delivery via MailKit, SMTP configuration | Production |
+| **Messaging** | EF Core | In-app real-time messages via SignalR | Production |
+| **Announcements** | EF Core | Broadcast announcements with targeting rules | Production |
 | **Storage** | EF Core | S3/Local FS, buckets, presigned URLs | Production |
-| **Configuration** | EF Core | Feature flags, tenant settings, custom fields | Production |
+| **Inquiries** | EF Core | Contact form processing and routing | Production |
+| **Showcases** | EF Core | Public-facing showcase listings | Production |
 
 ---
 

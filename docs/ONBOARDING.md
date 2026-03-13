@@ -59,7 +59,7 @@ Foundry is a **modular monolith** — a single deployable application (one API) 
 
 **Think of it as:**
 - A single ASP.NET Core web app
-- With 5 independent "mini-apps" inside (modules)
+- With 8 independent "mini-apps" inside (modules)
 - Each module owns its own database schema, domain logic, and API endpoints
 - Modules communicate via **events** over RabbitMQ (never direct method calls)
 
@@ -149,10 +149,9 @@ Identity module:
   1. User registers
   2. Publishes UserRegisteredEvent to RabbitMQ
 
-Communications module:
+Notifications module:
   3. Consumes UserRegisteredEvent
   4. Creates "Welcome!" in-app notification
-  5. Sends welcome email
 ```
 
 **No direct calls. Ever.**
@@ -214,10 +213,10 @@ Billing is the **gold standard DDD module**. Start here.
 ### 📬 Integration Events
 
 - [ ] **Browse: `src/Shared/Foundry.Shared.Contracts/`**
-  - See integration events organized by module: `Identity/`, `Billing/`, `Communications/`, `Storage/`
+  - See integration events organized by module: `Identity/`, `Billing/`, `Storage/`, `Notifications/`, `Messaging/`, `Announcements/`, `Inquiries/`, `Showcases/`
   - These are module-to-module contracts (never change breaking fields!)
 
-- [ ] **Example Handler: `src/Modules/Communications/Foundry.Communications.Application/Channels/InApp/EventHandlers/`**
+- [ ] **Example Handler: `src/Modules/Notifications/Foundry.Notifications.Application/EventHandlers/`**
   - See how to consume an event from another module
   - Just a static class with `HandleAsync(UserRegisteredEvent evt)`
 
@@ -596,7 +595,7 @@ The Identity module interacts with Keycloak's Admin API for users, orgs, and rol
 
 ### Where is Email handling?
 
-Email is now a channel within the **Communications** module (`Communications.Domain/Channels/Email/`). The Communications module consolidates email, in-app notifications, and announcements into a single module with subdomains.
+Email sending is handled within the **Notifications** module. The Notifications module manages in-app and push notifications, consuming events from Identity and Billing.
 
 ### Which module is the best example?
 
@@ -614,22 +613,17 @@ Why?
 
 **Start here when learning a new pattern.**
 
-### How does the Communications module work?
+### How do the Notifications and Announcements modules work?
 
-The Communications module is a **consolidated module** that handles all outbound messaging.
-
-**Structure:**
-- `Channels/Email/` — Email sending via MailKit (Mailpit in dev)
-- `Channels/InApp/` — In-app notifications via SignalR
-- `Announcements/` — System-wide announcements and changelog
+The **Notifications** module handles in-app and push notifications, consuming integration events from Identity and Billing.
 
 **How it consumes events:**
 ```
-UserRegisteredEvent (Identity) → Send welcome email + Create notification
-InvoicePaidEvent (Billing) → Send payment confirmation email
+UserRegisteredEvent (Identity) → Create welcome notification
+InvoicePaidEvent (Billing) → Create payment confirmation notification
 ```
 
-Each channel has its own entities, repositories, and handlers, but they share a single `CommunicationsDbContext`.
+The **Announcements** module handles system-wide announcements and changelog entries. The **Messaging** module handles user-to-user conversations.
 
 ---
 
@@ -800,7 +794,7 @@ dotnet run --project src/Foundry.Api  # Re-run migrations
 1. Module B publishes an event
 2. Module A consumes it and stores a local copy (eventual consistency)
 
-**Example:** Communications module doesn't query Billing directly. It listens to `InvoicePaidEvent` and creates a notification.
+**Example:** Notifications module doesn't query Billing directly. It listens to `InvoicePaidEvent` and creates a notification.
 
 ### Q: What if I need real-time cross-module data?
 
@@ -849,7 +843,7 @@ protected override void OnModelCreating(ModelBuilder builder)
 ### Design Documents
 
 Core architecture:
-- **Module Simplification:** `docs/plans/2026-02-27-module-simplification-design.md` — Consolidation from 24 modules to 5
+- **Architecture Reference:** `docs/FOUNDRY.md` — Single architecture and design reference
 - **Developer Guide:** `docs/DEVELOPER_GUIDE.md` — How to work in the codebase
 - **Deployment Guide:** `docs/DEPLOYMENT_GUIDE.md` — Server setup, CI/CD, Docker
 

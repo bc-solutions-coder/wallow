@@ -14,7 +14,7 @@ Before creating a new module:
 - [ ] Identify primary entities and their relationships
 - [ ] Determine if the module needs database persistence (EF Core) or is stateless
 
-> **Current modules:** Identity, Storage, Communications, Billing, Configuration. New modules should complement these existing capabilities.
+> **Current modules:** Identity, Billing, Storage, Notifications, Messaging, Announcements, Inquiries, Showcases. New modules should complement these existing capabilities.
 
 ---
 
@@ -1042,17 +1042,40 @@ public static IServiceCollection AddFoundryModules(
     this IServiceCollection services,
     IConfiguration configuration)
 {
+    services.AddSingleton(configuration);
+    services.AddFeatureManagement();
+    ServiceProvider tempProvider = services.BuildServiceProvider();
+    IFeatureManager featureManager = tempProvider.GetRequiredService<IFeatureManager>();
+
     // PLATFORM MODULES - Core infrastructure services
-    services.AddIdentityModule(configuration);
-    services.AddBillingModule(configuration);
-    services.AddCommunicationsModule(configuration);
-    services.AddStorageModule(configuration);
+    if (featureManager.IsEnabledAsync("Modules.Identity").GetAwaiter().GetResult())
+        services.AddIdentityModule(configuration);
+
+    if (featureManager.IsEnabledAsync("Modules.Billing").GetAwaiter().GetResult())
+        services.AddBillingModule(configuration);
+
+    if (featureManager.IsEnabledAsync("Modules.Notifications").GetAwaiter().GetResult())
+        services.AddNotificationsModule(configuration);
+
+    if (featureManager.IsEnabledAsync("Modules.Messaging").GetAwaiter().GetResult())
+        services.AddMessagingModule(configuration);
+
+    if (featureManager.IsEnabledAsync("Modules.Announcements").GetAwaiter().GetResult())
+        services.AddAnnouncementsModule(configuration);
+
+    if (featureManager.IsEnabledAsync("Modules.Storage").GetAwaiter().GetResult())
+        services.AddStorageModule(configuration);
 
     // FEATURE MODULES - Higher-level application features
-    services.AddConfigurationModule(configuration);
+    if (featureManager.IsEnabledAsync("Modules.Inquiries").GetAwaiter().GetResult())
+        services.AddInquiriesModule(configuration);
+
+    if (featureManager.IsEnabledAsync("Modules.Showcases").GetAwaiter().GetResult())
+        services.AddShowcasesModule(configuration);
 
     // Add your module in the appropriate section:
-    services.Add{ModuleName}Module(configuration);
+    if (featureManager.IsEnabledAsync("Modules.{ModuleName}").GetAwaiter().GetResult())
+        services.Add{ModuleName}Module(configuration);
 
     return services;
 }
@@ -1348,4 +1371,4 @@ Based on analysis of existing modules:
 
 ---
 
-*Based on the Billing module reference implementation. Current modules: Identity, Storage, Communications, Billing, Configuration.*
+*Based on the Billing module reference implementation. Current modules: Identity, Billing, Storage, Notifications, Messaging, Announcements, Inquiries, Showcases.*

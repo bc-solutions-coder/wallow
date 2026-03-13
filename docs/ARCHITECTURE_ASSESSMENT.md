@@ -87,7 +87,7 @@ The dependency direction is textbook correct:
 
 ### Aggregates (8/10)
 
-**Strong in traditional modules** (Billing, Communications). Aggregates protect invariants and raise domain events.
+**Strong in traditional modules** (Billing, Notifications, Storage). Aggregates protect invariants and raise domain events.
 
 ### Entities vs Value Objects (8/10)
 
@@ -137,7 +137,7 @@ Foundry uses three distinct architectural patterns. Understanding these is essen
 
 ### Pattern 1: Traditional DDD
 
-**Used by:** Billing, Communications, Storage, Configuration.
+**Used by:** Billing, Notifications, Messaging, Announcements, Storage, Inquiries, Showcases.
 
 ```
 Domain:        Aggregates with behavior, Value Objects, Domain Events
@@ -195,15 +195,18 @@ Infrastructure: Heavy services wrapping external system
 
 | Module | Pattern | DDD Score | Notes |
 |--------|---------|-----------|-------|
-| **Communications** | Traditional | 8/10 | Consolidated Email, InApp, Announcements subdomains. Good Value Objects (`EmailAddress`, `EmailContent`). |
-| **Configuration** | Traditional | 7/10 | Custom field definitions per entity type. Feature flags. |
+| **Notifications** | Traditional | 8/10 | Email delivery via MailKit. Good Value Objects (`EmailAddress`, `EmailContent`). |
+| **Messaging** | Traditional | 7/10 | In-app real-time messaging via SignalR. |
+| **Announcements** | Traditional | 7/10 | Broadcast announcements with targeting rules. |
+| **Storage** | Traditional (simple) | 6/10 | Raw file abstraction. `RetentionPolicy` Value Object. |
 
 ### Tier 3: Pragmatic Trade-offs
 
 | Module | Pattern | DDD Score | Notes |
 |--------|---------|-----------|-------|
 | **Identity** | External Adapter | 4/10 | Intentionally thin domain. Keycloak owns the logic. |
-| **Storage** | Traditional (simple) | 6/10 | Raw file abstraction. `RetentionPolicy` Value Object. |
+| **Inquiries** | Traditional | 7/10 | Contact/inquiry form processing. |
+| **Showcases** | Traditional | 7/10 | Public-facing showcase listings. |
 
 ### Shared Infrastructure Capabilities
 
@@ -234,7 +237,7 @@ Infrastructure: Heavy services wrapping external system
 | Module | Value Objects |
 |--------|--------------|
 | Billing | `Money` (currency, arithmetic) |
-| Communications | `EmailAddress` (validation), `EmailContent` |
+| Notifications | `EmailAddress` (validation), `EmailContent` |
 | Storage | `RetentionPolicy` |
 
 **Recommendation:** Continue extracting Value Objects when:
@@ -458,7 +461,7 @@ public interface IInvoiceRepository
 | Aspect | Status | Priority |
 |--------|--------|----------|
 | Domain Services layer | Missing | High |
-| Value Objects | Expanding (Billing, Communications, Storage) | Low |
+| Value Objects | Expanding (Billing, Notifications, Storage) | Low |
 | Event versioning | Not defined | Medium |
 | Event dispatch visibility | Implicit | Low |
 
@@ -468,4 +471,4 @@ public interface IInvoiceRepository
 
 ---
 
-*This assessment covers the 5 core modules in the Foundry platform. Billing remains the gold standard for traditional DDD. Communications demonstrates good Value Object adoption. Identity demonstrates the External Adapter pattern. Cross-cutting capabilities (Auditing, Background Jobs, Workflows) live in Shared.Infrastructure. See [MODULE_CREATION_GUIDE.md](./MODULE_CREATION_GUIDE.md) for step-by-step module creation instructions.*
+*This assessment covers the 8 core modules in the Foundry platform. Billing remains the gold standard for traditional DDD. Notifications demonstrates good Value Object adoption. Identity demonstrates the External Adapter pattern. Cross-cutting capabilities (Auditing, Background Jobs, Workflows) live in Shared.Infrastructure. See [MODULE_CREATION_GUIDE.md](./MODULE_CREATION_GUIDE.md) for step-by-step module creation instructions.*

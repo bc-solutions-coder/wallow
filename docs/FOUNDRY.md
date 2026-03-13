@@ -1,6 +1,6 @@
 # Foundry
 
-Foundry is a production-ready .NET 10 modular monolith base platform with 5 core modules. Products are built by forking this repository and adding domain-specific modules on top of the base. The platform provides: Identity (Keycloak), Billing, Communications (email, notifications, announcements), Storage, and Configuration — all with multi-tenancy, messaging infrastructure, observability, background jobs, workflow automation, and auditing built in.
+Foundry is a production-ready .NET 10 modular monolith base platform with 8 core modules. Products are built by forking this repository and adding domain-specific modules on top of the base. The platform provides: Identity (Keycloak), Billing, Storage, Notifications, Messaging, Announcements, Inquiries, and Showcases — all with multi-tenancy, messaging infrastructure, observability, background jobs, workflow automation, and auditing built in.
 
 ---
 
@@ -36,9 +36,12 @@ src/
       Foundry.Identity.Infrastructure/
       Foundry.Identity.Api/
     Billing/            (same four-layer structure)
-    Communications/     (same four-layer structure)
     Storage/            (same four-layer structure)
-    Configuration/      (same four-layer structure)
+    Notifications/      (same four-layer structure)
+    Messaging/          (same four-layer structure)
+    Announcements/      (same four-layer structure)
+    Inquiries/          (same four-layer structure)
+    Showcases/          (same four-layer structure)
   Shared/
     Foundry.Shared.Contracts/           # Integration events and cross-module DTOs
     Foundry.Shared.Kernel/              # Base classes: Entity, AggregateRoot, ValueObject,
@@ -129,7 +132,7 @@ Users with the `admin` realm role can pass an `X-Tenant-Id` header to impersonat
 
 ## Module Inventory
 
-Foundry contains 5 core modules plus shared infrastructure capabilities.
+Foundry contains 8 core modules plus shared infrastructure capabilities.
 
 ### Modules
 
@@ -155,22 +158,29 @@ Invoicing, payment tracking, and usage metering. Tenant-scoped.
 
 **Publishes:** `InvoiceCreatedEvent`, `PaymentReceivedEvent`, `InvoicePaidEvent`, `InvoiceOverdueEvent`
 
-#### Communications
-
-Consolidated module for all outbound messaging and notifications. Combines email, in-app notifications, and announcements into a single module with subdomains.
-
-**Subdomains:**
-- **Email** — Sends transactional email. Uses Mailpit in development.
-- **InApp** — In-app notifications delivered via SignalR. Consumes events from Identity and Billing.
-- **Announcements** — System-wide announcements, banners, and changelog entries.
-
 #### Storage
 
 Raw file storage abstraction (S3, local filesystem). Provides upload, download, and URL generation.
 
-#### Configuration
+#### Notifications
 
-Tenant-scoped configuration, settings, and feature flags.
+In-app and push notifications with delivery preferences. Consumes events from Identity and Billing to create notifications automatically.
+
+#### Messaging
+
+User-to-user conversations and threaded messaging.
+
+#### Announcements
+
+System-wide announcements, banners, and changelog entries.
+
+#### Inquiries
+
+Inquiry and question submission workflows.
+
+#### Showcases
+
+Portfolio and showcase item management.
 
 ### Shared Infrastructure Capabilities
 
@@ -211,7 +221,7 @@ Wolverine handles both in-process mediation (commands/queries) and RabbitMQ tran
 **Consuming:** Convention-based handler classes in the consuming module's Infrastructure layer. Wolverine discovers them automatically. Example:
 
 ```csharp
-// In Communications.Application
+// In Notifications.Application
 public static class UserRegisteredEventHandler
 {
     public static async Task HandleAsync(
@@ -230,10 +240,10 @@ Wolverine uses conventional routing with automatic queue/exchange discovery. Com
 
 | Exchange          | Events                                                    | Consumers                  |
 |-------------------|-----------------------------------------------------------|----------------------------|
-| `identity-events` | UserRegistered, UserRoleChanged, OrganizationCreated, OrganizationMemberAdded/Removed | Communications, Billing |
-| `billing-events`  | InvoiceCreated, PaymentReceived, InvoicePaid, InvoiceOverdue | Communications |
+| `identity-events` | UserRegistered, UserRoleChanged, OrganizationCreated, OrganizationMemberAdded/Removed | Notifications, Billing |
+| `billing-events`  | InvoiceCreated, PaymentReceived, InvoicePaid, InvoiceOverdue | Notifications |
 
-Consumer queues follow the pattern `{module}-inbox` (e.g., `communications-inbox`, `billing-inbox`).
+Consumer queues follow the pattern `{module}-inbox` (e.g., `notifications-inbox`, `billing-inbox`).
 
 ### Durability
 
@@ -290,7 +300,7 @@ Foundry is a base platform. To build a product:
 
 **Keycloak over custom auth** -- Offloads password storage, MFA, token lifecycle, social login, and SAML/LDAP federation to battle-tested infrastructure. The Identity module becomes a thin adapter rather than a security liability.
 
-**PostgreSQL schemas over separate databases** -- Each module gets its own schema (`billing`, `communications`, etc.) in a single database. This keeps local development simple (one connection string) while still enforcing module data ownership. A tenant can be promoted to a dedicated database later if scale demands it.
+**PostgreSQL schemas over separate databases** -- Each module gets its own schema (`billing`, `notifications`, etc.) in a single database. This keeps local development simple (one connection string) while still enforcing module data ownership. A tenant can be promoted to a dedicated database later if scale demands it.
 
 **Testcontainers over mocked infrastructure** -- Integration tests spin up real Postgres, RabbitMQ, and Redis containers. This catches configuration and query issues that mocks would miss, at the cost of slightly slower test runs.
 
@@ -302,4 +312,4 @@ Foundry is a base platform. To build a product:
 
 - **Developer guide:** `docs/DEVELOPER_GUIDE.md` -- Day-to-day development workflows, coding patterns, and conventions.
 - **Forking guide:** `docs/FORKING_GUIDE.md` -- Step-by-step instructions for creating a new product from Foundry.
-- **Module simplification:** `docs/plans/2026-02-27-module-simplification-design.md` -- Consolidation from 24 modules to 5.
+- **Developer guide:** `docs/DEVELOPER_GUIDE.md` -- Day-to-day development workflows, coding patterns, and conventions.

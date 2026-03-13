@@ -20,7 +20,7 @@ Fork it. Add your domain modules. Deploy.
 
 ## What is Foundry?
 
-Foundry provides the cross-cutting infrastructure every SaaS product needs out of the box: identity management, billing, communications, file storage, and multi-tenant data isolation. You write the business logic.
+Foundry provides the cross-cutting infrastructure every SaaS product needs out of the box: identity management, billing, notifications, messaging, file storage, and multi-tenant data isolation. You write the business logic.
 
 New products are created by forking Foundry and adding domain-specific modules. The base platform stays generic -- improvements to shared infrastructure can be pulled from upstream into forks.
 
@@ -34,9 +34,12 @@ src/
 ├── Modules/
 │   ├── Identity/                 # Auth, users, organizations, RBAC
 │   ├── Billing/                  # Payments, invoices, subscriptions
-│   ├── Communications/           # Email + real-time notifications
 │   ├── Storage/                  # File storage (S3, local)
-│   └── Configuration/            # Feature flags, tenant settings
+│   ├── Notifications/            # In-app and push notifications
+│   ├── Messaging/                # User-to-user conversations
+│   ├── Announcements/            # System-wide announcements
+│   ├── Inquiries/                # Inquiry and question submission
+│   └── Showcases/                # Portfolio and showcase items
 └── Shared/
     ├── Contracts/                # Cross-module event definitions
     └── Kernel/                   # Base classes, shared abstractions
@@ -59,9 +62,12 @@ Modules communicate through events over RabbitMQ via `Shared.Contracts` -- never
 |--------|----------------|
 | **Identity** | Authentication, users, organizations, roles, RBAC via Keycloak 26 |
 | **Billing** | Payments, invoices, subscription lifecycle |
-| **Communications** | Transactional email (SMTP) and real-time push notifications (SignalR) |
 | **Storage** | File storage abstraction (S3-compatible, local filesystem) |
-| **Configuration** | Feature flags and tenant settings |
+| **Notifications** | In-app and push notifications, delivery preferences |
+| **Messaging** | User-to-user conversations and threads |
+| **Announcements** | System-wide announcements and changelogs |
+| **Inquiries** | Inquiry and question submission |
+| **Showcases** | Portfolio and showcase items |
 
 ### Shared Infrastructure
 
@@ -112,7 +118,7 @@ dotnet run --project src/Foundry.Api
 
 ```bash
 dotnet test                                                    # all tests
-dotnet test tests/Modules/Billing/Modules.Billing.Tests        # single module
+dotnet test tests/Modules/Billing/Foundry.Billing.Tests        # single module
 ```
 
 ## Key Features
