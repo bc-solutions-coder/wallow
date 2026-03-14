@@ -111,6 +111,7 @@ Update `InquiryResponse` to include: `ProjectType`, `BudgetRange`, `Timeline`, `
 
 - Add `Phone` and `SubmitterId` fields to the command record.
 - Remove `HoneypotField` parameter. Since the endpoint now requires authentication (`InquiriesWrite` permission), unauthenticated bot submissions are blocked at the auth layer. The honeypot check in the handler should also be removed.
+- Remove IP-based rate limiting (`IRateLimitService.IsAllowedAsync` call) from the handler. Rate limiting by IP is no longer appropriate since all requests are authenticated via service accounts or user tokens. The `IRateLimitService` injection can be removed from the handler.
 
 ### Integration event contract update
 
@@ -189,9 +190,12 @@ No changes to the Inquiries module for SignalR.
 
 ### New domain entity: `InquiryComment`
 
+Implements `ITenantScoped` (required by architecture conventions for tenant-owned entities).
+
 Properties:
 - `Id`: `InquiryCommentId` (Guid wrapper, strongly typed)
 - `InquiryId`: `InquiryId` (FK to Inquiry)
+- `TenantId`: `TenantId` (from `ITenantScoped`, auto-stamped by `TenantSaveChangesInterceptor`)
 - `AuthorId`: `string` (Keycloak user ID, max 128 chars)
 - `AuthorName`: `string` (max 200 chars)
 - `Content`: `string` (max 5000 chars)
@@ -241,6 +245,7 @@ New table `inquiries.inquiry_comments`:
 | `content` | `varchar(5000)` | NOT NULL |
 | `is_internal` | `boolean` | NOT NULL, default false |
 | `created_at` | `timestamptz` | NOT NULL |
+| `tenant_id` | `uuid` | NOT NULL (auto-stamped by TenantSaveChangesInterceptor) |
 
 ---
 
@@ -306,9 +311,10 @@ Implementation: remove existing migration, create a fresh `InitialCreate` migrat
 - `InquiriesInfrastructureExtensions.cs` - register new repository
 
 ### Notifications module
+- `InquirySubmittedNotificationHandler.cs` - update `message.Subject` references to `message.ProjectType`
 - `InquirySubmittedSignalRHandler.cs` - new handler
 - `InquiryStatusChangedSignalRHandler.cs` - new handler
-- `InquiryCommentAddedSignalRHandler.cs` - new handler
+- `InquiryCommentAddedSignalRHandler.cs` - new handler (SignalR only, no email notification for comments)
 
 ### Shared.Contracts
 - `InquirySubmittedEvent.cs` - rename `Subject` to `ProjectType`, add `Phone`
