@@ -5,6 +5,7 @@ using Foundry.Inquiries.Application.Commands.UpdateInquiryStatus;
 using Foundry.Inquiries.Application.DTOs;
 using Foundry.Inquiries.Application.Queries.GetInquiries;
 using Foundry.Inquiries.Application.Queries.GetInquiryById;
+using Foundry.Inquiries.Application.Queries.GetSubmittedInquiries;
 using Foundry.Inquiries.Domain.Enums;
 using Foundry.Shared.Api.Extensions;
 using Foundry.Shared.Kernel.Identity.Authorization;
@@ -53,6 +54,7 @@ public class InquiriesController(IMessageBus bus) : ControllerBase
     }
 
     [HttpGet]
+    [HasPermission(PermissionType.InquiriesRead)]
     [ProducesResponseType(typeof(IReadOnlyList<InquiryResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAll(
         [FromQuery] string? status,
@@ -72,6 +74,24 @@ public class InquiriesController(IMessageBus bus) : ControllerBase
             .ToActionResult();
     }
 
+    [HttpGet("submitted")]
+    [ProducesResponseType(typeof(IReadOnlyList<InquiryResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetSubmitted(CancellationToken cancellationToken)
+    {
+        string? submitterId = ExtractSubmitterId();
+        if (submitterId is null)
+        {
+            return Ok(Array.Empty<InquiryResponse>());
+        }
+
+        Result<IReadOnlyList<InquiryDto>> result = await bus.InvokeAsync<Result<IReadOnlyList<InquiryDto>>>(
+            new GetSubmittedInquiriesQuery(submitterId), cancellationToken);
+
+        return result.Map(inquiries =>
+            (IReadOnlyList<InquiryResponse>)inquiries.Select(ToInquiryResponse).ToList())
+            .ToActionResult();
+    }
+
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(InquiryResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -79,6 +99,23 @@ public class InquiriesController(IMessageBus bus) : ControllerBase
     {
         Result<InquiryDto> result = await bus.InvokeAsync<Result<InquiryDto>>(
             new GetInquiryByIdQuery(id), cancellationToken);
+
+        if (!result.IsSuccess)
+        {
+            return result.Map(ToInquiryResponse).ToActionResult();
+        }
+
+        bool hasReadPermission = User.Claims
+            .Any(c => c.Type == "permission" && c.Value == PermissionType.InquiriesRead);
+
+        if (!hasReadPermission)
+        {
+            string? submitterId = ExtractSubmitterId();
+            if (submitterId is null || result.Value.SubmitterId != submitterId)
+            {
+                return NotFound();
+            }
+        }
 
         return result.Map(ToInquiryResponse).ToActionResult();
     }

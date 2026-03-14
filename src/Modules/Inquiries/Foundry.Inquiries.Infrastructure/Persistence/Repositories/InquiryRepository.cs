@@ -32,4 +32,12 @@ public sealed class InquiryRepository(InquiriesDbContext context) : IInquiryRepo
         context.Inquiries.Update(inquiry);
         return Task.CompletedTask;
     }
+
+    public async Task<IReadOnlyList<Inquiry>> GetBySubmitterAsync(string submitterId, CancellationToken cancellationToken = default)
+    {
+        return await context.Inquiries
+            .Where(i => i.SubmitterId == submitterId)
+            .OrderByDescending(i => i.CreatedAt)
+            .ToListAsync(cancellationToken);
+    }
 }

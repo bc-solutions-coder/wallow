@@ -9,4 +9,5 @@ public interface IInquiryRepository
     Task<IReadOnlyList<Inquiry>> GetAllAsync(CancellationToken cancellationToken = default);
     Task AddAsync(Inquiry inquiry, CancellationToken cancellationToken = default);
     Task UpdateAsync(Inquiry inquiry, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Inquiry>> GetBySubmitterAsync(string submitterId, CancellationToken cancellationToken = default);
 }

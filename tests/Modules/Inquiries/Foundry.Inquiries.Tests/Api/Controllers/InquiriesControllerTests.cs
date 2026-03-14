@@ -177,6 +177,13 @@ public class InquiriesControllerTests
         InquiryDto dto = CreateDto(id);
         _bus.InvokeAsync<Result<InquiryDto>>(Arg.Any<GetInquiryByIdQuery>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(dto));
+        _controller.ControllerContext.HttpContext = new DefaultHttpContext
+        {
+            User = new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity(
+            [
+                new System.Security.Claims.Claim("permission", "InquiriesRead")
+            ]))
+        };
 
         IActionResult result = await _controller.GetById(id, CancellationToken.None);
 
@@ -205,6 +212,13 @@ public class InquiriesControllerTests
         InquiryDto dto = CreateDto(id);
         _bus.InvokeAsync<Result<InquiryDto>>(Arg.Any<GetInquiryByIdQuery>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(dto));
+        _controller.ControllerContext.HttpContext = new DefaultHttpContext
+        {
+            User = new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity(
+            [
+                new System.Security.Claims.Claim("permission", "InquiriesRead")
+            ]))
+        };
 
         await _controller.GetById(id, CancellationToken.None);
 
