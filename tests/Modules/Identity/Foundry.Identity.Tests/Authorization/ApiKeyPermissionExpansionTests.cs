@@ -85,9 +85,9 @@ public class ApiKeyPermissionExpansionTests
     }
 
     [Fact]
-    public void ValidScopes_ContainsExactlyElevenEntries()
+    public void ValidScopes_ContainsExactlyFourteenEntries()
     {
-        ApiScopes.ValidScopes.Should().HaveCount(11);
+        ApiScopes.ValidScopes.Should().HaveCount(14);
     }
 
     [Theory]

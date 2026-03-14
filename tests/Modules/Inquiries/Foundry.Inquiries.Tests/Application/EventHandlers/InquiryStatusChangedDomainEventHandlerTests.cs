@@ -17,7 +17,7 @@ public class InquiryStatusChangedDomainEventHandlerTests
         IInquiryRepository repository = Substitute.For<IInquiryRepository>();
         IMessageBus bus = Substitute.For<IMessageBus>();
 
-        Inquiry inquiry = Inquiry.Create("Alice", "alice@example.com", "Acme Corp", "Web App", "$10k", "3 months", "Need help.", "1.1.1.1", TimeProvider.System);
+        Inquiry inquiry = Inquiry.Create("Alice", "alice@example.com", "555-0100", "Acme Corp", null, "Web App", "$10k", "3 months", "Need help.", "1.1.1.1", TimeProvider.System);
         inquiry.TransitionTo(InquiryStatus.Reviewed, TimeProvider.System);
         repository.GetByIdAsync(Arg.Any<InquiryId>(), Arg.Any<CancellationToken>()).Returns(inquiry);
 
@@ -41,7 +41,7 @@ public class InquiryStatusChangedDomainEventHandlerTests
         IInquiryRepository repository = Substitute.For<IInquiryRepository>();
         IMessageBus bus = Substitute.For<IMessageBus>();
 
-        Inquiry inquiry = Inquiry.Create("Bob", "bob@example.com", null, "Mobile App", "$5k", "6 months", "We need a mobile app.", "2.2.2.2", TimeProvider.System);
+        Inquiry inquiry = Inquiry.Create("Bob", "bob@example.com", "555-0100", null, null, "Mobile App", "$5k", "6 months", "We need a mobile app.", "2.2.2.2", TimeProvider.System);
         InquiryId inquiryId = inquiry.Id;
         repository.GetByIdAsync(Arg.Any<InquiryId>(), Arg.Any<CancellationToken>()).Returns(inquiry);
 

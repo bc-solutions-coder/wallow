@@ -17,7 +17,8 @@ public class InquirySubmittedNotificationHandlerTests
             InquiryId = Guid.NewGuid(),
             Name = "Jane Doe",
             Email = "jane@test.com",
-            Subject = "Sales Question",
+            Phone = "555-0100",
+            ProjectType = "Sales Question",
             Message = "I have a question about pricing.",
             SubmittedAt = DateTime.UtcNow,
             AdminEmail = "admin@company.com"

@@ -8,19 +8,17 @@ namespace Foundry.Inquiries.Tests.Application.Commands.SubmitInquiry;
 
 public class SubmitInquiryHandlerTests
 {
-    private static SubmitInquiryCommand BuildCommand(string? honeypot = null) =>
-        new("John Doe", "john@example.com", "Acme", "Web App", "$10k", "3 months", "We need help.", "1.2.3.4", honeypot);
+    private static SubmitInquiryCommand BuildCommand() =>
+        new("John Doe", "john@example.com", "555-0100", "Acme", null, "Web App", "$10k", "3 months", "We need help.");
 
     [Fact]
     public async Task HandleAsync_WithValidData_ReturnsSuccessWithDto()
     {
         IInquiryRepository repo = Substitute.For<IInquiryRepository>();
-        IRateLimitService rateLimit = Substitute.For<IRateLimitService>();
-        rateLimit.IsAllowedAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(true);
 
         SubmitInquiryCommand command = BuildCommand();
 
-        Result<InquiryDto> result = await SubmitInquiryHandler.HandleAsync(command, repo, rateLimit, TimeProvider.System, CancellationToken.None);
+        Result<InquiryDto> result = await SubmitInquiryHandler.HandleAsync(command, repo, TimeProvider.System, CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Name.Should().Be(command.Name);
@@ -29,45 +27,17 @@ public class SubmitInquiryHandlerTests
     }
 
     [Fact]
-    public async Task HandleAsync_WithHoneypotFilled_ReturnsFakeSuccess()
+    public async Task HandleAsync_CreatesInquiryWithCorrectFields()
     {
         IInquiryRepository repo = Substitute.For<IInquiryRepository>();
-        IRateLimitService rateLimit = Substitute.For<IRateLimitService>();
 
-        SubmitInquiryCommand command = BuildCommand(honeypot: "bot-filled-this");
+        SubmitInquiryCommand command = BuildCommand();
 
-        Result<InquiryDto> result = await SubmitInquiryHandler.HandleAsync(command, repo, rateLimit, TimeProvider.System, CancellationToken.None);
+        Result<InquiryDto> result = await SubmitInquiryHandler.HandleAsync(command, repo, TimeProvider.System, CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
-        await repo.DidNotReceive().AddAsync(Arg.Any<Inquiry>(), Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task HandleAsync_WhenRateLimited_ReturnsConflictError()
-    {
-        IInquiryRepository repo = Substitute.For<IInquiryRepository>();
-        IRateLimitService rateLimit = Substitute.For<IRateLimitService>();
-        rateLimit.IsAllowedAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(false);
-
-        SubmitInquiryCommand command = BuildCommand();
-
-        Result<InquiryDto> result = await SubmitInquiryHandler.HandleAsync(command, repo, rateLimit, TimeProvider.System, CancellationToken.None);
-
-        result.IsSuccess.Should().BeFalse();
-        result.Error.Code.Should().StartWith("Conflict");
-    }
-
-    [Fact]
-    public async Task HandleAsync_CallsRateLimitWithIpAddress()
-    {
-        IInquiryRepository repo = Substitute.For<IInquiryRepository>();
-        IRateLimitService rateLimit = Substitute.For<IRateLimitService>();
-        rateLimit.IsAllowedAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(true);
-
-        SubmitInquiryCommand command = BuildCommand();
-
-        await SubmitInquiryHandler.HandleAsync(command, repo, rateLimit, TimeProvider.System, CancellationToken.None);
-
-        await rateLimit.Received(1).IsAllowedAsync(command.SubmitterIpAddress, Arg.Any<CancellationToken>());
+        result.Value.ProjectType.Should().Be(command.ProjectType);
+        result.Value.BudgetRange.Should().Be(command.BudgetRange);
+        result.Value.Timeline.Should().Be(command.Timeline);
     }
 }

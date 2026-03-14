@@ -10,10 +10,7 @@ public class InquiryMappingsTests
     [Fact]
     public void ToDto_MapsAllFieldsCorrectly()
     {
-        Inquiry inquiry = Inquiry.Create(
-            "Jane Doe", "jane@example.com", "Acme Corp", "Mobile App",
-            "$50k", "6 months", "Build us a mobile app.", "10.0.0.1",
-            TimeProvider.System);
+        Inquiry inquiry = Inquiry.Create("Jane Doe", "jane@example.com", "555-0100", "Acme Corp", null, "Mobile App", "$50k", "6 months", "Build us a mobile app.", "10.0.0.1", TimeProvider.System);
 
         InquiryDto dto = inquiry.ToDto();
 
@@ -33,10 +30,7 @@ public class InquiryMappingsTests
     [Fact]
     public void ToDto_WithNullCompany_MapsCompanyAsNull()
     {
-        Inquiry inquiry = Inquiry.Create(
-            "John", "john@example.com", null, "Web App",
-            "$10k", "3 months", "Help.", "1.1.1.1",
-            TimeProvider.System);
+        Inquiry inquiry = Inquiry.Create("John", "john@example.com", "555-0100", null, null, "Web App", "$10k", "3 months", "Help.", "1.1.1.1", TimeProvider.System);
 
         InquiryDto dto = inquiry.ToDto();
 
@@ -46,10 +40,7 @@ public class InquiryMappingsTests
     [Fact]
     public void ToDto_AfterStatusTransition_ReflectsNewStatus()
     {
-        Inquiry inquiry = Inquiry.Create(
-            "Alice", "alice@example.com", null, "Web App",
-            "$10k", "3 months", "Help.", "1.1.1.1",
-            TimeProvider.System);
+        Inquiry inquiry = Inquiry.Create("Alice", "alice@example.com", "555-0100", null, null, "Web App", "$10k", "3 months", "Help.", "1.1.1.1", TimeProvider.System);
         inquiry.TransitionTo(InquiryStatus.Reviewed, TimeProvider.System);
 
         InquiryDto dto = inquiry.ToDto();
@@ -60,10 +51,7 @@ public class InquiryMappingsTests
     [Fact]
     public void ToDto_StatusToString_MatchesEnumName()
     {
-        Inquiry inquiry = Inquiry.Create(
-            "Bob", "bob@example.com", null, "Web App",
-            "$10k", "3 months", "Help.", "1.1.1.1",
-            TimeProvider.System);
+        Inquiry inquiry = Inquiry.Create("Bob", "bob@example.com", "555-0100", null, null, "Web App", "$10k", "3 months", "Help.", "1.1.1.1", TimeProvider.System);
         inquiry.TransitionTo(InquiryStatus.Reviewed, TimeProvider.System);
         inquiry.TransitionTo(InquiryStatus.Contacted, TimeProvider.System);
         inquiry.TransitionTo(InquiryStatus.Closed, TimeProvider.System);

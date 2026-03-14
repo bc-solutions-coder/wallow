@@ -8,7 +8,7 @@ public class SubmitInquiryValidatorTests
     private readonly SubmitInquiryValidator _validator = new();
 
     private static SubmitInquiryCommand Valid() =>
-        new("John Doe", "john@example.com", "Acme", "Web Application", "$10k - $50k", "3 months", "We need help building our platform.", "1.2.3.4", null);
+        new("John Doe", "john@example.com", "555-0100", "Acme", null, "Web Application", "$10k - $50k", "3 months", "We need help building our platform.");
 
     [Fact]
     public void Should_Have_Error_When_Name_Is_Empty()
@@ -92,14 +92,6 @@ public class SubmitInquiryValidatorTests
         SubmitInquiryCommand command = Valid() with { Message = new string('x', 5001) };
         TestValidationResult<SubmitInquiryCommand> result = _validator.TestValidate(command);
         result.ShouldHaveValidationErrorFor(x => x.Message);
-    }
-
-    [Fact]
-    public void Should_Have_Error_When_SubmitterIpAddress_Is_Empty()
-    {
-        SubmitInquiryCommand command = Valid() with { SubmitterIpAddress = "" };
-        TestValidationResult<SubmitInquiryCommand> result = _validator.TestValidate(command);
-        result.ShouldHaveValidationErrorFor(x => x.SubmitterIpAddress);
     }
 
     [Fact]

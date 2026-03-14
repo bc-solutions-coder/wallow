@@ -28,8 +28,17 @@ public sealed class InquiryConfiguration : IEntityTypeConfiguration<Inquiry>
             .HasMaxLength(320)
             .IsRequired();
 
+        builder.Property(i => i.Phone)
+            .HasColumnName("phone")
+            .HasMaxLength(100)
+            .IsRequired();
+
         builder.Property(i => i.Company)
             .HasColumnName("company")
+            .HasMaxLength(200);
+
+        builder.Property(i => i.SubmitterId)
+            .HasColumnName("submitter_id")
             .HasMaxLength(200);
 
         builder.Property(i => i.ProjectType)

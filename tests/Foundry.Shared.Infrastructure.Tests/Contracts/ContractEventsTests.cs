@@ -443,7 +443,7 @@ public class ContractEventsTests
             Email = "jane@example.com",
             Company = "Acme",
             Phone = "+1-555-0200",
-            Subject = "Question",
+            ProjectType = "Question",
             Message = "Hello, I have a question",
             SubmittedAt = DateTime.UtcNow,
             AdminEmail = "admin@foundry.dev"
@@ -463,14 +463,14 @@ public class ContractEventsTests
             InquiryId = Guid.NewGuid(),
             Name = "John",
             Email = "john@example.com",
-            Subject = "Subject",
+            Phone = "+1-555-0100",
+            ProjectType = "Subject",
             Message = "Message",
             SubmittedAt = DateTime.UtcNow,
             AdminEmail = "admin@foundry.dev"
         };
 
         evt.Company.Should().BeNull();
-        evt.Phone.Should().BeNull();
     }
 
     [Fact]

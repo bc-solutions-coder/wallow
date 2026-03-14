@@ -29,7 +29,7 @@ public sealed class InquiryRepositoryInMemoryTests : IDisposable
 
     private static Inquiry CreateInquiry(string name = "Test User")
     {
-        Inquiry inquiry = Inquiry.Create(name, "test@example.com", "Acme", "Web App", "$10k", "3 months", "We need help.", "1.2.3.4", TimeProvider.System);
+        Inquiry inquiry = Inquiry.Create(name, "test@example.com", "555-0100", "Acme", null, "Web App", "$10k", "3 months", "We need help.", "1.2.3.4", TimeProvider.System);
         inquiry.ClearDomainEvents();
         return inquiry;
     }
@@ -111,16 +111,7 @@ public sealed class InquiryRepositoryInMemoryTests : IDisposable
     public async Task AddAsync_PersistsAllFields()
     {
         InquiryRepository repository = CreateRepository();
-        Inquiry inquiry = Inquiry.Create(
-            "Full Name",
-            "full@example.com",
-            "BigCorp",
-            "Mobile App",
-            "$50k+",
-            "6 months",
-            "Detailed message.",
-            "10.0.0.1",
-            TimeProvider.System);
+        Inquiry inquiry = Inquiry.Create("Full Name", "full@example.com", "555-0100", "BigCorp", null, "Mobile App", "$50k+", "6 months", "Detailed message.", "10.0.0.1", TimeProvider.System);
         inquiry.ClearDomainEvents();
 
         await repository.AddAsync(inquiry, CancellationToken.None);

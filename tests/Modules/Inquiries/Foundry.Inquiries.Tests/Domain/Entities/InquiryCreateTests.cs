@@ -18,7 +18,7 @@ public class InquiryCreateTests
         string message = "Looking for a partner to build our platform.";
         string ip = "192.168.1.1";
 
-        Inquiry inquiry = Inquiry.Create(name, email, company, projectType, budgetRange, timeline, message, ip, TimeProvider.System);
+        Inquiry inquiry = Inquiry.Create(name, email, "555-0100", company, null, projectType, budgetRange, timeline, message, ip, TimeProvider.System);
 
         inquiry.Name.Should().Be(name);
         inquiry.Email.Should().Be(email);
@@ -43,7 +43,7 @@ public class InquiryCreateTests
         string message = "Need a mobile app for our business.";
         string ip = "10.0.0.1";
 
-        Inquiry inquiry = Inquiry.Create(name, email, company, projectType, budgetRange, timeline, message, ip, TimeProvider.System);
+        Inquiry inquiry = Inquiry.Create(name, email, "555-0100", company, null, projectType, budgetRange, timeline, message, ip, TimeProvider.System);
 
         inquiry.DomainEvents.Should().ContainSingle()
             .Which.Should().BeOfType<InquirySubmittedDomainEvent>()
@@ -63,7 +63,7 @@ public class InquiryCreateTests
     {
         DateTime before = DateTime.UtcNow;
 
-        Inquiry inquiry = Inquiry.Create("Test", "test@example.com", null, "Type", "Budget", "Timeline", "Message", "1.1.1.1", TimeProvider.System);
+        Inquiry inquiry = Inquiry.Create("Test", "test@example.com", "555-0100", null, null, "Type", "Budget", "Timeline", "Message", "1.1.1.1", TimeProvider.System);
 
         inquiry.CreatedAt.Should().BeOnOrAfter(before);
         inquiry.CreatedAt.Should().BeOnOrBefore(DateTime.UtcNow);

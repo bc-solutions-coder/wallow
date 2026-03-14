@@ -31,16 +31,7 @@ public sealed class InquiriesDbContextTests : IDisposable
     [Fact]
     public async Task DbContext_CanAddAndRetrieveInquiry()
     {
-        Inquiry inquiry = Inquiry.Create(
-            "Context Test",
-            "ctx@example.com",
-            null,
-            "Web",
-            "$5k",
-            "1 month",
-            "Test message.",
-            "127.0.0.1",
-            TimeProvider.System);
+        Inquiry inquiry = Inquiry.Create("Context Test", "ctx@example.com", "555-0100", null, null, "Web", "$5k", "1 month", "Test message.", "127.0.0.1", TimeProvider.System);
         inquiry.ClearDomainEvents();
 
         await _context.Inquiries.AddAsync(inquiry);

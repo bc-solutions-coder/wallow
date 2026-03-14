@@ -8,7 +8,7 @@ public class SubmitInquiryBoundaryTests
     private readonly SubmitInquiryValidator _validator = new();
 
     private static SubmitInquiryCommand Valid() =>
-        new("John Doe", "john@example.com", "Acme", "Web Application", "$10k - $50k", "3 months", "We need help building our platform.", "1.2.3.4", null);
+        new("John Doe", "john@example.com", "555-0100", "Acme", null, "Web Application", "$10k - $50k", "3 months", "We need help building our platform.");
 
     [Fact]
     public void Should_Not_Have_Error_When_Name_Is_Exactly_200_Characters()
@@ -121,14 +121,6 @@ public class SubmitInquiryBoundaryTests
     public void Should_Not_Have_Error_When_Company_Is_Null()
     {
         SubmitInquiryCommand command = Valid() with { Company = null };
-        TestValidationResult<SubmitInquiryCommand> result = _validator.TestValidate(command);
-        result.ShouldNotHaveAnyValidationErrors();
-    }
-
-    [Fact]
-    public void Should_Not_Have_Error_When_HoneypotField_Is_Null()
-    {
-        SubmitInquiryCommand command = Valid() with { HoneypotField = null };
         TestValidationResult<SubmitInquiryCommand> result = _validator.TestValidate(command);
         result.ShouldNotHaveAnyValidationErrors();
     }

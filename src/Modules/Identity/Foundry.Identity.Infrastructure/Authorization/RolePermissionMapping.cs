@@ -60,6 +60,8 @@ public static class RolePermissionMapping
             PermissionType.ServiceAccountsManage,
             PermissionType.PushRead,
             PermissionType.PushConfigWrite,
+            PermissionType.InquiriesRead,
+            PermissionType.InquiriesWrite,
         ],
         ["manager"] =
         [
@@ -75,6 +77,7 @@ public static class RolePermissionMapping
             PermissionType.ConfigurationManage,
             PermissionType.ShowcasesRead,
             PermissionType.ShowcasesManage,
+            PermissionType.InquiriesRead,
         ],
         ["user"] =
         [

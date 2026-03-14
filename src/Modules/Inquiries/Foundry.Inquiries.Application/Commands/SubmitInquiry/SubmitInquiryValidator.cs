@@ -15,6 +15,10 @@ public sealed class SubmitInquiryValidator : AbstractValidator<SubmitInquiryComm
             .EmailAddress().WithMessage("A valid email address is required")
             .MaximumLength(254).WithMessage("Email must not exceed 254 characters");
 
+        RuleFor(x => x.Phone)
+            .NotEmpty().WithMessage("Phone is required")
+            .MaximumLength(100).WithMessage("Phone must not exceed 100 characters");
+
         RuleFor(x => x.ProjectType)
             .NotEmpty().WithMessage("Project type is required")
             .MaximumLength(100).WithMessage("Project type must not exceed 100 characters");
@@ -30,8 +34,5 @@ public sealed class SubmitInquiryValidator : AbstractValidator<SubmitInquiryComm
         RuleFor(x => x.Message)
             .NotEmpty().WithMessage("Message is required")
             .MaximumLength(5000).WithMessage("Message must not exceed 5000 characters");
-
-        RuleFor(x => x.SubmitterIpAddress)
-            .NotEmpty().WithMessage("Submitter IP address is required");
     }
 }

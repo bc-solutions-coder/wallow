@@ -45,10 +45,7 @@ public class GetInquiryByIdNotFoundTests
     [Fact]
     public async Task Handle_WhenInquiryExists_MapsAllFieldsCorrectly()
     {
-        Inquiry inquiry = Inquiry.Create(
-            "Jane Doe", "jane@example.com", "Acme Corp", "Mobile App",
-            "$50k", "6 months", "Build us a mobile app.", "10.0.0.1",
-            TimeProvider.System);
+        Inquiry inquiry = Inquiry.Create("Jane Doe", "jane@example.com", "555-0100", "Acme Corp", null, "Mobile App", "$50k", "6 months", "Build us a mobile app.", "10.0.0.1", TimeProvider.System);
         _repo.GetByIdAsync(Arg.Any<InquiryId>(), Arg.Any<CancellationToken>()).Returns(inquiry);
 
         Result<InquiryDto> result = await _handler.Handle(new GetInquiryByIdQuery(inquiry.Id.Value), CancellationToken.None);

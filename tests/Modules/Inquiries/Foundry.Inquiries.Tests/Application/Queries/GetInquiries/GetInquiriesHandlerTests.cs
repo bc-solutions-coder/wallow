@@ -18,7 +18,7 @@ public class GetInquiriesHandlerTests
     }
 
     private static Inquiry CreateInquiry(string name = "Test User") =>
-        Inquiry.Create(name, "test@example.com", null, "Web App", "$10k", "3 months", "Need help.", "1.1.1.1", TimeProvider.System);
+        Inquiry.Create(name, "test@example.com", "555-0100", null, null, "Web App", "$10k", "3 months", "Need help.", "1.1.1.1", TimeProvider.System);
 
     [Fact]
     public async Task Handle_ReturnsAllInquiries()

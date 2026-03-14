@@ -70,6 +70,16 @@ public sealed partial class ApiScopeSeeder(ILogger<ApiScopeSeeder> logger)
         yield return ApiScope.Create("notifications.write", "Send Notifications", "Notifications",
             "Access to send notifications");
 
+        // Showcases scopes
+        yield return ApiScope.Create("showcases.read", "Read Showcases", "Showcases",
+            "Access to read showcases and showcase data");
+
+        // Inquiries scopes
+        yield return ApiScope.Create("inquiries.read", "Read Inquiries", "Inquiries",
+            "Access to read inquiries and inquiry data");
+        yield return ApiScope.Create("inquiries.write", "Create/Update Inquiries", "Inquiries",
+            "Access to create and update inquiries");
+
         // Platform scopes
         yield return ApiScope.Create("webhooks.manage", "Manage Webhook Subscriptions", "Platform",
             "Access to manage webhook subscriptions", isDefault: false);

@@ -26,7 +26,7 @@ public class InquiryRepositoryTests(PostgresContainerFixture fixture)
 
     private static Inquiry CreateInquiry(string name = "Test User", string ip = "1.2.3.4")
     {
-        Inquiry inquiry = Inquiry.Create(name, "test@example.com", "Acme", "Web App", "$10k", "3 months", "We need help.", ip, TimeProvider.System);
+        Inquiry inquiry = Inquiry.Create(name, "test@example.com", "555-0100", "Acme", null, "Web App", "$10k", "3 months", "We need help.", ip, TimeProvider.System);
         inquiry.ClearDomainEvents();
         return inquiry;
     }
@@ -116,7 +116,7 @@ public class InquiryRepositoryTests(PostgresContainerFixture fixture)
     public async Task AddAsync_PersistsAllFields()
     {
         InquiryRepository repository = CreateRepository();
-        Inquiry inquiry = Inquiry.Create("Full Name", "full@example.com", "BigCorp", "Mobile App", "$50k+", "6 months", "Detailed message here.", "10.0.0.1", TimeProvider.System);
+        Inquiry inquiry = Inquiry.Create("Full Name", "full@example.com", "555-0100", "BigCorp", null, "Mobile App", "$50k+", "6 months", "Detailed message here.", "10.0.0.1", TimeProvider.System);
         inquiry.ClearDomainEvents();
 
         await repository.AddAsync(inquiry, CancellationToken.None);

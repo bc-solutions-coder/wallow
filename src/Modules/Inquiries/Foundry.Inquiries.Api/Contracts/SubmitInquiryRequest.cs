@@ -3,7 +3,9 @@ namespace Foundry.Inquiries.Api.Contracts;
 public sealed record SubmitInquiryRequest(
     string Name,
     string Email,
+    string Phone,
     string? Company,
-    string? Phone,
-    string Subject,
+    string ProjectType,
+    string BudgetRange,
+    string Timeline,
     string Message);

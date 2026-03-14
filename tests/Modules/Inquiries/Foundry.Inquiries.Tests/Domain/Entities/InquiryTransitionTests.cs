@@ -9,7 +9,7 @@ public class InquiryTransitionTests
 {
     private static Inquiry CreateNewInquiry()
     {
-        Inquiry inquiry = Inquiry.Create("Test", "test@example.com", null, "Type", "Budget", "Timeline", "Message", "1.1.1.1", TimeProvider.System);
+        Inquiry inquiry = Inquiry.Create("Test", "test@example.com", "555-0100", null, null, "Type", "Budget", "Timeline", "Message", "1.1.1.1", TimeProvider.System);
         inquiry.ClearDomainEvents();
         return inquiry;
     }

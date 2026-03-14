@@ -27,7 +27,8 @@ public static class InquirySubmittedDomainEventHandler
             Name = domainEvent.Name,
             Email = domainEvent.Email,
             Company = domainEvent.Company,
-            Subject = domainEvent.ProjectType,
+            Phone = domainEvent.Phone,
+            ProjectType = domainEvent.ProjectType,
             Message = domainEvent.Message,
             SubmittedAt = inquiry?.CreatedAt ?? DateTime.UtcNow,
             AdminEmail = adminEmail

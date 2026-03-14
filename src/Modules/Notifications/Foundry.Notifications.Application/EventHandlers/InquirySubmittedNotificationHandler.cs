@@ -11,7 +11,7 @@ public static class InquirySubmittedNotificationHandler
         SendEmailCommand emailCommand = new(
             To: message.AdminEmail,
             From: null,
-            Subject: $"New Inquiry: {message.Subject}",
+            Subject: $"New Inquiry: {message.ProjectType}",
             Body: $"New inquiry from {message.Name} ({message.Email}): {message.Message}");
 
         await bus.InvokeAsync(emailCommand);

@@ -14,6 +14,9 @@ public static class ApiScopes
         "users.write",
         "notifications.read",
         "notifications.write",
-        "webhooks.manage"
+        "webhooks.manage",
+        "showcases.read",
+        "inquiries.read",
+        "inquiries.write"
     };
 }

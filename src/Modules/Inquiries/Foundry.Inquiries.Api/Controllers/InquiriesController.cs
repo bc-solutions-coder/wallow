@@ -7,6 +7,7 @@ using Foundry.Inquiries.Application.Queries.GetInquiries;
 using Foundry.Inquiries.Application.Queries.GetInquiryById;
 using Foundry.Inquiries.Domain.Enums;
 using Foundry.Shared.Api.Extensions;
+using Foundry.Shared.Kernel.Identity.Authorization;
 using Foundry.Shared.Kernel.Results;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -26,25 +27,25 @@ public class InquiriesController(IMessageBus bus) : ControllerBase
 {
 
     [HttpPost]
-    [AllowAnonymous]
+    [HasPermission(PermissionType.InquiriesWrite)]
     [ProducesResponseType(typeof(InquiryResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Submit(
         [FromBody] SubmitInquiryRequest request,
         CancellationToken cancellationToken)
     {
-        string ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        string? submitterId = ExtractSubmitterId();
 
         SubmitInquiryCommand command = new(
             request.Name,
             request.Email,
+            request.Phone,
             request.Company,
-            request.Subject,
-            BudgetRange: string.Empty,
-            Timeline: string.Empty,
-            request.Message,
-            ipAddress,
-            HoneypotField: null);
+            submitterId,
+            request.ProjectType,
+            request.BudgetRange,
+            request.Timeline,
+            request.Message);
 
         Result<InquiryDto> result = await bus.InvokeAsync<Result<InquiryDto>>(command, cancellationToken);
 
@@ -107,13 +108,27 @@ public class InquiriesController(IMessageBus bus) : ControllerBase
         return result.Map(ToInquiryResponse).ToActionResult();
     }
 
+    private string? ExtractSubmitterId()
+    {
+        string? azp = User.FindFirst("azp")?.Value;
+        if (azp is not null && azp.StartsWith("sa-", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return User.FindFirst("sub")?.Value;
+    }
+
     private static InquiryResponse ToInquiryResponse(InquiryDto dto) => new(
         dto.Id,
         dto.Name,
         dto.Email,
+        dto.Phone,
         dto.Company,
-        null,
+        dto.SubmitterId,
         dto.ProjectType,
+        dto.BudgetRange,
+        dto.Timeline,
         dto.Message,
         dto.Status,
         dto.CreatedAt.UtcDateTime,

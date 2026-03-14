@@ -33,7 +33,9 @@ public class InquiriesControllerTests
             id ?? Guid.NewGuid(),
             "John Doe",
             "john@example.com",
+            "555-0100",
             "Acme Corp",
+            null,
             "Web App",
             "$10k",
             "3 months",
@@ -51,7 +53,7 @@ public class InquiriesControllerTests
         _bus.InvokeAsync<Result<InquiryDto>>(Arg.Any<SubmitInquiryCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(dto));
 
-        SubmitInquiryRequest request = new("John Doe", "john@example.com", "Acme", null, "Website", "We need a website.");
+        SubmitInquiryRequest request = new("John Doe", "john@example.com", "555-0100", "Acme", "Website", "$10k", "3 months", "We need a website.");
 
         IActionResult result = await _controller.Submit(request, CancellationToken.None);
 
@@ -67,42 +69,12 @@ public class InquiriesControllerTests
         _bus.InvokeAsync<Result<InquiryDto>>(Arg.Any<SubmitInquiryCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Failure<InquiryDto>(Error.Validation("Name is required")));
 
-        SubmitInquiryRequest request = new("", "john@example.com", null, null, "Website", "Message");
+        SubmitInquiryRequest request = new("", "john@example.com", "555-0100", null, "Website", "$10k", "3 months", "Message");
 
         IActionResult result = await _controller.Submit(request, CancellationToken.None);
 
         ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
-    }
-
-    [Fact]
-    public async Task Submit_WhenRateLimited_Returns409()
-    {
-        _bus.InvokeAsync<Result<InquiryDto>>(Arg.Any<SubmitInquiryCommand>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Failure<InquiryDto>(Error.Conflict("Too many requests")));
-
-        SubmitInquiryRequest request = new("John", "john@example.com", null, null, "Website", "Message");
-
-        IActionResult result = await _controller.Submit(request, CancellationToken.None);
-
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
-        objectResult.StatusCode.Should().Be(StatusCodes.Status409Conflict);
-    }
-
-    [Fact]
-    public async Task Submit_PassesIpAddressToCommand()
-    {
-        InquiryDto dto = CreateDto();
-        _bus.InvokeAsync<Result<InquiryDto>>(Arg.Any<SubmitInquiryCommand>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success(dto));
-
-        SubmitInquiryRequest request = new("John", "john@example.com", null, null, "Website", "Message");
-
-        await _controller.Submit(request, CancellationToken.None);
-
-        await _bus.Received(1).InvokeAsync<Result<InquiryDto>>(
-            Arg.Is<SubmitInquiryCommand>(c => c.SubmitterIpAddress == "unknown"),
-            Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -113,7 +85,7 @@ public class InquiriesControllerTests
         _bus.InvokeAsync<Result<InquiryDto>>(Arg.Any<SubmitInquiryCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(dto));
 
-        SubmitInquiryRequest request = new("John Doe", "john@example.com", "Acme", null, "Website", "Message");
+        SubmitInquiryRequest request = new("John Doe", "john@example.com", "555-0100", "Acme", "Website", "$10k", "3 months", "Message");
 
         IActionResult result = await _controller.Submit(request, CancellationToken.None);
 

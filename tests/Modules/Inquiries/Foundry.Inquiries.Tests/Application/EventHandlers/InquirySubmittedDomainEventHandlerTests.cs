@@ -24,14 +24,16 @@ public class InquirySubmittedDomainEventHandlerTests
         IInquiryRepository repository = Substitute.For<IInquiryRepository>();
         IMessageBus bus = Substitute.For<IMessageBus>();
 
-        Inquiry inquiry = Inquiry.Create("Alice", "alice@example.com", "Acme Corp", "Web App", "$10k", "3 months", "Need help.", "1.1.1.1", TimeProvider.System);
+        Inquiry inquiry = Inquiry.Create("Alice", "alice@example.com", "555-0100", "Acme Corp", null, "Web App", "$10k", "3 months", "Need help.", "1.1.1.1", TimeProvider.System);
         repository.GetByIdAsync(Arg.Any<InquiryId>(), Arg.Any<CancellationToken>()).Returns(inquiry);
 
         InquirySubmittedDomainEvent domainEvent = new(
             inquiry.Id.Value,
             inquiry.Name,
             inquiry.Email,
+            inquiry.Phone,
             inquiry.Company,
+            inquiry.SubmitterId,
             inquiry.ProjectType,
             inquiry.BudgetRange,
             inquiry.Timeline,
@@ -44,7 +46,8 @@ public class InquirySubmittedDomainEventHandlerTests
             e.Name == domainEvent.Name &&
             e.Email == domainEvent.Email &&
             e.Company == domainEvent.Company &&
-            e.Subject == domainEvent.ProjectType &&
+            e.Phone == domainEvent.Phone &&
+            e.ProjectType == domainEvent.ProjectType &&
             e.Message == domainEvent.Message &&
             e.AdminEmail == "admin@test.local"));
     }
@@ -55,7 +58,7 @@ public class InquirySubmittedDomainEventHandlerTests
         IInquiryRepository repository = Substitute.For<IInquiryRepository>();
         IMessageBus bus = Substitute.For<IMessageBus>();
 
-        Inquiry inquiry = Inquiry.Create("Bob", "bob@example.com", null, "Mobile App", "$5k", "6 months", "We need a mobile app.", "2.2.2.2", TimeProvider.System);
+        Inquiry inquiry = Inquiry.Create("Bob", "bob@example.com", "555-0100", null, null, "Mobile App", "$5k", "6 months", "We need a mobile app.", "2.2.2.2", TimeProvider.System);
         InquiryId inquiryId = inquiry.Id;
         repository.GetByIdAsync(Arg.Any<InquiryId>(), Arg.Any<CancellationToken>()).Returns(inquiry);
 
@@ -63,7 +66,9 @@ public class InquirySubmittedDomainEventHandlerTests
             inquiryId.Value,
             inquiry.Name,
             inquiry.Email,
+            inquiry.Phone,
             inquiry.Company,
+            inquiry.SubmitterId,
             inquiry.ProjectType,
             inquiry.BudgetRange,
             inquiry.Timeline,

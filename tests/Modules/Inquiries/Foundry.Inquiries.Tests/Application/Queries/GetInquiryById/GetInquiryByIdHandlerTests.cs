@@ -20,7 +20,7 @@ public class GetInquiryByIdHandlerTests
     [Fact]
     public async Task Handle_WhenInquiryExists_ReturnsDto()
     {
-        Inquiry inquiry = Inquiry.Create("Jane", "jane@example.com", null, "Mobile App", "$5k", "6 months", "Need a mobile app.", "10.0.0.1", TimeProvider.System);
+        Inquiry inquiry = Inquiry.Create("Jane", "jane@example.com", "555-0100", null, null, "Mobile App", "$5k", "6 months", "Need a mobile app.", "10.0.0.1", TimeProvider.System);
         _repo.GetByIdAsync(Arg.Any<InquiryId>(), Arg.Any<CancellationToken>()).Returns(inquiry);
 
         GetInquiryByIdQuery query = new(inquiry.Id.Value);

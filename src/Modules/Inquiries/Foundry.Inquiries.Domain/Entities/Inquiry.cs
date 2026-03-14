@@ -10,7 +10,9 @@ public sealed class Inquiry : AggregateRoot<InquiryId>
 {
     public string Name { get; private set; } = string.Empty;
     public string Email { get; private set; } = string.Empty;
+    public string Phone { get; private set; } = string.Empty;
     public string? Company { get; private set; }
+    public string? SubmitterId { get; private set; }
     public string ProjectType { get; private set; } = string.Empty;
     public string BudgetRange { get; private set; } = string.Empty;
     public string Timeline { get; private set; } = string.Empty;
@@ -23,7 +25,9 @@ public sealed class Inquiry : AggregateRoot<InquiryId>
     public static Inquiry Create(
         string name,
         string email,
+        string phone,
         string? company,
+        string? submitterId,
         string projectType,
         string budgetRange,
         string timeline,
@@ -36,7 +40,9 @@ public sealed class Inquiry : AggregateRoot<InquiryId>
             Id = InquiryId.New(),
             Name = name,
             Email = email,
+            Phone = phone,
             Company = company,
+            SubmitterId = submitterId,
             ProjectType = projectType,
             BudgetRange = budgetRange,
             Timeline = timeline,
@@ -51,7 +57,9 @@ public sealed class Inquiry : AggregateRoot<InquiryId>
             inquiry.Id.Value,
             name,
             email,
+            phone,
             company,
+            submitterId,
             projectType,
             budgetRange,
             timeline,
