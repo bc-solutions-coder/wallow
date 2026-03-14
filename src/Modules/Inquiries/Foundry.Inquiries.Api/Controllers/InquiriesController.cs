@@ -1,14 +1,18 @@
 using Asp.Versioning;
 using Foundry.Inquiries.Api.Contracts;
+using Foundry.Inquiries.Application.Commands.AddInquiryComment;
 using Foundry.Inquiries.Application.Commands.SubmitInquiry;
 using Foundry.Inquiries.Application.Commands.UpdateInquiryStatus;
 using Foundry.Inquiries.Application.DTOs;
 using Foundry.Inquiries.Application.Queries.GetInquiries;
 using Foundry.Inquiries.Application.Queries.GetInquiryById;
+using Foundry.Inquiries.Application.Queries.GetInquiryComments;
 using Foundry.Inquiries.Application.Queries.GetSubmittedInquiries;
 using Foundry.Inquiries.Domain.Enums;
+using Foundry.Inquiries.Domain.Identity;
 using Foundry.Shared.Api.Extensions;
 using Foundry.Shared.Kernel.Identity.Authorization;
+using Foundry.Shared.Kernel.MultiTenancy;
 using Foundry.Shared.Kernel.Results;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -24,7 +28,7 @@ namespace Foundry.Inquiries.Api.Controllers;
 [Tags("Inquiries")]
 [Produces("application/json")]
 [Consumes("application/json")]
-public class InquiriesController(IMessageBus bus) : ControllerBase
+public class InquiriesController(IMessageBus bus, ITenantContext tenantContext) : ControllerBase
 {
 
     [HttpPost]
@@ -145,6 +149,75 @@ public class InquiriesController(IMessageBus bus) : ControllerBase
         return result.Map(ToInquiryResponse).ToActionResult();
     }
 
+    [HttpPost("{id:guid}/comments")]
+    [HasPermission(PermissionType.InquiriesWrite)]
+    [ProducesResponseType(StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> AddComment(
+        Guid id,
+        [FromBody] AddInquiryCommentRequest request,
+        CancellationToken cancellationToken)
+    {
+        string authorId = User.FindFirst("sub")?.Value ?? string.Empty;
+        string authorName = User.FindFirst("name")?.Value
+                            ?? User.FindFirst("preferred_username")?.Value
+                            ?? "Unknown";
+
+        AddInquiryCommentCommand command = new(
+            InquiryId.Create(id),
+            authorId,
+            authorName,
+            request.Content,
+            request.IsInternal,
+            tenantContext.TenantId.Value);
+
+        Result<InquiryCommentId> result = await bus.InvokeAsync<Result<InquiryCommentId>>(command, cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return result.ToActionResult();
+        }
+
+        return Created($"{id}/comments/{result.Value.Value}", new { Id = result.Value.Value });
+    }
+
+    [HttpGet("{id:guid}/comments")]
+    [ProducesResponseType(typeof(IReadOnlyList<InquiryCommentResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetComments(Guid id, CancellationToken cancellationToken)
+    {
+        bool hasReadPermission = User.Claims
+            .Any(c => c.Type == "permission" && c.Value == PermissionType.InquiriesRead);
+
+        if (!hasReadPermission)
+        {
+            string? submitterId = ExtractSubmitterId();
+            if (submitterId is null)
+            {
+                return NotFound();
+            }
+
+            Result<InquiryDto> inquiryResult = await bus.InvokeAsync<Result<InquiryDto>>(
+                new GetInquiryByIdQuery(id), cancellationToken);
+
+            if (!inquiryResult.IsSuccess || inquiryResult.Value.SubmitterId != submitterId)
+            {
+                return NotFound();
+            }
+        }
+
+        bool includeInternal = hasReadPermission;
+
+        IReadOnlyList<InquiryCommentDto> comments = await bus.InvokeAsync<IReadOnlyList<InquiryCommentDto>>(
+            new GetInquiryCommentsQuery(InquiryId.Create(id), includeInternal), cancellationToken);
+
+        IReadOnlyList<InquiryCommentResponse> response = comments
+            .Select(ToInquiryCommentResponse)
+            .ToList();
+
+        return Ok(response);
+    }
+
     private string? ExtractSubmitterId()
     {
         string? azp = User.FindFirst("azp")?.Value;
@@ -169,5 +242,14 @@ public class InquiriesController(IMessageBus bus) : ControllerBase
         dto.Message,
         dto.Status,
         dto.CreatedAt.UtcDateTime,
+        dto.CreatedAt.UtcDateTime);
+
+    private static InquiryCommentResponse ToInquiryCommentResponse(InquiryCommentDto dto) => new(
+        dto.Id,
+        dto.InquiryId,
+        dto.AuthorId,
+        dto.AuthorName,
+        dto.Content,
+        dto.IsInternal,
         dto.CreatedAt.UtcDateTime);
 }

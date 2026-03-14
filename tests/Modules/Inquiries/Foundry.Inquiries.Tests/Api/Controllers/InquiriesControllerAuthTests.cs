@@ -8,6 +8,7 @@ using Foundry.Shared.Kernel.Identity.Authorization;
 using Foundry.Shared.Kernel.Results;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Foundry.Shared.Kernel.MultiTenancy;
 using Wolverine;
 
 namespace Foundry.Inquiries.Tests.Api.Controllers;
@@ -20,7 +21,8 @@ public class InquiriesControllerAuthTests
     public InquiriesControllerAuthTests()
     {
         _bus = Substitute.For<IMessageBus>();
-        _controller = new InquiriesController(_bus);
+        ITenantContext tenantContext = Substitute.For<ITenantContext>();
+        _controller = new InquiriesController(_bus, tenantContext);
     }
 
     private void SetUser(string? sub = null, string? azp = null, params string[] permissions)

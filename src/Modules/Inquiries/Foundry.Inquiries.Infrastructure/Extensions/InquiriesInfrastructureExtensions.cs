@@ -29,6 +29,7 @@ public static class InquiriesInfrastructureExtensions
         });
 
         services.AddScoped<IInquiryRepository, InquiryRepository>();
+        services.AddScoped<IInquiryCommentRepository, InquiryCommentRepository>();
         services.AddSingleton<IRateLimitService, ValkeyRateLimitService>();
 
         return services;

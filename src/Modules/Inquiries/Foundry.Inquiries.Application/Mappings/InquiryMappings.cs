@@ -22,4 +22,16 @@ public static class InquiryMappings
             SubmitterIpAddress: inquiry.SubmitterIpAddress,
             CreatedAt: inquiry.CreatedAt);
     }
+
+    public static InquiryCommentDto ToCommentDto(this InquiryComment comment)
+    {
+        return new InquiryCommentDto(
+            Id: comment.Id.Value,
+            InquiryId: comment.InquiryId.Value,
+            AuthorId: comment.AuthorId,
+            AuthorName: comment.AuthorName,
+            Content: comment.Content,
+            IsInternal: comment.IsInternal,
+            CreatedAt: comment.CreatedAt);
+    }
 }

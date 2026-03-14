@@ -9,6 +9,7 @@ using Foundry.Inquiries.Domain.Enums;
 using Foundry.Shared.Kernel.Results;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Foundry.Shared.Kernel.MultiTenancy;
 using Wolverine;
 
 namespace Foundry.Inquiries.Tests.Api.Controllers;
@@ -21,7 +22,8 @@ public class InquiriesControllerTests
     public InquiriesControllerTests()
     {
         _bus = Substitute.For<IMessageBus>();
-        _controller = new InquiriesController(_bus);
+        ITenantContext tenantContext = Substitute.For<ITenantContext>();
+        _controller = new InquiriesController(_bus, tenantContext);
         _controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext()

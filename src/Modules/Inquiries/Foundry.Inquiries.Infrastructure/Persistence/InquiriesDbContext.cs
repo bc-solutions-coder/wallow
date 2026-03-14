@@ -6,6 +6,7 @@ namespace Foundry.Inquiries.Infrastructure.Persistence;
 public sealed class InquiriesDbContext : DbContext
 {
     public DbSet<Inquiry> Inquiries => Set<Inquiry>();
+    public DbSet<InquiryComment> InquiryComments => Set<InquiryComment>();
 
     public InquiriesDbContext(DbContextOptions<InquiriesDbContext> options)
         : base(options)
