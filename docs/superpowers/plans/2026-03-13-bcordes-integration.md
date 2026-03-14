@@ -507,7 +507,7 @@ public sealed record InquiryResponse(
     string Status,
     string? SubmitterId,
     DateTime CreatedAt,
-    DateTime UpdatedAt);
+    DateTime? UpdatedAt);
 ```
 
 - [ ] **Step 3: Update InquiriesController**
@@ -653,7 +653,7 @@ public class InquiriesController(IMessageBus bus) : ControllerBase
         dto.Status,
         dto.SubmitterId,
         dto.CreatedAt.UtcDateTime,
-        dto.CreatedAt.UtcDateTime);
+        null);
 }
 ```
 
@@ -1171,6 +1171,44 @@ git commit -m "test(inquiries): add GetSubmittedInquiriesHandler tests"
 
 ---
 
+### Task 17b: Update controller tests for ownership authorization
+
+**Files:**
+- Modify: `tests/Modules/Inquiries/Foundry.Inquiries.Tests/Api/Controllers/InquiriesControllerTests.cs`
+
+- [ ] **Step 1: Read existing controller tests**
+
+Read the file to understand current test patterns and how auth is set up.
+
+- [ ] **Step 2: Add GetById ownership tests**
+
+Add test cases covering:
+- Admin with InquiriesRead permission can view any inquiry
+- Owner (email match) can view their own inquiry without InquiriesRead
+- Owner (submitterId match) can view their own inquiry without InquiriesRead
+- Non-owner without InquiriesRead gets 404
+
+- [ ] **Step 3: Add GetSubmitted endpoint tests**
+
+Add test cases covering:
+- Returns inquiries matching authenticated user's email/sub
+- Returns empty when no matches
+- Status filter works
+
+- [ ] **Step 4: Run tests**
+
+Run: `dotnet test tests/Modules/Inquiries/Foundry.Inquiries.Tests --filter "InquiriesController"`
+Expected: All pass
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add tests/Modules/Inquiries/Foundry.Inquiries.Tests/Api/Controllers/
+git commit -m "test(inquiries): add ownership authorization tests for GetById and GetSubmitted"
+```
+
+---
+
 ## Chunk 3: SignalR Events via Notifications Module (Deferred)
 
 ### Task 18: Add SignalR handlers in Notifications module
@@ -1389,15 +1427,14 @@ using Foundry.Shared.Kernel.MultiTenancy;
 
 namespace Foundry.Inquiries.Domain.Entities;
 
-public sealed class InquiryComment : Entity<InquiryCommentId>, ITenantScoped
+public sealed class InquiryComment : AggregateRoot<InquiryCommentId>, ITenantScoped
 {
     public InquiryId InquiryId { get; private set; }
-    public TenantId TenantId { get; set; }
+    public TenantId TenantId { get; init; }
     public string AuthorId { get; private set; } = string.Empty;
     public string AuthorName { get; private set; } = string.Empty;
     public string Content { get; private set; } = string.Empty;
     public bool IsInternal { get; private set; }
-    public DateTimeOffset CreatedAt { get; private set; }
 
     private InquiryComment() { } // EF Core
 
@@ -1416,9 +1453,10 @@ public sealed class InquiryComment : Entity<InquiryCommentId>, ITenantScoped
             AuthorId = authorId,
             AuthorName = authorName,
             Content = content,
-            IsInternal = isInternal,
-            CreatedAt = timeProvider.GetUtcNow()
+            IsInternal = isInternal
         };
+
+        comment.SetCreated(timeProvider.GetUtcNow());
 
         comment.RaiseDomainEvent(new InquiryCommentAddedDomainEvent(
             inquiryId.Value,
@@ -1693,6 +1731,15 @@ public sealed class InquiryCommentConfiguration : IEntityTypeConfiguration<Inqui
         builder.Property(c => c.CreatedAt)
             .HasColumnName("created_at")
             .IsRequired();
+
+        builder.Property(c => c.UpdatedAt)
+            .HasColumnName("updated_at");
+
+        builder.Property(c => c.CreatedBy)
+            .HasColumnName("created_by");
+
+        builder.Property(c => c.UpdatedBy)
+            .HasColumnName("updated_by");
 
         builder.Ignore(c => c.DomainEvents);
 
