@@ -81,7 +81,6 @@ bd ready                                    # Find available work
 bd show <id>                                # View issue details
 bd update <id> --status in_progress         # Claim work
 bd close <id>                               # Complete work
-bd sync                                     # Sync with git
 ```
 
 ### Session Completion
@@ -91,5 +90,5 @@ Work is NOT complete until `git push` succeeds.
 1. File issues for remaining work
 2. Run quality gates (if code changed)
 3. Close finished issues, update in-progress items
-4. `git pull --rebase && bd sync && git push`
+4. `git pull --rebase && bd dolt push && git push`
 5. Verify `git status` shows "up to date with origin"
