@@ -80,6 +80,28 @@ public class TenantIdTests
 
         id1.GetHashCode().Should().NotBe(id2.GetHashCode());
     }
+
+    [Fact]
+    public void Platform_HasExpectedGuid()
+    {
+        Guid expected = new("00000000-0000-0000-0000-000000000001");
+
+        TenantId.Platform.Value.Should().Be(expected);
+    }
+
+    [Fact]
+    public void Platform_IsNotEmpty()
+    {
+        TenantId.Platform.Value.Should().NotBe(Guid.Empty);
+    }
+
+    [Fact]
+    public void Platform_IsNotEqualToNewId()
+    {
+        TenantId newId = TenantId.New();
+
+        TenantId.Platform.Should().NotBe(newId);
+    }
 }
 
 public class UserIdTests
