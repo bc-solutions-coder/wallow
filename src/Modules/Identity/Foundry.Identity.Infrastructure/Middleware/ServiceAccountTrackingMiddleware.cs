@@ -1,5 +1,7 @@
+using Foundry.Identity.Application.Interfaces;
 using Foundry.Identity.Domain.Entities;
 using Foundry.Identity.Infrastructure.Repositories;
+using Foundry.Shared.Kernel.Identity;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
@@ -9,6 +11,7 @@ namespace Foundry.Identity.Infrastructure.Middleware;
 
 /// <summary>
 /// Tracks service account usage by updating LastUsedAt timestamp when API requests are made.
+/// Lazily creates metadata records for service accounts that don't yet have one.
 /// </summary>
 public sealed partial class ServiceAccountTrackingMiddleware(RequestDelegate next, ILogger<ServiceAccountTrackingMiddleware> logger, IServiceScopeFactory serviceScopeFactory)
 {
@@ -31,13 +34,30 @@ public sealed partial class ServiceAccountTrackingMiddleware(RequestDelegate nex
                     {
                         // Need to create a new scope since the request scope may be disposed
                         await using AsyncServiceScope scope = serviceScopeFactory.CreateAsyncScope();
-                        IServiceAccountUnfilteredRepository repository = scope.ServiceProvider.GetRequiredService<IServiceAccountUnfilteredRepository>();
+                        IServiceAccountUnfilteredRepository unfilteredRepository = scope.ServiceProvider.GetRequiredService<IServiceAccountUnfilteredRepository>();
                         TimeProvider timeProvider = scope.ServiceProvider.GetRequiredService<TimeProvider>();
 
-                        ServiceAccountMetadata? metadata = await repository.GetByKeycloakClientIdAsync(clientId);
+                        ServiceAccountMetadata? metadata = await unfilteredRepository.GetByKeycloakClientIdAsync(clientId);
                         if (metadata != null)
                         {
                             metadata.MarkUsed(timeProvider);
+                            await unfilteredRepository.SaveChangesAsync();
+                        }
+                        else
+                        {
+                            // Lazily create metadata for service accounts that authenticated via Keycloak
+                            // but don't yet have a local metadata record
+                            IServiceAccountRepository repository = scope.ServiceProvider.GetRequiredService<IServiceAccountRepository>();
+                            ServiceAccountMetadata newMetadata = ServiceAccountMetadata.Create(
+                                TenantId.Platform,
+                                clientId,
+                                clientId,
+                                null,
+                                [],
+                                Guid.Empty,
+                                timeProvider);
+                            newMetadata.MarkUsed(timeProvider);
+                            repository.Add(newMetadata);
                             await repository.SaveChangesAsync();
                         }
                     }

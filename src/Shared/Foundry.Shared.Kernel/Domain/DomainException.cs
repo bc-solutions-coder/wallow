@@ -41,34 +41,18 @@ public abstract class DomainException : Exception
 /// <summary>
 /// Exception thrown when an entity is not found.
 /// </summary>
-public class EntityNotFoundException : DomainException
+public sealed class EntityNotFoundException(string entityName, object entityId)
+    : DomainException($"{entityName}.NotFound", $"{entityName} with ID '{entityId}' was not found")
 {
-    public string EntityName { get; } = string.Empty;
-    public object EntityId { get; } = Guid.Empty;
-
-    public EntityNotFoundException(string entityName, object entityId)
-        : base($"{entityName}.NotFound", $"{entityName} with ID '{entityId}' was not found")
-    {
-        EntityName = entityName;
-        EntityId = entityId;
-    }
+    public string EntityName { get; } = entityName;
+    public object EntityId { get; } = entityId;
 }
 
 /// <summary>
 /// Exception thrown when a business rule is violated.
 /// </summary>
-public class BusinessRuleException : DomainException
-{
-    public BusinessRuleException(string code, string message)
-        : base(code, message)
-    {
-    }
-}
+public class BusinessRuleException(string code, string message)
+    : DomainException(code, message);
 
-public class ForbiddenAccessException : DomainException
-{
-    public ForbiddenAccessException(string message)
-        : base("Access.Forbidden", message)
-    {
-    }
-}
+public sealed class ForbiddenAccessException(string message)
+    : DomainException("Access.Forbidden", message);

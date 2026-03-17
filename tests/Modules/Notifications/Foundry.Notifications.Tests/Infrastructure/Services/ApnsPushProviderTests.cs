@@ -160,7 +160,7 @@ public class ApnsPushProviderTests
     }
 
     [Fact]
-    public async Task SendAsync_ImplementsIPushProvider()
+    public void SendAsync_ImplementsIPushProvider()
     {
         using MockHttpMessageHandler handler = new(HttpStatusCode.OK);
         ApnsPushProvider provider = CreateProvider(handler);

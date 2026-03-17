@@ -96,6 +96,23 @@ services:
       - foundry
     restart: unless-stopped
 
+  keycloak-setup:
+    image: quay.io/keycloak/keycloak:26.0@sha256:09a381c715ab0b111835b70f2905955274843a219c6f27efb348e4d9f4086858
+    container_name: ${COMPOSE_PROJECT_NAME:-foundry}-keycloak-setup
+    entrypoint: ["/bin/bash", "/opt/keycloak/configure-dcr.sh"]
+    environment:
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      KEYCLOAK_URL: http://keycloak:8080
+    volumes:
+      - ./keycloak/configure-dcr.sh:/opt/keycloak/configure-dcr.sh:ro
+    depends_on:
+      keycloak:
+        condition: service_healthy
+    networks:
+      - foundry
+    restart: on-failure
+
   # ============================================
   # OBSERVABILITY
   # ============================================

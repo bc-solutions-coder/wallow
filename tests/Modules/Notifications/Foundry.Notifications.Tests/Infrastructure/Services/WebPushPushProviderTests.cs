@@ -159,7 +159,7 @@ public class WebPushPushProviderTests
     }
 
     [Fact]
-    public async Task SendAsync_ImplementsIPushProvider()
+    public void SendAsync_ImplementsIPushProvider()
     {
         using MockHttpMessageHandler handler = new(HttpStatusCode.Created);
         WebPushPushProvider provider = CreateProvider(handler);

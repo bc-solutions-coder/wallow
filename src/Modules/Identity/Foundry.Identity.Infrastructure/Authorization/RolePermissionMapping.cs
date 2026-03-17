@@ -89,6 +89,7 @@ public static class RolePermissionMapping
             PermissionType.StorageRead,
             PermissionType.StorageWrite,
             PermissionType.ShowcasesRead,
+            PermissionType.InquiriesWrite,
         ]
     }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 

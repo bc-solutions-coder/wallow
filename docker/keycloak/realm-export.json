@@ -129,6 +129,33 @@
       }
     },
     {
+      "name": "showcases.read",
+      "description": "Read access to showcases",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true"
+      }
+    },
+    {
+      "name": "inquiries.read",
+      "description": "Read access to inquiries",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true"
+      }
+    },
+    {
+      "name": "inquiries.write",
+      "description": "Write access to inquiries",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true"
+      }
+    },
+    {
       "name": "webhooks.manage",
       "description": "Manage webhook subscriptions",
       "protocol": "openid-connect",
@@ -136,6 +163,28 @@
         "include.in.token.scope": "true",
         "display.on.consent.screen": "true"
       }
+    },
+    {
+      "name": "foundry-api-audience",
+      "description": "Adds foundry-api to the token audience claim",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "false",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "foundry-api-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "foundry-api",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
     },
     {
       "name": "tenant-context",
@@ -223,7 +272,7 @@
     {
       "clientId": "foundry-api",
       "name": "Foundry API",
-      "description": "Backend API - validates tokens and calls Admin API via service account",
+      "description": "Backend API - validates tokens issued by Keycloak",
       "enabled": true,
       "clientAuthenticatorType": "client-secret",
       "secret": "foundry-api-secret",
@@ -235,6 +284,43 @@
       "protocol": "openid-connect",
       "redirectUris": [],
       "webOrigins": [],
+      "protocolMappers": [
+        {
+          "name": "realm roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "claim.name": "realm_access.roles",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "sa-foundry-api",
+      "name": "Foundry Service Account",
+      "description": "Service account for BFF and server-to-server calls",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "foundry-api-secret",
+      "publicClient": false,
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "authorizationServicesEnabled": false,
+      "protocol": "openid-connect",
+      "redirectUris": [],
+      "webOrigins": [],
+      "defaultClientScopes": [
+        "inquiries.read",
+        "inquiries.write",
+        "showcases.read"
+      ],
       "protocolMappers": [
         {
           "name": "tenant_id",
@@ -273,8 +359,27 @@
       ],
       "attributes": {
         "post.logout.redirect.uris": "http://localhost:5173/*##http://localhost:4200/*"
-      }
+      },
+      "protocolMappers": [
+        {
+          "name": "realm roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "claim.name": "realm_access.roles",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
     }
+  ],
+  "defaultDefaultClientScopes": [
+    "foundry-api-audience"
   ],
   "users": [
     {
@@ -306,6 +411,11 @@
           "view-users"
         ]
       }
+    },
+    {
+      "username": "service-account-sa-foundry-api",
+      "enabled": true,
+      "serviceAccountClientId": "sa-foundry-api"
     }
   ],
   "scopeMappings": [
@@ -316,6 +426,18 @@
         "manager",
         "user"
       ]
+    },
+    {
+      "client": "foundry-spa",
+      "roles": [
+        "admin",
+        "manager",
+        "user"
+      ]
+    },
+    {
+      "client": "sa-foundry-api",
+      "roles": []
     }
   ],
   "clientScopeMappings": {

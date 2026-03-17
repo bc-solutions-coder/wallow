@@ -39,7 +39,7 @@ public partial class TenantResolutionMiddleware(RequestDelegate next, ILogger<Te
                 }
             }
 
-            // Admin override: allow X-Tenant-Id header for verified realm admin
+            // Allow X-Tenant-Id header for realm admins and service accounts
             string? headerTenantId = context.Request.Headers["X-Tenant-Id"].FirstOrDefault();
             if (!string.IsNullOrEmpty(headerTenantId))
             {
@@ -47,12 +47,12 @@ public partial class TenantResolutionMiddleware(RequestDelegate next, ILogger<Te
                 {
                     LogInvalidTenantIdHeader(headerTenantId);
                 }
-                else if (HasRealmAdminRole(context.User))
+                else if (HasRealmAdminRole(context.User) || IsServiceAccount(context.User))
                 {
-                    string adminUserId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "unknown";
+                    string callerId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "unknown";
                     string requestPath = context.Request.Path.Value ?? "/";
 
-                    LogAdminTenantOverride(overrideId, resolvedTenantId, adminUserId, requestPath);
+                    LogAdminTenantOverride(overrideId, resolvedTenantId, callerId, requestPath);
                     resolvedTenantId = overrideId;
                     resolvedTenantName = string.Empty;
                 }
@@ -99,6 +99,12 @@ public partial class TenantResolutionMiddleware(RequestDelegate next, ILogger<Te
         {
             await next(context);
         }
+    }
+
+    private static bool IsServiceAccount(ClaimsPrincipal user)
+    {
+        string? clientId = user.FindFirst("azp")?.Value;
+        return clientId?.StartsWith("sa-", StringComparison.Ordinal) == true;
     }
 
     private const string AdminRole = "admin";
