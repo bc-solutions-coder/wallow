@@ -218,7 +218,7 @@ After migration, JWTs issued by OpenIddict contain:
 | Current Class | New Class | Interface Change | Implementation |
 |---------------|-----------|-----------------|----------------|
 | `KeycloakAdminService` | `UserManagementService` | `IKeycloakAdminService` → `IUserManagementService` (rename, same methods) | `UserManager<FoundryUser>` + `RoleManager<FoundryRole>` |
-| `KeycloakOrganizationService` | `OrganizationService` | `IKeycloakOrganizationService` → `IOrganizationService` (rename, same methods) | EF Core CRUD on `Organization` entity |
+| `KeycloakOrganizationService` | `OrganizationService` | `IOrganizationService` → `IOrganizationService` (rename, same methods) | EF Core CRUD on `Organization` entity |
 | `KeycloakTokenService` | **Removed** | `ITokenService` removed | OpenIddict handles `/connect/token` natively. `AuthController` is deleted entirely — its `POST /token`, `POST /refresh`, and `POST /logout` endpoints are replaced by OpenIddict's `/connect/token` and `/connect/logout`. |
 | `KeycloakServiceAccountService` | `ServiceAccountService` | `IServiceAccountService` (unchanged) | `IOpenIddictApplicationManager` + existing metadata table |
 | `KeycloakSsoService` | `OidcFederationService` | `ISsoService` (remove SAML methods) | Dynamic `AddOpenIdConnect()` per tenant |
@@ -618,7 +618,7 @@ The Application layer interfaces are renamed to remove the Keycloak prefix. Meth
 | Before | After | Signature Changes |
 |--------|-------|-------------------|
 | `IKeycloakAdminService` | `IUserService` | None |
-| `IKeycloakOrganizationService` | `IOrganizationService` | None |
+| `IOrganizationService` | `IOrganizationService` | None |
 | `ITokenService` | **Removed** | OpenIddict handles natively |
 | `IServiceAccountService` | `IServiceAccountService` | None |
 | `ISsoService` | `ISsoService` | Remove `SaveSamlConfigurationAsync`, `GetSamlServiceProviderMetadataAsync` |

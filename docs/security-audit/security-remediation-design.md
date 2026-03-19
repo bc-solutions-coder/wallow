@@ -352,11 +352,11 @@ Risk Score = Likelihood (1-5) x Impact (1-5)
   ```csharp
   public class OrganizationsController : ControllerBase
   {
-      private readonly IKeycloakOrganizationService _orgService;
+      private readonly IOrganizationService _orgService;
       private readonly ITenantContext _tenantContext;
 
       public OrganizationsController(
-          IKeycloakOrganizationService orgService,
+          IOrganizationService orgService,
           ITenantContext tenantContext)
       {
           _orgService = orgService;

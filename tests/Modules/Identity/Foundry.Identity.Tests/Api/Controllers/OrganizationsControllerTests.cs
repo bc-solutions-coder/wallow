@@ -14,7 +14,7 @@ namespace Foundry.Identity.Tests.Api.Controllers;
 public class OrganizationsControllerTests
 {
     private static readonly string[] _userRole = ["user"];
-    private readonly IKeycloakOrganizationService _orgService;
+    private readonly IOrganizationService _orgService;
     private readonly ITenantContext _tenantContext;
     private readonly OrganizationsController _controller;
     private readonly Guid _userId = Guid.NewGuid();
@@ -22,7 +22,7 @@ public class OrganizationsControllerTests
 
     public OrganizationsControllerTests()
     {
-        _orgService = Substitute.For<IKeycloakOrganizationService>();
+        _orgService = Substitute.For<IOrganizationService>();
         _tenantContext = Substitute.For<ITenantContext>();
         _tenantContext.TenantId.Returns(TenantId.Create(_tenantOrgId));
         _controller = new OrganizationsController(_orgService, _tenantContext);

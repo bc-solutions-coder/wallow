@@ -4,7 +4,7 @@ using Foundry.Shared.Contracts.Identity;
 
 namespace Foundry.Identity.Infrastructure.Services;
 
-public class UserService(IKeycloakAdminService keycloakAdmin) : IUserService
+public class UserService(IUserManagementService keycloakAdmin) : IUserService
 {
 
     public async Task<UserInfo?> GetUserByIdAsync(Guid userId, CancellationToken ct = default)

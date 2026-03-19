@@ -9,7 +9,7 @@ public class UserServiceTests
 {
     private static readonly string[] _userRole = ["user"];
     private static readonly string[] _adminRole = ["admin"];
-    private readonly IKeycloakAdminService _keycloakAdmin = Substitute.For<IKeycloakAdminService>();
+    private readonly IUserManagementService _keycloakAdmin = Substitute.For<IUserManagementService>();
     private readonly UserService _service;
 
     public UserServiceTests()

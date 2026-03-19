@@ -19,7 +19,7 @@ namespace Foundry.Identity.Api.Controllers;
 [Tags("Organizations")]
 [Produces("application/json")]
 [Consumes("application/json")]
-public class OrganizationsController(IKeycloakOrganizationService orgService, ITenantContext tenantContext) : ControllerBase
+public class OrganizationsController(IOrganizationService orgService, ITenantContext tenantContext) : ControllerBase
 {
 
     private bool IsCurrentTenantOrg(Guid orgId) => orgId == tenantContext.TenantId.Value;

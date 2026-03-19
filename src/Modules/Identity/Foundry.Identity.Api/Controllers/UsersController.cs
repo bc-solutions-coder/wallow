@@ -20,7 +20,7 @@ namespace Foundry.Identity.Api.Controllers;
 [Tags("Users")]
 [Produces("application/json")]
 [Consumes("application/json")]
-public class UsersController(IKeycloakAdminService keycloakAdmin, IKeycloakOrganizationService keycloakOrg, ITenantContext tenantContext) : ControllerBase
+public class UsersController(IUserManagementService keycloakAdmin, IOrganizationService keycloakOrg, ITenantContext tenantContext) : ControllerBase
 {
 
     /// <summary>

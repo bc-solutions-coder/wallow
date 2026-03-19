@@ -108,6 +108,7 @@ public static class IdentityInfrastructureExtensions
         services.AddScoped<IScimConfigurationRepository, ScimConfigurationRepository>();
         services.AddScoped<IScimSyncLogRepository, ScimSyncLogRepository>();
         services.AddScoped<IApiKeyRepository, ApiKeyRepository>();
+        services.AddScoped<IOrganizationRepository, OrganizationRepository>();
     }
 
     private static void AddIdentityAuthorization(this IServiceCollection services)
@@ -131,6 +132,7 @@ public static class IdentityInfrastructureExtensions
     private static void AddIdentityServices(this IServiceCollection services)
     {
         services.AddMemoryCache();
+        services.AddScoped<IUserManagementService, UserManagementService>();
         services.AddScoped<ITokenService, KeycloakTokenService>();
         services.AddScoped<IApiKeyService, RedisApiKeyService>();
         services.AddScoped<IServiceAccountService, KeycloakServiceAccountService>();
@@ -139,6 +141,7 @@ public static class IdentityInfrastructureExtensions
         services.AddScoped<ScimUserService>();
         services.AddScoped<ScimGroupService>();
         services.AddScoped<IScimService, ScimService>();
+        services.AddScoped<IOrganizationService, OrganizationService>();
         services.AddScoped<IDeveloperAppService, KeycloakDeveloperAppService>();
         services.AddScoped<Foundry.Shared.Contracts.Identity.IUserService, UserService>();
         services.AddScoped<Foundry.Shared.Contracts.Identity.IUserQueryService, UserQueryService>();

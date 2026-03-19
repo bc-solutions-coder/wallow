@@ -93,7 +93,7 @@ The following middleware executes in strict order:
                               ▼
 ┌────────────────────────────────────────────────────────────────────┐
 │ Application (Foundry.Identity.Application)                         │
-│ - Interfaces (IKeycloakAdminService, ISsoService, IScimService)    │
+│ - Interfaces (IUserManagementService, ISsoService, IScimService)    │
 │ - DTOs (UserDto, OrganizationDto, SsoConfigurationDto)             │
 │ - Commands/Queries for Service Accounts                            │
 └────────────────────────────────────────────────────────────────────┘
