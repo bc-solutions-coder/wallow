@@ -71,6 +71,7 @@ public static class IdentityInfrastructureExtensions
         services.AddScoped<ISsoConfigurationRepository, SsoConfigurationRepository>();
         services.AddScoped<IScimConfigurationRepository, ScimConfigurationRepository>();
         services.AddScoped<IScimSyncLogRepository, ScimSyncLogRepository>();
+        services.AddScoped<IApiKeyRepository, ApiKeyRepository>();
     }
 
     private static void AddIdentityAuthorization(this IServiceCollection services)

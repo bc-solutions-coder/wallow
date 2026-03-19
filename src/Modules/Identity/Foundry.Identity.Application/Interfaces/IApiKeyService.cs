@@ -33,7 +33,7 @@ public interface IApiKeyService
     /// <summary>
     /// Lists all API keys for a user (returns metadata only, not the actual keys).
     /// </summary>
-    Task<IReadOnlyList<ApiKeyMetadata>> ListApiKeysAsync(Guid userId, CancellationToken ct = default);
+    Task<IReadOnlyList<ApiKeyMetadata>> ListApiKeysAsync(Guid userId, Guid tenantId, CancellationToken ct = default);
 
     /// <summary>
     /// Gets the number of API keys a user currently has.

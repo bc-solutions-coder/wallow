@@ -156,7 +156,7 @@ public class ApiKeysControllerTests
             new ApiKeyMetadata("key-1", "Prod Key", "fnd_prod", _userId, _tenantId,
                 _billingReadScope, now, now.AddDays(30), now.AddHours(-1))
         ];
-        _apiKeyService.ListApiKeysAsync(_userId, Arg.Any<CancellationToken>())
+        _apiKeyService.ListApiKeysAsync(_userId, _tenantId, Arg.Any<CancellationToken>())
             .Returns(keys);
 
         IActionResult result = await _controller.ListApiKeys(CancellationToken.None);
@@ -198,7 +198,7 @@ public class ApiKeysControllerTests
             new ApiKeyMetadata("k1", "Key", "pfx", _userId, _tenantId,
                 _twoScopes, created, expires, lastUsed)
         ];
-        _apiKeyService.ListApiKeysAsync(_userId, Arg.Any<CancellationToken>()).Returns(keys);
+        _apiKeyService.ListApiKeysAsync(_userId, _tenantId, Arg.Any<CancellationToken>()).Returns(keys);
 
         IActionResult result = await _controller.ListApiKeys(CancellationToken.None);
 

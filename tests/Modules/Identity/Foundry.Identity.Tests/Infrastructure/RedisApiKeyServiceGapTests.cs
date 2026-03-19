@@ -1,7 +1,10 @@
 using System.Text.Json;
 using Foundry.Identity.Application.Interfaces;
+using Foundry.Identity.Domain.Entities;
 using Foundry.Identity.Infrastructure.Services;
+using Foundry.Shared.Kernel.Identity;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Time.Testing;
 using NSubstitute.ExceptionExtensions;
 using StackExchange.Redis;
 
@@ -13,6 +16,7 @@ public class RedisApiKeyServiceGapTests
     private static readonly string[] _readWriteScopes = ["read", "write"];
     private readonly IConnectionMultiplexer _redis = Substitute.For<IConnectionMultiplexer>();
     private readonly IDatabase _db = Substitute.For<IDatabase>();
+    private readonly IApiKeyRepository _apiKeyRepository = Substitute.For<IApiKeyRepository>();
     private readonly ILogger<RedisApiKeyService> _logger = Substitute.For<ILogger<RedisApiKeyService>>();
 
     public RedisApiKeyServiceGapTests()
@@ -33,7 +37,7 @@ public class RedisApiKeyServiceGapTests
             .ReturnsForAnyArgs(Task.FromResult(true));
     }
 
-    private RedisApiKeyService CreateService() => new(_redis, _logger);
+    private RedisApiKeyService CreateService() => new(_redis, _apiKeyRepository, TimeProvider.System, _logger);
 
     // CreateApiKeyAsync: success without expiration (no TTL set)
     [Fact(Skip = "NSubstitute cannot reliably mock StackExchange.Redis StringSetAsync overload")]
@@ -271,53 +275,28 @@ public class RedisApiKeyServiceGapTests
     {
         Guid userId = Guid.NewGuid();
         Guid tenantId = Guid.NewGuid();
+        FakeTimeProvider fakeTime = new();
 
-        DateTimeOffset older = DateTimeOffset.UtcNow.AddDays(-10);
-        DateTimeOffset newer = DateTimeOffset.UtcNow.AddDays(-1);
+        fakeTime.SetUtcNow(DateTimeOffset.UtcNow.AddDays(-10));
+        ApiKey olderKey = ApiKey.Create(
+            new TenantId(tenantId), userId.ToString(), "hash-old", "Old Key",
+            [], null, userId, fakeTime);
 
-        string olderKeyJson = JsonSerializer.Serialize(new
-        {
-            KeyId = "key-old",
-            Name = "Old Key",
-            Prefix = "sk_live_old",
-            KeyHash = "hash-old",
-            UserId = userId,
-            TenantId = tenantId,
-            Scopes = new List<string>(),
-            CreatedAt = older,
-            ExpiresAt = (DateTimeOffset?)null,
-            LastUsedAt = (DateTimeOffset?)null
-        });
+        fakeTime.SetUtcNow(DateTimeOffset.UtcNow.AddDays(-1));
+        ApiKey newerKey = ApiKey.Create(
+            new TenantId(tenantId), userId.ToString(), "hash-new", "New Key",
+            [], null, userId, fakeTime);
 
-        string newerKeyJson = JsonSerializer.Serialize(new
-        {
-            KeyId = "key-new",
-            Name = "New Key",
-            Prefix = "sk_live_new",
-            KeyHash = "hash-new",
-            UserId = userId,
-            TenantId = tenantId,
-            Scopes = new List<string>(),
-            CreatedAt = newer,
-            ExpiresAt = (DateTimeOffset?)null,
-            LastUsedAt = (DateTimeOffset?)null
-        });
-
-        _db.SetMembersAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
-            .Returns(new RedisValue[] { "key-old", "key-new" });
-
-        _db.StringGetAsync(Arg.Is<RedisKey>(k => k.ToString().Contains("id:key-old")), Arg.Any<CommandFlags>())
-            .Returns((RedisValue)olderKeyJson);
-        _db.StringGetAsync(Arg.Is<RedisKey>(k => k.ToString().Contains("id:key-new")), Arg.Any<CommandFlags>())
-            .Returns((RedisValue)newerKeyJson);
+        _apiKeyRepository.ListByServiceAccountAsync(userId.ToString(), tenantId, Arg.Any<CancellationToken>())
+            .Returns(new List<ApiKey> { olderKey, newerKey });
 
         RedisApiKeyService service = CreateService();
 
-        IReadOnlyList<ApiKeyMetadata> result = await service.ListApiKeysAsync(userId);
+        IReadOnlyList<ApiKeyMetadata> result = await service.ListApiKeysAsync(userId, tenantId);
 
         result.Should().HaveCount(2);
-        result[0].KeyId.Should().Be("key-new");
-        result[1].KeyId.Should().Be("key-old");
+        result[0].Name.Should().Be("New Key");
+        result[1].Name.Should().Be("Old Key");
     }
 
     // ListApiKeysAsync: empty user key set returns empty list
@@ -325,13 +304,14 @@ public class RedisApiKeyServiceGapTests
     public async Task ListApiKeysAsync_NoKeys_ReturnsEmptyList()
     {
         Guid userId = Guid.NewGuid();
+        Guid tenantId = Guid.NewGuid();
 
         _db.SetMembersAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
             .Returns(Array.Empty<RedisValue>());
 
         RedisApiKeyService service = CreateService();
 
-        IReadOnlyList<ApiKeyMetadata> result = await service.ListApiKeysAsync(userId);
+        IReadOnlyList<ApiKeyMetadata> result = await service.ListApiKeysAsync(userId, tenantId);
 
         result.Should().BeEmpty();
     }
@@ -341,6 +321,7 @@ public class RedisApiKeyServiceGapTests
     public async Task ListApiKeysAsync_DeserializesToNull_SkipsKey()
     {
         Guid userId = Guid.NewGuid();
+        Guid tenantId = Guid.NewGuid();
 
         _db.SetMembersAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
             .Returns(new RedisValue[] { "key-null" });
@@ -350,7 +331,7 @@ public class RedisApiKeyServiceGapTests
 
         RedisApiKeyService service = CreateService();
 
-        IReadOnlyList<ApiKeyMetadata> result = await service.ListApiKeysAsync(userId);
+        IReadOnlyList<ApiKeyMetadata> result = await service.ListApiKeysAsync(userId, tenantId);
 
         result.Should().BeEmpty();
     }
@@ -490,43 +471,26 @@ public class RedisApiKeyServiceGapTests
     {
         Guid userId = Guid.NewGuid();
         Guid tenantId = Guid.NewGuid();
-        DateTimeOffset createdAt = DateTimeOffset.UtcNow.AddDays(-5);
         DateTimeOffset expiresAt = DateTimeOffset.UtcNow.AddDays(25);
-        DateTimeOffset lastUsedAt = DateTimeOffset.UtcNow.AddHours(-1);
 
-        string keyJson = JsonSerializer.Serialize(new
-        {
-            KeyId = "key-full",
-            Name = "Full Key",
-            Prefix = "sk_live_full123",
-            KeyHash = "hash-full",
-            UserId = userId,
-            TenantId = tenantId,
-            Scopes = new List<string> { "read", "write" },
-            CreatedAt = createdAt,
-            ExpiresAt = (DateTimeOffset?)expiresAt,
-            LastUsedAt = (DateTimeOffset?)lastUsedAt
-        });
+        ApiKey apiKey = ApiKey.Create(
+            new TenantId(tenantId), userId.ToString(), "hash-full", "Full Key",
+            _readWriteScopes, expiresAt, userId, TimeProvider.System);
 
-        _db.SetMembersAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
-            .Returns(new RedisValue[] { "key-full" });
-
-        _db.StringGetAsync(Arg.Is<RedisKey>(k => k.ToString().Contains("id:key-full")), Arg.Any<CommandFlags>())
-            .Returns((RedisValue)keyJson);
+        _apiKeyRepository.ListByServiceAccountAsync(userId.ToString(), tenantId, Arg.Any<CancellationToken>())
+            .Returns(new List<ApiKey> { apiKey });
 
         RedisApiKeyService service = CreateService();
 
-        IReadOnlyList<ApiKeyMetadata> result = await service.ListApiKeysAsync(userId);
+        IReadOnlyList<ApiKeyMetadata> result = await service.ListApiKeysAsync(userId, tenantId);
 
         result.Should().HaveCount(1);
         ApiKeyMetadata key = result[0];
-        key.KeyId.Should().Be("key-full");
+        key.KeyId.Should().Be(apiKey.Id.Value.ToString());
         key.Name.Should().Be("Full Key");
-        key.Prefix.Should().Be("sk_live_full123");
         key.UserId.Should().Be(userId);
         key.TenantId.Should().Be(tenantId);
         key.Scopes.Should().BeEquivalentTo(_readWriteScopes);
-        key.ExpiresAt.Should().NotBeNull();
-        key.LastUsedAt.Should().NotBeNull();
+        key.ExpiresAt.Should().Be(expiresAt);
     }
 }

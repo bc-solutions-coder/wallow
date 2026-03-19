@@ -165,7 +165,8 @@ public sealed class ApiKeysController(IApiKeyService apiKeyService, ITenantConte
             return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
         }
 
-        IReadOnlyList<ApiKeyMetadata> keys = await apiKeyService.ListApiKeysAsync(userId.Value, ct);
+        Guid tenantId = tenantContext.TenantId.Value;
+        IReadOnlyList<ApiKeyMetadata> keys = await apiKeyService.ListApiKeysAsync(userId.Value, tenantId, ct);
 
         List<ApiKeyResponse> response = keys.Select(k => new ApiKeyResponse(
             KeyId: k.KeyId,

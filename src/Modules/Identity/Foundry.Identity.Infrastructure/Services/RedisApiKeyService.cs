@@ -2,6 +2,8 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Foundry.Identity.Application.Interfaces;
+using Foundry.Identity.Domain.Entities;
+using Foundry.Shared.Kernel.Identity;
 using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
 
@@ -9,8 +11,13 @@ namespace Foundry.Identity.Infrastructure.Services;
 
 /// <summary>
 /// Redis-backed API key service for service-to-service authentication.
+/// Dual-writes to PostgreSQL (via IApiKeyRepository) and Valkey (Redis) for cache.
 /// </summary>
-public sealed partial class RedisApiKeyService(IConnectionMultiplexer redis, ILogger<RedisApiKeyService> logger) : IApiKeyService
+public sealed partial class RedisApiKeyService(
+    IConnectionMultiplexer redis,
+    IApiKeyRepository apiKeyRepository,
+    TimeProvider timeProvider,
+    ILogger<RedisApiKeyService> logger) : IApiKeyService
 {
 
     private const string KeyPrefix = "apikey:";
@@ -38,6 +45,22 @@ public sealed partial class RedisApiKeyService(IConnectionMultiplexer redis, ILo
             // Hash the key for storage (we never store the raw key)
             string keyHash = HashApiKey(apiKey);
 
+            List<string> scopeList = scopes?.ToList() ?? [];
+
+            // Persist to PostgreSQL first
+            ApiKey domainKey = ApiKey.Create(
+                new TenantId(tenantId),
+                userId.ToString(),
+                keyHash,
+                name,
+                scopeList,
+                expiresAt,
+                userId,
+                timeProvider);
+
+            await apiKeyRepository.AddAsync(domainKey, ct);
+
+            // Then write to Valkey cache
             ApiKeyData metadata = new()
             {
                 KeyId = keyId,
@@ -46,7 +69,7 @@ public sealed partial class RedisApiKeyService(IConnectionMultiplexer redis, ILo
                 KeyHash = keyHash,
                 UserId = userId,
                 TenantId = tenantId,
-                Scopes = scopes?.ToList() ?? [],
+                Scopes = scopeList,
                 CreatedAt = DateTimeOffset.UtcNow,
                 ExpiresAt = expiresAt,
                 LastUsedAt = null
@@ -117,8 +140,17 @@ public sealed partial class RedisApiKeyService(IConnectionMultiplexer redis, ILo
             string keyHash = HashApiKey(apiKey);
             IDatabase db = redis.GetDatabase();
 
+            // Check Valkey first
             RedisValue json = await db.StringGetAsync($"{KeyPrefix}{keyHash}");
-            if (json.IsNullOrEmpty)
+            if (!json.IsNullOrEmpty)
+            {
+                return ValidateFromCachedData(json.ToString(), keyHash);
+            }
+
+            // Cache miss — fall back to PostgreSQL
+            // We don't have tenantId in this path, so search across all tenants by hash
+            ApiKey? domainKey = await apiKeyRepository.GetByHashAsync(keyHash, Guid.Empty, ct);
+            if (domainKey is null || domainKey.IsRevoked)
             {
                 return new ApiKeyValidationResult(
                     IsValid: false,
@@ -129,39 +161,44 @@ public sealed partial class RedisApiKeyService(IConnectionMultiplexer redis, ILo
                     Error: "API key not found");
             }
 
-            ApiKeyData? data = JsonSerializer.Deserialize<ApiKeyData>(json.ToString());
-            if (data == null)
-            {
-                return new ApiKeyValidationResult(
-                    IsValid: false,
-                    KeyId: null,
-                    UserId: null,
-                    TenantId: null,
-                    Scopes: null,
-                    Error: "Invalid API key data");
-            }
-
             // Check expiration
-            if (data.ExpiresAt < DateTimeOffset.UtcNow)
+            if (domainKey.ExpiresAt < DateTimeOffset.UtcNow)
             {
                 return new ApiKeyValidationResult(
                     IsValid: false,
-                    KeyId: data.KeyId,
+                    KeyId: domainKey.Id.Value.ToString(),
                     UserId: null,
                     TenantId: null,
                     Scopes: null,
                     Error: "API key expired");
             }
 
-            // Update last used timestamp (fire and forget)
-            _ = UpdateLastUsedAsync(keyHash, data);
+            // Repopulate Valkey cache
+            ApiKeyData cacheData = new()
+            {
+                KeyId = domainKey.Id.Value.ToString(),
+                Name = domainKey.DisplayName,
+                Prefix = "",
+                KeyHash = keyHash,
+                UserId = Guid.TryParse(domainKey.ServiceAccountId, out Guid parsedUserId) ? parsedUserId : Guid.Empty,
+                TenantId = domainKey.TenantId.Value,
+                Scopes = domainKey.Scopes.ToList(),
+                CreatedAt = domainKey.CreatedAt,
+                ExpiresAt = domainKey.ExpiresAt,
+                LastUsedAt = null
+            };
+
+            string cacheJson = JsonSerializer.Serialize(cacheData);
+            TimeSpan? ttl = domainKey.ExpiresAt.HasValue ? domainKey.ExpiresAt.Value - DateTimeOffset.UtcNow : null;
+
+            await db.StringSetAsync($"{KeyPrefix}{keyHash}", cacheJson, ttl, keepTtl: false, When.Always, CommandFlags.None);
 
             return new ApiKeyValidationResult(
                 IsValid: true,
-                KeyId: data.KeyId,
-                UserId: data.UserId,
-                TenantId: data.TenantId,
-                Scopes: data.Scopes,
+                KeyId: cacheData.KeyId,
+                UserId: cacheData.UserId,
+                TenantId: cacheData.TenantId,
+                Scopes: cacheData.Scopes,
                 Error: null);
         }
         catch (Exception ex)
@@ -177,41 +214,27 @@ public sealed partial class RedisApiKeyService(IConnectionMultiplexer redis, ILo
         }
     }
 
-    public async Task<IReadOnlyList<ApiKeyMetadata>> ListApiKeysAsync(Guid userId, CancellationToken ct = default)
+    public async Task<IReadOnlyList<ApiKeyMetadata>> ListApiKeysAsync(Guid userId, Guid tenantId, CancellationToken ct = default)
     {
         try
         {
-            IDatabase db = redis.GetDatabase();
-            RedisValue[] keyIds = await db.SetMembersAsync($"{UserKeysPrefix}{userId}");
+            // Read from PostgreSQL only
+            List<ApiKey> keys = await apiKeyRepository.ListByServiceAccountAsync(userId.ToString(), tenantId, ct);
 
-            List<ApiKeyMetadata> results = [];
-            foreach (RedisValue keyId in keyIds)
-            {
-                RedisValue json = await db.StringGetAsync($"{KeyPrefix}id:{keyId}");
-                if (json.IsNullOrEmpty)
-                {
-                    continue;
-                }
-
-                ApiKeyData? data = JsonSerializer.Deserialize<ApiKeyData>(json.ToString());
-                if (data == null)
-                {
-                    continue;
-                }
-
-                results.Add(new ApiKeyMetadata(
-                    KeyId: data.KeyId,
-                    Name: data.Name,
-                    Prefix: data.Prefix,
-                    UserId: data.UserId,
-                    TenantId: data.TenantId,
-                    Scopes: data.Scopes,
-                    CreatedAt: data.CreatedAt,
-                    ExpiresAt: data.ExpiresAt,
-                    LastUsedAt: data.LastUsedAt));
-            }
-
-            return results.OrderByDescending(k => k.CreatedAt).ToList();
+            return keys
+                .Where(k => !k.IsRevoked)
+                .OrderByDescending(k => k.CreatedAt)
+                .Select(k => new ApiKeyMetadata(
+                    KeyId: k.Id.Value.ToString(),
+                    Name: k.DisplayName,
+                    Prefix: "",
+                    UserId: Guid.TryParse(k.ServiceAccountId, out Guid parsedUserId) ? parsedUserId : Guid.Empty,
+                    TenantId: k.TenantId.Value,
+                    Scopes: k.Scopes,
+                    CreatedAt: k.CreatedAt,
+                    ExpiresAt: k.ExpiresAt,
+                    LastUsedAt: k.UpdatedAt))
+                .ToList();
         }
         catch (Exception ex)
         {
@@ -241,7 +264,7 @@ public sealed partial class RedisApiKeyService(IConnectionMultiplexer redis, ILo
         {
             IDatabase db = redis.GetDatabase();
 
-            // Get the key data first
+            // Get the key data from Valkey first
             RedisValue json = await db.StringGetAsync($"{KeyPrefix}id:{keyId}");
             if (json.IsNullOrEmpty)
             {
@@ -254,13 +277,16 @@ public sealed partial class RedisApiKeyService(IConnectionMultiplexer redis, ILo
                 return false; // Key doesn't exist or doesn't belong to user
             }
 
-            // Delete by hash (validation lookup)
+            // Mark revoked in PostgreSQL first (look up by hash since Redis keyId != domain ApiKeyId)
+            ApiKey? domainKey = await apiKeyRepository.GetByHashAsync(data.KeyHash, data.TenantId, ct);
+            if (domainKey is not null)
+            {
+                await apiKeyRepository.RevokeAsync(domainKey.Id, data.TenantId, ct);
+            }
+
+            // Then delete from Valkey
             await db.KeyDeleteAsync($"{KeyPrefix}{data.KeyHash}");
-
-            // Delete by ID (management lookup)
             await db.KeyDeleteAsync($"{KeyPrefix}id:{keyId}");
-
-            // Remove from user's key list
             await db.SetRemoveAsync($"{UserKeysPrefix}{userId}", keyId);
 
             LogApiKeyRevoked(keyId, userId);
@@ -271,6 +297,44 @@ public sealed partial class RedisApiKeyService(IConnectionMultiplexer redis, ILo
             LogRevokeApiKeyFailed(ex, keyId);
             return false;
         }
+    }
+
+    private ApiKeyValidationResult ValidateFromCachedData(string jsonString, string keyHash)
+    {
+        ApiKeyData? data = JsonSerializer.Deserialize<ApiKeyData>(jsonString);
+        if (data == null)
+        {
+            return new ApiKeyValidationResult(
+                IsValid: false,
+                KeyId: null,
+                UserId: null,
+                TenantId: null,
+                Scopes: null,
+                Error: "Invalid API key data");
+        }
+
+        // Check expiration
+        if (data.ExpiresAt < DateTimeOffset.UtcNow)
+        {
+            return new ApiKeyValidationResult(
+                IsValid: false,
+                KeyId: data.KeyId,
+                UserId: null,
+                TenantId: null,
+                Scopes: null,
+                Error: "API key expired");
+        }
+
+        // Update last used timestamp (fire and forget)
+        _ = UpdateLastUsedAsync(keyHash, data);
+
+        return new ApiKeyValidationResult(
+            IsValid: true,
+            KeyId: data.KeyId,
+            UserId: data.UserId,
+            TenantId: data.TenantId,
+            Scopes: data.Scopes,
+            Error: null);
     }
 
     private async Task UpdateLastUsedAsync(string keyHash, ApiKeyData data)

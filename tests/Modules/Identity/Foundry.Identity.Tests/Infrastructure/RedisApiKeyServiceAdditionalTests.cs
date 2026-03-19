@@ -11,6 +11,7 @@ public class RedisApiKeyServiceAdditionalTests
     private static readonly string[] _invoicesReadScope = ["invoices.read"];
     private readonly IConnectionMultiplexer _redis = Substitute.For<IConnectionMultiplexer>();
     private readonly IDatabase _db = Substitute.For<IDatabase>();
+    private readonly IApiKeyRepository _apiKeyRepository = Substitute.For<IApiKeyRepository>();
     private readonly ILogger<RedisApiKeyService> _logger = Substitute.For<ILogger<RedisApiKeyService>>();
 
     public RedisApiKeyServiceAdditionalTests()
@@ -45,7 +46,7 @@ public class RedisApiKeyServiceAdditionalTests
                 Arg.Any<bool>(), Arg.Any<When>(), Arg.Any<CommandFlags>())
             .Returns(true);
 
-        RedisApiKeyService service = new(_redis, _logger);
+        RedisApiKeyService service = new(_redis, _apiKeyRepository, TimeProvider.System, _logger);
 
         ApiKeyValidationResult result = await service.ValidateApiKeyAsync("sk_live_somekeydata123456");
 
@@ -79,7 +80,7 @@ public class RedisApiKeyServiceAdditionalTests
         _db.StringGetAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
             .Returns((RedisValue)keyJson);
 
-        RedisApiKeyService service = new(_redis, _logger);
+        RedisApiKeyService service = new(_redis, _apiKeyRepository, TimeProvider.System, _logger);
 
         ApiKeyValidationResult result = await service.ValidateApiKeyAsync("sk_live_somekeydata123456");
 
@@ -94,7 +95,7 @@ public class RedisApiKeyServiceAdditionalTests
         _db.StringGetAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
             .Returns((RedisValue)"not-valid-json{{{");
 
-        RedisApiKeyService service = new(_redis, _logger);
+        RedisApiKeyService service = new(_redis, _apiKeyRepository, TimeProvider.System, _logger);
 
         ApiKeyValidationResult result = await service.ValidateApiKeyAsync("sk_live_somekeydata123456");
 
@@ -108,7 +109,7 @@ public class RedisApiKeyServiceAdditionalTests
         _db.StringGetAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
             .Returns((RedisValue)"null");
 
-        RedisApiKeyService service = new(_redis, _logger);
+        RedisApiKeyService service = new(_redis, _apiKeyRepository, TimeProvider.System, _logger);
 
         ApiKeyValidationResult result = await service.ValidateApiKeyAsync("sk_live_somekeydata123456");
 
@@ -143,7 +144,7 @@ public class RedisApiKeyServiceAdditionalTests
                 Arg.Any<bool>(), Arg.Any<When>(), Arg.Any<CommandFlags>())
             .Returns(true);
 
-        RedisApiKeyService service = new(_redis, _logger);
+        RedisApiKeyService service = new(_redis, _apiKeyRepository, TimeProvider.System, _logger);
 
         ApiKeyValidationResult result = await service.ValidateApiKeyAsync("sk_live_somekeydata123456");
 

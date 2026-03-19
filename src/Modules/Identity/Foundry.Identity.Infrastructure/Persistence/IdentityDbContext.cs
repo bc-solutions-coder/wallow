@@ -12,6 +12,7 @@ public sealed class IdentityDbContext : TenantAwareDbContext<IdentityDbContext>
 {
     private readonly IDataProtectionProvider _dataProtectionProvider;
 
+    public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
     public DbSet<ServiceAccountMetadata> ServiceAccountMetadata => Set<ServiceAccountMetadata>();
     public DbSet<ApiScope> ApiScopes => Set<ApiScope>();
     public DbSet<SsoConfiguration> SsoConfigurations => Set<SsoConfiguration>();
