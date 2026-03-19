@@ -1,8 +1,10 @@
 using System.Text.Json;
 using Foundry.Shared.Infrastructure.Core.Auditing;
+using Foundry.Shared.Kernel.Auditing;
 using Foundry.Shared.Kernel.MultiTenancy;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,10 +27,20 @@ public class CompositeKeyEntity
     public string Label { get; set; } = string.Empty;
 }
 
+public class AuditIgnoreEntity
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+
+    [AuditIgnore]
+    public string Secret { get; set; } = string.Empty;
+}
+
 public class AuditTestDbContext : DbContext
 {
     public DbSet<AuditTestEntity> AuditTestEntities => Set<AuditTestEntity>();
     public DbSet<CompositeKeyEntity> CompositeKeyEntities => Set<CompositeKeyEntity>();
+    public DbSet<AuditIgnoreEntity> AuditIgnoreEntities => Set<AuditIgnoreEntity>();
 
     public AuditTestDbContext(DbContextOptions<AuditTestDbContext> options) : base(options) { }
 
@@ -44,6 +56,11 @@ public class AuditTestDbContext : DbContext
         {
             e.ToTable("composite_key_entities");
             e.HasKey(x => new { x.PartA, x.PartB });
+        });
+        modelBuilder.Entity<AuditIgnoreEntity>(e =>
+        {
+            e.ToTable("audit_ignore_entities");
+            e.HasKey(x => x.Id);
         });
     }
 }
@@ -302,5 +319,119 @@ public class AuditInterceptorTests : IAsyncLifetime
         audit.UserId.Should().BeNull();
         audit.TenantId.Should().BeNull();
         audit.Action.Should().Be("Insert");
+    }
+
+    [Fact]
+    public async Task SavingChangesAsync_WhenContextIsNull_ReturnsWithoutCapture()
+    {
+        using IServiceScope scope = _serviceProvider.CreateScope();
+        AuditInterceptor interceptor = scope.ServiceProvider.GetRequiredService<AuditInterceptor>();
+        AuditDbContext auditDb = scope.ServiceProvider.GetRequiredService<AuditDbContext>();
+
+        int countBefore = await auditDb.AuditEntries.CountAsync();
+
+        DbContextEventData eventData = Substitute.For<DbContextEventData>(
+            null, null, null);
+        eventData.Context.Returns((DbContext?)null);
+
+        await interceptor.SavingChangesAsync(eventData, default);
+
+        int countAfter = await auditDb.AuditEntries.CountAsync();
+        countAfter.Should().Be(countBefore);
+    }
+
+    [Fact]
+    public async Task SavingChangesAsync_WhenScopeCreationFails_ContinuesWithoutThrowing()
+    {
+        // Build a real service provider that has AuditDbContext for SaveAuditEntriesAsync
+        ServiceCollection services = new ServiceCollection();
+        services.AddLogging();
+        services.AddDbContext<AuditDbContext>(options =>
+            options.UseNpgsql(_postgres.GetConnectionString(), npgsql =>
+                npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "audit")));
+        services.AddDbContext<AuditTestDbContext>(options =>
+            options.UseNpgsql(_postgres.GetConnectionString()));
+        await using ServiceProvider realProvider = services.BuildServiceProvider();
+
+        // Wrap the real provider: first CreateScope call (CaptureChanges) throws,
+        // subsequent calls (SaveAuditEntriesAsync via CreateAsyncScope) delegate to the real provider
+        ScopeFailOnceServiceProvider failOnceProvider = new ScopeFailOnceServiceProvider(realProvider);
+
+        AuditInterceptor interceptor = new AuditInterceptor(
+            failOnceProvider,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<AuditInterceptor>.Instance);
+
+        using IServiceScope testScope = realProvider.CreateScope();
+        AuditTestDbContext testDb = testScope.ServiceProvider.GetRequiredService<AuditTestDbContext>();
+
+        Guid entityId = Guid.NewGuid();
+        testDb.AuditTestEntities.Add(new AuditTestEntity { Id = entityId, Name = "CatchBlock", Value = 1 });
+
+        DbContextEventData eventData = Substitute.For<DbContextEventData>(
+            null, null, null);
+        eventData.Context.Returns(testDb);
+
+        // Should not throw — CaptureChanges catch block swallows the scope failure,
+        // entries are still captured (with null userId/tenantId), and SaveAuditEntriesAsync succeeds
+        Func<Task> act = async () => await interceptor.SavingChangesAsync(eventData, default);
+        await act.Should().NotThrowAsync();
+
+        // Verify audit entry was created with null user/tenant context
+        AuditDbContext auditDb = testScope.ServiceProvider.GetRequiredService<AuditDbContext>();
+        AuditEntry audit = (await auditDb.AuditEntries
+            .Where(e => e.EntityId == entityId.ToString())
+            .ToListAsync()).Single();
+
+        audit.UserId.Should().BeNull();
+        audit.TenantId.Should().BeNull();
+        audit.Action.Should().Be("Insert");
+    }
+
+    /// <summary>
+    /// Wraps a real IServiceProvider but makes the first CreateScope call fail,
+    /// simulating a transient scope creation failure in CaptureChanges.
+    /// </summary>
+    private sealed class ScopeFailOnceServiceProvider(IServiceProvider inner) : IServiceProvider
+    {
+        private int _scopeRequestCount;
+
+        public object? GetService(Type serviceType)
+        {
+            if (serviceType == typeof(IServiceScopeFactory))
+            {
+                if (Interlocked.Increment(ref _scopeRequestCount) == 1)
+                {
+                    throw new InvalidOperationException("Simulated scope creation failure");
+                }
+            }
+
+            return inner.GetService(serviceType);
+        }
+    }
+
+    [Fact]
+    public async Task Insert_WithAuditIgnoreProperty_ExcludesIgnoredPropertyFromValues()
+    {
+        using IServiceScope scope = _serviceProvider.CreateScope();
+        AuditTestDbContext testDb = scope.ServiceProvider.GetRequiredService<AuditTestDbContext>();
+        AuditDbContext auditDb = scope.ServiceProvider.GetRequiredService<AuditDbContext>();
+
+        AuditIgnoreEntity entity = new()
+        {
+            Id = Guid.NewGuid(),
+            Name = "Visible",
+            Secret = "ShouldBeExcluded"
+        };
+        testDb.AuditIgnoreEntities.Add(entity);
+        await testDb.SaveChangesAsync();
+
+        AuditEntry audit = (await auditDb.AuditEntries
+            .Where(e => e.EntityId == entity.Id.ToString())
+            .ToListAsync()).Single();
+
+        Dictionary<string, JsonElement> newValues = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(audit.NewValues!)!;
+        newValues.Should().ContainKey("Name");
+        newValues.Should().ContainKey("Id");
+        newValues.Should().NotContainKey("Secret");
     }
 }
