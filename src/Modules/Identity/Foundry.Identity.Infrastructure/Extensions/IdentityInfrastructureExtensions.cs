@@ -105,6 +105,13 @@ public static class IdentityInfrastructureExtensions
         // Token service for auth proxy (no auth required on this client)
         services.AddHttpClient("KeycloakTokenClient").AddFoundryResilienceHandler("identity-provider");
 
+        // Dynamic client registration
+        services.AddHttpClient("KeycloakDcrClient", (sp, client) =>
+        {
+            KeycloakOptions options = sp.GetRequiredService<IOptions<KeycloakOptions>>().Value;
+            client.BaseAddress = new Uri(options.AuthorityUrl);
+        }).AddFoundryResilienceHandler("identity-provider");
+
         services.AddMemoryCache();
         services.AddScoped<IKeycloakAdminService, KeycloakAdminService>();
         services.AddScoped<IKeycloakOrganizationService, KeycloakOrganizationService>();
@@ -117,6 +124,7 @@ public static class IdentityInfrastructureExtensions
         services.AddScoped<ScimUserService>();
         services.AddScoped<ScimGroupService>();
         services.AddScoped<IScimService, ScimService>();
+        services.AddScoped<IDeveloperAppService, KeycloakDeveloperAppService>();
         services.AddScoped<Foundry.Shared.Contracts.Identity.IUserService, UserService>();
         services.AddScoped<Foundry.Shared.Contracts.Identity.IUserQueryService, UserQueryService>();
     }
