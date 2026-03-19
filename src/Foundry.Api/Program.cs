@@ -483,8 +483,6 @@ try
         {
             ["ConnectionStrings:DefaultConnection"] = app.Configuration.GetConnectionString("DefaultConnection"),
             ["ConnectionStrings:Redis"] = app.Configuration.GetConnectionString("Redis"),
-            ["Authentication:Authority"] = app.Configuration["Authentication:Authority"],
-            ["Authentication:Audience"] = app.Configuration["Authentication:Audience"],
         };
 
         List<string> missing = requiredConfig

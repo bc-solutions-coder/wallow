@@ -112,7 +112,9 @@ public static class IdentityInfrastructureExtensions
 
     private static void AddIdentityAuthorization(this IServiceCollection services)
     {
-        services.AddAuthentication()
+        services.AddAuthentication(IdentityConstants.ApplicationScheme)
+            .AddCookie(IdentityConstants.ApplicationScheme)
+            .AddCookie(IdentityConstants.ExternalScheme)
             .AddScheme<AuthenticationSchemeOptions, ScimBearerAuthenticationHandler>("ScimBearer", null);
         services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
         services.AddSingleton<IAuthorizationPolicyProvider, PermissionAuthorizationPolicyProvider>();
