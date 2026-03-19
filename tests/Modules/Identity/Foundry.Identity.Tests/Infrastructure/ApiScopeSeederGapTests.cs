@@ -38,7 +38,7 @@ public sealed class ApiScopeSeederGapTests : IDisposable
         await _seeder.SeedAsync(_dbContext);
 
         int count = await _dbContext.ApiScopes.IgnoreQueryFilters().CountAsync();
-        count.Should().Be(14);
+        count.Should().Be(41);
     }
 
     [Fact]
@@ -55,7 +55,7 @@ public sealed class ApiScopeSeederGapTests : IDisposable
         await _seeder.SeedAsync(_dbContext);
 
         int totalCount = await _dbContext.ApiScopes.IgnoreQueryFilters().CountAsync();
-        totalCount.Should().Be(14);
+        totalCount.Should().Be(41);
 
         // Verify no duplicate of the pre-seeded scope
         int invoiceReadCount = await _dbContext.ApiScopes
@@ -79,7 +79,7 @@ public sealed class ApiScopeSeederGapTests : IDisposable
         await _seeder.SeedAsync(_dbContext);
 
         int totalCount = await _dbContext.ApiScopes.IgnoreQueryFilters().CountAsync();
-        totalCount.Should().Be(14);
+        totalCount.Should().Be(41);
     }
 
     [Fact]
@@ -93,6 +93,8 @@ public sealed class ApiScopeSeederGapTests : IDisposable
             .ToListAsync();
 
         codes.Should().BeEquivalentTo([
+            "billing.read",
+            "billing.manage",
             "invoices.read",
             "invoices.write",
             "payments.read",
@@ -101,9 +103,34 @@ public sealed class ApiScopeSeederGapTests : IDisposable
             "subscriptions.write",
             "users.read",
             "users.write",
+            "users.manage",
+            "roles.read",
+            "roles.write",
+            "roles.manage",
+            "organizations.read",
+            "organizations.write",
+            "organizations.manage",
+            "apikeys.read",
+            "apikeys.write",
+            "apikeys.manage",
+            "sso.read",
+            "sso.manage",
+            "scim.manage",
+            "serviceaccounts.read",
+            "serviceaccounts.write",
+            "serviceaccounts.manage",
+            "storage.read",
+            "storage.write",
+            "messaging.access",
+            "announcements.read",
+            "announcements.manage",
+            "changelog.manage",
             "notifications.read",
             "notifications.write",
+            "configuration.read",
+            "configuration.manage",
             "showcases.read",
+            "showcases.manage",
             "inquiries.read",
             "inquiries.write",
             "webhooks.manage"
@@ -121,7 +148,7 @@ public sealed class ApiScopeSeederGapTests : IDisposable
             .Distinct()
             .ToListAsync();
 
-        categories.Should().BeEquivalentTo(["Billing", "Identity", "Notifications", "Showcases", "Inquiries", "Platform"]);
+        categories.Should().BeEquivalentTo(["Billing", "Identity", "Storage", "Communications", "Configuration", "Showcases", "Inquiries", "Platform"]);
     }
 
     [Fact]
@@ -166,7 +193,7 @@ public sealed class ApiScopeSeederGapTests : IDisposable
         await _seeder.SeedAsync(_dbContext, cts.Token);
 
         int count = await _dbContext.ApiScopes.IgnoreQueryFilters().CountAsync();
-        count.Should().Be(14);
+        count.Should().Be(41);
     }
 
     [Fact]
