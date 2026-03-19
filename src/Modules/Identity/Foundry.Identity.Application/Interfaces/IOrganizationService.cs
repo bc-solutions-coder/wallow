@@ -2,7 +2,7 @@ using Foundry.Identity.Application.DTOs;
 
 namespace Foundry.Identity.Application.Interfaces;
 
-public interface IKeycloakOrganizationService
+public interface IOrganizationService
 {
     Task<Guid> CreateOrganizationAsync(string name, string? domain = null, string? creatorEmail = null, CancellationToken ct = default);
     Task<OrganizationDto?> GetOrganizationByIdAsync(Guid orgId, CancellationToken ct = default);

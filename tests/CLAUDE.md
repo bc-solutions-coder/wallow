@@ -122,7 +122,7 @@ Architecture tests enforce: Clean Architecture layers, module isolation (only `S
 
 | Fake | Replaces |
 |------|----------|
-| `FakeKeycloakAdminService` | `IKeycloakAdminService` -- no-op Keycloak admin |
+| `FakeUserManagementService` | `IUserManagementService` -- no-op Keycloak admin |
 | `FakeInvoiceQueryService` | `IInvoiceQueryService` -- returns empty/zero |
 | `FakeMeteringQueryService` | `IMeteringQueryService` -- returns null quotas |
 | `FakeUserQueryService` | `IUserQueryService` -- returns zero counts |

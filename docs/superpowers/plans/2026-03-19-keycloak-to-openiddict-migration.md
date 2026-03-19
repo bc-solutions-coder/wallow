@@ -1230,7 +1230,7 @@ git commit -m "feat(identity): add Razor login/logout pages for OpenIddict auth 
 
 ## Chunk 3: User + Organization Services
 
-**Goal:** Replace `IKeycloakAdminService` and `IKeycloakOrganizationService` with ASP.NET Core Identity-backed implementations. Rename interfaces to drop the Keycloak prefix.
+**Goal:** Replace `IKeycloakAdminService` and `IOrganizationService` with ASP.NET Core Identity-backed implementations. Rename interfaces to drop the Keycloak prefix.
 
 ### Task 3.1: Rename IKeycloakAdminService to IUserManagementService
 
@@ -1562,18 +1562,18 @@ instead of Keycloak Admin API HTTP calls."
 
 ---
 
-### Task 3.3: Rename IKeycloakOrganizationService to IOrganizationService
+### Task 3.3: Rename IOrganizationService to IOrganizationService
 
 **Files:**
-- Rename: `src/Modules/Identity/Foundry.Identity.Application/Interfaces/IKeycloakOrganizationService.cs` → `IOrganizationService.cs`
+- Rename: `src/Modules/Identity/Foundry.Identity.Application/Interfaces/IOrganizationService.cs` → `IOrganizationService.cs`
 - Modify: All references
 
 - [ ] **Step 1: Rename interface and file**
 
-Same approach as Task 3.1. Rename `IKeycloakOrganizationService` → `IOrganizationService` in the interface file and all references.
+Same approach as Task 3.1. Rename `IOrganizationService` → `IOrganizationService` in the interface file and all references.
 
 ```bash
-grep -rl "IKeycloakOrganizationService" src/ tests/ --include="*.cs"
+grep -rl "IOrganizationService" src/ tests/ --include="*.cs"
 ```
 
 - [ ] **Step 2: Verify compilation**
@@ -1586,7 +1586,7 @@ dotnet build src/Modules/Identity/
 
 ```bash
 git add -A
-git commit -m "refactor(identity): rename IKeycloakOrganizationService to IOrganizationService"
+git commit -m "refactor(identity): rename IOrganizationService to IOrganizationService"
 ```
 
 ---
@@ -2359,7 +2359,7 @@ git commit -m "feat(identity): add ClientsController for OAuth2 client managemen
 Replace:
 ```csharp
 services.AddScoped<IKeycloakAdminService, KeycloakAdminService>();
-services.AddScoped<IKeycloakOrganizationService, KeycloakOrganizationService>();
+services.AddScoped<IOrganizationService, KeycloakOrganizationService>();
 services.AddScoped<ITokenService, KeycloakTokenService>();
 services.AddScoped<IServiceAccountService, KeycloakServiceAccountService>();
 services.AddScoped<ISsoService, KeycloakSsoService>();

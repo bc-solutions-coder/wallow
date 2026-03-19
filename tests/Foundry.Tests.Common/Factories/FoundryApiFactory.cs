@@ -172,7 +172,7 @@ public class FoundryApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
                 };
             });
 
-            services.AddSingleton<IKeycloakAdminService, FakeKeycloakAdminService>();
+            services.AddSingleton<IUserManagementService, FakeUserManagementService>();
 
             // Replace real query services that depend on external systems (Keycloak, Marten, raw DB)
             // with fakes so integration tests don't require those systems to be fully initialised.

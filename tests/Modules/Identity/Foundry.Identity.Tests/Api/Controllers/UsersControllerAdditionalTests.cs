@@ -11,14 +11,14 @@ namespace Foundry.Identity.Tests.Api.Controllers;
 public class UsersControllerAdditionalTests
 {
     private static readonly Guid _tenantGuid = Guid.NewGuid();
-    private readonly IKeycloakAdminService _keycloakAdmin;
-    private readonly IKeycloakOrganizationService _keycloakOrg;
+    private readonly IUserManagementService _keycloakAdmin;
+    private readonly IOrganizationService _keycloakOrg;
     private readonly UsersController _controller;
 
     public UsersControllerAdditionalTests()
     {
-        _keycloakAdmin = Substitute.For<IKeycloakAdminService>();
-        _keycloakOrg = Substitute.For<IKeycloakOrganizationService>();
+        _keycloakAdmin = Substitute.For<IUserManagementService>();
+        _keycloakOrg = Substitute.For<IOrganizationService>();
         ITenantContext tenantContext = Substitute.For<ITenantContext>();
         tenantContext.TenantId.Returns(new TenantId(_tenantGuid));
         _controller = new UsersController(_keycloakAdmin, _keycloakOrg, tenantContext);

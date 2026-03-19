@@ -17,15 +17,15 @@ public class UsersControllerTests
     private static readonly string[] _userRole = ["user"];
     private static readonly string[] _adminRole = ["admin"];
     private static readonly Guid _testTenantGuid = Guid.NewGuid();
-    private readonly IKeycloakAdminService _keycloakAdmin;
-    private readonly IKeycloakOrganizationService _keycloakOrg;
+    private readonly IUserManagementService _keycloakAdmin;
+    private readonly IOrganizationService _keycloakOrg;
     private readonly UsersController _controller;
     private readonly Guid _userId = Guid.NewGuid();
 
     public UsersControllerTests()
     {
-        _keycloakAdmin = Substitute.For<IKeycloakAdminService>();
-        _keycloakOrg = Substitute.For<IKeycloakOrganizationService>();
+        _keycloakAdmin = Substitute.For<IUserManagementService>();
+        _keycloakOrg = Substitute.For<IOrganizationService>();
         ITenantContext tenantContext = Substitute.For<ITenantContext>();
         tenantContext.TenantId.Returns(new TenantId(_testTenantGuid));
         _controller = new UsersController(_keycloakAdmin, _keycloakOrg, tenantContext);

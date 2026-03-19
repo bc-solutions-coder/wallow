@@ -3,7 +3,7 @@ using Foundry.Identity.Application.Interfaces;
 
 namespace Foundry.Tests.Common.Fakes;
 
-public sealed class FakeKeycloakAdminService : IKeycloakAdminService
+public sealed class FakeUserManagementService : IUserManagementService
 {
     public Task<Guid> CreateUserAsync(string email, string firstName, string lastName, string? password = null, CancellationToken ct = default)
     {

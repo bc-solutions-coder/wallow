@@ -117,9 +117,9 @@ public class InvoicesController : ControllerBase
 // Exception: Identity module calls Keycloak services directly
 public class UsersController : ControllerBase
 {
-    private readonly IKeycloakAdminService _keycloakAdmin;
+    private readonly IUserManagementService _keycloakAdmin;
 
-    public UsersController(IKeycloakAdminService keycloakAdmin)
+    public UsersController(IUserManagementService keycloakAdmin)
     {
         _keycloakAdmin = keycloakAdmin;
     }

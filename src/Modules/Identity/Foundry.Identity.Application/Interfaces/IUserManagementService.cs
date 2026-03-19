@@ -2,7 +2,7 @@ using Foundry.Identity.Application.DTOs;
 
 namespace Foundry.Identity.Application.Interfaces;
 
-public interface IKeycloakAdminService
+public interface IUserManagementService
 {
     Task<Guid> CreateUserAsync(string email, string firstName, string lastName, string? password = null, CancellationToken ct = default);
     Task<UserDto?> GetUserByIdAsync(Guid userId, CancellationToken ct = default);
