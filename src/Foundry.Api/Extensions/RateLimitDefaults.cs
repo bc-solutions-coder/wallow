@@ -10,4 +10,6 @@ public static class RateLimitDefaults
     public const int ScimWindowMinutes = 1;
     public const int GlobalPermitLimit = 1000;
     public const int GlobalWindowHours = 1;
+    public const int DeveloperAppRegistrationPermitLimit = 5;
+    public const int DeveloperAppRegistrationWindowHours = 1;
 }

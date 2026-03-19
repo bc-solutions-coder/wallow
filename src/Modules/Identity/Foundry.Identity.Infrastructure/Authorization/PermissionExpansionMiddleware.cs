@@ -16,7 +16,8 @@ public class PermissionExpansionMiddleware(RequestDelegate next)
 
             // Check if this is a service account request
             string? clientId = context.User.FindFirst("azp")?.Value;
-            if (clientId?.StartsWith("sa-", StringComparison.Ordinal) == true)
+            if (clientId?.StartsWith("sa-", StringComparison.Ordinal) == true
+                    || clientId?.StartsWith("app-", StringComparison.Ordinal) == true)
             {
                 // Service account: map OAuth2 scopes to permissions
                 ExpandServiceAccountScopes(context, identity);

@@ -71,4 +71,13 @@ public static class ApiScopes
         // Platform
         "webhooks.manage"
     };
+
+    public static readonly IReadOnlySet<string> DeveloperAppScopes = new HashSet<string>
+    {
+        "showcases.read",
+        "inquiries.read",
+        "inquiries.write",
+        "announcements.read",
+        "storage.read"
+    };
 }

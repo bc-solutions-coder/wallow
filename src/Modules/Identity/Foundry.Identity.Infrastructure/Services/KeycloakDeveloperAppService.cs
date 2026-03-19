@@ -18,6 +18,7 @@ public sealed partial class KeycloakDeveloperAppService(
     public async Task<DeveloperAppRegistrationResult> RegisterClientAsync(
         string clientId,
         string clientName,
+        IReadOnlyCollection<string> requestedScopes,
         CancellationToken cancellationToken = default)
     {
         LogRegisteringClient(clientId);
@@ -30,7 +31,8 @@ public sealed partial class KeycloakDeveloperAppService(
             client_id = clientId,
             client_name = clientName,
             grant_types = new[] { "client_credentials" },
-            token_endpoint_auth_method = "client_secret_basic"
+            token_endpoint_auth_method = "client_secret_basic",
+            scope = string.Join(" ", requestedScopes)
         };
 
         HttpResponseMessage response = await _httpClient.PostAsJsonAsync(registrationUrl, payload, cancellationToken);

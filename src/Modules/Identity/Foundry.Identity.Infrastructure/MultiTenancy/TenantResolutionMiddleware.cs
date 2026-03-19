@@ -47,7 +47,7 @@ public partial class TenantResolutionMiddleware(RequestDelegate next, ILogger<Te
                 {
                     LogInvalidTenantIdHeader(headerTenantId);
                 }
-                else if (HasRealmAdminRole(context.User) || IsServiceAccount(context.User))
+                else if (HasRealmAdminRole(context.User) || IsOperatorServiceAccount(context.User))
                 {
                     string callerId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "unknown";
                     string requestPath = context.Request.Path.Value ?? "/";
@@ -101,7 +101,12 @@ public partial class TenantResolutionMiddleware(RequestDelegate next, ILogger<Te
         }
     }
 
-    private static bool IsServiceAccount(ClaimsPrincipal user)
+    /// <summary>
+    /// Checks whether the caller is an operator service account (prefixed with "sa-").
+    /// Developer application clients (prefixed with "app-") are intentionally excluded
+    /// and must not be granted the X-Tenant-Id override path.
+    /// </summary>
+    private static bool IsOperatorServiceAccount(ClaimsPrincipal user)
     {
         string? clientId = user.FindFirst("azp")?.Value;
         return clientId?.StartsWith("sa-", StringComparison.Ordinal) == true;

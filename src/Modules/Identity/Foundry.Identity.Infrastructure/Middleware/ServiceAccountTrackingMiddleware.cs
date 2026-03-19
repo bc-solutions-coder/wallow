@@ -25,7 +25,8 @@ public sealed partial class ServiceAccountTrackingMiddleware(RequestDelegate nex
         {
             // azp (Authorized Party) contains the Keycloak client ID
             string? clientId = context.User.FindFirst("azp")?.Value;
-            if (clientId?.StartsWith("sa-", StringComparison.Ordinal) == true)
+            if (clientId?.StartsWith("sa-", StringComparison.Ordinal) == true
+                    || clientId?.StartsWith("app-", StringComparison.Ordinal) == true)
             {
                 // Fire and forget - don't block the response
                 _ = Task.Run(async () =>

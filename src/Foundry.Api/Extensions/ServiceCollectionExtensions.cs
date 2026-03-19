@@ -165,6 +165,16 @@ internal static class ServiceCollectionExtensions
                         QueueLimit = 0
                     }));
 
+            options.AddPolicy("developer-app-registration", httpContext =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    GetUserPartitionKey(httpContext),
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = RateLimitDefaults.DeveloperAppRegistrationPermitLimit,
+                        Window = TimeSpan.FromHours(RateLimitDefaults.DeveloperAppRegistrationWindowHours),
+                        QueueLimit = 0
+                    }));
+
             options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
                 RateLimitPartition.GetFixedWindowLimiter(
                     GetTenantPartitionKey(httpContext),
@@ -207,6 +217,12 @@ internal static class ServiceCollectionExtensions
         });
 
         return services;
+    }
+
+    private static string GetUserPartitionKey(HttpContext httpContext)
+    {
+        string? userId = httpContext.User.FindFirst("sub")?.Value;
+        return userId ?? httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
     }
 
     private static string GetTenantPartitionKey(HttpContext httpContext)
