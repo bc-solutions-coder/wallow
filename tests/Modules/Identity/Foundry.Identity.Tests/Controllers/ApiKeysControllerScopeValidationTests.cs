@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Foundry.Identity.Api.Contracts.Requests;
 using Foundry.Identity.Api.Controllers;
 using Foundry.Identity.Application.Interfaces;
+using Foundry.Shared.Kernel.Identity.Authorization;
 using Foundry.Shared.Kernel.MultiTenancy;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -31,7 +32,18 @@ public class ApiKeysControllerScopeValidationTests
 
         ClaimsPrincipal user = new(new ClaimsIdentity(new[]
         {
-            new Claim(ClaimTypes.NameIdentifier, _userId.ToString())
+            new Claim(ClaimTypes.NameIdentifier, _userId.ToString()),
+            new Claim("permission", PermissionType.InvoicesRead),
+            new Claim("permission", PermissionType.InvoicesWrite),
+            new Claim("permission", PermissionType.PaymentsRead),
+            new Claim("permission", PermissionType.PaymentsWrite),
+            new Claim("permission", PermissionType.SubscriptionsRead),
+            new Claim("permission", PermissionType.SubscriptionsWrite),
+            new Claim("permission", PermissionType.UsersRead),
+            new Claim("permission", PermissionType.UsersUpdate),
+            new Claim("permission", PermissionType.NotificationsRead),
+            new Claim("permission", PermissionType.NotificationsWrite),
+            new Claim("permission", PermissionType.WebhooksManage)
         }, "TestAuth"));
         _controller.ControllerContext = new ControllerContext
         {
@@ -106,6 +118,50 @@ public class ApiKeysControllerScopeValidationTests
     public async Task CreateApiKey_WithEmptyScopes_Succeeds()
     {
         CreateApiKeyRequest request = new("Test Key", []);
+
+        IActionResult result = await _controller.CreateApiKey(request, CancellationToken.None);
+
+        result.Should().BeOfType<CreatedAtActionResult>();
+    }
+
+    [Fact]
+    public async Task CreateApiKey_ScopeExceedsUserPermissions_Returns403()
+    {
+        ClaimsPrincipal user = new(new ClaimsIdentity(new[]
+        {
+            new Claim(ClaimTypes.NameIdentifier, _userId.ToString()),
+            new Claim("permission", PermissionType.ShowcasesRead)
+        }, "TestAuth"));
+        _controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext { User = user }
+        };
+
+        CreateApiKeyRequest request = new("Test Key", ["billing.manage"]);
+
+        IActionResult result = await _controller.CreateApiKey(request, CancellationToken.None);
+
+        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        objectResult.StatusCode.Should().Be(403);
+        ProblemDetails problem = objectResult.Value.Should().BeOfType<ProblemDetails>().Subject;
+        problem.Detail.Should().Contain("billing.manage");
+    }
+
+    [Fact]
+    public async Task CreateApiKey_ScopeWithinUserPermissions_Succeeds()
+    {
+        ClaimsPrincipal user = new(new ClaimsIdentity(new[]
+        {
+            new Claim(ClaimTypes.NameIdentifier, _userId.ToString()),
+            new Claim("permission", PermissionType.BillingManage),
+            new Claim("permission", PermissionType.ShowcasesRead)
+        }, "TestAuth"));
+        _controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext { User = user }
+        };
+
+        CreateApiKeyRequest request = new("Test Key", ["billing.manage", "showcases.read"]);
 
         IActionResult result = await _controller.CreateApiKey(request, CancellationToken.None);
 

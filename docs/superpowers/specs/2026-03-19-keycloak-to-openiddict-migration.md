@@ -217,7 +217,7 @@ After migration, JWTs issued by OpenIddict contain:
 
 | Current Class | New Class | Interface Change | Implementation |
 |---------------|-----------|-----------------|----------------|
-| `KeycloakAdminService` | `UserService` | `IKeycloakAdminService` → `IUserService` (rename, same methods) | `UserManager<FoundryUser>` + `RoleManager<FoundryRole>` |
+| `KeycloakAdminService` | `UserManagementService` | `IKeycloakAdminService` → `IUserManagementService` (rename, same methods) | `UserManager<FoundryUser>` + `RoleManager<FoundryRole>` |
 | `KeycloakOrganizationService` | `OrganizationService` | `IKeycloakOrganizationService` → `IOrganizationService` (rename, same methods) | EF Core CRUD on `Organization` entity |
 | `KeycloakTokenService` | **Removed** | `ITokenService` removed | OpenIddict handles `/connect/token` natively. `AuthController` is deleted entirely — its `POST /token`, `POST /refresh`, and `POST /logout` endpoints are replaced by OpenIddict's `/connect/token` and `/connect/logout`. |
 | `KeycloakServiceAccountService` | `ServiceAccountService` | `IServiceAccountService` (unchanged) | `IOpenIddictApplicationManager` + existing metadata table |
@@ -247,7 +247,7 @@ After migration, JWTs issued by OpenIddict contain:
 
 | Component | Reason |
 |-----------|--------|
-| `KeycloakAdminService.cs` | Replaced by `UserService` |
+| `KeycloakAdminService.cs` | Replaced by `UserManagementService` |
 | `KeycloakOrganizationService.cs` | Replaced by `OrganizationService` |
 | `KeycloakTokenService.cs` | Replaced by OpenIddict built-in endpoints |
 | `KeycloakServiceAccountService.cs` | Replaced by `ServiceAccountService` |
