@@ -91,6 +91,19 @@ public sealed class ApiKeysController(IApiKeyService apiKeyService, ITenantConte
                     Status = StatusCodes.Status400BadRequest
                 });
             }
+
+            HashSet<string> userPermissions = HttpContext.User.FindAll("permission")
+                .Select(c => c.Value)
+                .ToHashSet();
+
+            foreach (string scope in request.Scopes)
+            {
+                string? requiredPermission = ScopePermissionMapper.MapScopeToPermission(scope);
+                if (requiredPermission is not null && !userPermissions.Contains(requiredPermission))
+                {
+                    return Problem(statusCode: 403, title: "Forbidden", detail: $"Scope '{scope}' exceeds your current permissions");
+                }
+            }
         }
 
         int maxPerUser = configuration.GetValue("ApiKeys:MaxPerUser", 10);

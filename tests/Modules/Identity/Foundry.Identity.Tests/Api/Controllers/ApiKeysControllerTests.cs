@@ -3,6 +3,7 @@ using Foundry.Identity.Api.Contracts.Requests;
 using Foundry.Identity.Api.Contracts.Responses;
 using Foundry.Identity.Api.Controllers;
 using Foundry.Identity.Application.Interfaces;
+using Foundry.Shared.Kernel.Identity.Authorization;
 using Foundry.Shared.Kernel.MultiTenancy;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -37,7 +38,9 @@ public class ApiKeysControllerTests
 
         ClaimsPrincipal user = new(new ClaimsIdentity(new[]
         {
-            new Claim(ClaimTypes.NameIdentifier, _userId.ToString())
+            new Claim(ClaimTypes.NameIdentifier, _userId.ToString()),
+            new Claim("permission", PermissionType.InvoicesRead),
+            new Claim("permission", PermissionType.PaymentsWrite)
         }, "TestAuth"));
         _controller.ControllerContext = new ControllerContext
         {
