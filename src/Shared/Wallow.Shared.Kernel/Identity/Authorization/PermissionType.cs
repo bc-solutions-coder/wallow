@@ -86,10 +86,6 @@ public static class PermissionType
     public const string InquiriesRead = "InquiriesRead";
     public const string InquiriesWrite = "InquiriesWrite";
 
-    // Showcases
-    public const string ShowcasesRead = "ShowcasesRead";
-    public const string ShowcasesManage = "ShowcasesManage";
-
     // Service Accounts
     public const string ServiceAccountsRead = "ServiceAccountsRead";
     public const string ServiceAccountsWrite = "ServiceAccountsWrite";

@@ -28,7 +28,6 @@ public class ModuleToggleTests
                 ["FeatureManagement:Modules.Announcements"] = "true",
                 ["FeatureManagement:Modules.Storage"] = "true",
                 ["FeatureManagement:Modules.Inquiries"] = "true",
-                ["FeatureManagement:Modules.Showcases"] = "true",
                 ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Database=test",
             })
             .Build();
@@ -56,7 +55,6 @@ public class ModuleToggleTests
                 ["FeatureManagement:Modules.Announcements"] = "true",
                 ["FeatureManagement:Modules.Storage"] = "true",
                 ["FeatureManagement:Modules.Inquiries"] = "true",
-                ["FeatureManagement:Modules.Showcases"] = "true",
                 ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Database=test",
             })
             .Build();

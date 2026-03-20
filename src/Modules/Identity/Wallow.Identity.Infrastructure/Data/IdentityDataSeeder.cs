@@ -1,7 +1,11 @@
+using System.Text.Json;
 using Wallow.Identity.Domain.Entities;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using OpenIddict.Abstractions;
+using OpenIddict.EntityFrameworkCore.Models;
+using Wallow.Identity.Infrastructure.Persistence;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
 namespace Wallow.Identity.Infrastructure.Data;
@@ -14,12 +18,13 @@ public sealed partial class IdentityDataSeeder(ILogger<IdentityDataSeeder> logge
         RoleManager<WallowRole> roleManager,
         UserManager<WallowUser> userManager,
         IOpenIddictApplicationManager applicationManager,
+        IdentityDbContext dbContext,
         TimeProvider timeProvider,
         CancellationToken ct = default)
     {
         await SeedRolesAsync(roleManager);
         await SeedAdminUserAsync(userManager, timeProvider);
-        await SeedDevClientAsync(applicationManager, ct);
+        await SeedDevClientAsync(applicationManager, dbContext, ct);
     }
 
     private async Task SeedRolesAsync(RoleManager<WallowRole> roleManager)
@@ -93,15 +98,10 @@ public sealed partial class IdentityDataSeeder(ILogger<IdentityDataSeeder> logge
 
     private async Task SeedDevClientAsync(
         IOpenIddictApplicationManager applicationManager,
+        IdentityDbContext dbContext,
         CancellationToken ct)
     {
         const string clientId = "wallow-dev-client";
-
-        object? existing = await applicationManager.FindByClientIdAsync(clientId, ct);
-        if (existing is not null)
-        {
-            return;
-        }
 
         OpenIddictApplicationDescriptor descriptor = new()
         {
@@ -111,12 +111,13 @@ public sealed partial class IdentityDataSeeder(ILogger<IdentityDataSeeder> logge
             RedirectUris =
             {
                 new Uri("http://localhost:5000/callback"),
-                new Uri("http://localhost:3000/callback")
+                new Uri("http://localhost:3000/callback"),
+                new Uri("http://localhost:3000/auth/callback")
             },
             PostLogoutRedirectUris =
             {
-                new Uri("http://localhost:5000"),
-                new Uri("http://localhost:3000")
+                new Uri("http://localhost:5000/"),
+                new Uri("http://localhost:3000/")
             },
             Permissions =
             {
@@ -128,7 +129,46 @@ public sealed partial class IdentityDataSeeder(ILogger<IdentityDataSeeder> logge
                 Permissions.Scopes.Email,
                 Permissions.Scopes.Profile,
                 Permissions.Scopes.Roles,
-                Permissions.Prefixes.Scope + "api"
+                Permissions.Prefixes.Scope + "offline_access",
+                Permissions.Prefixes.Scope + "inquiries.read",
+                Permissions.Prefixes.Scope + "inquiries.write",
+                Permissions.Prefixes.Scope + "billing.read",
+                Permissions.Prefixes.Scope + "billing.manage",
+                Permissions.Prefixes.Scope + "invoices.read",
+                Permissions.Prefixes.Scope + "invoices.write",
+                Permissions.Prefixes.Scope + "payments.read",
+                Permissions.Prefixes.Scope + "payments.write",
+                Permissions.Prefixes.Scope + "subscriptions.read",
+                Permissions.Prefixes.Scope + "subscriptions.write",
+                Permissions.Prefixes.Scope + "users.read",
+                Permissions.Prefixes.Scope + "users.write",
+                Permissions.Prefixes.Scope + "users.manage",
+                Permissions.Prefixes.Scope + "roles.read",
+                Permissions.Prefixes.Scope + "roles.write",
+                Permissions.Prefixes.Scope + "roles.manage",
+                Permissions.Prefixes.Scope + "organizations.read",
+                Permissions.Prefixes.Scope + "organizations.write",
+                Permissions.Prefixes.Scope + "organizations.manage",
+                Permissions.Prefixes.Scope + "apikeys.read",
+                Permissions.Prefixes.Scope + "apikeys.write",
+                Permissions.Prefixes.Scope + "apikeys.manage",
+                Permissions.Prefixes.Scope + "sso.read",
+                Permissions.Prefixes.Scope + "sso.manage",
+                Permissions.Prefixes.Scope + "scim.manage",
+                Permissions.Prefixes.Scope + "storage.read",
+                Permissions.Prefixes.Scope + "storage.write",
+                Permissions.Prefixes.Scope + "messaging.access",
+                Permissions.Prefixes.Scope + "announcements.read",
+                Permissions.Prefixes.Scope + "announcements.manage",
+                Permissions.Prefixes.Scope + "changelog.manage",
+                Permissions.Prefixes.Scope + "notifications.read",
+                Permissions.Prefixes.Scope + "notifications.write",
+                Permissions.Prefixes.Scope + "configuration.read",
+                Permissions.Prefixes.Scope + "configuration.manage",
+                Permissions.Prefixes.Scope + "serviceaccounts.read",
+                Permissions.Prefixes.Scope + "serviceaccounts.write",
+                Permissions.Prefixes.Scope + "serviceaccounts.manage",
+                Permissions.Prefixes.Scope + "webhooks.manage"
             },
             Requirements =
             {
@@ -136,7 +176,30 @@ public sealed partial class IdentityDataSeeder(ILogger<IdentityDataSeeder> logge
             }
         };
 
+        object? existing = await applicationManager.FindByClientIdAsync(clientId, ct);
+        if (existing is not null)
+        {
+            await applicationManager.DeleteAsync(existing, ct);
+        }
+
         await applicationManager.CreateAsync(descriptor, ct);
+
+        // OpenIddict's EF Core store normalizes URIs via the Uri class, which strips
+        // trailing slashes from root paths (e.g. "http://localhost:3000/" -> "http://localhost:3000").
+        // However, OpenIddict validates post_logout_redirect_uri using exact string comparison.
+        // Clients commonly send the trailing-slash form, so we patch the stored JSON directly
+        // to include both variants.
+        OpenIddictEntityFrameworkCoreApplication<Guid>? app = await dbContext.Set<OpenIddictEntityFrameworkCoreApplication<Guid>>()
+            .FirstOrDefaultAsync(a => a.ClientId == clientId, ct);
+
+        if (app is not null)
+        {
+            string[] postLogoutUris = ["http://localhost:5000", "http://localhost:5000/",
+                "http://localhost:3000", "http://localhost:3000/"];
+            app.PostLogoutRedirectUris = JsonSerializer.Serialize(postLogoutUris);
+            await dbContext.SaveChangesAsync(ct);
+        }
+
         LogDevClientSeeded(clientId);
     }
 

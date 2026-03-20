@@ -24,8 +24,6 @@ public class ScopeVerificationTests
     [InlineData("users.write", PermissionType.UsersUpdate)]
     [InlineData("notifications.read", PermissionType.NotificationsRead)]
     [InlineData("notifications.write", PermissionType.NotificationsWrite)]
-    [InlineData("showcases.read", PermissionType.ShowcasesRead)]
-    [InlineData("showcases.manage", PermissionType.ShowcasesManage)]
     [InlineData("storage.read", PermissionType.StorageRead)]
     [InlineData("storage.write", PermissionType.StorageWrite)]
     [InlineData("serviceaccounts.read", PermissionType.ServiceAccountsRead)]
@@ -51,7 +49,7 @@ public class ScopeVerificationTests
     {
         DefaultHttpContext httpContext = CreateServiceAccountContext(
             "sa-full-access",
-            "inquiries.read inquiries.write showcases.read storage.read");
+            "inquiries.read inquiries.write storage.read");
 
         PermissionExpansionMiddleware middleware = new(_ => Task.CompletedTask);
         await middleware.InvokeAsync(httpContext);
@@ -59,10 +57,9 @@ public class ScopeVerificationTests
         List<string> permissions = httpContext.User.FindAll("permission")
             .Select(c => c.Value)
             .ToList();
-        permissions.Should().HaveCount(4);
+        permissions.Should().HaveCount(3);
         permissions.Should().Contain(PermissionType.InquiriesRead);
         permissions.Should().Contain(PermissionType.InquiriesWrite);
-        permissions.Should().Contain(PermissionType.ShowcasesRead);
         permissions.Should().Contain(PermissionType.StorageRead);
     }
 

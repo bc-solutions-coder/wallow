@@ -130,7 +130,7 @@ public class ApiKeysControllerScopeValidationTests
         ClaimsPrincipal user = new(new ClaimsIdentity(new[]
         {
             new Claim(ClaimTypes.NameIdentifier, _userId.ToString()),
-            new Claim("permission", PermissionType.ShowcasesRead)
+            new Claim("permission", PermissionType.StorageRead)
         }, "TestAuth"));
         _controller.ControllerContext = new ControllerContext
         {
@@ -154,14 +154,14 @@ public class ApiKeysControllerScopeValidationTests
         {
             new Claim(ClaimTypes.NameIdentifier, _userId.ToString()),
             new Claim("permission", PermissionType.BillingManage),
-            new Claim("permission", PermissionType.ShowcasesRead)
+            new Claim("permission", PermissionType.StorageRead)
         }, "TestAuth"));
         _controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext { User = user }
         };
 
-        CreateApiKeyRequest request = new("Test Key", ["billing.manage", "showcases.read"]);
+        CreateApiKeyRequest request = new("Test Key", ["billing.manage", "storage.read"]);
 
         IActionResult result = await _controller.CreateApiKey(request, CancellationToken.None);
 
