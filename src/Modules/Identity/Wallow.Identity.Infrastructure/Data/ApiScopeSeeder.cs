@@ -136,12 +136,6 @@ public sealed partial class ApiScopeSeeder(ILogger<ApiScopeSeeder> logger)
         yield return ApiScope.Create("configuration.manage", "Manage Configuration", "Configuration",
             "Access to create, update, and delete configuration");
 
-        // Showcases scopes
-        yield return ApiScope.Create("showcases.read", "Read Showcases", "Showcases",
-            "Access to read showcases and showcase data");
-        yield return ApiScope.Create("showcases.manage", "Manage Showcases", "Showcases",
-            "Access to create, update, and delete showcases");
-
         // Inquiries scopes
         yield return ApiScope.Create("inquiries.read", "Read Inquiries", "Inquiries",
             "Access to read inquiries and inquiry data");

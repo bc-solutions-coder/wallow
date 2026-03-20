@@ -55,10 +55,6 @@ public static class ApiScopes
         "configuration.read",
         "configuration.manage",
 
-        // Showcases
-        "showcases.read",
-        "showcases.manage",
-
         // Inquiries
         "inquiries.read",
         "inquiries.write",
@@ -74,7 +70,6 @@ public static class ApiScopes
 
     public static readonly IReadOnlySet<string> DeveloperAppScopes = new HashSet<string>
     {
-        "showcases.read",
         "inquiries.read",
         "inquiries.write",
         "announcements.read",

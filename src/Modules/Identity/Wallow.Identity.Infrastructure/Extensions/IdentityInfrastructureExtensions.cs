@@ -68,13 +68,46 @@ public static class IdentityInfrastructureExtensions
                     aspNetCoreBuilder.DisableTransportSecurityRequirement();
                 }
 
-                options.RegisterScopes("openid", "profile", "email", "roles");
+                options.RegisterScopes(
+                    "openid", "profile", "email", "roles", "offline_access",
+                    "billing.read", "billing.manage",
+                    "invoices.read", "invoices.write",
+                    "payments.read", "payments.write",
+                    "subscriptions.read", "subscriptions.write",
+                    "users.read", "users.write", "users.manage",
+                    "roles.read", "roles.write", "roles.manage",
+                    "organizations.read", "organizations.write", "organizations.manage",
+                    "apikeys.read", "apikeys.write", "apikeys.manage",
+                    "sso.read", "sso.manage", "scim.manage",
+                    "storage.read", "storage.write",
+                    "messaging.access",
+                    "announcements.read", "announcements.manage",
+                    "changelog.manage",
+                    "notifications.read", "notifications.write",
+                    "configuration.read", "configuration.manage",
+                    "inquiries.read", "inquiries.write",
+                    "serviceaccounts.read", "serviceaccounts.write", "serviceaccounts.manage",
+                    "webhooks.manage");
             })
             .AddValidation(options =>
             {
                 options.UseLocalServer();
                 options.UseAspNetCore();
             });
+
+        services.ConfigureApplicationCookie(options =>
+        {
+            string? cookieDomain = configuration["Authentication:CookieDomain"];
+            if (!string.IsNullOrEmpty(cookieDomain))
+            {
+                options.Cookie.Domain = cookieDomain;
+            }
+            options.Cookie.SameSite = Microsoft.AspNetCore.Http.SameSiteMode.Lax;
+            options.Cookie.HttpOnly = true;
+            options.Cookie.SecurePolicy = environment.IsDevelopment()
+                ? Microsoft.AspNetCore.Http.CookieSecurePolicy.SameAsRequest
+                : Microsoft.AspNetCore.Http.CookieSecurePolicy.Always;
+        });
 
         services.AddIdentityAuthorization();
         services.AddMultiTenancy();
@@ -122,10 +155,27 @@ public static class IdentityInfrastructureExtensions
 
     private static void AddIdentityAuthorization(this IServiceCollection services)
     {
-        services.AddAuthentication(IdentityConstants.ApplicationScheme)
+        services.AddAuthentication(options =>
+            {
+                options.DefaultScheme = "SmartScheme";
+                options.DefaultChallengeScheme = "SmartScheme";
+            })
             .AddCookie(IdentityConstants.ApplicationScheme)
             .AddCookie(IdentityConstants.ExternalScheme)
-            .AddScheme<AuthenticationSchemeOptions, ScimBearerAuthenticationHandler>("ScimBearer", null);
+            .AddScheme<AuthenticationSchemeOptions, ScimBearerAuthenticationHandler>("ScimBearer", null)
+            .AddPolicyScheme("SmartScheme", "Smart cookie/bearer selector", options =>
+            {
+                options.ForwardDefaultSelector = context =>
+                {
+                    string? authorization = context.Request.Headers.Authorization.FirstOrDefault();
+                    if (!string.IsNullOrEmpty(authorization) && authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return OpenIddict.Validation.AspNetCore.OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme;
+                    }
+
+                    return IdentityConstants.ApplicationScheme;
+                };
+            });
         services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
         services.AddSingleton<IAuthorizationPolicyProvider, PermissionAuthorizationPolicyProvider>();
         services.AddSingleton<IRolePermissionLookup, RolePermissionLookup>();

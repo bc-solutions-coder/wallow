@@ -26,7 +26,7 @@ dotnet ef migrations add MigrationName \
 
 ## Architecture
 
-**Modules:** Identity, Billing, Storage, Notifications, Messaging, Announcements, Inquiries, Showcases
+**Modules:** Identity, Billing, Storage, Notifications, Messaging, Announcements, Inquiries
 
 - Modules communicate via RabbitMQ events, never direct references
 - Modules only reference `Shared.Contracts` for cross-module communication
@@ -60,7 +60,7 @@ Automated semver via [Conventional Commits](https://www.conventionalcommits.org/
 | API | http://localhost:5000 | N/A |
 | RabbitMQ | http://localhost:15672 | See `docker/.env` |
 | Mailpit | http://localhost:8025 | N/A |
-| Grafana | http://localhost:3000 | admin / admin |
+| Grafana | http://localhost:3001 | admin / admin |
 
 ## Documentation
 

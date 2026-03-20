@@ -170,8 +170,6 @@ public class PermissionExpansionMiddlewareGapTests
     [InlineData("notifications.write", PermissionType.NotificationsWrite)]
     [InlineData("configuration.read", PermissionType.ConfigurationRead)]
     [InlineData("configuration.manage", PermissionType.ConfigurationManage)]
-    [InlineData("showcases.read", PermissionType.ShowcasesRead)]
-    [InlineData("showcases.manage", PermissionType.ShowcasesManage)]
     [InlineData("serviceaccounts.read", PermissionType.ServiceAccountsRead)]
     [InlineData("serviceaccounts.write", PermissionType.ServiceAccountsWrite)]
     [InlineData("serviceaccounts.manage", PermissionType.ServiceAccountsManage)]

@@ -52,8 +52,6 @@ public static class RolePermissionMapping
             PermissionType.StorageRead,
             PermissionType.StorageWrite,
             PermissionType.ApiKeyManage,
-            PermissionType.ShowcasesRead,
-            PermissionType.ShowcasesManage,
             PermissionType.ScopeRead,
             PermissionType.ServiceAccountsRead,
             PermissionType.ServiceAccountsWrite,
@@ -75,8 +73,6 @@ public static class RolePermissionMapping
             PermissionType.ApiKeysDelete,
             PermissionType.SsoRead,
             PermissionType.ConfigurationManage,
-            PermissionType.ShowcasesRead,
-            PermissionType.ShowcasesManage,
             PermissionType.InquiriesRead,
         ],
         ["user"] =
@@ -88,7 +84,6 @@ public static class RolePermissionMapping
             PermissionType.AnnouncementRead,
             PermissionType.StorageRead,
             PermissionType.StorageWrite,
-            PermissionType.ShowcasesRead,
             PermissionType.InquiriesWrite,
         ]
     }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);

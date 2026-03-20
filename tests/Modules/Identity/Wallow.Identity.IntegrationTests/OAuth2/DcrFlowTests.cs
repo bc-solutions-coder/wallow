@@ -17,7 +17,7 @@ public class DcrFlowTests(WallowApiFactory factory) : IdentityIntegrationTestBas
     {
         AppRegistrationResponse registration = await RegisterAppAsync(
             "app-test-dcr",
-            ["showcases.read", "inquiries.read"]);
+            ["inquiries.read", "storage.read"]);
 
         registration.ClientId.Should().NotBeNullOrWhiteSpace();
         registration.ClientSecret.Should().NotBeNullOrWhiteSpace();
@@ -32,7 +32,7 @@ public class DcrFlowTests(WallowApiFactory factory) : IdentityIntegrationTestBas
     {
         AppRegistrationResponse registration = await RegisterAppAsync(
             "app-test-scopes",
-            ["showcases.read", "inquiries.read"]);
+            ["inquiries.read", "storage.read"]);
 
         string? token = await AcquireTokenAsync(registration.ClientId, registration.ClientSecret);
         token.Should().NotBeNullOrWhiteSpace();
@@ -45,8 +45,8 @@ public class DcrFlowTests(WallowApiFactory factory) : IdentityIntegrationTestBas
             .SelectMany(c => c.Value.Split(' ', StringSplitOptions.RemoveEmptyEntries))
             .ToList();
 
-        scopes.Should().Contain("showcases.read");
         scopes.Should().Contain("inquiries.read");
+        scopes.Should().Contain("storage.read");
     }
 
     [Fact]
@@ -54,7 +54,7 @@ public class DcrFlowTests(WallowApiFactory factory) : IdentityIntegrationTestBas
     {
         HttpResponseMessage response = await Client.PostAsJsonAsync(
             RegisterEndpoint,
-            new RegisterAppRequest("invalid-name", ["showcases.read"]));
+            new RegisterAppRequest("invalid-name", ["inquiries.read"]));
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
@@ -74,7 +74,7 @@ public class DcrFlowTests(WallowApiFactory factory) : IdentityIntegrationTestBas
     {
         AppRegistrationResponse registration = await RegisterAppAsync(
             "app-test-wrong-creds",
-            ["showcases.read"]);
+            ["inquiries.read"]);
 
         HttpResponseMessage response = await PostTokenRequestAsync(
             registration.ClientId,
@@ -88,7 +88,7 @@ public class DcrFlowTests(WallowApiFactory factory) : IdentityIntegrationTestBas
     {
         AppRegistrationResponse registration = await RegisterAppAsync(
             "app-test-no-sa-access",
-            ["showcases.read"]);
+            ["inquiries.read"]);
 
         string? token = await AcquireTokenAsync(registration.ClientId, registration.ClientSecret);
         token.Should().NotBeNullOrWhiteSpace();

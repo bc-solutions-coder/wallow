@@ -38,7 +38,7 @@ public sealed class ApiScopeSeederGapTests : IDisposable
         await _seeder.SeedAsync(_dbContext);
 
         int count = await _dbContext.ApiScopes.IgnoreQueryFilters().CountAsync();
-        count.Should().Be(41);
+        count.Should().Be(39);
     }
 
     [Fact]
@@ -55,7 +55,7 @@ public sealed class ApiScopeSeederGapTests : IDisposable
         await _seeder.SeedAsync(_dbContext);
 
         int totalCount = await _dbContext.ApiScopes.IgnoreQueryFilters().CountAsync();
-        totalCount.Should().Be(41);
+        totalCount.Should().Be(39);
 
         // Verify no duplicate of the pre-seeded scope
         int invoiceReadCount = await _dbContext.ApiScopes
@@ -79,7 +79,7 @@ public sealed class ApiScopeSeederGapTests : IDisposable
         await _seeder.SeedAsync(_dbContext);
 
         int totalCount = await _dbContext.ApiScopes.IgnoreQueryFilters().CountAsync();
-        totalCount.Should().Be(41);
+        totalCount.Should().Be(39);
     }
 
     [Fact]
@@ -129,8 +129,6 @@ public sealed class ApiScopeSeederGapTests : IDisposable
             "notifications.write",
             "configuration.read",
             "configuration.manage",
-            "showcases.read",
-            "showcases.manage",
             "inquiries.read",
             "inquiries.write",
             "webhooks.manage"
@@ -148,7 +146,7 @@ public sealed class ApiScopeSeederGapTests : IDisposable
             .Distinct()
             .ToListAsync();
 
-        categories.Should().BeEquivalentTo(["Billing", "Identity", "Storage", "Communications", "Configuration", "Showcases", "Inquiries", "Platform"]);
+        categories.Should().BeEquivalentTo(["Billing", "Identity", "Storage", "Communications", "Configuration", "Inquiries", "Platform"]);
     }
 
     [Fact]
@@ -193,7 +191,7 @@ public sealed class ApiScopeSeederGapTests : IDisposable
         await _seeder.SeedAsync(_dbContext, cts.Token);
 
         int count = await _dbContext.ApiScopes.IgnoreQueryFilters().CountAsync();
-        count.Should().Be(41);
+        count.Should().Be(39);
     }
 
     [Fact]

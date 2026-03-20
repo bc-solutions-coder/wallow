@@ -44,12 +44,6 @@
     <Project Path="src/Modules/Notifications/Wallow.Notifications.Domain/Wallow.Notifications.Domain.csproj" />
     <Project Path="src/Modules/Notifications/Wallow.Notifications.Infrastructure/Wallow.Notifications.Infrastructure.csproj" />
   </Folder>
-  <Folder Name="/src/Modules/Showcases/">
-    <Project Path="src/Modules/Showcases/Wallow.Showcases.Api/Wallow.Showcases.Api.csproj" />
-    <Project Path="src/Modules/Showcases/Wallow.Showcases.Application/Wallow.Showcases.Application.csproj" />
-    <Project Path="src/Modules/Showcases/Wallow.Showcases.Domain/Wallow.Showcases.Domain.csproj" />
-    <Project Path="src/Modules/Showcases/Wallow.Showcases.Infrastructure/Wallow.Showcases.Infrastructure.csproj" />
-  </Folder>
   <Folder Name="/src/Modules/Storage/">
     <Project Path="src/Modules/Storage/Wallow.Storage.Api/Wallow.Storage.Api.csproj" />
     <Project Path="src/Modules/Storage/Wallow.Storage.Application/Wallow.Storage.Application.csproj" />
@@ -96,10 +90,6 @@
   </Folder>
   <Folder Name="/tests/Modules/Notifications/">
     <Project Path="tests/Modules/Notifications/Wallow.Notifications.Tests/Wallow.Notifications.Tests.csproj" />
-  </Folder>
-  <Folder Name="/tests/Modules/Showcases/">
-    <Project Path="tests/Modules/Showcases/Wallow.Showcases.Tests/Wallow.Showcases.Tests.csproj" />
-    <Project Path="tests/Modules/Showcases/Showcases.Domain.Tests/Showcases.Domain.Tests.csproj" />
   </Folder>
   <Folder Name="/tests/Modules/Storage/">
     <Project Path="tests/Modules/Storage/Wallow.Storage.Tests/Wallow.Storage.Tests.csproj" />

@@ -6,7 +6,6 @@ using Wallow.Inquiries.Infrastructure.Extensions;
 using Wallow.Messaging.Infrastructure.Extensions;
 using Wallow.Notifications.Infrastructure.Extensions;
 using Wallow.Shared.Infrastructure.Plugins;
-using Wallow.Showcases.Infrastructure.Extensions;
 using Wallow.Storage.Infrastructure.Extensions;
 using Microsoft.FeatureManagement;
 
@@ -73,11 +72,6 @@ internal static class WallowModules
             services.AddInquiriesModule(configuration);
         }
 
-        if (featureManager.IsEnabledAsync("Modules.Showcases").GetAwaiter().GetResult())
-        {
-            services.AddShowcasesModule(configuration);
-        }
-
         // ============================================================================
         // PLUGIN SYSTEM
         // Extensibility via dynamically loaded plugin assemblies
@@ -132,11 +126,6 @@ internal static class WallowModules
         if (await featureManager.IsEnabledAsync("Modules.Inquiries"))
         {
             await app.InitializeInquiriesModuleAsync();
-        }
-
-        if (await featureManager.IsEnabledAsync("Modules.Showcases"))
-        {
-            await app.InitializeShowcasesModuleAsync();
         }
 
         // ============================================================================

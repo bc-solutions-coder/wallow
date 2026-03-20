@@ -59,10 +59,6 @@ public static class ScopePermissionMapper
             "configuration.read" => PermissionType.ConfigurationRead,
             "configuration.manage" => PermissionType.ConfigurationManage,
 
-            // Showcases
-            "showcases.read" => PermissionType.ShowcasesRead,
-            "showcases.manage" => PermissionType.ShowcasesManage,
-
             // Inquiries
             "inquiries.read" => PermissionType.InquiriesRead,
             "inquiries.write" => PermissionType.InquiriesWrite,
