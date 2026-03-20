@@ -14,7 +14,7 @@ Before creating a new module:
 - [ ] Identify primary entities and their relationships
 - [ ] Determine if the module needs database persistence (EF Core) or is stateless
 
-> **Current modules:** Identity, Billing, Storage, Notifications, Messaging, Announcements, Inquiries, Showcases. New modules should complement these existing capabilities.
+> **Current modules:** Identity, Billing, Storage, Notifications, Messaging, Announcements, Inquiries. New modules should complement these existing capabilities.
 
 ---
 
@@ -1070,9 +1070,6 @@ public static IServiceCollection AddWallowModules(
     if (featureManager.IsEnabledAsync("Modules.Inquiries").GetAwaiter().GetResult())
         services.AddInquiriesModule(configuration);
 
-    if (featureManager.IsEnabledAsync("Modules.Showcases").GetAwaiter().GetResult())
-        services.AddShowcasesModule(configuration);
-
     // Add your module in the appropriate section:
     if (featureManager.IsEnabledAsync("Modules.{ModuleName}").GetAwaiter().GetResult())
         services.Add{ModuleName}Module(configuration);
@@ -1371,4 +1368,4 @@ Based on analysis of existing modules:
 
 ---
 
-*Based on the Billing module reference implementation. Current modules: Identity, Billing, Storage, Notifications, Messaging, Announcements, Inquiries, Showcases.*
+*Based on the Billing module reference implementation. Current modules: Identity, Billing, Storage, Notifications, Messaging, Announcements, Inquiries.*

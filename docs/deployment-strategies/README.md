@@ -332,7 +332,7 @@ Wallow includes OpenTelemetry instrumentation. Metrics flow to Grafana:
 
 ```bash
 # Local development
-http://localhost:3000  # Grafana dashboards
+http://localhost:3001  # Grafana dashboards
 
 # Key dashboards
 - API Performance (response times, throughput)

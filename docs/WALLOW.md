@@ -1,6 +1,6 @@
 # Wallow
 
-Wallow is a production-ready .NET 10 modular monolith base platform with 8 core modules. Products are built by forking this repository and adding domain-specific modules on top of the base. The platform provides: Identity (Keycloak), Billing, Storage, Notifications, Messaging, Announcements, Inquiries, and Showcases — all with multi-tenancy, messaging infrastructure, observability, background jobs, workflow automation, and auditing built in.
+Wallow is a production-ready .NET 10 modular monolith base platform with 7 core modules. Products are built by forking this repository and adding domain-specific modules on top of the base. The platform provides: Identity (Keycloak), Billing, Storage, Notifications, Messaging, Announcements, and Inquiries — all with multi-tenancy, messaging infrastructure, observability, background jobs, workflow automation, and auditing built in.
 
 ---
 
@@ -41,7 +41,6 @@ src/
     Messaging/          (same four-layer structure)
     Announcements/      (same four-layer structure)
     Inquiries/          (same four-layer structure)
-    Showcases/          (same four-layer structure)
   Shared/
     Wallow.Shared.Contracts/           # Integration events and cross-module DTOs
     Wallow.Shared.Kernel/              # Base classes: Entity, AggregateRoot, ValueObject,
@@ -132,7 +131,7 @@ Users with the `admin` realm role can pass an `X-Tenant-Id` header to impersonat
 
 ## Module Inventory
 
-Wallow contains 8 core modules plus shared infrastructure capabilities.
+Wallow contains 7 core modules plus shared infrastructure capabilities.
 
 ### Modules
 
@@ -177,10 +176,6 @@ System-wide announcements, banners, and changelog entries.
 #### Inquiries
 
 Inquiry and question submission workflows.
-
-#### Showcases
-
-Portfolio and showcase item management.
 
 ### Shared Infrastructure Capabilities
 
@@ -287,7 +282,7 @@ Wallow is a base platform. To build a product:
 | RabbitMQ    | http://localhost:15672      | See `docker/.env`  | Message broker management   |
 | Mailpit     | http://localhost:8025       | -                  | Email capture (dev only)    |
 | PostgreSQL  | localhost:5432              | See `docker/.env`  | Database                    |
-| Grafana     | http://localhost:3000       | admin / admin      | Observability dashboards    |
+| Grafana     | http://localhost:3001       | admin / admin      | Observability dashboards    |
 | Hangfire    | http://localhost:5000/hangfire | -               | Background job dashboard    |
 
 ---

@@ -1,6 +1,6 @@
 # Module Simplification Design
 
-> **HISTORICAL DOCUMENT** — This document describes a design proposal from 2026-02-27 that was partially implemented with a different outcome than planned. The actual result was **8 modules** (Identity, Billing, Storage, Notifications, Messaging, Announcements, Inquiries, Showcases), not the 5 modules described here. Specifically: Communications was split into three separate modules (Notifications, Messaging, Announcements) rather than merged; the Configuration module was never built. The Shared Infrastructure capabilities (Auditing, Background Jobs, Workflows) were implemented as described. File paths and module names in this document reference the original design and do not match the current codebase.
+> **HISTORICAL DOCUMENT** — This document describes a design proposal from 2026-02-27 that was partially implemented with a different outcome than planned. The actual result was **7 modules** (Identity, Billing, Storage, Notifications, Messaging, Announcements, Inquiries), not the 5 modules described here. Specifically: Communications was split into three separate modules (Notifications, Messaging, Announcements) rather than merged; the Configuration module was never built. The Shared Infrastructure capabilities (Auditing, Background Jobs, Workflows) were implemented as described. File paths and module names in this document reference the original design and do not match the current codebase.
 
 **Date:** 2026-02-27
 **Status:** Historical (partially superseded)

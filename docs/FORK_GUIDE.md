@@ -152,7 +152,7 @@ Should return nothing.
 
 ## Configuring Modules
 
-Wallow ships with eight modules: Identity, Billing, Storage, Notifications, Messaging, Announcements, Inquiries, and Showcases. All modules are enabled by default and can be toggled via feature flags -- no source code changes required.
+Wallow ships with seven modules: Identity, Billing, Storage, Notifications, Messaging, Announcements, and Inquiries. All modules are enabled by default and can be toggled via feature flags -- no source code changes required.
 
 ### Enabling and disabling modules
 
@@ -167,8 +167,7 @@ Modules are controlled by the `FeatureManagement` section in `appsettings.json`.
     "Modules.Notifications": true,
     "Modules.Messaging": true,
     "Modules.Announcements": true,
-    "Modules.Inquiries": true,
-    "Modules.Showcases": true
+    "Modules.Inquiries": true
   }
 }
 ```
@@ -178,8 +177,7 @@ To disable a module, set its value to `false`:
 ```json
 {
   "FeatureManagement": {
-    "Modules.Billing": false,
-    "Modules.Showcases": false
+    "Modules.Billing": false
   }
 }
 ```

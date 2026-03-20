@@ -38,8 +38,7 @@ src/
 │   ├── Notifications/            # In-app and push notifications
 │   ├── Messaging/                # User-to-user conversations
 │   ├── Announcements/            # System-wide announcements
-│   ├── Inquiries/                # Inquiry and question submission
-│   └── Showcases/                # Portfolio and showcase items
+│   └── Inquiries/                # Inquiry and question submission
 └── Shared/
     ├── Contracts/                # Cross-module event definitions
     └── Kernel/                   # Base classes, shared abstractions
@@ -67,7 +66,6 @@ Modules communicate through events over RabbitMQ via `Shared.Contracts` -- never
 | **Messaging** | User-to-user conversations and threads |
 | **Announcements** | System-wide announcements and changelogs |
 | **Inquiries** | Inquiry and question submission |
-| **Showcases** | Portfolio and showcase items |
 
 ### Shared Infrastructure
 
@@ -174,7 +172,7 @@ Upstream improvements to shared infrastructure can be pulled into forks.
 | Keycloak Admin | http://localhost:8080 | See `docker/.env` |
 | RabbitMQ | http://localhost:15672 | See `docker/.env` |
 | Mailpit | http://localhost:8025 | -- |
-| Grafana | http://localhost:3000 | admin / admin |
+| Grafana | http://localhost:3001 | admin / admin |
 
 ## Documentation
 

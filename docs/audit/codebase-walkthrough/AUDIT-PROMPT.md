@@ -86,8 +86,7 @@ For each file:
 | 12 | Announcements Module | `phase-12-module-announcements.md` |
 | 13 | Storage Module | `phase-13-module-storage.md` |
 | 14 | Inquiries Module | `phase-14-module-inquiries.md` |
-| 15 | Showcases Module | `phase-15-module-showcases.md` |
-| 16 | Architecture Tests & Benchmarks | `phase-16-architecture-tests-benchmarks.md` |
+| 15 | Architecture Tests & Benchmarks | `phase-16-architecture-tests-benchmarks.md` |
 | 17 | Infrastructure & Config Files | `phase-17-infrastructure-config.md` |
 
 ## Key Reminders for Claude

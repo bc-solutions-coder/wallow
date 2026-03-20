@@ -45,7 +45,7 @@ Open these URLs in your browser:
 | **Keycloak Realm** | Realm: `wallow` | Username: `admin@wallow.dev` / Password: `Admin123!` |
 | **RabbitMQ Management** | http://localhost:15672 | Username: `guest` / Password: `guest` |
 | **Mailpit (Email Sink)** | http://localhost:8025 | N/A |
-| **Grafana (Observability)** | http://localhost:3000 | Username: `admin` / Password: `admin` |
+| **Grafana (Observability)** | http://localhost:3001 | Username: `admin` / Password: `admin` |
 
 If all URLs load, you're good to go! 🎉
 
@@ -213,7 +213,7 @@ Billing is the **gold standard DDD module**. Start here.
 ### 📬 Integration Events
 
 - [ ] **Browse: `src/Shared/Wallow.Shared.Contracts/`**
-  - See integration events organized by module: `Identity/`, `Billing/`, `Storage/`, `Notifications/`, `Messaging/`, `Announcements/`, `Inquiries/`, `Showcases/`
+  - See integration events organized by module: `Identity/`, `Billing/`, `Storage/`, `Notifications/`, `Messaging/`, `Announcements/`, `Inquiries/`
   - These are module-to-module contracts (never change breaking fields!)
 
 - [ ] **Example Handler: `src/Modules/Notifications/Wallow.Notifications.Application/EventHandlers/`**
@@ -837,7 +837,7 @@ protected override void OnModelCreating(ModelBuilder builder)
 | Keycloak Realm | wallow | admin@wallow.dev / Admin123! |
 | RabbitMQ Management | http://localhost:15672 | See `docker/.env` |
 | Mailpit | http://localhost:8025 | N/A |
-| Grafana | http://localhost:3000 | admin / admin |
+| Grafana | http://localhost:3001 | admin / admin |
 | Hangfire Dashboard | http://localhost:5000/hangfire | (auth via JWT) |
 
 ### Design Documents

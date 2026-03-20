@@ -241,7 +241,7 @@ private static string? MapScopeToPermission(string scope)
 | `manager` | Team management, projects, tasks, billing read, API keys |
 | `user` | Basic access — read tasks/projects, create tasks |
 
-> **Note:** `PermissionType` is a static class with string constants (not a numeric enum). Permissions are grouped by domain area. The current active modules are: Identity, Billing, Storage, Notifications, Messaging, Announcements, Inquiries, and Showcases.
+> **Note:** `PermissionType` is a static class with string constants (not a numeric enum). Permissions are grouped by domain area. The current active modules are: Identity, Billing, Storage, Notifications, Messaging, Announcements, and Inquiries.
 
 ---
 

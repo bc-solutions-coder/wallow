@@ -22,8 +22,7 @@
 | 12 | Announcements Module | Not Started | 89 | 0 | 0 | 0 |
 | 13 | Storage Module | Not Started | 118 | 0 | 0 | 0 |
 | 14 | Inquiries Module | Not Started | 59 | 0 | 0 | 0 |
-| 15 | Showcases Module | Not Started | 36 | 0 | 0 | 0 |
-| 16 | Architecture Tests & Benchmarks | Not Started | 49 | 0 | 0 | 0 |
+| 15 | Architecture Tests & Benchmarks | Not Started | 49 | 0 | 0 | 0 |
 | 17 | Infrastructure & Config | Not Started | 93 | 0 | 0 | 0 |
 
 ## Quick Start

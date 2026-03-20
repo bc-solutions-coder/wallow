@@ -866,7 +866,6 @@ Request these scopes in the `openid` authorization to access specific API featur
 | **Identity** | `users.read`, `users.write`, `users.manage`, `roles.read`, `roles.write`, `organizations.read`, `organizations.manage` |
 | **Storage** | `storage.read`, `storage.write` |
 | **Messaging** | `messaging.access`, `announcements.read`, `announcements.manage`, `notifications.read`, `notifications.write` |
-| **Showcases** | `showcases.read`, `showcases.manage` |
 | **Inquiries** | `inquiries.read`, `inquiries.write` |
 | **Configuration** | `configuration.read`, `configuration.manage` |
 

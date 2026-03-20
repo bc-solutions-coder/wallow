@@ -15,8 +15,7 @@
 | 11 - Configuration | FAIL (header count, formatting) | FAIL | PASS | FAIL |
 | 12 - Storage | FAIL (header count, formatting) | FAIL | PASS | FAIL |
 | 13 - Inquiries | FAIL (header count) | PASS | PASS | FAIL |
-| 14 - Showcases | FAIL (header count) | PASS | PASS | FAIL |
-| 15 - Arch Tests | FAIL (header count) | PASS | PASS | FAIL |
+| 14 - Arch Tests | FAIL (header count) | PASS | PASS | FAIL |
 | 16 - Infra Config | FAIL (header count) | PASS | N/A | FAIL |
 
 ---
@@ -131,21 +130,7 @@
 **Issues:**
 1. Header says "28 source files" but there are 39 source files on disk (and in the table). The 11 extra files are likely the Infrastructure migrations and Api layer files added after the initial count.
 
-### Phase 14: Showcases Module -- FAIL
 
-| Criterion | Result | Notes |
-|-----------|--------|-------|
-| Every .cs file listed | PASS | 27 in doc, 27 on disk (26 src + 1 test), 0 missing |
-| No duplicates | PASS | |
-| File counts accurate | **FAIL** | Header: "24 source, 1 test" (sum 25). Actual: 26 src + 1 test = 27. Table: 27. Header src count is stale. |
-| Table format consistent | PASS | |
-| Status column uses [ ] | PASS | |
-| Numbering sequential | PASS | 1-27 |
-| Standard header present | PASS | |
-| Layer ordering | PASS | |
-
-**Issues:**
-1. Header says "24 source files" but there are 26 source files.
 
 ### Phase 15: Architecture Tests & Benchmarks -- FAIL
 
@@ -240,8 +225,7 @@ Files spot-checked by reading actual source code:
 | 11 | `CustomFieldDefinition.cs` | PASS -- snake_case regex, AggregateRoot base, ITenantScoped confirmed |
 | 12 | `ClamAvFileScanner.cs` | PASS -- TCP INSTREAM protocol, 8KB chunks, TcpClient usage confirmed |
 | 13 | `ValkeyRateLimitService.cs` | PASS -- StringIncrement, 5 max requests, 15-min window confirmed |
-| 14 | `Showcase.cs` | PASS -- Result<Showcase> factory, title validation, URL requirement confirmed |
-| 15 | `TestConstants.cs` | PASS -- Scans for `Wallow.*.Domain.dll`, AllModules array confirmed |
+| 14 | `TestConstants.cs` | PASS -- Scans for `Wallow.*.Domain.dll`, AllModules array confirmed |
 
 ---
 
