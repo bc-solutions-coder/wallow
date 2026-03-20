@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Foundry is a .NET 10 modular monolith with multi-tenancy, Clean Architecture, DDD, CQRS, and RabbitMQ messaging. Teams fork and extend this as a base platform.
+Wallow is a .NET 10 modular monolith with multi-tenancy, Clean Architecture, DDD, CQRS, and RabbitMQ messaging. Teams fork and extend this as a base platform.
 
 ## Commands
 
@@ -9,7 +9,7 @@ Foundry is a .NET 10 modular monolith with multi-tenancy, Clean Architecture, DD
 cd docker && docker compose up -d
 
 # Run the API
-dotnet run --project src/Foundry.Api
+dotnet run --project src/Wallow.Api
 
 # Run all tests
 dotnet test
@@ -19,8 +19,8 @@ dotnet test tests/Modules/Billing/Billing.Domain.Tests
 
 # EF Core migrations
 dotnet ef migrations add MigrationName \
-    --project src/Modules/{Module}/Foundry.{Module}.Infrastructure \
-    --startup-project src/Foundry.Api \
+    --project src/Modules/{Module}/Wallow.{Module}.Infrastructure \
+    --startup-project src/Wallow.Api \
     --context {Module}DbContext
 ```
 
@@ -34,7 +34,7 @@ dotnet ef migrations add MigrationName \
 - Clean Architecture per module: Domain -> Application -> Infrastructure -> Api
 - Domain has no external dependencies; Application depends only on Domain
 - EF Core for writes, Dapper for complex reads
-- Wolverine auto-discovers handlers in all `Foundry.*` assemblies
+- Wolverine auto-discovers handlers in all `Wallow.*` assemblies
 - Package versions centrally managed in `Directory.Packages.props`
 
 ## Versioning

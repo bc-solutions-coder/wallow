@@ -1,4 +1,4 @@
-# Foundry Codebase Audit — Sweep 2 Design Document
+# Wallow Codebase Audit — Sweep 2 Design Document
 
 **Date:** 2026-03-02
 **Branch:** expansion
@@ -22,47 +22,47 @@
 Priority: **Immediate** — actively broken or exploitable.
 
 ### 1.1 Storage: S3StorageProvider Singleton Captures Scoped ITenantContext
-- **File:** `src/Modules/Storage/Foundry.Storage.Infrastructure/Extensions/StorageInfrastructureExtensions.cs:53`
+- **File:** `src/Modules/Storage/Wallow.Storage.Infrastructure/Extensions/StorageInfrastructureExtensions.cs:53`
 - **Bug:** `S3StorageProvider` registered as Singleton but constructor takes Scoped `ITenantContext`. The tenant context from the first request is captured forever — all subsequent requests resolve buckets using the wrong tenant's region.
 - **Fix:** Register `S3StorageProvider` as Scoped, or resolve `ITenantContext` per-call via `IServiceProvider`.
 
 ### 1.2 Storage: Presigned Upload Creates No DB Record
-- **File:** `src/Modules/Storage/Foundry.Storage.Application/Queries/GetUploadPresignedUrl/GetUploadPresignedUrlHandler.cs`
+- **File:** `src/Modules/Storage/Wallow.Storage.Application/Queries/GetUploadPresignedUrl/GetUploadPresignedUrlHandler.cs`
 - **Bug:** Handler generates a presigned S3 URL but never writes a `StoredFile` record. Files uploaded via presigned URLs are orphaned in S3 with no DB tracking.
 - **Fix:** Add a confirmation endpoint that registers the file after upload completes, or create a pending `StoredFile` record before generating the URL.
 
 ### 1.3 Billing: Invoice Never Marked Paid After Payment
-- **File:** `src/Modules/Billing/Foundry.Billing.Application/Commands/ProcessPayment/ProcessPaymentHandler.cs`
+- **File:** `src/Modules/Billing/Wallow.Billing.Application/Commands/ProcessPayment/ProcessPaymentHandler.cs`
 - **Bug:** Handler creates a `Payment` entity but never calls `invoice.MarkAsPaid()`. Invoices remain in Issued/Pending state permanently after successful payment.
 - **Fix:** After payment creation, check if invoice is fully paid and call `invoice.MarkAsPaid()`.
 
 ### 1.4 Billing: FlushUsageJob SaveChanges Outside Tenant Scope
-- **File:** `src/Modules/Billing/Foundry.Billing.Infrastructure/Jobs/FlushUsageJob.cs`
+- **File:** `src/Modules/Billing/Wallow.Billing.Infrastructure/Jobs/FlushUsageJob.cs`
 - **Bug:** `SaveChangesAsync` called after all `using (_tenantContextFactory.CreateScope(tenantId))` blocks are disposed. EF interceptors stamp wrong/null tenant context. If SaveChanges fails after Redis GETSET already zeroed counters, data is permanently lost.
 - **Fix:** Move `SaveChangesAsync` inside each tenant scope iteration.
 
 ### 1.5 Billing: MeteringMiddleware Fire-and-Forget With Scoped Service
-- **File:** `src/Modules/Billing/Foundry.Billing.Api/Middleware/MeteringMiddleware.cs:82-89`
+- **File:** `src/Modules/Billing/Wallow.Billing.Api/Middleware/MeteringMiddleware.cs:82-89`
 - **Bug:** `Task.Run` captures scoped `IMeteringService`. After request ends, scope disposes, causing `ObjectDisposedException`.
 - **Fix:** Use `IServiceScopeFactory` to create a new scope inside `Task.Run`, or use Wolverine `IMessageBus.SendAsync`.
 
 ### 1.6 Configuration: FeatureFlagsController Create/Update Type Mismatch
-- **Files:** `src/Modules/Configuration/Foundry.Configuration.Api/Controllers/FeatureFlagsController.cs:75,100`
+- **Files:** `src/Modules/Configuration/Wallow.Configuration.Api/Controllers/FeatureFlagsController.cs:75,100`
 - **Bug:** `CreateFeatureFlagHandler` returns `Result<Guid>` but controller calls `InvokeAsync<Result<FeatureFlagDto>>`. Same for Update (handler returns `Result`, controller expects `Result<FeatureFlagDto>`). Runtime type mismatch — empty/broken response body.
 - **Fix:** Align handler return types with controller expectations, or have controllers request the correct type and re-query.
 
 ### 1.7 Identity: Cross-Tenant User Lookup
-- **File:** `src/Modules/Identity/Foundry.Identity.Api/Controllers/UsersController.cs:46`
+- **File:** `src/Modules/Identity/Wallow.Identity.Api/Controllers/UsersController.cs:46`
 - **Bug:** `GetUserById(Guid id)` passes the ID directly to `KeycloakAdminService` with no tenant membership check. Keycloak user IDs are realm-scoped, not tenant-scoped. Any tenant admin with `UsersRead` can fetch any user's email, name, and roles.
 - **Fix:** After fetching the user, verify they belong to the current tenant's Keycloak organization before returning.
 
 ### 1.8 Identity: OIDC Client Secret Stored in Plaintext
-- **File:** `src/Modules/Identity/Foundry.Identity.Domain/Entities/SsoConfiguration.cs:48`
+- **File:** `src/Modules/Identity/Wallow.Identity.Domain/Entities/SsoConfiguration.cs:48`
 - **Bug:** `OidcClientSecret` persisted as plain string to database. No encryption at rest.
 - **Fix:** Use EF Core value encryption, a data protection provider, or a secret management service.
 
 ### 1.9 Communications: ArchiveNotification IDOR
-- **File:** `src/Modules/Communications/Foundry.Communications.Application/Channels/InApp/Commands/ArchiveNotification/ArchiveNotificationHandler.cs:21-25`
+- **File:** `src/Modules/Communications/Wallow.Communications.Application/Channels/InApp/Commands/ArchiveNotification/ArchiveNotificationHandler.cs:21-25`
 - **Bug:** Checks `notification.TenantId != command.TenantId` but not `notification.UserId != command.UserId`. Any user within a tenant can archive another user's notifications.
 - **Fix:** Add `notification.UserId != command.UserId` check.
 
@@ -83,52 +83,52 @@ Priority: **Immediate** — actively broken or exploitable.
 Priority: **High** — systemic tenant isolation gaps.
 
 ### 2.1 Storage: Bucket Name Unique Index Not Per-Tenant
-- **File:** `src/Modules/Storage/Foundry.Storage.Infrastructure/Persistence/Configurations/StorageBucketConfiguration.cs:68`
+- **File:** `src/Modules/Storage/Wallow.Storage.Infrastructure/Persistence/Configurations/StorageBucketConfiguration.cs:68`
 - **Bug:** `HasIndex(b => b.Name).IsUnique()` — global uniqueness. Tenants share bucket namespace.
 - **Fix:** Migration to change to `HasIndex(b => new { b.TenantId, b.Name }).IsUnique()`.
 
 ### 2.2 Storage: DeleteBucketCommand No TenantId
-- **File:** `src/Modules/Storage/Foundry.Storage.Application/Commands/DeleteBucket/DeleteBucketHandler.cs`
+- **File:** `src/Modules/Storage/Wallow.Storage.Application/Commands/DeleteBucket/DeleteBucketHandler.cs`
 - **Bug:** Retrieves bucket by name only, relies entirely on EF global filter for tenant isolation.
 - **Fix:** Add explicit `TenantId` to `DeleteBucketCommand` and verify in handler.
 
 ### 2.3 Billing: InvoiceNumber Unique Index Not Per-Tenant
-- **File:** `src/Modules/Billing/Foundry.Billing.Infrastructure/Persistence/Configurations/InvoiceConfiguration.cs:97`
+- **File:** `src/Modules/Billing/Wallow.Billing.Infrastructure/Persistence/Configurations/InvoiceConfiguration.cs:97`
 - **Bug:** `HasIndex(i => i.InvoiceNumber).IsUnique()` — two tenants can't use `INV-001`.
 - **Fix:** Migration to composite `(TenantId, InvoiceNumber)` unique index.
 
 ### 2.4 Configuration: Cross-Tenant Override Exposure
-- **File:** `src/Modules/Configuration/Foundry.Configuration.Application/FeatureFlags/Queries/GetOverridesForFlag/GetOverridesForFlagHandler.cs`
+- **File:** `src/Modules/Configuration/Wallow.Configuration.Application/FeatureFlags/Queries/GetOverridesForFlag/GetOverridesForFlagHandler.cs`
 - **Bug:** Returns ALL tenants' overrides. Leaks TenantId/UserId pairs.
 - **Fix:** Filter overrides by caller's tenant in handler or repository.
 
 ### 2.5 Configuration: CreateOverride No TenantId Authorization
-- **File:** `src/Modules/Configuration/Foundry.Configuration.Application/FeatureFlags/Commands/CreateOverride/CreateOverrideHandler.cs`
+- **File:** `src/Modules/Configuration/Wallow.Configuration.Application/FeatureFlags/Commands/CreateOverride/CreateOverrideHandler.cs`
 - **Bug:** Accepts arbitrary TenantId — admin from Tenant A can create overrides for Tenant B.
 - **Fix:** Validate `command.TenantId` matches caller's tenant context.
 
 ### 2.6 Identity: Admin Tenant Override Audit Trail
-- **File:** `src/Modules/Identity/Foundry.Identity.Infrastructure/MultiTenancy/TenantResolutionMiddleware.cs:32-39`
+- **File:** `src/Modules/Identity/Wallow.Identity.Infrastructure/MultiTenancy/TenantResolutionMiddleware.cs:32-39`
 - **Issue:** `X-Tenant-Id` override works correctly for realm admins but only logs at Warning level. No structured audit event.
 - **Fix:** Publish a structured audit event. Consider restricting to a dedicated super-admin role separate from tenant-level admin.
 
 ### 2.7 Communications: Announcement Not ITenantScoped
-- **File:** `src/Modules/Communications/Foundry.Communications.Domain/Announcements/Entities/Announcement.cs`
+- **File:** `src/Modules/Communications/Wallow.Communications.Domain/Announcements/Entities/Announcement.cs`
 - **Bug:** No `ITenantScoped` implementation. EF global filter doesn't apply. All tenants' announcements load into memory for targeting.
 - **Fix:** If announcements are tenant-scoped, add `ITenantScoped`. If system-wide by design, document and add DB-level filtering in repository.
 
 ### 2.8 Communications: EmailMessage TenantId Never Set
-- **File:** `src/Modules/Communications/Foundry.Communications.Application/Channels/Email/Commands/SendEmail/SendEmailHandler.cs`
+- **File:** `src/Modules/Communications/Wallow.Communications.Application/Channels/Email/Commands/SendEmail/SendEmailHandler.cs`
 - **Bug:** `EmailMessage.Create()` never receives TenantId. All emails stored with default/empty tenant.
 - **Fix:** Pass `ITenantContext.TenantId` into the factory method or command.
 
 ### 2.9 Communications: GetMessages Info Disclosure
-- **File:** `src/Modules/Communications/Foundry.Communications.Api/Controllers/ConversationsController.cs:100-122`
+- **File:** `src/Modules/Communications/Wallow.Communications.Api/Controllers/ConversationsController.cs:100-122`
 - **Bug:** Non-participants get empty results instead of 403 — leaks conversation existence.
 - **Fix:** Pre-check participant membership and return 403/404.
 
 ### 2.10 Architecture: SignalR Cross-Tenant Presence Broadcast
-- **File:** `src/Foundry.Api/Hubs/RealtimeHub.cs:22-27`
+- **File:** `src/Wallow.Api/Hubs/RealtimeHub.cs:22-27`
 - **Bug:** `SendToAllAsync` broadcasts `UserOnline`/`UserOffline` to ALL clients regardless of tenant.
 - **Fix:** Scope presence broadcasts to tenant groups via `SendToGroupAsync`.
 
@@ -139,11 +139,11 @@ Priority: **High** — systemic tenant isolation gaps.
 Priority: **High** — silently wrong results.
 
 ### 3.1 Billing: Payment Amount Not Validated Against Invoice
-- **File:** `src/Modules/Billing/Foundry.Billing.Application/Commands/ProcessPayment/ProcessPaymentHandler.cs`
+- **File:** `src/Modules/Billing/Wallow.Billing.Application/Commands/ProcessPayment/ProcessPaymentHandler.cs`
 - **Fix:** Validate payment amount <= invoice outstanding balance. Reject overpayments.
 
 ### 3.2 Billing: InvoicesController Always Bills Authenticated User
-- **File:** `src/Modules/Billing/Foundry.Billing.Api/Controllers/InvoicesController.cs`
+- **File:** `src/Modules/Billing/Wallow.Billing.Api/Controllers/InvoicesController.cs`
 - **Fix:** Add optional `UserId` to `CreateInvoiceRequest` for admin use. Default to current user.
 
 ### 3.3-3.4 Billing: Empty UserEmail in Event Handlers
@@ -155,11 +155,11 @@ Priority: **High** — silently wrong results.
 - **Fix:** Publish per-tenant events with correct TenantId, or remove TenantId from the contract if flush is cross-tenant.
 
 ### 3.6 Configuration: GetAllFlagsAsync N+1
-- **File:** `src/Modules/Configuration/Foundry.Configuration.Infrastructure/Services/FeatureFlagService.cs:56-68`
+- **File:** `src/Modules/Configuration/Wallow.Configuration.Infrastructure/Services/FeatureFlagService.cs:56-68`
 - **Fix:** Batch-load all flags with overrides in a single query. Evaluate in-memory.
 
 ### 3.7 Configuration: CachedFeatureFlagService Cache Key Collision
-- **File:** `src/Modules/Configuration/Foundry.Configuration.Infrastructure/Services/CachedFeatureFlagService.cs`
+- **File:** `src/Modules/Configuration/Wallow.Configuration.Infrastructure/Services/CachedFeatureFlagService.cs`
 - **Fix:** Include result type in cache key (e.g., `ff:bool:{key}:{tenant}` vs `ff:variant:{key}:{tenant}`).
 
 ### 3.8 Configuration: UpdateCustomFieldDefinition Can't Clear Description
@@ -176,7 +176,7 @@ Priority: **High** — silently wrong results.
 - **Fix:** Push `IsArchived`/`ExpiresAt` filters into the DB query, not in-memory post-filter.
 
 ### 3.12 Communications: Three NotificationType Definitions
-- **Fix:** Consolidate into a single enum or string-constant class in `Foundry.Communications.Domain`.
+- **Fix:** Consolidate into a single enum or string-constant class in `Wallow.Communications.Domain`.
 
 ### 3.13 Communications: RetryFailedEmailsJob Never Scheduled
 - **Fix:** Add Hangfire recurring job registration in `CommunicationsModuleExtensions`.
@@ -185,7 +185,7 @@ Priority: **High** — silently wrong results.
 - **Fix:** Create and persist an `EmailMessage` record before sending, matching `SendEmailHandler` pattern.
 
 ### 3.15 Identity: UserRoleChangedEvent.OldRole Wrong
-- **File:** `src/Modules/Identity/Foundry.Identity.Infrastructure/Services/KeycloakAdminService.cs:185-192`
+- **File:** `src/Modules/Identity/Wallow.Identity.Infrastructure/Services/KeycloakAdminService.cs:185-192`
 - **Fix:** Fetch current roles BEFORE the assignment, then publish with the actual old role.
 
 ---
@@ -214,7 +214,7 @@ Priority: **Medium** — extensibility and maintainability.
 - Add `[AuditIgnore]` attribute. `AuditInterceptor` skips properties with this attribute during serialization.
 
 ### 4.6 Identity: Eliminate Duplicate ICurrentUserService
-- Remove `Foundry.Identity.Application.Interfaces.ICurrentUserService`. Use `Shared.Kernel.Services.ICurrentUserService` everywhere.
+- Remove `Wallow.Identity.Application.Interfaces.ICurrentUserService`. Use `Shared.Kernel.Services.ICurrentUserService` everywhere.
 
 ### 4.7 Configuration: FeatureFlag to AggregateRoot
 - Change `FeatureFlag : Entity<FeatureFlagId>` to `FeatureFlag : AggregateRoot<FeatureFlagId>`. Move domain event raising from handlers into the aggregate.
@@ -256,7 +256,7 @@ Priority: **Medium** — production readiness.
 - Add `ports: !reset []` for RabbitMQ management in `docker-compose.prod.yml`.
 
 ### 5.8 Add Production API Service Definition
-- Add `foundry-api` service to `docker-compose.prod.yml` with resource limits, health check, and log rotation.
+- Add `wallow-api` service to `docker-compose.prod.yml` with resource limits, health check, and log rotation.
 
 ---
 
@@ -274,7 +274,7 @@ Priority: **Low** — technical debt reduction.
 - Audit and replace `var` with explicit types per project rule. Exception: anonymous types where `var` is required.
 
 ### 6.4 Identity: Configurable Keycloak Realm
-- Replace hardcoded `"foundry"` string with `KeycloakAuthenticationOptions.Realm` or a configuration value.
+- Replace hardcoded `"wallow"` string with `KeycloakAuthenticationOptions.Realm` or a configuration value.
 
 ### 6.5 Identity: Batch Keycloak Role Lookups
 - Cache role lookups or use a batch Keycloak admin endpoint to reduce N+1 calls in `GetUsersAsync`.

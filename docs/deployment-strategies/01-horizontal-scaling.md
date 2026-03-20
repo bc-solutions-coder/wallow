@@ -1,6 +1,6 @@
 # Horizontal Scaling Guide
 
-This guide covers the simplest and most common scaling approach for Foundry: running multiple identical instances behind a load balancer.
+This guide covers the simplest and most common scaling approach for Wallow: running multiple identical instances behind a load balancer.
 
 ---
 
@@ -22,11 +22,11 @@ This guide covers the simplest and most common scaling approach for Foundry: run
 
 ### What is Horizontal Scaling?
 
-Horizontal scaling (also called "scaling out") means adding more instances of your application to handle increased load, rather than making a single instance more powerful (vertical scaling). With horizontal scaling, you run multiple identical copies of Foundry, and a load balancer distributes incoming requests across all instances.
+Horizontal scaling (also called "scaling out") means adding more instances of your application to handle increased load, rather than making a single instance more powerful (vertical scaling). With horizontal scaling, you run multiple identical copies of Wallow, and a load balancer distributes incoming requests across all instances.
 
-### Why Horizontal Scaling Works for Foundry
+### Why Horizontal Scaling Works for Wallow
 
-Foundry is designed as a **stateless API**, which means any instance can handle any request. This is achieved through:
+Wallow is designed as a **stateless API**, which means any instance can handle any request. This is achieved through:
 
 1. **No in-memory session state** - User sessions are not stored in application memory
 2. **JWT tokens for authentication** - Auth state lives in the token, not the server
@@ -49,9 +49,9 @@ Foundry is designed as a **stateless API**, which means any instance can handle 
 
 ## 2. Prerequisites
 
-### What Foundry Already Provides
+### What Wallow Already Provides
 
-Foundry is **already configured** for horizontal scaling. The following features are built-in:
+Wallow is **already configured** for horizontal scaling. The following features are built-in:
 
 | Feature | Implementation | Location |
 |---------|---------------|----------|
@@ -108,7 +108,7 @@ Before scaling horizontally, ensure you have:
                     │                              │                              │
                     ▼                              ▼                              ▼
         ┌───────────────────┐        ┌───────────────────┐        ┌───────────────────┐
-        │   Foundry API     │        │   Foundry API     │        │   Foundry API     │
+        │   Wallow API     │        │   Wallow API     │        │   Wallow API     │
         │   Instance 1      │        │   Instance 2      │        │   Instance N      │
         │                   │        │                   │        │                   │
         │ ┌───────────────┐ │        │ ┌───────────────┐ │        │ ┌───────────────┐ │
@@ -155,9 +155,9 @@ Before deploying multiple instances, verify your application is truly stateless.
 
 A stateless application does not store any client session data between requests. Each request contains all information needed to process it.
 
-**Foundry achieves statelessness through:**
+**Wallow achieves statelessness through:**
 
-| Concern | Stateful Approach (Bad) | Foundry's Stateless Approach |
+| Concern | Stateful Approach (Bad) | Wallow's Stateless Approach |
 |---------|-------------------------|------------------------------|
 | Authentication | Server-side sessions | JWT tokens (self-contained) |
 | User Data | In-memory cache per instance | Redis distributed cache |
@@ -173,13 +173,13 @@ A stateless application does not store any client session data between requests.
 grep -r "static [^r][^e][^a][^d]" src/ --include="*.cs" | grep -v "static readonly"
 
 # 2. Verify Redis is configured
-grep -A5 "AddStackExchangeRedis" src/Foundry.Api/Program.cs
+grep -A5 "AddStackExchangeRedis" src/Wallow.Api/Program.cs
 
 # 3. Verify Wolverine uses PostgreSQL persistence
-grep -A3 "PersistMessagesWithPostgresql" src/Foundry.Api/Program.cs
+grep -A3 "PersistMessagesWithPostgresql" src/Wallow.Api/Program.cs
 
 # 4. Check SignalR has Redis backplane
-grep -A5 "AddSignalR" src/Foundry.Api/Program.cs
+grep -A5 "AddSignalR" src/Wallow.Api/Program.cs
 ```
 
 **Expected Results:**
@@ -205,7 +205,7 @@ services:
   # ============================================
   nginx:
     image: nginx:alpine
-    container_name: ${COMPOSE_PROJECT_NAME:-foundry}-nginx
+    container_name: ${COMPOSE_PROJECT_NAME:-wallow}-nginx
     ports:
       - "80:80"
       - "443:443"
@@ -220,7 +220,7 @@ services:
       timeout: 10s
       retries: 3
     networks:
-      - foundry
+      - wallow
     restart: unless-stopped
 
   # ============================================
@@ -264,7 +264,7 @@ services:
       RabbitMQ__Password: ${RABBITMQ_PASSWORD}
       Keycloak__Authority: ${KEYCLOAK_AUTHORITY}
       Keycloak__Audience: ${KEYCLOAK_AUDIENCE}
-      OpenTelemetry__ServiceName: Foundry
+      OpenTelemetry__ServiceName: Wallow
       OpenTelemetry__OtlpGrpcEndpoint: http://otel-collector:4317
     depends_on:
       postgres:
@@ -280,7 +280,7 @@ services:
       retries: 5
       start_period: 30s
     networks:
-      - foundry
+      - wallow
     # No restart here - managed by deploy.restart_policy
 
   # ============================================
@@ -288,7 +288,7 @@ services:
   # ============================================
   postgres:
     image: postgres:18-alpine
-    container_name: ${COMPOSE_PROJECT_NAME:-foundry}-postgres
+    container_name: ${COMPOSE_PROJECT_NAME:-wallow}-postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -323,7 +323,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - foundry
+      - wallow
     restart: unless-stopped
 
   # ============================================
@@ -331,7 +331,7 @@ services:
   # ============================================
   rabbitmq:
     image: rabbitmq:4.2-management-alpine
-    container_name: ${COMPOSE_PROJECT_NAME:-foundry}-rabbitmq
+    container_name: ${COMPOSE_PROJECT_NAME:-wallow}-rabbitmq
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
@@ -351,7 +351,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - foundry
+      - wallow
     restart: unless-stopped
 
   # ============================================
@@ -359,7 +359,7 @@ services:
   # ============================================
   valkey:
     image: valkey/valkey:8-alpine
-    container_name: ${COMPOSE_PROJECT_NAME:-foundry}-valkey
+    container_name: ${COMPOSE_PROJECT_NAME:-wallow}-valkey
     command: valkey-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
     volumes:
       - valkey_data:/data
@@ -377,7 +377,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - foundry
+      - wallow
     restart: unless-stopped
 
   # ============================================
@@ -385,7 +385,7 @@ services:
   # ============================================
   keycloak:
     image: quay.io/keycloak/keycloak:26.0
-    container_name: ${COMPOSE_PROJECT_NAME:-foundry}-keycloak
+    container_name: ${COMPOSE_PROJECT_NAME:-wallow}-keycloak
     command: start --optimized --import-realm
     environment:
       KC_DB: postgres
@@ -417,7 +417,7 @@ services:
       retries: 15
       start_period: 60s
     networks:
-      - foundry
+      - wallow
     restart: unless-stopped
 
 volumes:
@@ -426,7 +426,7 @@ volumes:
   valkey_data:
 
 networks:
-  foundry:
+  wallow:
     driver: bridge
 ```
 
@@ -436,25 +436,25 @@ networks:
 # .env for scaled deployment
 
 # Project
-COMPOSE_PROJECT_NAME=foundry-prod
+COMPOSE_PROJECT_NAME=wallow-prod
 
 # Docker Image
-APP_IMAGE=ghcr.io/yourorg/foundry
+APP_IMAGE=ghcr.io/yourorg/wallow
 APP_TAG=latest
 
 # Database
-POSTGRES_USER=foundry
+POSTGRES_USER=wallow
 POSTGRES_PASSWORD=your-secure-password-here
-POSTGRES_DB=foundry
+POSTGRES_DB=wallow
 
 # RabbitMQ
-RABBITMQ_USER=foundry
+RABBITMQ_USER=wallow
 RABBITMQ_PASSWORD=your-secure-password-here
 
 # Keycloak
 KEYCLOAK_HOSTNAME=auth.yourdomain.com
-KEYCLOAK_AUTHORITY=https://auth.yourdomain.com/realms/foundry
-KEYCLOAK_AUDIENCE=foundry-api
+KEYCLOAK_AUTHORITY=https://auth.yourdomain.com/realms/wallow
+KEYCLOAK_AUDIENCE=wallow-api
 ```
 
 #### Deploy Command
@@ -476,7 +476,7 @@ Nginx is the most common choice for load balancing. It provides excellent perfor
 ##### nginx/nginx.conf
 
 ```nginx
-# nginx.conf - Load balancer configuration for Foundry
+# nginx.conf - Load balancer configuration for Wallow
 
 user nginx;
 worker_processes auto;
@@ -519,9 +519,9 @@ http {
     # Rate limiting zone
     limit_req_zone $binary_remote_addr zone=api_limit:10m rate=100r/s;
 
-    # Upstream definition for Foundry API instances
+    # Upstream definition for Wallow API instances
     # Docker Compose DNS resolves 'app' to all container IPs
-    upstream foundry_api {
+    upstream wallow_api {
         # Load balancing method: least_conn distributes to instance with fewest active connections
         # Alternatives: round_robin (default), ip_hash (sticky sessions), random
         least_conn;
@@ -531,10 +531,10 @@ http {
         server app:8080 max_fails=3 fail_timeout=30s;
 
         # For manual server list (without Docker DNS):
-        # server foundry-app-1:8080 weight=1 max_fails=3 fail_timeout=30s;
-        # server foundry-app-2:8080 weight=1 max_fails=3 fail_timeout=30s;
-        # server foundry-app-3:8080 weight=1 max_fails=3 fail_timeout=30s;
-        # server foundry-app-4:8080 weight=1 max_fails=3 fail_timeout=30s;
+        # server wallow-app-1:8080 weight=1 max_fails=3 fail_timeout=30s;
+        # server wallow-app-2:8080 weight=1 max_fails=3 fail_timeout=30s;
+        # server wallow-app-3:8080 weight=1 max_fails=3 fail_timeout=30s;
+        # server wallow-app-4:8080 weight=1 max_fails=3 fail_timeout=30s;
 
         # Keep connections alive to upstream
         keepalive 32;
@@ -595,14 +595,14 @@ http {
 
         # Health check endpoint (for external monitoring)
         location /health {
-            proxy_pass http://foundry_api;
+            proxy_pass http://wallow_api;
             proxy_connect_timeout 5s;
             proxy_read_timeout 5s;
         }
 
         # SignalR WebSocket endpoint
         location /hubs/ {
-            proxy_pass http://foundry_api;
+            proxy_pass http://wallow_api;
 
             # WebSocket support
             proxy_http_version 1.1;
@@ -621,7 +621,7 @@ http {
         # API endpoints
         location /api/ {
             limit_req zone=api_limit burst=50 nodelay;
-            proxy_pass http://foundry_api;
+            proxy_pass http://wallow_api;
         }
 
         # Hangfire dashboard (restrict access)
@@ -629,21 +629,21 @@ http {
             # Optional: Restrict to specific IPs
             # allow 10.0.0.0/8;
             # deny all;
-            proxy_pass http://foundry_api;
+            proxy_pass http://wallow_api;
         }
 
         # OpenAPI documentation
         location /scalar {
-            proxy_pass http://foundry_api;
+            proxy_pass http://wallow_api;
         }
 
         location /openapi {
-            proxy_pass http://foundry_api;
+            proxy_pass http://wallow_api;
         }
 
         # Root endpoint
         location / {
-            proxy_pass http://foundry_api;
+            proxy_pass http://wallow_api;
         }
     }
 }
@@ -655,8 +655,8 @@ For active health checks without Nginx Plus, use the upstream's `max_fails` and 
 
 ```nginx
 # With Nginx Plus, you can use active health checks:
-upstream foundry_api {
-    zone upstream_foundry 64k;
+upstream wallow_api {
+    zone upstream_wallow 64k;
     server app:8080;
 
     health_check interval=5s fails=3 passes=2 uri=/health/ready;
@@ -672,7 +672,7 @@ HAProxy provides advanced load balancing features, detailed statistics, and exce
 ##### haproxy/haproxy.cfg
 
 ```haproxy
-# haproxy.cfg - Load balancer configuration for Foundry
+# haproxy.cfg - Load balancer configuration for Wallow
 
 global
     log stdout format raw local0
@@ -728,13 +728,13 @@ frontend https_front
     acl is_signalr path_beg /hubs/
 
     # Use WebSocket backend for SignalR
-    use_backend foundry_websocket if is_websocket is_signalr
+    use_backend wallow_websocket if is_websocket is_signalr
 
     # Default backend for all other requests
-    default_backend foundry_api
+    default_backend wallow_api
 
 # Backend for regular HTTP requests
-backend foundry_api
+backend wallow_api
     # Load balancing algorithm options:
     # roundrobin - Each server is used in turns (default)
     # leastconn  - Server with lowest connection count
@@ -751,16 +751,16 @@ backend foundry_api
     server-template app 10 app:8080 check resolvers docker init-addr libc,none
 
     # For manual server list:
-    # server app1 foundry-app-1:8080 check inter 5s fall 3 rise 2
-    # server app2 foundry-app-2:8080 check inter 5s fall 3 rise 2
-    # server app3 foundry-app-3:8080 check inter 5s fall 3 rise 2
-    # server app4 foundry-app-4:8080 check inter 5s fall 3 rise 2
+    # server app1 wallow-app-1:8080 check inter 5s fall 3 rise 2
+    # server app2 wallow-app-2:8080 check inter 5s fall 3 rise 2
+    # server app3 wallow-app-3:8080 check inter 5s fall 3 rise 2
+    # server app4 wallow-app-4:8080 check inter 5s fall 3 rise 2
 
     # Connection pooling
     http-reuse safe
 
 # Backend for WebSocket connections (SignalR)
-backend foundry_websocket
+backend wallow_websocket
     balance leastconn
 
     # Longer timeouts for persistent connections
@@ -792,7 +792,7 @@ resolvers docker
 | **IP Hash** | `balance source` | `ip_hash` | Sticky sessions (avoid if possible) |
 | **Random** | `balance random` | `random` | Large server pools |
 
-**Recommendation**: Use **Least Connections** for Foundry. It handles variable request durations better than round-robin and doesn't require sticky sessions.
+**Recommendation**: Use **Least Connections** for Wallow. It handles variable request durations better than round-robin and doesn't require sticky sessions.
 
 ---
 
@@ -816,7 +816,7 @@ Caddy is the easiest option with automatic HTTPS certificate management.
 api.yourdomain.com {
     # Automatic HTTPS via Let's Encrypt
 
-    # Reverse proxy to Foundry instances
+    # Reverse proxy to Wallow instances
     reverse_proxy app:8080 {
         # Load balancing policy
         lb_policy least_conn
@@ -872,16 +872,16 @@ Cloud load balancers offer managed infrastructure with built-in health checks an
 ```hcl
 # Terraform example for AWS ALB
 
-resource "aws_lb" "foundry" {
-  name               = "foundry-alb"
+resource "aws_lb" "wallow" {
+  name               = "wallow-alb"
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb.id]
   subnets            = var.public_subnet_ids
 }
 
-resource "aws_lb_target_group" "foundry" {
-  name        = "foundry-tg"
+resource "aws_lb_target_group" "wallow" {
+  name        = "wallow-tg"
   port        = 8080
   protocol    = "HTTP"
   vpc_id      = var.vpc_id
@@ -907,7 +907,7 @@ resource "aws_lb_target_group" "foundry" {
 }
 
 resource "aws_lb_listener" "https" {
-  load_balancer_arn = aws_lb.foundry.arn
+  load_balancer_arn = aws_lb.wallow.arn
   port              = "443"
   protocol          = "HTTPS"
   ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
@@ -915,7 +915,7 @@ resource "aws_lb_listener" "https" {
 
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.foundry.arn
+    target_group_arn = aws_lb_target_group.wallow.arn
   }
 }
 ```
@@ -925,20 +925,20 @@ resource "aws_lb_listener" "https" {
 ```hcl
 # Terraform example for Hetzner Load Balancer
 
-resource "hcloud_load_balancer" "foundry" {
-  name               = "foundry-lb"
+resource "hcloud_load_balancer" "wallow" {
+  name               = "wallow-lb"
   load_balancer_type = "lb11"
   location           = "fsn1"
 }
 
 resource "hcloud_load_balancer_service" "http" {
-  load_balancer_id = hcloud_load_balancer.foundry.id
+  load_balancer_id = hcloud_load_balancer.wallow.id
   protocol         = "https"
   listen_port      = 443
   destination_port = 8080
 
   http {
-    certificates = [hcloud_managed_certificate.foundry.id]
+    certificates = [hcloud_managed_certificate.wallow.id]
   }
 
   health_check {
@@ -954,10 +954,10 @@ resource "hcloud_load_balancer_service" "http" {
   }
 }
 
-resource "hcloud_load_balancer_target" "foundry" {
+resource "hcloud_load_balancer_target" "wallow" {
   type             = "label_selector"
-  load_balancer_id = hcloud_load_balancer.foundry.id
-  label_selector   = "app=foundry"
+  load_balancer_id = hcloud_load_balancer.wallow.id
+  label_selector   = "app=wallow"
   use_private_ip   = true
 }
 ```
@@ -970,7 +970,7 @@ Wolverine automatically handles competing consumers for message distribution acr
 
 #### How It Works
 
-When multiple Foundry instances connect to RabbitMQ:
+When multiple Wallow instances connect to RabbitMQ:
 
 1. Each instance declares the same queue (e.g., `communications-inbox`)
 2. RabbitMQ distributes messages round-robin to available consumers
@@ -994,9 +994,9 @@ When multiple Foundry instances connect to RabbitMQ:
    (Msg 1,5)   (Msg 2,6)   (Msg 3,7)   (Msg 4,8)
 ```
 
-#### Wolverine Configuration in Foundry
+#### Wolverine Configuration in Wallow
 
-Foundry's `Program.cs` already configures RabbitMQ with competing consumers:
+Wallow's `Program.cs` already configures RabbitMQ with competing consumers:
 
 ```csharp
 // Existing configuration in Program.cs
@@ -1062,16 +1062,16 @@ of User B's connection                     All instances receive it
                                            Instance 2 delivers to User B
 ```
 
-#### Foundry's Redis Backplane Configuration
+#### Wallow's Redis Backplane Configuration
 
-Foundry already configures the Redis backplane in `Program.cs`:
+Wallow already configures the Redis backplane in `Program.cs`:
 
 ```csharp
 // Existing configuration in Program.cs (lines 231-243)
 builder.Services.AddSignalR()
     .AddStackExchangeRedis(options =>
     {
-        options.Configuration.ChannelPrefix = RedisChannel.Literal("Foundry");
+        options.Configuration.ChannelPrefix = RedisChannel.Literal("Wallow");
         options.ConnectionFactory = async writer =>
         {
             var connStr = configRef.GetConnectionString("Redis")!;
@@ -1094,12 +1094,12 @@ builder.Services.AddSignalR()
 
 ```bash
 # Monitor Redis pub/sub traffic
-docker exec -it foundry-valkey valkey-cli
-> PSUBSCRIBE Foundry*
+docker exec -it wallow-valkey valkey-cli
+> PSUBSCRIBE Wallow*
 # You should see SignalR messages flowing
 
 # Check SignalR groups
-> KEYS Foundry:*
+> KEYS Wallow:*
 # Shows group membership keys
 ```
 
@@ -1109,7 +1109,7 @@ docker exec -it foundry-valkey valkey-cli
 
 ### Health Check Endpoints
 
-Foundry provides three health check endpoints:
+Wallow provides three health check endpoints:
 
 | Endpoint | Purpose | Checks | Load Balancer Use |
 |----------|---------|--------|-------------------|
@@ -1122,7 +1122,7 @@ Foundry provides three health check endpoints:
 ```nginx
 # Nginx
 location /health {
-    proxy_pass http://foundry_api/health/ready;
+    proxy_pass http://wallow_api/health/ready;
     proxy_connect_timeout 5s;
     proxy_read_timeout 5s;
 }
@@ -1162,7 +1162,7 @@ services:
 
 #### ASP.NET Core Shutdown Configuration
 
-Foundry inherits the default ASP.NET Core shutdown behavior. To customize:
+Wallow inherits the default ASP.NET Core shutdown behavior. To customize:
 
 ```csharp
 // In Program.cs (if needed)
@@ -1199,7 +1199,7 @@ T+30s:  Docker grace period ends, SIGKILL sent (if still running)
 
 ### Per-Instance Metrics
 
-Each Foundry instance exports metrics via OpenTelemetry to the configured OTLP endpoint.
+Each Wallow instance exports metrics via OpenTelemetry to the configured OTLP endpoint.
 
 #### Key Metrics to Monitor
 
@@ -1220,8 +1220,8 @@ OpenTelemetry adds instance identification to all metrics:
 // Existing configuration in ServiceCollectionExtensions.cs
 .ConfigureResource(resource => resource
     .AddService(
-        serviceName: "Foundry",
-        serviceNamespace: "Foundry",
+        serviceName: "Wallow",
+        serviceNamespace: "Wallow",
         serviceVersion: "1.0.0")
     .AddAttributes(new KeyValuePair<string, object>[]
     {
@@ -1259,7 +1259,7 @@ sum(rate(http_server_request_duration_seconds_count[5m])) by (host_name)
 
 ### Grafana Dashboard
 
-The existing Foundry Grafana dashboard at `docker/grafana/dashboards/` can be extended with multi-instance panels:
+The existing Wallow Grafana dashboard at `docker/grafana/dashboards/` can be extended with multi-instance panels:
 
 ```json
 {
@@ -1321,16 +1321,16 @@ service:
 ### Kubernetes Horizontal Pod Autoscaler
 
 ```yaml
-# foundry-hpa.yaml
+# wallow-hpa.yaml
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: foundry-api
+  name: wallow-api
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: foundry-api
+    name: wallow-api
   minReplicas: 2
   maxReplicas: 10
   metrics:
@@ -1382,7 +1382,7 @@ Docker Swarm doesn't have built-in auto-scaling, but you can use external tools:
 #!/bin/bash
 # autoscale.sh - Simple auto-scaling script for Docker Swarm
 
-SERVICE_NAME="foundry_app"
+SERVICE_NAME="wallow_app"
 MIN_REPLICAS=2
 MAX_REPLICAS=10
 CPU_THRESHOLD_HIGH=70
@@ -1420,20 +1420,20 @@ done
 
 ```hcl
 # Terraform - ECS Auto Scaling
-resource "aws_appautoscaling_target" "foundry" {
+resource "aws_appautoscaling_target" "wallow" {
   max_capacity       = 10
   min_capacity       = 2
-  resource_id        = "service/${aws_ecs_cluster.main.name}/${aws_ecs_service.foundry.name}"
+  resource_id        = "service/${aws_ecs_cluster.main.name}/${aws_ecs_service.wallow.name}"
   scalable_dimension = "ecs:service:DesiredCount"
   service_namespace  = "ecs"
 }
 
 resource "aws_appautoscaling_policy" "cpu" {
-  name               = "foundry-cpu-scaling"
+  name               = "wallow-cpu-scaling"
   policy_type        = "TargetTrackingScaling"
-  resource_id        = aws_appautoscaling_target.foundry.resource_id
-  scalable_dimension = aws_appautoscaling_target.foundry.scalable_dimension
-  service_namespace  = aws_appautoscaling_target.foundry.service_namespace
+  resource_id        = aws_appautoscaling_target.wallow.resource_id
+  scalable_dimension = aws_appautoscaling_target.wallow.scalable_dimension
+  service_namespace  = aws_appautoscaling_target.wallow.service_namespace
 
   target_tracking_scaling_policy_configuration {
     predefined_metric_specification {
@@ -1468,7 +1468,7 @@ resource "aws_appautoscaling_policy" "cpu" {
 
 ```nginx
 # Nginx - Ensure proper keepalive distribution
-upstream foundry_api {
+upstream wallow_api {
     least_conn;  # Use least connections
     keepalive 32;  # Limit keepalive connections per worker
     server app:8080;
@@ -1489,13 +1489,13 @@ docker compose ps
 docker compose logs app --tail=100
 
 # Test direct connection to instance
-docker exec -it foundry-nginx curl http://app:8080/health
+docker exec -it wallow-nginx curl http://app:8080/health
 
 # Check DNS resolution
-docker exec -it foundry-nginx nslookup app
+docker exec -it wallow-nginx nslookup app
 
 # Verify network connectivity
-docker network inspect foundry_foundry
+docker network inspect wallow_wallow
 ```
 
 **Solutions:**
@@ -1544,7 +1544,7 @@ grep -r "Session" src/ --include="*.cs"
 ```nginx
 # Nginx - Increase WebSocket timeouts
 location /hubs/ {
-    proxy_pass http://foundry_api;
+    proxy_pass http://wallow_api;
     proxy_http_version 1.1;
     proxy_set_header Upgrade $http_upgrade;
     proxy_set_header Connection "upgrade";
@@ -1586,10 +1586,10 @@ connection.onreconnected((connectionId) => {
 
 ```bash
 # Check RabbitMQ queue depth
-docker exec foundry-rabbitmq rabbitmqctl list_queues name messages consumers
+docker exec wallow-rabbitmq rabbitmqctl list_queues name messages consumers
 
 # Check for consumer imbalance
-docker exec foundry-rabbitmq rabbitmqctl list_consumers
+docker exec wallow-rabbitmq rabbitmqctl list_consumers
 ```
 
 **Solutions:**
@@ -1681,9 +1681,9 @@ Horizontal scaling has limits. Watch for these signs:
 
 ## Summary
 
-Horizontal scaling is the simplest way to increase Foundry's capacity. The key points:
+Horizontal scaling is the simplest way to increase Wallow's capacity. The key points:
 
-1. **Foundry is already stateless** - JWT auth, Redis cache, SignalR backplane, and RabbitMQ messaging are configured
+1. **Wallow is already stateless** - JWT auth, Redis cache, SignalR backplane, and RabbitMQ messaging are configured
 2. **Use a load balancer** - Nginx, HAProxy, Caddy, or cloud load balancer
 3. **Configure health checks** - Use `/health/ready` for traffic routing
 4. **Monitor per-instance and aggregate metrics** - OpenTelemetry exports to your observability platform

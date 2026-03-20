@@ -19,48 +19,48 @@ Reorganize the shared contracts from `Communications/` to `Delivery/`, `Messagin
 ### Task 1.1: Create Delivery namespace and move email contracts
 
 **Files:**
-- Create: `src/Shared/Foundry.Shared.Contracts/Delivery/Email/Events/SendEmailRequestedEvent.cs`
-- Create: `src/Shared/Foundry.Shared.Contracts/Delivery/Email/Events/EmailSentEvent.cs`
-- Create: `src/Shared/Foundry.Shared.Contracts/Delivery/Email/IEmailService.cs`
-- Delete: `src/Shared/Foundry.Shared.Contracts/Communications/Email/Events/SendEmailRequestedEvent.cs`
-- Delete: `src/Shared/Foundry.Shared.Contracts/Communications/Email/Events/EmailSentEvent.cs`
-- Delete: `src/Shared/Foundry.Shared.Contracts/Communications/Email/IEmailService.cs`
+- Create: `src/Shared/Wallow.Shared.Contracts/Delivery/Email/Events/SendEmailRequestedEvent.cs`
+- Create: `src/Shared/Wallow.Shared.Contracts/Delivery/Email/Events/EmailSentEvent.cs`
+- Create: `src/Shared/Wallow.Shared.Contracts/Delivery/Email/IEmailService.cs`
+- Delete: `src/Shared/Wallow.Shared.Contracts/Communications/Email/Events/SendEmailRequestedEvent.cs`
+- Delete: `src/Shared/Wallow.Shared.Contracts/Communications/Email/Events/EmailSentEvent.cs`
+- Delete: `src/Shared/Wallow.Shared.Contracts/Communications/Email/IEmailService.cs`
 
-- [ ] **Step 1:** Create `Delivery/Email/Events/SendEmailRequestedEvent.cs` — copy from `Communications/Email/Events/SendEmailRequestedEvent.cs`, change namespace to `Foundry.Shared.Contracts.Delivery.Email.Events`, add `public bool IsCritical { get; init; }` property
-- [ ] **Step 2:** Create `Delivery/Email/Events/EmailSentEvent.cs` — copy from `Communications/Email/Events/EmailSentEvent.cs`, change namespace to `Foundry.Shared.Contracts.Delivery.Email.Events`
-- [ ] **Step 3:** Create `Delivery/Email/IEmailService.cs` — copy from `Communications/Email/IEmailService.cs`, change namespace to `Foundry.Shared.Contracts.Delivery.Email`
+- [ ] **Step 1:** Create `Delivery/Email/Events/SendEmailRequestedEvent.cs` — copy from `Communications/Email/Events/SendEmailRequestedEvent.cs`, change namespace to `Wallow.Shared.Contracts.Delivery.Email.Events`, add `public bool IsCritical { get; init; }` property
+- [ ] **Step 2:** Create `Delivery/Email/Events/EmailSentEvent.cs` — copy from `Communications/Email/Events/EmailSentEvent.cs`, change namespace to `Wallow.Shared.Contracts.Delivery.Email.Events`
+- [ ] **Step 3:** Create `Delivery/Email/IEmailService.cs` — copy from `Communications/Email/IEmailService.cs`, change namespace to `Wallow.Shared.Contracts.Delivery.Email`
 - [ ] **Step 4:** Delete the old `Communications/Email/` directory
-- [ ] **Step 5:** Find all `using Foundry.Shared.Contracts.Communications.Email` references across the codebase and update to `Foundry.Shared.Contracts.Delivery.Email`
+- [ ] **Step 5:** Find all `using Wallow.Shared.Contracts.Communications.Email` references across the codebase and update to `Wallow.Shared.Contracts.Delivery.Email`
 
-Run: `dotnet build src/Shared/Foundry.Shared.Contracts/Foundry.Shared.Contracts.csproj`
+Run: `dotnet build src/Shared/Wallow.Shared.Contracts/Wallow.Shared.Contracts.csproj`
 Expected: Build succeeds
 
 - [ ] **Step 6:** Commit
 
 ```bash
-git add -A src/Shared/Foundry.Shared.Contracts/Delivery/Email/ src/Shared/Foundry.Shared.Contracts/Communications/Email/
+git add -A src/Shared/Wallow.Shared.Contracts/Delivery/Email/ src/Shared/Wallow.Shared.Contracts/Communications/Email/
 git commit -m "refactor(contracts): move email contracts to Delivery namespace, add IsCritical"
 ```
 
 ### Task 1.2: Move SMS, Push, InApp contracts to Delivery namespace
 
 **Files:**
-- Create: `src/Shared/Foundry.Shared.Contracts/Delivery/Sms/Events/SendSmsRequestedEvent.cs`
-- Create: `src/Shared/Foundry.Shared.Contracts/Delivery/Push/Events/SendPushRequestedEvent.cs`
-- Create: `src/Shared/Foundry.Shared.Contracts/Delivery/InApp/Events/NotificationCreatedEvent.cs`
-- Create: `src/Shared/Foundry.Shared.Contracts/Delivery/InApp/Events/SendNotificationRequestedEvent.cs` (NEW)
-- Create: `src/Shared/Foundry.Shared.Contracts/Delivery/InApp/NotificationTypes.cs` (NEW)
-- Delete: `src/Shared/Foundry.Shared.Contracts/Communications/Sms/`
-- Delete: `src/Shared/Foundry.Shared.Contracts/Communications/Push/`
-- Delete: `src/Shared/Foundry.Shared.Contracts/Communications/Notifications/`
+- Create: `src/Shared/Wallow.Shared.Contracts/Delivery/Sms/Events/SendSmsRequestedEvent.cs`
+- Create: `src/Shared/Wallow.Shared.Contracts/Delivery/Push/Events/SendPushRequestedEvent.cs`
+- Create: `src/Shared/Wallow.Shared.Contracts/Delivery/InApp/Events/NotificationCreatedEvent.cs`
+- Create: `src/Shared/Wallow.Shared.Contracts/Delivery/InApp/Events/SendNotificationRequestedEvent.cs` (NEW)
+- Create: `src/Shared/Wallow.Shared.Contracts/Delivery/InApp/NotificationTypes.cs` (NEW)
+- Delete: `src/Shared/Wallow.Shared.Contracts/Communications/Sms/`
+- Delete: `src/Shared/Wallow.Shared.Contracts/Communications/Push/`
+- Delete: `src/Shared/Wallow.Shared.Contracts/Communications/Notifications/`
 
 - [ ] **Step 1:** Create `Delivery/Sms/Events/SendSmsRequestedEvent.cs` — copy from `Communications/Sms/Events/SendSmsRequestedEvent.cs`, change namespace, add `IsCritical` property
 - [ ] **Step 2:** Create `Delivery/Push/Events/SendPushRequestedEvent.cs` — copy from `Communications/Push/Events/SendPushRequestedEvent.cs`, change namespace, add `IsCritical` property
-- [ ] **Step 3:** Create `Delivery/InApp/Events/NotificationCreatedEvent.cs` — copy from `Communications/Notifications/Events/NotificationCreatedEvent.cs`, change namespace to `Foundry.Shared.Contracts.Delivery.InApp.Events`
+- [ ] **Step 3:** Create `Delivery/InApp/Events/NotificationCreatedEvent.cs` — copy from `Communications/Notifications/Events/NotificationCreatedEvent.cs`, change namespace to `Wallow.Shared.Contracts.Delivery.InApp.Events`
 - [ ] **Step 4:** Create NEW `Delivery/InApp/Events/SendNotificationRequestedEvent.cs`:
 
 ```csharp
-namespace Foundry.Shared.Contracts.Delivery.InApp.Events;
+namespace Wallow.Shared.Contracts.Delivery.InApp.Events;
 
 public sealed record SendNotificationRequestedEvent : IntegrationEvent
 {
@@ -79,7 +79,7 @@ public sealed record SendNotificationRequestedEvent : IntegrationEvent
 - [ ] **Step 5:** Create NEW `Delivery/InApp/NotificationTypes.cs`:
 
 ```csharp
-namespace Foundry.Shared.Contracts.Delivery.InApp;
+namespace Wallow.Shared.Contracts.Delivery.InApp;
 
 public static class NotificationTypes
 {
@@ -106,16 +106,16 @@ git commit -m "refactor(contracts): move SMS, Push, InApp contracts to Delivery 
 ### Task 1.3: Move Messaging and Announcements contracts
 
 **Files:**
-- Create: `src/Shared/Foundry.Shared.Contracts/Messaging/Events/ConversationCreatedIntegrationEvent.cs`
-- Create: `src/Shared/Foundry.Shared.Contracts/Messaging/Events/MessageSentIntegrationEvent.cs`
-- Create: `src/Shared/Foundry.Shared.Contracts/Announcements/Events/AnnouncementPublishedEvent.cs`
-- Delete: `src/Shared/Foundry.Shared.Contracts/Communications/Messaging/`
-- Delete: `src/Shared/Foundry.Shared.Contracts/Communications/Announcements/`
-- Delete: `src/Shared/Foundry.Shared.Contracts/Communications/` (now empty)
+- Create: `src/Shared/Wallow.Shared.Contracts/Messaging/Events/ConversationCreatedIntegrationEvent.cs`
+- Create: `src/Shared/Wallow.Shared.Contracts/Messaging/Events/MessageSentIntegrationEvent.cs`
+- Create: `src/Shared/Wallow.Shared.Contracts/Announcements/Events/AnnouncementPublishedEvent.cs`
+- Delete: `src/Shared/Wallow.Shared.Contracts/Communications/Messaging/`
+- Delete: `src/Shared/Wallow.Shared.Contracts/Communications/Announcements/`
+- Delete: `src/Shared/Wallow.Shared.Contracts/Communications/` (now empty)
 
-- [ ] **Step 1:** Create `Messaging/Events/ConversationCreatedIntegrationEvent.cs` — copy, change namespace to `Foundry.Shared.Contracts.Messaging.Events`
+- [ ] **Step 1:** Create `Messaging/Events/ConversationCreatedIntegrationEvent.cs` — copy, change namespace to `Wallow.Shared.Contracts.Messaging.Events`
 - [ ] **Step 2:** Create `Messaging/Events/MessageSentIntegrationEvent.cs` — copy, change namespace
-- [ ] **Step 3:** Create `Announcements/Events/AnnouncementPublishedEvent.cs` — copy, change namespace to `Foundry.Shared.Contracts.Announcements.Events`
+- [ ] **Step 3:** Create `Announcements/Events/AnnouncementPublishedEvent.cs` — copy, change namespace to `Wallow.Shared.Contracts.Announcements.Events`
 - [ ] **Step 4:** Delete old directories and the now-empty `Communications/` directory
 - [ ] **Step 5:** Update all `using` statements across the codebase
 - [ ] **Step 6:** Run full build to verify
@@ -139,21 +139,21 @@ Create the 12 new source projects (4 per module) and 3 test projects. Wire them 
 ### Task 2.1: Create Notifications module projects
 
 **Files to create:**
-- `src/Modules/Notifications/Foundry.Notifications.Domain/Foundry.Notifications.Domain.csproj`
-- `src/Modules/Notifications/Foundry.Notifications.Application/Foundry.Notifications.Application.csproj`
-- `src/Modules/Notifications/Foundry.Notifications.Infrastructure/Foundry.Notifications.Infrastructure.csproj`
-- `src/Modules/Notifications/Foundry.Notifications.Api/Foundry.Notifications.Api.csproj`
-- `tests/Modules/Notifications/Foundry.Notifications.Tests/Foundry.Notifications.Tests.csproj`
+- `src/Modules/Notifications/Wallow.Notifications.Domain/Wallow.Notifications.Domain.csproj`
+- `src/Modules/Notifications/Wallow.Notifications.Application/Wallow.Notifications.Application.csproj`
+- `src/Modules/Notifications/Wallow.Notifications.Infrastructure/Wallow.Notifications.Infrastructure.csproj`
+- `src/Modules/Notifications/Wallow.Notifications.Api/Wallow.Notifications.Api.csproj`
+- `tests/Modules/Notifications/Wallow.Notifications.Tests/Wallow.Notifications.Tests.csproj`
 
 - [ ] **Step 1:** Create Domain .csproj (references: Shared.Kernel only):
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <RootNamespace>Foundry.Notifications.Domain</RootNamespace>
+    <RootNamespace>Wallow.Notifications.Domain</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\Shared\Foundry.Shared.Kernel\Foundry.Shared.Kernel.csproj" />
+    <ProjectReference Include="..\..\..\Shared\Wallow.Shared.Kernel\Wallow.Shared.Kernel.csproj" />
   </ItemGroup>
 </Project>
 ```
@@ -163,12 +163,12 @@ Create the 12 new source projects (4 per module) and 3 test projects. Wire them 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <RootNamespace>Foundry.Notifications.Application</RootNamespace>
+    <RootNamespace>Wallow.Notifications.Application</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Foundry.Notifications.Domain\Foundry.Notifications.Domain.csproj" />
-    <ProjectReference Include="..\..\..\Shared\Foundry.Shared.Kernel\Foundry.Shared.Kernel.csproj" />
-    <ProjectReference Include="..\..\..\Shared\Foundry.Shared.Contracts\Foundry.Shared.Contracts.csproj" />
+    <ProjectReference Include="..\Wallow.Notifications.Domain\Wallow.Notifications.Domain.csproj" />
+    <ProjectReference Include="..\..\..\Shared\Wallow.Shared.Kernel\Wallow.Shared.Kernel.csproj" />
+    <ProjectReference Include="..\..\..\Shared\Wallow.Shared.Contracts\Wallow.Shared.Contracts.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="JetBrains.Annotations" />
@@ -184,7 +184,7 @@ Create the 12 new source projects (4 per module) and 3 test projects. Wire them 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <RootNamespace>Foundry.Notifications.Infrastructure</RootNamespace>
+    <RootNamespace>Wallow.Notifications.Infrastructure</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Dapper" />
@@ -201,9 +201,9 @@ Create the 12 new source projects (4 per module) and 3 test projects. Wire them 
     <PackageReference Include="Microsoft.AspNetCore.DataProtection" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Foundry.Notifications.Domain\Foundry.Notifications.Domain.csproj" />
-    <ProjectReference Include="..\Foundry.Notifications.Application\Foundry.Notifications.Application.csproj" />
-    <ProjectReference Include="..\..\..\Shared\Foundry.Shared.Infrastructure\Foundry.Shared.Infrastructure.csproj" />
+    <ProjectReference Include="..\Wallow.Notifications.Domain\Wallow.Notifications.Domain.csproj" />
+    <ProjectReference Include="..\Wallow.Notifications.Application\Wallow.Notifications.Application.csproj" />
+    <ProjectReference Include="..\..\..\Shared\Wallow.Shared.Infrastructure\Wallow.Shared.Infrastructure.csproj" />
   </ItemGroup>
 </Project>
 ```
@@ -213,14 +213,14 @@ Create the 12 new source projects (4 per module) and 3 test projects. Wire them 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <RootNamespace>Foundry.Notifications.Api</RootNamespace>
+    <RootNamespace>Wallow.Notifications.Api</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Foundry.Notifications.Application\Foundry.Notifications.Application.csproj" />
-    <ProjectReference Include="..\..\..\Shared\Foundry.Shared.Api\Foundry.Shared.Api.csproj" />
+    <ProjectReference Include="..\Wallow.Notifications.Application\Wallow.Notifications.Application.csproj" />
+    <ProjectReference Include="..\..\..\Shared\Wallow.Shared.Api\Wallow.Shared.Api.csproj" />
   </ItemGroup>
 </Project>
 ```
@@ -230,7 +230,7 @@ Create the 12 new source projects (4 per module) and 3 test projects. Wire them 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <RootNamespace>Foundry.Notifications.Tests</RootNamespace>
+    <RootNamespace>Wallow.Notifications.Tests</RootNamespace>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
@@ -255,18 +255,18 @@ Create the 12 new source projects (4 per module) and 3 test projects. Wire them 
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\src\Modules\Notifications\Foundry.Notifications.Domain\Foundry.Notifications.Domain.csproj" />
-    <ProjectReference Include="..\..\..\..\src\Modules\Notifications\Foundry.Notifications.Application\Foundry.Notifications.Application.csproj" />
-    <ProjectReference Include="..\..\..\..\src\Modules\Notifications\Foundry.Notifications.Infrastructure\Foundry.Notifications.Infrastructure.csproj" />
-    <ProjectReference Include="..\..\..\..\src\Modules\Notifications\Foundry.Notifications.Api\Foundry.Notifications.Api.csproj" />
-    <ProjectReference Include="..\..\..\Foundry.Tests.Common\Foundry.Tests.Common.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Modules\Notifications\Wallow.Notifications.Domain\Wallow.Notifications.Domain.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Modules\Notifications\Wallow.Notifications.Application\Wallow.Notifications.Application.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Modules\Notifications\Wallow.Notifications.Infrastructure\Wallow.Notifications.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Modules\Notifications\Wallow.Notifications.Api\Wallow.Notifications.Api.csproj" />
+    <ProjectReference Include="..\..\..\Wallow.Tests.Common\Wallow.Tests.Common.csproj" />
   </ItemGroup>
 </Project>
 ```
 
-- [ ] **Step 6:** Add all 5 projects to `Foundry.sln`
+- [ ] **Step 6:** Add all 5 projects to `Wallow.sln`
 
-Run: `dotnet sln Foundry.sln add src/Modules/Notifications/Foundry.Notifications.Domain/Foundry.Notifications.Domain.csproj src/Modules/Notifications/Foundry.Notifications.Application/Foundry.Notifications.Application.csproj src/Modules/Notifications/Foundry.Notifications.Infrastructure/Foundry.Notifications.Infrastructure.csproj src/Modules/Notifications/Foundry.Notifications.Api/Foundry.Notifications.Api.csproj tests/Modules/Notifications/Foundry.Notifications.Tests/Foundry.Notifications.Tests.csproj`
+Run: `dotnet sln Wallow.sln add src/Modules/Notifications/Wallow.Notifications.Domain/Wallow.Notifications.Domain.csproj src/Modules/Notifications/Wallow.Notifications.Application/Wallow.Notifications.Application.csproj src/Modules/Notifications/Wallow.Notifications.Infrastructure/Wallow.Notifications.Infrastructure.csproj src/Modules/Notifications/Wallow.Notifications.Api/Wallow.Notifications.Api.csproj tests/Modules/Notifications/Wallow.Notifications.Tests/Wallow.Notifications.Tests.csproj`
 
 - [ ] **Step 7:** Commit
 
@@ -278,18 +278,18 @@ git commit -m "chore: scaffold Notifications module projects"
 ### Task 2.2: Create Messaging module projects
 
 **Files to create:**
-- `src/Modules/Messaging/Foundry.Messaging.Domain/Foundry.Messaging.Domain.csproj`
-- `src/Modules/Messaging/Foundry.Messaging.Application/Foundry.Messaging.Application.csproj`
-- `src/Modules/Messaging/Foundry.Messaging.Infrastructure/Foundry.Messaging.Infrastructure.csproj`
-- `src/Modules/Messaging/Foundry.Messaging.Api/Foundry.Messaging.Api.csproj`
-- `tests/Modules/Messaging/Foundry.Messaging.Tests/Foundry.Messaging.Tests.csproj`
+- `src/Modules/Messaging/Wallow.Messaging.Domain/Wallow.Messaging.Domain.csproj`
+- `src/Modules/Messaging/Wallow.Messaging.Application/Wallow.Messaging.Application.csproj`
+- `src/Modules/Messaging/Wallow.Messaging.Infrastructure/Wallow.Messaging.Infrastructure.csproj`
+- `src/Modules/Messaging/Wallow.Messaging.Api/Wallow.Messaging.Api.csproj`
+- `tests/Modules/Messaging/Wallow.Messaging.Tests/Wallow.Messaging.Tests.csproj`
 
-- [ ] **Step 1:** Create Domain .csproj (same pattern as Notifications Domain, RootNamespace: `Foundry.Messaging.Domain`)
-- [ ] **Step 2:** Create Application .csproj (same pattern, RootNamespace: `Foundry.Messaging.Application`; same package refs as Notifications)
-- [ ] **Step 3:** Create Infrastructure .csproj (RootNamespace: `Foundry.Messaging.Infrastructure`; packages: Dapper, EF Core, Npgsql, EF Design, Wolverine — no MailKit/Polly/DataProtection needed)
-- [ ] **Step 4:** Create Api .csproj (same pattern, RootNamespace: `Foundry.Messaging.Api`)
+- [ ] **Step 1:** Create Domain .csproj (same pattern as Notifications Domain, RootNamespace: `Wallow.Messaging.Domain`)
+- [ ] **Step 2:** Create Application .csproj (same pattern, RootNamespace: `Wallow.Messaging.Application`; same package refs as Notifications)
+- [ ] **Step 3:** Create Infrastructure .csproj (RootNamespace: `Wallow.Messaging.Infrastructure`; packages: Dapper, EF Core, Npgsql, EF Design, Wolverine — no MailKit/Polly/DataProtection needed)
+- [ ] **Step 4:** Create Api .csproj (same pattern, RootNamespace: `Wallow.Messaging.Api`)
 - [ ] **Step 5:** Create Tests .csproj (same pattern, references Messaging module layers)
-- [ ] **Step 6:** Add to `Foundry.sln`
+- [ ] **Step 6:** Add to `Wallow.sln`
 - [ ] **Step 7:** Commit
 
 ```bash
@@ -300,13 +300,13 @@ git commit -m "chore: scaffold Messaging module projects"
 ### Task 2.3: Create Announcements module projects
 
 **Files to create:**
-- `src/Modules/Announcements/Foundry.Announcements.Domain/Foundry.Announcements.Domain.csproj`
-- `src/Modules/Announcements/Foundry.Announcements.Application/Foundry.Announcements.Application.csproj`
-- `src/Modules/Announcements/Foundry.Announcements.Infrastructure/Foundry.Announcements.Infrastructure.csproj`
-- `src/Modules/Announcements/Foundry.Announcements.Api/Foundry.Announcements.Api.csproj`
-- `tests/Modules/Announcements/Foundry.Announcements.Tests/Foundry.Announcements.Tests.csproj`
+- `src/Modules/Announcements/Wallow.Announcements.Domain/Wallow.Announcements.Domain.csproj`
+- `src/Modules/Announcements/Wallow.Announcements.Application/Wallow.Announcements.Application.csproj`
+- `src/Modules/Announcements/Wallow.Announcements.Infrastructure/Wallow.Announcements.Infrastructure.csproj`
+- `src/Modules/Announcements/Wallow.Announcements.Api/Wallow.Announcements.Api.csproj`
+- `tests/Modules/Announcements/Wallow.Announcements.Tests/Wallow.Announcements.Tests.csproj`
 
-- [ ] **Step 1-6:** Same pattern as Messaging. RootNamespace: `Foundry.Announcements.*`. Infrastructure needs EF Core + Npgsql + Wolverine (no Dapper, no MailKit).
+- [ ] **Step 1-6:** Same pattern as Messaging. RootNamespace: `Wallow.Announcements.*`. Infrastructure needs EF Core + Npgsql + Wolverine (no Dapper, no MailKit).
 - [ ] **Step 7:** Commit
 
 ```bash
@@ -318,20 +318,20 @@ git commit -m "chore: scaffold Announcements module projects"
 
 ## Phase 3: Move Notifications Module Code
 
-Move all notification-related code (Email, SMS, Push, InApp, Preferences) from Communications to the new Notifications module. Update namespaces from `Foundry.Communications.*` to `Foundry.Notifications.*`.
+Move all notification-related code (Email, SMS, Push, InApp, Preferences) from Communications to the new Notifications module. Update namespaces from `Wallow.Communications.*` to `Wallow.Notifications.*`.
 
 **Namespace mapping:**
-- `Foundry.Communications.Domain.Channels.Email.*` → `Foundry.Notifications.Domain.Channels.Email.*`
-- `Foundry.Communications.Domain.Channels.InApp.*` → `Foundry.Notifications.Domain.Channels.InApp.*`
-- `Foundry.Communications.Domain.Channels.Push.*` → `Foundry.Notifications.Domain.Channels.Push.*`
-- `Foundry.Communications.Domain.Channels.Sms.*` → `Foundry.Notifications.Domain.Channels.Sms.*`
-- `Foundry.Communications.Domain.Preferences.*` → `Foundry.Notifications.Domain.Preferences.*`
-- `Foundry.Communications.Domain.Enums.NotificationType` → `Foundry.Notifications.Domain.Enums.NotificationType`
-- `Foundry.Communications.Application.Channels.*` → `Foundry.Notifications.Application.Channels.*`
-- `Foundry.Communications.Application.Preferences.*` → `Foundry.Notifications.Application.Preferences.*`
-- `Foundry.Communications.Application.Settings.*` → `Foundry.Notifications.Application.Settings.*`
-- `Foundry.Communications.Infrastructure.*` (notification-related) → `Foundry.Notifications.Infrastructure.*`
-- `Foundry.Communications.Api.*` (notification-related) → `Foundry.Notifications.Api.*`
+- `Wallow.Communications.Domain.Channels.Email.*` → `Wallow.Notifications.Domain.Channels.Email.*`
+- `Wallow.Communications.Domain.Channels.InApp.*` → `Wallow.Notifications.Domain.Channels.InApp.*`
+- `Wallow.Communications.Domain.Channels.Push.*` → `Wallow.Notifications.Domain.Channels.Push.*`
+- `Wallow.Communications.Domain.Channels.Sms.*` → `Wallow.Notifications.Domain.Channels.Sms.*`
+- `Wallow.Communications.Domain.Preferences.*` → `Wallow.Notifications.Domain.Preferences.*`
+- `Wallow.Communications.Domain.Enums.NotificationType` → `Wallow.Notifications.Domain.Enums.NotificationType`
+- `Wallow.Communications.Application.Channels.*` → `Wallow.Notifications.Application.Channels.*`
+- `Wallow.Communications.Application.Preferences.*` → `Wallow.Notifications.Application.Preferences.*`
+- `Wallow.Communications.Application.Settings.*` → `Wallow.Notifications.Application.Settings.*`
+- `Wallow.Communications.Infrastructure.*` (notification-related) → `Wallow.Notifications.Infrastructure.*`
+- `Wallow.Communications.Api.*` (notification-related) → `Wallow.Notifications.Api.*`
 
 ### Task 3.1: Move Notifications Domain layer
 
@@ -371,13 +371,13 @@ Domain/Preferences/ (all files):
 Domain/Enums/:
 - `NotificationType.cs`
 
-- [ ] **Step 1:** Copy all files listed above to corresponding paths under `src/Modules/Notifications/Foundry.Notifications.Domain/`
-- [ ] **Step 2:** Find-and-replace all `namespace Foundry.Communications.Domain` → `namespace Foundry.Notifications.Domain` in the copied files
-- [ ] **Step 3:** Verify build: `dotnet build src/Modules/Notifications/Foundry.Notifications.Domain/`
+- [ ] **Step 1:** Copy all files listed above to corresponding paths under `src/Modules/Notifications/Wallow.Notifications.Domain/`
+- [ ] **Step 2:** Find-and-replace all `namespace Wallow.Communications.Domain` → `namespace Wallow.Notifications.Domain` in the copied files
+- [ ] **Step 3:** Verify build: `dotnet build src/Modules/Notifications/Wallow.Notifications.Domain/`
 - [ ] **Step 4:** Commit
 
 ```bash
-git add src/Modules/Notifications/Foundry.Notifications.Domain/
+git add src/Modules/Notifications/Wallow.Notifications.Domain/
 git commit -m "feat(notifications): move domain layer from Communications"
 ```
 
@@ -397,13 +397,13 @@ Extensions/ApplicationExtensions.cs (create new one for Notifications)
 - [ ] **Step 1:** Copy all Channels/ and Preferences/ directories to Notifications.Application
 - [ ] **Step 2:** Create `Settings/NotificationsSettingKeys.cs` — copy from `CommunicationsSettingKeys.cs`, rename class to `NotificationsSettingKeys`, change key prefix from `communications` to `notifications`
 - [ ] **Step 3:** Create `Extensions/ApplicationExtensions.cs` for Notifications — register validators from assembly
-- [ ] **Step 4:** Find-and-replace namespaces: `Foundry.Communications.Application` → `Foundry.Notifications.Application`
-- [ ] **Step 5:** Update domain references: `using Foundry.Communications.Domain` → `using Foundry.Notifications.Domain`
-- [ ] **Step 6:** Verify build: `dotnet build src/Modules/Notifications/Foundry.Notifications.Application/`
+- [ ] **Step 4:** Find-and-replace namespaces: `Wallow.Communications.Application` → `Wallow.Notifications.Application`
+- [ ] **Step 5:** Update domain references: `using Wallow.Communications.Domain` → `using Wallow.Notifications.Domain`
+- [ ] **Step 6:** Verify build: `dotnet build src/Modules/Notifications/Wallow.Notifications.Application/`
 - [ ] **Step 7:** Commit
 
 ```bash
-git add src/Modules/Notifications/Foundry.Notifications.Application/
+git add src/Modules/Notifications/Wallow.Notifications.Application/
 git commit -m "feat(notifications): move application layer from Communications"
 ```
 
@@ -426,11 +426,11 @@ Extensions/ — NotificationsModuleExtensions.cs (new — based on Communication
 - [ ] **Step 6:** Create `Extensions/NotificationsModuleExtensions.cs` — based on Communications version, wire only notification-related services, register `NotificationsDbContext`, call `AddSettings<NotificationsDbContext, NotificationsSettingKeys>("notifications")`
 
 **Note:** The spec's two-layer email template system (Notifications wraps content in shared layout before sending) is a new behavioral change that should be implemented as a follow-up task after the module split is complete. For now, move `SendEmailRequestedEventHandler` as-is — it passes `event.Body` directly to SMTP. The layout wrapping feature adds `IEmailLayoutService` to the Notifications infrastructure that wraps content in header/footer HTML before delivery.
-- [ ] **Step 7:** Verify build: `dotnet build src/Modules/Notifications/Foundry.Notifications.Infrastructure/`
+- [ ] **Step 7:** Verify build: `dotnet build src/Modules/Notifications/Wallow.Notifications.Infrastructure/`
 - [ ] **Step 8:** Commit
 
 ```bash
-git add src/Modules/Notifications/Foundry.Notifications.Infrastructure/
+git add src/Modules/Notifications/Wallow.Notifications.Infrastructure/
 git commit -m "feat(notifications): move infrastructure layer from Communications"
 ```
 
@@ -444,14 +444,14 @@ Contracts/Push/ — DeviceRegistrationResponse, RegisterDeviceRequest, SendPushR
 Controllers/ — NotificationsController, UserNotificationSettingsController, PushDevicesController, PushConfigurationController, NotificationsSettingsController (renamed from CommunicationsSettingsController)
 
 - [ ] **Step 1:** Copy all notification-related contracts and controllers
-- [ ] **Step 2:** Update namespaces from `Foundry.Communications.Api` to `Foundry.Notifications.Api`
+- [ ] **Step 2:** Update namespaces from `Wallow.Communications.Api` to `Wallow.Notifications.Api`
 - [ ] **Step 3:** Update `using` references to Application layer
 - [ ] **Step 4:** Rename `CommunicationsSettingsController` to `NotificationsSettingsController`
-- [ ] **Step 5:** Verify build: `dotnet build src/Modules/Notifications/Foundry.Notifications.Api/`
+- [ ] **Step 5:** Verify build: `dotnet build src/Modules/Notifications/Wallow.Notifications.Api/`
 - [ ] **Step 6:** Commit
 
 ```bash
-git add src/Modules/Notifications/Foundry.Notifications.Api/
+git add src/Modules/Notifications/Wallow.Notifications.Api/
 git commit -m "feat(notifications): move API layer from Communications"
 ```
 
@@ -468,12 +468,12 @@ Move all test files that test notification-related code:
 - Integration tests: `Integration/Sms/SmsIntegrationTests.cs`
 
 - [ ] **Step 1:** Copy test files, preserving directory structure
-- [ ] **Step 2:** Update namespaces from `Foundry.Communications.Tests` to `Foundry.Notifications.Tests`
+- [ ] **Step 2:** Update namespaces from `Wallow.Communications.Tests` to `Wallow.Notifications.Tests`
 - [ ] **Step 3:** Update `using` references to the new module namespaces
 - [ ] **Step 4:** Rename `CommunicationsDbContextTests` to `NotificationsDbContextTests`
 - [ ] **Step 5:** Create `GlobalUsings.cs` for the test project
-- [ ] **Step 6:** Verify tests compile: `dotnet build tests/Modules/Notifications/Foundry.Notifications.Tests/`
-- [ ] **Step 7:** Run tests: `dotnet test tests/Modules/Notifications/Foundry.Notifications.Tests/`
+- [ ] **Step 6:** Verify tests compile: `dotnet build tests/Modules/Notifications/Wallow.Notifications.Tests/`
+- [ ] **Step 7:** Run tests: `dotnet test tests/Modules/Notifications/Wallow.Notifications.Tests/`
 - [ ] **Step 8:** Commit
 
 ```bash
@@ -488,12 +488,12 @@ git commit -m "test(notifications): move tests from Communications"
 Move all conversation/messaging code from Communications to the new Messaging module.
 
 **Namespace mapping:**
-- `Foundry.Communications.Domain.Messaging.*` → `Foundry.Messaging.Domain.*`
-- `Foundry.Communications.Domain.Exceptions.ConversationException` → `Foundry.Messaging.Domain.Exceptions.ConversationException`
-- `Foundry.Communications.Application.Messaging.*` → `Foundry.Messaging.Application.*`
-- `Foundry.Communications.Infrastructure.Persistence.Configurations.Conversation*` → `Foundry.Messaging.Infrastructure.*`
-- `Foundry.Communications.Infrastructure.Persistence.Repositories.Conversation*` → `Foundry.Messaging.Infrastructure.*`
-- `Foundry.Communications.Infrastructure.Services.MessagingQueryService` → `Foundry.Messaging.Infrastructure.*`
+- `Wallow.Communications.Domain.Messaging.*` → `Wallow.Messaging.Domain.*`
+- `Wallow.Communications.Domain.Exceptions.ConversationException` → `Wallow.Messaging.Domain.Exceptions.ConversationException`
+- `Wallow.Communications.Application.Messaging.*` → `Wallow.Messaging.Application.*`
+- `Wallow.Communications.Infrastructure.Persistence.Configurations.Conversation*` → `Wallow.Messaging.Infrastructure.*`
+- `Wallow.Communications.Infrastructure.Persistence.Repositories.Conversation*` → `Wallow.Messaging.Infrastructure.*`
+- `Wallow.Communications.Infrastructure.Services.MessagingQueryService` → `Wallow.Messaging.Infrastructure.*`
 
 ### Task 4.1: Move Messaging Domain layer
 
@@ -504,14 +504,14 @@ Move all conversation/messaging code from Communications to the new Messaging mo
 - Domain/Identity/ — ConversationId.cs, MessageId.cs, ParticipantId.cs
 - Domain/Exceptions/ — ConversationException.cs
 
-- [ ] **Step 1:** Copy all messaging domain files to `src/Modules/Messaging/Foundry.Messaging.Domain/`
-- [ ] **Step 2:** Update namespaces from `Foundry.Communications.Domain.Messaging` to `Foundry.Messaging.Domain` (drop the `Messaging` level since it IS the module now)
-- [ ] **Step 3:** Move `ConversationException.cs` to `Foundry.Messaging.Domain.Exceptions`
+- [ ] **Step 1:** Copy all messaging domain files to `src/Modules/Messaging/Wallow.Messaging.Domain/`
+- [ ] **Step 2:** Update namespaces from `Wallow.Communications.Domain.Messaging` to `Wallow.Messaging.Domain` (drop the `Messaging` level since it IS the module now)
+- [ ] **Step 3:** Move `ConversationException.cs` to `Wallow.Messaging.Domain.Exceptions`
 - [ ] **Step 4:** Verify build
 - [ ] **Step 5:** Commit
 
 ```bash
-git add src/Modules/Messaging/Foundry.Messaging.Domain/
+git add src/Modules/Messaging/Wallow.Messaging.Domain/
 git commit -m "feat(messaging): move domain layer from Communications"
 ```
 
@@ -526,14 +526,14 @@ git commit -m "feat(messaging): move domain layer from Communications"
 - Extensions/ — ApplicationExtensions.cs (new)
 
 - [ ] **Step 1:** Copy all messaging application files
-- [ ] **Step 2:** Update namespaces from `Foundry.Communications.Application.Messaging` to `Foundry.Messaging.Application`
+- [ ] **Step 2:** Update namespaces from `Wallow.Communications.Application.Messaging` to `Wallow.Messaging.Application`
 - [ ] **Step 3:** **Critical change:** Update `MessageSentEventHandler` — remove `INotificationService` dependency, replace with `IMessageBus.PublishAsync` to publish `SendNotificationRequestedEvent` for participant notifications
 - [ ] **Step 4:** Create `Extensions/ApplicationExtensions.cs` — register validators
 - [ ] **Step 5:** Verify build
 - [ ] **Step 6:** Commit
 
 ```bash
-git add src/Modules/Messaging/Foundry.Messaging.Application/
+git add src/Modules/Messaging/Wallow.Messaging.Application/
 git commit -m "feat(messaging): move application layer from Communications"
 ```
 
@@ -555,7 +555,7 @@ git commit -m "feat(messaging): move application layer from Communications"
 - [ ] **Step 7:** Commit
 
 ```bash
-git add src/Modules/Messaging/Foundry.Messaging.Infrastructure/
+git add src/Modules/Messaging/Wallow.Messaging.Infrastructure/
 git commit -m "feat(messaging): move infrastructure layer from Communications"
 ```
 
@@ -572,7 +572,7 @@ git commit -m "feat(messaging): move infrastructure layer from Communications"
 - [ ] **Step 4:** Commit
 
 ```bash
-git add src/Modules/Messaging/Foundry.Messaging.Api/
+git add src/Modules/Messaging/Wallow.Messaging.Api/
 git commit -m "feat(messaging): move API layer from Communications"
 ```
 
@@ -601,8 +601,8 @@ git commit -m "test(messaging): move tests from Communications"
 Move all announcement and changelog code from Communications to the new Announcements module.
 
 **Namespace mapping:**
-- `Foundry.Communications.Domain.Announcements.*` → `Foundry.Announcements.Domain.*`
-- `Foundry.Communications.Application.Announcements.*` → `Foundry.Announcements.Application.*`
+- `Wallow.Communications.Domain.Announcements.*` → `Wallow.Announcements.Domain.*`
+- `Wallow.Communications.Application.Announcements.*` → `Wallow.Announcements.Application.*`
 
 ### Task 5.1: Move Announcements Domain layer
 
@@ -611,12 +611,12 @@ Move all announcement and changelog code from Communications to the new Announce
 - Enums/ — AnnouncementStatus.cs, AnnouncementTarget.cs, AnnouncementType.cs, ChangeType.cs
 - Identity/ — AnnouncementId.cs, AnnouncementDismissalId.cs, ChangelogEntryId.cs, ChangelogItemId.cs
 
-- [ ] **Step 1:** Copy all files, update namespaces from `Foundry.Communications.Domain.Announcements` to `Foundry.Announcements.Domain`
+- [ ] **Step 1:** Copy all files, update namespaces from `Wallow.Communications.Domain.Announcements` to `Wallow.Announcements.Domain`
 - [ ] **Step 2:** Verify build
 - [ ] **Step 3:** Commit
 
 ```bash
-git add src/Modules/Announcements/Foundry.Announcements.Domain/
+git add src/Modules/Announcements/Wallow.Announcements.Domain/
 git commit -m "feat(announcements): move domain layer from Communications"
 ```
 
@@ -636,7 +636,7 @@ git commit -m "feat(announcements): move domain layer from Communications"
 - [ ] **Step 4:** Commit
 
 ```bash
-git add src/Modules/Announcements/Foundry.Announcements.Application/
+git add src/Modules/Announcements/Wallow.Announcements.Application/
 git commit -m "feat(announcements): move application layer from Communications"
 ```
 
@@ -656,7 +656,7 @@ git commit -m "feat(announcements): move application layer from Communications"
 - [ ] **Step 6:** Commit
 
 ```bash
-git add src/Modules/Announcements/Foundry.Announcements.Infrastructure/
+git add src/Modules/Announcements/Wallow.Announcements.Infrastructure/
 git commit -m "feat(announcements): move infrastructure layer from Communications"
 ```
 
@@ -671,7 +671,7 @@ git commit -m "feat(announcements): move infrastructure layer from Communication
 - [ ] **Step 3:** Commit
 
 ```bash
-git add src/Modules/Announcements/Foundry.Announcements.Api/
+git add src/Modules/Announcements/Wallow.Announcements.Api/
 git commit -m "feat(announcements): move API layer from Communications"
 ```
 
@@ -704,8 +704,8 @@ Move domain-specific event handlers from the old Communications module to their 
 ### Task 6.1: Create SendNotificationRequestedEventHandler in Notifications
 
 **Files:**
-- Create: `src/Modules/Notifications/Foundry.Notifications.Application/Channels/InApp/EventHandlers/SendNotificationRequestedEventHandler.cs`
-- Create: `tests/Modules/Notifications/Foundry.Notifications.Tests/Application/Channels/InApp/EventHandlers/SendNotificationRequestedEventHandlerTests.cs`
+- Create: `src/Modules/Notifications/Wallow.Notifications.Application/Channels/InApp/EventHandlers/SendNotificationRequestedEventHandler.cs`
+- Create: `tests/Modules/Notifications/Wallow.Notifications.Tests/Application/Channels/InApp/EventHandlers/SendNotificationRequestedEventHandlerTests.cs`
 
 - [ ] **Step 1:** Write the failing test for `SendNotificationRequestedEventHandler` — it should consume `SendNotificationRequestedEvent`, create a `Notification` entity, save it, and push via `INotificationService`. Test that it checks preferences (unless `IsCritical`).
 - [ ] **Step 2:** Run test to verify it fails
@@ -727,12 +727,12 @@ git commit -m "feat(notifications): add SendNotificationRequestedEventHandler"
 ### Task 6.2: Move UserRegistered and PasswordReset handlers to Identity
 
 **Files:**
-- Create: `src/Modules/Identity/Foundry.Identity.Application/EventHandlers/UserRegisteredEmailHandler.cs`
-- Create: `src/Modules/Identity/Foundry.Identity.Application/EventHandlers/UserRegisteredNotificationHandler.cs`
-- Create: `src/Modules/Identity/Foundry.Identity.Application/EventHandlers/PasswordResetRequestedHandler.cs`
+- Create: `src/Modules/Identity/Wallow.Identity.Application/EventHandlers/UserRegisteredEmailHandler.cs`
+- Create: `src/Modules/Identity/Wallow.Identity.Application/EventHandlers/UserRegisteredNotificationHandler.cs`
+- Create: `src/Modules/Identity/Wallow.Identity.Application/EventHandlers/PasswordResetRequestedHandler.cs`
 - Delete (from old Communications): `Channels/Email/EventHandlers/UserRegisteredEventHandler.cs`, `Channels/Email/EventHandlers/PasswordResetRequestedEventHandler.cs`, `Channels/InApp/EventHandlers/UserRegisteredEventHandler.cs`
 
-- [ ] **Step 0:** Add `WolverineFx` package reference to `src/Modules/Identity/Foundry.Identity.Application/Foundry.Identity.Application.csproj` — Identity currently has no Wolverine handlers; this is the first integration-event handler in Identity.Application
+- [ ] **Step 0:** Add `WolverineFx` package reference to `src/Modules/Identity/Wallow.Identity.Application/Wallow.Identity.Application.csproj` — Identity currently has no Wolverine handlers; this is the first integration-event handler in Identity.Application
 - [ ] **Step 1:** Write test for `UserRegisteredEmailHandler` — consumes `UserRegisteredEvent`, renders welcome email content, publishes `SendEmailRequestedEvent` via `IMessageBus`
 - [ ] **Step 2:** Implement `UserRegisteredEmailHandler`
 - [ ] **Step 3:** Write test for `UserRegisteredNotificationHandler` — consumes `UserRegisteredEvent`, publishes `SendNotificationRequestedEvent` with type `NotificationTypes.System`
@@ -750,7 +750,7 @@ git commit -m "feat(identity): add email/notification handlers for user registra
 ### Task 6.3: Move AnnouncementPublishedEventHandler to Announcements
 
 **Files:**
-- Create: `src/Modules/Announcements/Foundry.Announcements.Application/EventHandlers/AnnouncementPublishedNotificationHandler.cs`
+- Create: `src/Modules/Announcements/Wallow.Announcements.Application/EventHandlers/AnnouncementPublishedNotificationHandler.cs`
 - Move tests: Update `AnnouncementPublishedEventHandlerTests.cs` in Announcements.Tests
 
 - [ ] **Step 1:** Write test — on `AnnouncementPublishedEvent` for pinned/alert announcements, publishes `SendNotificationRequestedEvent` and `SendPushRequestedEvent` via `IMessageBus` (no longer calls `INotificationService` directly)
@@ -769,7 +769,7 @@ git commit -m "feat(announcements): add notification handler for published annou
 ### Task 6.4: Move InquirySubmittedEventHandler to Inquiries
 
 **Files:**
-- Create: `src/Modules/Inquiries/Foundry.Inquiries.Application/EventHandlers/InquirySubmittedEmailHandler.cs`
+- Create: `src/Modules/Inquiries/Wallow.Inquiries.Application/EventHandlers/InquirySubmittedEmailHandler.cs`
 - Delete (from old Communications): `EventHandlers/InquirySubmittedEventHandler.cs`
 
 - [ ] **Step 1:** Write test — consumes `InquirySubmittedEvent`, publishes two `SendEmailRequestedEvent`s (admin notification + submitter confirmation) via `IMessageBus`
@@ -803,8 +803,8 @@ Create EF Core migrations for the three new schemas. Use `ALTER TABLE SET SCHEMA
 
 ```bash
 dotnet ef migrations add InitialNotificationsSchema \
-    --project src/Modules/Notifications/Foundry.Notifications.Infrastructure \
-    --startup-project src/Foundry.Api \
+    --project src/Modules/Notifications/Wallow.Notifications.Infrastructure \
+    --startup-project src/Wallow.Api \
     --context NotificationsDbContext
 ```
 
@@ -823,7 +823,7 @@ migrationBuilder.Sql("ALTER TABLE communications.\"UserSettings\" SET SCHEMA not
 - [ ] **Step 3:** Commit
 
 ```bash
-git add src/Modules/Notifications/Foundry.Notifications.Infrastructure/Migrations/
+git add src/Modules/Notifications/Wallow.Notifications.Infrastructure/Migrations/
 git commit -m "feat(notifications): add schema migration from communications"
 ```
 
@@ -834,7 +834,7 @@ git commit -m "feat(notifications): add schema migration from communications"
 - [ ] **Step 3:** Commit
 
 ```bash
-git add src/Modules/Messaging/Foundry.Messaging.Infrastructure/Migrations/
+git add src/Modules/Messaging/Wallow.Messaging.Infrastructure/Migrations/
 git commit -m "feat(messaging): add schema migration from communications"
 ```
 
@@ -845,7 +845,7 @@ git commit -m "feat(messaging): add schema migration from communications"
 - [ ] **Step 3:** Commit
 
 ```bash
-git add src/Modules/Announcements/Foundry.Announcements.Infrastructure/Migrations/
+git add src/Modules/Announcements/Wallow.Announcements.Infrastructure/Migrations/
 git commit -m "feat(announcements): add schema migration from communications"
 ```
 
@@ -855,27 +855,27 @@ git commit -m "feat(announcements): add schema migration from communications"
 
 Wire the new modules into the application, update configuration, and remove the old Communications module.
 
-### Task 8.1: Update FoundryModules.cs, Foundry.Api.csproj, and Program.cs
+### Task 8.1: Update WallowModules.cs, Wallow.Api.csproj, and Program.cs
 
 **Files:**
-- Modify: `src/Foundry.Api/FoundryModules.cs`
-- Modify: `src/Foundry.Api/Foundry.Api.csproj`
-- Modify: `src/Foundry.Api/Program.cs`
+- Modify: `src/Wallow.Api/WallowModules.cs`
+- Modify: `src/Wallow.Api/Wallow.Api.csproj`
+- Modify: `src/Wallow.Api/Program.cs`
 
-- [ ] **Step 0:** Update `src/Foundry.Api/Foundry.Api.csproj` — remove the two Communications project references and add six new ones:
+- [ ] **Step 0:** Update `src/Wallow.Api/Wallow.Api.csproj` — remove the two Communications project references and add six new ones:
 
 ```xml
 <!-- Remove -->
-<ProjectReference Include="..\Modules\Communications\Foundry.Communications.Api\Foundry.Communications.Api.csproj" />
-<ProjectReference Include="..\Modules\Communications\Foundry.Communications.Infrastructure\Foundry.Communications.Infrastructure.csproj" />
+<ProjectReference Include="..\Modules\Communications\Wallow.Communications.Api\Wallow.Communications.Api.csproj" />
+<ProjectReference Include="..\Modules\Communications\Wallow.Communications.Infrastructure\Wallow.Communications.Infrastructure.csproj" />
 
 <!-- Add -->
-<ProjectReference Include="..\Modules\Notifications\Foundry.Notifications.Api\Foundry.Notifications.Api.csproj" />
-<ProjectReference Include="..\Modules\Notifications\Foundry.Notifications.Infrastructure\Foundry.Notifications.Infrastructure.csproj" />
-<ProjectReference Include="..\Modules\Messaging\Foundry.Messaging.Api\Foundry.Messaging.Api.csproj" />
-<ProjectReference Include="..\Modules\Messaging\Foundry.Messaging.Infrastructure\Foundry.Messaging.Infrastructure.csproj" />
-<ProjectReference Include="..\Modules\Announcements\Foundry.Announcements.Api\Foundry.Announcements.Api.csproj" />
-<ProjectReference Include="..\Modules\Announcements\Foundry.Announcements.Infrastructure\Foundry.Announcements.Infrastructure.csproj" />
+<ProjectReference Include="..\Modules\Notifications\Wallow.Notifications.Api\Wallow.Notifications.Api.csproj" />
+<ProjectReference Include="..\Modules\Notifications\Wallow.Notifications.Infrastructure\Wallow.Notifications.Infrastructure.csproj" />
+<ProjectReference Include="..\Modules\Messaging\Wallow.Messaging.Api\Wallow.Messaging.Api.csproj" />
+<ProjectReference Include="..\Modules\Messaging\Wallow.Messaging.Infrastructure\Wallow.Messaging.Infrastructure.csproj" />
+<ProjectReference Include="..\Modules\Announcements\Wallow.Announcements.Api\Wallow.Announcements.Api.csproj" />
+<ProjectReference Include="..\Modules\Announcements\Wallow.Announcements.Infrastructure\Wallow.Announcements.Infrastructure.csproj" />
 ```
 
 - [ ] **Step 1:** Replace `Modules.Communications` registration with three new registrations:
@@ -897,25 +897,25 @@ if (featureManager.IsEnabledAsync("Modules.Announcements").GetAwaiter().GetResul
 }
 ```
 
-- [ ] **Step 2:** Update `InitializeFoundryModulesAsync` similarly — replace `InitializeCommunicationsModuleAsync` with three new calls
+- [ ] **Step 2:** Update `InitializeWallowModulesAsync` similarly — replace `InitializeCommunicationsModuleAsync` with three new calls
 - [ ] **Step 3:** Add `using` statements for new module extensions
-- [ ] **Step 4:** Update `src/Foundry.Api/Program.cs` — change Hangfire job registration from `Foundry.Communications.Infrastructure.Jobs.RetryFailedEmailsJob` to `Foundry.Notifications.Infrastructure.Jobs.RetryFailedEmailsJob`. Update the `using` statement accordingly.
-- [ ] **Step 5:** Verify build: `dotnet build src/Foundry.Api/`
+- [ ] **Step 4:** Update `src/Wallow.Api/Program.cs` — change Hangfire job registration from `Wallow.Communications.Infrastructure.Jobs.RetryFailedEmailsJob` to `Wallow.Notifications.Infrastructure.Jobs.RetryFailedEmailsJob`. Update the `using` statement accordingly.
+- [ ] **Step 5:** Verify build: `dotnet build src/Wallow.Api/`
 - [ ] **Step 6:** Commit
 
 ```bash
-git add src/Foundry.Api/FoundryModules.cs src/Foundry.Api/Foundry.Api.csproj src/Foundry.Api/Program.cs
-git commit -m "feat: wire Notifications, Messaging, Announcements modules in FoundryModules"
+git add src/Wallow.Api/WallowModules.cs src/Wallow.Api/Wallow.Api.csproj src/Wallow.Api/Program.cs
+git commit -m "feat: wire Notifications, Messaging, Announcements modules in WallowModules"
 ```
 
 ### Task 8.2: Update appsettings.json
 
 **Files:**
-- Modify: `src/Foundry.Api/appsettings.json`
-- Modify: `src/Foundry.Api/appsettings.Development.json` (if exists)
-- Modify: `src/Foundry.Api/appsettings.Production.json` (if exists)
-- Modify: `src/Foundry.Api/appsettings.Staging.json` (if exists)
-- Modify: `src/Foundry.Api/appsettings.Testing.json` (if exists)
+- Modify: `src/Wallow.Api/appsettings.json`
+- Modify: `src/Wallow.Api/appsettings.Development.json` (if exists)
+- Modify: `src/Wallow.Api/appsettings.Production.json` (if exists)
+- Modify: `src/Wallow.Api/appsettings.Staging.json` (if exists)
+- Modify: `src/Wallow.Api/appsettings.Testing.json` (if exists)
 
 - [ ] **Step 1:** Replace `"Modules.Communications": true` with:
 
@@ -925,11 +925,11 @@ git commit -m "feat: wire Notifications, Messaging, Announcements modules in Fou
 "Modules.Announcements": true
 ```
 
-- [ ] **Step 2:** Remove any `Foundry.Modules.Communications` entry if present in the vestigial `Foundry.Modules` section
+- [ ] **Step 2:** Remove any `Wallow.Modules.Communications` entry if present in the vestigial `Wallow.Modules` section
 - [ ] **Step 3:** Commit
 
 ```bash
-git add src/Foundry.Api/appsettings*.json
+git add src/Wallow.Api/appsettings*.json
 git commit -m "chore: update feature flags for new module structure"
 ```
 
@@ -938,17 +938,17 @@ git commit -m "chore: update feature flags for new module structure"
 **Files:**
 - Delete: entire `src/Modules/Communications/` directory
 - Delete: entire `tests/Modules/Communications/` directory
-- Modify: `Foundry.sln` — remove old project references
+- Modify: `Wallow.sln` — remove old project references
 
 - [ ] **Step 1:** Remove Communications projects from solution:
 
 ```bash
-dotnet sln Foundry.sln remove \
-    src/Modules/Communications/Foundry.Communications.Domain/Foundry.Communications.Domain.csproj \
-    src/Modules/Communications/Foundry.Communications.Application/Foundry.Communications.Application.csproj \
-    src/Modules/Communications/Foundry.Communications.Infrastructure/Foundry.Communications.Infrastructure.csproj \
-    src/Modules/Communications/Foundry.Communications.Api/Foundry.Communications.Api.csproj \
-    tests/Modules/Communications/Foundry.Communications.Tests/Foundry.Communications.Tests.csproj
+dotnet sln Wallow.sln remove \
+    src/Modules/Communications/Wallow.Communications.Domain/Wallow.Communications.Domain.csproj \
+    src/Modules/Communications/Wallow.Communications.Application/Wallow.Communications.Application.csproj \
+    src/Modules/Communications/Wallow.Communications.Infrastructure/Wallow.Communications.Infrastructure.csproj \
+    src/Modules/Communications/Wallow.Communications.Api/Wallow.Communications.Api.csproj \
+    tests/Modules/Communications/Wallow.Communications.Tests/Wallow.Communications.Tests.csproj
 ```
 
 - [ ] **Step 2:** Delete the directories:
@@ -968,10 +968,10 @@ git commit -m "chore: remove old Communications module"
 
 ### Task 8.4: Update any remaining cross-codebase references
 
-- [ ] **Step 1:** Search for any remaining `Foundry.Communications` references:
+- [ ] **Step 1:** Search for any remaining `Wallow.Communications` references:
 
 ```bash
-grep -r "Foundry.Communications" src/ tests/ --include="*.cs" --include="*.csproj"
+grep -r "Wallow.Communications" src/ tests/ --include="*.cs" --include="*.csproj"
 ```
 
 - [ ] **Step 2:** Fix any remaining references (architecture tests, shared infrastructure, etc.)
@@ -1017,15 +1017,15 @@ Expected: All tests pass
 - [ ] **Step 3:** Run module-specific tests to verify isolation:
 
 ```bash
-dotnet test tests/Modules/Notifications/Foundry.Notifications.Tests/
-dotnet test tests/Modules/Messaging/Foundry.Messaging.Tests/
-dotnet test tests/Modules/Announcements/Foundry.Announcements.Tests/
+dotnet test tests/Modules/Notifications/Wallow.Notifications.Tests/
+dotnet test tests/Modules/Messaging/Wallow.Messaging.Tests/
+dotnet test tests/Modules/Announcements/Wallow.Announcements.Tests/
 ```
 
 - [ ] **Step 4:** Verify architecture tests still pass (if they exist):
 
 ```bash
-dotnet test tests/Foundry.Architecture.Tests/
+dotnet test tests/Wallow.Architecture.Tests/
 ```
 
 - [ ] **Step 5:** Commit any fixes
@@ -1033,9 +1033,9 @@ dotnet test tests/Foundry.Architecture.Tests/
 ### Task 9.2: Update architecture tests
 
 **Files:**
-- Modify: `tests/Foundry.Architecture.Tests/ModuleRegistrationTests.cs`
-- Modify: `tests/Foundry.Architecture.Tests/Modules/ModuleToggleTests.cs`
-- Modify: `tests/Foundry.Architecture.Tests/MultiTenancyArchitectureTests.cs`
+- Modify: `tests/Wallow.Architecture.Tests/ModuleRegistrationTests.cs`
+- Modify: `tests/Wallow.Architecture.Tests/Modules/ModuleToggleTests.cs`
+- Modify: `tests/Wallow.Architecture.Tests/MultiTenancyArchitectureTests.cs`
 
 - [ ] **Step 1:** In `ModuleRegistrationTests.cs`:
   - Replace `[InlineData("Communications")]` with `[InlineData("Notifications")]`, `[InlineData("Messaging")]`, `[InlineData("Announcements")]` in both `Module_ShouldProvide_AddModuleExtensionMethod` and `Module_ShouldProvide_InitializeModuleExtensionMethod`
@@ -1048,11 +1048,11 @@ dotnet test tests/Foundry.Architecture.Tests/
 - [ ] **Step 3:** In `MultiTenancyArchitectureTests.cs`:
   - Replace `"Communications"` in `_tenantAwareModules` with `"Notifications"`, `"Messaging"`, `"Announcements"`
 
-- [ ] **Step 4:** Verify: `dotnet test tests/Foundry.Architecture.Tests/`
+- [ ] **Step 4:** Verify: `dotnet test tests/Wallow.Architecture.Tests/`
 - [ ] **Step 5:** Commit
 
 ```bash
-git add tests/Foundry.Architecture.Tests/
+git add tests/Wallow.Architecture.Tests/
 git commit -m "test: update architecture tests for new module structure"
 ```
 

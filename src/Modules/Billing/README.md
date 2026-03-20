@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Billing module manages the complete financial lifecycle for the Foundry platform, including invoices, payments, and subscriptions. It provides a rich domain model with state machine-based transitions, multi-tenant isolation, and event-driven integration with other modules via RabbitMQ.
+The Billing module manages the complete financial lifecycle for the Wallow platform, including invoices, payments, and subscriptions. It provides a rich domain model with state machine-based transitions, multi-tenant isolation, and event-driven integration with other modules via RabbitMQ.
 
 This module demonstrates Clean Architecture with CQRS patterns, using Wolverine for command/query handling and domain event dispatching. All financial records are tenant-scoped and support GDPR compliance through data export and erasure capabilities.
 
@@ -22,10 +22,10 @@ The module follows Clean Architecture with four layers:
 
 ```
 src/Modules/Billing/
-+-- Foundry.Billing.Domain         # Entities, Value Objects, Domain Events
-+-- Foundry.Billing.Application    # Commands, Queries, Handlers, DTOs
-+-- Foundry.Billing.Infrastructure # EF Core, Repositories, Compliance
-+-- Foundry.Billing.Api            # Controllers, Request/Response Contracts
++-- Wallow.Billing.Domain         # Entities, Value Objects, Domain Events
++-- Wallow.Billing.Application    # Commands, Queries, Handlers, DTOs
++-- Wallow.Billing.Infrastructure # EF Core, Repositories, Compliance
++-- Wallow.Billing.Api            # Controllers, Request/Response Contracts
 ```
 
 ### Data Flow
@@ -265,7 +265,7 @@ Internal events raised by aggregate roots during state transitions.
 
 ## Integration Events
 
-Events published to RabbitMQ for cross-module communication. Defined in `Foundry.Shared.Contracts`.
+Events published to RabbitMQ for cross-module communication. Defined in `Wallow.Shared.Contracts`.
 
 ### Published Events
 
@@ -322,7 +322,7 @@ The module requires a PostgreSQL connection string configured in `appsettings.js
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Host=localhost;Database=foundry;Username=postgres;Password=..."
+    "DefaultConnection": "Host=localhost;Database=wallow;Username=postgres;Password=..."
   }
 }
 ```
@@ -347,8 +347,8 @@ await app.UseBillingModuleAsync();
 
 | Project | Purpose |
 |---------|---------|
-| `Foundry.Shared.Kernel` | Base entities, value objects, multi-tenancy, Result pattern |
-| `Foundry.Shared.Contracts` | Integration event definitions |
+| `Wallow.Shared.Kernel` | Base entities, value objects, multi-tenancy, Result pattern |
+| `Wallow.Shared.Contracts` | Integration event definitions |
 
 ### External Packages
 
@@ -463,13 +463,13 @@ dotnet test tests/Modules/Billing/Modules.Billing.Tests --filter "FullyQualified
 ```bash
 # Add a new migration
 dotnet ef migrations add MigrationName \
-    --project src/Modules/Billing/Foundry.Billing.Infrastructure \
-    --startup-project src/Foundry.Api \
+    --project src/Modules/Billing/Wallow.Billing.Infrastructure \
+    --startup-project src/Wallow.Api \
     --context BillingDbContext
 
 # Apply migrations (also runs automatically on startup)
 dotnet ef database update \
-    --project src/Modules/Billing/Foundry.Billing.Infrastructure \
-    --startup-project src/Foundry.Api \
+    --project src/Modules/Billing/Wallow.Billing.Infrastructure \
+    --startup-project src/Wallow.Api \
     --context BillingDbContext
 ```

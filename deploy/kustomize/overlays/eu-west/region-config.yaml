@@ -1,8 +1,8 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: foundry-region-config
+  name: wallow-region-config
 data:
-  FOUNDRY_REGION: "eu-west"
-  AWS__S3__BucketName: "foundry-assets-eu-west"
+  WALLOW_REGION: "eu-west"
+  AWS__S3__BucketName: "wallow-assets-eu-west"
   AWS__S3__Region: "eu-west-1"

@@ -1,10 +1,10 @@
 # File Storage Guide
 
-This guide covers file management in Foundry, including raw storage operations and domain-level asset management.
+This guide covers file management in Wallow, including raw storage operations and domain-level asset management.
 
 ## Overview
 
-Foundry provides file management through the **Storage** module, which offers a raw file storage abstraction supporting multiple backends.
+Wallow provides file management through the **Storage** module, which offers a raw file storage abstraction supporting multiple backends.
 
 ### When to Use Storage
 
@@ -57,7 +57,7 @@ The Storage module provides raw file storage abstraction supporting multiple bac
 The core abstraction for storage backends:
 
 ```csharp
-// src/Shared/Foundry.Shared.Contracts/Storage/IStorageProvider.cs
+// src/Shared/Wallow.Shared.Contracts/Storage/IStorageProvider.cs
 public interface IStorageProvider
 {
     /// <summary>
@@ -104,7 +104,7 @@ public interface IStorageProvider
 For development environments, files are stored on the local filesystem:
 
 ```csharp
-// src/Modules/Storage/Foundry.Storage.Infrastructure/Providers/LocalStorageProvider.cs
+// src/Modules/Storage/Wallow.Storage.Infrastructure/Providers/LocalStorageProvider.cs
 public sealed class LocalStorageProvider : IStorageProvider
 {
     public async Task<string> UploadAsync(
@@ -152,7 +152,7 @@ public sealed class LocalStorageProvider : IStorageProvider
 For production environments, use any S3-compatible storage:
 
 ```csharp
-// src/Modules/Storage/Foundry.Storage.Infrastructure/Providers/S3StorageProvider.cs
+// src/Modules/Storage/Wallow.Storage.Infrastructure/Providers/S3StorageProvider.cs
 public sealed class S3StorageProvider : IStorageProvider, IDisposable
 {
     private readonly IAmazonS3 _s3Client;
@@ -309,14 +309,14 @@ await using var stream = await _storageProvider.DownloadAsync(storageKey, ct);
   "Storage": {
     "Provider": "Local",  // Options: "Local", "S3"
     "Local": {
-      "BasePath": "/var/foundry/storage",
+      "BasePath": "/var/wallow/storage",
       "BaseUrl": "http://localhost:5000"
     },
     "S3": {
       "Endpoint": "http://localhost:9000",
       "AccessKey": "minioadmin",
       "SecretKey": "minioadmin",
-      "BucketName": "foundry-files",
+      "BucketName": "wallow-files",
       "UsePathStyle": true,
       "Region": "us-east-1"
     }
@@ -329,7 +329,7 @@ await using var stream = await _storageProvider.DownloadAsync(storageKey, ct);
 Configuration options for S3-compatible storage:
 
 ```csharp
-// src/Modules/Storage/Foundry.Storage.Infrastructure/Configuration/StorageOptions.cs
+// src/Modules/Storage/Wallow.Storage.Infrastructure/Configuration/StorageOptions.cs
 public sealed class StorageOptions
 {
     public const string SectionName = "Storage";
@@ -388,7 +388,7 @@ public sealed class S3StorageOptions
       "Endpoint": "http://minio:9000",
       "AccessKey": "minioadmin",
       "SecretKey": "minioadmin",
-      "BucketName": "foundry",
+      "BucketName": "wallow",
       "UsePathStyle": true,
       "Region": "us-east-1"
     }
@@ -403,7 +403,7 @@ public sealed class S3StorageOptions
   "Storage": {
     "Provider": "Local",
     "Local": {
-      "BasePath": "/var/foundry/storage",
+      "BasePath": "/var/wallow/storage",
       "BaseUrl": "http://localhost:5000"
     }
   }
@@ -444,7 +444,7 @@ Response:
 The controllers use ASP.NET Core's `IFormFile` for multipart handling:
 
 ```csharp
-// src/Modules/Storage/Foundry.Storage.Api/Controllers/StorageController.cs
+// src/Modules/Storage/Wallow.Storage.Api/Controllers/StorageController.cs
 [HttpPost("upload")]
 [RequestSizeLimit(100 * 1024 * 1024)] // 100MB limit
 [Consumes("multipart/form-data")]
@@ -482,7 +482,7 @@ public async Task<IActionResult> Upload(
 Storage buckets enforce validation rules:
 
 ```csharp
-// src/Modules/Storage/Foundry.Storage.Domain/Entities/StorageBucket.cs
+// src/Modules/Storage/Wallow.Storage.Domain/Entities/StorageBucket.cs
 public bool IsContentTypeAllowed(string contentType)
 {
     if (string.IsNullOrEmpty(AllowedContentTypes))
@@ -580,7 +580,7 @@ Client Request
          │ (cache miss)
          ▼
 ┌──────────────────┐
-│   Foundry API    │  Generate presigned URL
+│   Wallow API    │  Generate presigned URL
 └────────┬─────────┘
          │
          ▼
@@ -594,7 +594,7 @@ Client Request
 Files respect tenant isolation and access levels:
 
 ```csharp
-// src/Modules/Storage/Foundry.Storage.Domain/Entities/StoredFile.cs
+// src/Modules/Storage/Wallow.Storage.Domain/Entities/StoredFile.cs
 public sealed class StoredFile : Entity<StoredFileId>, ITenantScoped
 {
     public TenantId TenantId { get; set; }     // Enforces tenant isolation
@@ -635,7 +635,7 @@ tenant-def456/products/sku-456/images/main.webp
 The default implementation uses tenant prefix in path:
 
 ```csharp
-// src/Modules/Storage/Foundry.Storage.Application/Commands/UploadFile/UploadFileHandler.cs
+// src/Modules/Storage/Wallow.Storage.Application/Commands/UploadFile/UploadFileHandler.cs
 private static string BuildStorageKey(
     Guid tenantId,
     string bucketName,
@@ -749,7 +749,7 @@ if (result.IsSuccess)
 // Enable detailed logging
 "Logging": {
   "LogLevel": {
-    "Foundry.Storage": "Debug"
+    "Wallow.Storage": "Debug"
   }
 }
 ```

@@ -1,8 +1,8 @@
-using Foundry.Shared.Kernel.Results;
-using Foundry.Showcases.Domain.Entities;
-using Foundry.Showcases.Domain.Enums;
+using Wallow.Shared.Kernel.Results;
+using Wallow.Showcases.Domain.Entities;
+using Wallow.Showcases.Domain.Enums;
 
-namespace Foundry.Showcases.Domain.Tests;
+namespace Wallow.Showcases.Domain.Tests;
 
 public class ShowcasePublishTests
 {

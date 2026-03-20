@@ -11,7 +11,7 @@
 ### HIGH-1 (Tenant): Presence Service Has No Tenant Isolation
 - **Original Severity:** HIGH
 - **Verdict:** CONFIRMED
-- **Evidence:** `src/Foundry.Api/Services/RedisPresenceService.cs:10-13` -- Redis keys are flat globals with no tenant prefix:
+- **Evidence:** `src/Wallow.Api/Services/RedisPresenceService.cs:10-13` -- Redis keys are flat globals with no tenant prefix:
   ```csharp
   private const string ConnectionToUserKey = "presence:conn2user";
   private const string UserConnectionsPrefix = "presence:user:";
@@ -46,7 +46,7 @@
 ### MEDIUM-2 (Tenant): Admin Tenant Override Lacks Audit Trail Persistence
 - **Original Severity:** MEDIUM
 - **Verdict:** CONFIRMED
-- **Evidence:** `src/Modules/Identity/Foundry.Identity.Infrastructure/MultiTenancy/TenantResolutionMiddleware.cs:40-51` -- The admin override at line 42-50 checks `HasRealmAdminRole()` (line 75-106) which only requires the generic "admin" role. At line 49, `tenantSetter.SetTenant(TenantId.Create(overrideId))` is called with any arbitrary GUID -- no validation that the tenant exists. The log at line 50 (`LogAdminTenantOverride`) goes to Serilog only (line 181), with no persistent audit trail.
+- **Evidence:** `src/Modules/Identity/Wallow.Identity.Infrastructure/MultiTenancy/TenantResolutionMiddleware.cs:40-51` -- The admin override at line 42-50 checks `HasRealmAdminRole()` (line 75-106) which only requires the generic "admin" role. At line 49, `tenantSetter.SetTenant(TenantId.Create(overrideId))` is called with any arbitrary GUID -- no validation that the tenant exists. The log at line 50 (`LogAdminTenantOverride`) goes to Serilog only (line 181), with no persistent audit trail.
 - **Adjusted Severity:** MEDIUM (confirmed as-is)
 - **Notes:** The scout's analysis is accurate. Three sub-issues are real: (1) broad "admin" role grants cross-tenant access, (2) no target tenant existence validation, (3) audit only via logs. However, the practical risk depends on how "admin" role assignment is controlled in Keycloak, which is an operational concern.
 
@@ -55,7 +55,7 @@
 ### MEDIUM-3 (Tenant): Dapper Participants Query Missing Tenant Filter
 - **Original Severity:** MEDIUM
 - **Verdict:** PARTIALLY CONFIRMED (severity overestimated)
-- **Evidence:** `src/Modules/Communications/Foundry.Communications.Infrastructure/Services/MessagingQueryService.cs:203-211` -- The participants sub-query at lines 203-211 indeed has no `tenant_id` filter:
+- **Evidence:** `src/Modules/Communications/Wallow.Communications.Infrastructure/Services/MessagingQueryService.cs:203-211` -- The participants sub-query at lines 203-211 indeed has no `tenant_id` filter:
   ```sql
   FROM communications.participants
   WHERE conversation_id = ANY(@ConversationIds)
@@ -71,7 +71,7 @@
 ### MEDIUM-4 (Tenant): ApiKeyAuthenticationMiddleware Sets TenantContext Directly
 - **Original Severity:** MEDIUM
 - **Verdict:** CONFIRMED
-- **Evidence:** `src/Modules/Identity/Foundry.Identity.Infrastructure/Authorization/ApiKeyAuthenticationMiddleware.cs:30-33` injects `TenantContext tenantContext` (concrete type, not interface). Lines 91-94 set properties directly:
+- **Evidence:** `src/Modules/Identity/Wallow.Identity.Infrastructure/Authorization/ApiKeyAuthenticationMiddleware.cs:30-33` injects `TenantContext tenantContext` (concrete type, not interface). Lines 91-94 set properties directly:
   ```csharp
   tenantContext.TenantId = TenantId.Create(result.TenantId!.Value);
   tenantContext.TenantName = $"api-key-{result.KeyId}";
@@ -86,7 +86,7 @@
 ### MEDIUM-5 (Tenant): AllTenants() Extension Is Too Easily Accessible
 - **Original Severity:** MEDIUM
 - **Verdict:** PARTIALLY CONFIRMED
-- **Evidence:** `src/Shared/Foundry.Shared.Kernel/MultiTenancy/TenantQueryExtensions.cs:7-14` -- The method is indeed `public static` and accessible from any module. However, the scout noted "Current usages in production code: None found in `src/`" -- and I confirmed only `IgnoreQueryFilters()` is used directly in production code (at `QuotaDefinitionRepository.cs:46`, `MeteringDbSeeder.cs:69`, and `ServiceAccountRepository.cs:31`), not the `AllTenants()` wrapper. The `AllTenants()` method has a clear XML doc comment warning at lines 7-10.
+- **Evidence:** `src/Shared/Wallow.Shared.Kernel/MultiTenancy/TenantQueryExtensions.cs:7-14` -- The method is indeed `public static` and accessible from any module. However, the scout noted "Current usages in production code: None found in `src/`" -- and I confirmed only `IgnoreQueryFilters()` is used directly in production code (at `QuotaDefinitionRepository.cs:46`, `MeteringDbSeeder.cs:69`, and `ServiceAccountRepository.cs:31`), not the `AllTenants()` wrapper. The `AllTenants()` method has a clear XML doc comment warning at lines 7-10.
 - **Adjusted Severity:** LOW (downgraded from MEDIUM). The method exists but is unused in production. The existing `IgnoreQueryFilters()` usages are justified. An architecture test would be a good improvement but the current risk is theoretical.
 - **Notes:** The scout's recommendation for an architecture test is sound. The fact that the method is unused weakens the severity.
 
@@ -104,7 +104,7 @@
 ### LOW-2 (Tenant): Redis API Key Storage Has No Tenant Namespace Isolation
 - **Original Severity:** LOW
 - **Verdict:** CONFIRMED (by design, not a vulnerability)
-- **Evidence:** `src/Modules/Identity/Foundry.Identity.Infrastructure/Services/RedisApiKeyService.cs:18-19` -- Flat namespace `apikey:{hash}` and `apikeys:user:{userId}`. Lines 104-180 show validation looks up by hash (which is globally unique per key). The `ListApiKeysAsync` at line 182 returns all keys for a userId, but since Keycloak generates unique GUIDs, user ID overlap across tenants is not realistic. Furthermore, `RevokeApiKeyAsync` at line 239 checks `data.UserId != userId` before allowing revocation.
+- **Evidence:** `src/Modules/Identity/Wallow.Identity.Infrastructure/Services/RedisApiKeyService.cs:18-19` -- Flat namespace `apikey:{hash}` and `apikeys:user:{userId}`. Lines 104-180 show validation looks up by hash (which is globally unique per key). The `ListApiKeysAsync` at line 182 returns all keys for a userId, but since Keycloak generates unique GUIDs, user ID overlap across tenants is not realistic. Furthermore, `RevokeApiKeyAsync` at line 239 checks `data.UserId != userId` before allowing revocation.
 - **Adjusted Severity:** LOW (confirmed, by design)
 - **Notes:** Correct assessment by scout. The design is appropriate for authentication flow.
 
@@ -113,7 +113,7 @@
 ### LOW-3 (Tenant): Wolverine TenantRestoringMiddleware Trusts Message Headers
 - **Original Severity:** LOW
 - **Verdict:** CONFIRMED (by design, not a code vulnerability)
-- **Evidence:** `src/Shared/Foundry.Shared.Infrastructure.Core/Middleware/TenantRestoringMiddleware.cs:9-20` -- The middleware reads `X-Tenant-Id` from Wolverine's `Envelope.Headers` and calls `tenantContextSetter.SetTenant()`. This is internal messaging infrastructure, not HTTP headers exposed to external clients.
+- **Evidence:** `src/Shared/Wallow.Shared.Infrastructure.Core/Middleware/TenantRestoringMiddleware.cs:9-20` -- The middleware reads `X-Tenant-Id` from Wolverine's `Envelope.Headers` and calls `tenantContextSetter.SetTenant()`. This is internal messaging infrastructure, not HTTP headers exposed to external clients.
 - **Adjusted Severity:** LOW (confirmed)
 - **Notes:** The scout correctly noted this is an infrastructure-level concern. The trust model is standard for internal message bus patterns.
 
@@ -122,7 +122,7 @@
 ### LOW-4 (Tenant): SignalR Group Validation Only Applies to "tenant:" Prefixed Groups
 - **Original Severity:** LOW
 - **Verdict:** CONFIRMED
-- **Evidence:** `src/Foundry.Api/Hubs/RealtimeHub.cs:87-108` -- `ValidateTenantGroup()` returns early (line 91) for non-`tenant:` prefixed groups. The `page:` groups at line 76 are added without tenant validation. However, the hub is `[Authorize]` (line 9), so only authenticated users can join groups. The page groups are used for presence broadcasting (line 78-84), where the cross-tenant presence issue (HIGH-1) is the real problem.
+- **Evidence:** `src/Wallow.Api/Hubs/RealtimeHub.cs:87-108` -- `ValidateTenantGroup()` returns early (line 91) for non-`tenant:` prefixed groups. The `page:` groups at line 76 are added without tenant validation. However, the hub is `[Authorize]` (line 9), so only authenticated users can join groups. The page groups are used for presence broadcasting (line 78-84), where the cross-tenant presence issue (HIGH-1) is the real problem.
 - **Adjusted Severity:** LOW (confirmed)
 - **Notes:** The real risk is in HIGH-1 (presence data itself). Group names are just broadcast channels and don't expose data beyond what the server sends. An allowlist would be a minor hardening measure.
 
@@ -133,15 +133,15 @@
 ### HIGH-1 (DB): Hardcoded Redis Password in appsettings.json
 - **Original Severity:** HIGH
 - **Verdict:** CONFIRMED
-- **Evidence:** `src/Foundry.Api/appsettings.json:15`:
+- **Evidence:** `src/Wallow.Api/appsettings.json:15`:
   ```json
-  "Redis": "localhost:6379,password=FoundryValkey123!,abortConnect=false"
+  "Redis": "localhost:6379,password=WallowValkey123!,abortConnect=false"
   ```
-  Also in `src/Foundry.Api/appsettings.Development.json:4`:
+  Also in `src/Wallow.Api/appsettings.Development.json:4`:
   ```json
-  "Redis": "localhost:6379,password=FoundryValkey123!,abortConnect=false"
+  "Redis": "localhost:6379,password=WallowValkey123!,abortConnect=false"
   ```
-  The password `FoundryValkey123!` matches the docker `.env` at line 27: `VALKEY_PASSWORD=FoundryValkey123!`. Contrast with the PostgreSQL connection string in `appsettings.json:14` which correctly uses a placeholder: `Password=SET_VIA_ConnectionStrings__DefaultConnection_OR_USER_SECRETS`. The Redis connection string does not follow this pattern.
+  The password `WallowValkey123!` matches the docker `.env` at line 27: `VALKEY_PASSWORD=WallowValkey123!`. Contrast with the PostgreSQL connection string in `appsettings.json:14` which correctly uses a placeholder: `Password=SET_VIA_ConnectionStrings__DefaultConnection_OR_USER_SECRETS`. The Redis connection string does not follow this pattern.
 - **Adjusted Severity:** MEDIUM (downgraded from HIGH). This is a local development credential that matches docker-compose defaults. The actual risk is that teams forking this repo may forget to change it for staging/production. However, this is NOT a production credential leak -- it is a dev default. The base `appsettings.json` is typically overridden by environment-specific configuration or environment variables in production deployments.
 - **Notes:** The inconsistency with other connection strings is the real issue. The fix (use placeholder pattern) is simple and appropriate. Downgraded because the password is a known docker-compose default, not a real secret.
 
@@ -154,7 +154,7 @@
 
   Looking at the file contents, line 1-2 includes a comment: "# Environment Configuration / # Copy to .env and modify for your environment" -- this is self-documenting as a template.
 
-  The credentials are all well-known defaults (`guest/guest` for RabbitMQ, `admin/admin` for Keycloak, `foundry/foundry` for Postgres). These are standard local development defaults, not real secrets.
+  The credentials are all well-known defaults (`guest/guest` for RabbitMQ, `admin/admin` for Keycloak, `wallow/wallow` for Postgres). These are standard local development defaults, not real secrets.
 - **Adjusted Severity:** LOW (downgraded from MEDIUM). The `.gitignore` already excludes `docker/.env`. If the file is tracked despite this, a `git rm --cached` would fix it. The credentials are standard local-dev defaults.
 - **Notes:** The scout missed that `docker/.env` is already in `.gitignore` (line 45). The recommendation to rename to `.env.example` is still reasonable but the urgency is lower than stated. Verification of whether the file is actually tracked in git is needed.
 
@@ -164,11 +164,11 @@
 - **Original Severity:** MEDIUM
 - **Verdict:** CONFIRMED
 - **Evidence:**
-  - `BillingDbContextFactory.cs:17`: `"Host=localhost;Database=foundry;Username=postgres;Password=postgres"` (note: different creds than docker config which uses `foundry/foundry`)
-  - `ConfigurationDbContextFactory.cs:18-19`: `"Host=localhost;Database=foundry;Username=foundry;Password=foundry"`
-  - `StorageDbContextFactory.cs:16`: `"Host=localhost;Database=foundry;Username=foundry;Password=foundry"`
+  - `BillingDbContextFactory.cs:17`: `"Host=localhost;Database=wallow;Username=postgres;Password=postgres"` (note: different creds than docker config which uses `wallow/wallow`)
+  - `ConfigurationDbContextFactory.cs:18-19`: `"Host=localhost;Database=wallow;Username=wallow;Password=wallow"`
+  - `StorageDbContextFactory.cs:16`: `"Host=localhost;Database=wallow;Username=wallow;Password=wallow"`
 
-  These are `IDesignTimeDbContextFactory` implementations, used exclusively by `dotnet ef migrations` CLI tooling. They never execute at runtime. The inconsistency (`postgres/postgres` vs `foundry/foundry`) in the Billing factory confirms copy-paste.
+  These are `IDesignTimeDbContextFactory` implementations, used exclusively by `dotnet ef migrations` CLI tooling. They never execute at runtime. The inconsistency (`postgres/postgres` vs `wallow/wallow`) in the Billing factory confirms copy-paste.
 - **Adjusted Severity:** LOW (downgraded from MEDIUM). Design-time factories never execute at runtime. The credentials are localhost defaults. The inconsistency is a code quality issue, not a security vulnerability.
 - **Notes:** The scout acknowledged "Low direct risk (design-time only)" but still rated MEDIUM. I believe LOW is more appropriate given these are never used at runtime and the credentials are localhost defaults.
 
@@ -233,7 +233,7 @@
 ### LOW-3 (DB): DomainException Messages Exposed in Non-Development Environments
 - **Original Severity:** LOW
 - **Verdict:** CONFIRMED
-- **Evidence:** `src/Foundry.Api/Middleware/GlobalExceptionHandler.cs:91-95`:
+- **Evidence:** `src/Wallow.Api/Middleware/GlobalExceptionHandler.cs:91-95`:
   ```csharp
   if (exception is DomainException domainException)
   {
@@ -250,7 +250,7 @@
 ### LOW-4 (DB): Audit Trail Records Full Entity Values Including Potentially Sensitive Fields
 - **Original Severity:** LOW
 - **Verdict:** CONFIRMED
-- **Evidence:** `src/Shared/Foundry.Shared.Infrastructure.Core/Auditing/AuditInterceptor.cs:139-153` -- The `SerializeValues` method at line 139 iterates all properties and checks for `[AuditIgnore]` attribute as an opt-out mechanism. If a developer adds a new sensitive field without `[AuditIgnore]`, it will be logged. However, SSO secrets are encrypted via EF Core value converters before they reach SaveChanges (confirmed by INFO-3 in the DB sweep -- `IdentityDbContext.cs:35-36`), so even without `[AuditIgnore]`, the audit log would contain the encrypted value, not plaintext.
+- **Evidence:** `src/Shared/Wallow.Shared.Infrastructure.Core/Auditing/AuditInterceptor.cs:139-153` -- The `SerializeValues` method at line 139 iterates all properties and checks for `[AuditIgnore]` attribute as an opt-out mechanism. If a developer adds a new sensitive field without `[AuditIgnore]`, it will be logged. However, SSO secrets are encrypted via EF Core value converters before they reach SaveChanges (confirmed by INFO-3 in the DB sweep -- `IdentityDbContext.cs:35-36`), so even without `[AuditIgnore]`, the audit log would contain the encrypted value, not plaintext.
 - **Adjusted Severity:** LOW (confirmed, but mitigated for SSO secrets)
 - **Notes:** The opt-out model is a reasonable concern. The SSO secrets case is partially mitigated by encryption at the EF Core layer. The primary risk is for future sensitive fields where developers forget to add `[AuditIgnore]`.
 

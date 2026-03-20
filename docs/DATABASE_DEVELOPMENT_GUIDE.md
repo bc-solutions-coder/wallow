@@ -1,10 +1,10 @@
 # Database Development Guide
 
-This guide covers database development patterns and practices in Foundry. The platform uses PostgreSQL as its primary database with EF Core for all modules, plus Dapper for complex read queries.
+This guide covers database development patterns and practices in Wallow. The platform uses PostgreSQL as its primary database with EF Core for all modules, plus Dapper for complex read queries.
 
 ## Overview
 
-Foundry uses EF Core as the primary ORM for all modules:
+Wallow uses EF Core as the primary ORM for all modules:
 
 | Approach | Technology | Use Case | Modules |
 |----------|------------|----------|---------|
@@ -20,7 +20,7 @@ All modules share a single PostgreSQL instance but use separate schemas for isol
 Each module has its own DbContext with automatic multi-tenancy filtering:
 
 ```csharp
-// src/Modules/Billing/Foundry.Billing.Infrastructure/Persistence/BillingDbContext.cs
+// src/Modules/Billing/Wallow.Billing.Infrastructure/Persistence/BillingDbContext.cs
 public sealed class BillingDbContext : DbContext
 {
     private readonly ITenantContext _tenantContext;
@@ -69,7 +69,7 @@ public sealed class BillingDbContext : DbContext
 Entity configurations are stored separately in the `Persistence/Configurations` folder:
 
 ```csharp
-// src/Modules/Billing/Foundry.Billing.Infrastructure/Persistence/Configurations/InvoiceConfiguration.cs
+// src/Modules/Billing/Wallow.Billing.Infrastructure/Persistence/Configurations/InvoiceConfiguration.cs
 public sealed class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
 {
     public void Configure(EntityTypeBuilder<Invoice> builder)
@@ -131,7 +131,7 @@ public sealed class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
 
 ### Strongly-Typed IDs
 
-Foundry uses strongly-typed IDs to prevent mixing different entity IDs:
+Wallow uses strongly-typed IDs to prevent mixing different entity IDs:
 
 ```csharp
 // Define ID type in Domain layer
@@ -173,7 +173,7 @@ Repositories abstract data access and follow this structure:
 
 **Interface (Application Layer):**
 ```csharp
-// src/Modules/Billing/Foundry.Billing.Application/Interfaces/IInvoiceRepository.cs
+// src/Modules/Billing/Wallow.Billing.Application/Interfaces/IInvoiceRepository.cs
 public interface IInvoiceRepository
 {
     Task<Invoice?> GetByIdAsync(InvoiceId id, CancellationToken ct = default);
@@ -189,7 +189,7 @@ public interface IInvoiceRepository
 
 **Implementation (Infrastructure Layer):**
 ```csharp
-// src/Modules/Billing/Foundry.Billing.Infrastructure/Persistence/Repositories/InvoiceRepository.cs
+// src/Modules/Billing/Wallow.Billing.Infrastructure/Persistence/Repositories/InvoiceRepository.cs
 public sealed class InvoiceRepository : IInvoiceRepository
 {
     private readonly BillingDbContext _context;
@@ -239,7 +239,7 @@ public sealed class InvoiceRepository : IInvoiceRepository
 
 **Dapper Example:**
 ```csharp
-// src/Modules/Billing/Foundry.Billing.Infrastructure/Services/InvoiceReportService.cs
+// src/Modules/Billing/Wallow.Billing.Infrastructure/Services/InvoiceReportService.cs
 public sealed class InvoiceReportService : IInvoiceReportService
 {
     private readonly string _connectionString;
@@ -309,7 +309,7 @@ modelBuilder.HasDefaultSchema("billing");
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Host=localhost;Port=5432;Database=foundry;Username=foundry;Password=foundry",
+    "DefaultConnection": "Host=localhost;Port=5432;Database=wallow;Username=wallow;Password=wallow",
     "Redis": "localhost:6379,abortConnect=false",
     "RabbitMq": "amqp://guest:guest@localhost:5672"
   }
@@ -323,14 +323,14 @@ Create migrations per module:
 ```bash
 # Create a new migration
 dotnet ef migrations add MigrationName \
-    --project src/Modules/Billing/Foundry.Billing.Infrastructure \
-    --startup-project src/Foundry.Api \
+    --project src/Modules/Billing/Wallow.Billing.Infrastructure \
+    --startup-project src/Wallow.Api \
     --context BillingDbContext
 
 # Apply migrations
 dotnet ef database update \
-    --project src/Modules/Billing/Foundry.Billing.Infrastructure \
-    --startup-project src/Foundry.Api \
+    --project src/Modules/Billing/Wallow.Billing.Infrastructure \
+    --startup-project src/Wallow.Api \
     --context BillingDbContext
 ```
 
@@ -369,7 +369,7 @@ This provides:
 
 ```bash
 # Connect via psql
-docker exec -it foundry-postgres psql -U foundry -d foundry
+docker exec -it wallow-postgres psql -U wallow -d wallow
 
 # List schemas
 \dn
@@ -463,13 +463,13 @@ public class DapperQueryTests : IAsyncLifetime
 
 ```
 src/Modules/{Module}/
-├── Foundry.{Module}.Domain/
+├── Wallow.{Module}.Domain/
 │   ├── Entities/           # Domain entities
 │   └── Enums/              # Domain enumerations
-├── Foundry.{Module}.Application/
+├── Wallow.{Module}.Application/
 │   ├── Interfaces/         # Repository interfaces
 │   └── Services/           # Domain services
-└── Foundry.{Module}.Infrastructure/
+└── Wallow.{Module}.Infrastructure/
     ├── Persistence/
     │   ├── {Module}DbContext.cs
     │   ├── Configurations/  # Entity configurations
@@ -486,13 +486,13 @@ dotnet test
 
 # Create migration
 dotnet ef migrations add MigrationName \
-    --project src/Modules/{Module}/Foundry.{Module}.Infrastructure \
-    --startup-project src/Foundry.Api \
+    --project src/Modules/{Module}/Wallow.{Module}.Infrastructure \
+    --startup-project src/Wallow.Api \
     --context {Module}DbContext
 
 # Start database
 cd docker && docker compose up -d postgres
 
 # View logs
-docker logs -f foundry-postgres
+docker logs -f wallow-postgres
 ```

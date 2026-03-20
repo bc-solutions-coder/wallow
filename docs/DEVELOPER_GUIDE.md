@@ -1,4 +1,4 @@
-# Foundry Developer Guide
+# Wallow Developer Guide
 
 ---
 
@@ -14,7 +14,7 @@
 
 ### 1. Start Infrastructure
 
-Foundry depends on PostgreSQL, RabbitMQ, Mailpit, and Valkey (Redis-compatible cache). Docker Compose provisions all of them:
+Wallow depends on PostgreSQL, RabbitMQ, Mailpit, and Valkey (Redis-compatible cache). Docker Compose provisions all of them:
 
 ```bash
 cd docker && docker compose up -d
@@ -25,7 +25,7 @@ Authentication is handled by the embedded OpenIddict server (part of the Identit
 ### 2. Run the API
 
 ```bash
-dotnet run --project src/Foundry.Api
+dotnet run --project src/Wallow.Api
 ```
 
 The API starts on `http://localhost:5000`. Interactive API documentation is available at `http://localhost:5000/scalar/v1`.
@@ -88,26 +88,26 @@ cd docker && docker compose down -v && docker compose up -d
 
 ## Architecture Overview
 
-Foundry is a modular monolith. Each module is an autonomous bounded context that follows Clean Architecture internally and communicates with other modules exclusively through integration events over RabbitMQ. Modules never reference each other directly.
+Wallow is a modular monolith. Each module is an autonomous bounded context that follows Clean Architecture internally and communicates with other modules exclusively through integration events over RabbitMQ. Modules never reference each other directly.
 
 **Modules:** Identity, Billing, Storage, Notifications, Messaging, Announcements, Inquiries, Showcases
 
 **Shared libraries:**
-- `Foundry.Shared.Contracts` -- Cross-module integration events and DTOs
-- `Foundry.Shared.Kernel` -- Base classes, multi-tenancy primitives, shared abstractions
-- `Foundry.Shared.Infrastructure` -- Cross-cutting infrastructure (auditing, background jobs, workflows)
+- `Wallow.Shared.Contracts` -- Cross-module integration events and DTOs
+- `Wallow.Shared.Kernel` -- Base classes, multi-tenancy primitives, shared abstractions
+- `Wallow.Shared.Infrastructure` -- Cross-cutting infrastructure (auditing, background jobs, workflows)
 
 ---
 
 ## Shared Infrastructure
 
-Cross-cutting capabilities that were previously separate modules now live in `Foundry.Shared.Infrastructure` and are registered centrally. Modules access these through DI -- they don't reference other modules.
+Cross-cutting capabilities that were previously separate modules now live in `Wallow.Shared.Infrastructure` and are registered centrally. Modules access these through DI -- they don't reference other modules.
 
 ### Auditing (`Shared.Infrastructure/Auditing/`)
 
 An EF Core `SaveChangesInterceptor` that automatically captures all entity changes (inserts, updates, deletes) across every module's DbContext. Audit entries include the entity type, primary key, old/new values (serialized JSON), the acting user, tenant, and timestamp. Entries are stored in a dedicated `audit` schema via `AuditDbContext`.
 
-**Registration:** `services.AddFoundryAuditing(configuration)` registers the `AuditDbContext` and `AuditInterceptor` singleton. Module DbContexts pick up auditing automatically by adding the interceptor to their options (via `options.AddInterceptors(sp.GetRequiredService<AuditInterceptor>())`).
+**Registration:** `services.AddWallowAuditing(configuration)` registers the `AuditDbContext` and `AuditInterceptor` singleton. Module DbContexts pick up auditing automatically by adding the interceptor to their options (via `options.AddInterceptors(sp.GetRequiredService<AuditInterceptor>())`).
 
 ### Background Jobs (`Shared.Infrastructure/BackgroundJobs/`)
 
@@ -123,11 +123,11 @@ public interface IJobScheduler
 }
 ```
 
-**Registration:** `services.AddFoundryBackgroundJobs()` registers `HangfireJobScheduler` as the `IJobScheduler` implementation.
+**Registration:** `services.AddWallowBackgroundJobs()` registers `HangfireJobScheduler` as the `IJobScheduler` implementation.
 
 ### Workflows (`Shared.Infrastructure/Workflows/`)
 
-Elsa 3 workflow engine integration for long-running, multi-step business processes. Elsa stores workflow definitions and runtime state in PostgreSQL via EF Core. Modules define custom workflow activities by extending `WorkflowActivityBase`, which adds module-scoped logging and execution context. Activities are auto-discovered from all `Foundry.*` assemblies at startup.
+Elsa 3 workflow engine integration for long-running, multi-step business processes. Elsa stores workflow definitions and runtime state in PostgreSQL via EF Core. Modules define custom workflow activities by extending `WorkflowActivityBase`, which adds module-scoped logging and execution context. Activities are auto-discovered from all `Wallow.*` assemblies at startup.
 
 ```csharp
 public class SendWelcomeEmailActivity : WorkflowActivityBase
@@ -141,7 +141,7 @@ public class SendWelcomeEmailActivity : WorkflowActivityBase
 }
 ```
 
-**Registration:** `services.AddFoundryWorkflows(configuration)` registers Elsa with PostgreSQL persistence, scheduling, HTTP activities, and email integration.
+**Registration:** `services.AddWallowWorkflows(configuration)` registers Elsa with PostgreSQL persistence, scheduling, HTTP activities, and email integration.
 
 ---
 
@@ -149,13 +149,13 @@ public class SendWelcomeEmailActivity : WorkflowActivityBase
 
 ```
 src/
-  Foundry.Api/                        # Host -- wires all modules together
+  Wallow.Api/                        # Host -- wires all modules together
   Modules/
     Identity/
-      Foundry.Identity.Domain/
-      Foundry.Identity.Application/
-      Foundry.Identity.Infrastructure/
-      Foundry.Identity.Api/
+      Wallow.Identity.Domain/
+      Wallow.Identity.Application/
+      Wallow.Identity.Infrastructure/
+      Wallow.Identity.Api/
     Billing/                          # Same four-layer pattern
     Storage/
     Notifications/
@@ -164,27 +164,27 @@ src/
     Inquiries/
     Showcases/
   Shared/
-    Foundry.Shared.Contracts/         # Cross-module events and DTOs
-    Foundry.Shared.Kernel/            # Base classes, multi-tenancy, shared abstractions
-    Foundry.Shared.Infrastructure/          # Cross-cutting infrastructure base
-    Foundry.Shared.Infrastructure.Core/    # Shared infrastructure core
-    Foundry.Shared.Infrastructure.Plugins/ # Plugin abstractions
-    Foundry.Shared.Infrastructure.BackgroundJobs/ # IJobScheduler / Hangfire
-    Foundry.Shared.Infrastructure.Workflows/      # Elsa 3 workflow engine
+    Wallow.Shared.Contracts/         # Cross-module events and DTOs
+    Wallow.Shared.Kernel/            # Base classes, multi-tenancy, shared abstractions
+    Wallow.Shared.Infrastructure/          # Cross-cutting infrastructure base
+    Wallow.Shared.Infrastructure.Core/    # Shared infrastructure core
+    Wallow.Shared.Infrastructure.Plugins/ # Plugin abstractions
+    Wallow.Shared.Infrastructure.BackgroundJobs/ # IJobScheduler / Hangfire
+    Wallow.Shared.Infrastructure.Workflows/      # Elsa 3 workflow engine
 
 tests/
-  Foundry.Api.Tests/
-  Foundry.Architecture.Tests/
-  Foundry.Shared.Kernel.Tests/
-  Foundry.Shared.Infrastructure.Tests/
-  Foundry.Tests.Common/               # Shared test utilities, fixtures, factories
-  Foundry.Messaging.IntegrationTests/
+  Wallow.Api.Tests/
+  Wallow.Architecture.Tests/
+  Wallow.Shared.Kernel.Tests/
+  Wallow.Shared.Infrastructure.Tests/
+  Wallow.Tests.Common/               # Shared test utilities, fixtures, factories
+  Wallow.Messaging.IntegrationTests/
   Modules/
     {Module}/
       {Module}.Domain.Tests/          # Unit tests for domain layer
       {Module}.Application.Tests/     # Unit tests for application layer
       {Module}.Infrastructure.Tests/  # Unit tests for infrastructure layer
-      Foundry.{Module}.IntegrationTests/  # Integration tests (optional)
+      Wallow.{Module}.IntegrationTests/  # Integration tests (optional)
 ```
 
 ---
@@ -220,10 +220,10 @@ This guide walks through creating a new standard (EF Core) module using extensio
 Under `src/Modules/{Module}/`, create four class libraries. Example for a "Tickets" module:
 
 ```bash
-dotnet new classlib -o src/Modules/Tickets/Foundry.Tickets.Domain
-dotnet new classlib -o src/Modules/Tickets/Foundry.Tickets.Application
-dotnet new classlib -o src/Modules/Tickets/Foundry.Tickets.Infrastructure
-dotnet new classlib -o src/Modules/Tickets/Foundry.Tickets.Api
+dotnet new classlib -o src/Modules/Tickets/Wallow.Tickets.Domain
+dotnet new classlib -o src/Modules/Tickets/Wallow.Tickets.Application
+dotnet new classlib -o src/Modules/Tickets/Wallow.Tickets.Infrastructure
+dotnet new classlib -o src/Modules/Tickets/Wallow.Tickets.Api
 ```
 
 Set project references:
@@ -233,7 +233,7 @@ Set project references:
 
 ### Step 2: Define Domain Entities
 
-Place entities in `Foundry.{Module}.Domain/Entities/`. Inherit from `Entity` or `AggregateRoot`:
+Place entities in `Wallow.{Module}.Domain/Entities/`. Inherit from `Entity` or `AggregateRoot`:
 
 ```csharp
 public class Ticket : AggregateRoot, ITenantScoped
@@ -339,16 +339,16 @@ public static class InfrastructureExtensions
 Create the module extension methods in Infrastructure:
 
 ```csharp
-// src/Modules/Tickets/Foundry.Tickets.Infrastructure/Extensions/TicketsModuleExtensions.cs
-using Foundry.Tickets.Application.Extensions;
-using Foundry.Tickets.Infrastructure.Persistence;
+// src/Modules/Tickets/Wallow.Tickets.Infrastructure/Extensions/TicketsModuleExtensions.cs
+using Wallow.Tickets.Application.Extensions;
+using Wallow.Tickets.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-namespace Foundry.Tickets.Infrastructure.Extensions;
+namespace Wallow.Tickets.Infrastructure.Extensions;
 
 public static class TicketsModuleExtensions
 {
@@ -382,18 +382,18 @@ public static class TicketsModuleExtensions
 }
 ```
 
-### Step 6: Register in FoundryModules.cs
+### Step 6: Register in WallowModules.cs
 
-Add the module to `src/Foundry.Api/FoundryModules.cs`:
+Add the module to `src/Wallow.Api/WallowModules.cs`:
 
 ```csharp
 // Add using directive at top
-using Foundry.Tickets.Infrastructure.Extensions;
+using Wallow.Tickets.Infrastructure.Extensions;
 
-// In AddFoundryModules():
+// In AddWallowModules():
 services.AddTicketsModule(configuration);
 
-// In InitializeFoundryModulesAsync():
+// In InitializeWallowModulesAsync():
 await app.InitializeTicketsModuleAsync();
 ```
 
@@ -401,8 +401,8 @@ await app.InitializeTicketsModuleAsync();
 
 ```bash
 dotnet ef migrations add InitialCreate \
-    --project src/Modules/Tickets/Foundry.Tickets.Infrastructure \
-    --startup-project src/Foundry.Api \
+    --project src/Modules/Tickets/Wallow.Tickets.Infrastructure \
+    --startup-project src/Wallow.Api \
     --context TicketsDbContext
 ```
 
@@ -415,7 +415,7 @@ Create test projects under `tests/Modules/Tickets/`:
 
 ### Handler Discovery
 
-Wolverine automatically discovers handlers in all `Foundry.*` assemblies. No manual registration needed. Just create handlers following Wolverine conventions:
+Wolverine automatically discovers handlers in all `Wallow.*` assemblies. No manual registration needed. Just create handlers following Wolverine conventions:
 
 ```csharp
 public static class CreateInvoiceHandler
@@ -437,7 +437,7 @@ Wolverine's `UseConventionalRouting()` automatically creates queues and exchange
 ### Module Type Examples
 
 #### Standard Module (with EF Core persistence)
-See the Billing module: `src/Modules/Billing/Foundry.Billing.Infrastructure/Extensions/BillingModuleExtensions.cs`
+See the Billing module: `src/Modules/Billing/Wallow.Billing.Infrastructure/Extensions/BillingModuleExtensions.cs`
 
 #### Stateless Module (no persistence)
 ```csharp
@@ -464,7 +464,7 @@ Modules communicate through integration events published over Wolverine + Rabbit
 
 ### Defining an Event
 
-In `src/Shared/Foundry.Shared.Contracts/Billing/Events/`:
+In `src/Shared/Wallow.Shared.Contracts/Billing/Events/`:
 
 ```csharp
 public record InvoicePaidEvent(Guid InvoiceId, Guid CustomerId, DateTime OccurredAt);
@@ -611,13 +611,13 @@ Each module owns its own schema. Migrations are per-module.
 
 ```bash
 dotnet ef migrations add MigrationName \
-    --project src/Modules/{Module}/Foundry.{Module}.Infrastructure \
-    --startup-project src/Foundry.Api \
+    --project src/Modules/{Module}/Wallow.{Module}.Infrastructure \
+    --startup-project src/Wallow.Api \
     --context {Module}DbContext
 
 dotnet ef database update \
-    --project src/Modules/{Module}/Foundry.{Module}.Infrastructure \
-    --startup-project src/Foundry.Api \
+    --project src/Modules/{Module}/Wallow.{Module}.Infrastructure \
+    --startup-project src/Wallow.Api \
     --context {Module}DbContext
 ```
 
@@ -634,7 +634,7 @@ Migrations also run automatically at startup via `Use{Module}ModuleAsync()`.
 
 | Item | Convention | Example |
 |------|------------|---------|
-| Projects | `Foundry.{Module}.{Layer}` | `Foundry.Billing.Domain` |
+| Projects | `Wallow.{Module}.{Layer}` | `Wallow.Billing.Domain` |
 | Commands | Verb + Noun + Command | `CreateInvoiceCommand` |
 | Queries | Get + Noun + Query | `GetInvoiceByIdQuery` |
 | Handlers | Command/Query name + Handler | `CreateInvoiceHandler` |
@@ -677,10 +677,10 @@ Validation runs automatically before handlers via Wolverine's FluentValidation m
 
 ### Test Infrastructure
 
-Foundry uses **xUnit** as the test framework, **FluentAssertions** for readable assertions, and **Testcontainers** for integration tests that need real infrastructure (PostgreSQL, RabbitMQ, Valkey).
+Wallow uses **xUnit** as the test framework, **FluentAssertions** for readable assertions, and **Testcontainers** for integration tests that need real infrastructure (PostgreSQL, RabbitMQ, Valkey).
 
-Shared test utilities live in `tests/Foundry.Tests.Common/`, including:
-- `FoundryApiFactory` -- `WebApplicationFactory` configured with Testcontainers
+Shared test utilities live in `tests/Wallow.Tests.Common/`, including:
+- `WallowApiFactory` -- `WebApplicationFactory` configured with Testcontainers
 - `DatabaseFixture`, `RabbitMqFixture`, `RedisFixture` -- reusable xUnit fixtures
 - `Builders/`, `Fakes/`, `Helpers/` -- test data builders and utilities
 
@@ -707,14 +707,14 @@ public async Task Should_create_invoice()
 
 ### Integration Tests
 
-Use `FoundryApiFactory` with Testcontainers:
+Use `WallowApiFactory` with Testcontainers:
 
 ```csharp
-public class InvoicesControllerTests : IClassFixture<FoundryApiFactory>
+public class InvoicesControllerTests : IClassFixture<WallowApiFactory>
 {
     private readonly HttpClient _client;
 
-    public InvoicesControllerTests(FoundryApiFactory factory)
+    public InvoicesControllerTests(WallowApiFactory factory)
     {
         _client = factory.CreateClient();
     }
@@ -730,7 +730,7 @@ public class InvoicesControllerTests : IClassFixture<FoundryApiFactory>
 
 ### Architecture Tests
 
-`Foundry.Architecture.Tests` validates structural rules (e.g., modules do not reference each other, dependency direction is correct). These run as part of the standard test suite.
+`Wallow.Architecture.Tests` validates structural rules (e.g., modules do not reference each other, dependency direction is correct). These run as part of the standard test suite.
 
 ---
 

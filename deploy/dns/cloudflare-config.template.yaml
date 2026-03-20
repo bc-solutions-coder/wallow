@@ -1,12 +1,12 @@
 # Cloudflare Geo-Steering Load Balancer Template
-# Reference configuration for DNS-based geo-routing across Foundry regions.
+# Reference configuration for DNS-based geo-routing across Wallow regions.
 # Replace placeholder values before applying via Cloudflare API or Terraform.
 
 zone:
-  domain: "{{DOMAIN}}"                    # e.g., foundry.example.com
+  domain: "{{DOMAIN}}"                    # e.g., wallow.example.com
 
 health_monitors:
-  - name: foundry-health
+  - name: wallow-health
     type: https
     path: "/health/ready"
     port: 443
@@ -21,34 +21,34 @@ origin_pools:
   - name: us-east
     origins:
       - name: us-east-primary
-        address: "{{US_EAST_ENDPOINT}}"   # e.g., us-east.foundry.example.com
+        address: "{{US_EAST_ENDPOINT}}"   # e.g., us-east.wallow.example.com
         enabled: true
         weight: 1.0
     enabled: true
     minimum_origins: 1
-    monitor: foundry-health
+    monitor: wallow-health
     notification_email: "{{ALERT_EMAIL}}" # e.g., ops@example.com
 
   - name: eu-west
     origins:
       - name: eu-west-primary
-        address: "{{EU_WEST_ENDPOINT}}"   # e.g., eu-west.foundry.example.com
+        address: "{{EU_WEST_ENDPOINT}}"   # e.g., eu-west.wallow.example.com
         enabled: true
         weight: 1.0
     enabled: true
     minimum_origins: 1
-    monitor: foundry-health
+    monitor: wallow-health
     notification_email: "{{ALERT_EMAIL}}"
 
   - name: ap-southeast
     origins:
       - name: ap-southeast-primary
-        address: "{{AP_SOUTHEAST_ENDPOINT}}" # e.g., ap-southeast.foundry.example.com
+        address: "{{AP_SOUTHEAST_ENDPOINT}}" # e.g., ap-southeast.wallow.example.com
         enabled: true
         weight: 1.0
     enabled: true
     minimum_origins: 1
-    monitor: foundry-health
+    monitor: wallow-health
     notification_email: "{{ALERT_EMAIL}}"
 
 load_balancer:

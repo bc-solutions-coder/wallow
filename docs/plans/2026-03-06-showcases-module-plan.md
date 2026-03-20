@@ -13,36 +13,36 @@
 ### Task 1: Create project structure and solution references
 
 **Files:**
-- Create: `src/Modules/Showcases/Foundry.Showcases.Domain/Foundry.Showcases.Domain.csproj`
-- Create: `src/Modules/Showcases/Foundry.Showcases.Application/Foundry.Showcases.Application.csproj`
-- Create: `src/Modules/Showcases/Foundry.Showcases.Infrastructure/Foundry.Showcases.Infrastructure.csproj`
-- Create: `src/Modules/Showcases/Foundry.Showcases.Api/Foundry.Showcases.Api.csproj`
-- Modify: `src/Foundry.Api/Foundry.Api.csproj`
-- Modify: `Foundry.sln`
+- Create: `src/Modules/Showcases/Wallow.Showcases.Domain/Wallow.Showcases.Domain.csproj`
+- Create: `src/Modules/Showcases/Wallow.Showcases.Application/Wallow.Showcases.Application.csproj`
+- Create: `src/Modules/Showcases/Wallow.Showcases.Infrastructure/Wallow.Showcases.Infrastructure.csproj`
+- Create: `src/Modules/Showcases/Wallow.Showcases.Api/Wallow.Showcases.Api.csproj`
+- Modify: `src/Wallow.Api/Wallow.Api.csproj`
+- Modify: `Wallow.sln`
 
 **Step 1: Create the four project directories and .csproj files**
 
-`Foundry.Showcases.Domain.csproj`:
+`Wallow.Showcases.Domain.csproj`:
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <RootNamespace>Foundry.Showcases.Domain</RootNamespace>
+    <RootNamespace>Wallow.Showcases.Domain</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\Shared\Foundry.Shared.Kernel\Foundry.Shared.Kernel.csproj" />
+    <ProjectReference Include="..\..\..\Shared\Wallow.Shared.Kernel\Wallow.Shared.Kernel.csproj" />
   </ItemGroup>
 </Project>
 ```
 
-`Foundry.Showcases.Application.csproj`:
+`Wallow.Showcases.Application.csproj`:
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <RootNamespace>Foundry.Showcases.Application</RootNamespace>
+    <RootNamespace>Wallow.Showcases.Application</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Foundry.Showcases.Domain\Foundry.Showcases.Domain.csproj" />
-    <ProjectReference Include="..\..\..\Shared\Foundry.Shared.Kernel\Foundry.Shared.Kernel.csproj" />
+    <ProjectReference Include="..\Wallow.Showcases.Domain\Wallow.Showcases.Domain.csproj" />
+    <ProjectReference Include="..\..\..\Shared\Wallow.Shared.Kernel\Wallow.Shared.Kernel.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="FluentValidation" />
@@ -52,11 +52,11 @@
 </Project>
 ```
 
-`Foundry.Showcases.Infrastructure.csproj`:
+`Wallow.Showcases.Infrastructure.csproj`:
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <RootNamespace>Foundry.Showcases.Infrastructure</RootNamespace>
+    <RootNamespace>Wallow.Showcases.Infrastructure</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore" />
@@ -68,25 +68,25 @@
     <PackageReference Include="WolverineFx" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Foundry.Showcases.Domain\Foundry.Showcases.Domain.csproj" />
-    <ProjectReference Include="..\Foundry.Showcases.Application\Foundry.Showcases.Application.csproj" />
-    <ProjectReference Include="..\..\..\Shared\Foundry.Shared.Infrastructure\Foundry.Shared.Infrastructure.csproj" />
+    <ProjectReference Include="..\Wallow.Showcases.Domain\Wallow.Showcases.Domain.csproj" />
+    <ProjectReference Include="..\Wallow.Showcases.Application\Wallow.Showcases.Application.csproj" />
+    <ProjectReference Include="..\..\..\Shared\Wallow.Shared.Infrastructure\Wallow.Shared.Infrastructure.csproj" />
   </ItemGroup>
 </Project>
 ```
 
-`Foundry.Showcases.Api.csproj`:
+`Wallow.Showcases.Api.csproj`:
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <RootNamespace>Foundry.Showcases.Api</RootNamespace>
+    <RootNamespace>Wallow.Showcases.Api</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Foundry.Showcases.Application\Foundry.Showcases.Application.csproj" />
-    <ProjectReference Include="..\..\..\Shared\Foundry.Shared.Api\Foundry.Shared.Api.csproj" />
+    <ProjectReference Include="..\Wallow.Showcases.Application\Wallow.Showcases.Application.csproj" />
+    <ProjectReference Include="..\..\..\Shared\Wallow.Shared.Api\Wallow.Shared.Api.csproj" />
   </ItemGroup>
 </Project>
 ```
@@ -95,22 +95,22 @@
 
 Run:
 ```bash
-dotnet sln add src/Modules/Showcases/Foundry.Showcases.Domain/Foundry.Showcases.Domain.csproj
-dotnet sln add src/Modules/Showcases/Foundry.Showcases.Application/Foundry.Showcases.Application.csproj
-dotnet sln add src/Modules/Showcases/Foundry.Showcases.Infrastructure/Foundry.Showcases.Infrastructure.csproj
-dotnet sln add src/Modules/Showcases/Foundry.Showcases.Api/Foundry.Showcases.Api.csproj
+dotnet sln add src/Modules/Showcases/Wallow.Showcases.Domain/Wallow.Showcases.Domain.csproj
+dotnet sln add src/Modules/Showcases/Wallow.Showcases.Application/Wallow.Showcases.Application.csproj
+dotnet sln add src/Modules/Showcases/Wallow.Showcases.Infrastructure/Wallow.Showcases.Infrastructure.csproj
+dotnet sln add src/Modules/Showcases/Wallow.Showcases.Api/Wallow.Showcases.Api.csproj
 ```
 
-**Step 3: Add project references to `src/Foundry.Api/Foundry.Api.csproj`**
+**Step 3: Add project references to `src/Wallow.Api/Wallow.Api.csproj`**
 
 Add to the `<!-- Module Api projects -->` section:
 ```xml
-<ProjectReference Include="..\Modules\Showcases\Foundry.Showcases.Api\Foundry.Showcases.Api.csproj" />
+<ProjectReference Include="..\Modules\Showcases\Wallow.Showcases.Api\Wallow.Showcases.Api.csproj" />
 ```
 
 Add to the `<!-- Module Infrastructure projects -->` section:
 ```xml
-<ProjectReference Include="..\Modules\Showcases\Foundry.Showcases.Infrastructure\Foundry.Showcases.Infrastructure.csproj" />
+<ProjectReference Include="..\Modules\Showcases\Wallow.Showcases.Infrastructure\Wallow.Showcases.Infrastructure.csproj" />
 ```
 
 **Step 4: Verify build**
@@ -129,15 +129,15 @@ git add -A && git commit -m "feat(showcases): scaffold module project structure"
 ### Task 2: Domain layer — Enum, Identity, Entity
 
 **Files:**
-- Create: `src/Modules/Showcases/Foundry.Showcases.Domain/Enums/ShowcaseCategory.cs`
-- Create: `src/Modules/Showcases/Foundry.Showcases.Domain/Identity/ShowcaseId.cs`
-- Create: `src/Modules/Showcases/Foundry.Showcases.Domain/Entities/Showcase.cs`
+- Create: `src/Modules/Showcases/Wallow.Showcases.Domain/Enums/ShowcaseCategory.cs`
+- Create: `src/Modules/Showcases/Wallow.Showcases.Domain/Identity/ShowcaseId.cs`
+- Create: `src/Modules/Showcases/Wallow.Showcases.Domain/Entities/Showcase.cs`
 
 **Step 1: Create the ShowcaseCategory enum**
 
 `ShowcaseCategory.cs`:
 ```csharp
-namespace Foundry.Showcases.Domain.Enums;
+namespace Wallow.Showcases.Domain.Enums;
 
 public enum ShowcaseCategory
 {
@@ -153,9 +153,9 @@ public enum ShowcaseCategory
 
 `ShowcaseId.cs`:
 ```csharp
-using Foundry.Shared.Kernel.Identity;
+using Wallow.Shared.Kernel.Identity;
 
-namespace Foundry.Showcases.Domain.Identity;
+namespace Wallow.Showcases.Domain.Identity;
 
 public readonly record struct ShowcaseId(Guid Value) : IStronglyTypedId<ShowcaseId>
 {
@@ -168,11 +168,11 @@ public readonly record struct ShowcaseId(Guid Value) : IStronglyTypedId<Showcase
 
 `Showcase.cs`:
 ```csharp
-using Foundry.Showcases.Domain.Enums;
-using Foundry.Showcases.Domain.Identity;
-using Foundry.Shared.Kernel.Domain;
+using Wallow.Showcases.Domain.Enums;
+using Wallow.Showcases.Domain.Identity;
+using Wallow.Shared.Kernel.Domain;
 
-namespace Foundry.Showcases.Domain.Entities;
+namespace Wallow.Showcases.Domain.Entities;
 
 public sealed class Showcase : AuditableEntity<ShowcaseId>
 {
@@ -252,7 +252,7 @@ public sealed class Showcase : AuditableEntity<ShowcaseId>
 
 **Step 4: Verify build**
 
-Run: `dotnet build src/Modules/Showcases/Foundry.Showcases.Domain`
+Run: `dotnet build src/Modules/Showcases/Wallow.Showcases.Domain`
 Expected: Build succeeds
 
 **Step 5: Commit**
@@ -266,19 +266,19 @@ git add -A && git commit -m "feat(showcases): add domain layer with Showcase ent
 ### Task 3: Application layer — Repository interface, DTOs, Mappings
 
 **Files:**
-- Create: `src/Modules/Showcases/Foundry.Showcases.Application/Interfaces/IShowcaseRepository.cs`
-- Create: `src/Modules/Showcases/Foundry.Showcases.Application/DTOs/ShowcaseDto.cs`
-- Create: `src/Modules/Showcases/Foundry.Showcases.Application/Mappings/ShowcaseMappings.cs`
-- Create: `src/Modules/Showcases/Foundry.Showcases.Application/Extensions/ApplicationExtensions.cs`
+- Create: `src/Modules/Showcases/Wallow.Showcases.Application/Interfaces/IShowcaseRepository.cs`
+- Create: `src/Modules/Showcases/Wallow.Showcases.Application/DTOs/ShowcaseDto.cs`
+- Create: `src/Modules/Showcases/Wallow.Showcases.Application/Mappings/ShowcaseMappings.cs`
+- Create: `src/Modules/Showcases/Wallow.Showcases.Application/Extensions/ApplicationExtensions.cs`
 
 **Step 1: Create the repository interface**
 
 `IShowcaseRepository.cs`:
 ```csharp
-using Foundry.Showcases.Domain.Entities;
-using Foundry.Showcases.Domain.Identity;
+using Wallow.Showcases.Domain.Entities;
+using Wallow.Showcases.Domain.Identity;
 
-namespace Foundry.Showcases.Application.Interfaces;
+namespace Wallow.Showcases.Application.Interfaces;
 
 public interface IShowcaseRepository
 {
@@ -294,7 +294,7 @@ public interface IShowcaseRepository
 
 `ShowcaseDto.cs`:
 ```csharp
-namespace Foundry.Showcases.Application.DTOs;
+namespace Wallow.Showcases.Application.DTOs;
 
 public sealed record ShowcaseDto(
     Guid Id,
@@ -315,10 +315,10 @@ public sealed record ShowcaseDto(
 
 `ShowcaseMappings.cs`:
 ```csharp
-using Foundry.Showcases.Application.DTOs;
-using Foundry.Showcases.Domain.Entities;
+using Wallow.Showcases.Application.DTOs;
+using Wallow.Showcases.Domain.Entities;
 
-namespace Foundry.Showcases.Application.Mappings;
+namespace Wallow.Showcases.Application.Mappings;
 
 public static class ShowcaseMappings
 {
@@ -348,7 +348,7 @@ public static class ShowcaseMappings
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Foundry.Showcases.Application.Extensions;
+namespace Wallow.Showcases.Application.Extensions;
 
 public static class ApplicationExtensions
 {
@@ -362,7 +362,7 @@ public static class ApplicationExtensions
 
 **Step 5: Verify build**
 
-Run: `dotnet build src/Modules/Showcases/Foundry.Showcases.Application`
+Run: `dotnet build src/Modules/Showcases/Wallow.Showcases.Application`
 Expected: Build succeeds
 
 **Step 6: Commit**
@@ -376,22 +376,22 @@ git add -A && git commit -m "feat(showcases): add application layer with DTOs, r
 ### Task 4: Application layer — Commands (Create, Update, Delete)
 
 **Files:**
-- Create: `src/Modules/Showcases/Foundry.Showcases.Application/Commands/CreateShowcase/CreateShowcaseCommand.cs`
-- Create: `src/Modules/Showcases/Foundry.Showcases.Application/Commands/CreateShowcase/CreateShowcaseValidator.cs`
-- Create: `src/Modules/Showcases/Foundry.Showcases.Application/Commands/CreateShowcase/CreateShowcaseHandler.cs`
-- Create: `src/Modules/Showcases/Foundry.Showcases.Application/Commands/UpdateShowcase/UpdateShowcaseCommand.cs`
-- Create: `src/Modules/Showcases/Foundry.Showcases.Application/Commands/UpdateShowcase/UpdateShowcaseValidator.cs`
-- Create: `src/Modules/Showcases/Foundry.Showcases.Application/Commands/UpdateShowcase/UpdateShowcaseHandler.cs`
-- Create: `src/Modules/Showcases/Foundry.Showcases.Application/Commands/DeleteShowcase/DeleteShowcaseCommand.cs`
-- Create: `src/Modules/Showcases/Foundry.Showcases.Application/Commands/DeleteShowcase/DeleteShowcaseHandler.cs`
+- Create: `src/Modules/Showcases/Wallow.Showcases.Application/Commands/CreateShowcase/CreateShowcaseCommand.cs`
+- Create: `src/Modules/Showcases/Wallow.Showcases.Application/Commands/CreateShowcase/CreateShowcaseValidator.cs`
+- Create: `src/Modules/Showcases/Wallow.Showcases.Application/Commands/CreateShowcase/CreateShowcaseHandler.cs`
+- Create: `src/Modules/Showcases/Wallow.Showcases.Application/Commands/UpdateShowcase/UpdateShowcaseCommand.cs`
+- Create: `src/Modules/Showcases/Wallow.Showcases.Application/Commands/UpdateShowcase/UpdateShowcaseValidator.cs`
+- Create: `src/Modules/Showcases/Wallow.Showcases.Application/Commands/UpdateShowcase/UpdateShowcaseHandler.cs`
+- Create: `src/Modules/Showcases/Wallow.Showcases.Application/Commands/DeleteShowcase/DeleteShowcaseCommand.cs`
+- Create: `src/Modules/Showcases/Wallow.Showcases.Application/Commands/DeleteShowcase/DeleteShowcaseHandler.cs`
 
 **Step 1: Create CreateShowcase command, validator, and handler**
 
 `CreateShowcaseCommand.cs`:
 ```csharp
-using Foundry.Showcases.Domain.Enums;
+using Wallow.Showcases.Domain.Enums;
 
-namespace Foundry.Showcases.Application.Commands.CreateShowcase;
+namespace Wallow.Showcases.Application.Commands.CreateShowcase;
 
 public sealed record CreateShowcaseCommand(
     string Title,
@@ -409,7 +409,7 @@ public sealed record CreateShowcaseCommand(
 ```csharp
 using FluentValidation;
 
-namespace Foundry.Showcases.Application.Commands.CreateShowcase;
+namespace Wallow.Showcases.Application.Commands.CreateShowcase;
 
 public sealed class CreateShowcaseValidator : AbstractValidator<CreateShowcaseCommand>
 {
@@ -458,13 +458,13 @@ public sealed class CreateShowcaseValidator : AbstractValidator<CreateShowcaseCo
 
 `CreateShowcaseHandler.cs`:
 ```csharp
-using Foundry.Showcases.Application.DTOs;
-using Foundry.Showcases.Application.Interfaces;
-using Foundry.Showcases.Application.Mappings;
-using Foundry.Showcases.Domain.Entities;
-using Foundry.Shared.Kernel.Results;
+using Wallow.Showcases.Application.DTOs;
+using Wallow.Showcases.Application.Interfaces;
+using Wallow.Showcases.Application.Mappings;
+using Wallow.Showcases.Domain.Entities;
+using Wallow.Shared.Kernel.Results;
 
-namespace Foundry.Showcases.Application.Commands.CreateShowcase;
+namespace Wallow.Showcases.Application.Commands.CreateShowcase;
 
 public sealed class CreateShowcaseHandler(
     IShowcaseRepository showcaseRepository,
@@ -498,9 +498,9 @@ public sealed class CreateShowcaseHandler(
 
 `UpdateShowcaseCommand.cs`:
 ```csharp
-using Foundry.Showcases.Domain.Enums;
+using Wallow.Showcases.Domain.Enums;
 
-namespace Foundry.Showcases.Application.Commands.UpdateShowcase;
+namespace Wallow.Showcases.Application.Commands.UpdateShowcase;
 
 public sealed record UpdateShowcaseCommand(
     Guid Id,
@@ -519,7 +519,7 @@ public sealed record UpdateShowcaseCommand(
 ```csharp
 using FluentValidation;
 
-namespace Foundry.Showcases.Application.Commands.UpdateShowcase;
+namespace Wallow.Showcases.Application.Commands.UpdateShowcase;
 
 public sealed class UpdateShowcaseValidator : AbstractValidator<UpdateShowcaseCommand>
 {
@@ -571,14 +571,14 @@ public sealed class UpdateShowcaseValidator : AbstractValidator<UpdateShowcaseCo
 
 `UpdateShowcaseHandler.cs`:
 ```csharp
-using Foundry.Showcases.Application.DTOs;
-using Foundry.Showcases.Application.Interfaces;
-using Foundry.Showcases.Application.Mappings;
-using Foundry.Showcases.Domain.Entities;
-using Foundry.Showcases.Domain.Identity;
-using Foundry.Shared.Kernel.Results;
+using Wallow.Showcases.Application.DTOs;
+using Wallow.Showcases.Application.Interfaces;
+using Wallow.Showcases.Application.Mappings;
+using Wallow.Showcases.Domain.Entities;
+using Wallow.Showcases.Domain.Identity;
+using Wallow.Shared.Kernel.Results;
 
-namespace Foundry.Showcases.Application.Commands.UpdateShowcase;
+namespace Wallow.Showcases.Application.Commands.UpdateShowcase;
 
 public sealed class UpdateShowcaseHandler(
     IShowcaseRepository showcaseRepository,
@@ -619,19 +619,19 @@ public sealed class UpdateShowcaseHandler(
 
 `DeleteShowcaseCommand.cs`:
 ```csharp
-namespace Foundry.Showcases.Application.Commands.DeleteShowcase;
+namespace Wallow.Showcases.Application.Commands.DeleteShowcase;
 
 public sealed record DeleteShowcaseCommand(Guid Id);
 ```
 
 `DeleteShowcaseHandler.cs`:
 ```csharp
-using Foundry.Showcases.Application.Interfaces;
-using Foundry.Showcases.Domain.Entities;
-using Foundry.Showcases.Domain.Identity;
-using Foundry.Shared.Kernel.Results;
+using Wallow.Showcases.Application.Interfaces;
+using Wallow.Showcases.Domain.Entities;
+using Wallow.Showcases.Domain.Identity;
+using Wallow.Shared.Kernel.Results;
 
-namespace Foundry.Showcases.Application.Commands.DeleteShowcase;
+namespace Wallow.Showcases.Application.Commands.DeleteShowcase;
 
 public sealed class DeleteShowcaseHandler(IShowcaseRepository showcaseRepository)
 {
@@ -657,7 +657,7 @@ public sealed class DeleteShowcaseHandler(IShowcaseRepository showcaseRepository
 
 **Step 4: Verify build**
 
-Run: `dotnet build src/Modules/Showcases/Foundry.Showcases.Application`
+Run: `dotnet build src/Modules/Showcases/Wallow.Showcases.Application`
 Expected: Build succeeds
 
 **Step 5: Commit**
@@ -671,30 +671,30 @@ git add -A && git commit -m "feat(showcases): add CQRS command handlers for crea
 ### Task 5: Application layer — Queries (GetShowcase, ListShowcases)
 
 **Files:**
-- Create: `src/Modules/Showcases/Foundry.Showcases.Application/Queries/GetShowcase/GetShowcaseQuery.cs`
-- Create: `src/Modules/Showcases/Foundry.Showcases.Application/Queries/GetShowcase/GetShowcaseHandler.cs`
-- Create: `src/Modules/Showcases/Foundry.Showcases.Application/Queries/ListShowcases/ListShowcasesQuery.cs`
-- Create: `src/Modules/Showcases/Foundry.Showcases.Application/Queries/ListShowcases/ListShowcasesHandler.cs`
+- Create: `src/Modules/Showcases/Wallow.Showcases.Application/Queries/GetShowcase/GetShowcaseQuery.cs`
+- Create: `src/Modules/Showcases/Wallow.Showcases.Application/Queries/GetShowcase/GetShowcaseHandler.cs`
+- Create: `src/Modules/Showcases/Wallow.Showcases.Application/Queries/ListShowcases/ListShowcasesQuery.cs`
+- Create: `src/Modules/Showcases/Wallow.Showcases.Application/Queries/ListShowcases/ListShowcasesHandler.cs`
 
 **Step 1: Create GetShowcase query and handler**
 
 `GetShowcaseQuery.cs`:
 ```csharp
-namespace Foundry.Showcases.Application.Queries.GetShowcase;
+namespace Wallow.Showcases.Application.Queries.GetShowcase;
 
 public sealed record GetShowcaseQuery(Guid Id);
 ```
 
 `GetShowcaseHandler.cs`:
 ```csharp
-using Foundry.Showcases.Application.DTOs;
-using Foundry.Showcases.Application.Interfaces;
-using Foundry.Showcases.Application.Mappings;
-using Foundry.Showcases.Domain.Entities;
-using Foundry.Showcases.Domain.Identity;
-using Foundry.Shared.Kernel.Results;
+using Wallow.Showcases.Application.DTOs;
+using Wallow.Showcases.Application.Interfaces;
+using Wallow.Showcases.Application.Mappings;
+using Wallow.Showcases.Domain.Entities;
+using Wallow.Showcases.Domain.Identity;
+using Wallow.Shared.Kernel.Results;
 
-namespace Foundry.Showcases.Application.Queries.GetShowcase;
+namespace Wallow.Showcases.Application.Queries.GetShowcase;
 
 public sealed class GetShowcaseHandler(IShowcaseRepository showcaseRepository)
 {
@@ -719,22 +719,22 @@ public sealed class GetShowcaseHandler(IShowcaseRepository showcaseRepository)
 
 `ListShowcasesQuery.cs`:
 ```csharp
-using Foundry.Showcases.Domain.Enums;
+using Wallow.Showcases.Domain.Enums;
 
-namespace Foundry.Showcases.Application.Queries.ListShowcases;
+namespace Wallow.Showcases.Application.Queries.ListShowcases;
 
 public sealed record ListShowcasesQuery(ShowcaseCategory? Category = null, string? Tag = null);
 ```
 
 `ListShowcasesHandler.cs`:
 ```csharp
-using Foundry.Showcases.Application.DTOs;
-using Foundry.Showcases.Application.Interfaces;
-using Foundry.Showcases.Application.Mappings;
-using Foundry.Showcases.Domain.Entities;
-using Foundry.Shared.Kernel.Results;
+using Wallow.Showcases.Application.DTOs;
+using Wallow.Showcases.Application.Interfaces;
+using Wallow.Showcases.Application.Mappings;
+using Wallow.Showcases.Domain.Entities;
+using Wallow.Shared.Kernel.Results;
 
-namespace Foundry.Showcases.Application.Queries.ListShowcases;
+namespace Wallow.Showcases.Application.Queries.ListShowcases;
 
 public sealed class ListShowcasesHandler(IShowcaseRepository showcaseRepository)
 {
@@ -769,7 +769,7 @@ public sealed class ListShowcasesHandler(IShowcaseRepository showcaseRepository)
 
 **Step 3: Verify build**
 
-Run: `dotnet build src/Modules/Showcases/Foundry.Showcases.Application`
+Run: `dotnet build src/Modules/Showcases/Wallow.Showcases.Application`
 Expected: Build succeeds
 
 **Step 4: Commit**
@@ -783,18 +783,18 @@ git add -A && git commit -m "feat(showcases): add query handlers for get and lis
 ### Task 6: Infrastructure layer — DbContext, Entity Configuration, Repository
 
 **Files:**
-- Create: `src/Modules/Showcases/Foundry.Showcases.Infrastructure/Persistence/ShowcasesDbContext.cs`
-- Create: `src/Modules/Showcases/Foundry.Showcases.Infrastructure/Persistence/Configurations/ShowcaseConfiguration.cs`
-- Create: `src/Modules/Showcases/Foundry.Showcases.Infrastructure/Persistence/Repositories/ShowcaseRepository.cs`
+- Create: `src/Modules/Showcases/Wallow.Showcases.Infrastructure/Persistence/ShowcasesDbContext.cs`
+- Create: `src/Modules/Showcases/Wallow.Showcases.Infrastructure/Persistence/Configurations/ShowcaseConfiguration.cs`
+- Create: `src/Modules/Showcases/Wallow.Showcases.Infrastructure/Persistence/Repositories/ShowcaseRepository.cs`
 
 **Step 1: Create the DbContext**
 
 `ShowcasesDbContext.cs`:
 ```csharp
-using Foundry.Showcases.Domain.Entities;
+using Wallow.Showcases.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace Foundry.Showcases.Infrastructure.Persistence;
+namespace Wallow.Showcases.Infrastructure.Persistence;
 
 public sealed class ShowcasesDbContext : DbContext
 {
@@ -820,13 +820,13 @@ public sealed class ShowcasesDbContext : DbContext
 
 `ShowcaseConfiguration.cs`:
 ```csharp
-using Foundry.Showcases.Domain.Entities;
-using Foundry.Showcases.Domain.Identity;
-using Foundry.Shared.Kernel.Persistence;
+using Wallow.Showcases.Domain.Entities;
+using Wallow.Showcases.Domain.Identity;
+using Wallow.Shared.Kernel.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace Foundry.Showcases.Infrastructure.Persistence.Configurations;
+namespace Wallow.Showcases.Infrastructure.Persistence.Configurations;
 
 public sealed class ShowcaseConfiguration : IEntityTypeConfiguration<Showcase>
 {
@@ -901,12 +901,12 @@ public sealed class ShowcaseConfiguration : IEntityTypeConfiguration<Showcase>
 
 `ShowcaseRepository.cs`:
 ```csharp
-using Foundry.Showcases.Application.Interfaces;
-using Foundry.Showcases.Domain.Entities;
-using Foundry.Showcases.Domain.Identity;
+using Wallow.Showcases.Application.Interfaces;
+using Wallow.Showcases.Domain.Entities;
+using Wallow.Showcases.Domain.Identity;
 using Microsoft.EntityFrameworkCore;
 
-namespace Foundry.Showcases.Infrastructure.Persistence.Repositories;
+namespace Wallow.Showcases.Infrastructure.Persistence.Repositories;
 
 public sealed class ShowcaseRepository : IShowcaseRepository
 {
@@ -954,7 +954,7 @@ public sealed class ShowcaseRepository : IShowcaseRepository
 
 **Step 4: Verify build**
 
-Run: `dotnet build src/Modules/Showcases/Foundry.Showcases.Infrastructure`
+Run: `dotnet build src/Modules/Showcases/Wallow.Showcases.Infrastructure`
 Expected: Build succeeds
 
 **Step 5: Commit**
@@ -968,23 +968,23 @@ git add -A && git commit -m "feat(showcases): add infrastructure layer with DbCo
 ### Task 7: Infrastructure layer — Module registration and extensions
 
 **Files:**
-- Create: `src/Modules/Showcases/Foundry.Showcases.Infrastructure/Extensions/ShowcasesModuleExtensions.cs`
-- Modify: `src/Foundry.Api/FoundryModules.cs`
+- Create: `src/Modules/Showcases/Wallow.Showcases.Infrastructure/Extensions/ShowcasesModuleExtensions.cs`
+- Modify: `src/Wallow.Api/WallowModules.cs`
 
 **Step 1: Create the module extension methods**
 
 `ShowcasesModuleExtensions.cs`:
 ```csharp
-using Foundry.Showcases.Application.Extensions;
-using Foundry.Showcases.Application.Interfaces;
-using Foundry.Showcases.Infrastructure.Persistence;
-using Foundry.Showcases.Infrastructure.Persistence.Repositories;
+using Wallow.Showcases.Application.Extensions;
+using Wallow.Showcases.Application.Interfaces;
+using Wallow.Showcases.Infrastructure.Persistence;
+using Wallow.Showcases.Infrastructure.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-namespace Foundry.Showcases.Infrastructure.Extensions;
+namespace Wallow.Showcases.Infrastructure.Extensions;
 
 public static class ShowcasesModuleExtensions
 {
@@ -1034,11 +1034,11 @@ internal static partial class ShowcasesLogMessages
 
 **Note:** Uses `Microsoft.AspNetCore.Builder.WebApplication` — requires adding `<FrameworkReference Include="Microsoft.AspNetCore.App" />` to the Infrastructure csproj OR importing the namespace. Check if other Infrastructure projects use `WebApplication` — if they reference `Shared.Infrastructure` which already includes it, this should work. If not, add the FrameworkReference.
 
-**Step 2: Register in FoundryModules.cs**
+**Step 2: Register in WallowModules.cs**
 
-Add `using Foundry.Showcases.Infrastructure.Extensions;` to the top.
+Add `using Wallow.Showcases.Infrastructure.Extensions;` to the top.
 
-In `AddFoundryModules`, add under FEATURE MODULES section:
+In `AddWallowModules`, add under FEATURE MODULES section:
 ```csharp
 if (modules.GetValue("Showcases", defaultValue: true))
 {
@@ -1046,7 +1046,7 @@ if (modules.GetValue("Showcases", defaultValue: true))
 }
 ```
 
-In `InitializeFoundryModulesAsync`, add:
+In `InitializeWallowModulesAsync`, add:
 ```csharp
 if (modules.GetValue("Showcases", defaultValue: true))
 {
@@ -1070,7 +1070,7 @@ git add -A && git commit -m "feat(showcases): add module registration and DI wir
 ### Task 8: Add ShowcasesManage permission
 
 **Files:**
-- Modify: `src/Shared/Foundry.Shared.Kernel/Identity/Authorization/PermissionType.cs`
+- Modify: `src/Shared/Wallow.Shared.Kernel/Identity/Authorization/PermissionType.cs`
 
 **Step 1: Add the permission constant**
 
@@ -1098,15 +1098,15 @@ git add -A && git commit -m "feat(showcases): add ShowcasesManage permission typ
 ### Task 9: API layer — Controller with public and admin endpoints
 
 **Files:**
-- Create: `src/Modules/Showcases/Foundry.Showcases.Api/Controllers/ShowcasesController.cs`
-- Create: `src/Modules/Showcases/Foundry.Showcases.Api/Contracts/Requests/CreateShowcaseRequest.cs`
-- Create: `src/Modules/Showcases/Foundry.Showcases.Api/Contracts/Requests/UpdateShowcaseRequest.cs`
+- Create: `src/Modules/Showcases/Wallow.Showcases.Api/Controllers/ShowcasesController.cs`
+- Create: `src/Modules/Showcases/Wallow.Showcases.Api/Contracts/Requests/CreateShowcaseRequest.cs`
+- Create: `src/Modules/Showcases/Wallow.Showcases.Api/Contracts/Requests/UpdateShowcaseRequest.cs`
 
 **Step 1: Create API request contracts**
 
 `CreateShowcaseRequest.cs`:
 ```csharp
-namespace Foundry.Showcases.Api.Contracts.Requests;
+namespace Wallow.Showcases.Api.Contracts.Requests;
 
 public sealed record CreateShowcaseRequest(
     string Title,
@@ -1122,7 +1122,7 @@ public sealed record CreateShowcaseRequest(
 
 `UpdateShowcaseRequest.cs`:
 ```csharp
-namespace Foundry.Showcases.Api.Contracts.Requests;
+namespace Wallow.Showcases.Api.Contracts.Requests;
 
 public sealed record UpdateShowcaseRequest(
     string Title,
@@ -1141,23 +1141,23 @@ public sealed record UpdateShowcaseRequest(
 `ShowcasesController.cs`:
 ```csharp
 using Asp.Versioning;
-using Foundry.Showcases.Api.Contracts.Requests;
-using Foundry.Showcases.Application.Commands.CreateShowcase;
-using Foundry.Showcases.Application.Commands.DeleteShowcase;
-using Foundry.Showcases.Application.Commands.UpdateShowcase;
-using Foundry.Showcases.Application.DTOs;
-using Foundry.Showcases.Application.Queries.GetShowcase;
-using Foundry.Showcases.Application.Queries.ListShowcases;
-using Foundry.Showcases.Domain.Enums;
-using Foundry.Shared.Api.Extensions;
-using Foundry.Shared.Kernel.Identity.Authorization;
-using Foundry.Shared.Kernel.Results;
+using Wallow.Showcases.Api.Contracts.Requests;
+using Wallow.Showcases.Application.Commands.CreateShowcase;
+using Wallow.Showcases.Application.Commands.DeleteShowcase;
+using Wallow.Showcases.Application.Commands.UpdateShowcase;
+using Wallow.Showcases.Application.DTOs;
+using Wallow.Showcases.Application.Queries.GetShowcase;
+using Wallow.Showcases.Application.Queries.ListShowcases;
+using Wallow.Showcases.Domain.Enums;
+using Wallow.Shared.Api.Extensions;
+using Wallow.Shared.Kernel.Identity.Authorization;
+using Wallow.Shared.Kernel.Results;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Wolverine;
 
-namespace Foundry.Showcases.Api.Controllers;
+namespace Wallow.Showcases.Api.Controllers;
 
 [ApiController]
 [ApiVersion(1)]
@@ -1315,12 +1315,12 @@ git add -A && git commit -m "feat(showcases): add API controller with public rea
 Run:
 ```bash
 dotnet ef migrations add InitialShowcases \
-    --project src/Modules/Showcases/Foundry.Showcases.Infrastructure \
-    --startup-project src/Foundry.Api \
+    --project src/Modules/Showcases/Wallow.Showcases.Infrastructure \
+    --startup-project src/Wallow.Api \
     --context ShowcasesDbContext
 ```
 
-Expected: Migration files created in `src/Modules/Showcases/Foundry.Showcases.Infrastructure/Migrations/`
+Expected: Migration files created in `src/Modules/Showcases/Wallow.Showcases.Infrastructure/Migrations/`
 
 **Step 2: Verify build**
 
@@ -1338,22 +1338,22 @@ git add -A && git commit -m "feat(showcases): add initial EF Core migration"
 ### Task 11: Unit tests — Domain and Application
 
 **Files:**
-- Create: `tests/Modules/Showcases/Foundry.Showcases.Tests/Foundry.Showcases.Tests.csproj`
-- Create: `tests/Modules/Showcases/Foundry.Showcases.Tests/Domain/ShowcaseTests.cs`
-- Create: `tests/Modules/Showcases/Foundry.Showcases.Tests/Application/Commands/CreateShowcaseHandlerTests.cs`
-- Create: `tests/Modules/Showcases/Foundry.Showcases.Tests/Application/Commands/UpdateShowcaseHandlerTests.cs`
-- Create: `tests/Modules/Showcases/Foundry.Showcases.Tests/Application/Commands/DeleteShowcaseHandlerTests.cs`
-- Create: `tests/Modules/Showcases/Foundry.Showcases.Tests/Application/Queries/GetShowcaseHandlerTests.cs`
-- Create: `tests/Modules/Showcases/Foundry.Showcases.Tests/Application/Queries/ListShowcasesHandlerTests.cs`
-- Modify: `Foundry.sln`
+- Create: `tests/Modules/Showcases/Wallow.Showcases.Tests/Wallow.Showcases.Tests.csproj`
+- Create: `tests/Modules/Showcases/Wallow.Showcases.Tests/Domain/ShowcaseTests.cs`
+- Create: `tests/Modules/Showcases/Wallow.Showcases.Tests/Application/Commands/CreateShowcaseHandlerTests.cs`
+- Create: `tests/Modules/Showcases/Wallow.Showcases.Tests/Application/Commands/UpdateShowcaseHandlerTests.cs`
+- Create: `tests/Modules/Showcases/Wallow.Showcases.Tests/Application/Commands/DeleteShowcaseHandlerTests.cs`
+- Create: `tests/Modules/Showcases/Wallow.Showcases.Tests/Application/Queries/GetShowcaseHandlerTests.cs`
+- Create: `tests/Modules/Showcases/Wallow.Showcases.Tests/Application/Queries/ListShowcasesHandlerTests.cs`
+- Modify: `Wallow.sln`
 
 **Step 1: Create the test project**
 
-`Foundry.Showcases.Tests.csproj`:
+`Wallow.Showcases.Tests.csproj`:
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <RootNamespace>Foundry.Showcases.Tests</RootNamespace>
+    <RootNamespace>Wallow.Showcases.Tests</RootNamespace>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
@@ -1377,28 +1377,28 @@ git add -A && git commit -m "feat(showcases): add initial EF Core migration"
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\src\Modules\Showcases\Foundry.Showcases.Domain\Foundry.Showcases.Domain.csproj" />
-    <ProjectReference Include="..\..\..\..\src\Modules\Showcases\Foundry.Showcases.Application\Foundry.Showcases.Application.csproj" />
-    <ProjectReference Include="..\..\..\..\src\Modules\Showcases\Foundry.Showcases.Infrastructure\Foundry.Showcases.Infrastructure.csproj" />
-    <ProjectReference Include="..\..\..\..\src\Modules\Showcases\Foundry.Showcases.Api\Foundry.Showcases.Api.csproj" />
-    <ProjectReference Include="..\..\..\Foundry.Tests.Common\Foundry.Tests.Common.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Modules\Showcases\Wallow.Showcases.Domain\Wallow.Showcases.Domain.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Modules\Showcases\Wallow.Showcases.Application\Wallow.Showcases.Application.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Modules\Showcases\Wallow.Showcases.Infrastructure\Wallow.Showcases.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Modules\Showcases\Wallow.Showcases.Api\Wallow.Showcases.Api.csproj" />
+    <ProjectReference Include="..\..\..\Wallow.Tests.Common\Wallow.Tests.Common.csproj" />
   </ItemGroup>
 </Project>
 ```
 
 Add to solution:
 ```bash
-dotnet sln add tests/Modules/Showcases/Foundry.Showcases.Tests/Foundry.Showcases.Tests.csproj
+dotnet sln add tests/Modules/Showcases/Wallow.Showcases.Tests/Wallow.Showcases.Tests.csproj
 ```
 
 **Step 2: Write domain tests**
 
 `ShowcaseTests.cs`:
 ```csharp
-using Foundry.Showcases.Domain.Entities;
-using Foundry.Showcases.Domain.Enums;
+using Wallow.Showcases.Domain.Entities;
+using Wallow.Showcases.Domain.Enums;
 
-namespace Foundry.Showcases.Tests.Domain;
+namespace Wallow.Showcases.Tests.Domain;
 
 public class ShowcaseTests
 {
@@ -1482,13 +1482,13 @@ public class ShowcaseTests
 
 `CreateShowcaseHandlerTests.cs`:
 ```csharp
-using Foundry.Showcases.Application.Commands.CreateShowcase;
-using Foundry.Showcases.Application.Interfaces;
-using Foundry.Showcases.Domain.Entities;
-using Foundry.Showcases.Domain.Enums;
-using Foundry.Shared.Kernel.Results;
+using Wallow.Showcases.Application.Commands.CreateShowcase;
+using Wallow.Showcases.Application.Interfaces;
+using Wallow.Showcases.Domain.Entities;
+using Wallow.Showcases.Domain.Enums;
+using Wallow.Shared.Kernel.Results;
 
-namespace Foundry.Showcases.Tests.Application.Commands;
+namespace Wallow.Showcases.Tests.Application.Commands;
 
 public class CreateShowcaseHandlerTests
 {
@@ -1528,15 +1528,15 @@ public class CreateShowcaseHandlerTests
 
 `UpdateShowcaseHandlerTests.cs`:
 ```csharp
-using Foundry.Showcases.Application.Commands.UpdateShowcase;
-using Foundry.Showcases.Application.DTOs;
-using Foundry.Showcases.Application.Interfaces;
-using Foundry.Showcases.Domain.Entities;
-using Foundry.Showcases.Domain.Enums;
-using Foundry.Showcases.Domain.Identity;
-using Foundry.Shared.Kernel.Results;
+using Wallow.Showcases.Application.Commands.UpdateShowcase;
+using Wallow.Showcases.Application.DTOs;
+using Wallow.Showcases.Application.Interfaces;
+using Wallow.Showcases.Domain.Entities;
+using Wallow.Showcases.Domain.Enums;
+using Wallow.Showcases.Domain.Identity;
+using Wallow.Shared.Kernel.Results;
 
-namespace Foundry.Showcases.Tests.Application.Commands;
+namespace Wallow.Showcases.Tests.Application.Commands;
 
 public class UpdateShowcaseHandlerTests
 {
@@ -1586,14 +1586,14 @@ public class UpdateShowcaseHandlerTests
 
 `DeleteShowcaseHandlerTests.cs`:
 ```csharp
-using Foundry.Showcases.Application.Commands.DeleteShowcase;
-using Foundry.Showcases.Application.Interfaces;
-using Foundry.Showcases.Domain.Entities;
-using Foundry.Showcases.Domain.Enums;
-using Foundry.Showcases.Domain.Identity;
-using Foundry.Shared.Kernel.Results;
+using Wallow.Showcases.Application.Commands.DeleteShowcase;
+using Wallow.Showcases.Application.Interfaces;
+using Wallow.Showcases.Domain.Entities;
+using Wallow.Showcases.Domain.Enums;
+using Wallow.Showcases.Domain.Identity;
+using Wallow.Shared.Kernel.Results;
 
-namespace Foundry.Showcases.Tests.Application.Commands;
+namespace Wallow.Showcases.Tests.Application.Commands;
 
 public class DeleteShowcaseHandlerTests
 {
@@ -1639,15 +1639,15 @@ public class DeleteShowcaseHandlerTests
 
 `GetShowcaseHandlerTests.cs`:
 ```csharp
-using Foundry.Showcases.Application.DTOs;
-using Foundry.Showcases.Application.Interfaces;
-using Foundry.Showcases.Application.Queries.GetShowcase;
-using Foundry.Showcases.Domain.Entities;
-using Foundry.Showcases.Domain.Enums;
-using Foundry.Showcases.Domain.Identity;
-using Foundry.Shared.Kernel.Results;
+using Wallow.Showcases.Application.DTOs;
+using Wallow.Showcases.Application.Interfaces;
+using Wallow.Showcases.Application.Queries.GetShowcase;
+using Wallow.Showcases.Domain.Entities;
+using Wallow.Showcases.Domain.Enums;
+using Wallow.Showcases.Domain.Identity;
+using Wallow.Shared.Kernel.Results;
 
-namespace Foundry.Showcases.Tests.Application.Queries;
+namespace Wallow.Showcases.Tests.Application.Queries;
 
 public class GetShowcaseHandlerTests
 {
@@ -1690,14 +1690,14 @@ public class GetShowcaseHandlerTests
 
 `ListShowcasesHandlerTests.cs`:
 ```csharp
-using Foundry.Showcases.Application.DTOs;
-using Foundry.Showcases.Application.Interfaces;
-using Foundry.Showcases.Application.Queries.ListShowcases;
-using Foundry.Showcases.Domain.Entities;
-using Foundry.Showcases.Domain.Enums;
-using Foundry.Shared.Kernel.Results;
+using Wallow.Showcases.Application.DTOs;
+using Wallow.Showcases.Application.Interfaces;
+using Wallow.Showcases.Application.Queries.ListShowcases;
+using Wallow.Showcases.Domain.Entities;
+using Wallow.Showcases.Domain.Enums;
+using Wallow.Shared.Kernel.Results;
 
-namespace Foundry.Showcases.Tests.Application.Queries;
+namespace Wallow.Showcases.Tests.Application.Queries;
 
 public class ListShowcasesHandlerTests
 {
@@ -1769,7 +1769,7 @@ public class ListShowcasesHandlerTests
 
 **Step 5: Run tests**
 
-Run: `dotnet test tests/Modules/Showcases/Foundry.Showcases.Tests`
+Run: `dotnet test tests/Modules/Showcases/Wallow.Showcases.Tests`
 Expected: All tests pass
 
 **Step 6: Commit**

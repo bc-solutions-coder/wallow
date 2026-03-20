@@ -1,4 +1,4 @@
-# Security Audit Report -- Foundry
+# Security Audit Report -- Wallow
 
 **Date:** 2026-03-02
 **Auditor:** security-auditor (automated)
@@ -9,7 +9,7 @@
 
 ## Executive Summary
 
-The Foundry codebase demonstrates **strong security fundamentals** with a well-layered defense-in-depth approach. Multi-tenancy isolation is enforced at both the EF Core query-filter level and in raw Dapper queries. Authentication and authorization are consistently applied across controllers. The codebase includes HTML sanitization, security headers, rate limiting, and input validation via FluentValidation.
+The Wallow codebase demonstrates **strong security fundamentals** with a well-layered defense-in-depth approach. Multi-tenancy isolation is enforced at both the EF Core query-filter level and in raw Dapper queries. Authentication and authorization are consistently applied across controllers. The codebase includes HTML sanitization, security headers, rate limiting, and input validation via FluentValidation.
 
 Several findings require attention, primarily around information disclosure in SCIM error responses, missing granular permissions on some controllers, and message body sanitization.
 
@@ -28,7 +28,7 @@ Several findings require attention, primarily around information disclosure in S
 ### HIGH-1: SCIM Controller Exposes Internal Exception Messages
 
 **Severity:** HIGH
-**File:** `src/Modules/Identity/Foundry.Identity.Api/Controllers/ScimController.cs`
+**File:** `src/Modules/Identity/Wallow.Identity.Api/Controllers/ScimController.cs`
 **Lines:** 92, 113, 135, 158, 178, 207, 221, 247
 
 **Issue:** Multiple SCIM endpoints catch `Exception` and return `ex.Message` directly in the response body. Internal exception messages may contain stack traces, SQL details, entity framework internals, or other implementation details that help an attacker understand the system.
@@ -59,8 +59,8 @@ Detail = _environment.IsDevelopment() ? ex.Message : "An error occurred processi
 
 **Severity:** HIGH
 **Files:**
-- `src/Modules/Communications/Foundry.Communications.Api/Controllers/ConversationsController.cs:117`
-- `src/Modules/Communications/Foundry.Communications.Application/Messaging/Commands/SendMessage/SendMessageHandler.cs:23`
+- `src/Modules/Communications/Wallow.Communications.Api/Controllers/ConversationsController.cs:117`
+- `src/Modules/Communications/Wallow.Communications.Application/Messaging/Commands/SendMessage/SendMessageHandler.cs:23`
 
 **Issue:** The `SendMessage` endpoint passes `request.Body` directly to the command handler without HTML sanitization. While the `AdminChangelogController` and `AdminAnnouncementsController` both use `IHtmlSanitizationService` to sanitize content, the messaging system does not. If the message body is rendered as HTML in a frontend, this creates a stored XSS vector.
 
@@ -76,8 +76,8 @@ The validator (`SendMessageValidator`) only checks length (max 4000) and non-emp
 
 **Severity:** MEDIUM
 **Files:**
-- `src/Foundry.Api/Middleware/HangfireDashboardAuthFilter.cs`
-- `src/Foundry.Api/Extensions/HangfireExtensions.cs:36`
+- `src/Wallow.Api/Middleware/HangfireDashboardAuthFilter.cs`
+- `src/Wallow.Api/Extensions/HangfireExtensions.cs:36`
 
 **Issue:** The Hangfire dashboard at `/hangfire` is registered in all environments. In production, it requires `IsAuthenticated && IsInRole("Admin")`, which is reasonable. However, the Hangfire dashboard is placed in the middleware pipeline after `UseAuthorization()` but the dashboard itself uses its own `IDashboardAuthorizationFilter` -- it does not go through the standard ASP.NET Core authorization pipeline. This means:
 - CORS policies may not apply to it
@@ -92,16 +92,16 @@ The validator (`SendMessageValidator`) only checks length (max 4000) and non-emp
 
 **Severity:** MEDIUM
 **Files:**
-- `src/Modules/Billing/Foundry.Billing.Api/Controllers/UsageController.cs` -- `[Authorize]` only, no `[HasPermission]`
-- `src/Modules/Billing/Foundry.Billing.Api/Controllers/MetersController.cs` -- `[Authorize]` only, no `[HasPermission]`
-- `src/Modules/Billing/Foundry.Billing.Api/Controllers/QuotasController.cs` -- `[Authorize]` only, no `[HasPermission]`
-- `src/Modules/Communications/Foundry.Communications.Api/Controllers/NotificationsController.cs` -- `[Authorize]` only
-- `src/Modules/Communications/Foundry.Communications.Api/Controllers/EmailPreferencesController.cs` -- `[Authorize]` only
-- `src/Modules/Communications/Foundry.Communications.Api/Controllers/AnnouncementsController.cs` -- `[Authorize]` only
-- `src/Modules/Communications/Foundry.Communications.Api/Controllers/ConversationsController.cs` -- `[Authorize]` only
-- `src/Modules/Storage/Foundry.Storage.Api/Controllers/StorageController.cs` -- `[Authorize]` only
-- `src/Modules/Identity/Foundry.Identity.Api/Controllers/ApiKeysController.cs` -- `[Authorize]` only
-- `src/Modules/Identity/Foundry.Identity.Api/Controllers/ScopesController.cs` -- `[Authorize]` only
+- `src/Modules/Billing/Wallow.Billing.Api/Controllers/UsageController.cs` -- `[Authorize]` only, no `[HasPermission]`
+- `src/Modules/Billing/Wallow.Billing.Api/Controllers/MetersController.cs` -- `[Authorize]` only, no `[HasPermission]`
+- `src/Modules/Billing/Wallow.Billing.Api/Controllers/QuotasController.cs` -- `[Authorize]` only, no `[HasPermission]`
+- `src/Modules/Communications/Wallow.Communications.Api/Controllers/NotificationsController.cs` -- `[Authorize]` only
+- `src/Modules/Communications/Wallow.Communications.Api/Controllers/EmailPreferencesController.cs` -- `[Authorize]` only
+- `src/Modules/Communications/Wallow.Communications.Api/Controllers/AnnouncementsController.cs` -- `[Authorize]` only
+- `src/Modules/Communications/Wallow.Communications.Api/Controllers/ConversationsController.cs` -- `[Authorize]` only
+- `src/Modules/Storage/Wallow.Storage.Api/Controllers/StorageController.cs` -- `[Authorize]` only
+- `src/Modules/Identity/Wallow.Identity.Api/Controllers/ApiKeysController.cs` -- `[Authorize]` only
+- `src/Modules/Identity/Wallow.Identity.Api/Controllers/ScopesController.cs` -- `[Authorize]` only
 
 **Issue:** These controllers require authentication (`[Authorize]`) but do not enforce granular permission checks (`[HasPermission]`). This means any authenticated user can access these endpoints regardless of role. Compare with `FeatureFlagsController`, `UsersController`, `OrganizationsController`, etc., which properly use `[HasPermission(PermissionType.XXX)]`.
 
@@ -112,9 +112,9 @@ The validator (`SendMessageValidator`) only checks length (max 4000) and non-emp
 ### MEDIUM-3: Conversations Endpoint Lacks Participant Authorization Check
 
 **Severity:** MEDIUM
-**File:** `src/Modules/Communications/Foundry.Communications.Api/Controllers/ConversationsController.cs:93-108`
+**File:** `src/Modules/Communications/Wallow.Communications.Api/Controllers/ConversationsController.cs:93-108`
 
-**Issue:** The `GetMessages` endpoint retrieves messages for a conversation given a conversation ID and the current user's ID. However, the Dapper query in `MessagingQueryService.GetMessagesAsync` (`src/Modules/Communications/Foundry.Communications.Infrastructure/Services/MessagingQueryService.cs:47-93`) filters by `TenantId` and `ConversationId` but does **not** verify that the requesting user is actually a participant in that conversation. A user within the same tenant could read messages from any conversation by guessing/enumerating conversation GUIDs.
+**Issue:** The `GetMessages` endpoint retrieves messages for a conversation given a conversation ID and the current user's ID. However, the Dapper query in `MessagingQueryService.GetMessagesAsync` (`src/Modules/Communications/Wallow.Communications.Infrastructure/Services/MessagingQueryService.cs:47-93`) filters by `TenantId` and `ConversationId` but does **not** verify that the requesting user is actually a participant in that conversation. A user within the same tenant could read messages from any conversation by guessing/enumerating conversation GUIDs.
 
 The `GetConversations` query correctly filters by user participation (`WHERE p.user_id = @UserId`), but `GetMessages` does not.
 
@@ -130,7 +130,7 @@ INNER JOIN communications.participants p
 ### MEDIUM-4: AsyncAPI Endpoints Publicly Accessible
 
 **Severity:** MEDIUM
-**File:** `src/Foundry.Api/Extensions/AsyncApiEndpointExtensions.cs:24-34`
+**File:** `src/Wallow.Api/Extensions/AsyncApiEndpointExtensions.cs:24-34`
 
 **Issue:** Three AsyncAPI endpoints are registered with `.AllowAnonymous()`:
 - `/asyncapi/v1.json` -- Returns the full async API document
@@ -146,7 +146,7 @@ These endpoints expose the internal messaging architecture, event names, queue n
 ### MEDIUM-5: Keycloak `ssl-required: none` in Development Config
 
 **Severity:** MEDIUM
-**File:** `src/Foundry.Api/appsettings.Development.json:31` (inferred from Keycloak config)
+**File:** `src/Wallow.Api/appsettings.Development.json:31` (inferred from Keycloak config)
 
 **Issue:** The development configuration sets `"ssl-required": "none"` for Keycloak. While acceptable for local development, if this configuration leaks to staging/production (e.g., through misconfigured environment overrides), JWT tokens would be transmitted over plain HTTP, making them susceptible to interception.
 
@@ -159,7 +159,7 @@ The production config correctly uses `"ssl-required": "external"`, so this is we
 ### LOW-1: Testing Config Contains Hardcoded Credentials
 
 **Severity:** LOW
-**File:** `src/Foundry.Api/appsettings.Testing.json`
+**File:** `src/Wallow.Api/appsettings.Testing.json`
 
 **Issue:** Testing configuration contains hardcoded credentials:
 - Database: `Username=test;Password=test`
@@ -175,7 +175,7 @@ While these are clearly test values and the file is appropriately named, they ar
 ### LOW-2: SCIM Discovery Endpoints Bypass Authentication
 
 **Severity:** LOW
-**File:** `src/Modules/Identity/Foundry.Identity.Infrastructure/Authorization/ScimAuthenticationMiddleware.cs:56-62`
+**File:** `src/Modules/Identity/Wallow.Identity.Infrastructure/Authorization/ScimAuthenticationMiddleware.cs:56-62`
 
 **Issue:** SCIM discovery endpoints (`ServiceProviderConfig`, `Schemas`, `ResourceTypes`) are accessible without authentication per the SCIM spec. The middleware correctly identifies and bypasses auth for these. However, the controller is `[AllowAnonymous]`, which means **all** SCIM endpoints bypass ASP.NET Core authorization. The custom middleware handles auth, but if the middleware is removed or reordered, all SCIM endpoints become unauthenticated.
 
@@ -186,7 +186,7 @@ While these are clearly test values and the file is appropriately named, they ar
 ### LOW-3: `GetCurrentUserId()` Returns `Guid.Empty` on Auth Failure (Storage)
 
 **Severity:** LOW
-**File:** `src/Modules/Storage/Foundry.Storage.Api/Controllers/StorageController.cs:262-272`
+**File:** `src/Modules/Storage/Wallow.Storage.Api/Controllers/StorageController.cs:262-272`
 
 **Issue:** The `GetCurrentUserId()` helper in `StorageController` returns `Guid.Empty` if the user claim cannot be parsed. This value is then passed into the `UploadFileCommand.UserId`. Unlike the `ConversationsController` which returns `Unauthorized()` when the user ID is null, the storage controller proceeds with an empty GUID.
 
@@ -197,7 +197,7 @@ While these are clearly test values and the file is appropriately named, they ar
 ### LOW-4: Domain Exception Messages Exposed in All Environments
 
 **Severity:** LOW
-**File:** `src/Foundry.Api/Middleware/GlobalExceptionHandler.cs:91-95`
+**File:** `src/Wallow.Api/Middleware/GlobalExceptionHandler.cs:91-95`
 
 **Issue:** For `DomainException` and `ValidationException`, the exception message is always returned in the response (lines 91-100), regardless of environment. While domain exception messages are typically user-facing and safe, if a domain exception inadvertently contains internal details (e.g., entity IDs, SQL constraint names), this could leak information.
 
@@ -208,7 +208,7 @@ While these are clearly test values and the file is appropriately named, they ar
 ## What's Done Well
 
 ### Multi-Tenancy Isolation (Excellent)
-- `TenantAwareDbContext` applies global query filters on all `ITenantScoped` entities via EF Core (`src/Shared/Foundry.Shared.Infrastructure/Persistence/TenantAwareDbContext.cs`)
+- `TenantAwareDbContext` applies global query filters on all `ITenantScoped` entities via EF Core (`src/Shared/Wallow.Shared.Infrastructure/Persistence/TenantAwareDbContext.cs`)
 - `TenantSaveChangesInterceptor` automatically stamps new entities with `TenantId` and prevents modification of existing tenant IDs
 - All Dapper queries consistently include `WHERE tenant_id = @TenantId` with parameterized values
 - Tenant context is resolved from JWT claims via `TenantResolutionMiddleware` with admin override properly gated behind `HasRealmAdminRole`

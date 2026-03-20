@@ -4,7 +4,7 @@
 
 **Goal:** Create a new Inquiries module for capturing public business inquiries with status workflow, email notifications, and spam protection.
 
-**Architecture:** New Clean Architecture module (Domain → Application → Infrastructure → Api) following existing Foundry patterns. Not tenant-scoped. Publishes `InquirySubmittedEvent` to RabbitMQ; Communications module consumes it to send emails via `SendEmailRequestedEvent`.
+**Architecture:** New Clean Architecture module (Domain → Application → Infrastructure → Api) following existing Wallow patterns. Not tenant-scoped. Publishes `InquirySubmittedEvent` to RabbitMQ; Communications module consumes it to send emails via `SendEmailRequestedEvent`.
 
 **Tech Stack:** .NET 10, EF Core (PostgreSQL `inquiries` schema), Wolverine (CQRS + messaging), FluentValidation, Valkey (rate limiting)
 
@@ -13,37 +13,37 @@
 ### Task 1: Create project structure and solution references
 
 **Files:**
-- Create: `src/Modules/Inquiries/Foundry.Inquiries.Domain/Foundry.Inquiries.Domain.csproj`
-- Create: `src/Modules/Inquiries/Foundry.Inquiries.Application/Foundry.Inquiries.Application.csproj`
-- Create: `src/Modules/Inquiries/Foundry.Inquiries.Infrastructure/Foundry.Inquiries.Infrastructure.csproj`
-- Create: `src/Modules/Inquiries/Foundry.Inquiries.Api/Foundry.Inquiries.Api.csproj`
-- Modify: `src/Foundry.Api/Foundry.Api.csproj`
-- Modify: `Foundry.sln`
+- Create: `src/Modules/Inquiries/Wallow.Inquiries.Domain/Wallow.Inquiries.Domain.csproj`
+- Create: `src/Modules/Inquiries/Wallow.Inquiries.Application/Wallow.Inquiries.Application.csproj`
+- Create: `src/Modules/Inquiries/Wallow.Inquiries.Infrastructure/Wallow.Inquiries.Infrastructure.csproj`
+- Create: `src/Modules/Inquiries/Wallow.Inquiries.Api/Wallow.Inquiries.Api.csproj`
+- Modify: `src/Wallow.Api/Wallow.Api.csproj`
+- Modify: `Wallow.sln`
 
 **Step 1: Create the four project directories and .csproj files**
 
-`Foundry.Inquiries.Domain.csproj`:
+`Wallow.Inquiries.Domain.csproj`:
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <RootNamespace>Foundry.Inquiries.Domain</RootNamespace>
+    <RootNamespace>Wallow.Inquiries.Domain</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\Shared\Foundry.Shared.Kernel\Foundry.Shared.Kernel.csproj" />
+    <ProjectReference Include="..\..\..\Shared\Wallow.Shared.Kernel\Wallow.Shared.Kernel.csproj" />
   </ItemGroup>
 </Project>
 ```
 
-`Foundry.Inquiries.Application.csproj`:
+`Wallow.Inquiries.Application.csproj`:
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <RootNamespace>Foundry.Inquiries.Application</RootNamespace>
+    <RootNamespace>Wallow.Inquiries.Application</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Foundry.Inquiries.Domain\Foundry.Inquiries.Domain.csproj" />
-    <ProjectReference Include="..\..\..\Shared\Foundry.Shared.Kernel\Foundry.Shared.Kernel.csproj" />
-    <ProjectReference Include="..\..\..\Shared\Foundry.Shared.Contracts\Foundry.Shared.Contracts.csproj" />
+    <ProjectReference Include="..\Wallow.Inquiries.Domain\Wallow.Inquiries.Domain.csproj" />
+    <ProjectReference Include="..\..\..\Shared\Wallow.Shared.Kernel\Wallow.Shared.Kernel.csproj" />
+    <ProjectReference Include="..\..\..\Shared\Wallow.Shared.Contracts\Wallow.Shared.Contracts.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="FluentValidation" />
@@ -53,11 +53,11 @@
 </Project>
 ```
 
-`Foundry.Inquiries.Infrastructure.csproj`:
+`Wallow.Inquiries.Infrastructure.csproj`:
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <RootNamespace>Foundry.Inquiries.Infrastructure</RootNamespace>
+    <RootNamespace>Wallow.Inquiries.Infrastructure</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore" />
@@ -70,25 +70,25 @@
     <PackageReference Include="WolverineFx" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Foundry.Inquiries.Domain\Foundry.Inquiries.Domain.csproj" />
-    <ProjectReference Include="..\Foundry.Inquiries.Application\Foundry.Inquiries.Application.csproj" />
-    <ProjectReference Include="..\..\..\Shared\Foundry.Shared.Infrastructure\Foundry.Shared.Infrastructure.csproj" />
+    <ProjectReference Include="..\Wallow.Inquiries.Domain\Wallow.Inquiries.Domain.csproj" />
+    <ProjectReference Include="..\Wallow.Inquiries.Application\Wallow.Inquiries.Application.csproj" />
+    <ProjectReference Include="..\..\..\Shared\Wallow.Shared.Infrastructure\Wallow.Shared.Infrastructure.csproj" />
   </ItemGroup>
 </Project>
 ```
 
-`Foundry.Inquiries.Api.csproj`:
+`Wallow.Inquiries.Api.csproj`:
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <RootNamespace>Foundry.Inquiries.Api</RootNamespace>
+    <RootNamespace>Wallow.Inquiries.Api</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Foundry.Inquiries.Application\Foundry.Inquiries.Application.csproj" />
-    <ProjectReference Include="..\..\..\Shared\Foundry.Shared.Api\Foundry.Shared.Api.csproj" />
+    <ProjectReference Include="..\Wallow.Inquiries.Application\Wallow.Inquiries.Application.csproj" />
+    <ProjectReference Include="..\..\..\Shared\Wallow.Shared.Api\Wallow.Shared.Api.csproj" />
   </ItemGroup>
 </Project>
 ```
@@ -97,22 +97,22 @@
 
 Run:
 ```bash
-dotnet sln add src/Modules/Inquiries/Foundry.Inquiries.Domain/Foundry.Inquiries.Domain.csproj
-dotnet sln add src/Modules/Inquiries/Foundry.Inquiries.Application/Foundry.Inquiries.Application.csproj
-dotnet sln add src/Modules/Inquiries/Foundry.Inquiries.Infrastructure/Foundry.Inquiries.Infrastructure.csproj
-dotnet sln add src/Modules/Inquiries/Foundry.Inquiries.Api/Foundry.Inquiries.Api.csproj
+dotnet sln add src/Modules/Inquiries/Wallow.Inquiries.Domain/Wallow.Inquiries.Domain.csproj
+dotnet sln add src/Modules/Inquiries/Wallow.Inquiries.Application/Wallow.Inquiries.Application.csproj
+dotnet sln add src/Modules/Inquiries/Wallow.Inquiries.Infrastructure/Wallow.Inquiries.Infrastructure.csproj
+dotnet sln add src/Modules/Inquiries/Wallow.Inquiries.Api/Wallow.Inquiries.Api.csproj
 ```
 
-**Step 3: Add project references to Foundry.Api.csproj**
+**Step 3: Add project references to Wallow.Api.csproj**
 
 Add to the `<!-- Module Api projects -->` section:
 ```xml
-<ProjectReference Include="..\Modules\Inquiries\Foundry.Inquiries.Api\Foundry.Inquiries.Api.csproj" />
+<ProjectReference Include="..\Modules\Inquiries\Wallow.Inquiries.Api\Wallow.Inquiries.Api.csproj" />
 ```
 
 Add to the `<!-- Module Infrastructure projects -->` section:
 ```xml
-<ProjectReference Include="..\Modules\Inquiries\Foundry.Inquiries.Infrastructure\Foundry.Inquiries.Infrastructure.csproj" />
+<ProjectReference Include="..\Modules\Inquiries\Wallow.Inquiries.Infrastructure\Wallow.Inquiries.Infrastructure.csproj" />
 ```
 
 **Step 4: Verify build**
@@ -131,21 +131,21 @@ git add -A && git commit -m "feat(inquiries): scaffold module project structure"
 ### Task 2: Domain layer — Enums, Identity, Events, Entity
 
 **Files:**
-- Create: `src/Modules/Inquiries/Foundry.Inquiries.Domain/Enums/ProjectType.cs`
-- Create: `src/Modules/Inquiries/Foundry.Inquiries.Domain/Enums/BudgetRange.cs`
-- Create: `src/Modules/Inquiries/Foundry.Inquiries.Domain/Enums/Timeline.cs`
-- Create: `src/Modules/Inquiries/Foundry.Inquiries.Domain/Enums/InquiryStatus.cs`
-- Create: `src/Modules/Inquiries/Foundry.Inquiries.Domain/Identity/InquiryId.cs`
-- Create: `src/Modules/Inquiries/Foundry.Inquiries.Domain/Events/InquirySubmittedDomainEvent.cs`
-- Create: `src/Modules/Inquiries/Foundry.Inquiries.Domain/Events/InquiryStatusChangedDomainEvent.cs`
-- Create: `src/Modules/Inquiries/Foundry.Inquiries.Domain/Exceptions/InvalidInquiryStatusTransitionException.cs`
-- Create: `src/Modules/Inquiries/Foundry.Inquiries.Domain/Entities/Inquiry.cs`
+- Create: `src/Modules/Inquiries/Wallow.Inquiries.Domain/Enums/ProjectType.cs`
+- Create: `src/Modules/Inquiries/Wallow.Inquiries.Domain/Enums/BudgetRange.cs`
+- Create: `src/Modules/Inquiries/Wallow.Inquiries.Domain/Enums/Timeline.cs`
+- Create: `src/Modules/Inquiries/Wallow.Inquiries.Domain/Enums/InquiryStatus.cs`
+- Create: `src/Modules/Inquiries/Wallow.Inquiries.Domain/Identity/InquiryId.cs`
+- Create: `src/Modules/Inquiries/Wallow.Inquiries.Domain/Events/InquirySubmittedDomainEvent.cs`
+- Create: `src/Modules/Inquiries/Wallow.Inquiries.Domain/Events/InquiryStatusChangedDomainEvent.cs`
+- Create: `src/Modules/Inquiries/Wallow.Inquiries.Domain/Exceptions/InvalidInquiryStatusTransitionException.cs`
+- Create: `src/Modules/Inquiries/Wallow.Inquiries.Domain/Entities/Inquiry.cs`
 
 **Step 1: Create enums**
 
 `ProjectType.cs`:
 ```csharp
-namespace Foundry.Inquiries.Domain.Enums;
+namespace Wallow.Inquiries.Domain.Enums;
 
 public enum ProjectType
 {
@@ -159,7 +159,7 @@ public enum ProjectType
 
 `BudgetRange.cs`:
 ```csharp
-namespace Foundry.Inquiries.Domain.Enums;
+namespace Wallow.Inquiries.Domain.Enums;
 
 public enum BudgetRange
 {
@@ -173,7 +173,7 @@ public enum BudgetRange
 
 `Timeline.cs`:
 ```csharp
-namespace Foundry.Inquiries.Domain.Enums;
+namespace Wallow.Inquiries.Domain.Enums;
 
 public enum Timeline
 {
@@ -187,7 +187,7 @@ public enum Timeline
 
 `InquiryStatus.cs`:
 ```csharp
-namespace Foundry.Inquiries.Domain.Enums;
+namespace Wallow.Inquiries.Domain.Enums;
 
 public enum InquiryStatus
 {
@@ -202,9 +202,9 @@ public enum InquiryStatus
 
 `InquiryId.cs`:
 ```csharp
-using Foundry.Shared.Kernel.Identity;
+using Wallow.Shared.Kernel.Identity;
 
-namespace Foundry.Inquiries.Domain.Identity;
+namespace Wallow.Inquiries.Domain.Identity;
 
 public readonly record struct InquiryId(Guid Value) : IStronglyTypedId<InquiryId>
 {
@@ -217,9 +217,9 @@ public readonly record struct InquiryId(Guid Value) : IStronglyTypedId<InquiryId
 
 `InquirySubmittedDomainEvent.cs`:
 ```csharp
-using Foundry.Shared.Kernel.Domain;
+using Wallow.Shared.Kernel.Domain;
 
-namespace Foundry.Inquiries.Domain.Events;
+namespace Wallow.Inquiries.Domain.Events;
 
 public sealed record InquirySubmittedDomainEvent(
     Guid InquiryId,
@@ -234,9 +234,9 @@ public sealed record InquirySubmittedDomainEvent(
 
 `InquiryStatusChangedDomainEvent.cs`:
 ```csharp
-using Foundry.Shared.Kernel.Domain;
+using Wallow.Shared.Kernel.Domain;
 
-namespace Foundry.Inquiries.Domain.Events;
+namespace Wallow.Inquiries.Domain.Events;
 
 public sealed record InquiryStatusChangedDomainEvent(
     Guid InquiryId,
@@ -248,9 +248,9 @@ public sealed record InquiryStatusChangedDomainEvent(
 
 `InvalidInquiryStatusTransitionException.cs`:
 ```csharp
-using Foundry.Shared.Kernel.Domain;
+using Wallow.Shared.Kernel.Domain;
 
-namespace Foundry.Inquiries.Domain.Exceptions;
+namespace Wallow.Inquiries.Domain.Exceptions;
 
 public sealed class InvalidInquiryStatusTransitionException : BusinessRuleException
 {
@@ -265,13 +265,13 @@ public sealed class InvalidInquiryStatusTransitionException : BusinessRuleExcept
 
 `Inquiry.cs`:
 ```csharp
-using Foundry.Inquiries.Domain.Enums;
-using Foundry.Inquiries.Domain.Events;
-using Foundry.Inquiries.Domain.Exceptions;
-using Foundry.Inquiries.Domain.Identity;
-using Foundry.Shared.Kernel.Domain;
+using Wallow.Inquiries.Domain.Enums;
+using Wallow.Inquiries.Domain.Events;
+using Wallow.Inquiries.Domain.Exceptions;
+using Wallow.Inquiries.Domain.Identity;
+using Wallow.Shared.Kernel.Domain;
 
-namespace Foundry.Inquiries.Domain.Entities;
+namespace Wallow.Inquiries.Domain.Entities;
 
 public sealed class Inquiry : AggregateRoot<InquiryId>
 {
@@ -359,7 +359,7 @@ public sealed class Inquiry : AggregateRoot<InquiryId>
 
 **Step 6: Verify build**
 
-Run: `dotnet build src/Modules/Inquiries/Foundry.Inquiries.Domain`
+Run: `dotnet build src/Modules/Inquiries/Wallow.Inquiries.Domain`
 Expected: Build succeeds
 
 **Step 7: Commit**
@@ -373,14 +373,14 @@ git add -A && git commit -m "feat(inquiries): add domain layer with Inquiry aggr
 ### Task 3: Shared Contracts — Integration events
 
 **Files:**
-- Create: `src/Shared/Foundry.Shared.Contracts/Inquiries/Events/InquirySubmittedEvent.cs`
-- Create: `src/Shared/Foundry.Shared.Contracts/Inquiries/Events/InquiryStatusChangedEvent.cs`
+- Create: `src/Shared/Wallow.Shared.Contracts/Inquiries/Events/InquirySubmittedEvent.cs`
+- Create: `src/Shared/Wallow.Shared.Contracts/Inquiries/Events/InquiryStatusChangedEvent.cs`
 
 **Step 1: Create integration events**
 
 `InquirySubmittedEvent.cs`:
 ```csharp
-namespace Foundry.Shared.Contracts.Inquiries.Events;
+namespace Wallow.Shared.Contracts.Inquiries.Events;
 
 public sealed record InquirySubmittedEvent : IntegrationEvent
 {
@@ -397,7 +397,7 @@ public sealed record InquirySubmittedEvent : IntegrationEvent
 
 `InquiryStatusChangedEvent.cs`:
 ```csharp
-namespace Foundry.Shared.Contracts.Inquiries.Events;
+namespace Wallow.Shared.Contracts.Inquiries.Events;
 
 public sealed record InquiryStatusChangedEvent : IntegrationEvent
 {
@@ -409,7 +409,7 @@ public sealed record InquiryStatusChangedEvent : IntegrationEvent
 
 **Step 2: Verify build**
 
-Run: `dotnet build src/Shared/Foundry.Shared.Contracts`
+Run: `dotnet build src/Shared/Wallow.Shared.Contracts`
 Expected: Build succeeds
 
 **Step 3: Commit**
@@ -423,32 +423,32 @@ git add -A && git commit -m "feat(inquiries): add integration event contracts"
 ### Task 4: Application layer — Repository interface, DTOs, Commands, Queries, Validators, Event handlers
 
 **Files:**
-- Create: `src/Modules/Inquiries/Foundry.Inquiries.Application/Interfaces/IInquiryRepository.cs`
-- Create: `src/Modules/Inquiries/Foundry.Inquiries.Application/Interfaces/IRateLimitService.cs`
-- Create: `src/Modules/Inquiries/Foundry.Inquiries.Application/DTOs/InquiryDto.cs`
-- Create: `src/Modules/Inquiries/Foundry.Inquiries.Application/Mappings/InquiryMappings.cs`
-- Create: `src/Modules/Inquiries/Foundry.Inquiries.Application/Commands/SubmitInquiry/SubmitInquiryCommand.cs`
-- Create: `src/Modules/Inquiries/Foundry.Inquiries.Application/Commands/SubmitInquiry/SubmitInquiryHandler.cs`
-- Create: `src/Modules/Inquiries/Foundry.Inquiries.Application/Commands/SubmitInquiry/SubmitInquiryValidator.cs`
-- Create: `src/Modules/Inquiries/Foundry.Inquiries.Application/Commands/UpdateInquiryStatus/UpdateInquiryStatusCommand.cs`
-- Create: `src/Modules/Inquiries/Foundry.Inquiries.Application/Commands/UpdateInquiryStatus/UpdateInquiryStatusHandler.cs`
-- Create: `src/Modules/Inquiries/Foundry.Inquiries.Application/Commands/UpdateInquiryStatus/UpdateInquiryStatusValidator.cs`
-- Create: `src/Modules/Inquiries/Foundry.Inquiries.Application/Queries/GetInquiries/GetInquiriesQuery.cs`
-- Create: `src/Modules/Inquiries/Foundry.Inquiries.Application/Queries/GetInquiries/GetInquiriesHandler.cs`
-- Create: `src/Modules/Inquiries/Foundry.Inquiries.Application/Queries/GetInquiryById/GetInquiryByIdQuery.cs`
-- Create: `src/Modules/Inquiries/Foundry.Inquiries.Application/Queries/GetInquiryById/GetInquiryByIdHandler.cs`
-- Create: `src/Modules/Inquiries/Foundry.Inquiries.Application/EventHandlers/InquirySubmittedDomainEventHandler.cs`
-- Create: `src/Modules/Inquiries/Foundry.Inquiries.Application/Extensions/ApplicationExtensions.cs`
+- Create: `src/Modules/Inquiries/Wallow.Inquiries.Application/Interfaces/IInquiryRepository.cs`
+- Create: `src/Modules/Inquiries/Wallow.Inquiries.Application/Interfaces/IRateLimitService.cs`
+- Create: `src/Modules/Inquiries/Wallow.Inquiries.Application/DTOs/InquiryDto.cs`
+- Create: `src/Modules/Inquiries/Wallow.Inquiries.Application/Mappings/InquiryMappings.cs`
+- Create: `src/Modules/Inquiries/Wallow.Inquiries.Application/Commands/SubmitInquiry/SubmitInquiryCommand.cs`
+- Create: `src/Modules/Inquiries/Wallow.Inquiries.Application/Commands/SubmitInquiry/SubmitInquiryHandler.cs`
+- Create: `src/Modules/Inquiries/Wallow.Inquiries.Application/Commands/SubmitInquiry/SubmitInquiryValidator.cs`
+- Create: `src/Modules/Inquiries/Wallow.Inquiries.Application/Commands/UpdateInquiryStatus/UpdateInquiryStatusCommand.cs`
+- Create: `src/Modules/Inquiries/Wallow.Inquiries.Application/Commands/UpdateInquiryStatus/UpdateInquiryStatusHandler.cs`
+- Create: `src/Modules/Inquiries/Wallow.Inquiries.Application/Commands/UpdateInquiryStatus/UpdateInquiryStatusValidator.cs`
+- Create: `src/Modules/Inquiries/Wallow.Inquiries.Application/Queries/GetInquiries/GetInquiriesQuery.cs`
+- Create: `src/Modules/Inquiries/Wallow.Inquiries.Application/Queries/GetInquiries/GetInquiriesHandler.cs`
+- Create: `src/Modules/Inquiries/Wallow.Inquiries.Application/Queries/GetInquiryById/GetInquiryByIdQuery.cs`
+- Create: `src/Modules/Inquiries/Wallow.Inquiries.Application/Queries/GetInquiryById/GetInquiryByIdHandler.cs`
+- Create: `src/Modules/Inquiries/Wallow.Inquiries.Application/EventHandlers/InquirySubmittedDomainEventHandler.cs`
+- Create: `src/Modules/Inquiries/Wallow.Inquiries.Application/Extensions/ApplicationExtensions.cs`
 
 **Step 1: Create interfaces**
 
 `IInquiryRepository.cs`:
 ```csharp
-using Foundry.Inquiries.Domain.Entities;
-using Foundry.Inquiries.Domain.Enums;
-using Foundry.Inquiries.Domain.Identity;
+using Wallow.Inquiries.Domain.Entities;
+using Wallow.Inquiries.Domain.Enums;
+using Wallow.Inquiries.Domain.Identity;
 
-namespace Foundry.Inquiries.Application.Interfaces;
+namespace Wallow.Inquiries.Application.Interfaces;
 
 public interface IInquiryRepository
 {
@@ -462,7 +462,7 @@ public interface IInquiryRepository
 
 `IRateLimitService.cs`:
 ```csharp
-namespace Foundry.Inquiries.Application.Interfaces;
+namespace Wallow.Inquiries.Application.Interfaces;
 
 public interface IRateLimitService
 {
@@ -475,7 +475,7 @@ public interface IRateLimitService
 
 `InquiryDto.cs`:
 ```csharp
-namespace Foundry.Inquiries.Application.DTOs;
+namespace Wallow.Inquiries.Application.DTOs;
 
 public sealed record InquiryDto(
     Guid Id,
@@ -493,10 +493,10 @@ public sealed record InquiryDto(
 
 `InquiryMappings.cs`:
 ```csharp
-using Foundry.Inquiries.Application.DTOs;
-using Foundry.Inquiries.Domain.Entities;
+using Wallow.Inquiries.Application.DTOs;
+using Wallow.Inquiries.Domain.Entities;
 
-namespace Foundry.Inquiries.Application.Mappings;
+namespace Wallow.Inquiries.Application.Mappings;
 
 public static class InquiryMappings
 {
@@ -519,9 +519,9 @@ public static class InquiryMappings
 
 `SubmitInquiryCommand.cs`:
 ```csharp
-using Foundry.Inquiries.Domain.Enums;
+using Wallow.Inquiries.Domain.Enums;
 
-namespace Foundry.Inquiries.Application.Commands.SubmitInquiry;
+namespace Wallow.Inquiries.Application.Commands.SubmitInquiry;
 
 public sealed record SubmitInquiryCommand(
     string Name,
@@ -537,13 +537,13 @@ public sealed record SubmitInquiryCommand(
 
 `SubmitInquiryHandler.cs`:
 ```csharp
-using Foundry.Inquiries.Application.DTOs;
-using Foundry.Inquiries.Application.Interfaces;
-using Foundry.Inquiries.Application.Mappings;
-using Foundry.Inquiries.Domain.Entities;
-using Foundry.Shared.Kernel.Results;
+using Wallow.Inquiries.Application.DTOs;
+using Wallow.Inquiries.Application.Interfaces;
+using Wallow.Inquiries.Application.Mappings;
+using Wallow.Inquiries.Domain.Entities;
+using Wallow.Shared.Kernel.Results;
 
-namespace Foundry.Inquiries.Application.Commands.SubmitInquiry;
+namespace Wallow.Inquiries.Application.Commands.SubmitInquiry;
 
 public sealed class SubmitInquiryHandler(
     IInquiryRepository inquiryRepository,
@@ -601,7 +601,7 @@ public sealed class SubmitInquiryHandler(
 ```csharp
 using FluentValidation;
 
-namespace Foundry.Inquiries.Application.Commands.SubmitInquiry;
+namespace Wallow.Inquiries.Application.Commands.SubmitInquiry;
 
 public sealed class SubmitInquiryValidator : AbstractValidator<SubmitInquiryCommand>
 {
@@ -634,9 +634,9 @@ public sealed class SubmitInquiryValidator : AbstractValidator<SubmitInquiryComm
 
 `UpdateInquiryStatusCommand.cs`:
 ```csharp
-using Foundry.Inquiries.Domain.Enums;
+using Wallow.Inquiries.Domain.Enums;
 
-namespace Foundry.Inquiries.Application.Commands.UpdateInquiryStatus;
+namespace Wallow.Inquiries.Application.Commands.UpdateInquiryStatus;
 
 public sealed record UpdateInquiryStatusCommand(
     Guid InquiryId,
@@ -645,14 +645,14 @@ public sealed record UpdateInquiryStatusCommand(
 
 `UpdateInquiryStatusHandler.cs`:
 ```csharp
-using Foundry.Inquiries.Application.DTOs;
-using Foundry.Inquiries.Application.Interfaces;
-using Foundry.Inquiries.Application.Mappings;
-using Foundry.Inquiries.Domain.Entities;
-using Foundry.Inquiries.Domain.Identity;
-using Foundry.Shared.Kernel.Results;
+using Wallow.Inquiries.Application.DTOs;
+using Wallow.Inquiries.Application.Interfaces;
+using Wallow.Inquiries.Application.Mappings;
+using Wallow.Inquiries.Domain.Entities;
+using Wallow.Inquiries.Domain.Identity;
+using Wallow.Shared.Kernel.Results;
 
-namespace Foundry.Inquiries.Application.Commands.UpdateInquiryStatus;
+namespace Wallow.Inquiries.Application.Commands.UpdateInquiryStatus;
 
 public sealed class UpdateInquiryStatusHandler(
     IInquiryRepository inquiryRepository,
@@ -685,7 +685,7 @@ public sealed class UpdateInquiryStatusHandler(
 ```csharp
 using FluentValidation;
 
-namespace Foundry.Inquiries.Application.Commands.UpdateInquiryStatus;
+namespace Wallow.Inquiries.Application.Commands.UpdateInquiryStatus;
 
 public sealed class UpdateInquiryStatusValidator : AbstractValidator<UpdateInquiryStatusCommand>
 {
@@ -703,22 +703,22 @@ public sealed class UpdateInquiryStatusValidator : AbstractValidator<UpdateInqui
 
 `GetInquiriesQuery.cs`:
 ```csharp
-using Foundry.Inquiries.Domain.Enums;
+using Wallow.Inquiries.Domain.Enums;
 
-namespace Foundry.Inquiries.Application.Queries.GetInquiries;
+namespace Wallow.Inquiries.Application.Queries.GetInquiries;
 
 public sealed record GetInquiriesQuery(InquiryStatus? StatusFilter = null);
 ```
 
 `GetInquiriesHandler.cs`:
 ```csharp
-using Foundry.Inquiries.Application.DTOs;
-using Foundry.Inquiries.Application.Interfaces;
-using Foundry.Inquiries.Application.Mappings;
-using Foundry.Inquiries.Domain.Entities;
-using Foundry.Shared.Kernel.Results;
+using Wallow.Inquiries.Application.DTOs;
+using Wallow.Inquiries.Application.Interfaces;
+using Wallow.Inquiries.Application.Mappings;
+using Wallow.Inquiries.Domain.Entities;
+using Wallow.Shared.Kernel.Results;
 
-namespace Foundry.Inquiries.Application.Queries.GetInquiries;
+namespace Wallow.Inquiries.Application.Queries.GetInquiries;
 
 public sealed class GetInquiriesHandler(IInquiryRepository inquiryRepository)
 {
@@ -737,21 +737,21 @@ public sealed class GetInquiriesHandler(IInquiryRepository inquiryRepository)
 
 `GetInquiryByIdQuery.cs`:
 ```csharp
-namespace Foundry.Inquiries.Application.Queries.GetInquiryById;
+namespace Wallow.Inquiries.Application.Queries.GetInquiryById;
 
 public sealed record GetInquiryByIdQuery(Guid Id);
 ```
 
 `GetInquiryByIdHandler.cs`:
 ```csharp
-using Foundry.Inquiries.Application.DTOs;
-using Foundry.Inquiries.Application.Interfaces;
-using Foundry.Inquiries.Application.Mappings;
-using Foundry.Inquiries.Domain.Entities;
-using Foundry.Inquiries.Domain.Identity;
-using Foundry.Shared.Kernel.Results;
+using Wallow.Inquiries.Application.DTOs;
+using Wallow.Inquiries.Application.Interfaces;
+using Wallow.Inquiries.Application.Mappings;
+using Wallow.Inquiries.Domain.Entities;
+using Wallow.Inquiries.Domain.Identity;
+using Wallow.Shared.Kernel.Results;
 
-namespace Foundry.Inquiries.Application.Queries.GetInquiryById;
+namespace Wallow.Inquiries.Application.Queries.GetInquiryById;
 
 public sealed class GetInquiryByIdHandler(IInquiryRepository inquiryRepository)
 {
@@ -777,12 +777,12 @@ public sealed class GetInquiryByIdHandler(IInquiryRepository inquiryRepository)
 
 `InquirySubmittedDomainEventHandler.cs`:
 ```csharp
-using Foundry.Inquiries.Domain.Events;
-using Foundry.Shared.Contracts.Inquiries.Events;
+using Wallow.Inquiries.Domain.Events;
+using Wallow.Shared.Contracts.Inquiries.Events;
 using Microsoft.Extensions.Logging;
 using Wolverine;
 
-namespace Foundry.Inquiries.Application.EventHandlers;
+namespace Wallow.Inquiries.Application.EventHandlers;
 
 public sealed partial class InquirySubmittedDomainEventHandler
 {
@@ -824,7 +824,7 @@ public sealed partial class InquirySubmittedDomainEventHandler
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Foundry.Inquiries.Application.Extensions;
+namespace Wallow.Inquiries.Application.Extensions;
 
 public static class ApplicationExtensions
 {
@@ -838,7 +838,7 @@ public static class ApplicationExtensions
 
 **Step 8: Verify build**
 
-Run: `dotnet build src/Modules/Inquiries/Foundry.Inquiries.Application`
+Run: `dotnet build src/Modules/Inquiries/Wallow.Inquiries.Application`
 Expected: Build succeeds
 
 **Step 9: Commit**
@@ -852,22 +852,22 @@ git add -A && git commit -m "feat(inquiries): add application layer with command
 ### Task 5: Infrastructure layer — DbContext, Configuration, Repository, Rate Limiting, Extensions
 
 **Files:**
-- Create: `src/Modules/Inquiries/Foundry.Inquiries.Infrastructure/Persistence/InquiriesDbContext.cs`
-- Create: `src/Modules/Inquiries/Foundry.Inquiries.Infrastructure/Persistence/InquiriesDbContextFactory.cs`
-- Create: `src/Modules/Inquiries/Foundry.Inquiries.Infrastructure/Persistence/Configurations/InquiryConfiguration.cs`
-- Create: `src/Modules/Inquiries/Foundry.Inquiries.Infrastructure/Persistence/Repositories/InquiryRepository.cs`
-- Create: `src/Modules/Inquiries/Foundry.Inquiries.Infrastructure/Services/ValkeyRateLimitService.cs`
-- Create: `src/Modules/Inquiries/Foundry.Inquiries.Infrastructure/Extensions/InquiriesInfrastructureExtensions.cs`
-- Create: `src/Modules/Inquiries/Foundry.Inquiries.Infrastructure/Extensions/InquiriesModuleExtensions.cs`
+- Create: `src/Modules/Inquiries/Wallow.Inquiries.Infrastructure/Persistence/InquiriesDbContext.cs`
+- Create: `src/Modules/Inquiries/Wallow.Inquiries.Infrastructure/Persistence/InquiriesDbContextFactory.cs`
+- Create: `src/Modules/Inquiries/Wallow.Inquiries.Infrastructure/Persistence/Configurations/InquiryConfiguration.cs`
+- Create: `src/Modules/Inquiries/Wallow.Inquiries.Infrastructure/Persistence/Repositories/InquiryRepository.cs`
+- Create: `src/Modules/Inquiries/Wallow.Inquiries.Infrastructure/Services/ValkeyRateLimitService.cs`
+- Create: `src/Modules/Inquiries/Wallow.Inquiries.Infrastructure/Extensions/InquiriesInfrastructureExtensions.cs`
+- Create: `src/Modules/Inquiries/Wallow.Inquiries.Infrastructure/Extensions/InquiriesModuleExtensions.cs`
 
 **Step 1: Create DbContext**
 
 `InquiriesDbContext.cs` — Note: NOT tenant-aware since inquiries are public, not tenant-scoped:
 ```csharp
-using Foundry.Inquiries.Domain.Entities;
+using Wallow.Inquiries.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace Foundry.Inquiries.Infrastructure.Persistence;
+namespace Wallow.Inquiries.Infrastructure.Persistence;
 
 public sealed class InquiriesDbContext : DbContext
 {
@@ -891,14 +891,14 @@ public sealed class InquiriesDbContext : DbContext
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 
-namespace Foundry.Inquiries.Infrastructure.Persistence;
+namespace Wallow.Inquiries.Infrastructure.Persistence;
 
 public class InquiriesDbContextFactory : IDesignTimeDbContextFactory<InquiriesDbContext>
 {
     public InquiriesDbContext CreateDbContext(string[] args)
     {
         DbContextOptionsBuilder<InquiriesDbContext> optionsBuilder = new();
-        optionsBuilder.UseNpgsql("Host=localhost;Database=foundry;Username=postgres;Password=postgres");
+        optionsBuilder.UseNpgsql("Host=localhost;Database=wallow;Username=postgres;Password=postgres");
         return new InquiriesDbContext(optionsBuilder.Options);
     }
 }
@@ -908,13 +908,13 @@ public class InquiriesDbContextFactory : IDesignTimeDbContextFactory<InquiriesDb
 
 `InquiryConfiguration.cs`:
 ```csharp
-using Foundry.Inquiries.Domain.Entities;
-using Foundry.Inquiries.Domain.Identity;
-using Foundry.Shared.Kernel.Identity;
+using Wallow.Inquiries.Domain.Entities;
+using Wallow.Inquiries.Domain.Identity;
+using Wallow.Shared.Kernel.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace Foundry.Inquiries.Infrastructure.Persistence.Configurations;
+namespace Wallow.Inquiries.Infrastructure.Persistence.Configurations;
 
 public sealed class InquiryConfiguration : IEntityTypeConfiguration<Inquiry>
 {
@@ -994,13 +994,13 @@ public sealed class InquiryConfiguration : IEntityTypeConfiguration<Inquiry>
 
 `InquiryRepository.cs`:
 ```csharp
-using Foundry.Inquiries.Application.Interfaces;
-using Foundry.Inquiries.Domain.Entities;
-using Foundry.Inquiries.Domain.Enums;
-using Foundry.Inquiries.Domain.Identity;
+using Wallow.Inquiries.Application.Interfaces;
+using Wallow.Inquiries.Domain.Entities;
+using Wallow.Inquiries.Domain.Enums;
+using Wallow.Inquiries.Domain.Identity;
 using Microsoft.EntityFrameworkCore;
 
-namespace Foundry.Inquiries.Infrastructure.Persistence.Repositories;
+namespace Wallow.Inquiries.Infrastructure.Persistence.Repositories;
 
 public sealed class InquiryRepository : IInquiryRepository
 {
@@ -1054,11 +1054,11 @@ public sealed class InquiryRepository : IInquiryRepository
 
 `ValkeyRateLimitService.cs`:
 ```csharp
-using Foundry.Inquiries.Application.Interfaces;
+using Wallow.Inquiries.Application.Interfaces;
 using Microsoft.Extensions.Configuration;
 using StackExchange.Redis;
 
-namespace Foundry.Inquiries.Infrastructure.Services;
+namespace Wallow.Inquiries.Infrastructure.Services;
 
 public sealed class ValkeyRateLimitService : IRateLimitService
 {
@@ -1105,15 +1105,15 @@ public sealed class ValkeyRateLimitService : IRateLimitService
 
 `InquiriesInfrastructureExtensions.cs`:
 ```csharp
-using Foundry.Inquiries.Application.Interfaces;
-using Foundry.Inquiries.Infrastructure.Persistence;
-using Foundry.Inquiries.Infrastructure.Persistence.Repositories;
-using Foundry.Inquiries.Infrastructure.Services;
+using Wallow.Inquiries.Application.Interfaces;
+using Wallow.Inquiries.Infrastructure.Persistence;
+using Wallow.Inquiries.Infrastructure.Persistence.Repositories;
+using Wallow.Inquiries.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Foundry.Inquiries.Infrastructure.Extensions;
+namespace Wallow.Inquiries.Infrastructure.Extensions;
 
 public static class InquiriesInfrastructureExtensions
 {
@@ -1144,8 +1144,8 @@ public static class InquiriesInfrastructureExtensions
 
 `InquiriesModuleExtensions.cs`:
 ```csharp
-using Foundry.Inquiries.Application.Extensions;
-using Foundry.Inquiries.Infrastructure.Persistence;
+using Wallow.Inquiries.Application.Extensions;
+using Wallow.Inquiries.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -1153,7 +1153,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace Foundry.Inquiries.Infrastructure.Extensions;
+namespace Wallow.Inquiries.Infrastructure.Extensions;
 
 public static partial class InquiriesModuleExtensions
 {
@@ -1195,7 +1195,7 @@ public static partial class InquiriesModuleExtensions
 
 **Step 6: Verify build**
 
-Run: `dotnet build src/Modules/Inquiries/Foundry.Inquiries.Infrastructure`
+Run: `dotnet build src/Modules/Inquiries/Wallow.Inquiries.Infrastructure`
 Expected: Build succeeds
 
 **Step 7: Commit**
@@ -1209,17 +1209,17 @@ git add -A && git commit -m "feat(inquiries): add infrastructure layer with pers
 ### Task 6: API layer — Controller, Contracts, Module registration
 
 **Files:**
-- Create: `src/Modules/Inquiries/Foundry.Inquiries.Api/Contracts/SubmitInquiryRequest.cs`
-- Create: `src/Modules/Inquiries/Foundry.Inquiries.Api/Contracts/InquiryResponse.cs`
-- Create: `src/Modules/Inquiries/Foundry.Inquiries.Api/Contracts/UpdateInquiryStatusRequest.cs`
-- Create: `src/Modules/Inquiries/Foundry.Inquiries.Api/Controllers/InquiriesController.cs`
-- Create: `src/Modules/Inquiries/Foundry.Inquiries.Api/InquiriesModule.cs`
+- Create: `src/Modules/Inquiries/Wallow.Inquiries.Api/Contracts/SubmitInquiryRequest.cs`
+- Create: `src/Modules/Inquiries/Wallow.Inquiries.Api/Contracts/InquiryResponse.cs`
+- Create: `src/Modules/Inquiries/Wallow.Inquiries.Api/Contracts/UpdateInquiryStatusRequest.cs`
+- Create: `src/Modules/Inquiries/Wallow.Inquiries.Api/Controllers/InquiriesController.cs`
+- Create: `src/Modules/Inquiries/Wallow.Inquiries.Api/InquiriesModule.cs`
 
 **Step 1: Create request/response contracts**
 
 `SubmitInquiryRequest.cs`:
 ```csharp
-namespace Foundry.Inquiries.Api.Contracts;
+namespace Wallow.Inquiries.Api.Contracts;
 
 public sealed record SubmitInquiryRequest(
     string Name,
@@ -1234,7 +1234,7 @@ public sealed record SubmitInquiryRequest(
 
 `InquiryResponse.cs`:
 ```csharp
-namespace Foundry.Inquiries.Api.Contracts;
+namespace Wallow.Inquiries.Api.Contracts;
 
 public sealed record InquiryResponse(
     Guid Id,
@@ -1252,7 +1252,7 @@ public sealed record InquiryResponse(
 
 `UpdateInquiryStatusRequest.cs`:
 ```csharp
-namespace Foundry.Inquiries.Api.Contracts;
+namespace Wallow.Inquiries.Api.Contracts;
 
 public sealed record UpdateInquiryStatusRequest(int NewStatus);
 ```
@@ -1262,21 +1262,21 @@ public sealed record UpdateInquiryStatusRequest(int NewStatus);
 `InquiriesController.cs`:
 ```csharp
 using Asp.Versioning;
-using Foundry.Inquiries.Api.Contracts;
-using Foundry.Inquiries.Application.Commands.SubmitInquiry;
-using Foundry.Inquiries.Application.Commands.UpdateInquiryStatus;
-using Foundry.Inquiries.Application.DTOs;
-using Foundry.Inquiries.Application.Queries.GetInquiries;
-using Foundry.Inquiries.Application.Queries.GetInquiryById;
-using Foundry.Inquiries.Domain.Enums;
-using Foundry.Shared.Api.Extensions;
-using Foundry.Shared.Kernel.Results;
+using Wallow.Inquiries.Api.Contracts;
+using Wallow.Inquiries.Application.Commands.SubmitInquiry;
+using Wallow.Inquiries.Application.Commands.UpdateInquiryStatus;
+using Wallow.Inquiries.Application.DTOs;
+using Wallow.Inquiries.Application.Queries.GetInquiries;
+using Wallow.Inquiries.Application.Queries.GetInquiryById;
+using Wallow.Inquiries.Domain.Enums;
+using Wallow.Shared.Api.Extensions;
+using Wallow.Shared.Kernel.Results;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Wolverine;
 
-namespace Foundry.Inquiries.Api.Controllers;
+namespace Wallow.Inquiries.Api.Controllers;
 
 [ApiController]
 [ApiVersion(1)]
@@ -1402,16 +1402,16 @@ public class InquiriesController : ControllerBase
 `InquiriesModule.cs` — follows the `IModuleRegistration` auto-discovery pattern:
 ```csharp
 using System.Reflection;
-using Foundry.Inquiries.Application.Commands.SubmitInquiry;
-using Foundry.Inquiries.Infrastructure.Extensions;
-using Foundry.Shared.Contracts.Inquiries.Events;
-using Foundry.Shared.Kernel.Modules;
+using Wallow.Inquiries.Application.Commands.SubmitInquiry;
+using Wallow.Inquiries.Infrastructure.Extensions;
+using Wallow.Shared.Contracts.Inquiries.Events;
+using Wallow.Shared.Kernel.Modules;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Wolverine;
 
-namespace Foundry.Inquiries.Api;
+namespace Wallow.Inquiries.Api;
 
 public sealed class InquiriesModule : IModuleRegistration
 {
@@ -1455,7 +1455,7 @@ git add -A && git commit -m "feat(inquiries): add API layer with controller and 
 ### Task 7: Communications module — Email notification handler
 
 **Files:**
-- Create: `src/Modules/Communications/Foundry.Communications.Application/EventHandlers/InquirySubmittedEventHandler.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Application/EventHandlers/InquirySubmittedEventHandler.cs`
 
 **Step 1: Create the event handler in Communications module**
 
@@ -1463,13 +1463,13 @@ This handler subscribes to `InquirySubmittedEvent` and publishes two `SendEmailR
 
 `InquirySubmittedEventHandler.cs`:
 ```csharp
-using Foundry.Shared.Contracts.Communications.Email.Events;
-using Foundry.Shared.Contracts.Inquiries.Events;
+using Wallow.Shared.Contracts.Communications.Email.Events;
+using Wallow.Shared.Contracts.Inquiries.Events;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Wolverine;
 
-namespace Foundry.Communications.Application.EventHandlers;
+namespace Wallow.Communications.Application.EventHandlers;
 
 public sealed partial class InquirySubmittedEventHandler
 {
@@ -1482,7 +1482,7 @@ public sealed partial class InquirySubmittedEventHandler
     {
         LogHandlingEvent(logger, evt.InquiryId);
 
-        string adminEmail = configuration.GetValue("Inquiries:AdminEmail", "admin@foundry.dev")!;
+        string adminEmail = configuration.GetValue("Inquiries:AdminEmail", "admin@wallow.dev")!;
 
         // Send admin notification
         await bus.PublishAsync(new SendEmailRequestedEvent
@@ -1526,7 +1526,7 @@ public sealed partial class InquirySubmittedEventHandler
                 We look forward to working with you!
 
                 Best regards,
-                The Foundry Team
+                The Wallow Team
                 """,
             SourceModule = "Inquiries",
             CorrelationId = evt.InquiryId
@@ -1563,12 +1563,12 @@ git add -A && git commit -m "feat(communications): add handler for inquiry submi
 Run:
 ```bash
 dotnet ef migrations add InitialCreate \
-    --project src/Modules/Inquiries/Foundry.Inquiries.Infrastructure \
-    --startup-project src/Foundry.Api \
+    --project src/Modules/Inquiries/Wallow.Inquiries.Infrastructure \
+    --startup-project src/Wallow.Api \
     --context InquiriesDbContext
 ```
 
-Expected: Migration files created in `src/Modules/Inquiries/Foundry.Inquiries.Infrastructure/Migrations/`
+Expected: Migration files created in `src/Modules/Inquiries/Wallow.Inquiries.Infrastructure/Migrations/`
 
 **Step 2: Verify migration applies**
 

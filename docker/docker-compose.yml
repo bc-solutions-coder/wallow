@@ -7,7 +7,7 @@ services:
   # ============================================
   postgres:
     image: postgres:18-alpine
-    container_name: ${COMPOSE_PROJECT_NAME:-foundry}-postgres
+    container_name: ${COMPOSE_PROJECT_NAME:-wallow}-postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -24,7 +24,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - foundry
+      - wallow
     restart: unless-stopped
 
   # ============================================
@@ -32,12 +32,12 @@ services:
   # ============================================
   mailpit:
     image: axllent/mailpit:v1.22
-    container_name: ${COMPOSE_PROJECT_NAME:-foundry}-mailpit
+    container_name: ${COMPOSE_PROJECT_NAME:-wallow}-mailpit
     ports:
       - "127.0.0.1:1025:1025"
       - "127.0.0.1:8025:8025"
     networks:
-      - foundry
+      - wallow
     restart: unless-stopped
 
   # ============================================
@@ -45,7 +45,7 @@ services:
   # ============================================
   valkey:
     image: valkey/valkey:8-alpine
-    container_name: ${COMPOSE_PROJECT_NAME:-foundry}-valkey
+    container_name: ${COMPOSE_PROJECT_NAME:-wallow}-valkey
     command: valkey-server --appendonly yes --requirepass ${VALKEY_PASSWORD}
     ports:
       - "127.0.0.1:6379:6379"
@@ -59,31 +59,31 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - foundry
+      - wallow
     restart: unless-stopped
 
   # ============================================
   # OBSERVABILITY
   # ============================================
-  # The Foundry API (run via dotnet run, not in Docker) needs these
+  # The Wallow API (run via dotnet run, not in Docker) needs these
   # environment variables to export telemetry to the OTLP collector:
   #
   #   OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
-  #   OTEL_SERVICE_NAME=foundry-api
+  #   OTEL_SERVICE_NAME=wallow-api
   #
   # OTEL_EXPORTER_OTLP_ENDPOINT — gRPC endpoint exposed by Alloy collector
   # OTEL_SERVICE_NAME           — logical service name shown in traces/metrics
   # ============================================
   grafana-lgtm:
     image: grafana/otel-lgtm:0.8.1
-    container_name: ${COMPOSE_PROJECT_NAME:-foundry}-grafana-lgtm
+    container_name: ${COMPOSE_PROJECT_NAME:-wallow}-grafana-lgtm
     ports:
       - "127.0.0.1:3000:3000"   # Grafana UI
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=${GF_ADMIN_PASSWORD:-admin}
     volumes:
       # Mount custom dashboards into grafana-lgtm's provisioning path
-      - ./grafana/provisioning/dashboards/dashboards.yml:/otel-lgtm/grafana/conf/provisioning/dashboards/foundry-dashboards.yaml:ro
+      - ./grafana/provisioning/dashboards/dashboards.yml:/otel-lgtm/grafana/conf/provisioning/dashboards/wallow-dashboards.yaml:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
     healthcheck:
       test: ["CMD", "test", "-f", "/tmp/ready"]
@@ -91,7 +91,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - foundry
+      - wallow
     restart: unless-stopped
 
   # ============================================
@@ -99,7 +99,7 @@ services:
   # ============================================
   alloy:
     image: grafana/alloy:latest
-    container_name: ${COMPOSE_PROJECT_NAME:-foundry}-alloy
+    container_name: ${COMPOSE_PROJECT_NAME:-wallow}-alloy
     ports:
       - "127.0.0.1:4317:4317"   # OTLP gRPC
       - "127.0.0.1:4318:4318"   # OTLP HTTP
@@ -109,7 +109,7 @@ services:
       grafana-lgtm:
         condition: service_healthy
     networks:
-      - foundry
+      - wallow
     restart: unless-stopped
 
   # ============================================
@@ -118,7 +118,7 @@ services:
   clamav:
     image: clamav/clamav:1.5.2
     platform: linux/amd64
-    container_name: ${COMPOSE_PROJECT_NAME:-foundry}-clamav
+    container_name: ${COMPOSE_PROJECT_NAME:-wallow}-clamav
     ports:
       - "127.0.0.1:3310:3310"
     healthcheck:
@@ -127,7 +127,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - foundry
+      - wallow
     restart: unless-stopped
 
 volumes:
@@ -135,5 +135,5 @@ volumes:
   valkey_data:
 
 networks:
-  foundry:
+  wallow:
     driver: bridge

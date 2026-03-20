@@ -1,6 +1,6 @@
 # Authorization Guide
 
-Foundry uses role-based access control (RBAC) with permission expansion. Keycloak manages authentication and assigns roles; the API expands roles into granular permissions at request time.
+Wallow uses role-based access control (RBAC) with permission expansion. Keycloak manages authentication and assigns roles; the API expands roles into granular permissions at request time.
 
 ---
 
@@ -35,7 +35,7 @@ JWT with role claims
 Permissions are defined in `PermissionType.cs`:
 
 ```
-src/Shared/Foundry.Shared.Kernel/Identity/Authorization/PermissionType.cs
+src/Shared/Wallow.Shared.Kernel/Identity/Authorization/PermissionType.cs
 ```
 
 ```csharp
@@ -65,7 +65,7 @@ public static class PermissionType
 Edit `RolePermissionMapping.cs`:
 
 ```
-src/Modules/Identity/Foundry.Identity.Infrastructure/Authorization/RolePermissionMapping.cs
+src/Modules/Identity/Wallow.Identity.Infrastructure/Authorization/RolePermissionMapping.cs
 ```
 
 ```csharp
@@ -98,8 +98,8 @@ public static class RolePermissionMapping
 Add the `[HasPermission]` attribute:
 
 ```csharp
-using Foundry.Identity.Api.Authorization;
-using Foundry.Shared.Kernel.Identity.Authorization;
+using Wallow.Identity.Api.Authorization;
+using Wallow.Shared.Kernel.Identity.Authorization;
 
 [ApiController]
 [Route("api/billing/invoices")]
@@ -130,13 +130,13 @@ If your module doesn't reference the Identity module, add the reference to acces
 
 ```xml
 <!-- In your Module.Api.csproj -->
-<ProjectReference Include="..\..\Identity\Foundry.Identity.Api\Foundry.Identity.Api.csproj" />
+<ProjectReference Include="..\..\Identity\Wallow.Identity.Api\Wallow.Identity.Api.csproj" />
 ```
 
 Or reference the Shared.Kernel project if you only need `PermissionType`:
 
 ```xml
-<ProjectReference Include="..\..\..\Shared\Foundry.Shared.Kernel\Foundry.Shared.Kernel.csproj" />
+<ProjectReference Include="..\..\..\Shared\Wallow.Shared.Kernel\Wallow.Shared.Kernel.csproj" />
 ```
 
 ---
@@ -148,7 +148,7 @@ Roles are managed in Keycloak. To add a new role:
 ### Step 1: Add Role in Keycloak
 
 1. Open Keycloak admin console (`http://localhost:8080`)
-2. Select the `foundry` realm
+2. Select the `wallow` realm
 3. Go to **Realm roles** → **Create role**
 4. Enter the role name (lowercase, e.g., `billing-admin`)
 
@@ -228,7 +228,7 @@ private static string? MapScopeToPermission(string scope)
 
 | Task | File |
 |------|------|
-| Add permission | `Shared/Foundry.Shared.Kernel/Identity/Authorization/PermissionType.cs` |
+| Add permission | `Shared/Wallow.Shared.Kernel/Identity/Authorization/PermissionType.cs` |
 | Map permission to role | `Identity.Infrastructure/Authorization/RolePermissionMapping.cs` |
 | Map scope to permission | `Identity.Infrastructure/Authorization/PermissionExpansionMiddleware.cs` |
 | Apply to route | Your controller with `[HasPermission(...)]` |
@@ -247,7 +247,7 @@ private static string? MapScopeToPermission(string scope)
 
 ## Multi-Tenancy Authorization
 
-Foundry uses Keycloak Organizations for multi-tenancy. The `TenantResolutionMiddleware` extracts the tenant ID from the JWT and populates `ITenantContext`.
+Wallow uses Keycloak Organizations for multi-tenancy. The `TenantResolutionMiddleware` extracts the tenant ID from the JWT and populates `ITenantContext`.
 
 ### How Tenant Resolution Works
 
@@ -346,9 +346,9 @@ public async Task GetUsers_RequiresUsersRead_Returns403WhenMissing()
 
 ```bash
 # Get token for user with 'manager' role
-TOKEN=$(curl -s -X POST "http://localhost:8080/realms/foundry/protocol/openid-connect/token" \
+TOKEN=$(curl -s -X POST "http://localhost:8080/realms/wallow/protocol/openid-connect/token" \
   -d "grant_type=password" \
-  -d "client_id=foundry-spa" \
+  -d "client_id=wallow-spa" \
   -d "username=manager@example.com" \
   -d "password=password" | jq -r '.access_token')
 
@@ -383,7 +383,7 @@ The authorization middleware must be registered in the correct order in `Program
 **Permission not being checked**
 - Ensure `[Authorize]` is on the controller (authentication required first)
 - Verify `[HasPermission]` attribute is applied
-- Check project references include `Foundry.Identity.Api`
+- Check project references include `Wallow.Identity.Api`
 
 **Service account getting 403**
 - Verify the scope is in the token

@@ -36,7 +36,7 @@ Every `.cs` file on disk (excluding `obj/` directories) is listed in the corresp
 | 4 | Infrastructure (Tests) | 0 | 0 | 30 | 30 |
 | 5 | Infrastructure Extras | 18 | 18 | 0 | 0 |
 | 6 | Shared.Api | 1 | 1 | 0 | 0 |
-| 7 | Foundry.Api | 24 | 24 | 19 | 19 |
+| 7 | Wallow.Api | 24 | 24 | 19 | 19 |
 
 ### 2. No Duplicate Entries
 
@@ -141,7 +141,7 @@ Spot-checked 10 files across phases by reading source code and comparing to desc
 | `CustomFieldRegistry.cs` | 1 | Accurate: `Register`, `IsSupported`, `GetSupportedEntityTypes` confirmed; pre-registers Invoice, Payment, Subscription |
 | `AggregateRoot.cs` | 1 | Accurate: `RaiseDomainEvent`, `ClearDomainEvents`, `DomainEvents` list, extends `AuditableEntity<TId>` |
 | `RealtimeEnvelope.cs` | 2 | Accurate: `Type`, `Module`, `Payload`, `Timestamp`, `CorrelationId`; static `Create` factory |
-| `InstrumentedDistributedCache.cs` | 3 | Accurate: wraps IDistributedCache, tracks `foundry.cache.hits_total` and `foundry.cache.misses_total` |
+| `InstrumentedDistributedCache.cs` | 3 | Accurate: wraps IDistributedCache, tracks `wallow.cache.hits_total` and `wallow.cache.misses_total` |
 | `TenantAwareDbContext.cs` | 3 | Accurate: expression trees for `HasQueryFilter`, `_tenantId` field, `ApplyTenantQueryFilters` |
 | `PluginLoader.cs` | 5 | Accurate: hash verification, `PluginAssemblyLoadContext`, manifest ID match |
 | `ResultExtensions.cs` | 6 | Accurate: `ToActionResult`, `ToCreatedResult`, RFC 7807 Problem Details, error code to HTTP mapping |

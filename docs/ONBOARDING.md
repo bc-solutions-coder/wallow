@@ -1,6 +1,6 @@
-# Foundry Developer Onboarding Guide
+# Wallow Developer Onboarding Guide
 
-Welcome to Foundry! This guide will get you from zero to productive in about 30 minutes. We'll start with getting the app running, then explore the codebase architecture, and finally equip you with the patterns you'll use daily.
+Welcome to Wallow! This guide will get you from zero to productive in about 30 minutes. We'll start with getting the app running, then explore the codebase architecture, and finally equip you with the patterns you'll use daily.
 
 ---
 
@@ -19,8 +19,8 @@ Before you begin, make sure you have:
 
 ```bash
 # 1. Clone the repo (if you haven't already)
-git clone https://github.com/your-org/foundry.git
-cd foundry
+git clone https://github.com/your-org/wallow.git
+cd wallow
 
 # 2. Start infrastructure services
 cd docker
@@ -28,7 +28,7 @@ docker compose up -d
 
 # 3. Run the API (from repo root)
 cd ..
-dotnet run --project src/Foundry.Api
+dotnet run --project src/Wallow.Api
 
 # You should see:
 # [12:34:56 INF] [Api] Now listening on: http://localhost:5000
@@ -42,7 +42,7 @@ Open these URLs in your browser:
 |---------|-----|-------------|
 | **API Swagger** | http://localhost:5000/scalar/v1 | N/A (explore the endpoints!) |
 | **Keycloak Admin** | http://localhost:8080 | Username: `admin` / Password: `admin` |
-| **Keycloak Realm** | Realm: `foundry` | Username: `admin@foundry.dev` / Password: `Admin123!` |
+| **Keycloak Realm** | Realm: `wallow` | Username: `admin@wallow.dev` / Password: `Admin123!` |
 | **RabbitMQ Management** | http://localhost:15672 | Username: `guest` / Password: `guest` |
 | **Mailpit (Email Sink)** | http://localhost:8025 | N/A |
 | **Grafana (Observability)** | http://localhost:3000 | Username: `admin` / Password: `admin` |
@@ -55,7 +55,7 @@ If all URLs load, you're good to go! 🎉
 
 ### What Is a Modular Monolith?
 
-Foundry is a **modular monolith** — a single deployable application (one API) internally organized into autonomous modules that communicate like microservices, but without the operational overhead of distributed systems.
+Wallow is a **modular monolith** — a single deployable application (one API) internally organized into autonomous modules that communicate like microservices, but without the operational overhead of distributed systems.
 
 **Think of it as:**
 - A single ASP.NET Core web app
@@ -76,33 +76,33 @@ Every module follows the same 4-layer pattern:
 
 ```
 📁 src/Modules/{Module}/
-├── Foundry.{Module}.Domain           ← Entities, Value Objects, Domain Events (zero dependencies)
-├── Foundry.{Module}.Application      ← Commands, Queries, Handlers, DTOs (depends on Domain)
-├── Foundry.{Module}.Infrastructure   ← EF Core, Dapper, RabbitMQ Consumers (implements Application)
-└── Foundry.{Module}.Api              ← Controllers, Request/Response DTOs (depends on Application)
+├── Wallow.{Module}.Domain           ← Entities, Value Objects, Domain Events (zero dependencies)
+├── Wallow.{Module}.Application      ← Commands, Queries, Handlers, DTOs (depends on Domain)
+├── Wallow.{Module}.Infrastructure   ← EF Core, Dapper, RabbitMQ Consumers (implements Application)
+└── Wallow.{Module}.Api              ← Controllers, Request/Response DTOs (depends on Application)
 ```
 
 **Dependency Rule:** Dependencies point inward. Infrastructure and Api depend on Application, Application depends on Domain, Domain depends on nothing.
 
 **Example module:** `Billing`
 ```
-Foundry.Billing.Domain
+Wallow.Billing.Domain
   ├── Entities: Invoice, Payment, Subscription
   ├── Value Objects: Money
   ├── Domain Events: InvoiceCreated, InvoicePaid
   └── Exceptions: InvalidInvoiceException
 
-Foundry.Billing.Application
+Wallow.Billing.Application
   ├── Commands: CreateInvoice, ProcessPayment
   ├── Queries: GetInvoiceById, GetInvoicesByUser
   └── Handlers: CreateInvoiceHandler (static class with HandleAsync)
 
-Foundry.Billing.Infrastructure
+Wallow.Billing.Infrastructure
   ├── Persistence: BillingDbContext (EF Core)
   ├── Consumers: InvoiceCreatedEventConsumer (RabbitMQ)
   └── Services: InvoiceQueryService (Dapper)
 
-Foundry.Billing.Api
+Wallow.Billing.Api
   └── Controllers: InvoicesController (thin wrapper around Wolverine IMessageBus)
 ```
 
@@ -140,7 +140,7 @@ Every entity (except a few global ones like `StorageBucket`) is **tenant-scoped*
 #### 4. Module Communication (Events via RabbitMQ)
 
 Modules **never** reference each other's Domain/Application/Infrastructure layers. They communicate via:
-- **Integration Events** (defined in `Foundry.Shared.Contracts`)
+- **Integration Events** (defined in `Wallow.Shared.Contracts`)
 - **RabbitMQ** (Wolverine handles routing)
 
 **Example flow:**
@@ -164,12 +164,12 @@ Work through this checklist to build a mental map of the codebase. Check off eac
 
 ### 🎯 Startup & Infrastructure
 
-- [ ] **Read `src/Foundry.Api/Program.cs`** (lines 1-150)
+- [ ] **Read `src/Wallow.Api/Program.cs`** (lines 1-150)
   - See the middleware pipeline: Exception handler → Auth → Tenant resolution → Permission expansion → Authorization
   - See Wolverine setup (handler discovery, RabbitMQ, durable outbox)
   - See Hangfire, SignalR, health checks
 
-- [ ] **Read `src/Foundry.Api/FoundryModules.cs`**
+- [ ] **Read `src/Wallow.Api/WallowModules.cs`**
   - See explicit module registration (no magic auto-discovery)
   - Notice the groupings: Platform Modules and Feature Modules
   - Each module has `AddXxxModule()` and `InitializeXxxModuleAsync()` extension methods
@@ -178,45 +178,45 @@ Work through this checklist to build a mental map of the codebase. Check off eac
 
 Billing is the **gold standard DDD module**. Start here.
 
-- [ ] **Domain: `src/Modules/Billing/Foundry.Billing.Domain/Entities/Invoice.cs`**
+- [ ] **Domain: `src/Modules/Billing/Wallow.Billing.Domain/Entities/Invoice.cs`**
   - See the state machine: Draft → Issued → Paid/Overdue/Cancelled
   - See domain events: `InvoiceCreated`, `InvoicePaid`
   - See business rules: `Issue()`, `MarkAsPaid()`, `Cancel()`
 
-- [ ] **Application: `src/Modules/Billing/Foundry.Billing.Application/Commands/CreateInvoice.cs`**
+- [ ] **Application: `src/Modules/Billing/Wallow.Billing.Application/Commands/CreateInvoice.cs`**
   - See the command record
   - See FluentValidation validator
   - See the handler: `CreateInvoiceHandler` (static class)
 
-- [ ] **Infrastructure: `src/Modules/Billing/Foundry.Billing.Infrastructure/Persistence/BillingDbContext.cs`**
+- [ ] **Infrastructure: `src/Modules/Billing/Wallow.Billing.Infrastructure/Persistence/BillingDbContext.cs`**
   - See schema name: `billing`
   - See multi-tenancy: `builder.HasTenantQueryFilter<Invoice>()`
   - See JSONB configuration: `DictionaryValueComparer` for CustomFields
 
-- [ ] **API: `src/Modules/Billing/Foundry.Billing.Api/Controllers/InvoicesController.cs`**
+- [ ] **API: `src/Modules/Billing/Wallow.Billing.Api/Controllers/InvoicesController.cs`**
   - See thin controller: just validation + `await _messageBus.InvokeAsync(command)`
   - No business logic here!
 
 ### 🔐 Authentication & Multi-Tenancy
 
-- [ ] **Middleware: `src/Modules/Identity/Foundry.Identity.Infrastructure/Middleware/TenantResolutionMiddleware.cs`**
+- [ ] **Middleware: `src/Modules/Identity/Wallow.Identity.Infrastructure/Middleware/TenantResolutionMiddleware.cs`**
   - See how JWT `org` claim becomes `ITenantContext.TenantId`
 
-- [ ] **Middleware: `src/Modules/Identity/Foundry.Identity.Infrastructure/Middleware/PermissionExpansionMiddleware.cs`**
+- [ ] **Middleware: `src/Modules/Identity/Wallow.Identity.Infrastructure/Middleware/PermissionExpansionMiddleware.cs`**
   - See how roles → permissions expansion works
   - User has `billing:admin` role → gets `billing:invoice:create` permission
 
-- [ ] **Interceptor: `src/Shared/Foundry.Shared.Kernel/MultiTenancy/TenantSaveChangesInterceptor.cs`**
+- [ ] **Interceptor: `src/Shared/Wallow.Shared.Kernel/MultiTenancy/TenantSaveChangesInterceptor.cs`**
   - See auto-stamping of `TenantId` on new entities
   - See tampering prevention (can't change `TenantId` on updates)
 
 ### 📬 Integration Events
 
-- [ ] **Browse: `src/Shared/Foundry.Shared.Contracts/`**
+- [ ] **Browse: `src/Shared/Wallow.Shared.Contracts/`**
   - See integration events organized by module: `Identity/`, `Billing/`, `Storage/`, `Notifications/`, `Messaging/`, `Announcements/`, `Inquiries/`, `Showcases/`
   - These are module-to-module contracts (never change breaking fields!)
 
-- [ ] **Example Handler: `src/Modules/Notifications/Foundry.Notifications.Application/EventHandlers/`**
+- [ ] **Example Handler: `src/Modules/Notifications/Wallow.Notifications.Application/EventHandlers/`**
   - See how to consume an event from another module
   - Just a static class with `HandleAsync(UserRegisteredEvent evt)`
 
@@ -241,29 +241,29 @@ Follow this step-by-step recipe:
 
 ```bash
 # From repo root
-dotnet new classlib -n Foundry.YourModule.Domain -o src/Modules/YourModule/Foundry.YourModule.Domain
-dotnet new classlib -n Foundry.YourModule.Application -o src/Modules/YourModule/Foundry.YourModule.Application
-dotnet new classlib -n Foundry.YourModule.Infrastructure -o src/Modules/YourModule/Foundry.YourModule.Infrastructure
-dotnet new classlib -n Foundry.YourModule.Api -o src/Modules/YourModule/Foundry.YourModule.Api
+dotnet new classlib -n Wallow.YourModule.Domain -o src/Modules/YourModule/Wallow.YourModule.Domain
+dotnet new classlib -n Wallow.YourModule.Application -o src/Modules/YourModule/Wallow.YourModule.Application
+dotnet new classlib -n Wallow.YourModule.Infrastructure -o src/Modules/YourModule/Wallow.YourModule.Infrastructure
+dotnet new classlib -n Wallow.YourModule.Api -o src/Modules/YourModule/Wallow.YourModule.Api
 
 # Add project references
-dotnet add src/Modules/YourModule/Foundry.YourModule.Application/Foundry.YourModule.Application.csproj reference src/Modules/YourModule/Foundry.YourModule.Domain/Foundry.YourModule.Domain.csproj
+dotnet add src/Modules/YourModule/Wallow.YourModule.Application/Wallow.YourModule.Application.csproj reference src/Modules/YourModule/Wallow.YourModule.Domain/Wallow.YourModule.Domain.csproj
 
-dotnet add src/Modules/YourModule/Foundry.YourModule.Infrastructure/Foundry.YourModule.Infrastructure.csproj reference src/Modules/YourModule/Foundry.YourModule.Application/Foundry.YourModule.Application.csproj
+dotnet add src/Modules/YourModule/Wallow.YourModule.Infrastructure/Wallow.YourModule.Infrastructure.csproj reference src/Modules/YourModule/Wallow.YourModule.Application/Wallow.YourModule.Application.csproj
 
-dotnet add src/Modules/YourModule/Foundry.YourModule.Api/Foundry.YourModule.Api.csproj reference src/Modules/YourModule/Foundry.YourModule.Application/Foundry.YourModule.Application.csproj
+dotnet add src/Modules/YourModule/Wallow.YourModule.Api/Wallow.YourModule.Api.csproj reference src/Modules/YourModule/Wallow.YourModule.Application/Wallow.YourModule.Application.csproj
 ```
 
 #### Step 2: Create Module Extension Methods
 
-Create `src/Modules/YourModule/Foundry.YourModule.Infrastructure/Extensions/YourModuleExtensions.cs`:
+Create `src/Modules/YourModule/Wallow.YourModule.Infrastructure/Extensions/YourModuleExtensions.cs`:
 
 ```csharp
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Foundry.YourModule.Infrastructure.Extensions;
+namespace Wallow.YourModule.Infrastructure.Extensions;
 
 public static class YourModuleExtensions
 {
@@ -295,18 +295,18 @@ public static class YourModuleExtensions
 }
 ```
 
-#### Step 3: Register in FoundryModules.cs
+#### Step 3: Register in WallowModules.cs
 
-Edit `src/Foundry.Api/FoundryModules.cs`:
+Edit `src/Wallow.Api/WallowModules.cs`:
 
 ```csharp
 // Add using
-using Foundry.YourModule.Infrastructure.Extensions;
+using Wallow.YourModule.Infrastructure.Extensions;
 
-// In AddFoundryModules():
+// In AddWallowModules():
 services.AddYourModuleModule(configuration);
 
-// In InitializeFoundryModulesAsync():
+// In InitializeWallowModulesAsync():
 await app.InitializeYourModuleAsync();
 ```
 
@@ -314,8 +314,8 @@ await app.InitializeYourModuleAsync();
 
 ```bash
 dotnet ef migrations add InitialCreate \
-    --project src/Modules/YourModule/Foundry.YourModule.Infrastructure \
-    --startup-project src/Foundry.Api \
+    --project src/Modules/YourModule/Wallow.YourModule.Infrastructure \
+    --startup-project src/Wallow.Api \
     --context YourModuleDbContext
 ```
 
@@ -325,12 +325,12 @@ dotnet ef migrations add InitialCreate \
 
 #### 1. Define the command (Application layer)
 
-`src/Modules/Billing/Foundry.Billing.Application/Commands/CreateInvoice.cs`:
+`src/Modules/Billing/Wallow.Billing.Application/Commands/CreateInvoice.cs`:
 
 ```csharp
 using FluentValidation;
 
-namespace Foundry.Billing.Application.Commands;
+namespace Wallow.Billing.Application.Commands;
 
 public record CreateInvoiceCommand(
     Guid UserId,
@@ -353,15 +353,15 @@ public class CreateInvoiceValidator : AbstractValidator<CreateInvoiceCommand>
 
 #### 2. Create the handler (Application layer)
 
-`src/Modules/Billing/Foundry.Billing.Application/Handlers/CreateInvoiceHandler.cs`:
+`src/Modules/Billing/Wallow.Billing.Application/Handlers/CreateInvoiceHandler.cs`:
 
 ```csharp
-using Foundry.Billing.Domain.Entities;
-using Foundry.Billing.Infrastructure.Persistence;
-using Foundry.Shared.Kernel;
+using Wallow.Billing.Domain.Entities;
+using Wallow.Billing.Infrastructure.Persistence;
+using Wallow.Shared.Kernel;
 using Wolverine;
 
-namespace Foundry.Billing.Application.Handlers;
+namespace Wallow.Billing.Application.Handlers;
 
 public static class CreateInvoiceHandler
 {
@@ -393,14 +393,14 @@ public static class CreateInvoiceHandler
 
 ### Publishing an Integration Event
 
-Integration events are defined in `Foundry.Shared.Contracts`.
+Integration events are defined in `Wallow.Shared.Contracts`.
 
 #### 1. Define the event (Shared.Contracts)
 
-`src/Shared/Foundry.Shared.Contracts/Events/InvoiceCreatedEvent.cs`:
+`src/Shared/Wallow.Shared.Contracts/Events/InvoiceCreatedEvent.cs`:
 
 ```csharp
-namespace Foundry.Shared.Contracts.Events;
+namespace Wallow.Shared.Contracts.Events;
 
 public record InvoiceCreatedEvent(
     Guid InvoiceId,
@@ -444,13 +444,13 @@ public static class InvoiceCreatedEventHandler
 
 For complex queries, use **Dapper** instead of EF Core LINQ.
 
-`src/Modules/Billing/Foundry.Billing.Infrastructure/Services/InvoiceReportService.cs`:
+`src/Modules/Billing/Wallow.Billing.Infrastructure/Services/InvoiceReportService.cs`:
 
 ```csharp
 using Dapper;
 using Npgsql;
 
-namespace Foundry.Billing.Infrastructure.Services;
+namespace Wallow.Billing.Infrastructure.Services;
 
 public class InvoiceReportService
 {
@@ -480,14 +480,14 @@ public class InvoiceReportService
 
 #### 1. Create the job class
 
-`src/Modules/Billing/Foundry.Billing.Infrastructure/Jobs/OverdueInvoiceJob.cs`:
+`src/Modules/Billing/Wallow.Billing.Infrastructure/Jobs/OverdueInvoiceJob.cs`:
 
 ```csharp
-using Foundry.Billing.Infrastructure.Persistence;
+using Wallow.Billing.Infrastructure.Persistence;
 using Hangfire;
 using Microsoft.EntityFrameworkCore;
 
-namespace Foundry.Billing.Infrastructure.Jobs;
+namespace Wallow.Billing.Infrastructure.Jobs;
 
 public class OverdueInvoiceJob
 {
@@ -513,7 +513,7 @@ public class OverdueInvoiceJob
 
 #### 2. Register the recurring job
 
-`src/Modules/Billing/Foundry.Billing.Infrastructure/Extensions/BillingModuleExtensions.cs`:
+`src/Modules/Billing/Wallow.Billing.Infrastructure/Extensions/BillingModuleExtensions.cs`:
 
 ```csharp
 public static IServiceCollection AddBillingModule(this IServiceCollection services, IConfiguration config)
@@ -663,11 +663,11 @@ Use **Testcontainers** to spin up real PostgreSQL/RabbitMQ/Valkey in Docker.
 **Example:** `tests/Modules/Billing/Billing.Api.Tests/InvoicesControllerTests.cs`
 
 ```csharp
-public class InvoicesControllerTests : IClassFixture<FoundryApiFactory>
+public class InvoicesControllerTests : IClassFixture<WallowApiFactory>
 {
     private readonly HttpClient _client;
 
-    public InvoicesControllerTests(FoundryApiFactory factory)
+    public InvoicesControllerTests(WallowApiFactory factory)
     {
         _client = factory.CreateClient();
     }
@@ -700,7 +700,7 @@ dotnet test --filter "Category=Integration"
 
 Use **NetArchTest.Rules** to enforce architectural constraints.
 
-**Example:** `tests/Foundry.Architecture.Tests/DependencyTests.cs`
+**Example:** `tests/Wallow.Architecture.Tests/DependencyTests.cs`
 
 ```csharp
 [Fact]
@@ -708,7 +708,7 @@ public void Domain_ShouldNotDependOnApplication()
 {
     var result = Types.InAssembly(typeof(Invoice).Assembly)
         .Should()
-        .NotHaveDependencyOn("Foundry.Billing.Application")
+        .NotHaveDependencyOn("Wallow.Billing.Application")
         .GetResult();
 
     result.IsSuccessful.Should().BeTrue();
@@ -717,7 +717,7 @@ public void Domain_ShouldNotDependOnApplication()
 
 **Run:**
 ```bash
-dotnet test tests/Foundry.Architecture.Tests
+dotnet test tests/Wallow.Architecture.Tests
 ```
 
 ---
@@ -770,8 +770,8 @@ public async Task InvoiceCreated_ShouldCreateNotification()
 
 ```bash
 dotnet ef migrations add MigrationName \
-    --project src/Modules/{Module}/Foundry.{Module}.Infrastructure \
-    --startup-project src/Foundry.Api \
+    --project src/Modules/{Module}/Wallow.{Module}.Infrastructure \
+    --startup-project src/Wallow.Api \
     --context {Module}DbContext
 ```
 
@@ -783,7 +783,7 @@ dotnet ef migrations add MigrationName \
 cd docker
 docker compose down -v  # Delete volumes
 docker compose up -d    # Recreate
-dotnet run --project src/Foundry.Api  # Re-run migrations
+dotnet run --project src/Wallow.Api  # Re-run migrations
 ```
 
 ### Q: Can I query across modules?
@@ -834,7 +834,7 @@ protected override void OnModelCreating(ModelBuilder builder)
 | API | http://localhost:5000 | N/A |
 | API Docs (Scalar) | http://localhost:5000/scalar/v1 | N/A |
 | Keycloak Admin | http://localhost:8080 | See `docker/.env` |
-| Keycloak Realm | foundry | admin@foundry.dev / Admin123! |
+| Keycloak Realm | wallow | admin@wallow.dev / Admin123! |
 | RabbitMQ Management | http://localhost:15672 | See `docker/.env` |
 | Mailpit | http://localhost:8025 | N/A |
 | Grafana | http://localhost:3000 | admin / admin |
@@ -843,7 +843,7 @@ protected override void OnModelCreating(ModelBuilder builder)
 ### Design Documents
 
 Core architecture:
-- **Architecture Reference:** `docs/FOUNDRY.md` — Single architecture and design reference
+- **Architecture Reference:** `docs/WALLOW.md` — Single architecture and design reference
 - **Developer Guide:** `docs/DEVELOPER_GUIDE.md` — How to work in the codebase
 - **Deployment Guide:** `docs/DEPLOYMENT_GUIDE.md` — Server setup, CI/CD, Docker
 

@@ -6,9 +6,9 @@
 ## Critical Issues Found
 
 ### Naming Chaos (5 conventions across projects)
-- Projects missing `Foundry.` prefix
+- Projects missing `Wallow.` prefix
 - Some modules have mixed conventions internally
-- Standard defined: `Foundry.{Module}.Tests` + `Foundry.{Module}.IntegrationTests`
+- Standard defined: `Wallow.{Module}.Tests` + `Wallow.{Module}.IntegrationTests`
 
 ### Shared Infrastructure Problems
 - 6/8 builders are `internal` (dead code externally)
@@ -31,7 +31,7 @@
 - Billing domain tests are gold standard for unit tests
 
 ## Implementation Plan
-Epic: `foundry-aph` with implementation beads in progress.
+Epic: `wallow-aph` with implementation beads in progress.
 Dependency chain: infra visibility -> base classes -> collection fixtures -> rename projects.
 P1 (do first): shared infra visibility, DB base class, API base class.
 P2 (then): GlobalUsings, rename projects, MessagingTestFixture refactor, collection fixtures.

@@ -1,6 +1,6 @@
-# Foundry Grafana Dashboards
+# Wallow Grafana Dashboards
 
-Sample Grafana dashboards for monitoring the Foundry platform.
+Sample Grafana dashboards for monitoring the Wallow platform.
 
 ## Dashboards
 
@@ -13,8 +13,8 @@ Sample Grafana dashboards for monitoring the Foundry platform.
 
 Before importing these dashboards, ensure you have:
 
-1. **Prometheus Datasource** - configured to scrape your Foundry API metrics
-2. **PostgreSQL Datasource** - configured to connect to your Foundry database
+1. **Prometheus Datasource** - configured to scrape your Wallow API metrics
+2. **PostgreSQL Datasource** - configured to connect to your Wallow database
 
 ## Import Instructions
 
@@ -51,26 +51,26 @@ curl -X POST \
 To automatically provision these dashboards, add them to your Grafana provisioning configuration:
 
 ```yaml
-# /etc/grafana/provisioning/dashboards/foundry.yaml
+# /etc/grafana/provisioning/dashboards/wallow.yaml
 apiVersion: 1
 
 providers:
-  - name: 'Foundry'
+  - name: 'Wallow'
     orgId: 1
-    folder: 'Foundry'
-    folderUid: 'foundry'
+    folder: 'Wallow'
+    folderUid: 'wallow'
     type: file
     disableDeletion: false
     updateIntervalSeconds: 30
     options:
-      path: /var/lib/grafana/dashboards/foundry
+      path: /var/lib/grafana/dashboards/wallow
 ```
 
-Copy the JSON files to `/var/lib/grafana/dashboards/foundry/`.
+Copy the JSON files to `/var/lib/grafana/dashboards/wallow/`.
 
 ## Tenant Variable
 
-Both dashboards include a `$tenant_id` variable that filters all queries by tenant. This supports Foundry's multi-tenancy model.
+Both dashboards include a `$tenant_id` variable that filters all queries by tenant. This supports Wallow's multi-tenancy model.
 
 ### Usage Dashboard Variables
 
@@ -91,8 +91,8 @@ Both dashboards include a `$tenant_id` variable that filters all queries by tena
 To embed dashboards in your application with tenant filtering:
 
 ```
-/d/foundry-usage?var-tenant_id=${currentTenantId}&kiosk=tv
-/d/foundry-billing?var-tenant_id=${currentTenantId}&kiosk=tv
+/d/wallow-usage?var-tenant_id=${currentTenantId}&kiosk=tv
+/d/wallow-billing?var-tenant_id=${currentTenantId}&kiosk=tv
 ```
 
 See `docs/grafana/KEYCLOAK_OAUTH_SETUP.md` for full Grafana embedding and OAuth configuration.
@@ -161,5 +161,5 @@ Labels: `tenant_id`, `endpoint`, `http_method`, `http_status_code`
 ## Support
 
 For issues or feature requests, see the main project documentation:
-- Architecture: `docs/plans/2026-02-04-foundry-pivot-design.md`
+- Architecture: `docs/plans/2026-02-04-wallow-pivot-design.md`
 - Grafana OAuth: `docs/grafana/KEYCLOAK_OAUTH_SETUP.md`

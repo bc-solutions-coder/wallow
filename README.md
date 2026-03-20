@@ -1,13 +1,13 @@
 <div align="center">
 
-# Foundry
+# Wallow
 
 **A production-ready .NET modular monolith for building multi-tenant SaaS products.**
 
 Fork it. Add your domain modules. Deploy.
 
 <!-- Shields: replace with your own URLs or remove any that don't apply -->
-[![CI](https://github.com/bc-solutions-coder/Foundry/actions/workflows/ci.yml/badge.svg)](https://github.com/bc-solutions-coder/Foundry/actions/workflows/ci.yml)
+[![CI](https://github.com/bc-solutions-coder/Wallow/actions/workflows/ci.yml/badge.svg)](https://github.com/bc-solutions-coder/Wallow/actions/workflows/ci.yml)
 [![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
@@ -18,19 +18,19 @@ Fork it. Add your domain modules. Deploy.
 
 ---
 
-## What is Foundry?
+## What is Wallow?
 
-Foundry provides the cross-cutting infrastructure every SaaS product needs out of the box: identity management, billing, notifications, messaging, file storage, and multi-tenant data isolation. You write the business logic.
+Wallow provides the cross-cutting infrastructure every SaaS product needs out of the box: identity management, billing, notifications, messaging, file storage, and multi-tenant data isolation. You write the business logic.
 
-New products are created by forking Foundry and adding domain-specific modules. The base platform stays generic -- improvements to shared infrastructure can be pulled from upstream into forks.
+New products are created by forking Wallow and adding domain-specific modules. The base platform stays generic -- improvements to shared infrastructure can be pulled from upstream into forks.
 
 ## Architecture
 
-Foundry is a **modular monolith**. Each module is an autonomous bounded context that follows Clean Architecture internally.
+Wallow is a **modular monolith**. Each module is an autonomous bounded context that follows Clean Architecture internally.
 
 ```
 src/
-├── Foundry.Api/                  # Host, middleware, routing
+├── Wallow.Api/                  # Host, middleware, routing
 ├── Modules/
 │   ├── Identity/                 # Auth, users, organizations, RBAC
 │   ├── Billing/                  # Payments, invoices, subscriptions
@@ -111,14 +111,14 @@ This starts PostgreSQL, RabbitMQ, Mailpit, Valkey, and Keycloak.
 ### 2. Run the API
 
 ```bash
-dotnet run --project src/Foundry.Api
+dotnet run --project src/Wallow.Api
 ```
 
 ### 3. Run tests
 
 ```bash
 dotnet test                                                    # all tests
-dotnet test tests/Modules/Billing/Foundry.Billing.Tests        # single module
+dotnet test tests/Modules/Billing/Wallow.Billing.Tests        # single module
 ```
 
 ## Key Features
@@ -143,7 +143,7 @@ New tenant onboarding is config + migration, not a deployment.
 
 ## Scalability
 
-Foundry is designed for horizontal scaling from day one:
+Wallow is designed for horizontal scaling from day one:
 
 | Strategy | How |
 |----------|-----|
@@ -158,7 +158,7 @@ Foundry is designed for horizontal scaling from day one:
 ## Fork Workflow
 
 1. **Fork** this repository
-2. **Rename** namespaces from `Foundry.*` to `YourProduct.*`
+2. **Rename** namespaces from `Wallow.*` to `YourProduct.*`
 3. **Add domain modules** following the established Clean Architecture pattern
 4. **Configure tenants**
 5. **Deploy** -- the platform ships as a single deployable unit
@@ -184,7 +184,7 @@ Upstream improvements to shared infrastructure can be pulled into forks.
 | [Forking Guide](docs/FORKING_GUIDE.md) | Step-by-step guide for creating a new product |
 | [Deployment Guide](docs/DEPLOYMENT_GUIDE.md) | Server setup, CI/CD, and client app integration |
 | [Deployment Strategies](docs/deployment-strategies/) | Horizontal scaling, database scaling, worker separation, module extraction |
-| [Architecture Reference](docs/FOUNDRY.md) | Single architecture and design reference |
+| [Architecture Reference](docs/WALLOW.md) | Single architecture and design reference |
 | [Keycloak Integration](docs/plans/2026-02-05-keycloak-integration-design.md) | Identity provider setup |
 
 ## License

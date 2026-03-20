@@ -148,7 +148,7 @@ Owns tenant announcements and product changelog.
 
 ## Shared Contracts Reorganization
 
-Current namespace structure under `Foundry.Shared.Contracts.Communications/` gets reorganized.
+Current namespace structure under `Wallow.Shared.Contracts.Communications/` gets reorganized.
 
 **Namespace convention:** `Shared.Contracts` follows the source-module convention where events live under the module that defines them. However, the `Send*RequestedEvent` types are **delivery API contracts** — they define the interface for requesting delivery from the Notifications module and are published by many different modules (Identity, Messaging, Announcements, Inquiries). These are grouped under `Delivery/` as a neutral, cross-cutting namespace that does not imply a single source module.
 
@@ -192,7 +192,7 @@ Shared.Contracts/
 ### New Event: SendNotificationRequestedEvent
 
 ```csharp
-namespace Foundry.Shared.Contracts.Delivery.InApp.Events;
+namespace Wallow.Shared.Contracts.Delivery.InApp.Events;
 
 public sealed record SendNotificationRequestedEvent : IntegrationEvent
 {
@@ -213,7 +213,7 @@ public sealed record SendNotificationRequestedEvent : IntegrationEvent
 The `Type` field on `SendNotificationRequestedEvent` must correspond to the `NotificationType` enum values defined in the Notifications domain. To avoid coupling publishers to the domain enum, a static class of string constants is provided in `Shared.Contracts`:
 
 ```csharp
-namespace Foundry.Shared.Contracts.Delivery.InApp;
+namespace Wallow.Shared.Contracts.Delivery.InApp;
 
 public static class NotificationTypes
 {
@@ -256,30 +256,30 @@ Same `IsCritical` addition to `SendSmsRequestedEvent` and `SendPushRequestedEven
 ```
 src/Modules/
   Notifications/
-    Foundry.Notifications.Domain/
-    Foundry.Notifications.Application/
-    Foundry.Notifications.Infrastructure/
-    Foundry.Notifications.Api/
+    Wallow.Notifications.Domain/
+    Wallow.Notifications.Application/
+    Wallow.Notifications.Infrastructure/
+    Wallow.Notifications.Api/
   Messaging/
-    Foundry.Messaging.Domain/
-    Foundry.Messaging.Application/
-    Foundry.Messaging.Infrastructure/
-    Foundry.Messaging.Api/
+    Wallow.Messaging.Domain/
+    Wallow.Messaging.Application/
+    Wallow.Messaging.Infrastructure/
+    Wallow.Messaging.Api/
   Announcements/
-    Foundry.Announcements.Domain/
-    Foundry.Announcements.Application/
-    Foundry.Announcements.Infrastructure/
-    Foundry.Announcements.Api/
+    Wallow.Announcements.Domain/
+    Wallow.Announcements.Application/
+    Wallow.Announcements.Infrastructure/
+    Wallow.Announcements.Api/
 
 tests/Modules/
-  Notifications/Foundry.Notifications.Tests/
-  Messaging/Foundry.Messaging.Tests/
-  Announcements/Foundry.Announcements.Tests/
+  Notifications/Wallow.Notifications.Tests/
+  Messaging/Wallow.Messaging.Tests/
+  Announcements/Wallow.Announcements.Tests/
 ```
 
 The `Communications` module directory is deleted entirely after the split.
 
-### FoundryModules.cs changes
+### WallowModules.cs changes
 
 ```csharp
 // Before
@@ -435,4 +435,4 @@ Existing tests are moved to the appropriate new test project. Test namespaces up
 | IEmailService interface in Shared.Contracts | Keep it for now; modules that need synchronous email can still use it, delivered by Notifications |
 | Feature flag disabling drops event handlers | Disabling `Modules.Notifications` silently drops all delivery handlers — email, SMS, push, and in-app will stop working. This is critical to document in operational runbooks. Disabling `Modules.Messaging` or `Modules.Announcements` is safer (only their own features stop). |
 | Identity module pattern expansion | Moving `UserRegisteredEventHandler` and `PasswordResetRequestedEventHandler` to Identity introduces the first integration-event handlers in that module. This is a deliberate architectural decision that should be documented in Identity's module docs. |
-| Vestigial config sections | Remove `Foundry.Modules.Communications` from `appsettings.json` if present. The `Foundry.Modules` section is not used by `FoundryModules.cs` (which reads `FeatureManagement`). Clean it up or remove it in this PR. |
+| Vestigial config sections | Remove `Wallow.Modules.Communications` from `appsettings.json` if present. The `Wallow.Modules` section is not used by `WallowModules.cs` (which reads `FeatureManagement`). Clean it up or remove it in this PR. |

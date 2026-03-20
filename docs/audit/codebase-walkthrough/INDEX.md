@@ -1,4 +1,4 @@
-# Foundry Codebase Audit — Master Index
+# Wallow Codebase Audit — Master Index
 
 **Started:** 2026-03-09
 **Approach:** Bottom-up, file-level, full annotated walkthrough

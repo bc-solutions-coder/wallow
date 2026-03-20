@@ -1,10 +1,10 @@
 # Caching Guide
 
-This guide covers caching patterns in Foundry using Valkey (a Redis-compatible cache).
+This guide covers caching patterns in Wallow using Valkey (a Redis-compatible cache).
 
 ## Overview
 
-Foundry uses **Valkey** as its distributed caching and real-time infrastructure layer. Valkey is a Redis-compatible, open-source key-value store that serves multiple purposes in the platform:
+Wallow uses **Valkey** as its distributed caching and real-time infrastructure layer. Valkey is a Redis-compatible, open-source key-value store that serves multiple purposes in the platform:
 
 | Use Case | Description |
 |----------|-------------|
@@ -52,7 +52,7 @@ The `docker-compose.yml` includes a Valkey container:
 ```yaml
 valkey:
   image: valkey/valkey:8-alpine
-  container_name: ${COMPOSE_PROJECT_NAME:-foundry}-valkey
+  container_name: ${COMPOSE_PROJECT_NAME:-wallow}-valkey
   command: valkey-server --appendonly yes --requirepass ${VALKEY_PASSWORD}
   ports:
     - "127.0.0.1:6379:6379"
@@ -200,7 +200,7 @@ new DistributedCacheEntryOptions
 
 ### Cache-Aside Pattern
 
-The most common pattern in Foundry. Check cache first, fall back to source on miss:
+The most common pattern in Wallow. Check cache first, fall back to source on miss:
 
 ```csharp
 public async Task<FeatureFlag?> GetFlagAsync(string key, CancellationToken ct)
@@ -343,7 +343,7 @@ Valkey serves as the SignalR backplane for horizontal scaling. When multiple API
 builder.Services.AddSignalR()
     .AddStackExchangeRedis(options =>
     {
-        options.Configuration.ChannelPrefix = RedisChannel.Literal("Foundry");
+        options.Configuration.ChannelPrefix = RedisChannel.Literal("Wallow");
         options.ConnectionFactory = async writer =>
         {
             var connStr = configRef.GetConnectionString("Redis")!;
@@ -359,7 +359,7 @@ builder.Services.AddSignalR()
 3. Redis pub/sub forwards the message to Instance A
 4. Instance A delivers to the connected client
 
-The backplane uses Redis pub/sub channels with the configured prefix (`Foundry`).
+The backplane uses Redis pub/sub channels with the configured prefix (`Wallow`).
 
 ## Presence Tracking
 

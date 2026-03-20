@@ -1,6 +1,6 @@
 # Database Scaling Guide
 
-This guide covers scaling PostgreSQL for Foundry deployments using connection pooling with PgBouncer and read replicas for horizontal read scaling.
+This guide covers scaling PostgreSQL for Wallow deployments using connection pooling with PgBouncer and read replicas for horizontal read scaling.
 
 ---
 
@@ -47,7 +47,7 @@ Beyond a certain threshold (often 200-500 connections depending on hardware), Po
 | **Read Scaling** | Read Replicas | Read-heavy workloads, reporting, geographic distribution |
 | **Write Scaling** | Sharding, Partitioning | Extremely high write throughput (beyond this guide's scope) |
 
-Foundry's architecture naturally supports read/write splitting:
+Wallow's architecture naturally supports read/write splitting:
 - **EF Core** handles writes (commands) to the primary database
 - **Dapper** can be configured for complex read queries against replicas
 - **Background jobs** (Hangfire) use the primary for job state management
@@ -143,13 +143,13 @@ Key characteristics:
 
 ### Pooling Modes Explained
 
-| Mode | Description | Use Case | Foundry Compatibility |
+| Mode | Description | Use Case | Wallow Compatibility |
 |------|-------------|----------|----------------------|
 | **Session** | Connection held for entire client session | Legacy apps needing session-level state | Full compatibility |
 | **Transaction** | Connection returned after each transaction | Most web applications | **Recommended** |
 | **Statement** | Connection returned after each statement | Read-only workloads | Limited (no multi-statement transactions) |
 
-**Transaction pooling** is recommended for Foundry because:
+**Transaction pooling** is recommended for Wallow because:
 - EF Core and Dapper both work well with transaction-level pooling
 - Wolverine's outbox pattern commits within transactions
 - Wolverine's outbox pattern commits within transactions
@@ -160,7 +160,7 @@ Key characteristics:
 ┌─────────────────────────────────────────────────────────────────┐
 │  Application Layer                                               │
 ├─────────┬─────────┬─────────┬─────────┬─────────┬───────────────┤
-│ Foundry │ Foundry │ Foundry │ Foundry │ Hangfire│ Other         │
+│ Wallow │ Wallow │ Wallow │ Wallow │ Hangfire│ Other         │
 │ API #1  │ API #2  │ API #3  │ API #4  │ Worker  │ Services      │
 │         │         │         │         │         │               │
 │ EF Core │ EF Core │ EF Core │ EF Core │ EF Core │ EF Core       │
@@ -208,7 +208,7 @@ services:
 
   pgbouncer:
     image: bitnami/pgbouncer:1.23.0
-    container_name: ${COMPOSE_PROJECT_NAME:-foundry}-pgbouncer
+    container_name: ${COMPOSE_PROJECT_NAME:-wallow}-pgbouncer
     environment:
       # Basic configuration
       PGBOUNCER_DATABASE: ${POSTGRES_DB}
@@ -253,7 +253,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - foundry
+      - wallow
     restart: unless-stopped
 ```
 
@@ -262,17 +262,17 @@ services:
 For production deployments or more control, use a custom `pgbouncer.ini`:
 
 ```ini
-;; pgbouncer.ini - Production Configuration for Foundry
+;; pgbouncer.ini - Production Configuration for Wallow
 ;; Place this file at: /etc/pgbouncer/pgbouncer.ini
 
 ;;; Database Configuration ;;;
 [databases]
 ; Format: dbname = host=... port=... dbname=... user=... password=...
 ; Application database - connects to PostgreSQL primary
-foundry = host=postgres port=5432 dbname=foundry
+wallow = host=postgres port=5432 dbname=wallow
 
 ; You can define multiple databases pointing to different servers
-; foundry_readonly = host=postgres-replica port=5432 dbname=foundry
+; wallow_readonly = host=postgres-replica port=5432 dbname=wallow
 
 ; Keycloak database (if needed)
 keycloak_db = host=postgres port=5432 dbname=keycloak_db
@@ -388,10 +388,10 @@ log_prefix = %t [%p] <%d,%u>
 
 ;;; Administrative Access ;;;
 ; Users allowed to connect to admin database (pgbouncer virtual db)
-admin_users = postgres,foundry
+admin_users = postgres,wallow
 
 ; Users allowed to run SHOW commands
-stats_users = postgres,foundry,monitoring
+stats_users = postgres,wallow,monitoring
 
 ;;; Unix Socket (optional) ;;;
 ; unix_socket_dir = /var/run/pgbouncer
@@ -416,28 +416,28 @@ PgBouncer needs to know how to authenticate users. Create `userlist.txt`:
 ;; Then prefix with "md5"
 
 ;; To get SCRAM hash from PostgreSQL:
-;; SELECT rolname, rolpassword FROM pg_authid WHERE rolname = 'foundry';
+;; SELECT rolname, rolpassword FROM pg_authid WHERE rolname = 'wallow';
 
 ;; Example entries:
-"foundry" "SCRAM-SHA-256$4096:abc123...$StoredKey:ServerKey"
+"wallow" "SCRAM-SHA-256$4096:abc123...$StoredKey:ServerKey"
 "readonly" "SCRAM-SHA-256$4096:def456...$StoredKey:ServerKey"
 
 ;; For development only - plain text (NEVER use in production):
-; "foundry" "your-password-here"
+; "wallow" "your-password-here"
 ```
 
 **Generating password hashes:**
 
 ```bash
 # Get SCRAM-SHA-256 hash from PostgreSQL (recommended)
-docker exec foundry-postgres psql -U postgres -c \
-  "SELECT rolname, rolpassword FROM pg_authid WHERE rolname = 'foundry';"
+docker exec wallow-postgres psql -U postgres -c \
+  "SELECT rolname, rolpassword FROM pg_authid WHERE rolname = 'wallow';"
 
 # Or generate MD5 hash manually
-echo -n "your-password-here""foundry" | md5sum | cut -d' ' -f1 | sed 's/^/md5/'
+echo -n "your-password-here""wallow" | md5sum | cut -d' ' -f1 | sed 's/^/md5/'
 ```
 
-### 3.4 Configuring Foundry to Use PgBouncer
+### 3.4 Configuring Wallow to Use PgBouncer
 
 #### Connection String Changes
 
@@ -447,10 +447,10 @@ Update your connection strings to point to PgBouncer instead of PostgreSQL direc
 {
   "ConnectionStrings": {
     // Before: Direct PostgreSQL connection
-    // "DefaultConnection": "Host=postgres;Port=5432;Database=foundry;Username=foundry;Password=..."
+    // "DefaultConnection": "Host=postgres;Port=5432;Database=wallow;Username=wallow;Password=..."
 
     // After: Through PgBouncer
-    "DefaultConnection": "Host=pgbouncer;Port=6432;Database=foundry;Username=foundry;Password=...;Pooling=false;Enlist=false"
+    "DefaultConnection": "Host=pgbouncer;Port=6432;Database=wallow;Username=wallow;Password=...;Pooling=false;Enlist=false"
   }
 }
 ```
@@ -572,7 +572,7 @@ public class GetItemsHandler
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Host=pgbouncer;Port=6432;Database=foundry;Username=foundry;Password=...;Pooling=false;No Reset On Close=true;Multiplexing=false;Write Buffer Size=32768"
+    "DefaultConnection": "Host=pgbouncer;Port=6432;Database=wallow;Username=wallow;Password=...;Pooling=false;No Reset On Close=true;Multiplexing=false;Write Buffer Size=32768"
   }
 }
 ```
@@ -601,7 +601,7 @@ Connect to the PgBouncer admin database:
 
 ```bash
 # Connect to PgBouncer admin interface
-psql -h localhost -p 6432 -U foundry pgbouncer
+psql -h localhost -p 6432 -U wallow pgbouncer
 ```
 
 Useful monitoring commands:
@@ -654,7 +654,7 @@ Use pgbouncer_exporter for Prometheus integration:
 # Add to docker-compose.yml
 pgbouncer-exporter:
   image: prometheuscommunity/pgbouncer-exporter:latest
-  container_name: ${COMPOSE_PROJECT_NAME:-foundry}-pgbouncer-exporter
+  container_name: ${COMPOSE_PROJECT_NAME:-wallow}-pgbouncer-exporter
   environment:
     PGBOUNCER_EXPORTER_HOST: pgbouncer
     PGBOUNCER_EXPORTER_PORT: 6432
@@ -665,7 +665,7 @@ pgbouncer-exporter:
   depends_on:
     - pgbouncer
   networks:
-    - foundry
+    - wallow
 ```
 
 #### Grafana Dashboard
@@ -854,7 +854,7 @@ On the primary:
 
 ```bash
 # Connect to PostgreSQL
-docker exec -it foundry-postgres psql -U postgres
+docker exec -it wallow-postgres psql -U postgres
 
 # Create replication user
 CREATE ROLE replicator WITH REPLICATION LOGIN PASSWORD 'strong-replication-password';
@@ -952,7 +952,7 @@ sudo -u postgres psql -c "SELECT pg_is_in_recovery();"
 
 ```bash
 # On primary - check replication status
-docker exec foundry-postgres psql -U postgres -c "
+docker exec wallow-postgres psql -U postgres -c "
 SELECT
     client_addr,
     state,
@@ -965,11 +965,11 @@ FROM pg_stat_replication;
 "
 ```
 
-### 4.3 Configuring Foundry for Read/Write Splitting
+### 4.3 Configuring Wallow for Read/Write Splitting
 
 #### Strategy 1: Manual Split (Recommended)
 
-Foundry's architecture naturally supports read/write splitting because:
+Wallow's architecture naturally supports read/write splitting because:
 - **EF Core** is used for write operations (commands)
 - **Dapper** can be configured for read operations (queries)
 - **Dapper** read queries can optionally use replicas
@@ -979,8 +979,8 @@ Foundry's architecture naturally supports read/write splitting because:
 ```json
 {
   "ConnectionStrings": {
-    "Primary": "Host=pgbouncer-primary;Port=6432;Database=foundry;Username=foundry;Password=...;Pooling=false",
-    "Replica": "Host=pgbouncer-replica;Port=6432;Database=foundry;Username=readonly;Password=...;Pooling=false"
+    "Primary": "Host=pgbouncer-primary;Port=6432;Database=wallow;Username=wallow;Password=...;Pooling=false",
+    "Replica": "Host=pgbouncer-replica;Port=6432;Database=wallow;Username=readonly;Password=...;Pooling=false"
   }
 }
 ```
@@ -1129,7 +1129,7 @@ Npgsql 7+ supports target session attributes for automatic routing:
 ```json
 {
   "ConnectionStrings": {
-    "Database": "Host=primary,replica1,replica2;Port=5432;Database=foundry;Username=foundry;Password=...;Target Session Attributes=prefer-standby;Load Balance Hosts=true"
+    "Database": "Host=primary,replica1,replica2;Port=5432;Database=wallow;Username=wallow;Password=...;Target Session Attributes=prefer-standby;Load Balance Hosts=true"
   }
 }
 ```
@@ -1190,13 +1190,13 @@ Configure PgBouncer to route based on database name:
 ```ini
 [databases]
 # Write operations - connects to primary
-foundry = host=primary port=5432 dbname=foundry
+wallow = host=primary port=5432 dbname=wallow
 
 # Read operations - connects to replica
-foundry_readonly = host=replica port=5432 dbname=foundry
+wallow_readonly = host=replica port=5432 dbname=wallow
 
 # Load balanced reads across multiple replicas
-foundry_reads = host=replica1,replica2 port=5432 dbname=foundry pool_mode=transaction
+wallow_reads = host=replica1,replica2 port=5432 dbname=wallow pool_mode=transaction
 ```
 
 **Application configuration:**
@@ -1204,8 +1204,8 @@ foundry_reads = host=replica1,replica2 port=5432 dbname=foundry pool_mode=transa
 ```json
 {
   "ConnectionStrings": {
-    "Primary": "Host=pgbouncer;Port=6432;Database=foundry;Username=foundry;Password=...",
-    "Replica": "Host=pgbouncer;Port=6432;Database=foundry_readonly;Username=readonly;Password=..."
+    "Primary": "Host=pgbouncer;Port=6432;Database=wallow;Username=wallow;Password=...",
+    "Replica": "Host=pgbouncer;Port=6432;Database=wallow_readonly;Username=readonly;Password=..."
   }
 }
 ```
@@ -1540,7 +1540,7 @@ public class MartenReadStore : IReadStore
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │  Application Layer                                                           │
 ├─────────┬─────────┬─────────┬─────────┬─────────────────────────────────────┤
-│ Foundry │ Foundry │ Foundry │ Foundry │     Background Workers              │
+│ Wallow │ Wallow │ Wallow │ Wallow │     Background Workers              │
 │ API #1  │ API #2  │ API #3  │ API #4  │     (Hangfire, etc.)                │
 │         │         │         │         │                                     │
 │ Writes  │ Writes  │ Writes  │ Writes  │         Writes                      │
@@ -1601,7 +1601,7 @@ services:
   # ============================================
   postgres-primary:
     image: postgres:18-alpine
-    container_name: foundry-postgres-primary
+    container_name: wallow-postgres-primary
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -1623,7 +1623,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - foundry
+      - wallow
     restart: unless-stopped
 
   # ============================================
@@ -1631,7 +1631,7 @@ services:
   # ============================================
   postgres-replica1:
     image: postgres:18-alpine
-    container_name: foundry-postgres-replica1
+    container_name: wallow-postgres-replica1
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -1661,7 +1661,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - foundry
+      - wallow
     restart: unless-stopped
 
   # ============================================
@@ -1669,7 +1669,7 @@ services:
   # ============================================
   postgres-replica2:
     image: postgres:18-alpine
-    container_name: foundry-postgres-replica2
+    container_name: wallow-postgres-replica2
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -1699,7 +1699,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - foundry
+      - wallow
     restart: unless-stopped
 
   # ============================================
@@ -1707,7 +1707,7 @@ services:
   # ============================================
   pgbouncer-primary:
     image: bitnami/pgbouncer:1.23.0
-    container_name: foundry-pgbouncer-primary
+    container_name: wallow-pgbouncer-primary
     environment:
       PGBOUNCER_DATABASE: ${POSTGRES_DB}
       PGBOUNCER_PORT: 6432
@@ -1738,7 +1738,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - foundry
+      - wallow
     restart: unless-stopped
 
   # ============================================
@@ -1746,7 +1746,7 @@ services:
   # ============================================
   pgbouncer-replicas:
     image: bitnami/pgbouncer:1.23.0
-    container_name: foundry-pgbouncer-replicas
+    container_name: wallow-pgbouncer-replicas
     environment:
       PGBOUNCER_DATABASE: ${POSTGRES_DB}
       PGBOUNCER_PORT: 6433
@@ -1783,7 +1783,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - foundry
+      - wallow
     restart: unless-stopped
 
   # ============================================
@@ -1791,7 +1791,7 @@ services:
   # ============================================
   pgbouncer-exporter:
     image: prometheuscommunity/pgbouncer-exporter:latest
-    container_name: foundry-pgbouncer-exporter
+    container_name: wallow-pgbouncer-exporter
     command:
       - "--pgBouncer.connectionString=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@pgbouncer-primary:6432/pgbouncer?sslmode=disable"
     ports:
@@ -1799,15 +1799,15 @@ services:
     depends_on:
       - pgbouncer-primary
     networks:
-      - foundry
+      - wallow
     restart: unless-stopped
 
   # ============================================
-  # FOUNDRY API
+  # WALLOW API
   # ============================================
-  foundry-api:
+  wallow-api:
     image: ${APP_IMAGE}:${APP_TAG}
-    container_name: foundry-api
+    container_name: wallow-api
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__Primary: "Host=pgbouncer-primary;Port=6432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};Pooling=false;Enlist=false"
@@ -1826,7 +1826,7 @@ services:
       timeout: 10s
       retries: 3
     networks:
-      - foundry
+      - wallow
     restart: unless-stopped
 
 volumes:
@@ -1835,7 +1835,7 @@ volumes:
   postgres_replica2_data:
 
 networks:
-  foundry:
+  wallow:
     driver: bridge
 ```
 
@@ -1902,7 +1902,7 @@ work_mem = 4MB
 [databases]
 ; Load balance across replicas using round-robin
 ; Each connection attempt goes to the next server in the list
-foundry = host=postgres-replica1,postgres-replica2 port=5432 dbname=foundry
+wallow = host=postgres-replica1,postgres-replica2 port=5432 dbname=wallow
 
 [pgbouncer]
 listen_addr = 0.0.0.0
@@ -1918,8 +1918,8 @@ max_db_connections = 75
 server_idle_timeout = 600
 log_connections = 1
 log_disconnections = 1
-admin_users = foundry
-stats_users = foundry
+admin_users = wallow
+stats_users = wallow
 ```
 
 ### 5.3 Connection String Configuration
@@ -1929,9 +1929,9 @@ stats_users = foundry
 ```json
 {
   "ConnectionStrings": {
-    "Primary": "Host=pgbouncer-primary;Port=6432;Database=foundry;Username=foundry;Password=${POSTGRES_PASSWORD};Pooling=false;Enlist=false;No Reset On Close=true;Command Timeout=120",
-    "Replica": "Host=pgbouncer-replicas;Port=6433;Database=foundry;Username=foundry;Password=${POSTGRES_PASSWORD};Pooling=false;Enlist=false;No Reset On Close=true;Command Timeout=120",
-    "Postgres": "Host=pgbouncer-primary;Port=6432;Database=foundry;Username=foundry;Password=${POSTGRES_PASSWORD};Pooling=false;Enlist=false"
+    "Primary": "Host=pgbouncer-primary;Port=6432;Database=wallow;Username=wallow;Password=${POSTGRES_PASSWORD};Pooling=false;Enlist=false;No Reset On Close=true;Command Timeout=120",
+    "Replica": "Host=pgbouncer-replicas;Port=6433;Database=wallow;Username=wallow;Password=${POSTGRES_PASSWORD};Pooling=false;Enlist=false;No Reset On Close=true;Command Timeout=120",
+    "Postgres": "Host=pgbouncer-primary;Port=6432;Database=wallow;Username=wallow;Password=${POSTGRES_PASSWORD};Pooling=false;Enlist=false"
   },
   "Database": {
     "ReadWriteSplit": {
@@ -2047,10 +2047,10 @@ Create dashboards for:
 
 ```bash
 # Check current connections on PostgreSQL
-docker exec foundry-postgres psql -U postgres -c "SELECT count(*) FROM pg_stat_activity;"
+docker exec wallow-postgres psql -U postgres -c "SELECT count(*) FROM pg_stat_activity;"
 
 # Check PgBouncer pools
-psql -h localhost -p 6432 -U foundry pgbouncer -c "SHOW POOLS;"
+psql -h localhost -p 6432 -U wallow pgbouncer -c "SHOW POOLS;"
 ```
 
 **Solutions:**
@@ -2096,10 +2096,10 @@ ORDER BY query_start;
 
 ```bash
 # Check PgBouncer logs
-docker logs foundry-pgbouncer 2>&1 | grep -i timeout
+docker logs wallow-pgbouncer 2>&1 | grep -i timeout
 
 # Check stats
-psql -h localhost -p 6432 -U foundry pgbouncer -c "SHOW STATS;"
+psql -h localhost -p 6432 -U wallow pgbouncer -c "SHOW STATS;"
 ```
 
 **Solutions:**
@@ -2205,7 +2205,7 @@ SELECT pg_reload_conf();
 
 ## Summary
 
-This guide covered the two primary strategies for scaling PostgreSQL in Foundry:
+This guide covered the two primary strategies for scaling PostgreSQL in Wallow:
 
 1. **Connection Pooling (PgBouncer)**
    - Solves connection exhaustion
@@ -2214,7 +2214,7 @@ This guide covered the two primary strategies for scaling PostgreSQL in Foundry:
 
 2. **Read Replicas**
    - Horizontal read scaling
-   - Foundry's architecture naturally supports read/write splitting
+   - Wallow's architecture naturally supports read/write splitting
    - Dapper read queries can use replicas; EF Core writes always use primary
 
 3. **Combined Setup**

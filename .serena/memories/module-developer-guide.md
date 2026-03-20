@@ -1,6 +1,6 @@
-# Foundry Module Developer Guide
+# Wallow Module Developer Guide
 
-This guide explains how to create, configure, and maintain modules in the Foundry modular monolith. All modules should follow these patterns for consistency.
+This guide explains how to create, configure, and maintain modules in the Wallow modular monolith. All modules should follow these patterns for consistency.
 
 ## Module Structure
 
@@ -8,7 +8,7 @@ Every module follows Clean Architecture with exactly 4 layers:
 
 ```
 src/Modules/{ModuleName}/
-├── Foundry.{ModuleName}.Domain/           # Domain layer
+├── Wallow.{ModuleName}.Domain/           # Domain layer
 │   ├── Identity/                          # Strongly-typed IDs
 │   ├── Entities/                          # Domain entities/aggregates
 │   ├── Enums/                            # Enumerations
@@ -17,7 +17,7 @@ src/Modules/{ModuleName}/
 │   ├── Exceptions/                       # (optional) Custom exceptions
 │   └── Projections/                      # (event-sourced only)
 │
-├── Foundry.{ModuleName}.Application/      # Application layer
+├── Wallow.{ModuleName}.Application/      # Application layer
 │   ├── Commands/                         # CQRS command handlers
 │   ├── Queries/                          # CQRS query handlers
 │   ├── DTOs/                            # Data transfer objects
@@ -26,13 +26,13 @@ src/Modules/{ModuleName}/
 │   ├── Mappings/                         # (optional) AutoMapper profiles
 │   └── Validators/                       # (optional) FluentValidation
 │
-├── Foundry.{ModuleName}.Infrastructure/   # Infrastructure layer
+├── Wallow.{ModuleName}.Infrastructure/   # Infrastructure layer
 │   ├── Extensions/                       # DI registration
 │   ├── Persistence/                      # DbContext, repositories
 │   ├── Migrations/                       # EF Core migrations
 │   └── Services/                         # External service implementations
 │
-└── Foundry.{ModuleName}.Api/             # API layer
+└── Wallow.{ModuleName}.Api/             # API layer
     ├── Controllers/                      # Endpoint handlers
     ├── Contracts/                        # Request/Response DTOs
     └── Extensions/                       # Module registration
@@ -42,17 +42,17 @@ src/Modules/{ModuleName}/
 
 ### Step 1: Create Project Structure
 
-Create 4 class library projects with naming convention `Foundry.{ModuleName}.{Layer}`:
+Create 4 class library projects with naming convention `Wallow.{ModuleName}.{Layer}`:
 
 ```bash
 # Create module directories
 mkdir -p src/Modules/{ModuleName}
 
 # Create projects (from solution root)
-dotnet new classlib -n Foundry.{ModuleName}.Domain -o src/Modules/{ModuleName}/Foundry.{ModuleName}.Domain
-dotnet new classlib -n Foundry.{ModuleName}.Application -o src/Modules/{ModuleName}/Foundry.{ModuleName}.Application
-dotnet new classlib -n Foundry.{ModuleName}.Infrastructure -o src/Modules/{ModuleName}/Foundry.{ModuleName}.Infrastructure
-dotnet new classlib -n Foundry.{ModuleName}.Api -o src/Modules/{ModuleName}/Foundry.{ModuleName}.Api
+dotnet new classlib -n Wallow.{ModuleName}.Domain -o src/Modules/{ModuleName}/Wallow.{ModuleName}.Domain
+dotnet new classlib -n Wallow.{ModuleName}.Application -o src/Modules/{ModuleName}/Wallow.{ModuleName}.Application
+dotnet new classlib -n Wallow.{ModuleName}.Infrastructure -o src/Modules/{ModuleName}/Wallow.{ModuleName}.Infrastructure
+dotnet new classlib -n Wallow.{ModuleName}.Api -o src/Modules/{ModuleName}/Wallow.{ModuleName}.Api
 
 # Add to solution
 dotnet sln add src/Modules/{ModuleName}/**/*.csproj
@@ -63,33 +63,33 @@ dotnet sln add src/Modules/{ModuleName}/**/*.csproj
 **Domain** (zero external dependencies):
 ```xml
 <ItemGroup>
-  <ProjectReference Include="..\..\..\Shared\Foundry.Shared.Kernel\Foundry.Shared.Kernel.csproj" />
+  <ProjectReference Include="..\..\..\Shared\Wallow.Shared.Kernel\Wallow.Shared.Kernel.csproj" />
 </ItemGroup>
 ```
 
 **Application** (depends on Domain):
 ```xml
 <ItemGroup>
-  <ProjectReference Include="..\Foundry.{ModuleName}.Domain\Foundry.{ModuleName}.Domain.csproj" />
-  <ProjectReference Include="..\..\..\Shared\Foundry.Shared.Kernel\Foundry.Shared.Kernel.csproj" />
-  <ProjectReference Include="..\..\..\Shared\Foundry.Shared.Contracts\Foundry.Shared.Contracts.csproj" />
+  <ProjectReference Include="..\Wallow.{ModuleName}.Domain\Wallow.{ModuleName}.Domain.csproj" />
+  <ProjectReference Include="..\..\..\Shared\Wallow.Shared.Kernel\Wallow.Shared.Kernel.csproj" />
+  <ProjectReference Include="..\..\..\Shared\Wallow.Shared.Contracts\Wallow.Shared.Contracts.csproj" />
 </ItemGroup>
 ```
 
 **Infrastructure** (implements Application interfaces):
 ```xml
 <ItemGroup>
-  <ProjectReference Include="..\Foundry.{ModuleName}.Application\Foundry.{ModuleName}.Application.csproj" />
-  <ProjectReference Include="..\..\..\Shared\Foundry.Shared.Kernel\Foundry.Shared.Kernel.csproj" />
-  <ProjectReference Include="..\..\..\Shared\Foundry.Shared.Contracts\Foundry.Shared.Contracts.csproj" />
+  <ProjectReference Include="..\Wallow.{ModuleName}.Application\Wallow.{ModuleName}.Application.csproj" />
+  <ProjectReference Include="..\..\..\Shared\Wallow.Shared.Kernel\Wallow.Shared.Kernel.csproj" />
+  <ProjectReference Include="..\..\..\Shared\Wallow.Shared.Contracts\Wallow.Shared.Contracts.csproj" />
 </ItemGroup>
 ```
 
 **Api** (depends on Application and Infrastructure):
 ```xml
 <ItemGroup>
-  <ProjectReference Include="..\Foundry.{ModuleName}.Application\Foundry.{ModuleName}.Application.csproj" />
-  <ProjectReference Include="..\Foundry.{ModuleName}.Infrastructure\Foundry.{ModuleName}.Infrastructure.csproj" />
+  <ProjectReference Include="..\Wallow.{ModuleName}.Application\Wallow.{ModuleName}.Application.csproj" />
+  <ProjectReference Include="..\Wallow.{ModuleName}.Infrastructure\Wallow.{ModuleName}.Infrastructure.csproj" />
 </ItemGroup>
 ```
 
@@ -97,7 +97,7 @@ dotnet sln add src/Modules/{ModuleName}/**/*.csproj
 
 **Strongly-Typed ID** (Identity/{ModuleName}Id.cs):
 ```csharp
-namespace Foundry.{ModuleName}.Domain.Identity;
+namespace Wallow.{ModuleName}.Domain.Identity;
 
 public readonly record struct {Entity}Id(Guid Value)
 {
@@ -110,7 +110,7 @@ public readonly record struct {Entity}Id(Guid Value)
 
 **Domain Entity** (Entities/{Entity}.cs):
 ```csharp
-namespace Foundry.{ModuleName}.Domain.Entities;
+namespace Wallow.{ModuleName}.Domain.Entities;
 
 public sealed class {Entity} : Entity<{Entity}Id>, ITenantScoped
 {
@@ -135,7 +135,7 @@ public sealed class {Entity} : Entity<{Entity}Id>, ITenantScoped
 
 **Domain Event** (Events/{Entity}CreatedDomainEvent.cs):
 ```csharp
-namespace Foundry.{ModuleName}.Domain.Events;
+namespace Wallow.{ModuleName}.Domain.Events;
 
 public sealed record {Entity}CreatedDomainEvent({Entity}Id Id, TenantId TenantId) : DomainEvent;
 ```
@@ -144,14 +144,14 @@ public sealed record {Entity}CreatedDomainEvent({Entity}Id Id, TenantId TenantId
 
 **Command** (Commands/Create{Entity}/Create{Entity}Command.cs):
 ```csharp
-namespace Foundry.{ModuleName}.Application.Commands.Create{Entity};
+namespace Wallow.{ModuleName}.Application.Commands.Create{Entity};
 
 public sealed record Create{Entity}Command(...) : IRequest<Result<{Entity}Dto>>;
 ```
 
 **Handler** (Commands/Create{Entity}/Create{Entity}Handler.cs):
 ```csharp
-namespace Foundry.{ModuleName}.Application.Commands.Create{Entity};
+namespace Wallow.{ModuleName}.Application.Commands.Create{Entity};
 
 public sealed class Create{Entity}Handler(
     I{Entity}Repository repository,
@@ -176,7 +176,7 @@ public sealed class Create{Entity}Handler(
 
 **Repository Interface** (Interfaces/I{Entity}Repository.cs):
 ```csharp
-namespace Foundry.{ModuleName}.Application.Interfaces;
+namespace Wallow.{ModuleName}.Application.Interfaces;
 
 public interface I{Entity}Repository
 {
@@ -192,7 +192,7 @@ public interface I{Entity}Repository
 
 **DbContext** (Persistence/{ModuleName}DbContext.cs):
 ```csharp
-namespace Foundry.{ModuleName}.Infrastructure.Persistence;
+namespace Wallow.{ModuleName}.Infrastructure.Persistence;
 
 public sealed class {ModuleName}DbContext : DbContext
 {
@@ -232,7 +232,7 @@ public sealed class {ModuleName}DbContext : DbContext
 
 **Entity Configuration** (Persistence/Configurations/{Entity}Configuration.cs):
 ```csharp
-namespace Foundry.{ModuleName}.Infrastructure.Persistence.Configurations;
+namespace Wallow.{ModuleName}.Infrastructure.Persistence.Configurations;
 
 public sealed class {Entity}Configuration : IEntityTypeConfiguration<{Entity}>
 {
@@ -259,7 +259,7 @@ public sealed class {Entity}Configuration : IEntityTypeConfiguration<{Entity}>
 
 **Repository** (Persistence/Repositories/{Entity}Repository.cs):
 ```csharp
-namespace Foundry.{ModuleName}.Infrastructure.Persistence.Repositories;
+namespace Wallow.{ModuleName}.Infrastructure.Persistence.Repositories;
 
 public sealed class {Entity}Repository : I{Entity}Repository
 {
@@ -286,7 +286,7 @@ public sealed class {Entity}Repository : I{Entity}Repository
 
 **Infrastructure Extensions** (Extensions/InfrastructureExtensions.cs):
 ```csharp
-namespace Foundry.{ModuleName}.Infrastructure.Extensions;
+namespace Wallow.{ModuleName}.Infrastructure.Extensions;
 
 public static class InfrastructureExtensions
 {
@@ -324,7 +324,7 @@ public static class InfrastructureExtensions
 
 **Module Extensions** (Extensions/{ModuleName}ModuleExtensions.cs):
 ```csharp
-namespace Foundry.{ModuleName}.Api.Extensions;
+namespace Wallow.{ModuleName}.Api.Extensions;
 
 public static class {ModuleName}ModuleExtensions
 {
@@ -360,7 +360,7 @@ public static class {ModuleName}ModuleExtensions
 
 **Controller** (Controllers/{Entity}Controller.cs):
 ```csharp
-namespace Foundry.{ModuleName}.Api.Controllers;
+namespace Wallow.{ModuleName}.Api.Controllers;
 
 [ApiController]
 [Route("api/{modulename}/{entities}")]
@@ -388,11 +388,11 @@ public class {Entity}Controller : ControllerBase
 
 ### Step 7: Register Module in Program.cs
 
-Add to `src/Foundry.Api/Program.cs`:
+Add to `src/Wallow.Api/Program.cs`:
 
 ```csharp
 // 1. Register Wolverine handler assembly (around line 100)
-opts.Discovery.IncludeAssembly(typeof(Foundry.{ModuleName}.Application.Commands.Create{Entity}.Create{Entity}Command).Assembly);
+opts.Discovery.IncludeAssembly(typeof(Wallow.{ModuleName}.Application.Commands.Create{Entity}.Create{Entity}Command).Assembly);
 
 // 2. Configure RabbitMQ event publishing (around line 160)
 opts.PublishMessage<{Entity}CreatedEvent>().ToRabbitExchange("{modulename}-events");
@@ -411,8 +411,8 @@ await app.Use{ModuleName}ModuleAsync();
 
 ```bash
 dotnet ef migrations add InitialCreate \
-    --project src/Modules/{ModuleName}/Foundry.{ModuleName}.Infrastructure \
-    --startup-project src/Foundry.Api \
+    --project src/Modules/{ModuleName}/Wallow.{ModuleName}.Infrastructure \
+    --startup-project src/Wallow.Api \
     --context {ModuleName}DbContext
 ```
 
@@ -429,7 +429,7 @@ Modules communicate ONLY through:
 1. Define event in `Shared.Contracts/{ModuleName}/Events/`:
 
 ```csharp
-namespace Foundry.Shared.Contracts.{ModuleName}.Events;
+namespace Wallow.Shared.Contracts.{ModuleName}.Events;
 
 public sealed record {Entity}CreatedEvent : IntegrationEvent
 {
@@ -454,7 +454,7 @@ await bus.PublishAsync(new {Entity}CreatedEvent
 Create handler in Application layer:
 
 ```csharp
-namespace Foundry.{ModuleName}.Application.EventHandlers;
+namespace Wallow.{ModuleName}.Application.EventHandlers;
 
 public static class SomeOtherModuleEventHandler
 {
@@ -479,7 +479,7 @@ tests/Modules/{ModuleName}/
 ├── {ModuleName}.Application.Tests/   # Handler unit tests
 ├── {ModuleName}.Infrastructure.Tests/ # Repository/service tests
 ├── {ModuleName}.Architecture.Tests/  # Architecture validation
-└── Foundry.{ModuleName}.IntegrationTests/  # Full integration tests
+└── Wallow.{ModuleName}.IntegrationTests/  # Full integration tests
 ```
 
 ### Unit Test Pattern
@@ -521,12 +521,12 @@ public class Create{Entity}HandlerTests
 ### Integration Test Pattern
 
 ```csharp
-public class {Entity}IntegrationTests : IClassFixture<FoundryApiFactory>, IAsyncLifetime
+public class {Entity}IntegrationTests : IClassFixture<WallowApiFactory>, IAsyncLifetime
 {
-    private readonly FoundryApiFactory _factory;
+    private readonly WallowApiFactory _factory;
     private readonly HttpClient _client;
     
-    public {Entity}IntegrationTests(FoundryApiFactory factory)
+    public {Entity}IntegrationTests(WallowApiFactory factory)
     {
         _factory = factory;
         _client = factory.CreateClient();

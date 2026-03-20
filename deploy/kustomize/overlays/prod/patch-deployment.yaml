@@ -1,13 +1,13 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: foundry
+  name: wallow
 spec:
   replicas: 3
   template:
     spec:
       containers:
-        - name: foundry
+        - name: wallow
           resources:
             requests:
               memory: 512Mi

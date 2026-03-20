@@ -6,15 +6,15 @@ Owns authentication, authorization, multi-tenancy, user/organization management,
 
 ## Layer Rules
 
-- **Domain** (`Foundry.Identity.Domain`): Entities (`FoundryUser`, `FoundryRole`, `Organization`, `ServiceAccountMetadata`, `ApiScope`, `SsoConfiguration`, `ScimConfiguration`, `ScimSyncLog`), strongly-typed IDs, enums (`ServiceAccountStatus`, `SsoProtocol`, `SsoStatus`, `SamlNameIdFormat`, `ScimOperation`, `ScimResourceType`), domain events (`SsoConfigurationActivatedEvent`, `ScimSyncCompletedEvent`). Domain depends only on `Shared.Kernel`.
-- **Application** (`Foundry.Identity.Application`): Defines `IUserManagementService`, `IOrganizationService`, `IServiceAccountService`, `IDeveloperAppService` interfaces, plus DTOs. Service accounts, SSO, and SCIM use proper command/query handlers.
-- **Infrastructure** (`Foundry.Identity.Infrastructure`): `IdentityDbContext` (EF Core, `identity` schema) inherits `IdentityDbContext<FoundryUser, FoundryRole, Guid>` and integrates OpenIddict EF Core stores. Implements ASP.NET Core Identity services, OpenIddict service account and developer app services (`OpenIddictServiceAccountService`, `OpenIddictDeveloperAppService`), authorization pipeline (`HasPermissionAttribute`, `PermissionAuthorizationHandler`, `PermissionExpansionMiddleware`, `RolePermissionLookup`), `TenantResolutionMiddleware`, `ServiceAccountTrackingMiddleware`. SSO secrets encrypted via `IDataProtectionProvider`.
-- **Api** (`Foundry.Identity.Api`): Controllers for Users, Organizations, Roles, Service Accounts, SSO, SCIM, Clients, Apps, API Keys. Auth endpoints: `AuthorizationController` (authorize), `TokenController` (token), `LogoutController` (end-session), `AuthController` (login/register views). `ClientsController` provides admin CRUD for OpenIddict applications.
+- **Domain** (`Wallow.Identity.Domain`): Entities (`WallowUser`, `WallowRole`, `Organization`, `ServiceAccountMetadata`, `ApiScope`, `SsoConfiguration`, `ScimConfiguration`, `ScimSyncLog`), strongly-typed IDs, enums (`ServiceAccountStatus`, `SsoProtocol`, `SsoStatus`, `SamlNameIdFormat`, `ScimOperation`, `ScimResourceType`), domain events (`SsoConfigurationActivatedEvent`, `ScimSyncCompletedEvent`). Domain depends only on `Shared.Kernel`.
+- **Application** (`Wallow.Identity.Application`): Defines `IUserManagementService`, `IOrganizationService`, `IServiceAccountService`, `IDeveloperAppService` interfaces, plus DTOs. Service accounts, SSO, and SCIM use proper command/query handlers.
+- **Infrastructure** (`Wallow.Identity.Infrastructure`): `IdentityDbContext` (EF Core, `identity` schema) inherits `IdentityDbContext<WallowUser, WallowRole, Guid>` and integrates OpenIddict EF Core stores. Implements ASP.NET Core Identity services, OpenIddict service account and developer app services (`OpenIddictServiceAccountService`, `OpenIddictDeveloperAppService`), authorization pipeline (`HasPermissionAttribute`, `PermissionAuthorizationHandler`, `PermissionExpansionMiddleware`, `RolePermissionLookup`), `TenantResolutionMiddleware`, `ServiceAccountTrackingMiddleware`. SSO secrets encrypted via `IDataProtectionProvider`.
+- **Api** (`Wallow.Identity.Api`): Controllers for Users, Organizations, Roles, Service Accounts, SSO, SCIM, Clients, Apps, API Keys. Auth endpoints: `AuthorizationController` (authorize), `TokenController` (token), `LogoutController` (end-session), `AuthController` (login/register views). `ClientsController` provides admin CRUD for OpenIddict applications.
 
 ## Key Patterns
 
 - **OpenIddict OIDC**: Embedded OAuth 2.0 / OpenID Connect server. Supports authorization code flow (with PKCE), client credentials, and refresh tokens. Endpoints: `/connect/authorize`, `/connect/token`, `/connect/logout`, `/connect/userinfo`. Development uses auto-generated encryption/signing certificates.
-- **ASP.NET Core Identity**: `FoundryUser` and `FoundryRole` stored in the `identity` PostgreSQL schema. Password hashing, email confirmation, and token generation handled by Identity framework.
+- **ASP.NET Core Identity**: `WallowUser` and `WallowRole` stored in the `identity` PostgreSQL schema. Password hashing, email confirmation, and token generation handled by Identity framework.
 - **Tenant resolution**: `TenantResolutionMiddleware` reads the `org_id` claim from JWT (flat GUID string, e.g. `"org_id": "d4f8a..."`) and the `org_name` claim, then populates `ITenantContext`. Admins and operator service accounts (client ID prefixed `sa-`) can override via `X-Tenant-Id` header.
 - **Permission-based authorization**: `PermissionExpansionMiddleware` reads roles from JWT, expands them to granular `PermissionType` claims via `RolePermissionLookup`. Controllers use `[HasPermission(PermissionType.X)]` attribute. Three role tiers: admin (all permissions), manager (subset), user (basic).
 - **Service accounts**: Implemented as OpenIddict client credentials applications via `OpenIddictServiceAccountService`. Client IDs prefixed with `sa-`.
@@ -24,8 +24,8 @@ Owns authentication, authorization, multi-tenancy, user/organization management,
 
 ## Dependencies
 
-- **Depends on**: `Foundry.Shared.Kernel` (for `ITenantContext`, `TenantId`, base types), `OpenIddict` packages, `Microsoft.AspNetCore.Identity.EntityFrameworkCore`.
-- **Depended on by**: `Foundry.Api` (registers module, uses middleware). All other modules depend on `ITenantContext` (from Shared.Kernel, resolved by Identity's middleware). Identity publishes `UserRegisteredEvent`, `UserRoleChangedEvent`, `OrganizationCreatedEvent`, etc. via `Shared.Contracts`.
+- **Depends on**: `Wallow.Shared.Kernel` (for `ITenantContext`, `TenantId`, base types), `OpenIddict` packages, `Microsoft.AspNetCore.Identity.EntityFrameworkCore`.
+- **Depended on by**: `Wallow.Api` (registers module, uses middleware). All other modules depend on `ITenantContext` (from Shared.Kernel, resolved by Identity's middleware). Identity publishes `UserRegisteredEvent`, `UserRoleChangedEvent`, `OrganizationCreatedEvent`, etc. via `Shared.Contracts`.
 
 ## Constraints
 

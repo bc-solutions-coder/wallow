@@ -1,4 +1,4 @@
-# Suggested Commands for Foundry
+# Suggested Commands for Wallow
 
 ## Infrastructure
 
@@ -21,7 +21,7 @@ docker compose ps
 dotnet build
 
 # Run the API
-dotnet run --project src/Foundry.Api
+dotnet run --project src/Wallow.Api
 
 # Or run everything including API in Docker
 docker compose --profile all up -d
@@ -48,14 +48,14 @@ dotnet test --filter "Category=Integration"
 ```bash
 # Add migration (example for Billing)
 dotnet ef migrations add MigrationName \
-    --project src/Modules/Billing/Foundry.Billing.Infrastructure \
-    --startup-project src/Foundry.Api \
+    --project src/Modules/Billing/Wallow.Billing.Infrastructure \
+    --startup-project src/Wallow.Api \
     --context BillingDbContext
 
 # Apply migrations
 dotnet ef database update \
-    --project src/Modules/Billing/Foundry.Billing.Infrastructure \
-    --startup-project src/Foundry.Api \
+    --project src/Modules/Billing/Wallow.Billing.Infrastructure \
+    --startup-project src/Wallow.Api \
     --context BillingDbContext
 ```
 
@@ -77,7 +77,7 @@ git tag v0.1.0
 git push origin v0.1.0
 
 # Pull image on deployment server
-docker pull ghcr.io/bc-solutions-coder/foundry:0.1.0
+docker pull ghcr.io/bc-solutions-coder/wallow:0.1.0
 ```
 
 Images are published to GitHub Container Registry on version tags.

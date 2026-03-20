@@ -1,6 +1,6 @@
 # Versioning Guide
 
-Foundry uses automated semantic versioning driven by [Conventional Commits](https://www.conventionalcommits.org/) and [release-please](https://github.com/googleapis/release-please). Versions flow through assemblies, Docker images, and git tags with zero manual intervention.
+Wallow uses automated semantic versioning driven by [Conventional Commits](https://www.conventionalcommits.org/) and [release-please](https://github.com/googleapis/release-please). Versions flow through assemblies, Docker images, and git tags with zero manual intervention.
 
 ## Commit Message Format
 

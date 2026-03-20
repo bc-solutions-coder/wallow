@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-The Foundry codebase demonstrates solid architecture with good use of Dapper for read-heavy queries, Redis for metering/caching, and proper async patterns throughout. However, several performance issues were identified across N+1 queries, unbounded result sets, missing read-only tracking, and middleware inefficiencies that could significantly impact production performance at scale.
+The Wallow codebase demonstrates solid architecture with good use of Dapper for read-heavy queries, Redis for metering/caching, and proper async patterns throughout. However, several performance issues were identified across N+1 queries, unbounded result sets, missing read-only tracking, and middleware inefficiencies that could significantly impact production performance at scale.
 
 **Finding counts:** 3 CRITICAL, 7 HIGH, 8 MEDIUM, 5 LOW
 
@@ -18,7 +18,7 @@ The Foundry codebase demonstrates solid architecture with good use of Dapper for
 
 ### PERF-C1: N+1 Query in GetConversationsAsync (Messaging)
 
-**File:** `src/Modules/Communications/Foundry.Communications.Infrastructure/Services/MessagingQueryService.cs:153-200`
+**File:** `src/Modules/Communications/Wallow.Communications.Infrastructure/Services/MessagingQueryService.cs:153-200`
 **Impact:** Each conversation in the result set triggers an additional SQL query for participants. For a user with 50 conversations, this produces 51 queries instead of 1-2.
 
 ```csharp
@@ -54,7 +54,7 @@ ILookup<Guid, ParticipantDto> lookup = allParticipants.ToLookup(p => p.Conversat
 
 ### PERF-C2: N+1 Query in GetUsersAsync (Keycloak Admin)
 
-**File:** `src/Modules/Identity/Foundry.Identity.Infrastructure/Services/KeycloakAdminService.cs:155-195`
+**File:** `src/Modules/Identity/Wallow.Identity.Infrastructure/Services/KeycloakAdminService.cs:155-195`
 **Impact:** For each user returned by Keycloak, a separate HTTP call is made to `GetUserRolesAsync`. Listing 20 users means 21 HTTP requests to Keycloak.
 
 ```csharp
@@ -83,7 +83,7 @@ await Task.WhenAll(roleTasks);
 
 ### PERF-C3: MeteringMiddleware Runs Two Redis Roundtrips Per API Request
 
-**File:** `src/Modules/Billing/Foundry.Billing.Api/Middleware/MeteringMiddleware.cs:30-62`
+**File:** `src/Modules/Billing/Wallow.Billing.Api/Middleware/MeteringMiddleware.cs:30-62`
 **Impact:** Every `/api/*` request performs a `CheckQuotaAsync` (which itself does 2-4 Redis reads + a DB query for quotas) before processing, then an `IncrementAsync` after. This adds 20-50ms latency to every API call.
 
 ```csharp
@@ -111,20 +111,20 @@ Inside `CheckQuotaAsync` in `ValkeyMeteringService.cs:72-97`:
 ### PERF-H1: Unbounded Queries Without Pagination
 
 **Files:**
-- `src/Modules/Billing/Foundry.Billing.Infrastructure/Persistence/Repositories/InvoiceRepository.cs:29-36` -- `GetByUserIdAsync` loads ALL invoices
-- `src/Modules/Billing/Foundry.Billing.Infrastructure/Persistence/Repositories/InvoiceRepository.cs:38-44` -- `GetAllAsync` loads ALL invoices
-- `src/Modules/Billing/Foundry.Billing.Infrastructure/Persistence/Repositories/PaymentRepository.cs:21-28` -- `GetByInvoiceIdAsync` loads ALL payments
-- `src/Modules/Billing/Foundry.Billing.Infrastructure/Persistence/Repositories/PaymentRepository.cs:30-37` -- `GetByUserIdAsync` loads ALL payments
-- `src/Modules/Billing/Foundry.Billing.Infrastructure/Persistence/Repositories/PaymentRepository.cs:39-44` -- `GetAllAsync` loads ALL payments
-- `src/Modules/Billing/Foundry.Billing.Infrastructure/Persistence/Repositories/SubscriptionRepository.cs:23-29` -- `GetByUserIdAsync` and `GetAllAsync`
-- `src/Modules/Communications/Foundry.Communications.Infrastructure/Persistence/Repositories/NotificationRepository.cs:24-33` -- `GetByUserIdAsync` loads ALL notifications
-- `src/Modules/Communications/Foundry.Communications.Infrastructure/Persistence/Repositories/NotificationRepository.cs:55-64` -- `GetUnreadByUserIdAsync` loads ALL unread
-- `src/Modules/Communications/Foundry.Communications.Infrastructure/Persistence/Repositories/AnnouncementRepository.cs:21-33` -- `GetPublishedAsync` and `GetAllAsync`
-- `src/Modules/Configuration/Foundry.Configuration.Infrastructure/Persistence/Repositories/FeatureFlagRepository.cs:26-33` -- `GetAllAsync`
+- `src/Modules/Billing/Wallow.Billing.Infrastructure/Persistence/Repositories/InvoiceRepository.cs:29-36` -- `GetByUserIdAsync` loads ALL invoices
+- `src/Modules/Billing/Wallow.Billing.Infrastructure/Persistence/Repositories/InvoiceRepository.cs:38-44` -- `GetAllAsync` loads ALL invoices
+- `src/Modules/Billing/Wallow.Billing.Infrastructure/Persistence/Repositories/PaymentRepository.cs:21-28` -- `GetByInvoiceIdAsync` loads ALL payments
+- `src/Modules/Billing/Wallow.Billing.Infrastructure/Persistence/Repositories/PaymentRepository.cs:30-37` -- `GetByUserIdAsync` loads ALL payments
+- `src/Modules/Billing/Wallow.Billing.Infrastructure/Persistence/Repositories/PaymentRepository.cs:39-44` -- `GetAllAsync` loads ALL payments
+- `src/Modules/Billing/Wallow.Billing.Infrastructure/Persistence/Repositories/SubscriptionRepository.cs:23-29` -- `GetByUserIdAsync` and `GetAllAsync`
+- `src/Modules/Communications/Wallow.Communications.Infrastructure/Persistence/Repositories/NotificationRepository.cs:24-33` -- `GetByUserIdAsync` loads ALL notifications
+- `src/Modules/Communications/Wallow.Communications.Infrastructure/Persistence/Repositories/NotificationRepository.cs:55-64` -- `GetUnreadByUserIdAsync` loads ALL unread
+- `src/Modules/Communications/Wallow.Communications.Infrastructure/Persistence/Repositories/AnnouncementRepository.cs:21-33` -- `GetPublishedAsync` and `GetAllAsync`
+- `src/Modules/Configuration/Wallow.Configuration.Infrastructure/Persistence/Repositories/FeatureFlagRepository.cs:26-33` -- `GetAllAsync`
 
 **Impact:** As data grows, these queries will load entire tables into memory. A tenant with 10,000 invoices will load all of them for `GetAllAsync`.
 
-**Remediation:** Add pagination parameters to all list queries. The codebase already has `PagedResult<T>` in `src/Shared/Foundry.Shared.Kernel/Pagination/PagedResult.cs` -- use it consistently:
+**Remediation:** Add pagination parameters to all list queries. The codebase already has `PagedResult<T>` in `src/Shared/Wallow.Shared.Kernel/Pagination/PagedResult.cs` -- use it consistently:
 
 ```csharp
 public async Task<PagedResult<Invoice>> GetByUserIdAsync(
@@ -169,7 +169,7 @@ options.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
 
 ### PERF-H3: FlushUsageJob Uses KEYS Command on Redis
 
-**File:** `src/Modules/Billing/Foundry.Billing.Infrastructure/Jobs/FlushUsageJob.cs:50-54`
+**File:** `src/Modules/Billing/Wallow.Billing.Infrastructure/Jobs/FlushUsageJob.cs:50-54`
 
 ```csharp
 IServer server = _redis.GetServer(_redis.GetEndPoints().First());
@@ -196,8 +196,8 @@ RedisValue[] activeKeys = await db.SetMembersAsync("active_meters");
 
 ### PERF-H4: AuditInterceptor Registered as Singleton Creates Scopes Per Save
 
-**File:** `src/Shared/Foundry.Shared.Infrastructure/Auditing/AuditInterceptor.cs:24-35`
-**Registration:** `src/Shared/Foundry.Shared.Infrastructure/Auditing/AuditingExtensions.cs:22` -- `services.AddSingleton<AuditInterceptor>()`
+**File:** `src/Shared/Wallow.Shared.Infrastructure/Auditing/AuditInterceptor.cs:24-35`
+**Registration:** `src/Shared/Wallow.Shared.Infrastructure/Auditing/AuditingExtensions.cs:22` -- `services.AddSingleton<AuditInterceptor>()`
 
 **Impact:** The interceptor is singleton but calls `_serviceProvider.CreateScope()` on every `SavingChangesAsync`. This is correct for avoiding captive dependency, but:
 1. Creates a new DI scope on every save operation (extra allocation + disposal)
@@ -225,7 +225,7 @@ private static string SerializeValues(PropertyValues propertyValues)
 
 ### PERF-H5: Multiple Redis Connection Multiplexers
 
-**File:** `src/Foundry.Api/Program.cs:192-224`
+**File:** `src/Wallow.Api/Program.cs:192-224`
 **Impact:** Three separate `ConnectionMultiplexer.Connect/ConnectAsync` calls for: (1) the singleton `IConnectionMultiplexer`, (2) the `IDistributedCache`, and (3) SignalR backplane. Each creates a new TCP connection pool to Redis.
 
 ```csharp
@@ -264,7 +264,7 @@ builder.Services.AddStackExchangeRedisCache(options => {
 
 ### PERF-H6: UserQueryService Fetches All Org Members for Count Operations
 
-**File:** `src/Modules/Identity/Foundry.Identity.Infrastructure/Services/UserQueryService.cs:20-100`
+**File:** `src/Modules/Identity/Wallow.Identity.Infrastructure/Services/UserQueryService.cs:20-100`
 **Impact:** `GetNewUsersCountAsync`, `GetActiveUsersCountAsync`, and `GetTotalUsersCountAsync` all call `GetOrganizationMembersAsync` which deserializes the full member list into memory just to count/filter them. An org with 10,000 members downloads all member JSON for a simple count.
 
 ```csharp
@@ -283,8 +283,8 @@ int newUsersCount = members.Count(m => m.CreatedTimestamp >= fromTimestamp && ..
 ### PERF-H7: Duplicate TenantContext/Multi-tenancy Registration
 
 **Files:**
-- `src/Shared/Foundry.Shared.Kernel/Extensions/ServiceCollectionExtensions.cs:13-17` -- registers `TenantContext`, `ITenantContext`, `ITenantContextSetter`
-- `src/Modules/Identity/Foundry.Identity.Infrastructure/Extensions/IdentityInfrastructureExtensions.cs:55-60` -- registers the SAME types again
+- `src/Shared/Wallow.Shared.Kernel/Extensions/ServiceCollectionExtensions.cs:13-17` -- registers `TenantContext`, `ITenantContext`, `ITenantContextSetter`
+- `src/Modules/Identity/Wallow.Identity.Infrastructure/Extensions/IdentityInfrastructureExtensions.cs:55-60` -- registers the SAME types again
 
 **Impact:** Last registration wins in DI, meaning there are redundant service descriptors. Not a runtime error but wastes startup time and can cause confusion about which registration is active.
 
@@ -296,7 +296,7 @@ int newUsersCount = members.Count(m => m.CreatedTimestamp >= fromTimestamp && ..
 
 ### PERF-M1: BuildServiceProvider Anti-Pattern During Registration
 
-**File:** `src/Modules/Communications/Foundry.Communications.Infrastructure/Extensions/CommunicationsModuleExtensions.cs:118-124`
+**File:** `src/Modules/Communications/Wallow.Communications.Infrastructure/Extensions/CommunicationsModuleExtensions.cs:118-124`
 
 ```csharp
 using (ServiceProvider sp = services.BuildServiceProvider())
@@ -322,7 +322,7 @@ services.AddScoped<IEmailProvider, SmtpEmailProvider>();
 
 ### PERF-M2: CachedFeatureFlagService Cache Invalidation Is Ineffective
 
-**File:** `src/Modules/Configuration/Foundry.Configuration.Infrastructure/Services/CachedFeatureFlagService.cs:51-56`
+**File:** `src/Modules/Configuration/Wallow.Configuration.Infrastructure/Services/CachedFeatureFlagService.cs:51-56`
 
 ```csharp
 public static async Task InvalidateAsync(IDistributedCache cache, string flagKey)
@@ -343,7 +343,7 @@ public static async Task InvalidateAsync(IDistributedCache cache, string flagKey
 
 ### PERF-M3: Audit Interceptor Serializes All Entity Properties
 
-**File:** `src/Shared/Foundry.Shared.Infrastructure/Auditing/AuditInterceptor.cs:103-111`
+**File:** `src/Shared/Wallow.Shared.Infrastructure/Auditing/AuditInterceptor.cs:103-111`
 
 ```csharp
 private static string SerializeValues(PropertyValues propertyValues)
@@ -373,7 +373,7 @@ foreach (IProperty property in propertyValues.Properties)
 
 ### PERF-M4: SmtpEmailProvider Creates New SmtpClient Per Send Attempt
 
-**File:** `src/Modules/Communications/Foundry.Communications.Infrastructure/Services/SmtpEmailProvider.cs:97-111`
+**File:** `src/Modules/Communications/Wallow.Communications.Infrastructure/Services/SmtpEmailProvider.cs:97-111`
 
 ```csharp
 while (attempt < _settings.MaxRetries)
@@ -409,7 +409,7 @@ await client.DisconnectAsync(true, ct);
 
 ### PERF-M5: TenantSaveChangesInterceptor Iterates ChangeTracker Twice
 
-**File:** `src/Shared/Foundry.Shared.Kernel/MultiTenancy/TenantSaveChangesInterceptor.cs:37-54`
+**File:** `src/Shared/Wallow.Shared.Kernel/MultiTenancy/TenantSaveChangesInterceptor.cs:37-54`
 
 ```csharp
 IEnumerable<EntityEntry<ITenantScoped>> entries = context.ChangeTracker
@@ -442,8 +442,8 @@ foreach (EntityEntry<ITenantScoped> entry in context.ChangeTracker.Entries<ITena
 
 ### PERF-M6: JSON Deserialization in Middleware Without Caching
 
-**File:** `src/Modules/Identity/Foundry.Identity.Infrastructure/MultiTenancy/TenantResolutionMiddleware.cs:63-90`
-**File:** `src/Modules/Identity/Foundry.Identity.Infrastructure/Authorization/PermissionExpansionMiddleware.cs:56-72`
+**File:** `src/Modules/Identity/Wallow.Identity.Infrastructure/MultiTenancy/TenantResolutionMiddleware.cs:63-90`
+**File:** `src/Modules/Identity/Wallow.Identity.Infrastructure/Authorization/PermissionExpansionMiddleware.cs:56-72`
 
 Both middleware deserialize `realm_access` JSON claim on every authenticated request:
 ```csharp
@@ -467,8 +467,8 @@ if (!context.Items.TryGetValue(CacheKey, out object? cached))
 ### PERF-M7: Dapper Queries Don't Use CancellationToken Consistently
 
 **Files:**
-- `src/Modules/Billing/Foundry.Billing.Infrastructure/Services/InvoiceQueryService.cs` -- all methods accept `CancellationToken ct` but don't pass it to Dapper
-- `src/Modules/Billing/Foundry.Billing.Infrastructure/Services/RevenueReportService.cs:31-48` -- same issue
+- `src/Modules/Billing/Wallow.Billing.Infrastructure/Services/InvoiceQueryService.cs` -- all methods accept `CancellationToken ct` but don't pass it to Dapper
+- `src/Modules/Billing/Wallow.Billing.Infrastructure/Services/RevenueReportService.cs:31-48` -- same issue
 
 ```csharp
 public async Task<decimal> GetTotalRevenueAsync(DateTime from, DateTime to, CancellationToken ct = default)
@@ -490,7 +490,7 @@ decimal result = await connection.QuerySingleAsync<decimal>(
 
 ### PERF-M8: ValkeyMeteringService.CheckQuotaAsync Performs Multiple Awaited DB Queries
 
-**File:** `src/Modules/Billing/Foundry.Billing.Infrastructure/Services/ValkeyMeteringService.cs:72-97`
+**File:** `src/Modules/Billing/Wallow.Billing.Infrastructure/Services/ValkeyMeteringService.cs:72-97`
 
 ```csharp
 string? planCode = await _subscriptionQueryService.GetActivePlanCodeAsync(tenantId.Value, CancellationToken.None);
@@ -512,7 +512,7 @@ Task<string?> planTask = _subscriptionQueryService.GetActivePlanCodeAsync(tenant
 
 ### PERF-L1: GetAllInvoicesHandler Returns Unbounded Result Without Pagination
 
-**File:** `src/Modules/Billing/Foundry.Billing.Application/Queries/GetAllInvoices/GetAllInvoicesHandler.cs:12-16`
+**File:** `src/Modules/Billing/Wallow.Billing.Application/Queries/GetAllInvoices/GetAllInvoicesHandler.cs:12-16`
 
 This is an admin endpoint but still loads all invoices with line items into memory. Combine with PERF-H1 -- the handler should enforce pagination.
 
@@ -520,7 +520,7 @@ This is an admin endpoint but still loads all invoices with line items into memo
 
 ### PERF-L2: RedisApiKeyService.ListApiKeysAsync Performs Sequential Redis Gets
 
-**File:** `src/Modules/Identity/Foundry.Identity.Infrastructure/Services/RedisApiKeyService.cs:190-216`
+**File:** `src/Modules/Identity/Wallow.Identity.Infrastructure/Services/RedisApiKeyService.cs:190-216`
 
 ```csharp
 foreach (RedisValue keyId in keyIds)
@@ -539,7 +539,7 @@ RedisValue[] values = await db.StringGetAsync(redisKeys);
 
 ### PERF-L3: PermissionExpansionMiddleware Adds Claims Without Deduplication
 
-**File:** `src/Modules/Identity/Foundry.Identity.Infrastructure/Authorization/PermissionExpansionMiddleware.cs:78-82`
+**File:** `src/Modules/Identity/Wallow.Identity.Infrastructure/Authorization/PermissionExpansionMiddleware.cs:78-82`
 
 If a user has multiple roles that map to overlapping permissions, duplicate claims are added:
 ```csharp
@@ -557,7 +557,7 @@ foreach (PermissionType permission in permissions)
 
 ### PERF-L4: FlushUsageJob SaveChanges Called Once for All Records
 
-**File:** `src/Modules/Billing/Foundry.Billing.Infrastructure/Jobs/FlushUsageJob.cs:72`
+**File:** `src/Modules/Billing/Wallow.Billing.Infrastructure/Jobs/FlushUsageJob.cs:72`
 
 `SaveChangesAsync` is called once after processing all keys, which is good for batching but means a failure partway through loses all progress since the last successful save.
 

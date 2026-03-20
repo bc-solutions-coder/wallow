@@ -1,6 +1,6 @@
 # Testing Guide
 
-This guide covers testing practices, patterns, and conventions for the Foundry platform.
+This guide covers testing practices, patterns, and conventions for the Wallow platform.
 
 ## 1. Overview
 
@@ -31,19 +31,19 @@ This guide covers testing practices, patterns, and conventions for the Foundry p
 
 ```
 tests/
-├── Foundry.Tests.Common/           # Shared test infrastructure
+├── Wallow.Tests.Common/           # Shared test infrastructure
 │   ├── Factories/                  # WebApplicationFactory implementations
 │   ├── Fixtures/                   # Test fixtures (Database, RabbitMQ, Redis)
 │   ├── Helpers/                    # Test utilities and extensions
 │   └── Builders/                   # Test data builders
-├── Foundry.Api.Tests/              # API integration tests
-├── Foundry.Architecture.Tests/     # Architecture enforcement tests
-├── Foundry.Messaging.IntegrationTests/ # Messaging integration tests
-├── Foundry.Shared.Kernel.Tests/    # Shared kernel unit tests
-├── Foundry.Shared.Infrastructure.Tests/ # Shared infrastructure tests
+├── Wallow.Api.Tests/              # API integration tests
+├── Wallow.Architecture.Tests/     # Architecture enforcement tests
+├── Wallow.Messaging.IntegrationTests/ # Messaging integration tests
+├── Wallow.Shared.Kernel.Tests/    # Shared kernel unit tests
+├── Wallow.Shared.Infrastructure.Tests/ # Shared infrastructure tests
 └── Modules/
     └── {Module}/
-        └── Foundry.{Module}.Tests/ # Module-specific tests (single project per module)
+        └── Wallow.{Module}.Tests/ # Module-specific tests (single project per module)
             ├── Domain/             # Domain entity tests
             ├── Application/        # Command/query handler and validator tests
             └── Infrastructure/     # Repository and query tests
@@ -74,12 +74,12 @@ Test projects inherit common settings from `tests/Directory.Build.props`:
 
 ### Module Test Project Configuration
 
-Example test project file (`Foundry.Billing.Tests.csproj`):
+Example test project file (`Wallow.Billing.Tests.csproj`):
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <RootNamespace>Foundry.Billing.Application.Tests</RootNamespace>
+    <RootNamespace>Wallow.Billing.Application.Tests</RootNamespace>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
@@ -100,9 +100,9 @@ Example test project file (`Foundry.Billing.Tests.csproj`):
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\src\Modules\Billing\Foundry.Billing.Application\Foundry.Billing.Application.csproj" />
-    <ProjectReference Include="..\..\..\..\src\Modules\Billing\Foundry.Billing.Domain\Foundry.Billing.Domain.csproj" />
-    <ProjectReference Include="..\..\..\Foundry.Tests.Common\Foundry.Tests.Common.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Modules\Billing\Wallow.Billing.Application\Wallow.Billing.Application.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Modules\Billing\Wallow.Billing.Domain\Wallow.Billing.Domain.csproj" />
+    <ProjectReference Include="..\..\..\Wallow.Tests.Common\Wallow.Tests.Common.csproj" />
   </ItemGroup>
 </Project>
 ```
@@ -316,15 +316,15 @@ public class InvoiceCreateTests
 
 ## 4. Integration Tests
 
-### FoundryApiFactory Setup
+### WallowApiFactory Setup
 
-`FoundryApiFactory` extends `WebApplicationFactory<Program>` and manages Testcontainers:
+`WallowApiFactory` extends `WebApplicationFactory<Program>` and manages Testcontainers:
 
 ```csharp
-public class FoundryApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
+public class WallowApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
     private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:18-alpine")
-        .WithDatabase("foundry_test")
+        .WithDatabase("wallow_test")
         .WithUsername("test")
         .WithPassword("test")
         .Build();
@@ -447,12 +447,12 @@ public class TestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions
 ```csharp
 public class HealthCheckTests : IAsyncLifetime
 {
-    private FoundryApiFactory _factory = null!;
+    private WallowApiFactory _factory = null!;
     private HttpClient _client = null!;
 
     public async Task InitializeAsync()
     {
-        _factory = new FoundryApiFactory();
+        _factory = new WallowApiFactory();
         await _factory.InitializeAsync();
         _client = _factory.CreateClient();
     }
@@ -497,11 +497,11 @@ var client = _factory.CreateClient().WithAuth("user-123", new[] { "admin" });
 ```csharp
 public class RealtimeHubIntegrationTests : IAsyncLifetime
 {
-    private FoundryApiFactory _factory = null!;
+    private WallowApiFactory _factory = null!;
 
     public async Task InitializeAsync()
     {
-        _factory = new FoundryApiFactory();
+        _factory = new WallowApiFactory();
         await _factory.InitializeAsync();
         _ = _factory.Server;
     }
@@ -575,11 +575,11 @@ public class CleanArchitectureTests
     [MemberData(nameof(GetModuleNames))]
     public void DomainLayer_ShouldNotDependOn_ApplicationLayer(string moduleName)
     {
-        var domainAssembly = Assembly.Load($"Foundry.{moduleName}.Domain");
+        var domainAssembly = Assembly.Load($"Wallow.{moduleName}.Domain");
 
         var result = Types.InAssembly(domainAssembly)
             .ShouldNot()
-            .HaveDependencyOn($"Foundry.{moduleName}.Application")
+            .HaveDependencyOn($"Wallow.{moduleName}.Application")
             .GetResult();
 
         result.IsSuccessful.Should().BeTrue(
@@ -591,7 +591,7 @@ public class CleanArchitectureTests
     [MemberData(nameof(GetModuleNames))]
     public void DomainLayer_ShouldNotDependOn_EntityFramework(string moduleName)
     {
-        var domainAssembly = Assembly.Load($"Foundry.{moduleName}.Domain");
+        var domainAssembly = Assembly.Load($"Wallow.{moduleName}.Domain");
 
         var result = Types.InAssembly(domainAssembly)
             .ShouldNot()
@@ -605,11 +605,11 @@ public class CleanArchitectureTests
     [MemberData(nameof(GetModuleNames))]
     public void Entities_ShouldBeSealed(string moduleName)
     {
-        var domainAssembly = Assembly.Load($"Foundry.{moduleName}.Domain");
+        var domainAssembly = Assembly.Load($"Wallow.{moduleName}.Domain");
 
         var result = Types.InAssembly(domainAssembly)
             .That()
-            .ResideInNamespace($"Foundry.{moduleName}.Domain.Entities")
+            .ResideInNamespace($"Wallow.{moduleName}.Domain.Entities")
             .Should()
             .BeSealed()
             .GetResult();
@@ -650,11 +650,11 @@ public class ModuleIsolationTests
     public void Module_ShouldNotReference_OtherModule(
         string sourceModule, string sourceLayer, string targetModule, string targetLayer)
     {
-        var sourceAssembly = Assembly.Load($"Foundry.{sourceModule}.{sourceLayer}");
+        var sourceAssembly = Assembly.Load($"Wallow.{sourceModule}.{sourceLayer}");
 
         var result = Types.InAssembly(sourceAssembly)
             .ShouldNot()
-            .HaveDependencyOn($"Foundry.{targetModule}")
+            .HaveDependencyOn($"Wallow.{targetModule}")
             .GetResult();
 
         result.IsSuccessful.Should().BeTrue(
@@ -669,13 +669,13 @@ public class ModuleIsolationTests
 When creating a new module, add it to `TestConstants.AllModules`:
 
 ```csharp
-// tests/Foundry.Architecture.Tests/TestConstants.cs
+// tests/Wallow.Architecture.Tests/TestConstants.cs
 internal static class TestConstants
 {
-    // AllModules is populated dynamically at runtime by scanning for Foundry.*.Domain.dll files.
+    // AllModules is populated dynamically at runtime by scanning for Wallow.*.Domain.dll files.
     // No manual registration is needed when adding a new module.
     public static readonly string[] AllModules = Directory
-        .GetFiles(AppDomain.CurrentDomain.BaseDirectory, "Foundry.*.Domain.dll")
+        .GetFiles(AppDomain.CurrentDomain.BaseDirectory, "Wallow.*.Domain.dll")
         .Select(Path.GetFileNameWithoutExtension)
         .Where(name => name is not null)
         .Select(name => name!.Split('.')[1])
@@ -698,12 +698,12 @@ Use `ICollectionFixture<T>` (not `IClassFixture<T>`) when multiple test classes 
 
 ```csharp
 [CollectionDefinition(nameof(BillingTestCollection))]
-public class BillingTestCollection : ICollectionFixture<FoundryApiFactory> { }
+public class BillingTestCollection : ICollectionFixture<WallowApiFactory> { }
 
 [Collection(nameof(BillingTestCollection))]
 public class InvoiceTests : BillingIntegrationTestBase
 {
-    public InvoiceTests(FoundryApiFactory factory) : base(factory) { }
+    public InvoiceTests(WallowApiFactory factory) : base(factory) { }
 }
 ```
 
@@ -860,7 +860,7 @@ public class MessagingTestFixture : WebApplicationFactory<Program>, IAsyncLifeti
     public MessagingTestFixture()
     {
         _postgresContainer = new PostgreSqlBuilder("postgres:18-alpine")
-            .WithDatabase("foundry_test")
+            .WithDatabase("wallow_test")
             .Build();
 
         _rabbitMqContainer = new RabbitMqBuilder("rabbitmq:4.2-management-alpine")
@@ -970,7 +970,7 @@ dotnet test
 dotnet test --logger "console;verbosity=detailed"
 
 # Run specific test project
-dotnet test tests/Modules/Billing/Foundry.Billing.Tests
+dotnet test tests/Modules/Billing/Wallow.Billing.Tests
 
 # Run tests matching a filter
 dotnet test --filter "FullyQualifiedName~CreateInvoice"
@@ -1009,7 +1009,7 @@ public class DatabaseTests
 
 ## 9. Event Sourcing and Saga Tests (Removed)
 
-The event-sourced modules and Wolverine Sagas were removed during the module simplification. The platform currently has 8 modules: Identity, Billing, Storage, Notifications, Messaging, Announcements, Inquiries, and Showcases. There is no `MartenFixture` in `Foundry.Tests.Common`.
+The event-sourced modules and Wolverine Sagas were removed during the module simplification. The platform currently has 8 modules: Identity, Billing, Storage, Notifications, Messaging, Announcements, Inquiries, and Showcases. There is no `MartenFixture` in `Wallow.Tests.Common`.
 
 ## 10. Bogus Test Data Generation
 
@@ -1019,9 +1019,9 @@ Use Bogus for realistic fake data in tests.
 
 ```csharp
 using Bogus;
-using Foundry.Shared.Kernel.Identity;
+using Wallow.Shared.Kernel.Identity;
 
-namespace Foundry.Billing.Tests.TestData;
+namespace Wallow.Billing.Tests.TestData;
 
 public static class BillingTestData
 {
@@ -1042,10 +1042,10 @@ public static class BillingTestData
 Test complete user journeys through the API. End-to-end tests exercise the full HTTP pipeline including authentication, middleware, routing, and database persistence.
 
 ```csharp
-[Collection(nameof(FoundryTestCollection))]
+[Collection(nameof(WallowTestCollection))]
 public class InvoiceWorkflowTests : BillingIntegrationTestBase
 {
-    public InvoiceWorkflowTests(FoundryApiFactory factory) : base(factory) { }
+    public InvoiceWorkflowTests(WallowApiFactory factory) : base(factory) { }
 
     [Fact]
     public async Task CreateAndIssueInvoice_FullWorkflow()
@@ -1170,4 +1170,4 @@ Keep Testcontainer images aligned with `docker-compose.yml`:
 - **Never use real Keycloak in tests** - Always use `TestAuthHandler`
 - **Never hardcode connection strings** - Testcontainers provide dynamic strings
 - **Architecture tests must pass on every build** - Fix violations, don't delete tests
-- **Integration tests should use `FoundryApiFactory`** - Unit tests should not
+- **Integration tests should use `WallowApiFactory`** - Unit tests should not

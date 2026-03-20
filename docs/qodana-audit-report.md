@@ -9,7 +9,7 @@
 
 ## Executive Summary
 
-The Foundry codebase has 2,830 code quality findings across all modules. The vast majority (73%) are stylistic/note-level suggestions, with 26% being warnings and less than 1% being errors. No critical security vulnerabilities were detected.
+The Wallow codebase has 2,830 code quality findings across all modules. The vast majority (73%) are stylistic/note-level suggestions, with 26% being warnings and less than 1% being errors. No critical security vulnerabilities were detected.
 
 The top 5 issue categories account for **1,802 findings (64%)** and are largely mechanical fixes suitable for automated remediation:
 

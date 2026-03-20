@@ -15,7 +15,7 @@
       }
     ]
   },
-  "description": "Billing and revenue metrics for Foundry platform",
+  "description": "Billing and revenue metrics for Wallow platform",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
@@ -1287,7 +1287,7 @@
   "schemaVersion": 38,
   "style": "dark",
   "tags": [
-    "foundry",
+    "wallow",
     "billing",
     "revenue",
     "postgresql"
@@ -1355,8 +1355,8 @@
     ]
   },
   "timezone": "browser",
-  "title": "Foundry - Billing & Revenue",
-  "uid": "foundry-billing",
+  "title": "Wallow - Billing & Revenue",
+  "uid": "wallow-billing",
   "version": 1,
   "weekStart": ""
 }

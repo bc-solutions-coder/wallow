@@ -4,11 +4,11 @@
 
 **Date:** 2026-02-27
 **Status:** Historical (partially superseded)
-**Scope:** Reduce Foundry from 24 modules to 5 core modules, move 3 capabilities to shared infrastructure.
+**Scope:** Reduce Wallow from 24 modules to 5 core modules, move 3 capabilities to shared infrastructure.
 
 ## Problem
 
-Foundry had 24 modules. Most were thin, speculative, or unused. The complexity they created outweighed their value. The platform needed a solid, well-tested foundation before domain modules are built on top of it.
+Wallow had 24 modules. Most were thin, speculative, or unused. The complexity they created outweighed their value. The platform needed a solid, well-tested foundation before domain modules are built on top of it.
 
 ## Decision
 
@@ -44,11 +44,11 @@ Three modules merge into one. Each becomes a subdomain within Communications.
 
 ```
 src/Modules/Communications/
-├── Foundry.Communications.Domain/
+├── Wallow.Communications.Domain/
 │   ├── Channels/              — Email, InApp, Push (future)
 │   ├── Announcements/         — System/tenant-wide broadcast messages
 │   └── Preferences/           — Per-user channel preferences
-├── Foundry.Communications.Application/
+├── Wallow.Communications.Application/
 │   ├── Commands/
 │   │   ├── SendEmail/
 │   │   ├── SendNotification/
@@ -57,11 +57,11 @@ src/Modules/Communications/
 │   └── Queries/
 │       ├── GetNotifications/
 │       └── GetAnnouncements/
-├── Foundry.Communications.Infrastructure/
+├── Wallow.Communications.Infrastructure/
 │   ├── Email/                 — MailKit SMTP, templates
 │   ├── SignalR/               — Real-time notification push
 │   └── Persistence/          — CommunicationsDbContext
-└── Foundry.Communications.Api/
+└── Wallow.Communications.Api/
     ├── NotificationsController
     └── AnnouncementsController
 ```
@@ -80,11 +80,11 @@ Metering becomes a subdomain of Billing. Usage tracking exists only to feed invo
 
 ```
 src/Modules/Billing/
-├── Foundry.Billing.Domain/
+├── Wallow.Billing.Domain/
 │   ├── Invoicing/             — Invoice, InvoiceLine, PaymentRecord
 │   ├── Subscriptions/         — Plan, Subscription, BillingCycle
 │   └── Metering/              — UsageRecord, UsageMeter, RatingRule
-├── Foundry.Billing.Application/
+├── Wallow.Billing.Application/
 │   ├── Commands/
 │   │   ├── CreateInvoice/
 │   │   ├── RecordPayment/
@@ -94,10 +94,10 @@ src/Modules/Billing/
 │       ├── GetInvoice/
 │       ├── GetUsageSummary/
 │       └── GetSubscription/
-├── Foundry.Billing.Infrastructure/
+├── Wallow.Billing.Infrastructure/
 │   ├── Persistence/           — BillingDbContext (absorbs metering tables)
 │   └── Jobs/                  — UsageAggregationJob, InvoiceGenerationJob
-└── Foundry.Billing.Api/
+└── Wallow.Billing.Api/
     ├── InvoicesController
     ├── SubscriptionsController
     └── UsageController
@@ -111,7 +111,7 @@ Modules report usage via integration events or a shared contract (`IUsageReporte
 
 ## Shared Infrastructure Additions
 
-Three capabilities move from standalone modules into `src/Shared/Foundry.Shared.Infrastructure/`.
+Three capabilities move from standalone modules into `src/Shared/Wallow.Shared.Infrastructure/`.
 
 ### Auditing (Audit.NET)
 
@@ -120,7 +120,7 @@ Shared.Infrastructure/
 └── Auditing/
     ├── AuditInterceptor.cs        — EF Core SaveChanges interceptor
     ├── AuditEntry.cs              — Entity for the audit table
-    └── AuditingExtensions.cs      — services.AddFoundryAuditing()
+    └── AuditingExtensions.cs      — services.AddWallowAuditing()
 ```
 
 **How it works:** Audit.NET hooks into every `DbContext.SaveChanges()` call. It captures every insert, update, and delete with old values, new values, user ID, tenant ID, and timestamp. Modules do nothing — auditing happens automatically.
@@ -152,7 +152,7 @@ _jobScheduler.AddRecurring("usage-aggregation", "0 */6 * * *",
 ```
 Shared.Infrastructure/
 └── Workflows/
-    ├── ElsaExtensions.cs          — services.AddFoundryWorkflows()
+    ├── ElsaExtensions.cs          — services.AddWallowWorkflows()
     └── WorkflowActivityBase.cs    — Base class for module activities
 ```
 
@@ -170,7 +170,7 @@ elsa.AddTrigger<InvoiceCreatedTrigger>();
 
 ## Cleanup Scope
 
-### FoundryModules.cs
+### WallowModules.cs
 
 Remove all `Add*Module()` and `Initialize*ModuleAsync()` calls for deleted modules. Add `AddCommunicationsModule()` (replacing three separate calls). The remaining registrations:
 

@@ -1,6 +1,6 @@
-# Foundry Platform Roadmap
+# Wallow Platform Roadmap
 
-> Future enhancements and improvements for the Foundry modular monolith platform
+> Future enhancements and improvements for the Wallow modular monolith platform
 >
 > Based on comprehensive audit findings (2026-02-21)
 
@@ -169,7 +169,7 @@
 
 ## 4. Long-term Vision (P3 - Future)
 
-**Strategic initiatives that position Foundry as an enterprise-grade platform.**
+**Strategic initiatives that position Wallow as an enterprise-grade platform.**
 
 ### Deployment & Infrastructure
 

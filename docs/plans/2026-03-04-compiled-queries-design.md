@@ -6,7 +6,7 @@
 
 ## Context
 
-Foundry uses EF Core across 5 modules with 7 DbContext classes. No compiled queries exist today. Every LINQ query pays the cost of expression tree translation on every call. For hot-path queries (middleware, per-request lookups), this overhead adds up.
+Wallow uses EF Core across 5 modules with 7 DbContext classes. No compiled queries exist today. Every LINQ query pays the cost of expression tree translation on every call. For hot-path queries (middleware, per-request lookups), this overhead adds up.
 
 EF Core compiled queries (`EF.CompileAsyncQuery`) pre-translate LINQ to SQL once and reuse the compiled delegate, eliminating per-call translation cost.
 
@@ -16,20 +16,20 @@ EF Core compiled queries (`EF.CompileAsyncQuery`) pre-translate LINQ to SQL once
 
 | Query | Module | File | Caching | Frequency |
 |-------|--------|------|---------|-----------|
-| `FeatureFlagRepository.GetByKeyAsync(key)` | Configuration | `Foundry.Configuration.Infrastructure/Persistence/Repositories/FeatureFlagRepository.cs:17` | DistributedCache 60s | Per flag check (multiple/request) |
-| `ScimConfigurationRepository.GetAsync()` | Identity | `Foundry.Identity.Infrastructure/Repositories/ScimConfigurationRepository.cs` | None | Every SCIM request |
-| `ServiceAccountRepository.GetByKeycloakClientIdAsync(clientId)` | Identity | `Foundry.Identity.Infrastructure/Repositories/ServiceAccountRepository.cs:16` | None | Every service account request |
+| `FeatureFlagRepository.GetByKeyAsync(key)` | Configuration | `Wallow.Configuration.Infrastructure/Persistence/Repositories/FeatureFlagRepository.cs:17` | DistributedCache 60s | Per flag check (multiple/request) |
+| `ScimConfigurationRepository.GetAsync()` | Identity | `Wallow.Identity.Infrastructure/Repositories/ScimConfigurationRepository.cs` | None | Every SCIM request |
+| `ServiceAccountRepository.GetByKeycloakClientIdAsync(clientId)` | Identity | `Wallow.Identity.Infrastructure/Repositories/ServiceAccountRepository.cs:16` | None | Every service account request |
 
 ### High-Value CRUD Queries (frequently called)
 
 | Query | Module | File | Notes |
 |-------|--------|------|-------|
 | `FeatureFlagRepository.GetByIdAsync(id)` | Configuration | Same file | Cache miss path |
-| `StorageBucketRepository.GetByNameAsync(name)` | Storage | `Foundry.Storage.Infrastructure/Persistence/Repositories/StorageBucketRepository.cs` | Every file operation |
-| `StoredFileRepository.GetByIdAsync(id)` | Storage | `Foundry.Storage.Infrastructure/Persistence/Repositories/StoredFileRepository.cs` | File CRUD |
-| `InvoiceRepository.GetByIdAsync(id)` | Billing | `Foundry.Billing.Infrastructure/Persistence/Repositories/InvoiceRepository.cs` | Billing CRUD |
-| `SubscriptionRepository.GetByIdAsync(id)` | Billing | `Foundry.Billing.Infrastructure/Persistence/Repositories/SubscriptionRepository.cs` | Billing CRUD |
-| `EmailPreferenceRepository.GetByUserAndTypeAsync(userId, type)` | Communications | `Foundry.Communications.Infrastructure/Persistence/Repositories/EmailPreferenceRepository.cs` | Composite key lookup |
+| `StorageBucketRepository.GetByNameAsync(name)` | Storage | `Wallow.Storage.Infrastructure/Persistence/Repositories/StorageBucketRepository.cs` | Every file operation |
+| `StoredFileRepository.GetByIdAsync(id)` | Storage | `Wallow.Storage.Infrastructure/Persistence/Repositories/StoredFileRepository.cs` | File CRUD |
+| `InvoiceRepository.GetByIdAsync(id)` | Billing | `Wallow.Billing.Infrastructure/Persistence/Repositories/InvoiceRepository.cs` | Billing CRUD |
+| `SubscriptionRepository.GetByIdAsync(id)` | Billing | `Wallow.Billing.Infrastructure/Persistence/Repositories/SubscriptionRepository.cs` | Billing CRUD |
+| `EmailPreferenceRepository.GetByUserAndTypeAsync(userId, type)` | Communications | `Wallow.Communications.Infrastructure/Persistence/Repositories/EmailPreferenceRepository.cs` | Composite key lookup |
 
 ### Already Optimized (No Action Needed)
 
@@ -80,7 +80,7 @@ Current queries use `AsTracking()` for mutation paths. Compiled queries respect 
 
 ### Task 1: Compile hot-path Configuration queries
 
-**Files:** `src/Modules/Configuration/Foundry.Configuration.Infrastructure/Persistence/Repositories/FeatureFlagRepository.cs`
+**Files:** `src/Modules/Configuration/Wallow.Configuration.Infrastructure/Persistence/Repositories/FeatureFlagRepository.cs`
 
 Compile:
 - `GetByKeyAsync(string key)` — includes `Include(f => f.Overrides)`, `FirstOrDefault(f => f.Key == key)`
@@ -89,8 +89,8 @@ Compile:
 ### Task 2: Compile hot-path Identity queries
 
 **Files:**
-- `src/Modules/Identity/Foundry.Identity.Infrastructure/Repositories/ServiceAccountRepository.cs`
-- `src/Modules/Identity/Foundry.Identity.Infrastructure/Repositories/ScimConfigurationRepository.cs`
+- `src/Modules/Identity/Wallow.Identity.Infrastructure/Repositories/ServiceAccountRepository.cs`
+- `src/Modules/Identity/Wallow.Identity.Infrastructure/Repositories/ScimConfigurationRepository.cs`
 
 Compile:
 - `GetByKeycloakClientIdAsync(string keycloakClientId)` — uses `IgnoreQueryFilters()`, `FirstOrDefault`
@@ -99,8 +99,8 @@ Compile:
 ### Task 3: Compile Storage module queries
 
 **Files:**
-- `src/Modules/Storage/Foundry.Storage.Infrastructure/Persistence/Repositories/StorageBucketRepository.cs`
-- `src/Modules/Storage/Foundry.Storage.Infrastructure/Persistence/Repositories/StoredFileRepository.cs`
+- `src/Modules/Storage/Wallow.Storage.Infrastructure/Persistence/Repositories/StorageBucketRepository.cs`
+- `src/Modules/Storage/Wallow.Storage.Infrastructure/Persistence/Repositories/StoredFileRepository.cs`
 
 Compile:
 - `GetByNameAsync(string name)` — every file operation resolves bucket by name
@@ -109,8 +109,8 @@ Compile:
 ### Task 4: Compile Billing module queries
 
 **Files:**
-- `src/Modules/Billing/Foundry.Billing.Infrastructure/Persistence/Repositories/InvoiceRepository.cs`
-- `src/Modules/Billing/Foundry.Billing.Infrastructure/Persistence/Repositories/SubscriptionRepository.cs`
+- `src/Modules/Billing/Wallow.Billing.Infrastructure/Persistence/Repositories/InvoiceRepository.cs`
+- `src/Modules/Billing/Wallow.Billing.Infrastructure/Persistence/Repositories/SubscriptionRepository.cs`
 
 Compile:
 - `GetByIdAsync(InvoiceId id)` — billing CRUD hot path
@@ -119,7 +119,7 @@ Compile:
 ### Task 5: Compile Communications module queries
 
 **Files:**
-- `src/Modules/Communications/Foundry.Communications.Infrastructure/Persistence/Repositories/EmailPreferenceRepository.cs`
+- `src/Modules/Communications/Wallow.Communications.Infrastructure/Persistence/Repositories/EmailPreferenceRepository.cs`
 
 Compile:
 - `GetByUserAndTypeAsync(Guid userId, NotificationType type)` — composite key lookup

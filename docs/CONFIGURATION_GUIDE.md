@@ -1,10 +1,10 @@
 # Configuration Guide
 
-This guide explains how to configure Foundry modules using the Options Pattern and environment-specific settings.
+This guide explains how to configure Wallow modules using the Options Pattern and environment-specific settings.
 
 ## Overview
 
-Foundry uses the **Microsoft.Extensions.Options pattern** for type-safe configuration. Each module defines its own Options class that binds to a section in `appsettings.json`. This provides:
+Wallow uses the **Microsoft.Extensions.Options pattern** for type-safe configuration. Each module defines its own Options class that binds to a section in `appsettings.json`. This provides:
 
 - **Type safety** - Compile-time checking instead of magic strings
 - **Testability** - Easy to mock `IOptions<T>` in unit tests
@@ -13,14 +13,14 @@ Foundry uses the **Microsoft.Extensions.Options pattern** for type-safe configur
 
 ## Configuration Reference
 
-This section documents all configuration sections used by Foundry. See the "Quick Start" section below for how to create your own module configuration.
+This section documents all configuration sections used by Wallow. See the "Quick Start" section below for how to create your own module configuration.
 
 ### Connection Strings
 
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Host=localhost;Port=5432;Database=foundry;Username=foundry;Password=foundry",
+    "DefaultConnection": "Host=localhost;Port=5432;Database=wallow;Username=wallow;Password=wallow",
     "Redis": "localhost:6379,abortConnect=false",
     "RabbitMq": "amqp://guest:guest@localhost:5672"
   }
@@ -72,22 +72,22 @@ This section documents all configuration sections used by Foundry. See the "Quic
 ```json
 {
   "Keycloak": {
-    "realm": "foundry",
+    "realm": "wallow",
     "auth-server-url": "http://localhost:8080/",
     "ssl-required": "none",
-    "resource": "foundry-api",
+    "resource": "wallow-api",
     "credentials": {
-      "secret": "foundry-api-secret"
+      "secret": "wallow-api-secret"
     },
     "verify-token-audience": true,
     "confidential-port": 0
   },
   "KeycloakAdmin": {
-    "realm": "foundry",
+    "realm": "wallow",
     "auth-server-url": "http://localhost:8080/",
-    "resource": "foundry-api",
+    "resource": "wallow-api",
     "credentials": {
-      "secret": "foundry-api-secret"
+      "secret": "wallow-api-secret"
     }
   }
 }
@@ -116,8 +116,8 @@ This section documents all configuration sections used by Foundry. See the "Quic
     "UseSsl": false,
     "Username": "",
     "Password": "",
-    "DefaultFromAddress": "noreply@foundry.local",
-    "DefaultFromName": "Foundry",
+    "DefaultFromAddress": "noreply@wallow.local",
+    "DefaultFromName": "Wallow",
     "MaxRetries": 3,
     "TimeoutSeconds": 30
   }
@@ -131,8 +131,8 @@ This section documents all configuration sections used by Foundry. See the "Quic
 | `UseSsl` | `false` | Enable TLS/SSL |
 | `Username` | `null` | SMTP authentication username (optional) |
 | `Password` | `null` | SMTP authentication password (optional) |
-| `DefaultFromAddress` | `noreply@foundry.local` | Default sender email address |
-| `DefaultFromName` | `Foundry` | Default sender display name |
+| `DefaultFromAddress` | `noreply@wallow.local` | Default sender email address |
+| `DefaultFromName` | `Wallow` | Default sender display name |
 | `MaxRetries` | `3` | Number of retry attempts on failure |
 | `TimeoutSeconds` | `30` | SMTP operation timeout |
 
@@ -144,7 +144,7 @@ This section documents all configuration sections used by Foundry. See the "Quic
 {
   "OpenTelemetry": {
     "EnableLogging": true,
-    "ServiceName": "Foundry",
+    "ServiceName": "Wallow",
     "OtlpEndpoint": "http://localhost:4318",
     "OtlpGrpcEndpoint": "http://localhost:4317"
   }
@@ -154,7 +154,7 @@ This section documents all configuration sections used by Foundry. See the "Quic
 | Key | Default | Description |
 |-----|---------|-------------|
 | `EnableLogging` | `false` | Enable OpenTelemetry logging export |
-| `ServiceName` | `Foundry` | Service name for traces and metrics |
+| `ServiceName` | `Wallow` | Service name for traces and metrics |
 | `OtlpEndpoint` | `http://localhost:4318` | OTLP HTTP endpoint |
 | `OtlpGrpcEndpoint` | `http://localhost:4317` | OTLP gRPC endpoint (used for traces/metrics) |
 
@@ -167,14 +167,14 @@ This section documents all configuration sections used by Foundry. See the "Quic
   "Storage": {
     "Provider": "Local",
     "Local": {
-      "BasePath": "/var/foundry/storage",
+      "BasePath": "/var/wallow/storage",
       "BaseUrl": "http://localhost:5000"
     },
     "S3": {
       "Endpoint": "http://localhost:9000",
       "AccessKey": "minioadmin",
       "SecretKey": "minioadmin",
-      "BucketName": "foundry-files",
+      "BucketName": "wallow-files",
       "UsePathStyle": true,
       "Region": "us-east-1"
     }
@@ -185,7 +185,7 @@ This section documents all configuration sections used by Foundry. See the "Quic
 | Key | Default | Description |
 |-----|---------|-------------|
 | `Provider` | `Local` | Storage provider: `Local` or `S3` |
-| `Local.BasePath` | `/var/foundry/storage` | Local filesystem path for file storage |
+| `Local.BasePath` | `/var/wallow/storage` | Local filesystem path for file storage |
 | `Local.BaseUrl` | `null` | Base URL for serving files (optional) |
 | `S3.Endpoint` | - | S3-compatible endpoint URL |
 | `S3.AccessKey` | - | S3 access key |
@@ -203,8 +203,8 @@ This section documents all configuration sections used by Foundry. See the "Quic
 Create a class in your module's Infrastructure layer:
 
 ```csharp
-// src/Modules/YourModule/Foundry.YourModule.Infrastructure/Configuration/YourModuleOptions.cs
-namespace Foundry.YourModule.Infrastructure.Configuration;
+// src/Modules/YourModule/Wallow.YourModule.Infrastructure/Configuration/YourModuleOptions.cs
+namespace Wallow.YourModule.Infrastructure.Configuration;
 
 public sealed class YourModuleOptions
 {
@@ -221,7 +221,7 @@ public sealed class YourModuleOptions
 Bind the configuration section in your module's extension method:
 
 ```csharp
-// src/Modules/YourModule/Foundry.YourModule.Infrastructure/Extensions/YourModuleExtensions.cs
+// src/Modules/YourModule/Wallow.YourModule.Infrastructure/Extensions/YourModuleExtensions.cs
 public static IServiceCollection AddYourModuleInfrastructure(
     this IServiceCollection services,
     IConfiguration configuration)
@@ -336,7 +336,7 @@ dotnet run --environment Production
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Host=localhost;Port=5432;Database=foundry;Username=foundry;Password=foundry",
+    "DefaultConnection": "Host=localhost;Port=5432;Database=wallow;Username=wallow;Password=wallow",
     "Redis": "localhost:6379,abortConnect=false",
     "RabbitMq": "amqp://guest:guest@localhost:5672"
   },
@@ -347,10 +347,10 @@ dotnet run --environment Production
     "Password": "guest"
   },
   "Keycloak": {
-    "realm": "foundry",
+    "realm": "wallow",
     "auth-server-url": "https://keycloak.yourdomain.com/",
     "ssl-required": "external",
-    "resource": "foundry-api",
+    "resource": "wallow-api",
     "credentials": {
       "secret": "REPLACE_IN_PRODUCTION"
     }
@@ -358,7 +358,7 @@ dotnet run --environment Production
   "Storage": {
     "Provider": "Local",
     "Local": {
-      "BasePath": "/var/foundry/storage"
+      "BasePath": "/var/wallow/storage"
     }
   }
 }
@@ -378,7 +378,7 @@ dotnet run --environment Production
     "auth-server-url": "http://localhost:8080/",
     "ssl-required": "none",
     "credentials": {
-      "secret": "foundry-api-secret"
+      "secret": "wallow-api-secret"
     }
   },
   "OpenTelemetry": {
@@ -397,7 +397,7 @@ dotnet run --environment Production
     }
   },
   "ConnectionStrings": {
-    "DefaultConnection": "Host=postgres;Port=5432;Database=foundry;Username=OVERRIDE_VIA_ENV_VAR;Password=OVERRIDE_VIA_ENV_VAR"
+    "DefaultConnection": "Host=postgres;Port=5432;Database=wallow;Username=OVERRIDE_VIA_ENV_VAR;Password=OVERRIDE_VIA_ENV_VAR"
   },
   "RabbitMQ": {
     "Host": "rabbitmq",
@@ -415,7 +415,7 @@ dotnet run --environment Production
     "Provider": "S3",
     "S3": {
       "Endpoint": "https://s3.amazonaws.com",
-      "BucketName": "foundry-production"
+      "BucketName": "wallow-production"
     }
   }
 }
@@ -427,13 +427,13 @@ Environment variables override all JSON configuration. Use double underscores (`
 
 ```bash
 # Connection strings
-export ConnectionStrings__DefaultConnection="Host=prod-db;Port=5432;Database=foundry;Username=user;Password=pass"
+export ConnectionStrings__DefaultConnection="Host=prod-db;Port=5432;Database=wallow;Username=user;Password=pass"
 export ConnectionStrings__Redis="redis-server:6379,password=secret"
 export ConnectionStrings__RabbitMq="amqp://user:pass@rabbitmq:5672"
 
 # RabbitMQ
 export RabbitMQ__Host="rabbitmq"
-export RabbitMQ__Username="foundry"
+export RabbitMQ__Username="wallow"
 export RabbitMQ__Password="secret"
 
 # Keycloak
@@ -455,7 +455,7 @@ export Storage__S3__SecretKey="your-secret-key"
 export Storage__S3__BucketName="my-production-bucket"
 
 # OpenTelemetry
-export OpenTelemetry__ServiceName="Foundry"
+export OpenTelemetry__ServiceName="Wallow"
 export OpenTelemetry__OtlpGrpcEndpoint="http://otel-collector:4317"
 
 # CORS
@@ -471,10 +471,10 @@ In containerized deployments, pass configuration via environment variables:
 # docker-compose.yml
 services:
   api:
-    image: foundry-api
+    image: wallow-api
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
-      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=foundry;Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=wallow;Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
       - ConnectionStrings__Redis=valkey:6379
       - ConnectionStrings__RabbitMq=amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672
       - RabbitMQ__Host=rabbitmq
@@ -492,7 +492,7 @@ services:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: foundry-config
+  name: wallow-config
 data:
   ASPNETCORE_ENVIRONMENT: "Production"
   RabbitMQ__Host: "rabbitmq"
@@ -503,12 +503,12 @@ data:
 apiVersion: v1
 kind: Secret
 metadata:
-  name: foundry-secrets
+  name: wallow-secrets
 type: Opaque
 stringData:
-  ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=foundry;Username=user;Password=secret"
+  ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=wallow;Username=user;Password=secret"
   ConnectionStrings__Redis: "redis:6379,password=secret"
-  RabbitMQ__Username: "foundry"
+  RabbitMQ__Username: "wallow"
   RabbitMQ__Password: "secret"
   Keycloak__credentials__secret: "your-client-secret"
   Storage__S3__AccessKey: "AKIAIOSFODNN7EXAMPLE"
@@ -528,7 +528,7 @@ This starts the following services:
 
 | Service | Port | Purpose | Default Credentials |
 |---------|------|---------|---------------------|
-| PostgreSQL | 5432 | Primary database | `foundry` / `foundry` |
+| PostgreSQL | 5432 | Primary database | `wallow` / `wallow` |
 | RabbitMQ | 5672, 15672 | Message broker | `guest` / `guest` |
 | Valkey | 6379 | Cache and SignalR backplane | N/A |
 | Keycloak | 8080 | Identity provider | `admin` / `admin` |
@@ -538,10 +538,10 @@ This starts the following services:
 Docker environment variables are configured in `docker/.env` (copy from `docker/.env.example` and set your own values):
 
 ```env
-COMPOSE_PROJECT_NAME=foundry
-POSTGRES_USER=foundry
+COMPOSE_PROJECT_NAME=wallow
+POSTGRES_USER=wallow
 POSTGRES_PASSWORD=CHANGE_ME
-POSTGRES_DB=foundry
+POSTGRES_DB=wallow
 RABBITMQ_USER=guest
 RABBITMQ_PASSWORD=CHANGE_ME
 KEYCLOAK_ADMIN=admin
@@ -554,7 +554,7 @@ For sensitive configuration during development, use User Secrets to keep credent
 
 ```bash
 # Initialize user secrets (one-time)
-cd src/Foundry.Api
+cd src/Wallow.Api
 dotnet user-secrets init
 
 # Set secrets
@@ -572,7 +572,7 @@ Secrets are stored in:
 - **macOS/Linux**: `~/.microsoft/usersecrets/<user_secrets_id>/secrets.json`
 - **Windows**: `%APPDATA%\Microsoft\UserSecrets\<user_secrets_id>\secrets.json`
 
-## Real Examples in Foundry
+## Real Examples in Wallow
 
 ### Storage Module
 
@@ -589,7 +589,7 @@ public sealed class StorageOptions
 
 public sealed class LocalStorageOptions
 {
-    public string BasePath { get; set; } = "/var/foundry/storage";
+    public string BasePath { get; set; } = "/var/wallow/storage";
     public string? BaseUrl { get; set; }
 }
 
@@ -610,14 +610,14 @@ public sealed class S3StorageOptions
   "Storage": {
     "Provider": "Local",
     "Local": {
-      "BasePath": "/var/foundry/storage",
+      "BasePath": "/var/wallow/storage",
       "BaseUrl": "http://localhost:5000"
     },
     "S3": {
       "Endpoint": "http://localhost:9000",
       "AccessKey": "minioadmin",
       "SecretKey": "minioadmin",
-      "BucketName": "foundry-files"
+      "BucketName": "wallow-files"
     }
   }
 }
@@ -626,7 +626,7 @@ public sealed class S3StorageOptions
 ### Notifications Module (Email/SMTP)
 
 ```csharp
-// SmtpSettings.cs (in Foundry.Notifications.Infrastructure)
+// SmtpSettings.cs (in Wallow.Notifications.Infrastructure)
 public sealed class SmtpSettings
 {
     public string Host { get; set; } = "localhost";
@@ -634,8 +634,8 @@ public sealed class SmtpSettings
     public bool UseSsl { get; set; } = false;
     public string? Username { get; set; }
     public string? Password { get; set; }
-    public string DefaultFromAddress { get; set; } = "noreply@foundry.local";
-    public string DefaultFromName { get; set; } = "Foundry";
+    public string DefaultFromAddress { get; set; } = "noreply@wallow.local";
+    public string DefaultFromName { get; set; } = "Wallow";
     public int MaxRetries { get; set; } = 3;
     public int TimeoutSeconds { get; set; } = 30;
 }
@@ -650,8 +650,8 @@ public sealed class SmtpSettings
     "UseSsl": false,
     "Username": "",
     "Password": "",
-    "DefaultFromAddress": "noreply@foundry.local",
-    "DefaultFromName": "Foundry",
+    "DefaultFromAddress": "noreply@wallow.local",
+    "DefaultFromName": "Wallow",
     "MaxRetries": 3,
     "TimeoutSeconds": 30
   }
@@ -786,10 +786,10 @@ services.AddOptions<YourModuleOptions>()
 
 | Purpose | Location |
 |---------|----------|
-| Options classes | `src/Modules/{Module}/Foundry.{Module}.Infrastructure/Configuration/` |
-| Module registration | `src/Modules/{Module}/Foundry.{Module}.Infrastructure/Extensions/` |
-| Base configuration | `src/Foundry.Api/appsettings.json` |
-| Environment overrides | `src/Foundry.Api/appsettings.{Environment}.json` |
+| Options classes | `src/Modules/{Module}/Wallow.{Module}.Infrastructure/Configuration/` |
+| Module registration | `src/Modules/{Module}/Wallow.{Module}.Infrastructure/Extensions/` |
+| Base configuration | `src/Wallow.Api/appsettings.json` |
+| Environment overrides | `src/Wallow.Api/appsettings.{Environment}.json` |
 
 ## Troubleshooting
 

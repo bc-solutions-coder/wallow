@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: foundry-config
+  name: wallow-config
 data:
   ASPNETCORE_ENVIRONMENT: "Production"
-  OpenTelemetry__ServiceName: "foundry"
+  OpenTelemetry__ServiceName: "wallow"

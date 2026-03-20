@@ -6,17 +6,17 @@
 
 ```
 tests/Modules/{Module}/
-  Foundry.{Module}.Tests/              -> Unit + infrastructure tests (combined)
+  Wallow.{Module}.Tests/              -> Unit + infrastructure tests (combined)
     Domain/                            -> Entity, value object, domain event tests
     Application/                       -> Command/query handler, validator tests
     Infrastructure/                    -> Repository, Dapper query tests
-  Foundry.{Module}.IntegrationTests/   -> Full-pipeline integration tests (if needed)
+  Wallow.{Module}.IntegrationTests/   -> Full-pipeline integration tests (if needed)
 
 tests/
-  Foundry.Tests.Common/               -> Shared infrastructure (factories, fixtures, builders, helpers, fakes)
-  Foundry.Api.Tests/                   -> API-level integration tests (health checks, SignalR, middleware)
-  Foundry.Architecture.Tests/          -> Cross-cutting architecture enforcement (NetArchTest)
-  Foundry.Messaging.IntegrationTests/  -> End-to-end messaging tests (Wolverine + RabbitMQ)
+  Wallow.Tests.Common/               -> Shared infrastructure (factories, fixtures, builders, helpers, fakes)
+  Wallow.Api.Tests/                   -> API-level integration tests (health checks, SignalR, middleware)
+  Wallow.Architecture.Tests/          -> Cross-cutting architecture enforcement (NetArchTest)
+  Wallow.Messaging.IntegrationTests/  -> End-to-end messaging tests (Wolverine + RabbitMQ)
 ```
 
 ## Unit Test Conventions
@@ -27,7 +27,7 @@ tests/
 - **AAA**: Implicit (no comments), separate sections with blank lines
 - **Mocking**: Create NSubstitute mocks in constructor, instantiate handler once
 - **Test data**: Use builders for entities needing state setup; direct factory methods for simple entities
-- **Builders** are in `Foundry.Tests.Common/Builders/`, must be `public`, and clear domain events after building
+- **Builders** are in `Wallow.Tests.Common/Builders/`, must be `public`, and clear domain events after building
 
 ## Integration Test Conventions
 
@@ -35,23 +35,23 @@ tests/
 
 | Need | Use | Containers |
 |------|-----|------------|
-| Full API pipeline (HTTP, auth, middleware) | `FoundryApiFactory` via collection fixture | 3 (Postgres + RabbitMQ + Redis) |
+| Full API pipeline (HTTP, auth, middleware) | `WallowApiFactory` via collection fixture | 3 (Postgres + RabbitMQ + Redis) |
 | Database-only (repository, Dapper) | `DatabaseFixture` via collection fixture | 1 (Postgres) |
 | Real Keycloak (OAuth2 flows) | `KeycloakTestFixture` | 4 (Keycloak + Postgres + RabbitMQ + Redis) |
 
 ### ALWAYS use collection fixtures for container sharing
 
-Never use `IClassFixture<FoundryApiFactory>` directly -- it creates 3 new containers per test class. Use `ICollectionFixture`:
+Never use `IClassFixture<WallowApiFactory>` directly -- it creates 3 new containers per test class. Use `ICollectionFixture`:
 
 ```csharp
 [CollectionDefinition(nameof(MyModuleTestCollection))]
-public class MyModuleTestCollection : ICollectionFixture<FoundryApiFactory> { }
+public class MyModuleTestCollection : ICollectionFixture<WallowApiFactory> { }
 
 [Collection(nameof(MyModuleTestCollection))]
 [Trait("Category", "Integration")]
 public class MyControllerTests : MyModuleIntegrationTestBase
 {
-    public MyControllerTests(FoundryApiFactory factory) : base(factory) { }
+    public MyControllerTests(WallowApiFactory factory) : base(factory) { }
 }
 ```
 
@@ -89,7 +89,7 @@ All integration tests MUST be tagged: `[Trait("Category", "Integration")]`
 
 ## Architecture Test Conventions
 
-Central architecture tests in `Foundry.Architecture.Tests/` cover all modules. Do NOT create redundant module-level tests.
+Central architecture tests in `Wallow.Architecture.Tests/` cover all modules. Do NOT create redundant module-level tests.
 
 When adding a new module:
 1. Add to `TestConstants.AllModules` array
@@ -97,7 +97,7 @@ When adding a new module:
 
 Architecture tests enforce: Clean Architecture layers, module isolation (only `Shared.Contracts`), CQRS naming conventions, API conventions, multi-tenancy (`ITenantScoped`, `ITenantContext`), and module registration.
 
-## Shared Test Infrastructure (`Foundry.Tests.Common`)
+## Shared Test Infrastructure (`Wallow.Tests.Common`)
 
 ### Fixtures
 
@@ -112,7 +112,7 @@ Architecture tests enforce: Clean Architecture layers, module isolation (only `S
 
 | Factory | Purpose |
 |---------|---------|
-| `FoundryApiFactory` | Full API pipeline with 3 containers + TestAuthHandler + fake services |
+| `WallowApiFactory` | Full API pipeline with 3 containers + TestAuthHandler + fake services |
 
 ### Builders (all MUST be `public`)
 
@@ -143,6 +143,6 @@ Architecture tests enforce: Clean Architecture layers, module isolation (only `S
 - Do not hardcode connection strings. Testcontainers provide dynamic strings.
 - Architecture tests must pass on every build. Fix violations, don't delete tests.
 - Always use `postgres:18-alpine`. Never override to a different Postgres version.
-- Integration tests needing the full API pipeline use `FoundryApiFactory`. Unit tests must not.
-- All classes in `Foundry.Tests.Common` consumed by other test projects MUST be `public`.
+- Integration tests needing the full API pipeline use `WallowApiFactory`. Unit tests must not.
+- All classes in `Wallow.Tests.Common` consumed by other test projects MUST be `public`.
 - All shared fixtures MUST set `.WithCleanUp(true)` for Ryuk-based container cleanup.

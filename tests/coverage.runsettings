@@ -5,8 +5,8 @@
       <DataCollector friendlyName="XPlat Code Coverage">
         <Configuration>
           <Format>cobertura</Format>
-          <Include>[Foundry.*]*</Include>
-          <Exclude>[*]*.Migrations.*,[*]*Program,[*]*Startup,[*]*.Extensions.*Module*,[*]*AssemblyInfo,[*]*FoundryModules,[Foundry.Tests.Common]*,[Foundry.Benchmarks]*,[*.Tests]*,[*.IntegrationTests]*,[*]System.Runtime.CompilerServices.*</Exclude>
+          <Include>[Wallow.*]*</Include>
+          <Exclude>[*]*.Migrations.*,[*]*Program,[*]*Startup,[*]*.Extensions.*Module*,[*]*AssemblyInfo,[*]*WallowModules,[Wallow.Tests.Common]*,[Wallow.Benchmarks]*,[*.Tests]*,[*.IntegrationTests]*,[*]System.Runtime.CompilerServices.*</Exclude>
           <ExcludeByFile>**/Migrations/**/*.cs,**/Logging.g.cs,**/RegexGenerator.g.cs,**/*.generated.cs</ExcludeByFile>
           <ExcludeByAttribute>CompilerGeneratedAttribute,ExcludeFromCodeCoverageAttribute</ExcludeByAttribute>
           <IncludeTestAssembly>false</IncludeTestAssembly>

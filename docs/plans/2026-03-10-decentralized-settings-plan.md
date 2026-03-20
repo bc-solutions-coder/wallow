@@ -19,13 +19,13 @@ Build the foundational types that all modules will depend on.
 ### Task 1.1: Create SettingDefinition<T> in Shared.Kernel
 
 **Files:**
-- Create: `src/Shared/Foundry.Shared.Kernel/Settings/SettingDefinition.cs`
+- Create: `src/Shared/Wallow.Shared.Kernel/Settings/SettingDefinition.cs`
 
 **Description:**
 Create the strongly-typed setting definition record that modules use to declare their settings. Each definition holds a key, default value, description, and type information.
 
 ```csharp
-namespace Foundry.Shared.Kernel.Settings;
+namespace Wallow.Shared.Kernel.Settings;
 
 public sealed record SettingDefinition<T>(
     string Key,
@@ -43,13 +43,13 @@ public sealed record SettingDefinition<T>(
 ### Task 1.2: Create ISettingRegistry Interface
 
 **Files:**
-- Create: `src/Shared/Foundry.Shared.Kernel/Settings/ISettingRegistry.cs`
+- Create: `src/Shared/Wallow.Shared.Kernel/Settings/ISettingRegistry.cs`
 
 **Description:**
 Interface for a registry that collects all code-defined setting definitions for a module. Used by the settings service to validate keys and resolve defaults.
 
 ```csharp
-namespace Foundry.Shared.Kernel.Settings;
+namespace Wallow.Shared.Kernel.Settings;
 
 public interface ISettingRegistry
 {
@@ -72,13 +72,13 @@ public sealed record SettingMetadata(
 ### Task 1.3: Create SettingRegistryBase Abstract Class
 
 **Files:**
-- Create: `src/Shared/Foundry.Shared.Kernel/Settings/SettingRegistryBase.cs`
+- Create: `src/Shared/Wallow.Shared.Kernel/Settings/SettingRegistryBase.cs`
 
 **Description:**
 Abstract base that modules inherit from. Uses reflection to discover all `SettingDefinition<T>` static fields in the derived class and build the key/default/metadata dictionaries.
 
 ```csharp
-namespace Foundry.Shared.Kernel.Settings;
+namespace Wallow.Shared.Kernel.Settings;
 
 public abstract class SettingRegistryBase : ISettingRegistry
 {
@@ -111,13 +111,13 @@ public abstract class SettingRegistryBase : ISettingRegistry
 ### Task 1.4: Create Key Namespace Validation
 
 **Files:**
-- Create: `src/Shared/Foundry.Shared.Kernel/Settings/SettingKeyValidator.cs`
+- Create: `src/Shared/Wallow.Shared.Kernel/Settings/SettingKeyValidator.cs`
 
 **Description:**
 Validates setting keys against the three namespaces: code-defined (validated), `custom.` (bypass), `system.` (platform admin only). Enforces the 100 custom key limit per tenant per module.
 
 ```csharp
-namespace Foundry.Shared.Kernel.Settings;
+namespace Wallow.Shared.Kernel.Settings;
 
 public static class SettingKeyValidator
 {
@@ -148,13 +148,13 @@ public enum SettingKeyValidationResult { CodeDefined, Custom, System, Unknown }
 ### Task 1.5: Create ISettingsService Interface
 
 **Files:**
-- Create: `src/Shared/Foundry.Shared.Kernel/Settings/ISettingsService.cs`
+- Create: `src/Shared/Wallow.Shared.Kernel/Settings/ISettingsService.cs`
 
 **Description:**
 Interface for the settings service that modules and API controllers depend on. Provides merged reads, updates, and deletes.
 
 ```csharp
-namespace Foundry.Shared.Kernel.Settings;
+namespace Wallow.Shared.Kernel.Settings;
 
 public interface ISettingsService
 {
@@ -193,14 +193,14 @@ public sealed record SettingUpdate(string Key, string Value);
 ### Task 1.6: Create Settings Domain Events
 
 **Files:**
-- Create: `src/Shared/Foundry.Shared.Kernel/Settings/Events/TenantSettingChangedEvent.cs`
-- Create: `src/Shared/Foundry.Shared.Kernel/Settings/Events/UserSettingChangedEvent.cs`
+- Create: `src/Shared/Wallow.Shared.Kernel/Settings/Events/TenantSettingChangedEvent.cs`
+- Create: `src/Shared/Wallow.Shared.Kernel/Settings/Events/UserSettingChangedEvent.cs`
 
 **Description:**
 Domain events for cache invalidation via Wolverine. Published when settings change.
 
 ```csharp
-namespace Foundry.Shared.Kernel.Settings.Events;
+namespace Wallow.Shared.Kernel.Settings.Events;
 
 public sealed record TenantSettingChangedEvent(Guid TenantId, string ModuleName);
 public sealed record UserSettingChangedEvent(Guid TenantId, Guid UserId, string ModuleName);
@@ -217,14 +217,14 @@ Build the EF Core entities, generic repositories, and Valkey-backed settings ser
 ### Task 2.1: Create TenantSetting and UserSetting Entities
 
 **Files:**
-- Create: `src/Shared/Foundry.Shared.Infrastructure/Settings/Entities/TenantSettingEntity.cs`
-- Create: `src/Shared/Foundry.Shared.Infrastructure/Settings/Entities/UserSettingEntity.cs`
+- Create: `src/Shared/Wallow.Shared.Infrastructure/Settings/Entities/TenantSettingEntity.cs`
+- Create: `src/Shared/Wallow.Shared.Infrastructure/Settings/Entities/UserSettingEntity.cs`
 
 **Description:**
 EF Core entities for the two settings tables. These are not DDD aggregates — they're simple persistence entities since settings are key-value rows, not rich domain objects.
 
 ```csharp
-namespace Foundry.Shared.Infrastructure.Settings.Entities;
+namespace Wallow.Shared.Infrastructure.Settings.Entities;
 
 public sealed class TenantSettingEntity
 {
@@ -255,14 +255,14 @@ public sealed class UserSettingEntity
 ### Task 2.2: Create EF Core Configurations for Settings Entities
 
 **Files:**
-- Create: `src/Shared/Foundry.Shared.Infrastructure/Settings/Persistence/TenantSettingConfiguration.cs`
-- Create: `src/Shared/Foundry.Shared.Infrastructure/Settings/Persistence/UserSettingConfiguration.cs`
+- Create: `src/Shared/Wallow.Shared.Infrastructure/Settings/Persistence/TenantSettingConfiguration.cs`
+- Create: `src/Shared/Wallow.Shared.Infrastructure/Settings/Persistence/UserSettingConfiguration.cs`
 
 **Description:**
 Reusable EF Core configurations that modules apply in their DbContext's `OnModelCreating`. Each module calls `modelBuilder.ApplySettingsConfigurations()` to get both tables in their schema.
 
 ```csharp
-namespace Foundry.Shared.Infrastructure.Settings.Persistence;
+namespace Wallow.Shared.Infrastructure.Settings.Persistence;
 
 public sealed class TenantSettingConfiguration : IEntityTypeConfiguration<TenantSettingEntity>
 {
@@ -302,14 +302,14 @@ public static class SettingsModelBuilderExtensions
 ### Task 2.3: Create Generic Settings Repository
 
 **Files:**
-- Create: `src/Shared/Foundry.Shared.Infrastructure/Settings/Persistence/ISettingsRepository.cs`
-- Create: `src/Shared/Foundry.Shared.Infrastructure/Settings/Persistence/SettingsRepository.cs`
+- Create: `src/Shared/Wallow.Shared.Infrastructure/Settings/Persistence/ISettingsRepository.cs`
+- Create: `src/Shared/Wallow.Shared.Infrastructure/Settings/Persistence/SettingsRepository.cs`
 
 **Description:**
 Generic repository that works with any module's DbContext. Takes the DbContext as a constructor parameter. Handles CRUD for both tenant and user settings.
 
 ```csharp
-namespace Foundry.Shared.Infrastructure.Settings.Persistence;
+namespace Wallow.Shared.Infrastructure.Settings.Persistence;
 
 public interface ISettingsRepository
 {
@@ -335,8 +335,8 @@ The `SettingsRepository` implementation takes `DbContext` and operates on `DbSet
 ### Task 2.4: Create CachedSettingsService
 
 **Files:**
-- Create: `src/Shared/Foundry.Shared.Infrastructure/Settings/Services/SettingsService.cs`
-- Create: `src/Shared/Foundry.Shared.Infrastructure/Settings/Services/CachedSettingsService.cs`
+- Create: `src/Shared/Wallow.Shared.Infrastructure/Settings/Services/SettingsService.cs`
+- Create: `src/Shared/Wallow.Shared.Infrastructure/Settings/Services/CachedSettingsService.cs`
 
 **Description:**
 `SettingsService` handles the merge logic (user > tenant > code default) and key validation. `CachedSettingsService` wraps it with HybridCache (L1 in-memory + L2 Valkey).
@@ -361,7 +361,7 @@ The `CachedSettingsService` also implements `ISettingsService`, wraps `SettingsS
 ### Task 2.5: Create Cache Invalidation Handler
 
 **Files:**
-- Create: `src/Shared/Foundry.Shared.Infrastructure/Settings/EventHandlers/SettingsCacheInvalidationHandler.cs`
+- Create: `src/Shared/Wallow.Shared.Infrastructure/Settings/EventHandlers/SettingsCacheInvalidationHandler.cs`
 
 **Description:**
 Wolverine handler that listens for `TenantSettingChangedEvent` and `UserSettingChangedEvent` and removes the corresponding cache entries from HybridCache/Valkey.
@@ -404,13 +404,13 @@ public static class SettingsCacheInvalidationHandler
 ### Task 2.6: Create Settings DI Registration Extension
 
 **Files:**
-- Create: `src/Shared/Foundry.Shared.Infrastructure/Settings/Extensions/SettingsServiceExtensions.cs`
+- Create: `src/Shared/Wallow.Shared.Infrastructure/Settings/Extensions/SettingsServiceExtensions.cs`
 
 **Description:**
 Extension method that modules call to register all settings infrastructure. Takes the module's `ISettingRegistry` type as a generic parameter.
 
 ```csharp
-namespace Foundry.Shared.Infrastructure.Settings.Extensions;
+namespace Wallow.Shared.Infrastructure.Settings.Extensions;
 
 public static class SettingsServiceExtensions
 {
@@ -444,7 +444,7 @@ Add development-level feature gating for trunk-based development.
 
 **Files:**
 - Modify: `Directory.Packages.props` — add `Microsoft.FeatureManagement.AspNetCore` package
-- Modify: `src/Foundry.Api/Foundry.Api.csproj` — add PackageReference
+- Modify: `src/Wallow.Api/Wallow.Api.csproj` — add PackageReference
 
 **Description:**
 Add the NuGet package to the central package management and the API host project.
@@ -456,7 +456,7 @@ Add the NuGet package to the central package management and the API host project
 ### Task 3.2: Configure FeatureManagement in appsettings.json
 
 **Files:**
-- Modify: `src/Foundry.Api/appsettings.json` — add `FeatureManagement` section
+- Modify: `src/Wallow.Api/appsettings.json` — add `FeatureManagement` section
 
 **Description:**
 Add the feature management configuration with module-level and feature-level gates.
@@ -479,14 +479,14 @@ Add the feature management configuration with module-level and feature-level gat
 
 ---
 
-### Task 3.3: Wire FeatureManagement into Program.cs and FoundryModules.cs
+### Task 3.3: Wire FeatureManagement into Program.cs and WallowModules.cs
 
 **Files:**
-- Modify: `src/Foundry.Api/Program.cs` — add `builder.Services.AddFeatureManagement()`
-- Modify: `src/Foundry.Api/FoundryModules.cs` — replace `IConfiguration.GetValue` with `IFeatureManager.IsEnabledAsync` for module toggles
+- Modify: `src/Wallow.Api/Program.cs` — add `builder.Services.AddFeatureManagement()`
+- Modify: `src/Wallow.Api/WallowModules.cs` — replace `IConfiguration.GetValue` with `IFeatureManager.IsEnabledAsync` for module toggles
 
 **Description:**
-Register FeatureManagement in the DI container and update `FoundryModules.cs` to use `IFeatureManager` instead of raw config values for module registration. Since `IFeatureManager` is async and module registration happens at startup, use `IFeatureManagerSnapshot` or evaluate feature state from `IConfiguration` section that FeatureManagement reads (the existing pattern already works, just standardize the key names to match the FeatureManagement section).
+Register FeatureManagement in the DI container and update `WallowModules.cs` to use `IFeatureManager` instead of raw config values for module registration. Since `IFeatureManager` is async and module registration happens at startup, use `IFeatureManagerSnapshot` or evaluate feature state from `IConfiguration` section that FeatureManagement reads (the existing pattern already works, just standardize the key names to match the FeatureManagement section).
 
 **Commit:** `feat(api): wire Microsoft.FeatureManagement into module registration`
 
@@ -499,13 +499,13 @@ Implement the settings pattern in one module as the reference for all others.
 ### Task 4.1: Create BillingSettingKeys Registry
 
 **Files:**
-- Create: `src/Modules/Billing/Foundry.Billing.Application/Settings/BillingSettingKeys.cs`
+- Create: `src/Modules/Billing/Wallow.Billing.Application/Settings/BillingSettingKeys.cs`
 
 **Description:**
 Define Billing's code-defined settings and implement the registry.
 
 ```csharp
-namespace Foundry.Billing.Application.Settings;
+namespace Wallow.Billing.Application.Settings;
 
 public sealed class BillingSettingKeys : SettingRegistryBase
 {
@@ -532,7 +532,7 @@ public sealed class BillingSettingKeys : SettingRegistryBase
 ### Task 4.2: Add Settings Tables to BillingDbContext
 
 **Files:**
-- Modify: `src/Modules/Billing/Foundry.Billing.Infrastructure/Persistence/BillingDbContext.cs` — add `DbSet<TenantSettingEntity>` and `DbSet<UserSettingEntity>`, call `ApplySettingsConfigurations()` in `OnModelCreating`
+- Modify: `src/Modules/Billing/Wallow.Billing.Infrastructure/Persistence/BillingDbContext.cs` — add `DbSet<TenantSettingEntity>` and `DbSet<UserSettingEntity>`, call `ApplySettingsConfigurations()` in `OnModelCreating`
 
 **Description:**
 Register the settings entities in Billing's DbContext so they live in the `billing` schema.
@@ -544,15 +544,15 @@ Register the settings entities in Billing's DbContext so they live in the `billi
 ### Task 4.3: Create EF Core Migration for Billing Settings Tables
 
 **Files:**
-- Create: `src/Modules/Billing/Foundry.Billing.Infrastructure/Migrations/YYYYMMDDHHMMSS_AddSettingsTables.cs` (generated)
+- Create: `src/Modules/Billing/Wallow.Billing.Infrastructure/Migrations/YYYYMMDDHHMMSS_AddSettingsTables.cs` (generated)
 
 **Description:**
 Run the EF Core migration command to generate the migration:
 
 ```bash
 dotnet ef migrations add AddSettingsTables \
-    --project src/Modules/Billing/Foundry.Billing.Infrastructure \
-    --startup-project src/Foundry.Api \
+    --project src/Modules/Billing/Wallow.Billing.Infrastructure \
+    --startup-project src/Wallow.Api \
     --context BillingDbContext
 ```
 
@@ -563,7 +563,7 @@ dotnet ef migrations add AddSettingsTables \
 ### Task 4.4: Register Settings in Billing Module
 
 **Files:**
-- Modify: `src/Modules/Billing/Foundry.Billing.Infrastructure/Extensions/BillingInfrastructureExtensions.cs` — call `services.AddModuleSettings<BillingSettingKeys>()`
+- Modify: `src/Modules/Billing/Wallow.Billing.Infrastructure/Extensions/BillingInfrastructureExtensions.cs` — call `services.AddModuleSettings<BillingSettingKeys>()`
 
 **Description:**
 Add the one-line settings registration to Billing's infrastructure setup.
@@ -575,7 +575,7 @@ Add the one-line settings registration to Billing's infrastructure setup.
 ### Task 4.5: Create Billing Settings API Controller
 
 **Files:**
-- Create: `src/Modules/Billing/Foundry.Billing.Api/Controllers/BillingSettingsController.cs`
+- Create: `src/Modules/Billing/Wallow.Billing.Api/Controllers/BillingSettingsController.cs`
 
 **Description:**
 API controller implementing the full settings surface for Billing:
@@ -622,7 +622,7 @@ Apply the same pattern to Identity (with global settings), Storage, and Communic
 ### Task 5.1: Create IdentitySettingKeys Registry (Global Settings Owner)
 
 **Files:**
-- Create: `src/Modules/Identity/Foundry.Identity.Application/Settings/IdentitySettingKeys.cs`
+- Create: `src/Modules/Identity/Wallow.Identity.Application/Settings/IdentitySettingKeys.cs`
 
 **Description:**
 Identity owns global cross-cutting settings: timezone, locale, theme.
@@ -653,17 +653,17 @@ public sealed class IdentitySettingKeys : SettingRegistryBase
 ### Task 5.2: Add Settings to Identity Module Infrastructure
 
 **Files:**
-- Modify: `src/Modules/Identity/Foundry.Identity.Infrastructure/Persistence/IdentityDbContext.cs`
-- Modify: `src/Modules/Identity/Foundry.Identity.Infrastructure/Extensions/IdentityInfrastructureExtensions.cs`
-- Create: `src/Modules/Identity/Foundry.Identity.Api/Controllers/IdentitySettingsController.cs`
+- Modify: `src/Modules/Identity/Wallow.Identity.Infrastructure/Persistence/IdentityDbContext.cs`
+- Modify: `src/Modules/Identity/Wallow.Identity.Infrastructure/Extensions/IdentityInfrastructureExtensions.cs`
+- Create: `src/Modules/Identity/Wallow.Identity.Api/Controllers/IdentitySettingsController.cs`
 
 **Description:**
 Same pattern as Billing: add DbSets, call `ApplySettingsConfigurations()`, register with `AddModuleSettings<IdentitySettingKeys>()`, create API controller. Run EF migration.
 
 ```bash
 dotnet ef migrations add AddSettingsTables \
-    --project src/Modules/Identity/Foundry.Identity.Infrastructure \
-    --startup-project src/Foundry.Api \
+    --project src/Modules/Identity/Wallow.Identity.Infrastructure \
+    --startup-project src/Wallow.Api \
     --context IdentityDbContext
 ```
 
@@ -674,10 +674,10 @@ dotnet ef migrations add AddSettingsTables \
 ### Task 5.3: Add Settings to Storage Module
 
 **Files:**
-- Create: `src/Modules/Storage/Foundry.Storage.Application/Settings/StorageSettingKeys.cs`
-- Modify: `src/Modules/Storage/Foundry.Storage.Infrastructure/Persistence/StorageDbContext.cs`
-- Modify: `src/Modules/Storage/Foundry.Storage.Infrastructure/Extensions/StorageInfrastructureExtensions.cs`
-- Create: `src/Modules/Storage/Foundry.Storage.Api/Controllers/StorageSettingsController.cs`
+- Create: `src/Modules/Storage/Wallow.Storage.Application/Settings/StorageSettingKeys.cs`
+- Modify: `src/Modules/Storage/Wallow.Storage.Infrastructure/Persistence/StorageDbContext.cs`
+- Modify: `src/Modules/Storage/Wallow.Storage.Infrastructure/Extensions/StorageInfrastructureExtensions.cs`
+- Create: `src/Modules/Storage/Wallow.Storage.Api/Controllers/StorageSettingsController.cs`
 
 **Description:**
 Storage settings: max upload size, allowed file types, storage quota.
@@ -689,10 +689,10 @@ Storage settings: max upload size, allowed file types, storage quota.
 ### Task 5.4: Add Settings to Communications Module
 
 **Files:**
-- Create: `src/Modules/Communications/Foundry.Communications.Application/Settings/CommunicationsSettingKeys.cs`
-- Modify: `src/Modules/Communications/Foundry.Communications.Infrastructure/Persistence/CommunicationsDbContext.cs`
-- Modify: `src/Modules/Communications/Foundry.Communications.Infrastructure/Extensions/CommunicationsInfrastructureExtensions.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Api/Controllers/CommunicationsSettingsController.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Application/Settings/CommunicationsSettingKeys.cs`
+- Modify: `src/Modules/Communications/Wallow.Communications.Infrastructure/Persistence/CommunicationsDbContext.cs`
+- Modify: `src/Modules/Communications/Wallow.Communications.Infrastructure/Extensions/CommunicationsInfrastructureExtensions.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Api/Controllers/CommunicationsSettingsController.cs`
 
 **Description:**
 Communications settings: email sender name, notification preferences.
@@ -708,12 +708,12 @@ Move custom fields from Configuration into owning modules.
 ### Task 6.1: Move CustomFieldDefinition to Billing Domain
 
 **Files:**
-- Create: `src/Modules/Billing/Foundry.Billing.Domain/Entities/CustomFieldDefinition.cs` (copy and adapt from Configuration)
-- Create: `src/Modules/Billing/Foundry.Billing.Domain/Identity/CustomFieldDefinitionId.cs`
-- Create: `src/Modules/Billing/Foundry.Billing.Domain/Events/CustomFieldDefinitionCreatedEvent.cs`
-- Create: `src/Modules/Billing/Foundry.Billing.Domain/Events/CustomFieldDefinitionDeactivatedEvent.cs`
-- Create: `src/Modules/Billing/Foundry.Billing.Domain/Exceptions/CustomFieldException.cs`
-- Create: `src/Modules/Billing/Foundry.Billing.Application/Contracts/ICustomFieldDefinitionRepository.cs`
+- Create: `src/Modules/Billing/Wallow.Billing.Domain/Entities/CustomFieldDefinition.cs` (copy and adapt from Configuration)
+- Create: `src/Modules/Billing/Wallow.Billing.Domain/Identity/CustomFieldDefinitionId.cs`
+- Create: `src/Modules/Billing/Wallow.Billing.Domain/Events/CustomFieldDefinitionCreatedEvent.cs`
+- Create: `src/Modules/Billing/Wallow.Billing.Domain/Events/CustomFieldDefinitionDeactivatedEvent.cs`
+- Create: `src/Modules/Billing/Wallow.Billing.Domain/Exceptions/CustomFieldException.cs`
+- Create: `src/Modules/Billing/Wallow.Billing.Application/Contracts/ICustomFieldDefinitionRepository.cs`
 
 **Description:**
 Copy the `CustomFieldDefinition` aggregate and supporting types from Configuration to Billing. The entity type filter in `CustomFieldRegistry` should scope to Billing entity types (Invoice, Payment). Adapt namespace and any module-specific logic.
@@ -725,9 +725,9 @@ Copy the `CustomFieldDefinition` aggregate and supporting types from Configurati
 ### Task 6.2: Add Custom Field Infrastructure to Billing
 
 **Files:**
-- Create: `src/Modules/Billing/Foundry.Billing.Infrastructure/Persistence/Configurations/CustomFieldDefinitionConfiguration.cs`
-- Create: `src/Modules/Billing/Foundry.Billing.Infrastructure/Persistence/Repositories/CustomFieldDefinitionRepository.cs`
-- Modify: `src/Modules/Billing/Foundry.Billing.Infrastructure/Persistence/BillingDbContext.cs` — add DbSet
+- Create: `src/Modules/Billing/Wallow.Billing.Infrastructure/Persistence/Configurations/CustomFieldDefinitionConfiguration.cs`
+- Create: `src/Modules/Billing/Wallow.Billing.Infrastructure/Persistence/Repositories/CustomFieldDefinitionRepository.cs`
+- Modify: `src/Modules/Billing/Wallow.Billing.Infrastructure/Persistence/BillingDbContext.cs` — add DbSet
 
 **Description:**
 Add the EF Core configuration, repository, and DbSet for custom fields in Billing. Run migration.
@@ -739,9 +739,9 @@ Add the EF Core configuration, repository, and DbSet for custom fields in Billin
 ### Task 6.3: Move Custom Field Commands and Queries to Billing
 
 **Files:**
-- Create: `src/Modules/Billing/Foundry.Billing.Application/CustomFields/Commands/` (copy from Configuration)
-- Create: `src/Modules/Billing/Foundry.Billing.Application/CustomFields/Queries/` (copy from Configuration)
-- Create: `src/Modules/Billing/Foundry.Billing.Api/Controllers/BillingCustomFieldsController.cs`
+- Create: `src/Modules/Billing/Wallow.Billing.Application/CustomFields/Commands/` (copy from Configuration)
+- Create: `src/Modules/Billing/Wallow.Billing.Application/CustomFields/Queries/` (copy from Configuration)
+- Create: `src/Modules/Billing/Wallow.Billing.Api/Controllers/BillingCustomFieldsController.cs`
 
 **Description:**
 Move the CQRS commands/queries for custom field management into Billing. Create the API controller. Adapt namespaces.
@@ -766,8 +766,8 @@ Remove the centralized Configuration module entirely.
 ### Task 7.1: Remove Configuration Module References
 
 **Files:**
-- Modify: `src/Foundry.Api/FoundryModules.cs` — remove `AddConfigurationModule` / `InitializeConfigurationModuleAsync`
-- Modify: `src/Foundry.Api/Foundry.Api.csproj` — remove project reference to `Foundry.Configuration.Api`
+- Modify: `src/Wallow.Api/WallowModules.cs` — remove `AddConfigurationModule` / `InitializeConfigurationModuleAsync`
+- Modify: `src/Wallow.Api/Wallow.Api.csproj` — remove project reference to `Wallow.Configuration.Api`
 - Modify: any `Shared.Contracts` files that reference Configuration events
 
 **Description:**
@@ -792,7 +792,7 @@ Remove the Configuration module's Domain, Application, Infrastructure, and Api p
 ### Task 7.3: Clean Up Solution File and Build
 
 **Files:**
-- Modify: `Foundry.sln` — remove Configuration project entries
+- Modify: `Wallow.sln` — remove Configuration project entries
 - Modify: `Directory.Packages.props` — remove any Configuration-only package references
 
 **Description:**
@@ -842,7 +842,7 @@ Update documentation to reflect the new decentralized settings architecture and 
 Start the API and verify the settings endpoints work:
 
 ```bash
-dotnet run --project src/Foundry.Api
+dotnet run --project src/Wallow.Api
 ```
 
 Test via curl or HTTP client:

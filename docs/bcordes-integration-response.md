@@ -1,19 +1,19 @@
-# Foundry Backend Response: bcordes.dev Integration
+# Wallow Backend Response: bcordes.dev Integration
 
 **Date:** 2026-03-13
-**From:** Foundry Backend Team
+**From:** Wallow Backend Team
 **To:** bcordes.dev Frontend Team
 
 ---
 
 ## Overview
 
-We reviewed the integration requirements for bcordes.dev to use Foundry as its sole API backend. The goal is to replace the self-contained ORPC/Drizzle backend with Foundry's modular API, starting with two modules:
+We reviewed the integration requirements for bcordes.dev to use Wallow as its sole API backend. The goal is to replace the self-contained ORPC/Drizzle backend with Wallow's modular API, starting with two modules:
 
 - **Showcases** — Read-only access to portfolio/showcase data via `GET /api/v1/showcases`
 - **Inquiries** — Contact form submissions from anonymous visitors via a BFF service account, plus admin management and user-facing inquiry tracking
 
-The frontend's BFF layer authenticates with Foundry using Keycloak client credentials (service account) and forwards requests on behalf of anonymous visitors. Authenticated users interact directly with Foundry using their JWT.
+The frontend's BFF layer authenticates with Wallow using Keycloak client credentials (service account) and forwards requests on behalf of anonymous visitors. Authenticated users interact directly with Wallow using their JWT.
 
 ---
 

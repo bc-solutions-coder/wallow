@@ -1,9 +1,9 @@
-# Foundry Architecture Diagrams
+# Wallow Architecture Diagrams
 
-> Visual architecture documentation for the Foundry modular monolith platform
+> Visual architecture documentation for the Wallow modular monolith platform
 
 **Date:** 2026-02-28
-**System:** Foundry Platform - 8 Modules + Shared Infrastructure
+**System:** Wallow Platform - 8 Modules + Shared Infrastructure
 **Technology:** .NET 10, PostgreSQL, RabbitMQ, Wolverine, Keycloak, Hangfire, Elsa 3
 
 ---
@@ -43,7 +43,7 @@ graph TB
     end
 
     subgraph "API Host"
-        Api[Foundry.Api<br/>Composition Root, Middleware Pipeline]
+        Api[Wallow.Api<br/>Composition Root, Middleware Pipeline]
     end
 
     Identity -.-> SharedContracts
@@ -167,7 +167,7 @@ graph TB
         Mailpit[Mailpit<br/>SMTP: 1025<br/>Web: 8025]
         Grafana[Grafana LGTM<br/>UI: 3000<br/>OTLP: 4317/4318]
 
-        Api[Foundry.Api<br/>ASP.NET Core<br/>Port 5000]
+        Api[Wallow.Api<br/>ASP.NET Core<br/>Port 5000]
     end
 
     Api --> Postgres
@@ -230,7 +230,7 @@ graph TB
         SCIM[SCIM Auth<br/>SCIM token hash]
     end
 
-    subgraph "Keycloak Realm: foundry"
+    subgraph "Keycloak Realm: wallow"
         Users[(Users)]
         Orgs[(Organizations<br/>tenant mapping)]
         Roles[(Roles)]

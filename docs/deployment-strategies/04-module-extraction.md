@@ -10,7 +10,7 @@
 
 1. [Overview](#1-overview)
 2. [Prerequisites and Warnings](#2-prerequisites-and-warnings)
-3. [Foundry's Modular Architecture](#3-foundrys-modular-architecture)
+3. [Wallow's Modular Architecture](#3-wallows-modular-architecture)
 4. [Extraction Process](#4-extraction-process)
 5. [Example: Extracting the Billing Module](#5-example-extracting-the-billing-module)
 6. [Handling Shared Code](#6-handling-shared-code)
@@ -27,7 +27,7 @@
 
 ### What Module Extraction Means
 
-Module extraction is the process of taking a bounded context that currently runs inside the Foundry monolith and deploying it as an independent, separately-scalable service. The extracted module becomes a standalone application that:
+Module extraction is the process of taking a bounded context that currently runs inside the Wallow monolith and deploying it as an independent, separately-scalable service. The extracted module becomes a standalone application that:
 
 - Runs in its own process/container
 - Has its own deployment lifecycle
@@ -36,21 +36,21 @@ Module extraction is the process of taking a bounded context that currently runs
 
 This is the path from modular monolith toward microservices, done incrementally and deliberately.
 
-### Why Foundry's Architecture Makes This Possible
+### Why Wallow's Architecture Makes This Possible
 
-Foundry was designed from day one with extraction in mind. The modular monolith architecture provides several guarantees that make extraction feasible:
+Wallow was designed from day one with extraction in mind. The modular monolith architecture provides several guarantees that make extraction feasible:
 
 1. **Module Isolation**: Each module (Identity, Billing, Communications, Storage, Configuration) has four separate projects:
-   - `Foundry.{Module}.Domain` - Zero external dependencies
-   - `Foundry.{Module}.Application` - Depends only on Domain and abstractions
-   - `Foundry.{Module}.Infrastructure` - Implements Application interfaces
-   - `Foundry.{Module}.Api` - Controllers and HTTP contracts
+   - `Wallow.{Module}.Domain` - Zero external dependencies
+   - `Wallow.{Module}.Application` - Depends only on Domain and abstractions
+   - `Wallow.{Module}.Infrastructure` - Implements Application interfaces
+   - `Wallow.{Module}.Api` - Controllers and HTTP contracts
 
-2. **Event-Driven Communication**: Modules never call each other directly. All cross-module communication flows through RabbitMQ using integration events defined in `Foundry.Shared.Contracts`. This means extracting a module requires no code changes to other modules.
+2. **Event-Driven Communication**: Modules never call each other directly. All cross-module communication flows through RabbitMQ using integration events defined in `Wallow.Shared.Contracts`. This means extracting a module requires no code changes to other modules.
 
 3. **Database Schema Isolation**: Each module owns its own PostgreSQL schema (e.g., `billing`, `communications`, `storage`). There are no cross-schema joins or foreign keys.
 
-4. **Shared Contracts Only**: The only shared dependency between modules is `Foundry.Shared.Contracts`, which contains only DTOs and event definitions with zero NuGet dependencies.
+4. **Shared Contracts Only**: The only shared dependency between modules is `Wallow.Shared.Contracts`, which contains only DTOs and event definitions with zero NuGet dependencies.
 
 ### When (and When NOT) to Do This
 
@@ -79,7 +79,7 @@ If your monitoring shows one module consuming 80%+ of resources while others are
 ```
 Before extraction:
 ┌─────────────────────────────────────────┐
-│ Foundry Monolith (4 CPU, 8GB RAM)       │
+│ Wallow Monolith (4 CPU, 8GB RAM)       │
 │ ┌───────┐ ┌───────┐ ┌───────┐          │
 │ │Identity│ │Billing│ │Comms  │          │
 │ │  5%   │ │  85%  │ │  10%  │          │
@@ -88,7 +88,7 @@ Before extraction:
 
 After extracting Billing:
 ┌────────────────────────┐ ┌─────────────────────┐
-│ Foundry (2 CPU, 4GB)   │ │ Billing (4 CPU, 8GB)│
+│ Wallow (2 CPU, 4GB)   │ │ Billing (4 CPU, 8GB)│
 │ ┌───────┐ ┌───────┐   │ │     ┌───────┐       │
 │ │Identity│ │Comms  │   │ │     │Billing│       │
 │ │  10%  │ │  20%  │   │ │     │  60%  │       │
@@ -98,7 +98,7 @@ After extracting Billing:
 
 #### Team Scaling
 
-When your organization grows beyond 2-3 teams working on Foundry, extraction allows:
+When your organization grows beyond 2-3 teams working on Wallow, extraction allows:
 - Independent deployment schedules
 - Different on-call rotations
 - Separate code review and approval processes
@@ -113,7 +113,7 @@ Certain compliance requirements may mandate process-level isolation:
 
 #### Different Technology Requirements
 
-While Foundry is .NET 10, you might need:
+While Wallow is .NET 10, you might need:
 - A module in a different language (Python for ML features)
 - A different database engine (TimescaleDB for time-series data)
 - Edge deployment capabilities
@@ -195,17 +195,17 @@ Transactions that used to be ACID become eventually consistent:
 
 ---
 
-## 3. Foundry's Modular Architecture
+## 3. Wallow's Modular Architecture
 
 ### 3.1 Current Module Boundaries
 
-Each Foundry module is already isolated at multiple levels:
+Each Wallow module is already isolated at multiple levels:
 
 #### Project Structure
 
 ```
 src/Modules/Billing/
-├── Foundry.Billing.Domain/           # Entities, value objects, domain events
+├── Wallow.Billing.Domain/           # Entities, value objects, domain events
 │   ├── Entities/
 │   │   ├── Invoice.cs               # Aggregate root
 │   │   ├── InvoiceLineItem.cs
@@ -218,7 +218,7 @@ src/Modules/Billing/
 │   └── Enums/
 │       └── InvoiceStatus.cs
 │
-├── Foundry.Billing.Application/      # CQRS handlers, interfaces
+├── Wallow.Billing.Application/      # CQRS handlers, interfaces
 │   ├── Commands/
 │   │   ├── CreateInvoice/
 │   │   │   ├── CreateInvoiceCommand.cs
@@ -229,7 +229,7 @@ src/Modules/Billing/
 │   └── Interfaces/
 │       └── IInvoiceRepository.cs
 │
-├── Foundry.Billing.Infrastructure/   # EF Core, repositories
+├── Wallow.Billing.Infrastructure/   # EF Core, repositories
 │   ├── Persistence/
 │   │   ├── BillingDbContext.cs
 │   │   └── Repositories/
@@ -237,7 +237,7 @@ src/Modules/Billing/
 │   └── Extensions/
 │       └── InfrastructureExtensions.cs
 │
-└── Foundry.Billing.Api/              # Controllers, contracts
+└── Wallow.Billing.Api/              # Controllers, contracts
     ├── Controllers/
     │   └── InvoicesController.cs
     ├── Contracts/
@@ -291,10 +291,10 @@ public class InvoiceCreatedEventHandler : IHandler<InvoiceCreatedEvent>
 
 #### Shared.Contracts Structure
 
-All cross-module DTOs and events live in `Foundry.Shared.Contracts`:
+All cross-module DTOs and events live in `Wallow.Shared.Contracts`:
 
 ```
-src/Shared/Foundry.Shared.Contracts/
+src/Shared/Wallow.Shared.Contracts/
 ├── IIntegrationEvent.cs              # Base interface
 ├── Identity/
 │   └── Events/
@@ -342,7 +342,7 @@ There are NO cross-schema foreign keys. Modules store only IDs from other module
 
 ### 3.2 Module Dependencies Map
 
-Understanding event flow is critical before extraction. Here's the current Foundry event topology:
+Understanding event flow is critical before extraction. Here's the current Wallow event topology:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -413,7 +413,7 @@ Good extraction candidates share these characteristics:
 | Well-defined events | Clean integration contract | Review Shared.Contracts |
 | Stable API surface | Extraction won't break clients | API versioning history |
 
-**Ranking Foundry modules by extraction suitability:**
+**Ranking Wallow modules by extraction suitability:**
 
 | Module | Resource Intensity | Dependencies | Inbound Events | Extraction Ease |
 |--------|-------------------|--------------|----------------|-----------------|
@@ -434,10 +434,10 @@ Before extraction, ensure all cross-module communication is via events:
 # This should return NO results for a well-isolated module
 
 # Check if any module imports Billing domain directly
-grep -r "using Foundry.Billing.Domain" src/Modules --include="*.cs" | grep -v "Billing/"
+grep -r "using Wallow.Billing.Domain" src/Modules --include="*.cs" | grep -v "Billing/"
 
 # Check if any module imports Billing application directly
-grep -r "using Foundry.Billing.Application" src/Modules --include="*.cs" | grep -v "Billing/"
+grep -r "using Wallow.Billing.Application" src/Modules --include="*.cs" | grep -v "Billing/"
 
 # Check for any direct service injections
 grep -r "IBillingService\|IInvoiceRepository\|IPaymentRepository" src/Modules --include="*.cs" | grep -v "Billing/"
@@ -447,7 +447,7 @@ If any results appear, you have coupling that must be resolved before extraction
 
 #### Run Architecture Tests
 
-Foundry includes architecture tests that enforce module boundaries:
+Wallow includes architecture tests that enforce module boundaries:
 
 ```csharp
 // tests/Architecture/ModuleBoundaryTests.cs
@@ -460,10 +460,10 @@ public void Billing_Should_Not_Have_Direct_Dependencies_On_Other_Modules()
 
     var otherModules = new[]
     {
-        "Foundry.Identity",
-        "Foundry.Communications",
-        "Foundry.Storage",
-        "Foundry.Configuration"
+        "Wallow.Identity",
+        "Wallow.Communications",
+        "Wallow.Storage",
+        "Wallow.Configuration"
     };
 
     var result = billingAssemblies
@@ -503,8 +503,8 @@ Create a new project that hosts the extracted module as an independent service.
 
 ```
 extracted-services/
-└── Foundry.Billing.Service/
-    ├── Foundry.Billing.Service.csproj
+└── Wallow.Billing.Service/
+    ├── Wallow.Billing.Service.csproj
     ├── Program.cs
     ├── appsettings.json
     ├── appsettings.Development.json
@@ -513,14 +513,14 @@ extracted-services/
     └── docker-compose.yml
 ```
 
-#### New Project File (Foundry.Billing.Service.csproj)
+#### New Project File (Wallow.Billing.Service.csproj)
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <RootNamespace>Foundry.Billing.Service</RootNamespace>
+    <RootNamespace>Wallow.Billing.Service</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
@@ -557,9 +557,9 @@ extracted-services/
 
   <ItemGroup>
     <!-- Reference the existing module projects -->
-    <ProjectReference Include="..\..\src\Modules\Billing\Foundry.Billing.Api\Foundry.Billing.Api.csproj" />
-    <ProjectReference Include="..\..\src\Shared\Foundry.Shared.Kernel\Foundry.Shared.Kernel.csproj" />
-    <ProjectReference Include="..\..\src\Shared\Foundry.Shared.Contracts\Foundry.Shared.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Billing\Wallow.Billing.Api\Wallow.Billing.Api.csproj" />
+    <ProjectReference Include="..\..\src\Shared\Wallow.Shared.Kernel\Wallow.Shared.Kernel.csproj" />
+    <ProjectReference Include="..\..\src\Shared\Wallow.Shared.Contracts\Wallow.Shared.Contracts.csproj" />
   </ItemGroup>
 
 </Project>
@@ -568,12 +568,12 @@ extracted-services/
 #### Program.cs for Standalone Service
 
 ```csharp
-using Foundry.Billing.Api.Extensions;
-using Foundry.Billing.Application.Commands.CreateInvoice;
-using Foundry.Billing.Infrastructure.Persistence;
-using Foundry.Shared.Contracts.Billing.Events;
-using Foundry.Shared.Contracts.Identity.Events;
-using Foundry.Shared.Kernel.Extensions;
+using Wallow.Billing.Api.Extensions;
+using Wallow.Billing.Application.Commands.CreateInvoice;
+using Wallow.Billing.Infrastructure.Persistence;
+using Wallow.Shared.Contracts.Billing.Events;
+using Wallow.Shared.Contracts.Identity.Events;
+using Wallow.Shared.Kernel.Extensions;
 using Microsoft.EntityFrameworkCore;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -590,7 +590,7 @@ Log.Logger = new LoggerConfiguration()
 
 try
 {
-    Log.Information("Starting Foundry Billing Service");
+    Log.Information("Starting Wallow Billing Service");
 
     var builder = WebApplication.CreateBuilder(args);
 
@@ -601,7 +601,7 @@ try
         .ReadFrom.Configuration(context.Configuration)
         .ReadFrom.Services(services)
         .Enrich.FromLogContext()
-        .Enrich.WithProperty("Application", "Foundry.Billing.Service")
+        .Enrich.WithProperty("Application", "Wallow.Billing.Service")
         .WriteTo.Console(outputTemplate:
             "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}")
         .WriteTo.OpenTelemetry(options =>
@@ -611,8 +611,8 @@ try
             options.Endpoint = otlpEndpoint + "/v1/logs";
             options.ResourceAttributes = new Dictionary<string, object>
             {
-                ["service.name"] = "foundry-billing",
-                ["service.namespace"] = "Foundry",
+                ["service.name"] = "wallow-billing",
+                ["service.namespace"] = "Wallow",
                 ["deployment.environment"] = context.HostingEnvironment.EnvironmentName
             };
         }));
@@ -669,8 +669,8 @@ try
     builder.Services.AddOpenTelemetry()
         .ConfigureResource(resource => resource
             .AddService(
-                serviceName: "foundry-billing",
-                serviceNamespace: "Foundry",
+                serviceName: "wallow-billing",
+                serviceNamespace: "Wallow",
                 serviceVersion: "1.0.0"))
         .WithTracing(tracing => tracing
             .AddAspNetCoreInstrumentation()
@@ -760,7 +760,7 @@ try
     // Service info endpoint
     app.MapGet("/", () => Results.Ok(new
     {
-        Name = "Foundry Billing Service",
+        Name = "Wallow Billing Service",
         Version = "1.0.0",
         Environment = app.Environment.EnvironmentName,
         Health = "/health"
@@ -793,12 +793,12 @@ finally
     }
   },
   "ConnectionStrings": {
-    "DefaultConnection": "Host=localhost;Port=5432;Database=foundry;Username=postgres;Password=postgres;Include Error Detail=true",
+    "DefaultConnection": "Host=localhost;Port=5432;Database=wallow;Username=postgres;Password=postgres;Include Error Detail=true",
     "RabbitMq": "amqp://guest:guest@localhost:5672"
   },
   "OpenTelemetry": {
     "OtlpEndpoint": "http://localhost:4317",
-    "ServiceName": "foundry-billing"
+    "ServiceName": "wallow-billing"
   },
   "Serilog": {
     "MinimumLevel": {
@@ -851,7 +851,7 @@ The extracted service connects to the same PostgreSQL instance and uses the same
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Host=postgres;Database=foundry;Username=foundry;Password=***;Search Path=billing"
+    "DefaultConnection": "Host=postgres;Database=wallow;Username=wallow;Password=***;Search Path=billing"
   }
 }
 ```
@@ -886,14 +886,14 @@ Create a dedicated database for the Billing service:
 
 1. **Create new database:**
 ```sql
-CREATE DATABASE foundry_billing;
+CREATE DATABASE wallow_billing;
 CREATE USER billing_service WITH PASSWORD 'secure_password';
-GRANT ALL PRIVILEGES ON DATABASE foundry_billing TO billing_service;
+GRANT ALL PRIVILEGES ON DATABASE wallow_billing TO billing_service;
 ```
 
 2. **Export existing data:**
 ```bash
-pg_dump -h localhost -U postgres -d foundry \
+pg_dump -h localhost -U postgres -d wallow \
   --schema=billing \
   --no-owner \
   > billing_data.sql
@@ -901,14 +901,14 @@ pg_dump -h localhost -U postgres -d foundry \
 
 3. **Import to new database:**
 ```bash
-psql -h localhost -U billing_service -d foundry_billing < billing_data.sql
+psql -h localhost -U billing_service -d wallow_billing < billing_data.sql
 ```
 
 4. **Update connection string:**
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Host=billing-db;Database=foundry_billing;Username=billing_service;Password=***"
+    "DefaultConnection": "Host=billing-db;Database=wallow_billing;Username=billing_service;Password=***"
   }
 }
 ```
@@ -983,11 +983,11 @@ Remove the extracted module from the monolith.
 
 #### Remove Project Reference
 
-Edit `Foundry.Api.csproj`:
+Edit `Wallow.Api.csproj`:
 
 ```xml
 <!-- BEFORE -->
-<ProjectReference Include="..\Modules\Billing\Foundry.Billing.Api\Foundry.Billing.Api.csproj" />
+<ProjectReference Include="..\Modules\Billing\Wallow.Billing.Api\Wallow.Billing.Api.csproj" />
 
 <!-- AFTER: Remove this line entirely -->
 ```
@@ -1054,32 +1054,32 @@ WORKDIR /src
 # Copy solution and restore
 COPY ["Directory.Build.props", "."]
 COPY ["Directory.Packages.props", "."]
-COPY ["extracted-services/Foundry.Billing.Service/Foundry.Billing.Service.csproj", "extracted-services/Foundry.Billing.Service/"]
-COPY ["src/Modules/Billing/Foundry.Billing.Api/Foundry.Billing.Api.csproj", "src/Modules/Billing/Foundry.Billing.Api/"]
-COPY ["src/Modules/Billing/Foundry.Billing.Application/Foundry.Billing.Application.csproj", "src/Modules/Billing/Foundry.Billing.Application/"]
-COPY ["src/Modules/Billing/Foundry.Billing.Infrastructure/Foundry.Billing.Infrastructure.csproj", "src/Modules/Billing/Foundry.Billing.Infrastructure/"]
-COPY ["src/Modules/Billing/Foundry.Billing.Domain/Foundry.Billing.Domain.csproj", "src/Modules/Billing/Foundry.Billing.Domain/"]
-COPY ["src/Shared/Foundry.Shared.Kernel/Foundry.Shared.Kernel.csproj", "src/Shared/Foundry.Shared.Kernel/"]
-COPY ["src/Shared/Foundry.Shared.Contracts/Foundry.Shared.Contracts.csproj", "src/Shared/Foundry.Shared.Contracts/"]
+COPY ["extracted-services/Wallow.Billing.Service/Wallow.Billing.Service.csproj", "extracted-services/Wallow.Billing.Service/"]
+COPY ["src/Modules/Billing/Wallow.Billing.Api/Wallow.Billing.Api.csproj", "src/Modules/Billing/Wallow.Billing.Api/"]
+COPY ["src/Modules/Billing/Wallow.Billing.Application/Wallow.Billing.Application.csproj", "src/Modules/Billing/Wallow.Billing.Application/"]
+COPY ["src/Modules/Billing/Wallow.Billing.Infrastructure/Wallow.Billing.Infrastructure.csproj", "src/Modules/Billing/Wallow.Billing.Infrastructure/"]
+COPY ["src/Modules/Billing/Wallow.Billing.Domain/Wallow.Billing.Domain.csproj", "src/Modules/Billing/Wallow.Billing.Domain/"]
+COPY ["src/Shared/Wallow.Shared.Kernel/Wallow.Shared.Kernel.csproj", "src/Shared/Wallow.Shared.Kernel/"]
+COPY ["src/Shared/Wallow.Shared.Contracts/Wallow.Shared.Contracts.csproj", "src/Shared/Wallow.Shared.Contracts/"]
 
-RUN dotnet restore "extracted-services/Foundry.Billing.Service/Foundry.Billing.Service.csproj"
+RUN dotnet restore "extracted-services/Wallow.Billing.Service/Wallow.Billing.Service.csproj"
 
 # Copy source and build
 COPY . .
-WORKDIR "/src/extracted-services/Foundry.Billing.Service"
-RUN dotnet build "Foundry.Billing.Service.csproj" -c Release -o /app/build
+WORKDIR "/src/extracted-services/Wallow.Billing.Service"
+RUN dotnet build "Wallow.Billing.Service.csproj" -c Release -o /app/build
 
 # Publish stage
 FROM build AS publish
-RUN dotnet publish "Foundry.Billing.Service.csproj" -c Release -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "Wallow.Billing.Service.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 # Runtime stage
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS final
 WORKDIR /app
 
 # Create non-root user
-RUN addgroup -g 1000 foundry && adduser -u 1000 -G foundry -D foundry
-USER foundry
+RUN addgroup -g 1000 wallow && adduser -u 1000 -G wallow -D wallow
+USER wallow
 
 COPY --from=publish /app/publish .
 
@@ -1090,7 +1090,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 ENV ASPNETCORE_URLS=http://+:8080
 EXPOSE 8080
 
-ENTRYPOINT ["dotnet", "Foundry.Billing.Service.dll"]
+ENTRYPOINT ["dotnet", "Wallow.Billing.Service.dll"]
 ```
 
 #### Docker Compose for Billing Service (docker-compose.billing.yml)
@@ -1102,11 +1102,11 @@ services:
   billing-service:
     build:
       context: ../..
-      dockerfile: extracted-services/Foundry.Billing.Service/Dockerfile
-    container_name: foundry-billing-service
+      dockerfile: extracted-services/Wallow.Billing.Service/Dockerfile
+    container_name: wallow-billing-service
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
-      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=foundry;Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};Include Error Detail=true"
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=wallow;Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};Include Error Detail=true"
       ConnectionStrings__RabbitMq: "amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672"
       OpenTelemetry__OtlpEndpoint: "http://grafana-lgtm:4317"
     ports:
@@ -1123,11 +1123,11 @@ services:
       retries: 3
       start_period: 10s
     networks:
-      - foundry
+      - wallow
     restart: unless-stopped
 
 networks:
-  foundry:
+  wallow:
     external: true
 ```
 
@@ -1140,12 +1140,12 @@ When running both the monolith and extracted service during transition:
 version: '3.8'
 
 services:
-  # The main Foundry app (without Billing module)
+  # The main Wallow app (without Billing module)
   app:
     build:
       context: .
-      dockerfile: src/Foundry.Api/Dockerfile
-    container_name: foundry-app
+      dockerfile: src/Wallow.Api/Dockerfile
+    container_name: wallow-app
     environment:
       # Billing is now external, configure if needed for API gateway
       Billing__ServiceUrl: "http://billing-service:8080"
@@ -1158,12 +1158,12 @@ services:
   billing-service:
     build:
       context: .
-      dockerfile: extracted-services/Foundry.Billing.Service/Dockerfile
-    container_name: foundry-billing
+      dockerfile: extracted-services/Wallow.Billing.Service/Dockerfile
+    container_name: wallow-billing
     ports:
       - "8081:8080"
     environment:
-      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=foundry;Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=wallow;Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
       ConnectionStrings__RabbitMq: "amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672"
     depends_on:
       postgres:
@@ -1277,14 +1277,14 @@ public async Task Extracted_Service_Should_Have_Acceptable_Latency()
 
 ### 6.1 Shared.Contracts
 
-`Foundry.Shared.Contracts` is the only code shared between modules. After extraction, you have two options:
+`Wallow.Shared.Contracts` is the only code shared between modules. After extraction, you have two options:
 
 #### Option A: Keep as Shared Project Reference
 
 If the extracted service is in the same repository:
 
 ```xml
-<ProjectReference Include="..\..\src\Shared\Foundry.Shared.Contracts\Foundry.Shared.Contracts.csproj" />
+<ProjectReference Include="..\..\src\Shared\Wallow.Shared.Contracts\Wallow.Shared.Contracts.csproj" />
 ```
 
 **Pros:** Simple, no versioning overhead
@@ -1296,21 +1296,21 @@ For truly independent services:
 
 ```bash
 # Create NuGet package
-dotnet pack src/Shared/Foundry.Shared.Contracts -c Release -o ./packages
+dotnet pack src/Shared/Wallow.Shared.Contracts -c Release -o ./packages
 
 # Publish to private feed
-dotnet nuget push ./packages/Foundry.Shared.Contracts.1.0.0.nupkg --source https://your-nuget-feed
+dotnet nuget push ./packages/Wallow.Shared.Contracts.1.0.0.nupkg --source https://your-nuget-feed
 ```
 
 **Versioning Strategy:**
 
 ```xml
-<!-- Foundry.Shared.Contracts.csproj -->
+<!-- Wallow.Shared.Contracts.csproj -->
 <PropertyGroup>
   <Version>1.0.0</Version>
-  <PackageId>Foundry.Shared.Contracts</PackageId>
+  <PackageId>Wallow.Shared.Contracts</PackageId>
   <Authors>Your Team</Authors>
-  <Description>Shared contracts for Foundry platform services</Description>
+  <Description>Shared contracts for Wallow platform services</Description>
 </PropertyGroup>
 ```
 
@@ -1336,7 +1336,7 @@ public sealed record InvoiceCreatedEvent : IntegrationEvent
 
 ### 6.2 Shared.Kernel
 
-`Foundry.Shared.Kernel` contains common utilities:
+`Wallow.Shared.Kernel` contains common utilities:
 - Base entities and value objects
 - Multi-tenancy interfaces
 - Result pattern
@@ -1355,8 +1355,8 @@ public sealed record InvoiceCreatedEvent : IntegrationEvent
 For extracted services, consider a minimal shared package:
 
 ```csharp
-// Foundry.Shared.Kernel.Minimal - for extracted services
-namespace Foundry.Shared.Kernel;
+// Wallow.Shared.Kernel.Minimal - for extracted services
+namespace Wallow.Shared.Kernel;
 
 public interface ITenantScoped
 {
@@ -1398,8 +1398,8 @@ Each service manages its own migrations:
 ```bash
 # Generate migration for extracted Billing service
 dotnet ef migrations add InitialCreate \
-    --project extracted-services/Foundry.Billing.Service \
-    --startup-project extracted-services/Foundry.Billing.Service \
+    --project extracted-services/Wallow.Billing.Service \
+    --startup-project extracted-services/Wallow.Billing.Service \
     --context BillingDbContext
 ```
 
@@ -1431,11 +1431,11 @@ stages:
 
 ### 7.1 Event-Driven Communication (Recommended)
 
-Foundry's architecture already uses event-driven communication via RabbitMQ. This continues to work after extraction with no changes:
+Wallow's architecture already uses event-driven communication via RabbitMQ. This continues to work after extraction with no changes:
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│  Foundry API    │    │    RabbitMQ     │    │ Billing Service │
+│  Wallow API    │    │    RabbitMQ     │    │ Billing Service │
 │  (Monolith)     │    │                 │    │   (Extracted)   │
 │                 │    │                 │    │                 │
 │  Identity ──────┼───>│ identity-events │───>│ billing-inbox   │
@@ -1501,8 +1501,8 @@ Option 2: **JWT with Service Identity**
 // Request a service token
 var tokenResponse = await _tokenClient.RequestClientCredentialsTokenAsync(new ClientCredentialsTokenRequest
 {
-    Address = $"{_keycloakUrl}/realms/foundry/protocol/openid-connect/token",
-    ClientId = "foundry-api-service",
+    Address = $"{_keycloakUrl}/realms/wallow/protocol/openid-connect/token",
+    ClientId = "wallow-api-service",
     ClientSecret = _config["Keycloak:ClientSecret"],
     Scope = "billing:read billing:write"
 });
@@ -1585,7 +1585,7 @@ Run both the monolith (with Billing) and extracted Billing service simultaneousl
               │               │               │
               ▼               ▼               │
     ┌─────────────────┐  ┌──────────────┐    │
-    │  Foundry API    │  │   Billing    │    │
+    │  Wallow API    │  │   Billing    │    │
     │  (with Billing) │  │   Service    │    │
     │   10% traffic   │  │  90% traffic │    │
     └─────────────────┘  └──────────────┘    │
@@ -1698,7 +1698,7 @@ builder.Services.AddOpenTelemetry()
     .ConfigureResource(resource => resource
         .AddService(
             serviceName: builder.Environment.ApplicationName,
-            serviceNamespace: "Foundry",
+            serviceNamespace: "Wallow",
             serviceVersion: "1.0.0"))
     .WithTracing(tracing => tracing
         // Capture incoming requests
@@ -1731,13 +1731,13 @@ Wolverine automatically propagates trace context through RabbitMQ messages. The 
 
 ```
 Trace ID: abc123
-├── Foundry.Api: POST /api/identity/organizations
+├── Wallow.Api: POST /api/identity/organizations
 │   └── Span: CreateOrganization
 │       └── Span: PublishEvent (OrganizationCreatedEvent)
 │           │
 │           ▼ (via RabbitMQ)
 │
-└── Foundry.Billing.Service: HandleEvent
+└── Wallow.Billing.Service: HandleEvent
     └── Span: OrganizationCreatedEventHandler
         └── Span: CreateBillingAccount
             └── Span: BillingDbContext.SaveChanges
@@ -1764,7 +1764,7 @@ builder.Host.UseSerilog((context, services, configuration) => configuration
         options.ResourceAttributes = new Dictionary<string, object>
         {
             ["service.name"] = context.HostingEnvironment.ApplicationName,
-            ["service.namespace"] = "Foundry"
+            ["service.namespace"] = "Wallow"
         };
     }));
 ```
@@ -1773,13 +1773,13 @@ builder.Host.UseSerilog((context, services, configuration) => configuration
 
 ```promql
 # Find all logs for a specific trace
-{service_namespace="Foundry"} | json | trace_id="abc123"
+{service_namespace="Wallow"} | json | trace_id="abc123"
 
 # Find errors across all services
-{service_namespace="Foundry"} | json | level="error"
+{service_namespace="Wallow"} | json | level="error"
 
 # Logs from Billing service with latency info
-{service_name="foundry-billing"} | json | latency > 100
+{service_name="wallow-billing"} | json | latency > 100
 ```
 
 ### 9.3 Health Monitoring
@@ -1852,7 +1852,7 @@ Create a dashboard showing:
       "type": "stat",
       "targets": [
         {
-          "expr": "up{service_namespace=\"Foundry\"}",
+          "expr": "up{service_namespace=\"Wallow\"}",
           "legendFormat": "{{service_name}}"
         }
       ]
@@ -1862,7 +1862,7 @@ Create a dashboard showing:
       "type": "timeseries",
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, rate(http_server_request_duration_seconds_bucket{service_namespace=\"Foundry\"}[5m]))",
+          "expr": "histogram_quantile(0.95, rate(http_server_request_duration_seconds_bucket{service_namespace=\"Wallow\"}[5m]))",
           "legendFormat": "{{service_name}}"
         }
       ]
@@ -1925,8 +1925,8 @@ done
 #### 3. Re-Add Module to Monolith
 
 ```xml
-<!-- Foundry.Api.csproj -->
-<ProjectReference Include="..\Modules\Billing\Foundry.Billing.Api\Foundry.Billing.Api.csproj" />
+<!-- Wallow.Api.csproj -->
+<ProjectReference Include="..\Modules\Billing\Wallow.Billing.Api\Wallow.Billing.Api.csproj" />
 ```
 
 ```csharp
@@ -1944,11 +1944,11 @@ If you moved to a separate database, migrate data back:
 
 ```bash
 # Export from billing database
-pg_dump -h billing-db -U billing_service -d foundry_billing \
+pg_dump -h billing-db -U billing_service -d wallow_billing \
   --schema=billing --no-owner > billing_data.sql
 
 # Import to main database
-psql -h postgres -U foundry -d foundry < billing_data.sql
+psql -h postgres -U wallow -d wallow < billing_data.sql
 ```
 
 #### 5. Deploy Updated Monolith
@@ -1996,7 +1996,7 @@ Communications is an excellent first extraction candidate:
 builder.Services.AddSignalR()
     .AddStackExchangeRedis(options =>
     {
-        options.Configuration.ChannelPrefix = RedisChannel.Literal("Foundry");
+        options.Configuration.ChannelPrefix = RedisChannel.Literal("Wallow");
         options.ConnectionFactory = async writer =>
         {
             return await ConnectionMultiplexer.ConnectAsync(redisConnectionString, writer);
@@ -2038,7 +2038,7 @@ services.AddHangfireServer(options =>
 3. **Database migration**: If separating databases, export the billing schema:
 
 ```bash
-pg_dump -h localhost -U postgres -d foundry \
+pg_dump -h localhost -U postgres -d wallow \
   --schema=billing \
   --no-owner \
   > billing_data.sql
@@ -2131,12 +2131,12 @@ Use this checklist when extracting a module:
 
 ## Summary
 
-Module extraction is a powerful technique for scaling specific parts of your system independently. Foundry's modular monolith architecture makes this possible by enforcing:
+Module extraction is a powerful technique for scaling specific parts of your system independently. Wallow's modular monolith architecture makes this possible by enforcing:
 
 1. **Project isolation**: Each module has separate Domain, Application, Infrastructure, and Api projects
 2. **Event-driven communication**: Modules communicate only via RabbitMQ events
 3. **Database schema separation**: No cross-module database dependencies
-4. **Shared contracts only**: The only shared code is `Foundry.Shared.Contracts`
+4. **Shared contracts only**: The only shared code is `Wallow.Shared.Contracts`
 
 However, extraction comes with significant operational complexity. Before extracting:
 

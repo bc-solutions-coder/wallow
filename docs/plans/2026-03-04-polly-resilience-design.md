@@ -2,11 +2,11 @@
 
 **Date:** 2026-03-04
 **Status:** Draft
-**Epic:** Polly/Resilience integration for Foundry
+**Epic:** Polly/Resilience integration for Wallow
 
 ## Context
 
-Foundry makes outbound HTTP calls to Keycloak, Twilio, SMTP servers, and ClamAV. Some of these already use `AddStandardResilienceHandler()` from `Microsoft.Extensions.Http.Resilience` v10.0.0 (a Polly v8 wrapper). Others use manual retry loops or have no resilience at all.
+Wallow makes outbound HTTP calls to Keycloak, Twilio, SMTP servers, and ClamAV. Some of these already use `AddStandardResilienceHandler()` from `Microsoft.Extensions.Http.Resilience` v10.0.0 (a Polly v8 wrapper). Others use manual retry loops or have no resilience at all.
 
 This design standardizes resilience across all external calls using Polly v8 via the `Microsoft.Extensions.Http.Resilience` package already in the codebase.
 
@@ -46,14 +46,14 @@ Centralize resilience policy definitions in a shared extension method so all mod
 
 ### Task 1: Create shared resilience configuration
 
-**File:** `src/Shared/Foundry.Shared.Infrastructure.Core/Resilience/ResilienceExtensions.cs`
+**File:** `src/Shared/Wallow.Shared.Infrastructure.Core/Resilience/ResilienceExtensions.cs`
 
 Create an extension method that provides named resilience configurations:
 
 ```csharp
 public static class ResilienceExtensions
 {
-    public static IHttpClientBuilder AddFoundryResilienceHandler(
+    public static IHttpClientBuilder AddWallowResilienceHandler(
         this IHttpClientBuilder builder,
         string profileName = "default")
     {
@@ -115,25 +115,25 @@ public static class ResilienceExtensions
 
 ### Task 2: Customize Keycloak HTTP client resilience
 
-**File:** `src/Modules/Identity/Foundry.Identity.Infrastructure/Extensions/IdentityInfrastructureExtensions.cs`
+**File:** `src/Modules/Identity/Wallow.Identity.Infrastructure/Extensions/IdentityInfrastructureExtensions.cs`
 
-Replace `.AddStandardResilienceHandler()` with `.AddFoundryResilienceHandler("identity-provider")` on both `KeycloakAdminClient` and `KeycloakTokenClient`.
+Replace `.AddStandardResilienceHandler()` with `.AddWallowResilienceHandler("identity-provider")` on both `KeycloakAdminClient` and `KeycloakTokenClient`.
 
 ### Task 3: Customize Twilio HTTP client resilience
 
-**File:** `src/Modules/Communications/Foundry.Communications.Infrastructure/Extensions/CommunicationsModuleExtensions.cs`
+**File:** `src/Modules/Communications/Wallow.Communications.Infrastructure/Extensions/CommunicationsModuleExtensions.cs`
 
-Replace `.AddStandardResilienceHandler()` with `.AddFoundryResilienceHandler("external-api")` on the `TwilioSmsProvider` client.
+Replace `.AddStandardResilienceHandler()` with `.AddWallowResilienceHandler("external-api")` on the `TwilioSmsProvider` client.
 
 ### Task 4: Add resilience to Health Check HTTP client
 
-**File:** `src/Foundry.Api/Extensions/ServiceCollectionExtensions.cs`
+**File:** `src/Wallow.Api/Extensions/ServiceCollectionExtensions.cs`
 
-Add `.AddFoundryResilienceHandler("health-check")` to the `HealthChecks` named client registration. Remove the manual 5s timeout (Polly handles it).
+Add `.AddWallowResilienceHandler("health-check")` to the `HealthChecks` named client registration. Remove the manual 5s timeout (Polly handles it).
 
 ### Task 5: Replace SMTP manual retry with Polly ResiliencePipeline
 
-**File:** `src/Modules/Communications/Foundry.Communications.Infrastructure/Services/SmtpEmailProvider.cs`
+**File:** `src/Modules/Communications/Wallow.Communications.Infrastructure/Services/SmtpEmailProvider.cs`
 
 1. Register a named `ResiliencePipeline` in DI:
 
@@ -157,7 +157,7 @@ services.AddResiliencePipeline("smtp", builder =>
 
 ### Task 6: Investigate and add ClamAV resilience
 
-Locate the ClamAV client integration. If it uses `HttpClient`, add `.AddFoundryResilienceHandler("external-api")`. If it uses a direct socket/library, add a `ResiliencePipeline` wrapper similar to SMTP.
+Locate the ClamAV client integration. If it uses `HttpClient`, add `.AddWallowResilienceHandler("external-api")`. If it uses a direct socket/library, add a `ResiliencePipeline` wrapper similar to SMTP.
 
 ### Task 7: Add resilience logging and metrics
 
@@ -178,11 +178,11 @@ Ensure all Polly events flow through the existing OpenTelemetry pipeline:
 
 | File | Change |
 |------|--------|
-| `src/Shared/Foundry.Shared.Infrastructure.Core/Resilience/ResilienceExtensions.cs` | **New** — shared resilience profiles |
-| `src/Modules/Identity/Foundry.Identity.Infrastructure/Extensions/IdentityInfrastructureExtensions.cs` | Replace `AddStandardResilienceHandler()` with `AddFoundryResilienceHandler("identity-provider")` |
-| `src/Modules/Communications/Foundry.Communications.Infrastructure/Extensions/CommunicationsModuleExtensions.cs` | Replace on Twilio client; register SMTP pipeline |
-| `src/Modules/Communications/Foundry.Communications.Infrastructure/Services/SmtpEmailProvider.cs` | Replace manual retry loop with Polly pipeline |
-| `src/Foundry.Api/Extensions/ServiceCollectionExtensions.cs` | Add resilience to health check client |
+| `src/Shared/Wallow.Shared.Infrastructure.Core/Resilience/ResilienceExtensions.cs` | **New** — shared resilience profiles |
+| `src/Modules/Identity/Wallow.Identity.Infrastructure/Extensions/IdentityInfrastructureExtensions.cs` | Replace `AddStandardResilienceHandler()` with `AddWallowResilienceHandler("identity-provider")` |
+| `src/Modules/Communications/Wallow.Communications.Infrastructure/Extensions/CommunicationsModuleExtensions.cs` | Replace on Twilio client; register SMTP pipeline |
+| `src/Modules/Communications/Wallow.Communications.Infrastructure/Services/SmtpEmailProvider.cs` | Replace manual retry loop with Polly pipeline |
+| `src/Wallow.Api/Extensions/ServiceCollectionExtensions.cs` | Add resilience to health check client |
 | ClamAV integration file (TBD) | Add resilience |
 | Test files | Add resilience integration tests |
 

@@ -7,7 +7,7 @@ services:
   # ============================================
   app:
     image: ${APP_IMAGE}:${APP_TAG}
-    container_name: ${COMPOSE_PROJECT_NAME:-foundry}-app
+    container_name: ${COMPOSE_PROJECT_NAME:-wallow}-app
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT}
       ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
@@ -28,14 +28,14 @@ services:
       start_period: 30s
     restart: unless-stopped
     networks:
-      - foundry
+      - wallow
 
   # ============================================
   # DATABASE
   # ============================================
   postgres:
     image: postgres:18-alpine
-    container_name: ${COMPOSE_PROJECT_NAME:-foundry}-postgres
+    container_name: ${COMPOSE_PROJECT_NAME:-wallow}-postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -50,14 +50,14 @@ services:
       retries: 5
     restart: unless-stopped
     networks:
-      - foundry
+      - wallow
 
   # ============================================
   # MESSAGE BROKER
   # ============================================
   rabbitmq:
     image: rabbitmq:4.2-management-alpine
-    container_name: ${COMPOSE_PROJECT_NAME:-foundry}-rabbitmq
+    container_name: ${COMPOSE_PROJECT_NAME:-wallow}-rabbitmq
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
@@ -70,12 +70,12 @@ services:
       retries: 5
     restart: unless-stopped
     networks:
-      - foundry
+      - wallow
 
 volumes:
   postgres_data:
   rabbitmq_data:
 
 networks:
-  foundry:
+  wallow:
     driver: bridge

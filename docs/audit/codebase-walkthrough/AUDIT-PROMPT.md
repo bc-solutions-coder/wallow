@@ -1,10 +1,10 @@
-# Foundry Codebase Audit - Session Prompt
+# Wallow Codebase Audit - Session Prompt
 
 > **Copy-paste this entire file (or point Claude to it) at the start of every audit session.**
 
 ## What This Is
 
-You are helping me perform a file-by-file, line-by-line audit of the entire Foundry .NET codebase. The goal is for me (the human) to deeply understand every file, every class, every method, and every design decision. You walk me through the code and I confirm understanding or flag concerns.
+You are helping me perform a file-by-file, line-by-line audit of the entire Wallow .NET codebase. The goal is for me (the human) to deeply understand every file, every class, every method, and every design decision. You walk me through the code and I confirm understanding or flag concerns.
 
 ## Session Instructions
 

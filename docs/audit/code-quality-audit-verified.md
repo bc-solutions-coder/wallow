@@ -25,14 +25,14 @@ Every finding in the original audit was verified by:
 **Status: CONFIRMED**
 
 **Verified copies (6 total):**
-- `src/Foundry.Api/Extensions/ResultExtensions.cs` (131 lines, richer version)
-- `src/Modules/Billing/Foundry.Billing.Api/Extensions/ResultExtensions.cs` (60 lines)
-- `src/Modules/Identity/Foundry.Identity.Api/Extensions/ResultExtensions.cs`
-- `src/Modules/Storage/Foundry.Storage.Api/Extensions/ResultExtensions.cs`
-- `src/Modules/Communications/Foundry.Communications.Api/Extensions/ResultExtensions.cs`
-- `src/Modules/Configuration/Foundry.Configuration.Api/Extensions/ResultExtensions.cs`
+- `src/Wallow.Api/Extensions/ResultExtensions.cs` (131 lines, richer version)
+- `src/Modules/Billing/Wallow.Billing.Api/Extensions/ResultExtensions.cs` (60 lines)
+- `src/Modules/Identity/Wallow.Identity.Api/Extensions/ResultExtensions.cs`
+- `src/Modules/Storage/Wallow.Storage.Api/Extensions/ResultExtensions.cs`
+- `src/Modules/Communications/Wallow.Communications.Api/Extensions/ResultExtensions.cs`
+- `src/Modules/Configuration/Wallow.Configuration.Api/Extensions/ResultExtensions.cs`
 
-**Verified divergence:** The host API version (`Foundry.Api`) has:
+**Verified divergence:** The host API version (`Wallow.Api`) has:
 - `ToNoContentResult()` method (missing from module copies)
 - `ToCreatedResult` overload with `CreatedAtAction` (missing from module copies)
 - `GetTitle()` and `GetTypeUri()` helpers producing structured ProblemDetails with `Title` and `Type` fields
@@ -51,22 +51,22 @@ The audit description is accurate. The module copies are simpler and already div
 **Verified count: 10 implementations** (audit said "at least 10" -- exactly 10 confirmed):
 
 Returning `Guid` (silent `Guid.Empty` fallback):
-1. `src/Modules/Billing/Foundry.Billing.Api/Controllers/InvoicesController.cs:178`
-2. `src/Modules/Billing/Foundry.Billing.Api/Controllers/PaymentsController.cs:91`
-3. `src/Modules/Billing/Foundry.Billing.Api/Controllers/SubscriptionsController.cs:115`
-4. `src/Modules/Storage/Foundry.Storage.Api/Controllers/StorageController.cs:301`
+1. `src/Modules/Billing/Wallow.Billing.Api/Controllers/InvoicesController.cs:178`
+2. `src/Modules/Billing/Wallow.Billing.Api/Controllers/PaymentsController.cs:91`
+3. `src/Modules/Billing/Wallow.Billing.Api/Controllers/SubscriptionsController.cs:115`
+4. `src/Modules/Storage/Wallow.Storage.Api/Controllers/StorageController.cs:301`
 
 Returning `Guid?` (proper null):
-5. `src/Modules/Communications/Foundry.Communications.Api/Controllers/ConversationsController.cs:171`
-6. `src/Modules/Communications/Foundry.Communications.Api/Controllers/NotificationsController.cs:136`
-7. `src/Modules/Communications/Foundry.Communications.Api/Controllers/AnnouncementsController.cs:86`
-8. `src/Modules/Communications/Foundry.Communications.Api/Controllers/EmailPreferencesController.cs:85`
-9. `src/Modules/Identity/Foundry.Identity.Api/Controllers/ApiKeysController.cs:196`
-10. `src/Modules/Configuration/Foundry.Configuration.Api/Controllers/FeatureFlagsController.cs:223`
+5. `src/Modules/Communications/Wallow.Communications.Api/Controllers/ConversationsController.cs:171`
+6. `src/Modules/Communications/Wallow.Communications.Api/Controllers/NotificationsController.cs:136`
+7. `src/Modules/Communications/Wallow.Communications.Api/Controllers/AnnouncementsController.cs:86`
+8. `src/Modules/Communications/Wallow.Communications.Api/Controllers/EmailPreferencesController.cs:85`
+9. `src/Modules/Identity/Wallow.Identity.Api/Controllers/ApiKeysController.cs:196`
+10. `src/Modules/Configuration/Wallow.Configuration.Api/Controllers/FeatureFlagsController.cs:223`
 
 **Correction:** The audit said Storage controllers return `Guid?` -- actually StorageController returns `Guid` with `Guid.Empty` fallback, same as Billing. So **4 controllers** (all Billing + Storage) have the dangerous `Guid.Empty` pattern, not just 3.
 
-**Additional finding:** `ICurrentUserService` exists at `src/Modules/Identity/Foundry.Identity.Application/Interfaces/ICurrentUserService.cs` with implementation at `src/Modules/Identity/Foundry.Identity.Infrastructure/Services/CurrentUserService.cs`, but it is only used within the Identity module -- no other module injects it. The remediation suggestion to use `ICurrentUserService` across modules would require exposing it via a shared contract or moving it to Shared.Kernel.
+**Additional finding:** `ICurrentUserService` exists at `src/Modules/Identity/Wallow.Identity.Application/Interfaces/ICurrentUserService.cs` with implementation at `src/Modules/Identity/Wallow.Identity.Infrastructure/Services/CurrentUserService.cs`, but it is only used within the Identity module -- no other module injects it. The remediation suggestion to use `ICurrentUserService` across modules would require exposing it via a shared contract or moving it to Shared.Kernel.
 
 **Severity: HIGH - Confirmed.** The `Guid.Empty` fallback is particularly dangerous because `Invoice.Create()` validates `userId == Guid.Empty` and throws `BusinessRuleException`, but other entities (Payment, Subscription) do NOT validate, allowing records with `Guid.Empty` as the user ID.
 
@@ -76,7 +76,7 @@ Returning `Guid?` (proper null):
 
 **Status: CONFIRMED**
 
-**Verified at:** `src/Shared/Foundry.Shared.Kernel/Domain/AuditableEntity.cs:45-54`
+**Verified at:** `src/Shared/Wallow.Shared.Kernel/Domain/AuditableEntity.cs:45-54`
 
 `AuditableEntity<TId>` extends `Entity<TId>` (line 10) and does NOT implement `IAuditableEntity`. The interface exists at lines 45-54 in the same file but has zero implementations and zero references anywhere else in the codebase (only 1 file matches `IAuditableEntity`).
 
@@ -112,7 +112,7 @@ The audit's "18+" figure significantly undercounts. The most impactful are the 2
 
 **Status: CONFIRMED**
 
-**Verified at:** `src/Shared/Foundry.Shared.Kernel/MultiTenancy/ITenantScoped.cs:7` -- `TenantId TenantId { get; set; }`
+**Verified at:** `src/Shared/Wallow.Shared.Kernel/MultiTenancy/ITenantScoped.cs:7` -- `TenantId TenantId { get; set; }`
 
 All tenant-scoped entities expose `TenantId { get; set; }`. Confirmed by inspection of `Invoice`, `Payment`, `Conversation`, `StoredFile`, etc.
 
@@ -124,7 +124,7 @@ All tenant-scoped entities expose `TenantId { get; set; }`. Confirmed by inspect
 
 **Status: CONFIRMED**
 
-**Verified at:** `src/Shared/Foundry.Shared.Kernel/Foundry.Shared.Kernel.csproj:15-27`
+**Verified at:** `src/Shared/Wallow.Shared.Kernel/Wallow.Shared.Kernel.csproj:15-27`
 
 Dependencies confirmed:
 - `WolverineFx`
@@ -146,8 +146,8 @@ Dependencies confirmed:
 **Status: CONFIRMED**
 
 **Verified:**
-- `StoredFile` at `src/Modules/Storage/Foundry.Storage.Domain/Entities/StoredFile.cs:12`: extends `Entity<StoredFileId>`
-- `StorageBucket` at `src/Modules/Storage/Foundry.Storage.Domain/Entities/StorageBucket.cs:15`: extends `Entity<StorageBucketId>`
+- `StoredFile` at `src/Modules/Storage/Wallow.Storage.Domain/Entities/StoredFile.cs:12`: extends `Entity<StoredFileId>`
+- `StorageBucket` at `src/Modules/Storage/Wallow.Storage.Domain/Entities/StorageBucket.cs:15`: extends `Entity<StorageBucketId>`
 
 Neither extends `AggregateRoot<T>`, so neither can raise domain events. Neither extends `AuditableEntity<T>`, so no audit trail. Both are managed directly by repositories as top-level entities.
 
@@ -161,7 +161,7 @@ Neither extends `AggregateRoot<T>`, so neither can raise domain events. Neither 
 
 The audit states domain exceptions "bypass this entirely" and "produce generic 500 errors." This is **partially inaccurate**.
 
-**Verified:** `GlobalExceptionHandler` at `src/Foundry.Api/Middleware/GlobalExceptionHandler.cs:44-76` **does** handle domain exceptions:
+**Verified:** `GlobalExceptionHandler` at `src/Wallow.Api/Middleware/GlobalExceptionHandler.cs:44-76` **does** handle domain exceptions:
 - `EntityNotFoundException` -> 404
 - `BusinessRuleException` -> 422
 - `ValidationException` -> 400
@@ -183,7 +183,7 @@ So `BusinessRuleException` and `InvalidInvoiceException` (which extends `DomainE
 
 **Status: CONFIRMED**
 
-**Verified at:** `src/Modules/Storage/Foundry.Storage.Domain/Entities/StorageBucket.cs:1,22,47-49,67,131-133`
+**Verified at:** `src/Modules/Storage/Wallow.Storage.Domain/Entities/StorageBucket.cs:1,22,47-49,67,131-133`
 
 The domain entity imports `System.Text.Json` (line 1) and uses `JsonSerializer.Serialize` in `Create()` (line 49) and `UpdateAllowedContentTypes()` (line 133), plus `JsonSerializer.Deserialize` in `IsContentTypeAllowed()` (line 67).
 
@@ -196,8 +196,8 @@ The domain entity imports `System.Text.Json` (line 1) and uses `JsonSerializer.S
 **Status: CONFIRMED**
 
 **Verified:**
-- `GetAllInvoicesQuery` at `src/Modules/Billing/Foundry.Billing.Application/Queries/GetAllInvoices/GetAllInvoicesQuery.cs` -- empty record, no pagination parameters
-- `PagedResult<T>` exists at `src/Shared/Foundry.Shared.Kernel/Pagination/PagedResult.cs` but is only used by the Communications module's `GetUserNotifications`
+- `GetAllInvoicesQuery` at `src/Modules/Billing/Wallow.Billing.Application/Queries/GetAllInvoices/GetAllInvoicesQuery.cs` -- empty record, no pagination parameters
+- `PagedResult<T>` exists at `src/Shared/Wallow.Shared.Kernel/Pagination/PagedResult.cs` but is only used by the Communications module's `GetUserNotifications`
 
 **Severity: MEDIUM - Confirmed.**
 
@@ -208,7 +208,7 @@ The domain entity imports `System.Text.Json` (line 1) and uses `JsonSerializer.S
 **Status: CONFIRMED**
 
 **Verified at:**
-- `src/Modules/Configuration/Foundry.Configuration.Domain/Entities/FeatureFlag.cs:12` extends `Entity<FeatureFlagId>` (not `AuditableEntity`)
+- `src/Modules/Configuration/Wallow.Configuration.Domain/Entities/FeatureFlag.cs:12` extends `Entity<FeatureFlagId>` (not `AuditableEntity`)
 - Has manual `CreatedAt` (line 32) and `UpdatedAt` (line 33) properties
 - Sets `CreatedAt = DateTime.UtcNow` in all factory methods (lines 50, 70, 95)
 - Sets `UpdatedAt = DateTime.UtcNow` in mutation methods (lines 107, 124, 146)
@@ -224,7 +224,7 @@ The domain entity imports `System.Text.Json` (line 1) and uses `JsonSerializer.S
 
 **Status: CONFIRMED**
 
-**Verified at:** `src/Modules/Billing/Foundry.Billing.Domain/Entities/Payment.cs:65-70`
+**Verified at:** `src/Modules/Billing/Wallow.Billing.Domain/Entities/Payment.cs:65-70`
 
 `Payment.Create()` sets `Status = PaymentStatus.Pending` (via constructor, line 45) and then raises `PaymentReceivedDomainEvent`. The `Complete()` method (line 75) changes status to `Completed` but raises no domain event.
 
@@ -244,7 +244,7 @@ This is a positive observation, not a bug. All module API layers correctly refer
 
 **Status: CONFIRMED**
 
-**Verified at:** `src/Modules/Communications/Foundry.Communications.Domain/Messaging/Entities/Conversation.cs:91-106`
+**Verified at:** `src/Modules/Communications/Wallow.Communications.Domain/Messaging/Entities/Conversation.cs:91-106`
 
 `AddParticipant()` creates a new `Participant` and adds it directly to `_participants` with no duplicate check. Note: `CreateGroup()` (line 49-64) also lacks duplicate checks -- if `memberIds` contains duplicates, the same user gets added twice.
 
@@ -276,9 +276,9 @@ The `GlobalExceptionHandler` handles `DomainException` subclasses properly (404/
 **Status: CONFIRMED**
 
 **Verified 3 copies:**
-- `src/Modules/Identity/Foundry.Identity.Api/Mappings/EnumMappings.cs`
-- `src/Modules/Communications/Foundry.Communications.Api/Mappings/EnumMappings.cs`
-- `src/Modules/Configuration/Foundry.Configuration.Api/Mappings/EnumMappings.cs`
+- `src/Modules/Identity/Wallow.Identity.Api/Mappings/EnumMappings.cs`
+- `src/Modules/Communications/Wallow.Communications.Api/Mappings/EnumMappings.cs`
+- `src/Modules/Configuration/Wallow.Configuration.Api/Mappings/EnumMappings.cs`
 
 **Severity: LOW - Confirmed.** Each maps different module-specific enums, so the pattern is duplicated but the content differs.
 
@@ -288,7 +288,7 @@ The `GlobalExceptionHandler` handles `DomainException` subclasses properly (404/
 
 **Status: CONFIRMED**
 
-**Verified at:** `src/Modules/Storage/Foundry.Storage.Domain/Entities/StoredFile.cs:40-54`
+**Verified at:** `src/Modules/Storage/Wallow.Storage.Domain/Entities/StoredFile.cs:40-54`
 
 Uses object initializer with an empty private constructor. All properties are set via init/set, not enforced by the compiler.
 
@@ -308,7 +308,7 @@ Already covered above as a severity adjustment to L4, but worth calling out sepa
 
 ### NEW-M2. `CreateGroup()` Also Allows Duplicate Participants
 
-**File:** `src/Modules/Communications/Foundry.Communications.Domain/Messaging/Entities/Conversation.cs:49-64`
+**File:** `src/Modules/Communications/Wallow.Communications.Domain/Messaging/Entities/Conversation.cs:49-64`
 
 The audit only flagged `AddParticipant()` (L3), but `CreateGroup()` iterates `memberIds` without deduplication. If the same `memberId` appears twice, two `Participant` objects are created. Additionally, if `creatorId` is in `memberIds`, the creator is added twice.
 
@@ -318,7 +318,7 @@ The audit only flagged `AddParticipant()` (L3), but `CreateGroup()` iterates `me
 
 ### NEW-M3. `ICurrentUserService` Is Module-Internal, Not Shared
 
-**File:** `src/Modules/Identity/Foundry.Identity.Application/Interfaces/ICurrentUserService.cs`
+**File:** `src/Modules/Identity/Wallow.Identity.Application/Interfaces/ICurrentUserService.cs`
 
 The audit's H2 remediation suggests injecting `ICurrentUserService` into all controllers. However, this interface lives in the Identity module's Application layer, and other modules cannot reference it without violating module isolation. To use it cross-module, it would need to be moved to `Shared.Kernel` or a new shared project.
 
@@ -328,7 +328,7 @@ The audit's H2 remediation suggests injecting `ICurrentUserService` into all con
 
 ### NEW-L1. `StorageBucket` Is Not Tenant-Scoped While `StoredFile` Is
 
-**File:** `src/Modules/Storage/Foundry.Storage.Domain/Entities/StorageBucket.cs:15`
+**File:** `src/Modules/Storage/Wallow.Storage.Domain/Entities/StorageBucket.cs:15`
 
 `StorageBucket` implements `ITenantScoped` in its declaration but this appears to be a shared resource design decision. The Storage module's own CLAUDE.md explicitly notes: "CRITICAL: StorageBucket is NOT tenant-scoped (all tenants share buckets)." However, the entity class declaration does show `ITenantScoped`. This inconsistency between documentation and code should be clarified.
 

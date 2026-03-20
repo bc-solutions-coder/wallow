@@ -3,7 +3,7 @@ apiVersion: 1
 groups:
   - orgId: 1
     name: SLO Violations
-    folder: Foundry Alerts
+    folder: Wallow Alerts
     interval: 1m
     rules:
       - uid: slo-api-p99-latency
@@ -12,7 +12,7 @@ groups:
         for: 5m
         labels:
           severity: warning
-          service: foundry-api
+          service: wallow-api
           slo: latency
         annotations:
           summary: API P99 latency is above 2s SLO threshold
@@ -52,7 +52,7 @@ groups:
         for: 5m
         labels:
           severity: critical
-          service: foundry-api
+          service: wallow-api
           slo: availability
         annotations:
           summary: API error rate is above 1% SLO threshold
@@ -92,7 +92,7 @@ groups:
         for: 5m
         labels:
           severity: warning
-          service: foundry-api
+          service: wallow-api
           slo: transaction-latency
         annotations:
           summary: Transaction P95 latency is above 2s SLO threshold
@@ -132,7 +132,7 @@ groups:
         for: 5m
         labels:
           severity: critical
-          service: foundry-identity
+          service: wallow-identity
           slo: sso-availability
         annotations:
           summary: SSO login failure rate is spiking
@@ -172,7 +172,7 @@ groups:
         for: 5m
         labels:
           severity: critical
-          service: foundry-messaging
+          service: wallow-messaging
           slo: messaging-reliability
         annotations:
           summary: Wolverine message processing error rate is above 5% SLO threshold
@@ -184,7 +184,7 @@ groups:
               from: 300
               to: 0
             model:
-              expr: sum(rate(foundry_messaging_messages_total{status="error"}[5m])) / sum(rate(foundry_messaging_messages_total[5m]))
+              expr: sum(rate(wallow_messaging_messages_total{status="error"}[5m])) / sum(rate(wallow_messaging_messages_total[5m]))
               intervalMs: 15000
               maxDataPoints: 43200
           - refId: threshold

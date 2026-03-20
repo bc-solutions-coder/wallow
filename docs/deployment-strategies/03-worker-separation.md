@@ -1,13 +1,13 @@
 # Worker Separation: Scaling API and Background Processing Independently
 
-This guide covers separating Foundry's API instances from background workers so they can scale independently based on their distinct workload characteristics.
+This guide covers separating Wallow's API instances from background workers so they can scale independently based on their distinct workload characteristics.
 
 ---
 
 ## Table of Contents
 
 1. [Overview](#1-overview)
-2. [Understanding Foundry's Background Processing](#2-understanding-foundrys-background-processing)
+2. [Understanding Wallow's Background Processing](#2-understanding-wallows-background-processing)
 3. [Architecture Diagram](#3-architecture-diagram)
 4. [Implementation](#4-implementation)
 5. [Docker Compose Configuration](#5-docker-compose-configuration)
@@ -65,13 +65,13 @@ Separating concerns allows:
 
 ---
 
-## 2. Understanding Foundry's Background Processing
+## 2. Understanding Wallow's Background Processing
 
-Foundry uses three distinct background processing systems, each with different characteristics.
+Wallow uses three distinct background processing systems, each with different characteristics.
 
 ### 2.1 Wolverine Message Handlers
 
-Wolverine is Foundry's unified mediator and message bus. It handles both in-process commands/queries and asynchronous messages from RabbitMQ.
+Wolverine is Wallow's unified mediator and message bus. It handles both in-process commands/queries and asynchronous messages from RabbitMQ.
 
 **How Wolverine consumes RabbitMQ messages:**
 
@@ -188,7 +188,7 @@ BackgroundJob.Enqueue<GenerateReportJob>(
     job => job.Execute(reportId));
 ```
 
-**Hangfire storage**: Foundry uses PostgreSQL for Hangfire job persistence:
+**Hangfire storage**: Wallow uses PostgreSQL for Hangfire job persistence:
 
 ```csharp
 config.UsePostgreSqlStorage(opts =>
@@ -201,7 +201,7 @@ config.UsePostgreSqlStorage(opts =>
 
 ### 2.3 Additional Background Processing
 
-Foundry's current modules (Identity, Billing, Communications, Storage, Configuration) use EF Core for persistence rather than event sourcing. If you add event-sourced modules using Marten in the future, note that Marten's Async Daemon for projections is an additional background process that should run in worker mode. Marten supports leader election via PostgreSQL advisory locks (`DaemonMode.HotCold`) to ensure only one worker processes async projections.
+Wallow's current modules (Identity, Billing, Communications, Storage, Configuration) use EF Core for persistence rather than event sourcing. If you add event-sourced modules using Marten in the future, note that Marten's Async Daemon for projections is an additional background process that should run in worker mode. Marten supports leader election via PostgreSQL advisory locks (`DaemonMode.HotCold`) to ensure only one worker processes async projections.
 
 ---
 
@@ -281,17 +281,17 @@ Foundry's current modules (Identity, Billing, Communications, Storage, Configura
 
 Modify `Program.cs` to support different operational modes via environment variable or command-line argument.
 
-**Add the FoundryMode enum and helper:**
+**Add the WallowMode enum and helper:**
 
-Create a new file `src/Foundry.Api/Configuration/FoundryMode.cs`:
+Create a new file `src/Wallow.Api/Configuration/WallowMode.cs`:
 
 ```csharp
-namespace Foundry.Api.Configuration;
+namespace Wallow.Api.Configuration;
 
 /// <summary>
 /// Determines which components are enabled at startup.
 /// </summary>
-public enum FoundryMode
+public enum WallowMode
 {
     /// <summary>
     /// Full mode - runs both HTTP endpoints and background workers.
@@ -314,45 +314,45 @@ public enum FoundryMode
     Worker
 }
 
-public static class FoundryModeExtensions
+public static class WallowModeExtensions
 {
-    public static FoundryMode GetFoundryMode(this IConfiguration configuration)
+    public static WallowMode GetWallowMode(this IConfiguration configuration)
     {
         // Check command-line argument first (--mode api)
         var modeArg = configuration["mode"];
 
-        // Then check environment variable (FOUNDRY_MODE=api)
+        // Then check environment variable (WALLOW_MODE=api)
         if (string.IsNullOrEmpty(modeArg))
         {
-            modeArg = configuration["FOUNDRY_MODE"];
+            modeArg = configuration["WALLOW_MODE"];
         }
 
         // Default to Full for development
         if (string.IsNullOrEmpty(modeArg))
         {
-            return FoundryMode.Full;
+            return WallowMode.Full;
         }
 
         return modeArg.ToLowerInvariant() switch
         {
-            "api" => FoundryMode.Api,
-            "worker" => FoundryMode.Worker,
-            "full" => FoundryMode.Full,
-            _ => throw new ArgumentException($"Invalid FOUNDRY_MODE: {modeArg}. Valid values: api, worker, full")
+            "api" => WallowMode.Api,
+            "worker" => WallowMode.Worker,
+            "full" => WallowMode.Full,
+            _ => throw new ArgumentException($"Invalid WALLOW_MODE: {modeArg}. Valid values: api, worker, full")
         };
     }
 
-    public static bool ShouldRunHttp(this FoundryMode mode) => mode != FoundryMode.Worker;
-    public static bool ShouldRunConsumers(this FoundryMode mode) => mode != FoundryMode.Api;
-    public static bool ShouldRunHangfireServer(this FoundryMode mode) => mode != FoundryMode.Api;
-    public static bool ShouldRunMartenDaemon(this FoundryMode mode) => mode != FoundryMode.Api;
+    public static bool ShouldRunHttp(this WallowMode mode) => mode != WallowMode.Worker;
+    public static bool ShouldRunConsumers(this WallowMode mode) => mode != WallowMode.Api;
+    public static bool ShouldRunHangfireServer(this WallowMode mode) => mode != WallowMode.Api;
+    public static bool ShouldRunMartenDaemon(this WallowMode mode) => mode != WallowMode.Api;
 }
 ```
 
 **Update Program.cs to use the mode:**
 
 ```csharp
-using Foundry.Api.Configuration;
+using Wallow.Api.Configuration;
 
 // ... existing using statements ...
 
@@ -361,11 +361,11 @@ try
     var builder = WebApplication.CreateBuilder(args);
 
     // Determine operational mode
-    var foundryMode = builder.Configuration.GetFoundryMode();
-    Log.Information("Starting Foundry in {Mode} mode", foundryMode);
+    var wallowMode = builder.Configuration.GetWallowMode();
+    Log.Information("Starting Wallow in {Mode} mode", wallowMode);
 
     // Store mode for later use
-    builder.Services.AddSingleton(foundryMode);
+    builder.Services.AddSingleton(wallowMode);
 
     // Serilog configuration (unchanged)
     builder.Host.UseSerilog((context, services, configuration) => /* ... */);
@@ -392,7 +392,7 @@ try
         opts.UseFluentValidation();
 
         // Handler discovery (always enabled - handlers are needed for local invocation)
-        opts.Discovery.IncludeAssembly(typeof(Foundry.Storage.Application.Commands.UploadFile.UploadFileCommand).Assembly);
+        opts.Discovery.IncludeAssembly(typeof(Wallow.Storage.Application.Commands.UploadFile.UploadFileCommand).Assembly);
         // ... other assembly inclusions ...
 
         // RabbitMQ transport configuration
@@ -408,12 +408,12 @@ try
             }
 
             // Publishing - always enabled (API needs to publish, workers might too)
-            opts.PublishMessage<Foundry.Shared.Contracts.Identity.Events.UserRegisteredEvent>()
+            opts.PublishMessage<Wallow.Shared.Contracts.Identity.Events.UserRegisteredEvent>()
                 .ToRabbitExchange("identity-events");
             // ... other publish configurations ...
 
             // Consumer queues - only enabled in Worker or Full mode
-            if (foundryMode.ShouldRunConsumers())
+            if (wallowMode.ShouldRunConsumers())
             {
                 opts.ListenToRabbitQueue("communications-inbox");
                 opts.ListenToRabbitQueue("billing-inbox");
@@ -445,10 +445,10 @@ try
     builder.Services.AddObservability(builder.Configuration, builder.Environment);
 
     // Hangfire - conditional server registration
-    builder.Services.AddHangfireServices(builder.Configuration, builder.Environment, foundryMode);
+    builder.Services.AddHangfireServices(builder.Configuration, builder.Environment, wallowMode);
 
     // Controllers - only in API or Full mode
-    if (foundryMode.ShouldRunHttp())
+    if (wallowMode.ShouldRunHttp())
     {
         builder.Services.AddControllers();
     }
@@ -464,7 +464,7 @@ try
     // ... other module initializations ...
 
     // Middleware pipeline - conditional based on mode
-    if (foundryMode.ShouldRunHttp())
+    if (wallowMode.ShouldRunHttp())
     {
         // Full HTTP middleware pipeline
         app.UseExceptionHandler("/error");
@@ -492,7 +492,7 @@ try
     app.MapHealthChecks("/health/ready", new HealthCheckOptions { /* ... */ });
     app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
 
-    if (foundryMode.ShouldRunHttp())
+    if (wallowMode.ShouldRunHttp())
     {
         // API endpoints and middleware
         app.MapGet("/", () => Results.Ok(new { /* ... */ })).ExcludeFromDescription();
@@ -511,7 +511,7 @@ try
     }
 
     // Recurring jobs - only in Worker or Full mode
-    if (foundryMode.ShouldRunHangfireServer())
+    if (wallowMode.ShouldRunHangfireServer())
     {
         app.RegisterRecurringJobs();
 
@@ -560,8 +560,8 @@ builder.Host.UseWolverine(opts =>
 
     // Handler discovery - include all assemblies
     // Local invocation (IMessageBus.InvokeAsync) needs handlers
-    opts.Discovery.IncludeAssembly(typeof(Foundry.Billing.Application.Commands.CreateInvoice.CreateInvoiceCommand).Assembly);
-    opts.Discovery.IncludeAssembly(typeof(Foundry.Communications.Application.Commands.SendNotification.SendNotificationCommand).Assembly);
+    opts.Discovery.IncludeAssembly(typeof(Wallow.Billing.Application.Commands.CreateInvoice.CreateInvoiceCommand).Assembly);
+    opts.Discovery.IncludeAssembly(typeof(Wallow.Communications.Application.Commands.SendNotification.SendNotificationCommand).Assembly);
     // ... include all module assemblies ...
 
     // === RABBITMQ TRANSPORT ===
@@ -584,7 +584,7 @@ builder.Host.UseWolverine(opts =>
         // === CONSUMING (CONDITIONAL) ===
         // Only workers should consume from queues
 
-        if (foundryMode.ShouldRunConsumers())
+        if (wallowMode.ShouldRunConsumers())
         {
             Log.Information("Enabling Wolverine RabbitMQ consumers");
 
@@ -632,7 +632,7 @@ For worker mode, we want to disable HTTP endpoints while keeping health checks f
 Keep Kestrel but only expose health endpoints:
 
 ```csharp
-if (foundryMode.ShouldRunHttp())
+if (wallowMode.ShouldRunHttp())
 {
     // Full API middleware and endpoints
     builder.Services.AddControllers();
@@ -668,7 +668,7 @@ app.MapHealthChecks("/health/live", new HealthCheckOptions
     Predicate = _ => false
 });
 
-if (foundryMode.ShouldRunHttp())
+if (wallowMode.ShouldRunHttp())
 {
     // Map all API routes, controllers, SignalR, etc.
     app.MapControllers();
@@ -714,7 +714,7 @@ Even in worker mode, expose a health endpoint for Kubernetes probes:
 
 ```csharp
 // In worker-only mode, add a minimal health endpoint
-if (!foundryMode.ShouldRunHttp())
+if (!wallowMode.ShouldRunHttp())
 {
     app.MapGet("/health", () => Results.Ok(new
     {
@@ -730,13 +730,13 @@ if (!foundryMode.ShouldRunHttp())
 Update `HangfireExtensions.cs` to support mode-based configuration:
 
 ```csharp
-using Foundry.Api.Configuration;
+using Wallow.Api.Configuration;
 using Hangfire;
 using Hangfire.InMemory;
 using Hangfire.PostgreSql;
 using Microsoft.Extensions.Hosting;
 
-namespace Foundry.Api.Extensions;
+namespace Wallow.Api.Extensions;
 
 public static class HangfireExtensions
 {
@@ -744,7 +744,7 @@ public static class HangfireExtensions
         this IServiceCollection services,
         IConfiguration configuration,
         IHostEnvironment environment,
-        FoundryMode mode)
+        WallowMode mode)
     {
         // Hangfire core configuration (always needed for job scheduling)
         services.AddHangfire(config =>
@@ -781,7 +781,7 @@ public static class HangfireExtensions
             {
                 options.WorkerCount = Environment.ProcessorCount * 2;
                 options.Queues = new[] { "default", "critical", "low" };
-                options.ServerName = $"foundry-worker-{Environment.MachineName}";
+                options.ServerName = $"wallow-worker-{Environment.MachineName}";
 
                 // Graceful shutdown timeout
                 options.ShutdownTimeout = TimeSpan.FromSeconds(30);
@@ -793,7 +793,7 @@ public static class HangfireExtensions
 
     public static WebApplication UseHangfireDashboard(
         this WebApplication app,
-        FoundryMode mode)
+        WallowMode mode)
     {
         // Dashboard only available in API or Full mode
         // Workers don't need the dashboard
@@ -802,7 +802,7 @@ public static class HangfireExtensions
             app.UseHangfireDashboard("/hangfire", new DashboardOptions
             {
                 Authorization = [new HangfireDashboardAuthFilter(app.Environment)],
-                DashboardTitle = "Foundry Jobs",
+                DashboardTitle = "Wallow Jobs",
                 DisplayStorageConnectionString = false,
                 IsReadOnlyFunc = _ => false // Allow job operations from dashboard
             });
@@ -811,7 +811,7 @@ public static class HangfireExtensions
         return app;
     }
 
-    public static void RegisterRecurringJobs(this WebApplication app, FoundryMode mode)
+    public static void RegisterRecurringJobs(this WebApplication app, WallowMode mode)
     {
         // Skip if not running Hangfire server
         if (!mode.ShouldRunHangfireServer())
@@ -865,7 +865,7 @@ public static class CommunicationsModuleExtensions
     public static IServiceCollection AddCommunicationsModule(
         this IServiceCollection services,
         IConfiguration config,
-        FoundryMode mode)
+        WallowMode mode)
     {
         var connectionString = config.GetConnectionString("DefaultConnection")!;
 
@@ -911,7 +911,7 @@ services:
     image: ${APP_IMAGE}:${APP_TAG}
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
-      FOUNDRY_MODE: api
+      WALLOW_MODE: api
 
       # Database
       ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
@@ -923,12 +923,12 @@ services:
       ConnectionStrings__Redis: valkey:6379
 
       # Keycloak
-      Keycloak__Authority: ${KEYCLOAK_URL}/realms/foundry
+      Keycloak__Authority: ${KEYCLOAK_URL}/realms/wallow
       Keycloak__AdminUrl: ${KEYCLOAK_URL}
 
       # OpenTelemetry
       OpenTelemetry__OtlpEndpoint: http://grafana-lgtm:4318
-      OpenTelemetry__ServiceName: foundry-api
+      OpenTelemetry__ServiceName: wallow-api
     ports:
       - "8080:8080"
     depends_on:
@@ -960,7 +960,7 @@ services:
         order: start-first
     restart: unless-stopped
     networks:
-      - foundry
+      - wallow
     logging:
       driver: json-file
       options:
@@ -974,7 +974,7 @@ services:
     image: ${APP_IMAGE}:${APP_TAG}
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
-      FOUNDRY_MODE: worker
+      WALLOW_MODE: worker
       ASPNETCORE_URLS: http://+:8081
 
       # Database
@@ -987,7 +987,7 @@ services:
       ConnectionStrings__Redis: valkey:6379
 
       # Keycloak (for token validation in jobs if needed)
-      Keycloak__Authority: ${KEYCLOAK_URL}/realms/foundry
+      Keycloak__Authority: ${KEYCLOAK_URL}/realms/wallow
 
       # Hangfire worker configuration
       Hangfire__WorkerCount: "8"
@@ -997,7 +997,7 @@ services:
 
       # OpenTelemetry
       OpenTelemetry__OtlpEndpoint: http://grafana-lgtm:4318
-      OpenTelemetry__ServiceName: foundry-worker
+      OpenTelemetry__ServiceName: wallow-worker
     depends_on:
       postgres:
         condition: service_healthy
@@ -1027,7 +1027,7 @@ services:
         order: stop-first
     restart: unless-stopped
     networks:
-      - foundry
+      - wallow
     logging:
       driver: json-file
       options:
@@ -1039,7 +1039,7 @@ services:
   # ============================================
   postgres:
     image: postgres:18-alpine
-    container_name: ${COMPOSE_PROJECT_NAME:-foundry}-postgres
+    container_name: ${COMPOSE_PROJECT_NAME:-wallow}-postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -1059,14 +1059,14 @@ services:
           memory: 2G
     restart: unless-stopped
     networks:
-      - foundry
+      - wallow
 
   # ============================================
   # MESSAGE BROKER
   # ============================================
   rabbitmq:
     image: rabbitmq:4.2-management-alpine
-    container_name: ${COMPOSE_PROJECT_NAME:-foundry}-rabbitmq
+    container_name: ${COMPOSE_PROJECT_NAME:-wallow}-rabbitmq
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
@@ -1084,14 +1084,14 @@ services:
           memory: 512M
     restart: unless-stopped
     networks:
-      - foundry
+      - wallow
 
   # ============================================
   # CACHE & BACKPLANE
   # ============================================
   valkey:
     image: valkey/valkey:8-alpine
-    container_name: ${COMPOSE_PROJECT_NAME:-foundry}-valkey
+    container_name: ${COMPOSE_PROJECT_NAME:-wallow}-valkey
     command: valkey-server --appendonly yes
     volumes:
       - valkey_data:/data
@@ -1106,14 +1106,14 @@ services:
           memory: 256M
     restart: unless-stopped
     networks:
-      - foundry
+      - wallow
 
   # ============================================
   # IDENTITY PROVIDER
   # ============================================
   keycloak:
     image: quay.io/keycloak/keycloak:26.0
-    container_name: ${COMPOSE_PROJECT_NAME:-foundry}-keycloak
+    container_name: ${COMPOSE_PROJECT_NAME:-wallow}-keycloak
     command: start --import-realm --optimized
     environment:
       KC_DB: postgres
@@ -1139,21 +1139,21 @@ services:
       start_period: 30s
     restart: unless-stopped
     networks:
-      - foundry
+      - wallow
 
   # ============================================
   # OBSERVABILITY
   # ============================================
   grafana-lgtm:
     image: grafana/otel-lgtm:latest
-    container_name: ${COMPOSE_PROJECT_NAME:-foundry}-grafana-lgtm
+    container_name: ${COMPOSE_PROJECT_NAME:-wallow}-grafana-lgtm
     ports:
       - "3000:3000"
       - "4318:4318"
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
     volumes:
-      - ./grafana/provisioning/dashboards/dashboards.yml:/otel-lgtm/grafana/conf/provisioning/dashboards/foundry-dashboards.yaml:ro
+      - ./grafana/provisioning/dashboards/dashboards.yml:/otel-lgtm/grafana/conf/provisioning/dashboards/wallow-dashboards.yaml:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
@@ -1162,7 +1162,7 @@ services:
       retries: 5
     restart: unless-stopped
     networks:
-      - foundry
+      - wallow
 
 volumes:
   postgres_data:
@@ -1170,7 +1170,7 @@ volumes:
   valkey_data:
 
 networks:
-  foundry:
+  wallow:
     driver: bridge
 ```
 
@@ -1180,22 +1180,22 @@ Create `.env.separated`:
 
 ```ini
 # Project identification
-COMPOSE_PROJECT_NAME=foundry-prod
+COMPOSE_PROJECT_NAME=wallow-prod
 
 # Environment
 ASPNETCORE_ENVIRONMENT=Production
 
 # Docker image
-APP_IMAGE=ghcr.io/your-org/foundry
+APP_IMAGE=ghcr.io/your-org/wallow
 APP_TAG=latest
 
 # Database
-POSTGRES_USER=foundry
+POSTGRES_USER=wallow
 POSTGRES_PASSWORD=<strong-password>
-POSTGRES_DB=foundry
+POSTGRES_DB=wallow
 
 # RabbitMQ
-RABBITMQ_USER=foundry
+RABBITMQ_USER=wallow
 RABBITMQ_PASSWORD=<strong-password>
 
 # Keycloak
@@ -1256,34 +1256,34 @@ resources:
 **ConfigMap for shared configuration:**
 
 ```yaml
-# foundry-config.yaml
+# wallow-config.yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: foundry-config
-  namespace: foundry
+  name: wallow-config
+  namespace: wallow
 data:
   ASPNETCORE_ENVIRONMENT: "Production"
-  ConnectionStrings__Redis: "valkey-master.foundry.svc.cluster.local:6379"
-  Keycloak__Authority: "https://auth.yourdomain.com/realms/foundry"
+  ConnectionStrings__Redis: "valkey-master.wallow.svc.cluster.local:6379"
+  Keycloak__Authority: "https://auth.yourdomain.com/realms/wallow"
   OpenTelemetry__OtlpEndpoint: "http://grafana-lgtm.observability.svc.cluster.local:4318"
 ```
 
 **Secret for sensitive data:**
 
 ```yaml
-# foundry-secrets.yaml
+# wallow-secrets.yaml
 apiVersion: v1
 kind: Secret
 metadata:
-  name: foundry-secrets
-  namespace: foundry
+  name: wallow-secrets
+  namespace: wallow
 type: Opaque
 stringData:
   POSTGRES_PASSWORD: "<strong-password>"
   RABBITMQ_PASSWORD: "<strong-password>"
-  ConnectionStrings__DefaultConnection: "Host=postgresql.foundry.svc.cluster.local;Port=5432;Database=foundry;Username=foundry;Password=<password>"
-  ConnectionStrings__RabbitMq: "amqp://foundry:<password>@rabbitmq.foundry.svc.cluster.local:5672/"
+  ConnectionStrings__DefaultConnection: "Host=postgresql.wallow.svc.cluster.local;Port=5432;Database=wallow;Username=wallow;Password=<password>"
+  ConnectionStrings__RabbitMq: "amqp://wallow:<password>@rabbitmq.wallow.svc.cluster.local:5672/"
 ```
 
 **API Deployment:**
@@ -1293,16 +1293,16 @@ stringData:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: foundry-api
-  namespace: foundry
+  name: wallow-api
+  namespace: wallow
   labels:
-    app: foundry
+    app: wallow
     component: api
 spec:
   replicas: 4
   selector:
     matchLabels:
-      app: foundry
+      app: wallow
       component: api
   strategy:
     type: RollingUpdate
@@ -1312,7 +1312,7 @@ spec:
   template:
     metadata:
       labels:
-        app: foundry
+        app: wallow
         component: api
       annotations:
         prometheus.io/scrape: "true"
@@ -1321,20 +1321,20 @@ spec:
     spec:
       containers:
         - name: api
-          image: ghcr.io/your-org/foundry:latest
+          image: ghcr.io/your-org/wallow:latest
           ports:
             - containerPort: 8080
               name: http
           env:
-            - name: FOUNDRY_MODE
+            - name: WALLOW_MODE
               value: "api"
             - name: OpenTelemetry__ServiceName
-              value: "foundry-api"
+              value: "wallow-api"
           envFrom:
             - configMapRef:
-                name: foundry-config
+                name: wallow-config
             - secretRef:
-                name: foundry-secrets
+                name: wallow-secrets
           resources:
             requests:
               memory: "256Mi"
@@ -1371,11 +1371,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: foundry-api
-  namespace: foundry
+  name: wallow-api
+  namespace: wallow
 spec:
   selector:
-    app: foundry
+    app: wallow
     component: api
   ports:
     - port: 80
@@ -1386,8 +1386,8 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: foundry-api
-  namespace: foundry
+  name: wallow-api
+  namespace: wallow
   annotations:
     kubernetes.io/ingress.class: nginx
     cert-manager.io/cluster-issuer: letsencrypt-prod
@@ -1395,7 +1395,7 @@ spec:
   tls:
     - hosts:
         - api.yourdomain.com
-      secretName: foundry-api-tls
+      secretName: wallow-api-tls
   rules:
     - host: api.yourdomain.com
       http:
@@ -1404,7 +1404,7 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: foundry-api
+                name: wallow-api
                 port:
                   number: 80
 ```
@@ -1416,16 +1416,16 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: foundry-worker
-  namespace: foundry
+  name: wallow-worker
+  namespace: wallow
   labels:
-    app: foundry
+    app: wallow
     component: worker
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: foundry
+      app: wallow
       component: worker
   strategy:
     type: RollingUpdate
@@ -1435,7 +1435,7 @@ spec:
   template:
     metadata:
       labels:
-        app: foundry
+        app: wallow
         component: worker
       annotations:
         prometheus.io/scrape: "true"
@@ -1444,24 +1444,24 @@ spec:
     spec:
       containers:
         - name: worker
-          image: ghcr.io/your-org/foundry:latest
+          image: ghcr.io/your-org/wallow:latest
           ports:
             - containerPort: 8081
               name: health
           env:
-            - name: FOUNDRY_MODE
+            - name: WALLOW_MODE
               value: "worker"
             - name: ASPNETCORE_URLS
               value: "http://+:8081"
             - name: OpenTelemetry__ServiceName
-              value: "foundry-worker"
+              value: "wallow-worker"
             - name: Hangfire__WorkerCount
               value: "8"
           envFrom:
             - configMapRef:
-                name: foundry-config
+                name: wallow-config
             - secretRef:
-                name: foundry-secrets
+                name: wallow-secrets
           resources:
             requests:
               memory: "512Mi"
@@ -1498,13 +1498,13 @@ spec:
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: foundry-api-hpa
-  namespace: foundry
+  name: wallow-api-hpa
+  namespace: wallow
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: foundry-api
+    name: wallow-api
   minReplicas: 2
   maxReplicas: 10
   metrics:
@@ -1545,13 +1545,13 @@ spec:
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: foundry-worker-hpa
-  namespace: foundry
+  name: wallow-worker-hpa
+  namespace: wallow
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: foundry-worker
+    name: wallow-worker
   minReplicas: 1
   maxReplicas: 8
   metrics:
@@ -1596,11 +1596,11 @@ spec:
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
-  name: foundry-worker-scaler
-  namespace: foundry
+  name: wallow-worker-scaler
+  namespace: wallow
 spec:
   scaleTargetRef:
-    name: foundry-worker
+    name: wallow-worker
   minReplicaCount: 1
   maxReplicaCount: 8
   pollingInterval: 15
@@ -1633,11 +1633,11 @@ apiVersion: keda.sh/v1alpha1
 kind: TriggerAuthentication
 metadata:
   name: rabbitmq-auth
-  namespace: foundry
+  namespace: wallow
 spec:
   secretTargetRef:
     - parameter: host
-      name: foundry-secrets
+      name: wallow-secrets
       key: ConnectionStrings__RabbitMq
 ```
 
@@ -1705,14 +1705,14 @@ Deploy specialized workers for different workloads:
 # Critical worker - always running, fast processing
 worker-critical:
   environment:
-    FOUNDRY_QUEUES: critical-inbox,default-inbox
+    WALLOW_QUEUES: critical-inbox,default-inbox
     WOLVERINE_PARALLELISM: 20
   replicas: 2
 
 # Bulk worker - scales with queue depth
 worker-bulk:
   environment:
-    FOUNDRY_QUEUES: bulk-inbox
+    WALLOW_QUEUES: bulk-inbox
     WOLVERINE_PARALLELISM: 5
   replicas: 1  # Scaled by KEDA
 ```
@@ -1725,24 +1725,24 @@ For extreme isolation, run different modules in separate worker pools:
 # Billing worker - handles payment-critical messages
 worker-billing:
   environment:
-    FOUNDRY_MODE: worker
-    FOUNDRY_MODULES: billing
-    FOUNDRY_QUEUES: billing-inbox
+    WALLOW_MODE: worker
+    WALLOW_MODULES: billing
+    WALLOW_QUEUES: billing-inbox
   replicas: 2
 
 # Communications worker - handles high-volume notifications and email
 worker-communications:
   environment:
-    FOUNDRY_MODE: worker
-    FOUNDRY_MODULES: communications
-    FOUNDRY_QUEUES: communications-inbox
+    WALLOW_MODE: worker
+    WALLOW_MODULES: communications
+    WALLOW_QUEUES: communications-inbox
   replicas: 4
 
 # General worker - handles everything else
 worker-general:
   environment:
-    FOUNDRY_MODE: worker
-    FOUNDRY_QUEUES: storage-inbox
+    WALLOW_MODE: worker
+    WALLOW_QUEUES: storage-inbox
   replicas: 2
 ```
 
@@ -1756,19 +1756,19 @@ Key metrics to track for API instances:
 
 ```promql
 # Request rate
-sum(rate(http_server_requests_total{service="foundry-api"}[5m]))
+sum(rate(http_server_requests_total{service="wallow-api"}[5m]))
 
 # P95 latency
 histogram_quantile(0.95,
-  sum(rate(http_server_request_duration_seconds_bucket{service="foundry-api"}[5m])) by (le)
+  sum(rate(http_server_request_duration_seconds_bucket{service="wallow-api"}[5m])) by (le)
 )
 
 # Error rate
-sum(rate(http_server_requests_total{service="foundry-api",status_code=~"5.."}[5m]))
-/ sum(rate(http_server_requests_total{service="foundry-api"}[5m]))
+sum(rate(http_server_requests_total{service="wallow-api",status_code=~"5.."}[5m]))
+/ sum(rate(http_server_requests_total{service="wallow-api"}[5m]))
 
 # Active connections
-sum(http_server_active_requests{service="foundry-api"})
+sum(http_server_active_requests{service="wallow-api"})
 ```
 
 ### 8.2 Worker Metrics
@@ -1777,11 +1777,11 @@ Key metrics to track for worker instances:
 
 ```promql
 # Messages processed per second
-sum(rate(wolverine_messages_processed_total{service="foundry-worker"}[5m]))
+sum(rate(wolverine_messages_processed_total{service="wallow-worker"}[5m]))
 
 # Message processing time
 histogram_quantile(0.95,
-  sum(rate(wolverine_message_processing_seconds_bucket{service="foundry-worker"}[5m])) by (le)
+  sum(rate(wolverine_message_processing_seconds_bucket{service="wallow-worker"}[5m])) by (le)
 )
 
 # Queue depth (from RabbitMQ)
@@ -1799,14 +1799,14 @@ Create a Grafana dashboard with panels for both API and Worker metrics:
 
 ```json
 {
-  "title": "Foundry - API & Workers",
+  "title": "Wallow - API & Workers",
   "panels": [
     {
       "title": "API Request Rate",
       "type": "timeseries",
       "targets": [
         {
-          "expr": "sum(rate(http_server_requests_total{service=\"foundry-api\"}[5m]))",
+          "expr": "sum(rate(http_server_requests_total{service=\"wallow-api\"}[5m]))",
           "legendFormat": "Requests/s"
         }
       ]
@@ -1816,7 +1816,7 @@ Create a Grafana dashboard with panels for both API and Worker metrics:
       "type": "timeseries",
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum(rate(http_server_request_duration_seconds_bucket{service=\"foundry-api\"}[5m])) by (le))",
+          "expr": "histogram_quantile(0.95, sum(rate(http_server_request_duration_seconds_bucket{service=\"wallow-api\"}[5m])) by (le))",
           "legendFormat": "P95"
         }
       ]
@@ -1826,7 +1826,7 @@ Create a Grafana dashboard with panels for both API and Worker metrics:
       "type": "timeseries",
       "targets": [
         {
-          "expr": "sum(rate(wolverine_messages_processed_total{service=\"foundry-worker\"}[5m]))",
+          "expr": "sum(rate(wolverine_messages_processed_total{service=\"wallow-worker\"}[5m]))",
           "legendFormat": "Messages/s"
         }
       ]
@@ -1860,11 +1860,11 @@ Create a Grafana dashboard with panels for both API and Worker metrics:
       "type": "stat",
       "targets": [
         {
-          "expr": "count(up{service=\"foundry-api\"})",
+          "expr": "count(up{service=\"wallow-api\"})",
           "legendFormat": "API Pods"
         },
         {
-          "expr": "count(up{service=\"foundry-worker\"})",
+          "expr": "count(up{service=\"wallow-worker\"})",
           "legendFormat": "Worker Pods"
         }
       ]
@@ -1877,10 +1877,10 @@ Create a Grafana dashboard with panels for both API and Worker metrics:
 
 ```yaml
 groups:
-  - name: foundry-api
+  - name: wallow-api
     rules:
       - alert: HighApiLatency
-        expr: histogram_quantile(0.95, sum(rate(http_server_request_duration_seconds_bucket{service="foundry-api"}[5m])) by (le)) > 1
+        expr: histogram_quantile(0.95, sum(rate(http_server_request_duration_seconds_bucket{service="wallow-api"}[5m])) by (le)) > 1
         for: 5m
         labels:
           severity: warning
@@ -1888,14 +1888,14 @@ groups:
           summary: API latency is high
 
       - alert: HighApiErrorRate
-        expr: sum(rate(http_server_requests_total{service="foundry-api",status_code=~"5.."}[5m])) / sum(rate(http_server_requests_total{service="foundry-api"}[5m])) > 0.05
+        expr: sum(rate(http_server_requests_total{service="wallow-api",status_code=~"5.."}[5m])) / sum(rate(http_server_requests_total{service="wallow-api"}[5m])) > 0.05
         for: 5m
         labels:
           severity: critical
         annotations:
           summary: API error rate above 5%
 
-  - name: foundry-workers
+  - name: wallow-workers
     rules:
       - alert: QueueBacklog
         expr: rabbitmq_queue_messages{queue=~".*-inbox"} > 1000
@@ -2064,21 +2064,21 @@ The shutdown sequence:
 
 ```bash
 # Check if workers are consuming
-docker logs foundry-worker-1 | grep "Listening"
+docker logs wallow-worker-1 | grep "Listening"
 
 # Check RabbitMQ queue bindings
-docker exec foundry-rabbitmq rabbitmqctl list_bindings
+docker exec wallow-rabbitmq rabbitmqctl list_bindings
 
 # Verify Wolverine is configured to consume
-docker exec foundry-worker-1 env | grep FOUNDRY_MODE
+docker exec wallow-worker-1 env | grep WALLOW_MODE
 ```
 
 **Common causes:**
 
-1. **FOUNDRY_MODE not set to worker:**
+1. **WALLOW_MODE not set to worker:**
    ```bash
    # Fix: Set environment variable
-   FOUNDRY_MODE=worker
+   WALLOW_MODE=worker
    ```
 
 2. **Queue not declared:**
@@ -2104,7 +2104,7 @@ docker exec foundry-worker-1 env | grep FOUNDRY_MODE
 
 ```bash
 # Check for multiple consumers on exclusive queue
-docker exec foundry-rabbitmq rabbitmqctl list_consumers
+docker exec wallow-rabbitmq rabbitmqctl list_consumers
 
 # Check message acknowledgment settings
 grep -r "AutoAck" src/
@@ -2146,11 +2146,11 @@ grep -r "AutoAck" src/
 
 ```bash
 # Check container logs
-docker logs foundry-worker-1
+docker logs wallow-worker-1
 
 # Check if dependencies are healthy
-docker exec foundry-worker-1 curl -s http://postgres:5432 || echo "Postgres unreachable"
-docker exec foundry-worker-1 curl -s http://rabbitmq:5672 || echo "RabbitMQ unreachable"
+docker exec wallow-worker-1 curl -s http://postgres:5432 || echo "Postgres unreachable"
+docker exec wallow-worker-1 curl -s http://rabbitmq:5672 || echo "RabbitMQ unreachable"
 ```
 
 **Common causes:**
@@ -2184,13 +2184,13 @@ docker exec foundry-worker-1 curl -s http://rabbitmq:5672 || echo "RabbitMQ unre
 
 ```bash
 # Check queue message rates
-docker exec foundry-rabbitmq rabbitmqctl list_queues name messages messages_ready messages_unacknowledged
+docker exec wallow-rabbitmq rabbitmqctl list_queues name messages messages_ready messages_unacknowledged
 
 # Check worker processing rate
-docker logs foundry-worker-1 | grep "processed" | tail -100
+docker logs wallow-worker-1 | grep "processed" | tail -100
 
 # Check for slow handlers
-docker logs foundry-worker-1 | grep -E "took [0-9]{4,}ms"
+docker logs wallow-worker-1 | grep -E "took [0-9]{4,}ms"
 ```
 
 **Solutions:**
@@ -2226,10 +2226,10 @@ docker logs foundry-worker-1 | grep -E "took [0-9]{4,}ms"
 
 ```bash
 # Check PostgreSQL connections
-docker exec foundry-postgres psql -U foundry -c "SELECT count(*) FROM pg_stat_activity;"
+docker exec wallow-postgres psql -U wallow -c "SELECT count(*) FROM pg_stat_activity;"
 
 # Check per-service connections
-docker exec foundry-postgres psql -U foundry -c "SELECT application_name, count(*) FROM pg_stat_activity GROUP BY application_name;"
+docker exec wallow-postgres psql -U wallow -c "SELECT application_name, count(*) FROM pg_stat_activity GROUP BY application_name;"
 ```
 
 **Solutions:**
@@ -2247,7 +2247,7 @@ docker exec foundry-postgres psql -U foundry -c "SELECT application_name, count(
 
 2. **Use connection multiplexing:**
    ```
-   Host=postgres;Port=5432;Database=foundry;Username=foundry;Password=xxx;
+   Host=postgres;Port=5432;Database=wallow;Username=wallow;Password=xxx;
    Pooling=true;MinPoolSize=5;MaxPoolSize=20;ConnectionLifetime=300
    ```
 
@@ -2282,23 +2282,23 @@ docker compose -f docker-compose.separated.yml logs -f api
 docker compose -f docker-compose.separated.yml logs -f worker
 
 # Check queue depths
-docker exec foundry-rabbitmq rabbitmqctl list_queues name messages
+docker exec wallow-rabbitmq rabbitmqctl list_queues name messages
 
 # Check Hangfire jobs
-docker exec foundry-postgres psql -U foundry -c "SELECT state_name, count(*) FROM hangfire.job GROUP BY state_name;"
+docker exec wallow-postgres psql -U wallow -c "SELECT state_name, count(*) FROM hangfire.job GROUP BY state_name;"
 ```
 
 ### Environment Variables
 
 | Variable | API | Worker | Description |
 |----------|-----|--------|-------------|
-| `FOUNDRY_MODE` | `api` | `worker` | Operating mode |
+| `WALLOW_MODE` | `api` | `worker` | Operating mode |
 | `ASPNETCORE_URLS` | `http://+:8080` | `http://+:8081` | Listen address |
 | `ConnectionStrings__DefaultConnection` | Yes | Yes | PostgreSQL |
 | `ConnectionStrings__RabbitMq` | Yes | Yes | RabbitMQ |
 | `ConnectionStrings__Redis` | Yes | Yes | Redis/Valkey |
 | `Hangfire__WorkerCount` | N/A | `8` | Parallel job count |
-| `OpenTelemetry__ServiceName` | `foundry-api` | `foundry-worker` | Tracing service name |
+| `OpenTelemetry__ServiceName` | `wallow-api` | `wallow-worker` | Tracing service name |
 
 ### Health Endpoints
 

@@ -220,7 +220,7 @@ public sealed class WebPushSettings
         "Enabled": true,
         "VapidPublicKey": "",
         "VapidPrivateKey": "",
-        "Subject": "mailto:admin@foundry.dev"
+        "Subject": "mailto:admin@wallow.dev"
       }
     }
   }

@@ -6,10 +6,10 @@ Owns file storage lifecycle: bucket management, file upload/download/deletion, a
 
 ## Layer Rules
 
-- **Domain** (`Foundry.Storage.Domain`): Entities (`StorageBucket` -- NOT tenant-scoped, `StoredFile` -- tenant-scoped), value objects (`RetentionPolicy` with period + action: Archive/Delete/Anonymize). Domain depends only on `Shared.Kernel`.
-- **Application** (`Foundry.Storage.Application`): Commands (`CreateBucket`, `DeleteBucket`, `UploadFile`, `DeleteFile`), queries (`GetBucketByName`, `GetFileById`, `GetFilesByBucket`, `GetPresignedUrl`). Defines `IStorageProvider` interface.
-- **Infrastructure** (`Foundry.Storage.Infrastructure`): `StorageDbContext` (EF Core, `storage` schema), `LocalStorageProvider`, `S3StorageProvider` implementations.
-- **Api** (`Foundry.Storage.Api`): `StorageController` (file upload/download/deletion).
+- **Domain** (`Wallow.Storage.Domain`): Entities (`StorageBucket` -- NOT tenant-scoped, `StoredFile` -- tenant-scoped), value objects (`RetentionPolicy` with period + action: Archive/Delete/Anonymize). Domain depends only on `Shared.Kernel`.
+- **Application** (`Wallow.Storage.Application`): Commands (`CreateBucket`, `DeleteBucket`, `UploadFile`, `DeleteFile`), queries (`GetBucketByName`, `GetFileById`, `GetFilesByBucket`, `GetPresignedUrl`). Defines `IStorageProvider` interface.
+- **Infrastructure** (`Wallow.Storage.Infrastructure`): `StorageDbContext` (EF Core, `storage` schema), `LocalStorageProvider`, `S3StorageProvider` implementations.
+- **Api** (`Wallow.Storage.Api`): `StorageController` (file upload/download/deletion).
 
 ## Key Patterns
 
@@ -18,8 +18,8 @@ Owns file storage lifecycle: bucket management, file upload/download/deletion, a
 
 ## Dependencies
 
-- **Depends on**: `Foundry.Shared.Kernel` (base entities, `ITenantScoped`, Result pattern).
-- **Depended on by**: `Foundry.Api` (registers module). No integration events published.
+- **Depends on**: `Wallow.Shared.Kernel` (base entities, `ITenantScoped`, Result pattern).
+- **Depended on by**: `Wallow.Api` (registers module). No integration events published.
 
 ## Constraints
 

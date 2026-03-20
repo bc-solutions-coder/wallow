@@ -19,17 +19,17 @@ Foundation entities, enums, value objects, events, and IDs for the push channel.
 ### Task 1.1: Push Enums and Identity Types
 
 **Files:**
-- Create: `src/Modules/Communications/Foundry.Communications.Domain/Channels/Push/Enums/PushPlatform.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Domain/Channels/Push/Enums/PushStatus.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Domain/Channels/Push/Identity/PushMessageId.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Domain/Channels/Push/Identity/DeviceRegistrationId.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Domain/Channels/Push/Identity/TenantPushConfigurationId.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Domain/Channels/Push/Enums/PushPlatform.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Domain/Channels/Push/Enums/PushStatus.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Domain/Channels/Push/Identity/PushMessageId.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Domain/Channels/Push/Identity/DeviceRegistrationId.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Domain/Channels/Push/Identity/TenantPushConfigurationId.cs`
 
 **Step 1: Create PushPlatform enum**
 
 ```csharp
-// src/Modules/Communications/Foundry.Communications.Domain/Channels/Push/Enums/PushPlatform.cs
-namespace Foundry.Communications.Domain.Channels.Push.Enums;
+// src/Modules/Communications/Wallow.Communications.Domain/Channels/Push/Enums/PushPlatform.cs
+namespace Wallow.Communications.Domain.Channels.Push.Enums;
 
 public enum PushPlatform
 {
@@ -42,8 +42,8 @@ public enum PushPlatform
 **Step 2: Create PushStatus enum**
 
 ```csharp
-// src/Modules/Communications/Foundry.Communications.Domain/Channels/Push/Enums/PushStatus.cs
-namespace Foundry.Communications.Domain.Channels.Push.Enums;
+// src/Modules/Communications/Wallow.Communications.Domain/Channels/Push/Enums/PushStatus.cs
+namespace Wallow.Communications.Domain.Channels.Push.Enums;
 
 public enum PushStatus
 {
@@ -58,10 +58,10 @@ public enum PushStatus
 Follow the pattern from `SmsMessageId`:
 
 ```csharp
-// src/Modules/Communications/Foundry.Communications.Domain/Channels/Push/Identity/PushMessageId.cs
-using Foundry.Shared.Kernel.Identity;
+// src/Modules/Communications/Wallow.Communications.Domain/Channels/Push/Identity/PushMessageId.cs
+using Wallow.Shared.Kernel.Identity;
 
-namespace Foundry.Communications.Domain.Channels.Push.Identity;
+namespace Wallow.Communications.Domain.Channels.Push.Identity;
 
 public readonly record struct PushMessageId(Guid Value) : IStronglyTypedId<PushMessageId>
 {
@@ -71,10 +71,10 @@ public readonly record struct PushMessageId(Guid Value) : IStronglyTypedId<PushM
 ```
 
 ```csharp
-// src/Modules/Communications/Foundry.Communications.Domain/Channels/Push/Identity/DeviceRegistrationId.cs
-using Foundry.Shared.Kernel.Identity;
+// src/Modules/Communications/Wallow.Communications.Domain/Channels/Push/Identity/DeviceRegistrationId.cs
+using Wallow.Shared.Kernel.Identity;
 
-namespace Foundry.Communications.Domain.Channels.Push.Identity;
+namespace Wallow.Communications.Domain.Channels.Push.Identity;
 
 public readonly record struct DeviceRegistrationId(Guid Value) : IStronglyTypedId<DeviceRegistrationId>
 {
@@ -84,10 +84,10 @@ public readonly record struct DeviceRegistrationId(Guid Value) : IStronglyTypedI
 ```
 
 ```csharp
-// src/Modules/Communications/Foundry.Communications.Domain/Channels/Push/Identity/TenantPushConfigurationId.cs
-using Foundry.Shared.Kernel.Identity;
+// src/Modules/Communications/Wallow.Communications.Domain/Channels/Push/Identity/TenantPushConfigurationId.cs
+using Wallow.Shared.Kernel.Identity;
 
-namespace Foundry.Communications.Domain.Channels.Push.Identity;
+namespace Wallow.Communications.Domain.Channels.Push.Identity;
 
 public readonly record struct TenantPushConfigurationId(Guid Value) : IStronglyTypedId<TenantPushConfigurationId>
 {
@@ -99,7 +99,7 @@ public readonly record struct TenantPushConfigurationId(Guid Value) : IStronglyT
 **Step 4: Commit**
 
 ```bash
-git add src/Modules/Communications/Foundry.Communications.Domain/Channels/Push/
+git add src/Modules/Communications/Wallow.Communications.Domain/Channels/Push/
 git commit -m "feat(communications): add push notification enums and identity types"
 ```
 
@@ -108,31 +108,31 @@ git commit -m "feat(communications): add push notification enums and identity ty
 ### Task 1.2: Push Domain Events
 
 **Files:**
-- Create: `src/Modules/Communications/Foundry.Communications.Domain/Channels/Push/Events/PushSentDomainEvent.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Domain/Channels/Push/Events/PushFailedDomainEvent.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Domain/Channels/Push/Events/PushSentDomainEvent.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Domain/Channels/Push/Events/PushFailedDomainEvent.cs`
 
 **Step 1: Create domain events**
 
 Follow the pattern from `SmsSentDomainEvent` / `SmsFailedDomainEvent`:
 
 ```csharp
-// src/Modules/Communications/Foundry.Communications.Domain/Channels/Push/Events/PushSentDomainEvent.cs
-using Foundry.Communications.Domain.Channels.Push.Identity;
-using Foundry.Shared.Kernel.Domain;
+// src/Modules/Communications/Wallow.Communications.Domain/Channels/Push/Events/PushSentDomainEvent.cs
+using Wallow.Communications.Domain.Channels.Push.Identity;
+using Wallow.Shared.Kernel.Domain;
 
-namespace Foundry.Communications.Domain.Channels.Push.Events;
+namespace Wallow.Communications.Domain.Channels.Push.Events;
 
 public sealed record PushSentDomainEvent(
     PushMessageId MessageId) : DomainEvent;
 ```
 
 ```csharp
-// src/Modules/Communications/Foundry.Communications.Domain/Channels/Push/Events/PushFailedDomainEvent.cs
-using Foundry.Communications.Domain.Channels.Push.Identity;
-using Foundry.Shared.Kernel.Domain;
+// src/Modules/Communications/Wallow.Communications.Domain/Channels/Push/Events/PushFailedDomainEvent.cs
+using Wallow.Communications.Domain.Channels.Push.Identity;
+using Wallow.Shared.Kernel.Domain;
 using JetBrains.Annotations;
 
-namespace Foundry.Communications.Domain.Channels.Push.Events;
+namespace Wallow.Communications.Domain.Channels.Push.Events;
 
 [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed record PushFailedDomainEvent(
@@ -143,7 +143,7 @@ public sealed record PushFailedDomainEvent(
 **Step 2: Commit**
 
 ```bash
-git add src/Modules/Communications/Foundry.Communications.Domain/Channels/Push/Events/
+git add src/Modules/Communications/Wallow.Communications.Domain/Channels/Push/Events/
 git commit -m "feat(communications): add push domain events"
 ```
 
@@ -152,18 +152,18 @@ git commit -m "feat(communications): add push domain events"
 ### Task 1.3: DeviceRegistration Entity
 
 **Files:**
-- Create: `src/Modules/Communications/Foundry.Communications.Domain/Channels/Push/Entities/DeviceRegistration.cs`
-- Test: `tests/Modules/Communications/Foundry.Communications.Tests/Domain/Channels/Push/DeviceRegistrationTests.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Domain/Channels/Push/Entities/DeviceRegistration.cs`
+- Test: `tests/Modules/Communications/Wallow.Communications.Tests/Domain/Channels/Push/DeviceRegistrationTests.cs`
 
 **Step 1: Write tests**
 
 ```csharp
-// tests/Modules/Communications/Foundry.Communications.Tests/Domain/Channels/Push/DeviceRegistrationTests.cs
-using Foundry.Communications.Domain.Channels.Push.Entities;
-using Foundry.Communications.Domain.Channels.Push.Enums;
-using Foundry.Shared.Kernel.Identity;
+// tests/Modules/Communications/Wallow.Communications.Tests/Domain/Channels/Push/DeviceRegistrationTests.cs
+using Wallow.Communications.Domain.Channels.Push.Entities;
+using Wallow.Communications.Domain.Channels.Push.Enums;
+using Wallow.Shared.Kernel.Identity;
 
-namespace Foundry.Communications.Tests.Domain.Channels.Push;
+namespace Wallow.Communications.Tests.Domain.Channels.Push;
 
 public class DeviceRegistrationCreateTests
 {
@@ -236,7 +236,7 @@ public class DeviceRegistrationUpdateTests
 **Step 2: Run tests to verify they fail**
 
 ```bash
-dotnet test tests/Modules/Communications/Foundry.Communications.Tests --filter "FullyQualifiedName~DeviceRegistration" --no-restore
+dotnet test tests/Modules/Communications/Wallow.Communications.Tests --filter "FullyQualifiedName~DeviceRegistration" --no-restore
 ```
 
 Expected: Compilation error — `DeviceRegistration` does not exist.
@@ -244,14 +244,14 @@ Expected: Compilation error — `DeviceRegistration` does not exist.
 **Step 3: Implement DeviceRegistration entity**
 
 ```csharp
-// src/Modules/Communications/Foundry.Communications.Domain/Channels/Push/Entities/DeviceRegistration.cs
-using Foundry.Communications.Domain.Channels.Push.Enums;
-using Foundry.Communications.Domain.Channels.Push.Identity;
-using Foundry.Shared.Kernel.Domain;
-using Foundry.Shared.Kernel.Identity;
-using Foundry.Shared.Kernel.MultiTenancy;
+// src/Modules/Communications/Wallow.Communications.Domain/Channels/Push/Entities/DeviceRegistration.cs
+using Wallow.Communications.Domain.Channels.Push.Enums;
+using Wallow.Communications.Domain.Channels.Push.Identity;
+using Wallow.Shared.Kernel.Domain;
+using Wallow.Shared.Kernel.Identity;
+using Wallow.Shared.Kernel.MultiTenancy;
 
-namespace Foundry.Communications.Domain.Channels.Push.Entities;
+namespace Wallow.Communications.Domain.Channels.Push.Entities;
 
 public sealed class DeviceRegistration : AggregateRoot<DeviceRegistrationId>, ITenantScoped
 {
@@ -314,13 +314,13 @@ public sealed class DeviceRegistration : AggregateRoot<DeviceRegistrationId>, IT
 **Step 4: Run tests to verify they pass**
 
 ```bash
-dotnet test tests/Modules/Communications/Foundry.Communications.Tests --filter "FullyQualifiedName~DeviceRegistration" --no-restore
+dotnet test tests/Modules/Communications/Wallow.Communications.Tests --filter "FullyQualifiedName~DeviceRegistration" --no-restore
 ```
 
 **Step 5: Commit**
 
 ```bash
-git add src/Modules/Communications/Foundry.Communications.Domain/Channels/Push/Entities/DeviceRegistration.cs tests/Modules/Communications/Foundry.Communications.Tests/Domain/Channels/Push/DeviceRegistrationTests.cs
+git add src/Modules/Communications/Wallow.Communications.Domain/Channels/Push/Entities/DeviceRegistration.cs tests/Modules/Communications/Wallow.Communications.Tests/Domain/Channels/Push/DeviceRegistrationTests.cs
 git commit -m "feat(communications): add DeviceRegistration entity with tests"
 ```
 
@@ -329,20 +329,20 @@ git commit -m "feat(communications): add DeviceRegistration entity with tests"
 ### Task 1.4: PushMessage Entity
 
 **Files:**
-- Create: `src/Modules/Communications/Foundry.Communications.Domain/Channels/Push/Entities/PushMessage.cs`
-- Test: `tests/Modules/Communications/Foundry.Communications.Tests/Domain/Channels/Push/PushMessageTests.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Domain/Channels/Push/Entities/PushMessage.cs`
+- Test: `tests/Modules/Communications/Wallow.Communications.Tests/Domain/Channels/Push/PushMessageTests.cs`
 
 **Step 1: Write tests**
 
 ```csharp
-// tests/Modules/Communications/Foundry.Communications.Tests/Domain/Channels/Push/PushMessageTests.cs
-using Foundry.Communications.Domain.Channels.Push.Entities;
-using Foundry.Communications.Domain.Channels.Push.Enums;
-using Foundry.Communications.Domain.Channels.Push.Events;
-using Foundry.Communications.Domain.Channels.Push.Identity;
-using Foundry.Shared.Kernel.Identity;
+// tests/Modules/Communications/Wallow.Communications.Tests/Domain/Channels/Push/PushMessageTests.cs
+using Wallow.Communications.Domain.Channels.Push.Entities;
+using Wallow.Communications.Domain.Channels.Push.Enums;
+using Wallow.Communications.Domain.Channels.Push.Events;
+using Wallow.Communications.Domain.Channels.Push.Identity;
+using Wallow.Shared.Kernel.Identity;
 
-namespace Foundry.Communications.Tests.Domain.Channels.Push;
+namespace Wallow.Communications.Tests.Domain.Channels.Push;
 
 public class PushMessageCreateTests
 {
@@ -476,15 +476,15 @@ public class PushMessageRetryTests
 **Step 2: Implement PushMessage entity**
 
 ```csharp
-// src/Modules/Communications/Foundry.Communications.Domain/Channels/Push/Entities/PushMessage.cs
-using Foundry.Communications.Domain.Channels.Push.Enums;
-using Foundry.Communications.Domain.Channels.Push.Events;
-using Foundry.Communications.Domain.Channels.Push.Identity;
-using Foundry.Shared.Kernel.Domain;
-using Foundry.Shared.Kernel.Identity;
-using Foundry.Shared.Kernel.MultiTenancy;
+// src/Modules/Communications/Wallow.Communications.Domain/Channels/Push/Entities/PushMessage.cs
+using Wallow.Communications.Domain.Channels.Push.Enums;
+using Wallow.Communications.Domain.Channels.Push.Events;
+using Wallow.Communications.Domain.Channels.Push.Identity;
+using Wallow.Shared.Kernel.Domain;
+using Wallow.Shared.Kernel.Identity;
+using Wallow.Shared.Kernel.MultiTenancy;
 
-namespace Foundry.Communications.Domain.Channels.Push.Entities;
+namespace Wallow.Communications.Domain.Channels.Push.Entities;
 
 public sealed class PushMessage : AggregateRoot<PushMessageId>, ITenantScoped
 {
@@ -572,13 +572,13 @@ public sealed class PushMessage : AggregateRoot<PushMessageId>, ITenantScoped
 **Step 3: Run tests**
 
 ```bash
-dotnet test tests/Modules/Communications/Foundry.Communications.Tests --filter "FullyQualifiedName~PushMessage" --no-restore
+dotnet test tests/Modules/Communications/Wallow.Communications.Tests --filter "FullyQualifiedName~PushMessage" --no-restore
 ```
 
 **Step 4: Commit**
 
 ```bash
-git add src/Modules/Communications/Foundry.Communications.Domain/Channels/Push/Entities/PushMessage.cs tests/Modules/Communications/Foundry.Communications.Tests/Domain/Channels/Push/PushMessageTests.cs
+git add src/Modules/Communications/Wallow.Communications.Domain/Channels/Push/Entities/PushMessage.cs tests/Modules/Communications/Wallow.Communications.Tests/Domain/Channels/Push/PushMessageTests.cs
 git commit -m "feat(communications): add PushMessage entity with tests"
 ```
 
@@ -587,18 +587,18 @@ git commit -m "feat(communications): add PushMessage entity with tests"
 ### Task 1.5: TenantPushConfiguration Entity
 
 **Files:**
-- Create: `src/Modules/Communications/Foundry.Communications.Domain/Channels/Push/Entities/TenantPushConfiguration.cs`
-- Test: `tests/Modules/Communications/Foundry.Communications.Tests/Domain/Channels/Push/TenantPushConfigurationTests.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Domain/Channels/Push/Entities/TenantPushConfiguration.cs`
+- Test: `tests/Modules/Communications/Wallow.Communications.Tests/Domain/Channels/Push/TenantPushConfigurationTests.cs`
 
 **Step 1: Write tests**
 
 ```csharp
-// tests/Modules/Communications/Foundry.Communications.Tests/Domain/Channels/Push/TenantPushConfigurationTests.cs
-using Foundry.Communications.Domain.Channels.Push.Entities;
-using Foundry.Communications.Domain.Channels.Push.Enums;
-using Foundry.Shared.Kernel.Identity;
+// tests/Modules/Communications/Wallow.Communications.Tests/Domain/Channels/Push/TenantPushConfigurationTests.cs
+using Wallow.Communications.Domain.Channels.Push.Entities;
+using Wallow.Communications.Domain.Channels.Push.Enums;
+using Wallow.Shared.Kernel.Identity;
 
-namespace Foundry.Communications.Tests.Domain.Channels.Push;
+namespace Wallow.Communications.Tests.Domain.Channels.Push;
 
 public class TenantPushConfigurationTests
 {
@@ -656,14 +656,14 @@ public class TenantPushConfigurationTests
 **Step 2: Implement TenantPushConfiguration entity**
 
 ```csharp
-// src/Modules/Communications/Foundry.Communications.Domain/Channels/Push/Entities/TenantPushConfiguration.cs
-using Foundry.Communications.Domain.Channels.Push.Enums;
-using Foundry.Communications.Domain.Channels.Push.Identity;
-using Foundry.Shared.Kernel.Domain;
-using Foundry.Shared.Kernel.Identity;
-using Foundry.Shared.Kernel.MultiTenancy;
+// src/Modules/Communications/Wallow.Communications.Domain/Channels/Push/Entities/TenantPushConfiguration.cs
+using Wallow.Communications.Domain.Channels.Push.Enums;
+using Wallow.Communications.Domain.Channels.Push.Identity;
+using Wallow.Shared.Kernel.Domain;
+using Wallow.Shared.Kernel.Identity;
+using Wallow.Shared.Kernel.MultiTenancy;
 
-namespace Foundry.Communications.Domain.Channels.Push.Entities;
+namespace Wallow.Communications.Domain.Channels.Push.Entities;
 
 public sealed class TenantPushConfiguration : AggregateRoot<TenantPushConfigurationId>, ITenantScoped
 {
@@ -723,13 +723,13 @@ public sealed class TenantPushConfiguration : AggregateRoot<TenantPushConfigurat
 **Step 3: Run tests**
 
 ```bash
-dotnet test tests/Modules/Communications/Foundry.Communications.Tests --filter "FullyQualifiedName~TenantPushConfiguration" --no-restore
+dotnet test tests/Modules/Communications/Wallow.Communications.Tests --filter "FullyQualifiedName~TenantPushConfiguration" --no-restore
 ```
 
 **Step 4: Commit**
 
 ```bash
-git add src/Modules/Communications/Foundry.Communications.Domain/Channels/Push/Entities/TenantPushConfiguration.cs tests/Modules/Communications/Foundry.Communications.Tests/Domain/Channels/Push/TenantPushConfigurationTests.cs
+git add src/Modules/Communications/Wallow.Communications.Domain/Channels/Push/Entities/TenantPushConfiguration.cs tests/Modules/Communications/Wallow.Communications.Tests/Domain/Channels/Push/TenantPushConfigurationTests.cs
 git commit -m "feat(communications): add TenantPushConfiguration entity with tests"
 ```
 
@@ -742,21 +742,21 @@ Interfaces, commands, queries, handlers, validators, and the shared preference c
 ### Task 2.1: Push Interfaces and DTOs
 
 **Files:**
-- Create: `src/Modules/Communications/Foundry.Communications.Application/Channels/Push/Interfaces/IPushProvider.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Application/Channels/Push/Interfaces/IPushProviderFactory.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Application/Channels/Push/Interfaces/IPushMessageRepository.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Application/Channels/Push/Interfaces/IDeviceRegistrationRepository.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Application/Channels/Push/Interfaces/ITenantPushConfigurationRepository.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Application/Channels/Push/DTOs/DeviceRegistrationDto.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Application/Channels/Push/Interfaces/IPushProvider.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Application/Channels/Push/Interfaces/IPushProviderFactory.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Application/Channels/Push/Interfaces/IPushMessageRepository.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Application/Channels/Push/Interfaces/IDeviceRegistrationRepository.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Application/Channels/Push/Interfaces/ITenantPushConfigurationRepository.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Application/Channels/Push/DTOs/DeviceRegistrationDto.cs`
 
 **Step 1: Create IPushProvider interface**
 
 ```csharp
-// src/Modules/Communications/Foundry.Communications.Application/Channels/Push/Interfaces/IPushProvider.cs
-using Foundry.Communications.Domain.Channels.Push.Enums;
+// src/Modules/Communications/Wallow.Communications.Application/Channels/Push/Interfaces/IPushProvider.cs
+using Wallow.Communications.Domain.Channels.Push.Enums;
 using JetBrains.Annotations;
 
-namespace Foundry.Communications.Application.Channels.Push.Interfaces;
+namespace Wallow.Communications.Application.Channels.Push.Interfaces;
 
 [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public readonly record struct PushDeliveryResult(bool Success, string? MessageId, string? ErrorMessage);
@@ -778,11 +778,11 @@ public interface IPushProvider
 **Step 2: Create IPushProviderFactory**
 
 ```csharp
-// src/Modules/Communications/Foundry.Communications.Application/Channels/Push/Interfaces/IPushProviderFactory.cs
-using Foundry.Communications.Domain.Channels.Push.Enums;
-using Foundry.Shared.Kernel.Identity;
+// src/Modules/Communications/Wallow.Communications.Application/Channels/Push/Interfaces/IPushProviderFactory.cs
+using Wallow.Communications.Domain.Channels.Push.Enums;
+using Wallow.Shared.Kernel.Identity;
 
-namespace Foundry.Communications.Application.Channels.Push.Interfaces;
+namespace Wallow.Communications.Application.Channels.Push.Interfaces;
 
 public interface IPushProviderFactory
 {
@@ -793,11 +793,11 @@ public interface IPushProviderFactory
 **Step 3: Create repository interfaces**
 
 ```csharp
-// src/Modules/Communications/Foundry.Communications.Application/Channels/Push/Interfaces/IPushMessageRepository.cs
-using Foundry.Communications.Domain.Channels.Push.Entities;
-using Foundry.Communications.Domain.Channels.Push.Identity;
+// src/Modules/Communications/Wallow.Communications.Application/Channels/Push/Interfaces/IPushMessageRepository.cs
+using Wallow.Communications.Domain.Channels.Push.Entities;
+using Wallow.Communications.Domain.Channels.Push.Identity;
 
-namespace Foundry.Communications.Application.Channels.Push.Interfaces;
+namespace Wallow.Communications.Application.Channels.Push.Interfaces;
 
 public interface IPushMessageRepository
 {
@@ -808,12 +808,12 @@ public interface IPushMessageRepository
 ```
 
 ```csharp
-// src/Modules/Communications/Foundry.Communications.Application/Channels/Push/Interfaces/IDeviceRegistrationRepository.cs
-using Foundry.Communications.Domain.Channels.Push.Entities;
-using Foundry.Communications.Domain.Channels.Push.Enums;
-using Foundry.Communications.Domain.Channels.Push.Identity;
+// src/Modules/Communications/Wallow.Communications.Application/Channels/Push/Interfaces/IDeviceRegistrationRepository.cs
+using Wallow.Communications.Domain.Channels.Push.Entities;
+using Wallow.Communications.Domain.Channels.Push.Enums;
+using Wallow.Communications.Domain.Channels.Push.Identity;
 
-namespace Foundry.Communications.Application.Channels.Push.Interfaces;
+namespace Wallow.Communications.Application.Channels.Push.Interfaces;
 
 public interface IDeviceRegistrationRepository
 {
@@ -827,12 +827,12 @@ public interface IDeviceRegistrationRepository
 ```
 
 ```csharp
-// src/Modules/Communications/Foundry.Communications.Application/Channels/Push/Interfaces/ITenantPushConfigurationRepository.cs
-using Foundry.Communications.Domain.Channels.Push.Entities;
-using Foundry.Communications.Domain.Channels.Push.Enums;
-using Foundry.Shared.Kernel.Identity;
+// src/Modules/Communications/Wallow.Communications.Application/Channels/Push/Interfaces/ITenantPushConfigurationRepository.cs
+using Wallow.Communications.Domain.Channels.Push.Entities;
+using Wallow.Communications.Domain.Channels.Push.Enums;
+using Wallow.Shared.Kernel.Identity;
 
-namespace Foundry.Communications.Application.Channels.Push.Interfaces;
+namespace Wallow.Communications.Application.Channels.Push.Interfaces;
 
 public interface ITenantPushConfigurationRepository
 {
@@ -847,11 +847,11 @@ public interface ITenantPushConfigurationRepository
 **Step 4: Create DeviceRegistrationDto**
 
 ```csharp
-// src/Modules/Communications/Foundry.Communications.Application/Channels/Push/DTOs/DeviceRegistrationDto.cs
-using Foundry.Communications.Domain.Channels.Push.Enums;
+// src/Modules/Communications/Wallow.Communications.Application/Channels/Push/DTOs/DeviceRegistrationDto.cs
+using Wallow.Communications.Domain.Channels.Push.Enums;
 using JetBrains.Annotations;
 
-namespace Foundry.Communications.Application.Channels.Push.DTOs;
+namespace Wallow.Communications.Application.Channels.Push.DTOs;
 
 [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed record DeviceRegistrationDto(
@@ -867,7 +867,7 @@ public sealed record DeviceRegistrationDto(
 **Step 5: Commit**
 
 ```bash
-git add src/Modules/Communications/Foundry.Communications.Application/Channels/Push/
+git add src/Modules/Communications/Wallow.Communications.Application/Channels/Push/
 git commit -m "feat(communications): add push interfaces and DTOs"
 ```
 
@@ -876,10 +876,10 @@ git commit -m "feat(communications): add push interfaces and DTOs"
 ### Task 2.2: INotificationPreferenceChecker Service
 
 **Files:**
-- Create: `src/Modules/Communications/Foundry.Communications.Application/Preferences/Interfaces/INotificationPreferenceChecker.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Application/Preferences/Services/NotificationPreferenceChecker.cs`
-- Modify: `src/Modules/Communications/Foundry.Communications.Application/Preferences/Interfaces/IChannelPreferenceRepository.cs` — add `GetGlobalPreferenceAsync`
-- Test: `tests/Modules/Communications/Foundry.Communications.Tests/Application/Preferences/NotificationPreferenceCheckerTests.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Application/Preferences/Interfaces/INotificationPreferenceChecker.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Application/Preferences/Services/NotificationPreferenceChecker.cs`
+- Modify: `src/Modules/Communications/Wallow.Communications.Application/Preferences/Interfaces/IChannelPreferenceRepository.cs` — add `GetGlobalPreferenceAsync`
+- Test: `tests/Modules/Communications/Wallow.Communications.Tests/Application/Preferences/NotificationPreferenceCheckerTests.cs`
 
 **Step 1: Add repository method to IChannelPreferenceRepository**
 
@@ -894,10 +894,10 @@ This fetches the `NotificationType = "*"` record.
 **Step 2: Create INotificationPreferenceChecker**
 
 ```csharp
-// src/Modules/Communications/Foundry.Communications.Application/Preferences/Interfaces/INotificationPreferenceChecker.cs
-using Foundry.Communications.Domain.Preferences;
+// src/Modules/Communications/Wallow.Communications.Application/Preferences/Interfaces/INotificationPreferenceChecker.cs
+using Wallow.Communications.Domain.Preferences;
 
-namespace Foundry.Communications.Application.Preferences.Interfaces;
+namespace Wallow.Communications.Application.Preferences.Interfaces;
 
 public interface INotificationPreferenceChecker
 {
@@ -912,12 +912,12 @@ public interface INotificationPreferenceChecker
 **Step 3: Implement NotificationPreferenceChecker**
 
 ```csharp
-// src/Modules/Communications/Foundry.Communications.Application/Preferences/Services/NotificationPreferenceChecker.cs
-using Foundry.Communications.Application.Preferences.Interfaces;
-using Foundry.Communications.Domain.Preferences;
-using Foundry.Communications.Domain.Preferences.Entities;
+// src/Modules/Communications/Wallow.Communications.Application/Preferences/Services/NotificationPreferenceChecker.cs
+using Wallow.Communications.Application.Preferences.Interfaces;
+using Wallow.Communications.Domain.Preferences;
+using Wallow.Communications.Domain.Preferences.Entities;
 
-namespace Foundry.Communications.Application.Preferences.Services;
+namespace Wallow.Communications.Application.Preferences.Services;
 
 public sealed class NotificationPreferenceChecker(IChannelPreferenceRepository preferenceRepository) : INotificationPreferenceChecker
 {
@@ -956,14 +956,14 @@ public sealed class NotificationPreferenceChecker(IChannelPreferenceRepository p
 **Step 4: Write tests**
 
 ```csharp
-// tests/Modules/Communications/Foundry.Communications.Tests/Application/Preferences/NotificationPreferenceCheckerTests.cs
-using Foundry.Communications.Application.Preferences.Interfaces;
-using Foundry.Communications.Application.Preferences.Services;
-using Foundry.Communications.Domain.Preferences;
-using Foundry.Communications.Domain.Preferences.Entities;
-using Foundry.Shared.Kernel.Identity;
+// tests/Modules/Communications/Wallow.Communications.Tests/Application/Preferences/NotificationPreferenceCheckerTests.cs
+using Wallow.Communications.Application.Preferences.Interfaces;
+using Wallow.Communications.Application.Preferences.Services;
+using Wallow.Communications.Domain.Preferences;
+using Wallow.Communications.Domain.Preferences.Entities;
+using Wallow.Shared.Kernel.Identity;
 
-namespace Foundry.Communications.Tests.Application.Preferences;
+namespace Wallow.Communications.Tests.Application.Preferences;
 
 public class NotificationPreferenceCheckerTests
 {
@@ -1037,13 +1037,13 @@ public class NotificationPreferenceCheckerTests
 **Step 5: Run tests**
 
 ```bash
-dotnet test tests/Modules/Communications/Foundry.Communications.Tests --filter "FullyQualifiedName~NotificationPreferenceChecker" --no-restore
+dotnet test tests/Modules/Communications/Wallow.Communications.Tests --filter "FullyQualifiedName~NotificationPreferenceChecker" --no-restore
 ```
 
 **Step 6: Commit**
 
 ```bash
-git add src/Modules/Communications/Foundry.Communications.Application/Preferences/ tests/Modules/Communications/Foundry.Communications.Tests/Application/Preferences/
+git add src/Modules/Communications/Wallow.Communications.Application/Preferences/ tests/Modules/Communications/Wallow.Communications.Tests/Application/Preferences/
 git commit -m "feat(communications): add INotificationPreferenceChecker with global toggle support"
 ```
 
@@ -1052,16 +1052,16 @@ git commit -m "feat(communications): add INotificationPreferenceChecker with glo
 ### Task 2.3: Device Registration Commands and Handlers
 
 **Files:**
-- Create: `src/Modules/Communications/Foundry.Communications.Application/Channels/Push/Commands/RegisterDevice/RegisterDeviceCommand.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Application/Channels/Push/Commands/RegisterDevice/RegisterDeviceHandler.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Application/Channels/Push/Commands/RegisterDevice/RegisterDeviceValidator.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Application/Channels/Push/Commands/UpdateDevice/UpdateDeviceCommand.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Application/Channels/Push/Commands/UpdateDevice/UpdateDeviceHandler.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Application/Channels/Push/Commands/RemoveDevice/RemoveDeviceCommand.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Application/Channels/Push/Commands/RemoveDevice/RemoveDeviceHandler.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Application/Channels/Push/Queries/GetUserDevices/GetUserDevicesQuery.cs`
-- Test: `tests/Modules/Communications/Foundry.Communications.Tests/Application/Channels/Push/RegisterDeviceHandlerTests.cs`
-- Test: `tests/Modules/Communications/Foundry.Communications.Tests/Application/Channels/Push/RegisterDeviceValidatorTests.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Application/Channels/Push/Commands/RegisterDevice/RegisterDeviceCommand.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Application/Channels/Push/Commands/RegisterDevice/RegisterDeviceHandler.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Application/Channels/Push/Commands/RegisterDevice/RegisterDeviceValidator.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Application/Channels/Push/Commands/UpdateDevice/UpdateDeviceCommand.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Application/Channels/Push/Commands/UpdateDevice/UpdateDeviceHandler.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Application/Channels/Push/Commands/RemoveDevice/RemoveDeviceCommand.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Application/Channels/Push/Commands/RemoveDevice/RemoveDeviceHandler.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Application/Channels/Push/Queries/GetUserDevices/GetUserDevicesQuery.cs`
+- Test: `tests/Modules/Communications/Wallow.Communications.Tests/Application/Channels/Push/RegisterDeviceHandlerTests.cs`
+- Test: `tests/Modules/Communications/Wallow.Communications.Tests/Application/Channels/Push/RegisterDeviceValidatorTests.cs`
 
 Commands, handlers, validators, and query for device CRUD. Follow SendSms patterns exactly (Wolverine handler classes with primary constructors, FluentValidation).
 
@@ -1072,13 +1072,13 @@ Commands, handlers, validators, and query for device CRUD. Follow SendSms patter
 ### Task 2.4: Push Notification Commands and Handlers
 
 **Files:**
-- Create: `src/Modules/Communications/Foundry.Communications.Application/Channels/Push/Commands/SendPushNotification/SendPushNotificationCommand.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Application/Channels/Push/Commands/SendPushNotification/SendPushNotificationHandler.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Application/Channels/Push/Commands/SendPushNotification/SendPushNotificationValidator.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Application/Channels/Push/Commands/DeliverPush/DeliverPushCommand.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Application/Channels/Push/Commands/DeliverPush/DeliverPushHandler.cs`
-- Test: `tests/Modules/Communications/Foundry.Communications.Tests/Application/Channels/Push/SendPushNotificationHandlerTests.cs`
-- Test: `tests/Modules/Communications/Foundry.Communications.Tests/Application/Channels/Push/DeliverPushHandlerTests.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Application/Channels/Push/Commands/SendPushNotification/SendPushNotificationCommand.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Application/Channels/Push/Commands/SendPushNotification/SendPushNotificationHandler.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Application/Channels/Push/Commands/SendPushNotification/SendPushNotificationValidator.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Application/Channels/Push/Commands/DeliverPush/DeliverPushCommand.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Application/Channels/Push/Commands/DeliverPush/DeliverPushHandler.cs`
+- Test: `tests/Modules/Communications/Wallow.Communications.Tests/Application/Channels/Push/SendPushNotificationHandlerTests.cs`
+- Test: `tests/Modules/Communications/Wallow.Communications.Tests/Application/Channels/Push/DeliverPushHandlerTests.cs`
 
 **Key behavior of SendPushNotificationHandler:**
 1. Check `INotificationPreferenceChecker.IsChannelEnabledForUserAsync(userId, ChannelType.Push, notificationType)`
@@ -1100,15 +1100,15 @@ Commands, handlers, validators, and query for device CRUD. Follow SendSms patter
 ### Task 2.5: SendPushRequestedEvent in Shared.Contracts
 
 **Files:**
-- Create: `src/Shared/Foundry.Shared.Contracts/Communications/Push/Events/SendPushRequestedEvent.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Application/Channels/Push/EventHandlers/SendPushRequestedEventHandler.cs`
-- Test: `tests/Modules/Communications/Foundry.Communications.Tests/Application/Channels/Push/SendPushRequestedEventHandlerTests.cs`
+- Create: `src/Shared/Wallow.Shared.Contracts/Communications/Push/Events/SendPushRequestedEvent.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Application/Channels/Push/EventHandlers/SendPushRequestedEventHandler.cs`
+- Test: `tests/Modules/Communications/Wallow.Communications.Tests/Application/Channels/Push/SendPushRequestedEventHandlerTests.cs`
 
 **SendPushRequestedEvent** — follows `SendSmsRequestedEvent` pattern:
 
 ```csharp
-// src/Shared/Foundry.Shared.Contracts/Communications/Push/Events/SendPushRequestedEvent.cs
-namespace Foundry.Shared.Contracts.Communications.Push.Events;
+// src/Shared/Wallow.Shared.Contracts/Communications/Push/Events/SendPushRequestedEvent.cs
+namespace Wallow.Shared.Contracts.Communications.Push.Events;
 
 public sealed record SendPushRequestedEvent : IntegrationEvent
 {
@@ -1132,14 +1132,14 @@ public sealed record SendPushRequestedEvent : IntegrationEvent
 ### Task 2.6: Tenant Push Configuration Commands
 
 **Files:**
-- Create: `src/Modules/Communications/Foundry.Communications.Application/Channels/Push/Commands/SetTenantPushConfiguration/SetTenantPushConfigurationCommand.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Application/Channels/Push/Commands/SetTenantPushConfiguration/SetTenantPushConfigurationHandler.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Application/Channels/Push/Commands/RemoveTenantPushConfiguration/RemoveTenantPushConfigurationCommand.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Application/Channels/Push/Commands/RemoveTenantPushConfiguration/RemoveTenantPushConfigurationHandler.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Application/Channels/Push/Queries/GetTenantPushConfiguration/GetTenantPushConfigurationQuery.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Application/Channels/Push/DTOs/TenantPushConfigurationDto.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Application/Channels/Push/Interfaces/IPushCredentialEncryptor.cs`
-- Test: `tests/Modules/Communications/Foundry.Communications.Tests/Application/Channels/Push/SetTenantPushConfigurationHandlerTests.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Application/Channels/Push/Commands/SetTenantPushConfiguration/SetTenantPushConfigurationCommand.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Application/Channels/Push/Commands/SetTenantPushConfiguration/SetTenantPushConfigurationHandler.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Application/Channels/Push/Commands/RemoveTenantPushConfiguration/RemoveTenantPushConfigurationCommand.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Application/Channels/Push/Commands/RemoveTenantPushConfiguration/RemoveTenantPushConfigurationHandler.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Application/Channels/Push/Queries/GetTenantPushConfiguration/GetTenantPushConfigurationQuery.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Application/Channels/Push/DTOs/TenantPushConfigurationDto.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Application/Channels/Push/Interfaces/IPushCredentialEncryptor.cs`
+- Test: `tests/Modules/Communications/Wallow.Communications.Tests/Application/Channels/Push/SetTenantPushConfigurationHandlerTests.cs`
 
 **IPushCredentialEncryptor** — Application-layer interface, Infrastructure implements with Data Protection:
 
@@ -1162,10 +1162,10 @@ EF Core persistence, provider implementations, DI registration.
 ### Task 3.1: EF Core Configurations and Migration
 
 **Files:**
-- Create: `src/Modules/Communications/Foundry.Communications.Infrastructure/Persistence/Configurations/DeviceRegistrationConfiguration.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Infrastructure/Persistence/Configurations/PushMessageConfiguration.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Infrastructure/Persistence/Configurations/TenantPushConfigurationConfiguration.cs`
-- Modify: `src/Modules/Communications/Foundry.Communications.Infrastructure/Persistence/CommunicationsDbContext.cs` — add DbSets
+- Create: `src/Modules/Communications/Wallow.Communications.Infrastructure/Persistence/Configurations/DeviceRegistrationConfiguration.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Infrastructure/Persistence/Configurations/PushMessageConfiguration.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Infrastructure/Persistence/Configurations/TenantPushConfigurationConfiguration.cs`
+- Modify: `src/Modules/Communications/Wallow.Communications.Infrastructure/Persistence/CommunicationsDbContext.cs` — add DbSets
 
 Follow `SmsMessageConfiguration` and `ChannelPreferenceConfiguration` patterns exactly. Tables: `device_registrations`, `push_messages`, `tenant_push_configurations`. All in `communications` schema.
 
@@ -1177,8 +1177,8 @@ Key indexes:
 Run migration:
 ```bash
 dotnet ef migrations add AddPushNotificationTables \
-    --project src/Modules/Communications/Foundry.Communications.Infrastructure \
-    --startup-project src/Foundry.Api \
+    --project src/Modules/Communications/Wallow.Communications.Infrastructure \
+    --startup-project src/Wallow.Api \
     --context CommunicationsDbContext
 ```
 
@@ -1189,10 +1189,10 @@ dotnet ef migrations add AddPushNotificationTables \
 ### Task 3.2: Push Repositories
 
 **Files:**
-- Create: `src/Modules/Communications/Foundry.Communications.Infrastructure/Persistence/Repositories/PushMessageRepository.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Infrastructure/Persistence/Repositories/DeviceRegistrationRepository.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Infrastructure/Persistence/Repositories/TenantPushConfigurationRepository.cs`
-- Modify: `src/Modules/Communications/Foundry.Communications.Infrastructure/Persistence/Repositories/ChannelPreferenceRepository.cs` — add `GetGlobalPreferenceAsync`
+- Create: `src/Modules/Communications/Wallow.Communications.Infrastructure/Persistence/Repositories/PushMessageRepository.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Infrastructure/Persistence/Repositories/DeviceRegistrationRepository.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Infrastructure/Persistence/Repositories/TenantPushConfigurationRepository.cs`
+- Modify: `src/Modules/Communications/Wallow.Communications.Infrastructure/Persistence/Repositories/ChannelPreferenceRepository.cs` — add `GetGlobalPreferenceAsync`
 
 Follow existing repository patterns (inject `CommunicationsDbContext`, implement interface methods).
 
@@ -1203,18 +1203,18 @@ Follow existing repository patterns (inject `CommunicationsDbContext`, implement
 ### Task 3.3: Push Provider Implementations
 
 **Files:**
-- Create: `src/Modules/Communications/Foundry.Communications.Infrastructure/Services/Push/LogPushProvider.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Infrastructure/Services/Push/FcmPushProvider.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Infrastructure/Services/Push/ApnsPushProvider.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Infrastructure/Services/Push/WebPushProvider.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Infrastructure/Services/Push/PushProviderFactory.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Infrastructure/Services/Push/PushCredentialEncryptor.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Infrastructure/Services/Push/FcmSettings.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Infrastructure/Services/Push/ApnsSettings.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Infrastructure/Services/Push/WebPushSettings.cs`
-- Test: `tests/Modules/Communications/Foundry.Communications.Tests/Infrastructure/Services/Push/LogPushProviderTests.cs`
-- Test: `tests/Modules/Communications/Foundry.Communications.Tests/Infrastructure/Services/Push/PushProviderFactoryTests.cs`
-- Test: `tests/Modules/Communications/Foundry.Communications.Tests/Infrastructure/Services/Push/PushCredentialEncryptorTests.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Infrastructure/Services/Push/LogPushProvider.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Infrastructure/Services/Push/FcmPushProvider.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Infrastructure/Services/Push/ApnsPushProvider.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Infrastructure/Services/Push/WebPushProvider.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Infrastructure/Services/Push/PushProviderFactory.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Infrastructure/Services/Push/PushCredentialEncryptor.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Infrastructure/Services/Push/FcmSettings.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Infrastructure/Services/Push/ApnsSettings.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Infrastructure/Services/Push/WebPushSettings.cs`
+- Test: `tests/Modules/Communications/Wallow.Communications.Tests/Infrastructure/Services/Push/LogPushProviderTests.cs`
+- Test: `tests/Modules/Communications/Wallow.Communications.Tests/Infrastructure/Services/Push/PushProviderFactoryTests.cs`
+- Test: `tests/Modules/Communications/Wallow.Communications.Tests/Infrastructure/Services/Push/PushCredentialEncryptorTests.cs`
 
 **LogPushProvider** — follows `NullSmsProvider` pattern with `ILogger<LogPushProvider>` and `[LoggerMessage]` source gen.
 
@@ -1235,7 +1235,7 @@ Follow existing repository patterns (inject `CommunicationsDbContext`, implement
 ### Task 3.4: DI Registration
 
 **Files:**
-- Modify: `src/Modules/Communications/Foundry.Communications.Infrastructure/Extensions/CommunicationsModuleExtensions.cs` — add push services
+- Modify: `src/Modules/Communications/Wallow.Communications.Infrastructure/Extensions/CommunicationsModuleExtensions.cs` — add push services
 
 Add to `AddCommunicationsServices`:
 - Configure settings: `services.Configure<FcmSettings>(configuration.GetSection("Communications:Push:Fcm"))` etc.
@@ -1244,7 +1244,7 @@ Add to `AddCommunicationsServices`:
 - Register `IPushCredentialEncryptor` as singleton
 - Register `INotificationPreferenceChecker` as scoped
 - Register `LogPushProvider` as singleton
-- Register `HttpClient` for each provider with `AddFoundryResilienceHandler`
+- Register `HttpClient` for each provider with `AddWallowResilienceHandler`
 - Add Data Protection: `services.AddDataProtection()`
 
 Add to `AddCommunicationsPersistence`:
@@ -1257,8 +1257,8 @@ Add to `AddCommunicationsPersistence`:
 ### Task 3.5: appsettings.json Configuration
 
 **Files:**
-- Modify: `src/Foundry.Api/appsettings.json` — add `Communications:Push` section
-- Modify: `src/Foundry.Api/appsettings.Development.json` — all providers disabled, LogPushProvider by default
+- Modify: `src/Wallow.Api/appsettings.json` — add `Communications:Push` section
+- Modify: `src/Wallow.Api/appsettings.Development.json` — all providers disabled, LogPushProvider by default
 
 **Commit message:** `chore(communications): add push notification configuration sections`
 
@@ -1271,11 +1271,11 @@ Controllers, request/response contracts, permissions.
 ### Task 4.1: Push API Contracts
 
 **Files:**
-- Create: `src/Modules/Communications/Foundry.Communications.Api/Contracts/Push/Requests/RegisterDeviceRequest.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Api/Contracts/Push/Requests/UpdateDeviceRequest.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Api/Contracts/Push/Requests/SetPushConfigurationRequest.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Api/Contracts/Push/Responses/DeviceRegistrationResponse.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Api/Contracts/Push/Responses/TenantPushConfigurationResponse.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Api/Contracts/Push/Requests/RegisterDeviceRequest.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Api/Contracts/Push/Requests/UpdateDeviceRequest.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Api/Contracts/Push/Requests/SetPushConfigurationRequest.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Api/Contracts/Push/Responses/DeviceRegistrationResponse.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Api/Contracts/Push/Responses/TenantPushConfigurationResponse.cs`
 
 **Commit message:** `feat(communications): add push API contracts`
 
@@ -1284,9 +1284,9 @@ Controllers, request/response contracts, permissions.
 ### Task 4.2: PushDevicesController
 
 **Files:**
-- Create: `src/Modules/Communications/Foundry.Communications.Api/Controllers/PushDevicesController.cs`
-- Modify: `src/Shared/Foundry.Shared.Kernel/Identity/Authorization/PermissionType.cs` — add `PushDeviceManage`
-- Test: `tests/Modules/Communications/Foundry.Communications.Tests/Api/Controllers/PushDevicesControllerTests.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Api/Controllers/PushDevicesController.cs`
+- Modify: `src/Shared/Wallow.Shared.Kernel/Identity/Authorization/PermissionType.cs` — add `PushDeviceManage`
+- Test: `tests/Modules/Communications/Wallow.Communications.Tests/Api/Controllers/PushDevicesControllerTests.cs`
 
 Follow `EmailPreferencesController` pattern. Endpoints:
 - `POST /api/v1/push/devices`
@@ -1303,9 +1303,9 @@ All authorized, all use `ICurrentUserService` for user context.
 ### Task 4.3: PushConfigurationController (Admin)
 
 **Files:**
-- Create: `src/Modules/Communications/Foundry.Communications.Api/Controllers/PushConfigurationController.cs`
-- Modify: `src/Shared/Foundry.Shared.Kernel/Identity/Authorization/PermissionType.cs` — add `PushConfigurationManage`
-- Test: `tests/Modules/Communications/Foundry.Communications.Tests/Api/Controllers/PushConfigurationControllerTests.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Api/Controllers/PushConfigurationController.cs`
+- Modify: `src/Shared/Wallow.Shared.Kernel/Identity/Authorization/PermissionType.cs` — add `PushConfigurationManage`
+- Test: `tests/Modules/Communications/Wallow.Communications.Tests/Api/Controllers/PushConfigurationControllerTests.cs`
 
 Admin-only endpoints:
 - `POST /api/v1/push/configuration`
@@ -1326,12 +1326,12 @@ Unified settings API replacing `EmailPreferencesController`.
 ### Task 5.1: User Notification Settings Commands and Queries
 
 **Files:**
-- Create: `src/Modules/Communications/Foundry.Communications.Application/Preferences/Commands/SetChannelEnabledCommand.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Application/Preferences/Queries/GetUserNotificationSettingsQuery.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Application/Preferences/DTOs/UserNotificationSettingsDto.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Application/Preferences/DTOs/ChannelSettingsDto.cs`
-- Test: `tests/Modules/Communications/Foundry.Communications.Tests/Application/Preferences/SetChannelEnabledHandlerTests.cs`
-- Test: `tests/Modules/Communications/Foundry.Communications.Tests/Application/Preferences/GetUserNotificationSettingsHandlerTests.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Application/Preferences/Commands/SetChannelEnabledCommand.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Application/Preferences/Queries/GetUserNotificationSettingsQuery.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Application/Preferences/DTOs/UserNotificationSettingsDto.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Application/Preferences/DTOs/ChannelSettingsDto.cs`
+- Test: `tests/Modules/Communications/Wallow.Communications.Tests/Application/Preferences/SetChannelEnabledHandlerTests.cs`
+- Test: `tests/Modules/Communications/Wallow.Communications.Tests/Application/Preferences/GetUserNotificationSettingsHandlerTests.cs`
 
 **SetChannelEnabledCommand** — upserts the `NotificationType = "*"` record for a channel.
 
@@ -1344,12 +1344,12 @@ Unified settings API replacing `EmailPreferencesController`.
 ### Task 5.2: UserNotificationSettingsController
 
 **Files:**
-- Create: `src/Modules/Communications/Foundry.Communications.Api/Controllers/UserNotificationSettingsController.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Api/Contracts/Preferences/Requests/SetChannelEnabledRequest.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Api/Contracts/Preferences/Requests/SetNotificationTypePreferenceRequest.cs`
-- Create: `src/Modules/Communications/Foundry.Communications.Api/Contracts/Preferences/Responses/UserNotificationSettingsResponse.cs`
-- Modify: `src/Shared/Foundry.Shared.Kernel/Identity/Authorization/PermissionType.cs` — add `NotificationSettingsManage`
-- Test: `tests/Modules/Communications/Foundry.Communications.Tests/Api/Controllers/UserNotificationSettingsControllerTests.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Api/Controllers/UserNotificationSettingsController.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Api/Contracts/Preferences/Requests/SetChannelEnabledRequest.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Api/Contracts/Preferences/Requests/SetNotificationTypePreferenceRequest.cs`
+- Create: `src/Modules/Communications/Wallow.Communications.Api/Contracts/Preferences/Responses/UserNotificationSettingsResponse.cs`
+- Modify: `src/Shared/Wallow.Shared.Kernel/Identity/Authorization/PermissionType.cs` — add `NotificationSettingsManage`
+- Test: `tests/Modules/Communications/Wallow.Communications.Tests/Api/Controllers/UserNotificationSettingsControllerTests.cs`
 
 Endpoints:
 - `GET /api/v1/notifications/settings`
@@ -1363,14 +1363,14 @@ Endpoints:
 ### Task 5.3: Remove EmailPreferencesController
 
 **Files:**
-- Delete: `src/Modules/Communications/Foundry.Communications.Api/Controllers/EmailPreferencesController.cs`
-- Delete: `src/Modules/Communications/Foundry.Communications.Api/Contracts/Email/Enums/ApiNotificationType.cs`
-- Delete: `src/Modules/Communications/Foundry.Communications.Api/Contracts/Email/Requests/UpdateEmailPreferenceRequest.cs`
-- Delete: `src/Modules/Communications/Foundry.Communications.Api/Contracts/Email/Responses/EmailPreferenceResponse.cs`
-- Delete: `src/Modules/Communications/Foundry.Communications.Api/Mappings/EnumMappings.cs`
-- Delete: `tests/Modules/Communications/Foundry.Communications.Tests/Api/Controllers/EmailPreferencesControllerTests.cs`
-- Delete: `tests/Modules/Communications/Foundry.Communications.Tests/Api/Mappings/EnumMappingsTests.cs`
-- Modify: `src/Shared/Foundry.Shared.Kernel/Identity/Authorization/PermissionType.cs` — remove `EmailPreferenceManage` if no longer referenced
+- Delete: `src/Modules/Communications/Wallow.Communications.Api/Controllers/EmailPreferencesController.cs`
+- Delete: `src/Modules/Communications/Wallow.Communications.Api/Contracts/Email/Enums/ApiNotificationType.cs`
+- Delete: `src/Modules/Communications/Wallow.Communications.Api/Contracts/Email/Requests/UpdateEmailPreferenceRequest.cs`
+- Delete: `src/Modules/Communications/Wallow.Communications.Api/Contracts/Email/Responses/EmailPreferenceResponse.cs`
+- Delete: `src/Modules/Communications/Wallow.Communications.Api/Mappings/EnumMappings.cs`
+- Delete: `tests/Modules/Communications/Wallow.Communications.Tests/Api/Controllers/EmailPreferencesControllerTests.cs`
+- Delete: `tests/Modules/Communications/Wallow.Communications.Tests/Api/Mappings/EnumMappingsTests.cs`
+- Modify: `src/Shared/Wallow.Shared.Kernel/Identity/Authorization/PermissionType.cs` — remove `EmailPreferenceManage` if no longer referenced
 
 Check for any references to removed types before deleting.
 
@@ -1383,8 +1383,8 @@ Check for any references to removed types before deleting.
 ### Task 6.1: Wire Existing Handlers to Preference Checker
 
 **Files:**
-- Modify: `src/Modules/Communications/Foundry.Communications.Application/Channels/Email/Commands/SendEmail/SendEmailHandler.cs` — add preference check
-- Modify: `src/Modules/Communications/Foundry.Communications.Application/Channels/Sms/Commands/SendSms/SendSmsHandler.cs` — add preference check
+- Modify: `src/Modules/Communications/Wallow.Communications.Application/Channels/Email/Commands/SendEmail/SendEmailHandler.cs` — add preference check
+- Modify: `src/Modules/Communications/Wallow.Communications.Application/Channels/Sms/Commands/SendSms/SendSmsHandler.cs` — add preference check
 
 Add `INotificationPreferenceChecker` to handler constructors. Check before sending. If disabled, return success silently.
 
@@ -1405,13 +1405,13 @@ Fix any compilation errors.
 **Step 2: Run all Communications tests**
 
 ```bash
-dotnet test tests/Modules/Communications/Foundry.Communications.Tests
+dotnet test tests/Modules/Communications/Wallow.Communications.Tests
 ```
 
 **Step 3: Run architecture tests**
 
 ```bash
-dotnet test tests/Foundry.Architecture.Tests
+dotnet test tests/Wallow.Architecture.Tests
 ```
 
 Fix any architecture violations (module isolation, naming conventions, etc.).

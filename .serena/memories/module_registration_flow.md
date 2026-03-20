@@ -1,8 +1,8 @@
-# Module Registration Flow - Foundry Modular Monolith
+# Module Registration Flow - Wallow Modular Monolith
 
 ## Overview
 
-Foundry uses **automatic module discovery** via the `IModuleRegistration` interface. Modules are discovered at startup by scanning for `Foundry.*.Api.dll` assemblies that contain types implementing `IModuleRegistration`.
+Wallow uses **automatic module discovery** via the `IModuleRegistration` interface. Modules are discovered at startup by scanning for `Wallow.*.Api.dll` assemblies that contain types implementing `IModuleRegistration`.
 
 This replaced the manual extension method pattern where each module was explicitly registered in `Program.cs`.
 
@@ -10,7 +10,7 @@ This replaced the manual extension method pattern where each module was explicit
 
 ### IModuleRegistration Interface
 
-Located in `src/Shared/Foundry.Shared.Kernel/Modules/IModuleRegistration.cs`:
+Located in `src/Shared/Wallow.Shared.Kernel/Modules/IModuleRegistration.cs`:
 
 ```csharp
 public interface IModuleRegistration
@@ -25,16 +25,16 @@ public interface IModuleRegistration
 
 ### Discovery Mechanism
 
-Located in `src/Shared/Foundry.Shared.Infrastructure/Modules/ModuleDiscovery.cs`:
+Located in `src/Shared/Wallow.Shared.Infrastructure/Modules/ModuleDiscovery.cs`:
 
 **Three-Phase Auto-Discovery**:
 
-1. **Service Registration Phase**: `AddFoundryModules(configuration)` scans assemblies and calls `ConfigureServices()` on each discovered module
-2. **Wolverine Configuration Phase**: `ConfigureFoundryModules(services)` discovers handler assemblies and calls `ConfigureMessaging()` on each module
-3. **Initialization Phase**: `UseFoundryModulesAsync()` calls `InitializeAsync()` on each module for migrations and seeding
+1. **Service Registration Phase**: `AddWallowModules(configuration)` scans assemblies and calls `ConfigureServices()` on each discovered module
+2. **Wolverine Configuration Phase**: `ConfigureWallowModules(services)` discovers handler assemblies and calls `ConfigureMessaging()` on each module
+3. **Initialization Phase**: `UseWallowModulesAsync()` calls `InitializeAsync()` on each module for migrations and seeding
 
 **Discovery Logic**:
-- Scans all loaded assemblies for `Foundry.*.Api.dll` pattern
+- Scans all loaded assemblies for `Wallow.*.Api.dll` pattern
 - Finds types implementing `IModuleRegistration`
 - Filters to concrete, non-abstract types
 - Returns discovered types in assembly order
@@ -45,7 +45,7 @@ The new simplified `Program.cs`:
 
 ```csharp
 // 1. Service registration
-builder.Services.AddFoundryModules(builder.Configuration);
+builder.Services.AddWallowModules(builder.Configuration);
 
 // 2. Wolverine configuration
 builder.Host.UseWolverine(opts =>
@@ -60,13 +60,13 @@ builder.Host.UseWolverine(opts =>
     .AutoPurgeOnStartup();
     
     // Auto-discover all modules
-    opts.ConfigureFoundryModules(builder.Services);
+    opts.ConfigureWallowModules(builder.Services);
 });
 
 var app = builder.Build();
 
 // 3. Module initialization (migrations, seeders)
-await app.UseFoundryModulesAsync();
+await app.UseWallowModulesAsync();
 
 app.Run();
 ```
@@ -81,7 +81,7 @@ app.Run();
 
 ### Standard Module (with EF Core DbContext)
 
-Example: BillingModule (`src/Modules/Billing/Foundry.Billing.Api/BillingModule.cs`)
+Example: BillingModule (`src/Modules/Billing/Wallow.Billing.Api/BillingModule.cs`)
 
 ```csharp
 public sealed class BillingModule : IModuleRegistration
@@ -243,15 +243,15 @@ Jobs are automatically registered by `HangfireExtensions.RegisterRecurringJobs()
 **Causes & Solutions**:
 
 1. **Assembly not in bin directory**
-   - **Check**: Ensure `Foundry.Api.csproj` has a `<ProjectReference>` to the module's Api project
-   - **Fix**: Add `<ProjectReference Include="..\..\Modules\{Module}\Foundry.{Module}.Api\Foundry.{Module}.Api.csproj" />`
+   - **Check**: Ensure `Wallow.Api.csproj` has a `<ProjectReference>` to the module's Api project
+   - **Fix**: Add `<ProjectReference Include="..\..\Modules\{Module}\Wallow.{Module}.Api\Wallow.{Module}.Api.csproj" />`
 
 2. **Missing IModuleRegistration implementation**
    - **Check**: Verify `{Module}Module.cs` exists in the Api project
    - **Fix**: Create the module class implementing `IModuleRegistration`
 
 3. **Wrong assembly name pattern**
-   - **Check**: Module Api assembly must follow `Foundry.*.Api.dll` pattern
+   - **Check**: Module Api assembly must follow `Wallow.*.Api.dll` pattern
    - **Fix**: Rename assembly or update discovery pattern in `ModuleDiscovery.cs`
 
 4. **Build error**
@@ -281,7 +281,7 @@ foreach (var moduleType in modules)
 
 2. **Wrong assembly returned**
    - **Check**: Ensure the assembly contains the handler classes
-   - **Fix**: Point to the correct assembly (usually `Foundry.{Module}.Application`)
+   - **Fix**: Point to the correct assembly (usually `Wallow.{Module}.Application`)
 
 3. **Handler naming convention**
    - **Check**: Wolverine expects static methods named `Handle` or `HandleAsync`
@@ -509,7 +509,7 @@ The old manual registration pattern used these extension methods:
 
 **Migration Path**:
 - **Old**: Explicit calls in `Program.cs` for each module
-- **New**: Single call to `AddFoundryModules()` and `UseFoundryModulesAsync()`
+- **New**: Single call to `AddWallowModules()` and `UseWallowModulesAsync()`
 
 **What Happens to Legacy Extensions**:
 - They still exist and are called internally by the `{Module}Module` class
@@ -529,8 +529,8 @@ builder.Services.AddBillingModule(builder.Configuration);
 await app.UseBillingModuleAsync();
 
 // NEW PATTERN (Program.cs) - CURRENT
-builder.Services.AddFoundryModules(builder.Configuration);  // Discovers all modules
-await app.UseFoundryModulesAsync();  // Initializes all modules
+builder.Services.AddWallowModules(builder.Configuration);  // Discovers all modules
+await app.UseWallowModulesAsync();  // Initializes all modules
 ```
 
 ## Module Inventory
@@ -547,7 +547,7 @@ await app.UseFoundryModulesAsync();  // Initializes all modules
 
 ### 1. Module Class Naming
 - Standard: `{Module}Module` (e.g., `BillingModule`)
-- Location: `src/Modules/{Module}/Foundry.{Module}.Api/{Module}Module.cs`
+- Location: `src/Modules/{Module}/Wallow.{Module}.Api/{Module}Module.cs`
 - Must be public and sealed
 - Must implement `IModuleRegistration`
 
@@ -599,7 +599,7 @@ Standard conventions:
 ## Module Dependency Graph
 
 ```
-Foundry.Api (composition root)
+Wallow.Api (composition root)
 ├─ Identity → Keycloak, JWT, TenantContext, Permissions
 ├─ Billing → Invoices, Subscriptions, Payment processing
 ├─ Communications → Messaging, notifications, email delivery
@@ -607,9 +607,9 @@ Foundry.Api (composition root)
 └─ Storage → S3/Local file storage
 
 All modules share:
-├─ Foundry.Shared.Kernel → Base types, ITenantContext, Result<T>, IModuleRegistration
-├─ Foundry.Shared.Contracts → Integration events
-├─ Foundry.Shared.Infrastructure → ModuleDiscovery, common services
+├─ Wallow.Shared.Kernel → Base types, ITenantContext, Result<T>, IModuleRegistration
+├─ Wallow.Shared.Contracts → Integration events
+├─ Wallow.Shared.Infrastructure → ModuleDiscovery, common services
 ├─ Wolverine → CQRS mediator, RabbitMQ transport
 ├─ EF Core → Multi-schema, auto-migrations
 ├─ PostgreSQL → All data storage
@@ -622,10 +622,10 @@ All modules share:
 1. **Wolverine Setup** - Handlers, RabbitMQ routing
 2. **Redis SignalR Backplane** - Real-time communication
 3. **Core Services** - HttpContext, Controllers, Kernel services
-4. **Module Service Registration** - `AddFoundryModules()` discovers and registers all modules
+4. **Module Service Registration** - `AddWallowModules()` discovers and registers all modules
 5. **Hangfire Setup** - Background job infrastructure
 6. **App Build** - Build the WebApplication
-7. **Module Initialization** - `UseFoundryModulesAsync()` runs migrations and seeders
+7. **Module Initialization** - `UseWallowModulesAsync()` runs migrations and seeders
 8. **Recurring Job Registration** - `RegisterRecurringJobs()` discovers all IRecurringJobRegistration
 9. **Middleware Pipeline** - Auth, tenant resolution, exception handling
 10. **Endpoint Mapping** - Controllers, SignalR hubs

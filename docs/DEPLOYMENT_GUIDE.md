@@ -1,6 +1,6 @@
-# Foundry Deployment Guide
+# Wallow Deployment Guide
 
-This guide covers deploying Foundry to a Hetzner server with automated CI/CD and connecting client applications to the API.
+This guide covers deploying Wallow to a Hetzner server with automated CI/CD and connecting client applications to the API.
 
 ---
 
@@ -37,7 +37,7 @@ This guide covers deploying Foundry to a Hetzner server with automated CI/CD and
 │  ┌─────────────────────────────────────────────────────────────┐│
 │  │  Docker Compose                                             ││
 │  │  ┌───────────┐  ┌──────────┐  ┌──────────┐  ┌────────────┐ ││
-│  │  │ Foundry   │  │ Postgres │  │ RabbitMQ │  │ Keycloak   │ ││
+│  │  │ Wallow   │  │ Postgres │  │ RabbitMQ │  │ Keycloak   │ ││
 │  │  │ API       │  │          │  │          │  │            │ ││
 │  │  │ :8080     │  │ :5432    │  │ :5672    │  │ :8081      │ ││
 │  │  └───────────┘  └──────────┘  └──────────┘  └────────────┘ ││
@@ -123,13 +123,13 @@ On your **local machine**:
 
 ```bash
 # Generate a dedicated deploy key
-ssh-keygen -t ed25519 -C "github-foundry-deploy" -f ~/.ssh/foundry_deploy -N ""
+ssh-keygen -t ed25519 -C "github-wallow-deploy" -f ~/.ssh/wallow_deploy -N ""
 
 # Display the public key (copy this)
-cat ~/.ssh/foundry_deploy.pub
+cat ~/.ssh/wallow_deploy.pub
 
 # Display the private key (you'll need this for GitHub secrets)
-cat ~/.ssh/foundry_deploy
+cat ~/.ssh/wallow_deploy
 ```
 
 Add the **public key** to the server:
@@ -142,16 +142,16 @@ ssh root@YOUR_SERVER_IP "echo 'YOUR_PUBLIC_KEY_CONTENT' >> /home/deploy/.ssh/aut
 Test the connection:
 
 ```bash
-ssh -i ~/.ssh/foundry_deploy deploy@YOUR_SERVER_IP
+ssh -i ~/.ssh/wallow_deploy deploy@YOUR_SERVER_IP
 ```
 
 ### 3.3 Create Directory Structure
 
 ```bash
 # As root on the server
-mkdir -p /opt/foundry/{dev,staging,prod}
-mkdir -p /opt/foundry/scripts
-chown -R deploy:deploy /opt/foundry
+mkdir -p /opt/wallow/{dev,staging,prod}
+mkdir -p /opt/wallow/scripts
+chown -R deploy:deploy /opt/wallow
 ```
 
 ### 3.4 Copy Deployment Files
@@ -160,17 +160,17 @@ From your local machine (in the repository root):
 
 ```bash
 # Copy the deploy script
-scp deploy/deploy.sh deploy@YOUR_SERVER_IP:/opt/foundry/scripts/
+scp deploy/deploy.sh deploy@YOUR_SERVER_IP:/opt/wallow/scripts/
 
 # Make it executable
-ssh deploy@YOUR_SERVER_IP "chmod +x /opt/foundry/scripts/deploy.sh"
+ssh deploy@YOUR_SERVER_IP "chmod +x /opt/wallow/scripts/deploy.sh"
 
 # Copy compose files and templates for each environment
 for ENV in dev staging prod; do
-  scp deploy/docker-compose.base.yml deploy@YOUR_SERVER_IP:/opt/foundry/$ENV/
-  scp deploy/docker-compose.$ENV.yml deploy@YOUR_SERVER_IP:/opt/foundry/$ENV/
-  scp deploy/init-db.sql deploy@YOUR_SERVER_IP:/opt/foundry/$ENV/
-  scp deploy/.env.example deploy@YOUR_SERVER_IP:/opt/foundry/$ENV/.env
+  scp deploy/docker-compose.base.yml deploy@YOUR_SERVER_IP:/opt/wallow/$ENV/
+  scp deploy/docker-compose.$ENV.yml deploy@YOUR_SERVER_IP:/opt/wallow/$ENV/
+  scp deploy/init-db.sql deploy@YOUR_SERVER_IP:/opt/wallow/$ENV/
+  scp deploy/.env.example deploy@YOUR_SERVER_IP:/opt/wallow/$ENV/.env
 done
 ```
 
@@ -185,27 +185,27 @@ ssh deploy@YOUR_SERVER_IP
 Edit production config:
 
 ```bash
-nano /opt/foundry/prod/.env
+nano /opt/wallow/prod/.env
 ```
 
 Required changes:
 
 ```ini
 # Environment identification
-COMPOSE_PROJECT_NAME=foundry-prod
+COMPOSE_PROJECT_NAME=wallow-prod
 ASPNETCORE_ENVIRONMENT=Production
 
 # Docker image (update to your GitHub username/org)
-APP_IMAGE=ghcr.io/YOUR_GITHUB_USER/foundry
+APP_IMAGE=ghcr.io/YOUR_GITHUB_USER/wallow
 APP_TAG=latest
 
 # Database (use strong passwords!)
-POSTGRES_USER=foundry
+POSTGRES_USER=wallow
 POSTGRES_PASSWORD=<generate-strong-password>
-POSTGRES_DB=foundry
+POSTGRES_DB=wallow
 
 # RabbitMQ
-RABBITMQ_USER=foundry
+RABBITMQ_USER=wallow
 RABBITMQ_PASSWORD=<generate-strong-password>
 # Keycloak (if using external Keycloak)
 # KEYCLOAK_URL=https://auth.yourdomain.com
@@ -306,7 +306,7 @@ For each environment, add these secrets:
 |-------------|-------|
 | `DEPLOY_HOST` | Your Hetzner server IP or hostname |
 | `DEPLOY_USER` | `deploy` |
-| `DEPLOY_SSH_KEY` | Contents of `~/.ssh/foundry_deploy` (the **private** key) |
+| `DEPLOY_SSH_KEY` | Contents of `~/.ssh/wallow_deploy` (the **private** key) |
 
 ### 4.3 Verify Workflow Files
 
@@ -325,7 +325,7 @@ SSH to the server and start infrastructure services:
 
 ```bash
 ssh deploy@YOUR_SERVER_IP
-cd /opt/foundry/prod
+cd /opt/wallow/prod
 
 # Start infrastructure first
 docker compose -f docker-compose.base.yml -f docker-compose.prod.yml up -d postgres rabbitmq
@@ -353,7 +353,7 @@ On the server, watch logs:
 
 ```bash
 ssh deploy@YOUR_SERVER_IP
-docker logs -f foundry-prod-app
+docker logs -f wallow-prod-app
 ```
 
 ### 5.4 Verify Deployment
@@ -370,7 +370,7 @@ Expected response:
 
 ```json
 {
-  "name": "Foundry API",
+  "name": "Wallow API",
   "version": "1.0.0",
   "environment": "Production",
   "documentation": "/scalar/v1",
@@ -385,11 +385,11 @@ Expected response:
 
 ### 6.1 Authentication Flow
 
-Foundry uses Keycloak for authentication. Client apps authenticate via OpenID Connect:
+Wallow uses Keycloak for authentication. Client apps authenticate via OpenID Connect:
 
 ```
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│  Client App │────>│  Keycloak   │────>│ Foundry API │
+│  Client App │────>│  Keycloak   │────>│ Wallow API │
 │  (SPA/Mobile)│     │  Login Page │     │             │
 └─────────────┘     └─────────────┘     └─────────────┘
       │                    │                    │
@@ -407,7 +407,7 @@ Foundry uses Keycloak for authentication. Client apps authenticate via OpenID Co
 
 ### 6.2 Authentication Options
 
-Foundry supports two authentication methods:
+Wallow supports two authentication methods:
 
 | Method | Use Case | Header |
 |--------|----------|--------|
@@ -553,8 +553,8 @@ Or use Keycloak's login page directly with OIDC (for SSO features):
 import { UserManager } from 'oidc-client-ts';
 
 const userManager = new UserManager({
-  authority: 'https://auth.yourdomain.com/realms/foundry',
-  client_id: 'foundry-spa',
+  authority: 'https://auth.yourdomain.com/realms/wallow',
+  client_id: 'wallow-spa',
   redirect_uri: 'https://yourapp.com/callback',
   response_type: 'code',
   scope: 'openid profile email',
@@ -653,10 +653,10 @@ curl -H "Authorization: Bearer ADMIN_TOKEN" \
 
 ```bash
 # Application logs
-docker logs foundry-prod-app -f --tail 100
+docker logs wallow-prod-app -f --tail 100
 
 # All services
-cd /opt/foundry/prod
+cd /opt/wallow/prod
 docker compose -f docker-compose.base.yml -f docker-compose.prod.yml logs -f
 ```
 
@@ -664,7 +664,7 @@ docker compose -f docker-compose.base.yml -f docker-compose.prod.yml logs -f
 
 ```bash
 ssh deploy@YOUR_SERVER_IP
-bash /opt/foundry/scripts/deploy.sh prod v1.2.3
+bash /opt/wallow/scripts/deploy.sh prod v1.2.3
 ```
 
 ### 7.3 Rollback
@@ -673,7 +673,7 @@ The deploy script automatically rolls back on health check failure. For manual r
 
 ```bash
 ssh deploy@YOUR_SERVER_IP
-cd /opt/foundry/prod
+cd /opt/wallow/prod
 
 # Edit .env to set previous tag
 nano .env  # Change APP_TAG=v1.2.2
@@ -687,10 +687,10 @@ docker compose -f docker-compose.base.yml -f docker-compose.prod.yml up -d --no-
 
 ```bash
 # Backup
-docker exec foundry-prod-postgres pg_dump -U foundry foundry > backup.sql
+docker exec wallow-prod-postgres pg_dump -U wallow wallow > backup.sql
 
 # Restore
-docker exec -i foundry-prod-postgres psql -U foundry foundry < backup.sql
+docker exec -i wallow-prod-postgres psql -U wallow wallow < backup.sql
 ```
 
 ### 7.5 Scaling
@@ -734,7 +734,7 @@ Health check failed after 12 attempts. Rolling back...
 **Fix**: Check application logs:
 
 ```bash
-docker logs foundry-prod-app --tail 200
+docker logs wallow-prod-app --tail 200
 ```
 
 Common causes:
@@ -746,7 +746,7 @@ Common causes:
 
 ```bash
 # Check Keycloak logs
-docker logs foundry-prod-keycloak
+docker logs wallow-prod-keycloak
 
 # Restart Keycloak
 docker compose -f docker-compose.base.yml -f docker-compose.prod.yml restart keycloak
@@ -756,17 +756,17 @@ docker compose -f docker-compose.base.yml -f docker-compose.prod.yml restart key
 
 ```bash
 # Test database connectivity
-docker exec foundry-prod-postgres pg_isready -U foundry
+docker exec wallow-prod-postgres pg_isready -U wallow
 
 # Check connection string in .env
-grep POSTGRES /opt/foundry/prod/.env
+grep POSTGRES /opt/wallow/prod/.env
 ```
 
 ### RabbitMQ Issues
 
 ```bash
 # Check RabbitMQ status
-docker exec foundry-prod-rabbitmq rabbitmq-diagnostics status
+docker exec wallow-prod-rabbitmq rabbitmq-diagnostics status
 
 # Access management UI (if enabled)
 # Add port mapping in docker-compose: 15672:15672
@@ -775,7 +775,7 @@ docker exec foundry-prod-rabbitmq rabbitmq-diagnostics status
 ### Reset Everything
 
 ```bash
-cd /opt/foundry/prod
+cd /opt/wallow/prod
 docker compose -f docker-compose.base.yml -f docker-compose.prod.yml down -v
 docker compose -f docker-compose.base.yml -f docker-compose.prod.yml up -d
 ```
@@ -803,14 +803,14 @@ docker compose -f docker-compose.base.yml -f docker-compose.prod.yml up -d
 git tag v1.0.0 && git push origin v1.0.0
 
 # Manual deploy
-ssh deploy@SERVER "bash /opt/foundry/scripts/deploy.sh prod v1.0.0"
+ssh deploy@SERVER "bash /opt/wallow/scripts/deploy.sh prod v1.0.0"
 ```
 
 ### Server Commands
 
 ```bash
 # View logs
-docker logs foundry-prod-app -f
+docker logs wallow-prod-app -f
 
 # Restart app
 docker compose -f docker-compose.base.yml -f docker-compose.prod.yml restart app
@@ -823,7 +823,7 @@ docker compose -f docker-compose.base.yml -f docker-compose.prod.yml ps
 
 ## 9. Kubernetes Deployment
 
-Foundry includes Helm charts and Kustomize overlays for deploying to Kubernetes clusters.
+Wallow includes Helm charts and Kustomize overlays for deploying to Kubernetes clusters.
 
 ### 9.1 Prerequisites
 
@@ -835,20 +835,20 @@ Foundry includes Helm charts and Kustomize overlays for deploying to Kubernetes 
 
 ### 9.2 Deploying with Helm
 
-Helm charts are located in `deploy/helm/foundry/`. Each environment has a values override file.
+Helm charts are located in `deploy/helm/wallow/`. Each environment has a values override file.
 
 ```bash
 # Development
-helm install foundry ./deploy/helm/foundry -f deploy/helm/foundry/values-dev.yaml -n foundry-dev --create-namespace
+helm install wallow ./deploy/helm/wallow -f deploy/helm/wallow/values-dev.yaml -n wallow-dev --create-namespace
 
 # Staging
-helm install foundry ./deploy/helm/foundry -f deploy/helm/foundry/values-staging.yaml -n foundry-staging --create-namespace
+helm install wallow ./deploy/helm/wallow -f deploy/helm/wallow/values-staging.yaml -n wallow-staging --create-namespace
 
 # Production
-helm install foundry ./deploy/helm/foundry -f deploy/helm/foundry/values-prod.yaml -n foundry-prod --create-namespace
+helm install wallow ./deploy/helm/wallow -f deploy/helm/wallow/values-prod.yaml -n wallow-prod --create-namespace
 
 # Upgrade an existing release
-helm upgrade foundry ./deploy/helm/foundry -f deploy/helm/foundry/values-prod.yaml -n foundry-prod
+helm upgrade wallow ./deploy/helm/wallow -f deploy/helm/wallow/values-prod.yaml -n wallow-prod
 ```
 
 ### 9.3 Deploying with Kustomize
@@ -873,9 +873,9 @@ External infrastructure (PostgreSQL, RabbitMQ, Valkey) is configured in the `sec
 ```yaml
 # In values-staging.yaml or values-prod.yaml
 secrets:
-  ConnectionStrings__DefaultConnection: "Host=db.example.com;Port=5432;Database=foundry;Username=foundry;Password=STRONG_PASSWORD"
+  ConnectionStrings__DefaultConnection: "Host=db.example.com;Port=5432;Database=wallow;Username=wallow;Password=STRONG_PASSWORD"
   ConnectionStrings__Redis: "cache.example.com:6379"
-  ConnectionStrings__RabbitMq: "amqp://foundry:STRONG_PASSWORD@mq.example.com:5672"
+  ConnectionStrings__RabbitMq: "amqp://wallow:STRONG_PASSWORD@mq.example.com:5672"
 ```
 
 For Kustomize deployments, update the `secret.yaml` in the base or overlay directory.
@@ -895,7 +895,7 @@ ingress:
   host: api.yourdomain.com
   tls:
     enabled: true
-    secretName: foundry-tls
+    secretName: wallow-tls
 ```
 
 This requires [cert-manager](https://cert-manager.io/) installed in the cluster for automatic certificate provisioning. Alternatively, provide a pre-existing TLS secret.
@@ -933,5 +933,5 @@ Kubernetes probes are pre-configured in the Helm chart and Kustomize base:
 You can also hit these endpoints manually for debugging:
 
 ```bash
-kubectl exec -it deploy/foundry -n foundry-prod -- curl -s localhost:8080/health
+kubectl exec -it deploy/wallow -n wallow-prod -- curl -s localhost:8080/health
 ```

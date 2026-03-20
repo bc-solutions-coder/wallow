@@ -2,11 +2,11 @@
 
 ## Overview
 
-Service accounts provide programmatic access to the Foundry API for server-to-server integrations. Unlike user authentication (which requires browser-based login), service accounts use OAuth2 client credentials flow designed for automated systems, background jobs, and integrations.
+Service accounts provide programmatic access to the Wallow API for server-to-server integrations. Unlike user authentication (which requires browser-based login), service accounts use OAuth2 client credentials flow designed for automated systems, background jobs, and integrations.
 
 ### When to Use Service Accounts
 
-- Integrating Foundry with external systems (CRM, ERP, analytics)
+- Integrating Wallow with external systems (CRM, ERP, analytics)
 - Building custom dashboards or reporting tools
 - Automating administrative tasks
 - Creating webhooks that call back to your API
@@ -28,7 +28,7 @@ Service accounts provide programmatic access to the Foundry API for server-to-se
 
 ### Step 1: Create a Service Account
 
-Log into your Foundry tenant and navigate to **Settings > API Management > Service Accounts**.
+Log into your Wallow tenant and navigate to **Settings > API Management > Service Accounts**.
 
 Click **Create Service Account** and provide:
 - **Name**: Descriptive identifier (e.g., "Production Backend", "Analytics Pipeline")
@@ -47,7 +47,7 @@ After creation, you'll receive:
 Use the provided credentials to request an access token:
 
 ```bash
-curl -X POST https://auth.yourplatform.com/realms/foundry/protocol/openid-connect/token \
+curl -X POST https://auth.yourplatform.com/realms/wallow/protocol/openid-connect/token \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "client_id=your-client-id" \
   -d "client_secret=your-client-secret" \
@@ -81,7 +81,7 @@ The OAuth2 client credentials flow involves two steps:
 
 ```
 ┌─────────────────┐                      ┌──────────────┐                     ┌─────────────┐
-│   Your Server   │                      │   Keycloak   │                     │ Foundry API │
+│   Your Server   │                      │   Keycloak   │                     │ Wallow API │
 └────────┬────────┘                      └──────┬───────┘                     └──────┬──────┘
          │                                      │                                    │
          │  1. POST /token                      │                                    │
@@ -124,9 +124,9 @@ import requests
 import os
 
 # Load credentials from environment variables
-CLIENT_ID = os.getenv("FOUNDRY_CLIENT_ID")
-CLIENT_SECRET = os.getenv("FOUNDRY_CLIENT_SECRET")
-TOKEN_URL = "https://auth.yourplatform.com/realms/foundry/protocol/openid-connect/token"
+CLIENT_ID = os.getenv("WALLOW_CLIENT_ID")
+CLIENT_SECRET = os.getenv("WALLOW_CLIENT_SECRET")
+TOKEN_URL = "https://auth.yourplatform.com/realms/wallow/protocol/openid-connect/token"
 API_BASE = "https://api.yourplatform.com"
 
 # Step 1: Get access token
@@ -168,8 +168,8 @@ import requests
 from threading import Lock
 from typing import Optional
 
-class FoundryClient:
-    """Production-ready Foundry API client with automatic token refresh."""
+class WallowClient:
+    """Production-ready Wallow API client with automatic token refresh."""
 
     def __init__(self, client_id: str, client_secret: str, token_url: str, api_base: str):
         self.client_id = client_id
@@ -227,10 +227,10 @@ class FoundryClient:
         return self._request("DELETE", path, **kwargs)
 
 # Usage
-client = FoundryClient(
-    client_id=os.getenv("FOUNDRY_CLIENT_ID"),
-    client_secret=os.getenv("FOUNDRY_CLIENT_SECRET"),
-    token_url="https://auth.yourplatform.com/realms/foundry/protocol/openid-connect/token",
+client = WallowClient(
+    client_id=os.getenv("WALLOW_CLIENT_ID"),
+    client_secret=os.getenv("WALLOW_CLIENT_SECRET"),
+    token_url="https://auth.yourplatform.com/realms/wallow/protocol/openid-connect/token",
     api_base="https://api.yourplatform.com"
 )
 
@@ -254,15 +254,15 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-public class FoundryApiExample
+public class WallowApiExample
 {
     private static readonly HttpClient httpClient = new HttpClient();
 
     public static async Task Main()
     {
-        var clientId = Environment.GetEnvironmentVariable("FOUNDRY_CLIENT_ID");
-        var clientSecret = Environment.GetEnvironmentVariable("FOUNDRY_CLIENT_SECRET");
-        var tokenUrl = "https://auth.yourplatform.com/realms/foundry/protocol/openid-connect/token";
+        var clientId = Environment.GetEnvironmentVariable("WALLOW_CLIENT_ID");
+        var clientSecret = Environment.GetEnvironmentVariable("WALLOW_CLIENT_SECRET");
+        var tokenUrl = "https://auth.yourplatform.com/realms/wallow/protocol/openid-connect/token";
         var apiBase = "https://api.yourplatform.com";
 
         // Step 1: Get access token
@@ -319,7 +319,7 @@ using System.Net.Http.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
-public class FoundryClient : IDisposable
+public class WallowClient : IDisposable
 {
     private readonly HttpClient _httpClient;
     private readonly string _clientId;
@@ -330,7 +330,7 @@ public class FoundryClient : IDisposable
     private string? _accessToken;
     private DateTime _tokenExpiresAt;
 
-    public FoundryClient(string clientId, string clientSecret, string tokenUrl, string apiBase)
+    public WallowClient(string clientId, string clientSecret, string tokenUrl, string apiBase)
     {
         _clientId = clientId;
         _clientSecret = clientSecret;
@@ -409,10 +409,10 @@ public class FoundryClient : IDisposable
 }
 
 // Usage
-var client = new FoundryClient(
-    clientId: Environment.GetEnvironmentVariable("FOUNDRY_CLIENT_ID")!,
-    clientSecret: Environment.GetEnvironmentVariable("FOUNDRY_CLIENT_SECRET")!,
-    tokenUrl: "https://auth.yourplatform.com/realms/foundry/protocol/openid-connect/token",
+var client = new WallowClient(
+    clientId: Environment.GetEnvironmentVariable("WALLOW_CLIENT_ID")!,
+    clientSecret: Environment.GetEnvironmentVariable("WALLOW_CLIENT_SECRET")!,
+    tokenUrl: "https://auth.yourplatform.com/realms/wallow/protocol/openid-connect/token",
     apiBase: "https://api.yourplatform.com"
 );
 
@@ -433,9 +433,9 @@ var customer = await client.PostAsync<CreateCustomerRequest, Customer>(
 ```javascript
 import axios from 'axios';
 
-const CLIENT_ID = process.env.FOUNDRY_CLIENT_ID;
-const CLIENT_SECRET = process.env.FOUNDRY_CLIENT_SECRET;
-const TOKEN_URL = 'https://auth.yourplatform.com/realms/foundry/protocol/openid-connect/token';
+const CLIENT_ID = process.env.WALLOW_CLIENT_ID;
+const CLIENT_SECRET = process.env.WALLOW_CLIENT_SECRET;
+const TOKEN_URL = 'https://auth.yourplatform.com/realms/wallow/protocol/openid-connect/token';
 const API_BASE = 'https://api.yourplatform.com';
 
 // Step 1: Get access token
@@ -476,7 +476,7 @@ console.log(newInvoice.data);
 ```javascript
 import axios from 'axios';
 
-class FoundryClient {
+class WallowClient {
   constructor(clientId, clientSecret, tokenUrl, apiBase) {
     this.clientId = clientId;
     this.clientSecret = clientSecret;
@@ -552,10 +552,10 @@ class FoundryClient {
 }
 
 // Usage
-const client = new FoundryClient(
-  process.env.FOUNDRY_CLIENT_ID,
-  process.env.FOUNDRY_CLIENT_SECRET,
-  'https://auth.yourplatform.com/realms/foundry/protocol/openid-connect/token',
+const client = new WallowClient(
+  process.env.WALLOW_CLIENT_ID,
+  process.env.WALLOW_CLIENT_SECRET,
+  'https://auth.yourplatform.com/realms/wallow/protocol/openid-connect/token',
   'https://api.yourplatform.com'
 );
 
@@ -592,7 +592,7 @@ Content-Type: application/json
   "id": "sa_abc123",
   "clientId": "sa-tenant12-production-backend",
   "clientSecret": "xK9mN2pL8qR5sT7vW3yZ1aB4cD6eF8gH0iJ2kL5mN7oP9qR1sT3uV5wX7yZ9",
-  "tokenEndpoint": "https://auth.yourplatform.com/realms/foundry/protocol/openid-connect/token",
+  "tokenEndpoint": "https://auth.yourplatform.com/realms/wallow/protocol/openid-connect/token",
   "scopes": ["invoices.read", "invoices.write", "payments.read"],
   "createdAt": "2024-02-06T10:00:00Z",
   "warning": "Save this secret now. It will not be shown again."
@@ -817,7 +817,7 @@ CLIENT_SECRET = "xK9mN2pL8qR5sT7vW3yZ..."  # DO NOT DO THIS
 ```python
 # config.py
 import os
-CLIENT_SECRET = os.getenv("FOUNDRY_CLIENT_SECRET")
+CLIENT_SECRET = os.getenv("WALLOW_CLIENT_SECRET")
 ```
 
 **Better:**
@@ -828,7 +828,7 @@ import json
 
 def get_secret():
     client = boto3.client('secretsmanager')
-    response = client.get_secret_value(SecretId='foundry/api-credentials')
+    response = client.get_secret_value(SecretId='wallow/api-credentials')
     return json.loads(response['SecretString'])
 
 credentials = get_secret()
@@ -854,7 +854,7 @@ for invoice in invoices_to_create:
 
 **Best:**
 ```python
-client = FoundryClient(...)  # Handles token caching internally
+client = WallowClient(...)  # Handles token caching internally
 for invoice in invoices_to_create:
     client.post("/api/invoices", invoice)
 ```
@@ -928,7 +928,7 @@ def make_request(url, headers, retry=True):
 
 ### 8. Use HTTPS Only
 
-Never send credentials over unencrypted HTTP. All Foundry endpoints use HTTPS.
+Never send credentials over unencrypted HTTP. All Wallow endpoints use HTTPS.
 
 ### 9. Implement Rate Limiting
 
@@ -1123,7 +1123,7 @@ Update application configuration immediately after rotation:
 NEW_SECRET=$(curl -X POST .../rotate-secret | jq -r '.clientSecret')
 
 # 2. Update environment variable
-export FOUNDRY_CLIENT_SECRET=$NEW_SECRET
+export WALLOW_CLIENT_SECRET=$NEW_SECRET
 
 # 3. Restart application
 systemctl restart myapp

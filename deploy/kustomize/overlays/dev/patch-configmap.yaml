@@ -1,10 +1,10 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: foundry-config
+  name: wallow-config
 data:
   ASPNETCORE_ENVIRONMENT: "Development"
-  ConnectionStrings__DefaultConnection: "Host=postgres-dev;Database=foundry_dev;Username=foundry;Password=CHANGE_ME"
-  ConnectionStrings__Marten: "Host=postgres-dev;Database=foundry_dev;Username=foundry;Password=CHANGE_ME"
+  ConnectionStrings__DefaultConnection: "Host=postgres-dev;Database=wallow_dev;Username=wallow;Password=CHANGE_ME"
+  ConnectionStrings__Marten: "Host=postgres-dev;Database=wallow_dev;Username=wallow;Password=CHANGE_ME"
   RabbitMq__Host: "rabbitmq-dev"
   Valkey__Configuration: "valkey-dev:6379"

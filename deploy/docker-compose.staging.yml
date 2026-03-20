@@ -38,11 +38,11 @@ services:
   # ============================================
   mailpit:
     image: axllent/mailpit:latest
-    container_name: ${COMPOSE_PROJECT_NAME:-foundry}-mailpit
+    container_name: ${COMPOSE_PROJECT_NAME:-wallow}-mailpit
     ports:
       - "127.0.0.1:28025:8025"
     networks:
-      - foundry
+      - wallow
     restart: unless-stopped
     logging:
       driver: json-file

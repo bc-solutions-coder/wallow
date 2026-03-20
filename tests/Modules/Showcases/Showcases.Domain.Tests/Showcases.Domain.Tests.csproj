@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <RootNamespace>Foundry.Showcases.Domain.Tests</RootNamespace>
+    <RootNamespace>Wallow.Showcases.Domain.Tests</RootNamespace>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
@@ -18,6 +18,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\src\Modules\Showcases\Foundry.Showcases.Domain\Foundry.Showcases.Domain.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Modules\Showcases\Wallow.Showcases.Domain\Wallow.Showcases.Domain.csproj" />
   </ItemGroup>
 </Project>

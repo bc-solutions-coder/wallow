@@ -1,6 +1,6 @@
-# Foundry Background Jobs Guide
+# Wallow Background Jobs Guide
 
-This guide covers background processing in Foundry, including Hangfire configuration, job patterns, scheduling, error handling, and when to choose Hangfire versus Wolverine for background work.
+This guide covers background processing in Wallow, including Hangfire configuration, job patterns, scheduling, error handling, and when to choose Hangfire versus Wolverine for background work.
 
 ## Table of Contents
 
@@ -17,7 +17,7 @@ This guide covers background processing in Foundry, including Hangfire configura
 
 ## 1. Overview
 
-Foundry uses **Hangfire** for scheduled and recurring background jobs. Hangfire provides:
+Wallow uses **Hangfire** for scheduled and recurring background jobs. Hangfire provides:
 
 - **Persistent job storage** in PostgreSQL
 - **Dashboard UI** for monitoring and managing jobs
@@ -52,7 +52,7 @@ See [Section 8](#8-wolverine-vs-hangfire) for a detailed comparison.
 Hangfire is configured in `Program.cs` via the `AddHangfireServices` extension:
 
 ```csharp
-// src/Foundry.Api/Extensions/HangfireExtensions.cs
+// src/Wallow.Api/Extensions/HangfireExtensions.cs
 public static IServiceCollection AddHangfireServices(
     this IServiceCollection services, IConfiguration configuration)
 {
@@ -96,13 +96,13 @@ Hangfire stores jobs in the `hangfire` PostgreSQL schema. Tables include:
 The Hangfire dashboard is available at `/hangfire`:
 
 ```csharp
-// src/Foundry.Api/Extensions/HangfireExtensions.cs
+// src/Wallow.Api/Extensions/HangfireExtensions.cs
 public static WebApplication UseHangfireDashboard(this WebApplication app)
 {
     app.UseHangfireDashboard("/hangfire", new DashboardOptions
     {
         Authorization = [new HangfireDashboardAuthFilter(app.Environment)],
-        DashboardTitle = "Foundry Jobs"
+        DashboardTitle = "Wallow Jobs"
     });
 
     return app;
@@ -114,7 +114,7 @@ public static WebApplication UseHangfireDashboard(this WebApplication app)
 The dashboard is protected by `HangfireDashboardAuthFilter`:
 
 ```csharp
-// src/Foundry.Api/Middleware/HangfireDashboardAuthFilter.cs
+// src/Wallow.Api/Middleware/HangfireDashboardAuthFilter.cs
 public sealed class HangfireDashboardAuthFilter : IDashboardAuthorizationFilter
 {
     private readonly IWebHostEnvironment _environment;
@@ -183,7 +183,7 @@ BackgroundJob.Schedule<ProcessBatchJob>(
 
 ### Recurring Jobs
 
-Execute on a cron schedule. This is the most common pattern in Foundry:
+Execute on a cron schedule. This is the most common pattern in Wallow:
 
 ```csharp
 // Every 5 minutes - flush usage counters from cache to database
@@ -230,7 +230,7 @@ var step3 = BackgroundJob.ContinueJobWith(step2, () => Step3());
 
 ### Job Class Pattern
 
-Jobs in Foundry follow a consistent pattern:
+Jobs in Wallow follow a consistent pattern:
 
 1. **Constructor injection** for dependencies
 2. **`ExecuteAsync` method** with `CancellationToken`
@@ -240,7 +240,7 @@ Jobs in Foundry follow a consistent pattern:
 **Example: Billing Usage Flush Job**
 
 ```csharp
-// src/Modules/Billing/Foundry.Billing.Infrastructure/Jobs/FlushUsageJob.cs
+// src/Modules/Billing/Wallow.Billing.Infrastructure/Jobs/FlushUsageJob.cs
 public class FlushUsageJob
 {
     private readonly IConnectionMultiplexer _redis;
@@ -316,7 +316,7 @@ public class CleanupExpiredTokensJob
 Jobs are resolved from the DI container. Register job classes in module extensions:
 
 ```csharp
-// src/Modules/Billing/Foundry.Billing.Infrastructure/Extensions/BillingInfrastructureExtensions.cs
+// src/Modules/Billing/Wallow.Billing.Infrastructure/Extensions/BillingInfrastructureExtensions.cs
 private static IServiceCollection AddBillingBackgroundJobs(this IServiceCollection services)
 {
     // Register job classes
@@ -370,10 +370,10 @@ public class ProcessOrderJob
 
 ### Registration Pattern
 
-Foundry provides the `IJobScheduler` abstraction in `Shared.Kernel` for scheduling background jobs. The implementation uses Hangfire and is registered in `Shared.Infrastructure`:
+Wallow provides the `IJobScheduler` abstraction in `Shared.Kernel` for scheduling background jobs. The implementation uses Hangfire and is registered in `Shared.Infrastructure`:
 
 ```csharp
-// src/Shared/Foundry.Shared.Kernel/BackgroundJobs/IJobScheduler.cs
+// src/Shared/Wallow.Shared.Kernel/BackgroundJobs/IJobScheduler.cs
 public interface IJobScheduler
 {
     string Enqueue(Expression<Func<Task>> job);
@@ -386,7 +386,7 @@ public interface IJobScheduler
 The Hangfire implementation:
 
 ```csharp
-// src/Shared/Foundry.Shared.Infrastructure/BackgroundJobs/HangfireJobScheduler.cs
+// src/Shared/Wallow.Shared.Infrastructure/BackgroundJobs/HangfireJobScheduler.cs
 public sealed class HangfireJobScheduler : IJobScheduler
 {
     public string Enqueue(Expression<Func<Task>> job) =>
@@ -441,7 +441,7 @@ await using (AsyncServiceScope jobScope = app.Services.CreateAsyncScope())
 
 ### Cron Expression Reference
 
-Foundry uses standard 5-field cron expressions:
+Wallow uses standard 5-field cron expressions:
 
 ```
 ┌───────────── minute (0-59)
@@ -782,7 +782,7 @@ public async Task ProcessAllTenantsAsync(CancellationToken ct)
 
 ## 8. Wolverine vs Hangfire
 
-Foundry uses both Wolverine and Hangfire for background processing. Understanding when to use each is crucial.
+Wallow uses both Wolverine and Hangfire for background processing. Understanding when to use each is crucial.
 
 ### Quick Decision Matrix
 
@@ -817,7 +817,7 @@ public sealed class UserRegisteredEventHandler
             tenantContext.TenantId,
             integrationEvent.UserId,
             NotificationType.SystemAlert,
-            "Welcome to Foundry!",
+            "Welcome to Wallow!",
             $"Hi {integrationEvent.FirstName}, welcome!");
 
         notificationRepository.Add(notification);
@@ -839,7 +839,7 @@ Hangfire excels at scheduled work:
 
 ```csharp
 // Job runs on a schedule, not triggered by events
-// src/Modules/Billing/Foundry.Billing.Infrastructure/Jobs/FlushUsageJob.cs
+// src/Modules/Billing/Wallow.Billing.Infrastructure/Jobs/FlushUsageJob.cs
 public class FlushUsageJob
 {
     private readonly IConnectionMultiplexer _redis;
@@ -888,7 +888,7 @@ Sometimes a job uses both:
 
 ```csharp
 // Hangfire job that publishes Wolverine events
-// src/Modules/Billing/Foundry.Billing.Infrastructure/Jobs/FlushUsageJob.cs
+// src/Modules/Billing/Wallow.Billing.Infrastructure/Jobs/FlushUsageJob.cs
 public class FlushUsageJob
 {
     private readonly IConnectionMultiplexer _redis;

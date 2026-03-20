@@ -1,10 +1,10 @@
 # Data Inventory Documentation
 
-This document provides a comprehensive inventory of personal data collected and processed by Foundry. It serves as both internal documentation and transparency documentation for users exercising their rights under GDPR, CCPA, and similar data protection regulations.
+This document provides a comprehensive inventory of personal data collected and processed by Wallow. It serves as both internal documentation and transparency documentation for users exercising their rights under GDPR, CCPA, and similar data protection regulations.
 
 ## Overview
 
-Foundry collects and processes personal data to provide its services to tenants and their users. All data processing is done with appropriate legal basis and in accordance with applicable data protection laws.
+Wallow collects and processes personal data to provide its services to tenants and their users. All data processing is done with appropriate legal basis and in accordance with applicable data protection laws.
 
 ### Regulatory Framework
 
@@ -146,7 +146,7 @@ File storage management.
 
 ### Data Minimization
 
-Foundry collects only the data necessary to provide its services. Users are not required to provide optional information.
+Wallow collects only the data necessary to provide its services. Users are not required to provide optional information.
 
 ### Purpose Limitation
 
@@ -167,7 +167,7 @@ All personal data is protected with:
 
 ## Retention Policies
 
-Foundry implements automated retention policies to ensure data is not kept longer than necessary.
+Wallow implements automated retention policies to ensure data is not kept longer than necessary.
 
 | Data Category | Retention Period | Action After Retention | Legal Basis |
 |---------------|------------------|------------------------|-------------|
@@ -195,7 +195,7 @@ Users can request a complete export of their personal data. Exports include:
 
 ## Data Erasure
 
-Users can request erasure of their personal data. Foundry implements the following erasure strategy:
+Users can request erasure of their personal data. Wallow implements the following erasure strategy:
 
 | Data Category | Erasure Method | Exceptions |
 |---------------|----------------|------------|
@@ -212,7 +212,7 @@ Users can request erasure of their personal data. Foundry implements the followi
 
 ## International Data Transfers
 
-Foundry is designed to be deployed in any region. Data residency is controlled by:
+Wallow is designed to be deployed in any region. Data residency is controlled by:
 
 - **Database Location:** PostgreSQL instance location determines data-at-rest location
 - **Keycloak Location:** Identity data resides where Keycloak is deployed
@@ -224,7 +224,7 @@ Foundry is designed to be deployed in any region. Data residency is controlled b
 
 ## Third-Party Data Processors
 
-Foundry may share data with the following categories of third-party processors:
+Wallow may share data with the following categories of third-party processors:
 
 | Processor Category | Purpose | Data Shared | Safeguards |
 |-------------------|---------|-------------|------------|
@@ -320,7 +320,7 @@ Database backups may contain personal data. Backup retention:
 
 ## Changes to This Inventory
 
-When new data collection is added to Foundry:
+When new data collection is added to Wallow:
 
 1. Update this documentation
 2. Notify users of material changes to data processing
@@ -329,5 +329,5 @@ When new data collection is added to Foundry:
 ---
 
 **Last Updated:** 2026-02-15
-**Maintained By:** Foundry Compliance Team
+**Maintained By:** Wallow Compliance Team
 **Review Schedule:** Quarterly

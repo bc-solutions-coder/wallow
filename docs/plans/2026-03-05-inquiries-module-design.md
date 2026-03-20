@@ -123,19 +123,19 @@ The Communications module subscribes with `InquirySubmittedHandler`, which sends
 
 ```
 src/Modules/Inquiries/
-├── Foundry.Inquiries.Domain/
+├── Wallow.Inquiries.Domain/
 │   ├── Entities/Inquiry.cs
 │   ├── Enums/ProjectType.cs, BudgetRange.cs, Timeline.cs, InquiryStatus.cs
 │   └── Events/InquirySubmittedEvent.cs, InquiryStatusChangedEvent.cs
-├── Foundry.Inquiries.Application/
+├── Wallow.Inquiries.Application/
 │   ├── Commands/SubmitInquiry/, UpdateInquiryStatus/
 │   ├── Queries/GetInquiries/, GetInquiryById/
 │   └── Validators/
-├── Foundry.Inquiries.Infrastructure/
+├── Wallow.Inquiries.Infrastructure/
 │   ├── Data/InquiriesDbContext.cs, InquiryConfiguration.cs
 │   ├── Repositories/
 │   └── Services/RateLimitService.cs
-└── Foundry.Inquiries.Api/
+└── Wallow.Inquiries.Api/
     ├── Endpoints/InquiryEndpoints.cs
     └── InquiriesModule.cs
 ```
@@ -144,13 +144,13 @@ Communications module addition:
 
 ```
 src/Modules/Communications/
-└── Foundry.Communications.Application/
+└── Wallow.Communications.Application/
     └── EventHandlers/InquirySubmittedHandler.cs
 ```
 
 Shared contracts addition:
 
 ```
-src/Shared/Foundry.Shared.Contracts/
+src/Shared/Wallow.Shared.Contracts/
 └── Inquiries/InquirySubmittedEvent.cs, InquiryStatusChangedEvent.cs
 ```

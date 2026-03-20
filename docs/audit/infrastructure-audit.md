@@ -8,7 +8,7 @@
 
 ## Summary
 
-The Foundry infrastructure is well-architected for a modular monolith. Docker uses proper multi-stage builds, CI/CD has good coverage enforcement, observability is comprehensive with OpenTelemetry + Grafana, and health checks cover all critical dependencies. However, there are several areas needing attention, particularly around Valkey security, migration safety in production, missing HttpClient resilience policies, and database connection configuration.
+The Wallow infrastructure is well-architected for a modular monolith. Docker uses proper multi-stage builds, CI/CD has good coverage enforcement, observability is comprehensive with OpenTelemetry + Grafana, and health checks cover all critical dependencies. However, there are several areas needing attention, particularly around Valkey security, migration safety in production, missing HttpClient resilience policies, and database connection configuration.
 
 ---
 
@@ -38,7 +38,7 @@ The production compose overlay (`docker-compose.prod.yml`) only adds memory limi
 
 ### 2. CRITICAL: Auto-Migration on Startup in All Environments
 
-**Files:** `src/Modules/Billing/Foundry.Billing.Infrastructure/Extensions/BillingModuleExtensions.cs:29`, and equivalent in all 5 modules + audit
+**Files:** `src/Modules/Billing/Wallow.Billing.Infrastructure/Extensions/BillingModuleExtensions.cs:29`, and equivalent in all 5 modules + audit
 
 All modules call `db.Database.MigrateAsync()` on startup unconditionally (no environment check). This means production deployments automatically apply EF Core migrations, which is dangerous:
 
@@ -63,7 +63,7 @@ catch (Exception ex)
 ```
 
 **Remediation:**
-- Gate auto-migration behind `IsDevelopment()` or a config flag (`Foundry:AutoMigrate: true`)
+- Gate auto-migration behind `IsDevelopment()` or a config flag (`Wallow:AutoMigrate: true`)
 - In production, use a dedicated migration runner (CI/CD step or init container) with `dotnet ef database update`
 - Add a migration concurrency lock (EF Core advisory lock or Wolverine's built-in migration lock)
 - Fail fast if migration fails in production instead of continuing with broken schema
@@ -72,7 +72,7 @@ catch (Exception ex)
 
 ### 3. HIGH: No Database Connection Pooling or Timeout Configuration
 
-**Files:** All module `*InfrastructureExtensions.cs` files (e.g., `src/Modules/Identity/Foundry.Identity.Infrastructure/Extensions/IdentityInfrastructureExtensions.cs:34`)
+**Files:** All module `*InfrastructureExtensions.cs` files (e.g., `src/Modules/Identity/Wallow.Identity.Infrastructure/Extensions/IdentityInfrastructureExtensions.cs:34`)
 
 All `UseNpgsql()` calls use bare connection strings with no explicit pool size, connection timeout, or command timeout configuration:
 
@@ -96,7 +96,7 @@ Under load, the default Npgsql pool size (100) may be inadequate or excessive pe
 
 ### 4. HIGH: No HttpClient Resilience Policies for External Services
 
-**Files:** `src/Modules/Identity/Foundry.Identity.Infrastructure/Extensions/IdentityInfrastructureExtensions.cs:71-77`
+**Files:** `src/Modules/Identity/Wallow.Identity.Infrastructure/Extensions/IdentityInfrastructureExtensions.cs:71-77`
 
 HttpClients for Keycloak admin, token service, and other external APIs are registered without any resilience policies (retry, circuit breaker, timeout):
 
@@ -125,20 +125,20 @@ If Keycloak is slow or down, every request through these clients will hang until
 ### 5. HIGH: Design-Time DbContext Factories Contain Hardcoded Credentials
 
 **Files:**
-- `src/Modules/Billing/Foundry.Billing.Infrastructure/Persistence/BillingDbContextFactory.cs:17`
-- `src/Modules/Storage/Foundry.Storage.Infrastructure/Persistence/StorageDbContextFactory.cs:15`
+- `src/Modules/Billing/Wallow.Billing.Infrastructure/Persistence/BillingDbContextFactory.cs:17`
+- `src/Modules/Storage/Wallow.Storage.Infrastructure/Persistence/StorageDbContextFactory.cs:15`
 
 Design-time factories contain hardcoded connection strings with different credentials:
 
 ```csharp
 // BillingDbContextFactory.cs
-optionsBuilder.UseNpgsql("Host=localhost;Database=foundry;Username=postgres;Password=postgres");
+optionsBuilder.UseNpgsql("Host=localhost;Database=wallow;Username=postgres;Password=postgres");
 
 // StorageDbContextFactory.cs
-optionsBuilder.UseNpgsql("Host=localhost;Database=foundry;Username=foundry;Password=foundry");
+optionsBuilder.UseNpgsql("Host=localhost;Database=wallow;Username=wallow;Password=wallow");
 ```
 
-While these are only used at design-time for `dotnet ef migrations`, the inconsistent credentials (postgres vs foundry) indicate configuration drift and the hardcoded strings could confuse developers.
+While these are only used at design-time for `dotnet ef migrations`, the inconsistent credentials (postgres vs wallow) indicate configuration drift and the hardcoded strings could confuse developers.
 
 **Remediation:**
 - Standardize all design-time factories to use the same connection string matching docker `.env.example`
@@ -173,7 +173,7 @@ This doubles CI time unnecessarily. The `build` job validates the build succeeds
 
 **Files:** `docker/docker-compose.yml`, `docker/docker-compose.rabbitmq.yml`
 
-RabbitMQ is in a separate opt-in compose file, but the health check configuration in `src/Foundry.Api/Extensions/ServiceCollectionExtensions.cs:78-87` always registers a RabbitMQ health check. The CI integration tests also assume RabbitMQ is available. The `dev-up.sh` script does not include the RabbitMQ compose file:
+RabbitMQ is in a separate opt-in compose file, but the health check configuration in `src/Wallow.Api/Extensions/ServiceCollectionExtensions.cs:78-87` always registers a RabbitMQ health check. The CI integration tests also assume RabbitMQ is available. The `dev-up.sh` script does not include the RabbitMQ compose file:
 
 ```bash
 # dev-up.sh
@@ -233,7 +233,7 @@ The Postgres, RabbitMQ, and Valkey images properly pin major versions (`postgres
 
 ### 10. MEDIUM: No Idempotency Guarantees for Wolverine Message Handling
 
-**Files:** `src/Shared/Foundry.Shared.Kernel/Messaging/WolverineErrorHandlingExtensions.cs`, `src/Foundry.Api/Program.cs:114-116`
+**Files:** `src/Shared/Wallow.Shared.Kernel/Messaging/WolverineErrorHandlingExtensions.cs`, `src/Wallow.Api/Program.cs:114-116`
 
 The error handling configuration retries messages and moves them to DLQ, but there is no mention of idempotency keys or deduplication:
 
@@ -389,7 +389,7 @@ Dependabot is configured but without grouping, creating many individual PRs:
 
 ```yaml
 settings:
-    addresses: alerts@foundry.dev
+    addresses: alerts@wallow.dev
 ```
 
 This is a non-routable domain placeholder. Alerts will not be delivered.

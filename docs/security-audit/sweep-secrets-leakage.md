@@ -17,13 +17,13 @@ The codebase follows generally good practices for secrets management in producti
 ### SEC-S01: Valkey/Redis Password Hardcoded in Base appsettings.json
 
 **Severity:** MEDIUM
-**File:** `src/Foundry.Api/appsettings.json:15`
+**File:** `src/Wallow.Api/appsettings.json:15`
 **Code:**
 ```json
-"Redis": "localhost:6379,password=FoundryValkey123!,abortConnect=false"
+"Redis": "localhost:6379,password=WallowValkey123!,abortConnect=false"
 ```
 
-**Explanation:** The base `appsettings.json` (which ships with the application and is checked into source control) contains the actual Valkey password `FoundryValkey123!`. While Production and Staging configs use `OVERRIDE_VIA_ENV_VAR`, the base config file serves as a fallback. If production fails to override the `ConnectionStrings:Redis` key, this password is used. This same password also appears in `appsettings.Development.json` and `docker/.env`.
+**Explanation:** The base `appsettings.json` (which ships with the application and is checked into source control) contains the actual Valkey password `WallowValkey123!`. While Production and Staging configs use `OVERRIDE_VIA_ENV_VAR`, the base config file serves as a fallback. If production fails to override the `ConnectionStrings:Redis` key, this password is used. This same password also appears in `appsettings.Development.json` and `docker/.env`.
 
 **Recommendation:** Replace the password in the base config with a placeholder like `SET_VIA_ConnectionStrings__Redis_OR_USER_SECRETS` (matching the pattern used for `DefaultConnection`). Keep the actual dev password only in `appsettings.Development.json` or user secrets.
 
@@ -35,17 +35,17 @@ The codebase follows generally good practices for secrets management in producti
 **File:** `docker/keycloak/realm-export.json:229`
 **Code:**
 ```json
-"secret": "foundry-api-secret"
+"secret": "wallow-api-secret"
 ```
 
-**Explanation:** The Keycloak realm export file contains a hardcoded client secret `foundry-api-secret` for the `foundry-api` client. This file is checked into git and imported by Keycloak on startup. While this is only the development Keycloak instance, the secret is also referenced across documentation (`docs/CONFIGURATION_GUIDE.md`, `docs/DEVELOPER_GUIDE.md`, `docs/TROUBLESHOOTING_GUIDE.md`) and test fixtures (`tests/Foundry.Tests.Common/Fixtures/KeycloakFixture.cs`). Anyone with repo access knows this secret.
+**Explanation:** The Keycloak realm export file contains a hardcoded client secret `wallow-api-secret` for the `wallow-api` client. This file is checked into git and imported by Keycloak on startup. While this is only the development Keycloak instance, the secret is also referenced across documentation (`docs/CONFIGURATION_GUIDE.md`, `docs/DEVELOPER_GUIDE.md`, `docs/TROUBLESHOOTING_GUIDE.md`) and test fixtures (`tests/Wallow.Tests.Common/Fixtures/KeycloakFixture.cs`). Anyone with repo access knows this secret.
 
 **Also found in:**
 - `docs/CONFIGURATION_GUIDE.md:80,90,381`
 - `docs/DEVELOPER_GUIDE.md:72`
 - `docs/TROUBLESHOOTING_GUIDE.md:276,312,322`
-- `tests/Foundry.Tests.Common/Fixtures/KeycloakFixture.cs:25`
-- `tests/Foundry.Tests.Common/foundry-realm.json:17`
+- `tests/Wallow.Tests.Common/Fixtures/KeycloakFixture.cs:25`
+- `tests/Wallow.Tests.Common/wallow-realm.json:17`
 
 **Recommendation:** This is acceptable for development/testing, but ensure production Keycloak instances use a strong, unique client secret injected via environment variables. Add a note in the realm export file clarifying it is for development only.
 
@@ -55,18 +55,18 @@ The codebase follows generally good practices for secrets management in producti
 
 **Severity:** LOW
 **Files:**
-- `src/Modules/Storage/Foundry.Storage.Infrastructure/Persistence/StorageDbContextFactory.cs:16`
-- `src/Modules/Configuration/Foundry.Configuration.Infrastructure/Persistence/ConfigurationDbContextFactory.cs:19`
-- `src/Modules/Billing/Foundry.Billing.Infrastructure/Persistence/BillingDbContextFactory.cs:17`
+- `src/Modules/Storage/Wallow.Storage.Infrastructure/Persistence/StorageDbContextFactory.cs:16`
+- `src/Modules/Configuration/Wallow.Configuration.Infrastructure/Persistence/ConfigurationDbContextFactory.cs:19`
+- `src/Modules/Billing/Wallow.Billing.Infrastructure/Persistence/BillingDbContextFactory.cs:17`
 
 **Code:**
 ```csharp
-optionsBuilder.UseNpgsql("Host=localhost;Database=foundry;Username=foundry;Password=foundry");
+optionsBuilder.UseNpgsql("Host=localhost;Database=wallow;Username=wallow;Password=wallow");
 // or
-optionsBuilder.UseNpgsql("Host=localhost;Database=foundry;Username=postgres;Password=postgres");
+optionsBuilder.UseNpgsql("Host=localhost;Database=wallow;Username=postgres;Password=postgres");
 ```
 
-**Explanation:** Design-time factories used for EF Core migrations contain hardcoded PostgreSQL credentials. These are only used by `dotnet ef` commands and never at runtime, but they are visible in source control. The Billing factory uses `postgres/postgres` while Storage and Configuration use `foundry/foundry`, creating inconsistency.
+**Explanation:** Design-time factories used for EF Core migrations contain hardcoded PostgreSQL credentials. These are only used by `dotnet ef` commands and never at runtime, but they are visible in source control. The Billing factory uses `postgres/postgres` while Storage and Configuration use `wallow/wallow`, creating inconsistency.
 
 **Recommendation:** Low risk since these are design-time only. Consider reading from environment variables with a fallback, or document clearly that these are for local dev migration generation only.
 
@@ -75,14 +75,14 @@ optionsBuilder.UseNpgsql("Host=localhost;Database=foundry;Username=postgres;Pass
 ### SEC-S04: Development Credentials in appsettings.Development.json
 
 **Severity:** LOW
-**File:** `src/Foundry.Api/appsettings.Development.json:3-4`
+**File:** `src/Wallow.Api/appsettings.Development.json:3-4`
 **Code:**
 ```json
-"DefaultConnection": "Host=localhost;Port=5432;Database=foundry;Username=foundry;Password=foundry;SSL Mode=Disable",
-"Redis": "localhost:6379,password=FoundryValkey123!,abortConnect=false"
+"DefaultConnection": "Host=localhost;Port=5432;Database=wallow;Username=wallow;Password=wallow;SSL Mode=Disable",
+"Redis": "localhost:6379,password=WallowValkey123!,abortConnect=false"
 ```
 
-**Explanation:** The development config contains plaintext PostgreSQL password `foundry` and Valkey password `FoundryValkey123!`. SSL Mode is set to `Disable` for development, which is expected but means no transport encryption.
+**Explanation:** The development config contains plaintext PostgreSQL password `wallow` and Valkey password `WallowValkey123!`. SSL Mode is set to `Disable` for development, which is expected but means no transport encryption.
 
 **Recommendation:** This is standard practice for local development. Consider using .NET User Secrets for all local credentials instead of checking them into source control. The passwords should match `docker/.env` and be clearly documented as development-only.
 
@@ -91,7 +91,7 @@ optionsBuilder.UseNpgsql("Host=localhost;Database=foundry;Username=postgres;Pass
 ### SEC-S05: Test Credentials in appsettings.Testing.json
 
 **Severity:** LOW
-**File:** `src/Foundry.Api/appsettings.Testing.json:3-5,13,23`
+**File:** `src/Wallow.Api/appsettings.Testing.json:3-5,13,23`
 **Code:**
 ```json
 "DefaultConnection": "Host=localhost;Database=test_db;Username=test;Password=test",
@@ -108,10 +108,10 @@ optionsBuilder.UseNpgsql("Host=localhost;Database=foundry;Username=postgres;Pass
 ### SEC-S06: Elsa Workflow Default Signing Key in Development
 
 **Severity:** LOW
-**File:** `src/Shared/Foundry.Shared.Infrastructure.Workflows/Workflows/ElsaExtensions.cs:69`
+**File:** `src/Shared/Wallow.Shared.Infrastructure.Workflows/Workflows/ElsaExtensions.cs:69`
 **Code:**
 ```csharp
-return "foundry-default-elsa-signing-key-replace-in-production";
+return "wallow-default-elsa-signing-key-replace-in-production";
 ```
 
 **Explanation:** The Elsa workflow engine uses a hardcoded default signing key in development when `Elsa:Identity:SigningKey` is not configured. Non-development environments correctly throw an exception if the key is missing (line 72-73), which is good. However, the default key is visible in source code.
@@ -123,7 +123,7 @@ return "foundry-default-elsa-signing-key-replace-in-production";
 ### SEC-S07: Keycloak Placeholder Secrets in Base appsettings.json
 
 **Severity:** INFO
-**File:** `src/Foundry.Api/appsettings.json:70,80,88`
+**File:** `src/Wallow.Api/appsettings.json:70,80,88`
 **Code:**
 ```json
 "secret": "REPLACE_IN_PRODUCTION"
@@ -142,10 +142,10 @@ return "foundry-default-elsa-signing-key-replace-in-production";
 **File:** `docker/.env` (not tracked in git per `.gitignore`)
 **Credentials found:**
 ```
-POSTGRES_PASSWORD=foundry
+POSTGRES_PASSWORD=wallow
 RABBITMQ_PASSWORD=guest
 KEYCLOAK_ADMIN_PASSWORD=admin
-VALKEY_PASSWORD=FoundryValkey123!
+VALKEY_PASSWORD=WallowValkey123!
 GF_ADMIN_PASSWORD=admin
 ```
 
@@ -159,7 +159,7 @@ GF_ADMIN_PASSWORD=admin
 
 ### Exception Handling (GlobalExceptionHandler.cs)
 
-**File:** `src/Foundry.Api/Middleware/GlobalExceptionHandler.cs:103-112`
+**File:** `src/Wallow.Api/Middleware/GlobalExceptionHandler.cs:103-112`
 
 The exception handler properly gates sensitive information by environment:
 - **Development**: Exposes `exception.Message` and full `exception.ToString()` (stack trace) -- appropriate for debugging.
@@ -169,7 +169,7 @@ The exception handler properly gates sensitive information by environment:
 
 ### Health Check Response Writer
 
-**File:** `src/Foundry.Api/Program.cs:428-452`
+**File:** `src/Wallow.Api/Program.cs:428-452`
 
 Health checks properly differentiate between environments:
 - **Production**: Returns only `{ "status": "Healthy" }` -- no individual check details.
@@ -177,25 +177,25 @@ Health checks properly differentiate between environments:
 
 ### OpenAPI/Swagger Endpoints
 
-**File:** `src/Foundry.Api/Program.cs:296-307`
+**File:** `src/Wallow.Api/Program.cs:296-307`
 
 OpenAPI and Scalar API reference endpoints are correctly gated behind `IsDevelopment()` check. They are not exposed in production or staging.
 
 ### AsyncAPI Endpoints
 
-**File:** `src/Foundry.Api/Extensions/AsyncApiEndpointExtensions.cs:10-13`
+**File:** `src/Wallow.Api/Extensions/AsyncApiEndpointExtensions.cs:10-13`
 
 AsyncAPI documentation endpoints are correctly gated behind `IsDevelopment()`.
 
 ### Elsa Workflow API
 
-**File:** `src/Foundry.Api/Program.cs:382-388`
+**File:** `src/Wallow.Api/Program.cs:382-388`
 
 The Elsa Workflow management API is correctly gated behind `IsDevelopment()`. Only the workflow runtime (not the admin API) runs in production.
 
 ### Production/Staging Config Files
 
-**Files:** `src/Foundry.Api/appsettings.Production.json`, `src/Foundry.Api/appsettings.Staging.json`
+**Files:** `src/Wallow.Api/appsettings.Production.json`, `src/Wallow.Api/appsettings.Staging.json`
 
 Both files consistently use `OVERRIDE_VIA_ENV_VAR` placeholders for all sensitive values (database credentials, RabbitMQ credentials, SMTP credentials, Keycloak secrets, Elsa signing key). No actual secrets are present.
 
@@ -210,7 +210,7 @@ Properly excludes:
 
 ### Security Headers
 
-**File:** `src/Foundry.Api/Middleware/SecurityHeadersMiddleware.cs`
+**File:** `src/Wallow.Api/Middleware/SecurityHeadersMiddleware.cs`
 
 Proper security headers are applied:
 - `X-Content-Type-Options: nosniff`
@@ -222,7 +222,7 @@ Proper security headers are applied:
 
 ### Hangfire Dashboard Authorization
 
-**File:** `src/Foundry.Api/Middleware/HangfireDashboardAuthFilter.cs`
+**File:** `src/Wallow.Api/Middleware/HangfireDashboardAuthFilter.cs`
 
 Dashboard access is:
 - **Development**: Open (no auth) -- appropriate for local dev.
@@ -230,9 +230,9 @@ Dashboard access is:
 
 ### Data Protection for SSO Secrets
 
-**File:** `src/Modules/Identity/Foundry.Identity.Infrastructure/Persistence/IdentityDbContext.cs:35`
+**File:** `src/Modules/Identity/Wallow.Identity.Infrastructure/Persistence/IdentityDbContext.cs:35`
 
-SSO configuration secrets are encrypted at rest using .NET Data Protection with a dedicated purpose `"Foundry.Identity.SsoSecrets"`.
+SSO configuration secrets are encrypted at rest using .NET Data Protection with a dedicated purpose `"Wallow.Identity.SsoSecrets"`.
 
 ### No Sensitive Data in Logs
 

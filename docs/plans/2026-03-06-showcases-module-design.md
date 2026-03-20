@@ -68,20 +68,20 @@ No pagination initially. Portfolio lists are small.
 
 ```
 src/Modules/Showcases/
-├── Foundry.Showcases.Domain/
+├── Wallow.Showcases.Domain/
 │   ├── Entities/Showcase.cs
 │   ├── Enums/ShowcaseCategory.cs
 │   └── Repositories/IShowcaseRepository.cs
-├── Foundry.Showcases.Application/
+├── Wallow.Showcases.Application/
 │   ├── Commands/ (Create, Update, Delete)
 │   ├── Queries/ (GetShowcase, ListShowcases)
 │   └── DTOs/ShowcaseResponse.cs
-├── Foundry.Showcases.Infrastructure/
+├── Wallow.Showcases.Infrastructure/
 │   ├── Persistence/ShowcasesDbContext.cs
 │   ├── Persistence/ShowcaseConfiguration.cs
 │   ├── Repositories/ShowcaseRepository.cs
 │   └── ShowcasesModule.cs
-└── Foundry.Showcases.Api/
+└── Wallow.Showcases.Api/
     └── Endpoints/ShowcaseEndpoints.cs
 ```
 
@@ -89,7 +89,7 @@ src/Modules/Showcases/
 
 - Own PostgreSQL schema: `showcases`
 - CQRS via Wolverine handlers
-- Minimal API endpoints following existing Foundry patterns
+- Minimal API endpoints following existing Wallow patterns
 - No tenant interceptor — global data
 - Tags stored as PostgreSQL `text[]`, mapped via EF Core
 
@@ -98,7 +98,7 @@ src/Modules/Showcases/
 - **Domain unit tests**: Validation rules (title required, at least one URL).
 - **Application tests**: Command/query handler behavior.
 - **Integration tests**: EF Core persistence, endpoint auth (anonymous reads, admin-only writes).
-- **Architecture tests**: Module follows Foundry conventions.
+- **Architecture tests**: Module follows Wallow conventions.
 
 ## Out of Scope
 

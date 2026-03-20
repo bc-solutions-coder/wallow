@@ -2,7 +2,7 @@
 
 ## Overview
 
-StyleCop.Analyzers is configured to enforce C# code style consistency across the Foundry codebase. This document describes the baseline configuration and intentional exceptions.
+StyleCop.Analyzers is configured to enforce C# code style consistency across the Wallow codebase. This document describes the baseline configuration and intentional exceptions.
 
 ## Configuration Files
 
@@ -151,5 +151,5 @@ dotnet_diagnostic.SA1234.severity = none
 
 - [StyleCop.Analyzers Documentation](https://github.com/DotNetAnalyzers/StyleCopAnalyzers)
 - [Rule Index](https://github.com/DotNetAnalyzers/StyleCopAnalyzers/blob/master/DOCUMENTATION.md)
-- [Foundry .editorconfig](/Users/traveler/Repos/Foundry/.editorconfig)
-- [Codebase Perfection Audit Design](/Users/traveler/Repos/Foundry/docs/plans/2026-02-16-codebase-perfection-audit-design.md)
+- [Wallow .editorconfig](/Users/traveler/Repos/Wallow/.editorconfig)
+- [Codebase Perfection Audit Design](/Users/traveler/Repos/Wallow/docs/plans/2026-02-16-codebase-perfection-audit-design.md)

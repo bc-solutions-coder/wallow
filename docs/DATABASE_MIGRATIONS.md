@@ -1,10 +1,10 @@
-# Database Migrations in Foundry
+# Database Migrations in Wallow
 
-This document explains how database table creation and migrations work in Foundry's modular monolith architecture.
+This document explains how database table creation and migrations work in Wallow's modular monolith architecture.
 
 ## Overview
 
-Foundry uses **EF Core Migrations** for all modules. Each module owns its own PostgreSQL **schema** and has isolated storage.
+Wallow uses **EF Core Migrations** for all modules. Each module owns its own PostgreSQL **schema** and has isolated storage.
 
 ### Key Principles
 
@@ -112,7 +112,7 @@ public class BillingDbContextFactory : IDesignTimeDbContextFactory<BillingDbCont
 
         // Hardcoded connection for design-time
         optionsBuilder.UseNpgsql(
-            "Host=localhost;Database=foundry;Username=postgres;Password=postgres");
+            "Host=localhost;Database=wallow;Username=postgres;Password=postgres");
 
         // Mock tenant context (required by DbContext constructor)
         var mockTenantContext = new DesignTimeTenantContext();
@@ -144,8 +144,8 @@ internal sealed class DesignTimeTenantContext : ITenantContext
 
 ```bash
 dotnet ef migrations add {MigrationName} \
-    --project src/Modules/{Module}/Foundry.{Module}.Infrastructure \
-    --startup-project src/Foundry.Api \
+    --project src/Modules/{Module}/Wallow.{Module}.Infrastructure \
+    --startup-project src/Wallow.Api \
     --context {Module}DbContext
 ```
 
@@ -154,14 +154,14 @@ dotnet ef migrations add {MigrationName} \
 ```bash
 # Add initial migration for Billing module
 dotnet ef migrations add InitialCreate \
-    --project src/Modules/Billing/Foundry.Billing.Infrastructure \
-    --startup-project src/Foundry.Api \
+    --project src/Modules/Billing/Wallow.Billing.Infrastructure \
+    --startup-project src/Wallow.Api \
     --context BillingDbContext
 
 # Add a new migration for schema changes
 dotnet ef migrations add AddPaymentRefundField \
-    --project src/Modules/Billing/Foundry.Billing.Infrastructure \
-    --startup-project src/Foundry.Api \
+    --project src/Modules/Billing/Wallow.Billing.Infrastructure \
+    --startup-project src/Wallow.Api \
     --context BillingDbContext
 ```
 

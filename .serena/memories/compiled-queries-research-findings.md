@@ -1,4 +1,4 @@
-# Compiled Queries Research - Foundry Codebase
+# Compiled Queries Research - Wallow Codebase
 
 ## Executive Summary
 Found **25+ simple EF Core queries across 5 modules** that are prime candidates for compiled queries. Feature flags are hottest path. Dapper queries already optimized in Billing module. Some caching exists (Configuration, Identity).
