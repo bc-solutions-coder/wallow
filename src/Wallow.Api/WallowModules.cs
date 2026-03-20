@@ -20,7 +20,8 @@ internal static class WallowModules
 {
     public static IServiceCollection AddWallowModules(
         this IServiceCollection services,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IHostEnvironment environment)
     {
         // Ensure IConfiguration and FeatureManagement are registered before building the temp provider.
         // This makes AddWallowModules self-contained (works even without prior DI setup in tests).
@@ -35,7 +36,7 @@ internal static class WallowModules
         // ============================================================================
         if (featureManager.IsEnabledAsync("Modules.Identity").GetAwaiter().GetResult())
         {
-            services.AddIdentityModule(configuration);
+            services.AddIdentityModule(configuration, environment);
         }
 
         if (featureManager.IsEnabledAsync("Modules.Billing").GetAwaiter().GetResult())

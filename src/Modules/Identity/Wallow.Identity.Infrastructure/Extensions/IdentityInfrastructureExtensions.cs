@@ -15,6 +15,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace Wallow.Identity.Infrastructure.Extensions;
 
@@ -22,7 +23,7 @@ namespace Wallow.Identity.Infrastructure.Extensions;
 public static class IdentityInfrastructureExtensions
 {
     public static IServiceCollection AddIdentityInfrastructure(
-        this IServiceCollection services, IConfiguration configuration)
+        this IServiceCollection services, IConfiguration configuration, IHostEnvironment environment)
     {
         services.AddIdentityCore<WallowUser>(options =>
             {
@@ -56,11 +57,16 @@ public static class IdentityInfrastructureExtensions
                 options.AddDevelopmentEncryptionCertificate()
                     .AddDevelopmentSigningCertificate();
 
-                options.UseAspNetCore()
+                OpenIddictServerAspNetCoreBuilder aspNetCoreBuilder = options.UseAspNetCore()
                     .EnableAuthorizationEndpointPassthrough()
                     .EnableTokenEndpointPassthrough()
                     .EnableEndSessionEndpointPassthrough()
                     .EnableUserInfoEndpointPassthrough();
+
+                if (environment.IsDevelopment())
+                {
+                    aspNetCoreBuilder.DisableTransportSecurityRequirement();
+                }
 
                 options.RegisterScopes("openid", "profile", "email", "roles");
             })

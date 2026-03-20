@@ -25,9 +25,9 @@ public class ModuleRegistrationTests
 
         foreach (string moduleName in _moduleNames)
         {
-            string addModuleCall = $"Add{moduleName}Module(configuration)";
+            string addModuleCall = $"Add{moduleName}Module(configuration";
             sourceCode.Should().Contain(addModuleCall,
-                $"WallowModules.AddWallowModules should call {addModuleCall}");
+                $"WallowModules.AddWallowModules should call Add{moduleName}Module");
         }
     }
 
@@ -92,7 +92,6 @@ public class ModuleRegistrationTests
             $"{moduleName}ModuleExtensions should have Add{moduleName}Module method");
 
         addModuleMethod.IsStatic.Should().BeTrue();
-        addModuleMethod.GetParameters().Should().HaveCount(2);
         addModuleMethod.GetParameters()[0].ParameterType.Name.Should().Be("IServiceCollection");
         addModuleMethod.GetParameters()[1].ParameterType.Name.Should().Be("IConfiguration");
     }
@@ -176,7 +175,7 @@ public class ModuleRegistrationTests
 
         foreach (string moduleName in discoveredModuleNames)
         {
-            string expectedCall = $"Add{moduleName}Module(configuration)";
+            string expectedCall = $"Add{moduleName}Module(configuration";
             sourceCode.Should().Contain(expectedCall,
                 $"module '{moduleName}' was discovered via reflection but is not registered in WallowModules.cs");
         }

@@ -7,6 +7,8 @@ using Wallow.Notifications.Infrastructure.Persistence;
 using Wallow.Storage.Infrastructure.Persistence;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Hosting.Internal;
 
 namespace Wallow.Architecture.Tests.Modules;
 
@@ -81,6 +83,7 @@ public class ModuleToggleTests
         Type wallowModulesType = apiAssembly.GetType("Wallow.Api.WallowModules")!;
         MethodInfo addMethod = wallowModulesType.GetMethod(
             "AddWallowModules", BindingFlags.Public | BindingFlags.Static)!;
-        addMethod.Invoke(null, [services, configuration]);
+        IHostEnvironment environment = new HostingEnvironment { EnvironmentName = Environments.Development };
+        addMethod.Invoke(null, [services, configuration, environment]);
     }
 }

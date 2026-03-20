@@ -14,10 +14,11 @@ public static partial class IdentityModuleExtensions
 {
     public static IServiceCollection AddIdentityModule(
         this IServiceCollection services,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IHostEnvironment environment)
     {
         services.AddIdentityApplication();
-        services.AddIdentityInfrastructure(configuration);
+        services.AddIdentityInfrastructure(configuration, environment);
         return services;
     }
 

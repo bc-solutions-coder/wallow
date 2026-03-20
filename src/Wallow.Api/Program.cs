@@ -98,7 +98,7 @@ try
     // Explicit module registration via WallowModules.cs
     // See docs/plans/2026-02-13-modular-monolith-consolidation.md
     // ============================================================================
-    Wallow.Api.WallowModules.AddWallowModules(builder.Services, builder.Configuration);
+    Wallow.Api.WallowModules.AddWallowModules(builder.Services, builder.Configuration, builder.Environment);
     builder.Services.AddWallowAuditing(builder.Configuration);
 
     // Wolverine — unified CQRS mediator + message bus
