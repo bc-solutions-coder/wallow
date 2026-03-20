@@ -54,7 +54,18 @@ public sealed class InquiriesDbContext : TenantAwareDbContext<InquiriesDbContext
 }
 ```
 
-**InquiryConfiguration** — map the `TenantId` column on the `Inquiry` entity, matching the pattern used by other modules.
+**InquiryConfiguration** — map the `TenantId` column and add an index, matching `InquiryCommentConfiguration`:
+
+```csharp
+builder.Property(i => i.TenantId)
+    .HasConversion(new StronglyTypedIdConverter<TenantId>())
+    .HasColumnName("tenant_id")
+    .IsRequired();
+
+builder.HasIndex(i => i.TenantId);
+```
+
+**InquiriesDbContextFactory** — update the design-time factory to pass a `DesignTimeTenantContext` to the new constructor, matching the pattern in `BillingDbContextFactory`.
 
 **InquiriesInfrastructureExtensions** — register `TenantSaveChangesInterceptor`:
 
@@ -68,7 +79,20 @@ services.AddDbContext<InquiriesDbContext>((sp, options) =>
 
 ### Migration
 
-The database is fresh. Regenerate a clean `InitialCreate` migration that includes the `TenantId` column on the `Inquiry` table from the start.
+The database is fresh. Delete the existing migration files (`InitialCreate.cs`, `InitialCreate.Designer.cs`, `InquiriesDbContextModelSnapshot.cs`) from `src/Modules/Inquiries/Wallow.Inquiries.Infrastructure/Migrations/`, then regenerate:
+
+```bash
+dotnet ef migrations add InitialCreate \
+    --project src/Modules/Inquiries/Wallow.Inquiries.Infrastructure \
+    --startup-project src/Wallow.Api \
+    --context InquiriesDbContext
+```
+
+The new migration will include `tenant_id` on the `inquiries` table from the start.
+
+## Out of Scope
+
+`InquiryComment.Create` captures `TenantId.Value` in a domain event before the interceptor stamps it, so the event payload contains `Guid.Empty`. This is a pre-existing bug unrelated to this change and should be tracked separately.
 
 ## What Does Not Change
 
