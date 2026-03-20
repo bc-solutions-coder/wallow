@@ -288,11 +288,6 @@
 - Inquiry routing rules by category or tenant
 - Email auto-reply on submission
 
-### Showcases
-- Rich media attachments (video, gallery)
-- Public SEO-friendly URLs
-- View analytics and engagement tracking
-
 ### Shared Infrastructure
 
 #### Auditing

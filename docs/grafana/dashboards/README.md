@@ -36,14 +36,14 @@ curl -X POST \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d @usage-dashboard.json \
-  http://localhost:3000/api/dashboards/db
+  http://localhost:3001/api/dashboards/db
 
 # Import billing dashboard
 curl -X POST \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d @billing-dashboard.json \
-  http://localhost:3000/api/dashboards/db
+  http://localhost:3001/api/dashboards/db
 ```
 
 ### Via Provisioning

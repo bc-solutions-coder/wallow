@@ -420,7 +420,7 @@ docker compose up -d grafana-lgtm
 ```
 
 This starts:
-- **Grafana** on http://localhost:3000 (admin/admin)
+- **Grafana** on http://localhost:3001 (admin/admin)
 - **OTLP gRPC receiver** on port 4317
 - **OTLP HTTP receiver** on port 4318
 - **Loki** for logs

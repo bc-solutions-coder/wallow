@@ -3,7 +3,7 @@
 > Visual architecture documentation for the Wallow modular monolith platform
 
 **Date:** 2026-02-28
-**System:** Wallow Platform - 8 Modules + Shared Infrastructure
+**System:** Wallow Platform - 7 Modules + Shared Infrastructure
 **Technology:** .NET 10, PostgreSQL, RabbitMQ, Wolverine, Keycloak, Hangfire, Elsa 3
 
 ---
@@ -21,11 +21,11 @@
 
 ## 1. System Overview
 
-High-level view of all 8 modules and shared infrastructure.
+High-level view of all 7 modules and shared infrastructure.
 
 ```mermaid
 graph TB
-    subgraph "Platform Modules (8)"
+    subgraph "Platform Modules (7)"
         Identity[Identity<br/>Users, SSO, SCIM, API Keys, Service Accounts]
         Billing[Billing<br/>Invoices, Payments, Subscriptions, Metering]
         Notifications[Notifications<br/>Email Delivery via MailKit]
@@ -33,7 +33,6 @@ graph TB
         Announcements[Announcements<br/>Broadcast Announcements]
         Storage[Storage<br/>S3, Local FS, Buckets]
         Inquiries[Inquiries<br/>Contact Form Processing]
-        Showcases[Showcases<br/>Public Showcase Listings]
     end
 
     subgraph "Shared Infrastructure"
@@ -57,7 +56,6 @@ graph TB
     Api --> Announcements
     Api --> Storage
     Api --> Inquiries
-    Api --> Showcases
 ```
 
 ---
@@ -296,7 +294,7 @@ Shows module dependencies on shared infrastructure and cross-module service inte
 
 ```mermaid
 graph TB
-    subgraph "8 Modules"
+    subgraph "7 Modules"
         M1[Identity]
         M2[Billing]
         M3[Notifications]
@@ -304,7 +302,6 @@ graph TB
         M5[Announcements]
         M6[Storage]
         M7[Inquiries]
-        M8[Showcases]
     end
 
     subgraph "Shared Infrastructure"
@@ -322,7 +319,6 @@ graph TB
     M5 --> SK
     M6 --> SK
     M7 --> SK
-    M8 --> SK
 
     M1 -.->|publishes events| SC
     M2 -.->|publishes events| SC
@@ -374,7 +370,6 @@ graph TB
 | **Announcements** | EF Core | Broadcast announcements with targeting rules | Production |
 | **Storage** | EF Core | S3/Local FS, buckets, presigned URLs | Production |
 | **Inquiries** | EF Core | Contact form processing and routing | Production |
-| **Showcases** | EF Core | Public-facing showcase listings | Production |
 
 ---
 

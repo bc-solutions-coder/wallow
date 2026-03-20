@@ -61,7 +61,7 @@ Integration tests require Docker. Testcontainers spins up ephemeral Postgres, Ra
 | Mailpit | http://localhost:8025 | - |
 | PostgreSQL | localhost:5432 | See `docker/.env` |
 | AsyncAPI Viewer | http://localhost:5000/asyncapi | Dev only |
-| Grafana | http://localhost:3000 | admin / admin |
+| Grafana | http://localhost:3001 | admin / admin |
 
 ### Getting a Test Token
 
@@ -90,7 +90,7 @@ cd docker && docker compose down -v && docker compose up -d
 
 Wallow is a modular monolith. Each module is an autonomous bounded context that follows Clean Architecture internally and communicates with other modules exclusively through integration events over RabbitMQ. Modules never reference each other directly.
 
-**Modules:** Identity, Billing, Storage, Notifications, Messaging, Announcements, Inquiries, Showcases
+**Modules:** Identity, Billing, Storage, Notifications, Messaging, Announcements, Inquiries
 
 **Shared libraries:**
 - `Wallow.Shared.Contracts` -- Cross-module integration events and DTOs
@@ -162,7 +162,6 @@ src/
     Messaging/
     Announcements/
     Inquiries/
-    Showcases/
   Shared/
     Wallow.Shared.Contracts/         # Cross-module events and DTOs
     Wallow.Shared.Kernel/            # Base classes, multi-tenancy, shared abstractions

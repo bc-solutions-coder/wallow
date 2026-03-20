@@ -93,7 +93,6 @@ To grant your client access to specific APIs, an admin must assign scopes. Avail
 |-------|--------|
 | `inquiries.read` | Read inquiries |
 | `inquiries.write` | Create/update inquiries |
-| `showcases.read` | Read showcases |
 
 Scopes are assigned via:
 - **Keycloak Admin Console:** Clients > your client > Client Scopes > add desired scopes as default

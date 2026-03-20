@@ -137,7 +137,7 @@ Wallow uses three distinct architectural patterns. Understanding these is essent
 
 ### Pattern 1: Traditional DDD
 
-**Used by:** Billing, Notifications, Messaging, Announcements, Storage, Inquiries, Showcases.
+**Used by:** Billing, Notifications, Messaging, Announcements, Storage, Inquiries.
 
 ```
 Domain:        Aggregates with behavior, Value Objects, Domain Events
@@ -206,7 +206,6 @@ Infrastructure: Heavy services wrapping external system
 |--------|---------|-----------|-------|
 | **Identity** | External Adapter | 4/10 | Intentionally thin domain. Keycloak owns the logic. |
 | **Inquiries** | Traditional | 7/10 | Contact/inquiry form processing. |
-| **Showcases** | Traditional | 7/10 | Public-facing showcase listings. |
 
 ### Shared Infrastructure Capabilities
 

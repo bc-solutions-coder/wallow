@@ -292,7 +292,7 @@ Personal data is stored across multiple PostgreSQL schemas:
 - `messaging` - Messaging-related data (direct messages, conversations)
 - `storage` - File metadata and buckets
 - `inquiries` - Inquiry/contact form submissions
-- `showcases` - Showcase listings and related data
+
 
 **Shared Infrastructure Schemas:**
 - `audit` - Security audit logs (via Audit.NET interceptor)

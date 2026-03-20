@@ -1009,7 +1009,7 @@ public class DatabaseTests
 
 ## 9. Event Sourcing and Saga Tests (Removed)
 
-The event-sourced modules and Wolverine Sagas were removed during the module simplification. The platform currently has 8 modules: Identity, Billing, Storage, Notifications, Messaging, Announcements, Inquiries, and Showcases. There is no `MartenFixture` in `Wallow.Tests.Common`.
+The event-sourced modules and Wolverine Sagas were removed during the module simplification. The platform currently has 7 modules: Identity, Billing, Storage, Notifications, Messaging, Announcements, and Inquiries. There is no `MartenFixture` in `Wallow.Tests.Common`.
 
 ## 10. Bogus Test Data Generation
 

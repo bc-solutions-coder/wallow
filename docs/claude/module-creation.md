@@ -61,9 +61,6 @@ internal static class WallowModules
         if (featureManager.IsEnabledAsync("Modules.Inquiries").GetAwaiter().GetResult())
             services.AddInquiriesModule(configuration);
 
-        if (featureManager.IsEnabledAsync("Modules.Showcases").GetAwaiter().GetResult())
-            services.AddShowcasesModule(configuration);
-
         services.AddWallowPlugins(configuration);
         return services;
     }
@@ -92,9 +89,6 @@ internal static class WallowModules
 
         if (await featureManager.IsEnabledAsync("Modules.Inquiries"))
             await app.InitializeInquiriesModuleAsync();
-
-        if (await featureManager.IsEnabledAsync("Modules.Showcases"))
-            await app.InitializeShowcasesModuleAsync();
 
         await app.InitializeWallowPluginsAsync();
     }

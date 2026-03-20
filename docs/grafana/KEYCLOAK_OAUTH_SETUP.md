@@ -36,7 +36,7 @@ If you're using Wallow's Docker Compose setup, Keycloak is already configured:
 | Service | Local URL | Description |
 |---------|-----------|-------------|
 | Keycloak | http://localhost:8080 | Identity provider |
-| Grafana | http://localhost:3000 | Dashboards and observability |
+| Grafana | http://localhost:3001 | Dashboards and observability |
 | Realm | wallow | Pre-configured realm with Organizations enabled |
 
 ---
@@ -77,7 +77,7 @@ Add the following redirect URIs:
 
 ```
 # Local development
-http://localhost:3000/login/generic_oauth
+http://localhost:3001/login/generic_oauth
 
 # Production (replace with your domain)
 https://grafana.yourplatform.com/login/generic_oauth
@@ -87,7 +87,7 @@ Configure Web Origins for CORS:
 
 ```
 # Local development
-http://localhost:3000
+http://localhost:3001
 
 # Production
 https://grafana.yourplatform.com
@@ -549,7 +549,7 @@ services:
       GF_SECURITY_ADMIN_PASSWORD: admin
 
       # Server configuration
-      GF_SERVER_ROOT_URL: http://localhost:3000
+      GF_SERVER_ROOT_URL: http://localhost:3001
 
       # OAuth configuration
       GF_AUTH_GENERIC_OAUTH_ENABLED: "true"
@@ -585,7 +585,7 @@ services:
       keycloak:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3001/api/health"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -792,7 +792,7 @@ spec:
 
 **Solutions:**
 
-1. **Check Redirect URI:** Ensure `http://localhost:3000/login/generic_oauth` is in Keycloak's "Valid Redirect URIs"
+1. **Check Redirect URI:** Ensure `http://localhost:3001/login/generic_oauth` is in Keycloak's "Valid Redirect URIs"
 
 2. **Verify Client Secret:** Confirm the secret matches in both Keycloak and Grafana configuration
 
@@ -840,7 +840,7 @@ spec:
 
 2. **Check JWT header is being passed:**
    ```bash
-   curl -H "X-JWT-Assertion: YOUR_JWT_TOKEN" http://localhost:3000/api/dashboards/home
+   curl -H "X-JWT-Assertion: YOUR_JWT_TOKEN" http://localhost:3001/api/dashboards/home
    ```
 
 3. **Verify JWT claims match configuration:**
@@ -906,11 +906,11 @@ curl http://localhost:8080/realms/wallow/.well-known/openid-configuration | jq .
 docker exec wallow-keycloak /opt/keycloak/bin/kcadm.sh get clients -r wallow --fields clientId
 
 # Check Grafana health
-curl http://localhost:3000/api/health
+curl http://localhost:3001/api/health
 
 # Test OAuth flow manually
 # 1. Get authorization URL
-open "http://localhost:8080/realms/wallow/protocol/openid-connect/auth?client_id=grafana&response_type=code&scope=openid%20profile%20email&redirect_uri=http://localhost:3000/login/generic_oauth"
+open "http://localhost:8080/realms/wallow/protocol/openid-connect/auth?client_id=grafana&response_type=code&scope=openid%20profile%20email&redirect_uri=http://localhost:3001/login/generic_oauth"
 ```
 
 ---
@@ -995,7 +995,7 @@ open "http://localhost:8080/realms/wallow/protocol/openid-connect/auth?client_id
 
 | Service | Local | Production |
 |---------|-------|------------|
-| Grafana | http://localhost:3000 | https://grafana.yourplatform.com |
+| Grafana | http://localhost:3001 | https://grafana.yourplatform.com |
 | Keycloak | http://localhost:8080 | https://auth.yourplatform.com |
 | OIDC Discovery | http://localhost:8080/realms/wallow/.well-known/openid-configuration | https://auth.yourplatform.com/realms/wallow/.well-known/openid-configuration |
 | JWKS | http://localhost:8080/realms/wallow/protocol/openid-connect/certs | https://auth.yourplatform.com/realms/wallow/protocol/openid-connect/certs |
@@ -1014,10 +1014,10 @@ open "http://localhost:8080/realms/wallow/protocol/openid-connect/auth?client_id
 
 ```bash
 # Verify OAuth configuration
-curl http://localhost:3000/api/login/generic_oauth/settings
+curl http://localhost:3001/api/login/generic_oauth/settings
 
 # Test JWT authentication
-curl -H "X-JWT-Assertion: $TOKEN" http://localhost:3000/api/user
+curl -H "X-JWT-Assertion: $TOKEN" http://localhost:3001/api/user
 
 # Get OIDC configuration
 curl http://localhost:8080/realms/wallow/.well-known/openid-configuration

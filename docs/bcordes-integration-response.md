@@ -10,7 +10,6 @@
 
 We reviewed the integration requirements for bcordes.dev to use Wallow as its sole API backend. The goal is to replace the self-contained ORPC/Drizzle backend with Wallow's modular API, starting with two modules:
 
-- **Showcases** — Read-only access to portfolio/showcase data via `GET /api/v1/showcases`
 - **Inquiries** — Contact form submissions from anonymous visitors via a BFF service account, plus admin management and user-facing inquiry tracking
 
 The frontend's BFF layer authenticates with Wallow using Keycloak client credentials (service account) and forwards requests on behalf of anonymous visitors. Authenticated users interact directly with Wallow using their JWT.
@@ -18,14 +17,6 @@ The frontend's BFF layer authenticates with Wallow using Keycloak client credent
 ---
 
 ## API Overview
-
-### Showcases
-
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| `GET` | `/api/v1/showcases` | `showcases.read` scope | List all showcases for the tenant |
-
-Service accounts with the `showcases.read` scope can call this endpoint. No user context required.
 
 ### Inquiries
 
@@ -43,7 +34,6 @@ Service accounts with the `showcases.read` scope can call this endpoint. No user
 
 | Scope | Permission | Purpose |
 |-------|------------|---------|
-| `showcases.read` | `ShowcasesRead` | Read showcase data |
 | `inquiries.read` | `InquiriesRead` | Read all inquiries (admin) |
 | `inquiries.write` | `InquiriesWrite` | Submit inquiries, manage status, add comments |
 
@@ -57,7 +47,7 @@ All seven requirements from the integration spec have been implemented. Here is 
 
 ### 1. Add Missing Scopes to ValidScopes — DONE
 
-- `showcases.read`, `inquiries.read`, and `inquiries.write` are all registered in `ApiScopes.ValidScopes`
+- `inquiries.read` and `inquiries.write` are registered in `ApiScopes.ValidScopes`
 - Both inquiry scopes are mapped in `PermissionExpansionMiddleware` to `InquiriesRead` and `InquiriesWrite`
 - `InquiriesRead` and `InquiriesWrite` exist in the `PermissionType` constants
 
@@ -132,7 +122,6 @@ All events use the `RealtimeEnvelope` format and are dispatched via the `Receive
 
 The backend is ready for integration. The frontend team can:
 
-1. Configure a Keycloak service account with `showcases.read` and `inquiries.write` scopes
+1. Configure a Keycloak service account with `inquiries.write` scope
 2. Point the BFF layer at `POST /api/v1/inquiries` for contact form submissions
-3. Point showcase data fetching at `GET /api/v1/showcases`
-4. Connect SignalR for real-time inquiry updates when ready
+3. Connect SignalR for real-time inquiry updates when ready

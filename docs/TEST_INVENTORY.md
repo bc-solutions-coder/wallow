@@ -17,7 +17,7 @@ Comprehensive catalog of all test projects in the Wallow codebase. Counts source
 | Wallow.Messaging.IntegrationTests | 12 | CrossModule, PublishConsume, Retry, DeadLetter |
 | **Total** | **2,650** | |
 
-> **Note:** This inventory needs updating. The Notifications, Announcements, Messaging, Inquiries, and Showcases module test projects are not yet listed here. Wallow.Configuration.Tests and Wallow.Communications.Tests have been removed (those modules no longer exist).
+> **Note:** This inventory needs updating. The Notifications, Announcements, Messaging, and Inquiries module test projects are not yet listed here. Wallow.Configuration.Tests and Wallow.Communications.Tests have been removed (those modules no longer exist).
 
 ---
 
