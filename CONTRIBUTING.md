@@ -1,6 +1,6 @@
-# Contributing to Foundry
+# Contributing to Wallow
 
-Thank you for your interest in contributing to Foundry! This guide will help you get started.
+Thank you for your interest in contributing to Wallow! This guide will help you get started.
 
 ## Getting Started
 
@@ -19,7 +19,7 @@ Thank you for your interest in contributing to Foundry! This guide will help you
    ```
 3. Run the API:
    ```bash
-   dotnet run --project src/Foundry.Api
+   dotnet run --project src/Wallow.Api
    ```
 4. Run all tests to verify your setup:
    ```bash
@@ -52,7 +52,7 @@ See the [Developer Guide](docs/DEVELOPER_GUIDE.md) for detailed setup instructio
 
 ## Architecture
 
-Foundry is a modular monolith following Clean Architecture and DDD principles. Before contributing, understand these rules:
+Wallow is a modular monolith following Clean Architecture and DDD principles. Before contributing, understand these rules:
 
 - **Modules:** Identity, Storage, Communications, Billing, Notifications
 - **Layer order:** Domain → Application → Infrastructure → Api
@@ -114,4 +114,4 @@ If you have questions about contributing, open a [Discussion](../../discussions)
 
 ## License
 
-By contributing to Foundry, you agree that your contributions will be licensed under the [Apache License 2.0](LICENSE).
+By contributing to Wallow, you agree that your contributions will be licensed under the [Apache License 2.0](LICENSE).

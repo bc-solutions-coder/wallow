@@ -20,7 +20,7 @@
 
 ### Overall Risk Posture
 
-The Foundry platform has a **generally strong security architecture** with defense-in-depth: EF Core global query filters for tenant isolation, a permission-based authorization system, comprehensive security headers, proper exception handling, parameterized Dapper queries, and encrypted secrets at rest. However, two critical gaps and several high-severity cross-tenant isolation failures require immediate remediation.
+The Wallow platform has a **generally strong security architecture** with defense-in-depth: EF Core global query filters for tenant isolation, a permission-based authorization system, comprehensive security headers, proper exception handling, parameterized Dapper queries, and encrypted secrets at rest. However, two critical gaps and several high-severity cross-tenant isolation failures require immediate remediation.
 
 ### Top 5 Most Critical Items
 
@@ -79,8 +79,8 @@ Risk Score = Likelihood (1-5) x Impact (1-5)
 
 - **Severity:** Critical | **Risk Score:** 25
 - **Affected Files:**
-  - `src/Modules/Identity/Foundry.Identity.Infrastructure/Extensions/IdentityInfrastructureExtensions.cs`
-  - `src/Foundry.Api/Program.cs`
+  - `src/Modules/Identity/Wallow.Identity.Infrastructure/Extensions/IdentityInfrastructureExtensions.cs`
+  - `src/Wallow.Api/Program.cs`
 - **Vulnerability Description:**
   The production code never registers a JWT Bearer authentication scheme. `app.UseAuthentication()` at `Program.cs:352` is a no-op without a registered scheme. The `PermissionAuthorizationPolicyProvider.GetFallbackPolicyAsync()` returns `RequireAuthenticatedUser()`, which provides a safety net by blocking unauthenticated requests, but no actual JWT validation occurs -- no signature verification, no token expiry checks, no issuer/audience validation. The practical effect is that **all JWT-based requests are rejected** (returning 401) because `IsAuthenticated` is never set to `true` by the authentication middleware.
 
@@ -88,7 +88,7 @@ Risk Score = Likelihood (1-5) x Impact (1-5)
 
 - **Current Code:** No JWT registration exists in production code. The only registrations are in test code:
   ```csharp
-  // tests/Foundry.Tests.Common/Factories/FoundryApiFactory.cs:155
+  // tests/Wallow.Tests.Common/Factories/WallowApiFactory.cs:155
   services.AddAuthentication("Test").AddScheme<...>("Test", ...);
   ```
 
@@ -110,7 +110,7 @@ Risk Score = Likelihood (1-5) x Impact (1-5)
               {
                   options.RequireHttpsMetadata = !Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
                       ?.Equals("Development", StringComparison.OrdinalIgnoreCase) ?? true;
-                  options.Audience = "foundry-api";
+                  options.Audience = "wallow-api";
               },
               configSectionName: "Keycloak");
 
@@ -137,7 +137,7 @@ Risk Score = Likelihood (1-5) x Impact (1-5)
 
 - **Severity:** Critical | **Risk Score:** 20
 - **Affected Files:**
-  - `src/Modules/Billing/Foundry.Billing.Api/Controllers/QuotasController.cs:48-89`
+  - `src/Modules/Billing/Wallow.Billing.Api/Controllers/QuotasController.cs:48-89`
 - **Vulnerability Description:**
   The `SetOverride` and `RemoveOverride` endpoints accept an arbitrary `tenantId` GUID parameter and modify quotas for that tenant. The controller has `[Authorize]` at class level but **no `[HasPermission]` attribute** on these admin endpoints. Any authenticated user can set or remove quota overrides for any tenant, bypassing billing controls entirely.
 
@@ -228,7 +228,7 @@ Risk Score = Likelihood (1-5) x Impact (1-5)
 
 - **Severity:** High | **Risk Score:** 20
 - **Affected Files:**
-  - `src/Modules/Identity/Foundry.Identity.Api/Controllers/UsersController.cs:115-157`
+  - `src/Modules/Identity/Wallow.Identity.Api/Controllers/UsersController.cs:115-157`
 - **Vulnerability Description:**
   `GetUserById` correctly validates that the target user belongs to the current tenant's organization (lines 66-72), but `DeactivateUser`, `ActivateUser`, `AssignRole`, and `RemoveRole` skip this check entirely. They pass the raw GUID directly to the Keycloak admin service.
 
@@ -327,7 +327,7 @@ Risk Score = Likelihood (1-5) x Impact (1-5)
 
 - **Severity:** High | **Risk Score:** 20
 - **Affected Files:**
-  - `src/Modules/Identity/Foundry.Identity.Api/Controllers/OrganizationsController.cs:33-97`
+  - `src/Modules/Identity/Wallow.Identity.Api/Controllers/OrganizationsController.cs:33-97`
 - **Vulnerability Description:**
   All organization controller endpoints (`GetById`, `GetMembers`, `AddMember`, `RemoveMember`, `GetAll`, `Create`) operate on arbitrary organization GUIDs without validating that the target organization belongs to the current tenant.
 
@@ -433,8 +433,8 @@ Risk Score = Likelihood (1-5) x Impact (1-5)
 
 - **Severity:** High | **Risk Score:** 16
 - **Affected Files:**
-  - `src/Foundry.Api/Services/RedisPresenceService.cs:10-158`
-  - `src/Foundry.Api/Hubs/RealtimeHub.cs:67-85`
+  - `src/Wallow.Api/Services/RedisPresenceService.cs:10-158`
+  - `src/Wallow.Api/Hubs/RealtimeHub.cs:67-85`
 - **Vulnerability Description:**
   Redis presence keys are flat globals with no tenant prefix. `GetOnlineUsersAsync()` returns all users across all tenants. `GetUsersOnPageAsync()` returns cross-tenant page viewers. The `RealtimeHub.UpdatePageContext()` method broadcasts this data to SignalR clients, leaking cross-tenant presence information.
 
@@ -520,8 +520,8 @@ Risk Score = Likelihood (1-5) x Impact (1-5)
 
 - **Severity:** Medium | **Risk Score:** 12
 - **Affected Files:**
-  - `src/Foundry.Api/Middleware/HangfireDashboardAuthFilter.cs:22-23`
-  - `src/Modules/Identity/Foundry.Identity.Infrastructure/Authorization/RolePermissionMapping.cs:9`
+  - `src/Wallow.Api/Middleware/HangfireDashboardAuthFilter.cs:22-23`
+  - `src/Modules/Identity/Wallow.Identity.Infrastructure/Authorization/RolePermissionMapping.cs:9`
 - **Vulnerability Description:**
   `HangfireDashboardAuthFilter` checks `IsInRole("Admin")` with capital A, while `RolePermissionMapping` uses lowercase `"admin"`. `ClaimsPrincipal.IsInRole()` performs case-sensitive comparison by default. Keycloak typically maps roles as lowercase, so the check may never match, locking all admins out of the Hangfire dashboard in production. In development, the filter returns `true` unconditionally, meaning anyone with network access can view and manipulate background jobs.
 
@@ -570,8 +570,8 @@ Risk Score = Likelihood (1-5) x Impact (1-5)
 
 - **Severity:** Medium | **Risk Score:** 10
 - **Affected Files:**
-  - `src/Modules/Identity/Foundry.Identity.Api/Controllers/ScimController.cs:20`
-  - `src/Modules/Identity/Foundry.Identity.Infrastructure/Authorization/ScimAuthenticationMiddleware.cs`
+  - `src/Modules/Identity/Wallow.Identity.Api/Controllers/ScimController.cs:20`
+  - `src/Modules/Identity/Wallow.Identity.Infrastructure/Authorization/ScimAuthenticationMiddleware.cs`
 - **Vulnerability Description:**
   The SCIM controller is marked `[AllowAnonymous]`, bypassing the ASP.NET Core authorization pipeline. Authentication is handled solely by `ScimAuthenticationMiddleware`. While currently secure, this is fragile -- any middleware reordering silently removes SCIM authentication. Defense-in-depth dictates using the standard auth pipeline.
 
@@ -602,7 +602,7 @@ Risk Score = Likelihood (1-5) x Impact (1-5)
 
 - **Severity:** Medium | **Risk Score:** 9
 - **Affected Files:**
-  - `src/Modules/Identity/Foundry.Identity.Api/Controllers/AuthController.cs`
+  - `src/Modules/Identity/Wallow.Identity.Api/Controllers/AuthController.cs`
 - **Vulnerability Description:**
   No logout or token revocation endpoint exists. Compromised refresh tokens remain valid until expiry. Refresh tokens typically have long lifetimes, leaving a large vulnerability window.
 
@@ -634,7 +634,7 @@ Risk Score = Likelihood (1-5) x Impact (1-5)
 
 - **Severity:** Medium | **Risk Score:** 9
 - **Affected Files:**
-  - `src/Foundry.Api/Extensions/RateLimitDefaults.cs:5-6`
+  - `src/Wallow.Api/Extensions/RateLimitDefaults.cs:5-6`
 - **Vulnerability Description:**
   Per-IP rate limit of 5 attempts per 5 minutes (60/hour) is reasonable for basic protection but insufficient against distributed brute force. No per-account rate limiting exists.
 
@@ -662,7 +662,7 @@ Risk Score = Likelihood (1-5) x Impact (1-5)
 
 - **Severity:** Medium | **Risk Score:** 8
 - **Affected Files:**
-  - `src/Modules/Identity/Foundry.Identity.Api/Controllers/ScimController.cs`
+  - `src/Modules/Identity/Wallow.Identity.Api/Controllers/ScimController.cs`
 - **Vulnerability Description:**
   SCIM endpoints create/delete Keycloak users but rely only on the global rate limiter (1000 req/hour). A compromised SCIM token could rapidly provision rogue accounts.
 
@@ -694,7 +694,7 @@ Risk Score = Likelihood (1-5) x Impact (1-5)
 
 - **Severity:** Medium | **Risk Score:** 8
 - **Affected Files:**
-  - `src/Modules/Identity/Foundry.Identity.Infrastructure/MultiTenancy/TenantResolutionMiddleware.cs:41-51`
+  - `src/Modules/Identity/Wallow.Identity.Infrastructure/MultiTenancy/TenantResolutionMiddleware.cs:41-51`
 - **Vulnerability Description:**
   Admin tenant override via `X-Tenant-Id` header uses only the broad "admin" role, does not validate that the target tenant exists, and logs only via Serilog (no persistent audit table).
 
@@ -742,7 +742,7 @@ Risk Score = Likelihood (1-5) x Impact (1-5)
 
 - **Severity:** Medium | **Risk Score:** 6
 - **Affected Files:**
-  - `src/Foundry.Api/Program.cs:421-452`
+  - `src/Wallow.Api/Program.cs:421-452`
 - **Vulnerability Description:**
   Health check response uses `env.IsProduction()` to gate detail suppression. Staging and other non-production environments expose component names, durations, and exception messages to unauthenticated users.
 
@@ -769,7 +769,7 @@ Risk Score = Likelihood (1-5) x Impact (1-5)
 
 - **Severity:** Medium | **Risk Score:** 6
 - **Affected Files:**
-  - `src/Foundry.Api/Program.cs` (Kestrel configuration)
+  - `src/Wallow.Api/Program.cs` (Kestrel configuration)
 - **Vulnerability Description:**
   Only `StorageController.Upload` sets an explicit `[RequestSizeLimit]`. All other endpoints use Kestrel's 30MB default, enabling resource exhaustion via large JSON payloads.
 
@@ -797,8 +797,8 @@ Risk Score = Likelihood (1-5) x Impact (1-5)
 
 - **Severity:** Medium | **Risk Score:** 6
 - **Affected Files:**
-  - `src/Modules/Billing/Foundry.Billing.Infrastructure/Services/InvoiceReportService.cs:14-18,43`
-  - `src/Modules/Billing/Foundry.Billing.Infrastructure/Services/PaymentReportService.cs:14-18,43`
+  - `src/Modules/Billing/Wallow.Billing.Infrastructure/Services/InvoiceReportService.cs:14-18,43`
+  - `src/Modules/Billing/Wallow.Billing.Infrastructure/Services/PaymentReportService.cs:14-18,43`
 - **Vulnerability Description:**
   These services create their own `NpgsqlConnection` from a stored connection string instead of using `BillingDbContext.Database.GetDbConnection()`, causing connection pool fragmentation and bypassing EF Core interceptors.
 
@@ -874,11 +874,11 @@ Risk Score = Likelihood (1-5) x Impact (1-5)
 
 - **Severity:** Medium | **Risk Score:** 6
 - **Affected Files:**
-  - `src/Foundry.Api/appsettings.json:15`
-  - `src/Foundry.Api/appsettings.Production.json`
-  - `src/Foundry.Api/appsettings.Staging.json`
+  - `src/Wallow.Api/appsettings.json:15`
+  - `src/Wallow.Api/appsettings.Production.json`
+  - `src/Wallow.Api/appsettings.Staging.json`
 - **Vulnerability Description:**
-  The base `appsettings.json` contains the actual Valkey password `FoundryValkey123!`. Neither production nor staging configs override `ConnectionStrings:Redis`, creating a risk of deploying with the dev password.
+  The base `appsettings.json` contains the actual Valkey password `WallowValkey123!`. Neither production nor staging configs override `ConnectionStrings:Redis`, creating a risk of deploying with the dev password.
 
 - **Recommended Fix:**
   Replace the password in base config with a placeholder and add Redis override to prod/staging configs.
@@ -906,7 +906,7 @@ Risk Score = Likelihood (1-5) x Impact (1-5)
 - **Affected Files:**
   - `docker/keycloak/realm-export.json:229`
 - **Vulnerability Description:**
-  The development Keycloak realm export contains a hardcoded client secret `foundry-api-secret`. Visible to anyone with repo access.
+  The development Keycloak realm export contains a hardcoded client secret `wallow-api-secret`. Visible to anyone with repo access.
 
 - **Recommended Fix:**
   Add a clear comment in the file noting it is for development only. Consider using a unique-per-developer secret generation script.
@@ -919,8 +919,8 @@ Risk Score = Likelihood (1-5) x Impact (1-5)
 
 - **Severity:** Low | **Risk Score:** 4
 - **Affected Files:**
-  - `src/Foundry.Api/Program.cs`
-  - `src/Foundry.Api/appsettings.json:70,80,88`
+  - `src/Wallow.Api/Program.cs`
+  - `src/Wallow.Api/appsettings.json:70,80,88`
 - **Vulnerability Description:**
   No startup validation rejects placeholder values like `REPLACE_IN_PRODUCTION` or `OVERRIDE_VIA_ENV_VAR`. If environment variables are misconfigured, the app starts with invalid credentials and fails at runtime with confusing errors.
 

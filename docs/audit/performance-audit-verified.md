@@ -21,7 +21,7 @@ The original performance audit identified 23 findings (3 CRITICAL, 7 HIGH, 8 MED
 
 **Verdict: CONFIRMED**
 
-**File:** `src/Modules/Communications/Foundry.Communications.Infrastructure/Services/MessagingQueryService.cs:170-208`
+**File:** `src/Modules/Communications/Wallow.Communications.Infrastructure/Services/MessagingQueryService.cs:170-208`
 
 The N+1 pattern is exactly as described. Lines 170-208 show a `foreach` loop over `ConversationRow` results, with each iteration executing a separate Dapper query (lines 172-185) to load participants for that conversation. The line numbers in the audit are slightly off (audit says 153-200, actual loop is 170-208), but the issue is real.
 
@@ -35,7 +35,7 @@ The main query already uses pagination (LIMIT/OFFSET at line 153), which bounds 
 
 **Verdict: CONFIRMED**
 
-**File:** `src/Modules/Identity/Foundry.Identity.Infrastructure/Services/KeycloakAdminService.cs:157-204`
+**File:** `src/Modules/Identity/Wallow.Identity.Infrastructure/Services/KeycloakAdminService.cs:157-204`
 
 Lines 178-194 confirm the sequential HTTP call pattern: `foreach (UserRepresentation user in users)` with `GetUserRolesAsync(userId, ct)` inside, which makes an HTTP GET to `/admin/realms/{Realm}/users/{userId}/role-mappings/realm` per user. The audit's line numbers (155-195) are close to the actual range (157-204).
 
@@ -49,8 +49,8 @@ The audit correctly notes this results in N+1 HTTP requests. However, the method
 
 **Verdict: CONFIRMED with nuance**
 
-**File:** `src/Modules/Billing/Foundry.Billing.Api/Middleware/MeteringMiddleware.cs:22-73`
-**File:** `src/Modules/Billing/Foundry.Billing.Infrastructure/Services/ValkeyMeteringService.cs:63-101`
+**File:** `src/Modules/Billing/Wallow.Billing.Api/Middleware/MeteringMiddleware.cs:22-73`
+**File:** `src/Modules/Billing/Wallow.Billing.Infrastructure/Services/ValkeyMeteringService.cs:63-101`
 
 The middleware at line 32 calls `CheckQuotaAsync` and at line 71 calls `IncrementAsync` for every `/api/*` request. Inside `CheckQuotaAsync` (ValkeyMeteringService.cs:63-101):
 1. Line 68: `GetActivePlanCodeAsync` -- DB query via subscription service
@@ -106,7 +106,7 @@ This is a legitimate concern for read-heavy query paths where entities are loade
 
 **Verdict: CONFIRMED**
 
-**File:** `src/Foundry.Api/Program.cs:192-225`
+**File:** `src/Wallow.Api/Program.cs:192-225`
 
 Three separate `ConnectionMultiplexer` instances are created:
 1. Lines 192-198: `ConnectionMultiplexer.Connect(connectionString)` for `IConnectionMultiplexer` singleton
@@ -123,7 +123,7 @@ The audit accurately describes this. Each creates a separate TCP connection pool
 
 **Verdict: CONFIRMED**
 
-**File:** `src/Modules/Identity/Foundry.Identity.Infrastructure/Services/UserQueryService.cs:21-92`
+**File:** `src/Modules/Identity/Wallow.Identity.Infrastructure/Services/UserQueryService.cs:21-92`
 
 All three count methods (`GetNewUsersCountAsync` at line 21, `GetActiveUsersCountAsync` at line 49, `GetTotalUsersCountAsync` at line 76) call `GetOrganizationMembersAsync` which does a full HTTP GET to `/admin/realms/{Realm}/organizations/{orgId}/members` (line 96) and deserializes all members into a `List<UserMemberRepresentation>`. They then use LINQ `.Count()` in memory.
 
@@ -141,7 +141,7 @@ The remediation to use Keycloak's count/query parameters is correct.
 
 **Original Severity: HIGH -> Adjusted: MEDIUM**
 
-**File:** `src/Modules/Billing/Foundry.Billing.Infrastructure/Jobs/FlushUsageJob.cs:45-50`
+**File:** `src/Modules/Billing/Wallow.Billing.Infrastructure/Jobs/FlushUsageJob.cs:45-50`
 
 The code uses `server.KeysAsync(pattern: "meter:*")` which is confirmed at line 47. However, the audit's description is misleading: `KeysAsync` in StackExchange.Redis uses `SCAN` (not `KEYS`), which is non-blocking and cursor-based. The audit mentions "SCAN" but then says it "blocks the Redis event loop" -- SCAN itself does not block; it pages through keys incrementally.
 
@@ -153,8 +153,8 @@ The real concern is the unbounded `List<RedisKey>` at line 46 that collects all 
 
 **Original Severity: HIGH -> Adjusted: MEDIUM**
 
-**File:** `src/Shared/Foundry.Shared.Infrastructure/Auditing/AuditInterceptor.cs:24-35`
-**Registration:** `src/Shared/Foundry.Shared.Infrastructure/Auditing/AuditingExtensions.cs:22` -- confirmed `services.AddSingleton<AuditInterceptor>()`
+**File:** `src/Shared/Wallow.Shared.Infrastructure/Auditing/AuditInterceptor.cs:24-35`
+**Registration:** `src/Shared/Wallow.Shared.Infrastructure/Auditing/AuditingExtensions.cs:22` -- confirmed `services.AddSingleton<AuditInterceptor>()`
 
 The interceptor is indeed a singleton (confirmed at AuditingExtensions.cs:22). It creates scopes at two points:
 1. `CaptureChanges` (line 52): `_serviceProvider.CreateScope()` to get `IHttpContextAccessor` and `ITenantContext`
@@ -171,8 +171,8 @@ The audit correctly identifies the pattern but overrates its impact. The two sco
 **Original Severity: HIGH -> Adjusted: LOW**
 
 **Files verified:**
-- `src/Shared/Foundry.Shared.Kernel/Extensions/ServiceCollectionExtensions.cs:13-17` -- registers TenantContext, ITenantContext, ITenantContextSetter
-- `src/Modules/Identity/Foundry.Identity.Infrastructure/Extensions/IdentityInfrastructureExtensions.cs:57-59` -- registers the same types again
+- `src/Shared/Wallow.Shared.Kernel/Extensions/ServiceCollectionExtensions.cs:13-17` -- registers TenantContext, ITenantContext, ITenantContextSetter
+- `src/Modules/Identity/Wallow.Identity.Infrastructure/Extensions/IdentityInfrastructureExtensions.cs:57-59` -- registers the same types again
 
 The duplicate registration is confirmed. However, the audit's severity rating of HIGH is wrong:
 - Last-registration-wins is well-defined DI behavior in Microsoft.Extensions.DependencyInjection
@@ -188,7 +188,7 @@ The duplicate registration is confirmed. However, the audit's severity rating of
 
 **Verdict: CONFIRMED**
 
-**File:** `src/Modules/Communications/Foundry.Communications.Infrastructure/Extensions/CommunicationsModuleExtensions.cs:119-124`
+**File:** `src/Modules/Communications/Wallow.Communications.Infrastructure/Extensions/CommunicationsModuleExtensions.cs:119-124`
 
 The code at lines 119-124 confirms `services.BuildServiceProvider()` inside `RegisterEmailProvider`, creating a temporary service provider solely to log a warning about an unrecognized email provider. This is indeed the ASP0000 anti-pattern.
 
@@ -200,7 +200,7 @@ The code at lines 119-124 confirms `services.BuildServiceProvider()` inside `Reg
 
 **Verdict: CONFIRMED**
 
-**File:** `src/Modules/Configuration/Foundry.Configuration.Infrastructure/Services/CachedFeatureFlagService.cs:54-60`
+**File:** `src/Modules/Configuration/Wallow.Configuration.Infrastructure/Services/CachedFeatureFlagService.cs:54-60`
 
 The `InvalidateAsync` method at line 59 removes key `ff:{flagKey}`. But `BuildCacheKey` at lines 62-65 builds keys as `ff:{flagKey}:{tenantId}:{userId}` or `ff:{flagKey}:{tenantId}:`. So `InvalidateAsync` removes a key that was never set -- the actual cached entries have the tenant/user suffix and are never invalidated. They rely entirely on TTL expiry (60 seconds).
 
@@ -214,7 +214,7 @@ The code even has a comment at line 56 acknowledging this: "Invalidate by removi
 
 **Verdict: CONFIRMED**
 
-**File:** `src/Shared/Foundry.Shared.Infrastructure/Auditing/AuditInterceptor.cs:137-145`
+**File:** `src/Shared/Wallow.Shared.Infrastructure/Auditing/AuditInterceptor.cs:137-145`
 
 The `SerializeValues` method at lines 137-145 iterates all properties without filtering. No exclusion of large text fields, JSONB columns, or binary data. The remediation suggestion to filter by type/size is appropriate.
 
@@ -226,7 +226,7 @@ The `SerializeValues` method at lines 137-145 iterates all properties without fi
 
 **Verdict: CONFIRMED**
 
-**File:** `src/Modules/Communications/Foundry.Communications.Infrastructure/Services/SmtpEmailProvider.cs:99-124`
+**File:** `src/Modules/Communications/Wallow.Communications.Infrastructure/Services/SmtpEmailProvider.cs:99-124`
 
 Lines 99-124 confirm: `while (attempt < _settings.MaxRetries)` with `using SmtpClient client = new SmtpClient()` inside the loop at line 105, followed by `ConnectAsync`, `AuthenticateAsync`, `SendAsync`, and `DisconnectAsync` for each attempt. The remediation to move connection/auth outside the retry loop is correct.
 
@@ -238,7 +238,7 @@ Lines 99-124 confirm: `while (attempt < _settings.MaxRetries)` with `using SmtpC
 
 **Verdict: CONFIRMED**
 
-**File:** `src/Shared/Foundry.Shared.Kernel/MultiTenancy/TenantSaveChangesInterceptor.cs:38-57`
+**File:** `src/Shared/Wallow.Shared.Kernel/MultiTenancy/TenantSaveChangesInterceptor.cs:38-57`
 
 Lines 38-45 iterate `Entries<ITenantScoped>()` for Added entities, then lines 47-57 iterate again for Modified entities. The remediation to use a single enumeration with state check is correct.
 
@@ -250,8 +250,8 @@ Lines 38-45 iterate `Entries<ITenantScoped>()` for Added entities, then lines 47
 
 **Verdict: FALSE POSITIVE**
 
-**File:** `src/Modules/Identity/Foundry.Identity.Infrastructure/MultiTenancy/TenantResolutionMiddleware.cs:80-93`
-**File:** `src/Modules/Identity/Foundry.Identity.Infrastructure/Authorization/PermissionExpansionMiddleware.cs:60-78`
+**File:** `src/Modules/Identity/Wallow.Identity.Infrastructure/MultiTenancy/TenantResolutionMiddleware.cs:80-93`
+**File:** `src/Modules/Identity/Wallow.Identity.Infrastructure/Authorization/PermissionExpansionMiddleware.cs:60-78`
 
 The audit claims `realm_access` is parsed "up to twice (once in each middleware)." However, examining the actual code:
 
@@ -266,8 +266,8 @@ In practice, if standard role claims are present (which they should be with prop
 
 **Verdict: CONFIRMED**
 
-**File:** `src/Modules/Billing/Foundry.Billing.Infrastructure/Services/InvoiceQueryService.cs`
-**File:** `src/Modules/Billing/Foundry.Billing.Infrastructure/Services/RevenueReportService.cs`
+**File:** `src/Modules/Billing/Wallow.Billing.Infrastructure/Services/InvoiceQueryService.cs`
+**File:** `src/Modules/Billing/Wallow.Billing.Infrastructure/Services/RevenueReportService.cs`
 
 In `InvoiceQueryService.cs`, all four methods (`GetTotalRevenueAsync`:34, `GetCountAsync`:53, `GetPendingCountAsync`:71, `GetOutstandingAmountAsync`:89) accept `CancellationToken ct` but pass Dapper queries without wrapping in `CommandDefinition`. Example at line 34: `connection.QuerySingleAsync<decimal>(sql, new { ... })` -- no cancellation token passed.
 
@@ -283,7 +283,7 @@ The audit correctly notes that `MessagingQueryService` does this correctly (usin
 
 **Verdict: CONFIRMED**
 
-**File:** `src/Modules/Billing/Foundry.Billing.Infrastructure/Services/ValkeyMeteringService.cs:63-101`
+**File:** `src/Modules/Billing/Wallow.Billing.Infrastructure/Services/ValkeyMeteringService.cs:63-101`
 
 Lines 68 and 71 show sequential `await` calls to `GetActivePlanCodeAsync` then `GetEffectiveQuotaAsync`. The second call depends on the first (needs `planCode`), so they cannot be fully parallelized. The `CancellationToken.None` usage at lines 68 and 74 is also confirmed -- the method signature doesn't accept a `CancellationToken`.
 
@@ -299,7 +299,7 @@ The audit's remediation note correctly acknowledges that these can't be parallel
 
 **Verdict: CONFIRMED**
 
-**File:** `src/Modules/Billing/Foundry.Billing.Application/Queries/GetAllInvoices/GetAllInvoicesHandler.cs:11-18`
+**File:** `src/Modules/Billing/Wallow.Billing.Application/Queries/GetAllInvoices/GetAllInvoicesHandler.cs:11-18`
 
 Line 15 calls `invoiceRepository.GetAllAsync(cancellationToken)` which loads all invoices. This is a duplicate of PERF-H1 at the handler level.
 
@@ -311,7 +311,7 @@ Line 15 calls `invoiceRepository.GetAllAsync(cancellationToken)` which loads all
 
 **Verdict: CONFIRMED**
 
-**File:** `src/Modules/Identity/Foundry.Identity.Infrastructure/Services/RedisApiKeyService.cs:190-216`
+**File:** `src/Modules/Identity/Wallow.Identity.Infrastructure/Services/RedisApiKeyService.cs:190-216`
 
 Lines 190-213 confirm: `foreach (RedisValue keyId in keyIds)` with `await db.StringGetAsync(...)` at line 192 for each key. The remediation to use batched `StringGetAsync(RedisKey[])` is correct.
 
@@ -323,7 +323,7 @@ Lines 190-213 confirm: `foreach (RedisValue keyId in keyIds)` with `await db.Str
 
 **Verdict: FALSE POSITIVE**
 
-**File:** `src/Modules/Identity/Foundry.Identity.Infrastructure/Authorization/PermissionExpansionMiddleware.cs:84`
+**File:** `src/Modules/Identity/Wallow.Identity.Infrastructure/Authorization/PermissionExpansionMiddleware.cs:84`
 
 The audit claims duplicate claims can be added when roles overlap. However, `RolePermissionMapping.GetPermissions` at `RolePermissionMapping.cs:34` already calls `.Distinct()`. Permissions are deduplicated before claims are added.
 
@@ -333,7 +333,7 @@ The audit claims duplicate claims can be added when roles overlap. However, `Rol
 
 **Verdict: CONFIRMED**
 
-**File:** `src/Modules/Billing/Foundry.Billing.Infrastructure/Jobs/FlushUsageJob.cs:68`
+**File:** `src/Modules/Billing/Wallow.Billing.Infrastructure/Jobs/FlushUsageJob.cs:68`
 
 Line 68 calls `_usageRepository.SaveChangesAsync(cancellationToken)` once after the loop. The atomic get-and-reset at line 108 (`StringGetSetAsync(key, 0)`) means a failure after resetting Redis but before `SaveChangesAsync` would lose data. The suggestion to batch saves every N records is reasonable.
 
@@ -369,7 +369,7 @@ See severity-adjusted section above.
 
 ### PERF-NEW-1: UserQueryService Makes Redundant Full Member Fetches for Multiple Count Operations
 
-**File:** `src/Modules/Identity/Foundry.Identity.Infrastructure/Services/UserQueryService.cs:21-92`
+**File:** `src/Modules/Identity/Wallow.Identity.Infrastructure/Services/UserQueryService.cs:21-92`
 **Severity: MEDIUM**
 
 While PERF-H6 correctly identified that individual count methods fetch all members, it missed a compounding issue: if a dashboard or analytics endpoint calls `GetNewUsersCountAsync`, `GetActiveUsersCountAsync`, AND `GetTotalUsersCountAsync` in sequence, it fetches the entire member list three separate times. There is no caching or result sharing between these methods. Each call independently deserializes the full JSON response from Keycloak.

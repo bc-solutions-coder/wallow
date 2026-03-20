@@ -13,26 +13,26 @@ WORKDIR /src
 COPY ["Directory.Build.props", "./"]
 COPY ["Directory.Packages.props", "./"]
 COPY ["global.json", "./"]
-COPY ["Foundry.slnx", "./"]
+COPY ["Wallow.slnx", "./"]
 
 # Copy all .csproj files preserving directory structure (requires BuildKit)
 COPY --parents src/**/*.csproj ./
 COPY --parents tests/**/*.csproj ./
 
-RUN dotnet restore "Foundry.slnx"
+RUN dotnet restore "Wallow.slnx"
 
 # Now copy everything and build
 COPY . .
-RUN dotnet build "src/Foundry.Api/Foundry.Api.csproj" -c $BUILD_CONFIGURATION -o /app/build
+RUN dotnet build "src/Wallow.Api/Wallow.Api.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
 ARG VERSION=0.0.0-local
-RUN dotnet publish "src/Foundry.Api/Foundry.Api.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false /p:Version=${VERSION}
+RUN dotnet publish "src/Wallow.Api/Wallow.Api.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false /p:Version=${VERSION}
 
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8080/healthz || exit 1
-ENTRYPOINT ["dotnet", "Foundry.Api.dll"]
+ENTRYPOINT ["dotnet", "Wallow.Api.dll"]

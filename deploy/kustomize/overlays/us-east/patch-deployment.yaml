@@ -1,18 +1,18 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: foundry
+  name: wallow
   annotations:
-    foundry.io/region: us-east
+    wallow.io/region: us-east
 spec:
   replicas: 3
   template:
     spec:
       containers:
-        - name: foundry
+        - name: wallow
           envFrom:
             - configMapRef:
-                name: foundry-region-config
+                name: wallow-region-config
           resources:
             requests:
               memory: 512Mi

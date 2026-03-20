@@ -1,22 +1,22 @@
 using BenchmarkDotNet.Attributes;
-using Foundry.Billing.Domain.Entities;
-using Foundry.Billing.Domain.Identity;
-using Foundry.Billing.Infrastructure.Persistence;
-using Foundry.Billing.Infrastructure.Persistence.Repositories;
-using Foundry.Identity.Domain.Entities;
-using Foundry.Identity.Infrastructure.Persistence;
-using Foundry.Identity.Infrastructure.Repositories;
-using Foundry.Shared.Kernel.Identity;
-using Foundry.Shared.Kernel.MultiTenancy;
-using Foundry.Storage.Domain.Entities;
-using Foundry.Storage.Domain.Identity;
-using Foundry.Storage.Infrastructure.Persistence;
-using Foundry.Storage.Infrastructure.Persistence.Repositories;
+using Wallow.Billing.Domain.Entities;
+using Wallow.Billing.Domain.Identity;
+using Wallow.Billing.Infrastructure.Persistence;
+using Wallow.Billing.Infrastructure.Persistence.Repositories;
+using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Infrastructure.Persistence;
+using Wallow.Identity.Infrastructure.Repositories;
+using Wallow.Shared.Kernel.Identity;
+using Wallow.Shared.Kernel.MultiTenancy;
+using Wallow.Storage.Domain.Entities;
+using Wallow.Storage.Domain.Identity;
+using Wallow.Storage.Infrastructure.Persistence;
+using Wallow.Storage.Infrastructure.Persistence.Repositories;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
-namespace Foundry.Benchmarks;
+namespace Wallow.Benchmarks;
 
 [MemoryDiagnoser]
 [ShortRunJob]
@@ -45,7 +45,7 @@ public sealed class QueryBenchmarks : IDisposable
     public void Setup()
     {
         BenchmarkTenantContext tenantContext = new();
-        IDataProtectionProvider dataProtectionProvider = DataProtectionProvider.Create("Foundry.Benchmarks");
+        IDataProtectionProvider dataProtectionProvider = DataProtectionProvider.Create("Wallow.Benchmarks");
 
         // Identity
         _identityConnection = new SqliteConnection("DataSource=:memory:");
@@ -99,7 +99,7 @@ public sealed class QueryBenchmarks : IDisposable
 
         DateTime now = DateTime.UtcNow;
         Subscription subscription = Subscription.Create(
-            benchUserId, "bench-plan", Foundry.Billing.Domain.ValueObjects.Money.Create(9.99m, "USD"),
+            benchUserId, "bench-plan", Wallow.Billing.Domain.ValueObjects.Money.Create(9.99m, "USD"),
             now, now.AddMonths(1), benchUserId, TimeProvider.System);
         _testSubscriptionId = subscription.Id;
         _billingDbContext.Subscriptions.Add(subscription);

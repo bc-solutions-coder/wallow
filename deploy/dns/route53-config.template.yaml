@@ -1,14 +1,14 @@
 # AWS Route 53 Latency-Based Routing Template
-# Reference configuration for DNS-based geo-routing across Foundry regions.
+# Reference configuration for DNS-based geo-routing across Wallow regions.
 # Replace placeholder values before applying via AWS CLI or Terraform.
 
 hosted_zone:
-  domain: "{{DOMAIN}}"                    # e.g., foundry.example.com
-  comment: "Foundry multi-region routing"
+  domain: "{{DOMAIN}}"                    # e.g., wallow.example.com
+  comment: "Wallow multi-region routing"
 
 health_checks:
   - id: "{{HEALTH_CHECK_US_EAST}}"
-    endpoint: "{{US_EAST_ENDPOINT}}"      # e.g., https://us-east.foundry.example.com
+    endpoint: "{{US_EAST_ENDPOINT}}"      # e.g., https://us-east.wallow.example.com
     path: "/health/ready"
     port: 443
     type: HTTPS
@@ -16,7 +16,7 @@ health_checks:
     failure_threshold: 3
 
   - id: "{{HEALTH_CHECK_EU_WEST}}"
-    endpoint: "{{EU_WEST_ENDPOINT}}"      # e.g., https://eu-west.foundry.example.com
+    endpoint: "{{EU_WEST_ENDPOINT}}"      # e.g., https://eu-west.wallow.example.com
     path: "/health/ready"
     port: 443
     type: HTTPS
@@ -24,7 +24,7 @@ health_checks:
     failure_threshold: 3
 
   - id: "{{HEALTH_CHECK_AP_SOUTHEAST}}"
-    endpoint: "{{AP_SOUTHEAST_ENDPOINT}}" # e.g., https://ap-southeast.foundry.example.com
+    endpoint: "{{AP_SOUTHEAST_ENDPOINT}}" # e.g., https://ap-southeast.wallow.example.com
     path: "/health/ready"
     port: 443
     type: HTTPS
@@ -38,7 +38,7 @@ record_sets:
     set_identifier: us-east-1
     region: us-east-1
     alias_target:
-      dns_name: "{{US_EAST_ALB_DNS}}"    # e.g., foundry-us-east-123456.us-east-1.elb.amazonaws.com
+      dns_name: "{{US_EAST_ALB_DNS}}"    # e.g., wallow-us-east-123456.us-east-1.elb.amazonaws.com
       hosted_zone_id: "{{US_EAST_ALB_ZONE}}"
       evaluate_target_health: true
     health_check_id: "{{HEALTH_CHECK_US_EAST}}"

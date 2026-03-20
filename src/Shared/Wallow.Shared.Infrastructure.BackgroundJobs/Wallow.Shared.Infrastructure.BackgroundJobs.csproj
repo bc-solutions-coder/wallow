@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- TargetFramework, Nullable, etc. inherited from Directory.Build.props -->
+  <!-- Package versions managed in Directory.Packages.props -->
+
+  <PropertyGroup>
+    <RootNamespace>Wallow.Shared.Infrastructure.BackgroundJobs</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Wallow.Shared.Infrastructure.Core\Wallow.Shared.Infrastructure.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Hangfire.Core" />
+  </ItemGroup>
+
+</Project>

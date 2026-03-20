@@ -1,23 +1,23 @@
 # Test Inventory
 
-Comprehensive catalog of all test projects in the Foundry codebase. Counts sourced from `dotnet test --list-tests`.
+Comprehensive catalog of all test projects in the Wallow codebase. Counts sourced from `dotnet test --list-tests`.
 
 ## Summary
 
 | Project | Tests | Layer Coverage |
 |---------|-------|----------------|
-| Foundry.Billing.Tests | 581 | Domain, Application, Infrastructure, Api, Integration |
-| Foundry.Storage.Tests | 240 | Domain, Application, Infrastructure, Api, Integration |
-| Foundry.Identity.Tests | 819 | Domain, Application, Infrastructure, Api, Integration |
-| Foundry.Identity.IntegrationTests | 55 | OAuth2, ServiceAccounts, Scim, Sso |
-| Foundry.Shared.Kernel.Tests | 287 | Domain, Identity, MultiTenancy, Results, Extensions, CustomFields, Plugins, Diagnostics, Messaging |
-| Foundry.Shared.Infrastructure.Tests | 329 | Auditing, BackgroundJobs, Persistence, Plugins, AsyncApi, Workflows, Middleware, Services |
-| Foundry.Api.Tests | 215 | Extensions, Middleware, Services, Hubs, Health, Integration, Jobs, Logging |
-| Foundry.Architecture.Tests | 112 | CleanArchitecture, ModuleIsolation, CQRS, Wolverine, ApiVersioning, MultiTenancy |
-| Foundry.Messaging.IntegrationTests | 12 | CrossModule, PublishConsume, Retry, DeadLetter |
+| Wallow.Billing.Tests | 581 | Domain, Application, Infrastructure, Api, Integration |
+| Wallow.Storage.Tests | 240 | Domain, Application, Infrastructure, Api, Integration |
+| Wallow.Identity.Tests | 819 | Domain, Application, Infrastructure, Api, Integration |
+| Wallow.Identity.IntegrationTests | 55 | OAuth2, ServiceAccounts, Scim, Sso |
+| Wallow.Shared.Kernel.Tests | 287 | Domain, Identity, MultiTenancy, Results, Extensions, CustomFields, Plugins, Diagnostics, Messaging |
+| Wallow.Shared.Infrastructure.Tests | 329 | Auditing, BackgroundJobs, Persistence, Plugins, AsyncApi, Workflows, Middleware, Services |
+| Wallow.Api.Tests | 215 | Extensions, Middleware, Services, Hubs, Health, Integration, Jobs, Logging |
+| Wallow.Architecture.Tests | 112 | CleanArchitecture, ModuleIsolation, CQRS, Wolverine, ApiVersioning, MultiTenancy |
+| Wallow.Messaging.IntegrationTests | 12 | CrossModule, PublishConsume, Retry, DeadLetter |
 | **Total** | **2,650** | |
 
-> **Note:** This inventory needs updating. The Notifications, Announcements, Messaging, Inquiries, and Showcases module test projects are not yet listed here. Foundry.Configuration.Tests and Foundry.Communications.Tests have been removed (those modules no longer exist).
+> **Note:** This inventory needs updating. The Notifications, Announcements, Messaging, Inquiries, and Showcases module test projects are not yet listed here. Wallow.Configuration.Tests and Wallow.Communications.Tests have been removed (those modules no longer exist).
 
 ---
 

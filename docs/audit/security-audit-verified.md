@@ -29,7 +29,7 @@ Each finding from the original security audit was verified against the actual so
 **Status: CONFIRMED**
 **Severity: HIGH (unchanged)**
 
-Verified at `src/Modules/Identity/Foundry.Identity.Api/Controllers/ScimController.cs`. Seven catch blocks return `ex.Message` directly in `ScimError.Detail`:
+Verified at `src/Modules/Identity/Wallow.Identity.Api/Controllers/ScimController.cs`. Seven catch blocks return `ex.Message` directly in `ScimError.Detail`:
 
 - Line 96 (`CreateUser`)
 - Line 122 (`UpdateUser`)
@@ -52,9 +52,9 @@ The controller is marked `[AllowAnonymous]` (line 18) with custom Bearer token a
 **Status: CONFIRMED**
 **Severity: HIGH (unchanged)**
 
-Verified at `src/Modules/Communications/Foundry.Communications.Api/Controllers/ConversationsController.cs:130-131`. The `SendMessage` endpoint passes `request.Body` directly into `SendMessageCommand` without sanitization.
+Verified at `src/Modules/Communications/Wallow.Communications.Api/Controllers/ConversationsController.cs:130-131`. The `SendMessage` endpoint passes `request.Body` directly into `SendMessageCommand` without sanitization.
 
-The domain entity `Conversation.SendMessage()` at `src/Modules/Communications/Foundry.Communications.Domain/Messaging/Entities/Conversation.cs:67-89` also performs no sanitization -- it only validates sender is an active participant.
+The domain entity `Conversation.SendMessage()` at `src/Modules/Communications/Wallow.Communications.Domain/Messaging/Entities/Conversation.cs:67-89` also performs no sanitization -- it only validates sender is an active participant.
 
 Confirmed that `AdminAnnouncementsController` and `AdminChangelogController` both inject and use `IHtmlSanitizationService` (via grep), while `ConversationsController` does not. The `SignalRRealtimeDispatcher` does sanitize outgoing payloads, so real-time delivery is partially protected, but the stored message body in the database remains unsanitized, and direct API reads (`GetMessages`) would return raw HTML/script content.
 
@@ -67,7 +67,7 @@ Confirmed that `AdminAnnouncementsController` and `AdminChangelogController` bot
 **Status: CONFIRMED, SEVERITY ADJUSTED to LOW**
 **Severity: LOW (downgraded from MEDIUM)**
 
-Verified at `src/Foundry.Api/Middleware/HangfireDashboardAuthFilter.cs` and `src/Foundry.Api/Extensions/HangfireExtensions.cs:36-39`.
+Verified at `src/Wallow.Api/Middleware/HangfireDashboardAuthFilter.cs` and `src/Wallow.Api/Extensions/HangfireExtensions.cs:36-39`.
 
 The auth filter correctly requires `IsAuthenticated && IsInRole("Admin")` in non-development environments. While the audit correctly notes that this bypasses the standard ASP.NET Core authorization pipeline and uses Hangfire's own `IDashboardAuthorizationFilter`, the practical risk is low:
 
@@ -122,7 +122,7 @@ Controllers that DO have proper `[HasPermission]` at method level: `UsersControl
 **Status: CONFIRMED**
 **Severity: MEDIUM (unchanged)**
 
-Verified at `src/Modules/Communications/Foundry.Communications.Infrastructure/Services/MessagingQueryService.cs:41-95`. The `GetMessagesAsync` Dapper query joins only on `conversations` for tenant filtering but does NOT join on `participants` to verify the requesting user is in the conversation. The `@UserId` parameter is accepted by the method but is not used in the SQL query at all.
+Verified at `src/Modules/Communications/Wallow.Communications.Infrastructure/Services/MessagingQueryService.cs:41-95`. The `GetMessagesAsync` Dapper query joins only on `conversations` for tenant filtering but does NOT join on `participants` to verify the requesting user is in the conversation. The `@UserId` parameter is accepted by the method but is not used in the SQL query at all.
 
 Compare with `GetConversationsAsync` (line 97+) which correctly uses `WHERE p.user_id = @UserId` via the `user_conversations` CTE.
 
@@ -139,7 +139,7 @@ The write path (`SendMessage`) is protected at the domain level -- `Conversation
 **Status: FALSE POSITIVE**
 **Severity: N/A**
 
-Verified at `src/Foundry.Api/Extensions/AsyncApiEndpointExtensions.cs:10-13`. The method begins with:
+Verified at `src/Wallow.Api/Extensions/AsyncApiEndpointExtensions.cs:10-13`. The method begins with:
 
 ```csharp
 if (!app.Environment.IsDevelopment())
@@ -159,7 +159,7 @@ This finding is a **false positive** -- the original auditor missed the environm
 **Status: CONFIRMED, SEVERITY ADJUSTED to LOW**
 **Severity: LOW (downgraded from MEDIUM)**
 
-Verified at `src/Foundry.Api/appsettings.Development.json:29`. The value is `"ssl-required": "none"`. This file is environment-specific (`appsettings.Development.json`) and only loads when `ASPNETCORE_ENVIRONMENT=Development`.
+Verified at `src/Wallow.Api/appsettings.Development.json:29`. The value is `"ssl-required": "none"`. This file is environment-specific (`appsettings.Development.json`) and only loads when `ASPNETCORE_ENVIRONMENT=Development`.
 
 The original audit itself acknowledged this is "well-handled" since production uses `"ssl-required": "external"`. The risk of "configuration drift" is real but the standard ASP.NET Core configuration layering provides strong protection -- `appsettings.Development.json` simply does not load in production.
 
@@ -177,7 +177,7 @@ Downgrading to LOW because:
 **Status: CONFIRMED**
 **Severity: LOW (unchanged)**
 
-Verified at `src/Foundry.Api/appsettings.Testing.json`. Contains `Username=test;Password=test`, `amqp://guest:guest@localhost:5672`, and `"secret": "test-client-secret"`. These are clearly test-only values for Testcontainers/local development. No action required.
+Verified at `src/Wallow.Api/appsettings.Testing.json`. Contains `Username=test;Password=test`, `amqp://guest:guest@localhost:5672`, and `"secret": "test-client-secret"`. These are clearly test-only values for Testcontainers/local development. No action required.
 
 ---
 
@@ -186,7 +186,7 @@ Verified at `src/Foundry.Api/appsettings.Testing.json`. Contains `Username=test;
 **Status: CONFIRMED**
 **Severity: LOW (unchanged)**
 
-Verified at `src/Modules/Identity/Foundry.Identity.Infrastructure/Authorization/ScimAuthenticationMiddleware.cs:44-49`. The middleware correctly bypasses auth for discovery endpoints (ServiceProviderConfig, Schemas, ResourceTypes) per SCIM RFC 7643/7644. The `[AllowAnonymous]` on the controller (line 18 of ScimController) means ASP.NET Core authorization is bypassed for ALL SCIM endpoints, with the custom middleware providing the auth gate.
+Verified at `src/Modules/Identity/Wallow.Identity.Infrastructure/Authorization/ScimAuthenticationMiddleware.cs:44-49`. The middleware correctly bypasses auth for discovery endpoints (ServiceProviderConfig, Schemas, ResourceTypes) per SCIM RFC 7643/7644. The `[AllowAnonymous]` on the controller (line 18 of ScimController) means ASP.NET Core authorization is bypassed for ALL SCIM endpoints, with the custom middleware providing the auth gate.
 
 The middleware is well-implemented -- it validates Bearer tokens, creates a `ClaimsPrincipal`, and properly rejects invalid tokens. The risk is middleware ordering, which is a valid concern but mitigated by the explicit pipeline order documented in `Program.cs`.
 
@@ -199,7 +199,7 @@ The middleware is well-implemented -- it validates Bearer tokens, creates a `Cla
 **Status: CONFIRMED**
 **Severity: LOW (unchanged)**
 
-Verified at `src/Modules/Storage/Foundry.Storage.Api/Controllers/StorageController.cs:301-312`. The `GetCurrentUserId()` method returns `Guid.Empty` when the claim is missing or unparseable. This is used in the `Upload` endpoint (line 155) where it becomes `UploadFileCommand.UserId`.
+Verified at `src/Modules/Storage/Wallow.Storage.Api/Controllers/StorageController.cs:301-312`. The `GetCurrentUserId()` method returns `Guid.Empty` when the claim is missing or unparseable. This is used in the `Upload` endpoint (line 155) where it becomes `UploadFileCommand.UserId`.
 
 Compare with `ConversationsController.GetCurrentUserId()` (line 171-182) which returns `null` and the caller returns `Unauthorized()`. The Storage pattern is inconsistent and could result in files being associated with `Guid.Empty` as the uploader, though the `[Authorize]` attribute should prevent unauthenticated access in practice.
 
@@ -212,7 +212,7 @@ Compare with `ConversationsController.GetCurrentUserId()` (line 171-182) which r
 **Status: CONFIRMED**
 **Severity: LOW (unchanged)**
 
-Verified at `src/Foundry.Api/Middleware/GlobalExceptionHandler.cs:91-94`. For `DomainException`, `exception.Message` is always returned regardless of environment. For `ValidationException` (lines 96-101), individual error messages are also always returned.
+Verified at `src/Wallow.Api/Middleware/GlobalExceptionHandler.cs:91-94`. For `DomainException`, `exception.Message` is always returned regardless of environment. For `ValidationException` (lines 96-101), individual error messages are also always returned.
 
 The non-domain, non-validation path correctly gates on `_environment.IsDevelopment()` (lines 103-108). The domain exception messages are designed to be user-facing (e.g., "Cannot send messages to an archived conversation"), so this is acceptable if messages are reviewed for safety.
 
@@ -225,8 +225,8 @@ The non-domain, non-validation path correctly gates on `_environment.IsDevelopme
 ### NEW-1: SSO Test Endpoint Returns Full Stack Trace via `DebugInfo`
 
 **Severity: MEDIUM**
-**File:** `src/Modules/Identity/Foundry.Identity.Infrastructure/Services/KeycloakSsoService.cs:237`
-**Controller:** `src/Modules/Identity/Foundry.Identity.Api/Controllers/SsoController.cs:113-117`
+**File:** `src/Modules/Identity/Wallow.Identity.Infrastructure/Services/KeycloakSsoService.cs:237`
+**Controller:** `src/Modules/Identity/Wallow.Identity.Api/Controllers/SsoController.cs:113-117`
 
 **Issue:** The `TestConnectionAsync` method catches `Exception` and creates:
 ```csharp
@@ -251,9 +251,9 @@ While the endpoint requires `[HasPermission(PermissionType.SsoManage)]` (admin-o
 
 **Severity: MEDIUM (included in MEDIUM-2 verified count)**
 **Files:**
-- `src/Modules/Billing/Foundry.Billing.Api/Controllers/SubscriptionsController.cs` (line 20)
-- `src/Modules/Billing/Foundry.Billing.Api/Controllers/InvoicesController.cs` (line 23)
-- `src/Modules/Billing/Foundry.Billing.Api/Controllers/PaymentsController.cs` (line 19)
+- `src/Modules/Billing/Wallow.Billing.Api/Controllers/SubscriptionsController.cs` (line 20)
+- `src/Modules/Billing/Wallow.Billing.Api/Controllers/InvoicesController.cs` (line 23)
+- `src/Modules/Billing/Wallow.Billing.Api/Controllers/PaymentsController.cs` (line 19)
 
 **Issue:** These controllers handle subscription management, invoice generation, and payment processing -- sensitive financial operations -- but only require `[Authorize]` without granular `[HasPermission]` checks. The original audit identified Billing's `UsageController`, `MetersController`, and `QuotasController` but missed these three.
 

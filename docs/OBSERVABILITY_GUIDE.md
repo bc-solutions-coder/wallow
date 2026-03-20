@@ -1,10 +1,10 @@
 # Observability Guide
 
-This guide covers logging, tracing, and metrics in Foundry using the observability stack: Serilog, OpenTelemetry, and Grafana LGTM.
+This guide covers logging, tracing, and metrics in Wallow using the observability stack: Serilog, OpenTelemetry, and Grafana LGTM.
 
 ## Overview
 
-Foundry uses a modern observability stack that provides three pillars of observability:
+Wallow uses a modern observability stack that provides three pillars of observability:
 
 | Pillar | Technology | Backend |
 |--------|------------|---------|
@@ -18,7 +18,7 @@ All telemetry is exported via OpenTelemetry Protocol (OTLP) to a Grafana LGTM (L
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│  Foundry API                                                        │
+│  Wallow API                                                        │
 │  ┌─────────────┐  ┌─────────────────┐  ┌────────────────────────┐  │
 │  │  Serilog    │  │  OpenTelemetry  │  │  OpenTelemetry         │  │
 │  │  (Logging)  │  │  (Tracing)      │  │  (Metrics)             │  │
@@ -46,7 +46,7 @@ All telemetry is exported via OpenTelemetry Protocol (OTLP) to a Grafana LGTM (L
 
 ## Structured Logging with Serilog
 
-Foundry uses Serilog for structured logging with rich context enrichment.
+Wallow uses Serilog for structured logging with rich context enrichment.
 
 ### Configuration
 
@@ -60,7 +60,7 @@ builder.Host.UseSerilog((context, services, configuration) =>
         .ReadFrom.Services(services)
         .Enrich.FromLogContext()
         .Enrich.With<ModuleEnricher>()
-        .Enrich.WithProperty("Application", "Foundry")
+        .Enrich.WithProperty("Application", "Wallow")
         .WriteTo.Console(outputTemplate:
             "[{Timestamp:HH:mm:ss} {Level:u3}] [{Module}] {Message:lj} {Properties:j}{NewLine}{Exception}");
 
@@ -70,7 +70,7 @@ builder.Host.UseSerilog((context, services, configuration) =>
         var otlpEndpoint = context.Configuration["OpenTelemetry:OtlpEndpoint"]
             ?? "http://localhost:4318";
         var serviceName = context.Configuration["OpenTelemetry:ServiceName"]
-            ?? "Foundry";
+            ?? "Wallow";
 
         configuration.WriteTo.OpenTelemetry(options =>
         {
@@ -78,7 +78,7 @@ builder.Host.UseSerilog((context, services, configuration) =>
             options.ResourceAttributes = new Dictionary<string, object>
             {
                 ["service.name"] = serviceName,
-                ["service.namespace"] = "Foundry",
+                ["service.namespace"] = "Wallow",
                 ["deployment.environment"] = context.HostingEnvironment.EnvironmentName
             };
         });
@@ -124,7 +124,7 @@ Log levels are configured in `appsettings.json` and environment-specific files:
 The `ModuleEnricher` automatically tags logs with the module name based on the source context namespace:
 
 ```csharp
-// src/Foundry.Api/Logging/ModuleEnricher.cs
+// src/Wallow.Api/Logging/ModuleEnricher.cs
 public class ModuleEnricher : ILogEventEnricher
 {
     public void Enrich(LogEvent logEvent, ILogEventPropertyFactory propertyFactory)
@@ -136,8 +136,8 @@ public class ModuleEnricher : ILogEventEnricher
             var contextValue = sourceContext.ToString().Trim('"');
             var parts = contextValue.Split('.');
 
-            // Foundry.{X}.* -> Module = X
-            if (parts.Length >= 2 && parts[0] == "Foundry")
+            // Wallow.{X}.* -> Module = X
+            if (parts.Length >= 2 && parts[0] == "Wallow")
             {
                 module = parts[1];
             }
@@ -213,14 +213,14 @@ public static IServiceCollection AddObservability(
     IConfiguration configuration,
     IHostEnvironment environment)
 {
-    var serviceName = configuration["OpenTelemetry:ServiceName"] ?? "Foundry";
+    var serviceName = configuration["OpenTelemetry:ServiceName"] ?? "Wallow";
     var otlpGrpcEndpoint = configuration["OpenTelemetry:OtlpGrpcEndpoint"] ?? "http://localhost:4317";
 
     services.AddOpenTelemetry()
         .ConfigureResource(resource => resource
             .AddService(
                 serviceName: serviceName,
-                serviceNamespace: "Foundry",
+                serviceNamespace: "Wallow",
                 serviceVersion: typeof(ServiceCollectionExtensions).Assembly
                     .GetName().Version?.ToString() ?? "1.0.0")
             .AddAttributes(new KeyValuePair<string, object>[]
@@ -269,7 +269,7 @@ using System.Diagnostics;
 
 public class PaymentService
 {
-    private static readonly ActivitySource ActivitySource = new("Foundry.Billing");
+    private static readonly ActivitySource ActivitySource = new("Wallow.Billing");
 
     public async Task<PaymentResult> ProcessPaymentAsync(PaymentRequest request)
     {
@@ -297,7 +297,7 @@ Register the ActivitySource in OpenTelemetry configuration:
 
 ```csharp
 .WithTracing(tracing => tracing
-    .AddSource("Foundry.Billing")  // Add your custom source
+    .AddSource("Wallow.Billing")  // Add your custom source
     // ... other configuration
 ```
 
@@ -355,13 +355,13 @@ The following metrics are automatically collected:
 
 ### Custom Metrics
 
-Foundry provides a shared `Meter` for custom metrics:
+Wallow provides a shared `Meter` for custom metrics:
 
 ```csharp
-// src/Shared/Foundry.Shared.Kernel/Diagnostics.cs
+// src/Shared/Wallow.Shared.Kernel/Diagnostics.cs
 public static class Diagnostics
 {
-    public static readonly Meter Meter = new("Foundry");
+    public static readonly Meter Meter = new("Wallow");
 }
 ```
 
@@ -369,18 +369,18 @@ Create custom metrics:
 
 ```csharp
 using System.Diagnostics.Metrics;
-using Foundry.Shared.Kernel;
+using Wallow.Shared.Kernel;
 
 public class InvoiceService
 {
     private static readonly Counter<long> InvoicesCreated =
         Diagnostics.Meter.CreateCounter<long>(
-            "foundry.invoices.created",
+            "wallow.invoices.created",
             description: "Number of invoices created");
 
     private static readonly Histogram<double> InvoiceTotal =
         Diagnostics.Meter.CreateHistogram<double>(
-            "foundry.invoices.total",
+            "wallow.invoices.total",
             unit: "USD",
             description: "Invoice total amounts");
 
@@ -400,11 +400,11 @@ public class InvoiceService
 }
 ```
 
-The `Foundry` meter is already registered in the OpenTelemetry configuration:
+The `Wallow` meter is already registered in the OpenTelemetry configuration:
 
 ```csharp
 .WithMetrics(metrics => metrics
-    .AddMeter("Foundry")  // Custom Foundry metrics
+    .AddMeter("Wallow")  // Custom Wallow metrics
     // ... other configuration
 ```
 
@@ -435,7 +435,7 @@ Enable OpenTelemetry logging in `appsettings.Development.json`:
 {
   "OpenTelemetry": {
     "EnableLogging": true,
-    "ServiceName": "Foundry",
+    "ServiceName": "Wallow",
     "OtlpEndpoint": "http://localhost:4318",
     "OtlpGrpcEndpoint": "http://localhost:4317"
   }
@@ -453,7 +453,7 @@ Enable OpenTelemetry logging in `appsettings.Development.json`:
 
 ### Pre-configured Dashboards
 
-Foundry includes pre-configured dashboards in `docker/grafana/dashboards/`:
+Wallow includes pre-configured dashboards in `docker/grafana/dashboards/`:
 
 | Dashboard | Description |
 |-----------|-------------|
@@ -467,12 +467,12 @@ Access dashboards at: **Dashboards** > **Browse** > Select dashboard
 1. Go to **Explore** > Select **Tempo**
 2. Search options:
    - **By Trace ID**: Paste a trace ID from logs or error responses
-   - **By Service**: Filter by `service.name = "Foundry"`
+   - **By Service**: Filter by `service.name = "Wallow"`
    - **By Span Name**: Search for specific operations
 
 Example TraceQL query:
 ```
-{ resource.service.name = "Foundry" && span.http.status_code >= 500 }
+{ resource.service.name = "Wallow" && span.http.status_code >= 500 }
 ```
 
 ### Exploring Logs in Loki
@@ -482,13 +482,13 @@ Example TraceQL query:
 
 ```logql
 # All logs from Billing module
-{service_name="Foundry"} | json | Module="Billing"
+{service_name="Wallow"} | json | Module="Billing"
 
 # Errors only
-{service_name="Foundry"} |= "error" or |= "Error"
+{service_name="Wallow"} |= "error" or |= "Error"
 
 # Logs for a specific trace
-{service_name="Foundry"} | json | TraceId="00-abc123..."
+{service_name="Wallow"} | json | TraceId="00-abc123..."
 ```
 
 ### Correlating Logs and Traces
@@ -508,7 +508,7 @@ Configure OTLP endpoints via environment variables or appsettings:
 {
   "OpenTelemetry": {
     "EnableLogging": true,
-    "ServiceName": "Foundry",
+    "ServiceName": "Wallow",
     "OtlpEndpoint": "https://otel-collector.yourcompany.com",
     "OtlpGrpcEndpoint": "https://otel-collector.yourcompany.com:4317"
   }
@@ -517,7 +517,7 @@ Configure OTLP endpoints via environment variables or appsettings:
 
 Or via environment variables:
 ```bash
-export OpenTelemetry__ServiceName="Foundry-Production"
+export OpenTelemetry__ServiceName="Wallow-Production"
 export OpenTelemetry__OtlpEndpoint="https://otel-collector.yourcompany.com"
 export OpenTelemetry__OtlpGrpcEndpoint="https://otel-collector.yourcompany.com:4317"
 ```
@@ -561,7 +561,7 @@ configuration.WriteTo.Seq("https://seq.yourcompany.com");
 1. In Grafana, go to **Explore** > **Tempo**
 2. Query for slow requests:
    ```
-   { resource.service.name = "Foundry" && duration > 1s }
+   { resource.service.name = "Wallow" && duration > 1s }
    ```
 3. Click on a trace to see the span breakdown
 4. Identify slow spans (database queries, external calls)
@@ -609,18 +609,18 @@ Add custom telemetry for:
 
 **Activity Sources (Tracing):**
 ```csharp
-// Format: Foundry.{ModuleName}
-private static readonly ActivitySource ActivitySource = new("Foundry.Billing");
-private static readonly ActivitySource ActivitySource = new("Foundry.Storage");
+// Format: Wallow.{ModuleName}
+private static readonly ActivitySource ActivitySource = new("Wallow.Billing");
+private static readonly ActivitySource ActivitySource = new("Wallow.Storage");
 ```
 
 **Metrics:**
 ```csharp
-// Format: foundry.{module}.{metric_name}
+// Format: wallow.{module}.{metric_name}
 // Use snake_case, be descriptive
-Diagnostics.Meter.CreateCounter<long>("foundry.billing.invoices_created");
-Diagnostics.Meter.CreateHistogram<double>("foundry.billing.payment_duration_seconds");
-Diagnostics.Meter.CreateCounter<long>("foundry.storage.files_uploaded");
+Diagnostics.Meter.CreateCounter<long>("wallow.billing.invoices_created");
+Diagnostics.Meter.CreateHistogram<double>("wallow.billing.payment_duration_seconds");
+Diagnostics.Meter.CreateCounter<long>("wallow.storage.files_uploaded");
 ```
 
 **Log Properties:**
@@ -637,7 +637,7 @@ _logger.LogInformation(
 ```csharp
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
-using Foundry.Shared.Kernel;
+using Wallow.Shared.Kernel;
 
 public class PaymentService
 {
@@ -646,12 +646,12 @@ public class PaymentService
 
     private static readonly Counter<long> PaymentsProcessed =
         Diagnostics.Meter.CreateCounter<long>(
-            "foundry.billing.payments_processed",
+            "wallow.billing.payments_processed",
             description: "Number of payments processed");
 
     private static readonly Histogram<double> PaymentDuration =
         Diagnostics.Meter.CreateHistogram<double>(
-            "foundry.billing.payment_duration_seconds",
+            "wallow.billing.payment_duration_seconds",
             unit: "s",
             description: "Time to process a payment");
 
@@ -732,7 +732,7 @@ Register the custom ActivitySource:
 ```csharp
 // In ServiceCollectionExtensions.cs
 .WithTracing(tracing => tracing
-    .AddSource("Foundry.Billing")  // Add this line
+    .AddSource("Wallow.Billing")  // Add this line
     // ... existing configuration
 ```
 
@@ -743,7 +743,7 @@ Register the custom ActivitySource:
 1. Verify `OpenTelemetry:EnableLogging` is `true`
 2. Check the OTLP endpoint is reachable
 3. Verify Grafana LGTM container is running: `docker ps | grep lgtm`
-4. Check container logs: `docker logs foundry-grafana-lgtm`
+4. Check container logs: `docker logs wallow-grafana-lgtm`
 
 ### Traces Not Appearing in Tempo
 
@@ -754,7 +754,7 @@ Register the custom ActivitySource:
 ### Metrics Not Appearing in Prometheus
 
 1. Verify the OTLP endpoint configuration
-2. Check if the Meter is registered: `.AddMeter("Foundry")`
+2. Check if the Meter is registered: `.AddMeter("Wallow")`
 3. Ensure metrics are being recorded (add temporary logging)
 
 ### Correlation Issues
@@ -767,26 +767,26 @@ If logs and traces aren't correlating:
 
 ## Adding Custom Business Metrics
 
-Foundry centralizes instrumentation primitives in `Foundry.Shared.Kernel.Diagnostics`. Use this to add metrics and traces without creating your own `Meter` or `ActivitySource` instances.
+Wallow centralizes instrumentation primitives in `Wallow.Shared.Kernel.Diagnostics`. Use this to add metrics and traces without creating your own `Meter` or `ActivitySource` instances.
 
 ### Available Primitives
 
 ```csharp
-using Foundry.Shared.Kernel;
+using Wallow.Shared.Kernel;
 
-// Shared meter (already registered with OpenTelemetry as "Foundry")
+// Shared meter (already registered with OpenTelemetry as "Wallow")
 Diagnostics.Meter
 
 // Module-scoped activity source for tracing
-Diagnostics.CreateActivitySource("MyModule")  // creates "Foundry.MyModule"
+Diagnostics.CreateActivitySource("MyModule")  // creates "Wallow.MyModule"
 ```
 
 ### Naming Convention
 
 | Type | Format | Example |
 |------|--------|---------|
-| **Metrics** | `foundry.{module}.{metric_name}` | `foundry.billing.invoices_created_total` |
-| **Activity Sources** | `Foundry.{Module}` | `Foundry.Billing` |
+| **Metrics** | `wallow.{module}.{metric_name}` | `wallow.billing.invoices_created_total` |
+| **Activity Sources** | `Wallow.{Module}` | `Wallow.Billing` |
 
 Use snake_case for metric names. Append `_total` to counters and include a `unit` parameter on histograms where applicable.
 
@@ -797,10 +797,10 @@ Declare instruments as `static readonly` fields, then record values inside your 
 ```csharp
 // From Billing — InvoiceCreatedDomainEventHandler.cs
 private static readonly Counter<long> InvoicesCreatedCounter =
-    Diagnostics.Meter.CreateCounter<long>("foundry.billing.invoices_created_total");
+    Diagnostics.Meter.CreateCounter<long>("wallow.billing.invoices_created_total");
 
 private static readonly Histogram<double> InvoiceAmountHistogram =
-    Diagnostics.Meter.CreateHistogram<double>("foundry.billing.invoice_amount");
+    Diagnostics.Meter.CreateHistogram<double>("wallow.billing.invoice_amount");
 
 // Inside the handler method:
 InvoicesCreatedCounter.Add(1,
@@ -815,10 +815,10 @@ InvoiceAmountHistogram.Record((double)domainEvent.TotalAmount,
 ```csharp
 // From Storage — StorageModuleTelemetry.cs
 private static readonly Counter<long> FilesUploaded =
-    Diagnostics.Meter.CreateCounter<long>("foundry.storage.files_uploaded_total");
+    Diagnostics.Meter.CreateCounter<long>("wallow.storage.files_uploaded_total");
 
 private static readonly Histogram<double> FileSizeBytes =
-    Diagnostics.Meter.CreateHistogram<double>("foundry.storage.file_size_bytes");
+    Diagnostics.Meter.CreateHistogram<double>("wallow.storage.file_size_bytes");
 
 // Inside handler methods:
 FilesUploaded.Add(1);
@@ -845,7 +845,7 @@ Register each module's `ActivitySource` in `ServiceCollectionExtensions.cs`:
 
 ```csharp
 .WithTracing(tracing => tracing
-    .AddSource("Foundry.Storage")
+    .AddSource("Wallow.Storage")
     // ... other sources
 ```
 
@@ -855,12 +855,12 @@ With metrics flowing to Prometheus, create dashboard panels using PromQL:
 
 | Panel | PromQL |
 |-------|--------|
-| Invoices created (rate) | `rate(foundry_billing_invoices_created_total[5m])` |
-| Invoice amount P95 | `histogram_quantile(0.95, rate(foundry_billing_invoice_amount_bucket[5m]))` |
-| Files uploaded per minute | `rate(foundry_storage_files_uploaded_total[1m]) * 60` |
-| File size distribution | `histogram_quantile(0.5, rate(foundry_storage_file_size_bytes_bucket[5m]))` |
+| Invoices created (rate) | `rate(wallow_billing_invoices_created_total[5m])` |
+| Invoice amount P95 | `histogram_quantile(0.95, rate(wallow_billing_invoice_amount_bucket[5m]))` |
+| Files uploaded per minute | `rate(wallow_storage_files_uploaded_total[1m]) * 60` |
+| File size distribution | `histogram_quantile(0.5, rate(wallow_storage_file_size_bytes_bucket[5m]))` |
 
-> **Note:** Prometheus converts dots to underscores, so `foundry.billing.invoices_created_total` becomes `foundry_billing_invoices_created_total`.
+> **Note:** Prometheus converts dots to underscores, so `wallow.billing.invoices_created_total` becomes `wallow_billing_invoices_created_total`.
 
 > **Current modules:** Identity, Storage, Communications, Billing, Configuration. Use these module names in your metrics and traces.
 

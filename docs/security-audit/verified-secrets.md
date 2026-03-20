@@ -12,11 +12,11 @@
 
 - **Original Severity:** MEDIUM
 - **Verdict:** CONFIRMED
-- **Evidence:** `src/Foundry.Api/appsettings.json:15` contains:
+- **Evidence:** `src/Wallow.Api/appsettings.json:15` contains:
   ```json
-  "Redis": "localhost:6379,password=FoundryValkey123!,abortConnect=false"
+  "Redis": "localhost:6379,password=WallowValkey123!,abortConnect=false"
   ```
-  Production config (`appsettings.Production.json`) does NOT override the `ConnectionStrings:Redis` key at all -- it only overrides `ConnectionStrings:DefaultConnection`. This means in production, the app would fall back to the base config and use the hardcoded Valkey password `FoundryValkey123!` unless overridden via environment variables. Staging config also omits a Redis override. This is a real risk if the environment variable is not set.
+  Production config (`appsettings.Production.json`) does NOT override the `ConnectionStrings:Redis` key at all -- it only overrides `ConnectionStrings:DefaultConnection`. This means in production, the app would fall back to the base config and use the hardcoded Valkey password `WallowValkey123!` unless overridden via environment variables. Staging config also omits a Redis override. This is a real risk if the environment variable is not set.
 - **Adjusted Severity:** MEDIUM (accurate)
 - **Notes:** The inconsistency between `DefaultConnection` (which uses a proper placeholder in base config) and `Redis` (which has a real password) makes this more concerning. The `DefaultConnection` pattern should be replicated for Redis.
 
@@ -28,9 +28,9 @@
 - **Verdict:** CONFIRMED but severity is appropriate
 - **Evidence:** `docker/keycloak/realm-export.json:229` contains:
   ```json
-  "secret": "foundry-api-secret"
+  "secret": "wallow-api-secret"
   ```
-  This is the development Keycloak realm import file. The secret `foundry-api-secret` is present. However, the development `appsettings.Development.json` uses `SET_VIA_USER_SECRETS` for Keycloak credentials (lines 32, 42), so the secret isn't duplicated into the app config itself -- it requires user secrets setup. Production and staging configs both override with `OVERRIDE_VIA_ENV_VAR`.
+  This is the development Keycloak realm import file. The secret `wallow-api-secret` is present. However, the development `appsettings.Development.json` uses `SET_VIA_USER_SECRETS` for Keycloak credentials (lines 32, 42), so the secret isn't duplicated into the app config itself -- it requires user secrets setup. Production and staging configs both override with `OVERRIDE_VIA_ENV_VAR`.
 - **Adjusted Severity:** MEDIUM (accurate). This is dev-only infrastructure, but the secret is committed to source control and visible to anyone with repo access.
 - **Notes:** The scout correctly identified all the locations. The mitigation is that production uses entirely separate Keycloak instances with different secrets.
 
@@ -41,10 +41,10 @@
 - **Original Severity:** LOW
 - **Verdict:** CONFIRMED
 - **Evidence:**
-  - `src/Modules/Storage/Foundry.Storage.Infrastructure/Persistence/StorageDbContextFactory.cs:16`: `Username=foundry;Password=foundry`
-  - `src/Modules/Configuration/Foundry.Configuration.Infrastructure/Persistence/ConfigurationDbContextFactory.cs:19`: `Username=foundry;Password=foundry`
-  - `src/Modules/Billing/Foundry.Billing.Infrastructure/Persistence/BillingDbContextFactory.cs:17`: `Username=postgres;Password=postgres`
-  All three factories implement `IDesignTimeDbContextFactory` and are only invoked by `dotnet ef` CLI. They are never called at runtime. The inconsistency (Billing uses postgres/postgres while others use foundry/foundry) is confirmed.
+  - `src/Modules/Storage/Wallow.Storage.Infrastructure/Persistence/StorageDbContextFactory.cs:16`: `Username=wallow;Password=wallow`
+  - `src/Modules/Configuration/Wallow.Configuration.Infrastructure/Persistence/ConfigurationDbContextFactory.cs:19`: `Username=wallow;Password=wallow`
+  - `src/Modules/Billing/Wallow.Billing.Infrastructure/Persistence/BillingDbContextFactory.cs:17`: `Username=postgres;Password=postgres`
+  All three factories implement `IDesignTimeDbContextFactory` and are only invoked by `dotnet ef` CLI. They are never called at runtime. The inconsistency (Billing uses postgres/postgres while others use wallow/wallow) is confirmed.
 - **Adjusted Severity:** LOW (accurate)
 - **Notes:** These are truly design-time only. The `IDesignTimeDbContextFactory` interface is exclusively used by EF Core tooling. No runtime risk.
 
@@ -54,10 +54,10 @@
 
 - **Original Severity:** LOW
 - **Verdict:** CONFIRMED
-- **Evidence:** `src/Foundry.Api/appsettings.Development.json:3-4`:
+- **Evidence:** `src/Wallow.Api/appsettings.Development.json:3-4`:
   ```json
-  "DefaultConnection": "Host=localhost;Port=5432;Database=foundry;Username=foundry;Password=foundry;SSL Mode=Disable",
-  "Redis": "localhost:6379,password=FoundryValkey123!,abortConnect=false"
+  "DefaultConnection": "Host=localhost;Port=5432;Database=wallow;Username=wallow;Password=wallow;SSL Mode=Disable",
+  "Redis": "localhost:6379,password=WallowValkey123!,abortConnect=false"
   ```
   Standard development config with plaintext credentials. Only loaded when `ASPNETCORE_ENVIRONMENT=Development`.
 - **Adjusted Severity:** LOW (accurate)
@@ -69,7 +69,7 @@
 
 - **Original Severity:** LOW
 - **Verdict:** CONFIRMED -- borderline FALSE POSITIVE for severity
-- **Evidence:** `src/Foundry.Api/appsettings.Testing.json:3-5,13`:
+- **Evidence:** `src/Wallow.Api/appsettings.Testing.json:3-5,13`:
   ```json
   "DefaultConnection": "Host=localhost;Database=test_db;Username=test;Password=test",
   "RabbitMq": "amqp://guest:guest@localhost:5672",
@@ -85,11 +85,11 @@
 
 - **Original Severity:** LOW
 - **Verdict:** CONFIRMED -- properly mitigated
-- **Evidence:** `src/Shared/Foundry.Shared.Infrastructure.Workflows/Workflows/ElsaExtensions.cs:67-73`:
+- **Evidence:** `src/Shared/Wallow.Shared.Infrastructure.Workflows/Workflows/ElsaExtensions.cs:67-73`:
   ```csharp
   if (environment.IsDevelopment())
   {
-      return "foundry-default-elsa-signing-key-replace-in-production";
+      return "wallow-default-elsa-signing-key-replace-in-production";
   }
 
   throw new InvalidOperationException(
@@ -105,7 +105,7 @@
 
 - **Original Severity:** INFO
 - **Verdict:** CONFIRMED
-- **Evidence:** `src/Foundry.Api/appsettings.json:70,80,88`:
+- **Evidence:** `src/Wallow.Api/appsettings.json:70,80,88`:
   ```json
   "secret": "REPLACE_IN_PRODUCTION"
   "secret": "REPLACE_IN_PRODUCTION"
@@ -131,7 +131,7 @@
 
 ### Exception Handling (GlobalExceptionHandler.cs)
 - **Verdict:** CONFIRMED GOOD
-- **Evidence:** `src/Foundry.Api/Middleware/GlobalExceptionHandler.cs:91-112`. Verified the environment gating logic:
+- **Evidence:** `src/Wallow.Api/Middleware/GlobalExceptionHandler.cs:91-112`. Verified the environment gating logic:
   - `DomainException` (lines 91-95): Exposes `exception.Message` in ALL environments. This is intentional -- domain exception messages are user-facing business rule descriptions (e.g., "Invoice cannot be cancelled after payment").
   - `ValidationException` (lines 96-101): Exposes validation error messages in ALL environments. Also intentional.
   - Generic exceptions (lines 103-112): Only exposes `exception.Message` and `exception.ToString()` in Development. Non-dev returns generic message.
@@ -139,7 +139,7 @@
 
 ### Health Check Response Writer
 - **Verdict:** PARTIALLY CONFIRMED -- see NEW FINDING below
-- **Evidence:** `src/Foundry.Api/Program.cs:428-452`. The check uses `env.IsProduction()` which means only production suppresses details. Staging and other non-production environments expose health check internals.
+- **Evidence:** `src/Wallow.Api/Program.cs:428-452`. The check uses `env.IsProduction()` which means only production suppresses details. Staging and other non-production environments expose health check internals.
 
 ### OpenAPI/Swagger, AsyncAPI, Elsa Workflow API
 - **Verdict:** CONFIRMED GOOD
@@ -147,11 +147,11 @@
 
 ### Security Headers
 - **Verdict:** CONFIRMED GOOD
-- **Evidence:** `src/Foundry.Api/Middleware/SecurityHeadersMiddleware.cs:22-31`. All standard headers present. HSTS applied in production only (correct -- avoids HSTS issues in local dev).
+- **Evidence:** `src/Wallow.Api/Middleware/SecurityHeadersMiddleware.cs:22-31`. All standard headers present. HSTS applied in production only (correct -- avoids HSTS issues in local dev).
 
 ### Hangfire Dashboard Authorization
 - **Verdict:** CONFIRMED GOOD
-- **Evidence:** `src/Foundry.Api/Middleware/HangfireDashboardAuthFilter.cs:16`. Development is open, non-dev requires auth + Admin role.
+- **Evidence:** `src/Wallow.Api/Middleware/HangfireDashboardAuthFilter.cs:16`. Development is open, non-dev requires auth + Admin role.
 
 ---
 
@@ -160,7 +160,7 @@
 ### SEC-S09: Health Check Details Exposed in Staging Environment
 
 - **Severity:** LOW
-- **File:** `src/Foundry.Api/Program.cs:428`
+- **File:** `src/Wallow.Api/Program.cs:428`
 - **Evidence:** The health check response writer uses `env.IsProduction()` to gate detail suppression:
   ```csharp
   if (env.IsProduction())
@@ -177,7 +177,7 @@
 ### SEC-S10: No Startup Validation for Placeholder/Sentinel Config Values
 
 - **Severity:** LOW
-- **File:** `src/Foundry.Api/appsettings.json:70,80,88` and `src/Foundry.Api/Program.cs`
+- **File:** `src/Wallow.Api/appsettings.json:70,80,88` and `src/Wallow.Api/Program.cs`
 - **Evidence:** No code in the startup path validates that configuration values are not still set to placeholder sentinels like `REPLACE_IN_PRODUCTION`, `OVERRIDE_VIA_ENV_VAR`, or `SET_VIA_*`. Searched for any such validation with `grep` for these patterns in `.cs` files -- zero results. If environment variable overrides are misconfigured in deployment, the app would start with invalid placeholder credentials and fail at runtime with confusing authentication errors rather than failing fast at startup.
 - **Recommendation:** Add a startup health check or configuration validator that rejects known placeholder values (`REPLACE_IN_PRODUCTION`, `OVERRIDE_VIA_ENV_VAR`, `SET_VIA_*`) in non-development environments. This provides fail-fast behavior.
 
@@ -186,8 +186,8 @@
 ### SEC-S11: Redis Connection String Not Overridden in Production/Staging Config
 
 - **Severity:** MEDIUM
-- **File:** `src/Foundry.Api/appsettings.Production.json`, `src/Foundry.Api/appsettings.Staging.json`
-- **Evidence:** Neither production nor staging config files override `ConnectionStrings:Redis`. The base `appsettings.json:15` contains the actual Valkey password `FoundryValkey123!`. While this CAN be overridden via environment variable (`ConnectionStrings__Redis`), the production config explicitly overrides `DefaultConnection` but omits `Redis`, creating an inconsistency that increases the chance of deploying with the hardcoded dev password.
+- **File:** `src/Wallow.Api/appsettings.Production.json`, `src/Wallow.Api/appsettings.Staging.json`
+- **Evidence:** Neither production nor staging config files override `ConnectionStrings:Redis`. The base `appsettings.json:15` contains the actual Valkey password `WallowValkey123!`. While this CAN be overridden via environment variable (`ConnectionStrings__Redis`), the production config explicitly overrides `DefaultConnection` but omits `Redis`, creating an inconsistency that increases the chance of deploying with the hardcoded dev password.
   - `appsettings.Production.json` ConnectionStrings section (line 9-11): only `DefaultConnection` is overridden
   - `appsettings.Staging.json` ConnectionStrings section (line 9-11): only `DefaultConnection` is overridden
 - **Recommendation:** Add `"Redis": "OVERRIDE_VIA_ENV_VAR"` to both production and staging config files for consistency and to ensure the dev password cannot accidentally leak into production.

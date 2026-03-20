@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Wallow.Notifications.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="FluentAssertions" />
+    <PackageReference Include="NSubstitute" />
+    <PackageReference Include="Bogus" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <Using Include="FluentAssertions" />
+    <Using Include="NSubstitute" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\src\Modules\Notifications\Wallow.Notifications.Domain\Wallow.Notifications.Domain.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Modules\Notifications\Wallow.Notifications.Application\Wallow.Notifications.Application.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Modules\Notifications\Wallow.Notifications.Infrastructure\Wallow.Notifications.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Modules\Notifications\Wallow.Notifications.Api\Wallow.Notifications.Api.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Shared\Wallow.Shared.Api\Wallow.Shared.Api.csproj" />
+    <ProjectReference Include="..\..\..\Wallow.Tests.Common\Wallow.Tests.Common.csproj" />
+  </ItemGroup>
+</Project>

@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-03
 **Auditor:** tenant-scout (automated security sweep)
-**Scope:** All multi-tenancy isolation mechanisms across the Foundry modular monolith
+**Scope:** All multi-tenancy isolation mechanisms across the Wallow modular monolith
 
 ---
 
@@ -38,7 +38,7 @@ The multi-tenancy architecture is **generally well-designed** with defense-in-de
 ### HIGH-1: Presence Service Has No Tenant Isolation
 
 **Severity:** HIGH
-**File:** `src/Foundry.Api/Services/RedisPresenceService.cs`
+**File:** `src/Wallow.Api/Services/RedisPresenceService.cs`
 **Lines:** 10-172
 
 **Description:** The `RedisPresenceService` uses a single global Redis hash (`presence:conn2user`) and global key patterns (`presence:user:{userId}`, `presence:page:{pageContext}`) with **no tenant segmentation**. This means:
@@ -51,7 +51,7 @@ The multi-tenancy architecture is **generally well-designed** with defense-in-de
 
 **Code Snippet:**
 ```csharp
-// src/Foundry.Api/Services/RedisPresenceService.cs:96-112
+// src/Wallow.Api/Services/RedisPresenceService.cs:96-112
 public async Task<IReadOnlyList<UserPresence>> GetOnlineUsersAsync(...)
 {
     IDatabase db = Db;
@@ -68,16 +68,16 @@ public async Task<IReadOnlyList<UserPresence>> GetOnlineUsersAsync(...)
 
 **Severity:** MEDIUM
 **Files:**
-- `src/Modules/Configuration/Foundry.Configuration.Domain/Entities/FeatureFlag.cs:14` -- `FeatureFlag : AggregateRoot<FeatureFlagId>` (no `ITenantScoped`)
-- `src/Modules/Configuration/Foundry.Configuration.Domain/Entities/FeatureFlagOverride.cs:9` -- `FeatureFlagOverride : Entity<FeatureFlagOverrideId>` (no `ITenantScoped`)
-- `src/Modules/Billing/Foundry.Billing.Domain/Metering/Entities/MeterDefinition.cs:11` -- `MeterDefinition : AuditableEntity<MeterDefinitionId>` (no `ITenantScoped`)
-- `src/Modules/Billing/Foundry.Billing.Domain/Entities/InvoiceLineItem.cs:10` -- `InvoiceLineItem : Entity<InvoiceLineItemId>` (no `ITenantScoped`)
-- `src/Modules/Communications/Foundry.Communications.Domain/Announcements/Entities/ChangelogEntry.cs:7` -- `ChangelogEntry : AggregateRoot<ChangelogEntryId>` (no `ITenantScoped`)
-- `src/Modules/Communications/Foundry.Communications.Domain/Announcements/Entities/ChangelogItem.cs:7` -- (no `ITenantScoped`)
-- `src/Modules/Communications/Foundry.Communications.Domain/Announcements/Entities/AnnouncementDismissal.cs:7` -- (no `ITenantScoped`)
-- `src/Modules/Communications/Foundry.Communications.Domain/Messaging/Entities/Message.cs:7` -- (no `ITenantScoped`)
-- `src/Modules/Communications/Foundry.Communications.Domain/Messaging/Entities/Participant.cs:6` -- (no `ITenantScoped`)
-- `src/Modules/Identity/Foundry.Identity.Domain/Entities/ApiScope.cs:10` -- (no `ITenantScoped`)
+- `src/Modules/Configuration/Wallow.Configuration.Domain/Entities/FeatureFlag.cs:14` -- `FeatureFlag : AggregateRoot<FeatureFlagId>` (no `ITenantScoped`)
+- `src/Modules/Configuration/Wallow.Configuration.Domain/Entities/FeatureFlagOverride.cs:9` -- `FeatureFlagOverride : Entity<FeatureFlagOverrideId>` (no `ITenantScoped`)
+- `src/Modules/Billing/Wallow.Billing.Domain/Metering/Entities/MeterDefinition.cs:11` -- `MeterDefinition : AuditableEntity<MeterDefinitionId>` (no `ITenantScoped`)
+- `src/Modules/Billing/Wallow.Billing.Domain/Entities/InvoiceLineItem.cs:10` -- `InvoiceLineItem : Entity<InvoiceLineItemId>` (no `ITenantScoped`)
+- `src/Modules/Communications/Wallow.Communications.Domain/Announcements/Entities/ChangelogEntry.cs:7` -- `ChangelogEntry : AggregateRoot<ChangelogEntryId>` (no `ITenantScoped`)
+- `src/Modules/Communications/Wallow.Communications.Domain/Announcements/Entities/ChangelogItem.cs:7` -- (no `ITenantScoped`)
+- `src/Modules/Communications/Wallow.Communications.Domain/Announcements/Entities/AnnouncementDismissal.cs:7` -- (no `ITenantScoped`)
+- `src/Modules/Communications/Wallow.Communications.Domain/Messaging/Entities/Message.cs:7` -- (no `ITenantScoped`)
+- `src/Modules/Communications/Wallow.Communications.Domain/Messaging/Entities/Participant.cs:6` -- (no `ITenantScoped`)
+- `src/Modules/Identity/Wallow.Identity.Domain/Entities/ApiScope.cs:10` -- (no `ITenantScoped`)
 
 **Description:** These entities do not implement `ITenantScoped`, which means:
 - No automatic global query filter is applied by `TenantAwareDbContext`
@@ -100,7 +100,7 @@ public async Task<IReadOnlyList<UserPresence>> GetOnlineUsersAsync(...)
 ### MEDIUM-2: Admin Tenant Override Lacks Audit Trail Persistence
 
 **Severity:** MEDIUM
-**File:** `src/Modules/Identity/Foundry.Identity.Infrastructure/MultiTenancy/TenantResolutionMiddleware.cs`
+**File:** `src/Modules/Identity/Wallow.Identity.Infrastructure/MultiTenancy/TenantResolutionMiddleware.cs`
 **Lines:** 40-48
 
 **Description:** The `X-Tenant-Id` header allows any user with the `admin` realm role to override their tenant context. While this is guarded by `HasRealmAdminRole()`, the check only looks for a generic "admin" role:
@@ -135,7 +135,7 @@ private static bool HasRealmAdminRole(ClaimsPrincipal user)
 ### MEDIUM-3: Dapper Participants Query Missing Tenant Filter
 
 **Severity:** MEDIUM
-**File:** `src/Modules/Communications/Foundry.Communications.Infrastructure/Services/MessagingQueryService.cs`
+**File:** `src/Modules/Communications/Wallow.Communications.Infrastructure/Services/MessagingQueryService.cs`
 **Lines:** 205-216
 
 **Description:** In `GetConversationsAsync()`, the participants sub-query fetches participants by `conversation_id` array without a tenant filter:
@@ -161,7 +161,7 @@ Additionally, the `Participant` entity does not implement `ITenantScoped`, so th
 ### MEDIUM-4: ApiKeyAuthenticationMiddleware Sets TenantContext Directly
 
 **Severity:** MEDIUM
-**File:** `src/Modules/Identity/Foundry.Identity.Infrastructure/Authorization/ApiKeyAuthenticationMiddleware.cs`
+**File:** `src/Modules/Identity/Wallow.Identity.Infrastructure/Authorization/ApiKeyAuthenticationMiddleware.cs`
 **Lines:** 89-94
 
 **Description:** The API key middleware sets tenant context by directly mutating properties instead of using the `ITenantContextSetter.SetTenant()` method:
@@ -193,7 +193,7 @@ public async Task InvokeAsync(
 ### MEDIUM-5: TenantQueryExtensions.AllTenants() Is Too Easily Accessible
 
 **Severity:** MEDIUM
-**File:** `src/Shared/Foundry.Shared.Kernel/MultiTenancy/TenantQueryExtensions.cs`
+**File:** `src/Shared/Wallow.Shared.Kernel/MultiTenancy/TenantQueryExtensions.cs`
 **Lines:** 7-14
 
 **Description:** The `AllTenants<T>()` extension method is a public static method in the shared kernel, accessible from any layer in any module:
@@ -223,7 +223,7 @@ public static IQueryable<T> AllTenants<T>(this IQueryable<T> query) where T : cl
 ### LOW-1: Unauthenticated Requests Have Empty TenantContext
 
 **Severity:** LOW
-**File:** `src/Modules/Identity/Foundry.Identity.Infrastructure/MultiTenancy/TenantResolutionMiddleware.cs`
+**File:** `src/Modules/Identity/Wallow.Identity.Infrastructure/MultiTenancy/TenantResolutionMiddleware.cs`
 **Lines:** 22-23
 
 **Description:** When a request is unauthenticated (`context.User.Identity?.IsAuthenticated != true`), the middleware does nothing -- it simply calls `_next(context)`. The `TenantContext` remains in its default state: `TenantId = default (Guid.Empty)`, `IsResolved = false`.
@@ -241,7 +241,7 @@ public static IQueryable<T> AllTenants<T>(this IQueryable<T> query) where T : cl
 ### LOW-2: Redis API Key Storage Has No Tenant Namespace Isolation
 
 **Severity:** LOW
-**File:** `src/Modules/Identity/Foundry.Identity.Infrastructure/Services/RedisApiKeyService.cs`
+**File:** `src/Modules/Identity/Wallow.Identity.Infrastructure/Services/RedisApiKeyService.cs`
 **Lines:** 18-19, 120-125
 
 **Description:** API keys are stored in Redis with a flat namespace (`apikey:{hash}`, `apikeys:user:{userId}`) without tenant prefixing. The `ServiceAccountRepository` also uses `IgnoreQueryFilters()` for cross-tenant lookups.
@@ -262,7 +262,7 @@ private const string UserKeysPrefix = "apikeys:user:";
 ### LOW-3: Wolverine TenantRestoringMiddleware Trusts Message Headers
 
 **Severity:** LOW
-**File:** `src/Shared/Foundry.Shared.Infrastructure.Core/Middleware/TenantRestoringMiddleware.cs`
+**File:** `src/Shared/Wallow.Shared.Infrastructure.Core/Middleware/TenantRestoringMiddleware.cs`
 **Lines:** 9-18
 
 **Description:** The inbound middleware blindly trusts the `X-Tenant-Id` header from Wolverine message envelopes:
@@ -289,7 +289,7 @@ public static void Before(Envelope envelope, ITenantContextSetter tenantContextS
 ### LOW-4: SignalR Group Validation Only Applies to "tenant:" Prefixed Groups
 
 **Severity:** LOW
-**File:** `src/Foundry.Api/Hubs/RealtimeHub.cs`
+**File:** `src/Wallow.Api/Hubs/RealtimeHub.cs`
 **Lines:** 87-108
 
 **Description:** `ValidateTenantGroup()` only validates groups that start with `"tenant:"`. Other group patterns (e.g., `page:`, custom groups) have no tenant validation:

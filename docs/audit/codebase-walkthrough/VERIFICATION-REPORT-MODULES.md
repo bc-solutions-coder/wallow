@@ -241,7 +241,7 @@ Files spot-checked by reading actual source code:
 | 12 | `ClamAvFileScanner.cs` | PASS -- TCP INSTREAM protocol, 8KB chunks, TcpClient usage confirmed |
 | 13 | `ValkeyRateLimitService.cs` | PASS -- StringIncrement, 5 max requests, 15-min window confirmed |
 | 14 | `Showcase.cs` | PASS -- Result<Showcase> factory, title validation, URL requirement confirmed |
-| 15 | `TestConstants.cs` | PASS -- Scans for `Foundry.*.Domain.dll`, AllModules array confirmed |
+| 15 | `TestConstants.cs` | PASS -- Scans for `Wallow.*.Domain.dll`, AllModules array confirmed |
 
 ---
 

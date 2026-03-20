@@ -44,7 +44,7 @@ services:
 
   # No Mailpit in production - use real SMTP service
 
-  foundry-api:
+  wallow-api:
     build:
       context: ..
       dockerfile: Dockerfile

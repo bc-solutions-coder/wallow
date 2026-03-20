@@ -3,7 +3,7 @@
 # Triggered when release-please creates a GitHub Release (via tag push)
 # or manually via workflow_dispatch.
 # Images are tagged with semver, latest, and git SHA.
-# Pull with: docker pull ghcr.io/<owner>/foundry:<tag>
+# Pull with: docker pull ghcr.io/<owner>/wallow:<tag>
 
 name: Publish
 

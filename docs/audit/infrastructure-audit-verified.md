@@ -34,12 +34,12 @@ Severity rating CRITICAL is accurate. Remediation suggestions are correct.
 **Verdict: CONFIRMED (scope slightly understated)**
 
 Verified across 6 locations (not "5 modules + audit" as stated -- it is 5 modules + 1 shared audit = 6 total):
-- `src/Modules/Billing/Foundry.Billing.Infrastructure/Extensions/BillingModuleExtensions.cs:29`
-- `src/Modules/Identity/Foundry.Identity.Infrastructure/Extensions/IdentityModuleExtensions.cs:29`
-- `src/Modules/Storage/Foundry.Storage.Infrastructure/Extensions/StorageModuleExtensions.cs:29`
-- `src/Modules/Communications/Foundry.Communications.Infrastructure/Extensions/CommunicationsModuleExtensions.cs:140`
-- `src/Modules/Configuration/Foundry.Configuration.Infrastructure/Extensions/ConfigurationModuleExtensions.cs:61`
-- `src/Shared/Foundry.Shared.Infrastructure/Auditing/AuditingExtensions.cs:31`
+- `src/Modules/Billing/Wallow.Billing.Infrastructure/Extensions/BillingModuleExtensions.cs:29`
+- `src/Modules/Identity/Wallow.Identity.Infrastructure/Extensions/IdentityModuleExtensions.cs:29`
+- `src/Modules/Storage/Wallow.Storage.Infrastructure/Extensions/StorageModuleExtensions.cs:29`
+- `src/Modules/Communications/Wallow.Communications.Infrastructure/Extensions/CommunicationsModuleExtensions.cs:140`
+- `src/Modules/Configuration/Wallow.Configuration.Infrastructure/Extensions/ConfigurationModuleExtensions.cs:61`
+- `src/Shared/Wallow.Shared.Infrastructure/Auditing/AuditingExtensions.cs:31`
 
 All call `db.Database.MigrateAsync()` unconditionally. The 5 module initializers wrap in try/catch that logs a warning and continues. **However, the audit module (`AuditingExtensions.cs:27-32`) has NO try/catch at all** -- a migration failure there would crash the application on startup. This is worse than the modules.
 
@@ -68,7 +68,7 @@ Severity HIGH is accurate. Remediation is correct.
 
 **Verdict: CONFIRMED**
 
-Verified at `src/Modules/Identity/Foundry.Identity.Infrastructure/Extensions/IdentityInfrastructureExtensions.cs:71-77`:
+Verified at `src/Modules/Identity/Wallow.Identity.Infrastructure/Extensions/IdentityInfrastructureExtensions.cs:71-77`:
 ```csharp
 services.AddHttpClient("KeycloakAdminClient", client =>
 {
@@ -93,10 +93,10 @@ Severity HIGH is accurate. Remediation is correct.
 
 Verified at:
 - `BillingDbContextFactory.cs:17`: `Username=postgres;Password=postgres`
-- `StorageDbContextFactory.cs:15`: `Username=foundry;Password=foundry`
-- `ConfigurationDbContextFactory.cs:18-19`: `Username=foundry;Password=foundry` (NOT mentioned in original audit)
+- `StorageDbContextFactory.cs:15`: `Username=wallow;Password=wallow`
+- `ConfigurationDbContextFactory.cs:18-19`: `Username=wallow;Password=wallow` (NOT mentioned in original audit)
 
-The original audit only listed Billing and Storage factories. The Configuration factory was missed. The inconsistency between `postgres/postgres` (Billing) and `foundry/foundry` (Storage, Configuration) is confirmed.
+The original audit only listed Billing and Storage factories. The Configuration factory was missed. The inconsistency between `postgres/postgres` (Billing) and `wallow/wallow` (Storage, Configuration) is confirmed.
 
 **Severity adjustment: Downgrade to MEDIUM.** These are design-time factories (`IDesignTimeDbContextFactory`) used only by `dotnet ef migrations` CLI commands. They are never invoked at runtime. The inconsistency is a minor developer experience issue. While hardcoded credentials are not ideal, the security risk is negligible since these only run locally during development.
 
@@ -122,7 +122,7 @@ Verified:
 - `docker/docker-compose.yml` does not contain RabbitMQ (confirmed by reading full file)
 - `docker/docker-compose.rabbitmq.yml` is the opt-in file
 - `docker/dev-up.sh:2` runs: `docker compose -f docker/docker-compose.yml -f docker/docker-compose.dev.yml --env-file docker/.env up -d` -- does NOT include RabbitMQ compose file
-- `src/Foundry.Api/Extensions/ServiceCollectionExtensions.cs:78-87` always registers RabbitMQ health check
+- `src/Wallow.Api/Extensions/ServiceCollectionExtensions.cs:78-87` always registers RabbitMQ health check
 - CI integration tests (ci.yml:92-100) include a RabbitMQ service container
 
 However, `appsettings.json:11` shows `"ModuleMessaging": { "Transport": "InMemory" }`, meaning the app defaults to in-memory transport without RabbitMQ. The health check will fail if RabbitMQ is not running, but this does not prevent the app from starting (health checks are separate endpoints).
@@ -168,7 +168,7 @@ Severity MEDIUM is accurate.
 
 **Verdict: CONFIRMED**
 
-Verified at `src/Shared/Foundry.Shared.Kernel/Messaging/WolverineErrorHandlingExtensions.cs`. The error handling retries and moves to DLQ but has no idempotency mechanism. Searched entire `src/` for `Idempotent`, `idempotency`, `deduplication` -- only found results related to database seeding (ApiScopeSeeder) and a SQL migration comment, not related to message handling.
+Verified at `src/Shared/Wallow.Shared.Kernel/Messaging/WolverineErrorHandlingExtensions.cs`. The error handling retries and moves to DLQ but has no idempotency mechanism. Searched entire `src/` for `Idempotent`, `idempotency`, `deduplication` -- only found results related to database seeding (ApiScopeSeeder) and a SQL migration comment, not related to message handling.
 
 The original audit cites `Program.cs:114-116` which is reasonable though the actual error handling config is in the shared kernel extension method.
 
@@ -232,7 +232,7 @@ The audit claims both files "only contain logging configuration." This is incorr
 - OpenTelemetry settings (ServiceName, OTLP endpoints)
 - Storage provider config (Local and S3)
 - Keycloak and KeycloakAdmin configuration
-- Module toggles (Foundry:Modules)
+- Module toggles (Wallow:Modules)
 - Plugin configuration
 - ModuleMessaging transport
 
@@ -270,7 +270,7 @@ Severity LOW is accurate.
 
 **Verdict: CONFIRMED**
 
-Verified at `docker/grafana/provisioning/alerting/alerting.yml:10`: `addresses: alerts@foundry.dev`
+Verified at `docker/grafana/provisioning/alerting/alerting.yml:10`: `addresses: alerts@wallow.dev`
 
 Severity LOW is accurate.
 
@@ -280,7 +280,7 @@ Severity LOW is accurate.
 
 ### NEW-1. MEDIUM: Audit Module MigrateAsync Has No Error Handling
 
-**File:** `src/Shared/Foundry.Shared.Infrastructure/Auditing/AuditingExtensions.cs:27-32`
+**File:** `src/Shared/Wallow.Shared.Infrastructure/Auditing/AuditingExtensions.cs:27-32`
 
 Unlike all 5 module initializers which wrap `MigrateAsync()` in try/catch, the audit module's `InitializeAuditingAsync` method has no exception handling:
 
@@ -302,7 +302,7 @@ If the audit migration fails, the entire application crashes on startup instead 
 
 ### NEW-2. MEDIUM: BuildServiceProvider Anti-Pattern in CommunicationsModuleExtensions
 
-**File:** `src/Modules/Communications/Foundry.Communications.Infrastructure/Extensions/CommunicationsModuleExtensions.cs:119`
+**File:** `src/Modules/Communications/Wallow.Communications.Infrastructure/Extensions/CommunicationsModuleExtensions.cs:119`
 
 The `RegisterEmailProvider` method calls `services.BuildServiceProvider()` inside a DI registration method:
 
@@ -352,9 +352,9 @@ The `docker/build-push-action` step has `push: true` (line 63), and the Trivy sc
 
 ### NEW-5. LOW: Configuration Factory Has Third Credential Variant
 
-**File:** `src/Modules/Configuration/Foundry.Configuration.Infrastructure/Persistence/ConfigurationDbContextFactory.cs:18-19`
+**File:** `src/Modules/Configuration/Wallow.Configuration.Infrastructure/Persistence/ConfigurationDbContextFactory.cs:18-19`
 
-The original audit identified Billing (`postgres/postgres`) and Storage (`foundry/foundry`) as inconsistent. There is a third factory -- Configuration -- which also uses `foundry/foundry`. This is consistent with Storage but not with Billing. The original audit missed this factory entirely.
+The original audit identified Billing (`postgres/postgres`) and Storage (`wallow/wallow`) as inconsistent. There is a third factory -- Configuration -- which also uses `wallow/wallow`. This is consistent with Storage but not with Billing. The original audit missed this factory entirely.
 
 ---
 

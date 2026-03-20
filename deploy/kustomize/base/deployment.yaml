@@ -1,27 +1,27 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: foundry
+  name: wallow
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: foundry
+      app: wallow
   template:
     metadata:
       labels:
-        app: foundry
+        app: wallow
     spec:
       containers:
-        - name: foundry
-          image: ghcr.io/bc-solutions-coder/foundry:latest
+        - name: wallow
+          image: ghcr.io/bc-solutions-coder/wallow:latest
           ports:
             - containerPort: 8080
           envFrom:
             - configMapRef:
-                name: foundry-config
+                name: wallow-config
             - secretRef:
-                name: foundry-secrets
+                name: wallow-secrets
           startupProbe:
             httpGet:
               path: /health

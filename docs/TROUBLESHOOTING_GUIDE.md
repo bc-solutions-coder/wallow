@@ -1,6 +1,6 @@
-# Foundry Troubleshooting Guide
+# Wallow Troubleshooting Guide
 
-This guide helps you diagnose and resolve common issues when developing with Foundry. It covers infrastructure, authentication, database, messaging, testing, and build problems.
+This guide helps you diagnose and resolve common issues when developing with Wallow. It covers infrastructure, authentication, database, messaging, testing, and build problems.
 
 ---
 
@@ -89,7 +89,7 @@ Npgsql.NpgsqlException: Failed to connect to 127.0.0.1:5432
 docker compose ps postgres
 
 # Test connectivity
-docker exec foundry-postgres pg_isready -U foundry
+docker exec wallow-postgres pg_isready -U wallow
 
 # Check logs
 docker compose logs postgres
@@ -107,7 +107,7 @@ Check `appsettings.Development.json` or environment variables:
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Host=localhost;Port=5432;Database=foundry;Username=foundry;Password=foundry"
+    "DefaultConnection": "Host=localhost;Port=5432;Database=wallow;Username=wallow;Password=wallow"
   }
 }
 ```
@@ -169,8 +169,8 @@ RabbitMQ.Client.Exceptions.OperationInterruptedException: AMQP close-reason: NOT
 ```
 The default vhost `/` should exist. If using a custom vhost, create it:
 ```bash
-docker exec foundry-rabbitmq rabbitmqctl add_vhost foundry
-docker exec foundry-rabbitmq rabbitmqctl set_permissions -p foundry guest ".*" ".*" ".*"
+docker exec wallow-rabbitmq rabbitmqctl add_vhost wallow
+docker exec wallow-rabbitmq rabbitmqctl set_permissions -p wallow guest ".*" ".*" ".*"
 ```
 
 ### Valkey/Redis Connection Problems
@@ -186,7 +186,7 @@ StackExchange.Redis.RedisConnectionException: It was not possible to connect to 
 docker compose ps valkey
 
 # Test connectivity
-docker exec foundry-valkey valkey-cli ping
+docker exec wallow-valkey valkey-cli ping
 # Should return: PONG
 
 # Check logs
@@ -212,10 +212,10 @@ cd docker && docker compose up -d valkey
 **Memory limit exceeded:**
 ```bash
 # Check memory usage
-docker exec foundry-valkey valkey-cli info memory
+docker exec wallow-valkey valkey-cli info memory
 
 # Clear cache if needed
-docker exec foundry-valkey valkey-cli FLUSHALL
+docker exec wallow-valkey valkey-cli FLUSHALL
 ```
 
 **TLS/SSL configuration issues:**
@@ -249,7 +249,7 @@ docker compose ps keycloak
 curl http://localhost:8080/health/ready
 
 # Verify realm exists
-curl http://localhost:8080/realms/foundry
+curl http://localhost:8080/realms/wallow
 ```
 
 #### Solutions
@@ -267,13 +267,13 @@ Check `appsettings.json`:
 ```json
 {
   "Keycloak": {
-    "realm": "foundry",
+    "realm": "wallow",
     "auth-server-url": "http://localhost:8080/",
     "ssl-required": "none",
-    "resource": "foundry-api",
+    "resource": "wallow-api",
     "verify-token-audience": true,
     "credentials": {
-      "secret": "foundry-api-secret"
+      "secret": "wallow-api-secret"
     }
   }
 }
@@ -284,7 +284,7 @@ Check `appsettings.json`:
 # Check if realm-export.json was imported
 curl http://localhost:8080/admin/realms -u admin:admin
 
-# If foundry realm missing, reimport
+# If wallow realm missing, reimport
 cd docker && docker compose down -v
 docker compose up -d
 ```
@@ -306,26 +306,26 @@ Token expired at [timestamp]
 
 **Get a fresh token:**
 ```bash
-curl -s -X POST http://localhost:8080/realms/foundry/protocol/openid-connect/token \
+curl -s -X POST http://localhost:8080/realms/wallow/protocol/openid-connect/token \
   -d "grant_type=password" \
-  -d "client_id=foundry-api" \
-  -d "client_secret=foundry-api-secret" \
-  -d "username=admin@foundry.dev" \
+  -d "client_id=wallow-api" \
+  -d "client_secret=wallow-api-secret" \
+  -d "username=admin@wallow.dev" \
   -d "password=Admin123!"
 ```
 
 **Use refresh token:**
 ```bash
-curl -X POST http://localhost:8080/realms/foundry/protocol/openid-connect/token \
+curl -X POST http://localhost:8080/realms/wallow/protocol/openid-connect/token \
   -d "grant_type=refresh_token" \
-  -d "client_id=foundry-api" \
-  -d "client_secret=foundry-api-secret" \
+  -d "client_id=wallow-api" \
+  -d "client_secret=wallow-api-secret" \
   -d "refresh_token=YOUR_REFRESH_TOKEN"
 ```
 
 **Extend token lifetime in Keycloak:**
 1. Open Keycloak Admin Console: http://localhost:8080
-2. Select `foundry` realm
+2. Select `wallow` realm
 3. Go to Realm Settings > Tokens
 4. Adjust Access Token Lifespan (default: 5 minutes)
 
@@ -356,7 +356,7 @@ Decode your JWT token at https://jwt.io and check:
 
 **Permission not mapped to role:**
 Check `PermissionExpansionMiddleware` and role-to-permission mappings in:
-`src/Modules/Identity/Foundry.Identity.Infrastructure/Authorization/PermissionExpansionMiddleware.cs`
+`src/Modules/Identity/Wallow.Identity.Infrastructure/Authorization/PermissionExpansionMiddleware.cs`
 
 **Organization claim missing:**
 Ensure user belongs to an organization in Keycloak:
@@ -367,7 +367,7 @@ Ensure user belongs to an organization in Keycloak:
 
 #### Symptom
 ```
-Foundry.Shared.Kernel.MultiTenancy.TenantNotResolvedException: Could not resolve tenant from request
+Wallow.Shared.Kernel.MultiTenancy.TenantNotResolvedException: Could not resolve tenant from request
 ```
 
 #### Diagnosis
@@ -393,7 +393,7 @@ await connection.QueryAsync<Invoice>(sql, new { TenantId = _tenantContext.Tenant
 ```
 
 **Test environment:**
-In tests, `FoundryApiFactory` registers a fixed tenant context. If you need a different tenant, use the test headers:
+In tests, `WallowApiFactory` registers a fixed tenant context. If you need a different tenant, use the test headers:
 ```csharp
 client.DefaultRequestHeaders.Add("X-Tenant-Id", "your-tenant-guid");
 ```
@@ -414,8 +414,8 @@ Microsoft.EntityFrameworkCore.DbUpdateException: An error occurred while saving 
 ```bash
 # Check migration status
 dotnet ef migrations list \
-  --project src/Modules/Billing/Foundry.Billing.Infrastructure \
-  --startup-project src/Foundry.Api \
+  --project src/Modules/Billing/Wallow.Billing.Infrastructure \
+  --startup-project src/Wallow.Api \
   --context BillingDbContext
 ```
 
@@ -424,8 +424,8 @@ dotnet ef migrations list \
 **Apply pending migrations:**
 ```bash
 dotnet ef database update \
-  --project src/Modules/Billing/Foundry.Billing.Infrastructure \
-  --startup-project src/Foundry.Api \
+  --project src/Modules/Billing/Wallow.Billing.Infrastructure \
+  --startup-project src/Wallow.Api \
   --context BillingDbContext
 ```
 
@@ -434,7 +434,7 @@ dotnet ef database update \
 # Reset database (WARNING: deletes all data)
 cd docker && docker compose down -v
 docker compose up -d postgres
-dotnet run --project src/Foundry.Api
+dotnet run --project src/Wallow.Api
 ```
 
 **Conflicting migration:**
@@ -444,8 +444,8 @@ The migration '20260215_AddNewField' has already been applied to the database
 ```bash
 # Remove the conflicting migration
 dotnet ef migrations remove \
-  --project src/Modules/Billing/Foundry.Billing.Infrastructure \
-  --startup-project src/Foundry.Api \
+  --project src/Modules/Billing/Wallow.Billing.Infrastructure \
+  --startup-project src/Wallow.Api \
   --context BillingDbContext
 ```
 
@@ -490,12 +490,12 @@ Npgsql.NpgsqlException: The connection pool has been exhausted
 #### Diagnosis
 ```sql
 -- Check active connections
-SELECT count(*) FROM pg_stat_activity WHERE datname = 'foundry';
+SELECT count(*) FROM pg_stat_activity WHERE datname = 'wallow';
 
 -- See connection details
 SELECT pid, usename, application_name, state, query_start
 FROM pg_stat_activity
-WHERE datname = 'foundry'
+WHERE datname = 'wallow'
 ORDER BY query_start DESC;
 ```
 
@@ -521,7 +521,7 @@ await using var context = await _contextFactory.CreateDbContextAsync();
 -- Terminate idle connections older than 10 minutes
 SELECT pg_terminate_backend(pid)
 FROM pg_stat_activity
-WHERE datname = 'foundry'
+WHERE datname = 'wallow'
   AND state = 'idle'
   AND query_start < now() - interval '10 minutes';
 ```
@@ -550,10 +550,10 @@ open http://localhost:15672
 #### Solutions
 
 **Handler not discovered:**
-Wolverine discovers handlers in `Foundry.*` assemblies. Ensure:
+Wolverine discovers handlers in `Wallow.*` assemblies. Ensure:
 1. Handler class is `public static`
 2. Method is named `Handle` or `HandleAsync`
-3. Handler is in a `Foundry.*` assembly
+3. Handler is in a `Wallow.*` assembly
 
 ```csharp
 // Correct handler pattern
@@ -576,7 +576,7 @@ opts.ListenToRabbitQueue("my-inbox");
 **RabbitMQ not connected:**
 ```bash
 # Verify connection
-docker exec foundry-rabbitmq rabbitmqctl list_connections
+docker exec wallow-rabbitmq rabbitmqctl list_connections
 ```
 
 ### Dead Letter Queue Buildup
@@ -588,7 +588,7 @@ Messages accumulating in error queues.
 ```bash
 # Check dead letter queue in RabbitMQ UI
 # Or via CLI:
-docker exec foundry-rabbitmq rabbitmqctl list_queues name messages | grep -i error
+docker exec wallow-rabbitmq rabbitmqctl list_queues name messages | grep -i error
 ```
 
 #### Solutions
@@ -612,7 +612,7 @@ SELECT * FROM wolverine.wolverine_incoming_envelopes WHERE status = 'error';
 
 **Clear dead letter queue:**
 ```bash
-docker exec foundry-rabbitmq rabbitmqctl purge_queue wolverine.errors
+docker exec wallow-rabbitmq rabbitmqctl purge_queue wolverine.errors
 ```
 
 ### Handler Not Being Discovered
@@ -642,10 +642,10 @@ public static class MyEventHandler
 ```
 
 **Assembly not included in discovery:**
-In `Program.cs`, handlers are discovered from `Foundry.*` assemblies:
+In `Program.cs`, handlers are discovered from `Wallow.*` assemblies:
 ```csharp
 foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies()
-    .Where(a => a.GetName().Name?.StartsWith("Foundry.") == true))
+    .Where(a => a.GetName().Name?.StartsWith("Wallow.") == true))
 {
     opts.Discovery.IncludeAssembly(assembly);
 }
@@ -766,7 +766,7 @@ System.InvalidOperationException: Database is in use by another process
 **Use test collection to run sequentially:**
 ```csharp
 [Collection("Database")]
-public class InvoiceTests : IClassFixture<FoundryApiFactory>
+public class InvoiceTests : IClassFixture<WallowApiFactory>
 {
     // Tests in same collection run sequentially
 }
@@ -828,7 +828,7 @@ Tests return 401 even with TestAuthHandler.
 #### Solutions
 
 **Ensure test scheme is used:**
-`FoundryApiFactory` configures a "Test" authentication scheme:
+`WallowApiFactory` configures a "Test" authentication scheme:
 ```csharp
 services.AddAuthentication("Test")
     .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>("Test", options => { });
@@ -853,14 +853,14 @@ client.DefaultRequestHeaders.Add("X-Test-Auth-Skip", "true");
 
 #### Symptom
 ```
-error NU1101: Unable to find package Foundry.Billing.Domain
+error NU1101: Unable to find package Wallow.Billing.Domain
 ```
 
 #### Solutions
 
 **Restore from solution root:**
 ```bash
-cd /path/to/Foundry
+cd /path/to/Wallow
 dotnet restore
 ```
 
@@ -893,13 +893,13 @@ error CS0246: The type or namespace name 'InvoiceDto' could not be found
 **Check project references:**
 ```bash
 # View project references
-dotnet list src/Modules/Billing/Foundry.Billing.Api/Foundry.Billing.Api.csproj reference
+dotnet list src/Modules/Billing/Wallow.Billing.Api/Wallow.Billing.Api.csproj reference
 ```
 
 **Add missing reference:**
 ```bash
-dotnet add src/Modules/Billing/Foundry.Billing.Api/Foundry.Billing.Api.csproj \
-  reference src/Modules/Billing/Foundry.Billing.Application/Foundry.Billing.Application.csproj
+dotnet add src/Modules/Billing/Wallow.Billing.Api/Wallow.Billing.Api.csproj \
+  reference src/Modules/Billing/Wallow.Billing.Application/Wallow.Billing.Application.csproj
 ```
 
 **Clean and rebuild:**
@@ -1041,17 +1041,17 @@ docker compose logs --tail=50
 
 **Test database connectivity:**
 ```bash
-docker exec foundry-postgres psql -U foundry -d foundry -c "SELECT 1"
+docker exec wallow-postgres psql -U wallow -d wallow -c "SELECT 1"
 ```
 
 **Test RabbitMQ connectivity:**
 ```bash
-docker exec foundry-rabbitmq rabbitmq-diagnostics check_running
+docker exec wallow-rabbitmq rabbitmq-diagnostics check_running
 ```
 
 **Test Redis/Valkey connectivity:**
 ```bash
-docker exec foundry-valkey valkey-cli ping
+docker exec wallow-valkey valkey-cli ping
 ```
 
 **View application logs:**
@@ -1060,7 +1060,7 @@ docker exec foundry-valkey valkey-cli ping
 # Logs output to console
 
 # If running in Docker
-docker logs foundry-api --tail=100 -f
+docker logs wallow-api --tail=100 -f
 ```
 
 **Reset everything:**
@@ -1104,5 +1104,5 @@ If you cannot resolve an issue:
 
 4. **Run architecture tests:**
    ```bash
-   dotnet test tests/Foundry.Architecture.Tests
+   dotnet test tests/Wallow.Architecture.Tests
    ```

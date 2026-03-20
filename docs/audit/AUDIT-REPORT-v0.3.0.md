@@ -1,4 +1,4 @@
-# Foundry v0.3.0 Pre-Release Audit Report
+# Wallow v0.3.0 Pre-Release Audit Report
 
 **Date:** 2026-03-02
 **Branch:** `expansion`
@@ -9,7 +9,7 @@
 
 ## Executive Summary
 
-Foundry is a well-architected .NET 10 modular monolith with strong foundations: excellent module isolation, proper multi-tenancy, rich domain models, comprehensive observability, and consistent CQRS patterns. The codebase demonstrates mature engineering practices in many areas.
+Wallow is a well-architected .NET 10 modular monolith with strong foundations: excellent module isolation, proper multi-tenancy, rich domain models, comprehensive observability, and consistent CQRS patterns. The codebase demonstrates mature engineering practices in many areas.
 
 However, the audit identified **5 critical**, **14 high**, **36 medium**, and **21 low** findings across all domains that should be addressed before or shortly after the v0.3.0 release.
 
@@ -26,17 +26,17 @@ However, the audit identified **5 critical**, **14 high**, **36 medium**, and **
 ## Critical Findings (Must Fix Before Release)
 
 ### C1. N+1 Query in GetConversationsAsync (Performance)
-**File:** `src/Modules/Communications/Foundry.Communications.Infrastructure/Services/MessagingQueryService.cs:170-189`
+**File:** `src/Modules/Communications/Wallow.Communications.Infrastructure/Services/MessagingQueryService.cs:170-189`
 **Impact:** Fetches participants per-conversation in a loop. 50 conversations = 51 queries.
 **Fix:** Single batch query joining conversations with participants.
 
 ### C2. N+1 HTTP Calls in GetUsersAsync (Performance)
-**File:** `src/Modules/Identity/Foundry.Identity.Infrastructure/Services/KeycloakAdminService.cs:156-197`
+**File:** `src/Modules/Identity/Wallow.Identity.Infrastructure/Services/KeycloakAdminService.cs:156-197`
 **Impact:** Sequential `GetUserRolesAsync` HTTP call per user. 20 users = 21 HTTP requests to Keycloak.
 **Fix:** Batch role fetching or parallel HTTP calls with `Task.WhenAll`.
 
 ### C3. MeteringMiddleware Runs 2-4 Redis + 2 DB Queries Per Request (Performance)
-**File:** `src/Modules/Billing/Foundry.Billing.Infrastructure/Middleware/MeteringMiddleware.cs`
+**File:** `src/Modules/Billing/Wallow.Billing.Infrastructure/Middleware/MeteringMiddleware.cs`
 **Impact:** Every `/api/*` request cascades through quota checking: DB -> DB -> Redis -> threshold check. Adds significant latency to all API calls.
 **Fix:** Cache plan/quota data with short TTL; check metering asynchronously.
 
@@ -55,12 +55,12 @@ However, the audit identified **5 critical**, **14 high**, **36 medium**, and **
 ## High Findings (Fix Soon After Release)
 
 ### H1. SCIM Controller Exposes Internal Exception Messages (Security)
-**File:** `src/Modules/Identity/Foundry.Identity.Api/Controllers/ScimController.cs` (7 catch blocks)
+**File:** `src/Modules/Identity/Wallow.Identity.Api/Controllers/ScimController.cs` (7 catch blocks)
 **Impact:** `ex.Message` returned in all environments, exposing Keycloak errors, DB constraints, etc.
 **Fix:** Use environment-aware error messages as in `GlobalExceptionHandler`.
 
 ### H2. Message Body Not HTML-Sanitized -- Stored XSS Risk (Security)
-**File:** `src/Modules/Communications/Foundry.Communications.Api/Controllers/ConversationsController.cs:130-131`
+**File:** `src/Modules/Communications/Wallow.Communications.Api/Controllers/ConversationsController.cs:130-131`
 **Impact:** `request.Body` passed directly to `SendMessageCommand` without sanitization. `AdminAnnouncementsController` uses `IHtmlSanitizationService` but `ConversationsController` does not. Stored XSS via conversation messages.
 **Fix:** Sanitize in controller or domain layer before persistence.
 
@@ -74,17 +74,17 @@ However, the audit identified **5 critical**, **14 high**, **36 medium**, and **
 **Fix:** Add pagination to all list endpoints; remove or limit the non-paged `GetByUserIdAsync`.
 
 ### H5. Three Separate Redis ConnectionMultiplexer Instances (Performance)
-**File:** `src/Foundry.Api/Program.cs:192-224`
+**File:** `src/Wallow.Api/Program.cs:192-224`
 **Impact:** Three connections to the same Redis instance instead of sharing one.
 **Fix:** Register singleton `IConnectionMultiplexer` and share across all consumers.
 
 ### H6. UserQueryService Fetches All Members for Count Operations (Performance)
-**File:** `src/Modules/Identity/Foundry.Identity.Infrastructure/Services/UserQueryService.cs`
+**File:** `src/Modules/Identity/Wallow.Identity.Infrastructure/Services/UserQueryService.cs`
 **Impact:** Count methods (`GetNewUsersCountAsync`, `GetActiveUsersCountAsync`, `GetTotalUsersCountAsync`) fetch full member lists just to count them.
 **Fix:** Use `COUNT(*)` queries or Keycloak API count endpoints.
 
 ### H7. `ResultExtensions` Duplicated 6 Times with Active Divergence (Code Quality / DRY)
-**Files:** 6 copies across `Foundry.Api` + all 5 module API layers
+**Files:** 6 copies across `Wallow.Api` + all 5 module API layers
 **Impact:** The host API version has richer ProblemDetails (`Title`, `Type` fields) while module copies produce bare responses. Error responses differ between host and module APIs.
 **Fix:** Consolidate to `Shared.Kernel` or a shared API utilities project.
 
@@ -104,7 +104,7 @@ However, the audit identified **5 critical**, **14 high**, **36 medium**, and **
 **Fix:** Add `EnableRetryOnFailure()`, configure `MaxPoolSize`, `Command Timeout`, and `Connection Idle Lifetime`.
 
 ### H11. No HttpClient Resilience Policies for External Services (Infrastructure)
-**File:** `src/Modules/Identity/Foundry.Identity.Infrastructure/Extensions/IdentityInfrastructureExtensions.cs:71-77`
+**File:** `src/Modules/Identity/Wallow.Identity.Infrastructure/Extensions/IdentityInfrastructureExtensions.cs:71-77`
 **Impact:** Keycloak and Twilio HTTP clients have no retry, timeout, or circuit breaker policies.
 **Fix:** Add `Microsoft.Extensions.Http.Resilience` with `AddStandardResilienceHandler()`.
 

@@ -1,6 +1,6 @@
 # Architecture Assessment: DDD & Clean Architecture
 
-This document assesses Foundry's implementation of Domain-Driven Design (DDD) and Clean Architecture patterns, providing guidance for building new modules consistently.
+This document assesses Wallow's implementation of Domain-Driven Design (DDD) and Clean Architecture patterns, providing guidance for building new modules consistently.
 
 **Last Updated:** February 2026
 
@@ -63,22 +63,22 @@ The dependency direction is textbook correct:
 
 ```xml
 <!-- Domain: Zero external dependencies -->
-<ProjectReference Include="Foundry.Shared.Kernel" />
+<ProjectReference Include="Wallow.Shared.Kernel" />
 
 <!-- Application: Depends on Domain + Shared -->
-<ProjectReference Include="Foundry.{Module}.Domain" />
-<ProjectReference Include="Foundry.Shared.Kernel" />
-<ProjectReference Include="Foundry.Shared.Contracts" />
+<ProjectReference Include="Wallow.{Module}.Domain" />
+<ProjectReference Include="Wallow.Shared.Kernel" />
+<ProjectReference Include="Wallow.Shared.Contracts" />
 <!-- NO EntityFrameworkCore, NO HttpClient -->
 
 <!-- Infrastructure: Implements Application interfaces -->
-<ProjectReference Include="Foundry.{Module}.Application" />
-<ProjectReference Include="Foundry.{Module}.Domain" />
+<ProjectReference Include="Wallow.{Module}.Application" />
+<ProjectReference Include="Wallow.{Module}.Domain" />
 <!-- HAS EntityFrameworkCore - but Application doesn't know -->
 
 <!-- Api: Composes everything -->
-<ProjectReference Include="Foundry.{Module}.Application" />
-<ProjectReference Include="Foundry.{Module}.Infrastructure" />
+<ProjectReference Include="Wallow.{Module}.Application" />
+<ProjectReference Include="Wallow.{Module}.Infrastructure" />
 ```
 
 ---
@@ -133,7 +133,7 @@ The dependency direction is textbook correct:
 
 ## 3. Three Module Patterns
 
-Foundry uses three distinct architectural patterns. Understanding these is essential before building new modules.
+Wallow uses three distinct architectural patterns. Understanding these is essential before building new modules.
 
 ### Pattern 1: Traditional DDD
 
@@ -471,4 +471,4 @@ public interface IInvoiceRepository
 
 ---
 
-*This assessment covers the 8 core modules in the Foundry platform. Billing remains the gold standard for traditional DDD. Notifications demonstrates good Value Object adoption. Identity demonstrates the External Adapter pattern. Cross-cutting capabilities (Auditing, Background Jobs, Workflows) live in Shared.Infrastructure. See [MODULE_CREATION_GUIDE.md](./MODULE_CREATION_GUIDE.md) for step-by-step module creation instructions.*
+*This assessment covers the 8 core modules in the Wallow platform. Billing remains the gold standard for traditional DDD. Notifications demonstrates good Value Object adoption. Identity demonstrates the External Adapter pattern. Cross-cutting capabilities (Auditing, Background Jobs, Workflows) live in Shared.Infrastructure. See [MODULE_CREATION_GUIDE.md](./MODULE_CREATION_GUIDE.md) for step-by-step module creation instructions.*

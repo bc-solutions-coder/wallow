@@ -1,0 +1,101 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!-- TargetFramework, Nullable, etc. inherited from Directory.Build.props -->
+  <!-- Package versions managed in Directory.Packages.props -->
+
+  <PropertyGroup>
+    <RootNamespace>Wallow.Api</RootNamespace>
+    <!-- Prevent recursive bin/obj nesting from Web SDK content file copying -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);bin/**;obj/**</DefaultItemExcludes>
+    <UserSecretsId>efd43489-cc17-4e04-9ea3-ac2326aa825a</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- API Documentation -->
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Scalar.AspNetCore" />
+
+    <!-- Health Checks -->
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" />
+    <PackageReference Include="AspNetCore.HealthChecks.NpgSql" />
+    <PackageReference Include="AspNetCore.HealthChecks.Rabbitmq" />
+    <PackageReference Include="AspNetCore.HealthChecks.Hangfire" />
+    <PackageReference Include="AspNetCore.HealthChecks.Redis" />
+
+    <!-- Real-time (SignalR) -->
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.StackExchangeRedis" />
+    <PackageReference Include="StackExchange.Redis" />
+
+    <!-- Distributed Caching -->
+    <PackageReference Include="Microsoft.Extensions.Caching.Hybrid" />
+    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" />
+
+    <!-- Logging -->
+    <PackageReference Include="Serilog.AspNetCore" />
+    <PackageReference Include="Serilog.Sinks.Console" />
+
+    <!-- OpenTelemetry -->
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.EntityFrameworkCore" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Process" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.StackExchangeRedis" />
+    <PackageReference Include="Serilog.Sinks.OpenTelemetry" />
+
+    <!-- CQRS & Messaging -->
+    <PackageReference Include="WolverineFx" />
+    <PackageReference Include="WolverineFx.RabbitMQ" />
+    <PackageReference Include="WolverineFx.FluentValidation" />
+    <PackageReference Include="WolverineFx.EntityFrameworkCore" />
+    <PackageReference Include="WolverineFx.Postgresql" />
+
+    <!-- Feature Management -->
+    <PackageReference Include="Microsoft.FeatureManagement.AspNetCore" />
+
+    <!-- Background Jobs -->
+    <PackageReference Include="Hangfire.AspNetCore" />
+    <PackageReference Include="Hangfire.PostgreSql" />
+
+    <!-- Reverse Proxy -->
+
+    <!-- Workflow Engine -->
+    <PackageReference Include="Elsa.Workflows.Api" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Module Api projects -->
+    <ProjectReference Include="..\Modules\Billing\Wallow.Billing.Api\Wallow.Billing.Api.csproj" />
+    <ProjectReference Include="..\Modules\Notifications\Wallow.Notifications.Api\Wallow.Notifications.Api.csproj" />
+    <ProjectReference Include="..\Modules\Messaging\Wallow.Messaging.Api\Wallow.Messaging.Api.csproj" />
+    <ProjectReference Include="..\Modules\Announcements\Wallow.Announcements.Api\Wallow.Announcements.Api.csproj" />
+    <ProjectReference Include="..\Modules\Identity\Wallow.Identity.Api\Wallow.Identity.Api.csproj" />
+    <ProjectReference Include="..\Modules\Storage\Wallow.Storage.Api\Wallow.Storage.Api.csproj" />
+    <ProjectReference Include="..\Modules\Inquiries\Wallow.Inquiries.Api\Wallow.Inquiries.Api.csproj" />
+    <ProjectReference Include="..\Modules\Showcases\Wallow.Showcases.Api\Wallow.Showcases.Api.csproj" />
+
+    <!-- Module Infrastructure projects -->
+    <ProjectReference Include="..\Modules\Billing\Wallow.Billing.Infrastructure\Wallow.Billing.Infrastructure.csproj" />
+    <ProjectReference Include="..\Modules\Notifications\Wallow.Notifications.Infrastructure\Wallow.Notifications.Infrastructure.csproj" />
+    <ProjectReference Include="..\Modules\Messaging\Wallow.Messaging.Infrastructure\Wallow.Messaging.Infrastructure.csproj" />
+    <ProjectReference Include="..\Modules\Announcements\Wallow.Announcements.Infrastructure\Wallow.Announcements.Infrastructure.csproj" />
+    <ProjectReference Include="..\Modules\Identity\Wallow.Identity.Infrastructure\Wallow.Identity.Infrastructure.csproj" />
+    <ProjectReference Include="..\Modules\Storage\Wallow.Storage.Infrastructure\Wallow.Storage.Infrastructure.csproj" />
+    <ProjectReference Include="..\Modules\Inquiries\Wallow.Inquiries.Infrastructure\Wallow.Inquiries.Infrastructure.csproj" />
+    <ProjectReference Include="..\Modules\Showcases\Wallow.Showcases.Infrastructure\Wallow.Showcases.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Shared\Wallow.Shared.Api\Wallow.Shared.Api.csproj" />
+    <ProjectReference Include="..\Shared\Wallow.Shared.Kernel\Wallow.Shared.Kernel.csproj" />
+    <ProjectReference Include="..\Shared\Wallow.Shared.Contracts\Wallow.Shared.Contracts.csproj" />
+    <ProjectReference Include="..\Shared\Wallow.Shared.Infrastructure\Wallow.Shared.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

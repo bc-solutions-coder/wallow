@@ -1,7 +1,0 @@
-<Project Sdk="Microsoft.NET.Sdk">
-
-  <PropertyGroup>
-    <RootNamespace>Foundry.Shared.Contracts</RootNamespace>
-  </PropertyGroup>
-
-</Project>

@@ -14,14 +14,14 @@
 
 | # | Status | File | Purpose | Key Config | Your Notes |
 |---|--------|------|---------|------------|------------|
-| 1 | [ ] | `Foundry.slnx` | Visual Studio solution file (SLNX format) defining all projects, their GUIDs, and build configurations (Debug/Release). | All project references and solution folders |
+| 1 | [ ] | `Wallow.slnx` | Visual Studio solution file (SLNX format) defining all projects, their GUIDs, and build configurations (Debug/Release). | All project references and solution folders |
 | 2 | [ ] | `Directory.Build.props` | MSBuild props applied to all projects. Sets .NET 10, C# latest, nullable, implicit usings, TreatWarningsAsErrors, code analysis, deterministic builds, central package management, and InternalsVisibleTo rules. | `TargetFramework=net10.0`, `Version=0.2.0` (release-please managed), `EnforceCodeStyleInBuild=true` |
 | 3 | [ ] | `Directory.Packages.props` | Central package version management (CPM). Defines all NuGet package versions in one place. Groups: ASP.NET Core, EF Core, health checks, messaging, identity, storage, observability, testing. | Version variables: `MicrosoftExtensionsVersion`, `EfCoreVersion`, `AspNetCoreVersion` |
 | 4 | [ ] | `Directory.Build.targets` | MSBuild targets that add code analyzers (Microsoft.CodeAnalysis.NetAnalyzers, StyleCop, Meziantou, Roslynator) to all non-test projects as development-only dependencies. | Analyzer packages with `PrivateAssets=all` |
 | 5 | [ ] | `global.json` | Pins .NET SDK version to `10.0.103` with `latestPatch` roll-forward policy. | SDK version pinning |
 | 6 | [ ] | `stylecop.json` | StyleCop Analyzers configuration: XML header disabled, documentation rules (document interfaces + exposed elements, skip internals/privates), require newline at EOF, system usings first. | `documentInternalElements: false`, `topLevelTypes: 1` |
 | 7 | [ ] | `.editorconfig` | EditorConfig defining code style: UTF-8, spaces, 4-space indent for C#, 2-space for XML project files, plus extensive .NET/C# coding conventions and analyzer severity overrides. | Indent styles, naming conventions, analyzer rules |
-| 8 | [ ] | `qodana.yaml` | JetBrains Qodana static analysis config. Uses `cdnet` linter on `Foundry.slnx` with `failThreshold: 0` (any issue fails). | Zero-tolerance static analysis |
+| 8 | [ ] | `qodana.yaml` | JetBrains Qodana static analysis config. Uses `cdnet` linter on `Wallow.slnx` with `failThreshold: 0` (any issue fails). | Zero-tolerance static analysis |
 | 9 | [ ] | `release-please-config.json` | Release-please configuration for automated semver releases. Simple release type, updates `Version` in `Directory.Build.props` via XPath, generates `CHANGELOG.md`. | XPath: `//Project/PropertyGroup/Version` |
 | 10 | [ ] | `Dockerfile` | Multi-stage Docker build: restore (with layer caching via `--parents`), build, publish, final image based on `mcr.microsoft.com/dotnet/aspnet:10.0`. Includes health check. | Pinned base images with SHA digests, `HEALTHCHECK` on `/healthz` |
 | 11 | [ ] | `.dockerignore` | Excludes IDE files, build artifacts (`bin/`, `obj/`), Docker files, secrets, and documentation from Docker build context. | Standard .NET Docker exclusions |
@@ -60,7 +60,7 @@
 
 | # | Status | File | Purpose | Key Config | Your Notes |
 |---|--------|------|---------|------------|------------|
-| 25 | [ ] | `docker/keycloak/realm-export.json` | Keycloak realm configuration export for the `foundry` realm. Defines clients, roles, identity providers, and authentication flows. | Realm settings, client configurations, role mappings |
+| 25 | [ ] | `docker/keycloak/realm-export.json` | Keycloak realm configuration export for the `wallow` realm. Defines clients, roles, identity providers, and authentication flows. | Realm settings, client configurations, role mappings |
 
 ### RabbitMQ
 
@@ -77,7 +77,7 @@
 | 29 | [ ] | `docker/grafana/dashboards/billing-dashboard.json` | Grafana dashboard for Billing module metrics (invoice counts, revenue, payment status). | Billing-specific PromQL queries |
 | 30 | [ ] | `docker/grafana/dashboards/dotnet-runtime.json` | Grafana dashboard for .NET runtime metrics (GC, thread pool, memory). | Runtime instrumentation metrics |
 | 31 | [ ] | `docker/grafana/dashboards/messaging-dashboard.json` | Grafana dashboard for Wolverine/RabbitMQ messaging metrics (publish rates, consume rates, queue depths). | Messaging pipeline metrics |
-| 32 | [ ] | `docker/grafana/dashboards/module-overview.json` | Grafana dashboard providing a cross-module overview of all Foundry modules. | Aggregated module-level metrics |
+| 32 | [ ] | `docker/grafana/dashboards/module-overview.json` | Grafana dashboard providing a cross-module overview of all Wallow modules. | Aggregated module-level metrics |
 | 33 | [ ] | `docker/grafana/dashboards/multi-region-overview.json` | Grafana dashboard for multi-region deployment monitoring. | Region-aware metrics and replication status |
 | 34 | [ ] | `docker/grafana/dashboards/sales-dashboard.json` | Grafana dashboard for sales/revenue metrics. | Business-level PromQL queries |
 | 35 | [ ] | `docker/grafana/dashboards/slo-monitoring.json` | Grafana dashboard for SLO (Service Level Objective) monitoring with error budgets. | SLI/SLO calculations and burn rate alerts |
@@ -127,7 +127,7 @@
 
 | # | Status | File | Purpose | Key Config | Your Notes |
 |---|--------|------|---------|------------|------------|
-| 50 | [ ] | `deploy/docker-compose.base.yml` | Base Docker Compose for deployments, defines the Foundry API service. | API service definition, network configuration |
+| 50 | [ ] | `deploy/docker-compose.base.yml` | Base Docker Compose for deployments, defines the Wallow API service. | API service definition, network configuration |
 | 51 | [ ] | `deploy/docker-compose.dev.yml` | Development deployment overlay. | Dev-specific overrides |
 | 52 | [ ] | `deploy/docker-compose.prod.yml` | Production deployment overlay with resource limits and production config. | Production resource constraints |
 | 53 | [ ] | `deploy/docker-compose.staging.yml` | Staging deployment overlay. | Staging-specific settings |
@@ -136,37 +136,37 @@
 
 | # | Status | File | Purpose | Key Config | Your Notes |
 |---|--------|------|---------|------------|------------|
-| 54 | [ ] | `deploy/dns/cloudflare-config.template.yaml` | Cloudflare DNS configuration template for Foundry domains. | DNS record templates, proxy settings |
-| 55 | [ ] | `deploy/dns/route53-config.template.yaml` | AWS Route53 DNS configuration template for Foundry domains. | Hosted zone and record set templates |
+| 54 | [ ] | `deploy/dns/cloudflare-config.template.yaml` | Cloudflare DNS configuration template for Wallow domains. | DNS record templates, proxy settings |
+| 55 | [ ] | `deploy/dns/route53-config.template.yaml` | AWS Route53 DNS configuration template for Wallow domains. | Hosted zone and record set templates |
 
-### Helm Chart (`deploy/helm/foundry/`)
+### Helm Chart (`deploy/helm/wallow/`)
 
 | # | Status | File | Purpose | Key Config | Your Notes |
 |---|--------|------|---------|------------|------------|
-| 56 | [ ] | `deploy/helm/foundry/Chart.yaml` | Helm chart metadata: name, version, description, dependencies. | Chart version, app version |
-| 57 | [ ] | `deploy/helm/foundry/.helmignore` | Files to ignore when packaging the Helm chart. | Standard Helm ignores |
-| 58 | [ ] | `deploy/helm/foundry/values.yaml` | Default Helm values: image, replicas, resources, ingress, service config. | Base configuration for all environments |
-| 59 | [ ] | `deploy/helm/foundry/values-dev.yaml` | Development environment Helm value overrides. | Low resource limits, debug settings |
-| 60 | [ ] | `deploy/helm/foundry/values-staging.yaml` | Staging environment Helm value overrides. | Moderate resources, staging URLs |
-| 61 | [ ] | `deploy/helm/foundry/values-prod.yaml` | Production environment Helm value overrides. | High availability, production resources |
-| 62 | [ ] | `deploy/helm/foundry/values-us-east.yaml` | US-East region-specific Helm value overrides. | Region endpoint, replica count |
-| 63 | [ ] | `deploy/helm/foundry/values-eu-west.yaml` | EU-West region-specific Helm value overrides. | Region endpoint, replica count |
+| 56 | [ ] | `deploy/helm/wallow/Chart.yaml` | Helm chart metadata: name, version, description, dependencies. | Chart version, app version |
+| 57 | [ ] | `deploy/helm/wallow/.helmignore` | Files to ignore when packaging the Helm chart. | Standard Helm ignores |
+| 58 | [ ] | `deploy/helm/wallow/values.yaml` | Default Helm values: image, replicas, resources, ingress, service config. | Base configuration for all environments |
+| 59 | [ ] | `deploy/helm/wallow/values-dev.yaml` | Development environment Helm value overrides. | Low resource limits, debug settings |
+| 60 | [ ] | `deploy/helm/wallow/values-staging.yaml` | Staging environment Helm value overrides. | Moderate resources, staging URLs |
+| 61 | [ ] | `deploy/helm/wallow/values-prod.yaml` | Production environment Helm value overrides. | High availability, production resources |
+| 62 | [ ] | `deploy/helm/wallow/values-us-east.yaml` | US-East region-specific Helm value overrides. | Region endpoint, replica count |
+| 63 | [ ] | `deploy/helm/wallow/values-eu-west.yaml` | EU-West region-specific Helm value overrides. | Region endpoint, replica count |
 
 ### Helm Templates
 
 | # | Status | File | Purpose | Key Config | Your Notes |
 |---|--------|------|---------|------------|------------|
-| 64 | [ ] | `deploy/helm/foundry/templates/_helpers.tpl` | Helm template helpers: labels, selectors, fullname generation. | Reusable template functions |
-| 65 | [ ] | `deploy/helm/foundry/templates/NOTES.txt` | Post-install notes displayed after `helm install`. | Usage instructions |
-| 66 | [ ] | `deploy/helm/foundry/templates/deployment.yaml` | Kubernetes Deployment manifest template for the Foundry API. | Container spec, probes, env vars, volumes |
-| 67 | [ ] | `deploy/helm/foundry/templates/service.yaml` | Kubernetes Service manifest template. | ClusterIP service, port mappings |
-| 68 | [ ] | `deploy/helm/foundry/templates/ingress.yaml` | Kubernetes Ingress manifest template with TLS support. | Host rules, TLS configuration, annotations |
-| 69 | [ ] | `deploy/helm/foundry/templates/configmap.yaml` | Kubernetes ConfigMap template for application configuration. | `appsettings.json` overrides |
-| 70 | [ ] | `deploy/helm/foundry/templates/secret.yaml` | Kubernetes Secret template for sensitive configuration (connection strings, API keys). | Base64-encoded secrets |
-| 71 | [ ] | `deploy/helm/foundry/templates/serviceaccount.yaml` | Kubernetes ServiceAccount template. | RBAC service account |
-| 72 | [ ] | `deploy/helm/foundry/templates/hpa.yaml` | Kubernetes HorizontalPodAutoscaler template for auto-scaling based on CPU/memory. | Min/max replicas, target utilization |
-| 73 | [ ] | `deploy/helm/foundry/templates/pdb.yaml` | Kubernetes PodDisruptionBudget template for availability during maintenance. | `minAvailable` or `maxUnavailable` |
-| 74 | [ ] | `deploy/helm/foundry/templates/pvc.yaml` | Kubernetes PersistentVolumeClaim template for storage. | Storage class, access modes, capacity |
+| 64 | [ ] | `deploy/helm/wallow/templates/_helpers.tpl` | Helm template helpers: labels, selectors, fullname generation. | Reusable template functions |
+| 65 | [ ] | `deploy/helm/wallow/templates/NOTES.txt` | Post-install notes displayed after `helm install`. | Usage instructions |
+| 66 | [ ] | `deploy/helm/wallow/templates/deployment.yaml` | Kubernetes Deployment manifest template for the Wallow API. | Container spec, probes, env vars, volumes |
+| 67 | [ ] | `deploy/helm/wallow/templates/service.yaml` | Kubernetes Service manifest template. | ClusterIP service, port mappings |
+| 68 | [ ] | `deploy/helm/wallow/templates/ingress.yaml` | Kubernetes Ingress manifest template with TLS support. | Host rules, TLS configuration, annotations |
+| 69 | [ ] | `deploy/helm/wallow/templates/configmap.yaml` | Kubernetes ConfigMap template for application configuration. | `appsettings.json` overrides |
+| 70 | [ ] | `deploy/helm/wallow/templates/secret.yaml` | Kubernetes Secret template for sensitive configuration (connection strings, API keys). | Base64-encoded secrets |
+| 71 | [ ] | `deploy/helm/wallow/templates/serviceaccount.yaml` | Kubernetes ServiceAccount template. | RBAC service account |
+| 72 | [ ] | `deploy/helm/wallow/templates/hpa.yaml` | Kubernetes HorizontalPodAutoscaler template for auto-scaling based on CPU/memory. | Min/max replicas, target utilization |
+| 73 | [ ] | `deploy/helm/wallow/templates/pdb.yaml` | Kubernetes PodDisruptionBudget template for availability during maintenance. | `minAvailable` or `maxUnavailable` |
+| 74 | [ ] | `deploy/helm/wallow/templates/pvc.yaml` | Kubernetes PersistentVolumeClaim template for storage. | Storage class, access modes, capacity |
 
 ### Kustomize (`deploy/kustomize/`)
 

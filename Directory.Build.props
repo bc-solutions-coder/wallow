@@ -22,9 +22,9 @@
 
   <!-- Assembly information -->
   <PropertyGroup>
-    <Company>Foundry</Company>
-    <Product>Foundry</Product>
-    <Copyright>Copyright © Foundry $([System.DateTime]::Now.Year)</Copyright>
+    <Company>Wallow</Company>
+    <Product>Wallow</Product>
+    <Copyright>Copyright © Wallow $([System.DateTime]::Now.Year)</Copyright>
     <!-- Managed by release-please; CI overrides via /p:Version -->
     <Version>0.2.0</Version>
   </PropertyGroup>
@@ -66,9 +66,9 @@
   <!-- This allows test projects named "$(AssemblyName).Tests" to access internal types -->
   <ItemGroup Condition="'$(IsTestProject)' != 'true'">
     <InternalsVisibleTo Include="$(AssemblyName).Tests"/>
-    <InternalsVisibleTo Include="Foundry.Tests.Common"/>
-    <InternalsVisibleTo Include="Foundry.Api.Tests"/>
-    <InternalsVisibleTo Include="Foundry.Architecture.Tests"/>
+    <InternalsVisibleTo Include="Wallow.Tests.Common"/>
+    <InternalsVisibleTo Include="Wallow.Api.Tests"/>
+    <InternalsVisibleTo Include="Wallow.Architecture.Tests"/>
   </ItemGroup>
 
   <!-- Build server configuration - prevent memory accumulation in CI -->

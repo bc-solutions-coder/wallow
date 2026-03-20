@@ -1,0 +1,20 @@
+apiVersion: v2
+name: wallow
+description: A modular monolith platform with multi-tenancy support
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+
+dependencies:
+  - name: postgresql
+    version: "~16"
+    repository: https://charts.bitnami.com/bitnami
+    condition: postgresql.enabled
+  - name: rabbitmq
+    version: "~14"
+    repository: https://charts.bitnami.com/bitnami
+    condition: rabbitmq.enabled
+  - name: valkey
+    version: "~2"
+    repository: https://charts.bitnami.com/bitnami
+    condition: valkey.enabled

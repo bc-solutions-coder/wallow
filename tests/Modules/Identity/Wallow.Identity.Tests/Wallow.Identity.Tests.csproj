@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Wallow.Identity.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="FluentAssertions" />
+    <PackageReference Include="NSubstitute" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <Using Include="FluentAssertions" />
+    <Using Include="NSubstitute" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\src\Modules\Identity\Wallow.Identity.Domain\Wallow.Identity.Domain.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Modules\Identity\Wallow.Identity.Application\Wallow.Identity.Application.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Modules\Identity\Wallow.Identity.Infrastructure\Wallow.Identity.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Modules\Identity\Wallow.Identity.Api\Wallow.Identity.Api.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Shared\Wallow.Shared.Infrastructure\Wallow.Shared.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\Wallow.Tests.Common\Wallow.Tests.Common.csproj" />
+  </ItemGroup>
+
+</Project>

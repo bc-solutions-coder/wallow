@@ -3,7 +3,7 @@
 **Auditor:** auth-scout
 **Date:** 2026-03-03
 **Scope:** Authentication, authorization, RBAC, IDOR, Wolverine handler auth, SignalR security
-**Codebase:** Foundry .NET modular monolith (expansion branch, commit 9f2666e1)
+**Codebase:** Wallow .NET modular monolith (expansion branch, commit 9f2666e1)
 
 ---
 
@@ -12,12 +12,12 @@
 ### AUTH-001: No JWT Authentication Scheme Registered in Production Code
 
 **Severity:** CRITICAL
-**Files:** `src/Foundry.Api/Program.cs`, `src/Modules/Identity/Foundry.Identity.Infrastructure/Extensions/IdentityInfrastructureExtensions.cs`
+**Files:** `src/Wallow.Api/Program.cs`, `src/Modules/Identity/Wallow.Identity.Infrastructure/Extensions/IdentityInfrastructureExtensions.cs`
 
 **Description:** The production code never calls `AddAuthentication()` or `AddJwtBearer()`. The middleware pipeline calls `app.UseAuthentication()` at line 352 of `Program.cs`, but no authentication scheme is registered in the service container. The only place `AddAuthentication`/`AddJwtBearer` appear is in test code:
 
-- `tests/Foundry.Tests.Common/Factories/FoundryApiFactory.cs:155` -- registers a `"Test"` scheme
-- `tests/Modules/Identity/Foundry.Identity.IntegrationTests/KeycloakIntegrationTestBase.cs:94` -- registers `JwtBearerDefaults.AuthenticationScheme` for Keycloak integration tests
+- `tests/Wallow.Tests.Common/Factories/WallowApiFactory.cs:155` -- registers a `"Test"` scheme
+- `tests/Modules/Identity/Wallow.Identity.IntegrationTests/KeycloakIntegrationTestBase.cs:94` -- registers `JwtBearerDefaults.AuthenticationScheme` for Keycloak integration tests
 
 The `Keycloak` and `KeycloakAdmin` configuration sections exist in `appsettings.json` but are only consumed by `AddKeycloakAdminHttpClient()` (the admin SDK for server-to-server calls), NOT for JWT bearer token validation of incoming API requests.
 
@@ -30,7 +30,7 @@ The `Keycloak` and `KeycloakAdmin` configuration sections exist in `appsettings.
 ### AUTH-002: Admin Tenant Override via X-Tenant-Id Header Has No Audit Trail Persistence
 
 **Severity:** HIGH
-**File:** `src/Modules/Identity/Foundry.Identity.Infrastructure/MultiTenancy/TenantResolutionMiddleware.cs:49-58`
+**File:** `src/Modules/Identity/Wallow.Identity.Infrastructure/MultiTenancy/TenantResolutionMiddleware.cs:49-58`
 
 ```csharp
 string? headerTenantId = context.Request.Headers["X-Tenant-Id"].FirstOrDefault();
@@ -68,7 +68,7 @@ if (!string.IsNullOrEmpty(headerTenantId) &&
 
 **Description:** All Wolverine command/query handlers (approximately 40+ handlers across Billing, Communications, Configuration, Storage, and Identity modules) perform no authorization checks. They are pure application-layer handlers that process commands directly. While the API controllers that invoke these handlers via `IMessageBus.InvokeAsync()` do have `[HasPermission]` attributes, the handlers themselves are unprotected.
 
-Wolverine auto-discovers handlers in all `Foundry.*` assemblies (Program.cs line 148). If a handler is invoked via:
+Wolverine auto-discovers handlers in all `Wallow.*` assemblies (Program.cs line 148). If a handler is invoked via:
 - A RabbitMQ message (when `ModuleMessaging:Transport` is set to `"RabbitMq"`)
 - A Wolverine scheduled/cascading message
 - Any code path that bypasses the API controller layer
@@ -91,7 +91,7 @@ Wolverine auto-discovers handlers in all `Foundry.*` assemblies (Program.cs line
 ### AUTH-004: SCIM Controller Uses [AllowAnonymous] with Middleware-Based Auth
 
 **Severity:** HIGH
-**File:** `src/Modules/Identity/Foundry.Identity.Api/Controllers/ScimController.cs:20`
+**File:** `src/Modules/Identity/Wallow.Identity.Api/Controllers/ScimController.cs:20`
 
 ```csharp
 [AllowAnonymous] // SCIM uses Bearer token authentication via middleware (not OAuth)
@@ -115,7 +115,7 @@ Wolverine auto-discovers handlers in all `Foundry.*` assemblies (Program.cs line
 ### AUTH-005: Organization Access Control Missing on Multiple User Operations
 
 **Severity:** HIGH
-**File:** `src/Modules/Identity/Foundry.Identity.Api/Controllers/UsersController.cs`
+**File:** `src/Modules/Identity/Wallow.Identity.Api/Controllers/UsersController.cs`
 
 **Description:** While `GetUserById` correctly validates that the requested user belongs to the current tenant's organization (lines 63-69), several other user operations do NOT perform this check:
 
@@ -144,7 +144,7 @@ public async Task<ActionResult> DeactivateUser(Guid id, CancellationToken ct)
 ### AUTH-006: Organization Endpoints Allow Cross-Tenant Access
 
 **Severity:** HIGH
-**File:** `src/Modules/Identity/Foundry.Identity.Api/Controllers/OrganizationsController.cs`
+**File:** `src/Modules/Identity/Wallow.Identity.Api/Controllers/OrganizationsController.cs`
 
 **Description:** The Organizations controller operations do not validate that the targeted organization belongs to the current tenant:
 
@@ -166,7 +166,7 @@ All require `OrganizationsRead` or `OrganizationsManageMembers` permissions, but
 ### AUTH-007: Admin Role Gets All Permissions Including Future Ones
 
 **Severity:** MEDIUM
-**File:** `src/Modules/Identity/Foundry.Identity.Infrastructure/Authorization/RolePermissionMapping.cs:10`
+**File:** `src/Modules/Identity/Wallow.Identity.Infrastructure/Authorization/RolePermissionMapping.cs:10`
 
 ```csharp
 ["admin"] = PermissionType.All.ToArray(),
@@ -183,7 +183,7 @@ All require `OrganizationsRead` or `OrganizationsManageMembers` permissions, but
 ### AUTH-008: Account Enumeration via Token Endpoint Error Messages
 
 **Severity:** MEDIUM
-**File:** `src/Modules/Identity/Foundry.Identity.Api/Controllers/AuthController.cs:60-67`
+**File:** `src/Modules/Identity/Wallow.Identity.Api/Controllers/AuthController.cs:60-67`
 
 ```csharp
 return Unauthorized(new ProblemDetails
@@ -206,7 +206,7 @@ return Unauthorized(new ProblemDetails
 ### AUTH-009: Rate Limiting on Auth Endpoints May Be Insufficient
 
 **Severity:** MEDIUM
-**File:** `src/Foundry.Api/Extensions/RateLimitDefaults.cs`
+**File:** `src/Wallow.Api/Extensions/RateLimitDefaults.cs`
 
 ```csharp
 public const int AuthPermitLimit = 5;
@@ -231,7 +231,7 @@ public const int AuthWindowMinutes = 5;
 ### AUTH-010: No Token Revocation Endpoint
 
 **Severity:** MEDIUM
-**File:** `src/Modules/Identity/Foundry.Identity.Api/Controllers/AuthController.cs`
+**File:** `src/Modules/Identity/Wallow.Identity.Api/Controllers/AuthController.cs`
 
 **Description:** The AuthController provides `token` and `refresh` endpoints but no `logout` or `revoke` endpoint. There is no way for clients to invalidate an access token or refresh token before expiry.
 
@@ -244,7 +244,7 @@ public const int AuthWindowMinutes = 5;
 ### AUTH-011: Hangfire Dashboard Auth Allows Any "Admin" Role in Production
 
 **Severity:** MEDIUM
-**File:** `src/Foundry.Api/Middleware/HangfireDashboardAuthFilter.cs:19-22`
+**File:** `src/Wallow.Api/Middleware/HangfireDashboardAuthFilter.cs:19-22`
 
 ```csharp
 HttpContext httpContext = context.GetHttpContext();
@@ -269,7 +269,7 @@ return httpContext.User.Identity?.IsAuthenticated == true
 ### AUTH-012: API Key Auth Creates Identity Without Organization Claim
 
 **Severity:** MEDIUM
-**File:** `src/Modules/Identity/Foundry.Identity.Infrastructure/Authorization/ApiKeyAuthenticationMiddleware.cs:73-84`
+**File:** `src/Modules/Identity/Wallow.Identity.Infrastructure/Authorization/ApiKeyAuthenticationMiddleware.cs:73-84`
 
 ```csharp
 List<Claim> claims =
@@ -297,7 +297,7 @@ List<Claim> claims =
 ### AUTH-013: SignalR Hub Has Proper Auth but Limited Group Validation
 
 **Severity:** LOW
-**File:** `src/Foundry.Api/Hubs/RealtimeHub.cs`
+**File:** `src/Wallow.Api/Hubs/RealtimeHub.cs`
 
 **Description:** The `RealtimeHub` correctly uses `[Authorize]` and validates tenant groups. However:
 1. `JoinGroup` allows joining non-tenant-prefixed groups without validation (line 60-62: early return if not `"tenant:"` prefixed)
@@ -312,7 +312,7 @@ List<Claim> claims =
 ### AUTH-014: Service Account Endpoints Reuse ApiKeysRead/Create/Update/Delete Permissions
 
 **Severity:** LOW
-**File:** `src/Modules/Identity/Foundry.Identity.Api/Controllers/ServiceAccountsController.cs`
+**File:** `src/Modules/Identity/Wallow.Identity.Api/Controllers/ServiceAccountsController.cs`
 
 **Description:** Service account management endpoints use `ApiKeysRead`, `ApiKeysCreate`, `ApiKeysUpdate`, `ApiKeysDelete` permissions rather than dedicated `ServiceAccountsXxx` permissions. This means any user who can manage API keys can also manage service accounts, despite these being different security primitives.
 
@@ -325,7 +325,7 @@ List<Claim> claims =
 ### AUTH-015: Changelog Controller is Publicly Accessible
 
 **Severity:** LOW (Intentional)
-**File:** `src/Modules/Communications/Foundry.Communications.Api/Controllers/ChangelogController.cs:18`
+**File:** `src/Modules/Communications/Wallow.Communications.Api/Controllers/ChangelogController.cs:18`
 
 ```csharp
 [AllowAnonymous]

@@ -22,7 +22,7 @@
 
 ### Overall Assessment
 
-The Foundry platform's core security architecture (EF Core tenant query filters, permission-based authorization, security headers) remains strong. This second sweep focused on **logic-level vulnerabilities** that architectural controls don't catch: missing authorization checks in specific flows, business logic flaws in billing, cross-tenant data leaks via SignalR groups, and file upload security bypass.
+The Wallow platform's core security architecture (EF Core tenant query filters, permission-based authorization, security headers) remains strong. This second sweep focused on **logic-level vulnerabilities** that architectural controls don't catch: missing authorization checks in specific flows, business logic flaws in billing, cross-tenant data leaks via SignalR groups, and file upload security bypass.
 
 ### Top 5 Most Critical New Findings
 
@@ -68,7 +68,7 @@ Risk Score = Likelihood (1-5) x Impact (1-5)
 #### CS-1: Presigned Upload Bypasses ClamAV Scanning and Validation
 
 - **Severity:** High | **Risk Score:** 20
-- **Affected File:** `src/Modules/Storage/Foundry.Storage.Application/Queries/GetUploadPresignedUrl/GetUploadPresignedUrlHandler.cs:17-66`
+- **Affected File:** `src/Modules/Storage/Wallow.Storage.Application/Queries/GetUploadPresignedUrl/GetUploadPresignedUrlHandler.cs:17-66`
 - **Vulnerability:** The presigned upload flow creates a `StoredFile` DB record and returns a presigned S3 URL for direct upload. This completely bypasses:
   1. ClamAV virus scanning (done only in `UploadFileHandler`)
   2. Magic byte validation (done only in `UploadFileValidator`)
@@ -102,7 +102,7 @@ Risk Score = Likelihood (1-5) x Impact (1-5)
 #### NEW-IDENT-001: GetUsers Endpoint Lacks Tenant Filtering
 
 - **Severity:** High | **Risk Score:** 16
-- **Affected File:** `src/Modules/Identity/Foundry.Identity.Api/Controllers/UsersController.cs:43-51`
+- **Affected File:** `src/Modules/Identity/Wallow.Identity.Api/Controllers/UsersController.cs:43-51`
 - **Vulnerability:** `GetUsers()` calls `_keycloakAdmin.GetUsersAsync(search, first, max, ct)` which queries ALL Keycloak realm users without tenant/organization filtering. Compare with `GetUserById()` which validates `UserBelongsToTenantAsync()`.
 - **Attack Scenario:** Any user with `UsersRead` permission can list all users across all tenants, exposing usernames, emails, and user IDs.
 - **Recommended Fix:**
@@ -140,7 +140,7 @@ Risk Score = Likelihood (1-5) x Impact (1-5)
 #### B-4: ProcessPayment Marks Invoice as Paid Regardless of Amount
 
 - **Severity:** Medium | **Risk Score:** 15
-- **Affected File:** `src/Modules/Billing/Foundry.Billing.Application/Commands/ProcessPayment/ProcessPaymentHandler.cs:54-57`
+- **Affected File:** `src/Modules/Billing/Wallow.Billing.Application/Commands/ProcessPayment/ProcessPaymentHandler.cs:54-57`
 - **Vulnerability:** After creating a payment, the handler marks the invoice as paid if status is `Issued` or `Overdue`, without checking that the payment amount covers the invoice total. A $1 payment on a $1000 invoice marks it as fully paid.
 - **Recommended Fix:**
 
@@ -165,7 +165,7 @@ Risk Score = Likelihood (1-5) x Impact (1-5)
 #### B-5: ProcessPayment Currency Mismatch Not Validated
 
 - **Severity:** Medium | **Risk Score:** 15
-- **Affected File:** `src/Modules/Billing/Foundry.Billing.Application/Commands/ProcessPayment/ProcessPaymentHandler.cs:42`
+- **Affected File:** `src/Modules/Billing/Wallow.Billing.Application/Commands/ProcessPayment/ProcessPaymentHandler.cs:42`
 - **Vulnerability:** Payment currency comes from the command (user-supplied) but is never validated against `invoice.TotalAmount.Currency`. A user could pay in a different (cheaper) currency.
 - **Recommended Fix:**
 
@@ -185,7 +185,7 @@ Risk Score = Likelihood (1-5) x Impact (1-5)
 #### NEW-IDENT-004: SCIM Token Validation Broken — Empty Tenant Context
 
 - **Severity:** Medium | **Risk Score:** 16
-- **Affected File:** `src/Modules/Identity/Foundry.Identity.Infrastructure/Authorization/ScimAuthenticationMiddleware.cs:32-96`
+- **Affected File:** `src/Modules/Identity/Wallow.Identity.Infrastructure/Authorization/ScimAuthenticationMiddleware.cs:32-96`
 - **Vulnerability:** Middleware order: TenantResolution -> ScimAuth. TenantResolution only sets tenant when `context.User.Identity?.IsAuthenticated == true`. SCIM requests use a custom Bearer token (not JWT), so the user is NOT authenticated at TenantResolution stage. TenantContext is empty when `ValidateTokenAsync` queries EF Core with tenant query filters, likely causing all SCIM tokens to fail validation.
 - **Recommended Fix:**
 
@@ -217,7 +217,7 @@ Risk Score = Likelihood (1-5) x Impact (1-5)
 #### NEW-API-2: SignalR Page Context Groups Not Tenant-Scoped
 
 - **Severity:** Medium | **Risk Score:** 9
-- **Affected File:** `src/Foundry.Api/Hubs/RealtimeHub.cs:67-85`
+- **Affected File:** `src/Wallow.Api/Hubs/RealtimeHub.cs:67-85`
 - **Vulnerability:** `UpdatePageContext` adds connections to group `$"page:{pageContext}"` without tenant prefix. Users from different tenants on the same page see each other's presence via `PageViewersUpdated` events.
 - **Recommended Fix:**
 
@@ -234,7 +234,7 @@ Risk Score = Likelihood (1-5) x Impact (1-5)
 #### NEW-API-3: SendToAllAsync Broadcasts Across All Tenants
 
 - **Severity:** Medium | **Risk Score:** 9
-- **Affected File:** `src/Foundry.Api/Services/SignalRRealtimeDispatcher.cs:45-58`
+- **Affected File:** `src/Wallow.Api/Services/SignalRRealtimeDispatcher.cs:45-58`
 - **Vulnerability:** `SendToAllAsync` uses `hubContext.Clients.All.SendAsync()`, broadcasting to every connected client across all tenants.
 - **Recommended Fix:**
 
@@ -257,7 +257,7 @@ Risk Score = Likelihood (1-5) x Impact (1-5)
 #### NEW-API-1: SignalR Hub Missing Auto-Join to Tenant Group on Connect
 
 - **Severity:** Medium | **Risk Score:** 9
-- **Affected File:** `src/Foundry.Api/Hubs/RealtimeHub.cs:16-31`
+- **Affected File:** `src/Wallow.Api/Hubs/RealtimeHub.cs:16-31`
 - **Vulnerability:** `OnConnectedAsync` broadcasts to `tenant:{tenantId}` group but never calls `Groups.AddToGroupAsync()`. Clients must manually call `JoinGroup`, creating a window of inconsistency and making tenant-scoped broadcasts non-functional.
 - **Recommended Fix:**
 
@@ -289,7 +289,7 @@ Risk Score = Likelihood (1-5) x Impact (1-5)
 #### B-3: Metering Decimal-to-Long Truncation
 
 - **Severity:** Medium | **Risk Score:** 9
-- **Affected File:** `src/Modules/Billing/Foundry.Billing.Infrastructure/Services/ValkeyMeteringService.cs:64`
+- **Affected File:** `src/Modules/Billing/Wallow.Billing.Infrastructure/Services/ValkeyMeteringService.cs:64`
 - **Vulnerability:** `db.StringIncrementAsync(key, (long)value)` truncates fractional values. A meter increment of 0.5 becomes 0.
 - **Recommended Fix:**
 
@@ -309,7 +309,7 @@ Risk Score = Likelihood (1-5) x Impact (1-5)
 #### NEW-IDENT-002: CreateUser Doesn't Add User to Tenant Organization
 
 - **Severity:** Medium | **Risk Score:** 9
-- **Affected File:** `src/Modules/Identity/Foundry.Identity.Api/Controllers/UsersController.cs:96-107`
+- **Affected File:** `src/Modules/Identity/Wallow.Identity.Api/Controllers/UsersController.cs:96-107`
 - **Vulnerability:** `CreateUser` creates a Keycloak user but doesn't associate them with the current tenant's organization. The user is "dangling" in the realm.
 - **Recommended Fix:**
 
@@ -338,7 +338,7 @@ Risk Score = Likelihood (1-5) x Impact (1-5)
 #### NEW-IDENT-007: API Key Scope-to-Permission Mapping Incomplete
 
 - **Severity:** Medium | **Risk Score:** 8
-- **Affected File:** `src/Modules/Identity/Foundry.Identity.Infrastructure/Authorization/PermissionExpansionMiddleware.cs:111-136`
+- **Affected File:** `src/Modules/Identity/Wallow.Identity.Infrastructure/Authorization/PermissionExpansionMiddleware.cs:111-136`
 - **Vulnerability:** `MapScopeToPermission` only maps 12 scopes out of 40+ possible permissions. API keys created with unmapped scopes silently grant no permissions.
 - **Recommended Fix:** Maintain a comprehensive mapping or use a naming convention that auto-maps.
 
@@ -366,7 +366,7 @@ Risk Score = Likelihood (1-5) x Impact (1-5)
 #### NEW-API-8: Plugin System Loads Assemblies Without Sandboxing
 
 - **Severity:** Medium | **Risk Score:** 8
-- **Affected File:** `src/Shared/Foundry.Shared.Infrastructure.Plugins/PluginLoader.cs:8-57`
+- **Affected File:** `src/Shared/Wallow.Shared.Infrastructure.Plugins/PluginLoader.cs:8-57`
 - **Vulnerability:** Plugins run with full host process permissions. A malicious plugin can access all tenant data, infrastructure credentials, and services.
 - **Recommended Fix:** Since .NET doesn't support AppDomain-based sandboxing post-.NET Core, implement defense-in-depth:
 
@@ -400,7 +400,7 @@ Risk Score = Likelihood (1-5) x Impact (1-5)
 
 - **Severity:** Medium | **Risk Score:** 8
 - **Affected File:** `docker/keycloak/realm-export.json:305-308`
-- **Vulnerability:** The `service-account-foundry-api` has `manage-realm` role, granting full realm administration. If API service account credentials are compromised, the attacker can modify the entire Keycloak realm.
+- **Vulnerability:** The `service-account-wallow-api` has `manage-realm` role, granting full realm administration. If API service account credentials are compromised, the attacker can modify the entire Keycloak realm.
 - **Recommended Fix:** Scope down to only required roles: `manage-users`, `view-users`, `manage-clients` (if needed). Remove `manage-realm`.
 
 - **Estimated Complexity:** Small
@@ -414,7 +414,7 @@ Risk Score = Likelihood (1-5) x Impact (1-5)
 #### CS-3: MarkConversationRead Missing Participant Check
 
 - **Severity:** Medium | **Risk Score:** 6
-- **Affected File:** `src/Modules/Communications/Foundry.Communications.Application/Messaging/Commands/MarkConversationRead/MarkConversationReadHandler.cs:12-30`
+- **Affected File:** `src/Modules/Communications/Wallow.Communications.Application/Messaging/Commands/MarkConversationRead/MarkConversationReadHandler.cs:12-30`
 - **Vulnerability:** Any authenticated user within a tenant can call `MarkReadBy` on any conversation without being a participant. While the domain method is a no-op for non-participants, it confirms conversation existence (IDOR).
 - **Recommended Fix:** Add participant validation before marking as read.
 - **Estimated Complexity:** Small
@@ -424,7 +424,7 @@ Risk Score = Likelihood (1-5) x Impact (1-5)
 #### CS-4: SendMessage Missing Controller-Level Participant Check
 
 - **Severity:** Medium | **Risk Score:** 6
-- **Affected File:** `src/Modules/Communications/Foundry.Communications.Api/Controllers/ConversationsController.cs:140-157`
+- **Affected File:** `src/Modules/Communications/Wallow.Communications.Api/Controllers/ConversationsController.cs:140-157`
 - **Vulnerability:** `SendMessage` does not call `IsParticipantAsync()` before dispatching the command, unlike `GetMessages` which does. The domain entity does enforce this, but exceptions may leak internal details.
 - **Recommended Fix:** Add `IsParticipantAsync` check in the controller, consistent with `GetMessages`.
 - **Estimated Complexity:** Small

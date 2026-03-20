@@ -1,6 +1,6 @@
 # Communications Channels
 
-> **HISTORICAL DOCUMENT** — This document describes the former Communications module architecture. The Communications module was subsequently split into three separate modules: **Notifications** (email, SMS, in-app notifications), **Messaging** (user-to-user conversations), and **Announcements** (tenant-wide broadcasts). All file paths in this document reference the old `Foundry.Communications.*` project structure which no longer exists. For current architecture, refer to the individual module CLAUDE.md files under `src/Modules/Notifications/`, `src/Modules/Messaging/`, and `src/Modules/Announcements/`.
+> **HISTORICAL DOCUMENT** — This document describes the former Communications module architecture. The Communications module was subsequently split into three separate modules: **Notifications** (email, SMS, in-app notifications), **Messaging** (user-to-user conversations), and **Announcements** (tenant-wide broadcasts). All file paths in this document reference the old `Wallow.Communications.*` project structure which no longer exists. For current architecture, refer to the individual module CLAUDE.md files under `src/Modules/Notifications/`, `src/Modules/Messaging/`, and `src/Modules/Announcements/`.
 
 The (former) Communications module organized delivery mechanisms into **channels**. Each channel had its own domain entities, preferences, and provider abstraction.
 
@@ -10,7 +10,7 @@ The (former) Communications module organized delivery mechanisms into **channels
 
 ### ChannelType enum
 
-Defined in `Foundry.Communications.Domain/Preferences/ChannelType.cs`:
+Defined in `Wallow.Communications.Domain/Preferences/ChannelType.cs`:
 
 ```csharp
 public enum ChannelType
@@ -27,7 +27,7 @@ public enum ChannelType
 
 ### NotificationTypes constants
 
-Defined in `Foundry.Communications.Domain/Preferences/NotificationTypes.cs`:
+Defined in `Wallow.Communications.Domain/Preferences/NotificationTypes.cs`:
 
 ```csharp
 public static class NotificationTypes
@@ -164,7 +164,7 @@ public interface IChannelPreferenceRepository
 Each channel lives under `Channels/{ChannelName}/` in both the Domain and Application layers:
 
 ```
-Foundry.Communications.Domain/
+Wallow.Communications.Domain/
   Channels/
     Email/
       Entities/        EmailMessage, EmailPreference
@@ -194,7 +194,7 @@ Foundry.Communications.Domain/
 ```
 
 ```
-Foundry.Communications.Application/
+Wallow.Communications.Application/
   Channels/
     Email/
       Commands/        SendEmail, UpdateEmailPreferences
@@ -229,7 +229,7 @@ Foundry.Communications.Application/
 ```
 
 ```
-Foundry.Communications.Infrastructure/
+Wallow.Communications.Infrastructure/
   Services/
     SmtpEmailProvider          IEmailProvider -> SMTP via MailKit
     EmailProviderAdapter       IEmailService -> delegates to IEmailProvider
@@ -455,7 +455,7 @@ Announcements feature              InApp channel
 
 ### Integration events in Shared.Contracts
 
-These events in `Foundry.Shared.Contracts/Communications/` enable cross-module communication:
+These events in `Wallow.Shared.Contracts/Communications/` enable cross-module communication:
 
 | Event | Direction | Purpose |
 |-------|-----------|---------|
@@ -554,4 +554,4 @@ The unified `ChannelPreference` model already has `ChannelType.Push` in the enum
 
 ### 8. Expose via API (optional)
 
-Add controllers in `Foundry.Communications.Api/Controllers/` for managing push subscriptions and preferences.
+Add controllers in `Wallow.Communications.Api/Controllers/` for managing push subscriptions and preferences.

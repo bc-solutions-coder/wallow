@@ -33,7 +33,7 @@ jobs:
         run: dotnet build --no-restore --configuration Release
 
       - name: Check code formatting
-        run: dotnet format Foundry.slnx --verify-no-changes --no-restore
+        run: dotnet format Wallow.slnx --verify-no-changes --no-restore
 
   unit-tests:
     needs: build
@@ -78,9 +78,9 @@ jobs:
       postgres:
         image: postgres:18-alpine
         env:
-          POSTGRES_USER: foundry
-          POSTGRES_PASSWORD: foundry
-          POSTGRES_DB: foundry_test
+          POSTGRES_USER: wallow
+          POSTGRES_PASSWORD: wallow
+          POSTGRES_DB: wallow_test
         ports:
           - 5432:5432
         options: >-
@@ -131,7 +131,7 @@ jobs:
       - name: Run integration tests
         run: dotnet test --no-build --configuration Release --filter "Category=Integration" --verbosity normal --blame-hang-timeout 5m --collect "XPlat Code Coverage" --settings tests/coverage.runsettings --results-directory ./TestResults
         env:
-          ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=foundry_test;Username=foundry;Password=foundry"
+          ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=wallow_test;Username=wallow;Password=wallow"
           RabbitMQ__Host: localhost
           Redis__ConnectionString: "localhost:6379"
 

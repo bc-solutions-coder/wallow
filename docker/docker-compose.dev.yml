@@ -11,7 +11,7 @@ services:
   # ============================================
   mailpit:
     image: axllent/mailpit:latest
-    container_name: ${COMPOSE_PROJECT_NAME:-foundry}-mailpit
+    container_name: ${COMPOSE_PROJECT_NAME:-wallow}-mailpit
     ports:
       - "127.0.0.1:1025:1025"   # SMTP
       - "127.0.0.1:8025:8025"   # Web UI
@@ -21,7 +21,7 @@ services:
       timeout: 5s
       retries: 3
     networks:
-      - foundry
+      - wallow
     restart: unless-stopped
 
   # ============================================

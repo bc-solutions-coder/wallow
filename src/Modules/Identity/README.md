@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Identity module owns authentication, authorization, multi-tenancy, and user/organization management for the Foundry platform. All authentication is delegated to **Keycloak** (external identity provider) - this module contains zero custom auth logic (no password hashing, no token generation, no login endpoints).
+The Identity module owns authentication, authorization, multi-tenancy, and user/organization management for the Wallow platform. All authentication is delegated to **Keycloak** (external identity provider) - this module contains zero custom auth logic (no password hashing, no token generation, no login endpoints).
 
 The module provides:
 
@@ -85,14 +85,14 @@ The following middleware executes in strict order:
 
 ```
 ┌────────────────────────────────────────────────────────────────────┐
-│ Api (Foundry.Identity.Api)                                         │
+│ Api (Wallow.Identity.Api)                                         │
 │ - Controllers, Request/Response contracts                          │
 │ - Module registration via AddIdentityModule()                      │
 └────────────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌────────────────────────────────────────────────────────────────────┐
-│ Application (Foundry.Identity.Application)                         │
+│ Application (Wallow.Identity.Application)                         │
 │ - Interfaces (IUserManagementService, ISsoService, IScimService)    │
 │ - DTOs (UserDto, OrganizationDto, SsoConfigurationDto)             │
 │ - Commands/Queries for Service Accounts                            │
@@ -100,7 +100,7 @@ The following middleware executes in strict order:
                               │
                               ▼
 ┌────────────────────────────────────────────────────────────────────┐
-│ Infrastructure (Foundry.Identity.Infrastructure)                   │
+│ Infrastructure (Wallow.Identity.Infrastructure)                   │
 │ - Keycloak service implementations                                 │
 │ - Authorization pipeline (HasPermissionAttribute, handlers)        │
 │ - Middleware (TenantResolution, PermissionExpansion)               │
@@ -110,7 +110,7 @@ The following middleware executes in strict order:
                               │
                               ▼
 ┌────────────────────────────────────────────────────────────────────┐
-│ Domain (Foundry.Identity.Domain)                                   │
+│ Domain (Wallow.Identity.Domain)                                   │
 │ - Entities: ApiScope, ServiceAccountMetadata, SsoConfiguration,   │
 │   ScimConfiguration, ScimSyncLog                                   │
 │ - Enums: PermissionType, SsoProtocol, SsoStatus, ServiceAccountStatus │
@@ -376,17 +376,17 @@ SCIM 2.0 endpoints use Bearer token authentication (not OAuth):
 ```json
 {
   "Keycloak": {
-    "realm": "foundry",
+    "realm": "wallow",
     "auth-server-url": "http://localhost:8080/",
     "ssl-required": "none",
-    "resource": "foundry-api",
+    "resource": "wallow-api",
     "verify-token-audience": true,
     "credentials": {
       "secret": "your-client-secret"
     }
   },
   "ConnectionStrings": {
-    "Identity": "Host=localhost;Database=foundry;Username=postgres;Password=postgres"
+    "Identity": "Host=localhost;Database=wallow;Username=postgres;Password=postgres"
   }
 }
 ```
@@ -394,12 +394,12 @@ SCIM 2.0 endpoints use Bearer token authentication (not OAuth):
 ### Keycloak Setup
 
 1. **Keycloak 26+** - Organizations feature required
-2. **Realm**: `foundry` with Organizations enabled
+2. **Realm**: `wallow` with Organizations enabled
 3. **Clients**:
-   - `foundry-api` (confidential) - API backend with service account
-   - `foundry-spa` (public) - Frontend SPA with PKCE
+   - `wallow-api` (confidential) - API backend with service account
+   - `wallow-spa` (public) - Frontend SPA with PKCE
 4. **Realm Roles**: `admin`, `manager`, `user`
-5. **Service Account**: `foundry-api` client needs `manage-users` and `manage-organizations` roles
+5. **Service Account**: `wallow-api` client needs `manage-users` and `manage-organizations` roles
 
 ## Dependencies on Other Modules
 
@@ -407,8 +407,8 @@ The Identity module depends only on shared infrastructure:
 
 | Dependency | Purpose |
 |------------|---------|
-| Foundry.Shared.Kernel | `ITenantContext`, `TenantId`, base entity types |
-| Foundry.Shared.Contracts | Integration event definitions |
+| Wallow.Shared.Kernel | `ITenantContext`, `TenantId`, base entity types |
+| Wallow.Shared.Contracts | Integration event definitions |
 
 ## Other Modules Depending on Identity
 
@@ -430,14 +430,14 @@ All modules depend on Identity's infrastructure:
 ```bash
 # Create a new migration
 dotnet ef migrations add MigrationName \
-    --project src/Modules/Identity/Foundry.Identity.Infrastructure \
-    --startup-project src/Foundry.Api \
+    --project src/Modules/Identity/Wallow.Identity.Infrastructure \
+    --startup-project src/Wallow.Api \
     --context IdentityDbContext
 
 # Apply migrations
 dotnet ef database update \
-    --project src/Modules/Identity/Foundry.Identity.Infrastructure \
-    --startup-project src/Foundry.Api \
+    --project src/Modules/Identity/Wallow.Identity.Infrastructure \
+    --startup-project src/Wallow.Api \
     --context IdentityDbContext
 ```
 

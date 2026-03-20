@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Wallow.Identity.Api</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Wallow.Identity.Application\Wallow.Identity.Application.csproj" />
+    <ProjectReference Include="..\..\..\Shared\Wallow.Shared.Api\Wallow.Shared.Api.csproj" />
+    <ProjectReference Include="..\Wallow.Identity.Infrastructure\Wallow.Identity.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

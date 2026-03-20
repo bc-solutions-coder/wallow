@@ -1,6 +1,6 @@
-# Foundry Deployment Strategies
+# Wallow Deployment Strategies
 
-This guide helps you scale Foundry as your workload grows. Start simple, measure everything, and scale only the components that become bottlenecks.
+This guide helps you scale Wallow as your workload grows. Start simple, measure everything, and scale only the components that become bottlenecks.
 
 ---
 
@@ -20,7 +20,7 @@ This guide helps you scale Foundry as your workload grows. Start simple, measure
 
 ### What Scaling Means for a Modular Monolith
 
-Foundry is a **modular monolith** — a single deployable unit composed of 5 autonomous modules (Identity, Billing, Communications, Storage, Configuration) that communicate via RabbitMQ events. This architecture provides:
+Wallow is a **modular monolith** — a single deployable unit composed of 5 autonomous modules (Identity, Billing, Communications, Storage, Configuration) that communicate via RabbitMQ events. This architecture provides:
 
 - **Simpler operations** than microservices (one deployment, one codebase)
 - **Clear module boundaries** that enable future extraction if needed
@@ -28,9 +28,9 @@ Foundry is a **modular monolith** — a single deployable unit composed of 5 aut
 
 Unlike microservices, you don't start with distributed complexity. Unlike a traditional monolith, module boundaries are enforced, making selective extraction possible later.
 
-### Why Foundry Scales Horizontally
+### Why Wallow Scales Horizontally
 
-Foundry is designed for horizontal scaling from day one:
+Wallow is designed for horizontal scaling from day one:
 
 | Component | Stateless? | Scalable? | Notes |
 |-----------|------------|-----------|-------|
@@ -53,7 +53,7 @@ Foundry is designed for horizontal scaling from day one:
                                  │                Single Server                │
                                  │                                             │
     Clients ────────────────────>│  ┌─────────────────────────────────────┐   │
-                                 │  │            Foundry API              │   │
+                                 │  │            Wallow API              │   │
                                  │  │  ┌─────────┐ ┌─────────┐ ┌───────┐  │   │
                                  │  │  │Identity │ │ Billing │ │ ...   │  │   │
                                  │  │  └─────────┘ └─────────┘ └───────┘  │   │
@@ -81,7 +81,7 @@ Foundry is designed for horizontal scaling from day one:
                     │                                   │                                   │
                     ▼                                   ▼                                   ▼
         ┌───────────────────────┐         ┌───────────────────────┐         ┌───────────────────────┐
-        │    Foundry API #1     │         │    Foundry API #2     │         │    Foundry API #N     │
+        │    Wallow API #1     │         │    Wallow API #2     │         │    Wallow API #N     │
         │  (All modules loaded) │         │  (All modules loaded) │         │  (All modules loaded) │
         └───────────┬───────────┘         └───────────┬───────────┘         └───────────┬───────────┘
                     │                                 │                                   │
@@ -328,7 +328,7 @@ Before scaling, establish baselines. After scaling, verify improvement.
 
 ### Observability Stack
 
-Foundry includes OpenTelemetry instrumentation. Metrics flow to Grafana:
+Wallow includes OpenTelemetry instrumentation. Metrics flow to Grafana:
 
 ```bash
 # Local development
@@ -461,4 +461,4 @@ Before scaling, verify you have:
 
 - [Deployment Guide](../DEPLOYMENT_GUIDE.md) - Initial deployment and CI/CD
 - [Developer Guide](../DEVELOPER_GUIDE.md) - Development workflows
-- [Foundry Architecture](../FOUNDRY.md) - System architecture overview
+- [Wallow Architecture](../WALLOW.md) - System architecture overview

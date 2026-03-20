@@ -6,10 +6,10 @@ Owns invoice lifecycle management, payment processing, and subscription manageme
 
 ## Layer Rules
 
-- **Domain** (`Foundry.Billing.Domain`): Aggregate roots (`Invoice` with `InvoiceLineItem` child entities, `Payment`, `Subscription`), value objects (`Money` with currency enforcement), strongly-typed IDs (`InvoiceId`, `InvoiceLineItemId`, `PaymentId`, `SubscriptionId`), enums (`InvoiceStatus`, `PaymentStatus`, `PaymentMethod`, `SubscriptionStatus`), domain events, and domain exceptions (`InvalidInvoiceException`, `InvalidPaymentException`, `InvalidSubscriptionStatusTransitionException`). Domain depends only on `Shared.Kernel`.
-- **Application** (`Foundry.Billing.Application`): CQRS commands (`CreateInvoice`, `AddLineItem`, `IssueInvoice`, `CancelInvoice`, `ProcessPayment`, `CreateSubscription`, `CancelSubscription`), queries (`GetInvoiceById`, `GetAllInvoices`, `GetInvoicesByUserId`, `GetPaymentById`, `GetPaymentsByInvoiceId`, `GetSubscriptionById`, `GetSubscriptionsByUserId`), Wolverine handlers, domain event handlers that bridge to integration events (`InvoiceCreatedDomainEventHandler`, `InvoicePaidDomainEventHandler`, `InvoiceOverdueDomainEventHandler`, `PaymentReceivedDomainEventHandler`), repository interfaces, mappings, and DTOs. Must not reference Infrastructure or Api.
-- **Infrastructure** (`Foundry.Billing.Infrastructure`): `BillingDbContext` (EF Core, `billing` schema), entity configurations, repository implementations (`InvoiceRepository`, `PaymentRepository`, `SubscriptionRepository`), `TenantSaveChangesInterceptor` integration. Auto-migrates on startup.
-- **Api** (`Foundry.Billing.Api`): Controllers (`InvoicesController`, `PaymentsController`, `SubscriptionsController`), request/response contracts. Extension methods `AddBillingModule` / `UseBillingModuleAsync` called from `Program.cs`.
+- **Domain** (`Wallow.Billing.Domain`): Aggregate roots (`Invoice` with `InvoiceLineItem` child entities, `Payment`, `Subscription`), value objects (`Money` with currency enforcement), strongly-typed IDs (`InvoiceId`, `InvoiceLineItemId`, `PaymentId`, `SubscriptionId`), enums (`InvoiceStatus`, `PaymentStatus`, `PaymentMethod`, `SubscriptionStatus`), domain events, and domain exceptions (`InvalidInvoiceException`, `InvalidPaymentException`, `InvalidSubscriptionStatusTransitionException`). Domain depends only on `Shared.Kernel`.
+- **Application** (`Wallow.Billing.Application`): CQRS commands (`CreateInvoice`, `AddLineItem`, `IssueInvoice`, `CancelInvoice`, `ProcessPayment`, `CreateSubscription`, `CancelSubscription`), queries (`GetInvoiceById`, `GetAllInvoices`, `GetInvoicesByUserId`, `GetPaymentById`, `GetPaymentsByInvoiceId`, `GetSubscriptionById`, `GetSubscriptionsByUserId`), Wolverine handlers, domain event handlers that bridge to integration events (`InvoiceCreatedDomainEventHandler`, `InvoicePaidDomainEventHandler`, `InvoiceOverdueDomainEventHandler`, `PaymentReceivedDomainEventHandler`), repository interfaces, mappings, and DTOs. Must not reference Infrastructure or Api.
+- **Infrastructure** (`Wallow.Billing.Infrastructure`): `BillingDbContext` (EF Core, `billing` schema), entity configurations, repository implementations (`InvoiceRepository`, `PaymentRepository`, `SubscriptionRepository`), `TenantSaveChangesInterceptor` integration. Auto-migrates on startup.
+- **Api** (`Wallow.Billing.Api`): Controllers (`InvoicesController`, `PaymentsController`, `SubscriptionsController`), request/response contracts. Extension methods `AddBillingModule` / `UseBillingModuleAsync` called from `Program.cs`.
 
 ## Key Patterns
 
@@ -21,8 +21,8 @@ Owns invoice lifecycle management, payment processing, and subscription manageme
 
 ## Dependencies
 
-- **Depends on**: `Foundry.Shared.Kernel` (base entities, value objects, multi-tenancy, Result pattern), `Foundry.Shared.Contracts` (publishes `Billing.Events.*`: `InvoiceCreatedEvent`, `PaymentReceivedEvent`, `InvoicePaidEvent`, `InvoiceOverdueEvent`).
-- **Depended on by**: `Foundry.Api` (registers module). Integration events published to `billing-events` RabbitMQ exchange, consumed by `billing-inbox` queue listeners.
+- **Depends on**: `Wallow.Shared.Kernel` (base entities, value objects, multi-tenancy, Result pattern), `Wallow.Shared.Contracts` (publishes `Billing.Events.*`: `InvoiceCreatedEvent`, `PaymentReceivedEvent`, `InvoicePaidEvent`, `InvoiceOverdueEvent`).
+- **Depended on by**: `Wallow.Api` (registers module). Integration events published to `billing-events` RabbitMQ exchange, consumed by `billing-inbox` queue listeners.
 
 ## Constraints
 

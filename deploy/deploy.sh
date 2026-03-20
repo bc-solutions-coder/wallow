@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# deploy.sh — Deploy the Foundry application
+# deploy.sh — Deploy the Wallow application
 # Called by CI/CD via SSH. Restarts only the app container;
 # infrastructure (postgres, rabbitmq) stays running.
 #
@@ -64,7 +64,7 @@ if [[ "$ENVIRONMENT" != "dev" && "$ENVIRONMENT" != "staging" && "$ENVIRONMENT" !
     exit 1
 fi
 
-DEPLOY_DIR="/opt/foundry/${ENVIRONMENT}"
+DEPLOY_DIR="/opt/wallow/${ENVIRONMENT}"
 
 if [[ ! -d "$DEPLOY_DIR" ]]; then
     log_error "Deploy directory does not exist: $DEPLOY_DIR"

@@ -1,0 +1,48 @@
+# Wallow Helm Chart - Production Environment Values
+
+replicaCount: 3
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  host: wallow.example.com
+  tls:
+    enabled: true
+    secretName: wallow-prod-tls
+
+resources:
+  requests:
+    memory: 512Mi
+    cpu: 1000m
+  limits:
+    memory: 1Gi
+    cpu: 2000m
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+persistence:
+  enabled: true
+  size: 50Gi
+
+config:
+  ASPNETCORE_ENVIRONMENT: Production
+
+# Subcharts disabled — production uses external managed services
+postgresql:
+  enabled: false
+
+rabbitmq:
+  enabled: false
+
+valkey:
+  enabled: false

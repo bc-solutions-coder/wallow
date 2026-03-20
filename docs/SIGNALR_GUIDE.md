@@ -1,10 +1,10 @@
 # SignalR Guide
 
-This guide covers real-time communication in Foundry using SignalR with Valkey/Redis backplane for scale-out scenarios.
+This guide covers real-time communication in Wallow using SignalR with Valkey/Redis backplane for scale-out scenarios.
 
 ## Overview
 
-Foundry uses SignalR to provide real-time, bidirectional communication between the server and connected clients. Common use cases include:
+Wallow uses SignalR to provide real-time, bidirectional communication between the server and connected clients. Common use cases include:
 
 - **Notifications**: Push notifications to users instantly when events occur
 - **Presence**: Track which users are online and what pages they are viewing
@@ -43,11 +43,11 @@ Client (Browser/Mobile)
 
 ## Hub Implementation
 
-Foundry uses a single centralized hub (`RealtimeHub`) that handles all real-time communication. Modules send messages through the `IRealtimeDispatcher` abstraction rather than implementing their own hubs.
+Wallow uses a single centralized hub (`RealtimeHub`) that handles all real-time communication. Modules send messages through the `IRealtimeDispatcher` abstraction rather than implementing their own hubs.
 
 ### The RealtimeHub
 
-Located at: `/Users/traveler/Repos/Foundry/src/Foundry.Api/Hubs/RealtimeHub.cs`
+Located at: `/Users/traveler/Repos/Wallow/src/Wallow.Api/Hubs/RealtimeHub.cs`
 
 ```csharp
 [Authorize]
@@ -188,7 +188,7 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
 builder.Services.AddSignalR()
     .AddStackExchangeRedis(options =>
     {
-        options.Configuration.ChannelPrefix = RedisChannel.Literal("Foundry");
+        options.Configuration.ChannelPrefix = RedisChannel.Literal("Wallow");
     });
 builder.Services.AddSingleton<IConfigureOptions<RedisOptions>>(sp =>
 {
@@ -230,7 +230,7 @@ host:port,password=secret,ssl=true,abortConnect=false,connectTimeout=5000
 
 ### Presence Service
 
-Foundry uses Redis to track user presence across server instances:
+Wallow uses Redis to track user presence across server instances:
 
 ```csharp
 public interface IPresenceService
@@ -664,16 +664,16 @@ public class SignalRRealtimeDispatcherTests
 
 ### Integration Testing with Real Connections
 
-Use `FoundryApiFactory` and the SignalR client:
+Use `WallowApiFactory` and the SignalR client:
 
 ```csharp
 public class RealtimeHubIntegrationTests : IAsyncLifetime
 {
-    private FoundryApiFactory _factory = null!;
+    private WallowApiFactory _factory = null!;
 
     public async Task InitializeAsync()
     {
-        _factory = new FoundryApiFactory();
+        _factory = new WallowApiFactory();
         await _factory.InitializeAsync();
         _ = _factory.Server;
     }
@@ -773,14 +773,14 @@ The `TestAuthHandler` parses these tokens and creates the appropriate claims pri
 
 ## Adding a New Hub
 
-While Foundry uses a single `RealtimeHub`, you may need to add specialized hubs for specific features. Follow this checklist:
+While Wallow uses a single `RealtimeHub`, you may need to add specialized hubs for specific features. Follow this checklist:
 
 ### Step-by-Step Checklist
 
 1. **Create the Hub Class**
 
    ```csharp
-   // src/Foundry.Api/Hubs/MyFeatureHub.cs
+   // src/Wallow.Api/Hubs/MyFeatureHub.cs
    [Authorize]
    public sealed class MyFeatureHub : Hub
    {

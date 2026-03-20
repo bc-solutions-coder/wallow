@@ -3,7 +3,7 @@
 # bootstrap.sh — One-time setup script for a fresh Ubuntu 22.04+ server
 #
 # Sets up Docker, deploy user, directory structure, environment files,
-# firewall rules, and starts infrastructure containers for Foundry.
+# firewall rules, and starts infrastructure containers for Wallow.
 #
 # Usage:
 #   sudo ./bootstrap.sh [--ssh-key "ssh-rsa AAAA..."]
@@ -72,7 +72,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-log "Starting Foundry server bootstrap..."
+log "Starting Wallow server bootstrap..."
 
 # ==============================================================================
 # 3. INSTALL DOCKER ENGINE + COMPOSE V2
@@ -165,13 +165,13 @@ create_deploy_user
 # 5. CREATE DIRECTORY STRUCTURE
 # ==============================================================================
 create_directories() {
-    log "Creating directory structure under /opt/foundry..."
+    log "Creating directory structure under /opt/wallow..."
 
     local dirs=(
-        /opt/foundry/dev
-        /opt/foundry/staging
-        /opt/foundry/prod
-        /opt/foundry/scripts
+        /opt/wallow/dev
+        /opt/wallow/staging
+        /opt/wallow/prod
+        /opt/wallow/scripts
     )
 
     for dir in "${dirs[@]}"; do
@@ -183,8 +183,8 @@ create_directories() {
         fi
     done
 
-    chown -R deploy:deploy /opt/foundry
-    ok "Ownership set to deploy:deploy on /opt/foundry"
+    chown -R deploy:deploy /opt/wallow
+    ok "Ownership set to deploy:deploy on /opt/wallow"
 }
 
 create_directories
@@ -199,27 +199,27 @@ copy_deploy_files() {
 
     # Copy docker-compose.base.yml + init-db.sql to each env directory
     for env in "${envs[@]}"; do
-        cp "$SCRIPT_DIR/docker-compose.base.yml" "/opt/foundry/$env/docker-compose.base.yml"
-        cp "$SCRIPT_DIR/init-db.sql" "/opt/foundry/$env/init-db.sql"
-        ok "Copied base compose + init-db.sql to /opt/foundry/$env/"
+        cp "$SCRIPT_DIR/docker-compose.base.yml" "/opt/wallow/$env/docker-compose.base.yml"
+        cp "$SCRIPT_DIR/init-db.sql" "/opt/wallow/$env/init-db.sql"
+        ok "Copied base compose + init-db.sql to /opt/wallow/$env/"
     done
 
     # Copy environment-specific compose files
-    cp "$SCRIPT_DIR/docker-compose.dev.yml"     "/opt/foundry/dev/docker-compose.dev.yml"
-    cp "$SCRIPT_DIR/docker-compose.staging.yml" "/opt/foundry/staging/docker-compose.staging.yml"
-    cp "$SCRIPT_DIR/docker-compose.prod.yml"    "/opt/foundry/prod/docker-compose.prod.yml"
+    cp "$SCRIPT_DIR/docker-compose.dev.yml"     "/opt/wallow/dev/docker-compose.dev.yml"
+    cp "$SCRIPT_DIR/docker-compose.staging.yml" "/opt/wallow/staging/docker-compose.staging.yml"
+    cp "$SCRIPT_DIR/docker-compose.prod.yml"    "/opt/wallow/prod/docker-compose.prod.yml"
     ok "Copied environment-specific compose files."
 
     # Copy deploy.sh to scripts (if it exists)
     if [[ -f "$SCRIPT_DIR/deploy.sh" ]]; then
-        cp "$SCRIPT_DIR/deploy.sh" "/opt/foundry/scripts/deploy.sh"
-        chmod +x "/opt/foundry/scripts/deploy.sh"
-        ok "Copied deploy.sh to /opt/foundry/scripts/"
+        cp "$SCRIPT_DIR/deploy.sh" "/opt/wallow/scripts/deploy.sh"
+        chmod +x "/opt/wallow/scripts/deploy.sh"
+        ok "Copied deploy.sh to /opt/wallow/scripts/"
     else
         skip "deploy.sh not found in $SCRIPT_DIR; skipping."
     fi
 
-    chown -R deploy:deploy /opt/foundry
+    chown -R deploy:deploy /opt/wallow
 }
 
 copy_deploy_files
@@ -232,7 +232,7 @@ generate_env_file() {
     local compose_project="$2"
     local aspnet_env="$3"
     local app_tag="$4"
-    local env_file="/opt/foundry/$env_name/.env"
+    local env_file="/opt/wallow/$env_name/.env"
 
     if [[ -f "$env_file" ]]; then
         skip ".env already exists at $env_file (not overwriting existing secrets)."
@@ -253,16 +253,16 @@ COMPOSE_PROJECT_NAME=${compose_project}
 ASPNETCORE_ENVIRONMENT=${aspnet_env}
 
 # App Image
-APP_IMAGE=ghcr.io/bc-solutions-coder/foundry
+APP_IMAGE=ghcr.io/bc-solutions-coder/wallow
 APP_TAG=${app_tag}
 
 # PostgreSQL
-POSTGRES_USER=foundry
+POSTGRES_USER=wallow
 POSTGRES_PASSWORD=${pg_pass}
-POSTGRES_DB=foundry
+POSTGRES_DB=wallow
 
 # RabbitMQ
-RABBITMQ_USER=foundry
+RABBITMQ_USER=wallow
 RABBITMQ_PASSWORD=${rmq_pass}
 EOF
 
@@ -274,9 +274,9 @@ EOF
 generate_env_files() {
     log "Generating .env files..."
 
-    generate_env_file "dev"     "foundry-dev"     "Development" "dev"
-    generate_env_file "staging" "foundry-staging" "Staging"     "staging"
-    generate_env_file "prod"    "foundry-prod"    "Production"  "latest"
+    generate_env_file "dev"     "wallow-dev"     "Development" "dev"
+    generate_env_file "staging" "wallow-staging" "Staging"     "staging"
+    generate_env_file "prod"    "wallow-prod"    "Production"  "latest"
 }
 
 generate_env_files
@@ -316,7 +316,7 @@ start_infrastructure() {
     local envs=(dev staging prod)
 
     for env in "${envs[@]}"; do
-        local env_dir="/opt/foundry/$env"
+        local env_dir="/opt/wallow/$env"
         local compose_base="$env_dir/docker-compose.base.yml"
         local compose_env="$env_dir/docker-compose.${env}.yml"
         local env_file="$env_dir/.env"
@@ -349,7 +349,7 @@ start_infrastructure() {
         all_healthy=true
         for env in "${envs[@]}"; do
             local project_name
-            project_name=$(grep '^COMPOSE_PROJECT_NAME=' "/opt/foundry/$env/.env" | cut -d= -f2)
+            project_name=$(grep '^COMPOSE_PROJECT_NAME=' "/opt/wallow/$env/.env" | cut -d= -f2)
 
             for svc in postgres rabbitmq; do
                 local container="${project_name}-${svc}"
@@ -385,11 +385,11 @@ start_infrastructure
 print_summary() {
     echo ""
     echo -e "${GREEN}============================================${NC}"
-    echo -e "${GREEN}  Foundry Bootstrap Complete${NC}"
+    echo -e "${GREEN}  Wallow Bootstrap Complete${NC}"
     echo -e "${GREEN}============================================${NC}"
     echo ""
     echo -e "${CYAN}Directory structure:${NC}"
-    echo "  /opt/foundry/"
+    echo "  /opt/wallow/"
     echo "  |-- dev/          (Development environment)"
     echo "  |   |-- docker-compose.base.yml"
     echo "  |   |-- docker-compose.dev.yml"
@@ -415,7 +415,7 @@ print_summary() {
     echo "  8082/tcp  Staging app"
     echo ""
     echo -e "${CYAN}Running infrastructure:${NC}"
-    docker ps --format "  {{.Names}}\t{{.Status}}" 2>/dev/null | grep -E "foundry-(dev|staging|prod)" || echo "  (check with: docker ps)"
+    docker ps --format "  {{.Names}}\t{{.Status}}" 2>/dev/null | grep -E "wallow-(dev|staging|prod)" || echo "  (check with: docker ps)"
     echo ""
     echo -e "${CYAN}Next steps:${NC}"
     echo "  1. Configure GitHub secrets for CI/CD:"

@@ -1,15 +1,15 @@
 # Fork Guide
 
-How to fork Foundry, configure modules, add new functionality, and stay in sync with upstream changes.
+How to fork Wallow, configure modules, add new functionality, and stay in sync with upstream changes.
 
 ---
 
 ## Overview
 
-Foundry is designed as a base platform that teams fork and extend. Each fork becomes an independent product while retaining the ability to pull improvements from the upstream Foundry repository.
+Wallow is designed as a base platform that teams fork and extend. Each fork becomes an independent product while retaining the ability to pull improvements from the upstream Wallow repository.
 
 ```
-foundry (upstream)          your-product (fork)
+wallow (upstream)          your-product (fork)
     |                            |
     |-- main <----- PR -------- feature-branches
     |                            |
@@ -45,24 +45,24 @@ cd YourProduct
 ### 2. Rename the solution file
 
 ```bash
-mv Foundry.slnx YourProduct.slnx
+mv Wallow.slnx YourProduct.slnx
 ```
 
 ### 3. Rename namespaces across the codebase
 
-Every `Foundry.*` namespace, project name, and assembly reference must become `YourProduct.*`.
+Every `Wallow.*` namespace, project name, and assembly reference must become `YourProduct.*`.
 
 **Rename directories and project files:**
 
 ```bash
 # Rename project directories (src and tests)
-find src tests -type d -name 'Foundry.*' | while read dir; do
-  mv "$dir" "$(echo "$dir" | sed 's/Foundry\./YourProduct./')"
+find src tests -type d -name 'Wallow.*' | while read dir; do
+  mv "$dir" "$(echo "$dir" | sed 's/Wallow\./YourProduct./')"
 done
 
 # Rename .csproj files
-find src tests -name 'Foundry.*.csproj' | while read f; do
-  mv "$f" "$(echo "$f" | sed 's/Foundry\./YourProduct./')"
+find src tests -name 'Wallow.*.csproj' | while read f; do
+  mv "$f" "$(echo "$f" | sed 's/Wallow\./YourProduct./')"
 done
 ```
 
@@ -72,13 +72,13 @@ done
 find . \( -name '*.sln' -o -name '*.csproj' -o -name '*.cs' -o -name '*.json' \
        -o -name 'Dockerfile' -o -name '*.yml' -o -name '*.yaml' \) \
   -not -path '*/bin/*' -not -path '*/obj/*' -not -path '*/.git/*' \
-  -exec sed -i '' 's/Foundry\./YourProduct./g' {} +
+  -exec sed -i '' 's/Wallow\./YourProduct./g' {} +
 
-# Catch standalone "Foundry" references (log messages, display names, etc.)
+# Catch standalone "Wallow" references (log messages, display names, etc.)
 # Review these manually — some may be intentional:
 find . \( -name '*.cs' -o -name '*.json' -o -name '*.yml' \) \
   -not -path '*/bin/*' -not -path '*/obj/*' -not -path '*/.git/*' \
-  -exec grep -l '"Foundry"' {} +
+  -exec grep -l '"Wallow"' {} +
 ```
 
 Alternatively, use your IDE's global Find and Replace. JetBrains Rider handles this well with **Edit > Find and Replace in Files**.
@@ -88,7 +88,7 @@ Alternatively, use your IDE's global Find and Replace. JetBrains Rider handles t
 Open `YourProduct.slnx` and verify all project paths point to the renamed `.csproj` files. The `sed` pass above should handle this, but confirm with:
 
 ```bash
-grep 'Foundry\.' YourProduct.slnx
+grep 'Wallow\.' YourProduct.slnx
 ```
 
 Should return nothing.
@@ -140,10 +140,10 @@ dotnet build YourProduct.slnx
 dotnet test
 ```
 
-Fix any remaining `Foundry` references the compiler surfaces. Also verify the Dockerfile:
+Fix any remaining `Wallow` references the compiler surfaces. Also verify the Dockerfile:
 
 ```bash
-grep -i foundry Dockerfile
+grep -i wallow Dockerfile
 ```
 
 Should return nothing.
@@ -152,7 +152,7 @@ Should return nothing.
 
 ## Configuring Modules
 
-Foundry ships with eight modules: Identity, Billing, Storage, Notifications, Messaging, Announcements, Inquiries, and Showcases. All modules are enabled by default and can be toggled via feature flags -- no source code changes required.
+Wallow ships with eight modules: Identity, Billing, Storage, Notifications, Messaging, Announcements, Inquiries, and Showcases. All modules are enabled by default and can be toggled via feature flags -- no source code changes required.
 
 ### Enabling and disabling modules
 
@@ -184,7 +184,7 @@ To disable a module, set its value to `false`:
 }
 ```
 
-This is wired in `FoundryModules.cs`, which uses `IFeatureManager` to check feature flags before registering each module:
+This is wired in `WallowModules.cs`, which uses `IFeatureManager` to check feature flags before registering each module:
 
 ```csharp
 IFeatureManager featureManager = services.BuildServiceProvider().GetRequiredService<IFeatureManager>();
@@ -299,14 +299,14 @@ The `IntegrationEvent` base record provides `EventId` and `OccurredAt` automatic
 
 ### 5. Register the module
 
-Add to `FoundryModules.cs`:
+Add to `WallowModules.cs`:
 
 ```csharp
 if (await featureManager.IsEnabledAsync("Modules.YourModule"))
     services.AddYourModuleModule(configuration);
 ```
 
-Add to initialization in `InitializeFoundryModulesAsync()`:
+Add to initialization in `InitializeWallowModulesAsync()`:
 
 ```csharp
 await app.InitializeYourModuleModuleAsync();
@@ -325,7 +325,7 @@ dotnet sln YourProduct.slnx add src/Modules/YourModule/YourProduct.YourModule.Ap
 
 Wolverine is configured with `UseConventionalRouting()` which automatically creates exchanges and queues based on message types. No manual routing configuration is needed.
 
-Handler discovery is also automatic -- Wolverine scans all assemblies whose names start with `YourProduct.` (after renaming from `Foundry`). Just create handlers following Wolverine conventions:
+Handler discovery is also automatic -- Wolverine scans all assemblies whose names start with `YourProduct.` (after renaming from `Wallow`). Just create handlers following Wolverine conventions:
 
 ```csharp
 public static class CreateSomethingHandler
@@ -478,7 +478,7 @@ public class OrdersController : ControllerBase
 
 ### 2. Add permissions
 
-If your module needs new permissions, add string constants to `PermissionType` in `src/Shared/Foundry.Shared.Kernel/Identity/Authorization/PermissionType.cs` and update the role-to-permission mapping in the Identity module's `RolePermissionMapping.cs`.
+If your module needs new permissions, add string constants to `PermissionType` in `src/Shared/Wallow.Shared.Kernel/Identity/Authorization/PermissionType.cs` and update the role-to-permission mapping in the Identity module's `RolePermissionMapping.cs`.
 
 ### 3. Request/Response contracts
 
@@ -582,11 +582,11 @@ Migrations also run automatically at startup via `InitializeYourModuleModuleAsyn
 
 ## Adding Plugins and Extensions
 
-Foundry includes a plugin system for product-specific extensions that load dynamically without modifying core code. Plugins are the recommended way to add fork-specific functionality because they don't create merge conflicts when syncing upstream.
+Wallow includes a plugin system for product-specific extensions that load dynamically without modifying core code. Plugins are the recommended way to add fork-specific functionality because they don't create merge conflicts when syncing upstream.
 
 ### Plugin structure
 
-A plugin is a .NET class library that implements `IFoundryPlugin` and ships with a `plugin.json` manifest:
+A plugin is a .NET class library that implements `IWallowPlugin` and ships with a `plugin.json` manifest:
 
 ```
 plugins/
@@ -604,7 +604,7 @@ plugins/
   "version": "1.0.0",
   "description": "Product-specific extension",
   "author": "Your Team",
-  "minFoundryVersion": "0.2.0",
+  "minWallowVersion": "0.2.0",
   "entryAssembly": "YourPlugin.dll",
   "dependencies": [],
   "requiredPermissions": ["storage:read", "messaging:send"],
@@ -615,7 +615,7 @@ plugins/
 **Plugin entry point:**
 
 ```csharp
-public class YourPlugin : IFoundryPlugin
+public class YourPlugin : IWallowPlugin
 {
     public PluginManifest Manifest => // loaded from plugin.json
 
@@ -666,7 +666,7 @@ Plugins are loaded in an isolated `AssemblyLoadContext`, so they cannot interfer
 
 | Use case | Approach |
 |----------|----------|
-| Generic capability useful across products | Module in core Foundry |
+| Generic capability useful across products | Module in core Wallow |
 | Product-specific feature that only your fork needs | Plugin |
 | Feature you want to develop in your fork and later contribute upstream | Start as a plugin, then convert to a module when contributing |
 
@@ -734,7 +734,7 @@ public class OrdersControllerTests
 {
     private readonly HttpClient _client;
 
-    public OrdersControllerTests(FoundryApiFactory factory)
+    public OrdersControllerTests(WallowApiFactory factory)
     {
         _client = factory.CreateClient();
     }
@@ -771,7 +771,7 @@ dotnet test --filter "Category=Integration"
 ### Initial setup (one-time)
 
 ```bash
-git remote add upstream https://github.com/your-org/Foundry.git
+git remote add upstream https://github.com/your-org/Wallow.git
 git fetch upstream
 ```
 
@@ -785,10 +785,10 @@ git merge upstream/main
 
 ### Resolving conflicts
 
-Conflicts typically occur in files where you renamed `Foundry` to `YourProduct`. The recommended workflow:
+Conflicts typically occur in files where you renamed `Wallow` to `YourProduct`. The recommended workflow:
 
 1. Accept the upstream version of the conflicted file
-2. Re-apply the `Foundry -> YourProduct` replacement on that file
+2. Re-apply the `Wallow -> YourProduct` replacement on that file
 3. Review the diff to confirm the upstream logic change was preserved
 
 For large upstream merges, consider cherry-picking specific commits:
@@ -803,7 +803,7 @@ git cherry-pick <commit-hash>
 - **Keep product-specific logic in plugins or your own modules** -- not in core projects.
 - **Merge upstream regularly** -- small, frequent merges are easier than large catch-up merges.
 - **Prefer extending over modifying** -- when adding features to existing modules, add new files rather than editing existing ones where possible.
-- **Track upstream-intended commits** -- prefix commits meant for contribution with `[foundry]` in the commit message for easy identification.
+- **Track upstream-intended commits** -- prefix commits meant for contribution with `[wallow]` in the commit message for easy identification.
 
 ### Recommended sync cadence
 
@@ -832,7 +832,7 @@ git checkout -b feat/my-feature upstream/main
 git push origin feat/my-feature
 ```
 
-4. **Open a PR against the upstream repository** following Foundry's commit conventions (`feat:`, `fix:`, etc.).
+4. **Open a PR against the upstream repository** following Wallow's commit conventions (`feat:`, `fix:`, etc.).
 5. **After the PR is merged**, sync upstream into your fork to replace your fork-specific version with the upstream one:
 
 ```bash
@@ -855,7 +855,7 @@ git push origin main
 ## Checklist
 
 - [ ] Fork created and cloned
-- [ ] All `Foundry.*` references renamed to `YourProduct.*`
+- [ ] All `Wallow.*` references renamed to `YourProduct.*`
 - [ ] Solution file renamed and project paths updated
 - [ ] Docker Compose configuration updated
 - [ ] Keycloak realm configuration updated

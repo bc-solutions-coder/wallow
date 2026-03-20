@@ -1,0 +1,64 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Wallow.Architecture.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="FluentAssertions" />
+    <PackageReference Include="NetArchTest.Rules" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+    <PackageReference Include="NSubstitute" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Reference Wallow.Api for WallowModules tests -->
+    <ProjectReference Include="..\..\src\Wallow.Api\Wallow.Api.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Reference all module assemblies for inspection -->
+    <ProjectReference Include="..\..\src\Modules\Identity\Wallow.Identity.Domain\Wallow.Identity.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Identity\Wallow.Identity.Application\Wallow.Identity.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Identity\Wallow.Identity.Infrastructure\Wallow.Identity.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Identity\Wallow.Identity.Api\Wallow.Identity.Api.csproj" />
+
+    <ProjectReference Include="..\..\src\Modules\Billing\Wallow.Billing.Domain\Wallow.Billing.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Billing\Wallow.Billing.Application\Wallow.Billing.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Billing\Wallow.Billing.Infrastructure\Wallow.Billing.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Billing\Wallow.Billing.Api\Wallow.Billing.Api.csproj" />
+
+    <ProjectReference Include="..\..\src\Modules\Notifications\Wallow.Notifications.Domain\Wallow.Notifications.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Notifications\Wallow.Notifications.Application\Wallow.Notifications.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Notifications\Wallow.Notifications.Infrastructure\Wallow.Notifications.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Notifications\Wallow.Notifications.Api\Wallow.Notifications.Api.csproj" />
+
+    <ProjectReference Include="..\..\src\Modules\Messaging\Wallow.Messaging.Domain\Wallow.Messaging.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Messaging\Wallow.Messaging.Application\Wallow.Messaging.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Messaging\Wallow.Messaging.Infrastructure\Wallow.Messaging.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Messaging\Wallow.Messaging.Api\Wallow.Messaging.Api.csproj" />
+
+    <ProjectReference Include="..\..\src\Modules\Announcements\Wallow.Announcements.Domain\Wallow.Announcements.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Announcements\Wallow.Announcements.Application\Wallow.Announcements.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Announcements\Wallow.Announcements.Infrastructure\Wallow.Announcements.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Announcements\Wallow.Announcements.Api\Wallow.Announcements.Api.csproj" />
+
+    <ProjectReference Include="..\..\src\Modules\Storage\Wallow.Storage.Domain\Wallow.Storage.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Storage\Wallow.Storage.Application\Wallow.Storage.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Storage\Wallow.Storage.Infrastructure\Wallow.Storage.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Storage\Wallow.Storage.Api\Wallow.Storage.Api.csproj" />
+
+
+    <ProjectReference Include="..\..\src\Shared\Wallow.Shared.Infrastructure\Wallow.Shared.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Shared\Wallow.Shared.Kernel\Wallow.Shared.Kernel.csproj" />
+    <ProjectReference Include="..\..\src\Shared\Wallow.Shared.Contracts\Wallow.Shared.Contracts.csproj" />
+  </ItemGroup>
+</Project>

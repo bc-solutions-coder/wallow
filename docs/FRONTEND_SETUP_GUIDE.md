@@ -1,11 +1,11 @@
-# Frontend Setup Guide — TanStack Start + Orval + Foundry API
+# Frontend Setup Guide — TanStack Start + Orval + Wallow API
 
-This guide walks through setting up a TanStack Start frontend project that consumes the Foundry .NET API via auto-generated TypeScript clients from the OpenAPI spec.
+This guide walks through setting up a TanStack Start frontend project that consumes the Wallow .NET API via auto-generated TypeScript clients from the OpenAPI spec.
 
 ## Architecture
 
 ```
-Browser  ──►  TanStack Start (BFF, port 3000)  ──►  Foundry.Api (port 5000)
+Browser  ──►  TanStack Start (BFF, port 3000)  ──►  Wallow.Api (port 5000)
                      │                                      │
                      ├─ Server functions (auth, aggregation) │
                      ├─ Generated API client (orval)         │
@@ -14,8 +14,8 @@ Browser  ──►  TanStack Start (BFF, port 3000)  ──►  Foundry.Api (por
 ```
 
 - **TanStack Start** acts as the BFF (Backend for Frontend) — server functions handle auth tokens, aggregate API calls, and keep secrets server-side
-- **Orval** generates typed TanStack Query hooks from the Foundry OpenAPI spec
-- The Foundry API serves its OpenAPI spec via Scalar at `http://localhost:5000/openapi/v1.json`
+- **Orval** generates typed TanStack Query hooks from the Wallow OpenAPI spec
+- The Wallow API serves its OpenAPI spec via Scalar at `http://localhost:5000/openapi/v1.json`
 
 ---
 
@@ -23,7 +23,7 @@ Browser  ──►  TanStack Start (BFF, port 3000)  ──►  Foundry.Api (por
 
 - Node.js 20+
 - pnpm (recommended) or npm
-- Foundry API running locally (`dotnet run --project src/Foundry.Api`)
+- Wallow API running locally (`dotnet run --project src/Wallow.Api`)
 
 ---
 
@@ -31,7 +31,7 @@ Browser  ──►  TanStack Start (BFF, port 3000)  ──►  Foundry.Api (por
 
 ```bash
 # From the repo root
-cd /path/to/Foundry
+cd /path/to/Wallow
 
 # Create the frontend project
 npx create-tsrouter-app@latest client --template file-router --add-ons tanstack-query,tailwind-css
@@ -73,9 +73,9 @@ Create `client/orval.config.ts`:
 import { defineConfig } from "orval";
 
 export default defineConfig({
-  foundry: {
+  wallow: {
     input: {
-      // Points to the Foundry API's OpenAPI spec served by Scalar
+      // Points to the Wallow API's OpenAPI spec served by Scalar
       // Use the local file path if you want to generate without the API running
       target: "http://localhost:5000/openapi/v1.json",
     },
@@ -119,7 +119,7 @@ export default defineConfig({
 Create `client/src/api/custom-fetch.ts`:
 
 ```ts
-// Base URL for the Foundry API
+// Base URL for the Wallow API
 const API_BASE_URL =
   import.meta.env.VITE_API_URL ?? "http://localhost:5000";
 
@@ -158,7 +158,7 @@ export const customFetch = async <T>({
   });
 
   if (!response.ok) {
-    // Foundry API returns RFC 7807 Problem Details on errors
+    // Wallow API returns RFC 7807 Problem Details on errors
     const problem = await response.json().catch(() => null);
     throw {
       status: response.status,
@@ -202,15 +202,15 @@ Update `client/package.json`:
 
 ## Step 6: Generate the API Client
 
-Make sure the Foundry API is running first:
+Make sure the Wallow API is running first:
 
 ```bash
 # Terminal 1 — start the API
-cd /path/to/Foundry
-dotnet run --project src/Foundry.Api
+cd /path/to/Wallow
+dotnet run --project src/Wallow.Api
 
 # Terminal 2 — generate the client
-cd /path/to/Foundry/client
+cd /path/to/Wallow/client
 pnpm generate-api
 ```
 
@@ -312,7 +312,7 @@ VITE_API_URL=https://api.yoursite.com
 
 ## Step 9: CORS
 
-The Foundry API already has CORS configured. Add your frontend's origin to `appsettings.Development.json`:
+The Wallow API already has CORS configured. Add your frontend's origin to `appsettings.Development.json`:
 
 ```json
 {
@@ -330,7 +330,7 @@ To generate the client in CI or without the API running, export the spec to a fi
 
 ```bash
 # From repo root, after building the API
-dotnet run --project src/Foundry.Api -- --urls "http://localhost:0" &
+dotnet run --project src/Wallow.Api -- --urls "http://localhost:0" &
 sleep 3
 curl -o client/openapi.json http://localhost:5000/openapi/v1.json
 kill %1
@@ -350,9 +350,9 @@ input: {
 ## Project Structure Summary
 
 ```
-Foundry/
+Wallow/
 ├── src/
-│   ├── Foundry.Api/                  # .NET API backend
+│   ├── Wallow.Api/                  # .NET API backend
 │   ├── Modules/                      # domain modules
 │   └── Shared/                       # shared contracts
 ├── client/                           # TanStack Start frontend (BFF)
@@ -387,7 +387,7 @@ This keeps tokens off the client. Libraries like `@auth/core` or `keycloak-js` c
 
 ## Regenerating After API Changes
 
-Whenever the Foundry API changes (new endpoints, modified DTOs), regenerate:
+Whenever the Wallow API changes (new endpoints, modified DTOs), regenerate:
 
 ```bash
 cd client
@@ -402,7 +402,7 @@ Orval diffs the spec and updates only what changed. Review the generated code fo
 
 | Problem | Solution |
 |---------|----------|
-| `orval` can't reach the API | Make sure `dotnet run --project src/Foundry.Api` is running |
+| `orval` can't reach the API | Make sure `dotnet run --project src/Wallow.Api` is running |
 | Spec URL 404 | Verify the spec is at `http://localhost:5000/openapi/v1.json` (not `/swagger/`) |
 | CORS errors in browser | Add `http://localhost:3000` to `Cors:AllowedOrigins` in `appsettings.Development.json` |
 | Generated types are `any` | Check that your .NET DTOs have proper XML docs or `[Required]` attributes |

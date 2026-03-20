@@ -1,6 +1,6 @@
 # Workflows Guide
 
-This guide covers the Elsa Workflows integration in Foundry, which provides a shared infrastructure capability for building automated workflows within modules.
+This guide covers the Elsa Workflows integration in Wallow, which provides a shared infrastructure capability for building automated workflows within modules.
 
 ---
 
@@ -8,10 +8,10 @@ This guide covers the Elsa Workflows integration in Foundry, which provides a sh
 
 ### What is Elsa Workflows?
 
-Foundry integrates [Elsa Workflows 3](https://elsa-workflows.github.io/elsa-core/), a .NET workflow engine. The integration lives in **Shared Infrastructure** (not a standalone module) and provides:
+Wallow integrates [Elsa Workflows 3](https://elsa-workflows.github.io/elsa-core/), a .NET workflow engine. The integration lives in **Shared Infrastructure** (not a standalone module) and provides:
 
 - **`WorkflowActivityBase`** - A base class for modules to define custom workflow activities with module-scoped logging
-- **`ElsaExtensions.AddFoundryWorkflows()`** - Centralized Elsa configuration with PostgreSQL persistence and auto-discovery of module activities
+- **`ElsaExtensions.AddWallowWorkflows()`** - Centralized Elsa configuration with PostgreSQL persistence and auto-discovery of module activities
 - **Module-owned activities** - Each module can define its own workflow activities by extending `WorkflowActivityBase`
 
 ### Architecture
@@ -19,7 +19,7 @@ Foundry integrates [Elsa Workflows 3](https://elsa-workflows.github.io/elsa-core
 Workflows are a **shared infrastructure capability**, not a separate module. The integration consists of:
 
 ```
-src/Shared/Foundry.Shared.Infrastructure/Workflows/
+src/Shared/Wallow.Shared.Infrastructure/Workflows/
     WorkflowActivityBase.cs     # Base class for module activities
     ElsaExtensions.cs           # Elsa DI registration and configuration
 ```
@@ -27,7 +27,7 @@ src/Shared/Foundry.Shared.Infrastructure/Workflows/
 Modules define their own activities in their Infrastructure layer:
 
 ```
-src/Modules/Billing/Foundry.Billing.Infrastructure/Workflows/
+src/Modules/Billing/Wallow.Billing.Infrastructure/Workflows/
     InvoiceCreatedTrigger.cs    # Example: Billing module activity
 ```
 
@@ -49,7 +49,7 @@ src/Modules/Billing/Foundry.Billing.Infrastructure/Workflows/
 The `WorkflowActivityBase` class wraps Elsa's `CodeActivity` with module-scoped logging and context:
 
 ```csharp
-// src/Shared/Foundry.Shared.Infrastructure/Workflows/WorkflowActivityBase.cs
+// src/Shared/Wallow.Shared.Infrastructure/Workflows/WorkflowActivityBase.cs
 public abstract class WorkflowActivityBase : CodeActivity
 {
     /// <summary>
@@ -88,9 +88,9 @@ public abstract class WorkflowActivityBase : CodeActivity
 Modules create workflow activities by extending `WorkflowActivityBase`:
 
 ```csharp
-// src/Modules/Billing/Foundry.Billing.Infrastructure/Workflows/InvoiceCreatedTrigger.cs
+// src/Modules/Billing/Wallow.Billing.Infrastructure/Workflows/InvoiceCreatedTrigger.cs
 using Elsa.Workflows;
-using Foundry.Shared.Infrastructure.Workflows;
+using Wallow.Shared.Infrastructure.Workflows;
 
 public class InvoiceCreatedTrigger : WorkflowActivityBase
 {
@@ -106,12 +106,12 @@ public class InvoiceCreatedTrigger : WorkflowActivityBase
 
 ### Auto-Discovery
 
-Activities extending `WorkflowActivityBase` are automatically discovered from all `Foundry.*` assemblies at startup. No manual registration is needed:
+Activities extending `WorkflowActivityBase` are automatically discovered from all `Wallow.*` assemblies at startup. No manual registration is needed:
 
 ```csharp
 // ElsaExtensions.cs - auto-discovers activities
 IEnumerable<Type> activityTypes = AppDomain.CurrentDomain.GetAssemblies()
-    .Where(a => a.GetName().Name?.StartsWith("Foundry.", StringComparison.Ordinal) == true)
+    .Where(a => a.GetName().Name?.StartsWith("Wallow.", StringComparison.Ordinal) == true)
     .SelectMany(a => a.GetExportedTypes())
     .Where(t => t is { IsAbstract: false, IsInterface: false }
         && t.IsAssignableTo(typeof(WorkflowActivityBase)));
@@ -125,11 +125,11 @@ management.AddActivities(activityTypes);
 
 ### Elsa Registration
 
-Elsa is configured via `AddFoundryWorkflows()` in Program.cs:
+Elsa is configured via `AddWallowWorkflows()` in Program.cs:
 
 ```csharp
-// src/Shared/Foundry.Shared.Infrastructure/Workflows/ElsaExtensions.cs
-public static IServiceCollection AddFoundryWorkflows(
+// src/Shared/Wallow.Shared.Infrastructure/Workflows/ElsaExtensions.cs
+public static IServiceCollection AddWallowWorkflows(
     this IServiceCollection services,
     IConfiguration configuration,
     IHostEnvironment environment)
@@ -168,7 +168,7 @@ public static IServiceCollection AddFoundryWorkflows(
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Host=localhost;Database=foundry;Username=postgres;Password=postgres"
+    "DefaultConnection": "Host=localhost;Database=wallow;Username=postgres;Password=postgres"
   },
   "Elsa": {
     "Identity": {
@@ -200,14 +200,14 @@ public static IServiceCollection AddFoundryWorkflows(
 
 To add a workflow activity from your module:
 
-1. **Add a reference** to `Foundry.Shared.Infrastructure` (if not already present)
+1. **Add a reference** to `Wallow.Shared.Infrastructure` (if not already present)
 
 2. **Create your activity** in `Infrastructure/Workflows/`:
 
 ```csharp
-// src/Modules/{Module}/Foundry.{Module}.Infrastructure/Workflows/MyActivity.cs
+// src/Modules/{Module}/Wallow.{Module}.Infrastructure/Workflows/MyActivity.cs
 using Elsa.Workflows;
-using Foundry.Shared.Infrastructure.Workflows;
+using Wallow.Shared.Infrastructure.Workflows;
 
 public class MyActivity : WorkflowActivityBase
 {

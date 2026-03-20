@@ -7,13 +7,13 @@ Modules are registered using standard .NET extension methods. Each module provid
 **Program.cs** calls into a central registry:
 ```csharp
 // Service registration
-FoundryModules.AddFoundryModules(builder.Services, builder.Configuration);
+WallowModules.AddWallowModules(builder.Services, builder.Configuration);
 
 // Wolverine with automatic handler discovery
 builder.Host.UseWolverine(opts =>
 {
     foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies()
-        .Where(a => a.GetName().Name?.StartsWith("Foundry.") == true))
+        .Where(a => a.GetName().Name?.StartsWith("Wallow.") == true))
     {
         opts.Discovery.IncludeAssembly(assembly);
     }
@@ -24,14 +24,14 @@ builder.Host.UseWolverine(opts =>
 });
 
 // Module initialization (runs migrations)
-await FoundryModules.InitializeFoundryModulesAsync(app);
+await WallowModules.InitializeWallowModulesAsync(app);
 ```
 
-**FoundryModules.cs** (`src/Foundry.Api/FoundryModules.cs`) explicitly lists all modules, gated by feature flags:
+**WallowModules.cs** (`src/Wallow.Api/WallowModules.cs`) explicitly lists all modules, gated by feature flags:
 ```csharp
-internal static class FoundryModules
+internal static class WallowModules
 {
-    public static IServiceCollection AddFoundryModules(
+    public static IServiceCollection AddWallowModules(
         this IServiceCollection services,
         IConfiguration configuration)
     {
@@ -64,11 +64,11 @@ internal static class FoundryModules
         if (featureManager.IsEnabledAsync("Modules.Showcases").GetAwaiter().GetResult())
             services.AddShowcasesModule(configuration);
 
-        services.AddFoundryPlugins(configuration);
+        services.AddWallowPlugins(configuration);
         return services;
     }
 
-    public static async Task InitializeFoundryModulesAsync(this WebApplication app)
+    public static async Task InitializeWallowModulesAsync(this WebApplication app)
     {
         IFeatureManager featureManager = app.Services.GetRequiredService<IFeatureManager>();
 
@@ -96,7 +96,7 @@ internal static class FoundryModules
         if (await featureManager.IsEnabledAsync("Modules.Showcases"))
             await app.InitializeShowcasesModuleAsync();
 
-        await app.InitializeFoundryPluginsAsync();
+        await app.InitializeWallowPluginsAsync();
     }
 }
 ```
@@ -104,15 +104,15 @@ internal static class FoundryModules
 ## Creating a New Module
 
 1. Create four projects:
-   - `Foundry.{Module}.Domain`
-   - `Foundry.{Module}.Application`
-   - `Foundry.{Module}.Infrastructure`
-   - `Foundry.{Module}.Api`
+   - `Wallow.{Module}.Domain`
+   - `Wallow.{Module}.Application`
+   - `Wallow.{Module}.Infrastructure`
+   - `Wallow.{Module}.Api`
 
 2. Create module extension methods in Infrastructure:
 
 ```csharp
-// src/Modules/{Module}/Foundry.{Module}.Infrastructure/Extensions/{Module}ModuleExtensions.cs
+// src/Modules/{Module}/Wallow.{Module}.Infrastructure/Extensions/{Module}ModuleExtensions.cs
 public static class {Module}ModuleExtensions
 {
     public static IServiceCollection Add{Module}Module(
@@ -135,15 +135,15 @@ public static class {Module}ModuleExtensions
 }
 ```
 
-3. Register the module in `src/Foundry.Api/FoundryModules.cs`:
+3. Register the module in `src/Wallow.Api/WallowModules.cs`:
 
 ```csharp
-using Foundry.{Module}.Infrastructure.Extensions;
+using Wallow.{Module}.Infrastructure.Extensions;
 
-// In AddFoundryModules():
+// In AddWallowModules():
 services.Add{Module}Module(configuration);
 
-// In InitializeFoundryModulesAsync():
+// In InitializeWallowModulesAsync():
 await app.Initialize{Module}ModuleAsync();
 ```
 
@@ -156,7 +156,7 @@ await app.Initialize{Module}ModuleAsync();
 
 ## Handler Discovery
 
-Wolverine automatically discovers handlers in all `Foundry.*` assemblies. No manual registration needed. Create handlers following Wolverine conventions:
+Wolverine automatically discovers handlers in all `Wallow.*` assemblies. No manual registration needed. Create handlers following Wolverine conventions:
 
 ```csharp
 public static class CreateInvoiceHandler
@@ -175,7 +175,7 @@ Wolverine's `UseConventionalRouting()` automatically creates queues and exchange
 
 ## SMS Channel Patterns
 
-The Notifications module provides a reusable SMS channel at `src/Modules/Notifications/Foundry.Notifications.Domain/Channels/Sms/`. Use this as the canonical reference when adding SMS capabilities.
+The Notifications module provides a reusable SMS channel at `src/Modules/Notifications/Wallow.Notifications.Domain/Channels/Sms/`. Use this as the canonical reference when adding SMS capabilities.
 
 **Domain layer** (`Domain/Channels/Sms/`):
 
@@ -217,7 +217,7 @@ await bus.PublishAsync(new SendSmsRequestedEvent
 
 ## Messaging Patterns
 
-The Messaging module provides user-to-user messaging at `src/Modules/Messaging/Foundry.Messaging.Domain/Messaging/`. This supports both direct (1:1) and group conversations with inbox threading.
+The Messaging module provides user-to-user messaging at `src/Modules/Messaging/Wallow.Messaging.Domain/Messaging/`. This supports both direct (1:1) and group conversations with inbox threading.
 
 **Domain layer** (`Domain/Messaging/`):
 

@@ -1,6 +1,6 @@
 # AsyncAPI Event Catalog
 
-Foundry auto-generates an [AsyncAPI 3.0](https://www.asyncapi.com/) event catalog from the codebase using reflection. The catalog is always up-to-date — no manual YAML or JSON files to maintain.
+Wallow auto-generates an [AsyncAPI 3.0](https://www.asyncapi.com/) event catalog from the codebase using reflection. The catalog is always up-to-date — no manual YAML or JSON files to maintain.
 
 ---
 
@@ -58,9 +58,9 @@ curl http://localhost:5000/asyncapi/v1.json | jq .
 
 ## How It Works
 
-The catalog is generated at startup by scanning all `Foundry.*` assemblies:
+The catalog is generated at startup by scanning all `Wallow.*` assemblies:
 
-1. **Event discovery** — `EventFlowDiscovery` finds all classes implementing `IIntegrationEvent` in `Foundry.Shared.Contracts` namespaces. The namespace determines the module (e.g., `Foundry.Shared.Contracts.Billing.Events` → Billing).
+1. **Event discovery** — `EventFlowDiscovery` finds all classes implementing `IIntegrationEvent` in `Wallow.Shared.Contracts` namespaces. The namespace determines the module (e.g., `Wallow.Shared.Contracts.Billing.Events` → Billing).
 
 2. **Consumer discovery** — Wolverine handler classes with `Handle`/`HandleAsync` methods accepting an `IIntegrationEvent` parameter are identified as consumers. The handler's assembly determines the consuming module.
 
@@ -74,21 +74,21 @@ Key source files:
 
 | File | Purpose |
 |------|---------|
-| `src/Foundry.Api/Extensions/AsyncApiEndpointExtensions.cs` | Endpoint registration (dev only) |
-| `src/Shared/Foundry.Shared.Infrastructure/AsyncApi/EventFlowDiscovery.cs` | Reflection-based event and consumer discovery |
-| `src/Shared/Foundry.Shared.Infrastructure/AsyncApi/AsyncApiDocumentGenerator.cs` | AsyncAPI 3.0 JSON document builder |
-| `src/Shared/Foundry.Shared.Infrastructure/AsyncApi/MermaidFlowGenerator.cs` | Mermaid diagram generator |
-| `src/Shared/Foundry.Shared.Infrastructure/AsyncApi/JsonSchemaGenerator.cs` | C# type to JSON Schema converter |
+| `src/Wallow.Api/Extensions/AsyncApiEndpointExtensions.cs` | Endpoint registration (dev only) |
+| `src/Shared/Wallow.Shared.Infrastructure/AsyncApi/EventFlowDiscovery.cs` | Reflection-based event and consumer discovery |
+| `src/Shared/Wallow.Shared.Infrastructure/AsyncApi/AsyncApiDocumentGenerator.cs` | AsyncAPI 3.0 JSON document builder |
+| `src/Shared/Wallow.Shared.Infrastructure/AsyncApi/MermaidFlowGenerator.cs` | Mermaid diagram generator |
+| `src/Shared/Wallow.Shared.Infrastructure/AsyncApi/JsonSchemaGenerator.cs` | C# type to JSON Schema converter |
 
 ---
 
 ## Adding New Events
 
-Nothing special is required. When you add a new integration event to `Foundry.Shared.Contracts` and a corresponding Wolverine handler, the catalog picks them up automatically on the next app restart.
+Nothing special is required. When you add a new integration event to `Wallow.Shared.Contracts` and a corresponding Wolverine handler, the catalog picks them up automatically on the next app restart.
 
 Follow the existing conventions to ensure clean discovery:
 
-- Place events in `Foundry.Shared.Contracts.{Module}.Events` namespace
+- Place events in `Wallow.Shared.Contracts.{Module}.Events` namespace
 - Inherit from `IntegrationEvent` (or implement `IIntegrationEvent`)
 - Use past-tense naming: `InvoicePaidEvent`, not `PayInvoiceEvent`
 - Use primitive types (`Guid`, `string`, `decimal`) — not domain value objects
@@ -103,13 +103,13 @@ See the [Messaging Guide](MESSAGING_GUIDE.md#8-integration-events) for full even
 The catalog is only available in the `Development` environment. Check that `ASPNETCORE_ENVIRONMENT=Development` is set (this is the default when using `dotnet run`).
 
 **An event is missing from the catalog**
-- Verify the event class is in a `Foundry.Shared.Contracts.*.Events` namespace
+- Verify the event class is in a `Wallow.Shared.Contracts.*.Events` namespace
 - Verify it implements `IIntegrationEvent` (or inherits `IntegrationEvent`)
 - Restart the API — discovery runs at startup, not at runtime
 
 **A consumer is missing**
 - Verify the handler follows Wolverine conventions (`Handle`/`HandleAsync` method)
-- Verify the handler is in a `Foundry.*` assembly (included in assembly scanning)
+- Verify the handler is in a `Wallow.*` assembly (included in assembly scanning)
 - Verify the handler class is `public`
 
 **Viewer shows a blank page**

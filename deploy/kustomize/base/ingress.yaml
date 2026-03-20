@@ -1,22 +1,22 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: foundry-ingress
+  name: wallow-ingress
   annotations:
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
 spec:
   tls:
     - hosts:
-        - foundry.example.com
-      secretName: foundry-tls
+        - wallow.example.com
+      secretName: wallow-tls
   rules:
-    - host: foundry.example.com
+    - host: wallow.example.com
       http:
         paths:
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: foundry
+                name: wallow
                 port:
                   number: 80

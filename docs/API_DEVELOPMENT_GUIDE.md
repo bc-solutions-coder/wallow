@@ -1,10 +1,10 @@
 # API Development Guide
 
-This guide covers how to build APIs in Foundry, from controller patterns to error handling.
+This guide covers how to build APIs in Wallow, from controller patterns to error handling.
 
 ## Overview
 
-Foundry APIs follow a consistent architecture:
+Wallow APIs follow a consistent architecture:
 
 ```
 HTTP Request
@@ -32,17 +32,17 @@ HTTP Response (JSON or ProblemDetails)
 ### Basic Controller Structure
 
 ```csharp
-using Foundry.Billing.Api.Contracts.Invoices;
-using Foundry.Billing.Api.Extensions;
-using Foundry.Billing.Application.Commands.CreateInvoice;
-using Foundry.Billing.Application.DTOs;
-using Foundry.Shared.Kernel.Results;
+using Wallow.Billing.Api.Contracts.Invoices;
+using Wallow.Billing.Api.Extensions;
+using Wallow.Billing.Application.Commands.CreateInvoice;
+using Wallow.Billing.Application.DTOs;
+using Wallow.Shared.Kernel.Results;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Wolverine;
 
-namespace Foundry.Billing.Api.Controllers;
+namespace Wallow.Billing.Api.Controllers;
 
 [ApiController]
 [Route("api/billing/invoices")]
@@ -193,7 +193,7 @@ public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
 
 Contracts live in the Api layer:
 ```
-src/Modules/{Module}/Foundry.{Module}.Api/
+src/Modules/{Module}/Wallow.{Module}.Api/
 ├── Contracts/
 │   ├── Requests/
 │   │   ├── CreateItemRequest.cs
@@ -219,7 +219,7 @@ Contracts/
 Use `record` types for immutable request contracts:
 
 ```csharp
-namespace Foundry.Billing.Api.Contracts.Invoices;
+namespace Wallow.Billing.Api.Contracts.Invoices;
 
 public sealed record CreateInvoiceRequest(
     string InvoiceNumber,
@@ -228,7 +228,7 @@ public sealed record CreateInvoiceRequest(
 ```
 
 ```csharp
-namespace Foundry.Billing.Api.Contracts.Invoices;
+namespace Wallow.Billing.Api.Contracts.Invoices;
 
 public sealed record CreateInvoiceRequest(
     string InvoiceNumber,
@@ -241,7 +241,7 @@ public sealed record CreateInvoiceRequest(
 For simple responses, return DTOs directly. For complex API-specific shapes, create response records:
 
 ```csharp
-namespace Foundry.Identity.Api.Contracts.Responses;
+namespace Wallow.Identity.Api.Contracts.Responses;
 
 public record CurrentUserResponse
 {
@@ -286,8 +286,8 @@ private static InvoiceResponse ToInvoiceResponse(InvoiceDto dto) => new(
 Commands are immutable records in the Application layer:
 
 ```csharp
-// src/Modules/Billing/Foundry.Billing.Application/Commands/CreateInvoice/CreateInvoiceCommand.cs
-namespace Foundry.Billing.Application.Commands.CreateInvoice;
+// src/Modules/Billing/Wallow.Billing.Application/Commands/CreateInvoice/CreateInvoiceCommand.cs
+namespace Wallow.Billing.Application.Commands.CreateInvoice;
 
 public sealed record CreateInvoiceCommand(
     Guid UserId,
@@ -302,8 +302,8 @@ public sealed record CreateInvoiceCommand(
 Handlers use primary constructor injection and return `Result<T>`:
 
 ```csharp
-// src/Modules/Billing/Foundry.Billing.Application/Commands/CreateInvoice/CreateInvoiceHandler.cs
-namespace Foundry.Billing.Application.Commands.CreateInvoice;
+// src/Modules/Billing/Wallow.Billing.Application/Commands/CreateInvoice/CreateInvoiceHandler.cs
+namespace Wallow.Billing.Application.Commands.CreateInvoice;
 
 public sealed class CreateInvoiceHandler(
     IInvoiceRepository invoiceRepository,
@@ -375,7 +375,7 @@ public async Task<IActionResult> Create(
 
 ### Result Types
 
-Foundry uses the Result pattern for expected failures instead of exceptions.
+Wallow uses the Result pattern for expected failures instead of exceptions.
 
 ```csharp
 // Non-generic for void operations
@@ -438,8 +438,8 @@ return Result.Failure<InvoiceDto>(
 Each module has a `ResultExtensions.cs` that maps Results to HTTP responses:
 
 ```csharp
-// src/Modules/Billing/Foundry.Billing.Api/Extensions/ResultExtensions.cs
-namespace Foundry.Billing.Api.Extensions;
+// src/Modules/Billing/Wallow.Billing.Api/Extensions/ResultExtensions.cs
+namespace Wallow.Billing.Api.Extensions;
 
 public static class ResultExtensions
 {
@@ -524,7 +524,7 @@ builder.Host.UseWolverine(opts =>
 Each module registers its validators:
 
 ```csharp
-// src/Modules/Billing/Foundry.Billing.Application/Extensions/ApplicationExtensions.cs
+// src/Modules/Billing/Wallow.Billing.Application/Extensions/ApplicationExtensions.cs
 public static class ApplicationExtensions
 {
     public static IServiceCollection AddBillingApplication(this IServiceCollection services)
@@ -540,7 +540,7 @@ public static class ApplicationExtensions
 Validators live alongside their commands:
 
 ```
-src/Modules/Billing/Foundry.Billing.Application/
+src/Modules/Billing/Wallow.Billing.Application/
 └── Commands/
     └── CreateInvoice/
         ├── CreateInvoiceCommand.cs
@@ -553,7 +553,7 @@ src/Modules/Billing/Foundry.Billing.Application/
 ```csharp
 using FluentValidation;
 
-namespace Foundry.Billing.Application.Commands.CreateInvoice;
+namespace Wallow.Billing.Application.Commands.CreateInvoice;
 
 public sealed class CreateInvoiceValidator : AbstractValidator<CreateInvoiceCommand>
 {
@@ -626,7 +626,7 @@ When validation fails, Wolverine returns a `400 Bad Request` with validation err
 Unexpected exceptions are caught by `GlobalExceptionHandler`:
 
 ```csharp
-// src/Foundry.Api/Middleware/GlobalExceptionHandler.cs
+// src/Wallow.Api/Middleware/GlobalExceptionHandler.cs
 public class GlobalExceptionHandler : IExceptionHandler
 {
     public async ValueTask<bool> TryHandleAsync(
@@ -704,8 +704,8 @@ public class UsersController : ControllerBase
 Use `[HasPermission]` for fine-grained access control:
 
 ```csharp
-using Foundry.Identity.Api.Authorization;
-using Foundry.Identity.Domain.Enums;
+using Wallow.Identity.Api.Authorization;
+using Wallow.Identity.Domain.Enums;
 
 [HttpGet]
 [HasPermission(PermissionType.UsersRead)]
@@ -798,22 +798,22 @@ public class StorageController : ControllerBase
 
 1. **Define the contract** (if needed)
    ```
-   src/Modules/{Module}/Foundry.{Module}.Api/Contracts/Requests/{Name}Request.cs
+   src/Modules/{Module}/Wallow.{Module}.Api/Contracts/Requests/{Name}Request.cs
    ```
 
 2. **Create the command/query**
    ```
-   src/Modules/{Module}/Foundry.{Module}.Application/Commands/{Name}/{Name}Command.cs
+   src/Modules/{Module}/Wallow.{Module}.Application/Commands/{Name}/{Name}Command.cs
    ```
 
 3. **Create the validator** (for commands)
    ```
-   src/Modules/{Module}/Foundry.{Module}.Application/Commands/{Name}/{Name}Validator.cs
+   src/Modules/{Module}/Wallow.{Module}.Application/Commands/{Name}/{Name}Validator.cs
    ```
 
 4. **Create the handler**
    ```
-   src/Modules/{Module}/Foundry.{Module}.Application/Commands/{Name}/{Name}Handler.cs
+   src/Modules/{Module}/Wallow.{Module}.Application/Commands/{Name}/{Name}Handler.cs
    ```
 
 5. **Add the endpoint to controller**
@@ -830,15 +830,15 @@ public class StorageController : ControllerBase
 
 **2. Command:**
 ```csharp
-// src/Modules/Billing/Foundry.Billing.Application/Commands/ArchiveInvoice/ArchiveInvoiceCommand.cs
-namespace Foundry.Billing.Application.Commands.ArchiveInvoice;
+// src/Modules/Billing/Wallow.Billing.Application/Commands/ArchiveInvoice/ArchiveInvoiceCommand.cs
+namespace Wallow.Billing.Application.Commands.ArchiveInvoice;
 
 public sealed record ArchiveInvoiceCommand(Guid InvoiceId, Guid ArchivedBy);
 ```
 
 **3. Validator:**
 ```csharp
-// src/Modules/Billing/Foundry.Billing.Application/Commands/ArchiveInvoice/ArchiveInvoiceValidator.cs
+// src/Modules/Billing/Wallow.Billing.Application/Commands/ArchiveInvoice/ArchiveInvoiceValidator.cs
 public sealed class ArchiveInvoiceValidator : AbstractValidator<ArchiveInvoiceCommand>
 {
     public ArchiveInvoiceValidator()
@@ -851,7 +851,7 @@ public sealed class ArchiveInvoiceValidator : AbstractValidator<ArchiveInvoiceCo
 
 **4. Handler:**
 ```csharp
-// src/Modules/Billing/Foundry.Billing.Application/Commands/ArchiveInvoice/ArchiveInvoiceHandler.cs
+// src/Modules/Billing/Wallow.Billing.Application/Commands/ArchiveInvoice/ArchiveInvoiceHandler.cs
 public sealed class ArchiveInvoiceHandler(IInvoiceRepository repo)
 {
     public async Task<Result> Handle(ArchiveInvoiceCommand command, CancellationToken ct)

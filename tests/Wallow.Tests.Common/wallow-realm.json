@@ -1,0 +1,124 @@
+{
+  "realm": "wallow",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "clients": [
+    {
+      "clientId": "wallow-api",
+      "name": "Wallow API",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "wallow-api-secret",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "attributes": {
+        "access.token.lifespan": "300"
+      },
+      "defaultClientScopes": [
+        "web-origins",
+        "profile",
+        "roles",
+        "email"
+      ],
+      "optionalClientScopes": []
+    },
+    {
+      "clientId": "test-service-account",
+      "name": "Test Service Account",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "test-service-secret",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "attributes": {
+        "access.token.lifespan": "300"
+      }
+    }
+  ],
+  "users": [
+    {
+      "username": "admin@wallow.dev",
+      "email": "admin@wallow.dev",
+      "firstName": "Admin",
+      "lastName": "User",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Admin123!",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["admin"],
+      "attributes": {
+        "tenant_id": ["550e8400-e29b-41d4-a716-446655440000"]
+      }
+    },
+    {
+      "username": "user@wallow.dev",
+      "email": "user@wallow.dev",
+      "firstName": "Test",
+      "lastName": "User",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "User123!",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["user"],
+      "attributes": {
+        "tenant_id": ["550e8400-e29b-41d4-a716-446655440000"]
+      }
+    }
+  ],
+  "roles": {
+    "realm": [
+      {
+        "name": "admin",
+        "description": "Administrator role"
+      },
+      {
+        "name": "user",
+        "description": "Standard user role"
+      }
+    ]
+  },
+  "clientScopes": [
+    {
+      "name": "invoices",
+      "description": "Invoice management scopes",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true"
+      }
+    },
+    {
+      "name": "payments",
+      "description": "Payment management scopes",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true"
+      }
+    }
+  ]
+}

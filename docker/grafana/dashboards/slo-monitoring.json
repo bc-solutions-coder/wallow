@@ -21,7 +21,7 @@
       }
     ]
   },
-  "description": "Foundry SLO monitoring — latency, availability, error budgets",
+  "description": "Wallow SLO monitoring — latency, availability, error budgets",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -1060,7 +1060,7 @@
   "revision": 1,
   "schemaVersion": 38,
   "tags": [
-    "foundry",
+    "wallow",
     "slo",
     "observability"
   ],
@@ -1084,8 +1084,8 @@
     ]
   },
   "timezone": "",
-  "title": "Foundry SLO Monitoring",
-  "uid": "foundry-slo-monitoring",
+  "title": "Wallow SLO Monitoring",
+  "uid": "wallow-slo-monitoring",
   "version": 1,
   "weekStart": ""
 }

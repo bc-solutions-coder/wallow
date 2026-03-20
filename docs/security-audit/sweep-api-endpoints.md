@@ -20,7 +20,7 @@ The codebase has a generally strong security posture: most endpoints enforce `[A
 
 #### C-1: Quota Admin Endpoints Missing Authorization Policy
 
-**File:** `src/Modules/Billing/Foundry.Billing.Api/Controllers/QuotasController.cs`, lines 48-89
+**File:** `src/Modules/Billing/Wallow.Billing.Api/Controllers/QuotasController.cs`, lines 48-89
 **Code:**
 ```csharp
 [HttpPut("admin/{tenantId:guid}")]
@@ -42,7 +42,7 @@ public async Task<IActionResult> RemoveOverride(...)
 
 #### C-2: MetersController Missing Permission Check
 
-**File:** `src/Modules/Billing/Foundry.Billing.Api/Controllers/MetersController.cs`, lines 31-39
+**File:** `src/Modules/Billing/Wallow.Billing.Api/Controllers/MetersController.cs`, lines 31-39
 **Code:**
 ```csharp
 [HttpGet]
@@ -62,7 +62,7 @@ public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
 
 #### H-1: AdminAnnouncementsController Missing [Authorize] Attribute
 
-**File:** `src/Modules/Communications/Foundry.Communications.Api/Controllers/AdminAnnouncementsController.cs`, lines 20-26
+**File:** `src/Modules/Communications/Wallow.Communications.Api/Controllers/AdminAnnouncementsController.cs`, lines 20-26
 **Code:**
 ```csharp
 [ApiController]
@@ -82,7 +82,7 @@ public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
 
 #### H-2: AdminChangelogController Missing [Authorize] Attribute
 
-**File:** `src/Modules/Communications/Foundry.Communications.Api/Controllers/AdminChangelogController.cs`, lines 18-22
+**File:** `src/Modules/Communications/Wallow.Communications.Api/Controllers/AdminChangelogController.cs`, lines 18-22
 **Code:**
 ```csharp
 [ApiController]
@@ -99,7 +99,7 @@ public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
 
 #### H-3: Announcements Dismiss Endpoint Missing Permission Check
 
-**File:** `src/Modules/Communications/Foundry.Communications.Api/Controllers/AnnouncementsController.cs`, lines 71-89
+**File:** `src/Modules/Communications/Wallow.Communications.Api/Controllers/AnnouncementsController.cs`, lines 71-89
 **Code:**
 ```csharp
 [HttpPost("{id:guid}/dismiss")]
@@ -118,7 +118,7 @@ public async Task<IActionResult> DismissAnnouncement(Guid id, CancellationToken 
 
 #### H-4: Health Check Endpoints Expose Infrastructure Details in Non-Production
 
-**File:** `src/Foundry.Api/Program.cs`, lines 421-452
+**File:** `src/Wallow.Api/Program.cs`, lines 421-452
 **Code:**
 ```csharp
 if (env.IsProduction())
@@ -153,7 +153,7 @@ object response = new
 
 #### M-1: SCIM Controller Uses [AllowAnonymous] Globally
 
-**File:** `src/Modules/Identity/Foundry.Identity.Api/Controllers/ScimController.cs`, line 20
+**File:** `src/Modules/Identity/Wallow.Identity.Api/Controllers/ScimController.cs`, line 20
 **Code:**
 ```csharp
 [AllowAnonymous] // SCIM uses Bearer token authentication via middleware (not OAuth)
@@ -169,7 +169,7 @@ object response = new
 
 #### M-2: SCIM Endpoints Not Rate Limited
 
-**File:** `src/Modules/Identity/Foundry.Identity.Api/Controllers/ScimController.cs`
+**File:** `src/Modules/Identity/Wallow.Identity.Api/Controllers/ScimController.cs`
 
 **Vulnerability:** SCIM endpoints handle user provisioning (create/update/delete) and group management but have **no rate limiting**. The global rate limiter applies (1000 requests/hour per IP), but SCIM operations are heavyweight (each creates/modifies users in Keycloak) and are typically called by enterprise IdPs doing bulk sync.
 
@@ -181,7 +181,7 @@ object response = new
 
 #### M-3: SCIM Error Responses Expose Exception Messages in Development
 
-**File:** `src/Modules/Identity/Foundry.Identity.Api/Controllers/ScimController.cs`, lines 99-108
+**File:** `src/Modules/Identity/Wallow.Identity.Api/Controllers/ScimController.cs`, lines 99-108
 **Code:**
 ```csharp
 catch (Exception ex)
@@ -224,7 +224,7 @@ catch (Exception ex)
 
 #### M-5: Feature Flags Bulk Evaluate Endpoint Bypasses API Versioning
 
-**File:** `src/Modules/Configuration/Foundry.Configuration.Api/Controllers/FeatureFlagsController.cs`, line 234
+**File:** `src/Modules/Configuration/Wallow.Configuration.Api/Controllers/FeatureFlagsController.cs`, line 234
 **Code:**
 ```csharp
 [HttpGet("/api/feature-flags/evaluate")]
@@ -244,7 +244,7 @@ public async Task<IActionResult> Evaluate(CancellationToken cancellationToken)
 
 #### M-6: Hangfire Dashboard Accessible Without Rate Limiting
 
-**File:** `src/Foundry.Api/Extensions/HangfireExtensions.cs`, lines 33-43, and `src/Foundry.Api/Middleware/HangfireDashboardAuthFilter.cs`
+**File:** `src/Wallow.Api/Extensions/HangfireExtensions.cs`, lines 33-43, and `src/Wallow.Api/Middleware/HangfireDashboardAuthFilter.cs`
 
 **Vulnerability:** In development, the Hangfire dashboard at `/hangfire` is accessible to anyone (the auth filter returns `true` in development). In production, it requires `Admin` role. However:
 1. The `/hangfire` path is not rate-limited and not behind the global rate limiter (it's a non-API path)
@@ -261,7 +261,7 @@ public async Task<IActionResult> Evaluate(CancellationToken cancellationToken)
 
 #### L-1: AuthController Error Responses May Enable User Enumeration
 
-**File:** `src/Modules/Identity/Foundry.Identity.Api/Controllers/AuthController.cs`, lines 66-76
+**File:** `src/Modules/Identity/Wallow.Identity.Api/Controllers/AuthController.cs`, lines 66-76
 **Code:**
 ```csharp
 if (!result.Success)
@@ -285,12 +285,12 @@ if (!result.Success)
 
 #### L-2: Root Info Endpoint Exposes Version Information
 
-**File:** `src/Foundry.Api/Program.cs`, lines 338-343
+**File:** `src/Wallow.Api/Program.cs`, lines 338-343
 **Code:**
 ```csharp
 app.MapGet("/", () => Results.Ok(new
 {
-    Name = "Foundry API",
+    Name = "Wallow API",
     Version = "1.0.0",
     Health = "/health"
 })).ExcludeFromDescription().AllowAnonymous();
@@ -306,7 +306,7 @@ app.MapGet("/", () => Results.Ok(new
 
 #### L-3: Server Header Not Explicitly Removed
 
-**File:** `src/Foundry.Api/Middleware/SecurityHeadersMiddleware.cs`
+**File:** `src/Wallow.Api/Middleware/SecurityHeadersMiddleware.cs`
 
 **Vulnerability:** The security headers middleware adds excellent protective headers (X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy, CSP, HSTS) but does **not remove the `Server` response header**. By default, Kestrel includes a `Server: Kestrel` header, which discloses the web server technology.
 

@@ -1,5 +1,5 @@
 name: Bug Report
-description: Report a bug in Foundry
+description: Report a bug in Wallow
 labels: ["bug"]
 body:
   - type: markdown
@@ -10,8 +10,8 @@ body:
   - type: input
     id: version
     attributes:
-      label: Foundry Version
-      description: Which version of Foundry are you using?
+      label: Wallow Version
+      description: Which version of Wallow are you using?
       placeholder: e.g. 0.2.1
     validations:
       required: true

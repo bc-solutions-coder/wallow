@@ -21,7 +21,7 @@
       }
     ]
   },
-  "description": "Foundry messaging infrastructure metrics (Wolverine + RabbitMQ)",
+  "description": "Wallow messaging infrastructure metrics (Wolverine + RabbitMQ)",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -741,7 +741,7 @@
   "revision": 1,
   "schemaVersion": 39,
   "tags": [
-    "foundry",
+    "wallow",
     "messaging"
   ],
   "templating": {
@@ -764,8 +764,8 @@
     ]
   },
   "timezone": "",
-  "title": "Foundry - Messaging",
-  "uid": "foundry-messaging",
+  "title": "Wallow - Messaging",
+  "uid": "wallow-messaging",
   "version": 1,
   "weekStart": ""
 }

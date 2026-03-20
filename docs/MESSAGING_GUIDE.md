@@ -1,6 +1,6 @@
-# Foundry Messaging Guide
+# Wallow Messaging Guide
 
-This guide covers the messaging infrastructure in Foundry, including Wolverine as the unified CQRS mediator and message bus, RabbitMQ for inter-module async messaging, and PostgreSQL durable outbox for reliability.
+This guide covers the messaging infrastructure in Wallow, including Wolverine as the unified CQRS mediator and message bus, RabbitMQ for inter-module async messaging, and PostgreSQL durable outbox for reliability.
 
 ## Table of Contents
 
@@ -19,7 +19,7 @@ This guide covers the messaging infrastructure in Foundry, including Wolverine a
 
 ## 1. Overview
 
-Foundry uses **Wolverine** as its unified messaging infrastructure, serving three primary roles:
+Wallow uses **Wolverine** as its unified messaging infrastructure, serving three primary roles:
 
 1. **CQRS Mediator** - Routes commands and queries to their handlers within the same process
 2. **Message Bus** - Publishes events asynchronously for cross-module communication
@@ -121,15 +121,15 @@ await bus.PublishAsync(new InvoiceCreatedEvent
 
 ### Handler Discovery by Convention
 
-Wolverine automatically discovers handlers in assemblies that start with `Foundry.`. No manual registration is required:
+Wolverine automatically discovers handlers in assemblies that start with `Wallow.`. No manual registration is required:
 
 ```csharp
 // Program.cs
 builder.Host.UseWolverine(opts =>
 {
-    // Discover handlers in all Foundry assemblies
+    // Discover handlers in all Wallow assemblies
     foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies()
-        .Where(a => a.GetName().Name?.StartsWith("Foundry.") == true))
+        .Where(a => a.GetName().Name?.StartsWith("Wallow.") == true))
     {
         opts.Discovery.IncludeAssembly(assembly);
     }
@@ -249,7 +249,7 @@ public sealed class CreateInvoiceHandler(
 Here is a complete handler example from the Communications module (in-app notifications channel):
 
 ```csharp
-// src/Modules/Communications/Foundry.Communications.Application/Channels/InApp/EventHandlers/UserRegisteredEventHandler.cs
+// src/Modules/Communications/Wallow.Communications.Application/Channels/InApp/EventHandlers/UserRegisteredEventHandler.cs
 public sealed partial class UserRegisteredEventHandler
 {
     public static async Task HandleAsync(
@@ -264,8 +264,8 @@ public sealed partial class UserRegisteredEventHandler
             "Handling UserRegisteredEvent for User {UserId}",
             integrationEvent.UserId);
 
-        var title = "Welcome to Foundry!";
-        var message = $"Hi {integrationEvent.FirstName}, welcome to Foundry!";
+        var title = "Welcome to Wallow!";
+        var message = $"Hi {integrationEvent.FirstName}, welcome to Wallow!";
 
         Notification notification = Notification.Create(
             tenantContext.TenantId,
@@ -404,7 +404,7 @@ if (transport.Equals("RabbitMq", StringComparison.OrdinalIgnoreCase))
     "Transport": "RabbitMq"
   },
   "ConnectionStrings": {
-    "DefaultConnection": "Host=localhost;Database=foundry;...",
+    "DefaultConnection": "Host=localhost;Database=wallow;...",
     "RabbitMq": "amqp://guest:guest@localhost:5672"
   }
 }
@@ -417,7 +417,7 @@ if (transport.Equals("RabbitMq", StringComparison.OrdinalIgnoreCase))
     "Transport": "InMemory"
   },
   "ConnectionStrings": {
-    "DefaultConnection": "Host=localhost;Database=foundry;..."
+    "DefaultConnection": "Host=localhost;Database=wallow;..."
   }
 }
 ```
@@ -502,10 +502,10 @@ Wolverine creates tables in the `wolverine` schema:
 
 ### Standard Retry Policies via ConfigureStandardErrorHandling
 
-Foundry configures standard error handling in `WolverineErrorHandlingExtensions`:
+Wallow configures standard error handling in `WolverineErrorHandlingExtensions`:
 
 ```csharp
-// src/Shared/Foundry.Shared.Kernel/Messaging/WolverineErrorHandlingExtensions.cs
+// src/Shared/Wallow.Shared.Kernel/Messaging/WolverineErrorHandlingExtensions.cs
 public static void ConfigureStandardErrorHandling(this WolverineOptions opts)
 {
     // Timeout exceptions - exponential backoff, then DLQ
@@ -568,11 +568,11 @@ public async Task<Result<InvoiceDto>> Handle(
 
 ### Defined in Shared.Contracts
 
-Integration events are the public contract for cross-module communication. They live in `Foundry.Shared.Contracts`:
+Integration events are the public contract for cross-module communication. They live in `Wallow.Shared.Contracts`:
 
 ```csharp
-// src/Shared/Foundry.Shared.Contracts/Billing/Events/InvoiceCreatedEvent.cs
-namespace Foundry.Shared.Contracts.Billing.Events;
+// src/Shared/Wallow.Shared.Contracts/Billing/Events/InvoiceCreatedEvent.cs
+namespace Wallow.Shared.Contracts.Billing.Events;
 
 /// <summary>
 /// Published when an invoice is created.
@@ -593,8 +593,8 @@ public sealed record InvoiceCreatedEvent : IntegrationEvent
 ### Base Types
 
 ```csharp
-// src/Shared/Foundry.Shared.Contracts/IIntegrationEvent.cs
-namespace Foundry.Shared.Contracts;
+// src/Shared/Wallow.Shared.Contracts/IIntegrationEvent.cs
+namespace Wallow.Shared.Contracts;
 
 /// <summary>
 /// Marker interface for integration events.
@@ -617,7 +617,7 @@ public abstract record IntegrationEvent : IIntegrationEvent
 
 ### Browsing All Events
 
-Foundry auto-generates an event catalog from the codebase. In development, visit `http://localhost:5000/asyncapi` to browse all integration events, their schemas, and which modules publish/consume them. See the [AsyncAPI Guide](ASYNCAPI_GUIDE.md) for details.
+Wallow auto-generates an event catalog from the codebase. In development, visit `http://localhost:5000/asyncapi` to browse all integration events, their schemas, and which modules publish/consume them. See the [AsyncAPI Guide](ASYNCAPI_GUIDE.md) for details.
 
 ### Past-Tense Naming
 
@@ -650,7 +650,7 @@ public required decimal Amount { get; init; }
 The common pattern is to bridge domain events to integration events:
 
 ```csharp
-// src/Modules/Billing/Foundry.Billing.Application/EventHandlers/InvoiceCreatedDomainEventHandler.cs
+// src/Modules/Billing/Wallow.Billing.Application/EventHandlers/InvoiceCreatedDomainEventHandler.cs
 public sealed class InvoiceCreatedDomainEventHandler
 {
     public static async Task HandleAsync(
@@ -714,7 +714,7 @@ if (transport.Equals("RabbitMq", StringComparison.OrdinalIgnoreCase))
     "Transport": "RabbitMq"
   },
   "ConnectionStrings": {
-    "DefaultConnection": "Host=localhost;Database=foundry;Username=postgres;Password=postgres",
+    "DefaultConnection": "Host=localhost;Database=wallow;Username=postgres;Password=postgres",
     "RabbitMq": "amqp://guest:guest@localhost:5672"
   }
 }
@@ -724,7 +724,7 @@ if (transport.Equals("RabbitMq", StringComparison.OrdinalIgnoreCase))
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Host=localhost;Database=foundry;Username=postgres;Password=postgres"
+    "DefaultConnection": "Host=localhost;Database=wallow;Username=postgres;Password=postgres"
   }
 }
 ```
@@ -739,7 +739,7 @@ if (transport.Equals("RabbitMq", StringComparison.OrdinalIgnoreCase))
     "Transport": "RabbitMq"
   },
   "ConnectionStrings": {
-    "DefaultConnection": "Host=db.example.com;Database=foundry;...",
+    "DefaultConnection": "Host=db.example.com;Database=wallow;...",
     "RabbitMq": "amqps://user:pass@rabbitmq.example.com:5671"
   }
 }

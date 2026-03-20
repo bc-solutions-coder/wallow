@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Storage module provides a unified file storage abstraction supporting multiple backends (local filesystem and S3-compatible services). It serves as the low-level infrastructure layer for file operations across the Foundry platform.
+The Storage module provides a unified file storage abstraction supporting multiple backends (local filesystem and S3-compatible services). It serves as the low-level infrastructure layer for file operations across the Wallow platform.
 
 **Key Responsibilities:**
 - Raw file I/O operations with pluggable storage backends
@@ -44,7 +44,7 @@ The module follows Clean Architecture with four layers:
 
 ```
 src/Modules/Storage/
-├── Foundry.Storage.Domain/
+├── Wallow.Storage.Domain/
 │   ├── Entities/
 │   │   ├── StorageBucket.cs
 │   │   └── StoredFile.cs
@@ -58,7 +58,7 @@ src/Modules/Storage/
 │   └── ValueObjects/
 │       └── RetentionPolicy.cs
 │
-├── Foundry.Storage.Application/
+├── Wallow.Storage.Application/
 │   ├── Commands/
 │   │   ├── CreateBucket/
 │   │   ├── DeleteBucket/
@@ -82,7 +82,7 @@ src/Modules/Storage/
 │   └── Mappings/
 │       └── StorageMappings.cs
 │
-├── Foundry.Storage.Infrastructure/
+├── Wallow.Storage.Infrastructure/
 │   ├── Configuration/
 │   │   └── StorageOptions.cs
 │   ├── Compliance/
@@ -99,7 +99,7 @@ src/Modules/Storage/
 │   └── Extensions/
 │       └── InfrastructureExtensions.cs
 │
-├── Foundry.Storage.Api/
+├── Wallow.Storage.Api/
 │   ├── Controllers/
 │   │   └── StorageController.cs
 │   ├── Contracts/
@@ -339,14 +339,14 @@ For production environments. Works with any S3-compatible service.
   "Storage": {
     "Provider": "Local",
     "Local": {
-      "BasePath": "/var/foundry/storage",
+      "BasePath": "/var/wallow/storage",
       "BaseUrl": "http://localhost:5000"
     },
     "S3": {
       "Endpoint": "http://garage:3900",
       "AccessKey": "YOUR_ACCESS_KEY",
       "SecretKey": "YOUR_SECRET_KEY",
-      "BucketName": "foundry-files",
+      "BucketName": "wallow-files",
       "UsePathStyle": true,
       "Region": "us-east-1"
     }
@@ -463,8 +463,8 @@ Returns: Count of deleted file records.
 
 ### Internal Dependencies
 
-- `Foundry.Shared.Kernel`: Base classes (Entity, ValueObject, Result, ITenantScoped)
-- `Foundry.Shared.Contracts`: Cross-module interfaces (IDataExporter, IDataEraser)
+- `Wallow.Shared.Kernel`: Base classes (Entity, ValueObject, Result, ITenantScoped)
+- `Wallow.Shared.Contracts`: Cross-module interfaces (IDataExporter, IDataEraser)
 
 ### External Dependencies
 
@@ -510,14 +510,14 @@ The registration handles:
 ```bash
 # Add a new migration
 dotnet ef migrations add MigrationName \
-    --project src/Modules/Storage/Foundry.Storage.Infrastructure \
-    --startup-project src/Foundry.Api \
+    --project src/Modules/Storage/Wallow.Storage.Infrastructure \
+    --startup-project src/Wallow.Api \
     --context StorageDbContext
 
 # Apply migrations
 dotnet ef database update \
-    --project src/Modules/Storage/Foundry.Storage.Infrastructure \
-    --startup-project src/Foundry.Api \
+    --project src/Modules/Storage/Wallow.Storage.Infrastructure \
+    --startup-project src/Wallow.Api \
     --context StorageDbContext
 ```
 

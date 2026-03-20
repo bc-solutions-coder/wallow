@@ -15,7 +15,7 @@
       }
     ]
   },
-  "description": "API usage metrics and performance monitoring for Foundry platform",
+  "description": "API usage metrics and performance monitoring for Wallow platform",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
@@ -885,7 +885,7 @@
   "schemaVersion": 38,
   "style": "dark",
   "tags": [
-    "foundry",
+    "wallow",
     "usage",
     "api",
     "prometheus"
@@ -956,8 +956,8 @@
     ]
   },
   "timezone": "browser",
-  "title": "Foundry - API Usage",
-  "uid": "foundry-usage",
+  "title": "Wallow - API Usage",
+  "uid": "wallow-usage",
   "version": 1,
   "weekStart": ""
 }

@@ -288,7 +288,7 @@
         "type": "tempo",
         "uid": "tempo"
       },
-      "description": "Recent traces per module using the foundry.module span attribute",
+      "description": "Recent traces per module using the wallow.module span attribute",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -338,7 +338,7 @@
           "filters": [
             {
               "id": "span-attr",
-              "tag": "foundry.module",
+              "tag": "wallow.module",
               "operator": "!=",
               "value": [""],
               "scope": "span"
@@ -354,7 +354,7 @@
   ],
   "refresh": "30s",
   "schemaVersion": 39,
-  "tags": ["foundry", "overview"],
+  "tags": ["wallow", "overview"],
   "templating": {
     "list": []
   },
@@ -364,8 +364,8 @@
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "Foundry - Module Overview",
-  "uid": "foundry-module-overview",
+  "title": "Wallow - Module Overview",
+  "uid": "wallow-module-overview",
   "version": 1,
   "weekStart": ""
 }

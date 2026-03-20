@@ -19,7 +19,7 @@
     {
       "vhost": "/",
       "name": "federate-events",
-      "pattern": "^foundry\\.events\\.",
+      "pattern": "^wallow\\.events\\.",
       "apply-to": "exchanges",
       "definition": {
         "federation-upstream-set": "all"
@@ -29,7 +29,7 @@
     {
       "vhost": "/",
       "name": "federate-queues",
-      "pattern": "^foundry\\.federated\\.",
+      "pattern": "^wallow\\.federated\\.",
       "apply-to": "queues",
       "definition": {
         "federation-upstream-set": "all"

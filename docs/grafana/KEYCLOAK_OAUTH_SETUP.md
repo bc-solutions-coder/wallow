@@ -25,19 +25,19 @@ This guide covers configuring Grafana to use Keycloak as an OAuth provider for s
 Before configuring Grafana with Keycloak OAuth, ensure you have:
 
 - **Grafana 10.x or later** (earlier versions have limited OAuth support)
-- **Keycloak 26.x or later** with the `foundry` realm configured
+- **Keycloak 26.x or later** with the `wallow` realm configured
 - **Network connectivity** between Grafana and Keycloak
 - **DNS/hostname** configured for both services (for production)
 
-### Foundry Infrastructure
+### Wallow Infrastructure
 
-If you're using Foundry's Docker Compose setup, Keycloak is already configured:
+If you're using Wallow's Docker Compose setup, Keycloak is already configured:
 
 | Service | Local URL | Description |
 |---------|-----------|-------------|
 | Keycloak | http://localhost:8080 | Identity provider |
 | Grafana | http://localhost:3000 | Dashboards and observability |
-| Realm | foundry | Pre-configured realm with Organizations enabled |
+| Realm | wallow | Pre-configured realm with Organizations enabled |
 
 ---
 
@@ -47,7 +47,7 @@ If you're using Foundry's Docker Compose setup, Keycloak is already configured:
 
 1. Navigate to http://localhost:8080 (or your Keycloak URL)
 2. Login with admin credentials (default: `admin` / `admin` for local development)
-3. Select the `foundry` realm from the dropdown
+3. Select the `wallow` realm from the dropdown
 
 ### Step 2: Create the Grafana Client
 
@@ -177,9 +177,9 @@ scopes = openid profile email
 
 # Keycloak OIDC endpoints
 # Replace auth.yourplatform.com with your Keycloak hostname
-auth_url = https://auth.yourplatform.com/realms/foundry/protocol/openid-connect/auth
-token_url = https://auth.yourplatform.com/realms/foundry/protocol/openid-connect/token
-api_url = https://auth.yourplatform.com/realms/foundry/protocol/openid-connect/userinfo
+auth_url = https://auth.yourplatform.com/realms/wallow/protocol/openid-connect/auth
+token_url = https://auth.yourplatform.com/realms/wallow/protocol/openid-connect/token
+api_url = https://auth.yourplatform.com/realms/wallow/protocol/openid-connect/userinfo
 
 # Role mapping using JMESPath expression
 # Maps Keycloak realm roles to Grafana roles
@@ -207,7 +207,7 @@ enabled = true
 header_name = X-JWT-Assertion
 email_claim = email
 username_claim = preferred_username
-jwk_set_url = https://auth.yourplatform.com/realms/foundry/protocol/openid-connect/certs
+jwk_set_url = https://auth.yourplatform.com/realms/wallow/protocol/openid-connect/certs
 
 # Role mapping from JWT claims
 role_attribute_path = contains(realm_access.roles[*], 'admin') && 'Admin' || contains(realm_access.roles[*], 'manager') && 'Editor' || 'Viewer'
@@ -260,9 +260,9 @@ allow_sign_up = true
 client_id = grafana
 client_secret = ${GRAFANA_OAUTH_SECRET}
 scopes = openid profile email
-auth_url = http://localhost:8080/realms/foundry/protocol/openid-connect/auth
-token_url = http://localhost:8080/realms/foundry/protocol/openid-connect/token
-api_url = http://localhost:8080/realms/foundry/protocol/openid-connect/userinfo
+auth_url = http://localhost:8080/realms/wallow/protocol/openid-connect/auth
+token_url = http://localhost:8080/realms/wallow/protocol/openid-connect/token
+api_url = http://localhost:8080/realms/wallow/protocol/openid-connect/userinfo
 role_attribute_path = contains(realm_access.roles[*], 'admin') && 'Admin' || 'Viewer'
 
 [auth.jwt]
@@ -270,7 +270,7 @@ enabled = true
 header_name = X-JWT-Assertion
 email_claim = email
 username_claim = preferred_username
-jwk_set_url = http://localhost:8080/realms/foundry/protocol/openid-connect/certs
+jwk_set_url = http://localhost:8080/realms/wallow/protocol/openid-connect/certs
 
 [security]
 allow_embedding = true
@@ -315,7 +315,7 @@ GF_SERVER_ROOT_URL=https://grafana.yourplatform.com
 
 # Keycloak URLs (adjust for your environment)
 KEYCLOAK_URL=https://auth.yourplatform.com
-KEYCLOAK_REALM=foundry
+KEYCLOAK_REALM=wallow
 
 # Derived OAuth URLs (used in grafana.ini or as env vars)
 GF_AUTH_GENERIC_OAUTH_AUTH_URL=${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/auth
@@ -543,7 +543,7 @@ Add Grafana with Keycloak OAuth to your `docker-compose.yml`:
 services:
   grafana:
     image: grafana/grafana:11.4.0
-    container_name: ${COMPOSE_PROJECT_NAME:-foundry}-grafana
+    container_name: ${COMPOSE_PROJECT_NAME:-wallow}-grafana
     environment:
       # Admin password (change in production)
       GF_SECURITY_ADMIN_PASSWORD: admin
@@ -558,9 +558,9 @@ services:
       GF_AUTH_GENERIC_OAUTH_CLIENT_ID: grafana
       GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET: ${GRAFANA_OAUTH_SECRET}
       GF_AUTH_GENERIC_OAUTH_SCOPES: openid profile email
-      GF_AUTH_GENERIC_OAUTH_AUTH_URL: http://keycloak:8080/realms/foundry/protocol/openid-connect/auth
-      GF_AUTH_GENERIC_OAUTH_TOKEN_URL: http://keycloak:8080/realms/foundry/protocol/openid-connect/token
-      GF_AUTH_GENERIC_OAUTH_API_URL: http://keycloak:8080/realms/foundry/protocol/openid-connect/userinfo
+      GF_AUTH_GENERIC_OAUTH_AUTH_URL: http://keycloak:8080/realms/wallow/protocol/openid-connect/auth
+      GF_AUTH_GENERIC_OAUTH_TOKEN_URL: http://keycloak:8080/realms/wallow/protocol/openid-connect/token
+      GF_AUTH_GENERIC_OAUTH_API_URL: http://keycloak:8080/realms/wallow/protocol/openid-connect/userinfo
       GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH: "contains(realm_access.roles[*], 'admin') && 'Admin' || 'Viewer'"
 
       # JWT configuration for embedding
@@ -568,7 +568,7 @@ services:
       GF_AUTH_JWT_HEADER_NAME: X-JWT-Assertion
       GF_AUTH_JWT_EMAIL_CLAIM: email
       GF_AUTH_JWT_USERNAME_CLAIM: preferred_username
-      GF_AUTH_JWT_JWK_SET_URL: http://keycloak:8080/realms/foundry/protocol/openid-connect/certs
+      GF_AUTH_JWT_JWK_SET_URL: http://keycloak:8080/realms/wallow/protocol/openid-connect/certs
 
       # Embedding configuration
       GF_SECURITY_ALLOW_EMBEDDING: "true"
@@ -590,7 +590,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - foundry
+      - wallow
     restart: unless-stopped
 
 volumes:
@@ -610,10 +610,10 @@ services:
       GF_SERVER_ROOT_URL: https://grafana.yourplatform.com
 
       # Production OAuth URLs
-      GF_AUTH_GENERIC_OAUTH_AUTH_URL: https://auth.yourplatform.com/realms/foundry/protocol/openid-connect/auth
-      GF_AUTH_GENERIC_OAUTH_TOKEN_URL: https://auth.yourplatform.com/realms/foundry/protocol/openid-connect/token
-      GF_AUTH_GENERIC_OAUTH_API_URL: https://auth.yourplatform.com/realms/foundry/protocol/openid-connect/userinfo
-      GF_AUTH_JWT_JWK_SET_URL: https://auth.yourplatform.com/realms/foundry/protocol/openid-connect/certs
+      GF_AUTH_GENERIC_OAUTH_AUTH_URL: https://auth.yourplatform.com/realms/wallow/protocol/openid-connect/auth
+      GF_AUTH_GENERIC_OAUTH_TOKEN_URL: https://auth.yourplatform.com/realms/wallow/protocol/openid-connect/token
+      GF_AUTH_GENERIC_OAUTH_API_URL: https://auth.yourplatform.com/realms/wallow/protocol/openid-connect/userinfo
+      GF_AUTH_JWT_JWK_SET_URL: https://auth.yourplatform.com/realms/wallow/protocol/openid-connect/certs
 
       # Production security
       GF_SECURITY_COOKIE_SECURE: "true"
@@ -634,7 +634,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: grafana-config
-  namespace: foundry
+  namespace: wallow
 data:
   grafana.ini: |
     [server]
@@ -646,9 +646,9 @@ data:
     allow_sign_up = true
     client_id = grafana
     scopes = openid profile email
-    auth_url = https://auth.yourplatform.com/realms/foundry/protocol/openid-connect/auth
-    token_url = https://auth.yourplatform.com/realms/foundry/protocol/openid-connect/token
-    api_url = https://auth.yourplatform.com/realms/foundry/protocol/openid-connect/userinfo
+    auth_url = https://auth.yourplatform.com/realms/wallow/protocol/openid-connect/auth
+    token_url = https://auth.yourplatform.com/realms/wallow/protocol/openid-connect/token
+    api_url = https://auth.yourplatform.com/realms/wallow/protocol/openid-connect/userinfo
     role_attribute_path = contains(realm_access.roles[*], 'admin') && 'Admin' || 'Viewer'
 
     [auth.jwt]
@@ -656,7 +656,7 @@ data:
     header_name = X-JWT-Assertion
     email_claim = email
     username_claim = preferred_username
-    jwk_set_url = https://auth.yourplatform.com/realms/foundry/protocol/openid-connect/certs
+    jwk_set_url = https://auth.yourplatform.com/realms/wallow/protocol/openid-connect/certs
 
     [security]
     allow_embedding = true
@@ -671,7 +671,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: grafana-secrets
-  namespace: foundry
+  namespace: wallow
 type: Opaque
 stringData:
   admin-password: "your-admin-password"
@@ -685,7 +685,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: grafana
-  namespace: foundry
+  namespace: wallow
 spec:
   replicas: 1
   selector:
@@ -746,7 +746,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: grafana
-  namespace: foundry
+  namespace: wallow
 spec:
   selector:
     app: grafana
@@ -758,7 +758,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: grafana
-  namespace: foundry
+  namespace: wallow
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
 spec:
@@ -798,13 +798,13 @@ spec:
 
 3. **Check Keycloak Logs:**
    ```bash
-   docker logs foundry-keycloak 2>&1 | grep -i error
+   docker logs wallow-keycloak 2>&1 | grep -i error
    ```
 
 4. **Test OAuth Endpoints:**
    ```bash
    # Test token endpoint directly
-   curl -X POST http://localhost:8080/realms/foundry/protocol/openid-connect/token \
+   curl -X POST http://localhost:8080/realms/wallow/protocol/openid-connect/token \
      -d "client_id=grafana" \
      -d "client_secret=YOUR_SECRET" \
      -d "grant_type=client_credentials"
@@ -835,7 +835,7 @@ spec:
 
 1. **Verify JWK Set URL is accessible from Grafana:**
    ```bash
-   docker exec foundry-grafana curl -s http://keycloak:8080/realms/foundry/protocol/openid-connect/certs
+   docker exec wallow-grafana curl -s http://keycloak:8080/realms/wallow/protocol/openid-connect/certs
    ```
 
 2. **Check JWT header is being passed:**
@@ -879,7 +879,7 @@ spec:
 1. **Debug role claims:** Add logging to see what roles are received:
    ```bash
    # Check Grafana logs for OAuth debug info
-   docker logs foundry-grafana 2>&1 | grep -i "oauth\|role"
+   docker logs wallow-grafana 2>&1 | grep -i "oauth\|role"
    ```
 
 2. **Test JMESPath expression:**
@@ -894,23 +894,23 @@ spec:
 
 ```bash
 # Check Grafana configuration
-docker exec foundry-grafana cat /etc/grafana/grafana.ini | grep -A 20 "auth.generic_oauth"
+docker exec wallow-grafana cat /etc/grafana/grafana.ini | grep -A 20 "auth.generic_oauth"
 
 # Check Grafana logs
-docker logs foundry-grafana --tail 100
+docker logs wallow-grafana --tail 100
 
 # Test Keycloak OIDC discovery
-curl http://localhost:8080/realms/foundry/.well-known/openid-configuration | jq .
+curl http://localhost:8080/realms/wallow/.well-known/openid-configuration | jq .
 
 # Verify Keycloak client exists
-docker exec foundry-keycloak /opt/keycloak/bin/kcadm.sh get clients -r foundry --fields clientId
+docker exec wallow-keycloak /opt/keycloak/bin/kcadm.sh get clients -r wallow --fields clientId
 
 # Check Grafana health
 curl http://localhost:3000/api/health
 
 # Test OAuth flow manually
 # 1. Get authorization URL
-open "http://localhost:8080/realms/foundry/protocol/openid-connect/auth?client_id=grafana&response_type=code&scope=openid%20profile%20email&redirect_uri=http://localhost:3000/login/generic_oauth"
+open "http://localhost:8080/realms/wallow/protocol/openid-connect/auth?client_id=grafana&response_type=code&scope=openid%20profile%20email&redirect_uri=http://localhost:3000/login/generic_oauth"
 ```
 
 ---
@@ -997,14 +997,14 @@ open "http://localhost:8080/realms/foundry/protocol/openid-connect/auth?client_i
 |---------|-------|------------|
 | Grafana | http://localhost:3000 | https://grafana.yourplatform.com |
 | Keycloak | http://localhost:8080 | https://auth.yourplatform.com |
-| OIDC Discovery | http://localhost:8080/realms/foundry/.well-known/openid-configuration | https://auth.yourplatform.com/realms/foundry/.well-known/openid-configuration |
-| JWKS | http://localhost:8080/realms/foundry/protocol/openid-connect/certs | https://auth.yourplatform.com/realms/foundry/protocol/openid-connect/certs |
+| OIDC Discovery | http://localhost:8080/realms/wallow/.well-known/openid-configuration | https://auth.yourplatform.com/realms/wallow/.well-known/openid-configuration |
+| JWKS | http://localhost:8080/realms/wallow/protocol/openid-connect/certs | https://auth.yourplatform.com/realms/wallow/protocol/openid-connect/certs |
 
 ### Key Configuration
 
 | Setting | Value |
 |---------|-------|
-| Keycloak Realm | `foundry` |
+| Keycloak Realm | `wallow` |
 | Grafana Client ID | `grafana` |
 | OAuth Scopes | `openid profile email` |
 | JWT Header | `X-JWT-Assertion` |
@@ -1020,5 +1020,5 @@ curl http://localhost:3000/api/login/generic_oauth/settings
 curl -H "X-JWT-Assertion: $TOKEN" http://localhost:3000/api/user
 
 # Get OIDC configuration
-curl http://localhost:8080/realms/foundry/.well-known/openid-configuration
+curl http://localhost:8080/realms/wallow/.well-known/openid-configuration
 ```

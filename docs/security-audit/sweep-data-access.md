@@ -24,14 +24,14 @@ The codebase demonstrates strong security fundamentals in database access. All D
 ### HIGH-1: Hardcoded Redis Password in appsettings.json (Committed to Source Control)
 
 **Severity:** HIGH
-**File:** `src/Foundry.Api/appsettings.json:15`
-**Also in:** `src/Foundry.Api/appsettings.Development.json:5`
+**File:** `src/Wallow.Api/appsettings.json:15`
+**Also in:** `src/Wallow.Api/appsettings.Development.json:5`
 
 ```json
-"Redis": "localhost:6379,password=FoundryValkey123!,abortConnect=false"
+"Redis": "localhost:6379,password=WallowValkey123!,abortConnect=false"
 ```
 
-**Issue:** The Redis/Valkey password `FoundryValkey123!` is hardcoded in `appsettings.json` (the base config, not environment-specific) and committed to source control. Unlike the PostgreSQL and RabbitMQ connection strings which use placeholder values (`SET_VIA_...` / `OVERRIDE_VIA_ENV_VAR`), the Redis connection string contains the actual password in the base config.
+**Issue:** The Redis/Valkey password `WallowValkey123!` is hardcoded in `appsettings.json` (the base config, not environment-specific) and committed to source control. Unlike the PostgreSQL and RabbitMQ connection strings which use placeholder values (`SET_VIA_...` / `OVERRIDE_VIA_ENV_VAR`), the Redis connection string contains the actual password in the base config.
 
 **Impact:** Anyone with repository access obtains the Valkey credential. If this password is reused in staging/production, it exposes the cache layer (which stores feature flag evaluations and session data).
 
@@ -45,13 +45,13 @@ The codebase demonstrates strong security fundamentals in database access. All D
 **File:** `docker/.env`
 
 ```
-POSTGRES_USER=foundry
-POSTGRES_PASSWORD=foundry
+POSTGRES_USER=wallow
+POSTGRES_PASSWORD=wallow
 RABBITMQ_USER=guest
 RABBITMQ_PASSWORD=guest
 KEYCLOAK_ADMIN=admin
 KEYCLOAK_ADMIN_PASSWORD=admin
-VALKEY_PASSWORD=FoundryValkey123!
+VALKEY_PASSWORD=WallowValkey123!
 GF_ADMIN_PASSWORD=admin
 ```
 
@@ -67,25 +67,25 @@ GF_ADMIN_PASSWORD=admin
 
 **Severity:** MEDIUM
 **Files:**
-- `src/Modules/Billing/Foundry.Billing.Infrastructure/Persistence/BillingDbContextFactory.cs:17`
-- `src/Modules/Configuration/Foundry.Configuration.Infrastructure/Persistence/ConfigurationDbContextFactory.cs:18-19`
-- `src/Modules/Storage/Foundry.Storage.Infrastructure/Persistence/StorageDbContextFactory.cs:16`
+- `src/Modules/Billing/Wallow.Billing.Infrastructure/Persistence/BillingDbContextFactory.cs:17`
+- `src/Modules/Configuration/Wallow.Configuration.Infrastructure/Persistence/ConfigurationDbContextFactory.cs:18-19`
+- `src/Modules/Storage/Wallow.Storage.Infrastructure/Persistence/StorageDbContextFactory.cs:16`
 
 ```csharp
 // BillingDbContextFactory.cs:17
-optionsBuilder.UseNpgsql("Host=localhost;Database=foundry;Username=postgres;Password=postgres");
+optionsBuilder.UseNpgsql("Host=localhost;Database=wallow;Username=postgres;Password=postgres");
 
 // ConfigurationDbContextFactory.cs:18-19
 optionsBuilder.UseNpgsql(
-    "Host=localhost;Database=foundry;Username=foundry;Password=foundry", ...);
+    "Host=localhost;Database=wallow;Username=wallow;Password=wallow", ...);
 
 // StorageDbContextFactory.cs:16
-optionsBuilder.UseNpgsql("Host=localhost;Database=foundry;Username=foundry;Password=foundry");
+optionsBuilder.UseNpgsql("Host=localhost;Database=wallow;Username=wallow;Password=wallow");
 ```
 
 **Issue:** Design-time migration factories contain hardcoded connection strings with credentials. These are only used by `dotnet ef migrations` tooling, but they are committed to source control.
 
-**Impact:** Low direct risk (design-time only), but contributes to credential sprawl in the codebase. Inconsistent credentials (`postgres/postgres` vs `foundry/foundry`) suggest copy-paste.
+**Impact:** Low direct risk (design-time only), but contributes to credential sprawl in the codebase. Inconsistent credentials (`postgres/postgres` vs `wallow/wallow`) suggest copy-paste.
 
 **Recommendation:** Read from environment variables with a fallback, or use a consistent placeholder.
 
@@ -95,11 +95,11 @@ optionsBuilder.UseNpgsql("Host=localhost;Database=foundry;Username=foundry;Passw
 
 **Severity:** MEDIUM
 **Files:**
-- `src/Modules/Billing/Foundry.Billing.Infrastructure/Services/InvoiceQueryService.cs`
-- `src/Modules/Billing/Foundry.Billing.Infrastructure/Services/RevenueReportService.cs`
-- `src/Modules/Billing/Foundry.Billing.Infrastructure/Services/InvoiceReportService.cs`
-- `src/Modules/Billing/Foundry.Billing.Infrastructure/Services/PaymentReportService.cs`
-- `src/Modules/Communications/Foundry.Communications.Infrastructure/Services/MessagingQueryService.cs`
+- `src/Modules/Billing/Wallow.Billing.Infrastructure/Services/InvoiceQueryService.cs`
+- `src/Modules/Billing/Wallow.Billing.Infrastructure/Services/RevenueReportService.cs`
+- `src/Modules/Billing/Wallow.Billing.Infrastructure/Services/InvoiceReportService.cs`
+- `src/Modules/Billing/Wallow.Billing.Infrastructure/Services/PaymentReportService.cs`
+- `src/Modules/Communications/Wallow.Communications.Infrastructure/Services/MessagingQueryService.cs`
 
 **Issue:** All Dapper queries bypass EF Core's `AuditInterceptor` and `TenantSaveChangesInterceptor`. While the Dapper queries are read-only (SELECT statements), there is no architectural guardrail preventing a future developer from adding write operations via Dapper that would skip tenant stamping and audit logging.
 
@@ -113,8 +113,8 @@ optionsBuilder.UseNpgsql("Host=localhost;Database=foundry;Username=foundry;Passw
 
 **Severity:** MEDIUM
 **Files:**
-- `src/Modules/Billing/Foundry.Billing.Infrastructure/Services/InvoiceReportService.cs:43`
-- `src/Modules/Billing/Foundry.Billing.Infrastructure/Services/PaymentReportService.cs:43`
+- `src/Modules/Billing/Wallow.Billing.Infrastructure/Services/InvoiceReportService.cs:43`
+- `src/Modules/Billing/Wallow.Billing.Infrastructure/Services/PaymentReportService.cs:43`
 
 ```csharp
 await using NpgsqlConnection connection = new NpgsqlConnection(_connectionString);
@@ -132,10 +132,10 @@ await using NpgsqlConnection connection = new NpgsqlConnection(_connectionString
 
 **Severity:** LOW
 **Files:**
-- `src/Modules/Billing/Foundry.Billing.Infrastructure/Persistence/Repositories/QuotaDefinitionRepository.cs:46`
-- `src/Modules/Billing/Foundry.Billing.Infrastructure/Persistence/MeteringDbSeeder.cs:69`
-- `src/Modules/Identity/Foundry.Identity.Infrastructure/Repositories/ServiceAccountRepository.cs:31`
-- `src/Shared/Foundry.Shared.Kernel/MultiTenancy/TenantQueryExtensions.cs:13` (the `AllTenants()` extension)
+- `src/Modules/Billing/Wallow.Billing.Infrastructure/Persistence/Repositories/QuotaDefinitionRepository.cs:46`
+- `src/Modules/Billing/Wallow.Billing.Infrastructure/Persistence/MeteringDbSeeder.cs:69`
+- `src/Modules/Identity/Wallow.Identity.Infrastructure/Repositories/ServiceAccountRepository.cs:31`
+- `src/Shared/Wallow.Shared.Kernel/MultiTenancy/TenantQueryExtensions.cs:13` (the `AllTenants()` extension)
 
 **Issue:** `IgnoreQueryFilters()` disables EF Core global query filters, including the tenant isolation filter. Each current usage has documented justification:
 - `QuotaDefinitionRepository`: Reads system-wide defaults (TenantId = Guid.Empty) -- correctly filters by system tenant.
@@ -152,8 +152,8 @@ await using NpgsqlConnection connection = new NpgsqlConnection(_connectionString
 
 **Severity:** LOW
 **Files:**
-- `src/Modules/Billing/Foundry.Billing.Infrastructure/Services/InvoiceQueryService.cs:34,53,71,89`
-- `src/Modules/Billing/Foundry.Billing.Infrastructure/Services/RevenueReportService.cs:44`
+- `src/Modules/Billing/Wallow.Billing.Infrastructure/Services/InvoiceQueryService.cs:34,53,71,89`
+- `src/Modules/Billing/Wallow.Billing.Infrastructure/Services/RevenueReportService.cs:44`
 
 ```csharp
 // InvoiceQueryService accepts CancellationToken but does not pass it to Dapper
@@ -176,7 +176,7 @@ public async Task<decimal> GetTotalRevenueAsync(DateTime from, DateTime to, Canc
 ### LOW-3: DomainException Messages Exposed in Non-Development Environments
 
 **Severity:** LOW
-**File:** `src/Foundry.Api/Middleware/GlobalExceptionHandler.cs:91-94`
+**File:** `src/Wallow.Api/Middleware/GlobalExceptionHandler.cs:91-94`
 
 ```csharp
 if (exception is DomainException domainException)
@@ -197,7 +197,7 @@ if (exception is DomainException domainException)
 ### LOW-4: Audit Trail Records Full Entity Values Including Potentially Sensitive Fields
 
 **Severity:** LOW
-**File:** `src/Shared/Foundry.Shared.Infrastructure.Core/Auditing/AuditInterceptor.cs:139-152`
+**File:** `src/Shared/Wallow.Shared.Infrastructure.Core/Auditing/AuditInterceptor.cs:139-152`
 
 ```csharp
 private static string SerializeValues(PropertyValues propertyValues)
@@ -225,10 +225,10 @@ private static string SerializeValues(PropertyValues propertyValues)
 ### LOW-5: SSL Disabled for PostgreSQL in Development
 
 **Severity:** LOW
-**File:** `src/Foundry.Api/appsettings.Development.json:3`
+**File:** `src/Wallow.Api/appsettings.Development.json:3`
 
 ```json
-"DefaultConnection": "Host=localhost;Port=5432;Database=foundry;Username=foundry;Password=foundry;SSL Mode=Disable"
+"DefaultConnection": "Host=localhost;Port=5432;Database=wallow;Username=wallow;Password=wallow;SSL Mode=Disable"
 ```
 
 **Issue:** SSL is explicitly disabled for the development PostgreSQL connection. While acceptable for local development, the base `appsettings.json` does include `SSL Mode=Require;Trust Server Certificate=false` which is good.
@@ -260,7 +260,7 @@ decimal result = await connection.QuerySingleAsync<decimal>(
 ### INFO-2: CustomFieldIndexManager Correctly Validates DDL Identifiers (Positive Finding)
 
 **Severity:** INFORMATIONAL (Positive)
-**File:** `src/Modules/Configuration/Foundry.Configuration.Infrastructure/Services/CustomFieldIndexManager.cs`
+**File:** `src/Modules/Configuration/Wallow.Configuration.Infrastructure/Services/CustomFieldIndexManager.cs`
 
 The `CustomFieldIndexManager` uses `ExecuteSqlRawAsync` with string interpolation for DDL statements (which cannot use parameterized identifiers). However, all identifier inputs are validated against a strict regex (`^[a-zA-Z_][a-zA-Z0-9_]{0,62}$`) before use, and the parameterized check query uses `NpgsqlParameter` correctly.
 
@@ -282,10 +282,10 @@ private static void ValidateIdentifier(string value, string parameterName)
 ### INFO-3: SSO Secrets Properly Encrypted at Rest (Positive Finding)
 
 **Severity:** INFORMATIONAL (Positive)
-**File:** `src/Modules/Identity/Foundry.Identity.Infrastructure/Persistence/IdentityDbContext.cs:35-36`
+**File:** `src/Modules/Identity/Wallow.Identity.Infrastructure/Persistence/IdentityDbContext.cs:35-36`
 
 ```csharp
-IDataProtector protector = _dataProtectionProvider.CreateProtector("Foundry.Identity.SsoSecrets");
+IDataProtector protector = _dataProtectionProvider.CreateProtector("Wallow.Identity.SsoSecrets");
 EncryptedStringConverter encryptedStringConverter = new(protector);
 ```
 

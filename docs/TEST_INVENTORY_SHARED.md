@@ -4,10 +4,10 @@
 
 | Project | Source Files | Test Files | Tests Passing | Coverage Estimate |
 |---------|-------------|------------|---------------|-------------------|
-| Foundry.Shared.Kernel | 33 | 25 | 287 | ~89.5% |
-| Foundry.Shared.Infrastructure | 23 | 28 | 329 | ~58.3% |
+| Wallow.Shared.Kernel | 33 | 25 | 287 | ~89.5% |
+| Wallow.Shared.Infrastructure | 23 | 28 | 329 | ~58.3% |
 
-## Foundry.Shared.Kernel
+## Wallow.Shared.Kernel
 
 ### Test Coverage Map
 
@@ -52,7 +52,7 @@
 | Plugins/PluginPermission.cs | Plugins/PluginModelTests.cs | Covered |
 | Plugins/PluginContext.cs | Plugins/PluginModelTests.cs | Covered |
 | Plugins/PluginLifecycleState.cs | Plugins/PluginModelTests.cs | Covered |
-| Plugins/IFoundryPlugin.cs | (interface only) | N/A |
+| Plugins/IWallowPlugin.cs | (interface only) | N/A |
 | Plugins/IPluginPermissionValidator.cs | (interface only) | N/A |
 | BackgroundJobs/IJobScheduler.cs | (interface only) | N/A |
 
@@ -67,7 +67,7 @@
 
 ---
 
-## Foundry.Shared.Infrastructure
+## Wallow.Shared.Infrastructure
 
 ### Test Coverage Map
 
@@ -127,10 +127,10 @@ All source files have corresponding test files. The 58.3% coverage is due to **i
 
 ```bash
 # Run Kernel tests (287 tests, ~364ms)
-dotnet test tests/Foundry.Shared.Kernel.Tests/
+dotnet test tests/Wallow.Shared.Kernel.Tests/
 
 # Run Infrastructure tests (329 tests, ~22s)
-dotnet test tests/Foundry.Shared.Infrastructure.Tests/
+dotnet test tests/Wallow.Shared.Infrastructure.Tests/
 ```
 
 All tests currently pass with 0 failures and 0 skipped.

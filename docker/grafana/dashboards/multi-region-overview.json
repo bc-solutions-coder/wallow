@@ -21,7 +21,7 @@
       }
     ]
   },
-  "description": "Foundry multi-region overview — per-region request rates, replication lag, cross-region latency, and tenant distribution",
+  "description": "Wallow multi-region overview — per-region request rates, replication lag, cross-region latency, and tenant distribution",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -221,7 +221,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "foundry_replication_lag_seconds{} by (region)",
+          "expr": "wallow_replication_lag_seconds{} by (region)",
           "legendFormat": "{{region}}",
           "range": true,
           "refId": "A"
@@ -325,7 +325,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.50, sum by (le, source_region, target_region) (rate(foundry_cross_region_latency_seconds_bucket[$__rate_interval]))) * 1000",
+          "expr": "histogram_quantile(0.50, sum by (le, source_region, target_region) (rate(wallow_cross_region_latency_seconds_bucket[$__rate_interval]))) * 1000",
           "legendFormat": "p50 {{source_region}} → {{target_region}}",
           "range": true,
           "refId": "p50"
@@ -336,7 +336,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99, sum by (le, source_region, target_region) (rate(foundry_cross_region_latency_seconds_bucket[$__rate_interval]))) * 1000",
+          "expr": "histogram_quantile(0.99, sum by (le, source_region, target_region) (rate(wallow_cross_region_latency_seconds_bucket[$__rate_interval]))) * 1000",
           "hide": false,
           "legendFormat": "p99 {{source_region}} → {{target_region}}",
           "range": true,
@@ -419,7 +419,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (region) (foundry_tenants_active_total)",
+          "expr": "sum by (region) (wallow_tenants_active_total)",
           "legendFormat": "{{region}}",
           "range": true,
           "refId": "A"
@@ -611,7 +611,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(foundry_tenants_active_total)",
+          "expr": "sum(wallow_tenants_active_total)",
           "legendFormat": "Total Tenants",
           "range": true,
           "refId": "A"
@@ -683,7 +683,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "max(foundry_replication_lag_seconds)",
+          "expr": "max(wallow_replication_lag_seconds)",
           "legendFormat": "Max Replication Lag",
           "range": true,
           "refId": "A"
@@ -697,7 +697,7 @@
   "revision": 1,
   "schemaVersion": 38,
   "tags": [
-    "foundry",
+    "wallow",
     "multi-region",
     "infrastructure"
   ],
@@ -721,8 +721,8 @@
     ]
   },
   "timezone": "",
-  "title": "Foundry Multi-Region Overview",
-  "uid": "foundry-multi-region",
+  "title": "Wallow Multi-Region Overview",
+  "uid": "wallow-multi-region",
   "version": 1,
   "weekStart": ""
 }

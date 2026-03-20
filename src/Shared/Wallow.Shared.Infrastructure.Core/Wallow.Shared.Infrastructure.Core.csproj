@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- TargetFramework, Nullable, etc. inherited from Directory.Build.props -->
+  <!-- Package versions managed in Directory.Packages.props -->
+
+  <PropertyGroup>
+    <RootNamespace>Wallow.Shared.Infrastructure.Core</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Wallow.Shared.Kernel\Wallow.Shared.Kernel.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Auditing -->
+    <PackageReference Include="Audit.EntityFramework.Core" />
+
+    <!-- EF Core + PostgreSQL -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+
+    <!-- CQRS & Messaging -->
+    <PackageReference Include="WolverineFx" />
+
+    <!-- Resilience -->
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" />
+
+    <!-- Logging -->
+    <PackageReference Include="Serilog.AspNetCore" />
+
+    <!-- HTML Sanitization -->
+    <PackageReference Include="HtmlSanitizer" />
+  </ItemGroup>
+
+</Project>

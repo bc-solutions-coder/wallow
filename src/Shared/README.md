@@ -2,14 +2,14 @@
 
 ## Overview
 
-Two foundational libraries providing the building blocks for all Foundry modules:
+Two foundational libraries providing the building blocks for all Wallow modules:
 
-- **Foundry.Shared.Kernel**: DDD base classes, multi-tenancy, Result pattern, Wolverine error handling
-- **Foundry.Shared.Contracts**: Cross-module communication contracts (integration events, real-time abstractions)
+- **Wallow.Shared.Kernel**: DDD base classes, multi-tenancy, Result pattern, Wolverine error handling
+- **Wallow.Shared.Contracts**: Cross-module communication contracts (integration events, real-time abstractions)
 
-These libraries are the backbone of Foundry's architecture, enabling consistent patterns across all modules while maintaining loose coupling and clear boundaries.
+These libraries are the backbone of Wallow's architecture, enabling consistent patterns across all modules while maintaining loose coupling and clear boundaries.
 
-## Foundry.Shared.Kernel
+## Wallow.Shared.Kernel
 
 The Kernel library provides domain-driven design primitives and cross-cutting concerns shared by all modules.
 
@@ -83,7 +83,7 @@ The Kernel library provides domain-driven design primitives and cross-cutting co
 - **FluentValidation**: Validation rules for value objects and entities
 - **Microsoft.EntityFrameworkCore**: Entity configurations and multi-tenancy interceptors
 
-## Foundry.Shared.Contracts
+## Wallow.Shared.Contracts
 
 The Contracts library defines cross-module communication contracts and abstractions without any external dependencies.
 
