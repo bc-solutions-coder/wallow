@@ -28,10 +28,12 @@ public sealed class SubscriptionRepository(BillingDbContext context) : ISubscrip
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyList<Subscription>> GetAllAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<Subscription>> GetAllAsync(int skip = 0, int take = 50, CancellationToken cancellationToken = default)
     {
         return await context.Subscriptions
             .OrderByDescending(s => s.CreatedAt)
+            .Skip(skip)
+            .Take(take)
             .ToListAsync(cancellationToken);
     }
 
@@ -42,6 +44,11 @@ public sealed class SubscriptionRepository(BillingDbContext context) : ISubscrip
             .Where(s => s.UserId == userId && s.Status == SubscriptionStatus.Active)
             .OrderByDescending(s => s.StartDate)
             .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public Task<int> CountAllAsync(CancellationToken cancellationToken = default)
+    {
+        return context.Subscriptions.CountAsync(cancellationToken);
     }
 
     public void Add(Subscription subscription)

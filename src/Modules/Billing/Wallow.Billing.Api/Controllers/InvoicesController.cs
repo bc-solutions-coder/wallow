@@ -10,6 +10,7 @@ using Wallow.Billing.Application.Queries.GetInvoiceById;
 using Wallow.Billing.Application.Queries.GetInvoicesByUserId;
 using Wallow.Shared.Api.Extensions;
 using Wallow.Shared.Kernel.Identity.Authorization;
+using Wallow.Shared.Kernel.Pagination;
 using Wallow.Shared.Kernel.Results;
 using Wallow.Shared.Kernel.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -34,14 +35,20 @@ public class InvoicesController(IMessageBus bus, ICurrentUserService currentUser
     /// </summary>
     [HttpGet]
     [HasPermission(PermissionType.InvoicesRead)]
-    [ProducesResponseType(typeof(IReadOnlyList<InvoiceResponse>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
+    [ProducesResponseType(typeof(PagedResult<InvoiceResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAll(
+        [FromQuery] int skip = 0,
+        [FromQuery] int take = 50,
+        CancellationToken cancellationToken = default)
     {
-        Result<IReadOnlyList<InvoiceDto>> result = await bus.InvokeAsync<Result<IReadOnlyList<InvoiceDto>>>(
-            new GetAllInvoicesQuery(), cancellationToken);
+        Result<PagedResult<InvoiceDto>> result = await bus.InvokeAsync<Result<PagedResult<InvoiceDto>>>(
+            new GetAllInvoicesQuery(skip, take), cancellationToken);
 
-        return result.Map(invoices =>
-            (IReadOnlyList<InvoiceResponse>)invoices.Select(ToInvoiceResponse).ToList())
+        return result.Map(paged => new PagedResult<InvoiceResponse>(
+            paged.Items.Select(ToInvoiceResponse).ToList(),
+            paged.TotalCount,
+            paged.Page,
+            paged.PageSize))
             .ToActionResult();
     }
 

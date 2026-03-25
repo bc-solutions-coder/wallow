@@ -23,7 +23,8 @@ public abstract class RepositoryTestBase : IDisposable
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options;
 
-        Context = new NotificationsDbContext(options, tenantContext);
+        Context = new NotificationsDbContext(options);
+        Context.SetTenant(_testTenantId);
     }
 
     protected void SetTenantId<TEntity>(TEntity entity) where TEntity : class, ITenantScoped

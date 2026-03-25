@@ -81,6 +81,36 @@ public class SubscriptionCreateTests
         subscription.CustomFields.Should().ContainKey("paymentProvider");
         subscription.CustomFields!["paymentProvider"].Should().Be("stripe");
     }
+
+    [Fact]
+    public void Create_WithEmptyUserId_ThrowsBusinessRuleException()
+    {
+        Func<Subscription> act = () => Subscription.Create(Guid.Empty, "Plan", Money.Create(10, "USD"), DateTime.UtcNow, DateTime.UtcNow.AddMonths(1), Guid.NewGuid(), TimeProvider.System);
+
+        act.Should().Throw<BusinessRuleException>()
+            .Where(e => e.Code == "Billing.UserIdRequired");
+    }
+
+    [Fact]
+    public void SetCustomFields_OverwritesExistingFields()
+    {
+        Subscription subscription = Subscription.Create(Guid.NewGuid(), "Plan", Money.Create(10, "USD"), DateTime.UtcNow, DateTime.UtcNow.AddMonths(1), Guid.NewGuid(), TimeProvider.System);
+        Dictionary<string, object> newFields = new() { { "tier", "premium" } };
+
+        subscription.SetCustomFields(newFields);
+
+        subscription.CustomFields.Should().ContainKey("tier");
+    }
+
+    [Fact]
+    public void SetCustomFields_WithNull_ClearsFields()
+    {
+        Subscription subscription = Subscription.Create(Guid.NewGuid(), "Plan", Money.Create(10, "USD"), DateTime.UtcNow, DateTime.UtcNow.AddMonths(1), Guid.NewGuid(), TimeProvider.System, new() { { "key", "val" } });
+
+        subscription.SetCustomFields(null);
+
+        subscription.CustomFields.Should().BeNull();
+    }
 }
 
 public class SubscriptionRenewTests

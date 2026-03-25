@@ -90,7 +90,7 @@ public class SignalRNotificationServiceTests
         using CancellationTokenSource cts = new();
         CancellationToken token = cts.Token;
 
-        await _sut.SendToUserAsync(userId, "Title", "Message", "info", token);
+        await _sut.SendToUserAsync(userId, "Title", "Message", "info", null, token);
 
         await _dispatcher.Received(1).SendToUserAsync(
             Arg.Any<string>(),

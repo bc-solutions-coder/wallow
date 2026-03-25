@@ -32,6 +32,13 @@
     <ProjectReference Include="..\..\..\..\src\Modules\Billing\Wallow.Billing.Infrastructure\Wallow.Billing.Infrastructure.csproj" />
     <ProjectReference Include="..\..\..\..\src\Modules\Billing\Wallow.Billing.Api\Wallow.Billing.Api.csproj" />
     <ProjectReference Include="..\..\..\..\src\Shared\Wallow.Shared.Api\Wallow.Shared.Api.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Modules\Branding\Wallow.Branding.Infrastructure\Wallow.Branding.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Modules\Inquiries\Wallow.Inquiries.Infrastructure\Wallow.Inquiries.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Modules\ApiKeys\Wallow.ApiKeys.Infrastructure\Wallow.ApiKeys.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Modules\Identity\Wallow.Identity.Infrastructure\Wallow.Identity.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Modules\Storage\Wallow.Storage.Infrastructure\Wallow.Storage.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Modules\Notifications\Wallow.Notifications.Infrastructure\Wallow.Notifications.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Modules\Announcements\Wallow.Announcements.Infrastructure\Wallow.Announcements.Infrastructure.csproj" />
     <ProjectReference Include="..\..\..\Wallow.Tests.Common\Wallow.Tests.Common.csproj" />
   </ItemGroup>
 </Project>

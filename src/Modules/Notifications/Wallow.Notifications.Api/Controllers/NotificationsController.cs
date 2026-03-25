@@ -141,6 +141,7 @@ public class NotificationsController(IMessageBus bus, ICurrentUserService curren
         dto.Message,
         dto.IsRead,
         dto.ReadAt,
+        dto.ActionUrl,
         dto.CreatedAt,
         dto.UpdatedAt);
 }

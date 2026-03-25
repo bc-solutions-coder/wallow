@@ -450,7 +450,7 @@ public class NotificationsModuleExtensionsTests
             ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Port=1;Database=nonexistent;Timeout=1"
         });
         builder.Services.AddScoped<ITenantContext>(_ => Substitute.For<ITenantContext>());
-        builder.Services.AddScoped<TenantSaveChangesInterceptor>();
+        builder.Services.AddSingleton(new TenantSaveChangesInterceptor());
         builder.Services.AddScoped<IRealtimeDispatcher>(_ => Substitute.For<IRealtimeDispatcher>());
         builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddHttpClient();

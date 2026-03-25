@@ -18,6 +18,13 @@ public sealed class InquiryConfiguration : IEntityTypeConfiguration<Inquiry>
             .HasColumnName("id")
             .ValueGeneratedNever();
 
+        builder.Property(i => i.TenantId)
+            .HasConversion(new StronglyTypedIdConverter<TenantId>())
+            .HasColumnName("tenant_id")
+            .IsRequired();
+
+        builder.HasIndex(i => i.TenantId);
+
         builder.Property(i => i.Name)
             .HasColumnName("name")
             .HasMaxLength(200)

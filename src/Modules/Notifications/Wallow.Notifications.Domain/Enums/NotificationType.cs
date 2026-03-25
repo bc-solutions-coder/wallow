@@ -9,5 +9,7 @@ public enum NotificationType
     BillingInvoice = 4,
     Mention = 5,
     Announcement = 6,
-    SystemNotification = 7
+    SystemNotification = 7,
+    InquirySubmitted = 8,
+    InquiryComment = 9
 }

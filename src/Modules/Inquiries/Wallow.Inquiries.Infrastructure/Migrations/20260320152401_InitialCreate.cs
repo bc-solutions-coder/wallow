@@ -20,6 +20,7 @@ namespace Wallow.Inquiries.Infrastructure.Migrations
                 columns: table => new
                 {
                     id = table.Column<Guid>(type: "uuid", nullable: false),
+                    tenant_id = table.Column<Guid>(type: "uuid", nullable: false),
                     name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
                     email = table.Column<string>(type: "character varying(320)", maxLength: 320, nullable: false),
                     phone = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
@@ -87,6 +88,12 @@ namespace Wallow.Inquiries.Infrastructure.Migrations
                 schema: "inquiries",
                 table: "inquiries",
                 column: "status");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_inquiries_tenant_id",
+                schema: "inquiries",
+                table: "inquiries",
+                column: "tenant_id");
 
             migrationBuilder.CreateIndex(
                 name: "IX_inquiry_comments_inquiry_id",

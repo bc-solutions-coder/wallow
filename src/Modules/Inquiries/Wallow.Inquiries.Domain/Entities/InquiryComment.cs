@@ -23,6 +23,7 @@ public sealed class InquiryComment : AggregateRoot<InquiryCommentId>, ITenantSco
         string authorName,
         string content,
         bool isInternal,
+        TenantId tenantId,
         TimeProvider timeProvider)
     {
         InquiryComment comment = new()
@@ -32,7 +33,8 @@ public sealed class InquiryComment : AggregateRoot<InquiryCommentId>, ITenantSco
             AuthorId = authorId,
             AuthorName = authorName,
             Content = content,
-            IsInternal = isInternal
+            IsInternal = isInternal,
+            TenantId = tenantId
         };
 
         comment.SetCreated(timeProvider.GetUtcNow());
@@ -42,7 +44,8 @@ public sealed class InquiryComment : AggregateRoot<InquiryCommentId>, ITenantSco
             inquiryId.Value,
             comment.TenantId.Value,
             authorId,
-            isInternal));
+            isInternal,
+            content));
 
         return comment;
     }

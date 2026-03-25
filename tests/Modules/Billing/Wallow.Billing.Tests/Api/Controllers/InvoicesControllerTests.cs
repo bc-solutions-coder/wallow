@@ -9,6 +9,7 @@ using Wallow.Billing.Application.DTOs;
 using Wallow.Billing.Application.Queries.GetAllInvoices;
 using Wallow.Billing.Application.Queries.GetInvoiceById;
 using Wallow.Billing.Application.Queries.GetInvoicesByUserId;
+using Wallow.Shared.Kernel.Pagination;
 using Wallow.Shared.Kernel.Results;
 using Wallow.Shared.Kernel.Services;
 using Microsoft.AspNetCore.Http;
@@ -51,38 +52,42 @@ public class InvoicesControllerTests
             CreateInvoiceDto("INV-001"),
             CreateInvoiceDto("INV-002")
         };
-        _bus.InvokeAsync<Result<IReadOnlyList<InvoiceDto>>>(Arg.Any<GetAllInvoicesQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success<IReadOnlyList<InvoiceDto>>(invoices));
+        PagedResult<InvoiceDto> paged = new(invoices, 2, 1, 50);
+        _bus.InvokeAsync<Result<PagedResult<InvoiceDto>>>(Arg.Any<GetAllInvoicesQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(paged));
 
-        IActionResult result = await _controller.GetAll(CancellationToken.None);
+        IActionResult result = await _controller.GetAll(cancellationToken: CancellationToken.None);
 
         OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
-        IReadOnlyList<InvoiceResponse> responses = ok.Value.Should().BeAssignableTo<IReadOnlyList<InvoiceResponse>>().Subject;
-        responses.Should().HaveCount(2);
-        responses[0].InvoiceNumber.Should().Be("INV-001");
-        responses[1].InvoiceNumber.Should().Be("INV-002");
+        PagedResult<InvoiceResponse> pagedResponse = ok.Value.Should().BeOfType<PagedResult<InvoiceResponse>>().Subject;
+        pagedResponse.Items.Should().HaveCount(2);
+        pagedResponse.TotalCount.Should().Be(2);
+        pagedResponse.Items[0].InvoiceNumber.Should().Be("INV-001");
+        pagedResponse.Items[1].InvoiceNumber.Should().Be("INV-002");
     }
 
     [Fact]
     public async Task GetAll_WhenEmpty_ReturnsOkWithEmptyList()
     {
-        _bus.InvokeAsync<Result<IReadOnlyList<InvoiceDto>>>(Arg.Any<GetAllInvoicesQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success<IReadOnlyList<InvoiceDto>>([]));
+        PagedResult<InvoiceDto> paged = new([], 0, 1, 50);
+        _bus.InvokeAsync<Result<PagedResult<InvoiceDto>>>(Arg.Any<GetAllInvoicesQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(paged));
 
-        IActionResult result = await _controller.GetAll(CancellationToken.None);
+        IActionResult result = await _controller.GetAll(cancellationToken: CancellationToken.None);
 
         OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
-        IReadOnlyList<InvoiceResponse> responses = ok.Value.Should().BeAssignableTo<IReadOnlyList<InvoiceResponse>>().Subject;
-        responses.Should().BeEmpty();
+        PagedResult<InvoiceResponse> pagedResponse = ok.Value.Should().BeOfType<PagedResult<InvoiceResponse>>().Subject;
+        pagedResponse.Items.Should().BeEmpty();
+        pagedResponse.TotalCount.Should().Be(0);
     }
 
     [Fact]
     public async Task GetAll_WhenFailure_ReturnsErrorResult()
     {
-        _bus.InvokeAsync<Result<IReadOnlyList<InvoiceDto>>>(Arg.Any<GetAllInvoicesQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Failure<IReadOnlyList<InvoiceDto>>(Error.Unauthorized()));
+        _bus.InvokeAsync<Result<PagedResult<InvoiceDto>>>(Arg.Any<GetAllInvoicesQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Failure<PagedResult<InvoiceDto>>(Error.Unauthorized()));
 
-        IActionResult result = await _controller.GetAll(CancellationToken.None);
+        IActionResult result = await _controller.GetAll(cancellationToken: CancellationToken.None);
 
         ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);

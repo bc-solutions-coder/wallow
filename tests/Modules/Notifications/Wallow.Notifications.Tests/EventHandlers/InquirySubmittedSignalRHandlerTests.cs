@@ -20,7 +20,8 @@ public class InquirySubmittedSignalRHandlerTests
         ProjectType = "Sales",
         Message = "Hello",
         SubmittedAt = DateTime.UtcNow,
-        AdminEmail = "admin@company.com"
+        AdminEmail = "admin@company.com",
+        AdminUserIds = []
     };
 
     [Fact]

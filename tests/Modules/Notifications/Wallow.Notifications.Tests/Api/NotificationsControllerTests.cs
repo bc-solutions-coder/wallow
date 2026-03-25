@@ -32,7 +32,7 @@ public class NotificationsControllerTests
 
         NotificationDto dto = new(
             Guid.NewGuid(), userId, NotificationType.TaskAssigned.ToString(),
-            "Title", "Body", false, null, DateTime.UtcNow, null);
+            "Title", "Body", false, null, null, DateTime.UtcNow, null);
 
         PagedResult<NotificationDto> pagedResult = new(new List<NotificationDto> { dto }, 1, 1, 20);
         Result<PagedResult<NotificationDto>> result = Result.Success(pagedResult);

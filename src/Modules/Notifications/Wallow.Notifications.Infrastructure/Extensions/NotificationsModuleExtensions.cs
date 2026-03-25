@@ -9,6 +9,7 @@ using Wallow.Notifications.Infrastructure.Persistence;
 using Wallow.Notifications.Infrastructure.Persistence.Repositories;
 using Wallow.Notifications.Infrastructure.Services;
 using Wallow.Shared.Contracts.Communications.Email;
+using Wallow.Shared.Infrastructure.Core.Extensions;
 using Wallow.Shared.Infrastructure.Core.Resilience;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Microsoft.AspNetCore.Builder;
@@ -18,6 +19,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Npgsql;
 using Polly;
 using Polly.Retry;
 using Polly.Timeout;
@@ -34,18 +36,29 @@ public static partial class NotificationsModuleExtensions
         services
             .AddNotificationsPersistence(configuration)
             .AddNotificationsServices(configuration);
+        services.AddReadDbContext<NotificationsDbContext>(configuration);
 
         return services;
     }
 
     private static IServiceCollection AddNotificationsPersistence(
         this IServiceCollection services,
-        IConfiguration _)
+        IConfiguration configuration)
     {
-        services.AddDbContext<NotificationsDbContext>((sp, options) =>
+        int maxPoolSize = configuration.GetValue("Database:MaxPoolSize", 200);
+        int minPoolSize = configuration.GetValue("Database:MinPoolSize", 10);
+
+        string defaultConnectionString = configuration.GetConnectionString("DefaultConnection")
+            ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured.");
+
+        services.AddPooledDbContextFactory<NotificationsDbContext>((sp, options) =>
         {
-            string? connectionString = sp.GetRequiredService<IConfiguration>().GetConnectionString("DefaultConnection");
-            options.UseNpgsql(connectionString, npgsql =>
+            NpgsqlConnectionStringBuilder builder = new(defaultConnectionString)
+            {
+                MaxPoolSize = maxPoolSize,
+                MinPoolSize = minPoolSize
+            };
+            options.UseNpgsql(builder.ConnectionString, npgsql =>
             {
                 npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "notifications");
                 npgsql.EnableRetryOnFailure(
@@ -57,6 +70,15 @@ public static partial class NotificationsModuleExtensions
             options.ConfigureWarnings(w =>
                 w.Ignore(RelationalEventId.PendingModelChangesWarning));
             options.AddInterceptors(sp.GetRequiredService<TenantSaveChangesInterceptor>());
+        });
+
+        services.AddScoped<NotificationsDbContext>(sp =>
+        {
+            IDbContextFactory<NotificationsDbContext> factory = sp.GetRequiredService<IDbContextFactory<NotificationsDbContext>>();
+            NotificationsDbContext ctx = factory.CreateDbContext();
+            ITenantContext tenant = sp.GetRequiredService<ITenantContext>();
+            ctx.SetTenant(tenant.TenantId);
+            return ctx;
         });
 
         // Email repositories
@@ -131,8 +153,8 @@ public static partial class NotificationsModuleExtensions
         }
 
         // Push services
-        services.Configure<PushSettings>(configuration.GetSection("PushSettings"));
         services.AddDataProtection();
+        services.Configure<PushSettings>(configuration.GetSection("PushSettings"));
         services.AddSingleton<IPushCredentialEncryptor, PushCredentialEncryptor>();
         services.AddScoped<IPushProviderFactory, PushProviderFactory>();
 
