@@ -1,8 +1,8 @@
+using Microsoft.Extensions.Logging.Abstractions;
+using StackExchange.Redis;
 using Wallow.Api.Services;
 using Wallow.Shared.Contracts.Realtime;
 using Wallow.Tests.Common.Fixtures;
-using Microsoft.Extensions.Logging.Abstractions;
-using StackExchange.Redis;
 
 namespace Wallow.Api.Tests.Services;
 

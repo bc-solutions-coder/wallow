@@ -1,6 +1,12 @@
 using System.Net.Sockets;
 using Amazon;
 using Amazon.S3;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Options;
+using Npgsql;
 using Wallow.Shared.Contracts.Storage;
 using Wallow.Shared.Infrastructure.Core.Extensions;
 using Wallow.Shared.Infrastructure.Settings;
@@ -14,12 +20,6 @@ using Wallow.Storage.Infrastructure.Persistence;
 using Wallow.Storage.Infrastructure.Persistence.Repositories;
 using Wallow.Storage.Infrastructure.Providers;
 using Wallow.Storage.Infrastructure.Scanning;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Microsoft.Extensions.Options;
-using Npgsql;
 
 namespace Wallow.Storage.Infrastructure.Extensions;
 

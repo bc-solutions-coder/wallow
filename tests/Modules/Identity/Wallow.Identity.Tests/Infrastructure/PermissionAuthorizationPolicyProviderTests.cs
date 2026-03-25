@@ -1,8 +1,8 @@
-using Wallow.Identity.Infrastructure.Authorization;
-using Wallow.Shared.Kernel.Identity.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authorization.Infrastructure;
 using Microsoft.Extensions.Options;
+using Wallow.Identity.Infrastructure.Authorization;
+using Wallow.Shared.Kernel.Identity.Authorization;
 
 namespace Wallow.Identity.Tests.Infrastructure;
 

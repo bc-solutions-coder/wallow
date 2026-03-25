@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Wallow.Billing.Api.Contracts.Invoices;
 using Wallow.Billing.Api.Controllers;
 using Wallow.Billing.Application.Commands.AddLineItem;
@@ -12,8 +14,6 @@ using Wallow.Billing.Application.Queries.GetInvoicesByUserId;
 using Wallow.Shared.Kernel.Pagination;
 using Wallow.Shared.Kernel.Results;
 using Wallow.Shared.Kernel.Services;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Wolverine;
 
 namespace Wallow.Billing.Tests.Api.Controllers;

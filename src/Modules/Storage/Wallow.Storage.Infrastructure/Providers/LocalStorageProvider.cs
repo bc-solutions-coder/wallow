@@ -1,6 +1,6 @@
+using Microsoft.Extensions.Options;
 using Wallow.Shared.Contracts.Storage;
 using Wallow.Storage.Infrastructure.Configuration;
-using Microsoft.Extensions.Options;
 
 namespace Wallow.Storage.Infrastructure.Providers;
 

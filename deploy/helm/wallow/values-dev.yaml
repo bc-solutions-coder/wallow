@@ -23,7 +23,6 @@ config:
 secrets:
   ConnectionStrings__DefaultConnection: "Host=wallow-postgresql:5432;Database=wallow;Username=wallow;Password=wallow"
   ConnectionStrings__Redis: "wallow-valkey-master:6379"
-  ConnectionStrings__RabbitMq: "amqp://wallow:wallow@wallow-rabbitmq:5672/"
 
 # -- Enable in-cluster infrastructure subcharts
 postgresql:
@@ -32,12 +31,6 @@ postgresql:
     username: wallow
     password: wallow
     database: wallow
-
-rabbitmq:
-  enabled: true
-  auth:
-    username: wallow
-    password: wallow
 
 valkey:
   enabled: true

@@ -1,9 +1,9 @@
+using Microsoft.Extensions.Logging;
+using NSubstitute.ExceptionExtensions;
 using Wallow.Notifications.Application.Channels.InApp.Interfaces;
 using Wallow.Notifications.Infrastructure.Services;
 using Wallow.Shared.Contracts.Realtime;
 using Wallow.Shared.Kernel.Identity;
-using Microsoft.Extensions.Logging;
-using NSubstitute.ExceptionExtensions;
 
 namespace Wallow.Notifications.Tests.Infrastructure.Services;
 

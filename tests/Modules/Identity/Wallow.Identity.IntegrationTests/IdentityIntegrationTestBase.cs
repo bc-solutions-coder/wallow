@@ -1,7 +1,7 @@
+using Microsoft.Extensions.DependencyInjection;
 using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Tests.Common.Bases;
 using Wallow.Tests.Common.Factories;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Wallow.Identity.IntegrationTests;
 

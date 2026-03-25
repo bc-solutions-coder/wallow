@@ -1,10 +1,10 @@
-using Wallow.Shared.Infrastructure.Core.Persistence;
-using Wallow.Shared.Kernel.Identity;
-using Wallow.Shared.Kernel.MultiTenancy;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using NSubstitute;
+using Wallow.Shared.Infrastructure.Core.Persistence;
+using Wallow.Shared.Kernel.Identity;
+using Wallow.Shared.Kernel.MultiTenancy;
 
 namespace Wallow.Architecture.Tests.MultiTenancy;
 

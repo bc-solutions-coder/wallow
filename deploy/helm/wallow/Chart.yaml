@@ -10,10 +10,6 @@ dependencies:
     version: "~16"
     repository: https://charts.bitnami.com/bitnami
     condition: postgresql.enabled
-  - name: rabbitmq
-    version: "~14"
-    repository: https://charts.bitnami.com/bitnami
-    condition: rabbitmq.enabled
   - name: valkey
     version: "~2"
     repository: https://charts.bitnami.com/bitnami

@@ -1,6 +1,6 @@
 using System.Security.Claims;
-using Wallow.Shared.Kernel.Identity.Authorization;
 using Microsoft.AspNetCore.Http;
+using Wallow.Shared.Kernel.Identity.Authorization;
 
 namespace Wallow.Identity.Infrastructure.Authorization;
 

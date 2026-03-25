@@ -1,7 +1,7 @@
-using Wallow.Shared.Infrastructure.Core.Persistence;
-using Wallow.Shared.Kernel.Settings;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.DependencyInjection;
+using Wallow.Shared.Infrastructure.Core.Persistence;
+using Wallow.Shared.Kernel.Settings;
 
 namespace Wallow.Shared.Infrastructure.Settings;
 

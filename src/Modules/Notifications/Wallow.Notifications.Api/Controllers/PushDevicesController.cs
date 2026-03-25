@@ -1,4 +1,7 @@
 using Asp.Versioning;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Wallow.Notifications.Api.Contracts.Push;
 using Wallow.Notifications.Application.Channels.Push.Commands.DeregisterDevice;
 using Wallow.Notifications.Application.Channels.Push.Commands.RegisterDevice;
@@ -11,9 +14,6 @@ using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Shared.Kernel.Results;
 using Wallow.Shared.Kernel.Services;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Wolverine;
 
 namespace Wallow.Notifications.Api.Controllers;

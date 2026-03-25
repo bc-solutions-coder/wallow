@@ -1,8 +1,8 @@
+using Microsoft.Extensions.Logging;
 using Wallow.Notifications.Application.Channels.Push.Interfaces;
 using Wallow.Notifications.Domain.Channels.Push.Entities;
 using Wallow.Notifications.Infrastructure.Services;
 using Wallow.Shared.Kernel.Identity;
-using Microsoft.Extensions.Logging;
 
 namespace Wallow.Notifications.Tests.Infrastructure.Services;
 

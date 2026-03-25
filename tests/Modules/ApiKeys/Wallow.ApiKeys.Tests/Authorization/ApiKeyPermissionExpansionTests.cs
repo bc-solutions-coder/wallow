@@ -1,8 +1,8 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Http;
 using Wallow.Identity.Infrastructure.Authorization;
 using Wallow.Shared.Contracts.Identity;
 using Wallow.Shared.Kernel.Identity.Authorization;
-using Microsoft.AspNetCore.Http;
 
 namespace Wallow.ApiKeys.Tests.Authorization;
 

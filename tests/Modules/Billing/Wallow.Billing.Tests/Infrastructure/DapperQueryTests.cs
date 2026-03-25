@@ -1,6 +1,7 @@
 using System.Data.Common;
 using System.Reflection;
 using Dapper;
+using Microsoft.EntityFrameworkCore;
 using Wallow.Billing.Domain.Entities;
 using Wallow.Billing.Domain.Enums;
 using Wallow.Billing.Domain.ValueObjects;
@@ -9,7 +10,6 @@ using Wallow.Shared.Contracts.Billing;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Tests.Common.Bases;
 using Wallow.Tests.Common.Fixtures;
-using Microsoft.EntityFrameworkCore;
 
 namespace Wallow.Billing.Tests.Infrastructure;
 

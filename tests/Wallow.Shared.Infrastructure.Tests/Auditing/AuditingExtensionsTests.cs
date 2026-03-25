@@ -1,9 +1,9 @@
-using Wallow.Shared.Infrastructure.Core.Auditing;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Testcontainers.PostgreSql;
+using Wallow.Shared.Infrastructure.Core.Auditing;
 
 namespace Wallow.Shared.Infrastructure.Tests.Auditing;
 

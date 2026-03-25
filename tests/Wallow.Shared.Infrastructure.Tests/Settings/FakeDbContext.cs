@@ -1,5 +1,5 @@
-using Wallow.Shared.Infrastructure.Core.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Wallow.Shared.Infrastructure.Core.Persistence;
 
 namespace Wallow.Shared.Infrastructure.Tests.Settings;
 

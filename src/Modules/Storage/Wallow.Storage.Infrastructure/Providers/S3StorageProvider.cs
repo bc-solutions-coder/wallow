@@ -1,9 +1,9 @@
 using Amazon.S3;
 using Amazon.S3.Model;
+using Microsoft.Extensions.Options;
 using Wallow.Shared.Contracts.Storage;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Storage.Infrastructure.Configuration;
-using Microsoft.Extensions.Options;
 
 namespace Wallow.Storage.Infrastructure.Providers;
 

@@ -1,7 +1,7 @@
+using Microsoft.EntityFrameworkCore;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Identity.Infrastructure.Persistence;
-using Microsoft.EntityFrameworkCore;
 
 namespace Wallow.Identity.Infrastructure.Services;
 

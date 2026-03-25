@@ -1,3 +1,8 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using StackExchange.Redis;
 using Wallow.Announcements.Infrastructure.Extensions;
 using Wallow.Announcements.Infrastructure.Persistence;
 using Wallow.Billing.Infrastructure.Persistence;
@@ -9,11 +14,6 @@ using Wallow.Shared.Infrastructure.Core.Extensions;
 using Wallow.Shared.Kernel.Persistence;
 using Wallow.Storage.Infrastructure.Extensions;
 using Wallow.Storage.Infrastructure.Persistence;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using StackExchange.Redis;
 
 namespace Wallow.Billing.Tests.Infrastructure;
 

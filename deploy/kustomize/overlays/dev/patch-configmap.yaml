@@ -6,5 +6,4 @@ data:
   ASPNETCORE_ENVIRONMENT: "Development"
   ConnectionStrings__DefaultConnection: "Host=postgres-dev;Database=wallow_dev;Username=wallow;Password=CHANGE_ME"
   ConnectionStrings__Marten: "Host=postgres-dev;Database=wallow_dev;Username=wallow;Password=CHANGE_ME"
-  RabbitMq__Host: "rabbitmq-dev"
   Valkey__Configuration: "valkey-dev:6379"

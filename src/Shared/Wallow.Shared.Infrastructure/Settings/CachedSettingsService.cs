@@ -1,8 +1,8 @@
 using System.Text.Json;
+using Microsoft.Extensions.Caching.Distributed;
 using Wallow.Shared.Infrastructure.Core.Persistence;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.Settings;
-using Microsoft.Extensions.Caching.Distributed;
 
 namespace Wallow.Shared.Infrastructure.Settings;
 

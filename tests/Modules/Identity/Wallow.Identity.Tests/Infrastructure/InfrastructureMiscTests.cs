@@ -1,6 +1,6 @@
-using Wallow.Identity.Infrastructure.Middleware;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
+using Wallow.Identity.Infrastructure.Middleware;
 
 namespace Wallow.Identity.Tests.Infrastructure;
 

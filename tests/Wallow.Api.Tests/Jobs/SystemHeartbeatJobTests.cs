@@ -1,5 +1,5 @@
-using Wallow.Api.Jobs;
 using Microsoft.Extensions.Logging.Abstractions;
+using Wallow.Api.Jobs;
 
 namespace Wallow.Api.Tests.Jobs;
 

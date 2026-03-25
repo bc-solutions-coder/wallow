@@ -1,6 +1,6 @@
 using System.Text;
-using Wallow.Notifications.Infrastructure.Services;
 using Microsoft.AspNetCore.DataProtection;
+using Wallow.Notifications.Infrastructure.Services;
 
 namespace Wallow.Notifications.Tests.Infrastructure.Services;
 

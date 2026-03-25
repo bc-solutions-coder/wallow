@@ -1,7 +1,7 @@
-using Wallow.Api.Middleware;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
+using Wallow.Api.Middleware;
 
 namespace Wallow.Api.Tests.Middleware;
 

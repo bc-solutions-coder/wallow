@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Wallow.Announcements.Api.Contracts.Responses;
 using Wallow.Announcements.Api.Controllers;
 using Wallow.Announcements.Application.Changelogs.Commands.CreateChangelogEntry;
@@ -6,8 +8,6 @@ using Wallow.Announcements.Application.Changelogs.DTOs;
 using Wallow.Announcements.Domain.Changelogs.Enums;
 using Wallow.Shared.Infrastructure.Core.Services;
 using Wallow.Shared.Kernel.Results;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Wolverine;
 
 namespace Wallow.Announcements.Tests.Api.Controllers;

@@ -1,8 +1,8 @@
 using System.Reflection;
-using Wallow.Shared.Kernel.Domain;
-using Wallow.Shared.Kernel.MultiTenancy;
 using Microsoft.EntityFrameworkCore;
 using NetArchTest.Rules;
+using Wallow.Shared.Kernel.Domain;
+using Wallow.Shared.Kernel.MultiTenancy;
 
 #pragma warning disable CA1024 // MemberData source methods cannot be properties
 #pragma warning disable CA1310 // String comparison in LINQ lambdas over type names is culture-safe

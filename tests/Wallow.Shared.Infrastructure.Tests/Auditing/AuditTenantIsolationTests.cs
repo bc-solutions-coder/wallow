@@ -1,13 +1,13 @@
 using System.Security.Claims;
-using Wallow.Shared.Infrastructure.Core.Auditing;
-using Wallow.Shared.Kernel.Identity;
-using Wallow.Shared.Kernel.MultiTenancy;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 using Testcontainers.PostgreSql;
+using Wallow.Shared.Infrastructure.Core.Auditing;
+using Wallow.Shared.Kernel.Identity;
+using Wallow.Shared.Kernel.MultiTenancy;
 
 namespace Wallow.Shared.Infrastructure.Tests.Auditing;
 

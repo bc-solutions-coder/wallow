@@ -1,6 +1,6 @@
+using Microsoft.EntityFrameworkCore;
 using Wallow.Branding.Domain.Entities;
 using Wallow.Shared.Infrastructure.Core.Persistence;
-using Microsoft.EntityFrameworkCore;
 
 namespace Wallow.Branding.Infrastructure.Persistence;
 

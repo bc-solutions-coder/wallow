@@ -1,15 +1,15 @@
 using System.Diagnostics.CodeAnalysis;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
 using Wallow.Branding.Application.Interfaces;
 using Wallow.Branding.Infrastructure.Persistence;
 using Wallow.Branding.Infrastructure.Repositories;
 using Wallow.Branding.Infrastructure.Services;
 using Wallow.Shared.Infrastructure.Core.Extensions;
 using Wallow.Shared.Kernel.MultiTenancy;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Npgsql;
 
 namespace Wallow.Branding.Infrastructure.Extensions;
 

@@ -1,11 +1,11 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Wallow.Identity.Infrastructure.Authorization;
 using Wallow.Identity.Infrastructure.Middleware;
 using Wallow.Identity.Infrastructure.Services;
 using Wallow.Shared.Kernel.Identity.Authorization;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Wallow.Identity.Tests.Dcr;
 

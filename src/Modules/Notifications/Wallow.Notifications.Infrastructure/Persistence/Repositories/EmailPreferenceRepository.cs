@@ -1,7 +1,7 @@
+using Microsoft.EntityFrameworkCore;
 using Wallow.Notifications.Application.Channels.Email.Interfaces;
 using Wallow.Notifications.Domain.Channels.Email.Entities;
 using Wallow.Notifications.Domain.Enums;
-using Microsoft.EntityFrameworkCore;
 
 namespace Wallow.Notifications.Infrastructure.Persistence.Repositories;
 

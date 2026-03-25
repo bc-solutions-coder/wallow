@@ -1,5 +1,5 @@
-using Wallow.Api.Middleware;
 using Microsoft.AspNetCore.Http;
+using Wallow.Api.Middleware;
 
 namespace Wallow.Api.Tests.Middleware;
 

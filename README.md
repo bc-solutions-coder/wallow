@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="assets/piggy-icon.svg" alt="Wallow" width="120" />
+
 # Wallow
 
 **A production-ready .NET modular monolith for building multi-tenant SaaS products.**
@@ -12,9 +14,22 @@ Fork it. Add your domain modules. Deploy.
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)](docker/)
-[![Keycloak](https://img.shields.io/badge/Keycloak-26-4D4D4D?logo=keycloak&logoColor=white)](https://www.keycloak.org/)
+
 
 </div>
+
+---
+
+## Fork This
+
+Wallow is a base platform — the intended workflow is to **fork it and build your product on top**.
+
+1. Fork this repository on GitHub
+2. Customize branding and config via `branding.json` and `appsettings.json`
+3. Add your domain modules alongside the built-in ones
+4. Pull upstream improvements from this repo as the platform evolves
+
+See the [Fork Guide](docs/getting-started/fork-guide.md) for step-by-step instructions.
 
 ---
 
@@ -59,7 +74,7 @@ Modules communicate through events over RabbitMQ via `Shared.Contracts` -- never
 
 | Module | Responsibility |
 |--------|----------------|
-| **Identity** | Authentication, users, organizations, roles, RBAC via Keycloak 26 |
+| **Identity** | Authentication, users, organizations, roles, RBAC via OpenIddict + ASP.NET Core Identity |
 | **Billing** | Payments, invoices, subscription lifecycle |
 | **Storage** | File storage abstraction (S3-compatible, local filesystem) |
 | **Notifications** | In-app and push notifications, delivery preferences |
@@ -84,7 +99,7 @@ Modules communicate through events over RabbitMQ via `Shared.Contracts` -- never
 | ORM | EF Core (writes) + Dapper (reads) |
 | CQRS & Messaging | Wolverine + RabbitMQ |
 | Caching | Valkey (Redis-compatible) |
-| Identity | Keycloak 26 |
+| Identity | OpenIddict + ASP.NET Core Identity |
 | Real-time | SignalR |
 | Validation | FluentValidation |
 | Logging | Serilog |
@@ -104,7 +119,7 @@ Modules communicate through events over RabbitMQ via `Shared.Contracts` -- never
 cd docker && docker compose up -d
 ```
 
-This starts PostgreSQL, RabbitMQ, Mailpit, Valkey, and Keycloak.
+This starts PostgreSQL, RabbitMQ, Mailpit, and Valkey.
 
 ### 2. Run the API
 
@@ -126,7 +141,7 @@ dotnet test tests/Modules/Billing/Wallow.Billing.Tests        # single module
 - **CQRS** -- Command/query separation with Wolverine as mediator
 - **Multi-Tenancy** -- Schema-per-tenant data isolation with shared infrastructure
 - **Message-Based Communication** -- Events over RabbitMQ, never direct references
-- **Keycloak Identity** -- Authentication, RBAC, and user management
+- **OpenIddict Identity** -- Authentication, RBAC, and user management
 - **Real-Time** -- Push notifications via SignalR with Redis backplane
 - **Observability** -- Serilog structured logging, OpenTelemetry tracing, Grafana dashboards
 - **Audit Trail** -- Automatic entity change auditing via Audit.NET
@@ -169,7 +184,7 @@ Upstream improvements to shared infrastructure can be pulled into forks.
 |---------|-----|-------------|
 | API | http://localhost:5000 | -- |
 | API Docs | http://localhost:5000/scalar/v1 | -- |
-| Keycloak Admin | http://localhost:8080 | See `docker/.env` |
+
 | RabbitMQ | http://localhost:15672 | See `docker/.env` |
 | Mailpit | http://localhost:8025 | -- |
 | Grafana | http://localhost:3001 | admin / admin |
@@ -178,12 +193,11 @@ Upstream improvements to shared infrastructure can be pulled into forks.
 
 | Doc | Description |
 |-----|-------------|
-| [Developer Guide](docs/DEVELOPER_GUIDE.md) | How to work in the codebase |
-| [Forking Guide](docs/FORKING_GUIDE.md) | Step-by-step guide for creating a new product |
-| [Deployment Guide](docs/DEPLOYMENT_GUIDE.md) | Server setup, CI/CD, and client app integration |
-| [Deployment Strategies](docs/deployment-strategies/) | Horizontal scaling, database scaling, worker separation, module extraction |
-| [Architecture Reference](docs/WALLOW.md) | Single architecture and design reference |
-| [Keycloak Integration](docs/plans/2026-02-05-keycloak-integration-design.md) | Identity provider setup |
+| [Developer Guide](docs/getting-started/developer-guide.md) | How to work in the codebase |
+| [Fork Guide](docs/getting-started/fork-guide.md) | Step-by-step guide for creating a new product |
+| [Deployment Guide](docs/operations/deployment.md) | Server setup, CI/CD, and client app integration |
+| [Architecture](docs/architecture/assessment.md) | Design decisions and architecture patterns |
+
 
 ## License
 

@@ -1,15 +1,15 @@
 using System.Security.Claims;
 using Asp.Versioning;
-using Wallow.Identity.Api.Contracts.Requests;
-using Wallow.Identity.Api.Contracts.Responses;
-using Wallow.Shared.Contracts.Identity;
-using Wallow.Identity.Application.DTOs;
-using Wallow.Identity.Application.Interfaces;
-using Wallow.Shared.Kernel.Identity.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Wallow.Identity.Api.Contracts.Requests;
+using Wallow.Identity.Api.Contracts.Responses;
+using Wallow.Identity.Application.DTOs;
+using Wallow.Identity.Application.Interfaces;
+using Wallow.Shared.Contracts.Identity;
+using Wallow.Shared.Kernel.Identity.Authorization;
 
 namespace Wallow.Identity.Api.Controllers;
 

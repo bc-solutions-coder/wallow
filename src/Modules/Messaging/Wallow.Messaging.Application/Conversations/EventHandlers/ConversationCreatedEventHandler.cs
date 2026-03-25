@@ -1,9 +1,9 @@
+using Microsoft.Extensions.Logging;
 using Wallow.Messaging.Application.Conversations.Interfaces;
 using Wallow.Messaging.Domain.Conversations.Entities;
 using Wallow.Messaging.Domain.Conversations.Events;
 using Wallow.Messaging.Domain.Conversations.Identity;
 using Wallow.Shared.Contracts.Messaging.Events;
-using Microsoft.Extensions.Logging;
 using Wolverine;
 
 namespace Wallow.Messaging.Application.Conversations.EventHandlers;

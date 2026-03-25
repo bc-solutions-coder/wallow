@@ -1,16 +1,16 @@
 using System.Diagnostics.CodeAnalysis;
-using Wallow.ApiKeys.Application.Interfaces;
-using Wallow.Shared.Contracts.ApiKeys;
-using Wallow.ApiKeys.Infrastructure.Persistence;
-using Wallow.ApiKeys.Infrastructure.Repositories;
-using Wallow.ApiKeys.Infrastructure.Services;
-using Wallow.Shared.Infrastructure.Core.Extensions;
-using Wallow.Shared.Kernel.MultiTenancy;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using StackExchange.Redis;
+using Wallow.ApiKeys.Application.Interfaces;
+using Wallow.ApiKeys.Infrastructure.Persistence;
+using Wallow.ApiKeys.Infrastructure.Repositories;
+using Wallow.ApiKeys.Infrastructure.Services;
+using Wallow.Shared.Contracts.ApiKeys;
+using Wallow.Shared.Infrastructure.Core.Extensions;
+using Wallow.Shared.Kernel.MultiTenancy;
 
 namespace Wallow.ApiKeys.Infrastructure.Extensions;
 

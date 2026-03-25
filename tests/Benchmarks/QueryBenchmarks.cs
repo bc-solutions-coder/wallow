@@ -1,4 +1,7 @@
 using BenchmarkDotNet.Attributes;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
 using Wallow.Billing.Domain.Entities;
 using Wallow.Billing.Domain.Identity;
 using Wallow.Billing.Infrastructure.Persistence;
@@ -12,9 +15,6 @@ using Wallow.Storage.Domain.Entities;
 using Wallow.Storage.Domain.Identity;
 using Wallow.Storage.Infrastructure.Persistence;
 using Wallow.Storage.Infrastructure.Persistence.Repositories;
-using Microsoft.AspNetCore.DataProtection;
-using Microsoft.Data.Sqlite;
-using Microsoft.EntityFrameworkCore;
 
 namespace Wallow.Benchmarks;
 

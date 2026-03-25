@@ -1,16 +1,16 @@
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Claims;
-using Wallow.Identity.Application.DTOs;
-using Wallow.Identity.Application.Interfaces;
-using Wallow.Identity.Domain.Entities;
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using OpenIddict.Abstractions;
 using OpenIddict.Server.AspNetCore;
-using Microsoft.Extensions.Configuration;
+using Wallow.Identity.Application.DTOs;
+using Wallow.Identity.Application.Interfaces;
+using Wallow.Identity.Domain.Entities;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
 namespace Wallow.Identity.Api.Controllers;

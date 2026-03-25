@@ -1,6 +1,6 @@
+using Microsoft.Extensions.Time.Testing;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Shared.Kernel.Domain;
-using Microsoft.Extensions.Time.Testing;
 
 namespace Wallow.Identity.Tests.Domain;
 

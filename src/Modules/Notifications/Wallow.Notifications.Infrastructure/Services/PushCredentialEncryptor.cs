@@ -1,5 +1,5 @@
-using Wallow.Notifications.Application.Channels.Push.Interfaces;
 using Microsoft.AspNetCore.DataProtection;
+using Wallow.Notifications.Application.Channels.Push.Interfaces;
 
 namespace Wallow.Notifications.Infrastructure.Services;
 

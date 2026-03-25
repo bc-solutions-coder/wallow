@@ -1,10 +1,10 @@
+using Microsoft.Extensions.Logging;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Identity.Domain.Identity;
 using Wallow.Shared.Contracts.Identity.Events;
 using Wallow.Shared.Kernel.Domain;
 using Wallow.Shared.Kernel.MultiTenancy;
-using Microsoft.Extensions.Logging;
 using Wolverine;
 
 namespace Wallow.Identity.Infrastructure.Services;

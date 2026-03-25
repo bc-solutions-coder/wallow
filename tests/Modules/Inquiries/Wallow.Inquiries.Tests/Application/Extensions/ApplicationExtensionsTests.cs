@@ -1,6 +1,6 @@
 using FluentValidation;
-using Wallow.Inquiries.Application.Extensions;
 using Microsoft.Extensions.DependencyInjection;
+using Wallow.Inquiries.Application.Extensions;
 
 namespace Wallow.Inquiries.Tests.Application.Extensions;
 

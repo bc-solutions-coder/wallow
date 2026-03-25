@@ -1,16 +1,16 @@
-using Wallow.Inquiries.Application.Interfaces;
-using Wallow.Inquiries.Infrastructure.Extensions;
-using Wallow.Inquiries.Infrastructure.Persistence;
-using Wallow.Inquiries.Infrastructure.Persistence.Repositories;
-using Wallow.Inquiries.Infrastructure.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Wallow.Shared.Kernel.MultiTenancy;
 using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
+using Wallow.Inquiries.Application.Interfaces;
+using Wallow.Inquiries.Infrastructure.Extensions;
+using Wallow.Inquiries.Infrastructure.Persistence;
+using Wallow.Inquiries.Infrastructure.Persistence.Repositories;
+using Wallow.Inquiries.Infrastructure.Services;
+using Wallow.Shared.Kernel.MultiTenancy;
 
 namespace Wallow.Inquiries.Tests.Infrastructure.Extensions;
 

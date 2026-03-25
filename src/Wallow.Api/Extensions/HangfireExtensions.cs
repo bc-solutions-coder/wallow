@@ -1,6 +1,6 @@
-using Wallow.Api.Middleware;
 using Hangfire;
 using Hangfire.PostgreSql;
+using Wallow.Api.Middleware;
 
 namespace Wallow.Api.Extensions;
 

@@ -1,5 +1,5 @@
-using Wallow.Tests.Common.Factories;
 using Microsoft.Extensions.DependencyInjection;
+using Wallow.Tests.Common.Factories;
 
 namespace Wallow.Tests.Common.Bases;
 

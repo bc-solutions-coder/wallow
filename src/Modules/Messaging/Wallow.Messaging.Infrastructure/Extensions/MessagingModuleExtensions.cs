@@ -1,9 +1,3 @@
-using Wallow.Messaging.Application.Conversations.Interfaces;
-using Wallow.Messaging.Infrastructure.Persistence;
-using Wallow.Messaging.Infrastructure.Persistence.Repositories;
-using Wallow.Messaging.Infrastructure.Services;
-using Wallow.Shared.Infrastructure.Core.Extensions;
-using Wallow.Shared.Kernel.MultiTenancy;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -12,6 +6,12 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Npgsql;
+using Wallow.Messaging.Application.Conversations.Interfaces;
+using Wallow.Messaging.Infrastructure.Persistence;
+using Wallow.Messaging.Infrastructure.Persistence.Repositories;
+using Wallow.Messaging.Infrastructure.Services;
+using Wallow.Shared.Infrastructure.Core.Extensions;
+using Wallow.Shared.Kernel.MultiTenancy;
 
 namespace Wallow.Messaging.Infrastructure.Extensions;
 

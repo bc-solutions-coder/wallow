@@ -1,9 +1,9 @@
 using System.Globalization;
 using System.Reflection;
 using System.Text.RegularExpressions;
-using Wallow.Notifications.Application.Channels.Email.Interfaces;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Wallow.Notifications.Application.Channels.Email.Interfaces;
 
 namespace Wallow.Notifications.Infrastructure.Services;
 

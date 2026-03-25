@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Wallow.Notifications.Domain.Channels.Email.Entities;
 using Wallow.Notifications.Domain.Channels.InApp.Entities;
 using Wallow.Notifications.Domain.Channels.Push;
@@ -5,7 +6,6 @@ using Wallow.Notifications.Domain.Channels.Push.Entities;
 using Wallow.Notifications.Domain.Channels.Sms.Entities;
 using Wallow.Notifications.Domain.Preferences.Entities;
 using Wallow.Shared.Infrastructure.Core.Persistence;
-using Microsoft.EntityFrameworkCore;
 
 namespace Wallow.Notifications.Infrastructure.Persistence;
 

@@ -1,5 +1,5 @@
-using Wallow.Notifications.Domain.Preferences;
 using JetBrains.Annotations;
+using Wallow.Notifications.Domain.Preferences;
 
 namespace Wallow.Notifications.Application.Preferences.DTOs;
 

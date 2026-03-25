@@ -1,13 +1,13 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
 using Wallow.Inquiries.Application.Interfaces;
 using Wallow.Inquiries.Infrastructure.Persistence;
 using Wallow.Inquiries.Infrastructure.Persistence.Repositories;
 using Wallow.Inquiries.Infrastructure.Services;
 using Wallow.Shared.Infrastructure.Core.Extensions;
 using Wallow.Shared.Kernel.MultiTenancy;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Npgsql;
 
 namespace Wallow.Inquiries.Infrastructure.Extensions;
 

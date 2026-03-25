@@ -1,14 +1,5 @@
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using Wallow.Identity.Application.Interfaces;
-using Wallow.Shared.Contracts.ApiKeys;
-using Wallow.Shared.Contracts.Billing;
-using Wallow.Shared.Contracts.Identity;
-using Wallow.Shared.Contracts.Metering;
-using Wallow.Shared.Kernel.Identity;
-using Wallow.Shared.Kernel.MultiTenancy;
-using Wallow.Tests.Common.Fakes;
-using Wallow.Tests.Common.Helpers;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -20,6 +11,15 @@ using Microsoft.Extensions.Hosting;
 using Serilog;
 using Testcontainers.PostgreSql;
 using Testcontainers.Redis;
+using Wallow.Identity.Application.Interfaces;
+using Wallow.Shared.Contracts.ApiKeys;
+using Wallow.Shared.Contracts.Billing;
+using Wallow.Shared.Contracts.Identity;
+using Wallow.Shared.Contracts.Metering;
+using Wallow.Shared.Kernel.Identity;
+using Wallow.Shared.Kernel.MultiTenancy;
+using Wallow.Tests.Common.Fakes;
+using Wallow.Tests.Common.Helpers;
 
 namespace Wallow.Tests.Common.Factories;
 

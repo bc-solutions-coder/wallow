@@ -1,6 +1,6 @@
 using System.Linq.Expressions;
-using Wallow.Shared.Kernel.BackgroundJobs;
 using Hangfire;
+using Wallow.Shared.Kernel.BackgroundJobs;
 
 namespace Wallow.Shared.Infrastructure.BackgroundJobs;
 

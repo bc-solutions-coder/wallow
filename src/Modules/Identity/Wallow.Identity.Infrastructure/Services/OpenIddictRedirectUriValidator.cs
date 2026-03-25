@@ -1,8 +1,8 @@
 using System.Collections.Immutable;
-using Wallow.Identity.Application.Interfaces;
 using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Configuration;
 using OpenIddict.Abstractions;
+using Wallow.Identity.Application.Interfaces;
 
 namespace Wallow.Identity.Infrastructure.Services;
 

@@ -1,7 +1,7 @@
 using System.Security.Claims;
-using Wallow.Shared.Kernel.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using Wallow.Shared.Kernel.Services;
 
 namespace Wallow.Shared.Infrastructure.Core.Services;
 

@@ -1,9 +1,9 @@
+using Microsoft.EntityFrameworkCore;
 using Wallow.Billing.Domain.CustomFields.Entities;
 using Wallow.Billing.Domain.Entities;
 using Wallow.Billing.Domain.Metering.Entities;
 using Wallow.Shared.Infrastructure.Core.Persistence;
 using Wallow.Shared.Infrastructure.Settings;
-using Microsoft.EntityFrameworkCore;
 
 namespace Wallow.Billing.Infrastructure.Persistence;
 

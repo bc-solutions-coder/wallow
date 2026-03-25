@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Wallow.Inquiries.Api.Contracts;
 using Wallow.Inquiries.Api.Controllers;
 using Wallow.Inquiries.Application.Commands.AddInquiryComment;
@@ -11,10 +13,8 @@ using Wallow.Inquiries.Application.Queries.GetInquiryComments;
 using Wallow.Inquiries.Domain.Enums;
 using Wallow.Inquiries.Domain.Identity;
 using Wallow.Shared.Kernel.Identity;
-using Wallow.Shared.Kernel.Results;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Wallow.Shared.Kernel.MultiTenancy;
+using Wallow.Shared.Kernel.Results;
 using Wolverine;
 
 namespace Wallow.Inquiries.Tests.Api.Controllers;

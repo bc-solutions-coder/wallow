@@ -1,11 +1,11 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Logging.Abstractions;
 using Wallow.Api.Hubs;
 using Wallow.Shared.Contracts.Realtime;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Tests.Common.Helpers;
-using Microsoft.AspNetCore.SignalR;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Wallow.Api.Tests.Hubs;
 

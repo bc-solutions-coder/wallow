@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.EntityFrameworkCore;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Identity.Domain.Enums;
 using Wallow.Identity.Domain.Identity;
@@ -5,8 +7,6 @@ using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Identity.Infrastructure.Repositories;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
-using Microsoft.AspNetCore.DataProtection;
-using Microsoft.EntityFrameworkCore;
 
 namespace Wallow.Identity.Tests.Infrastructure;
 

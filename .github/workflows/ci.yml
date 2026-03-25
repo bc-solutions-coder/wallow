@@ -89,16 +89,6 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
-      rabbitmq:
-        image: rabbitmq:4.2-management-alpine
-        ports:
-          - 5672:5672
-        options: >-
-          --health-cmd "rabbitmq-diagnostics -q ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
       valkey:
         image: valkey/valkey:8-alpine
         ports:
@@ -132,7 +122,6 @@ jobs:
         run: dotnet test --no-build --configuration Release --filter "Category=Integration" --verbosity normal --blame-hang-timeout 5m --collect "XPlat Code Coverage" --settings tests/coverage.runsettings --results-directory ./TestResults
         env:
           ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=wallow_test;Username=wallow;Password=wallow"
-          RabbitMQ__Host: localhost
           Redis__ConnectionString: "localhost:6379"
 
       - name: Upload integration test coverage

@@ -1,5 +1,5 @@
-using Wallow.Shared.Kernel.Domain;
 using Microsoft.AspNetCore.Identity;
+using Wallow.Shared.Kernel.Domain;
 
 namespace Wallow.Identity.Domain.Entities;
 

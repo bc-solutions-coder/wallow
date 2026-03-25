@@ -1,8 +1,8 @@
-using Wallow.Identity.Domain.Entities;
-using Wallow.Tests.Common.Helpers;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
 using OpenIddict.Abstractions;
+using Wallow.Identity.Domain.Entities;
+using Wallow.Tests.Common.Helpers;
 
 namespace Wallow.Identity.IntegrationTests;
 

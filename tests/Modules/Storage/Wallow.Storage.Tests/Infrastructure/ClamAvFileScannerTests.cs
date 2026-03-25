@@ -2,12 +2,12 @@ using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
-using Wallow.Storage.Application.Interfaces;
-using Wallow.Storage.Infrastructure.Configuration;
-using Wallow.Storage.Infrastructure.Scanning;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Wallow.Storage.Application.Interfaces;
+using Wallow.Storage.Infrastructure.Configuration;
+using Wallow.Storage.Infrastructure.Scanning;
 
 namespace Wallow.Storage.Tests.Infrastructure;
 

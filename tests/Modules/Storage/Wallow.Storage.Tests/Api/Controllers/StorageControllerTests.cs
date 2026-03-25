@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Wallow.Shared.Contracts.Storage;
 using Wallow.Shared.Contracts.Storage.Commands;
 using Wallow.Shared.Kernel.Identity;
@@ -19,8 +21,6 @@ using Wallow.Storage.Application.Queries.GetFilesByBucket;
 using Wallow.Storage.Application.Queries.GetPresignedUrl;
 using Wallow.Storage.Application.Queries.GetUploadPresignedUrl;
 using Wallow.Storage.Domain.Enums;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Wolverine;
 
 namespace Wallow.Storage.Tests.Api.Controllers;

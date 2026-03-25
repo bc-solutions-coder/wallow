@@ -1,6 +1,6 @@
+using JetBrains.Annotations;
 using Wallow.Notifications.Application.Preferences.DTOs;
 using Wallow.Notifications.Domain.Preferences;
-using JetBrains.Annotations;
 
 namespace Wallow.Notifications.Application.Channels.Preferences.DTOs;
 

@@ -1,7 +1,7 @@
+using Microsoft.EntityFrameworkCore;
 using Wallow.Notifications.Application.Channels.Push.Interfaces;
 using Wallow.Notifications.Domain.Channels.Push.Entities;
 using Wallow.Notifications.Domain.Channels.Push.Enums;
-using Microsoft.EntityFrameworkCore;
 
 namespace Wallow.Notifications.Infrastructure.Persistence.Repositories;
 

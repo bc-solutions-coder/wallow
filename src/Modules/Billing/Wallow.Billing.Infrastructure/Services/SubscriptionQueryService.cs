@@ -1,7 +1,7 @@
+using Microsoft.Extensions.Logging;
 using Wallow.Billing.Application.Interfaces;
 using Wallow.Billing.Domain.Entities;
 using Wallow.Shared.Contracts.Billing;
-using Microsoft.Extensions.Logging;
 
 namespace Wallow.Billing.Infrastructure.Services;
 

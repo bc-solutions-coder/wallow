@@ -1,4 +1,7 @@
 using Asp.Versioning;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Wallow.Announcements.Api.Contracts.Responses;
 using Wallow.Announcements.Application.Announcements.Commands.DismissAnnouncement;
 using Wallow.Announcements.Application.Announcements.DTOs;
@@ -8,9 +11,6 @@ using Wallow.Shared.Kernel.Identity.Authorization;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Shared.Kernel.Results;
 using Wallow.Shared.Kernel.Services;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Wolverine;
 
 namespace Wallow.Announcements.Api.Controllers;

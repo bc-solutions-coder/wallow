@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
-using Wallow.Shared.Kernel.Identity.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Options;
+using Wallow.Shared.Kernel.Identity.Authorization;
 
 namespace Wallow.Identity.Infrastructure.Authorization;
 

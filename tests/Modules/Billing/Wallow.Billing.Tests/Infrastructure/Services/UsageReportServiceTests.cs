@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Wallow.Billing.Domain.Metering.Entities;
 using Wallow.Billing.Domain.Metering.Enums;
 using Wallow.Billing.Infrastructure.Persistence;
@@ -5,7 +6,6 @@ using Wallow.Billing.Infrastructure.Services;
 using Wallow.Shared.Contracts.Metering;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
-using Microsoft.EntityFrameworkCore;
 
 namespace Wallow.Billing.Tests.Infrastructure.Services;
 

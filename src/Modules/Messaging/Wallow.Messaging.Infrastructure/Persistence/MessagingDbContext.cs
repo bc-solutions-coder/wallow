@@ -1,6 +1,6 @@
+using Microsoft.EntityFrameworkCore;
 using Wallow.Messaging.Domain.Conversations.Entities;
 using Wallow.Shared.Infrastructure.Core.Persistence;
-using Microsoft.EntityFrameworkCore;
 
 namespace Wallow.Messaging.Infrastructure.Persistence;
 

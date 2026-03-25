@@ -1,7 +1,7 @@
+using Microsoft.EntityFrameworkCore;
 using Wallow.Branding.Application.Interfaces;
 using Wallow.Branding.Domain.Entities;
 using Wallow.Branding.Infrastructure.Persistence;
-using Microsoft.EntityFrameworkCore;
 
 namespace Wallow.Branding.Infrastructure.Repositories;
 

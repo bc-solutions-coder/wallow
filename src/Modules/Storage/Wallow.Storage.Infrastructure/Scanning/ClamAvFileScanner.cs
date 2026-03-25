@@ -1,10 +1,10 @@
 using System.Buffers;
 using System.Net.Sockets;
 using System.Text;
-using Wallow.Storage.Application.Interfaces;
-using Wallow.Storage.Infrastructure.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Wallow.Storage.Application.Interfaces;
+using Wallow.Storage.Infrastructure.Configuration;
 
 namespace Wallow.Storage.Infrastructure.Scanning;
 

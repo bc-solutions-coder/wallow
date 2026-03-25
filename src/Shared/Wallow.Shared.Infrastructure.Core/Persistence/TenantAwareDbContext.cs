@@ -1,9 +1,9 @@
 using System.Linq.Expressions;
 using System.Reflection;
-using Wallow.Shared.Kernel.Identity;
-using Wallow.Shared.Kernel.MultiTenancy;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Wallow.Shared.Kernel.Identity;
+using Wallow.Shared.Kernel.MultiTenancy;
 
 namespace Wallow.Shared.Infrastructure.Core.Persistence;
 

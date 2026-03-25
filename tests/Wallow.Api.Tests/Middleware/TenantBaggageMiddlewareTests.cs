@@ -1,9 +1,9 @@
 using System.Diagnostics;
+using Microsoft.AspNetCore.Http;
+using OpenTelemetry;
 using Wallow.Api.Middleware;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
-using Microsoft.AspNetCore.Http;
-using OpenTelemetry;
 
 namespace Wallow.Api.Tests.Middleware;
 

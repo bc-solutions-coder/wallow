@@ -1,18 +1,15 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-
-using Wallow.Identity.Application.Interfaces;
-using Wallow.Identity.Domain.Entities;
-using Wallow.Shared.Kernel.Results;
-
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-
 using StackExchange.Redis;
+using Wallow.Identity.Application.Interfaces;
+using Wallow.Identity.Domain.Entities;
+using Wallow.Shared.Kernel.Results;
 
 namespace Wallow.Identity.Infrastructure.Services;
 

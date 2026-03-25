@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Wallow.Shared.Contracts.Storage;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Storage.Application.Commands.ScanUploadedFile;
@@ -5,7 +6,6 @@ using Wallow.Storage.Application.Interfaces;
 using Wallow.Storage.Domain.Entities;
 using Wallow.Storage.Domain.Enums;
 using Wallow.Storage.Domain.Identity;
-using Microsoft.Extensions.Logging;
 
 namespace Wallow.Storage.Tests.Application.Commands.ScanUploadedFile;
 

@@ -1,15 +1,15 @@
 using System.Security.Claims;
 using System.Text.Json;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Identity.Infrastructure.Authorization;
 using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
-using Microsoft.AspNetCore.DataProtection;
-using Microsoft.AspNetCore.Http;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 
 namespace Wallow.Identity.Tests.Infrastructure;
 

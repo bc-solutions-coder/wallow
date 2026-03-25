@@ -1,7 +1,7 @@
-using Wallow.Billing.Application.Metering.EventHandlers;
-using Wallow.Billing.Domain.Metering.Events;
 using Microsoft.Extensions.Logging;
 using NSubstitute.Core;
+using Wallow.Billing.Application.Metering.EventHandlers;
+using Wallow.Billing.Domain.Metering.Events;
 using Wolverine;
 
 namespace Wallow.Billing.Tests.Application.Metering;

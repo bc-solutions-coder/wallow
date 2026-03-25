@@ -1,6 +1,6 @@
+using Microsoft.EntityFrameworkCore;
 using Wallow.Inquiries.Domain.Entities;
 using Wallow.Shared.Infrastructure.Core.Persistence;
-using Microsoft.EntityFrameworkCore;
 
 namespace Wallow.Inquiries.Infrastructure.Persistence;
 

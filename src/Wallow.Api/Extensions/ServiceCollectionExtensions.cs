@@ -1,11 +1,5 @@
 using System.Text.RegularExpressions;
 using System.Threading.RateLimiting;
-using Wallow.Api.HealthChecks;
-using Wallow.Api.Middleware;
-using Wallow.Shared.Infrastructure.Core.Resilience;
-using Wallow.Shared.Kernel.Configuration;
-using Wallow.Storage.Domain.Enums;
-using Wallow.Storage.Infrastructure.Configuration;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Controllers;
@@ -18,6 +12,12 @@ using OpenTelemetry.Trace;
 using RedisRateLimiting;
 using Serilog;
 using StackExchange.Redis;
+using Wallow.Api.HealthChecks;
+using Wallow.Api.Middleware;
+using Wallow.Shared.Infrastructure.Core.Resilience;
+using Wallow.Shared.Kernel.Configuration;
+using Wallow.Storage.Domain.Enums;
+using Wallow.Storage.Infrastructure.Configuration;
 
 namespace Wallow.Api.Extensions;
 

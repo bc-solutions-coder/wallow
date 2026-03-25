@@ -1,16 +1,16 @@
 using System.Security.Claims;
 using System.Security.Cryptography;
 using Asp.Versioning;
-using Wallow.Identity.Api.Contracts.Requests;
-using Wallow.Identity.Api.Contracts.Responses;
-using Wallow.Identity.Application.DTOs;
-using Wallow.Identity.Application.Interfaces;
-using Wallow.Identity.Api.Extensions;
-using Wallow.Shared.Kernel.Identity.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using OpenIddict.Abstractions;
+using Wallow.Identity.Api.Contracts.Requests;
+using Wallow.Identity.Api.Contracts.Responses;
+using Wallow.Identity.Api.Extensions;
+using Wallow.Identity.Application.DTOs;
+using Wallow.Identity.Application.Interfaces;
+using Wallow.Shared.Kernel.Identity.Authorization;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
 namespace Wallow.Identity.Api.Controllers;

@@ -1,11 +1,11 @@
-using Wallow.Identity.Api.Controllers;
-using Wallow.Identity.Application.DTOs;
-using Wallow.Identity.Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NSubstitute.ExceptionExtensions;
+using Wallow.Identity.Api.Controllers;
+using Wallow.Identity.Application.DTOs;
+using Wallow.Identity.Application.Interfaces;
 
 namespace Wallow.Identity.Tests.Api.Controllers;
 

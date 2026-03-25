@@ -1,8 +1,8 @@
-using Wallow.Shared.Infrastructure.Workflows.Workflows;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NSubstitute;
+using Wallow.Shared.Infrastructure.Workflows.Workflows;
 
 namespace Wallow.Shared.Infrastructure.Tests.Workflows;
 

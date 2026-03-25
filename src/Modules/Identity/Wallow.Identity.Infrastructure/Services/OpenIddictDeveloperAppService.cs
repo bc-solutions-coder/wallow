@@ -1,9 +1,9 @@
 using System.Security.Cryptography;
 using System.Text.Json;
-using Wallow.Identity.Application.DTOs;
-using Wallow.Identity.Application.Interfaces;
 using Microsoft.Extensions.Logging;
 using OpenIddict.Abstractions;
+using Wallow.Identity.Application.DTOs;
+using Wallow.Identity.Application.Interfaces;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
 namespace Wallow.Identity.Infrastructure.Services;

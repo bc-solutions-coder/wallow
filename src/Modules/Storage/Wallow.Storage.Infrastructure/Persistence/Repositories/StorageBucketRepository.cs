@@ -1,6 +1,6 @@
+using Microsoft.EntityFrameworkCore;
 using Wallow.Storage.Application.Interfaces;
 using Wallow.Storage.Domain.Entities;
-using Microsoft.EntityFrameworkCore;
 
 namespace Wallow.Storage.Infrastructure.Persistence.Repositories;
 

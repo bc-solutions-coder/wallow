@@ -1,7 +1,7 @@
-using Wallow.Shared.Kernel.Configuration;
-using Wallow.Shared.Kernel.MultiTenancy;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Wallow.Shared.Kernel.Configuration;
+using Wallow.Shared.Kernel.MultiTenancy;
 
 namespace Wallow.Shared.Kernel.Extensions;
 

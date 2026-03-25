@@ -41,8 +41,5 @@ config:
 postgresql:
   enabled: false
 
-rabbitmq:
-  enabled: false
-
 valkey:
   enabled: false

@@ -1,7 +1,7 @@
-using Wallow.Identity.Infrastructure.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
+using Wallow.Identity.Infrastructure.Services;
 
 namespace Wallow.Identity.Infrastructure.Middleware;
 

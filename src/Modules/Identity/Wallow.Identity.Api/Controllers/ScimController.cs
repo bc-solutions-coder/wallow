@@ -1,9 +1,6 @@
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 using System.Text.Json.Serialization;
 using Asp.Versioning;
-using Wallow.Identity.Application.DTOs;
-using Wallow.Identity.Application.Exceptions;
-using Wallow.Identity.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -11,6 +8,9 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Wallow.Identity.Application.DTOs;
+using Wallow.Identity.Application.Exceptions;
+using Wallow.Identity.Application.Interfaces;
 
 namespace Wallow.Identity.Api.Controllers;
 

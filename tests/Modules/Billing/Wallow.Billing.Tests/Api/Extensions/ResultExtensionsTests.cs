@@ -1,7 +1,7 @@
-using Wallow.Shared.Api.Extensions;
-using Wallow.Shared.Kernel.Results;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Wallow.Shared.Api.Extensions;
+using Wallow.Shared.Kernel.Results;
 
 namespace Wallow.Billing.Tests.Api.Extensions;
 

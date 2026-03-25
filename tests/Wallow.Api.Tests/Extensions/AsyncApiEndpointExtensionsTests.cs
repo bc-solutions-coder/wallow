@@ -1,8 +1,8 @@
 using System.Net;
-using Wallow.Api.Extensions;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.TestHost;
+using Wallow.Api.Extensions;
 
 namespace Wallow.Api.Tests.Extensions;
 

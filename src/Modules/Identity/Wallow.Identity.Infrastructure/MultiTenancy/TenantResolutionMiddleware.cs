@@ -1,11 +1,11 @@
 using System.Diagnostics;
 using System.Security.Claims;
-using Wallow.Identity.Application.Telemetry;
-using Wallow.Shared.Kernel.Identity;
-using Wallow.Shared.Kernel.MultiTenancy;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Serilog.Context;
+using Wallow.Identity.Application.Telemetry;
+using Wallow.Shared.Kernel.Identity;
+using Wallow.Shared.Kernel.MultiTenancy;
 
 namespace Wallow.Identity.Infrastructure.MultiTenancy;
 

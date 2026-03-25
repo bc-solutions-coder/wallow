@@ -23,16 +23,6 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  rabbitmq:
-    ports:
-      - "127.0.0.1:5674:5672"
-      - "127.0.0.1:15674:15672"
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-
   # ============================================
   # EMAIL TESTING
   # ============================================

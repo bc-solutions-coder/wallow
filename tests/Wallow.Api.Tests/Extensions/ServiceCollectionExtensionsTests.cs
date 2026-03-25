@@ -1,6 +1,4 @@
 using System.Reflection;
-using Wallow.Api.Extensions;
-using Wallow.Api.Middleware;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.AspNetCore.Diagnostics;
@@ -18,6 +16,8 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
 using OpenTelemetry.Trace;
+using Wallow.Api.Extensions;
+using Wallow.Api.Middleware;
 
 namespace Wallow.Api.Tests.Extensions;
 

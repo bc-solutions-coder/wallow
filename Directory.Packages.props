@@ -8,7 +8,7 @@
   <PropertyGroup>
     <!-- .NET Version-Coupled Packages -->
     <!-- These should match the .NET version (e.g., 10.0.x for .NET 10) -->
-    <MicrosoftExtensionsVersion>10.0.3</MicrosoftExtensionsVersion>
+    <MicrosoftExtensionsVersion>10.0.5</MicrosoftExtensionsVersion>
     <EfCoreVersion>10.0.3</EfCoreVersion>
     <AspNetCoreVersion>10.0.2</AspNetCoreVersion>
   </PropertyGroup>
@@ -29,7 +29,6 @@
          Health Checks
          ====================================== -->
     <PackageVersion Include="AspNetCore.HealthChecks.NpgSql" Version="9.0.0" />
-    <PackageVersion Include="AspNetCore.HealthChecks.Rabbitmq" Version="9.0.0" />
     <PackageVersion Include="AspNetCore.HealthChecks.Hangfire" Version="9.0.0" />
     <!-- ======================================
          Logging
@@ -58,7 +57,6 @@
          CQRS & Messaging (Wolverine)
          ====================================== -->
     <PackageVersion Include="WolverineFx" Version="5.17.0" />
-    <PackageVersion Include="WolverineFx.RabbitMQ" Version="5.17.0" />
     <PackageVersion Include="WolverineFx.FluentValidation" Version="5.17.0" />
     <PackageVersion Include="WolverineFx.EntityFrameworkCore" Version="5.17.0" />
     <PackageVersion Include="WolverineFx.Postgresql" Version="5.17.0" />
@@ -76,17 +74,23 @@
          ====================================== -->
     <PackageVersion Include="Dapper" Version="2.1.72" />
     <!-- ======================================
-         Messaging (handled by WolverineFx.RabbitMQ above)
+         Messaging (handled by Wolverine in-memory bus)
          ====================================== -->
     <!-- ======================================
          Authentication & Security
          ====================================== -->
+    <PackageVersion Include="Microsoft.AspNetCore.DataProtection.StackExchangeRedis" Version="$(AspNetCoreVersion)" />
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="$(AspNetCoreVersion)" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="$(AspNetCoreVersion)" />
     <PackageVersion Include="Microsoft.FeatureManagement.AspNetCore" Version="4.4.0" />
     <PackageVersion Include="OpenIddict.AspNetCore" Version="6.2.0" />
     <PackageVersion Include="OpenIddict.EntityFrameworkCore" Version="6.2.0" />
     <PackageVersion Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Identity.Stores" Version="$(AspNetCoreVersion)" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.Google" Version="$(AspNetCoreVersion)" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.MicrosoftAccount" Version="$(AspNetCoreVersion)" />
+    <PackageVersion Include="AspNet.Security.OAuth.GitHub" Version="10.0.0" />
+    <PackageVersion Include="AspNet.Security.OAuth.Apple" Version="10.0.0" />
     <!-- ======================================
          Real-time (SignalR)
          ====================================== -->
@@ -94,6 +98,10 @@
     <PackageVersion Include="Microsoft.AspNetCore.SignalR.StackExchangeRedis" Version="$(AspNetCoreVersion)" />
     <PackageVersion Include="StackExchange.Redis" Version="2.8.41" />
     <PackageVersion Include="AspNetCore.HealthChecks.Redis" Version="9.0.0" />
+    <!-- ======================================
+         Rate Limiting (Redis-backed)
+         ====================================== -->
+    <PackageVersion Include="RedisRateLimiting" Version="1.2.1" />
     <!-- ======================================
          Distributed Caching
          ====================================== -->
@@ -150,7 +158,6 @@
     <PackageVersion Include="NSubstitute" Version="5.3.0" />
     <PackageVersion Include="Testcontainers" Version="4.10.0" />
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.10.0" />
-    <PackageVersion Include="Testcontainers.RabbitMq" Version="4.10.0" />
     <PackageVersion Include="Testcontainers.Redis" Version="4.10.0" />
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="$(AspNetCoreVersion)" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="$(EfCoreVersion)" />
@@ -165,6 +172,12 @@
          Architecture Testing
          ====================================== -->
     <PackageVersion Include="NetArchTest.Rules" Version="1.3.2" />
+    <!-- ======================================
+         Blazor UI Components (BlazorBlueprint)
+         ====================================== -->
+    <PackageVersion Include="BlazorBlueprint.Components" Version="3.6.1" />
+    <PackageVersion Include="BlazorBlueprint.Icons.Lucide" Version="2.0.0" />
+    <PackageVersion Include="RichardSzalay.MockHttp" Version="7.0.0" />
     <!-- ======================================
          Annotations
          ====================================== -->

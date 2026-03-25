@@ -1,7 +1,7 @@
+using Microsoft.Extensions.Logging;
 using Wallow.Notifications.Application.Channels.InApp.Interfaces;
 using Wallow.Shared.Contracts.Realtime;
 using Wallow.Shared.Kernel.Identity;
-using Microsoft.Extensions.Logging;
 
 namespace Wallow.Notifications.Infrastructure.Services;
 

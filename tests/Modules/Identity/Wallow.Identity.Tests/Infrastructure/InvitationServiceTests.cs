@@ -1,5 +1,6 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Time.Testing;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Identity.Domain.Enums;
@@ -10,7 +11,6 @@ using Wallow.Shared.Contracts.Identity.Events;
 using Wallow.Shared.Kernel.Domain;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
-using Microsoft.Extensions.Time.Testing;
 using Wolverine;
 
 namespace Wallow.Identity.Tests.Infrastructure;

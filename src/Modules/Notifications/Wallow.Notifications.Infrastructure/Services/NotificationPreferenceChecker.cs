@@ -1,8 +1,8 @@
+using Microsoft.EntityFrameworkCore;
 using Wallow.Notifications.Application.Preferences.Interfaces;
 using Wallow.Notifications.Domain.Preferences;
 using Wallow.Notifications.Infrastructure.Persistence;
 using Wallow.Shared.Kernel.Identity;
-using Microsoft.EntityFrameworkCore;
 
 namespace Wallow.Notifications.Infrastructure.Services;
 

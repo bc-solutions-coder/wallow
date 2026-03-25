@@ -1,7 +1,7 @@
+using Microsoft.EntityFrameworkCore;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Tests.Common.Fixtures;
-using Microsoft.EntityFrameworkCore;
 
 namespace Wallow.Tests.Common.Bases;
 

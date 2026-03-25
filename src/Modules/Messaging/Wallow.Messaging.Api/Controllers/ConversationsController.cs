@@ -1,4 +1,7 @@
 using Asp.Versioning;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Wallow.Messaging.Api.Contracts.Messaging.Requests;
 using Wallow.Messaging.Api.Contracts.Messaging.Responses;
 using Wallow.Messaging.Application.Conversations.Commands.CreateConversation;
@@ -14,9 +17,6 @@ using Wallow.Shared.Infrastructure.Core.Services;
 using Wallow.Shared.Kernel.Identity.Authorization;
 using Wallow.Shared.Kernel.Results;
 using Wallow.Shared.Kernel.Services;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Wolverine;
 
 namespace Wallow.Messaging.Api.Controllers;

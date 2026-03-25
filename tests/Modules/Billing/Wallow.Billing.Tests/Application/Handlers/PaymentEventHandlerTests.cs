@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Wallow.Billing.Application.EventHandlers;
 using Wallow.Billing.Application.Interfaces;
 using Wallow.Billing.Domain.Entities;
@@ -8,8 +10,6 @@ using Wallow.Shared.Contracts.Billing.Events;
 using Wallow.Shared.Contracts.Identity;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using Wolverine;
 
 namespace Wallow.Billing.Tests.Application.Handlers;

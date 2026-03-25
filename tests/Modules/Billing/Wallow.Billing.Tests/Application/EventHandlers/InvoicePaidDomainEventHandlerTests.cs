@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+using NSubstitute.Core;
 using Wallow.Billing.Application.EventHandlers;
 using Wallow.Billing.Application.Interfaces;
 using Wallow.Billing.Domain.Entities;
@@ -6,8 +8,6 @@ using Wallow.Billing.Domain.Identity;
 using Wallow.Billing.Domain.ValueObjects;
 using Wallow.Shared.Contracts.Billing.Events;
 using Wallow.Shared.Contracts.Identity;
-using Microsoft.Extensions.Logging;
-using NSubstitute.Core;
 using Wolverine;
 using static Wallow.Tests.Common.Helpers.LoggerAssertionExtensions;
 

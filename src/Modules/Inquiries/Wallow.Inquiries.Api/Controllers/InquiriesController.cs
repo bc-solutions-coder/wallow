@@ -1,4 +1,7 @@
 using Asp.Versioning;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Wallow.Inquiries.Api.Contracts;
 using Wallow.Inquiries.Application.Commands.AddInquiryComment;
 using Wallow.Inquiries.Application.Commands.SubmitInquiry;
@@ -14,9 +17,6 @@ using Wallow.Shared.Api.Extensions;
 using Wallow.Shared.Kernel.Identity.Authorization;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Shared.Kernel.Results;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Wolverine;
 
 namespace Wallow.Inquiries.Api.Controllers;

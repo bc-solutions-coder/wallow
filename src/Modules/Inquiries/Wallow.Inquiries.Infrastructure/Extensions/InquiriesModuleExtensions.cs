@@ -1,11 +1,11 @@
-using Wallow.Inquiries.Application.Extensions;
-using Wallow.Inquiries.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Wallow.Inquiries.Application.Extensions;
+using Wallow.Inquiries.Infrastructure.Persistence;
 
 namespace Wallow.Inquiries.Infrastructure.Extensions;
 

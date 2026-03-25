@@ -27,6 +27,5 @@ config:
 secrets:
   ConnectionStrings__DefaultConnection: ""  # Set via --set or external secret
   ConnectionStrings__Redis: ""
-  ConnectionStrings__RabbitMq: ""
   AWS__S3__BucketName: "wallow-assets-eu-west"
   AWS__S3__Region: "eu-west-1"

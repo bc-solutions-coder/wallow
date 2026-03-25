@@ -1,10 +1,10 @@
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Identity.Infrastructure.Data;
 using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Shared.Kernel.MultiTenancy;
-using Microsoft.AspNetCore.DataProtection;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 
 namespace Wallow.Identity.Tests.Infrastructure;
 

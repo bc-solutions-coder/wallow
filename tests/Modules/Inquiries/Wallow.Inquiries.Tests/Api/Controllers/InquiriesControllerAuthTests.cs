@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Wallow.Inquiries.Api.Contracts;
 using Wallow.Inquiries.Api.Controllers;
 using Wallow.Inquiries.Application.DTOs;
@@ -6,10 +8,8 @@ using Wallow.Inquiries.Application.Queries.GetInquiryById;
 using Wallow.Inquiries.Application.Queries.GetInquiryComments;
 using Wallow.Inquiries.Application.Queries.GetSubmittedInquiries;
 using Wallow.Shared.Kernel.Identity.Authorization;
-using Wallow.Shared.Kernel.Results;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Wallow.Shared.Kernel.MultiTenancy;
+using Wallow.Shared.Kernel.Results;
 using Wolverine;
 
 namespace Wallow.Inquiries.Tests.Api.Controllers;

@@ -1,9 +1,9 @@
+using Microsoft.Extensions.Logging;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Identity.Domain.Enums;
 using Wallow.Shared.Kernel.MultiTenancy;
-using Microsoft.Extensions.Logging;
 
 namespace Wallow.Identity.Infrastructure.Services;
 

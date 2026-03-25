@@ -1,6 +1,6 @@
 using System.Collections.Immutable;
-using Wallow.Shared.Contracts.Identity;
 using OpenIddict.Abstractions;
+using Wallow.Shared.Contracts.Identity;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
 namespace Wallow.Identity.Infrastructure.Services;

@@ -1,10 +1,10 @@
 using System.Security.Claims;
-using Wallow.Shared.Contracts.ApiKeys;
-using Wallow.Shared.Kernel.Identity;
-using Wallow.Shared.Kernel.MultiTenancy;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Primitives;
+using Wallow.Shared.Contracts.ApiKeys;
+using Wallow.Shared.Kernel.Identity;
+using Wallow.Shared.Kernel.MultiTenancy;
 
 namespace Wallow.ApiKeys.Infrastructure.Authorization;
 

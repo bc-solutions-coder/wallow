@@ -1,7 +1,7 @@
+using Microsoft.EntityFrameworkCore;
 using Wallow.Billing.Infrastructure.Persistence;
 using Wallow.Shared.Contracts.Billing;
 using Wallow.Shared.Kernel.Persistence;
-using Microsoft.EntityFrameworkCore;
 
 namespace Wallow.Billing.Infrastructure.Services;
 

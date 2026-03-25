@@ -1,4 +1,7 @@
 using Asp.Versioning;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Wallow.Notifications.Api.Contracts.Preferences;
 using Wallow.Notifications.Application.Channels.Preferences.Commands.SetChannelEnabled;
 using Wallow.Notifications.Application.Channels.Preferences.DTOs;
@@ -8,9 +11,6 @@ using Wallow.Shared.Api.Extensions;
 using Wallow.Shared.Kernel.Identity.Authorization;
 using Wallow.Shared.Kernel.Results;
 using Wallow.Shared.Kernel.Services;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Wolverine;
 
 namespace Wallow.Notifications.Api.Controllers;

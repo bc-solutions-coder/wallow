@@ -1,7 +1,7 @@
+using Microsoft.EntityFrameworkCore;
 using Wallow.Shared.Infrastructure.Core.Persistence;
 using Wallow.Shared.Infrastructure.Settings;
 using Wallow.Storage.Domain.Entities;
-using Microsoft.EntityFrameworkCore;
 
 namespace Wallow.Storage.Infrastructure.Persistence;
 

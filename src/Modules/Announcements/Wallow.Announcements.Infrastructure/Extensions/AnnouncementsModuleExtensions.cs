@@ -1,9 +1,3 @@
-using Wallow.Announcements.Application.Announcements.Interfaces;
-using Wallow.Announcements.Application.Announcements.Services;
-using Wallow.Announcements.Application.Changelogs.Interfaces;
-using Wallow.Announcements.Infrastructure.Persistence;
-using Wallow.Announcements.Infrastructure.Persistence.Repositories;
-using Wallow.Shared.Kernel.MultiTenancy;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -11,6 +5,14 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Npgsql;
+using Wallow.Announcements.Application.Announcements.Interfaces;
+using Wallow.Announcements.Application.Announcements.Services;
+using Wallow.Announcements.Application.Changelogs.Interfaces;
+using Wallow.Announcements.Infrastructure.Persistence;
+using Wallow.Announcements.Infrastructure.Persistence.Repositories;
+using Wallow.Shared.Infrastructure.Core.Extensions;
+using Wallow.Shared.Kernel.MultiTenancy;
 
 namespace Wallow.Announcements.Infrastructure.Extensions;
 
@@ -20,12 +22,20 @@ public static partial class AnnouncementsModuleExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        _ = configuration;
+        int maxPoolSize = configuration.GetValue("Database:MaxPoolSize", 200);
+        int minPoolSize = configuration.GetValue("Database:MinPoolSize", 10);
 
-        services.AddDbContext<AnnouncementsDbContext>((sp, options) =>
+        string defaultConnectionString = configuration.GetConnectionString("DefaultConnection")
+            ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured.");
+
+        services.AddPooledDbContextFactory<AnnouncementsDbContext>((sp, options) =>
         {
-            string? connectionString = sp.GetRequiredService<IConfiguration>().GetConnectionString("DefaultConnection");
-            options.UseNpgsql(connectionString, npgsql =>
+            NpgsqlConnectionStringBuilder builder = new(defaultConnectionString)
+            {
+                MaxPoolSize = maxPoolSize,
+                MinPoolSize = minPoolSize
+            };
+            options.UseNpgsql(builder.ConnectionString, npgsql =>
             {
                 npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "announcements");
                 npgsql.EnableRetryOnFailure(
@@ -38,6 +48,17 @@ public static partial class AnnouncementsModuleExtensions
                 w.Ignore(RelationalEventId.PendingModelChangesWarning));
             options.AddInterceptors(sp.GetRequiredService<TenantSaveChangesInterceptor>());
         });
+
+        services.AddScoped<AnnouncementsDbContext>(sp =>
+        {
+            IDbContextFactory<AnnouncementsDbContext> factory = sp.GetRequiredService<IDbContextFactory<AnnouncementsDbContext>>();
+            AnnouncementsDbContext ctx = factory.CreateDbContext();
+            ITenantContext tenant = sp.GetRequiredService<ITenantContext>();
+            ctx.SetTenant(tenant.TenantId);
+            return ctx;
+        });
+
+        services.AddReadDbContext<AnnouncementsDbContext>(configuration);
 
         // Repositories
         services.AddScoped<IAnnouncementRepository, AnnouncementRepository>();

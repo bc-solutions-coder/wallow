@@ -1,3 +1,9 @@
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Polly;
+using Polly.Registry;
 using Wallow.Notifications.Application.Channels.Email.Interfaces;
 using Wallow.Notifications.Application.Channels.InApp.Interfaces;
 using Wallow.Notifications.Application.Channels.Push.Interfaces;
@@ -10,12 +16,6 @@ using Wallow.Notifications.Infrastructure.Services;
 using Wallow.Shared.Contracts.Communications.Email;
 using Wallow.Shared.Contracts.Realtime;
 using Wallow.Shared.Kernel.MultiTenancy;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Polly;
-using Polly.Registry;
 
 namespace Wallow.Notifications.Tests.Infrastructure;
 

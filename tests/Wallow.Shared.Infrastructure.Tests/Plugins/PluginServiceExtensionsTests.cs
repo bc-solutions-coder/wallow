@@ -1,10 +1,10 @@
 using System.Text.Json;
-using Wallow.Shared.Infrastructure.Plugins;
-using Wallow.Shared.Kernel.Plugins;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Wallow.Shared.Infrastructure.Plugins;
+using Wallow.Shared.Kernel.Plugins;
 
 namespace Wallow.Shared.Infrastructure.Tests.Plugins;
 

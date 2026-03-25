@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Wallow.Messaging.Api.Contracts.Messaging.Requests;
 using Wallow.Messaging.Api.Contracts.Messaging.Responses;
 using Wallow.Messaging.Api.Controllers;
@@ -13,8 +15,6 @@ using Wallow.Messaging.Application.Conversations.Queries.GetUnreadConversationCo
 using Wallow.Shared.Infrastructure.Core.Services;
 using Wallow.Shared.Kernel.Results;
 using Wallow.Shared.Kernel.Services;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Wolverine;
 
 namespace Wallow.Messaging.Tests.Api.Controllers;

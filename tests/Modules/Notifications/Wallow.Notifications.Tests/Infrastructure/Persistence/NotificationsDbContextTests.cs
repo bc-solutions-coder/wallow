@@ -1,7 +1,7 @@
+using Microsoft.EntityFrameworkCore;
 using Wallow.Notifications.Infrastructure.Persistence;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
-using Microsoft.EntityFrameworkCore;
 
 namespace Wallow.Notifications.Tests.Infrastructure.Persistence;
 

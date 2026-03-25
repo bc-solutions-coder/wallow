@@ -1,20 +1,16 @@
 using System.Security.Cryptography;
 using System.Text;
-
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using StackExchange.Redis;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Identity.Infrastructure.Options;
 using Wallow.Shared.Contracts.Identity.Events;
 using Wallow.Shared.Kernel.MultiTenancy;
-
-using Microsoft.AspNetCore.DataProtection;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-
-using StackExchange.Redis;
-
 using Wolverine;
 
 namespace Wallow.Identity.Infrastructure.Services;

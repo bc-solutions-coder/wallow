@@ -1,9 +1,9 @@
 using System.Collections.Immutable;
-using Wallow.Identity.Infrastructure.Services;
-using Wallow.Tests.Common.Fakes;
 using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Configuration;
 using OpenIddict.Abstractions;
+using Wallow.Identity.Infrastructure.Services;
+using Wallow.Tests.Common.Fakes;
 
 namespace Wallow.Identity.Tests.Infrastructure;
 

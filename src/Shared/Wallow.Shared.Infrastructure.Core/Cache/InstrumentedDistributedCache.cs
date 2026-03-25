@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
-using Wallow.Shared.Kernel;
 using Microsoft.Extensions.Caching.Distributed;
+using Wallow.Shared.Kernel;
 
 namespace Wallow.Shared.Infrastructure.Core.Cache;
 

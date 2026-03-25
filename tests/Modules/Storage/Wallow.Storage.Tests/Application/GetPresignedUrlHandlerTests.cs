@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using Wallow.Shared.Contracts.Storage;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.Results;
@@ -7,7 +8,6 @@ using Wallow.Storage.Application.Interfaces;
 using Wallow.Storage.Application.Queries.GetPresignedUrl;
 using Wallow.Storage.Domain.Entities;
 using Wallow.Storage.Domain.Identity;
-using Microsoft.Extensions.Options;
 
 namespace Wallow.Storage.Tests.Application;
 

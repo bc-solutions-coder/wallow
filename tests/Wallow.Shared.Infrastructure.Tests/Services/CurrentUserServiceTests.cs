@@ -1,9 +1,9 @@
 using System.Security.Claims;
-using Wallow.Shared.Infrastructure.Core.Services;
-using Wallow.Shared.Kernel.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
+using Wallow.Shared.Infrastructure.Core.Services;
+using Wallow.Shared.Kernel.Services;
 
 namespace Wallow.Shared.Infrastructure.Tests.Services;
 

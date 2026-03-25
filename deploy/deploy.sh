@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # deploy.sh — Deploy the Wallow application
 # Called by CI/CD via SSH. Restarts only the app container;
-# infrastructure (postgres, rabbitmq) stays running.
+# infrastructure (postgres, valkey) stays running.
 #
 # Usage: deploy.sh <environment> [image-tag]
 #   environment: dev | staging | prod
@@ -129,14 +129,14 @@ if ! check_container_running "postgres"; then
     infra_healthy=false
 fi
 
-if ! check_container_running "rabbitmq"; then
-    log_warn "RabbitMQ is not running"
+if ! check_container_running "valkey"; then
+    log_warn "Valkey is not running"
     infra_healthy=false
 fi
 
 if [[ "$infra_healthy" == "false" ]]; then
     log "Starting infrastructure services..."
-    $COMPOSE_CMD up -d postgres rabbitmq
+    $COMPOSE_CMD up -d postgres valkey
 
     # Wait up to 30s for infrastructure to become healthy
     log "Waiting for infrastructure to become healthy (up to 30s)..."
@@ -147,16 +147,16 @@ if [[ "$infra_healthy" == "false" ]]; then
     for ((i = 1; i <= infra_retries; i++)); do
         sleep "$infra_interval"
         pg_healthy=false
-        rmq_healthy=false
 
         if check_container_running "postgres"; then
             pg_healthy=true
         fi
-        if check_container_running "rabbitmq"; then
-            rmq_healthy=true
+        vk_healthy=false
+        if check_container_running "valkey"; then
+            vk_healthy=true
         fi
 
-        if [[ "$pg_healthy" == "true" && "$rmq_healthy" == "true" ]]; then
+        if [[ "$pg_healthy" == "true" && "$vk_healthy" == "true" ]]; then
             infra_ready=true
             break
         fi
@@ -165,7 +165,7 @@ if [[ "$infra_healthy" == "false" ]]; then
 
     if [[ "$infra_ready" == "false" ]]; then
         log_error "Infrastructure failed to become healthy within 30 seconds."
-        log_error "Check postgres and rabbitmq logs: $COMPOSE_CMD logs postgres rabbitmq"
+        log_error "Check postgres and valkey logs: $COMPOSE_CMD logs postgres valkey"
         exit 1
     fi
 fi

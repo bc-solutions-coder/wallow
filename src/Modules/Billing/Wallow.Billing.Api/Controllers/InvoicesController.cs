@@ -1,4 +1,7 @@
 using Asp.Versioning;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Wallow.Billing.Api.Contracts.Invoices;
 using Wallow.Billing.Application.Commands.AddLineItem;
 using Wallow.Billing.Application.Commands.CancelInvoice;
@@ -13,9 +16,6 @@ using Wallow.Shared.Kernel.Identity.Authorization;
 using Wallow.Shared.Kernel.Pagination;
 using Wallow.Shared.Kernel.Results;
 using Wallow.Shared.Kernel.Services;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Wolverine;
 
 namespace Wallow.Billing.Api.Controllers;

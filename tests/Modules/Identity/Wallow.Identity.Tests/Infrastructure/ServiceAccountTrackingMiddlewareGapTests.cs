@@ -1,8 +1,8 @@
 using System.Security.Claims;
-using Wallow.Identity.Infrastructure.Middleware;
-using Wallow.Identity.Infrastructure.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
+using Wallow.Identity.Infrastructure.Middleware;
+using Wallow.Identity.Infrastructure.Services;
 
 namespace Wallow.Identity.Tests.Infrastructure;
 

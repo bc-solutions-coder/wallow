@@ -1,4 +1,7 @@
 using Asp.Versioning;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Wallow.Billing.Api.Contracts.Payments;
 using Wallow.Billing.Application.Commands.ProcessPayment;
 using Wallow.Billing.Application.DTOs;
@@ -10,9 +13,6 @@ using Wallow.Shared.Kernel.Identity.Authorization;
 using Wallow.Shared.Kernel.Pagination;
 using Wallow.Shared.Kernel.Results;
 using Wallow.Shared.Kernel.Services;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Wolverine;
 
 namespace Wallow.Billing.Api.Controllers;

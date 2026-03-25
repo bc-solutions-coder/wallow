@@ -1,12 +1,12 @@
 using System.Text.Json;
 using FluentValidation;
 using FluentValidation.Results;
-using Wallow.Api.Middleware;
-using Wallow.Shared.Kernel.Domain;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
+using Wallow.Api.Middleware;
+using Wallow.Shared.Kernel.Domain;
 
 namespace Wallow.Api.Tests.Middleware;
 

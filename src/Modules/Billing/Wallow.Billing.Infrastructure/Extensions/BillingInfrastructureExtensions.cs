@@ -1,3 +1,7 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
 using Wallow.Billing.Application.Interfaces;
 using Wallow.Billing.Application.Metering.Interfaces;
 using Wallow.Billing.Application.Metering.Services;
@@ -11,10 +15,6 @@ using Wallow.Shared.Contracts.Metering;
 using Wallow.Shared.Infrastructure.Core.Extensions;
 using Wallow.Shared.Infrastructure.Settings;
 using Wallow.Shared.Kernel.MultiTenancy;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Npgsql;
 
 namespace Wallow.Billing.Infrastructure.Extensions;
 

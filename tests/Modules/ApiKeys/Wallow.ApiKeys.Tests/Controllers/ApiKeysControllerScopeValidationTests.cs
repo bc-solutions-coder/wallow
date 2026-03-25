@@ -1,13 +1,13 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using Wallow.ApiKeys.Api.Contracts.Requests;
 using Wallow.ApiKeys.Api.Controllers;
 using Wallow.Shared.Contracts.ApiKeys;
 using Wallow.Shared.Contracts.Identity;
 using Wallow.Shared.Kernel.Identity.Authorization;
 using Wallow.Shared.Kernel.MultiTenancy;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Configuration;
 
 namespace Wallow.ApiKeys.Tests.Controllers;
 

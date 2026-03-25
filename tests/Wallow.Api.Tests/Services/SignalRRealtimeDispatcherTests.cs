@@ -1,10 +1,10 @@
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Logging.Abstractions;
+using NSubstitute.ExceptionExtensions;
 using Wallow.Api.Hubs;
 using Wallow.Api.Services;
 using Wallow.Shared.Contracts.Realtime;
 using Wallow.Shared.Infrastructure.Core.Services;
-using Microsoft.AspNetCore.SignalR;
-using Microsoft.Extensions.Logging.Abstractions;
-using NSubstitute.ExceptionExtensions;
 
 namespace Wallow.Api.Tests.Services;
 

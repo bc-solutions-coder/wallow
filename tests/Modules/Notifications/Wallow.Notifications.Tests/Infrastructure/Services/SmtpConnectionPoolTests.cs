@@ -1,6 +1,6 @@
-using Wallow.Notifications.Infrastructure.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Wallow.Notifications.Infrastructure.Services;
 
 namespace Wallow.Notifications.Tests.Infrastructure.Services;
 

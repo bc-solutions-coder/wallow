@@ -1,7 +1,7 @@
 using System.Reflection;
+using NetArchTest.Rules;
 using Wallow.Shared.Contracts.Identity.Events;
 using Wallow.Shared.Kernel.Domain;
-using NetArchTest.Rules;
 
 namespace Wallow.Architecture.Tests;
 

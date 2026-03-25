@@ -1,8 +1,8 @@
+using Microsoft.EntityFrameworkCore;
 using Wallow.Notifications.Application.Channels.InApp.Interfaces;
 using Wallow.Notifications.Domain.Channels.InApp.Entities;
 using Wallow.Notifications.Domain.Channels.InApp.Identity;
 using Wallow.Shared.Kernel.Pagination;
-using Microsoft.EntityFrameworkCore;
 
 namespace Wallow.Notifications.Infrastructure.Persistence.Repositories;
 

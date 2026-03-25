@@ -2,6 +2,12 @@ using System.Net;
 using System.Net.Sockets;
 using Amazon.S3;
 using FluentValidation;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using Wallow.Shared.Contracts.Storage;
 using Wallow.Storage.Application.Configuration;
 using Wallow.Storage.Application.Interfaces;
@@ -9,12 +15,6 @@ using Wallow.Storage.Infrastructure.Configuration;
 using Wallow.Storage.Infrastructure.Extensions;
 using Wallow.Storage.Infrastructure.Persistence;
 using Wallow.Storage.Infrastructure.Scanning;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Options;
 
 namespace Wallow.Storage.Tests.Infrastructure;
 

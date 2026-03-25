@@ -1,8 +1,8 @@
 using System.Security.Claims;
-using Wallow.Identity.Infrastructure.MultiTenancy;
-using Wallow.Shared.Kernel.MultiTenancy;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
+using Wallow.Identity.Infrastructure.MultiTenancy;
+using Wallow.Shared.Kernel.MultiTenancy;
 
 namespace Wallow.Identity.Tests.Infrastructure;
 

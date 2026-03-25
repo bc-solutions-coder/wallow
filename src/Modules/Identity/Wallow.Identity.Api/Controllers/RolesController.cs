@@ -1,12 +1,12 @@
 using Asp.Versioning;
-using Wallow.Identity.Application.Interfaces;
-using Wallow.Identity.Domain.Entities;
-using Wallow.Shared.Kernel.Identity.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Wallow.Identity.Application.Interfaces;
+using Wallow.Identity.Domain.Entities;
+using Wallow.Shared.Kernel.Identity.Authorization;
 
 namespace Wallow.Identity.Api.Controllers;
 

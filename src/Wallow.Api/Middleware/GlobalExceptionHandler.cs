@@ -1,7 +1,7 @@
 using FluentValidation;
-using Wallow.Shared.Kernel.Domain;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using Wallow.Shared.Kernel.Domain;
 
 namespace Wallow.Api.Middleware;
 

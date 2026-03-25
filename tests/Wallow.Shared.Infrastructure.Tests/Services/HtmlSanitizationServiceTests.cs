@@ -1,5 +1,5 @@
-using Wallow.Shared.Infrastructure.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
+using Wallow.Shared.Infrastructure.Core.Services;
 
 namespace Wallow.Shared.Infrastructure.Tests.Services;
 

@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Wallow.Billing.Api.Contracts.Payments;
 using Wallow.Billing.Api.Controllers;
 using Wallow.Billing.Application.Commands.ProcessPayment;
@@ -7,8 +9,6 @@ using Wallow.Billing.Application.Queries.GetPaymentById;
 using Wallow.Billing.Application.Queries.GetPaymentsByInvoiceId;
 using Wallow.Shared.Kernel.Results;
 using Wallow.Shared.Kernel.Services;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Wolverine;
 
 namespace Wallow.Billing.Tests.Api.Controllers;

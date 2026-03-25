@@ -1,13 +1,13 @@
 using Asp.Versioning;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Wallow.Announcements.Api.Contracts.Responses;
 using Wallow.Announcements.Application.Changelogs.DTOs;
 using Wallow.Announcements.Application.Changelogs.Queries.GetChangelog;
 using Wallow.Announcements.Application.Changelogs.Queries.GetChangelogEntry;
 using Wallow.Shared.Api.Extensions;
 using Wallow.Shared.Kernel.Results;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Wolverine;
 
 namespace Wallow.Announcements.Api.Controllers;

@@ -1,6 +1,6 @@
 using System.Diagnostics;
-using Wallow.Shared.Kernel.MultiTenancy;
 using OpenTelemetry;
+using Wallow.Shared.Kernel.MultiTenancy;
 
 namespace Wallow.Api.Middleware;
 

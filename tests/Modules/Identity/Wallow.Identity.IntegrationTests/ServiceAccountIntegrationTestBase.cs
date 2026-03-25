@@ -1,4 +1,8 @@
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Infrastructure.Data;
 using Wallow.Identity.Infrastructure.Persistence;
@@ -8,10 +12,6 @@ using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Tests.Common.Bases;
 using Wallow.Tests.Common.Factories;
 using Wallow.Tests.Common.Helpers;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.TestHost;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 
 namespace Wallow.Identity.IntegrationTests;
 

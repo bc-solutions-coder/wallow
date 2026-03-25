@@ -1,6 +1,5 @@
-using Wallow.Identity.Application.Commands.RegisterSetupClient;
-
 using OpenIddict.Abstractions;
+using Wallow.Identity.Application.Commands.RegisterSetupClient;
 
 namespace Wallow.Identity.Infrastructure.Services;
 

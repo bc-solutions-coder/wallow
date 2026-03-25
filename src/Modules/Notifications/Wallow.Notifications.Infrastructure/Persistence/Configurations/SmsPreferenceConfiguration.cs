@@ -1,8 +1,8 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Wallow.Notifications.Domain.Channels.Sms.Entities;
 using Wallow.Notifications.Domain.Channels.Sms.Identity;
 using Wallow.Shared.Kernel.Identity;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Wallow.Notifications.Infrastructure.Persistence.Configurations;
 

@@ -1,8 +1,8 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Identity.Domain.Identity;
 using Wallow.Shared.Kernel.Identity;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Wallow.Identity.Infrastructure.Persistence.Configurations;
 

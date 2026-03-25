@@ -1,8 +1,8 @@
+using Microsoft.EntityFrameworkCore;
 using Wallow.Billing.Application.Interfaces;
 using Wallow.Billing.Domain.Entities;
 using Wallow.Billing.Domain.Enums;
 using Wallow.Billing.Domain.Identity;
-using Microsoft.EntityFrameworkCore;
 
 namespace Wallow.Billing.Infrastructure.Persistence.Repositories;
 

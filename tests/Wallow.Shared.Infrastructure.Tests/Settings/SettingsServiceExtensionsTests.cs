@@ -1,6 +1,6 @@
+using Microsoft.Extensions.DependencyInjection;
 using Wallow.Shared.Infrastructure.Settings;
 using Wallow.Shared.Kernel.Settings;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Wallow.Shared.Infrastructure.Tests.Settings;
 

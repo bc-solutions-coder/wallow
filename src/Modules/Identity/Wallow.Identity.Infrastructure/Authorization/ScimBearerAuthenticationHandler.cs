@@ -2,13 +2,13 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Encodings.Web;
-using Wallow.Identity.Infrastructure.Persistence;
-using Wallow.Shared.Kernel.MultiTenancy;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
+using Wallow.Identity.Infrastructure.Persistence;
+using Wallow.Shared.Kernel.MultiTenancy;
 
 namespace Wallow.Identity.Infrastructure.Authorization;
 

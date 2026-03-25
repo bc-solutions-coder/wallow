@@ -1,6 +1,6 @@
+using Microsoft.Extensions.DependencyInjection;
 using Wallow.Shared.Infrastructure.BackgroundJobs;
 using Wallow.Shared.Kernel.BackgroundJobs;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Wallow.Shared.Infrastructure.Tests.BackgroundJobs;
 

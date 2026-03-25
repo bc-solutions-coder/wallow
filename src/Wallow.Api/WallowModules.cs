@@ -1,4 +1,5 @@
 // Infrastructure extensions - canonical source for module registration
+using Microsoft.FeatureManagement;
 using Wallow.Announcements.Infrastructure.Extensions;
 using Wallow.ApiKeys.Infrastructure.Extensions;
 using Wallow.Billing.Infrastructure.Extensions;
@@ -9,7 +10,6 @@ using Wallow.Messaging.Infrastructure.Extensions;
 using Wallow.Notifications.Infrastructure.Extensions;
 using Wallow.Shared.Infrastructure.Plugins;
 using Wallow.Storage.Infrastructure.Extensions;
-using Microsoft.FeatureManagement;
 
 namespace Wallow.Api;
 

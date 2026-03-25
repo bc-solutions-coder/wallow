@@ -26,7 +26,7 @@ Thank you for your interest in contributing to Wallow! This guide will help you 
    dotnet test
    ```
 
-See the [Developer Guide](docs/DEVELOPER_GUIDE.md) for detailed setup instructions and service URLs.
+See the [Developer Guide](docs/getting-started/developer-guide.md) for detailed setup instructions and service URLs.
 
 ## How to Contribute
 
@@ -62,7 +62,7 @@ Wallow is a modular monolith following Clean Architecture and DDD principles. Be
 - Each module owns its own database schema
 - Use EF Core for writes, Dapper for complex reads
 
-For adding new modules, see `docs/claude/module-creation.md`.
+For adding new modules, see `.claude/docs/module-creation.md`.
 
 ## Commit Messages
 

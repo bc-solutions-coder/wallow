@@ -1,9 +1,9 @@
-using Wallow.Identity.Domain.Entities;
-using Wallow.Identity.Infrastructure.Persistence;
-using Wallow.Shared.Contracts.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Infrastructure.Persistence;
+using Wallow.Shared.Contracts.Identity;
 
 namespace Wallow.Identity.Infrastructure.Services;
 

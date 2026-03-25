@@ -1,8 +1,8 @@
 using System.Security.Claims;
-using Wallow.Shared.Contracts.Realtime;
-using Wallow.Shared.Kernel.MultiTenancy;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using Wallow.Shared.Contracts.Realtime;
+using Wallow.Shared.Kernel.MultiTenancy;
 
 namespace Wallow.Api.Hubs;
 

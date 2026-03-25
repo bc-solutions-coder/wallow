@@ -1,3 +1,14 @@
+using Microsoft.AspNetCore.Builder;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Npgsql;
+using Polly;
+using Polly.Retry;
+using Polly.Timeout;
 using Wallow.Notifications.Application.Channels.Email.Interfaces;
 using Wallow.Notifications.Application.Channels.InApp.Interfaces;
 using Wallow.Notifications.Application.Channels.Push.Interfaces;
@@ -12,17 +23,6 @@ using Wallow.Shared.Contracts.Communications.Email;
 using Wallow.Shared.Infrastructure.Core.Extensions;
 using Wallow.Shared.Infrastructure.Core.Resilience;
 using Wallow.Shared.Kernel.MultiTenancy;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using Npgsql;
-using Polly;
-using Polly.Retry;
-using Polly.Timeout;
 
 namespace Wallow.Notifications.Infrastructure.Extensions;
 

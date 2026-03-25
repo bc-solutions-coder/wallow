@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
@@ -5,8 +7,6 @@ using Wallow.Identity.Domain.Identity;
 using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Shared.Contracts.Identity.Events;
 using Wallow.Shared.Kernel.MultiTenancy;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using Wolverine;
 
 namespace Wallow.Identity.Infrastructure.Services;

@@ -1,5 +1,5 @@
-using Wallow.Billing.Domain.Metering.Events;
 using Microsoft.Extensions.Logging;
+using Wallow.Billing.Domain.Metering.Events;
 using Wolverine;
 
 namespace Wallow.Billing.Application.Metering.EventHandlers;

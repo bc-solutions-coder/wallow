@@ -1,7 +1,7 @@
+using Microsoft.Extensions.Logging;
 using Wallow.Shared.Contracts.Storage;
 using Wallow.Storage.Application.Interfaces;
 using Wallow.Storage.Domain.Entities;
-using Microsoft.Extensions.Logging;
 
 namespace Wallow.Storage.Application.Commands.ScanUploadedFile;
 

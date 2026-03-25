@@ -7,14 +7,20 @@ CREATE SCHEMA IF NOT EXISTS identity;
 -- Billing module schema
 CREATE SCHEMA IF NOT EXISTS billing;
 
--- Communications module schema
-CREATE SCHEMA IF NOT EXISTS communications;
-
 -- Storage module schema
 CREATE SCHEMA IF NOT EXISTS storage;
 
--- Configuration module schema
-CREATE SCHEMA IF NOT EXISTS configuration;
+-- Notifications module schema
+CREATE SCHEMA IF NOT EXISTS notifications;
+
+-- Messaging module schema
+CREATE SCHEMA IF NOT EXISTS messaging;
+
+-- Announcements module schema
+CREATE SCHEMA IF NOT EXISTS announcements;
+
+-- Inquiries module schema
+CREATE SCHEMA IF NOT EXISTS inquiries;
 
 -- Audit schema
 CREATE SCHEMA IF NOT EXISTS audit;
@@ -24,7 +30,7 @@ DO $$
 DECLARE
     schema_name TEXT;
 BEGIN
-    FOR schema_name IN SELECT unnest(ARRAY['identity', 'billing', 'communications', 'storage', 'configuration', 'audit'])
+    FOR schema_name IN SELECT unnest(ARRAY['identity', 'billing', 'storage', 'notifications', 'messaging', 'announcements', 'inquiries', 'audit'])
     LOOP
         EXECUTE format('GRANT ALL PRIVILEGES ON SCHEMA %I TO %I', schema_name, current_user);
         EXECUTE format('GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA %I TO %I', schema_name, current_user);

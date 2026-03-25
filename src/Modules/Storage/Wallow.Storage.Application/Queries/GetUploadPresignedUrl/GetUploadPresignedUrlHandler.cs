@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using Wallow.Shared.Contracts.Storage;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.Results;
@@ -6,7 +7,6 @@ using Wallow.Storage.Application.Configuration;
 using Wallow.Storage.Application.DTOs;
 using Wallow.Storage.Application.Interfaces;
 using Wallow.Storage.Domain.Entities;
-using Microsoft.Extensions.Options;
 using Wolverine;
 
 namespace Wallow.Storage.Application.Queries.GetUploadPresignedUrl;

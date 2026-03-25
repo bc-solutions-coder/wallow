@@ -1,13 +1,13 @@
 using System.Text.Json;
-using Wallow.ApiKeys.Application.Interfaces;
-using Wallow.Shared.Contracts.ApiKeys;
-using Wallow.ApiKeys.Domain.Entities;
-using Wallow.ApiKeys.Infrastructure.Services;
-using Wallow.Shared.Kernel.Identity;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute.ExceptionExtensions;
 using StackExchange.Redis;
+using Wallow.ApiKeys.Application.Interfaces;
+using Wallow.ApiKeys.Domain.Entities;
+using Wallow.ApiKeys.Infrastructure.Services;
+using Wallow.Shared.Contracts.ApiKeys;
+using Wallow.Shared.Kernel.Identity;
 
 namespace Wallow.ApiKeys.Tests.Infrastructure;
 

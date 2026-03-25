@@ -1,11 +1,11 @@
 using System.Diagnostics;
-using Wallow.Notifications.Application.Channels.Email.Interfaces;
-using Wallow.Notifications.Application.Channels.Email.Telemetry;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MimeKit;
 using Polly;
 using Polly.Registry;
+using Wallow.Notifications.Application.Channels.Email.Interfaces;
+using Wallow.Notifications.Application.Channels.Email.Telemetry;
 
 namespace Wallow.Notifications.Infrastructure.Services;
 

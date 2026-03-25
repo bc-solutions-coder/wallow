@@ -23,15 +23,27 @@ services:
         max-size: "50m"
         max-file: "5"
 
-  rabbitmq:
-    # No external ports in production, use minimal image without management UI
-    image: rabbitmq:4.2-alpine
+  postgres-replica:
+    # No external ports in production
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 1G
     logging:
       driver: json-file
       options:
         max-size: "50m"
         max-file: "5"
+
+  valkey:
+    command: valkey-server --requirepass ${VALKEY_PASSWORD} --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+

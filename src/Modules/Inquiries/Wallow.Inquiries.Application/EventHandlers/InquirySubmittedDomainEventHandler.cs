@@ -1,8 +1,8 @@
+using Microsoft.Extensions.Configuration;
 using Wallow.Inquiries.Application.Interfaces;
 using Wallow.Inquiries.Domain.Entities;
 using Wallow.Inquiries.Domain.Events;
 using Wallow.Inquiries.Domain.Identity;
-using Microsoft.Extensions.Configuration;
 using Wolverine;
 
 namespace Wallow.Inquiries.Application.EventHandlers;

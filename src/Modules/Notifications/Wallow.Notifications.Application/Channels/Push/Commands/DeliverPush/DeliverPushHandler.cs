@@ -1,6 +1,6 @@
+using Microsoft.Extensions.Logging;
 using Wallow.Notifications.Application.Channels.Push.Interfaces;
 using Wallow.Notifications.Domain.Channels.Push.Entities;
-using Microsoft.Extensions.Logging;
 
 namespace Wallow.Notifications.Application.Channels.Push.Commands.DeliverPush;
 

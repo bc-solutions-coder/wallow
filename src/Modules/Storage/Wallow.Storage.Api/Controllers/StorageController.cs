@@ -1,4 +1,8 @@
 using Asp.Versioning;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Wallow.Shared.Api.Extensions;
 using Wallow.Shared.Contracts.Storage;
 using Wallow.Shared.Contracts.Storage.Commands;
@@ -19,10 +23,6 @@ using Wallow.Storage.Application.Queries.GetFilesByBucket;
 using Wallow.Storage.Application.Queries.GetPresignedUrl;
 using Wallow.Storage.Application.Queries.GetUploadPresignedUrl;
 using Wallow.Storage.Domain.Enums;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.RateLimiting;
 using Wolverine;
 
 namespace Wallow.Storage.Api.Controllers;

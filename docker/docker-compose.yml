@@ -46,7 +46,7 @@ services:
   valkey:
     image: valkey/valkey:8-alpine
     container_name: ${COMPOSE_PROJECT_NAME:-wallow}-valkey
-    command: valkey-server --appendonly yes --requirepass ${VALKEY_PASSWORD}
+    command: valkey-server --appendonly yes --requirepass ${VALKEY_PASSWORD} --maxmemory ${VALKEY_MAXMEMORY:-256mb} --maxmemory-policy allkeys-lru
     ports:
       - "127.0.0.1:6379:6379"
     volumes:
@@ -78,9 +78,9 @@ services:
     image: grafana/otel-lgtm:0.8.1
     container_name: ${COMPOSE_PROJECT_NAME:-wallow}-grafana-lgtm
     ports:
-      - "127.0.0.1:3000:3000"   # Grafana UI
+      - "127.0.0.1:3001:3000"   # Grafana UI
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GF_ADMIN_PASSWORD:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GF_ADMIN_PASSWORD:?GF_ADMIN_PASSWORD must be set in docker/.env}
     volumes:
       # Mount custom dashboards into grafana-lgtm's provisioning path
       - ./grafana/provisioning/dashboards/dashboards.yml:/otel-lgtm/grafana/conf/provisioning/dashboards/wallow-dashboards.yaml:ro
@@ -113,6 +113,39 @@ services:
     restart: unless-stopped
 
   # ============================================
+  # OBJECT STORAGE (GarageHQ — S3-compatible)
+  # ============================================
+  garage:
+    build:
+      context: ./garage
+      dockerfile: Dockerfile
+    image: wallow-garage:v2.2.0
+    container_name: ${COMPOSE_PROJECT_NAME:-wallow}-garage
+    entrypoint: ["/bin/sh", "/etc/garage/init-garage.sh"]
+    volumes:
+      - garage_meta:/var/lib/garage/meta
+      - garage_data:/var/lib/garage/data
+      - ./garage/garage.toml:/etc/garage/garage.toml:ro
+      - ./garage/init-garage.sh:/etc/garage/init-garage.sh:ro
+    environment:
+      GARAGE_CONFIG_FILE: /etc/garage/garage.toml
+      GARAGE_KEY_NAME: ${GARAGE_KEY_NAME:-wallow-dev}
+      GARAGE_ACCESS_KEY: ${GARAGE_ACCESS_KEY:-wallow}
+      GARAGE_SECRET_KEY: ${GARAGE_SECRET_KEY:-wallowsecretkey1234567890abcdefgh}
+      GARAGE_BUCKET: ${GARAGE_BUCKET:-wallow-files}
+    ports:
+      - "127.0.0.1:3900:3900"   # S3 API
+      - "127.0.0.1:3903:3903"   # Admin API
+    healthcheck:
+      test: ["CMD", "garage", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - wallow
+    restart: unless-stopped
+
+  # ============================================
   # ANTIVIRUS (ClamAV)
   # ============================================
   clamav:
@@ -130,9 +163,26 @@ services:
       - wallow
     restart: unless-stopped
 
+  # ============================================
+  # DOCS SITE (static DocFX site via nginx)
+  # ============================================
+  docs:
+    build:
+      context: ..
+      dockerfile: docker/docs/Dockerfile
+    image: ${COMPOSE_PROJECT_NAME:-wallow}-docs:latest
+    container_name: ${COMPOSE_PROJECT_NAME:-wallow}-docs
+    ports:
+      - "127.0.0.1:5004:80"
+    networks:
+      - wallow
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   valkey_data:
+  garage_meta:
+  garage_data:
 
 networks:
   wallow:

@@ -1,3 +1,6 @@
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using StackExchange.Redis;
 using Wallow.ApiKeys.Infrastructure.Extensions;
 using Wallow.ApiKeys.Infrastructure.Persistence;
 using Wallow.Branding.Infrastructure.Extensions;
@@ -8,9 +11,6 @@ using Wallow.Shared.Infrastructure.Core.Auditing;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Shared.Kernel.Persistence;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using StackExchange.Redis;
 
 namespace Wallow.Billing.Tests.Infrastructure;
 

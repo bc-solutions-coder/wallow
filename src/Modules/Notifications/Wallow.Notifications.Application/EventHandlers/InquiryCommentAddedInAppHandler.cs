@@ -1,7 +1,7 @@
+using Microsoft.Extensions.Logging;
 using Wallow.Notifications.Application.Channels.InApp.Commands.SendNotification;
 using Wallow.Notifications.Domain.Enums;
 using Wallow.Shared.Contracts.Inquiries.Events;
-using Microsoft.Extensions.Logging;
 using Wolverine;
 
 namespace Wallow.Notifications.Application.EventHandlers;

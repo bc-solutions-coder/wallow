@@ -1,6 +1,6 @@
 using System.Security.Claims;
-using Wallow.Identity.Infrastructure.Authorization;
 using Microsoft.AspNetCore.Authorization;
+using Wallow.Identity.Infrastructure.Authorization;
 
 namespace Wallow.Identity.Tests.Infrastructure;
 

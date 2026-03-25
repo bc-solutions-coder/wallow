@@ -1,16 +1,16 @@
 using System.Reflection;
-using Wallow.Announcements.Infrastructure.Persistence;
-using Wallow.Billing.Infrastructure.Persistence;
-using Wallow.Identity.Infrastructure.Persistence;
-using Wallow.Messaging.Infrastructure.Persistence;
-using Wallow.Notifications.Infrastructure.Persistence;
-using Wallow.Storage.Infrastructure.Persistence;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Hosting.Internal;
 using NSubstitute;
 using StackExchange.Redis;
+using Wallow.Announcements.Infrastructure.Persistence;
+using Wallow.Billing.Infrastructure.Persistence;
+using Wallow.Identity.Infrastructure.Persistence;
+using Wallow.Messaging.Infrastructure.Persistence;
+using Wallow.Notifications.Infrastructure.Persistence;
+using Wallow.Storage.Infrastructure.Persistence;
 
 namespace Wallow.Architecture.Tests.Modules;
 

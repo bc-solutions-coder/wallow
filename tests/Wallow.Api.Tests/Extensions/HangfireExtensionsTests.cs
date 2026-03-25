@@ -1,9 +1,9 @@
-using Wallow.Api.Extensions;
 using Hangfire;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.AspNetCore.Builder;
+using Wallow.Api.Extensions;
 
 namespace Wallow.Api.Tests.Extensions;
 

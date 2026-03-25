@@ -87,13 +87,9 @@ config:
 secrets:
   ConnectionStrings__DefaultConnection: ""
   ConnectionStrings__Redis: ""
-  ConnectionStrings__RabbitMq: ""
 
 # -- Subchart toggles (use external services in production)
 postgresql:
-  enabled: false
-
-rabbitmq:
   enabled: false
 
 valkey:

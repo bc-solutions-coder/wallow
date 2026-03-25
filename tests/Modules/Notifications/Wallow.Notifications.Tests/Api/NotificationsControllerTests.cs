@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using Wallow.Notifications.Api.Controllers;
 using Wallow.Notifications.Application.Channels.InApp.Commands.MarkAllNotificationsRead;
 using Wallow.Notifications.Application.Channels.InApp.Commands.MarkNotificationRead;
@@ -8,7 +9,6 @@ using Wallow.Notifications.Domain.Enums;
 using Wallow.Shared.Kernel.Pagination;
 using Wallow.Shared.Kernel.Results;
 using Wallow.Shared.Kernel.Services;
-using Microsoft.AspNetCore.Mvc;
 using Wolverine;
 
 namespace Wallow.Notifications.Tests.Api;

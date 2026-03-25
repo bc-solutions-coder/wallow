@@ -1,27 +1,7 @@
 using System.Security.Cryptography.X509Certificates;
-
-using Wallow.Identity.Application.Commands.BootstrapAdmin;
-using Wallow.Identity.Application.Commands.RegisterSetupClient;
-using Wallow.Identity.Application.Interfaces;
-using Wallow.Identity.Application.Queries.IsSetupRequired;
-using Wallow.Shared.Contracts.Identity;
-using Wallow.Shared.Contracts.Setup;
-
-using Wallow.Identity.Domain.Entities;
-using Wallow.Identity.Infrastructure.Authorization;
-using Wallow.Identity.Infrastructure.Persistence;
-using Wallow.Identity.Infrastructure.Repositories;
-using Wallow.Identity.Infrastructure.Data;
-using Wallow.Identity.Infrastructure.Options;
-using Wallow.Identity.Infrastructure.Services;
-using Wallow.Identity.Infrastructure.Services.ExtensionPoints;
-
-using Wallow.Shared.Infrastructure.Core.Extensions;
-using Wallow.Shared.Kernel.MultiTenancy;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
-using StackExchange.Redis;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -30,6 +10,23 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Npgsql;
+using StackExchange.Redis;
+using Wallow.Identity.Application.Commands.BootstrapAdmin;
+using Wallow.Identity.Application.Commands.RegisterSetupClient;
+using Wallow.Identity.Application.Interfaces;
+using Wallow.Identity.Application.Queries.IsSetupRequired;
+using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Infrastructure.Authorization;
+using Wallow.Identity.Infrastructure.Data;
+using Wallow.Identity.Infrastructure.Options;
+using Wallow.Identity.Infrastructure.Persistence;
+using Wallow.Identity.Infrastructure.Repositories;
+using Wallow.Identity.Infrastructure.Services;
+using Wallow.Identity.Infrastructure.Services.ExtensionPoints;
+using Wallow.Shared.Contracts.Identity;
+using Wallow.Shared.Contracts.Setup;
+using Wallow.Shared.Infrastructure.Core.Extensions;
+using Wallow.Shared.Kernel.MultiTenancy;
 
 
 namespace Wallow.Identity.Infrastructure.Extensions;
