@@ -1,0 +1,46 @@
+{
+  "metadata": [
+    {
+      "src": [
+        {
+          "files": [
+            "src/Modules/*/*.Domain/*.csproj",
+            "src/Modules/*/*.Application/*.csproj",
+            "src/Modules/*/*.Api/*.csproj",
+            "src/Shared/**/*.csproj",
+            "src/Wallow.Api/*.csproj"
+          ],
+          "exclude": [
+            "src/Modules/*/*.Infrastructure/*.csproj"
+          ]
+        }
+      ],
+      "dest": ".docfx/api",
+      "filter": "filterConfig.yml"
+    }
+  ],
+  "build": {
+    "content": [
+      {
+        "files": ["**/*.md", "toc.yml"],
+        "src": "docs",
+        "dest": "."
+      },
+      {
+        "files": [".docfx/api/**.yml", ".docfx/api/index.md"]
+      }
+    ],
+    "resource": [
+      {
+        "files": ["images/**"]
+      }
+    ],
+    "globalMetadata": {
+      "_appTitle": "Wallow",
+      "_appFooter": "Wallow Platform",
+      "_enableSearch": true
+    },
+    "template": ["default", "modern", "templates/wallow"],
+    "dest": ".docfx/_site"
+  }
+}

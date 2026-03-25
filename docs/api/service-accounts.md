@@ -47,7 +47,7 @@ After creation, you'll receive:
 Use the provided credentials to request an access token:
 
 ```bash
-curl -X POST https://auth.yourplatform.com/realms/wallow/protocol/openid-connect/token \
+curl -X POST https://api.yourplatform.com/connect/token \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "client_id=your-client-id" \
   -d "client_secret=your-client-secret" \
@@ -80,29 +80,29 @@ curl -X GET https://api.yourplatform.com/api/invoices \
 The OAuth2 client credentials flow involves two steps:
 
 ```
-┌─────────────────┐                      ┌──────────────┐                     ┌─────────────┐
-│   Your Server   │                      │   Keycloak   │                     │ Wallow API │
-└────────┬────────┘                      └──────┬───────┘                     └──────┬──────┘
-         │                                      │                                    │
-         │  1. POST /token                      │                                    │
-         │     client_id=xxx                    │                                    │
-         │     client_secret=yyy                │                                    │
-         │     grant_type=client_credentials    │                                    │
-         │─────────────────────────────────────►│                                    │
-         │                                      │                                    │
-         │  2. { access_token: "eyJ...",        │                                    │
-         │       expires_in: 300 }              │                                    │
-         │◄─────────────────────────────────────│                                    │
-         │                                      │                                    │
-         │  3. GET /api/invoices                                                     │
-         │     Authorization: Bearer eyJ...                                          │
-         │──────────────────────────────────────────────────────────────────────────►│
-         │                                                                           │
-         │  4. { invoices: [...] }                                                   │
-         │◄──────────────────────────────────────────────────────────────────────────│
-         │                                      │                                    │
-         │  (Token expires after 5 min)         │                                    │
-         │  (Repeat step 1 to get new token)    │                                    │
+┌─────────────────┐                      ┌──────────────┐
+│   Your Server   │                      │  Wallow API  │
+└────────┬────────┘                      └──────┬───────┘
+         │                                      │
+         │  1. POST /connect/token              │
+         │     client_id=xxx                    │
+         │     client_secret=yyy                │
+         │     grant_type=client_credentials    │
+         │─────────────────────────────────────►│
+         │                                      │
+         │  2. { access_token: "eyJ...",        │
+         │       expires_in: 300 }              │
+         │◄─────────────────────────────────────│
+         │                                      │
+         │  3. GET /api/invoices                │
+         │     Authorization: Bearer eyJ...     │
+         │─────────────────────────────────────►│
+         │                                      │
+         │  4. { invoices: [...] }              │
+         │◄─────────────────────────────────────│
+         │                                      │
+         │  (Token expires after 5 min)         │
+         │  (Repeat step 1 to get new token)    │
 ```
 
 **Key Points:**
@@ -126,7 +126,7 @@ import os
 # Load credentials from environment variables
 CLIENT_ID = os.getenv("WALLOW_CLIENT_ID")
 CLIENT_SECRET = os.getenv("WALLOW_CLIENT_SECRET")
-TOKEN_URL = "https://auth.yourplatform.com/realms/wallow/protocol/openid-connect/token"
+TOKEN_URL = "https://api.yourplatform.com/connect/token"
 API_BASE = "https://api.yourplatform.com"
 
 # Step 1: Get access token
@@ -230,7 +230,7 @@ class WallowClient:
 client = WallowClient(
     client_id=os.getenv("WALLOW_CLIENT_ID"),
     client_secret=os.getenv("WALLOW_CLIENT_SECRET"),
-    token_url="https://auth.yourplatform.com/realms/wallow/protocol/openid-connect/token",
+    token_url="https://api.yourplatform.com/connect/token",
     api_base="https://api.yourplatform.com"
 )
 
@@ -262,7 +262,7 @@ public class WallowApiExample
     {
         var clientId = Environment.GetEnvironmentVariable("WALLOW_CLIENT_ID");
         var clientSecret = Environment.GetEnvironmentVariable("WALLOW_CLIENT_SECRET");
-        var tokenUrl = "https://auth.yourplatform.com/realms/wallow/protocol/openid-connect/token";
+        var tokenUrl = "https://api.yourplatform.com/connect/token";
         var apiBase = "https://api.yourplatform.com";
 
         // Step 1: Get access token
@@ -412,7 +412,7 @@ public class WallowClient : IDisposable
 var client = new WallowClient(
     clientId: Environment.GetEnvironmentVariable("WALLOW_CLIENT_ID")!,
     clientSecret: Environment.GetEnvironmentVariable("WALLOW_CLIENT_SECRET")!,
-    tokenUrl: "https://auth.yourplatform.com/realms/wallow/protocol/openid-connect/token",
+    tokenUrl: "https://api.yourplatform.com/connect/token",
     apiBase: "https://api.yourplatform.com"
 );
 
@@ -435,7 +435,7 @@ import axios from 'axios';
 
 const CLIENT_ID = process.env.WALLOW_CLIENT_ID;
 const CLIENT_SECRET = process.env.WALLOW_CLIENT_SECRET;
-const TOKEN_URL = 'https://auth.yourplatform.com/realms/wallow/protocol/openid-connect/token';
+const TOKEN_URL = 'https://api.yourplatform.com/connect/token';
 const API_BASE = 'https://api.yourplatform.com';
 
 // Step 1: Get access token
@@ -555,7 +555,7 @@ class WallowClient {
 const client = new WallowClient(
   process.env.WALLOW_CLIENT_ID,
   process.env.WALLOW_CLIENT_SECRET,
-  'https://auth.yourplatform.com/realms/wallow/protocol/openid-connect/token',
+  'https://api.yourplatform.com/connect/token',
   'https://api.yourplatform.com'
 );
 
@@ -592,7 +592,7 @@ Content-Type: application/json
   "id": "sa_abc123",
   "clientId": "sa-tenant12-production-backend",
   "clientSecret": "xK9mN2pL8qR5sT7vW3yZ1aB4cD6eF8gH0iJ2kL5mN7oP9qR1sT3uV5wX7yZ9",
-  "tokenEndpoint": "https://auth.yourplatform.com/realms/wallow/protocol/openid-connect/token",
+  "tokenEndpoint": "https://api.yourplatform.com/connect/token",
   "scopes": ["invoices.read", "invoices.write", "payments.read"],
   "createdAt": "2024-02-06T10:00:00Z",
   "warning": "Save this secret now. It will not be shown again."
@@ -1141,7 +1141,7 @@ For zero-downtime rotation:
 
 **Symptoms:**
 ```
-Access to fetch at 'https://auth.yourplatform.com/...' from origin 'http://localhost:3000'
+Access to fetch at 'https://api.yourplatform.com/...' from origin 'http://localhost:3000'
 has been blocked by CORS policy
 ```
 
@@ -1186,7 +1186,7 @@ Yes. All API requests (user or service account) count toward your tenant's rate 
 ## Next Steps
 
 - [Portal Documentation](./portal.md) - Manage service accounts via UI
-- [Webhook Integration](./webhooks.md) - Receive real-time events
+
 - [API Changelog](./changelog.md) - Stay updated on API changes
 - [Support](https://support.yourplatform.com) - Get help
 

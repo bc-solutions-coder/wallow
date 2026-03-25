@@ -10,6 +10,9 @@ out/
 # IDE
 .idea/
 .vs/
+.claude/
+.beads/
+.serena/
 *.user
 *.suo
 *.userprefs
@@ -29,6 +32,7 @@ logs/
 
 # Test results
 TestResults/
+test-results/
 coverage/
 coverage-report/
 coverage-results/
@@ -58,3 +62,18 @@ docker/.env
 .dolt/
 *.db
 .superpowers/
+
+# Tailwind CLI standalone binary
+src/Wallow.Auth/tailwindcss
+src/Wallow.Web/tailwindcss
+
+# Generated CSS
+src/Wallow.Auth/wwwroot/css/app.css
+src/Wallow.Web/wwwroot/css/app.css
+.superpowers/
+
+# DocFX generated output
+.docfx/
+
+# Beads / Dolt files (added by bd init)
+.beads-credential-key
