@@ -64,8 +64,7 @@ public sealed class SsoConfiguration : AggregateRoot<SsoConfigurationId>, ITenan
     public string? DefaultRole { get; private set; }
     public bool SyncGroupsAsRoles { get; private set; }
 
-    // Keycloak Reference
-    public string? KeycloakIdpAlias { get; private set; }
+    public string? IdpAlias { get; private set; }
 
     // ReSharper disable once UnusedMember.Local
     private SsoConfiguration() { } // EF Core
@@ -315,9 +314,9 @@ public sealed class SsoConfiguration : AggregateRoot<SsoConfigurationId>, ITenan
         SetUpdated(timeProvider.GetUtcNow(), updatedByUserId);
     }
 
-    public void SetKeycloakIdpAlias(string alias, Guid updatedByUserId, TimeProvider timeProvider)
+    public void SetIdpAlias(string alias, Guid updatedByUserId, TimeProvider timeProvider)
     {
-        KeycloakIdpAlias = alias;
+        IdpAlias = alias;
         SetUpdated(timeProvider.GetUtcNow(), updatedByUserId);
     }
 

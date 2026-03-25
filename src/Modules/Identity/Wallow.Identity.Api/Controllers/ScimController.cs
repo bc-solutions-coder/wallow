@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -25,9 +26,14 @@ namespace Wallow.Identity.Api.Controllers;
 [Tags("SCIM")]
 [Produces("application/scim+json", "application/json")]
 [Consumes("application/scim+json", "application/json")]
-public partial class ScimController(IScimService scimService, ILogger<ScimController> logger, IHostEnvironment environment) : ControllerBase
+public partial class ScimController(IScimService scimService, IConfiguration configuration, ILogger<ScimController> logger, IHostEnvironment environment) : ControllerBase
 {
     private static readonly string[] _resourceTypeSchema = ["urn:ietf:params:scim:schemas:core:2.0:ResourceType"];
+
+    private string GetRequiredDocsUrl() =>
+        configuration["DocsUrl"] ?? throw new InvalidOperationException(
+            "DocsUrl must be configured in appsettings.json. " +
+            "Example: \"DocsUrl\": \"https://docs.yourdomain.com\"");
 
     #region Users
 
@@ -342,7 +348,7 @@ public partial class ScimController(IScimService scimService, ILogger<ScimContro
         ScimServiceProviderConfig config = new()
         {
             Schemas = new[] { "urn:ietf:params:scim:schemas:core:2.0:ServiceProviderConfig" },
-            DocumentationUri = "https://docs.wallow.dev/scim",
+            DocumentationUri = $"{GetRequiredDocsUrl()}/scim",
             Patch = new ScimConfigFeature { Supported = true },
             Bulk = new ScimBulkConfig { Supported = false, MaxOperations = 0, MaxPayloadSize = 0 },
             Filter = new ScimFilterConfig { Supported = true, MaxResults = 200 },

@@ -1,0 +1,243 @@
+@page "/dashboard/apps/register"
+@layout DashboardLayout
+@attribute [Authorize]
+@rendermode InteractiveServer
+@using Wallow.Web.Models
+@using Wallow.Web.Services
+@inject IAppRegistrationService AppService
+@inject IJSRuntime JS
+@using Microsoft.AspNetCore.Components.Forms
+
+<div class="max-w-2xl mx-auto">
+    <a href="/dashboard/apps" class="text-sm text-[#d4a017] hover:text-[#b8880f] no-underline mb-4 inline-block">
+        &larr; Back to Apps
+    </a>
+    <h1 class="text-3xl font-bold text-[#3d2b1f] mb-8">Register New App</h1>
+
+    @if (_result is { Success: true })
+    {
+        <div class="bg-white rounded-lg shadow-sm border border-[#e8d5b7] p-8">
+            <div class="text-center mb-6">
+                <div class="text-[48px] leading-none mb-2">🎉</div>
+                <h2 class="text-xl font-semibold text-[#3d2b1f]">App Registered Successfully</h2>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-[#3d2b1f]/70 uppercase tracking-wider mb-1">Client ID</label>
+                    <div class="flex items-center gap-2">
+                        <code class="flex-1 bg-[#faf6f1] border border-[#e8d5b7] rounded-md px-4 py-2 text-sm font-mono text-[#3d2b1f]">@_result.ClientId</code>
+                        <button @onclick="() => CopyToClipboard(_result.ClientId!)"
+                                class="bg-[#e8d5b7] text-[#3d2b1f] px-3 py-2 rounded-md text-sm hover:bg-[#d4a017] hover:text-white transition-colors">
+                            Copy
+                        </button>
+                    </div>
+                </div>
+
+                @if (!string.IsNullOrEmpty(_result.ClientSecret))
+                {
+                    <div class="bg-amber-50 border border-amber-300 rounded-md p-4">
+                        <p class="text-amber-800 text-sm font-semibold mb-2">Save your client secret now. It will not be shown again.</p>
+                        <div class="flex items-center gap-2">
+                            <code class="flex-1 bg-white border border-amber-300 rounded-md px-4 py-2 text-sm font-mono text-[#3d2b1f] break-all">@_result.ClientSecret</code>
+                            <button @onclick="() => CopyToClipboard(_result.ClientSecret!)"
+                                    class="bg-amber-200 text-amber-900 px-3 py-2 rounded-md text-sm hover:bg-amber-300 transition-colors">
+                                Copy
+                            </button>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <div class="mt-8 text-center">
+                <a href="/dashboard/apps"
+                   class="bg-[#d4a017] text-white font-medium px-6 py-2.5 rounded-full hover:bg-[#b8880f] no-underline text-sm transition-colors">
+                    View My Apps
+                </a>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="bg-white rounded-lg shadow-sm border border-[#e8d5b7] p-8">
+            @if (_result is { Success: false })
+            {
+                <div class="bg-red-50 border border-red-300 rounded-md p-4 mb-6">
+                    <p class="text-red-800 text-sm">@_result.ErrorMessage</p>
+                </div>
+            }
+
+            <EditForm Model="_form" OnValidSubmit="HandleSubmit" FormName="register-app">
+                <div class="space-y-6">
+                    <div>
+                        <label class="block text-sm font-medium text-[#3d2b1f] mb-1">App Name</label>
+                        <InputText @bind-Value="_form.DisplayName"
+                                   class="w-full border border-[#e8d5b7] rounded-md px-4 py-2 text-sm text-[#3d2b1f] bg-[#faf6f1] focus:outline-none focus:ring-2 focus:ring-[#d4a017] focus:border-transparent"
+                                   placeholder="My Application" />
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-[#3d2b1f] mb-1">Client Type</label>
+                        <InputSelect @bind-Value="_form.ClientType"
+                                     class="w-full border border-[#e8d5b7] rounded-md px-4 py-2 text-sm text-[#3d2b1f] bg-[#faf6f1] focus:outline-none focus:ring-2 focus:ring-[#d4a017] focus:border-transparent">
+                            <option value="public">Public (SPA, mobile, desktop)</option>
+                            <option value="confidential">Confidential (server-side)</option>
+                        </InputSelect>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-[#3d2b1f] mb-1">Redirect URIs</label>
+                        <InputTextArea @bind-Value="_form.RedirectUris"
+                                       rows="3"
+                                       class="w-full border border-[#e8d5b7] rounded-md px-4 py-2 text-sm text-[#3d2b1f] bg-[#faf6f1] focus:outline-none focus:ring-2 focus:ring-[#d4a017] focus:border-transparent"
+                                       placeholder="https://myapp.com/callback&#10;https://localhost:3000/callback" />
+                        <p class="text-xs text-[#3d2b1f]/50 mt-1">One URI per line</p>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-[#3d2b1f] mb-3">Scopes</label>
+                        <div class="flex flex-wrap gap-2">
+                            @foreach (string scope in _availableScopes)
+                            {
+                                bool isSelected = _form.SelectedScopes.Contains(scope);
+                                <button type="button"
+                                        @onclick="() => ToggleScope(scope)"
+                                        class="@(isSelected
+                                            ? "bg-[#d4a017] text-white"
+                                            : "bg-[#faf6f1] text-[#3d2b1f] border border-[#e8d5b7]") px-4 py-1.5 rounded-full text-sm font-medium transition-colors hover:opacity-80">
+                                    @scope
+                                </button>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="border-t border-[#e8d5b7] pt-6 mt-6">
+                        <h3 class="text-sm font-semibold text-[#3d2b1f] mb-4">Branding (Optional)</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-[#3d2b1f] mb-1">Company Display Name</label>
+                                <InputText @bind-Value="_form.BrandingDisplayName"
+                                           class="w-full border border-[#e8d5b7] rounded-md px-4 py-2 text-sm text-[#3d2b1f] bg-[#faf6f1] focus:outline-none focus:ring-2 focus:ring-[#d4a017] focus:border-transparent"
+                                           placeholder="Your Company Name" />
+                                <p class="text-xs text-[#3d2b1f]/50 mt-1">Shown on login/register pages when users authenticate via your app</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-[#3d2b1f] mb-1">Tagline</label>
+                                <InputText @bind-Value="_form.BrandingTagline"
+                                           class="w-full border border-[#e8d5b7] rounded-md px-4 py-2 text-sm text-[#3d2b1f] bg-[#faf6f1] focus:outline-none focus:ring-2 focus:ring-[#d4a017] focus:border-transparent"
+                                           placeholder="Your company tagline" />
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-[#3d2b1f] mb-1">Logo</label>
+                                <InputFile OnChange="OnLogoSelected"
+                                           AdditionalAttributes="@_logoFileAttributes" />
+                                <p class="text-xs text-[#3d2b1f]/50 mt-1">PNG, JPEG, or WebP. Max 2MB.</p>
+                                @if (_logoPreviewUrl is not null)
+                                {
+                                    <img src="@_logoPreviewUrl" alt="Logo preview" class="mt-2 size-16 object-contain rounded border border-[#e8d5b7]" />
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pt-2">
+                        <button type="submit"
+                                disabled="@_submitting"
+                                class="w-full bg-[#d4a017] text-white font-medium px-6 py-3 rounded-full hover:bg-[#b8880f] disabled:opacity-50 transition-colors text-sm">
+                            @(_submitting ? "Registering..." : "Register App")
+                        </button>
+                    </div>
+                </div>
+            </EditForm>
+        </div>
+    }
+</div>
+
+@code {
+    private readonly RegisterAppForm _form = new();
+    private RegisterAppResult? _result;
+    private bool _submitting;
+
+    private IBrowserFile? _selectedLogo;
+    private string? _logoPreviewUrl;
+    private readonly Dictionary<string, object> _logoFileAttributes = new()
+    {
+        ["accept"] = ".png,.jpg,.jpeg,.webp",
+        ["class"] = "w-full border border-[#e8d5b7] rounded-md px-4 py-2 text-sm text-[#3d2b1f] bg-[#faf6f1]"
+    };
+
+    private readonly string[] _availableScopes = ["inquiries.read", "inquiries.write", "announcements.read", "storage.read"];
+
+    private void ToggleScope(string scope)
+    {
+        if (_form.SelectedScopes.Contains(scope))
+            _form.SelectedScopes.Remove(scope);
+        else
+            _form.SelectedScopes.Add(scope);
+    }
+
+    private void OnLogoSelected(InputFileChangeEventArgs e)
+    {
+        _selectedLogo = e.File;
+        _logoPreviewUrl = null;
+        StateHasChanged();
+    }
+
+    private async Task HandleSubmit()
+    {
+        _submitting = true;
+        _result = null;
+
+        List<string> redirectUris = (_form.RedirectUris ?? "")
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
+
+        RegisterAppModel model = new(
+            _form.DisplayName ?? "",
+            _form.ClientType ?? "public",
+            redirectUris,
+            _form.SelectedScopes);
+
+        _result = await AppService.RegisterAppAsync(model);
+
+        if (_result is { Success: true, ClientId: not null } && !string.IsNullOrEmpty(_form.BrandingDisplayName))
+        {
+            Stream? logoStream = _selectedLogo is not null
+                ? _selectedLogo.OpenReadStream(maxAllowedSize: 2 * 1024 * 1024)
+                : null;
+
+            try
+            {
+                await AppService.UpsertBrandingAsync(
+                    _result.ClientId,
+                    _form.BrandingDisplayName,
+                    _form.BrandingTagline,
+                    null,
+                    logoStream,
+                    _selectedLogo?.Name,
+                    _selectedLogo?.ContentType);
+            }
+            finally
+            {
+                logoStream?.Dispose();
+            }
+        }
+
+        _submitting = false;
+    }
+
+    private async Task CopyToClipboard(string text)
+    {
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", text);
+    }
+
+    private sealed class RegisterAppForm
+    {
+        public string? DisplayName { get; set; }
+        public string? ClientType { get; set; } = "public";
+        public string? RedirectUris { get; set; }
+        public List<string> SelectedScopes { get; set; } = ["inquiries.read"];
+        public string? BrandingDisplayName { get; set; }
+        public string? BrandingTagline { get; set; }
+    }
+}

@@ -1,0 +1,43 @@
+@using Wallow.Auth.Configuration
+@inject BrandingOptions Branding
+
+<style>
+    :root {
+        @foreach ((string name, string value) in GetColors(Branding.Theme.Light))
+        {
+            @($"--{name}: {value};")
+        }
+    }
+    .dark {
+        @foreach ((string name, string value) in GetColors(Branding.Theme.Dark))
+        {
+            @($"--{name}: {value};")
+        }
+    }
+</style>
+
+@code {
+    private static IEnumerable<(string Name, string Value)> GetColors(ThemeColorSet colors)
+    {
+        if (colors.Background is not null) yield return ("background", colors.Background);
+        if (colors.Foreground is not null) yield return ("foreground", colors.Foreground);
+        if (colors.Card is not null) yield return ("card", colors.Card);
+        if (colors.CardForeground is not null) yield return ("card-foreground", colors.CardForeground);
+        if (colors.Popover is not null) yield return ("popover", colors.Popover);
+        if (colors.PopoverForeground is not null) yield return ("popover-foreground", colors.PopoverForeground);
+        if (colors.Primary is not null) yield return ("primary", colors.Primary);
+        if (colors.PrimaryForeground is not null) yield return ("primary-foreground", colors.PrimaryForeground);
+        if (colors.Secondary is not null) yield return ("secondary", colors.Secondary);
+        if (colors.SecondaryForeground is not null) yield return ("secondary-foreground", colors.SecondaryForeground);
+        if (colors.Muted is not null) yield return ("muted", colors.Muted);
+        if (colors.MutedForeground is not null) yield return ("muted-foreground", colors.MutedForeground);
+        if (colors.Accent is not null) yield return ("accent", colors.Accent);
+        if (colors.AccentForeground is not null) yield return ("accent-foreground", colors.AccentForeground);
+        if (colors.Destructive is not null) yield return ("destructive", colors.Destructive);
+        if (colors.DestructiveForeground is not null) yield return ("destructive-foreground", colors.DestructiveForeground);
+        if (colors.Border is not null) yield return ("border", colors.Border);
+        if (colors.Input is not null) yield return ("input", colors.Input);
+        if (colors.Ring is not null) yield return ("ring", colors.Ring);
+        if (colors.Radius is not null) yield return ("radius", colors.Radius);
+    }
+}

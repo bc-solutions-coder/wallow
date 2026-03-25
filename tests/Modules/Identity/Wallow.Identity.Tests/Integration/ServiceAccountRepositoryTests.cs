@@ -20,7 +20,7 @@ public sealed class ServiceAccountRepositoryTests(PostgresContainerFixture fixtu
     protected override IdentityDbContext CreateDbContext(DbContextOptions<IdentityDbContext> options, ITenantContext tenantContext)
     {
         IDataProtectionProvider dataProtectionProvider = DataProtectionProvider.Create("Wallow.Identity.Tests");
-        return new IdentityDbContext(options, tenantContext, dataProtectionProvider);
+        return new IdentityDbContext(options, dataProtectionProvider);
     }
 
     public override async Task InitializeAsync()
@@ -46,12 +46,12 @@ public sealed class ServiceAccountRepositoryTests(PostgresContainerFixture fixtu
 
         retrieved.Should().NotBeNull();
         retrieved.Name.Should().Be("Test Service");
-        retrieved.KeycloakClientId.Should().Be("test-client-id");
+        retrieved.ClientId.Should().Be("test-client-id");
         retrieved.Scopes.Should().BeEquivalentTo("billing:read", "billing:write");
     }
 
     [Fact]
-    public async Task GetByKeycloakClientIdAsync_FindsAccount()
+    public async Task GetByClientIdAsync_FindsAccount()
     {
         ServiceAccountMetadata account = ServiceAccountMetadata.Create(
             TestTenantId,
@@ -64,14 +64,14 @@ public sealed class ServiceAccountRepositoryTests(PostgresContainerFixture fixtu
         await _repository.SaveChangesAsync();
         DbContext.ChangeTracker.Clear();
 
-        ServiceAccountMetadata? retrieved = await ((IServiceAccountUnfilteredRepository)_repository).GetByKeycloakClientIdAsync("unique-client-id");
+        ServiceAccountMetadata? retrieved = await ((IServiceAccountUnfilteredRepository)_repository).GetByClientIdAsync("unique-client-id");
 
         retrieved.Should().NotBeNull();
         retrieved.Name.Should().Be("Unique Service");
     }
 
     [Fact]
-    public async Task GetByKeycloakClientIdAsync_IgnoresQueryFilters()
+    public async Task GetByClientIdAsync_IgnoresQueryFilters()
     {
         TenantId otherTenantId = TenantId.New();
         await using IdentityDbContext otherDbContext = CreateDbContextForTenant(otherTenantId);
@@ -88,7 +88,7 @@ public sealed class ServiceAccountRepositoryTests(PostgresContainerFixture fixtu
         otherRepository.Add(account);
         await otherDbContext.SaveChangesAsync();
 
-        ServiceAccountMetadata? retrievedFromOtherTenant = await ((IServiceAccountUnfilteredRepository)_repository).GetByKeycloakClientIdAsync("cross-tenant-client");
+        ServiceAccountMetadata? retrievedFromOtherTenant = await ((IServiceAccountUnfilteredRepository)_repository).GetByClientIdAsync("cross-tenant-client");
 
         retrievedFromOtherTenant.Should().NotBeNull();
         retrievedFromOtherTenant.Name.Should().Be("Cross Tenant");

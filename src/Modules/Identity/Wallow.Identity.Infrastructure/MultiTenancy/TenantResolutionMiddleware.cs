@@ -1,7 +1,6 @@
 using System.Diagnostics;
-using System.Diagnostics.Metrics;
 using System.Security.Claims;
-using Wallow.Shared.Kernel;
+using Wallow.Identity.Application.Telemetry;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Microsoft.AspNetCore.Http;
@@ -12,11 +11,6 @@ namespace Wallow.Identity.Infrastructure.MultiTenancy;
 
 public partial class TenantResolutionMiddleware(RequestDelegate next, ILogger<TenantResolutionMiddleware> logger)
 {
-    private static readonly Meter _meter = Diagnostics.CreateMeter("Wallow");
-    private static readonly Counter<long> _requestsByTenantCounter = _meter.CreateCounter<long>(
-        "wallow.requests_by_tenant_total",
-        description: "Total requests by tenant");
-
     public async Task InvokeAsync(HttpContext context, ITenantContextSetter tenantSetter)
     {
         Guid? resolvedTenantId = null;
@@ -75,11 +69,12 @@ public partial class TenantResolutionMiddleware(RequestDelegate next, ILogger<Te
 
         if (resolvedTenantId.HasValue)
         {
-            _requestsByTenantCounter.Add(1, new KeyValuePair<string, object?>("tenant_id", resolvedTenantId.Value.ToString()));
+            IdentityModuleTelemetry.RequestsAuthenticatedTotal.Add(1);
         }
 
         string? userId = context.User.Identity?.IsAuthenticated == true
             ? context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+              ?? context.User.FindFirst("sub")?.Value
             : null;
 
         if (userId is not null)

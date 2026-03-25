@@ -1,4 +1,5 @@
 using Wallow.Identity.Api.Contracts.Responses;
+using Wallow.Identity.Domain.Enums;
 
 namespace Wallow.Identity.Tests.Api.Contracts;
 
@@ -7,34 +8,6 @@ public class ResponseContractTests
     private static readonly string[] _adminUserRoles = ["admin", "user"];
     private static readonly string[] _usersReadWritePermissions = ["users.read", "users.write"];
     private static readonly string[] _billingReadScope = ["billing:read"];
-    private static readonly string[] _billingReadWriteScopes = ["billing:read", "billing:write"];
-    #region TokenResponse
-
-    [Fact]
-    public void TokenResponse_WithAllFields_CreatesInstance()
-    {
-        TokenResponse response = new(
-            "access-token", "refresh-token", "Bearer", 300, 1800, "openid profile");
-
-        response.AccessToken.Should().Be("access-token");
-        response.RefreshToken.Should().Be("refresh-token");
-        response.TokenType.Should().Be("Bearer");
-        response.ExpiresIn.Should().Be(300);
-        response.RefreshExpiresIn.Should().Be(1800);
-        response.Scope.Should().Be("openid profile");
-    }
-
-    [Fact]
-    public void TokenResponse_WithNullOptionalFields_CreatesCorrectly()
-    {
-        TokenResponse response = new("token", null, "Bearer", 300, null, null);
-
-        response.RefreshToken.Should().BeNull();
-        response.RefreshExpiresIn.Should().BeNull();
-        response.Scope.Should().BeNull();
-    }
-
-    #endregion
 
     #region CurrentUserResponse
 
@@ -88,68 +61,6 @@ public class ResponseContractTests
 
     #endregion
 
-    #region ApiKeyCreatedResponse
-
-    [Fact]
-    public void ApiKeyCreatedResponse_WithAllFields_CreatesInstance()
-    {
-        DateTimeOffset expiresAt = DateTimeOffset.UtcNow.AddDays(30);
-        ApiKeyCreatedResponse response = new(
-            "key-id-1", "fnd_full-api-key", "fnd_full", "My Key",
-            _billingReadScope, expiresAt);
-
-        response.KeyId.Should().Be("key-id-1");
-        response.ApiKey.Should().Be("fnd_full-api-key");
-        response.Prefix.Should().Be("fnd_full");
-        response.Name.Should().Be("My Key");
-        response.Scopes.Should().HaveCount(1);
-        response.ExpiresAt.Should().Be(expiresAt);
-    }
-
-    [Fact]
-    public void ApiKeyCreatedResponse_WithNullExpiry_CreatesCorrectly()
-    {
-        ApiKeyCreatedResponse response = new(
-            "k1", "key", "pfx", "Name", [], null);
-
-        response.ExpiresAt.Should().BeNull();
-    }
-
-    #endregion
-
-    #region ApiKeyResponse
-
-    [Fact]
-    public void ApiKeyResponse_WithAllFields_CreatesInstance()
-    {
-        DateTimeOffset created = DateTimeOffset.UtcNow.AddDays(-7);
-        DateTimeOffset expires = DateTimeOffset.UtcNow.AddDays(23);
-        DateTimeOffset lastUsed = DateTimeOffset.UtcNow.AddHours(-2);
-        ApiKeyResponse response = new(
-            "key-id", "Prod Key", "fnd_prod",
-            _billingReadWriteScopes, created, expires, lastUsed);
-
-        response.KeyId.Should().Be("key-id");
-        response.Name.Should().Be("Prod Key");
-        response.Prefix.Should().Be("fnd_prod");
-        response.Scopes.Should().HaveCount(2);
-        response.CreatedAt.Should().Be(created);
-        response.ExpiresAt.Should().Be(expires);
-        response.LastUsedAt.Should().Be(lastUsed);
-    }
-
-    [Fact]
-    public void ApiKeyResponse_WithNullOptionalFields_CreatesCorrectly()
-    {
-        DateTimeOffset created = DateTimeOffset.UtcNow;
-        ApiKeyResponse response = new("k1", "Key", "pfx", [], created, null, null);
-
-        response.ExpiresAt.Should().BeNull();
-        response.LastUsedAt.Should().BeNull();
-    }
-
-    #endregion
-
     #region ServiceAccountCreatedResponse
 
     [Fact]
@@ -160,14 +71,14 @@ public class ResponseContractTests
             Id = "sa-id",
             ClientId = "client-backend",
             ClientSecret = "secret-xyz",
-            TokenEndpoint = "https://keycloak/token",
+            TokenEndpoint = "https://auth.example.com/connect/token",
             Scopes = _billingReadScope
         };
 
         response.Id.Should().Be("sa-id");
         response.ClientId.Should().Be("client-backend");
         response.ClientSecret.Should().Be("secret-xyz");
-        response.TokenEndpoint.Should().Be("https://keycloak/token");
+        response.TokenEndpoint.Should().Be("https://auth.example.com/connect/token");
         response.Scopes.Should().HaveCount(1);
         response.Warning.Should().Contain("Save this secret");
     }
@@ -189,6 +100,56 @@ public class ResponseContractTests
         response.NewClientSecret.Should().Be("new-secret");
         response.RotatedAt.Should().Be(rotatedAt);
         response.Warning.Should().Contain("Save this secret");
+    }
+
+    #endregion
+
+    #region OrganizationSettingsResponse
+
+    [Fact]
+    public void OrganizationSettingsResponse_WithAllFields_CreatesInstance()
+    {
+        OrganizationSettingsResponse response = new(true, false, 7, LoginMethod.Password, "user");
+
+        response.RequireMfa.Should().BeTrue();
+        response.AllowPasswordlessLogin.Should().BeFalse();
+        response.MfaGracePeriodDays.Should().Be(7);
+        response.AllowedLoginMethods.Should().Be(LoginMethod.Password);
+        response.DefaultMemberRole.Should().Be("user");
+    }
+
+    [Fact]
+    public void OrganizationSettingsResponse_WithNullRole_CreatesInstance()
+    {
+        OrganizationSettingsResponse response = new(false, true, 0, LoginMethod.None, null);
+
+        response.DefaultMemberRole.Should().BeNull();
+    }
+
+    #endregion
+
+    #region OrganizationBrandingResponse
+
+    [Fact]
+    public void OrganizationBrandingResponse_WithAllFields_CreatesInstance()
+    {
+        OrganizationBrandingResponse response = new("Acme Corp", "https://cdn.example.com/logo.png", "#1a2b3c", "#4d5e6f");
+
+        response.DisplayName.Should().Be("Acme Corp");
+        response.LogoUrl.Should().Be("https://cdn.example.com/logo.png");
+        response.PrimaryColor.Should().Be("#1a2b3c");
+        response.AccentColor.Should().Be("#4d5e6f");
+    }
+
+    [Fact]
+    public void OrganizationBrandingResponse_WithNulls_CreatesInstance()
+    {
+        OrganizationBrandingResponse response = new(null, null, null, null);
+
+        response.DisplayName.Should().BeNull();
+        response.LogoUrl.Should().BeNull();
+        response.PrimaryColor.Should().BeNull();
+        response.AccentColor.Should().BeNull();
     }
 
     #endregion

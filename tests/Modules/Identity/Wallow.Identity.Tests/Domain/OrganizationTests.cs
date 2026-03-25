@@ -90,47 +90,91 @@ public class OrganizationTests
     }
 
     [Fact]
-    public void Deactivate_WhenActive_SetsIsActiveToFalse()
+    public void Archive_WhenActive_SetsIsActiveToFalse()
     {
         Organization org = CreateOrganization();
 
-        org.Deactivate(_testUserId, TimeProvider.System);
+        org.Archive(_testUserId, TimeProvider.System);
 
         org.IsActive.Should().BeFalse();
     }
 
     [Fact]
-    public void Deactivate_WhenAlreadyInactive_ThrowsBusinessRuleException()
+    public void Archive_WhenAlreadyInactive_ThrowsBusinessRuleException()
     {
         Organization org = CreateOrganization();
-        org.Deactivate(_testUserId, TimeProvider.System);
+        org.Archive(_testUserId, TimeProvider.System);
 
-        Action act = () => org.Deactivate(_testUserId, TimeProvider.System);
+        Action act = () => org.Archive(_testUserId, TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>()
             .WithMessage("*already inactive*");
     }
 
     [Fact]
-    public void Activate_WhenInactive_SetsIsActiveToTrue()
+    public void Reactivate_WhenInactive_SetsIsActiveToTrue()
     {
         Organization org = CreateOrganization();
-        org.Deactivate(_testUserId, TimeProvider.System);
+        org.Archive(_testUserId, TimeProvider.System);
 
-        org.Activate(_testUserId, TimeProvider.System);
+        org.Reactivate(_testUserId, TimeProvider.System);
 
         org.IsActive.Should().BeTrue();
     }
 
     [Fact]
-    public void Activate_WhenAlreadyActive_ThrowsBusinessRuleException()
+    public void Reactivate_WhenAlreadyActive_ThrowsBusinessRuleException()
     {
         Organization org = CreateOrganization();
 
-        Action act = () => org.Activate(_testUserId, TimeProvider.System);
+        Action act = () => org.Reactivate(_testUserId, TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>()
             .WithMessage("*already active*");
+    }
+
+    [Fact]
+    public void Archive_SetsArchivedAtAndArchivedBy()
+    {
+        Organization org = CreateOrganization();
+
+        org.Archive(_testUserId, TimeProvider.System);
+
+        org.ArchivedAt.Should().NotBeNull();
+        org.ArchivedBy.Should().Be(_testUserId);
+    }
+
+    [Fact]
+    public void Reactivate_ClearsArchivedAtAndArchivedBy()
+    {
+        Organization org = CreateOrganization();
+        org.Archive(_testUserId, TimeProvider.System);
+
+        org.Reactivate(_testUserId, TimeProvider.System);
+
+        org.ArchivedAt.Should().BeNull();
+        org.ArchivedBy.Should().BeNull();
+    }
+
+    [Fact]
+    public void ConfirmNameForDeletion_WithMatchingName_DoesNotThrow()
+    {
+        Organization org = CreateOrganization();
+
+        Action act = () => Organization.ConfirmNameForDeletion(org, "Acme Corp");
+
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void ConfirmNameForDeletion_WithMismatchedName_ThrowsBusinessRuleException()
+    {
+        Organization org = CreateOrganization();
+
+        Action act = () => Organization.ConfirmNameForDeletion(org, "Wrong Name");
+
+        act.Should().Throw<BusinessRuleException>()
+            .WithMessage("*does not match*");
     }
 
     private static Organization CreateOrganization() =>

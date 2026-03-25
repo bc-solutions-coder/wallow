@@ -14,4 +14,8 @@ public static class IdentityModuleTelemetry
 
     public static readonly Counter<long> SsoFailuresTotal =
         _meter.CreateCounter<long>("wallow.identity.sso_failures_total");
+
+    public static readonly Counter<long> RequestsAuthenticatedTotal =
+        _meter.CreateCounter<long>("wallow.requests_authenticated_total",
+            description: "Total authenticated requests");
 }

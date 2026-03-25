@@ -64,6 +64,12 @@ public sealed class ScimConfigurationConfiguration : IEntityTypeConfiguration<Sc
         builder.Property(e => e.CreatedBy).HasColumnName("created_by");
         builder.Property(e => e.UpdatedBy).HasColumnName("updated_by");
 
+        builder.Property<uint>("xmin")
+            .HasColumnName("xmin")
+            .HasColumnType("xid")
+            .ValueGeneratedOnAddOrUpdate()
+            .IsConcurrencyToken();
+
         builder.HasIndex(e => e.TenantId).IsUnique();
     }
 }

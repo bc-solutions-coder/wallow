@@ -1,0 +1,31 @@
+@page "/verify-email"
+@using Wallow.Auth.Configuration
+@inject BrandingOptions Branding
+
+<PageTitle>Verify Email — @Branding.AppName</PageTitle>
+
+<BbCard>
+    <BbCardHeader>
+        <BbCardTitle>Check your email</BbCardTitle>
+        <BbCardDescription>We've sent a verification link to your email address.</BbCardDescription>
+    </BbCardHeader>
+    <BbCardContent>
+        <p class="text-sm text-muted-foreground">
+            Click the link in your email to verify your account. If you don't see it, check your spam folder.
+        </p>
+    </BbCardContent>
+    <BbCardFooter>
+        <div class="text-center w-full">
+            <a href="@LoginUrl" class="text-sm text-muted-foreground hover:text-foreground">Back to sign in</a>
+        </div>
+    </BbCardFooter>
+</BbCard>
+
+@code {
+    [SupplyParameterFromQuery]
+    public string? ReturnUrl { get; set; }
+
+    private string LoginUrl => string.IsNullOrEmpty(ReturnUrl)
+        ? "/login"
+        : $"/login?returnUrl={Uri.EscapeDataString(ReturnUrl)}";
+}

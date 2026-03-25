@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Collections.Frozen;
 using Wallow.Shared.Kernel.Identity.Authorization;
 
@@ -84,15 +85,22 @@ public static class RolePermissionMapping
             PermissionType.AnnouncementRead,
             PermissionType.StorageRead,
             PermissionType.StorageWrite,
+            PermissionType.ApiKeysRead,
+            PermissionType.ApiKeysCreate,
             PermissionType.InquiriesWrite,
         ]
     }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
+    private static readonly ConcurrentDictionary<string, string[]> _cache = new();
+
     public static IEnumerable<string> GetPermissions(IEnumerable<string> roles)
     {
-        return roles
+        string cacheKey = string.Join("|", roles.OrderBy(r => r, StringComparer.OrdinalIgnoreCase));
+
+        return _cache.GetOrAdd(cacheKey, _ => roles
             .Where(r => _rolePermissions.ContainsKey(r))
             .SelectMany(r => _rolePermissions[r])
-            .Distinct();
+            .Distinct()
+            .ToArray());
     }
 }

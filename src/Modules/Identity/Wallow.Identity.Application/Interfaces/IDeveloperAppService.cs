@@ -8,5 +8,17 @@ public interface IDeveloperAppService
         string clientId,
         string clientName,
         IReadOnlyCollection<string> requestedScopes,
+        string? clientType = null,
+        IReadOnlyCollection<string>? redirectUris = null,
+        string? creatorUserId = null,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<DeveloperAppInfo>> GetUserAppsAsync(
+        string userId,
+        CancellationToken cancellationToken = default);
+
+    Task<DeveloperAppInfo?> GetUserAppAsync(
+        string userId,
+        string clientId,
         CancellationToken cancellationToken = default);
 }
