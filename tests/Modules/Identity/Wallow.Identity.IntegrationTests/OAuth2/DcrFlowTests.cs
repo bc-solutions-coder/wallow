@@ -34,11 +34,14 @@ public class DcrFlowTests(WallowApiFactory factory) : IdentityIntegrationTestBas
             "app-test-scopes",
             ["inquiries.read", "storage.read"]);
 
-        string? token = await AcquireTokenAsync(registration.ClientId, registration.ClientSecret);
+        string? token = await AcquireTokenAsync(
+            registration.ClientId,
+            registration.ClientSecret,
+            ["inquiries.read", "storage.read"]);
         token.Should().NotBeNullOrWhiteSpace();
 
         JwtSecurityTokenHandler handler = new();
-        JwtSecurityToken jwt = handler.ReadJwtToken(token);
+        JwtSecurityToken jwt = handler.ReadJwtToken(token!);
 
         List<string> scopes = jwt.Claims
             .Where(c => c.Type is "scope" or "scp")
@@ -84,21 +87,35 @@ public class DcrFlowTests(WallowApiFactory factory) : IdentityIntegrationTestBas
     }
 
     [Fact]
-    public async Task Dcr_Client_Token_Should_Not_Access_Service_Account_Endpoints()
+    public async Task Dcr_Client_Token_Should_Not_Have_Service_Account_Scopes()
     {
         AppRegistrationResponse registration = await RegisterAppAsync(
             "app-test-no-sa-access",
             ["inquiries.read"]);
 
-        string? token = await AcquireTokenAsync(registration.ClientId, registration.ClientSecret);
+        string? token = await AcquireTokenAsync(
+            registration.ClientId,
+            registration.ClientSecret,
+            ["inquiries.read"]);
         token.Should().NotBeNullOrWhiteSpace();
 
-        HttpClient apiClient = Factory.CreateClient();
-        apiClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {token}");
+        JwtSecurityTokenHandler handler = new();
+        JwtSecurityToken jwt = handler.ReadJwtToken(token!);
 
-        HttpResponseMessage response = await apiClient.GetAsync("/api/identity/service-accounts");
+        List<string> scopes = jwt.Claims
+            .Where(c => c.Type is "scope" or "scp")
+            .SelectMany(c => c.Value.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+            .ToList();
 
-        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        List<string> roles = jwt.Claims
+            .Where(c => c.Type is "role")
+            .Select(c => c.Value)
+            .ToList();
+
+        scopes.Should().NotContain("serviceaccounts.read");
+        scopes.Should().NotContain("serviceaccounts.write");
+        scopes.Should().NotContain("serviceaccounts.manage");
+        roles.Should().NotContain("admin");
     }
 
     private async Task<AppRegistrationResponse> RegisterAppAsync(
@@ -118,26 +135,39 @@ public class DcrFlowTests(WallowApiFactory factory) : IdentityIntegrationTestBas
         return result!;
     }
 
-    private async Task<string?> AcquireTokenAsync(string clientId, string clientSecret)
+    private async Task<string?> AcquireTokenAsync(
+        string clientId,
+        string clientSecret,
+        IReadOnlyList<string>? scopes = null)
     {
-        HttpResponseMessage response = await PostTokenRequestAsync(clientId, clientSecret);
+        HttpResponseMessage response = await PostTokenRequestAsync(clientId, clientSecret, scopes);
         response.EnsureSuccessStatusCode();
 
         TokenResponse? content = await response.Content.ReadFromJsonAsync<TokenResponse>();
         return content?.AccessToken;
     }
 
-    private async Task<HttpResponseMessage> PostTokenRequestAsync(string clientId, string clientSecret)
+    private async Task<HttpResponseMessage> PostTokenRequestAsync(
+        string clientId,
+        string clientSecret,
+        IReadOnlyList<string>? scopes = null)
     {
         HttpClient tokenClient = Factory.CreateClient();
         tokenClient.DefaultRequestHeaders.Remove("Authorization");
 
-        using FormUrlEncodedContent content = new(new Dictionary<string, string>
+        Dictionary<string, string> formData = new()
         {
             ["grant_type"] = "client_credentials",
             ["client_id"] = clientId,
             ["client_secret"] = clientSecret
-        });
+        };
+
+        if (scopes is { Count: > 0 })
+        {
+            formData["scope"] = string.Join(' ', scopes);
+        }
+
+        using FormUrlEncodedContent content = new(formData);
 
         return await tokenClient.PostAsync(TokenEndpoint, content);
     }

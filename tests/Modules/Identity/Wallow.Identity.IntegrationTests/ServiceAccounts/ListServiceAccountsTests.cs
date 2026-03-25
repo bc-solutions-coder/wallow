@@ -9,7 +9,7 @@ public class ListServiceAccountsTests(ServiceAccountTestFactory factory) : Servi
     private static readonly string[] _invoicesReadScope = ["invoices.read"];
     private static readonly string[] _paymentsReadScope = ["payments.read"];
 
-    [Fact(Skip = "Flaky when run with full test suite")]
+    [Fact]
     public async Task Should_List_All_ServiceAccounts_For_Tenant()
     {
         CreateServiceAccountRequest request1 = new("Account 1", "First account", _invoicesReadScope);
@@ -25,7 +25,7 @@ public class ListServiceAccountsTests(ServiceAccountTestFactory factory) : Servi
         accounts.Should().Contain(a => a.Name == "Account 2");
     }
 
-    [Fact(Skip = "Flaky when run with full test suite")]
+    [Fact]
     public async Task Should_List_ServiceAccounts_Via_API()
     {
         CreateServiceAccountRequest request = new("API List Test", "Test account", _invoicesReadScope);
@@ -39,7 +39,7 @@ public class ListServiceAccountsTests(ServiceAccountTestFactory factory) : Servi
         accounts.Should().Contain(a => a.Name == "API List Test");
     }
 
-    [Fact(Skip = "Flaky when run with full test suite")]
+    [Fact]
     public async Task Should_Only_Show_Accounts_For_Current_Tenant()
     {
         CreateServiceAccountRequest request = new("Tenant A Account", "Account for tenant A", _invoicesReadScope);
@@ -57,7 +57,7 @@ public class ListServiceAccountsTests(ServiceAccountTestFactory factory) : Servi
         accounts.Should().NotContain(a => a.Id == createdInTenantA.Id);
     }
 
-    [Fact(Skip = "Flaky when run with full test suite")]
+    [Fact]
     public async Task Should_Return_Empty_List_When_No_Accounts_Exist()
     {
         HttpClient client = Factory.CreateClient();

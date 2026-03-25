@@ -51,7 +51,7 @@ public interface IScimService
     Task DeleteUserAsync(string id, CancellationToken ct = default);
 
     /// <summary>
-    /// Gets a user by their Keycloak ID.
+    /// Gets a user by their ID.
     /// </summary>
     Task<ScimUser?> GetUserAsync(string id, CancellationToken ct = default);
 

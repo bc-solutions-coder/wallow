@@ -174,7 +174,7 @@ public sealed partial class ScimService(IScimConfigurationRepository scimReposit
     }
 }
 
-internal sealed record ScimKeycloakUserRepresentation
+internal sealed record ScimUserRepresentation
 {
     public string? Id { get; init; }
     public string? Username { get; set; }
@@ -185,14 +185,14 @@ internal sealed record ScimKeycloakUserRepresentation
     public Dictionary<string, IEnumerable<string>>? Attributes { get; init; }
 }
 
-internal sealed record ScimKeycloakGroupRepresentation
+internal sealed record ScimGroupRepresentation
 {
     public string? Id { get; init; }
     public string? Name { get; init; }
     public Dictionary<string, IEnumerable<string>>? Attributes { get; init; }
 }
 
-internal sealed record ScimKeycloakRoleRepresentation
+internal sealed record ScimRoleRepresentation
 {
     public string? Id { get; init; }
     public string? Name { get; init; }

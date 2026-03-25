@@ -1,0 +1,187 @@
+@page "/mfa/enroll"
+@rendermode InteractiveServer
+
+@inject IHttpClientFactory HttpClientFactory
+@inject NavigationManager Navigation
+@using Wallow.Auth.Configuration
+@inject BrandingOptions Branding
+
+<PageTitle>Set Up MFA — @Branding.AppName</PageTitle>
+
+<BbCard Class="border-0 shadow-none bg-transparent">
+    <BbCardHeader Class="px-0 pt-0 text-center">
+        <BbCardTitle>Set up two-factor authentication</BbCardTitle>
+        <BbCardDescription>Scan the QR code with your authenticator app, then enter the code to confirm.</BbCardDescription>
+    </BbCardHeader>
+    <BbCardContent Class="px-0 space-y-4">
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <BbAlert Variant="AlertVariant.Danger">
+                <BbAlertDescription>@_errorMessage</BbAlertDescription>
+            </BbAlert>
+        }
+
+        @if (_backupCodes is not null)
+        {
+            <BbAlert Variant="AlertVariant.Success">
+                <BbAlertTitle>MFA enabled successfully</BbAlertTitle>
+                <BbAlertDescription>Save these backup codes in a safe place. They can be used to access your account if you lose your authenticator device.</BbAlertDescription>
+            </BbAlert>
+            <div class="bg-muted rounded-md p-4 font-mono text-sm space-y-1">
+                @foreach (string backupCode in _backupCodes)
+                {
+                    <div>@backupCode</div>
+                }
+            </div>
+            <BbButton Class="w-full" OnClick="@(() => Navigation.NavigateTo(ReturnUrl ?? "/"))">
+                Done
+            </BbButton>
+        }
+        else if (!string.IsNullOrEmpty(_secret))
+        {
+            <div class="text-center space-y-2">
+                <p class="text-sm text-muted-foreground">Scan this QR URI in your authenticator app:</p>
+                <div class="bg-muted rounded-md p-4 font-mono text-xs break-all">@_qrUri</div>
+                <p class="text-xs text-muted-foreground">Or enter this secret manually:</p>
+                <div class="bg-muted rounded-md p-2 font-mono text-sm">@_secret</div>
+            </div>
+
+            <form @onsubmit="HandleConfirm" @onsubmit:preventDefault>
+                <div class="space-y-4">
+                    <div class="space-y-2">
+                        <BbLabel For="code">Verification code</BbLabel>
+                        <BbInput Id="code"
+                                 Type="InputType.Text"
+                                 Placeholder="Enter 6-digit code"
+                                 @bind-Value="_code" />
+                    </div>
+
+                    <BbButton Class="w-full"
+                              Type="ButtonType.Submit"
+                              Loading="_isSubmitting"
+                              Disabled="_isSubmitting">
+                        Verify and enable MFA
+                    </BbButton>
+                </div>
+            </form>
+        }
+        else
+        {
+            <div class="space-y-4">
+                <div class="text-sm text-muted-foreground space-y-2">
+                    <p>Two-factor authentication adds an extra layer of security to your account by requiring a code from an authenticator app when you sign in.</p>
+                    <p><strong>You will need:</strong></p>
+                    <ul class="list-disc list-inside space-y-1">
+                        <li>An authenticator app (Google Authenticator, Authy, 1Password, etc.)</li>
+                        <li>Access to your device during sign-in</li>
+                    </ul>
+                </div>
+                <BbButton Class="w-full"
+                          Loading="_isLoading"
+                          Disabled="_isLoading"
+                          OnClick="HandleStartEnroll">
+                    Begin setup
+                </BbButton>
+            </div>
+        }
+    </BbCardContent>
+    <BbCardFooter Class="px-0 pb-0 justify-center">
+        <a href="/" class="text-sm text-muted-foreground hover:text-primary underline-offset-4 hover:underline">
+            Cancel
+        </a>
+    </BbCardFooter>
+</BbCard>
+
+@code {
+    [SupplyParameterFromQuery]
+    public string? ReturnUrl { get; set; }
+
+    private string? _secret;
+    private string? _qrUri;
+    private string _code = string.Empty;
+    private string? _errorMessage;
+    private bool _isLoading;
+    private bool _isSubmitting;
+    private List<string>? _backupCodes;
+
+    private async Task HandleStartEnroll()
+    {
+        _errorMessage = null;
+        _isLoading = true;
+
+        try
+        {
+            HttpClient client = HttpClientFactory.CreateClient("AuthApi");
+            HttpResponseMessage response = await client.PostAsync("api/v1/identity/mfa/enroll/totp", null);
+
+            if (response.IsSuccessStatusCode)
+            {
+                MfaEnrollResponse? body = await response.Content.ReadFromJsonAsync<MfaEnrollResponse>();
+                if (body is not null)
+                {
+                    _secret = body.Secret;
+                    _qrUri = body.QrUri;
+                }
+            }
+            else
+            {
+                _errorMessage = "Failed to start MFA enrollment. Please try again.";
+            }
+        }
+        catch (HttpRequestException)
+        {
+            _errorMessage = "Unable to reach the server. Please try again later.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task HandleConfirm()
+    {
+        _errorMessage = null;
+        _isSubmitting = true;
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(_code))
+            {
+                _errorMessage = "Please enter the verification code.";
+                return;
+            }
+
+            HttpClient client = HttpClientFactory.CreateClient("AuthApi");
+            HttpResponseMessage response = await client.PostAsJsonAsync(
+                "api/v1/identity/mfa/enroll/confirm",
+                new { secret = _secret, code = _code });
+
+            if (response.IsSuccessStatusCode)
+            {
+                MfaConfirmResponse? body = await response.Content.ReadFromJsonAsync<MfaConfirmResponse>();
+                _backupCodes = body?.BackupCodes ?? [];
+            }
+            else
+            {
+                MfaErrorResponse? error = await response.Content.ReadFromJsonAsync<MfaErrorResponse>();
+                _errorMessage = error?.Error switch
+                {
+                    "invalid_code" => "Invalid verification code. Please try again.",
+                    _ => "Failed to confirm MFA enrollment. Please try again."
+                };
+            }
+        }
+        catch (HttpRequestException)
+        {
+            _errorMessage = "Unable to reach the server. Please try again later.";
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private sealed record MfaEnrollResponse(string Secret, string QrUri);
+    private sealed record MfaConfirmResponse(bool Succeeded, List<string> BackupCodes);
+    private sealed record MfaErrorResponse(bool Succeeded, string? Error);
+}

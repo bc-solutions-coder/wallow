@@ -21,7 +21,7 @@ public sealed class ApiScopeSeederGapTests : IDisposable
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options;
         IDataProtectionProvider dataProtectionProvider = DataProtectionProvider.Create("Wallow.Identity.Tests");
-        _dbContext = new IdentityDbContext(options, tenantContext, dataProtectionProvider);
+        _dbContext = new IdentityDbContext(options, dataProtectionProvider);
         _logger = Substitute.For<ILogger<ApiScopeSeeder>>();
         _seeder = new ApiScopeSeeder(_logger);
     }

@@ -7,18 +7,17 @@ using Wallow.Shared.Kernel.MultiTenancy;
 namespace Wallow.Identity.Domain.Entities;
 
 /// <summary>
-/// Local reference to a Keycloak service account client.
+/// Metadata for an OAuth2 service account client.
 /// Stores metadata for tenant-specific queries, metering attribution, and last-used tracking.
-/// The actual authentication is handled by Keycloak.
 /// </summary>
 public sealed class ServiceAccountMetadata : AuditableEntity<ServiceAccountMetadataId>, ITenantScoped
 {
     public TenantId TenantId { get; init; }
 
     /// <summary>
-    /// Keycloak client ID (e.g., "sa-tenant123-production").
+    /// OAuth2 client ID (e.g., "sa-tenant123-production").
     /// </summary>
-    public string KeycloakClientId { get; private set; } = string.Empty;
+    public string ClientId { get; private set; } = string.Empty;
 
     /// <summary>
     /// Human-readable name for the service account.
@@ -52,7 +51,7 @@ public sealed class ServiceAccountMetadata : AuditableEntity<ServiceAccountMetad
 
     private ServiceAccountMetadata(
         TenantId tenantId,
-        string keycloakClientId,
+        string clientId,
         string name,
         string? description,
         IEnumerable<string> scopes,
@@ -61,7 +60,7 @@ public sealed class ServiceAccountMetadata : AuditableEntity<ServiceAccountMetad
     {
         Id = ServiceAccountMetadataId.New();
         TenantId = tenantId;
-        KeycloakClientId = keycloakClientId;
+        ClientId = clientId;
         Name = name;
         Description = description;
         Status = ServiceAccountStatus.Active;
@@ -71,18 +70,18 @@ public sealed class ServiceAccountMetadata : AuditableEntity<ServiceAccountMetad
 
     public static ServiceAccountMetadata Create(
         TenantId tenantId,
-        string keycloakClientId,
+        string clientId,
         string name,
         string? description,
         IEnumerable<string> scopes,
         Guid createdByUserId,
         TimeProvider timeProvider)
     {
-        if (string.IsNullOrWhiteSpace(keycloakClientId))
+        if (string.IsNullOrWhiteSpace(clientId))
         {
             throw new BusinessRuleException(
-                "Identity.KeycloakClientIdRequired",
-                "Keycloak client ID cannot be empty");
+                "Identity.ClientIdRequired",
+                "Client ID cannot be empty");
         }
 
         if (string.IsNullOrWhiteSpace(name))
@@ -94,7 +93,7 @@ public sealed class ServiceAccountMetadata : AuditableEntity<ServiceAccountMetad
 
         return new ServiceAccountMetadata(
             tenantId,
-            keycloakClientId,
+            clientId,
             name,
             description,
             scopes,
@@ -111,7 +110,7 @@ public sealed class ServiceAccountMetadata : AuditableEntity<ServiceAccountMetad
     }
 
     /// <summary>
-    /// Revokes the service account. The Keycloak client should be deleted separately.
+    /// Revokes the service account.
     /// </summary>
     public void Revoke(Guid updatedByUserId, TimeProvider timeProvider)
     {

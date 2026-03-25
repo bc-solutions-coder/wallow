@@ -26,8 +26,8 @@ public sealed class ServiceAccountMetadataConfiguration : IEntityTypeConfigurati
             .HasColumnName("tenant_id")
             .IsRequired();
 
-        builder.Property(e => e.KeycloakClientId)
-            .HasColumnName("keycloak_client_id")
+        builder.Property(e => e.ClientId)
+            .HasColumnName("client_id")
             .HasMaxLength(200)
             .IsRequired();
 
@@ -60,7 +60,13 @@ public sealed class ServiceAccountMetadataConfiguration : IEntityTypeConfigurati
         builder.Property(e => e.CreatedBy).HasColumnName("created_by");
         builder.Property(e => e.UpdatedBy).HasColumnName("updated_by");
 
+        builder.Property<uint>("xmin")
+            .HasColumnName("xmin")
+            .HasColumnType("xid")
+            .ValueGeneratedOnAddOrUpdate()
+            .IsConcurrencyToken();
+
         builder.HasIndex(e => e.TenantId);
-        builder.HasIndex(e => e.KeycloakClientId).IsUnique();
+        builder.HasIndex(e => e.ClientId).IsUnique();
     }
 }

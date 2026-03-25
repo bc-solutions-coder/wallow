@@ -20,5 +20,8 @@ public sealed class OrganizationMemberConfiguration : IEntityTypeConfiguration<O
             .HasColumnName("role")
             .HasMaxLength(100)
             .IsRequired();
+
+        builder.HasIndex("organization_id", nameof(OrganizationMember.UserId));
+        builder.HasIndex(e => e.UserId);
     }
 }

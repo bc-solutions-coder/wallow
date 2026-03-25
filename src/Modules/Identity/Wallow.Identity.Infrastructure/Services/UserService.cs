@@ -4,12 +4,12 @@ using Wallow.Shared.Contracts.Identity;
 
 namespace Wallow.Identity.Infrastructure.Services;
 
-public class UserService(IUserManagementService keycloakAdmin) : IUserService
+public class UserService(IUserManagementService userManagement) : IUserService
 {
 
     public async Task<UserInfo?> GetUserByIdAsync(Guid userId, CancellationToken ct = default)
     {
-        UserDto? user = await keycloakAdmin.GetUserByIdAsync(userId, ct);
+        UserDto? user = await userManagement.GetUserByIdAsync(userId, ct);
 
         if (user == null)
         {
@@ -26,7 +26,7 @@ public class UserService(IUserManagementService keycloakAdmin) : IUserService
 
     public async Task<UserInfo?> GetUserByEmailAsync(string email, CancellationToken ct = default)
     {
-        UserDto? user = await keycloakAdmin.GetUserByEmailAsync(email, ct);
+        UserDto? user = await userManagement.GetUserByEmailAsync(email, ct);
 
         if (user == null)
         {

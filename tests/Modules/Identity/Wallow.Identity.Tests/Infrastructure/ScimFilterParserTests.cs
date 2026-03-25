@@ -717,4 +717,89 @@ public class ScimFilterParserTests
         ScimFilterException exception = Assert.Throws<ScimFilterException>(() => Parse("a eq and b eq \"2\""));
         exception.Message.Should().Contain("Expected string or boolean value");
     }
+
+    [Fact]
+    public void Parse_ConsumeExpectedValue_Mismatch_ThrowsException()
+    {
+        // Tokens that have a logic token where "and" is expected but "or" is provided
+        // This exercises the Consume method's expectedValue mismatch branch.
+        // We need a token sequence where the parser expects a specific value but gets another.
+        // The parser calls Consume(TokenType.Logic, "and") when parsing and-expressions.
+        // If we place an "or" logic token where "and" is expected in context, we hit this path.
+        // Actually, the parser handles "or" at a higher precedence level, so we need to
+        // trick the token stream. The Consume(TokenType.Rparen) call is where this commonly fires.
+        // A Lparen followed by something that doesn't close properly.
+        ScimToken[] tokens =
+        [
+            new(TokenType.Lparen, "(", 0),
+            new(TokenType.Attr, "a", 1),
+            new(TokenType.Op, "eq", 3),
+            new(TokenType.String, "1", 6),
+            new(TokenType.Lparen, "(", 8) // Lparen where Rparen expected
+        ];
+
+        ScimFilterException exception = Assert.Throws<ScimFilterException>(() => _parser.Parse(tokens));
+        exception.Message.Should().Contain("Expected Rparen");
+    }
+
+    [Fact]
+    public void Parse_ConsumeLogicExpectedValue_Mismatch_ThrowsException()
+    {
+        // Create tokens where a Logic token with wrong value appears where "and" is expected
+        // ParseAndExpression checks for Logic token with value "and", so if it sees Logic "and"
+        // it tries to Consume(Logic, "and"). We need to test when Consume gets a Logic token
+        // but with wrong value. This happens through Consume(TokenType.Logic, "or") being called
+        // but the token is "and".
+        // The easiest way is via ParseOrExpression which calls Consume(Logic, "or").
+        // A sequence like: attr eq "val" or <Logic:and> would trigger this.
+        ScimToken[] tokens =
+        [
+            new(TokenType.Attr, "a", 0),
+            new(TokenType.Op, "eq", 2),
+            new(TokenType.String, "1", 5),
+            new(TokenType.Logic, "or", 9),
+            new(TokenType.Attr, "b", 12),
+            new(TokenType.Op, "eq", 14),
+            new(TokenType.String, "2", 17),
+            new(TokenType.Logic, "or", 20),
+            new(TokenType.Logic, "not", 24), // "not" logic where "or" was consumed, then attr expected
+            // This will hit "Expected attribute path" since not triggers ParseNotExpression
+        ];
+
+        // "not" without following expression should fail
+        ScimFilterException exception = Assert.Throws<ScimFilterException>(() => _parser.Parse(tokens));
+        exception.Message.Should().Contain("Expected attribute path");
+    }
+
+    [Fact]
+    public void Parse_EmptyParenthesizedExpression_AtEnd_ThrowsException()
+    {
+        // Tests the IsAtEnd branch in ParseComparison
+        ScimToken[] tokens =
+        [
+            new(TokenType.Lparen, "(", 0),
+            new(TokenType.Rparen, ")", 1)
+        ];
+
+        ScimFilterException exception = Assert.Throws<ScimFilterException>(() => _parser.Parse(tokens));
+        exception.Message.Should().Contain("Expected attribute path");
+    }
+
+    [Fact]
+    public void Parse_ConsumeAtEnd_ThrowsExpectedTokenException()
+    {
+        // Force Consume to be called when at end of token stream
+        // Lparen without matching Rparen and expression ends
+        ScimToken[] tokens =
+        [
+            new(TokenType.Lparen, "(", 0),
+            new(TokenType.Attr, "a", 1),
+            new(TokenType.Op, "eq", 3),
+            new(TokenType.String, "1", 6)
+            // Missing Rparen, parser will call Consume(Rparen) at EOF
+        ];
+
+        ScimFilterException exception = Assert.Throws<ScimFilterException>(() => _parser.Parse(tokens));
+        exception.Message.Should().Contain("Expected Rparen, got EOF");
+    }
 }

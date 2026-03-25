@@ -4,8 +4,9 @@ namespace Wallow.Identity.IntegrationTests.Resilience;
 /// Tests health check endpoint resilience behavior.
 /// Uses WireMock to simulate upstream service states.
 /// </summary>
+[Collection("IdentityResilience")]
 [Trait("Category", "Integration")]
-public class HealthCheckResilienceTests : IClassFixture<IdentityResilienceTestFactory>, IAsyncLifetime
+public class HealthCheckResilienceTests : IAsyncLifetime
 {
     private readonly IdentityResilienceTestFactory _factory;
     private HttpClient _appClient = null!;

@@ -341,12 +341,12 @@ public class SsoConfigurationTests
     }
 
     [Fact]
-    public void SetKeycloakIdpAlias_SetsAlias()
+    public void SetIdpAlias_SetsAlias()
     {
         SsoConfiguration config = CreateSamlConfig();
 
-        config.SetKeycloakIdpAlias("saml-idp-alias", _testUserId, TimeProvider.System);
+        config.SetIdpAlias("saml-idp-alias", _testUserId, TimeProvider.System);
 
-        config.KeycloakIdpAlias.Should().Be("saml-idp-alias");
+        config.IdpAlias.Should().Be("saml-idp-alias");
     }
 }

@@ -1,0 +1,86 @@
+@page "/logout"
+@inject IConfiguration Configuration
+@inject Wallow.Auth.Services.IAuthApiClient AuthApiClient
+@using Wallow.Auth.Configuration
+@inject BrandingOptions Branding
+
+<PageTitle>Sign Out — @Branding.AppName</PageTitle>
+
+<BbCard>
+    <BbCardHeader>
+        <BbCardTitle>
+            @if (SignedOut == "true")
+            {
+                <span>Signed out</span>
+            }
+            else
+            {
+                <span>Sign out</span>
+            }
+        </BbCardTitle>
+    </BbCardHeader>
+    <BbCardContent>
+        @if (SignedOut == "true")
+        {
+            <p class="text-sm text-muted-foreground">You have been successfully signed out.</p>
+
+            @if (_isRedirectUriValid)
+            {
+                <div class="mt-4">
+                    <a href="@PostLogoutRedirectUri"
+                       class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 w-full">
+                        Return to application
+                    </a>
+                </div>
+            }
+        }
+        else
+        {
+            <p class="text-sm text-muted-foreground mb-4">Are you sure you want to sign out?</p>
+
+            <a href="@LogoutUrl"
+               class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 w-full">
+                Sign out
+            </a>
+        }
+    </BbCardContent>
+    <BbCardFooter>
+        <div class="text-center w-full">
+            <a href="/login" class="text-sm text-muted-foreground hover:text-foreground">Back to sign in</a>
+        </div>
+    </BbCardFooter>
+</BbCard>
+
+@code {
+    [SupplyParameterFromQuery(Name = "post_logout_redirect_uri")]
+    public string? PostLogoutRedirectUri { get; set; }
+
+    [SupplyParameterFromQuery(Name = "signed_out")]
+    public string? SignedOut { get; set; }
+
+    private string ApiBaseUrl => Configuration["ApiBaseUrl"]
+        ?? throw new InvalidOperationException("ApiBaseUrl must be configured");
+
+    private string LogoutUrl
+    {
+        get
+        {
+            string url = $"{ApiBaseUrl}/connect/logout";
+            if (!string.IsNullOrEmpty(PostLogoutRedirectUri))
+            {
+                url += $"?post_logout_redirect_uri={Uri.EscapeDataString(PostLogoutRedirectUri)}";
+            }
+            return url;
+        }
+    }
+
+    private bool _isRedirectUriValid;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (SignedOut == "true" && !string.IsNullOrEmpty(PostLogoutRedirectUri))
+        {
+            _isRedirectUriValid = await AuthApiClient.ValidateRedirectUriAsync(PostLogoutRedirectUri);
+        }
+    }
+}

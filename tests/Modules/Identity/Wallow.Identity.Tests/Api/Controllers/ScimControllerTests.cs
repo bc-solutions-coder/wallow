@@ -2,6 +2,7 @@ using Wallow.Identity.Api.Controllers;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NSubstitute.ExceptionExtensions;
@@ -19,7 +20,13 @@ public class ScimControllerTests
         ILogger<ScimController> logger = Substitute.For<ILogger<ScimController>>();
         IHostEnvironment environment = Substitute.For<IHostEnvironment>();
         environment.EnvironmentName.Returns("Development");
-        _controller = new ScimController(_scimService, logger, environment);
+        IConfiguration configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["DocsUrl"] = "https://docs.example.com"
+            })
+            .Build();
+        _controller = new ScimController(_scimService, configuration, logger, environment);
     }
 
     #region ListUsers
@@ -365,7 +372,7 @@ public class ScimControllerTests
         config.ChangePassword!.Supported.Should().BeFalse();
         config.Sort!.Supported.Should().BeTrue();
         config.Etag!.Supported.Should().BeFalse();
-        config.DocumentationUri.Should().Be("https://docs.wallow.dev/scim");
+        config.DocumentationUri.Should().Be("https://docs.example.com/scim");
         config.AuthenticationSchemes.Should().HaveCount(1);
         config.AuthenticationSchemes![0].Type.Should().Be("oauthbearertoken");
         config.AuthenticationSchemes[0].Primary.Should().BeTrue();

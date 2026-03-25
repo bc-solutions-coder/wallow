@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Enums;
@@ -12,8 +13,12 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Wallow.Identity.IntegrationTests.Scim;
 
+[CollectionDefinition("ScimProvisioning")]
+public class ScimTestCollection : ICollectionFixture<ScimProvisioningTestFactory>;
+
+[Collection("ScimProvisioning")]
 [Trait("Category", "Integration")]
-public class ScimProvisioningTests(ScimProvisioningTestFactory factory) : IClassFixture<ScimProvisioningTestFactory>, IAsyncLifetime
+public class ScimProvisioningTests(ScimProvisioningTestFactory factory) : IAsyncLifetime
 {
     private IServiceScope? _scope;
     private IServiceProvider _scopedServices = null!;
@@ -30,11 +35,8 @@ public class ScimProvisioningTests(ScimProvisioningTestFactory factory) : IClass
         await _dbContext.Database.EnsureCreatedAsync();
 
         // Clear any existing SCIM configurations and sync logs from prior tests
-        List<Domain.Entities.ScimConfiguration> existingConfigs = _dbContext.ScimConfigurations.ToList();
-        _dbContext.ScimConfigurations.RemoveRange(existingConfigs);
-        List<Domain.Entities.ScimSyncLog> existingLogs = _dbContext.ScimSyncLogs.ToList();
-        _dbContext.ScimSyncLogs.RemoveRange(existingLogs);
-        await _dbContext.SaveChangesAsync();
+        await _dbContext.ScimSyncLogs.ExecuteDeleteAsync();
+        await _dbContext.ScimConfigurations.ExecuteDeleteAsync();
 
         // Enable SCIM for the test tenant
         _ = await _scimService.EnableScimAsync(new EnableScimRequest(
@@ -395,12 +397,6 @@ public class ScimProvisioningTestFactory : WallowApiFactory
         builder.ConfigureTestServices(services =>
         {
             services.AddHttpContextAccessor();
-
-            // Replace IdP HttpClient with WireMock
-            services.AddHttpClient("KeycloakAdminClient", client =>
-            {
-                client.BaseAddress = new Uri(_mockIdp.BaseUrl);
-            });
 
             // Fixed tenant context for tests
             services.AddScoped<ITenantContext>(_ =>

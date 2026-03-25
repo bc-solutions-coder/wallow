@@ -1,0 +1,75 @@
+@page "/dashboard/apps"
+@layout DashboardLayout
+@attribute [Authorize]
+@rendermode InteractiveServer
+@using Wallow.Web.Models
+@using Wallow.Web.Services
+@inject IAppRegistrationService AppService
+
+<div class="max-w-5xl mx-auto">
+    <div class="flex items-center justify-between mb-8">
+        <h1 class="text-3xl font-bold text-[#3d2b1f]">My Apps</h1>
+        <a href="/dashboard/apps/register"
+           class="bg-[#d4a017] text-white font-medium px-6 py-2.5 rounded-full hover:bg-[#b8880f] no-underline text-sm transition-colors">
+            Register New App
+        </a>
+    </div>
+
+    @if (_loading)
+    {
+        <div class="text-[#3d2b1f]/60 text-center py-12">Loading apps...</div>
+    }
+    else if (_apps is null || _apps.Count == 0)
+    {
+        <div class="bg-white rounded-lg shadow-sm border border-[#e8d5b7] p-12 text-center">
+            <div class="text-[80px] leading-none mb-4">🐷</div>
+            <h2 class="text-xl font-semibold text-[#3d2b1f] mb-2">No apps yet</h2>
+            <p class="text-[#3d2b1f]/60 mb-6">You haven't registered any applications. Get started by creating your first one.</p>
+            <a href="/dashboard/apps/register"
+               class="bg-[#d4a017] text-white font-medium px-6 py-2.5 rounded-full hover:bg-[#b8880f] no-underline text-sm transition-colors">
+                Register your first app
+            </a>
+        </div>
+    }
+    else
+    {
+        <div class="bg-white rounded-lg shadow-sm border border-[#e8d5b7] overflow-hidden">
+            <table class="w-full text-left">
+                <thead class="bg-[#faf6f1] border-b border-[#e8d5b7]">
+                    <tr>
+                        <th class="px-6 py-3 text-xs font-semibold text-[#3d2b1f]/70 uppercase tracking-wider">Name</th>
+                        <th class="px-6 py-3 text-xs font-semibold text-[#3d2b1f]/70 uppercase tracking-wider">Client ID</th>
+                        <th class="px-6 py-3 text-xs font-semibold text-[#3d2b1f]/70 uppercase tracking-wider">Type</th>
+                        <th class="px-6 py-3 text-xs font-semibold text-[#3d2b1f]/70 uppercase tracking-wider">Created</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-[#e8d5b7]">
+                    @foreach (AppModel app in _apps)
+                    {
+                        <tr class="hover:bg-[#faf6f1]/50">
+                            <td class="px-6 py-4 text-sm font-medium text-[#3d2b1f]">@app.DisplayName</td>
+                            <td class="px-6 py-4 text-sm text-[#3d2b1f]/70 font-mono">@app.ClientId</td>
+                            <td class="px-6 py-4">
+                                <span class="inline-block bg-[#e8d5b7] text-[#3d2b1f] text-xs font-medium px-2.5 py-0.5 rounded-full">
+                                    @app.ClientType
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 text-sm text-[#3d2b1f]/70">@app.CreatedAt?.ToString("MMM d, yyyy")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private List<AppModel>? _apps;
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _apps = await AppService.GetAppsAsync();
+        _loading = false;
+    }
+}

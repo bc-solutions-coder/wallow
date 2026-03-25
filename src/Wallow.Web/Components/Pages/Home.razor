@@ -1,0 +1,125 @@
+@page "/"
+@layout PublicLayout
+@inject Wallow.Web.Configuration.BrandingOptions Branding
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+@using Microsoft.AspNetCore.Components.Authorization
+@attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+
+@if (!_showLandingPage)
+{
+    return;
+}
+
+<!-- Hero -->
+<section class="text-center py-24 px-6">
+    <img src="@Branding.AppIcon" alt="@Branding.AppName" class="size-40 mx-auto mb-6" style="shape-rendering: geometricPrecision;" />
+    <h1 class="text-5xl font-bold text-[#3d2b1f] mb-4">@Branding.Tagline</h1>
+    <p class="text-lg text-[#3d2b1f]/70 max-w-2xl mx-auto mb-10">
+        A modular .NET foundation for building production-ready applications.
+        Multi-tenant, event-driven, and built on Clean Architecture from day one.
+    </p>
+    <div class="flex items-center justify-center gap-4">
+        <a href="/authentication/login?returnUrl=/dashboard/apps"
+           class="bg-[#d4a017] text-white font-medium px-8 py-3 rounded-full hover:bg-[#b8880f] no-underline text-base">
+            Get Started
+        </a>
+        <a href="https://github.com/wallowapp/wallow" target="_blank"
+           class="border border-[#3d2b1f] text-[#3d2b1f] font-medium px-8 py-3 rounded-full hover:bg-[#3d2b1f] hover:text-white no-underline text-base transition-colors">
+            View on GitHub
+        </a>
+    </div>
+</section>
+
+<!-- Tech Badges -->
+<section class="flex flex-wrap items-center justify-center gap-3 px-6 pb-20">
+    <span class="bg-[#e8d5b7] text-[#3d2b1f] text-sm font-medium px-4 py-1.5 rounded-full">.NET 10</span>
+    <span class="bg-[#e8d5b7] text-[#3d2b1f] text-sm font-medium px-4 py-1.5 rounded-full">Blazor</span>
+    <span class="bg-[#e8d5b7] text-[#3d2b1f] text-sm font-medium px-4 py-1.5 rounded-full">PostgreSQL</span>
+    <span class="bg-[#e8d5b7] text-[#3d2b1f] text-sm font-medium px-4 py-1.5 rounded-full">RabbitMQ</span>
+    <span class="bg-[#e8d5b7] text-[#3d2b1f] text-sm font-medium px-4 py-1.5 rounded-full">OpenIddict</span>
+    <span class="bg-[#e8d5b7] text-[#3d2b1f] text-sm font-medium px-4 py-1.5 rounded-full">Clean Architecture</span>
+</section>
+
+<!-- Features Grid -->
+<section class="max-w-6xl mx-auto px-6 pb-24">
+    <h2 class="text-3xl font-bold text-[#3d2b1f] text-center mb-12">Everything you need to build</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="bg-white border-l-4 border-[#d4a017] rounded-lg p-6 shadow-sm">
+            <div class="text-2xl mb-2">🏢</div>
+            <h3 class="text-lg font-semibold text-[#3d2b1f] mb-2">Multi-tenancy</h3>
+            <p class="text-sm text-[#3d2b1f]/70">Isolated tenant schemas, automatic resolution, and per-tenant configuration out of the box.</p>
+        </div>
+        <div class="bg-white border-l-4 border-[#d4a017] rounded-lg p-6 shadow-sm">
+            <div class="text-2xl mb-2">🧩</div>
+            <h3 class="text-lg font-semibold text-[#3d2b1f] mb-2">Modular Monolith</h3>
+            <p class="text-sm text-[#3d2b1f]/70">Independent modules with clear boundaries that can evolve into microservices when you need them.</p>
+        </div>
+        <div class="bg-white border-l-4 border-[#d4a017] rounded-lg p-6 shadow-sm">
+            <div class="text-2xl mb-2">🏗️</div>
+            <h3 class="text-lg font-semibold text-[#3d2b1f] mb-2">Clean Architecture & DDD</h3>
+            <p class="text-sm text-[#3d2b1f]/70">Domain-driven design with layered architecture keeping your business logic pure and testable.</p>
+        </div>
+        <div class="bg-white border-l-4 border-[#d4a017] rounded-lg p-6 shadow-sm">
+            <div class="text-2xl mb-2">⚡</div>
+            <h3 class="text-lg font-semibold text-[#3d2b1f] mb-2">CQRS with Wolverine</h3>
+            <p class="text-sm text-[#3d2b1f]/70">Command and query separation powered by Wolverine for clean, performant request handling.</p>
+        </div>
+        <div class="bg-white border-l-4 border-[#d4a017] rounded-lg p-6 shadow-sm">
+            <div class="text-2xl mb-2">📨</div>
+            <h3 class="text-lg font-semibold text-[#3d2b1f] mb-2">Event-Driven Messaging</h3>
+            <p class="text-sm text-[#3d2b1f]/70">Modules communicate through RabbitMQ events, keeping boundaries clean and enabling async workflows.</p>
+        </div>
+        <div class="bg-white border-l-4 border-[#d4a017] rounded-lg p-6 shadow-sm">
+            <div class="text-2xl mb-2">🔐</div>
+            <h3 class="text-lg font-semibold text-[#3d2b1f] mb-2">Identity & OAuth</h3>
+            <p class="text-sm text-[#3d2b1f]/70">OpenIddict-powered authentication with social logins, roles, and fine-grained permissions.</p>
+        </div>
+    </div>
+</section>
+
+<!-- Get Started Steps -->
+<section class="bg-[#3d2b1f] text-white py-20 px-6">
+    <div class="max-w-4xl mx-auto text-center">
+        <h2 class="text-3xl font-bold mb-12">Get running in minutes</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div>
+                <div class="text-[#d4a017] text-4xl font-bold mb-3">1</div>
+                <h3 class="text-lg font-semibold mb-2">Fork & Clone</h3>
+                <code class="text-sm text-white/60">git clone your-fork</code>
+            </div>
+            <div>
+                <div class="text-[#d4a017] text-4xl font-bold mb-3">2</div>
+                <h3 class="text-lg font-semibold mb-2">Start Infrastructure</h3>
+                <code class="text-sm text-white/60">docker compose up -d</code>
+            </div>
+            <div>
+                <div class="text-[#d4a017] text-4xl font-bold mb-3">3</div>
+                <h3 class="text-lg font-semibold mb-2">Run the API</h3>
+                <code class="text-sm text-white/60">dotnet run</code>
+            </div>
+        </div>
+    </div>
+</section>
+
+@code {
+    private bool _showLandingPage = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        AuthenticationState authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        if (authState.User.Identity?.IsAuthenticated == true)
+        {
+            Navigation.NavigateTo("/dashboard/apps", forceLoad: false);
+            _showLandingPage = false;
+            return;
+        }
+
+        if (!Branding.LandingPage.Enabled)
+        {
+            // Landing page disabled — redirect unauthenticated users to login via OIDC challenge
+            Navigation.NavigateTo("/authentication/login", forceLoad: true);
+            _showLandingPage = false;
+        }
+    }
+}
