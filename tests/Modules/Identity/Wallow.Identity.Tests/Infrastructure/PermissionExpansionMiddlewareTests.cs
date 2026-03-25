@@ -194,7 +194,7 @@ public class PermissionExpansionMiddlewareTests
 
         // Assert
         List<string> permissions = context.User.FindAll("permission").Select(c => c.Value).ToList();
-        permissions.Should().Contain(PermissionType.NotificationsRead);
+        permissions.Should().Contain(PermissionType.NotificationRead);
         permissions.Should().Contain(PermissionType.NotificationsWrite);
     }
 

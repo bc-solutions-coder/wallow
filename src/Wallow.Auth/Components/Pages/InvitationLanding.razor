@@ -1,0 +1,190 @@
+@page "/invitation"
+@rendermode InteractiveServer
+
+@inject IAuthApiClient AuthApi
+@inject NavigationManager Navigation
+@using Microsoft.AspNetCore.Components.Authorization
+@inject AuthenticationStateProvider AuthStateProvider
+@using Wallow.Auth.Configuration
+@inject BrandingOptions Branding
+
+<PageTitle>Invitation — @Branding.AppName</PageTitle>
+
+<BbCard Class="border-0 shadow-none bg-transparent">
+    <BbCardHeader Class="px-0 pt-0 text-center">
+        <BbCardTitle>You've been invited</BbCardTitle>
+        <BbCardDescription>Join @Branding.AppName</BbCardDescription>
+    </BbCardHeader>
+    <BbCardContent Class="px-0 space-y-4">
+        @if (_isLoading)
+        {
+            <p class="text-sm text-muted-foreground text-center">Loading invitation...</p>
+        }
+        else if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <BbAlert Variant="AlertVariant.Danger">
+                <BbAlertDescription>@_errorMessage</BbAlertDescription>
+            </BbAlert>
+
+            <div class="text-center">
+                <a href="/login" class="text-sm text-muted-foreground hover:text-foreground">Back to sign in</a>
+            </div>
+        }
+        else if (_invitation is not null)
+        {
+            <BbAlert Variant="AlertVariant.Info">
+                <BbAlertDescription>
+                    You've been invited to join @Branding.AppName as @_invitation.Email.
+                </BbAlertDescription>
+            </BbAlert>
+
+            @if (_isExpired)
+            {
+                <BbAlert Variant="AlertVariant.Danger">
+                    <BbAlertDescription>This invitation has expired. Please ask your administrator to send a new one.</BbAlertDescription>
+                </BbAlert>
+            }
+            else if (_isAuthenticated)
+            {
+                <p class="text-sm text-center">Would you like to join @Branding.AppName?</p>
+
+                @if (!string.IsNullOrEmpty(_acceptError))
+                {
+                    <BbAlert Variant="AlertVariant.Danger">
+                        <BbAlertDescription>@_acceptError</BbAlertDescription>
+                    </BbAlert>
+                }
+
+                <div class="flex gap-2">
+                    <BbButton Class="flex-1"
+                              Loading="_isSubmitting"
+                              Disabled="_isSubmitting"
+                              OnClick="HandleAccept">
+                        Yes, join
+                    </BbButton>
+                    <BbButton Class="flex-1"
+                              Variant="ButtonVariant.Outline"
+                              Disabled="_isSubmitting"
+                              Href="/">
+                        No thanks
+                    </BbButton>
+                </div>
+            }
+            else
+            {
+                <div class="space-y-3">
+                    <BbButton Class="w-full"
+                              Href="@GetRegisterUrl()">
+                        Create account
+                    </BbButton>
+                    <BbButton Class="w-full"
+                              Variant="ButtonVariant.Outline"
+                              Href="@GetLoginUrl()">
+                        Sign in to accept
+                    </BbButton>
+                </div>
+            }
+        }
+    </BbCardContent>
+</BbCard>
+
+@code {
+    [SupplyParameterFromQuery]
+    public string? Token { get; set; }
+
+    private InvitationDetailsResponse? _invitation;
+    private bool _isLoading = true;
+    private bool _isSubmitting;
+    private bool _isAuthenticated;
+    private bool _isExpired;
+    private string? _errorMessage;
+    private string? _acceptError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (string.IsNullOrWhiteSpace(Token))
+        {
+            _errorMessage = "No invitation token provided.";
+            _isLoading = false;
+            return;
+        }
+
+        try
+        {
+            AuthenticationState authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            _isAuthenticated = authState.User.Identity?.IsAuthenticated == true;
+        }
+        catch
+        {
+            _isAuthenticated = false;
+        }
+
+        try
+        {
+            _invitation = await AuthApi.VerifyInvitationAsync(Token);
+
+            if (_invitation is null)
+            {
+                _errorMessage = "This invitation is not valid or has already been used.";
+            }
+            else if (_invitation.Status is "Expired" || _invitation.ExpiresAt < DateTimeOffset.UtcNow)
+            {
+                _isExpired = true;
+            }
+        }
+        catch
+        {
+            _errorMessage = "Unable to verify this invitation. Please try again later.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task HandleAccept()
+    {
+        if (_isSubmitting || string.IsNullOrWhiteSpace(Token))
+        {
+            return;
+        }
+
+        _isSubmitting = true;
+        _acceptError = null;
+
+        try
+        {
+            bool success = await AuthApi.AcceptInvitationAsync(Token);
+
+            if (success)
+            {
+                Navigation.NavigateTo("/", forceLoad: true);
+            }
+            else
+            {
+                _acceptError = "Unable to accept this invitation. It may have expired or already been used.";
+            }
+        }
+        catch
+        {
+            _acceptError = "An error occurred while accepting the invitation. Please try again.";
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private string GetRegisterUrl()
+    {
+        string encodedEmail = Uri.EscapeDataString(_invitation!.Email);
+        string encodedReturnUrl = Uri.EscapeDataString($"/invitation?token={Token}");
+        return $"/register?email={encodedEmail}&returnUrl={encodedReturnUrl}";
+    }
+
+    private string GetLoginUrl()
+    {
+        string encodedReturnUrl = Uri.EscapeDataString($"/invitation?token={Token}");
+        return $"/login?returnUrl={encodedReturnUrl}";
+    }
+}

@@ -1,21 +1,36 @@
+using System.Security.Cryptography.X509Certificates;
+
+using Wallow.Identity.Application.Commands.BootstrapAdmin;
+using Wallow.Identity.Application.Commands.RegisterSetupClient;
 using Wallow.Identity.Application.Interfaces;
+using Wallow.Identity.Application.Queries.IsSetupRequired;
+using Wallow.Shared.Contracts.Identity;
+using Wallow.Shared.Contracts.Setup;
 
 using Wallow.Identity.Domain.Entities;
 using Wallow.Identity.Infrastructure.Authorization;
 using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Identity.Infrastructure.Repositories;
+using Wallow.Identity.Infrastructure.Data;
+using Wallow.Identity.Infrastructure.Options;
 using Wallow.Identity.Infrastructure.Services;
+using Wallow.Identity.Infrastructure.Services.ExtensionPoints;
 
+using Wallow.Shared.Infrastructure.Core.Extensions;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
+using StackExchange.Redis;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Npgsql;
+
 
 namespace Wallow.Identity.Infrastructure.Extensions;
 
@@ -54,8 +69,38 @@ public static class IdentityInfrastructureExtensions
                     .AllowClientCredentialsFlow()
                     .AllowRefreshTokenFlow();
 
-                options.AddDevelopmentEncryptionCertificate()
-                    .AddDevelopmentSigningCertificate();
+                // Token lifetimes (configurable via OpenIddict section)
+                options.SetAccessTokenLifetime(TimeSpan.FromMinutes(configuration.GetValue("OpenIddict:AccessTokenLifetimeMinutes", 15)));
+                options.SetRefreshTokenLifetime(TimeSpan.FromDays(configuration.GetValue("OpenIddict:RefreshTokenLifetimeDays", 7)));
+                options.SetIdentityTokenLifetime(TimeSpan.FromMinutes(configuration.GetValue("OpenIddict:IdentityTokenLifetimeMinutes", 10)));
+
+                // OpenIddict uses rolling refresh tokens by default (old token is revoked
+                // when a new one is issued), providing theft detection out of the box.
+                options.DisableSlidingRefreshTokenExpiration();
+
+                if (environment.IsDevelopment())
+                {
+                    options.AddDevelopmentEncryptionCertificate()
+                        .AddDevelopmentSigningCertificate();
+                }
+                else
+                {
+                    string signingCertPath = configuration["OpenIddict:SigningCertPath"]
+                        ?? throw new InvalidOperationException("OpenIddict:SigningCertPath is required in non-development environments.");
+                    string signingCertPassword = configuration["OpenIddict:SigningCertPassword"]
+                        ?? throw new InvalidOperationException("OpenIddict:SigningCertPassword is required in non-development environments.");
+                    string encryptionCertPath = configuration["OpenIddict:EncryptionCertPath"]
+                        ?? throw new InvalidOperationException("OpenIddict:EncryptionCertPath is required in non-development environments.");
+                    string encryptionCertPassword = configuration["OpenIddict:EncryptionCertPassword"]
+                        ?? throw new InvalidOperationException("OpenIddict:EncryptionCertPassword is required in non-development environments.");
+
+                    options.AddSigningCertificate(X509CertificateLoader.LoadPkcs12FromFile(signingCertPath, signingCertPassword))
+                        .AddEncryptionCertificate(X509CertificateLoader.LoadPkcs12FromFile(encryptionCertPath, encryptionCertPassword));
+                }
+
+                // Disable access token encryption so tokens are standard JWTs
+                // that can be validated by resource servers and inspected in tests.
+                options.DisableAccessTokenEncryption();
 
                 OpenIddictServerAspNetCoreBuilder aspNetCoreBuilder = options.UseAspNetCore()
                     .EnableAuthorizationEndpointPassthrough()
@@ -63,7 +108,7 @@ public static class IdentityInfrastructureExtensions
                     .EnableEndSessionEndpointPassthrough()
                     .EnableUserInfoEndpointPassthrough();
 
-                if (environment.IsDevelopment())
+                if (!environment.IsProduction())
                 {
                     aspNetCoreBuilder.DisableTransportSecurityRequirement();
                 }
@@ -109,27 +154,43 @@ public static class IdentityInfrastructureExtensions
                 : Microsoft.AspNetCore.Http.CookieSecurePolicy.Always;
         });
 
-        services.AddIdentityAuthorization();
+        services.AddIdentityAuthorization(configuration);
         services.AddMultiTenancy();
         services.AddIdentityPersistence(configuration);
+        services.AddReadDbContext<IdentityDbContext>(configuration);
         // Settings registration skipped: IdentityDbContext inherits ASP.NET Identity's IdentityDbContext,
         // not TenantAwareDbContext<T>, so the generic AddSettings<T> constraint cannot be satisfied.
         // TODO: Implement a non-generic settings registration path for Identity module.
-        services.AddIdentityServices();
+        services.AddIdentityServices(configuration);
 
         return services;
     }
 
     private static void AddIdentityPersistence(
-        this IServiceCollection services, IConfiguration _)
+        this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddDataProtection()
-            .SetApplicationName("Wallow");
+        IConnectionMultiplexer connectionMultiplexer = services
+            .BuildServiceProvider()
+            .GetRequiredService<IConnectionMultiplexer>();
 
-        services.AddDbContext<IdentityDbContext>((sp, options) =>
+        services.AddDataProtection()
+            .SetApplicationName("Wallow")
+            .PersistKeysToStackExchangeRedis(connectionMultiplexer, "DataProtection-Keys");
+
+        int maxPoolSize = configuration.GetValue("Database:MaxPoolSize", 200);
+        int minPoolSize = configuration.GetValue("Database:MinPoolSize", 10);
+
+        string defaultConnectionString = configuration.GetConnectionString("DefaultConnection")
+            ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured.");
+
+        services.AddPooledDbContextFactory<IdentityDbContext>((_, options) =>
         {
-            string? connectionString = sp.GetRequiredService<IConfiguration>().GetConnectionString("DefaultConnection");
-            options.UseNpgsql(connectionString, npgsqlOptions =>
+            NpgsqlConnectionStringBuilder builder = new(defaultConnectionString)
+            {
+                MaxPoolSize = maxPoolSize,
+                MinPoolSize = minPoolSize
+            };
+            options.UseNpgsql(builder.ConnectionString, npgsqlOptions =>
             {
                 npgsqlOptions.MigrationsHistoryTable("__EFMigrationsHistory", "identity");
                 npgsqlOptions.EnableRetryOnFailure(
@@ -142,6 +203,15 @@ public static class IdentityInfrastructureExtensions
                 w.Ignore(RelationalEventId.PendingModelChangesWarning));
         });
 
+        services.AddScoped<IdentityDbContext>(sp =>
+        {
+            IDbContextFactory<IdentityDbContext> factory = sp.GetRequiredService<IDbContextFactory<IdentityDbContext>>();
+            IdentityDbContext ctx = factory.CreateDbContext();
+            ITenantContext tenant = sp.GetRequiredService<ITenantContext>();
+            ctx.SetTenant(tenant.TenantId);
+            return ctx;
+        });
+
         services.AddScoped<IServiceAccountRepository, ServiceAccountRepository>();
         services.AddScoped<IServiceAccountUnfilteredRepository>(sp =>
             (IServiceAccountUnfilteredRepository)sp.GetRequiredService<IServiceAccountRepository>());
@@ -149,19 +219,72 @@ public static class IdentityInfrastructureExtensions
         services.AddScoped<ISsoConfigurationRepository, SsoConfigurationRepository>();
         services.AddScoped<IScimConfigurationRepository, ScimConfigurationRepository>();
         services.AddScoped<IScimSyncLogRepository, ScimSyncLogRepository>();
-        services.AddScoped<IApiKeyRepository, ApiKeyRepository>();
         services.AddScoped<IOrganizationRepository, OrganizationRepository>();
+        services.AddScoped<IInitialAccessTokenRepository, InitialAccessTokenRepository>();
+        services.AddScoped<IInvitationRepository, InvitationRepository>();
+        services.AddScoped<IOrganizationDomainRepository, OrganizationDomainRepository>();
+        services.AddScoped<IMembershipRequestRepository, MembershipRequestRepository>();
     }
 
-    private static void AddIdentityAuthorization(this IServiceCollection services)
+    private static void AddIdentityAuthorization(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddAuthentication(options =>
+        AuthenticationBuilder authBuilder = services.AddAuthentication(options =>
             {
                 options.DefaultScheme = "SmartScheme";
                 options.DefaultChallengeScheme = "SmartScheme";
             })
             .AddCookie(IdentityConstants.ApplicationScheme)
-            .AddCookie(IdentityConstants.ExternalScheme)
+            .AddCookie(IdentityConstants.ExternalScheme);
+
+        // External auth providers — only registered when credentials are configured
+        string? googleClientId = configuration["Authentication:Google:ClientId"];
+        if (!string.IsNullOrEmpty(googleClientId))
+        {
+            authBuilder.AddGoogle(options =>
+            {
+                options.ClientId = googleClientId;
+                options.ClientSecret = configuration["Authentication:Google:ClientSecret"]!;
+                options.SignInScheme = IdentityConstants.ExternalScheme;
+            });
+        }
+
+        string? microsoftClientId = configuration["Authentication:Microsoft:ClientId"];
+        if (!string.IsNullOrEmpty(microsoftClientId))
+        {
+            authBuilder.AddMicrosoftAccount(options =>
+            {
+                options.ClientId = microsoftClientId;
+                options.ClientSecret = configuration["Authentication:Microsoft:ClientSecret"]!;
+                options.SignInScheme = IdentityConstants.ExternalScheme;
+            });
+        }
+
+        string? githubClientId = configuration["Authentication:GitHub:ClientId"];
+        if (!string.IsNullOrEmpty(githubClientId))
+        {
+            authBuilder.AddGitHub(options =>
+            {
+                options.ClientId = githubClientId;
+                options.ClientSecret = configuration["Authentication:GitHub:ClientSecret"]!;
+                options.SignInScheme = IdentityConstants.ExternalScheme;
+                options.Scope.Add("user:email");
+            });
+        }
+
+        string? appleServiceId = configuration["Authentication:Apple:ServiceId"];
+        if (!string.IsNullOrEmpty(appleServiceId))
+        {
+            authBuilder.AddApple(options =>
+            {
+                options.ClientId = appleServiceId;
+                options.TeamId = configuration["Authentication:Apple:TeamId"]!;
+                options.KeyId = configuration["Authentication:Apple:KeyId"]!;
+                options.GenerateClientSecret = true;
+                options.SignInScheme = IdentityConstants.ExternalScheme;
+            });
+        }
+
+        authBuilder
             .AddScheme<AuthenticationSchemeOptions, ScimBearerAuthenticationHandler>("ScimBearer", null)
             .AddPolicyScheme("SmartScheme", "Smart cookie/bearer selector", options =>
             {
@@ -188,12 +311,21 @@ public static class IdentityInfrastructureExtensions
         services.AddScoped<ITenantContextSetter>(sp => sp.GetRequiredService<TenantContext>());
     }
 
-    private static void AddIdentityServices(this IServiceCollection services)
+    private static void AddIdentityServices(this IServiceCollection services, IConfiguration configuration)
     {
+        services.Configure<PreRegisteredClientOptions>(configuration.GetSection(PreRegisteredClientOptions.SectionName));
+        services.Configure<AdminBootstrapOptions>(configuration.GetSection(AdminBootstrapOptions.SectionName));
+        services.Configure<PasswordlessOptions>(configuration.GetSection(PasswordlessOptions.SectionName));
+
         services.AddMemoryCache();
         services.AddScoped<IUserManagementService, UserManagementService>();
+        services.AddScoped<IBootstrapAdminService, BootstrapAdminService>();
+        services.AddScoped<ISetupStatusChecker, SetupStatusChecker>();
+        services.AddScoped<ISetupClientService, SetupClientService>();
+        services.AddScoped<ISetupStatusProvider, SetupStatusProvider>();
+        services.AddScoped<PreRegisteredClientSyncService>();
+        services.AddScoped<DefaultRoleSeeder>();
 
-        services.AddScoped<IApiKeyService, RedisApiKeyService>();
         services.AddScoped<IServiceAccountService, OpenIddictServiceAccountService>();
         services.AddScoped<ISsoService, OidcFederationService>();
         services.AddScoped<ScimUserService>();
@@ -201,7 +333,25 @@ public static class IdentityInfrastructureExtensions
         services.AddScoped<IScimService, ScimService>();
         services.AddScoped<IOrganizationService, OrganizationService>();
         services.AddScoped<IDeveloperAppService, OpenIddictDeveloperAppService>();
-        services.AddScoped<Wallow.Shared.Contracts.Identity.IUserService, UserService>();
-        services.AddScoped<Wallow.Shared.Contracts.Identity.IUserQueryService, UserQueryService>();
+        services.AddScoped<IClientTenantResolver, ClientTenantResolver>();
+        services.AddScoped<IRedirectUriValidator, OpenIddictRedirectUriValidator>();
+        services.TryAddScoped<Wallow.Shared.Contracts.Identity.IScopeSubsetValidator, ScopeSubsetValidator>();
+        services.AddScoped<IUserService, UserService>();
+        services.AddScoped<IUserQueryService, UserQueryService>();
+        services.AddScoped<IInvitationService, InvitationService>();
+        services.AddScoped<IDomainAssignmentService, DomainAssignmentService>();
+
+        // Fork extension points — TryAddScoped allows forks to register their own implementations
+        // before calling AddIdentityModule, which will skip these defaults.
+        services.TryAddScoped<IClaimsEnricher, NoOpClaimsEnricher>();
+        services.TryAddScoped<IRegistrationValidator, NoOpRegistrationValidator>();
+        services.TryAddScoped<IExternalClaimsMapper, NoOpExternalClaimsMapper>();
+        services.TryAddScoped<IMfaChallengeHandler, NoOpMfaChallengeHandler>();
+        services.AddScoped<IMfaExemptionChecker, MfaExemptionChecker>();
+        services.TryAddScoped<IMfaService, MfaService>();
+        services.AddScoped<IPasswordlessService, PasswordlessService>();
+
+        services.AddSingleton<ServiceAccountUsageBuffer>();
+        services.AddHostedService<ServiceAccountTrackingBackgroundService>();
     }
 }

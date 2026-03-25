@@ -92,6 +92,9 @@ public sealed partial class ScimUserService(
 
             user.UserName = request.UserName;
             user.Email = email;
+            user.UpdateName(
+                request.Name?.GivenName ?? user.FirstName,
+                request.Name?.FamilyName ?? user.LastName);
 
             IdentityResult result = await userManager.UpdateAsync(user);
             if (!result.Succeeded)
@@ -454,7 +457,7 @@ public sealed partial class ScimUserService(
                     Primary = true
                 }
             ],
-            Active = user.IsActive && !user.LockoutEnabled,
+            Active = user.IsActive && !(user.LockoutEnabled && user.LockoutEnd > DateTimeOffset.UtcNow),
             Meta = new ScimMeta
             {
                 ResourceType = "User",

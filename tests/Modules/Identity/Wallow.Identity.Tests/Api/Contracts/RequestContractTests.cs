@@ -1,5 +1,6 @@
 using Wallow.Identity.Api.Contracts.Enums;
 using Wallow.Identity.Api.Contracts.Requests;
+using Wallow.Identity.Domain.Enums;
 
 namespace Wallow.Identity.Tests.Api.Contracts;
 
@@ -8,31 +9,6 @@ public class RequestContractTests
     private static readonly string[] _billingReadScope = ["billing:read"];
     private static readonly string[] _billingReadWriteScopes = ["billing:read", "billing:write"];
     private static readonly string[] _singleScope = ["scope1"];
-    #region TokenRequest
-
-    [Fact]
-    public void TokenRequest_WithAllFields_CreatesInstance()
-    {
-        TokenRequest request = new("user@example.com", "password123");
-
-        request.Email.Should().Be("user@example.com");
-        request.Password.Should().Be("password123");
-    }
-
-    #endregion
-
-    #region RefreshTokenRequest
-
-    [Fact]
-    public void RefreshTokenRequest_WithToken_CreatesInstance()
-    {
-        RefreshTokenRequest request = new("refresh-token-value");
-
-        request.RefreshToken.Should().Be("refresh-token-value");
-    }
-
-    #endregion
-
     #region CreateUserRequest
 
     [Fact]
@@ -98,32 +74,6 @@ public class RequestContractTests
         AssignRoleRequest request = new("admin");
 
         request.RoleName.Should().Be("admin");
-    }
-
-    #endregion
-
-    #region CreateApiKeyRequest
-
-    [Fact]
-    public void CreateApiKeyRequest_WithAllFields_CreatesInstance()
-    {
-        DateTimeOffset expiresAt = DateTimeOffset.UtcNow.AddDays(30);
-        List<string> scopes = ["billing:read", "billing:write"];
-        CreateApiKeyRequest request = new("Production Key", scopes, expiresAt);
-
-        request.Name.Should().Be("Production Key");
-        request.Scopes.Should().HaveCount(2);
-        request.ExpiresAt.Should().Be(expiresAt);
-    }
-
-    [Fact]
-    public void CreateApiKeyRequest_WithDefaults_HasNullScopesAndExpiry()
-    {
-        CreateApiKeyRequest request = new("Key");
-
-        request.Name.Should().Be("Key");
-        request.Scopes.Should().BeNull();
-        request.ExpiresAt.Should().BeNull();
     }
 
     #endregion
@@ -201,6 +151,80 @@ public class RequestContractTests
         request.AutoProvisionUsers.Should().BeTrue();
         request.DefaultRole.Should().BeNull();
         request.SyncGroupsAsRoles.Should().BeFalse();
+    }
+
+    #endregion
+
+    #region MfaLoginVerifyRequest
+
+    [Fact]
+    public void MfaLoginVerifyRequest_WithAllFields_CreatesInstance()
+    {
+        MfaLoginVerifyRequest request = new("user@test.com", "challenge-abc", "123456", true, true);
+
+        request.Email.Should().Be("user@test.com");
+        request.ChallengeToken.Should().Be("challenge-abc");
+        request.Code.Should().Be("123456");
+        request.RememberMe.Should().BeTrue();
+        request.UseBackupCode.Should().BeTrue();
+    }
+
+    [Fact]
+    public void MfaLoginVerifyRequest_WithDefaults_HasUseBackupCodeFalse()
+    {
+        MfaLoginVerifyRequest request = new("user@test.com", "token", "000000", false);
+
+        request.UseBackupCode.Should().BeFalse();
+    }
+
+    #endregion
+
+    #region UpdateOrganizationSettingsRequest
+
+    [Fact]
+    public void UpdateOrganizationSettingsRequest_WithAllFields_CreatesInstance()
+    {
+        UpdateOrganizationSettingsRequest request = new(true, 14, LoginMethod.Password, "member");
+
+        request.RequireMfa.Should().BeTrue();
+        request.MfaGracePeriodDays.Should().Be(14);
+        request.AllowedLoginMethods.Should().Be(LoginMethod.Password);
+        request.DefaultMemberRole.Should().Be("member");
+    }
+
+    [Fact]
+    public void UpdateOrganizationSettingsRequest_WithNulls_CreatesInstance()
+    {
+        UpdateOrganizationSettingsRequest request = new(null, null, null, null);
+
+        request.RequireMfa.Should().BeNull();
+        request.MfaGracePeriodDays.Should().BeNull();
+        request.AllowedLoginMethods.Should().BeNull();
+        request.DefaultMemberRole.Should().BeNull();
+    }
+
+    #endregion
+
+    #region UpdateOrganizationBrandingRequest
+
+    [Fact]
+    public void UpdateOrganizationBrandingRequest_WithAllFields_CreatesInstance()
+    {
+        UpdateOrganizationBrandingRequest request = new("Acme Inc", "https://cdn.example.com/logo.png", "#FF5733");
+
+        request.DisplayName.Should().Be("Acme Inc");
+        request.LogoUrl.Should().Be("https://cdn.example.com/logo.png");
+        request.PrimaryColor.Should().Be("#FF5733");
+    }
+
+    [Fact]
+    public void UpdateOrganizationBrandingRequest_WithNulls_CreatesInstance()
+    {
+        UpdateOrganizationBrandingRequest request = new(null, null, null);
+
+        request.DisplayName.Should().BeNull();
+        request.LogoUrl.Should().BeNull();
+        request.PrimaryColor.Should().BeNull();
     }
 
     #endregion

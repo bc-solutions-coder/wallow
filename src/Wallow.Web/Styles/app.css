@@ -1,0 +1,89 @@
+@import "tailwindcss";
+
+/* Scan Blazor component files for class usage */
+@source "../Components";
+
+/* Wallow.Web — earthy palette (oklch format) */
+
+@theme {
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+    --color-card: var(--card);
+    --color-card-foreground: var(--card-foreground);
+    --color-primary: var(--primary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-secondary: var(--secondary);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-accent: var(--accent);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-destructive: var(--destructive);
+    --color-destructive-foreground: var(--destructive-foreground);
+    --color-border: var(--border);
+    --color-input: var(--input);
+    --color-ring: var(--ring);
+    --radius-lg: var(--radius);
+    --radius-md: calc(var(--radius) - 2px);
+    --radius-sm: calc(var(--radius) - 4px);
+}
+
+@layer base {
+    :root {
+        /* cream #faf6f1 */
+        --background: oklch(0.97 0.008 70);
+        --foreground: oklch(0.22 0.035 45);
+        /* tan #e8d5b7 */
+        --card: oklch(0.88 0.035 75);
+        --card-foreground: oklch(0.22 0.035 45);
+        --popover: oklch(0.88 0.035 75);
+        --popover-foreground: oklch(0.22 0.035 45);
+        /* yellow #d4a017 */
+        --primary: oklch(0.72 0.15 85);
+        --primary-foreground: oklch(0.22 0.035 45);
+        --secondary: oklch(0.92 0.012 70);
+        --secondary-foreground: oklch(0.25 0.03 45);
+        --muted: oklch(0.93 0.008 70);
+        --muted-foreground: oklch(0.50 0.02 55);
+        --accent: oklch(0.90 0.02 75);
+        --accent-foreground: oklch(0.25 0.03 45);
+        --destructive: oklch(0.55 0.22 27);
+        --destructive-foreground: oklch(0.98 0.002 0);
+        --border: oklch(0.86 0.02 70);
+        --input: oklch(0.86 0.02 70);
+        /* yellow #d4a017 */
+        --ring: oklch(0.72 0.15 85);
+        --radius: 0.5rem;
+    }
+
+    .dark {
+        /* brown-dark #3d2b1f */
+        --background: oklch(0.24 0.04 45);
+        --foreground: oklch(0.92 0.012 70);
+        --card: oklch(0.28 0.035 45);
+        --card-foreground: oklch(0.92 0.012 70);
+        --popover: oklch(0.28 0.035 45);
+        --popover-foreground: oklch(0.92 0.012 70);
+        /* yellow #d4a017 */
+        --primary: oklch(0.72 0.15 85);
+        --primary-foreground: oklch(0.18 0.03 45);
+        --secondary: oklch(0.30 0.03 45);
+        --secondary-foreground: oklch(0.88 0.015 70);
+        --muted: oklch(0.28 0.025 45);
+        --muted-foreground: oklch(0.60 0.02 55);
+        --accent: oklch(0.32 0.035 50);
+        --accent-foreground: oklch(0.88 0.015 70);
+        --destructive: oklch(0.55 0.20 27);
+        --destructive-foreground: oklch(0.98 0.002 0);
+        --border: oklch(0.34 0.03 45);
+        --input: oklch(0.34 0.03 45);
+        /* yellow #d4a017 */
+        --ring: oklch(0.72 0.15 85);
+        --radius: 0.5rem;
+    }
+
+    body {
+        margin: 0;
+        font-family: var(--font-sans);
+    }
+}

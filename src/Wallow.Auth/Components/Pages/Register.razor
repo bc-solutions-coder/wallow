@@ -1,0 +1,380 @@
+@page "/register"
+@rendermode InteractiveServer
+
+@inject IAuthApiClient AuthClient
+@inject IHttpClientFactory HttpClientFactory
+@inject NavigationManager Navigation
+@inject IConfiguration Configuration
+@using Wallow.Auth.Configuration
+@inject BrandingOptions Branding
+
+<PageTitle>Create Account — @Branding.AppName</PageTitle>
+
+<BbCard Class="border-0 shadow-none bg-transparent">
+    <BbCardHeader Class="px-0 pt-0 text-center">
+        <BbCardTitle>Create an account</BbCardTitle>
+        <BbCardDescription>Enter your details to get started</BbCardDescription>
+    </BbCardHeader>
+    <BbCardContent Class="px-0 space-y-4">
+        @if (_registrationComplete && _suggestedOrgName is not null)
+        {
+            <BbAlert Variant="AlertVariant.Info">
+                <BbAlertDescription>
+                    It looks like your team uses @_suggestedOrgName. Would you like to request access?
+                </BbAlertDescription>
+            </BbAlert>
+
+            <div class="flex gap-2">
+                <BbButton Class="flex-1"
+                          Loading="_requestingMembership"
+                          Disabled="_requestingMembership || _membershipRequested"
+                          OnClick="HandleRequestMembership">
+                    @if (_membershipRequested)
+                    {
+                        @:Request Sent
+                    }
+                    else
+                    {
+                        @:Request Access
+                    }
+                </BbButton>
+                <BbButton Class="flex-1"
+                          Variant="ButtonVariant.Outline"
+                          Disabled="_requestingMembership"
+                          OnClick="DismissSuggestion">
+                    No thanks
+                </BbButton>
+            </div>
+
+            return;
+        }
+
+        @if (!string.IsNullOrEmpty(_orgName))
+        {
+            <BbAlert Variant="AlertVariant.Info">
+                <BbAlertDescription>You're registering for @_orgName</BbAlertDescription>
+            </BbAlert>
+        }
+
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <BbAlert Variant="AlertVariant.Danger">
+                <BbAlertDescription>@_errorMessage</BbAlertDescription>
+            </BbAlert>
+        }
+
+        <form @onsubmit="HandleRegister" @onsubmit:preventDefault>
+            <div class="space-y-4">
+                <div class="space-y-2">
+                    <BbLabel For="email">Email</BbLabel>
+                    <BbInput Id="email"
+                             Type="InputType.Email"
+                             Placeholder="name@example.com"
+                             @bind-Value="_email" />
+                </div>
+
+                <div class="flex items-center space-x-2">
+                    <BbCheckbox Id="passwordless" @bind-Checked="_isPasswordless" />
+                    <BbLabel For="passwordless" Class="text-sm font-normal leading-snug">
+                        Sign up without a password
+                    </BbLabel>
+                </div>
+
+                @if (!_isPasswordless)
+                {
+                    <div class="space-y-2">
+                        <BbLabel For="password">Password</BbLabel>
+                        <BbInput Id="password"
+                                 Type="InputType.Password"
+                                 Placeholder="Create a password"
+                                 Value="_password"
+                                 ValueChanged="@((string? v) => OnPasswordChanged(v))" />
+                        @if (!string.IsNullOrEmpty(_password))
+                        {
+                            <BbProgress Value="_passwordStrength"
+                                        IndicatorClass="@_passwordStrengthColor" />
+                            <p class="text-xs text-muted-foreground">@_passwordStrengthLabel</p>
+                        }
+                    </div>
+
+                    <div class="space-y-2">
+                        <BbLabel For="confirmPassword">Confirm Password</BbLabel>
+                        <BbInput Id="confirmPassword"
+                                 Type="InputType.Password"
+                                 Placeholder="Confirm your password"
+                                 @bind-Value="_confirmPassword" />
+                        @if (!string.IsNullOrEmpty(_confirmPassword) && _password != _confirmPassword)
+                        {
+                            <p class="text-xs text-destructive">Passwords do not match.</p>
+                        }
+                    </div>
+                }
+
+                <div class="space-y-3">
+                    <div class="flex items-start space-x-2">
+                        <BbCheckbox Id="termsAccepted" @bind-Checked="_termsAccepted" />
+                        <BbLabel For="termsAccepted" Class="text-sm font-normal leading-snug">
+                            I agree to the <a href="/terms" class="text-primary underline-offset-4 hover:underline">Terms of Service</a>
+                        </BbLabel>
+                    </div>
+                    <div class="flex items-start space-x-2">
+                        <BbCheckbox Id="privacyAccepted" @bind-Checked="_privacyAccepted" />
+                        <BbLabel For="privacyAccepted" Class="text-sm font-normal leading-snug">
+                            I agree to the <a href="/privacy" class="text-primary underline-offset-4 hover:underline">Privacy Policy</a>
+                        </BbLabel>
+                    </div>
+                </div>
+
+                <BbButton Class="w-full"
+                          Type="ButtonType.Submit"
+                          Loading="_isSubmitting"
+                          Disabled="_isSubmitting">
+                    Create account
+                </BbButton>
+            </div>
+        </form>
+
+        @if (_externalProviders.Count > 0)
+        {
+            <div class="relative my-4">
+                <div class="absolute inset-0 flex items-center">
+                    <BbSeparator />
+                </div>
+                <div class="relative flex justify-center text-xs uppercase">
+                    <span class="bg-background px-2 text-muted-foreground">Or continue with</span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+                @foreach (string provider in _externalProviders)
+                {
+                    <BbButton Variant="ButtonVariant.Outline"
+                              Href="@GetExternalLoginUrl(provider)">
+                        @provider
+                    </BbButton>
+                }
+            </div>
+        }
+    </BbCardContent>
+    <BbCardFooter Class="px-0 pb-0 justify-center">
+        <p class="text-sm text-muted-foreground">
+            Already have an account?
+            <a href="@LoginUrl" class="text-primary underline-offset-4 hover:underline">Sign in</a>
+        </p>
+    </BbCardFooter>
+</BbCard>
+
+@code {
+    [SupplyParameterFromQuery(Name = "client_id")]
+    public string? ClientId { get; set; }
+
+    [SupplyParameterFromQuery]
+    public string? ReturnUrl { get; set; }
+
+    private string _email = string.Empty;
+    private string _password = string.Empty;
+    private string _confirmPassword = string.Empty;
+    private bool _termsAccepted;
+    private bool _privacyAccepted;
+    private bool _isPasswordless;
+    private bool _isSubmitting;
+    private string? _errorMessage;
+    private string? _orgName;
+    private List<string> _externalProviders = [];
+    private bool _registrationComplete;
+    private string? _suggestedOrgName;
+    private bool _membershipRequested;
+    private bool _requestingMembership;
+
+    private int _passwordStrength;
+    private string _passwordStrengthColor = "bg-red-500";
+    private string _passwordStrengthLabel = "Weak";
+
+    private string ApiBaseUrl => Configuration["ApiBaseUrl"] ?? "http://localhost:5001";
+
+    private string LoginUrl => string.IsNullOrEmpty(ReturnUrl)
+        ? "/login"
+        : $"/login?returnUrl={Uri.EscapeDataString(ReturnUrl)}";
+
+    private string VerifyEmailUrl => string.IsNullOrEmpty(ReturnUrl)
+        ? "/verify-email"
+        : $"/verify-email?returnUrl={Uri.EscapeDataString(ReturnUrl)}";
+
+    protected override async Task OnInitializedAsync()
+    {
+        _externalProviders = await AuthClient.GetExternalProvidersAsync();
+
+        if (!string.IsNullOrEmpty(ClientId))
+        {
+            await ResolveOrgNameAsync();
+        }
+    }
+
+    private async Task ResolveOrgNameAsync()
+    {
+        try
+        {
+            HttpClient client = HttpClientFactory.CreateClient("AuthApi");
+            string encodedClientId = Uri.EscapeDataString(ClientId!);
+            HttpResponseMessage response = await client.GetAsync(
+                $"api/v1/identity/auth/client-tenant/{encodedClientId}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                ClientTenantResponse? body = await response.Content
+                    .ReadFromJsonAsync<ClientTenantResponse>();
+                _orgName = body?.OrgName;
+            }
+        }
+        catch (HttpRequestException)
+        {
+            // Silently ignore — org name is informational only
+        }
+    }
+
+    private sealed record ClientTenantResponse(string? TenantId, string? OrgName);
+
+    private string GetExternalLoginUrl(string provider)
+    {
+        string currentUrl = Navigation.Uri;
+        string encodedReturnUrl = Uri.EscapeDataString(currentUrl);
+        return $"{ApiBaseUrl}/api/v1/identity/auth/external-login?provider={provider}&returnUrl={encodedReturnUrl}";
+    }
+
+    private void OnPasswordChanged(string? value)
+    {
+        _password = value ?? string.Empty;
+        UpdatePasswordStrength();
+    }
+
+    private void UpdatePasswordStrength()
+    {
+        if (string.IsNullOrEmpty(_password))
+        {
+            _passwordStrength = 0;
+            _passwordStrengthColor = "bg-red-500";
+            _passwordStrengthLabel = "";
+            return;
+        }
+
+        bool hasUpper = _password.Any(char.IsUpper);
+        bool hasLower = _password.Any(char.IsLower);
+        bool hasDigit = _password.Any(char.IsDigit);
+        bool hasSpecial = _password.Any(c => !char.IsLetterOrDigit(c));
+        bool hasMix = hasUpper && hasLower && (hasDigit || hasSpecial);
+
+        if (_password.Length >= 12 && hasMix)
+        {
+            _passwordStrength = 100;
+            _passwordStrengthColor = "bg-green-500";
+            _passwordStrengthLabel = "Strong";
+        }
+        else if (_password.Length >= 8)
+        {
+            _passwordStrength = 50;
+            _passwordStrengthColor = "bg-yellow-500";
+            _passwordStrengthLabel = "Fair";
+        }
+        else
+        {
+            _passwordStrength = 25;
+            _passwordStrengthColor = "bg-red-500";
+            _passwordStrengthLabel = "Weak";
+        }
+    }
+
+    private async Task HandleRegister()
+    {
+        _errorMessage = null;
+        _isSubmitting = true;
+
+        try
+        {
+            UpdatePasswordStrength();
+
+            if (string.IsNullOrWhiteSpace(_email))
+            {
+                _errorMessage = "Please enter your email address.";
+                return;
+            }
+
+            if (!_isPasswordless)
+            {
+                if (string.IsNullOrWhiteSpace(_password))
+                {
+                    _errorMessage = "Please enter a password.";
+                    return;
+                }
+
+                if (_password != _confirmPassword)
+                {
+                    _errorMessage = "Passwords do not match.";
+                    return;
+                }
+            }
+
+            if (!_termsAccepted)
+            {
+                _errorMessage = "You must agree to the Terms of Service.";
+                return;
+            }
+
+            if (!_privacyAccepted)
+            {
+                _errorMessage = "You must agree to the Privacy Policy.";
+                return;
+            }
+
+            string? loginMethod = _isPasswordless ? "passwordless" : null;
+            RegisterRequest request = new(_email, _password, _confirmPassword, ClientId, loginMethod);
+            AuthResponse result = await AuthClient.RegisterAsync(request);
+
+            if (result.Succeeded)
+            {
+                _suggestedOrgName = await AuthClient.GetMatchingOrganizationByDomainAsync(_email);
+
+                if (_suggestedOrgName is not null)
+                {
+                    _registrationComplete = true;
+                }
+                else
+                {
+                    Navigation.NavigateTo(VerifyEmailUrl);
+                }
+            }
+            else
+            {
+                _errorMessage = result.Error switch
+                {
+                    "email_taken" => "An account with this email already exists.",
+                    "password_too_weak" => "Password does not meet the minimum requirements.",
+                    _ => result.Error ?? "An error occurred. Please try again."
+                };
+            }
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private async Task HandleRequestMembership()
+    {
+        _requestingMembership = true;
+
+        try
+        {
+            string emailDomain = _email.Split('@')[1];
+            _membershipRequested = await AuthClient.RequestMembershipAsync(emailDomain);
+        }
+        finally
+        {
+            _requestingMembership = false;
+        }
+    }
+
+    private void DismissSuggestion()
+    {
+        Navigation.NavigateTo(VerifyEmailUrl);
+    }
+}

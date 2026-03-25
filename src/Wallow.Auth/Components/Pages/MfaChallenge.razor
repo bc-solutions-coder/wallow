@@ -1,0 +1,172 @@
+@page "/mfa/challenge"
+@rendermode InteractiveServer
+
+@inject IAuthApiClient AuthClient
+@inject NavigationManager Navigation
+@using Wallow.Auth.Configuration
+@inject BrandingOptions Branding
+
+<PageTitle>MFA Verification — @Branding.AppName</PageTitle>
+
+<BbCard Class="border-0 shadow-none bg-transparent">
+    <BbCardHeader Class="px-0 pt-0 text-center">
+        <BbCardTitle>Two-factor authentication</BbCardTitle>
+        <BbCardDescription>
+            @if (_useBackupCode)
+            {
+                @:Enter one of your backup codes to continue.
+            }
+            else
+            {
+                @:Enter the code from your authenticator app to continue.
+            }
+        </BbCardDescription>
+    </BbCardHeader>
+    <BbCardContent Class="px-0 space-y-4">
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <BbAlert Variant="AlertVariant.Danger">
+                <BbAlertDescription>@_errorMessage</BbAlertDescription>
+            </BbAlert>
+        }
+
+        @if (_verified)
+        {
+            <BbAlert Variant="AlertVariant.Success">
+                <BbAlertDescription>Verification successful. Redirecting...</BbAlertDescription>
+            </BbAlert>
+        }
+        else if (string.IsNullOrEmpty(ChallengeToken))
+        {
+            <BbAlert Variant="AlertVariant.Danger">
+                <BbAlertDescription>Missing challenge token. Please sign in again.</BbAlertDescription>
+            </BbAlert>
+        }
+        else
+        {
+            <form @onsubmit="HandleVerify" @onsubmit:preventDefault>
+                <div class="space-y-4">
+                    <div class="space-y-2">
+                        @if (_useBackupCode)
+                        {
+                            <BbLabel For="code">Backup code</BbLabel>
+                            <BbInput Id="code"
+                                     Type="InputType.Text"
+                                     Placeholder="Enter backup code"
+                                     @bind-Value="_code" />
+                        }
+                        else
+                        {
+                            <BbLabel For="code">Verification code</BbLabel>
+                            <BbInput Id="code"
+                                     Type="InputType.Text"
+                                     Placeholder="Enter 6-digit code"
+                                     @bind-Value="_code" />
+                        }
+                    </div>
+
+                    <BbButton Class="w-full"
+                              Type="ButtonType.Submit"
+                              Loading="_isSubmitting"
+                              Disabled="_isSubmitting">
+                        Verify
+                    </BbButton>
+
+                    <div class="text-center">
+                        <button type="button"
+                                class="text-sm text-muted-foreground hover:text-primary underline-offset-4 hover:underline"
+                                @onclick="ToggleBackupCode">
+                            @if (_useBackupCode)
+                            {
+                                @:Use authenticator code instead
+                            }
+                            else
+                            {
+                                @:Use backup code instead
+                            }
+                        </button>
+                    </div>
+                </div>
+            </form>
+        }
+    </BbCardContent>
+    <BbCardFooter Class="px-0 pb-0 justify-center">
+        <a href="/login" class="text-sm text-muted-foreground hover:text-primary underline-offset-4 hover:underline">
+            Back to sign in
+        </a>
+    </BbCardFooter>
+</BbCard>
+
+@code {
+    [SupplyParameterFromQuery]
+    public string? ChallengeToken { get; set; }
+
+    [SupplyParameterFromQuery]
+    public string? ReturnUrl { get; set; }
+
+    private string _code = string.Empty;
+    private string? _errorMessage;
+    private bool _isSubmitting;
+    private bool _verified;
+    private bool _useBackupCode;
+
+    private void ToggleBackupCode()
+    {
+        _useBackupCode = !_useBackupCode;
+        _code = string.Empty;
+        _errorMessage = null;
+    }
+
+    private async Task HandleVerify()
+    {
+        _errorMessage = null;
+        _isSubmitting = true;
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(_code))
+            {
+                _errorMessage = _useBackupCode
+                    ? "Please enter a backup code."
+                    : "Please enter the verification code.";
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(ChallengeToken))
+            {
+                _errorMessage = "Missing challenge token. Please sign in again.";
+                return;
+            }
+
+            AuthResponse result = _useBackupCode
+                ? await AuthClient.UseBackupCodeAsync(ChallengeToken, _code)
+                : await AuthClient.VerifyMfaChallengeAsync(ChallengeToken, _code);
+
+            if (result.Succeeded)
+            {
+                _verified = true;
+                string redirectUrl = ReturnUrl ?? "/";
+                Navigation.NavigateTo(redirectUrl, forceLoad: true);
+            }
+            else
+            {
+                _errorMessage = result.Error switch
+                {
+                    "invalid_code" => _useBackupCode
+                        ? "Invalid backup code. Please try again."
+                        : "Invalid verification code. Please try again.",
+                    "expired_challenge" => "Challenge expired. Please sign in again.",
+                    _ => result.Error ?? "Verification failed. Please try again."
+                };
+            }
+        }
+        catch (HttpRequestException)
+        {
+            _errorMessage = "Unable to reach the server. Please try again later.";
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+}

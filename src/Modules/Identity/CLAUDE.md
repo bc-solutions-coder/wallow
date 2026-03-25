@@ -29,7 +29,7 @@ Owns authentication, authorization, multi-tenancy, user/organization management,
 
 ## Constraints
 
-- Do not add external identity providers. OpenIddict and ASP.NET Core Identity own all authentication, token generation, and user storage.
+- External identity providers (Google, Apple, GitHub, Microsoft) are registered as ASP.NET Core external authentication schemes alongside OpenIddict. OpenIddict remains the OIDC server for issuing tokens to Wallow clients. See `docs/superpowers/specs/2026-03-20-external-auth-providers-design.md` for details.
 - Do not reference other modules directly. Publish integration events through `Shared.Contracts` for cross-module communication.
 - `RolePermissionLookup` is the single source of truth for role-to-permission expansion. Update it when adding new permissions.
 - The middleware registration order in `Program.cs` (Authentication -> TenantResolution -> PermissionExpansion -> Authorization) is critical. Do not reorder.

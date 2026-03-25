@@ -168,11 +168,11 @@ public class ApplicationMissingCoverageTests
             ExternalId: "ext-999",
             InternalId: null,
             Success: false,
-            ErrorMessage: "User not found in Keycloak",
+            ErrorMessage: "User not found",
             Timestamp: DateTime.UtcNow);
 
         dto.Success.Should().BeFalse();
-        dto.ErrorMessage.Should().Be("User not found in Keycloak");
+        dto.ErrorMessage.Should().Be("User not found");
         dto.InternalId.Should().BeNull();
     }
 
@@ -338,6 +338,71 @@ public class ApplicationMissingCoverageTests
 
     #endregion
 
+    #region SaveSamlConfigRequest
+
+    [Fact]
+    public void SaveSamlConfigRequest_AllPropertiesAccessible()
+    {
+        SaveSamlConfigRequest request = new(
+            DisplayName: "Okta SAML",
+            EntityId: "https://okta.example.com/entity",
+            SsoUrl: "https://okta.example.com/sso",
+            SloUrl: "https://okta.example.com/slo",
+            Certificate: "MIICert...",
+            NameIdFormat: SamlNameIdFormat.Email,
+            EmailAttribute: "email",
+            FirstNameAttribute: "firstName",
+            LastNameAttribute: "lastName",
+            GroupsAttribute: "groups",
+            EnforceForAllUsers: true,
+            AutoProvisionUsers: true,
+            DefaultRole: "user",
+            SyncGroupsAsRoles: false);
+
+        request.DisplayName.Should().Be("Okta SAML");
+        request.EntityId.Should().Be("https://okta.example.com/entity");
+        request.SsoUrl.Should().Be("https://okta.example.com/sso");
+        request.SloUrl.Should().Be("https://okta.example.com/slo");
+        request.Certificate.Should().Be("MIICert...");
+        request.NameIdFormat.Should().Be(SamlNameIdFormat.Email);
+        request.EmailAttribute.Should().Be("email");
+        request.FirstNameAttribute.Should().Be("firstName");
+        request.LastNameAttribute.Should().Be("lastName");
+        request.GroupsAttribute.Should().Be("groups");
+        request.EnforceForAllUsers.Should().BeTrue();
+        request.AutoProvisionUsers.Should().BeTrue();
+        request.DefaultRole.Should().Be("user");
+        request.SyncGroupsAsRoles.Should().BeFalse();
+    }
+
+    [Fact]
+    public void SaveSamlConfigRequest_WithNullOptionals()
+    {
+        SaveSamlConfigRequest request = new(
+            DisplayName: "Minimal SAML",
+            EntityId: "https://idp.example.com",
+            SsoUrl: "https://idp.example.com/sso",
+            SloUrl: null,
+            Certificate: "CERT",
+            NameIdFormat: SamlNameIdFormat.Persistent,
+            EmailAttribute: "email",
+            FirstNameAttribute: "given",
+            LastNameAttribute: "family",
+            GroupsAttribute: null,
+            EnforceForAllUsers: false,
+            AutoProvisionUsers: false,
+            DefaultRole: null,
+            SyncGroupsAsRoles: true);
+
+        request.SloUrl.Should().BeNull();
+        request.GroupsAttribute.Should().BeNull();
+        request.DefaultRole.Should().BeNull();
+        request.EnforceForAllUsers.Should().BeFalse();
+        request.SyncGroupsAsRoles.Should().BeTrue();
+    }
+
+    #endregion
+
     #region ScimUserRequest
 
     [Fact]
@@ -431,51 +496,4 @@ public class ApplicationMissingCoverageTests
 
     #endregion
 
-    #region ApiKeyMetadata
-
-    [Fact]
-    public void ApiKeyMetadata_WithExpiresAt_IsAccessible()
-    {
-        Guid userId = Guid.NewGuid();
-        Guid tenantId = Guid.NewGuid();
-        DateTimeOffset createdAt = DateTimeOffset.UtcNow;
-        DateTimeOffset expiresAt = DateTimeOffset.UtcNow.AddDays(365);
-
-        Wallow.Identity.Application.Interfaces.ApiKeyMetadata metadata = new(
-            KeyId: "key-id-123",
-            Name: "My API Key",
-            Prefix: "sk-key-i",
-            UserId: userId,
-            TenantId: tenantId,
-            Scopes: ["invoices.read"],
-            CreatedAt: createdAt,
-            ExpiresAt: expiresAt,
-            LastUsedAt: null);
-
-        metadata.KeyId.Should().Be("key-id-123");
-        metadata.Name.Should().Be("My API Key");
-        metadata.ExpiresAt.Should().Be(expiresAt);
-        metadata.LastUsedAt.Should().BeNull();
-        metadata.Scopes.Should().Contain("invoices.read");
-    }
-
-    [Fact]
-    public void ApiKeyMetadata_WithNullExpiresAt_IsAccessible()
-    {
-        Wallow.Identity.Application.Interfaces.ApiKeyMetadata metadata = new(
-            KeyId: "key-id",
-            Name: "No Expiry Key",
-            Prefix: "sk-key-i",
-            UserId: Guid.NewGuid(),
-            TenantId: Guid.NewGuid(),
-            Scopes: [],
-            CreatedAt: DateTimeOffset.UtcNow,
-            ExpiresAt: null,
-            LastUsedAt: DateTimeOffset.UtcNow.AddHours(-2));
-
-        metadata.ExpiresAt.Should().BeNull();
-        metadata.LastUsedAt.Should().NotBeNull();
-    }
-
-    #endregion
 }

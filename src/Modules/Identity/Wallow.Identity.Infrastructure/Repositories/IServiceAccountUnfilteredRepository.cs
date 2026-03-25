@@ -9,11 +9,11 @@ namespace Wallow.Identity.Infrastructure.Repositories;
 public interface IServiceAccountUnfilteredRepository
 {
     /// <summary>
-    /// Gets a service account by its Keycloak client ID, bypassing tenant query filters (IgnoreQueryFilters).
+    /// Gets a service account by its client ID, bypassing tenant query filters (IgnoreQueryFilters).
     /// This is intended for internal cross-layer use only, such as middleware that must resolve
     /// service accounts before tenant context is established.
     /// </summary>
-    Task<ServiceAccountMetadata?> GetByKeycloakClientIdAsync(string keycloakClientId, CancellationToken ct = default);
+    Task<ServiceAccountMetadata?> GetByClientIdAsync(string clientId, CancellationToken ct = default);
 
     Task SaveChangesAsync(CancellationToken ct = default);
 }

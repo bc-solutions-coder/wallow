@@ -1,84 +1,67 @@
 using System.Security.Claims;
-using Wallow.Identity.Domain.Entities;
 using Wallow.Identity.Infrastructure.Middleware;
-using Wallow.Identity.Infrastructure.Repositories;
-using Wallow.Shared.Kernel.Identity;
+using Wallow.Identity.Infrastructure.Services;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace Wallow.Identity.Tests.Infrastructure;
 
 public class ServiceAccountTrackingMiddlewareTests
 {
-    private readonly IServiceAccountUnfilteredRepository _repository = Substitute.For<IServiceAccountUnfilteredRepository>();
     private readonly ILogger<ServiceAccountTrackingMiddleware> _logger = Substitute.For<ILogger<ServiceAccountTrackingMiddleware>>();
+    private readonly ServiceAccountUsageBuffer _buffer = new();
 
     [Fact]
-    public async Task InvokeAsync_WithNonServiceAccountClient_DoesNotCallRepository()
+    public async Task InvokeAsync_WithNonServiceAccountClient_DoesNotRecord()
     {
-        // Arrange
         DefaultHttpContext context = CreateHttpContext("web-client", 200);
         ServiceAccountTrackingMiddleware middleware = CreateMiddleware();
 
-        // Act
         await middleware.InvokeAsync(context);
-        await Task.Delay(50); // Allow fire-and-forget to execute
 
-        // Assert
-        await _repository.DidNotReceive().GetByKeycloakClientIdAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        Dictionary<string, DateTimeOffset> entries = _buffer.DrainAll();
+        entries.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task InvokeAsync_WithFailedResponse_DoesNotTrack()
+    public async Task InvokeAsync_WithFailedResponse_DoesNotRecord()
     {
-        // Arrange
         DefaultHttpContext context = CreateHttpContext("sa-test-client", 400);
         ServiceAccountTrackingMiddleware middleware = CreateMiddleware();
 
-        // Act
         await middleware.InvokeAsync(context);
-        await Task.Delay(50);
 
-        // Assert
-        await _repository.DidNotReceive().GetByKeycloakClientIdAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        Dictionary<string, DateTimeOffset> entries = _buffer.DrainAll();
+        entries.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task InvokeAsync_WithServerErrorResponse_DoesNotTrack()
+    public async Task InvokeAsync_WithServerErrorResponse_DoesNotRecord()
     {
-        // Arrange
         DefaultHttpContext context = CreateHttpContext("sa-test-client", 500);
         ServiceAccountTrackingMiddleware middleware = CreateMiddleware();
 
-        // Act
         await middleware.InvokeAsync(context);
-        await Task.Delay(50);
 
-        // Assert
-        await _repository.DidNotReceive().GetByKeycloakClientIdAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        Dictionary<string, DateTimeOffset> entries = _buffer.DrainAll();
+        entries.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task InvokeAsync_WithNoAzpClaim_DoesNotTrack()
+    public async Task InvokeAsync_WithNoAzpClaim_DoesNotRecord()
     {
-        // Arrange
-        DefaultHttpContext context = new DefaultHttpContext()
+        DefaultHttpContext context = new()
         {
-            User = new ClaimsPrincipal(new ClaimsIdentity()) // No claims
+            User = new ClaimsPrincipal(new ClaimsIdentity())
         };
         context.Response.StatusCode = 200;
 
-        context.RequestServices = BuildServiceProvider();
-
         ServiceAccountTrackingMiddleware middleware = CreateMiddleware();
 
-        // Act
         await middleware.InvokeAsync(context);
-        await Task.Delay(50);
 
-        // Assert
-        await _repository.DidNotReceive().GetByKeycloakClientIdAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        Dictionary<string, DateTimeOffset> entries = _buffer.DrainAll();
+        entries.Should().BeEmpty();
     }
 
     [Theory]
@@ -86,100 +69,48 @@ public class ServiceAccountTrackingMiddlewareTests
     [InlineData(201)]
     [InlineData(204)]
     [InlineData(299)]
-    public async Task InvokeAsync_WithSuccessStatusCode_TracksServiceAccount(int statusCode)
+    public async Task InvokeAsync_WithSuccessStatusCode_RecordsServiceAccount(int statusCode)
     {
-        // Arrange
-        TenantId testTenantId = TenantId.Create(Guid.NewGuid());
-        ServiceAccountMetadata metadata = ServiceAccountMetadata.Create(
-            testTenantId,
-            "sa-test-client",
-            "Test",
-            null,
-            [],
-            Guid.Empty, TimeProvider.System);
-        metadata.MarkUsed(TimeProvider.System); // Initial mark
-
-        _repository.GetByKeycloakClientIdAsync("sa-test-client", Arg.Any<CancellationToken>())
-            .Returns(metadata);
-
         DefaultHttpContext context = CreateHttpContext("sa-test-client", statusCode);
         ServiceAccountTrackingMiddleware middleware = CreateMiddleware();
 
-        DateTime beforeInvoke = DateTime.UtcNow;
+        DateTimeOffset beforeInvoke = DateTimeOffset.UtcNow;
 
-        // Act
         await middleware.InvokeAsync(context);
 
-        // Assert - poll for the fire-and-forget to complete (up to 2s for slow CI)
-        await WaitForReceivedCallAsync(
-            () => _repository.Received().GetByKeycloakClientIdAsync("sa-test-client", Arg.Any<CancellationToken>()));
-        metadata.LastUsedAt.Should().BeOnOrAfter(beforeInvoke);
+        Dictionary<string, DateTimeOffset> entries = _buffer.DrainAll();
+        entries.Should().ContainKey("sa-test-client");
+        entries["sa-test-client"].Should().BeOnOrAfter(beforeInvoke);
     }
 
     [Fact]
-    public async Task InvokeAsync_WhenRepositoryThrows_LogsWarningAndContinues()
+    public async Task InvokeAsync_WithAppPrefix_RecordsUsage()
     {
-        // Arrange
-        _repository.GetByKeycloakClientIdAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns<ServiceAccountMetadata?>(_ => throw new InvalidOperationException("Database error"));
-
-        DefaultHttpContext context = CreateHttpContext("sa-test-client", 200);
+        DefaultHttpContext context = CreateHttpContext("app-test-client", 200);
         ServiceAccountTrackingMiddleware middleware = CreateMiddleware();
 
-        // Act & Assert - should not throw
         await middleware.InvokeAsync(context);
 
-        // Verify the repository was called (and the exception was handled)
-        await WaitForReceivedCallAsync(
-            () => _repository.Received().GetByKeycloakClientIdAsync("sa-test-client", Arg.Any<CancellationToken>()));
-    }
-
-    private ServiceProvider BuildServiceProvider()
-    {
-        ServiceCollection services = new ServiceCollection();
-        services.AddScoped<IServiceAccountUnfilteredRepository>(_ => _repository);
-        services.AddSingleton(TimeProvider.System);
-        return services.BuildServiceProvider();
+        Dictionary<string, DateTimeOffset> entries = _buffer.DrainAll();
+        entries.Should().ContainKey("app-test-client");
     }
 
     private ServiceAccountTrackingMiddleware CreateMiddleware()
     {
-        ServiceProvider serviceProvider = BuildServiceProvider();
-        IServiceScopeFactory scopeFactory = serviceProvider.GetRequiredService<IServiceScopeFactory>();
-        return new ServiceAccountTrackingMiddleware(_ => Task.CompletedTask, _logger, scopeFactory);
+        return new ServiceAccountTrackingMiddleware(_ => Task.CompletedTask, _logger, _buffer);
     }
 
-    private DefaultHttpContext CreateHttpContext(string clientId, int statusCode)
+    private static DefaultHttpContext CreateHttpContext(string clientId, int statusCode)
     {
-        DefaultHttpContext context = new DefaultHttpContext()
+        DefaultHttpContext context = new()
         {
-            User = new ClaimsPrincipal(new ClaimsIdentity(new[]
-            {
+            User = new ClaimsPrincipal(new ClaimsIdentity(
+            [
                 new Claim("azp", clientId)
-            }))
+            ]))
         };
         context.Response.StatusCode = statusCode;
-        context.RequestServices = BuildServiceProvider();
 
         return context;
-    }
-
-    private static async Task WaitForReceivedCallAsync(Func<Task> assertion, int timeoutMs = 2000)
-    {
-        DateTime deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
-        while (DateTime.UtcNow < deadline)
-        {
-            try
-            {
-                await assertion();
-                return;
-            }
-            catch (NSubstitute.Exceptions.ReceivedCallsException)
-            {
-                await Task.Delay(50);
-            }
-        }
-        // Final attempt — let it throw
-        await assertion();
     }
 }

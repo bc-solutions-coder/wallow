@@ -4,6 +4,7 @@ using Wallow.Identity.Api.Contracts.Requests;
 using Wallow.Identity.Api.Contracts.Responses;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
+using Wallow.Shared.Contracts.Identity;
 using Wallow.Shared.Kernel.Identity.Authorization;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Shared.Kernel.Pagination;
@@ -20,7 +21,7 @@ namespace Wallow.Identity.Api.Controllers;
 [Tags("Users")]
 [Produces("application/json")]
 [Consumes("application/json")]
-public class UsersController(IUserManagementService keycloakAdmin, IOrganizationService keycloakOrg, ITenantContext tenantContext) : ControllerBase
+public class UsersController(IUserManagementService userManagement, IOrganizationService organizationService, IUserQueryService userQueryService, ITenantContext tenantContext) : ControllerBase
 {
 
     /// <summary>
@@ -35,23 +36,13 @@ public class UsersController(IUserManagementService keycloakAdmin, IOrganization
         CancellationToken ct = default)
     {
         Guid tenantId = tenantContext.TenantId.Value;
-        IReadOnlyList<UserDto> members = await keycloakOrg.GetMembersAsync(tenantId, ct);
+        UserSearchPageResult result = await userQueryService.SearchUsersAsync(tenantId, search, first, max, ct);
 
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            string searchLower = search.ToLowerInvariant();
-            members = members
-                .Where(u => u.Email.Contains(searchLower, StringComparison.OrdinalIgnoreCase)
-                          || u.FirstName.Contains(searchLower, StringComparison.OrdinalIgnoreCase)
-                          || u.LastName.Contains(searchLower, StringComparison.OrdinalIgnoreCase))
-                .ToList();
-        }
+        IReadOnlyList<UserDto> items = result.Items
+            .Select(u => new UserDto(u.Id, u.Email, u.FirstName, u.LastName, u.IsActive, u.Roles))
+            .ToList();
 
-        int totalCount = members.Count;
-        IReadOnlyList<UserDto> paged = members.Skip(first).Take(max).ToList();
-        int page = max > 0 ? (first / max) + 1 : 1;
-
-        return Ok(new PagedResult<UserDto>(paged, totalCount, page, max));
+        return Ok(new PagedResult<UserDto>(items, result.TotalCount, result.Page, result.PageSize));
     }
 
     /// <summary>
@@ -61,7 +52,7 @@ public class UsersController(IUserManagementService keycloakAdmin, IOrganization
     [HasPermission(PermissionType.UsersRead)]
     public async Task<ActionResult<UserDto>> GetUserById(Guid id, CancellationToken ct)
     {
-        UserDto? user = await keycloakAdmin.GetUserByIdAsync(id, ct);
+        UserDto? user = await userManagement.GetUserByIdAsync(id, ct);
         if (user is null)
         {
             return NotFound();
@@ -99,7 +90,7 @@ public class UsersController(IUserManagementService keycloakAdmin, IOrganization
     [HasPermission(PermissionType.UsersCreate)]
     public async Task<ActionResult> CreateUser(CreateUserRequest request, CancellationToken ct)
     {
-        Guid userId = await keycloakAdmin.CreateUserAsync(
+        Guid userId = await userManagement.CreateUserAsync(
             request.Email,
             request.FirstName,
             request.LastName,
@@ -107,9 +98,9 @@ public class UsersController(IUserManagementService keycloakAdmin, IOrganization
             ct);
 
         Guid tenantId = tenantContext.TenantId.Value;
-        await keycloakOrg.AddMemberAsync(tenantId, userId, ct);
+        await organizationService.AddMemberAsync(tenantId, userId, ct);
 
-        UserDto? user = await keycloakAdmin.GetUserByIdAsync(userId, ct);
+        UserDto? user = await userManagement.GetUserByIdAsync(userId, ct);
         return CreatedAtAction(nameof(GetUserById), new { id = userId }, user);
     }
 
@@ -125,7 +116,7 @@ public class UsersController(IUserManagementService keycloakAdmin, IOrganization
             return NotFound();
         }
 
-        await keycloakAdmin.DeactivateUserAsync(id, ct);
+        await userManagement.DeactivateUserAsync(id, ct);
         return NoContent();
     }
 
@@ -141,7 +132,7 @@ public class UsersController(IUserManagementService keycloakAdmin, IOrganization
             return NotFound();
         }
 
-        await keycloakAdmin.ActivateUserAsync(id, ct);
+        await userManagement.ActivateUserAsync(id, ct);
         return NoContent();
     }
 
@@ -160,7 +151,7 @@ public class UsersController(IUserManagementService keycloakAdmin, IOrganization
             return NotFound();
         }
 
-        await keycloakAdmin.AssignRoleAsync(userId, request.RoleName, ct);
+        await userManagement.AssignRoleAsync(userId, request.RoleName, ct);
         return NoContent();
     }
 
@@ -176,13 +167,13 @@ public class UsersController(IUserManagementService keycloakAdmin, IOrganization
             return NotFound();
         }
 
-        await keycloakAdmin.RemoveRoleAsync(userId, roleName, ct);
+        await userManagement.RemoveRoleAsync(userId, roleName, ct);
         return NoContent();
     }
 
     private async Task<bool> UserBelongsToTenantAsync(Guid userId, CancellationToken ct)
     {
-        IReadOnlyList<OrganizationDto> userOrgs = await keycloakOrg.GetUserOrganizationsAsync(userId, ct);
+        IReadOnlyList<OrganizationDto> userOrgs = await organizationService.GetUserOrganizationsAsync(userId, ct);
         return userOrgs.Any(o => o.Id == tenantContext.TenantId.Value);
     }
 }

@@ -8,7 +8,7 @@ public class RevokeServiceAccountTests(ServiceAccountTestFactory factory) : Serv
 {
     private static readonly string[] _invoicesReadScope = ["invoices.read"];
 
-    [Fact(Skip = "Flaky when run with full test suite")]
+    [Fact]
     public async Task Should_Revoke_ServiceAccount_Successfully()
     {
         CreateServiceAccountRequest createRequest = new(
@@ -25,7 +25,7 @@ public class RevokeServiceAccountTests(ServiceAccountTestFactory factory) : Serv
         retrieved.Should().BeNull();
     }
 
-    [Fact(Skip = "Flaky when run with full test suite")]
+    [Fact]
     public async Task Should_Revoke_ServiceAccount_Via_API()
     {
         CreateServiceAccountRequest createRequest = new(
@@ -44,7 +44,7 @@ public class RevokeServiceAccountTests(ServiceAccountTestFactory factory) : Serv
         getResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
-    [Fact(Skip = "Flaky when run with full test suite")]
+    [Fact]
     public async Task Should_Fail_Revoke_NonExistent_Account()
     {
         Guid nonExistentId = Guid.NewGuid();
@@ -54,7 +54,7 @@ public class RevokeServiceAccountTests(ServiceAccountTestFactory factory) : Serv
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
-    [Fact(Skip = "Flaky when run with full test suite")]
+    [Fact]
     public async Task Should_Not_List_Revoked_Account()
     {
         CreateServiceAccountRequest createRequest = new(
@@ -71,7 +71,7 @@ public class RevokeServiceAccountTests(ServiceAccountTestFactory factory) : Serv
         accounts.Should().NotContain(a => a.Id == created.Id);
     }
 
-    [Fact(Skip = "Flaky when run with full test suite")]
+    [Fact]
     public async Task Should_Prevent_Operations_On_Revoked_Account()
     {
         CreateServiceAccountRequest createRequest = new(

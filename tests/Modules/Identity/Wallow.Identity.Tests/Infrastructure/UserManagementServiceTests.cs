@@ -1,10 +1,12 @@
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Identity.Infrastructure.Services;
 using Wallow.Shared.Contracts.Identity.Events;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
@@ -12,13 +14,14 @@ using Wolverine;
 
 namespace Wallow.Identity.Tests.Infrastructure;
 
-public class UserManagementServiceTests
+public sealed class UserManagementServiceTests : IDisposable
 {
     private readonly UserManager<WallowUser> _userManager;
     private readonly RoleManager<WallowRole> _roleManager;
     private readonly IMessageBus _messageBus;
     private readonly ITenantContext _tenantContext;
     private readonly FakeTimeProvider _timeProvider;
+    private readonly IdentityDbContext _dbContext;
     private readonly UserManagementService _sut;
 
     public UserManagementServiceTests()
@@ -36,13 +39,26 @@ public class UserManagementServiceTests
         _tenantContext.TenantId.Returns(new TenantId(Guid.NewGuid()));
         _timeProvider = new FakeTimeProvider(DateTimeOffset.UtcNow);
 
+        DbContextOptions<IdentityDbContext> dbOptions = new DbContextOptionsBuilder<IdentityDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+        _dbContext = new IdentityDbContext(dbOptions,
+            Microsoft.AspNetCore.DataProtection.DataProtectionProvider.Create("test"));
         _sut = new UserManagementService(
             _userManager,
             _roleManager,
+            _dbContext,
             _messageBus,
             _tenantContext,
             _timeProvider,
             NullLoggerFactory.Instance.CreateLogger<UserManagementService>());
+    }
+
+    public void Dispose()
+    {
+        _dbContext.Dispose();
+        _userManager.Dispose();
+        _roleManager.Dispose();
     }
 
     [Fact]
@@ -111,7 +127,11 @@ public class UserManagementServiceTests
         WallowUser user = WallowUser.Create(
             _tenantContext.TenantId.Value, "John", "Doe", "john@test.com", _timeProvider);
         _userManager.FindByIdAsync(userId.ToString()).Returns(user);
-        _userManager.GetRolesAsync(user).Returns(new List<string> { "admin" });
+
+        WallowRole adminRole = new() { Id = Guid.NewGuid(), Name = "admin", NormalizedName = "ADMIN", TenantId = _tenantContext.TenantId.Value };
+        _dbContext.Roles.Add(adminRole);
+        _dbContext.UserRoles.Add(new Microsoft.AspNetCore.Identity.IdentityUserRole<Guid> { UserId = user.Id, RoleId = adminRole.Id });
+        await _dbContext.SaveChangesAsync();
 
         UserDto? result = await _sut.GetUserByIdAsync(userId);
 
@@ -138,12 +158,17 @@ public class UserManagementServiceTests
         WallowUser user = WallowUser.Create(
             _tenantContext.TenantId.Value, "Jane", "Doe", "jane@test.com", _timeProvider);
         _userManager.FindByEmailAsync("jane@test.com").Returns(user);
-        _userManager.GetRolesAsync(user).Returns(new List<string> { "user" });
+
+        WallowRole userRole = new() { Id = Guid.NewGuid(), Name = "user", NormalizedName = "USER", TenantId = _tenantContext.TenantId.Value };
+        _dbContext.Roles.Add(userRole);
+        _dbContext.UserRoles.Add(new Microsoft.AspNetCore.Identity.IdentityUserRole<Guid> { UserId = user.Id, RoleId = userRole.Id });
+        await _dbContext.SaveChangesAsync();
 
         UserDto? result = await _sut.GetUserByEmailAsync("jane@test.com");
 
         result.Should().NotBeNull();
         result!.Email.Should().Be("jane@test.com");
+        result.Roles.Should().Contain("user");
     }
 
     [Fact]

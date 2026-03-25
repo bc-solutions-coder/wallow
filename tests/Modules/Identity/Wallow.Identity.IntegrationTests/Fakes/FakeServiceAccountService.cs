@@ -54,7 +54,7 @@ public sealed class FakeServiceAccountService(IServiceAccountRepository reposito
         return accounts
             .Select(a => new ServiceAccountDto(
                 a.Id,
-                a.KeycloakClientId,
+                a.ClientId,
                 a.Name,
                 a.Description,
                 a.Status,
@@ -76,7 +76,7 @@ public sealed class FakeServiceAccountService(IServiceAccountRepository reposito
 
         return new ServiceAccountDto(
             account.Id,
-            account.KeycloakClientId,
+            account.ClientId,
             account.Name,
             account.Description,
             account.Status,
