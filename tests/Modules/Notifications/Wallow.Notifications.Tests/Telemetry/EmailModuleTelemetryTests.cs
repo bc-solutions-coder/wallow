@@ -3,8 +3,25 @@ using Wallow.Notifications.Application.Channels.Email.Telemetry;
 
 namespace Wallow.Notifications.Tests.Telemetry;
 
-public class EmailModuleTelemetryTests
+public sealed class EmailModuleTelemetryTests : IDisposable
 {
+    private readonly ActivityListener _listener;
+
+    public EmailModuleTelemetryTests()
+    {
+        _listener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name.Contains("Notifications"),
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded
+        };
+        ActivitySource.AddActivityListener(_listener);
+    }
+
+    public void Dispose()
+    {
+        _listener.Dispose();
+    }
+
     [Fact]
     public void ActivitySource_IsNotNull()
     {
@@ -54,30 +71,82 @@ public class EmailModuleTelemetryTests
     }
 
     [Fact]
-    public void StartSendEmailActivity_ReturnsActivityOrNull()
+    public void StartSendEmailActivity_ReturnsActivity()
     {
-        Activity? activity = EmailModuleTelemetry.StartSendEmailActivity(3);
-        activity?.Dispose();
+        using Activity? activity = EmailModuleTelemetry.StartSendEmailActivity(3);
+
+        activity.Should().NotBeNull();
     }
 
     [Fact]
-    public void StartSendEmailActivity_WithTemplateId_ReturnsActivityOrNull()
+    public void StartSendEmailActivity_SetsModuleTag()
     {
-        Activity? activity = EmailModuleTelemetry.StartSendEmailActivity(1, "welcome-email");
-        activity?.Dispose();
+        using Activity? activity = EmailModuleTelemetry.StartSendEmailActivity(3);
+
+        activity!.GetTagItem("wallow.module").Should().Be("Notifications");
     }
 
     [Fact]
-    public void StartSendNotificationActivity_ReturnsActivityOrNull()
+    public void StartSendEmailActivity_SetsRecipientCountTag()
     {
-        Activity? activity = EmailModuleTelemetry.StartSendNotificationActivity(5);
-        activity?.Dispose();
+        using Activity? activity = EmailModuleTelemetry.StartSendEmailActivity(3);
+
+        activity!.GetTagItem("recipient_count").Should().Be(3);
     }
 
     [Fact]
-    public void StartSendNotificationActivity_WithTemplateId_ReturnsActivityOrNull()
+    public void StartSendEmailActivity_WithTemplateId_SetsTemplateIdTag()
     {
-        Activity? activity = EmailModuleTelemetry.StartSendNotificationActivity(2, "inquiry-comment");
-        activity?.Dispose();
+        using Activity? activity = EmailModuleTelemetry.StartSendEmailActivity(1, "welcome-email");
+
+        activity!.GetTagItem("template_id").Should().Be("welcome-email");
+    }
+
+    [Fact]
+    public void StartSendEmailActivity_WithoutTemplateId_DoesNotSetTemplateIdTag()
+    {
+        using Activity? activity = EmailModuleTelemetry.StartSendEmailActivity(1);
+
+        activity!.GetTagItem("template_id").Should().BeNull();
+    }
+
+    [Fact]
+    public void StartSendNotificationActivity_ReturnsActivity()
+    {
+        using Activity? activity = EmailModuleTelemetry.StartSendNotificationActivity(5);
+
+        activity.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void StartSendNotificationActivity_SetsModuleTag()
+    {
+        using Activity? activity = EmailModuleTelemetry.StartSendNotificationActivity(5);
+
+        activity!.GetTagItem("wallow.module").Should().Be("Notifications");
+    }
+
+    [Fact]
+    public void StartSendNotificationActivity_SetsRecipientCountTag()
+    {
+        using Activity? activity = EmailModuleTelemetry.StartSendNotificationActivity(5);
+
+        activity!.GetTagItem("recipient_count").Should().Be(5);
+    }
+
+    [Fact]
+    public void StartSendNotificationActivity_WithTemplateId_SetsTemplateIdTag()
+    {
+        using Activity? activity = EmailModuleTelemetry.StartSendNotificationActivity(2, "inquiry-comment");
+
+        activity!.GetTagItem("template_id").Should().Be("inquiry-comment");
+    }
+
+    [Fact]
+    public void StartSendNotificationActivity_WithoutTemplateId_DoesNotSetTemplateIdTag()
+    {
+        using Activity? activity = EmailModuleTelemetry.StartSendNotificationActivity(2);
+
+        activity!.GetTagItem("template_id").Should().BeNull();
     }
 }

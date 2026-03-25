@@ -14,7 +14,7 @@
     <PackageReference Include="NSubstitute" />
     <PackageReference Include="Testcontainers.Redis" />
     <PackageReference Include="Testcontainers.PostgreSql" />
-    <PackageReference Include="Testcontainers.RabbitMq" />
+
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
   </ItemGroup>

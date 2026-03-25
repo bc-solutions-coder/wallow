@@ -100,7 +100,7 @@ public class MermaidFlowGeneratorTests
 
         string result = MermaidFlowGenerator.Generate(flows);
 
-        result.Should().Contain("exchange{{RabbitMQ}}");
+        result.Should().Contain("exchange{{Message Bus}}");
     }
 
     [Fact]

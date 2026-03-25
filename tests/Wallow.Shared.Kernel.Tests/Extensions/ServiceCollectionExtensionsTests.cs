@@ -47,7 +47,7 @@ public class ServiceCollectionExtensionsTests
     }
 
     [Fact]
-    public void AddSharedKernel_RegistersTenantSaveChangesInterceptor_AsScoped()
+    public void AddSharedKernel_RegistersTenantSaveChangesInterceptor_AsSingleton()
     {
         ServiceCollection services = new();
 
@@ -56,7 +56,7 @@ public class ServiceCollectionExtensionsTests
         ServiceDescriptor? descriptor = services.FirstOrDefault(
             d => d.ServiceType == typeof(TenantSaveChangesInterceptor));
         descriptor.Should().NotBeNull();
-        descriptor.Lifetime.Should().Be(ServiceLifetime.Scoped);
+        descriptor.Lifetime.Should().Be(ServiceLifetime.Singleton);
     }
 
     [Fact]

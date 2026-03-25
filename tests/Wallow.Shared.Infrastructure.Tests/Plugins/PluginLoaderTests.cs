@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Reflection.Emit;
+using System.Security.Cryptography;
 using Wallow.Shared.Infrastructure.Plugins;
 using Wallow.Shared.Kernel.Plugins;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -359,6 +360,152 @@ public class PluginLoaderTests
             entry!.Instance.Should().BeNull();
             entry.LoadContext.Should().BeNull();
             entry.State.Should().Be(PluginLifecycleState.Discovered);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void LoadPlugin_PluginNotInAllowList_ThrowsPluginLoadException()
+    {
+        PluginOptions pluginOptions = new()
+        {
+            AllowedPluginHashes = new Dictionary<string, string>
+            {
+                ["some-other-plugin"] = "abc123"
+            }
+        };
+        PluginRegistry registry = new();
+        PluginLoader loader = new(registry, Options.Create(pluginOptions), NullLogger<PluginLoader>.Instance);
+
+        string tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string pluginDir = Path.Combine(tempDir, "unlisted-plugin");
+        Directory.CreateDirectory(pluginDir);
+
+        try
+        {
+            string sourceAssembly = typeof(MismatchedManifestPlugin).Assembly.Location;
+            File.Copy(sourceAssembly, Path.Combine(pluginDir, "Plugin.dll"));
+
+            PluginManifest manifest = CreateManifest(id: "unlisted-plugin", entryAssembly: "Plugin.dll");
+            registry.Register(manifest);
+
+            Action act = () => loader.LoadPlugin(manifest, tempDir);
+
+            act.Should().Throw<PluginLoadException>()
+                .Where(e => e.PluginId == "unlisted-plugin"
+                    && e.Message.Contains("not in the allowed plugin hashes list"));
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void LoadPlugin_HashMismatch_ThrowsPluginLoadException()
+    {
+        PluginOptions pluginOptions = new()
+        {
+            AllowedPluginHashes = new Dictionary<string, string>
+            {
+                ["hash-mismatch-plugin"] = "0000000000000000000000000000000000000000000000000000000000000000"
+            }
+        };
+        PluginRegistry registry = new();
+        PluginLoader loader = new(registry, Options.Create(pluginOptions), NullLogger<PluginLoader>.Instance);
+
+        string tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string pluginDir = Path.Combine(tempDir, "hash-mismatch-plugin");
+        Directory.CreateDirectory(pluginDir);
+
+        try
+        {
+            string sourceAssembly = typeof(MismatchedManifestPlugin).Assembly.Location;
+            File.Copy(sourceAssembly, Path.Combine(pluginDir, "Plugin.dll"));
+
+            PluginManifest manifest = CreateManifest(id: "hash-mismatch-plugin", entryAssembly: "Plugin.dll");
+            registry.Register(manifest);
+
+            Action act = () => loader.LoadPlugin(manifest, tempDir);
+
+            act.Should().Throw<PluginLoadException>()
+                .Where(e => e.PluginId == "hash-mismatch-plugin"
+                    && e.Message.Contains("failed hash verification"));
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void LoadPlugin_ValidHash_LoadsSuccessfully()
+    {
+        string tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string pluginDir = Path.Combine(tempDir, MismatchedManifestPlugin.PluginId);
+        Directory.CreateDirectory(pluginDir);
+
+        try
+        {
+            string sourceAssembly = typeof(MismatchedManifestPlugin).Assembly.Location;
+            string targetPath = Path.Combine(pluginDir, "ValidPlugin.dll");
+            File.Copy(sourceAssembly, targetPath);
+
+            // Compute the real hash of the assembly
+            byte[] fileBytes = File.ReadAllBytes(targetPath);
+            string actualHash = Convert.ToHexStringLower(SHA256.HashData(fileBytes));
+
+            PluginOptions pluginOptions = new()
+            {
+                AllowedPluginHashes = new Dictionary<string, string>
+                {
+                    [MismatchedManifestPlugin.PluginId] = actualHash
+                }
+            };
+            PluginRegistry registry = new();
+            PluginLoader loader = new(registry, Options.Create(pluginOptions), NullLogger<PluginLoader>.Instance);
+
+            PluginManifest manifest = CreateManifest(
+                id: MismatchedManifestPlugin.PluginId,
+                entryAssembly: "ValidPlugin.dll");
+            registry.Register(manifest);
+
+            PluginRegistryEntry result = loader.LoadPlugin(manifest, tempDir);
+
+            result.Should().NotBeNull();
+            result.State.Should().Be(PluginLifecycleState.Installed);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void LoadPlugin_EmptyAllowedHashes_SkipsVerification()
+    {
+        // Default PluginOptions has empty AllowedPluginHashes — verification is skipped
+        string tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string pluginDir = Path.Combine(tempDir, MismatchedManifestPlugin.PluginId);
+        Directory.CreateDirectory(pluginDir);
+
+        try
+        {
+            string sourceAssembly = typeof(MismatchedManifestPlugin).Assembly.Location;
+            File.Copy(sourceAssembly, Path.Combine(pluginDir, "ValidPlugin.dll"));
+
+            PluginManifest manifest = CreateManifest(
+                id: MismatchedManifestPlugin.PluginId,
+                entryAssembly: "ValidPlugin.dll");
+            _registry.Register(manifest);
+
+            PluginRegistryEntry result = _sut.LoadPlugin(manifest, tempDir);
+
+            result.Should().NotBeNull();
+            result.State.Should().Be(PluginLifecycleState.Installed);
         }
         finally
         {

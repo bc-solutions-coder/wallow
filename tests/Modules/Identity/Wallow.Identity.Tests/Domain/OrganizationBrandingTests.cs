@@ -61,4 +61,43 @@ public class OrganizationBrandingTests
         branding.PrimaryColor.Should().BeNull();
         branding.AccentColor.Should().BeNull();
     }
+
+    [Fact]
+    public void Create_GeneratesUniqueId()
+    {
+        OrganizationBranding branding1 = OrganizationBranding.Create(
+            _orgId, _tenantId, null, null, null, _userId, _timeProvider);
+        OrganizationBranding branding2 = OrganizationBranding.Create(
+            _orgId, _tenantId, null, null, null, _userId, _timeProvider);
+
+        branding1.Id.Should().NotBe(branding2.Id);
+    }
+
+    [Fact]
+    public void Create_SetsCreatedAtAndCreatedBy()
+    {
+        OrganizationBranding branding = OrganizationBranding.Create(
+            _orgId, _tenantId, null, null, null, _userId, _timeProvider);
+
+        branding.CreatedAt.Should().Be(_timeProvider.GetUtcNow().UtcDateTime);
+        branding.CreatedBy.Should().Be(_userId);
+        branding.UpdatedAt.Should().BeNull();
+        branding.UpdatedBy.Should().BeNull();
+    }
+
+    [Fact]
+    public void Update_SetsUpdatedAtAndUpdatedBy()
+    {
+        OrganizationBranding branding = OrganizationBranding.Create(
+            _orgId, _tenantId, "https://old.png", "#000000", "#111111", _userId, _timeProvider);
+
+        Guid updaterUserId = Guid.NewGuid();
+        _timeProvider.Advance(TimeSpan.FromHours(1));
+
+        branding.Update("https://new.png", "#FFFFFF", "#EEEEEE", updaterUserId, _timeProvider);
+
+        branding.UpdatedAt.Should().Be(_timeProvider.GetUtcNow().UtcDateTime);
+        branding.UpdatedBy.Should().Be(updaterUserId);
+        branding.CreatedAt.Should().BeBefore(branding.UpdatedAt!.Value);
+    }
 }

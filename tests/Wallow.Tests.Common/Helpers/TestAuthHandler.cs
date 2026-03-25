@@ -20,7 +20,7 @@ public sealed class TestAuthHandler : AuthenticationHandler<AuthenticationScheme
         // Allow tests to opt-out of authentication via header
         if (Request.Headers.TryGetValue("X-Test-Auth-Skip", out StringValues skipHeader) && skipHeader == "true")
         {
-            return Task.FromResult(AuthenticateResult.NoResult());
+            return Task.FromResult(AuthenticateResult.Fail("Authentication skipped by test"));
         }
 
         // Check for Authorization header or SignalR access_token query param

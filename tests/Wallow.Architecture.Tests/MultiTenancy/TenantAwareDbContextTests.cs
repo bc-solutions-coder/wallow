@@ -52,7 +52,8 @@ public sealed class TenantAwareDbContextTests : IDisposable
             .UseSqlite(_connection)
             .Options;
 
-        TestDbContext context = new(options, _tenantContext);
+        TestDbContext context = new(options);
+        context.SetTenant(_tenantContext.TenantId);
         context.Database.EnsureCreated();
         return context;
     }
@@ -62,8 +63,8 @@ public sealed class TenantAwareDbContextTests : IDisposable
         _connection.Dispose();
     }
 
-    private sealed class TestDbContext(DbContextOptions<TestDbContext> options, ITenantContext tenantContext)
-        : TenantAwareDbContext<TestDbContext>(options, tenantContext)
+    private sealed class TestDbContext(DbContextOptions<TestDbContext> options)
+        : TenantAwareDbContext<TestDbContext>(options)
     {
         // ReSharper disable once UnusedMember.Local
         public DbSet<TenantScopedEntity> TenantScopedEntities => Set<TenantScopedEntity>();

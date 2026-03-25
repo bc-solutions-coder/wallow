@@ -16,7 +16,6 @@ tests/
   Wallow.Tests.Common/               -> Shared infrastructure (factories, fixtures, builders, helpers, fakes)
   Wallow.Api.Tests/                   -> API-level integration tests (health checks, SignalR, middleware)
   Wallow.Architecture.Tests/          -> Cross-cutting architecture enforcement (NetArchTest)
-  Wallow.Messaging.IntegrationTests/  -> End-to-end messaging tests (Wolverine + RabbitMQ)
 ```
 
 ## Unit Test Conventions
@@ -35,9 +34,9 @@ tests/
 
 | Need | Use | Containers |
 |------|-----|------------|
-| Full API pipeline (HTTP, auth, middleware) | `WallowApiFactory` via collection fixture | 3 (Postgres + RabbitMQ + Redis) |
+| Full API pipeline (HTTP, auth, middleware) | `WallowApiFactory` via collection fixture | 2 (Postgres + Redis) |
 | Database-only (repository, Dapper) | `DatabaseFixture` via collection fixture | 1 (Postgres) |
-| Real Keycloak (OAuth2 flows) | `KeycloakTestFixture` | 4 (Keycloak + Postgres + RabbitMQ + Redis) |
+| In-process OpenIddict (OAuth2 flows) | `IdentityFixture` | 2 (Postgres + Redis) |
 
 ### ALWAYS use collection fixtures for container sharing
 
@@ -64,7 +63,7 @@ Each module should have a base class handling HttpClient setup, scoped services,
 - Default: `TestAuthHandler` makes all requests admin. Set `Authorization: Bearer test-token`.
 - Custom user: Set `X-Test-User-Id` and `X-Test-Roles` headers.
 - Skip auth: Set `X-Test-Auth-Skip: true` header.
-- Real Keycloak: Only for Identity module OAuth2 tests. Use `KeycloakTestFixture`.
+- In-process OpenIddict: For Identity module OAuth2 tests. Use `IdentityFixture`.
 
 ### Test Isolation
 
@@ -79,9 +78,8 @@ Must match `docker-compose.yml` exactly:
 | Service | Image |
 |---------|-------|
 | PostgreSQL | `postgres:18-alpine` |
-| RabbitMQ | `rabbitmq:4.2-management-alpine` |
 | Valkey/Redis | `valkey/valkey:8-alpine` |
-| Keycloak | `quay.io/keycloak/keycloak:26.0` |
+
 
 ### Trait Tagging
 
@@ -104,9 +102,8 @@ Architecture tests enforce: Clean Architecture layers, module isolation (only `S
 | Fixture | Purpose | Container |
 |---------|---------|-----------|
 | `DatabaseFixture` | Standalone Postgres for repo tests | PostgreSQL |
-| `RabbitMqFixture` | Standalone RabbitMQ | RabbitMQ |
 | `RedisFixture` | Standalone Valkey/Redis | Valkey |
-| `KeycloakFixture` | Keycloak with realm import | Keycloak |
+| `IdentityFixture` | In-process OpenIddict for OAuth2 tests | None (in-process) |
 
 ### Factories
 
@@ -122,7 +119,7 @@ Architecture tests enforce: Clean Architecture layers, module isolation (only `S
 
 | Fake | Replaces |
 |------|----------|
-| `FakeUserManagementService` | `IUserManagementService` -- no-op Keycloak admin |
+| `FakeUserManagementService` | `IUserManagementService` -- no-op user management |
 | `FakeInvoiceQueryService` | `IInvoiceQueryService` -- returns empty/zero |
 | `FakeMeteringQueryService` | `IMeteringQueryService` -- returns null quotas |
 | `FakeUserQueryService` | `IUserQueryService` -- returns zero counts |
@@ -137,9 +134,20 @@ Architecture tests enforce: Clean Architecture layers, module isolation (only `S
 | `HttpClientExtensions` | `.WithAuth(userId, roles)` extension on HttpClient |
 | `QueryPerformanceExtensions` | Performance assertion helpers for queries |
 
+## Coverage
+
+- **Target:** >= 90% line coverage per assembly (filtered)
+- **Always run with runsettings:** `dotnet test --settings tests/coverage.runsettings`
+- **Auto-generated code is excluded** from coverage metrics — migrations, model snapshots, source-generated regex, OpenApi generated code, `System.Runtime.CompilerServices`
+- **Blazor UI components** (`Wallow.Auth`) are excluded from coverage — test services, not pages
+- **Design-time EF factories** (`DesignTimeTenantContext`, `*DbContextFactory`) are excluded — they exist only for `dotnet ef` tooling
+- **NoOp extension point stubs** should be marked `[ExcludeFromCodeCoverage]` — they are intentionally empty and meant to be replaced by forks
+- **Static constant classes** (e.g., `BillingSettingKeys`) should be marked `[ExcludeFromCodeCoverage]`
+- **Generate reports:** `reportgenerator -reports:"./TestResults/**/coverage.cobertura.xml" -targetdir:"./TestResults/CoverageReport" -reporttypes:"TextSummary"`
+
 ## Constraints
 
-- Do not use real Keycloak in tests unless testing OAuth2 flows. Use `TestAuthHandler`.
+- Do not use real OAuth2 flows in tests unless specifically testing them. Use `TestAuthHandler`.
 - Do not hardcode connection strings. Testcontainers provide dynamic strings.
 - Architecture tests must pass on every build. Fix violations, don't delete tests.
 - Always use `postgres:18-alpine`. Never override to a different Postgres version.

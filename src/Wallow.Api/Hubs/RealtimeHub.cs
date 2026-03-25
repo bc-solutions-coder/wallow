@@ -28,6 +28,13 @@ internal sealed partial class RealtimeHub(
 
         string tenantGroup = $"tenant:{tenantContext.TenantId.Value}";
         await Groups.AddToGroupAsync(Context.ConnectionId, tenantGroup);
+
+        if (IsStaffUser())
+        {
+            string staffGroup = $"tenant:{tenantContext.TenantId.Value}:staff";
+            await Groups.AddToGroupAsync(Context.ConnectionId, staffGroup);
+        }
+
         RealtimeEnvelope envelope = RealtimeEnvelope.Create("Presence", "UserOnline", new { UserId = userId });
         await dispatcher.SendToGroupAsync(tenantGroup, envelope);
         await base.OnConnectedAsync();
@@ -134,6 +141,16 @@ internal sealed partial class RealtimeHub(
 
     private static bool HasAllowedPrefix(string groupId) =>
         Array.Exists(_allowedGroupPrefixes, prefix => groupId.StartsWith(prefix, StringComparison.Ordinal));
+
+    private bool IsStaffUser()
+    {
+        IEnumerable<string> roles = Context.User?.FindAll(ClaimTypes.Role)
+            .Concat(Context.User?.FindAll("role") ?? [])
+            .Select(c => c.Value) ?? [];
+
+        return roles.Any(r => r.Equals("admin", StringComparison.OrdinalIgnoreCase)
+            || r.Equals("manager", StringComparison.OrdinalIgnoreCase));
+    }
 
     private string? GetUserId() =>
         Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value

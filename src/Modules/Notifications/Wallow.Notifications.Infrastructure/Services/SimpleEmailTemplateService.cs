@@ -114,6 +114,19 @@ public sealed partial class SimpleEmailTemplateService(
                 </tr>
                 """),
 
+            "organizationmemberadded" => WrapInLayout(
+                "You've Been Added to an Organization",
+                """
+                <tr>
+                    <td style="padding: 30px 40px; font-family: Arial, Helvetica, sans-serif; font-size: 16px; line-height: 1.6; color: #333333;">
+                        <p style="margin: 0 0 16px;">You have been added as a member of an organization on {{AppName}}.</p>
+                        <p style="margin: 0 0 24px;">Log in to view your new organization and get started.</p>
+                    </td>
+                </tr>
+                """,
+                "Log In",
+                "{{AppUrl}}"),
+
             "inquirycomment" => WrapInLayout(
                 "New Comment on Your Inquiry",
                 """

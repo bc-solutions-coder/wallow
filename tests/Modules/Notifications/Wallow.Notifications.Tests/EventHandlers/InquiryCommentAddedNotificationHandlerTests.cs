@@ -1,4 +1,5 @@
 using Wallow.Notifications.Application.Channels.Email.Commands.SendEmail;
+using Wallow.Notifications.Application.Channels.Email.Interfaces;
 using Wallow.Notifications.Application.EventHandlers;
 using Wallow.Shared.Contracts.Inquiries.Events;
 using Wolverine;
@@ -8,6 +9,13 @@ namespace Wallow.Notifications.Tests.EventHandlers;
 public class InquiryCommentAddedNotificationHandlerTests
 {
     private readonly IMessageBus _bus = Substitute.For<IMessageBus>();
+    private readonly IEmailTemplateService _templateService = Substitute.For<IEmailTemplateService>();
+
+    public InquiryCommentAddedNotificationHandlerTests()
+    {
+        _templateService.RenderAsync(Arg.Any<string>(), Arg.Any<object>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo => Task.FromResult("<html>rendered</html>"));
+    }
 
     [Fact]
     public async Task Handle_SendsEmailToSubmitter_WhenNotInternal()
@@ -26,7 +34,7 @@ public class InquiryCommentAddedNotificationHandlerTests
             CommentContent = "We have resolved your issue."
         };
 
-        await InquiryCommentAddedNotificationHandler.Handle(@event, _bus);
+        await InquiryCommentAddedNotificationHandler.Handle(@event, _templateService, _bus);
 
         await _bus.Received(1).InvokeAsync(
             Arg.Is<SendEmailCommand>(cmd =>
@@ -53,7 +61,7 @@ public class InquiryCommentAddedNotificationHandlerTests
             CommentContent = "This is an internal note."
         };
 
-        await InquiryCommentAddedNotificationHandler.Handle(@event, _bus);
+        await InquiryCommentAddedNotificationHandler.Handle(@event, _templateService, _bus);
 
         await _bus.DidNotReceive().InvokeAsync(
             Arg.Any<SendEmailCommand>(),
@@ -62,7 +70,7 @@ public class InquiryCommentAddedNotificationHandlerTests
     }
 
     [Fact]
-    public async Task Handle_SendsCorrectEmailBody()
+    public async Task Handle_UsesInquiryCommentTemplate()
     {
         InquiryCommentAddedEvent @event = new()
         {
@@ -78,13 +86,11 @@ public class InquiryCommentAddedNotificationHandlerTests
             CommentContent = "Thank you for your feedback."
         };
 
-        await InquiryCommentAddedNotificationHandler.Handle(@event, _bus);
+        await InquiryCommentAddedNotificationHandler.Handle(@event, _templateService, _bus);
 
-        await _bus.Received(1).InvokeAsync(
-            Arg.Is<SendEmailCommand>(cmd =>
-                cmd.Body.Contains("Alice Smith") &&
-                cmd.Body.Contains("Thank you for your feedback.")),
-            Arg.Any<CancellationToken>(),
-            Arg.Any<TimeSpan?>());
+        await _templateService.Received(1).RenderAsync(
+            "inquirycomment",
+            Arg.Any<object>(),
+            Arg.Any<CancellationToken>());
     }
 }

@@ -97,7 +97,7 @@ public class AsyncApiIntegrationTests
         mermaid.Should().StartWith("flowchart LR");
         mermaid.Should().Contain("Identity");
         mermaid.Should().Contain("Billing");
-        mermaid.Should().Contain("RabbitMQ");
+        mermaid.Should().Contain("Message Bus");
     }
 
     [Fact]

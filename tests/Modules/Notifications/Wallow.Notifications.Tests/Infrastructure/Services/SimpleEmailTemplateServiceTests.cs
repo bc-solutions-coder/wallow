@@ -349,6 +349,23 @@ public class SimpleEmailTemplateServiceTests
     }
 
     [Fact]
+    public async Task RenderAsync_OrganizationMemberAddedTemplate_ContainsAllPlaceholders()
+    {
+        object model = new
+        {
+            AppUrl = "https://app.test"
+        };
+
+        string result = await _service.RenderAsync("organizationmemberadded", model);
+
+        result.Should().Contain("added as a member of an organization");
+        result.Should().Contain("https://app.test");
+        result.Should().Contain("Log In");
+        result.Should().Contain("<!DOCTYPE html>");
+        result.Should().NotContain("{{AppUrl}}");
+    }
+
+    [Fact]
     public async Task RenderAsync_EmailVerificationTemplate_ContainsAppName()
     {
         object model = new { FirstName = "Test", LastName = "User", VerifyUrl = "https://app.test/verify" };
