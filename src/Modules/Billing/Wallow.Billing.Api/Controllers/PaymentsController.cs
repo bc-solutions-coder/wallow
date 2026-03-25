@@ -2,10 +2,12 @@ using Asp.Versioning;
 using Wallow.Billing.Api.Contracts.Payments;
 using Wallow.Billing.Application.Commands.ProcessPayment;
 using Wallow.Billing.Application.DTOs;
+using Wallow.Billing.Application.Queries.GetAllPayments;
 using Wallow.Billing.Application.Queries.GetPaymentById;
 using Wallow.Billing.Application.Queries.GetPaymentsByInvoiceId;
 using Wallow.Shared.Api.Extensions;
 using Wallow.Shared.Kernel.Identity.Authorization;
+using Wallow.Shared.Kernel.Pagination;
 using Wallow.Shared.Kernel.Results;
 using Wallow.Shared.Kernel.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -24,6 +26,28 @@ namespace Wallow.Billing.Api.Controllers;
 [Consumes("application/json")]
 public class PaymentsController(IMessageBus bus, ICurrentUserService currentUserService) : ControllerBase
 {
+
+    /// <summary>
+    /// Get all payments.
+    /// </summary>
+    [HttpGet]
+    [HasPermission(PermissionType.PaymentsRead)]
+    [ProducesResponseType(typeof(PagedResult<PaymentResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAll(
+        [FromQuery] int skip = 0,
+        [FromQuery] int take = 50,
+        CancellationToken cancellationToken = default)
+    {
+        Result<PagedResult<PaymentDto>> result = await bus.InvokeAsync<Result<PagedResult<PaymentDto>>>(
+            new GetAllPaymentsQuery(skip, take), cancellationToken);
+
+        return result.Map(paged => new PagedResult<PaymentResponse>(
+            paged.Items.Select(ToPaymentResponse).ToList(),
+            paged.TotalCount,
+            paged.Page,
+            paged.PageSize))
+            .ToActionResult();
+    }
 
     /// <summary>
     /// Get a specific payment by ID.

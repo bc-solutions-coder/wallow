@@ -15,6 +15,7 @@ public static class NotificationMappings
             notification.Message,
             notification.IsRead,
             notification.ReadAt,
+            notification.ActionUrl,
             notification.CreatedAt,
             notification.UpdatedAt);
     }

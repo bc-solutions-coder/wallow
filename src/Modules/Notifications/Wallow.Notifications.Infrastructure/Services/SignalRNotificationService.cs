@@ -16,6 +16,7 @@ public sealed partial class SignalRNotificationService(
         string title,
         string message,
         string type,
+        string? actionUrl = null,
         CancellationToken cancellationToken = default)
     {
         var payload = new
@@ -23,6 +24,7 @@ public sealed partial class SignalRNotificationService(
             Title = title,
             Message = message,
             Type = type,
+            ActionUrl = actionUrl,
             CreatedAt = timeProvider.GetUtcNow().UtcDateTime
         };
 

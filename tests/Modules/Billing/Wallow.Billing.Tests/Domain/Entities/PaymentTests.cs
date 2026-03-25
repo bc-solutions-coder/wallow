@@ -4,6 +4,7 @@ using Wallow.Billing.Domain.Events;
 using Wallow.Billing.Domain.Exceptions;
 using Wallow.Billing.Domain.Identity;
 using Wallow.Billing.Domain.ValueObjects;
+using Wallow.Shared.Kernel.Domain;
 using static Wallow.Billing.Tests.Domain.Entities.PaymentTestHelpers;
 
 namespace Wallow.Billing.Tests.Domain.Entities;
@@ -72,6 +73,48 @@ public class PaymentCreateTests
         payment.CustomFields.Should().ContainKey("gateway");
         payment.CustomFields!["gateway"].Should().Be("stripe");
     }
+
+    [Fact]
+    public void Create_WithEmptyUserId_ThrowsBusinessRuleException()
+    {
+        Func<Payment> act = () => Payment.Create(InvoiceId.New(), Guid.Empty, Money.Create(100, "USD"), PaymentMethod.CreditCard, Guid.NewGuid(), TimeProvider.System);
+
+        act.Should().Throw<BusinessRuleException>()
+            .Where(e => e.Code == "Billing.UserIdRequired");
+    }
+
+    [Fact]
+    public void Create_WithEmptyInvoiceId_ThrowsBusinessRuleException()
+    {
+        InvoiceId emptyInvoiceId = InvoiceId.Create(Guid.Empty);
+
+        Func<Payment> act = () => Payment.Create(emptyInvoiceId, Guid.NewGuid(), Money.Create(100, "USD"), PaymentMethod.CreditCard, Guid.NewGuid(), TimeProvider.System);
+
+        act.Should().Throw<BusinessRuleException>()
+            .Where(e => e.Code == "Billing.InvoiceIdRequired");
+    }
+
+    [Fact]
+    public void SetCustomFields_OverwritesExistingCustomFields()
+    {
+        Payment payment = Payment.Create(InvoiceId.New(), Guid.NewGuid(), Money.Create(100, "USD"), PaymentMethod.CreditCard, Guid.NewGuid(), TimeProvider.System);
+        Dictionary<string, object> newFields = new() { { "key", "value" } };
+
+        payment.SetCustomFields(newFields);
+
+        payment.CustomFields.Should().ContainKey("key");
+    }
+
+    [Fact]
+    public void SetCustomFields_WithNull_ClearsCustomFields()
+    {
+        Payment payment = Payment.Create(InvoiceId.New(), Guid.NewGuid(), Money.Create(100, "USD"), PaymentMethod.CreditCard, Guid.NewGuid(), TimeProvider.System, new() { { "key", "val" } });
+
+        payment.SetCustomFields(null);
+
+        payment.CustomFields.Should().BeNull();
+    }
+
 }
 
 public class PaymentCompleteTests

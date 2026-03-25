@@ -1,45 +1,63 @@
-using System.Data.Common;
-using Dapper;
+using Wallow.Billing.Domain.Entities;
+using Wallow.Billing.Domain.Identity;
+using Wallow.Billing.Domain.Enums;
 using Wallow.Billing.Infrastructure.Persistence;
 using Wallow.Shared.Contracts.Billing;
-using Wallow.Shared.Kernel.MultiTenancy;
+using Wallow.Shared.Kernel.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace Wallow.Billing.Infrastructure.Services;
 
-public sealed class RevenueReportService(BillingDbContext context, ITenantContext tenantContext) : IRevenueReportService
+public sealed class RevenueReportService : IRevenueReportService
 {
+    private readonly IReadDbContext<BillingDbContext> _readDbContext;
+
+    public RevenueReportService(IReadDbContext<BillingDbContext> readDbContext)
+    {
+        _readDbContext = readDbContext;
+    }
 
     public async Task<IReadOnlyList<RevenueReportRow>> GetRevenueAsync(
         DateTime from,
         DateTime to,
         CancellationToken ct = default)
     {
-        DbConnection connection = context.Database.GetDbConnection();
+        string period = $"{from:yyyy-MM-dd} to {to:yyyy-MM-dd}";
 
-        const string sql = """
-            SELECT
-                TO_CHAR(@From, 'YYYY-MM-DD') || ' to ' || TO_CHAR(@To, 'YYYY-MM-DD') AS Period,
-                COALESCE(SUM(CASE WHEN i."Status" = 2 THEN i."TotalAmount_Amount" ELSE 0 END), 0) AS GrossRevenue,
-                COALESCE(SUM(CASE WHEN i."Status" = 2 THEN i."TotalAmount_Amount" ELSE 0 END), 0) AS NetRevenue,
-                COALESCE(SUM(CASE WHEN p."Status" = 3 THEN p."Amount_Amount" ELSE 0 END), 0) AS Refunds,
-                COALESCE(MAX(i."TotalAmount_Currency"), 'USD') AS Currency,
-                COUNT(DISTINCT i."Id") AS InvoiceCount,
-                COUNT(DISTINCT p."Id") AS PaymentCount
-            FROM billing."Invoices" i
-            LEFT JOIN billing."Payments" p ON p."InvoiceId" = i."Id" AND p."TenantId" = @TenantId
-            WHERE i."TenantId" = @TenantId
-              AND i."CreatedAt" >= @From
-              AND i."CreatedAt" < @To
-            """;
+        BillingDbContext context = _readDbContext.Context;
 
-        CommandDefinition command = new(
-            sql,
-            new { TenantId = tenantContext.TenantId.Value, From = from, To = to },
-            cancellationToken: ct);
+        IQueryable<Invoice> invoicesInRange = context.Invoices
+            .Where(i => i.CreatedAt >= from && i.CreatedAt < to);
 
-        IEnumerable<RevenueReportRow> results = await connection.QueryAsync<RevenueReportRow>(command);
+        decimal grossRevenue = await invoicesInRange
+            .Where(i => i.Status == InvoiceStatus.Paid)
+            .SumAsync(i => i.TotalAmount.Amount, ct);
 
-        return results.AsList();
+        int invoiceCount = await invoicesInRange
+            .Where(i => i.Status == InvoiceStatus.Paid)
+            .CountAsync(ct);
+
+        string currency = await invoicesInRange
+            .Select(i => i.TotalAmount.Currency)
+            .FirstOrDefaultAsync(ct) ?? "USD";
+
+        List<InvoiceId> invoiceIds = await invoicesInRange
+            .Select(i => i.Id)
+            .ToListAsync(ct);
+
+        int paymentCount = await context.Payments
+            .Where(p => invoiceIds.Contains(p.InvoiceId))
+            .CountAsync(ct);
+
+        decimal refunds = await context.Payments
+            .Where(p => invoiceIds.Contains(p.InvoiceId))
+            .Where(p => p.Status == PaymentStatus.Refunded)
+            .SumAsync(p => p.Amount.Amount, ct);
+
+        decimal netRevenue = grossRevenue - refunds;
+
+        RevenueReportRow row = new(period, grossRevenue, netRevenue, refunds, currency, invoiceCount, paymentCount);
+
+        return new List<RevenueReportRow> { row };
     }
 }

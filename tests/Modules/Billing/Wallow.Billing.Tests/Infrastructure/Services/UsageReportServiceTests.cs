@@ -126,6 +126,8 @@ public class UsageReportServiceTests
         ITenantContext tenantContext = Substitute.For<ITenantContext>();
         tenantContext.TenantId.Returns(_tenantId);
 
-        return new BillingDbContext(options, tenantContext);
+        BillingDbContext dbContext = new(options);
+        dbContext.SetTenant(_tenantId);
+        return dbContext;
     }
 }

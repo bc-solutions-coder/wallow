@@ -36,4 +36,9 @@ public sealed class InquiryCommentRepository(InquiriesDbContext context) : IInqu
             .OrderBy(c => c.CreatedAt)
             .ToListAsync(cancellationToken);
     }
+
+    public Task SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        return context.SaveChangesAsync(cancellationToken);
+    }
 }

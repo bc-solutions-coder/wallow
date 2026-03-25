@@ -1,5 +1,6 @@
-using Wallow.Notifications.Infrastructure.Services;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Wallow.Notifications.Infrastructure.Services;
 
 namespace Wallow.Notifications.Tests.Infrastructure.Services;
 
@@ -8,7 +9,8 @@ public class SimpleEmailTemplateServiceTests
 #pragma warning disable CA2000 // LoggerFactory disposal not needed in tests
     private readonly SimpleEmailTemplateService _service = new(
         LoggerFactory.Create(b => b.AddSimpleConsole().SetMinimumLevel(LogLevel.Trace))
-            .CreateLogger<SimpleEmailTemplateService>());
+            .CreateLogger<SimpleEmailTemplateService>(),
+        new ConfigurationBuilder().Build());
 #pragma warning restore CA2000
 
     [Fact]
@@ -25,14 +27,16 @@ public class SimpleEmailTemplateServiceTests
     }
 
     [Fact]
-    public async Task RenderAsync_PasswordResetTemplate_ContainsToken()
+    public async Task RenderAsync_PasswordResetTemplate_ContainsResetUrl()
     {
-        object model = new { Email = "user@test.com", ResetToken = "token-abc-123" };
+        object model = new { Email = "user@test.com", ResetUrl = "https://app.test/reset?token=abc-123" };
 
         string result = await _service.RenderAsync("passwordreset", model);
 
-        result.Should().Contain("token-abc-123");
+        result.Should().Contain("https://app.test/reset?token=abc-123");
         result.Should().Contain("user@test.com");
+        result.Should().Contain("Password Reset Request");
+        result.Should().Contain("Reset Password");
     }
 
     [Fact]
@@ -78,7 +82,7 @@ public class SimpleEmailTemplateServiceTests
 
         string result = await _service.RenderAsync(templateName, model);
 
-        result.Should().Contain("<html>");
+        result.Should().Contain("<!DOCTYPE html>");
         result.Should().Contain("My Task");
     }
 
@@ -139,13 +143,14 @@ public class SimpleEmailTemplateServiceTests
     [Fact]
     public async Task RenderAsync_DataRequestVerificationRequiredTemplate_ReplacesAllPlaceholders()
     {
-        object model = new { RequestType = "export", RequestId = "REQ-005", VerificationToken = "VERIFY-TOKEN-XYZ" };
+        object model = new { RequestType = "export", RequestId = "REQ-005", VerificationUrl = "https://app.test/verify?token=abc-123" };
 
         string result = await _service.RenderAsync("datarequestverificationrequired", model);
 
         result.Should().Contain("export");
         result.Should().Contain("REQ-005");
-        result.Should().Contain("VERIFY-TOKEN-XYZ");
+        result.Should().Contain("https://app.test/verify?token=abc-123");
+        result.Should().Contain("Verify Identity");
         result.Should().Contain("Verification Required");
     }
 
@@ -168,7 +173,7 @@ public class SimpleEmailTemplateServiceTests
         string result = await _service.RenderAsync("systemnotification", model);
 
         result.Should().NotContain("{{Message}}");
-        result.Should().Contain("<html>");
+        result.Should().Contain("<!DOCTYPE html>");
     }
 
     [Fact]
@@ -223,7 +228,7 @@ public class SimpleEmailTemplateServiceTests
     [Fact]
     public async Task RenderAsync_PasswordResetTemplate_ContainsExpirationNotice()
     {
-        object model = new { Email = "user@test.com", ResetToken = "abc" };
+        object model = new { Email = "user@test.com", ResetUrl = "https://app.test/reset?token=abc" };
 
         string result = await _service.RenderAsync("passwordreset", model);
 
@@ -234,14 +239,70 @@ public class SimpleEmailTemplateServiceTests
     [Fact]
     public async Task RenderAsync_WelcomeEmailTemplate_ContainsFullStructure()
     {
-        object model = new { FirstName = "Test", LastName = "User", Email = "test@example.com" };
+        object model = new { FirstName = "Test", LastName = "User", Email = "test@example.com", AppUrl = "https://app.test" };
 
         string result = await _service.RenderAsync("welcomeemail", model);
 
         result.Should().Contain("Welcome to Wallow!");
         result.Should().Contain("The Wallow Team");
-        result.Should().Contain("<html>");
-        result.Should().Contain("</html>");
+        result.Should().Contain("<!DOCTYPE html>");
+        result.Should().Contain("Go to Dashboard");
+        result.Should().Contain("https://app.test");
+        result.Should().Contain("table role=\"presentation\"");
+    }
+
+    [Fact]
+    public async Task RenderAsync_EmailVerificationTemplate_ContainsVerifyUrl()
+    {
+        object model = new { FirstName = "Jane", LastName = "Doe", VerifyUrl = "https://app.test/verify?token=xyz-456" };
+
+        string result = await _service.RenderAsync("emailverification", model);
+
+        result.Should().Contain("Jane");
+        result.Should().Contain("Doe");
+        result.Should().Contain("https://app.test/verify?token=xyz-456");
+        result.Should().Contain("Verify Your Email");
+        result.Should().Contain("Verify Email");
+        result.Should().Contain("<!DOCTYPE html>");
+        result.Should().NotContain("{{VerifyUrl}}");
+        result.Should().NotContain("{{FirstName}}");
+    }
+
+    [Fact]
+    public async Task RenderAsync_PasswordChangedTemplate_ReturnsNonNull()
+    {
+        object model = new { Email = "user@test.com", AppUrl = "https://app.test" };
+
+        string result = await _service.RenderAsync("passwordchanged", model);
+
+        result.Should().NotBeNullOrEmpty();
+    }
+
+    [Fact]
+    public async Task RenderAsync_PasswordChangedTemplate_ContainsEmailAndSignInCta()
+    {
+        object model = new { Email = "user@test.com", AppUrl = "https://app.test" };
+
+        string result = await _service.RenderAsync("passwordchanged", model);
+
+        result.Should().Contain("user@test.com");
+        result.Should().Contain("Sign In");
+        result.Should().Contain("https://app.test");
+        result.Should().Contain("Your Password Has Been Changed");
+        result.Should().Contain("<!DOCTYPE html>");
+        result.Should().NotContain("{{Email}}");
+        result.Should().NotContain("{{AppUrl}}");
+    }
+
+    [Fact]
+    public async Task RenderAsync_PasswordChangedTemplate_ContainsAppName()
+    {
+        object model = new { Email = "user@test.com", AppUrl = "https://app.test" };
+
+        string result = await _service.RenderAsync("passwordchanged", model);
+
+        result.Should().Contain("Wallow");
+        result.Should().NotContain("{{AppName}}");
     }
 
 #pragma warning disable CA2000 // LoggerFactory disposal not needed in tests
@@ -250,13 +311,72 @@ public class SimpleEmailTemplateServiceTests
     {
         SimpleEmailTemplateService service = new(
             LoggerFactory.Create(b => b.AddSimpleConsole().SetMinimumLevel(LogLevel.None))
-                .CreateLogger<SimpleEmailTemplateService>());
+                .CreateLogger<SimpleEmailTemplateService>(),
+            new ConfigurationBuilder().Build());
         object model = new { Message = "Test notification" };
 
         string result = await service.RenderAsync("systemnotification", model);
 
         result.Should().Contain("Test notification");
         result.Should().Contain("System Notification");
+    }
+#pragma warning restore CA2000
+
+    [Fact]
+    public async Task RenderAsync_InquiryCommentTemplate_ContainsAllPlaceholders()
+    {
+        object model = new
+        {
+            SubmitterName = "Alice",
+            AuthorName = "Bob",
+            InquirySubject = "Project Proposal",
+            CommentContent = "Looks great, let's proceed.",
+            InquiryUrl = "https://app.test/inquiries/123"
+        };
+
+        string result = await _service.RenderAsync("inquirycomment", model);
+
+        result.Should().Contain("Alice");
+        result.Should().Contain("Bob");
+        result.Should().Contain("Project Proposal");
+        result.Should().Contain("Looks great, let&#39;s proceed.");
+        result.Should().Contain("https://app.test/inquiries/123");
+        result.Should().Contain("New Comment on Your Inquiry");
+        result.Should().Contain("View Inquiry");
+        result.Should().Contain("<!DOCTYPE html>");
+        result.Should().NotContain("{{SubmitterName}}");
+        result.Should().NotContain("{{AuthorName}}");
+    }
+
+    [Fact]
+    public async Task RenderAsync_EmailVerificationTemplate_ContainsAppName()
+    {
+        object model = new { FirstName = "Test", LastName = "User", VerifyUrl = "https://app.test/verify" };
+
+        string result = await _service.RenderAsync("emailverification", model);
+
+        result.Should().Contain("Wallow");
+        result.Should().NotContain("{{AppName}}");
+    }
+
+#pragma warning disable CA2000 // LoggerFactory disposal not needed in tests
+    [Fact]
+    public async Task RenderAsync_WithCustomAppName_UsesConfiguredName()
+    {
+        IConfiguration config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["Branding:AppName"] = "MyApp" })
+            .Build();
+        SimpleEmailTemplateService service = new(
+            LoggerFactory.Create(b => b.AddSimpleConsole().SetMinimumLevel(LogLevel.Trace))
+                .CreateLogger<SimpleEmailTemplateService>(),
+            config);
+        object model = new { FirstName = "Test", LastName = "User", Email = "test@example.com" };
+
+        string result = await service.RenderAsync("welcomeemail", model);
+
+        result.Should().Contain("MyApp");
+        result.Should().Contain("Welcome to MyApp!");
+        result.Should().NotContain("{{AppName}}");
     }
 #pragma warning restore CA2000
 }

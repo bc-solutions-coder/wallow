@@ -6,4 +6,6 @@ public sealed record SendNotificationCommand(
     Guid UserId,
     NotificationType Type,
     string Title,
-    string Message);
+    string Message,
+    string? ActionUrl = null,
+    string? SourceModule = null);

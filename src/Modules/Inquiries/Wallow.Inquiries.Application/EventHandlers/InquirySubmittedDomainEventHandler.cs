@@ -20,6 +20,7 @@ public static class InquirySubmittedDomainEventHandler
             InquiryId.Create(domainEvent.InquiryId), ct);
 
         string adminEmail = configuration["Inquiries:AdminEmail"] ?? "admin@wallow.local";
+        List<Guid> adminUserIds = configuration.GetSection("Inquiries:AdminUserIds").Get<List<Guid>>() ?? [];
 
         await bus.PublishAsync(new Shared.Contracts.Inquiries.Events.InquirySubmittedEvent
         {
@@ -31,7 +32,8 @@ public static class InquirySubmittedDomainEventHandler
             ProjectType = domainEvent.ProjectType,
             Message = domainEvent.Message,
             SubmittedAt = inquiry?.CreatedAt ?? DateTime.UtcNow,
-            AdminEmail = adminEmail
+            AdminEmail = adminEmail,
+            AdminUserIds = adminUserIds
         });
     }
 }

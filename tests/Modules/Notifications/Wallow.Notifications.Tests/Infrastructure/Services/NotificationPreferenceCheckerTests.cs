@@ -24,7 +24,8 @@ public sealed class NotificationPreferenceCheckerTests : IDisposable
             .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
             .Options;
 
-        _dbContext = new NotificationsDbContext(options, tenantContext);
+        _dbContext = new NotificationsDbContext(options);
+        _dbContext.SetTenant(tenantContext.TenantId);
         _checker = new NotificationPreferenceChecker(_dbContext);
     }
 

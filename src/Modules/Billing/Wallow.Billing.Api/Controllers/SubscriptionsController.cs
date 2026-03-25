@@ -3,10 +3,12 @@ using Wallow.Billing.Api.Contracts.Subscriptions;
 using Wallow.Billing.Application.Commands.CancelSubscription;
 using Wallow.Billing.Application.Commands.CreateSubscription;
 using Wallow.Billing.Application.DTOs;
+using Wallow.Billing.Application.Queries.GetAllSubscriptions;
 using Wallow.Billing.Application.Queries.GetSubscriptionById;
 using Wallow.Billing.Application.Queries.GetSubscriptionsByUserId;
 using Wallow.Shared.Api.Extensions;
 using Wallow.Shared.Kernel.Identity.Authorization;
+using Wallow.Shared.Kernel.Pagination;
 using Wallow.Shared.Kernel.Results;
 using Wallow.Shared.Kernel.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -25,6 +27,28 @@ namespace Wallow.Billing.Api.Controllers;
 [Consumes("application/json")]
 public class SubscriptionsController(IMessageBus bus, ICurrentUserService currentUserService) : ControllerBase
 {
+
+    /// <summary>
+    /// Get all subscriptions.
+    /// </summary>
+    [HttpGet]
+    [HasPermission(PermissionType.SubscriptionsRead)]
+    [ProducesResponseType(typeof(PagedResult<SubscriptionResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAll(
+        [FromQuery] int skip = 0,
+        [FromQuery] int take = 50,
+        CancellationToken cancellationToken = default)
+    {
+        Result<PagedResult<SubscriptionDto>> result = await bus.InvokeAsync<Result<PagedResult<SubscriptionDto>>>(
+            new GetAllSubscriptionsQuery(skip, take), cancellationToken);
+
+        return result.Map(paged => new PagedResult<SubscriptionResponse>(
+            paged.Items.Select(ToSubscriptionResponse).ToList(),
+            paged.TotalCount,
+            paged.Page,
+            paged.PageSize))
+            .ToActionResult();
+    }
 
     /// <summary>
     /// Get a specific subscription by ID.

@@ -23,7 +23,9 @@ public sealed class SendNotificationHandler(
             command.Type,
             command.Title,
             command.Message,
-            timeProvider);
+            timeProvider,
+            actionUrl: command.ActionUrl,
+            sourceModule: command.SourceModule);
 
         notificationRepository.Add(notification);
         await notificationRepository.SaveChangesAsync(cancellationToken);
@@ -33,6 +35,7 @@ public sealed class SendNotificationHandler(
             command.Title,
             command.Message,
             command.Type.ToString(),
+            command.ActionUrl,
             cancellationToken);
 
         return Result.Success(notification.ToDto());

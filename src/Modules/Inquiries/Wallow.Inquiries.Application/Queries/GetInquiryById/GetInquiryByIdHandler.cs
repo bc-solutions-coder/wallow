@@ -21,6 +21,11 @@ public sealed class GetInquiryByIdHandler(IInquiryRepository inquiryRepository)
             return Result.Failure<InquiryDto>(Error.NotFound("Inquiry", query.InquiryId));
         }
 
+        if (query.TenantId.HasValue && inquiry.TenantId.Value != query.TenantId.Value)
+        {
+            return Result.Failure<InquiryDto>(Error.NotFound("Inquiry", query.InquiryId));
+        }
+
         return Result.Success(inquiry.ToDto());
     }
 }

@@ -1,5 +1,7 @@
 using Wallow.Inquiries.Domain.Entities;
 using Wallow.Inquiries.Infrastructure.Persistence;
+using Wallow.Shared.Kernel.Identity;
+using Wallow.Shared.Kernel.MultiTenancy;
 using Microsoft.EntityFrameworkCore;
 
 namespace Wallow.Inquiries.Tests.Infrastructure.Persistence;
@@ -13,7 +15,10 @@ public sealed class InquiriesDbContextTests : IDisposable
         DbContextOptions<InquiriesDbContext> options = new DbContextOptionsBuilder<InquiriesDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options;
+        ITenantContext tenantContext = Substitute.For<ITenantContext>();
+        tenantContext.TenantId.Returns(TenantId.New());
         _context = new InquiriesDbContext(options);
+        _context.SetTenant(tenantContext.TenantId);
     }
 
     public void Dispose()

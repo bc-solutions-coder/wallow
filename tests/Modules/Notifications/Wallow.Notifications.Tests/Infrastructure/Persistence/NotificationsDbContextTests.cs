@@ -18,7 +18,8 @@ public sealed class NotificationsDbContextTests : IDisposable
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options;
 
-        _context = new NotificationsDbContext(options, tenantContext);
+        _context = new NotificationsDbContext(options);
+        _context.SetTenant(tenantContext.TenantId);
     }
 
     public void Dispose()

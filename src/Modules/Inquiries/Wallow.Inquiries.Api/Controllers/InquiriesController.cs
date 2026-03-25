@@ -102,7 +102,7 @@ public class InquiriesController(IMessageBus bus, ITenantContext tenantContext) 
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
     {
         Result<InquiryDto> result = await bus.InvokeAsync<Result<InquiryDto>>(
-            new GetInquiryByIdQuery(id), cancellationToken);
+            new GetInquiryByIdQuery(id, tenantContext.TenantId.Value), cancellationToken);
 
         if (!result.IsSuccess)
         {
@@ -124,7 +124,7 @@ public class InquiriesController(IMessageBus bus, ITenantContext tenantContext) 
         return result.Map(ToInquiryResponse).ToActionResult();
     }
 
-    [HttpPut("{id:guid}/status")]
+    [HttpPatch("{id:guid}/status")]
     [ProducesResponseType(typeof(InquiryResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]

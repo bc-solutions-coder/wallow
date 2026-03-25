@@ -7,4 +7,5 @@ public sealed record InquiryCommentAddedDomainEvent(
     Guid InquiryId,
     Guid TenantId,
     string AuthorId,
-    bool IsInternal) : DomainEvent;
+    bool IsInternal,
+    string CommentContent) : DomainEvent;

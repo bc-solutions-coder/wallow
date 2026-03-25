@@ -11,12 +11,14 @@ using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.Identity.Authorization;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Shared.Kernel.Results;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Wolverine;
 
 namespace Wallow.Notifications.Api.Controllers;
 
+[Authorize]
 [ApiController]
 [ApiVersion(1)]
 [Route("api/v{version:apiVersion}/admin/push/config")]

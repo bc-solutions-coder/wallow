@@ -31,11 +31,18 @@ public sealed class PaymentRepository(BillingDbContext context) : IPaymentReposi
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyList<Payment>> GetAllAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<Payment>> GetAllAsync(int skip = 0, int take = 50, CancellationToken cancellationToken = default)
     {
         return await context.Payments
             .OrderByDescending(p => p.CreatedAt)
+            .Skip(skip)
+            .Take(take)
             .ToListAsync(cancellationToken);
+    }
+
+    public Task<int> CountAllAsync(CancellationToken cancellationToken = default)
+    {
+        return context.Payments.CountAsync(cancellationToken);
     }
 
     public void Add(Payment payment)

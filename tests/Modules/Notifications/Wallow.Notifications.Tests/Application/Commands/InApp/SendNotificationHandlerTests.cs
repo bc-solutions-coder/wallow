@@ -61,6 +61,7 @@ public class SendNotificationHandlerTests
             "You were mentioned",
             "Someone mentioned you",
             NotificationType.Mention.ToString(),
+            Arg.Any<string?>(),
             Arg.Any<CancellationToken>());
     }
 

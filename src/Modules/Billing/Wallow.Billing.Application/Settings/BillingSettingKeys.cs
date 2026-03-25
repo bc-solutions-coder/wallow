@@ -1,7 +1,10 @@
+using System.Diagnostics.CodeAnalysis;
+
 using Wallow.Shared.Kernel.Settings;
 
 namespace Wallow.Billing.Application.Settings;
 
+[ExcludeFromCodeCoverage]
 public class BillingSettingKeys : SettingRegistryBase
 {
     public override string ModuleName => "billing";
