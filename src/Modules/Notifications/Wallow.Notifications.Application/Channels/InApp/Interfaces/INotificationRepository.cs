@@ -11,6 +11,6 @@ public interface INotificationRepository
     Task<PagedResult<Notification>> GetByUserIdPagedAsync(
         Guid userId, int page, int pageSize, CancellationToken cancellationToken = default);
     Task<int> GetUnreadCountAsync(Guid userId, CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<Notification>> GetUnreadByUserIdAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task MarkAllAsReadAsync(Guid userId, DateTime readAt, CancellationToken cancellationToken = default);
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }

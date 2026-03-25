@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Asp.Versioning;
@@ -11,6 +10,7 @@ using Wallow.Branding.Application.DTOs;
 using Wallow.Branding.Application.Interfaces;
 using Wallow.Branding.Domain.Entities;
 using Wallow.Shared.Contracts.Storage;
+using Wallow.Shared.Kernel.Extensions;
 
 namespace Wallow.Branding.Api.Controllers;
 
@@ -63,7 +63,7 @@ public partial class ClientBrandingController(
         IFormFile? logo,
         CancellationToken ct)
     {
-        string? userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        string? userId = User.GetUserId();
         if (!await IsClientOwnerAsync(clientId, userId, ct))
         {
             return Forbid();
@@ -145,7 +145,7 @@ public partial class ClientBrandingController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteBranding(string clientId, CancellationToken ct)
     {
-        string? userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        string? userId = User.GetUserId();
         if (!await IsClientOwnerAsync(clientId, userId, ct))
         {
             return Forbid();

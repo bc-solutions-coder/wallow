@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using System.Security.Cryptography;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
@@ -10,6 +9,7 @@ using Wallow.Identity.Api.Contracts.Responses;
 using Wallow.Identity.Api.Extensions;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
+using Wallow.Shared.Kernel.Extensions;
 using Wallow.Shared.Kernel.Identity.Authorization;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
@@ -279,7 +279,7 @@ public class ClientsController(
 
     private async Task<bool> IsCallerMemberOfOrgAsync(Guid orgId, CancellationToken ct)
     {
-        Guid userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        Guid userId = Guid.Parse(User.GetUserId()!);
         IReadOnlyList<OrganizationDto> userOrgs = await organizationService.GetUserOrganizationsAsync(userId, ct);
         return userOrgs.Any(o => o.Id == orgId);
     }

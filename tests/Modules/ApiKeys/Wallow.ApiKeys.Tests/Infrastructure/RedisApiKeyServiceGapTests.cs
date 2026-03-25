@@ -453,6 +453,79 @@ public class RedisApiKeyServiceGapTests
             Arg.Any<RedisValue>());
     }
 
+    // ValidateApiKeyAsync: cache miss with active key repopulates cache and returns valid
+    [Fact]
+    public async Task ValidateApiKeyAsync_CacheMiss_ActiveKey_RepopulatesCacheAndReturnsValid()
+    {
+        Guid userId = Guid.NewGuid();
+        Guid tenantId = Guid.NewGuid();
+
+        ApiKey activeKey = ApiKey.Create(
+            new TenantId(tenantId), userId.ToString(), "fakehash", "Active Key",
+            _readScope, DateTimeOffset.UtcNow.AddDays(30), userId, TimeProvider.System);
+
+        _apiKeyRepository.GetByHashAsync(Arg.Any<string>(), Guid.Empty, Arg.Any<CancellationToken>())
+            .Returns(activeKey);
+
+        RedisApiKeyService service = CreateService();
+
+        ApiKeyValidationResult result = await service.ValidateApiKeyAsync("sk_live_somekeydata123456");
+
+        result.IsValid.Should().BeTrue();
+        result.KeyId.Should().Be(activeKey.Id.Value.ToString());
+        result.TenantId.Should().Be(tenantId);
+        result.Scopes.Should().Contain("read");
+
+        // Verify cache was repopulated
+        await _db.Received(1).StringSetAsync(
+            Arg.Is<RedisKey>(k => k.ToString().StartsWith("apikey:")),
+            Arg.Any<RedisValue>(),
+            Arg.Any<TimeSpan?>(),
+            Arg.Any<bool>(),
+            Arg.Any<When>(),
+            Arg.Any<CommandFlags>());
+    }
+
+    // ValidateApiKeyAsync: cache miss with null from repo returns not found
+    [Fact]
+    public async Task ValidateApiKeyAsync_CacheMiss_NullFromRepo_ReturnsNotFound()
+    {
+        _apiKeyRepository.GetByHashAsync(Arg.Any<string>(), Guid.Empty, Arg.Any<CancellationToken>())
+            .Returns((ApiKey?)null);
+
+        RedisApiKeyService service = CreateService();
+
+        ApiKeyValidationResult result = await service.ValidateApiKeyAsync("sk_live_somekeydata123456");
+
+        result.IsValid.Should().BeFalse();
+        result.Error.Should().Be("API key not found");
+    }
+
+    // ValidateApiKeyAsync: cache miss with expired key returns expired
+    [Fact]
+    public async Task ValidateApiKeyAsync_CacheMiss_ExpiredKey_ReturnsExpired()
+    {
+        Guid userId = Guid.NewGuid();
+        Guid tenantId = Guid.NewGuid();
+        FakeTimeProvider fakeTime = new();
+        fakeTime.SetUtcNow(DateTimeOffset.UtcNow.AddDays(-60));
+
+        ApiKey expiredKey = ApiKey.Create(
+            new TenantId(tenantId), userId.ToString(), "fakehash", "Expired Key",
+            _readScope, DateTimeOffset.UtcNow.AddDays(-1), userId, fakeTime);
+
+        _apiKeyRepository.GetByHashAsync(Arg.Any<string>(), Guid.Empty, Arg.Any<CancellationToken>())
+            .Returns(expiredKey);
+
+        RedisApiKeyService service = CreateService();
+
+        ApiKeyValidationResult result = await service.ValidateApiKeyAsync("sk_live_somekeydata123456");
+
+        result.IsValid.Should().BeFalse();
+        result.Error.Should().Be("API key expired");
+        result.KeyId.Should().Be(expiredKey.Id.Value.ToString());
+    }
+
     // ListApiKeysAsync: maps all metadata fields correctly
     [Fact]
     public async Task ListApiKeysAsync_MapsAllFields_Correctly()

@@ -4,12 +4,12 @@ using Wallow.Shared.Kernel.MultiTenancy;
 
 namespace Wallow.Notifications.Application.EventHandlers;
 
-public static class InquiryStatusChangedSignalRHandler
+public static class InquirySubmittedSseHandler
 {
     public static async Task Handle(
-        InquiryStatusChangedEvent message,
+        InquirySubmittedEvent message,
         ITenantContext tenantContext,
-        IRealtimeDispatcher dispatcher)
+        ISseDispatcher dispatcher)
     {
         if (!tenantContext.IsResolved)
         {
@@ -18,8 +18,11 @@ public static class InquiryStatusChangedSignalRHandler
 
         RealtimeEnvelope envelope = RealtimeEnvelope.Create(
             "Inquiries",
-            "InquiryStatusUpdated",
-            new { message.InquiryId, message.NewStatus });
+            "InquirySubmitted",
+            new { message.InquiryId, message.Name, message.Email }) with
+        {
+            RequiredPermission = "inquiries.read"
+        };
 
         await dispatcher.SendToTenantAsync(tenantContext.TenantId.Value, envelope);
     }

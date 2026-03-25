@@ -347,6 +347,11 @@ public sealed partial class AccountController(
             string token = await signInManager.UserManager.GenerateEmailConfirmationTokenAsync(user);
             string verifyUrl = $"{authUrl}/verify-email/confirm?token={Uri.EscapeDataString(token)}&email={Uri.EscapeDataString(user.Email!)}";
 
+            if (!string.IsNullOrEmpty(validatedReturnUrl) && validatedReturnUrl != authUrl)
+            {
+                verifyUrl += $"&returnUrl={Uri.EscapeDataString(validatedReturnUrl)}";
+            }
+
             LogEmailVerificationRequested(user.Email!);
 
             await messageBus.PublishAsync(new EmailVerificationRequestedEvent
@@ -500,6 +505,11 @@ public sealed partial class AccountController(
         string token = await signInManager.UserManager.GenerateEmailConfirmationTokenAsync(user);
         string authUrl = GetRequiredAuthUrl();
         string verifyUrl = $"{authUrl}/verify-email/confirm?token={Uri.EscapeDataString(token)}&email={Uri.EscapeDataString(user.Email!)}";
+
+        if (!string.IsNullOrEmpty(request.ReturnUrl) && await redirectUriValidator.IsAllowedAsync(request.ReturnUrl))
+        {
+            verifyUrl += $"&returnUrl={Uri.EscapeDataString(request.ReturnUrl)}";
+        }
 
         LogEmailVerificationRequested(user.Email!);
 

@@ -1,9 +1,12 @@
 #pragma warning disable CA2012 // Use ValueTasks correctly - NSubstitute requires ValueTask in Returns()
 
 using System.Text.Json;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using OpenIddict.Abstractions;
+using Wallow.Identity.Application.Interfaces;
+using Wallow.Identity.Domain.Entities;
 using Wallow.Identity.Infrastructure.Options;
 using Wallow.Identity.Infrastructure.Services;
 using static OpenIddict.Abstractions.OpenIddictConstants;
@@ -19,9 +22,12 @@ public sealed class PreRegisteredClientSyncServiceTests
     public PreRegisteredClientSyncServiceTests()
     {
         _appManager = Substitute.For<IOpenIddictApplicationManager>();
+        IOrganizationService orgService = Substitute.For<IOrganizationService>();
+        UserManager<WallowUser> userManager = Substitute.For<UserManager<WallowUser>>(
+            Substitute.For<IUserStore<WallowUser>>(), null, null, null, null, null, null, null, null);
         _options = new PreRegisteredClientOptions();
         _sut = new PreRegisteredClientSyncService(
-            _appManager, Options.Create(_options), NullLogger<PreRegisteredClientSyncService>.Instance);
+            _appManager, orgService, userManager, Options.Create(_options), NullLogger<PreRegisteredClientSyncService>.Instance);
     }
 
     [Fact]

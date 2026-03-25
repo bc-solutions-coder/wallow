@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
+using Wallow.Shared.Kernel.Extensions;
 using Wallow.Shared.Kernel.Identity.Authorization;
 
 namespace Wallow.Identity.Infrastructure.Authorization;
@@ -15,8 +16,7 @@ public class PermissionExpansionMiddleware(RequestDelegate next)
 
             // Check if this is a service account or API key request.
             // OpenIddict uses "azp" for server-issued tokens, "client_id" for validated principals.
-            string? clientId = context.User.FindFirst("azp")?.Value
-                ?? context.User.FindFirst("client_id")?.Value;
+            string? clientId = context.User.GetClientId();
 
             if (clientId?.StartsWith("sa-", StringComparison.Ordinal) == true
                     || clientId?.StartsWith("app-", StringComparison.Ordinal) == true)
@@ -24,7 +24,7 @@ public class PermissionExpansionMiddleware(RequestDelegate next)
                 // Service account / developer app: map OAuth2 scopes to permissions
                 ExpandServiceAccountScopes(context, identity);
             }
-            else if (context.User.FindFirst("auth_method")?.Value == "api_key")
+            else if (context.User.GetAuthMethod() == "api_key")
             {
                 // API key: map scopes to permissions
                 ExpandServiceAccountScopes(context, identity);
@@ -46,11 +46,7 @@ public class PermissionExpansionMiddleware(RequestDelegate next)
     private static void ExpandUserRoles(HttpContext context, ClaimsIdentity? identity)
     {
         // Read role claims from both standard and OIDC claim types
-        List<string> roles = context.User.FindAll(ClaimTypes.Role)
-            .Concat(context.User.FindAll("role"))
-            .Select(c => c.Value)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        List<string> roles = context.User.GetRoles().ToList();
 
         if (roles.Count > 0)
         {
@@ -71,16 +67,10 @@ public class PermissionExpansionMiddleware(RequestDelegate next)
     private static void ExpandUserScopes(HttpContext context, ClaimsIdentity? identity)
     {
         // Collect permissions already granted by role expansion to avoid duplicates
-        HashSet<string> existingPermissions = new(
-            context.User.FindAll("permission").Select(c => c.Value),
-            StringComparer.Ordinal);
+        HashSet<string> existingPermissions = new(context.User.GetPermissions(), StringComparer.Ordinal);
 
         // Extract scopes: "scope" (space-separated in JWT) + "oi_scp" (OpenIddict validated principal)
-        List<string> scopes = context.User.FindAll("scope")
-            .SelectMany(c => c.Value.Split(' ', StringSplitOptions.RemoveEmptyEntries))
-            .Concat(context.User.FindAll("oi_scp").Select(c => c.Value))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        List<string> scopes = context.User.GetScopes().ToList();
 
         foreach (string scope in scopes)
         {
@@ -96,9 +86,7 @@ public class PermissionExpansionMiddleware(RequestDelegate next)
     private static void ExpandServiceAccountScopes(HttpContext context, ClaimsIdentity? identity)
     {
         // Extract scopes from token - can be space-separated in a single claim
-        List<string> scopes = context.User.FindAll("scope")
-            .SelectMany(c => c.Value.Split(' ', StringSplitOptions.RemoveEmptyEntries))
-            .ToList();
+        List<string> scopes = context.User.GetScopes().ToList();
 
         // Map scopes to permissions
         foreach (string scope in scopes)

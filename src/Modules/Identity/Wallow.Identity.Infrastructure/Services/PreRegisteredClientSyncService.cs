@@ -1,7 +1,12 @@
 using System.Text.Json;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OpenIddict.Abstractions;
+using Wallow.Identity.Application.DTOs;
+using Wallow.Identity.Application.Interfaces;
+using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Infrastructure.Extensions;
 using Wallow.Identity.Infrastructure.Options;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
@@ -9,6 +14,8 @@ namespace Wallow.Identity.Infrastructure.Services;
 
 public sealed partial class PreRegisteredClientSyncService(
     IOpenIddictApplicationManager applicationManager,
+    IOrganizationService organizationService,
+    UserManager<WallowUser> userManager,
     IOptions<PreRegisteredClientOptions> options,
     ILogger<PreRegisteredClientSyncService> logger)
 {
@@ -44,7 +51,7 @@ public sealed partial class PreRegisteredClientSyncService(
 
     private async Task CreateClientAsync(PreRegisteredClientDefinition client, CancellationToken ct)
     {
-        OpenIddictApplicationDescriptor descriptor = BuildDescriptor(client);
+        OpenIddictApplicationDescriptor descriptor = await BuildDescriptorAsync(client, ct);
 
         await applicationManager.CreateAsync(descriptor, ct);
         LogClientCreated(client.ClientId);
@@ -117,6 +124,19 @@ public sealed partial class PreRegisteredClientSyncService(
             changed = true;
         }
 
+        // Sync tenant_id
+        Guid? resolvedTenantId = await ResolveTenantIdAsync(client, ct);
+        string? currentTenantId = descriptor.GetTenantId();
+        string? expectedTenantId = resolvedTenantId?.ToString();
+        if (!string.Equals(currentTenantId, expectedTenantId, StringComparison.OrdinalIgnoreCase))
+        {
+            if (resolvedTenantId.HasValue)
+            {
+                descriptor.SetTenantId(resolvedTenantId.Value.ToString());
+            }
+            changed = true;
+        }
+
         if (changed)
         {
             await applicationManager.UpdateAsync(existing, descriptor, ct);
@@ -151,7 +171,64 @@ public sealed partial class PreRegisteredClientSyncService(
         }
     }
 
-    private static OpenIddictApplicationDescriptor BuildDescriptor(PreRegisteredClientDefinition client)
+    private async Task<Guid?> ResolveTenantIdAsync(PreRegisteredClientDefinition client, CancellationToken ct)
+    {
+        if (client.TenantId.HasValue && client.TenantId.Value != Guid.Empty)
+        {
+            await EnsureSeedMembersAsync(client.TenantId.Value, client, ct);
+            return client.TenantId.Value;
+        }
+
+        if (!string.IsNullOrWhiteSpace(client.TenantName))
+        {
+            IReadOnlyList<OrganizationDto> orgs = await organizationService.GetOrganizationsAsync(client.TenantName, ct: ct);
+            OrganizationDto? match = orgs.FirstOrDefault(o => string.Equals(o.Name, client.TenantName, StringComparison.OrdinalIgnoreCase));
+            if (match is not null)
+            {
+                await EnsureSeedMembersAsync(match.Id, client, ct);
+                return match.Id;
+            }
+
+            // Auto-create the organization if it doesn't exist
+            Guid orgId = await organizationService.CreateOrganizationAsync(client.TenantName, ct: ct);
+            LogTenantCreated(client.ClientId, client.TenantName);
+            await EnsureSeedMembersAsync(orgId, client, ct);
+            return orgId;
+        }
+
+        return null;
+    }
+
+    private async Task EnsureSeedMembersAsync(Guid orgId, PreRegisteredClientDefinition client, CancellationToken ct)
+    {
+        if (client.SeedMembers.Count == 0)
+        {
+            return;
+        }
+
+        IReadOnlyList<UserDto> existingMembers = await organizationService.GetMembersAsync(orgId, ct);
+        HashSet<Guid> memberIds = new(existingMembers.Select(m => m.Id));
+
+        foreach (string email in client.SeedMembers)
+        {
+            WallowUser? user = await userManager.FindByEmailAsync(email);
+            if (user is null)
+            {
+                LogSeedMemberNotFound(client.ClientId, email);
+                continue;
+            }
+
+            if (memberIds.Contains(user.Id))
+            {
+                continue;
+            }
+
+            await organizationService.AddMemberAsync(orgId, user.Id, ct);
+            LogSeedMemberAdded(client.ClientId, email);
+        }
+    }
+
+    private async Task<OpenIddictApplicationDescriptor> BuildDescriptorAsync(PreRegisteredClientDefinition client, CancellationToken ct)
     {
         string clientType = client.IsPublic ? ClientTypes.Public : ClientTypes.Confidential;
 
@@ -195,6 +272,12 @@ public sealed partial class PreRegisteredClientSyncService(
             descriptor.Permissions.Add(Permissions.Prefixes.Scope + scope);
         }
 
+        Guid? tenantId = await ResolveTenantIdAsync(client, ct);
+        if (tenantId.HasValue)
+        {
+            descriptor.SetTenantId(tenantId.Value.ToString());
+        }
+
         return descriptor;
     }
 
@@ -206,4 +289,13 @@ public sealed partial class PreRegisteredClientSyncService(
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Deleted pre-registered client no longer in config: {ClientId}")]
     private partial void LogClientDeleted(string clientId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Auto-created organization '{TenantName}' for pre-registered client: {ClientId}")]
+    private partial void LogTenantCreated(string clientId, string tenantName);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Added seed member '{Email}' to organization for client: {ClientId}")]
+    private partial void LogSeedMemberAdded(string clientId, string email);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Seed member '{Email}' not found for client: {ClientId}")]
+    private partial void LogSeedMemberNotFound(string clientId, string email);
 }

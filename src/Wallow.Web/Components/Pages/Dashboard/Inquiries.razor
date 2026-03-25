@@ -4,6 +4,7 @@
 @rendermode InteractiveServer
 @using System.Security.Claims
 @using Microsoft.AspNetCore.Components.Authorization
+@using Wallow.Shared.Kernel.Extensions
 @using Wallow.Web.Models
 @using Wallow.Web.Services
 @inject IInquiryService InquiryService
@@ -136,12 +137,8 @@
         AuthenticationState authState = await AuthStateProvider.GetAuthenticationStateAsync();
         ClaimsPrincipal user = authState.User;
 
-        _form.Name = user.FindFirst("name")?.Value
-                     ?? user.FindFirst(ClaimTypes.Name)?.Value
-                     ?? "";
-        _form.Email = user.FindFirst("email")?.Value
-                      ?? user.FindFirst(ClaimTypes.Email)?.Value
-                      ?? "";
+        _form.Name = user.GetDisplayName() ?? "";
+        _form.Email = user.GetEmail() ?? "";
     }
 
     private async Task HandleSubmit()

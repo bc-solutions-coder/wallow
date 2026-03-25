@@ -40,9 +40,14 @@ public sealed class PreRegisteredClientSyncServiceGapTests
     public PreRegisteredClientSyncServiceGapTests()
     {
         _appManager = Substitute.For<IOpenIddictApplicationManager>();
+        IOrganizationService orgService = Substitute.For<IOrganizationService>();
+        UserManager<WallowUser> userManager = Substitute.For<UserManager<WallowUser>>(
+            Substitute.For<IUserStore<WallowUser>>(), null, null, null, null, null, null, null, null);
         _options = new PreRegisteredClientOptions();
         _sut = new PreRegisteredClientSyncService(
             _appManager,
+            orgService,
+            userManager,
             Options.Create(_options),
             NullLogger<PreRegisteredClientSyncService>.Instance);
     }

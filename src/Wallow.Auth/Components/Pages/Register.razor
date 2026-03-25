@@ -326,7 +326,7 @@
             }
 
             string? loginMethod = _isPasswordless ? "passwordless" : null;
-            RegisterRequest request = new(_email, _password, _confirmPassword, ClientId, loginMethod);
+            RegisterRequest request = new(_email, _password, _confirmPassword, ClientId, loginMethod, ReturnUrl);
             AuthResponse result = await AuthClient.RegisterAsync(request);
 
             if (result.Succeeded)

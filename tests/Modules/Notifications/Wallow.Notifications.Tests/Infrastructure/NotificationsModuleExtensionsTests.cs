@@ -451,7 +451,7 @@ public class NotificationsModuleExtensionsTests
         });
         builder.Services.AddScoped<ITenantContext>(_ => Substitute.For<ITenantContext>());
         builder.Services.AddSingleton(new TenantSaveChangesInterceptor());
-        builder.Services.AddScoped<IRealtimeDispatcher>(_ => Substitute.For<IRealtimeDispatcher>());
+        builder.Services.AddSingleton<ISseDispatcher>(_ => Substitute.For<ISseDispatcher>());
         builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddHttpClient();
         builder.Services.AddNotificationsModule(builder.Configuration);

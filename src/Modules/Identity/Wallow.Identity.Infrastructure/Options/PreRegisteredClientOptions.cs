@@ -16,6 +16,12 @@ public sealed record PreRegisteredClientDefinition
 
     public Collection<string> Scopes { get; init; } = [];
 
+    public Guid? TenantId { get; init; }
+
+    public string? TenantName { get; init; }
+
+    public Collection<string> SeedMembers { get; init; } = [];
+
     public bool IsPublic => string.IsNullOrEmpty(Secret);
 }
 

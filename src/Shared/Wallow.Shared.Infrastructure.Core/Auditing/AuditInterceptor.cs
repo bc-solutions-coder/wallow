@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Wallow.Shared.Kernel.Extensions;
 using Wallow.Shared.Kernel.Auditing;
 using Wallow.Shared.Kernel.MultiTenancy;
 
@@ -50,7 +51,7 @@ public sealed partial class AuditInterceptor(
         {
             using IServiceScope scope = serviceProvider.CreateScope();
             IHttpContextAccessor? httpContextAccessor = scope.ServiceProvider.GetService<IHttpContextAccessor>();
-            userId = httpContextAccessor?.HttpContext?.User.FindFirst("sub")?.Value;
+            userId = httpContextAccessor?.HttpContext?.User.GetUserId();
 
             ITenantContext? tenantContext = scope.ServiceProvider.GetService<ITenantContext>();
             if (tenantContext is { IsResolved: true })

@@ -9,6 +9,28 @@ public class OrganizationCreatedNotificationHandlerTests
 {
     private readonly IMessageBus _bus = Substitute.For<IMessageBus>();
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("  ")]
+    public async Task Handle_SkipsEmail_WhenCreatorEmailIsEmpty(string? creatorEmail)
+    {
+        OrganizationCreatedEvent @event = new()
+        {
+            OrganizationId = Guid.NewGuid(),
+            TenantId = Guid.NewGuid(),
+            Name = "Auto Org",
+            CreatorEmail = creatorEmail!
+        };
+
+        await OrganizationCreatedNotificationHandler.Handle(@event, _bus);
+
+        await _bus.DidNotReceive().InvokeAsync(
+            Arg.Any<SendEmailCommand>(),
+            Arg.Any<CancellationToken>(),
+            Arg.Any<TimeSpan?>());
+    }
+
     [Fact]
     public async Task Handle_SendsWelcomeEmailToCreator()
     {

@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -9,6 +8,7 @@ using Wallow.Identity.Api.Contracts.Responses;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Shared.Contracts.Identity;
+using Wallow.Shared.Kernel.Extensions;
 using Wallow.Shared.Kernel.Identity.Authorization;
 
 namespace Wallow.Identity.Api.Controllers;
@@ -49,7 +49,7 @@ public class AppsController(IDeveloperAppService developerAppService) : Controll
             return ValidationProblem(ModelState);
         }
 
-        string? creatorUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        string? creatorUserId = User.GetUserId();
 
         DeveloperAppRegistrationResult result = await developerAppService.RegisterClientAsync(
             request.ClientName,
@@ -73,7 +73,7 @@ public class AppsController(IDeveloperAppService developerAppService) : Controll
     [ProducesResponseType(typeof(IReadOnlyList<DeveloperAppResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<DeveloperAppResponse>>> GetUserApps(CancellationToken ct)
     {
-        string? userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        string? userId = User.GetUserId();
         if (string.IsNullOrEmpty(userId))
         {
             return Unauthorized();
@@ -97,7 +97,7 @@ public class AppsController(IDeveloperAppService developerAppService) : Controll
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<DeveloperAppResponse>> GetUserApp(string clientId, CancellationToken ct)
     {
-        string? userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        string? userId = User.GetUserId();
         if (string.IsNullOrEmpty(userId))
         {
             return Unauthorized();

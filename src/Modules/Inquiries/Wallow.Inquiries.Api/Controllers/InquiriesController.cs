@@ -2,6 +2,7 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Wallow.Inquiries.Api.Contracts;
 using Wallow.Inquiries.Application.Commands.AddInquiryComment;
 using Wallow.Inquiries.Application.Commands.SubmitInquiry;
@@ -14,6 +15,7 @@ using Wallow.Inquiries.Application.Queries.GetSubmittedInquiries;
 using Wallow.Inquiries.Domain.Enums;
 using Wallow.Inquiries.Domain.Identity;
 using Wallow.Shared.Api.Extensions;
+using Wallow.Shared.Kernel.Extensions;
 using Wallow.Shared.Kernel.Identity.Authorization;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Shared.Kernel.Results;
@@ -28,7 +30,7 @@ namespace Wallow.Inquiries.Api.Controllers;
 [Tags("Inquiries")]
 [Produces("application/json")]
 [Consumes("application/json")]
-public class InquiriesController(IMessageBus bus, ITenantContext tenantContext) : ControllerBase
+public partial class InquiriesController(IMessageBus bus, ITenantContext tenantContext, ILogger<InquiriesController> logger) : ControllerBase
 {
 
     [HttpPost]
@@ -53,6 +55,11 @@ public class InquiriesController(IMessageBus bus, ITenantContext tenantContext) 
             request.Message);
 
         Result<InquiryDto> result = await bus.InvokeAsync<Result<InquiryDto>>(command, cancellationToken);
+
+        if (result.IsSuccess)
+        {
+            LogInquiryCreated(result.Value.Id, submitterId, tenantContext.TenantId.Value);
+        }
 
         return result.Map(ToInquiryResponse).ToActionResult();
     }
@@ -101,11 +108,17 @@ public class InquiriesController(IMessageBus bus, ITenantContext tenantContext) 
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
     {
+        string? userId = User.GetUserId();
+        Guid currentTenantId = tenantContext.TenantId.Value;
+
+        LogFetchingInquiry(id, userId, currentTenantId);
+
         Result<InquiryDto> result = await bus.InvokeAsync<Result<InquiryDto>>(
-            new GetInquiryByIdQuery(id, tenantContext.TenantId.Value), cancellationToken);
+            new GetInquiryByIdQuery(id), cancellationToken);
 
         if (!result.IsSuccess)
         {
+            LogInquiryNotFound(id, userId, currentTenantId);
             return result.Map(ToInquiryResponse).ToActionResult();
         }
 
@@ -117,6 +130,7 @@ public class InquiriesController(IMessageBus bus, ITenantContext tenantContext) 
             string? submitterId = ExtractSubmitterId();
             if (submitterId is null || result.Value.SubmitterId != submitterId)
             {
+                LogInquiryAccessDenied(id, userId, submitterId, result.Value.SubmitterId);
                 return NotFound();
             }
         }
@@ -158,18 +172,15 @@ public class InquiriesController(IMessageBus bus, ITenantContext tenantContext) 
         [FromBody] AddInquiryCommentRequest request,
         CancellationToken cancellationToken)
     {
-        string authorId = User.FindFirst("sub")?.Value ?? string.Empty;
-        string authorName = User.FindFirst("name")?.Value
-                            ?? User.FindFirst("preferred_username")?.Value
-                            ?? "Unknown";
+        string authorId = User.GetUserId() ?? string.Empty;
+        string authorName = User.GetDisplayName() ?? "Unknown";
 
         AddInquiryCommentCommand command = new(
             InquiryId.Create(id),
             authorId,
             authorName,
             request.Content,
-            request.IsInternal,
-            tenantContext.TenantId.Value);
+            request.IsInternal);
 
         Result<InquiryCommentId> result = await bus.InvokeAsync<Result<InquiryCommentId>>(command, cancellationToken);
 
@@ -207,9 +218,14 @@ public class InquiriesController(IMessageBus bus, ITenantContext tenantContext) 
         }
 
         bool includeInternal = hasReadPermission;
+        string? userId = User.GetUserId();
+
+        LogFetchingComments(id, userId, tenantContext.TenantId.Value, hasReadPermission, includeInternal);
 
         IReadOnlyList<InquiryCommentDto> comments = await bus.InvokeAsync<IReadOnlyList<InquiryCommentDto>>(
             new GetInquiryCommentsQuery(InquiryId.Create(id), includeInternal), cancellationToken);
+
+        LogCommentsReturned(id, userId, comments.Count, includeInternal);
 
         IReadOnlyList<InquiryCommentResponse> response = comments
             .Select(ToInquiryCommentResponse)
@@ -220,13 +236,13 @@ public class InquiriesController(IMessageBus bus, ITenantContext tenantContext) 
 
     private string? ExtractSubmitterId()
     {
-        string? azp = User.FindFirst("azp")?.Value;
+        string? azp = User.GetClientId();
         if (azp is not null && azp.StartsWith("sa-", StringComparison.OrdinalIgnoreCase))
         {
             return null;
         }
 
-        return User.FindFirst("sub")?.Value;
+        return User.GetUserId();
     }
 
     private static InquiryResponse ToInquiryResponse(InquiryDto dto) => new(
@@ -252,4 +268,22 @@ public class InquiriesController(IMessageBus bus, ITenantContext tenantContext) 
         dto.Content,
         dto.IsInternal,
         dto.CreatedAt.UtcDateTime);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Inquiry {InquiryId} created by user {SubmitterId} under tenant {TenantId}")]
+    private partial void LogInquiryCreated(Guid inquiryId, string? submitterId, Guid tenantId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Fetching inquiry {InquiryId} for user {UserId} under tenant {TenantId}")]
+    private partial void LogFetchingInquiry(Guid inquiryId, string? userId, Guid tenantId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Inquiry {InquiryId} not found for user {UserId} under tenant {TenantId} — not in database (wrong tenant or does not exist)")]
+    private partial void LogInquiryNotFound(Guid inquiryId, string? userId, Guid tenantId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Inquiry {InquiryId} access denied for user {UserId} — no InquiriesRead permission, submitterId {SubmitterId} does not match inquiry submitter {InquirySubmitterId}")]
+    private partial void LogInquiryAccessDenied(Guid inquiryId, string? userId, string? submitterId, string? inquirySubmitterId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Fetching comments for inquiry {InquiryId} by user {UserId} under tenant {TenantId}, hasReadPermission={HasReadPermission}, includeInternal={IncludeInternal}")]
+    private partial void LogFetchingComments(Guid inquiryId, string? userId, Guid tenantId, bool hasReadPermission, bool includeInternal);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Returning {CommentCount} comments for inquiry {InquiryId} to user {UserId}, includeInternal={IncludeInternal}")]
+    private partial void LogCommentsReturned(Guid inquiryId, string? userId, int commentCount, bool includeInternal);
 }

@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -8,6 +7,7 @@ using Wallow.Identity.Api.Contracts.Responses;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Shared.Contracts.Identity;
+using Wallow.Shared.Kernel.Extensions;
 using Wallow.Shared.Kernel.Identity.Authorization;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Shared.Kernel.Pagination;
@@ -74,12 +74,12 @@ public class UsersController(IUserManagementService userManagement, IOrganizatio
     {
         return Ok(new CurrentUserResponse
         {
-            Id = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!),
-            Email = User.FindFirstValue(ClaimTypes.Email) ?? string.Empty,
-            FirstName = User.FindFirstValue(ClaimTypes.GivenName) ?? string.Empty,
-            LastName = User.FindFirstValue(ClaimTypes.Surname) ?? string.Empty,
-            Roles = User.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList(),
-            Permissions = User.FindAll("permission").Select(c => c.Value).ToList()
+            Id = Guid.Parse(User.GetUserId()!),
+            Email = User.GetEmail() ?? string.Empty,
+            FirstName = User.GetFirstName() ?? string.Empty,
+            LastName = User.GetLastName() ?? string.Empty,
+            Roles = User.GetRoles().ToList(),
+            Permissions = User.GetPermissions().ToList()
         });
     }
 

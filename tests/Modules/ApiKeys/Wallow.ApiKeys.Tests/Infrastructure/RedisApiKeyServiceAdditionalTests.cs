@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using NSubstitute.ExceptionExtensions;
 using StackExchange.Redis;
 using Wallow.ApiKeys.Application.Interfaces;
 using Wallow.ApiKeys.Infrastructure.Services;
@@ -110,6 +111,36 @@ public class RedisApiKeyServiceAdditionalTests
 
         result.IsValid.Should().BeFalse();
         result.Error.Should().Contain("Invalid API key data");
+    }
+
+    [Fact]
+    public async Task GetApiKeyCountAsync_WhenRedisReturnsCount_ReturnsCastAsInt()
+    {
+        Guid userId = Guid.NewGuid();
+
+        _db.SetLengthAsync(Arg.Any<RedisKey>())
+            .Returns(5L);
+
+        RedisApiKeyService service = new(_db, _apiKeyRepository, TimeProvider.System, _logger);
+
+        int result = await service.GetApiKeyCountAsync(userId);
+
+        result.Should().Be(5);
+    }
+
+    [Fact]
+    public async Task GetApiKeyCountAsync_WhenRedisThrows_ReturnsZero()
+    {
+        Guid userId = Guid.NewGuid();
+
+        _db.SetLengthAsync(Arg.Any<RedisKey>())
+            .Throws(new RedisException("Connection lost"));
+
+        RedisApiKeyService service = new(_db, _apiKeyRepository, TimeProvider.System, _logger);
+
+        int result = await service.GetApiKeyCountAsync(userId);
+
+        result.Should().Be(0);
     }
 
     [Fact]

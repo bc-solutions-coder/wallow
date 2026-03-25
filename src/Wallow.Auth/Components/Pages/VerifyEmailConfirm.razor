@@ -24,6 +24,13 @@
                 <BbAlertTitle>Email verified!</BbAlertTitle>
                 <BbAlertDescription>Your email has been verified. You can now sign in.</BbAlertDescription>
             </BbAlert>
+
+            @if (!string.IsNullOrEmpty(ReturnUrl))
+            {
+                <div class="mt-4">
+                    <BbButton Class="w-full" Href="@ReturnUrl">Continue</BbButton>
+                </div>
+            }
         }
         else
         {

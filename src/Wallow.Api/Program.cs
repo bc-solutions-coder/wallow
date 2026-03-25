@@ -16,6 +16,7 @@ using Scalar.AspNetCore;
 using Serilog;
 using StackExchange.Redis;
 using Wallow.Api;
+using Wallow.Api.Endpoints;
 using Wallow.Api.Extensions;
 using Wallow.Api.Hubs;
 using Wallow.Api.Jobs;
@@ -58,6 +59,12 @@ try
     Log.Information("Starting Wallow API");
 
     WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+
+    // Ensure the host doesn't hang indefinitely during shutdown
+    builder.Services.Configure<HostOptions>(options =>
+    {
+        options.ShutdownTimeout = TimeSpan.FromSeconds(10);
+    });
 
     // Initialize telemetry diagnostics with configurable namespace prefix
     string namespacePrefix = builder.Configuration["Logging:NamespacePrefix"] ?? "Wallow";
@@ -103,8 +110,26 @@ try
             .Destructure.With<PiiDestructuringPolicy>()
             .Enrich.With(new ModuleEnricher(context.Configuration))
             .Enrich.WithProperty("Application", context.Configuration["Logging:NamespacePrefix"] ?? "Wallow")
-            .WriteTo.Console(outputTemplate:
-                "[{Timestamp:HH:mm:ss} {Level:u3}] [{Module}] [{TraceId}] {Message:lj} {Properties:j}{NewLine}{Exception}");
+            .WriteTo.Console(new Serilog.Templates.ExpressionTemplate(
+                "[{@t:HH:mm:ss} {@l:u3}]" +
+                " [M:\x1b[38;5;178m{Module}\x1b[0m]" +
+                "{#if TenantName is not null} [T:\x1b[35m{TenantName}\x1b[0m]" +
+                "{#else if TenantId is not null} [T:\x1b[35m{TenantId}\x1b[0m]{#end}" +
+                "{#if ClientId is not null} [C:\x1b[36m{ClientId}\x1b[0m]{#end}" +
+                "{#if UserId is not null} [U:\x1b[33m{UserId}\x1b[0m]{#end}" +
+                "{#if RequestProtocol is not null} [{#if RequestProtocol = 'SSE'}\x1b[38;5;208mSSE\x1b[0m{#else}HTTP{#end}]{#end}" +
+                "{#if RequestMethod is not null} {#if RequestMethod = 'GET'}\x1b[32m{RequestMethod}\x1b[0m" +
+                "{#else if RequestMethod = 'POST'}\x1b[33m{RequestMethod}\x1b[0m" +
+                "{#else if RequestMethod = 'PUT'}\x1b[34m{RequestMethod}\x1b[0m" +
+                "{#else if RequestMethod = 'DELETE'}\x1b[31m{RequestMethod}\x1b[0m" +
+                "{#else if RequestMethod = 'PATCH'}\x1b[36m{RequestMethod}\x1b[0m" +
+                "{#else}{RequestMethod}{#end}{#end}" +
+                "{#if StatusCode is not null} {#if StatusCode >= 200 and StatusCode < 300}\x1b[32m{StatusCode}\x1b[0m" +
+                "{#else if StatusCode >= 300 and StatusCode < 400}\x1b[36m{StatusCode}\x1b[0m" +
+                "{#else if StatusCode >= 400 and StatusCode < 500}\x1b[33m{StatusCode}\x1b[0m" +
+                "{#else if StatusCode >= 500}\x1b[31m{StatusCode}\x1b[0m" +
+                "{#else}{StatusCode}{#end}{#end}" +
+                " {@m}\n{@x}"));
 
         // OpenTelemetry log export — conditional on EnableLogging flag
         if (context.Configuration.GetValue<bool>("OpenTelemetry:EnableLogging", false))
@@ -256,6 +281,11 @@ try
         };
     });
 
+    // SSE real-time — connection manager, Redis-backed dispatcher, and subscriber
+    builder.Services.AddSingleton<SseConnectionManager>();
+    builder.Services.AddSingleton<ISseDispatcher, RedisSseDispatcher>();
+    builder.Services.AddHostedService<SseRedisSubscriber>();
+
     // SignalR with Redis backplane — reuses the singleton IConnectionMultiplexer registered above
     builder.Services.AddSingleton<IUserIdProvider, SubClaimUserIdProvider>();
     builder.Services.AddSignalR()
@@ -324,12 +354,9 @@ try
         DefaultRoleSeeder roleSeeder = sp.GetRequiredService<DefaultRoleSeeder>();
         await roleSeeder.SeedAsync();
 
-        // Sync pre-registered OAuth2 clients from configuration — idempotent
-        PreRegisteredClientSyncService clientSync = sp.GetRequiredService<PreRegisteredClientSyncService>();
-        await clientSync.SyncAsync(CancellationToken.None);
-
         // Admin bootstrap priority chain: CLI args > appsettings config > skip
         // Use services directly (not IMessageBus) because Wolverine hasn't started yet at this point
+        AdminBootstrapOptions configOptions = sp.GetRequiredService<IOptions<AdminBootstrapOptions>>().Value;
         ISetupStatusChecker setupStatusChecker = sp.GetRequiredService<ISetupStatusChecker>();
         bool setupRequired = await setupStatusChecker.IsSetupRequiredAsync();
 
@@ -339,8 +366,6 @@ try
             string? cliPassword = app.Configuration["AdminBootstrap:Password"];
             string? cliFirstName = app.Configuration["AdminBootstrap:FirstName"];
             string? cliLastName = app.Configuration["AdminBootstrap:LastName"];
-
-            AdminBootstrapOptions configOptions = sp.GetRequiredService<IOptions<AdminBootstrapOptions>>().Value;
 
             // CLI-supplied credentials take priority (e.g. --AdminBootstrap:Email=... on command line)
             // then fall back to appsettings-bound AdminBootstrapOptions
@@ -378,6 +403,7 @@ try
                 }
             }
         }
+
     }
 
     // Middleware pipeline (order matters!)
@@ -386,10 +412,37 @@ try
     app.UseExceptionHandler("/error");
     app.UseSerilogRequestLogging(options =>
     {
+        options.MessageTemplate = "{RequestPath} in {Elapsed:0.0000} ms";
         options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
         {
             diagnosticContext.Set("RequestHost", httpContext.Request.Host.Value);
             diagnosticContext.Set("UserAgent", httpContext.Request.Headers.UserAgent.ToString());
+            string? clientId = httpContext.User.GetClientId();
+            if (clientId is not null)
+            {
+                diagnosticContext.Set("ClientId", clientId);
+            }
+            string? userId = httpContext.User.GetUserId();
+            if (userId is not null)
+            {
+                diagnosticContext.Set("UserId", userId);
+            }
+            if (httpContext.Items.TryGetValue("TenantId", out object? tenantId) && tenantId is string tenantIdStr)
+            {
+                diagnosticContext.Set("TenantId", tenantIdStr);
+            }
+            if (httpContext.Items.TryGetValue("TenantName", out object? tenantName) && tenantName is string tenantNameStr
+                && !string.IsNullOrEmpty(tenantNameStr))
+            {
+                diagnosticContext.Set("TenantName", tenantNameStr);
+            }
+
+            // Detect SSE vs HTTP protocol
+            bool isSse = string.Equals(
+                httpContext.Response.ContentType,
+                "text/event-stream",
+                StringComparison.OrdinalIgnoreCase);
+            diagnosticContext.Set("RequestProtocol", isSse ? "SSE" : "HTTP");
         };
     });
 
@@ -517,11 +570,16 @@ try
     // Endpoints
     app.MapControllers();
 
-    // Elsa Workflow engine (runs in all environments)
-    app.UseWorkflows();
+    // Elsa Workflow engine — skip when disabled via config or in Testing environment
+    bool elsaEnabled = app.Configuration.GetValue("Elsa:Enabled", true)
+                       && !app.Environment.IsEnvironment("Testing");
+    if (elsaEnabled)
+    {
+        app.UseWorkflows();
+    }
 
-    // Elsa Workflow management API (dev only — not exposed in production)
-    if (app.Environment.IsDevelopment())
+    // Elsa Workflow management API (dev only — not exposed in production, requires Elsa enabled)
+    if (app.Environment.IsDevelopment() && elsaEnabled)
     {
         string elsaRoutePrefix = app.Services.GetRequiredService<IOptions<ApiEndpointOptions>>().Value.RoutePrefix;
         app.UseWorkflowsApi(elsaRoutePrefix);
@@ -529,6 +587,7 @@ try
     }
 
     app.MapHub<RealtimeHub>("/hubs/realtime");
+    app.MapGet("/events", SseEndpoint.HandleSseConnection).RequireAuthorization();
     app.MapAsyncApiEndpoints();
 
     // API-level recurring jobs (use DI-based IRecurringJobManager, not static RecurringJob)
@@ -619,8 +678,7 @@ try
             }
 
             string? s3AccessKey = app.Configuration["Storage:S3:AccessKey"];
-            if (s3AccessKey is not null && s3AccessKey.StartsWith("GK", StringComparison.Ordinal) &&
-                s3AccessKey == "GK5836664fc256a75e361c006f")
+            if (s3AccessKey is not null && s3AccessKey == "GKac08a4bd9e083da18a8619d6")
             {
                 devCredentialViolations.Add("Storage:S3:AccessKey uses default development key");
             }
@@ -647,7 +705,22 @@ try
         Log.Information("Wallow API is now listening on {Urls}", urls);
     });
 
-    await app.RunAsync();
+    await app.StartAsync();
+
+    // Sync pre-registered OAuth2 clients after host start (Wolverine requires a running host for IMessageBus)
+    // Auto-creates organizations from TenantName and seeds members from SeedMembers — all config-driven
+    await using (AsyncServiceScope postStartScope = app.Services.CreateAsyncScope())
+    {
+        IServiceProvider sp = postStartScope.ServiceProvider;
+        PreRegisteredClientSyncService clientSync = sp.GetRequiredService<PreRegisteredClientSyncService>();
+        await clientSync.SyncAsync(CancellationToken.None);
+    }
+
+    await app.WaitForShutdownAsync();
+}
+catch (OperationCanceledException)
+{
+    Log.Information("Application shutdown completed");
 }
 catch (Exception ex)
 {

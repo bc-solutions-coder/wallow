@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -7,6 +6,7 @@ using Wallow.Identity.Api.Contracts.Requests;
 using Wallow.Identity.Api.Contracts.Responses;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Shared.Kernel.Extensions;
 using Wallow.Shared.Kernel.Identity.Authorization;
 using Wallow.Shared.Kernel.MultiTenancy;
 
@@ -30,7 +30,7 @@ public class InvitationsController(
     public async Task<ActionResult<InvitationResponse>> Create(
         CreateInvitationRequest request, CancellationToken ct)
     {
-        Guid userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        Guid userId = Guid.Parse(User.GetUserId()!);
         Guid tenantId = tenantContext.TenantId.Value;
 
         Invitation invitation = await invitationService.CreateInvitationAsync(tenantId, request.Email, userId, ct);
@@ -59,7 +59,7 @@ public class InvitationsController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> Revoke(Guid id, CancellationToken ct)
     {
-        Guid userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        Guid userId = Guid.Parse(User.GetUserId()!);
         await invitationService.RevokeInvitationAsync(id, userId, ct);
         return NoContent();
     }
@@ -85,7 +85,7 @@ public class InvitationsController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> Accept(string token, CancellationToken ct)
     {
-        Guid userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        Guid userId = Guid.Parse(User.GetUserId()!);
         await invitationService.AcceptInvitationAsync(token, userId, ct);
         return NoContent();
     }
