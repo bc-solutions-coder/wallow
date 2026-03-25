@@ -224,7 +224,7 @@ public sealed partial class OidcFederationService(
             return $"{request.Scheme}://{request.Host}";
         }
 
-        return "https://localhost:5000";
+        return "https://localhost:5001";
     }
 
     private SsoConfigurationDto MapToDto(SsoConfiguration config)

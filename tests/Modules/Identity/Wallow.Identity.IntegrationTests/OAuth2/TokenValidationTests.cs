@@ -26,6 +26,7 @@ public class TokenValidationTests(WallowApiFactory factory) : IdentityIntegratio
     {
         HttpClient unauthClient = Factory.CreateClient();
         unauthClient.DefaultRequestHeaders.Add("Authorization", "Bearer invalid.token.here");
+        unauthClient.DefaultRequestHeaders.Add("X-Test-Auth-Skip", "true");
 
         HttpResponseMessage response = await unauthClient.GetAsync("/api/identity/service-accounts");
 
@@ -48,6 +49,7 @@ public class TokenValidationTests(WallowApiFactory factory) : IdentityIntegratio
         HttpClient unauthClient = Factory.CreateClient();
         string expiredToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyLCJleHAiOjE1MTYyMzkwMjJ9.invalid";
         unauthClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {expiredToken}");
+        unauthClient.DefaultRequestHeaders.Add("X-Test-Auth-Skip", "true");
 
         HttpResponseMessage response = await unauthClient.GetAsync("/api/identity/service-accounts");
 

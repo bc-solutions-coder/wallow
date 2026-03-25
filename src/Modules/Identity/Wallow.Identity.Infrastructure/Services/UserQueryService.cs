@@ -58,6 +58,57 @@ public sealed partial class UserQueryService(
         LogTotalUsersCount(count, tenantId);
         return count;
     }
+
+    public async Task<UserSearchPageResult> SearchUsersAsync(Guid tenantId, string? search, int skip, int take, CancellationToken ct = default)
+    {
+        IQueryable<WallowUser> query = dbContext.Users
+            .Where(u => u.TenantId == tenantId);
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            string pattern = $"%{search}%";
+            query = query.Where(u =>
+                EF.Functions.ILike(u.Email!, pattern) ||
+                EF.Functions.ILike(u.FirstName!, pattern) ||
+                EF.Functions.ILike(u.LastName!, pattern));
+        }
+
+        int totalCount = await query.CountAsync(ct);
+
+        List<WallowUser> users = await query
+            .OrderBy(u => u.Email)
+            .Skip(skip)
+            .Take(take)
+            .ToListAsync(ct);
+
+        List<Guid> userIds = users.Select(u => u.Id).ToList();
+
+        // Batch role lookup: join UserRoles with Roles, group by UserId
+        Dictionary<Guid, List<string>> rolesByUserId = await dbContext.Set<IdentityUserRole<Guid>>()
+            .Where(ur => userIds.Contains(ur.UserId))
+            .Join(
+                dbContext.Set<WallowRole>(),
+                ur => ur.RoleId,
+                r => r.Id,
+                (ur, r) => new { ur.UserId, RoleName = r.Name! })
+            .GroupBy(x => x.UserId)
+            .ToDictionaryAsync(
+                g => g.Key,
+                g => g.Select(x => x.RoleName).ToList(),
+                ct);
+
+        List<UserSearchItem> items = users.Select(u => new UserSearchItem(
+            u.Id,
+            u.Email ?? string.Empty,
+            u.FirstName ?? string.Empty,
+            u.LastName ?? string.Empty,
+            u.IsActive,
+            rolesByUserId.GetValueOrDefault(u.Id, []))).ToList();
+
+        int page = take > 0 ? (skip / take) + 1 : 1;
+
+        return new UserSearchPageResult(items, totalCount, page, take);
+    }
 }
 
 public sealed partial class UserQueryService

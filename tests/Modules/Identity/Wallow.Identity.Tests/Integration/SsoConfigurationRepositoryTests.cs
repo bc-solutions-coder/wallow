@@ -20,7 +20,7 @@ public sealed class SsoConfigurationRepositoryTests(PostgresContainerFixture fix
     protected override IdentityDbContext CreateDbContext(DbContextOptions<IdentityDbContext> options, ITenantContext tenantContext)
     {
         IDataProtectionProvider dataProtectionProvider = DataProtectionProvider.Create("Wallow.Identity.Tests");
-        return new IdentityDbContext(options, tenantContext, dataProtectionProvider);
+        return new IdentityDbContext(options, dataProtectionProvider);
     }
 
     public override async Task InitializeAsync()

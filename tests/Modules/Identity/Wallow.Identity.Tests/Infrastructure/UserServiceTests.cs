@@ -9,12 +9,12 @@ public class UserServiceTests
 {
     private static readonly string[] _userRole = ["user"];
     private static readonly string[] _adminRole = ["admin"];
-    private readonly IUserManagementService _keycloakAdmin = Substitute.For<IUserManagementService>();
+    private readonly IUserManagementService _userManagement = Substitute.For<IUserManagementService>();
     private readonly UserService _service;
 
     public UserServiceTests()
     {
-        _service = new UserService(_keycloakAdmin);
+        _service = new UserService(_userManagement);
     }
 
     [Fact]
@@ -22,7 +22,7 @@ public class UserServiceTests
     {
         Guid userId = Guid.NewGuid();
         UserDto userDto = new(userId, "test@example.com", "John", "Doe", true, _userRole);
-        _keycloakAdmin.GetUserByIdAsync(userId, Arg.Any<CancellationToken>()).Returns(userDto);
+        _userManagement.GetUserByIdAsync(userId, Arg.Any<CancellationToken>()).Returns(userDto);
 
         UserInfo? result = await _service.GetUserByIdAsync(userId);
 
@@ -38,7 +38,7 @@ public class UserServiceTests
     public async Task GetUserByIdAsync_WhenUserNotFound_ReturnsNull()
     {
         Guid userId = Guid.NewGuid();
-        _keycloakAdmin.GetUserByIdAsync(userId, Arg.Any<CancellationToken>()).Returns((UserDto?)null);
+        _userManagement.GetUserByIdAsync(userId, Arg.Any<CancellationToken>()).Returns((UserDto?)null);
 
         UserInfo? result = await _service.GetUserByIdAsync(userId);
 
@@ -51,7 +51,7 @@ public class UserServiceTests
         Guid userId = Guid.NewGuid();
         string email = "jane@example.com";
         UserDto userDto = new(userId, email, "Jane", "Smith", false, _adminRole);
-        _keycloakAdmin.GetUserByEmailAsync(email, Arg.Any<CancellationToken>()).Returns(userDto);
+        _userManagement.GetUserByEmailAsync(email, Arg.Any<CancellationToken>()).Returns(userDto);
 
         UserInfo? result = await _service.GetUserByEmailAsync(email);
 
@@ -66,7 +66,7 @@ public class UserServiceTests
     [Fact]
     public async Task GetUserByEmailAsync_WhenUserNotFound_ReturnsNull()
     {
-        _keycloakAdmin.GetUserByEmailAsync("unknown@example.com", Arg.Any<CancellationToken>()).Returns((UserDto?)null);
+        _userManagement.GetUserByEmailAsync("unknown@example.com", Arg.Any<CancellationToken>()).Returns((UserDto?)null);
 
         UserInfo? result = await _service.GetUserByEmailAsync("unknown@example.com");
 

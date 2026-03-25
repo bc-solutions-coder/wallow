@@ -76,3 +76,8 @@ public class IdentityResilienceTestFactory : WallowApiFactory
         _wireMock?.Dispose();
     }
 }
+
+[CollectionDefinition("IdentityResilience")]
+public class IdentityResilienceTestCollection : ICollectionFixture<IdentityResilienceTestFactory>
+{
+}

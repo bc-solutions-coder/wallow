@@ -9,12 +9,12 @@ namespace Wallow.Identity.Infrastructure.Repositories;
 public sealed class ServiceAccountRepository(IdentityDbContext context) : IServiceAccountRepository, IServiceAccountUnfilteredRepository
 {
     private static readonly Func<IdentityDbContext, string, Task<ServiceAccountMetadata?>>
-        _getByKeycloakClientIdQuery = EF.CompileAsyncQuery(
-            (IdentityDbContext ctx, string keycloakClientId) =>
+        _getByClientIdQuery = EF.CompileAsyncQuery(
+            (IdentityDbContext ctx, string clientId) =>
                 ctx.ServiceAccountMetadata
                     .AsTracking()
                     .IgnoreQueryFilters()
-                    .FirstOrDefault(x => x.KeycloakClientId == keycloakClientId));
+                    .FirstOrDefault(x => x.ClientId == clientId));
 
     public Task<ServiceAccountMetadata?> GetByIdAsync(ServiceAccountMetadataId id, CancellationToken ct = default)
     {
@@ -25,12 +25,12 @@ public sealed class ServiceAccountRepository(IdentityDbContext context) : IServi
     }
 
     /// <summary>
-    /// Resolves a service account by its Keycloak client ID, bypassing tenant query filters (IgnoreQueryFilters).
+    /// Resolves a service account by its client ID, bypassing tenant query filters (IgnoreQueryFilters).
     /// For internal cross-layer use only (e.g., middleware that must identify service accounts before tenant context is established).
     /// </summary>
-    Task<ServiceAccountMetadata?> IServiceAccountUnfilteredRepository.GetByKeycloakClientIdAsync(string keycloakClientId, CancellationToken ct)
+    Task<ServiceAccountMetadata?> IServiceAccountUnfilteredRepository.GetByClientIdAsync(string clientId, CancellationToken ct)
     {
-        return _getByKeycloakClientIdQuery(context, keycloakClientId);
+        return _getByClientIdQuery(context, clientId);
     }
 
     public async Task<IReadOnlyList<ServiceAccountMetadata>> GetAllAsync(CancellationToken ct = default)

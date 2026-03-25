@@ -30,7 +30,8 @@ public sealed class ScimBearerAuthenticationHandlerGapTests : IDisposable
             .Options;
 
         IDataProtectionProvider dataProtectionProvider = DataProtectionProvider.Create("Wallow.Identity.Tests");
-        _dbContext = new IdentityDbContext(options, _tenantContext, dataProtectionProvider);
+        _dbContext = new IdentityDbContext(options, dataProtectionProvider);
+        _dbContext.SetTenant(new TenantId(_tenantId));
     }
 
     public void Dispose()

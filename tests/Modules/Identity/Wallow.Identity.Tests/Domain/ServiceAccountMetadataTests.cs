@@ -28,7 +28,7 @@ public class ServiceAccountMetadataTests
 
         // Assert
         metadata.TenantId.Should().Be(_tenantId);
-        metadata.KeycloakClientId.Should().Be("sa-test-client");
+        metadata.ClientId.Should().Be("sa-test-client");
         metadata.Name.Should().Be("Test Service Account");
         metadata.Description.Should().Be("Test description");
         metadata.Status.Should().Be(ServiceAccountStatus.Active);

@@ -24,7 +24,7 @@ public sealed class ScimAuthenticationMiddlewareGapTests : IDisposable
             .Options;
 
         IDataProtectionProvider dataProtectionProvider = DataProtectionProvider.Create("Wallow.Identity.Tests");
-        _dbContext = new IdentityDbContext(options, _tenantContext, dataProtectionProvider);
+        _dbContext = new IdentityDbContext(options, dataProtectionProvider);
     }
 
     public void Dispose()

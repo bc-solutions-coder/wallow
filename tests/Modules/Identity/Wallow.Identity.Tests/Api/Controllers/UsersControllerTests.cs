@@ -4,6 +4,7 @@ using Wallow.Identity.Api.Contracts.Responses;
 using Wallow.Identity.Api.Controllers;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
+using Wallow.Shared.Contracts.Identity;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Shared.Kernel.Pagination;
@@ -17,18 +18,20 @@ public class UsersControllerTests
     private static readonly string[] _userRole = ["user"];
     private static readonly string[] _adminRole = ["admin"];
     private static readonly Guid _testTenantGuid = Guid.NewGuid();
-    private readonly IUserManagementService _keycloakAdmin;
-    private readonly IOrganizationService _keycloakOrg;
+    private readonly IUserManagementService _userManagement;
+    private readonly IOrganizationService _organizationService;
+    private readonly IUserQueryService _userQueryService;
     private readonly UsersController _controller;
     private readonly Guid _userId = Guid.NewGuid();
 
     public UsersControllerTests()
     {
-        _keycloakAdmin = Substitute.For<IUserManagementService>();
-        _keycloakOrg = Substitute.For<IOrganizationService>();
+        _userManagement = Substitute.For<IUserManagementService>();
+        _organizationService = Substitute.For<IOrganizationService>();
+        _userQueryService = Substitute.For<IUserQueryService>();
         ITenantContext tenantContext = Substitute.For<ITenantContext>();
         tenantContext.TenantId.Returns(new TenantId(_testTenantGuid));
-        _controller = new UsersController(_keycloakAdmin, _keycloakOrg, tenantContext);
+        _controller = new UsersController(_userManagement, _organizationService, _userQueryService, tenantContext);
 
         ClaimsPrincipal user = new(new ClaimsIdentity(new[]
         {
@@ -52,13 +55,13 @@ public class UsersControllerTests
     [Fact]
     public async Task GetUsers_ReturnsOkWithUserList()
     {
-        List<UserDto> users =
+        List<UserSearchItem> items =
         [
-            new UserDto(Guid.NewGuid(), "a@test.com", "Alice", "Smith", true, _userRole),
-            new UserDto(Guid.NewGuid(), "b@test.com", "Bob", "Jones", true, _adminRole)
+            new UserSearchItem(Guid.NewGuid(), "a@test.com", "Alice", "Smith", true, _userRole),
+            new UserSearchItem(Guid.NewGuid(), "b@test.com", "Bob", "Jones", true, _adminRole)
         ];
-        _keycloakOrg.GetMembersAsync(_testTenantGuid, Arg.Any<CancellationToken>())
-            .Returns(users);
+        _userQueryService.SearchUsersAsync(_testTenantGuid, null, 0, 20, Arg.Any<CancellationToken>())
+            .Returns(new UserSearchPageResult(items, 2, 0, 20));
 
         ActionResult<PagedResult<UserDto>> result = await _controller.GetUsers(null, 0, 20, CancellationToken.None);
 
@@ -70,13 +73,12 @@ public class UsersControllerTests
     [Fact]
     public async Task GetUsers_WithSearchFilter_FiltersResults()
     {
-        List<UserDto> users =
+        List<UserSearchItem> items =
         [
-            new UserDto(Guid.NewGuid(), "alice@test.com", "Alice", "Smith", true, _userRole),
-            new UserDto(Guid.NewGuid(), "bob@test.com", "Bob", "Jones", true, _adminRole)
+            new UserSearchItem(Guid.NewGuid(), "alice@test.com", "Alice", "Smith", true, _userRole)
         ];
-        _keycloakOrg.GetMembersAsync(_testTenantGuid, Arg.Any<CancellationToken>())
-            .Returns(users);
+        _userQueryService.SearchUsersAsync(_testTenantGuid, "alice", 0, 10, Arg.Any<CancellationToken>())
+            .Returns(new UserSearchPageResult(items, 1, 0, 10));
 
         ActionResult<PagedResult<UserDto>> result = await _controller.GetUsers("alice", 0, 10, CancellationToken.None);
 
@@ -95,9 +97,9 @@ public class UsersControllerTests
     {
         Guid userId = Guid.NewGuid();
         UserDto user = new(userId, "a@test.com", "Alice", "Smith", true, _userRole);
-        _keycloakAdmin.GetUserByIdAsync(userId, Arg.Any<CancellationToken>())
+        _userManagement.GetUserByIdAsync(userId, Arg.Any<CancellationToken>())
             .Returns(user);
-        _keycloakOrg.GetUserOrganizationsAsync(userId, Arg.Any<CancellationToken>())
+        _organizationService.GetUserOrganizationsAsync(userId, Arg.Any<CancellationToken>())
             .Returns(new List<OrganizationDto> { new(_testTenantGuid, "Test Org", null, 1) });
 
         ActionResult<UserDto> result = await _controller.GetUserById(userId, CancellationToken.None);
@@ -111,7 +113,7 @@ public class UsersControllerTests
     public async Task GetUserById_WhenNotFound_ReturnsNotFound()
     {
         Guid userId = Guid.NewGuid();
-        _keycloakAdmin.GetUserByIdAsync(userId, Arg.Any<CancellationToken>())
+        _userManagement.GetUserByIdAsync(userId, Arg.Any<CancellationToken>())
             .Returns((UserDto?)null);
 
         ActionResult<UserDto> result = await _controller.GetUserById(userId, CancellationToken.None);
@@ -175,9 +177,9 @@ public class UsersControllerTests
         Guid newUserId = Guid.NewGuid();
         CreateUserRequest request = new("new@test.com", "New", "User", "password123");
         UserDto createdUser = new(newUserId, "new@test.com", "New", "User", true, []);
-        _keycloakAdmin.CreateUserAsync("new@test.com", "New", "User", "password123", Arg.Any<CancellationToken>())
+        _userManagement.CreateUserAsync("new@test.com", "New", "User", "password123", Arg.Any<CancellationToken>())
             .Returns(newUserId);
-        _keycloakAdmin.GetUserByIdAsync(newUserId, Arg.Any<CancellationToken>())
+        _userManagement.GetUserByIdAsync(newUserId, Arg.Any<CancellationToken>())
             .Returns(createdUser);
 
         ActionResult result = await _controller.CreateUser(request, CancellationToken.None);
@@ -194,14 +196,14 @@ public class UsersControllerTests
     {
         Guid newUserId = Guid.NewGuid();
         CreateUserRequest request = new("test@test.com", "First", "Last", "pass");
-        _keycloakAdmin.CreateUserAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
+        _userManagement.CreateUserAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(newUserId);
-        _keycloakAdmin.GetUserByIdAsync(newUserId, Arg.Any<CancellationToken>())
+        _userManagement.GetUserByIdAsync(newUserId, Arg.Any<CancellationToken>())
             .Returns(new UserDto(newUserId, "test@test.com", "First", "Last", true, []));
 
         await _controller.CreateUser(request, CancellationToken.None);
 
-        await _keycloakAdmin.Received(1).CreateUserAsync("test@test.com", "First", "Last", "pass", Arg.Any<CancellationToken>());
+        await _userManagement.Received(1).CreateUserAsync("test@test.com", "First", "Last", "pass", Arg.Any<CancellationToken>());
     }
 
     #endregion
@@ -212,13 +214,13 @@ public class UsersControllerTests
     public async Task DeactivateUser_ReturnsNoContent()
     {
         Guid userId = Guid.NewGuid();
-        _keycloakOrg.GetUserOrganizationsAsync(userId, Arg.Any<CancellationToken>())
+        _organizationService.GetUserOrganizationsAsync(userId, Arg.Any<CancellationToken>())
             .Returns(new List<OrganizationDto> { new(_testTenantGuid, "Test Org", null, 1) });
 
         ActionResult result = await _controller.DeactivateUser(userId, CancellationToken.None);
 
         result.Should().BeOfType<NoContentResult>();
-        await _keycloakAdmin.Received(1).DeactivateUserAsync(userId, Arg.Any<CancellationToken>());
+        await _userManagement.Received(1).DeactivateUserAsync(userId, Arg.Any<CancellationToken>());
     }
 
     #endregion
@@ -229,13 +231,13 @@ public class UsersControllerTests
     public async Task ActivateUser_ReturnsNoContent()
     {
         Guid userId = Guid.NewGuid();
-        _keycloakOrg.GetUserOrganizationsAsync(userId, Arg.Any<CancellationToken>())
+        _organizationService.GetUserOrganizationsAsync(userId, Arg.Any<CancellationToken>())
             .Returns(new List<OrganizationDto> { new(_testTenantGuid, "Test Org", null, 1) });
 
         ActionResult result = await _controller.ActivateUser(userId, CancellationToken.None);
 
         result.Should().BeOfType<NoContentResult>();
-        await _keycloakAdmin.Received(1).ActivateUserAsync(userId, Arg.Any<CancellationToken>());
+        await _userManagement.Received(1).ActivateUserAsync(userId, Arg.Any<CancellationToken>());
     }
 
     #endregion
@@ -247,13 +249,13 @@ public class UsersControllerTests
     {
         Guid userId = Guid.NewGuid();
         AssignRoleRequest request = new("admin");
-        _keycloakOrg.GetUserOrganizationsAsync(userId, Arg.Any<CancellationToken>())
+        _organizationService.GetUserOrganizationsAsync(userId, Arg.Any<CancellationToken>())
             .Returns(new List<OrganizationDto> { new(_testTenantGuid, "Test Org", null, 1) });
 
         ActionResult result = await _controller.AssignRole(userId, request, CancellationToken.None);
 
         result.Should().BeOfType<NoContentResult>();
-        await _keycloakAdmin.Received(1).AssignRoleAsync(userId, "admin", Arg.Any<CancellationToken>());
+        await _userManagement.Received(1).AssignRoleAsync(userId, "admin", Arg.Any<CancellationToken>());
     }
 
     #endregion
@@ -264,13 +266,13 @@ public class UsersControllerTests
     public async Task RemoveRole_ReturnsNoContent()
     {
         Guid userId = Guid.NewGuid();
-        _keycloakOrg.GetUserOrganizationsAsync(userId, Arg.Any<CancellationToken>())
+        _organizationService.GetUserOrganizationsAsync(userId, Arg.Any<CancellationToken>())
             .Returns(new List<OrganizationDto> { new(_testTenantGuid, "Test Org", null, 1) });
 
         ActionResult result = await _controller.RemoveRole(userId, "admin", CancellationToken.None);
 
         result.Should().BeOfType<NoContentResult>();
-        await _keycloakAdmin.Received(1).RemoveRoleAsync(userId, "admin", Arg.Any<CancellationToken>());
+        await _userManagement.Received(1).RemoveRoleAsync(userId, "admin", Arg.Any<CancellationToken>());
     }
 
     #endregion

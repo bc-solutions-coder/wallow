@@ -22,7 +22,7 @@ public class ScopeVerificationTests
     [InlineData("subscriptions.write", PermissionType.SubscriptionsWrite)]
     [InlineData("users.read", PermissionType.UsersRead)]
     [InlineData("users.write", PermissionType.UsersUpdate)]
-    [InlineData("notifications.read", PermissionType.NotificationsRead)]
+    [InlineData("notifications.read", PermissionType.NotificationRead)]
     [InlineData("notifications.write", PermissionType.NotificationsWrite)]
     [InlineData("storage.read", PermissionType.StorageRead)]
     [InlineData("storage.write", PermissionType.StorageWrite)]
@@ -112,10 +112,10 @@ public class ScopeVerificationTests
     }
 
     [Fact]
-    public async Task NonServiceAccount_WithScopes_DoesNotGetScopePermissions()
+    public async Task NonServiceAccount_WithScopes_GetsScopePermissions()
     {
-        // A regular user client (no sa- prefix) should not get scope-based permissions
-        // even if the token happens to contain scope claims
+        // A regular user client also gets scope-based permissions as a supplement
+        // to role-based permissions (handles cases where role claims are absent)
         List<Claim> claims =
         [
             new Claim("azp", "frontend-app"),
@@ -133,7 +133,8 @@ public class ScopeVerificationTests
         List<string> permissions = httpContext.User.FindAll("permission")
             .Select(c => c.Value)
             .ToList();
-        permissions.Should().BeEmpty();
+        permissions.Should().Contain(PermissionType.InquiriesRead);
+        permissions.Should().Contain(PermissionType.InquiriesWrite);
     }
 
     [Fact]
