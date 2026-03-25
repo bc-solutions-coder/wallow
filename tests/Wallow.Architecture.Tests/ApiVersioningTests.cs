@@ -28,7 +28,7 @@ public class ApiVersioningTests
             .GetTypes();
 
         // OpenIddict OIDC controllers use standard OAuth2/OIDC routes, not API versioning
-        string[] oidcControllers = ["AuthorizationController", "TokenController", "LogoutController"];
+        string[] oidcControllers = ["AuthorizationController", "TokenController", "LogoutController", "UserinfoController"];
 
         foreach (Type controller in controllers)
         {
@@ -59,7 +59,7 @@ public class ApiVersioningTests
 
         // ScimController uses /scim/v2 per SCIM RFC 7644 — its own versioning scheme
         // OpenIddict OIDC controllers use standard OAuth2/OIDC routes (connect/*)
-        string[] excludedControllers = ["ScimController", "AuthorizationController", "TokenController", "LogoutController"];
+        string[] excludedControllers = ["ScimController", "AuthorizationController", "TokenController", "LogoutController", "UserinfoController"];
         IEnumerable<Type> filtered = controllers.Where(c => !excludedControllers.Contains(c.Name, StringComparer.Ordinal));
 
         foreach (Type controller in filtered)

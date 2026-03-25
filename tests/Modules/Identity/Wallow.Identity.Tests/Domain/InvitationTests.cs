@@ -156,6 +156,94 @@ public class InvitationTests
             .WithMessage("*Cannot expire*");
     }
 
+    [Fact]
+    public void Create_WithValidEmail_SetsIdToNonDefault()
+    {
+        Invitation invitation = CreatePendingInvitation();
+
+        invitation.Id.Should().NotBe(default);
+    }
+
+    [Fact]
+    public void Create_SetsAuditFields()
+    {
+        Invitation invitation = CreatePendingInvitation();
+
+        invitation.CreatedAt.Should().Be(_timeProvider.GetUtcNow().UtcDateTime);
+        invitation.CreatedBy.Should().Be(_userId);
+    }
+
+    [Fact]
+    public void Create_GeneratesBase64UrlSafeToken()
+    {
+        Invitation invitation = CreatePendingInvitation();
+
+        invitation.Token.Should().NotContain("+");
+        invitation.Token.Should().NotContain("/");
+        invitation.Token.Should().NotEndWith("=");
+    }
+
+    [Fact]
+    public void Accept_WhenPending_SetsAuditFields()
+    {
+        Invitation invitation = CreatePendingInvitation();
+        Guid acceptingUserId = Guid.NewGuid();
+        _timeProvider.Advance(TimeSpan.FromHours(1));
+
+        invitation.Accept(acceptingUserId, _timeProvider);
+
+        invitation.UpdatedAt.Should().Be(_timeProvider.GetUtcNow().UtcDateTime);
+        invitation.UpdatedBy.Should().Be(acceptingUserId);
+    }
+
+    [Fact]
+    public void Accept_WhenExpired_ThrowsBusinessRuleException()
+    {
+        Invitation invitation = CreatePendingInvitation();
+        invitation.MarkExpired();
+
+        Action act = () => invitation.Accept(Guid.NewGuid(), _timeProvider);
+
+        act.Should().Throw<BusinessRuleException>()
+            .WithMessage("*Cannot accept*");
+    }
+
+    [Fact]
+    public void Revoke_WhenPending_SetsAuditFields()
+    {
+        Invitation invitation = CreatePendingInvitation();
+        _timeProvider.Advance(TimeSpan.FromHours(1));
+
+        invitation.Revoke(_userId, _timeProvider);
+
+        invitation.UpdatedAt.Should().Be(_timeProvider.GetUtcNow().UtcDateTime);
+        invitation.UpdatedBy.Should().Be(_userId);
+    }
+
+    [Fact]
+    public void Revoke_WhenExpired_ThrowsBusinessRuleException()
+    {
+        Invitation invitation = CreatePendingInvitation();
+        invitation.MarkExpired();
+
+        Action act = () => invitation.Revoke(_userId, _timeProvider);
+
+        act.Should().Throw<BusinessRuleException>()
+            .WithMessage("*Cannot revoke*");
+    }
+
+    [Fact]
+    public void MarkExpired_WhenRevoked_ThrowsBusinessRuleException()
+    {
+        Invitation invitation = CreatePendingInvitation();
+        invitation.Revoke(_userId, _timeProvider);
+
+        Action act = () => invitation.MarkExpired();
+
+        act.Should().Throw<BusinessRuleException>()
+            .WithMessage("*Cannot expire*");
+    }
+
     private Invitation CreatePendingInvitation() =>
         Invitation.Create(_tenantId, "user@example.com", _timeProvider.GetUtcNow().AddDays(7), _userId, _timeProvider);
 }

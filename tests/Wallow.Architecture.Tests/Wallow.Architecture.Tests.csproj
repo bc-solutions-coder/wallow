@@ -56,6 +56,10 @@
     <ProjectReference Include="..\..\src\Modules\Storage\Wallow.Storage.Infrastructure\Wallow.Storage.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Modules\Storage\Wallow.Storage.Api\Wallow.Storage.Api.csproj" />
 
+    <ProjectReference Include="..\..\src\Modules\Branding\Wallow.Branding.Domain\Wallow.Branding.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Branding\Wallow.Branding.Application\Wallow.Branding.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Branding\Wallow.Branding.Infrastructure\Wallow.Branding.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Branding\Wallow.Branding.Api\Wallow.Branding.Api.csproj" />
 
     <ProjectReference Include="..\..\src\Shared\Wallow.Shared.Infrastructure\Wallow.Shared.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Shared\Wallow.Shared.Kernel\Wallow.Shared.Kernel.csproj" />

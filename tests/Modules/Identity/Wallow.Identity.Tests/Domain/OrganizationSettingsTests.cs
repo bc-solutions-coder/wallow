@@ -61,4 +61,54 @@ public class OrganizationSettingsTests
         settings.AllowPasswordlessLogin.Should().BeFalse();
         settings.MfaGracePeriodDays.Should().Be(0);
     }
+
+    [Fact]
+    public void Create_GeneratesUniqueId()
+    {
+        OrganizationSettings settings1 = OrganizationSettings.Create(
+            _orgId, _tenantId, false, false, 0, _userId, _timeProvider);
+        OrganizationSettings settings2 = OrganizationSettings.Create(
+            _orgId, _tenantId, false, false, 0, _userId, _timeProvider);
+
+        settings1.Id.Should().NotBe(settings2.Id);
+    }
+
+    [Fact]
+    public void Create_SetsCreatedAtAndCreatedBy()
+    {
+        OrganizationSettings settings = OrganizationSettings.Create(
+            _orgId, _tenantId, true, false, 14, _userId, _timeProvider);
+
+        settings.CreatedAt.Should().Be(_timeProvider.GetUtcNow().UtcDateTime);
+        settings.CreatedBy.Should().Be(_userId);
+        settings.UpdatedAt.Should().BeNull();
+        settings.UpdatedBy.Should().BeNull();
+    }
+
+    [Fact]
+    public void Update_SetsUpdatedAtAndUpdatedBy()
+    {
+        OrganizationSettings settings = OrganizationSettings.Create(
+            _orgId, _tenantId, false, false, 7, _userId, _timeProvider);
+
+        Guid updaterUserId = Guid.NewGuid();
+        _timeProvider.Advance(TimeSpan.FromHours(1));
+
+        settings.Update(true, true, 30, updaterUserId, _timeProvider);
+
+        settings.UpdatedAt.Should().Be(_timeProvider.GetUtcNow().UtcDateTime);
+        settings.UpdatedBy.Should().Be(updaterUserId);
+        settings.CreatedAt.Should().BeBefore(settings.UpdatedAt!.Value);
+    }
+
+    [Fact]
+    public void Update_WithNegativeGracePeriod_SetsValue()
+    {
+        OrganizationSettings settings = OrganizationSettings.Create(
+            _orgId, _tenantId, false, false, 7, _userId, _timeProvider);
+
+        settings.Update(false, false, -1, _userId, _timeProvider);
+
+        settings.MfaGracePeriodDays.Should().Be(-1);
+    }
 }

@@ -53,7 +53,8 @@ public sealed class QueryBenchmarks : IDisposable
         DbContextOptions<IdentityDbContext> identityOptions = new DbContextOptionsBuilder<IdentityDbContext>()
             .UseSqlite(_identityConnection)
             .Options;
-        _identityDbContext = new IdentityDbContext(identityOptions, tenantContext, dataProtectionProvider);
+        _identityDbContext = new IdentityDbContext(identityOptions, dataProtectionProvider);
+        _identityDbContext.SetTenant(tenantContext.TenantId);
         _identityDbContext.Database.EnsureCreated();
         _scimConfigRepo = new ScimConfigurationRepository(_identityDbContext);
 
@@ -64,7 +65,8 @@ public sealed class QueryBenchmarks : IDisposable
         DbContextOptions<StorageDbContext> storageOptions = new DbContextOptionsBuilder<StorageDbContext>()
             .UseSqlite(_storageConnection)
             .Options;
-        _storageDbContext = new StorageDbContext(storageOptions, tenantContext);
+        _storageDbContext = new StorageDbContext(storageOptions);
+        _storageDbContext.SetTenant(tenantContext.TenantId);
         _storageDbContext.Database.EnsureCreated();
         _storageBucketRepo = new StorageBucketRepository(_storageDbContext);
         _storedFileRepo = new StoredFileRepository(_storageDbContext);
@@ -86,7 +88,8 @@ public sealed class QueryBenchmarks : IDisposable
         DbContextOptions<BillingDbContext> billingOptions = new DbContextOptionsBuilder<BillingDbContext>()
             .UseSqlite(_billingConnection)
             .Options;
-        _billingDbContext = new BillingDbContext(billingOptions, tenantContext);
+        _billingDbContext = new BillingDbContext(billingOptions);
+        _billingDbContext.SetTenant(tenantContext.TenantId);
         _billingDbContext.Database.EnsureCreated();
         _invoiceRepo = new InvoiceRepository(_billingDbContext);
         _subscriptionRepo = new SubscriptionRepository(_billingDbContext);

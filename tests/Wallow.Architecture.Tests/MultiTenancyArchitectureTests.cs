@@ -16,9 +16,11 @@ public class MultiTenancyArchitectureTests
     private static readonly string[] _tenantAwareModules =
     [
         "Billing",
+        "Branding",
         "Notifications",
         "Messaging",
-        "Announcements"
+        "Announcements",
+        "Inquiries"
     ];
 
     public static IEnumerable<object[]> GetTenantAwareModuleNames()
@@ -108,14 +110,13 @@ public class MultiTenancyArchitectureTests
 
         foreach (Type dbContext in dbContexts)
         {
-            // Should inject ITenantContext
-            ConstructorInfo[] constructors = dbContext.GetConstructors(BindingFlags.Public | BindingFlags.Instance);
+            // Should inherit from TenantAwareDbContext<T> which provides SetTenant and query filters
+            Type? baseType = dbContext.BaseType;
+            bool inheritsTenantAwareDbContext = baseType is { IsGenericType: true }
+                && baseType.GetGenericTypeDefinition().FullName == "Wallow.Shared.Infrastructure.Core.Persistence.TenantAwareDbContext`1";
 
-            bool hasTenantContextParameter = constructors.Any(ctor =>
-                ctor.GetParameters().Any(p => p.ParameterType == typeof(ITenantContext)));
-
-            hasTenantContextParameter.Should().BeTrue(
-                $"DbContext {dbContext.Name} in {moduleName} module should inject ITenantContext");
+            inheritsTenantAwareDbContext.Should().BeTrue(
+                $"DbContext {dbContext.Name} in {moduleName} module should inherit from TenantAwareDbContext<T>");
 
             // Should override OnModelCreating for query filters
             MethodInfo? onModelCreatingMethod = dbContext.GetMethod(

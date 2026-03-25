@@ -28,7 +28,7 @@ public class ApiConventionTests
             .GetTypes();
 
         // OpenIddict OIDC controllers use standard OAuth2/OIDC patterns, not REST API conventions
-        string[] oidcControllers = ["AuthorizationController", "TokenController", "LogoutController"];
+        string[] oidcControllers = ["AuthorizationController", "TokenController", "LogoutController", "UserinfoController"];
 
         foreach (Type controller in controllers)
         {

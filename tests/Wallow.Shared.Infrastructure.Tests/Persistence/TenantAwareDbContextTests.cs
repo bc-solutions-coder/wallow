@@ -28,7 +28,8 @@ public sealed class TenantAwareDbContextTests : IDisposable
             .UseSqlite(_connection)
             .Options;
 
-        FakeDbContext context = new(options, tenantContext);
+        FakeDbContext context = new(options);
+        context.SetTenant(tenantId);
         context.Database.EnsureCreated();
         return context;
     }
@@ -130,8 +131,8 @@ public class FakeDbContext : TenantAwareDbContext<FakeDbContext>
     public DbSet<FakeTenantEntity> TenantEntities => Set<FakeTenantEntity>();
     public DbSet<FakeNonTenantEntity> NonTenantEntities => Set<FakeNonTenantEntity>();
 
-    public FakeDbContext(DbContextOptions<FakeDbContext> options, ITenantContext tenantContext)
-        : base(options, tenantContext)
+    public FakeDbContext(DbContextOptions<FakeDbContext> options)
+        : base(options)
     {
     }
 

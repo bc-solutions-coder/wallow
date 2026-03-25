@@ -15,3 +15,8 @@ public class RedisFixture : IAsyncLifetime
     // Dispose the container after each test run to prevent container accumulation.
     public async Task DisposeAsync() => await _redis.DisposeAsync();
 }
+
+[CollectionDefinition(nameof(RedisTestCollection))]
+public class RedisTestCollection : ICollectionFixture<RedisFixture>
+{
+}

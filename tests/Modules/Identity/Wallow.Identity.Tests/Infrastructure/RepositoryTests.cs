@@ -334,6 +334,67 @@ public sealed class RepositoryTests : IDisposable
         found!.EmailDomain.Should().Be("test.org");
     }
 
+    [Fact]
+    public async Task MembershipRequestRepository_GetByUserIdAsync_WhenNoMatches_ReturnsEmpty()
+    {
+        _dbContext.MembershipRequests.Add(CreateMembershipRequest());
+        await _dbContext.SaveChangesAsync();
+
+        MembershipRequestRepository repo = new(_dbContext);
+        List<MembershipRequest> result = await repo.GetByUserIdAsync(Guid.NewGuid());
+
+        result.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task MembershipRequestRepository_GetByOrganizationIdAsync_WhenNoMatches_ReturnsEmpty()
+    {
+        _dbContext.MembershipRequests.Add(CreateMembershipRequest());
+        await _dbContext.SaveChangesAsync();
+
+        MembershipRequestRepository repo = new(_dbContext);
+        List<MembershipRequest> result = await repo.GetByOrganizationIdAsync(OrganizationId.New());
+
+        result.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task MembershipRequestRepository_GetPendingAsync_EmptyDb_ReturnsEmpty()
+    {
+        MembershipRequestRepository repo = new(_dbContext);
+        List<MembershipRequest> result = await repo.GetPendingAsync();
+
+        result.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task MembershipRequestRepository_GetPendingAsync_SkipBeyondCount_ReturnsEmpty()
+    {
+        _dbContext.MembershipRequests.Add(CreateMembershipRequest());
+        await _dbContext.SaveChangesAsync();
+
+        MembershipRequestRepository repo = new(_dbContext);
+        List<MembershipRequest> result = await repo.GetPendingAsync(skip: 100, take: 20);
+
+        result.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task MembershipRequestRepository_SaveChangesAsync_PersistsModifications()
+    {
+        MembershipRequest request = CreateMembershipRequest();
+        _dbContext.MembershipRequests.Add(request);
+        await _dbContext.SaveChangesAsync();
+
+        MembershipRequestRepository repo = new(_dbContext);
+        MembershipRequest? tracked = await repo.GetByIdAsync(request.Id);
+        tracked!.Approve(OrganizationId.New(), Guid.NewGuid(), TimeProvider.System);
+        await repo.SaveChangesAsync();
+
+        MembershipRequest? reloaded = await repo.GetByIdAsync(request.Id);
+        reloaded!.Status.Should().Be(MembershipRequestStatus.Approved);
+    }
+
     #endregion
 
     #region InvitationRepository
@@ -437,6 +498,58 @@ public sealed class RepositoryTests : IDisposable
 
         Invitation? found = await repo.GetByIdAsync(invitation.Id);
         found.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task InvitationRepository_GetPagedByTenantAsync_EmptyDb_ReturnsEmpty()
+    {
+        InvitationRepository repo = new(_dbContext);
+        List<Invitation> result = await repo.GetPagedByTenantAsync(_tenantId);
+
+        result.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task InvitationRepository_GetPagedByTenantAsync_SkipBeyondCount_ReturnsEmpty()
+    {
+        _dbContext.Invitations.Add(CreateInvitation());
+        await _dbContext.SaveChangesAsync();
+
+        InvitationRepository repo = new(_dbContext);
+        List<Invitation> result = await repo.GetPagedByTenantAsync(_tenantId, skip: 100, take: 20);
+
+        result.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task InvitationRepository_GetPagedByTenantAsync_DefaultPagination_ReturnsTwentyOrLess()
+    {
+        for (int i = 0; i < 25; i++)
+        {
+            _dbContext.Invitations.Add(CreateInvitation($"user{i}@example.com"));
+        }
+        await _dbContext.SaveChangesAsync();
+
+        InvitationRepository repo = new(_dbContext);
+        List<Invitation> result = await repo.GetPagedByTenantAsync(_tenantId);
+
+        result.Should().HaveCount(20);
+    }
+
+    [Fact]
+    public async Task InvitationRepository_SaveChangesAsync_PersistsModifications()
+    {
+        Invitation invitation = CreateInvitation();
+        _dbContext.Invitations.Add(invitation);
+        await _dbContext.SaveChangesAsync();
+
+        InvitationRepository repo = new(_dbContext);
+        Invitation? tracked = await repo.GetByIdAsync(invitation.Id);
+        tracked!.Accept(Guid.NewGuid(), TimeProvider.System);
+        await repo.SaveChangesAsync();
+
+        Invitation? reloaded = await repo.GetByIdAsync(invitation.Id);
+        reloaded!.Status.Should().Be(InvitationStatus.Accepted);
     }
 
     #endregion

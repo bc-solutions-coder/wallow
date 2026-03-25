@@ -241,6 +241,103 @@ public class WallowUserTests
             .WithMessage("*last name*");
     }
 
+    [Fact]
+    public void Create_CalledTwice_GeneratesUniqueIds()
+    {
+        WallowUser user1 = WallowUser.Create(Guid.NewGuid(), "John", "Doe", "john@example.com", _timeProvider);
+        WallowUser user2 = WallowUser.Create(Guid.NewGuid(), "Jane", "Smith", "jane@example.com", _timeProvider);
+
+        user1.Id.Should().NotBe(user2.Id);
+    }
+
+    [Fact]
+    public void EnableMfa_CalledTwice_OverwritesPreviousSettings()
+    {
+        WallowUser user = CreateUser();
+        user.EnableMfa("totp", "first-secret");
+
+        user.EnableMfa("totp", "second-secret");
+
+        user.MfaEnabled.Should().BeTrue();
+        user.MfaMethod.Should().Be("totp");
+        user.TotpSecretEncrypted.Should().Be("second-secret");
+    }
+
+    [Fact]
+    public void DisableMfa_WhenAlreadyDisabled_RemainsDisabled()
+    {
+        WallowUser user = CreateUser();
+
+        user.DisableMfa();
+
+        user.MfaEnabled.Should().BeFalse();
+        user.MfaMethod.Should().BeNull();
+        user.TotpSecretEncrypted.Should().BeNull();
+        user.BackupCodesHash.Should().BeNull();
+    }
+
+    [Fact]
+    public void SetBackupCodes_CalledTwice_OverwritesPreviousHash()
+    {
+        WallowUser user = CreateUser();
+        user.SetBackupCodes("first-hash");
+
+        user.SetBackupCodes("second-hash");
+
+        user.BackupCodesHash.Should().Be("second-hash");
+    }
+
+    [Fact]
+    public void SetPasswordless_CalledMultipleTimes_RemainsPasswordless()
+    {
+        WallowUser user = CreateUser();
+
+        user.SetPasswordless();
+        user.SetPasswordless();
+
+        user.HasPassword.Should().BeFalse();
+    }
+
+    [Fact]
+    public void SetMfaGraceDeadline_WithExactlyNow_ThrowsBusinessRuleException()
+    {
+        WallowUser user = CreateUser();
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+
+        Action act = () => user.SetMfaGraceDeadline(now);
+
+        act.Should().Throw<BusinessRuleException>()
+            .WithMessage("*future*");
+    }
+
+    [Fact]
+    public void SetMfaGraceDeadline_CalledTwice_OverwritesPreviousDeadline()
+    {
+        WallowUser user = CreateUser();
+        DateTimeOffset firstDeadline = DateTimeOffset.UtcNow.AddDays(7);
+        DateTimeOffset secondDeadline = DateTimeOffset.UtcNow.AddDays(14);
+        user.SetMfaGraceDeadline(firstDeadline);
+
+        user.SetMfaGraceDeadline(secondDeadline);
+
+        user.MfaGraceDeadline.Should().Be(secondDeadline);
+    }
+
+    [Fact]
+    public void UpdateName_DoesNotAffectOtherProperties()
+    {
+        WallowUser user = CreateUser();
+        user.EnableMfa("totp", "secret");
+        Guid originalId = user.Id;
+        string originalEmail = user.Email!;
+
+        user.UpdateName("NewFirst", "NewLast");
+
+        user.Id.Should().Be(originalId);
+        user.Email.Should().Be(originalEmail);
+        user.MfaEnabled.Should().BeTrue();
+    }
+
     private WallowUser CreateUser() =>
         WallowUser.Create(Guid.NewGuid(), "John", "Doe", "john@example.com", _timeProvider);
 }

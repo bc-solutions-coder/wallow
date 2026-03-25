@@ -96,7 +96,7 @@ public class AuditingExtensionsTests
 
         services.AddWallowAuditing(configuration);
 
-        ServiceDescriptor descriptor = services.Single(sd => sd.ServiceType == typeof(AuditDbContext));
+        ServiceDescriptor descriptor = services.Last(sd => sd.ServiceType == typeof(AuditDbContext));
         descriptor.Lifetime.Should().Be(ServiceLifetime.Scoped);
     }
 
@@ -130,7 +130,7 @@ public class AuditingExtensionsTests
     }
 
     [Fact]
-    public void AddWallowAuditing_WithNullConnectionString_DoesNotThrowDuringRegistration()
+    public void AddWallowAuditing_WithNullConnectionString_ThrowsInvalidOperationException()
     {
         ServiceCollection services = new();
         IConfiguration configuration = new ConfigurationBuilder()
@@ -142,18 +142,20 @@ public class AuditingExtensionsTests
 
         Action act = () => services.AddWallowAuditing(configuration);
 
-        act.Should().NotThrow();
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*Connection string*not configured*");
     }
 
     [Fact]
-    public void AddWallowAuditing_WithMissingConnectionString_DoesNotThrowDuringRegistration()
+    public void AddWallowAuditing_WithMissingConnectionString_ThrowsInvalidOperationException()
     {
         ServiceCollection services = new();
         IConfiguration configuration = new ConfigurationBuilder().Build();
 
         Action act = () => services.AddWallowAuditing(configuration);
 
-        act.Should().NotThrow();
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*Connection string*not configured*");
     }
 
     [Fact]

@@ -15,4 +15,7 @@ public sealed class FakeUserQueryService : IUserQueryService
 
     public Task<int> GetTotalUsersCountAsync(Guid tenantId, CancellationToken ct = default)
         => Task.FromResult(0);
+
+    public Task<UserSearchPageResult> SearchUsersAsync(Guid tenantId, string? search, int skip, int take, CancellationToken ct = default)
+        => Task.FromResult(new UserSearchPageResult([], 0, 0, take));
 }

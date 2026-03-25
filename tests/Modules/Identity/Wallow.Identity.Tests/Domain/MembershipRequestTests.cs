@@ -128,6 +128,49 @@ public class MembershipRequestTests
             .WithMessage("*not in a pending state*");
     }
 
+    [Fact]
+    public void Create_WithValidData_SetsIdToNonDefault()
+    {
+        MembershipRequest request = CreatePendingRequest();
+
+        request.Id.Should().NotBe(default);
+    }
+
+    [Fact]
+    public void Create_SetsAuditFields()
+    {
+        MembershipRequest request = CreatePendingRequest();
+
+        request.CreatedAt.Should().Be(_timeProvider.GetUtcNow().UtcDateTime);
+        request.CreatedBy.Should().Be(_userId);
+    }
+
+    [Fact]
+    public void Approve_WhenPending_SetsAuditFields()
+    {
+        MembershipRequest request = CreatePendingRequest();
+        Guid approverId = Guid.NewGuid();
+        _timeProvider.Advance(TimeSpan.FromHours(1));
+
+        request.Approve(OrganizationId.New(), approverId, _timeProvider);
+
+        request.UpdatedAt.Should().Be(_timeProvider.GetUtcNow().UtcDateTime);
+        request.UpdatedBy.Should().Be(approverId);
+    }
+
+    [Fact]
+    public void Reject_WhenPending_SetsAuditFields()
+    {
+        MembershipRequest request = CreatePendingRequest();
+        Guid rejecterId = Guid.NewGuid();
+        _timeProvider.Advance(TimeSpan.FromHours(1));
+
+        request.Reject(rejecterId, _timeProvider);
+
+        request.UpdatedAt.Should().Be(_timeProvider.GetUtcNow().UtcDateTime);
+        request.UpdatedBy.Should().Be(rejecterId);
+    }
+
     private MembershipRequest CreatePendingRequest() =>
         MembershipRequest.Create(_tenantId, _userId, "example.com", _userId, _timeProvider);
 }

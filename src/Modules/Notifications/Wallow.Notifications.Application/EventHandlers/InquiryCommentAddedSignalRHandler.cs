@@ -21,6 +21,14 @@ public static class InquiryCommentAddedSignalRHandler
             "InquiryCommentAdded",
             message);
 
-        await dispatcher.SendToTenantAsync(message.TenantId, envelope);
+        if (message.IsInternal)
+        {
+            string staffGroup = $"tenant:{message.TenantId}:staff";
+            await dispatcher.SendToGroupAsync(staffGroup, envelope);
+        }
+        else
+        {
+            await dispatcher.SendToTenantAsync(message.TenantId, envelope);
+        }
     }
 }

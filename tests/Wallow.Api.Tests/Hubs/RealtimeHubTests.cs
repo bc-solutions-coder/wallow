@@ -57,6 +57,17 @@ public sealed class RealtimeHubTests : IDisposable
         _context.ConnectionId.Returns($"conn-{userId}");
     }
 
+    private void SetupAuthenticatedStaffUser(string userId, string role)
+    {
+        ClaimsIdentity identity = new("test");
+        identity.AddClaim(new Claim(ClaimTypes.NameIdentifier, userId));
+        identity.AddClaim(new Claim("organization", _tenantGuid.ToString()));
+        identity.AddClaim(new Claim(ClaimTypes.Role, role));
+        ClaimsPrincipal principal = new(identity);
+        _context.User.Returns(principal);
+        _context.ConnectionId.Returns($"conn-{userId}");
+    }
+
     private void SetupUnauthenticatedUser()
     {
         _context.User.Returns((ClaimsPrincipal?)null);
@@ -292,6 +303,39 @@ public sealed class RealtimeHubTests : IDisposable
 
         await _presenceService.DidNotReceive().SetPageContextAsync(
             Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task OnConnectedAsync_AdminUser_JoinsStaffGroup()
+    {
+        SetupAuthenticatedStaffUser("admin-1", "admin");
+
+        await _hub.OnConnectedAsync();
+
+        string staffGroup = $"tenant:{_tenantGuid}:staff";
+        await _groups.Received(1).AddToGroupAsync("conn-admin-1", staffGroup, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task OnConnectedAsync_ManagerUser_JoinsStaffGroup()
+    {
+        SetupAuthenticatedStaffUser("manager-1", "manager");
+
+        await _hub.OnConnectedAsync();
+
+        string staffGroup = $"tenant:{_tenantGuid}:staff";
+        await _groups.Received(1).AddToGroupAsync("conn-manager-1", staffGroup, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task OnConnectedAsync_RegularUser_DoesNotJoinStaffGroup()
+    {
+        SetupAuthenticatedUser("user-1");
+
+        await _hub.OnConnectedAsync();
+
+        string staffGroup = $"tenant:{_tenantGuid}:staff";
+        await _groups.DidNotReceive().AddToGroupAsync("conn-user-1", staffGroup, Arg.Any<CancellationToken>());
     }
 
     public void Dispose()
