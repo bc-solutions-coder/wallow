@@ -22,7 +22,8 @@ public sealed class EfCoreConfigurationTests : IDisposable
             .UseSqlite("DataSource=:memory:")
             .Options;
 
-        _context = new StorageDbContext(options, tenantContext);
+        _context = new StorageDbContext(options);
+        _context.SetTenant(tenantContext.TenantId);
         _model = _context.Model;
     }
 

@@ -11,4 +11,5 @@ public sealed record PasswordResetRequestedEvent : IntegrationEvent
     public required Guid TenantId { get; init; }
     public required string Email { get; init; }
     public required string ResetToken { get; init; }
+    public required string ResetUrl { get; init; }
 }

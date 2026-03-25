@@ -22,13 +22,15 @@
     <!-- Health Checks -->
     <PackageReference Include="Microsoft.Extensions.Http.Resilience" />
     <PackageReference Include="AspNetCore.HealthChecks.NpgSql" />
-    <PackageReference Include="AspNetCore.HealthChecks.Rabbitmq" />
     <PackageReference Include="AspNetCore.HealthChecks.Hangfire" />
     <PackageReference Include="AspNetCore.HealthChecks.Redis" />
 
     <!-- Real-time (SignalR) -->
     <PackageReference Include="Microsoft.AspNetCore.SignalR.StackExchangeRedis" />
     <PackageReference Include="StackExchange.Redis" />
+
+    <!-- Rate Limiting (Redis-backed) -->
+    <PackageReference Include="RedisRateLimiting" />
 
     <!-- Distributed Caching -->
     <PackageReference Include="Microsoft.Extensions.Caching.Hybrid" />
@@ -51,7 +53,6 @@
 
     <!-- CQRS & Messaging -->
     <PackageReference Include="WolverineFx" />
-    <PackageReference Include="WolverineFx.RabbitMQ" />
     <PackageReference Include="WolverineFx.FluentValidation" />
     <PackageReference Include="WolverineFx.EntityFrameworkCore" />
     <PackageReference Include="WolverineFx.Postgresql" />
@@ -71,6 +72,7 @@
 
   <ItemGroup>
     <!-- Module Api projects -->
+    <ProjectReference Include="..\Modules\Branding\Wallow.Branding.Api\Wallow.Branding.Api.csproj" />
     <ProjectReference Include="..\Modules\Billing\Wallow.Billing.Api\Wallow.Billing.Api.csproj" />
     <ProjectReference Include="..\Modules\Notifications\Wallow.Notifications.Api\Wallow.Notifications.Api.csproj" />
     <ProjectReference Include="..\Modules\Messaging\Wallow.Messaging.Api\Wallow.Messaging.Api.csproj" />
@@ -78,8 +80,10 @@
     <ProjectReference Include="..\Modules\Identity\Wallow.Identity.Api\Wallow.Identity.Api.csproj" />
     <ProjectReference Include="..\Modules\Storage\Wallow.Storage.Api\Wallow.Storage.Api.csproj" />
     <ProjectReference Include="..\Modules\Inquiries\Wallow.Inquiries.Api\Wallow.Inquiries.Api.csproj" />
+    <ProjectReference Include="..\Modules\ApiKeys\Wallow.ApiKeys.Api\Wallow.ApiKeys.Api.csproj" />
 
     <!-- Module Infrastructure projects -->
+    <ProjectReference Include="..\Modules\Branding\Wallow.Branding.Infrastructure\Wallow.Branding.Infrastructure.csproj" />
     <ProjectReference Include="..\Modules\Billing\Wallow.Billing.Infrastructure\Wallow.Billing.Infrastructure.csproj" />
     <ProjectReference Include="..\Modules\Notifications\Wallow.Notifications.Infrastructure\Wallow.Notifications.Infrastructure.csproj" />
     <ProjectReference Include="..\Modules\Messaging\Wallow.Messaging.Infrastructure\Wallow.Messaging.Infrastructure.csproj" />
@@ -87,6 +91,7 @@
     <ProjectReference Include="..\Modules\Identity\Wallow.Identity.Infrastructure\Wallow.Identity.Infrastructure.csproj" />
     <ProjectReference Include="..\Modules\Storage\Wallow.Storage.Infrastructure\Wallow.Storage.Infrastructure.csproj" />
     <ProjectReference Include="..\Modules\Inquiries\Wallow.Inquiries.Infrastructure\Wallow.Inquiries.Infrastructure.csproj" />
+    <ProjectReference Include="..\Modules\ApiKeys\Wallow.ApiKeys.Infrastructure\Wallow.ApiKeys.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>

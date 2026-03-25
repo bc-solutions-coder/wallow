@@ -9,6 +9,11 @@ public sealed class PluginRegistry
 
     public void Register(PluginManifest manifest)
     {
+        if (_entries.Count >= PluginOptions.MaxPlugins)
+        {
+            throw new InvalidOperationException($"Cannot register more than {PluginOptions.MaxPlugins} plugins.");
+        }
+
         PluginRegistryEntry entry = new PluginRegistryEntry(manifest);
         _entries.TryAdd(manifest.Id, entry);
     }

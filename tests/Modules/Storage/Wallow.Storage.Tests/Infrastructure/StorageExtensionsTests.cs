@@ -448,13 +448,37 @@ public sealed class StorageExtensionsTests
     }
 
     [Fact]
-    public void AddStorageInfrastructure_WithS3Provider_ConfiguresRegionEndpoint()
+    public void AddStorageInfrastructure_WithS3Provider_AndEndpoint_UsesAuthenticationRegion()
     {
         IConfiguration configuration = BuildConfiguration(new Dictionary<string, string?>
         {
             ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Database=test",
             ["Storage:Provider"] = "S3",
             ["Storage:S3:Endpoint"] = "http://minio.local:9000",
+            ["Storage:S3:AccessKey"] = "my-access-key",
+            ["Storage:S3:SecretKey"] = "my-secret-key",
+            ["Storage:S3:BucketName"] = "my-bucket",
+            ["Storage:S3:Region"] = "eu-west-1",
+            ["Storage:S3:UsePathStyle"] = "false"
+        });
+
+        ServiceCollection services = CreateBaseServices(configuration);
+        services.AddStorageInfrastructure(configuration);
+        ServiceProvider provider = services.BuildServiceProvider();
+
+        IAmazonS3 s3Client = provider.GetRequiredService<IAmazonS3>();
+
+        s3Client.Config.AuthenticationRegion.Should().Be("eu-west-1");
+        s3Client.Config.ServiceURL.Should().StartWith("http://minio.local:9000");
+    }
+
+    [Fact]
+    public void AddStorageInfrastructure_WithS3Provider_WithoutEndpoint_ConfiguresRegionEndpoint()
+    {
+        IConfiguration configuration = BuildConfiguration(new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Database=test",
+            ["Storage:Provider"] = "S3",
             ["Storage:S3:AccessKey"] = "my-access-key",
             ["Storage:S3:SecretKey"] = "my-secret-key",
             ["Storage:S3:BucketName"] = "my-bucket",

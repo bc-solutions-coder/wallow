@@ -8,9 +8,16 @@ using Wallow.Api.Jobs;
 using Wallow.Api.Logging;
 using Wallow.Api.Middleware;
 using Wallow.Api.Services;
+using Wallow.ApiKeys.Infrastructure.Authorization;
+using Wallow.Identity.Application.Commands.BootstrapAdmin;
+using Wallow.Identity.Application.Queries.IsSetupRequired;
 using Wallow.Identity.Infrastructure.Authorization;
+using Wallow.Identity.Infrastructure.Data;
 using Wallow.Identity.Infrastructure.Middleware;
 using Wallow.Identity.Infrastructure.MultiTenancy;
+using Wallow.Identity.Infrastructure.Options;
+using Wallow.Identity.Infrastructure.Services;
+using Wallow.Identity.Infrastructure.Jobs;
 using Wallow.Notifications.Infrastructure.Jobs;
 using Wallow.Shared.Contracts.Realtime;
 using Wallow.Shared.Infrastructure.BackgroundJobs;
@@ -23,6 +30,7 @@ using Wallow.Shared.Infrastructure.Workflows.Workflows;
 using Wallow.Shared.Kernel.Extensions;
 using Hangfire;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.StackExchangeRedis;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Caching.Hybrid;
@@ -36,9 +44,8 @@ using StackExchange.Redis;
 using Wolverine;
 using Wolverine.EntityFrameworkCore;
 using Wolverine.FluentValidation;
+using Wallow.Api;
 using Wolverine.Postgresql;
-using Wolverine.RabbitMQ;
-using Wolverine.RabbitMQ.Internal;
 
 // Note: Using CreateLogger() instead of CreateBootstrapLogger() to support
 // multiple WebApplicationFactory instances in integration tests
@@ -52,12 +59,39 @@ try
 
     WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
+    // Initialize telemetry diagnostics with configurable namespace prefix
+    string namespacePrefix = builder.Configuration["Logging:NamespacePrefix"] ?? "Wallow";
+    Wallow.Shared.Kernel.Diagnostics.Initialize(namespacePrefix);
+
     // Suppress Kestrel server header to avoid exposing server technology
-    builder.WebHost.ConfigureKestrel(options =>
+    builder.WebHost.ConfigureKestrel((context, options) =>
     {
         options.AddServerHeader = false;
         options.Limits.MaxRequestBodySize = 1_048_576;
+
+        // Apply configurable connection limits from Performance section
+        long? maxConcurrentConnections = context.Configuration.GetValue<long?>("Performance:KestrelMaxConcurrentConnections");
+        long? maxConcurrentUpgradedConnections = context.Configuration.GetValue<long?>("Performance:KestrelMaxConcurrentUpgradedConnections");
+
+        if (maxConcurrentConnections is > 0)
+        {
+            options.Limits.MaxConcurrentConnections = maxConcurrentConnections;
+        }
+
+        if (maxConcurrentUpgradedConnections is > 0)
+        {
+            options.Limits.MaxConcurrentUpgradedConnections = maxConcurrentUpgradedConnections;
+        }
     });
+
+    // Apply thread pool tuning from Performance section
+    IConfigurationSection performanceSection = builder.Configuration.GetSection(PerformanceOptions.SectionName);
+    int workerThreads = performanceSection.GetValue<int>("ThreadPoolMinWorkerThreads");
+    int completionPortThreads = performanceSection.GetValue<int>("ThreadPoolMinCompletionPortThreads");
+    if (workerThreads > 0 && completionPortThreads > 0)
+    {
+        ThreadPool.SetMinThreads(workerThreads, completionPortThreads);
+    }
 
     // Serilog
     builder.Host.UseSerilog((context, services, configuration) =>
@@ -67,16 +101,15 @@ try
             .ReadFrom.Services(services)
             .Enrich.FromLogContext()
             .Destructure.With<PiiDestructuringPolicy>()
-            .Enrich.With<ModuleEnricher>()
-            .Enrich.WithProperty("Application", "Wallow")
+            .Enrich.With(new ModuleEnricher(context.Configuration))
+            .Enrich.WithProperty("Application", context.Configuration["Logging:NamespacePrefix"] ?? "Wallow")
             .WriteTo.Console(outputTemplate:
                 "[{Timestamp:HH:mm:ss} {Level:u3}] [{Module}] [{TraceId}] {Message:lj} {Properties:j}{NewLine}{Exception}");
 
         // OpenTelemetry log export — conditional on EnableLogging flag
         if (context.Configuration.GetValue<bool>("OpenTelemetry:EnableLogging", false))
         {
-            string otlpEndpoint = context.Configuration["OpenTelemetry:OtlpEndpoint"]
-                ?? "http://localhost:4318";
+            string otlpEndpoint = context.Configuration["OpenTelemetry:OtlpEndpoint"]!;
             string serviceName = context.Configuration["OpenTelemetry:ServiceName"]
                 ?? "Wallow";
 
@@ -86,11 +119,22 @@ try
                 options.ResourceAttributes = new Dictionary<string, object>
                 {
                     ["service.name"] = serviceName,
-                    ["service.namespace"] = "Wallow",
+                    ["service.namespace"] = context.Configuration["Logging:NamespacePrefix"] ?? "Wallow",
                     ["deployment.environment"] = context.HostingEnvironment.EnvironmentName
                 };
             });
         }
+    });
+
+    // Redis — register before modules so that module service registration
+    // (e.g. Identity DataProtection key persistence) can resolve IConnectionMultiplexer.
+    // Uses a factory to defer the actual connection until first resolution.
+    builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+    {
+        IConfiguration config = sp.GetRequiredService<IConfiguration>();
+        string connectionString = config.GetConnectionString("Redis")
+            ?? throw new InvalidOperationException("Redis connection string not configured");
+        return ConnectionMultiplexer.Connect(connectionString);
     });
 
     // ============================================================================
@@ -168,33 +212,6 @@ try
             }
         }
 
-        // Module messaging transport — defaults to in-memory local queues
-        // Set ModuleMessaging:Transport to "RabbitMq" to enable RabbitMQ transport
-        string transport = builder.Configuration.GetValue<string>("ModuleMessaging:Transport") ?? "InMemory";
-
-        if (transport.Equals("RabbitMq", StringComparison.OrdinalIgnoreCase))
-        {
-            string rabbitMqConnection = builder.Configuration.GetConnectionString("RabbitMq")
-                ?? throw new InvalidOperationException(
-                    "RabbitMq connection string is required when ModuleMessaging:Transport is 'RabbitMq'");
-
-            RabbitMqTransportExpression rabbitMq = opts.UseRabbitMq(new Uri(rabbitMqConnection))
-                .AutoProvision()
-                .UseConventionalRouting();
-
-            if (builder.Environment.IsDevelopment() || builder.Environment.IsEnvironment("Testing"))
-            {
-                rabbitMq.AutoPurgeOnStartup();
-            }
-
-            // Test queue for integration tests
-            if (builder.Environment.IsEnvironment("Testing"))
-            {
-                rabbitMq.DeclareQueue("test-inbox");
-                opts.ListenToRabbitQueue("test-inbox");
-            }
-        }
-
         // Durable inbox/outbox on all endpoints (skip in Testing environment)
         // Inbox: guarantees at-least-once delivery with automatic deduplication (idempotency)
         // Outbox: guarantees messages are sent only after the transaction commits
@@ -205,15 +222,6 @@ try
         }
     }, ExtensionDiscovery.ManualOnly);
 
-    // Redis — use a factory to defer connection until after WebApplicationFactory
-    // overrides are applied (the top-level code runs before ConfigureWebHost)
-    builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
-    {
-        IConfiguration config = sp.GetRequiredService<IConfiguration>();
-        string connectionString = config.GetConnectionString("Redis")
-            ?? throw new InvalidOperationException("Redis connection string not configured");
-        return ConnectionMultiplexer.Connect(connectionString);
-    });
     builder.Services.AddSingleton<IPresenceService, RedisPresenceService>();
     builder.Services.AddSingleton<IRealtimeDispatcher, SignalRRealtimeDispatcher>();
 
@@ -249,10 +257,12 @@ try
     });
 
     // SignalR with Redis backplane — reuses the singleton IConnectionMultiplexer registered above
+    builder.Services.AddSingleton<IUserIdProvider, SubClaimUserIdProvider>();
     builder.Services.AddSignalR()
         .AddStackExchangeRedis(options =>
         {
-            options.Configuration.ChannelPrefix = RedisChannel.Literal("Wallow");
+            string redisPrefix = builder.Configuration["SignalR:RedisPrefix"] ?? "Wallow";
+            options.Configuration.ChannelPrefix = RedisChannel.Literal(redisPrefix);
         });
     builder.Services.AddSingleton<IConfigureOptions<RedisOptions>>(sp =>
     {
@@ -269,7 +279,6 @@ try
     // Core services
     builder.Services.AddHttpContextAccessor();
     builder.Services.AddControllersWithViews();
-    builder.Services.AddRazorPages();
     builder.Services.AddApiVersioning(opts =>
     {
         opts.DefaultApiVersion = new ApiVersion(1);
@@ -291,7 +300,10 @@ try
     builder.Services.AddWallowBackgroundJobs();
     builder.Services.AddWallowWorkflows(builder.Configuration, builder.Environment);
     builder.Services.AddScoped<SystemHeartbeatJob>();
-    builder.Services.AddWallowRateLimiting();
+    if (!builder.Environment.IsDevelopment() && !builder.Environment.IsEnvironment("Testing"))
+    {
+        builder.Services.AddWallowRateLimiting();
+    }
     builder.Services.AddFeatureManagement();
 
     WebApplication app = builder.Build();
@@ -303,18 +315,69 @@ try
     await Wallow.Api.WallowModules.InitializeWallowModulesAsync(app);
     await app.InitializeAuditingAsync();
 
-    // Seed identity data (roles, admin user, dev OAuth2 client) in Development only
-    if (app.Environment.IsDevelopment())
+    // Seed default roles, sync pre-registered OAuth2 clients, and bootstrap admin if configured
+    await using (AsyncServiceScope seedScope = app.Services.CreateAsyncScope())
     {
-        await using AsyncServiceScope seedScope = app.Services.CreateAsyncScope();
         IServiceProvider sp = seedScope.ServiceProvider;
-        Wallow.Identity.Infrastructure.Data.IdentityDataSeeder seeder = new(
-            sp.GetRequiredService<ILoggerFactory>().CreateLogger<Wallow.Identity.Infrastructure.Data.IdentityDataSeeder>());
-        await seeder.SeedAsync(
-            sp.GetRequiredService<Microsoft.AspNetCore.Identity.RoleManager<Wallow.Identity.Domain.Entities.WallowRole>>(),
-            sp.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<Wallow.Identity.Domain.Entities.WallowUser>>(),
-            sp.GetRequiredService<OpenIddict.Abstractions.IOpenIddictApplicationManager>(),
-            sp.GetRequiredService<TimeProvider>());
+
+        // Seed default roles (admin, manager, user) — idempotent
+        DefaultRoleSeeder roleSeeder = sp.GetRequiredService<DefaultRoleSeeder>();
+        await roleSeeder.SeedAsync();
+
+        // Sync pre-registered OAuth2 clients from configuration — idempotent
+        PreRegisteredClientSyncService clientSync = sp.GetRequiredService<PreRegisteredClientSyncService>();
+        await clientSync.SyncAsync(CancellationToken.None);
+
+        // Admin bootstrap priority chain: CLI args > appsettings config > skip
+        // Use services directly (not IMessageBus) because Wolverine hasn't started yet at this point
+        ISetupStatusChecker setupStatusChecker = sp.GetRequiredService<ISetupStatusChecker>();
+        bool setupRequired = await setupStatusChecker.IsSetupRequiredAsync();
+
+        if (setupRequired)
+        {
+            string? cliEmail = app.Configuration["AdminBootstrap:Email"];
+            string? cliPassword = app.Configuration["AdminBootstrap:Password"];
+            string? cliFirstName = app.Configuration["AdminBootstrap:FirstName"];
+            string? cliLastName = app.Configuration["AdminBootstrap:LastName"];
+
+            AdminBootstrapOptions configOptions = sp.GetRequiredService<IOptions<AdminBootstrapOptions>>().Value;
+
+            // CLI-supplied credentials take priority (e.g. --AdminBootstrap:Email=... on command line)
+            // then fall back to appsettings-bound AdminBootstrapOptions
+            BootstrapAdminCommand? bootstrapCommand = null;
+            if (!string.IsNullOrWhiteSpace(cliEmail) && !string.IsNullOrWhiteSpace(cliPassword))
+            {
+                bootstrapCommand = new BootstrapAdminCommand(
+                    cliEmail,
+                    cliPassword,
+                    cliFirstName ?? string.Empty,
+                    cliLastName ?? string.Empty);
+            }
+            else if (configOptions.IsConfigured)
+            {
+                bootstrapCommand = new BootstrapAdminCommand(
+                    configOptions.Email,
+                    configOptions.Password,
+                    configOptions.FirstName,
+                    configOptions.LastName);
+            }
+
+            if (bootstrapCommand is not null)
+            {
+                IBootstrapAdminService bootstrapAdminService = sp.GetRequiredService<IBootstrapAdminService>();
+                await bootstrapAdminService.EnsureRoleExistsAsync("admin");
+                bool userExists = await bootstrapAdminService.UserExistsAsync(bootstrapCommand.Email);
+                if (!userExists)
+                {
+                    Guid userId = await bootstrapAdminService.CreateUserAsync(
+                        bootstrapCommand.Email,
+                        bootstrapCommand.Password,
+                        bootstrapCommand.FirstName,
+                        bootstrapCommand.LastName);
+                    await bootstrapAdminService.AssignRoleAsync(userId, "admin");
+                }
+            }
+        }
     }
 
     // Middleware pipeline (order matters!)
@@ -333,6 +396,9 @@ try
     // Correlation ID (read X-Correlation-Id or generate, push to LogContext + Activity)
     app.UseMiddleware<CorrelationIdMiddleware>();
 
+    // Setup gate (redirects non-setup requests to setup wizard when admin bootstrap is pending)
+    app.UseMiddleware<SetupMiddleware>();
+
     // Security headers (CSP, X-Content-Type-Options, etc.)
     app.UseMiddleware<SecurityHeadersMiddleware>();
 
@@ -340,8 +406,8 @@ try
     if (!app.Environment.IsDevelopment())
     {
         app.UseHsts();
+        app.UseHttpsRedirection();
     }
-    app.UseHttpsRedirection();
 
     // API version rewrite (backward compat: /api/foo → /api/v1/foo)
     // Must run before routing so the rewritten path is what the router sees.
@@ -354,14 +420,15 @@ try
     // Dev tools — version-segmented API docs (one OpenAPI doc per API version group)
     if (app.Environment.IsDevelopment())
     {
+        string scalarAppName = builder.Configuration["Branding:AppName"] ?? "Wallow";
         app.MapOpenApi().AllowAnonymous();
         app.MapScalarApiReference(options =>
         {
             options
-                .WithTitle("Wallow API")
+                .WithTitle($"{scalarAppName} API")
                 .WithTheme(ScalarTheme.Purple)
                 .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient)
-                .AddDocument("v1", "Wallow API v1", isDefault: true);
+                .AddDocument("v1", $"{scalarAppName} API v1", isDefault: true);
         }).AllowAnonymous();
     }
 
@@ -411,7 +478,10 @@ try
     }
 
     // Rate limiting
-    app.UseRateLimiter();
+    if (!app.Environment.IsDevelopment() && !app.Environment.IsEnvironment("Testing"))
+    {
+        app.UseRateLimiter();
+    }
 
     // API key authentication (checks X-Api-Key header first, falls through to JWT if not present)
     app.UseMiddleware<ApiKeyAuthenticationMiddleware>();
@@ -446,7 +516,6 @@ try
 
     // Endpoints
     app.MapControllers();
-    app.MapRazorPages();
 
     // Elsa Workflow engine (runs in all environments)
     app.UseWorkflows();
@@ -472,10 +541,25 @@ try
             job => job.ExecuteAsync(),
             "*/5 * * * *");
 
-        jobManager.AddOrUpdate<RetryFailedEmailsJob>(
-            "retry-failed-emails",
-            job => job.ExecuteAsync(CancellationToken.None),
-            "*/5 * * * *");
+        IFeatureManager jobFeatureManager = jobScope.ServiceProvider.GetRequiredService<IFeatureManager>();
+
+        if (await jobFeatureManager.IsEnabledAsync("Modules.Notifications"))
+        {
+            jobManager.AddOrUpdate<RetryFailedEmailsJob>(
+                "retry-failed-emails",
+                job => job.ExecuteAsync(CancellationToken.None),
+                "*/5 * * * *");
+        }
+
+        jobManager.AddOrUpdate<OpenIddictTokenPruningJob>(
+            "openiddict-token-pruning",
+            job => job.ExecuteAsync(),
+            "0 */4 * * *");
+
+        jobManager.AddOrUpdate<ExpiredInvitationPruningJob>(
+            "expired-invitation-pruning",
+            job => job.ExecuteAsync(),
+            "0 * * * *");
 
     }
     // Unhook OpenTelemetry Redis profiler before DI disposal to prevent ObjectDisposedException
@@ -509,6 +593,51 @@ try
             throw new InvalidOperationException(
                 $"Missing required configuration: {string.Join(", ", missing)}. " +
                 "Ensure all required settings are configured in appsettings or environment variables.");
+        }
+
+        // Dev credential guardrails — prevent development secrets from being used in non-Development environments
+        if (!app.Environment.IsDevelopment())
+        {
+            List<string> devCredentialViolations = [];
+
+            string? signingKey = app.Configuration["Identity:SigningKey"];
+            if (signingKey is not null && signingKey.Contains("DevOnly", StringComparison.OrdinalIgnoreCase))
+            {
+                devCredentialViolations.Add("Identity:SigningKey contains development placeholder");
+            }
+
+            string? defaultConnection = app.Configuration.GetConnectionString("DefaultConnection");
+            if (defaultConnection is not null && defaultConnection.Contains("Password=wallow", StringComparison.OrdinalIgnoreCase))
+            {
+                devCredentialViolations.Add("ConnectionStrings:DefaultConnection uses default development password");
+            }
+
+            string? redisConnection = app.Configuration.GetConnectionString("Redis");
+            if (redisConnection is not null && redisConnection.Contains("WallowValkey123!", StringComparison.Ordinal))
+            {
+                devCredentialViolations.Add("ConnectionStrings:Redis uses default development password");
+            }
+
+            string? s3AccessKey = app.Configuration["Storage:S3:AccessKey"];
+            if (s3AccessKey is not null && s3AccessKey.StartsWith("GK", StringComparison.Ordinal) &&
+                s3AccessKey == "GK5836664fc256a75e361c006f")
+            {
+                devCredentialViolations.Add("Storage:S3:AccessKey uses default development key");
+            }
+
+            string? adminEmail = app.Configuration["AdminBootstrap:Email"];
+            if (adminEmail is not null && adminEmail.EndsWith("@wallow.dev", StringComparison.OrdinalIgnoreCase))
+            {
+                devCredentialViolations.Add("AdminBootstrap:Email uses development domain (@wallow.dev)");
+            }
+
+            if (devCredentialViolations.Count > 0)
+            {
+                throw new InvalidOperationException(
+                    "Development credentials detected in non-Development environment. " +
+                    "Override these values via environment variables or appsettings before deploying:\n- " +
+                    string.Join("\n- ", devCredentialViolations));
+            }
         }
     }
 

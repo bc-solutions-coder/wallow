@@ -9,4 +9,6 @@ public sealed class PluginOptions
     public bool AutoEnable { get; set; }
     public Dictionary<string, List<string>> Permissions { get; set; } = [];
     public Dictionary<string, string> AllowedPluginHashes { get; set; } = [];
+
+    public const int MaxPlugins = 100;
 }

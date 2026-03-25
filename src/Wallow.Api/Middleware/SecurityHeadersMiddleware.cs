@@ -20,7 +20,7 @@ internal sealed class SecurityHeadersMiddleware(RequestDelegate next, IWebHostEn
 
             if (_isProduction)
             {
-                headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains";
+                headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload";
             }
 
             return Task.CompletedTask;
@@ -51,6 +51,15 @@ internal sealed class SecurityHeadersMiddleware(RequestDelegate next, IWebHostEn
         {
             return "default-src 'self'; " +
                    "connect-src 'self' ws: wss:";
+        }
+
+        // OpenIddict authorization endpoints may render HTML responses (e.g., consent pages,
+        // error pages) that require inline scripts and styles to function correctly.
+        if (path.HasValue && path.StartsWithSegments("/connect"))
+        {
+            return "default-src 'self'; " +
+                   "script-src 'self' 'unsafe-inline'; " +
+                   "style-src 'self' 'unsafe-inline'";
         }
 
         return "default-src 'self'";

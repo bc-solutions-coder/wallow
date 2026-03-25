@@ -10,7 +10,7 @@ namespace Wallow.Storage.Infrastructure.Providers;
 /// <summary>
 /// S3-compatible storage provider. Works with AWS S3, Garage, MinIO, and Cloudflare R2.
 /// </summary>
-public sealed class S3StorageProvider(IAmazonS3 s3Client, IOptions<StorageOptions> options, ITenantContext tenantContext) : IStorageProvider, IDisposable
+public sealed class S3StorageProvider(IAmazonS3 s3Client, IOptions<StorageOptions> options, ITenantContext tenantContext) : IStorageProvider
 {
     private readonly IAmazonS3 _s3Client = s3Client;
     private readonly S3StorageOptions _options = options.Value.S3;
@@ -86,8 +86,4 @@ public sealed class S3StorageProvider(IAmazonS3 s3Client, IOptions<StorageOption
         return _s3Client.GetPreSignedURLAsync(request);
     }
 
-    public void Dispose()
-    {
-        _s3Client.Dispose();
-    }
 }

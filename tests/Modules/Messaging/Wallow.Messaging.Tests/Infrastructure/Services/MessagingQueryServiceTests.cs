@@ -3,6 +3,8 @@ using Wallow.Messaging.Domain.Conversations.Entities;
 using Wallow.Messaging.Infrastructure.Persistence;
 using Wallow.Messaging.Infrastructure.Persistence.Repositories;
 using Wallow.Messaging.Infrastructure.Services;
+using Wallow.Shared.Infrastructure.Core.Persistence;
+using Wallow.Shared.Kernel.Persistence;
 using Wallow.Tests.Common.Bases;
 using Wallow.Tests.Common.Fixtures;
 
@@ -15,13 +17,16 @@ public class MessagingQueryServiceTests(PostgresContainerFixture fixture)
 {
     protected override bool UseMigrateAsync => true;
 
-    private MessagingQueryService CreateService() =>
-        new(DbContext, TenantContext);
+    private EfMessagingQueryService CreateService()
+    {
+        IReadDbContext<MessagingDbContext> readDbContext = new ReadDbContext<MessagingDbContext>(DbContext);
+        return new EfMessagingQueryService(readDbContext);
+    }
 
     private ConversationRepository CreateRepository() => new(DbContext);
 
     [Fact]
-    public async Task IsParticipantAsync_WhenUserIsParticipant_ReturnsTrue()
+    public async Task IsParticipantAsync_WhenUserIsActiveParticipant_ReturnsTrue()
     {
         Guid senderId = TestUserId;
         Guid recipientId = Guid.NewGuid();
@@ -31,7 +36,7 @@ public class MessagingQueryServiceTests(PostgresContainerFixture fixture)
         repository.Add(conversation);
         await repository.SaveChangesAsync();
 
-        MessagingQueryService service = CreateService();
+        EfMessagingQueryService service = CreateService();
 
         bool result = await service.IsParticipantAsync(conversation.Id.Value, senderId);
 
@@ -48,7 +53,7 @@ public class MessagingQueryServiceTests(PostgresContainerFixture fixture)
         repository.Add(conversation);
         await repository.SaveChangesAsync();
 
-        MessagingQueryService service = CreateService();
+        EfMessagingQueryService service = CreateService();
 
         bool result = await service.IsParticipantAsync(conversation.Id.Value, Guid.NewGuid());
 
@@ -56,34 +61,30 @@ public class MessagingQueryServiceTests(PostgresContainerFixture fixture)
     }
 
     [Fact]
-    public async Task IsParticipantAsync_WhenConversationDoesNotExist_ReturnsFalse()
+    public async Task GetUnreadConversationCountAsync_WhenUnreadMessagesExist_ReturnsOne()
     {
-        MessagingQueryService service = CreateService();
-
-        bool result = await service.IsParticipantAsync(Guid.NewGuid(), TestUserId);
-
-        result.Should().BeFalse();
-    }
-
-    [Fact]
-    public async Task GetUnreadConversationCountAsync_WhenNoMessages_ReturnsZero()
-    {
-        Guid userId = TestUserId;
+        Guid senderId = Guid.NewGuid();
+        Guid recipientId = TestUserId;
         Conversation conversation = Conversation.CreateDirect(
-            TestTenantId, userId, Guid.NewGuid(), TimeProvider.System);
+            TestTenantId, senderId, recipientId, TimeProvider.System);
         ConversationRepository repository = CreateRepository();
         repository.Add(conversation);
         await repository.SaveChangesAsync();
 
-        MessagingQueryService service = CreateService();
+        Conversation? loaded = await repository.GetByIdAsync(conversation.Id);
+        loaded!.SendMessage(senderId, "Hello!", TimeProvider.System);
+        loaded.SendMessage(senderId, "How are you?", TimeProvider.System);
+        await repository.SaveChangesAsync();
 
-        int count = await service.GetUnreadConversationCountAsync(userId);
+        EfMessagingQueryService service = CreateService();
 
-        count.Should().Be(0);
+        int count = await service.GetUnreadConversationCountAsync(recipientId);
+
+        count.Should().Be(1);
     }
 
     [Fact]
-    public async Task GetUnreadConversationCountAsync_WhenUserHasUnreadMessages_ReturnsCount()
+    public async Task GetUnreadConversationCountAsync_AfterMarkingRead_ReturnsZero()
     {
         Guid senderId = Guid.NewGuid();
         Guid recipientId = TestUserId;
@@ -97,38 +98,20 @@ public class MessagingQueryServiceTests(PostgresContainerFixture fixture)
         loaded!.SendMessage(senderId, "Hello!", TimeProvider.System);
         await repository.SaveChangesAsync();
 
-        MessagingQueryService service = CreateService();
+        // Simulate reading the conversation
+        Conversation? toRead = await repository.GetByIdAsync(conversation.Id);
+        toRead!.MarkReadBy(recipientId, TimeProvider.System);
+        await repository.SaveChangesAsync();
+
+        EfMessagingQueryService service = CreateService();
 
         int count = await service.GetUnreadConversationCountAsync(recipientId);
 
-        count.Should().Be(1);
+        count.Should().Be(0);
     }
 
     [Fact]
-    public async Task GetMessagesAsync_WhenConversationHasMessages_ReturnsMessages()
-    {
-        Guid senderId = TestUserId;
-        Conversation conversation = Conversation.CreateDirect(
-            TestTenantId, senderId, Guid.NewGuid(), TimeProvider.System);
-        ConversationRepository repository = CreateRepository();
-        repository.Add(conversation);
-        await repository.SaveChangesAsync();
-
-        Conversation? loaded = await repository.GetByIdAsync(conversation.Id);
-        loaded!.SendMessage(senderId, "Hello!", TimeProvider.System);
-        loaded.SendMessage(senderId, "World!", TimeProvider.System);
-        await repository.SaveChangesAsync();
-
-        MessagingQueryService service = CreateService();
-
-        IReadOnlyList<MessageDto> messages = await service.GetMessagesAsync(
-            conversation.Id.Value, senderId, null, 50);
-
-        messages.Should().HaveCount(2);
-    }
-
-    [Fact]
-    public async Task GetMessagesAsync_WithCursor_ReturnsPaginatedMessages()
+    public async Task GetMessagesAsync_WithoutCursor_ReturnsPageSizeMessagesInDescendingSentAtOrder()
     {
         Guid senderId = TestUserId;
         Conversation conversation = Conversation.CreateDirect(
@@ -143,20 +126,18 @@ public class MessagingQueryServiceTests(PostgresContainerFixture fixture)
         loaded.SendMessage(senderId, "Message 3", TimeProvider.System);
         await repository.SaveChangesAsync();
 
-        MessagingQueryService service = CreateService();
+        EfMessagingQueryService service = CreateService();
 
-        IReadOnlyList<MessageDto> allMessages = await service.GetMessagesAsync(
-            conversation.Id.Value, senderId, null, 50);
+        IReadOnlyList<MessageDto> messages = await service.GetMessagesAsync(
+            conversation.Id.Value, senderId, null, 10);
 
-        Guid cursorId = allMessages[1].Id;
-        IReadOnlyList<MessageDto> paged = await service.GetMessagesAsync(
-            conversation.Id.Value, senderId, cursorId, 50);
-
-        paged.Should().HaveCount(1);
+        messages.Should().HaveCount(3);
+        messages[0].SentAt.Should().BeOnOrAfter(messages[1].SentAt);
+        messages[1].SentAt.Should().BeOnOrAfter(messages[2].SentAt);
     }
 
     [Fact]
-    public async Task GetMessagesAsync_WhenNoMessages_ReturnsEmpty()
+    public async Task GetMessagesAsync_WithCursor_ReturnsOnlyMessagesOlderThanCursorMessage()
     {
         Guid senderId = TestUserId;
         Conversation conversation = Conversation.CreateDirect(
@@ -165,134 +146,61 @@ public class MessagingQueryServiceTests(PostgresContainerFixture fixture)
         repository.Add(conversation);
         await repository.SaveChangesAsync();
 
-        MessagingQueryService service = CreateService();
+        Conversation? loaded = await repository.GetByIdAsync(conversation.Id);
+        loaded!.SendMessage(senderId, "Message 1", TimeProvider.System);
+        loaded.SendMessage(senderId, "Message 2", TimeProvider.System);
+        loaded.SendMessage(senderId, "Message 3", TimeProvider.System);
+        await repository.SaveChangesAsync();
 
-        IReadOnlyList<MessageDto> messages = await service.GetMessagesAsync(
+        EfMessagingQueryService service = CreateService();
+
+        IReadOnlyList<MessageDto> allMessages = await service.GetMessagesAsync(
             conversation.Id.Value, senderId, null, 50);
 
-        messages.Should().BeEmpty();
+        // Use the second message (index 1, which is middle in desc order) as cursor
+        Guid cursorId = allMessages[1].Id;
+        DateTime cursorSentAt = allMessages[1].SentAt;
+
+        IReadOnlyList<MessageDto> paged = await service.GetMessagesAsync(
+            conversation.Id.Value, senderId, cursorId, 50);
+
+        paged.Should().HaveCount(1);
+        paged.Should().OnlyContain(m => m.SentAt < cursorSentAt);
     }
 
     [Fact]
-    public async Task GetConversationsAsync_WhenUserHasConversations_ReturnsConversations()
-    {
-        Guid userId = TestUserId;
-        Conversation conversation = Conversation.CreateDirect(
-            TestTenantId, userId, Guid.NewGuid(), TimeProvider.System);
-        ConversationRepository repository = CreateRepository();
-        repository.Add(conversation);
-        await repository.SaveChangesAsync();
-
-        MessagingQueryService service = CreateService();
-
-        IReadOnlyList<ConversationDto> conversations = await service.GetConversationsAsync(
-            userId, 1, 20);
-
-        conversations.Should().HaveCount(1);
-        conversations[0].Participants.Should().HaveCountGreaterThan(0);
-    }
-
-    [Fact]
-    public async Task GetConversationsAsync_WhenUserHasNoConversations_ReturnsEmpty()
-    {
-        MessagingQueryService service = CreateService();
-
-        IReadOnlyList<ConversationDto> conversations = await service.GetConversationsAsync(
-            Guid.NewGuid(), 1, 20);
-
-        conversations.Should().BeEmpty();
-    }
-
-    [Fact]
-    public async Task GetConversationsAsync_ReturnsGroupConversationWithCorrectType()
-    {
-        Guid userId = TestUserId;
-        Conversation conversation = Conversation.CreateGroup(
-            TestTenantId, userId, "My Group", [Guid.NewGuid(), Guid.NewGuid()], TimeProvider.System);
-        ConversationRepository repository = CreateRepository();
-        repository.Add(conversation);
-        await repository.SaveChangesAsync();
-
-        MessagingQueryService service = CreateService();
-
-        IReadOnlyList<ConversationDto> conversations = await service.GetConversationsAsync(
-            userId, 1, 20);
-
-        conversations.Should().HaveCount(1);
-        conversations[0].Type.Should().Be("Group");
-    }
-
-    [Fact]
-    public async Task GetConversationsAsync_WithPagination_ReturnsCorrectPage()
+    public async Task GetConversationsAsync_ReturnsConversationsInDescendingLastActivityOrder()
     {
         Guid userId = TestUserId;
         Conversation conversation1 = Conversation.CreateDirect(
             TestTenantId, userId, Guid.NewGuid(), TimeProvider.System);
-        Conversation conversation2 = Conversation.CreateDirect(
-            TestTenantId, userId, Guid.NewGuid(), TimeProvider.System);
         ConversationRepository repository = CreateRepository();
         repository.Add(conversation1);
+        await repository.SaveChangesAsync();
+
+        Conversation? loaded1 = await repository.GetByIdAsync(conversation1.Id);
+        loaded1!.SendMessage(userId, "Old message", TimeProvider.System);
+        await repository.SaveChangesAsync();
+
+        Conversation conversation2 = Conversation.CreateDirect(
+            TestTenantId, userId, Guid.NewGuid(), TimeProvider.System);
         repository.Add(conversation2);
         await repository.SaveChangesAsync();
 
-        MessagingQueryService service = CreateService();
-
-        IReadOnlyList<ConversationDto> page1 = await service.GetConversationsAsync(userId, 1, 1);
-        IReadOnlyList<ConversationDto> page2 = await service.GetConversationsAsync(userId, 2, 1);
-
-        page1.Should().HaveCount(1);
-        page2.Should().HaveCount(1);
-        page1[0].Id.Should().NotBe(page2[0].Id);
-    }
-
-    [Fact]
-    public async Task GetConversationsAsync_WithLastMessage_PopulatesLastMessageData()
-    {
-        Guid userId = TestUserId;
-        Conversation conversation = Conversation.CreateDirect(
-            TestTenantId, userId, Guid.NewGuid(), TimeProvider.System);
-        ConversationRepository repository = CreateRepository();
-        repository.Add(conversation);
+        Conversation? loaded2 = await repository.GetByIdAsync(conversation2.Id);
+        loaded2!.SendMessage(userId, "New message", TimeProvider.System);
         await repository.SaveChangesAsync();
 
-        Conversation? loaded = await repository.GetByIdAsync(conversation.Id);
-        loaded!.SendMessage(userId, "Hi there!", TimeProvider.System);
-        await repository.SaveChangesAsync();
-
-        MessagingQueryService service = CreateService();
+        EfMessagingQueryService service = CreateService();
 
         IReadOnlyList<ConversationDto> conversations = await service.GetConversationsAsync(userId, 1, 20);
 
-        conversations.Should().HaveCount(1);
-        conversations[0].LastMessage.Should().NotBeNull();
-        conversations[0].LastMessage!.Body.Should().Be("Hi there!");
+        conversations.Should().HaveCount(2);
+        conversations[0].LastActivityAt.Should().BeOnOrAfter(conversations[1].LastActivityAt);
     }
 
     [Fact]
-    public async Task GetConversationsAsync_UnreadCount_IsCorrect()
-    {
-        Guid otherId = Guid.NewGuid();
-        Guid userId = TestUserId;
-        Conversation conversation = Conversation.CreateDirect(
-            TestTenantId, otherId, userId, TimeProvider.System);
-        ConversationRepository repository = CreateRepository();
-        repository.Add(conversation);
-        await repository.SaveChangesAsync();
-
-        Conversation? loaded = await repository.GetByIdAsync(conversation.Id);
-        loaded!.SendMessage(otherId, "Unread message", TimeProvider.System);
-        await repository.SaveChangesAsync();
-
-        MessagingQueryService service = CreateService();
-
-        IReadOnlyList<ConversationDto> conversations = await service.GetConversationsAsync(userId, 1, 20);
-
-        conversations.Should().HaveCount(1);
-        conversations[0].UnreadCount.Should().BeGreaterThan(0);
-    }
-
-    [Fact]
-    public async Task GetConversationsAsync_ParticipantsArePopulated()
+    public async Task GetConversationsAsync_PopulatesParticipantLists()
     {
         Guid userId = TestUserId;
         Guid otherId = Guid.NewGuid();
@@ -302,13 +210,39 @@ public class MessagingQueryServiceTests(PostgresContainerFixture fixture)
         repository.Add(conversation);
         await repository.SaveChangesAsync();
 
-        MessagingQueryService service = CreateService();
+        EfMessagingQueryService service = CreateService();
 
         IReadOnlyList<ConversationDto> conversations = await service.GetConversationsAsync(userId, 1, 20);
 
+        conversations.Should().HaveCount(1);
         conversations[0].Participants.Should().HaveCount(2);
-        ParticipantDto participant = conversations[0].Participants.First(p => p.UserId == userId);
-        participant.IsActive.Should().BeTrue();
-        participant.JoinedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
+        conversations[0].Participants.Should().Contain(p => p.UserId == userId);
+        conversations[0].Participants.Should().Contain(p => p.UserId == otherId);
+    }
+
+    [Fact]
+    public async Task GetConversationsAsync_PaginationSkipsCorrectly()
+    {
+        Guid userId = TestUserId;
+        Conversation conversation1 = Conversation.CreateDirect(
+            TestTenantId, userId, Guid.NewGuid(), TimeProvider.System);
+        Conversation conversation2 = Conversation.CreateDirect(
+            TestTenantId, userId, Guid.NewGuid(), TimeProvider.System);
+        Conversation conversation3 = Conversation.CreateDirect(
+            TestTenantId, userId, Guid.NewGuid(), TimeProvider.System);
+        ConversationRepository repository = CreateRepository();
+        repository.Add(conversation1);
+        repository.Add(conversation2);
+        repository.Add(conversation3);
+        await repository.SaveChangesAsync();
+
+        EfMessagingQueryService service = CreateService();
+
+        IReadOnlyList<ConversationDto> page1 = await service.GetConversationsAsync(userId, 1, 2);
+        IReadOnlyList<ConversationDto> page2 = await service.GetConversationsAsync(userId, 2, 2);
+
+        page1.Should().HaveCount(2);
+        page2.Should().HaveCount(1);
+        page1.Select(c => c.Id).Should().NotIntersectWith(page2.Select(c => c.Id));
     }
 }

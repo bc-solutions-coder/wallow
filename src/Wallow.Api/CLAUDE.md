@@ -16,11 +16,11 @@ This is not a Clean Architecture layer -- it is the **composition root**.
 
 ## Key Patterns
 
-- **Middleware pipeline order** (in `Program.cs`): ExceptionHandler -> Serilog request logging -> OpenAPI (dev only) -> CORS -> Health checks -> Authentication (Keycloak JWT) -> TenantResolutionMiddleware -> PermissionExpansionMiddleware -> Authorization -> Hangfire dashboard -> Controllers + SignalR hub. Order matters -- do not rearrange.
+- **Middleware pipeline order** (in `Program.cs`): ExceptionHandler -> Serilog request logging -> OpenAPI (dev only) -> CORS -> Health checks -> Authentication (OpenIddict JWT) -> TenantResolutionMiddleware -> PermissionExpansionMiddleware -> Authorization -> Hangfire dashboard -> Controllers + SignalR hub. Order matters -- do not rearrange.
 - **Wolverine setup**: Configures PostgreSQL durable outbox, EF Core transaction integration, FluentValidation middleware, and handler assembly discovery for each module. Defaults to in-memory transport; set `ModuleMessaging:Transport` to `RabbitMq` to enable RabbitMQ transport.
 - **SignalR**: Single `RealtimeHub` at `/hubs/realtime` with Redis backplane. Authenticated via JWT query string parameter for WebSocket upgrade. Presence tracking via `RedisPresenceService`.
 - **Hangfire**: PostgreSQL storage, dashboard at `/hangfire` (auth-filtered). Modules register recurring jobs via `IRecurringJobRegistration`. API registers `SystemHeartbeatJob` directly.
-- **Health checks**: `/health` (all), `/health/ready` (PostgreSQL, Hangfire, Redis, Keycloak; RabbitMQ only when enabled), `/health/live` (liveness only).
+- **Health checks**: `/health` (all), `/health/ready` (PostgreSQL, Hangfire, Redis; RabbitMQ only when enabled), `/health/live` (liveness only).
 - **Error handling**: `GlobalExceptionHandler` maps domain exceptions to RFC 7807 Problem Details. `EntityNotFoundException` -> 404, `BusinessRuleException` -> 422, etc.
 
 ## Dependencies

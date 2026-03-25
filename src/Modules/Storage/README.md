@@ -531,4 +531,4 @@ dotnet test tests/Modules/Storage/Modules.Storage.Tests
 ## Related Documentation
 
 - [Storage Module Design](../../../docs/plans/2026-02-05-storage-module-design.md) - Architecture decisions and design rationale
-- [Developer Guide](../../../docs/DEVELOPER_GUIDE.md) - General development practices
+- [Developer Guide](../../../docs/getting-started/developer-guide.md) - General development practices

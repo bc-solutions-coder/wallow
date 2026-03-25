@@ -33,9 +33,9 @@ The middleware pipeline is carefully ordered to ensure proper request flow:
 3. OpenAPI/Scalar (dev)     → API documentation UI at /scalar
 4. CORS                     → Allow cross-origin requests per environment
 5. HealthChecks             → /health, /health/ready, /health/live endpoints
-6. Authentication           → Keycloak OIDC JWT validation
+6. Authentication           → OpenIddict JWT validation
 7. TenantResolution         → Extract org claim → populate ITenantContext
-8. PermissionExpansion      → Expand Keycloak roles to PermissionType claims
+8. PermissionExpansion      → Expand roles to PermissionType claims
 9. Authorization            → Enforce [HasPermission] attributes
 10. HangfireDashboard       → Admin UI at /hangfire
 11. Controllers             → Route HTTP requests to action methods
@@ -105,7 +105,7 @@ Configures all services and middleware. Key responsibilities:
 ### Authentication & Authorization
 | Library | Version | Purpose |
 |---------|---------|---------|
-| Keycloak.AuthServices.Authentication | 2.5.3 | OIDC JWT validation |
+
 | Microsoft.AspNetCore.Authentication.JwtBearer | 10.0.2 | JWT Bearer middleware |
 
 ### Real-time
@@ -187,7 +187,7 @@ Each module publishes and consumes domain events:
 ### Prerequisites
 - .NET 10 SDK
 - Docker & Docker Compose (for infrastructure)
-- PostgreSQL 18, RabbitMQ, Redis, Keycloak (all managed by docker-compose)
+- PostgreSQL 18, RabbitMQ, Redis (all managed by docker-compose)
 
 ### 1. Start Infrastructure
 ```bash
@@ -199,7 +199,7 @@ This starts:
 - **PostgreSQL** (port 5432) - Primary database
 - **RabbitMQ** (port 5672) - Message broker; admin UI at http://localhost:15672
 - **Redis/Valkey** (port 6379) - Caching and SignalR backplane
-- **Keycloak** (port 8080) - Identity provider
+
 - **Mailpit** (port 8025) - Email testing UI
 - **Grafana** (port 3000) - Observability dashboard
 
@@ -219,22 +219,14 @@ The API starts on **http://localhost:5000** with the following endpoints:
 - **Background Jobs**: http://localhost:5000/hangfire (Hangfire dashboard)
 - **Real-time Hub**: ws://localhost:5000/hubs/realtime (WebSocket endpoint)
 
-### 3. Authenticate
-Keycloak is available at http://localhost:8080. Default credentials:
-- **Realm**: wallow
-- **User**: admin@wallow.dev
-- **Password**: Admin123!
-
-Use the Keycloak admin console to create users, assign roles, and generate JWT tokens. Include the JWT in the `Authorization: Bearer <token>` header when calling protected endpoints.
-
-### 4. Monitor & Debug
+### 3. Monitor & Debug
 - **API Logs**: Console output shows structured logs with request/response details
 - **RabbitMQ Admin**: http://localhost:15672 (see `docker/.env`) - Monitor exchanges, queues, messages
 - **Hangfire Dashboard**: http://localhost:5000/hangfire - View scheduled and completed jobs
 - **Mailpit**: http://localhost:8025 - Inspect sent emails
-- **Grafana**: http://localhost:3000 (admin / admin) - View traces, metrics, and logs
+- **Grafana**: http://localhost:3001 (admin / admin) - View traces, metrics, and logs
 
-### 5. Run Tests
+### 4. Run Tests
 ```bash
 # Run all tests
 dotnet test
@@ -250,4 +242,4 @@ dotnet test tests/Modules/Billing/Wallow.Billing.Tests
 
 For detailed design rationale, see:
 - `docs/plans/2026-02-04-wallow-pivot-design.md` - Overall platform architecture
-- `docs/DEVELOPER_GUIDE.md` - How to work with the codebase and add modules
+- `docs/getting-started/developer-guide.md` - How to work with the codebase and add modules

@@ -1,10 +1,11 @@
+using Wallow.Shared.Kernel.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace Wallow.Shared.Kernel.MultiTenancy;
 
-public class TenantSaveChangesInterceptor(ITenantContext tenantContext) : SaveChangesInterceptor
+public class TenantSaveChangesInterceptor(ITenantContext? tenantContext = null) : SaveChangesInterceptor
 {
 
     public override InterceptionResult<int> SavingChanges(
@@ -24,7 +25,16 @@ public class TenantSaveChangesInterceptor(ITenantContext tenantContext) : SaveCh
 
     private void SetTenantId(DbContext? context)
     {
-        if (context == null || !tenantContext.IsResolved)
+        if (context == null)
+        {
+            return;
+        }
+
+        // Prefer the tenant ID set directly on the context (via SetTenant) over the injected
+        // ITenantContext, because with pooled DbContextFactory the interceptor may capture a
+        // stale ITenantContext from a different scope.
+        TenantId effectiveTenantId = ResolveTenantId(context);
+        if (effectiveTenantId == default)
         {
             return;
         }
@@ -35,7 +45,7 @@ public class TenantSaveChangesInterceptor(ITenantContext tenantContext) : SaveCh
 
         foreach (EntityEntry<ITenantScoped> entry in entries)
         {
-            entry.Property(nameof(ITenantScoped.TenantId)).CurrentValue = tenantContext.TenantId;
+            entry.Property(nameof(ITenantScoped.TenantId)).CurrentValue = effectiveTenantId;
         }
 
         IEnumerable<EntityEntry<ITenantScoped>> modified = context.ChangeTracker
@@ -49,5 +59,21 @@ public class TenantSaveChangesInterceptor(ITenantContext tenantContext) : SaveCh
                 entry.Property(nameof(ITenantScoped.TenantId)).IsModified = false;
             }
         }
+    }
+
+    private TenantId ResolveTenantId(DbContext context)
+    {
+        // ITenantAwareContext is implemented by TenantAwareDbContext which exposes CurrentTenantId
+        if (context is ITenantAwareContext tenantAware && tenantAware.CurrentTenantId != default)
+        {
+            return tenantAware.CurrentTenantId;
+        }
+
+        if (tenantContext is { IsResolved: true })
+        {
+            return tenantContext.TenantId;
+        }
+
+        return default;
     }
 }

@@ -2,6 +2,7 @@ using Wallow.Messaging.Application.Conversations.Interfaces;
 using Wallow.Messaging.Infrastructure.Persistence;
 using Wallow.Messaging.Infrastructure.Persistence.Repositories;
 using Wallow.Messaging.Infrastructure.Services;
+using Wallow.Shared.Infrastructure.Core.Extensions;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
@@ -10,6 +11,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Npgsql;
 
 namespace Wallow.Messaging.Infrastructure.Extensions;
 
@@ -19,12 +21,20 @@ public static partial class MessagingModuleExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        _ = configuration;
+        int maxPoolSize = configuration.GetValue("Database:MaxPoolSize", 200);
+        int minPoolSize = configuration.GetValue("Database:MinPoolSize", 10);
 
-        services.AddDbContext<MessagingDbContext>((sp, options) =>
+        string defaultConnectionString = configuration.GetConnectionString("DefaultConnection")
+            ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured.");
+
+        services.AddPooledDbContextFactory<MessagingDbContext>((sp, options) =>
         {
-            string? connectionString = sp.GetRequiredService<IConfiguration>().GetConnectionString("DefaultConnection");
-            options.UseNpgsql(connectionString, npgsql =>
+            NpgsqlConnectionStringBuilder builder = new(defaultConnectionString)
+            {
+                MaxPoolSize = maxPoolSize,
+                MinPoolSize = minPoolSize
+            };
+            options.UseNpgsql(builder.ConnectionString, npgsql =>
             {
                 npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "messaging");
                 npgsql.EnableRetryOnFailure(
@@ -38,8 +48,19 @@ public static partial class MessagingModuleExtensions
             options.AddInterceptors(sp.GetRequiredService<TenantSaveChangesInterceptor>());
         });
 
+        services.AddScoped<MessagingDbContext>(sp =>
+        {
+            IDbContextFactory<MessagingDbContext> factory = sp.GetRequiredService<IDbContextFactory<MessagingDbContext>>();
+            MessagingDbContext ctx = factory.CreateDbContext();
+            ITenantContext tenant = sp.GetRequiredService<ITenantContext>();
+            ctx.SetTenant(tenant.TenantId);
+            return ctx;
+        });
+
+        services.AddReadDbContext<MessagingDbContext>(configuration);
+
         services.AddScoped<IConversationRepository, ConversationRepository>();
-        services.AddScoped<IMessagingQueryService, MessagingQueryService>();
+        services.AddScoped<IMessagingQueryService, EfMessagingQueryService>();
 
         return services;
     }

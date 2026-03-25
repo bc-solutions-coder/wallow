@@ -7,16 +7,23 @@ using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace Wallow.Shared.Infrastructure.Core.Persistence;
 
-public abstract class TenantAwareDbContext<TContext> : DbContext where TContext : DbContext
+public abstract class TenantAwareDbContext<TContext> : DbContext, ITenantAwareContext where TContext : DbContext
 {
     // ReSharper disable once InconsistentNaming — Field must be protected for expression tree access in subclasses
 #pragma warning disable SA1401, CA1051, IDE1006
-    protected readonly TenantId _tenantId;
+    protected TenantId _tenantId;
 #pragma warning restore SA1401, CA1051, IDE1006
 
-    protected TenantAwareDbContext(DbContextOptions<TContext> options, ITenantContext tenantContext) : base(options)
+    protected TenantAwareDbContext(DbContextOptions<TContext> options) : base(options)
     {
-        _tenantId = tenantContext.TenantId;
+        _tenantId = default;
+    }
+
+    public TenantId CurrentTenantId => _tenantId;
+
+    public void SetTenant(TenantId tenantId)
+    {
+        _tenantId = tenantId;
     }
 
     protected void ApplyTenantQueryFilters(ModelBuilder modelBuilder)

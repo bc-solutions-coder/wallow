@@ -16,8 +16,6 @@ public class StorageDbContextFactory : IDesignTimeDbContextFactory<StorageDbCont
         string password = Environment.GetEnvironmentVariable("WALLOW_DB_PASSWORD") ?? "wallow";
         optionsBuilder.UseNpgsql($"Host=localhost;Database=wallow;Username=wallow;Password={password}");
 
-        DesignTimeTenantContext mockTenantContext = new();
-
-        return new StorageDbContext(optionsBuilder.Options, mockTenantContext);
+        return new StorageDbContext(optionsBuilder.Options);
     }
 }

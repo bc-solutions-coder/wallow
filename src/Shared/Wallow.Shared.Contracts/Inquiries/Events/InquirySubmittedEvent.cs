@@ -11,4 +11,5 @@ public sealed record InquirySubmittedEvent : IntegrationEvent
     public required string Message { get; init; }
     public required DateTime SubmittedAt { get; init; }
     public required string AdminEmail { get; init; }
+    public IReadOnlyList<Guid> AdminUserIds { get; init; } = [];
 }

@@ -314,6 +314,5 @@ public sealed class S3StorageProviderTests : IDisposable
     public void Dispose()
     {
         (_mockS3Client as IDisposable)?.Dispose();
-        (_provider as IDisposable)?.Dispose();
     }
 }
