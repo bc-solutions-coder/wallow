@@ -1,5 +1,5 @@
-using System.Security.Claims;
 using Microsoft.AspNetCore.SignalR;
+using Wallow.Shared.Kernel.Extensions;
 
 namespace Wallow.Api.Hubs;
 
@@ -10,6 +10,5 @@ namespace Wallow.Api.Hubs;
 internal sealed class SubClaimUserIdProvider : IUserIdProvider
 {
     public string? GetUserId(HubConnectionContext connection) =>
-        connection.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value
-        ?? connection.User?.FindFirst("sub")?.Value;
+        connection.User?.GetUserId();
 }

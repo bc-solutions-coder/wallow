@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -6,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Identity.Domain.Identity;
+using Wallow.Shared.Kernel.Extensions;
 using Wallow.Shared.Kernel.Identity.Authorization;
 
 namespace Wallow.Identity.Api.Controllers;
@@ -25,7 +25,7 @@ public class MembershipRequestsController(
     [ProducesResponseType(StatusCodes.Status201Created)]
     public async Task<ActionResult> RequestMembership(CreateMembershipRequest request, CancellationToken ct)
     {
-        Guid userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        Guid userId = Guid.Parse(User.GetUserId()!);
         Guid requestId = await domainAssignmentService.RequestMembershipAsync(userId, request.EmailDomain, ct);
         return CreatedAtAction(nameof(GetById), new { id = requestId }, new { id = requestId });
     }

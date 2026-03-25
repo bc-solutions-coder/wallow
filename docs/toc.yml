@@ -26,8 +26,8 @@
       href: architecture/caching.md
     - name: File Storage
       href: architecture/file-storage.md
-    - name: SignalR
-      href: architecture/signalr.md
+    - name: Realtime
+      href: architecture/realtime.md
     - name: Workflows
       href: architecture/workflows.md
 - name: Development

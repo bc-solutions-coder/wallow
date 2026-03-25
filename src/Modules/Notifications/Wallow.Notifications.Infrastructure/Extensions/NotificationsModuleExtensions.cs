@@ -129,7 +129,7 @@ public static partial class NotificationsModuleExtensions
         services.AddScoped<IEmailTemplateService, SimpleEmailTemplateService>();
 
         // InApp notification services
-        services.AddScoped<INotificationService, SignalRNotificationService>();
+        services.AddScoped<INotificationService, SseNotificationService>();
 
         // Preference checking
         services.AddScoped<INotificationPreferenceChecker, NotificationPreferenceChecker>();

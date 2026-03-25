@@ -14,7 +14,11 @@
         </BbAlert>
     </BbCardContent>
     <BbCardFooter>
-        <div class="text-center w-full">
+        <div class="flex flex-col items-center gap-2 w-full">
+            @if (Reason == "not_a_member")
+            {
+                <a href="/logout" class="text-sm font-medium text-primary hover:text-primary/80">Sign out and try a different account</a>
+            }
             <a href="/" class="text-sm text-muted-foreground hover:text-foreground">Back to home</a>
         </div>
     </BbCardFooter>

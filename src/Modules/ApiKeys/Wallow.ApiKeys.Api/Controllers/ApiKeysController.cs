@@ -7,6 +7,7 @@ using Wallow.ApiKeys.Api.Contracts.Requests;
 using Wallow.ApiKeys.Api.Contracts.Responses;
 using Wallow.Shared.Contracts.ApiKeys;
 using Wallow.Shared.Contracts.Identity;
+using Wallow.Shared.Kernel.Extensions;
 using Wallow.Shared.Kernel.Identity.Authorization;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Shared.Kernel.Services;
@@ -92,9 +93,7 @@ public sealed class ApiKeysController(IApiKeyService apiKeyService, IScopeSubset
                 });
             }
 
-            HashSet<string> userPermissions = HttpContext.User.FindAll("permission")
-                .Select(c => c.Value)
-                .ToHashSet();
+            HashSet<string> userPermissions = HttpContext.User.GetPermissions().ToHashSet();
 
             foreach (string scope in request.Scopes)
             {
@@ -106,7 +105,7 @@ public sealed class ApiKeysController(IApiKeyService apiKeyService, IScopeSubset
             }
 
             // When the caller is a service account, ensure requested scopes are a subset of its permitted scopes
-            string? callerClientId = HttpContext.User.FindFirst("azp")?.Value;
+            string? callerClientId = HttpContext.User.GetClientId();
             if (callerClientId is not null && callerClientId.StartsWith("sa-", StringComparison.Ordinal))
             {
                 ScopeValidationResult scopeResult = await scopeSubsetValidator.ValidateAsync(callerClientId, request.Scopes, ct);

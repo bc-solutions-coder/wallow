@@ -4,6 +4,7 @@
 @rendermode InteractiveServer
 @using System.Security.Claims
 @using Microsoft.AspNetCore.Components.Authorization
+@using Wallow.Shared.Kernel.Extensions
 @inject AuthenticationStateProvider AuthStateProvider
 
 <div class="max-w-2xl mx-auto">
@@ -58,14 +59,8 @@
         AuthenticationState authState = await AuthStateProvider.GetAuthenticationStateAsync();
         ClaimsPrincipal user = authState.User;
 
-        _name = user.FindFirst("name")?.Value
-                ?? user.FindFirst(ClaimTypes.Name)?.Value;
-        _email = user.FindFirst("email")?.Value
-                 ?? user.FindFirst(ClaimTypes.Email)?.Value;
-        _roles = user.FindAll(ClaimTypes.Role)
-                     .Select(c => c.Value)
-                     .Concat(user.FindAll("role").Select(c => c.Value))
-                     .Distinct()
-                     .ToList();
+        _name = user.GetDisplayName();
+        _email = user.GetEmail();
+        _roles = user.GetRoles().ToList();
     }
 }

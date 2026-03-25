@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Serilog.Context;
 using Wallow.Identity.Application.Telemetry;
+using Wallow.Shared.Kernel.Extensions;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
 
@@ -18,11 +19,11 @@ public partial class TenantResolutionMiddleware(RequestDelegate next, ILogger<Te
 
         if (context.User.Identity?.IsAuthenticated == true)
         {
-            Claim? orgIdClaim = context.User.FindFirst("org_id");
-            if (orgIdClaim != null && Guid.TryParse(orgIdClaim.Value, out Guid orgId))
+            string? orgIdStr = context.User.GetTenantId();
+            if (orgIdStr != null && Guid.TryParse(orgIdStr, out Guid orgId))
             {
                 resolvedTenantId = orgId;
-                resolvedTenantName = context.User.FindFirst("org_name")?.Value ?? string.Empty;
+                resolvedTenantName = context.User.GetTenantName() ?? string.Empty;
                 LogTenantResolved(orgId, resolvedTenantName);
             }
 
@@ -36,7 +37,7 @@ public partial class TenantResolutionMiddleware(RequestDelegate next, ILogger<Te
                 }
                 else if (HasRealmAdminRole(context.User) || IsOperatorServiceAccount(context.User))
                 {
-                    string callerId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "unknown";
+                    string callerId = context.User.GetUserId() ?? "unknown";
                     string requestPath = context.Request.Path.Value ?? "/";
 
                     LogAdminTenantOverride(overrideId, resolvedTenantId, callerId, requestPath);
@@ -46,7 +47,7 @@ public partial class TenantResolutionMiddleware(RequestDelegate next, ILogger<Te
             }
 
             // Region resolution: JWT claim > header > default
-            string? region = context.User.FindFirst("tenant_region")?.Value;
+            string? region = context.User.GetTenantRegion();
             if (string.IsNullOrEmpty(region))
             {
                 region = context.Request.Headers["X-Tenant-Region"].FirstOrDefault();
@@ -73,8 +74,7 @@ public partial class TenantResolutionMiddleware(RequestDelegate next, ILogger<Te
         }
 
         string? userId = context.User.Identity?.IsAuthenticated == true
-            ? context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value
-              ?? context.User.FindFirst("sub")?.Value
+            ? context.User.GetUserId()
             : null;
 
         if (userId is not null)
@@ -96,7 +96,7 @@ public partial class TenantResolutionMiddleware(RequestDelegate next, ILogger<Te
     /// </summary>
     private static bool IsOperatorServiceAccount(ClaimsPrincipal user)
     {
-        string? clientId = user.FindFirst("azp")?.Value;
+        string? clientId = user.GetClientId();
         return clientId?.StartsWith("sa-", StringComparison.Ordinal) == true;
     }
 
@@ -104,8 +104,8 @@ public partial class TenantResolutionMiddleware(RequestDelegate next, ILogger<Te
 
     private static bool HasRealmAdminRole(ClaimsPrincipal user)
     {
-        return user.FindAll(ClaimTypes.Role).Any(c =>
-            string.Equals(c.Value, AdminRole, StringComparison.OrdinalIgnoreCase));
+        return user.GetRoles().Any(c =>
+            string.Equals(c, AdminRole, StringComparison.OrdinalIgnoreCase));
     }
 }
 

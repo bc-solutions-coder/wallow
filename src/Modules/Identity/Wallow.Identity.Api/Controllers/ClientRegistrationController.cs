@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text.Json;
 using Asp.Versioning;
@@ -10,6 +9,7 @@ using OpenIddict.Abstractions;
 using Wallow.Identity.Api.Contracts.Requests;
 using Wallow.Identity.Api.Contracts.Responses;
 using Wallow.Identity.Application.Interfaces;
+using Wallow.Shared.Kernel.Extensions;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
 namespace Wallow.Identity.Api.Controllers;
@@ -61,7 +61,7 @@ public class ClientRegistrationController(
         // When a tenant is specified, verify the caller is a member of that organization
         if (request.TenantId.HasValue)
         {
-            string? callerIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            string? callerIdClaim = User.GetUserId();
             if (callerIdClaim is null || !Guid.TryParse(callerIdClaim, out Guid callerId))
             {
                 return Forbid();

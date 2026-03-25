@@ -1,10 +1,10 @@
-using System.Security.Claims;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Shared.Kernel.Extensions;
 using Wallow.Shared.Kernel.Results;
 
 namespace Wallow.Identity.Api.Controllers;
@@ -20,7 +20,7 @@ public sealed class MfaController(
     [HttpPost("enroll/totp")]
     public async Task<IActionResult> EnrollTotp(CancellationToken ct)
     {
-        string userId = GetUserId();
+        string userId = GetUserIdClaim();
 
         (string secret, string qrUri) = await mfaService.GenerateEnrollmentSecretAsync(userId, ct);
 
@@ -30,7 +30,7 @@ public sealed class MfaController(
     [HttpPost("enroll/confirm")]
     public async Task<IActionResult> ConfirmEnrollment([FromBody] MfaConfirmRequest request, CancellationToken ct)
     {
-        string userId = GetUserId();
+        string userId = GetUserIdClaim();
 
         bool isValid = await mfaService.ValidateTotpAsync(request.Secret, request.Code, ct);
         if (!isValid)
@@ -62,7 +62,7 @@ public sealed class MfaController(
     [HttpPost("challenge")]
     public async Task<IActionResult> IssueChallenge(CancellationToken ct)
     {
-        string userId = GetUserId();
+        string userId = GetUserIdClaim();
 
         string challengeToken = await mfaService.IssueChallengeAsync(userId, ct);
 
@@ -72,7 +72,7 @@ public sealed class MfaController(
     [HttpPost("challenge/verify")]
     public async Task<IActionResult> VerifyChallenge([FromBody] MfaVerifyRequest request, CancellationToken ct)
     {
-        string userId = GetUserId();
+        string userId = GetUserIdClaim();
 
         Result result = await mfaService.ValidateChallengeAsync(userId, request.Code, ct);
 
@@ -84,8 +84,8 @@ public sealed class MfaController(
         return Ok(new { succeeded = true });
     }
 
-    private string GetUserId() =>
-        User.FindFirstValue(ClaimTypes.NameIdentifier)
+    private string GetUserIdClaim() =>
+        User.GetUserId()
         ?? throw new InvalidOperationException("User ID claim not found.");
 }
 

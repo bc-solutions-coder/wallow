@@ -46,12 +46,16 @@ public sealed class NotificationRepository(NotificationsDbContext context) : INo
             .CountAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyList<Notification>> GetUnreadByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
+    public async Task MarkAllAsReadAsync(Guid userId, DateTime readAt, CancellationToken cancellationToken = default)
     {
-        return await context.Notifications
+        await context.Notifications
             .Where(n => n.UserId == userId && !n.IsRead)
-            .OrderByDescending(n => n.CreatedAt)
-            .ToListAsync(cancellationToken);
+            .ExecuteUpdateAsync(
+                s => s
+                    .SetProperty(n => n.IsRead, true)
+                    .SetProperty(n => n.ReadAt, readAt)
+                    .SetProperty(n => n.UpdatedAt, readAt),
+                cancellationToken);
     }
 
     public async Task SaveChangesAsync(CancellationToken cancellationToken = default)

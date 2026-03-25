@@ -1,6 +1,6 @@
-using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using Wallow.Shared.Kernel.Extensions;
 using Wallow.Shared.Contracts.Realtime;
 using Wallow.Shared.Kernel.MultiTenancy;
 
@@ -144,17 +144,14 @@ internal sealed partial class RealtimeHub(
 
     private bool IsStaffUser()
     {
-        IEnumerable<string> roles = Context.User?.FindAll(ClaimTypes.Role)
-            .Concat(Context.User?.FindAll("role") ?? [])
-            .Select(c => c.Value) ?? [];
+        IReadOnlyList<string> roles = Context.User?.GetRoles() ?? [];
 
         return roles.Any(r => r.Equals("admin", StringComparison.OrdinalIgnoreCase)
             || r.Equals("manager", StringComparison.OrdinalIgnoreCase));
     }
 
     private string? GetUserId() =>
-        Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value
-        ?? Context.User?.FindFirst("sub")?.Value;
+        Context.User?.GetUserId();
 }
 
 internal sealed partial class RealtimeHub

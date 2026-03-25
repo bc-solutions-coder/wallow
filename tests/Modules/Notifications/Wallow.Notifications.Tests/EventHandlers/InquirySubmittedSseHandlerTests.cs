@@ -6,45 +6,50 @@ using Wallow.Shared.Kernel.MultiTenancy;
 
 namespace Wallow.Notifications.Tests.EventHandlers;
 
-public class InquiryStatusChangedSignalRHandlerTests
+public class InquirySubmittedSseHandlerTests
 {
-    private readonly IRealtimeDispatcher _dispatcher = Substitute.For<IRealtimeDispatcher>();
+    private readonly ISseDispatcher _dispatcher = Substitute.For<ISseDispatcher>();
     private readonly ITenantContext _tenantContext = Substitute.For<ITenantContext>();
 
-    private static InquiryStatusChangedEvent BuildEvent() => new()
+    private static InquirySubmittedEvent BuildEvent() => new()
     {
         InquiryId = Guid.NewGuid(),
-        OldStatus = "Open",
-        NewStatus = "InProgress",
-        ChangedAt = DateTime.UtcNow,
-        SubmitterEmail = "submitter@test.com"
+        Name = "Jane Doe",
+        Email = "jane@test.com",
+        Phone = "555-0100",
+        ProjectType = "Sales",
+        Message = "Hello",
+        SubmittedAt = DateTime.UtcNow,
+        AdminEmail = "admin@company.com",
+        AdminUserIds = []
     };
 
     [Fact]
-    public async Task Handle_WhenTenantResolved_DispatchesToTenant()
+    public async Task Handle_WhenTenantResolved_SendsToTenantWithCorrectEnvelope()
     {
         Guid tenantId = Guid.NewGuid();
         _tenantContext.IsResolved.Returns(true);
         _tenantContext.TenantId.Returns(TenantId.Create(tenantId));
 
-        InquiryStatusChangedEvent @event = BuildEvent();
+        InquirySubmittedEvent @event = BuildEvent();
 
-        await InquiryStatusChangedSignalRHandler.Handle(@event, _tenantContext, _dispatcher);
+        await InquirySubmittedSseHandler.Handle(@event, _tenantContext, _dispatcher);
 
         await _dispatcher.Received(1).SendToTenantAsync(
             tenantId,
             Arg.Is<RealtimeEnvelope>(e =>
                 e.Module == "Inquiries" &&
-                e.Type == "InquiryStatusUpdated"),
+                e.Type == "InquirySubmitted" &&
+                e.RequiredPermission == "inquiries.read"),
             Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Handle_WhenTenantUnresolved_DoesNotDispatch()
+    public async Task Handle_WhenTenantUnresolved_DoesNotCallDispatcher()
     {
         _tenantContext.IsResolved.Returns(false);
 
-        await InquiryStatusChangedSignalRHandler.Handle(BuildEvent(), _tenantContext, _dispatcher);
+        await InquirySubmittedSseHandler.Handle(BuildEvent(), _tenantContext, _dispatcher);
 
         await _dispatcher.DidNotReceiveWithAnyArgs().SendToTenantAsync(default, default!, default);
     }

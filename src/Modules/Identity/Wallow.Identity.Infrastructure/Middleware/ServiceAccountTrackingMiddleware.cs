@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Wallow.Identity.Infrastructure.Services;
+using Wallow.Shared.Kernel.Extensions;
 
 namespace Wallow.Identity.Infrastructure.Middleware;
 
@@ -16,7 +17,7 @@ public sealed partial class ServiceAccountTrackingMiddleware(
 
         if (context.Response.StatusCode is >= 200 and < 300)
         {
-            string? clientId = context.User.FindFirst("azp")?.Value;
+            string? clientId = context.User.GetClientId();
             if (clientId?.StartsWith("sa-", StringComparison.Ordinal) == true
                     || clientId?.StartsWith("app-", StringComparison.Ordinal) == true)
             {

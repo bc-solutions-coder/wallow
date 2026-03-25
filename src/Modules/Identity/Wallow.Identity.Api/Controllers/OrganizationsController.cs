@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -7,6 +6,7 @@ using Wallow.Identity.Api.Contracts.Requests;
 using Wallow.Identity.Api.Contracts.Responses;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
+using Wallow.Shared.Kernel.Extensions;
 using Wallow.Shared.Kernel.Identity.Authorization;
 using Wallow.Shared.Kernel.MultiTenancy;
 
@@ -32,7 +32,7 @@ public class OrganizationsController(IOrganizationService orgService, ITenantCon
     public async Task<ActionResult<CreateOrganizationResponse>> Create(
         CreateOrganizationRequest request, CancellationToken ct)
     {
-        string? creatorEmail = User.FindFirstValue(ClaimTypes.Email);
+        string? creatorEmail = User.GetEmail();
         Guid orgId = await orgService.CreateOrganizationAsync(request.Name, request.Domain, creatorEmail, ct);
         return CreatedAtAction(nameof(GetById), new { id = orgId },
             new CreateOrganizationResponse(orgId));
@@ -122,7 +122,7 @@ public class OrganizationsController(IOrganizationService orgService, ITenantCon
     [HttpGet("mine")]
     public async Task<ActionResult<IReadOnlyList<OrganizationDto>>> GetMyOrganizations(CancellationToken ct)
     {
-        Guid userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        Guid userId = Guid.Parse(User.GetUserId()!);
         return Ok(await orgService.GetUserOrganizationsAsync(userId, ct));
     }
 
@@ -138,7 +138,7 @@ public class OrganizationsController(IOrganizationService orgService, ITenantCon
             return NotFound();
         }
 
-        Guid actorId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        Guid actorId = Guid.Parse(User.GetUserId()!);
         await orgService.ArchiveAsync(id, actorId, ct);
         return NoContent();
     }
@@ -155,7 +155,7 @@ public class OrganizationsController(IOrganizationService orgService, ITenantCon
             return NotFound();
         }
 
-        Guid actorId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        Guid actorId = Guid.Parse(User.GetUserId()!);
         await orgService.ReactivateAsync(id, actorId, ct);
         return NoContent();
     }
@@ -214,7 +214,7 @@ public class OrganizationsController(IOrganizationService orgService, ITenantCon
             return NotFound();
         }
 
-        Guid actorId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        Guid actorId = Guid.Parse(User.GetUserId()!);
         OrganizationBrandingDto branding = await orgService.UpdateBrandingAsync(
             id, request.DisplayName, request.LogoUrl, request.PrimaryColor, actorId, ct);
 
@@ -239,7 +239,7 @@ public class OrganizationsController(IOrganizationService orgService, ITenantCon
             return NotFound();
         }
 
-        Guid actorId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        Guid actorId = Guid.Parse(User.GetUserId()!);
         await using Stream stream = file.OpenReadStream();
         string logoUrl = await orgService.UploadBrandingLogoAsync(
             id, stream, file.FileName, file.ContentType, actorId, ct);
@@ -275,7 +275,7 @@ public class OrganizationsController(IOrganizationService orgService, ITenantCon
             return NotFound();
         }
 
-        Guid actorId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        Guid actorId = Guid.Parse(User.GetUserId()!);
         await orgService.UpdateSettingsAsync(id, request.RequireMfa ?? false, false, request.MfaGracePeriodDays ?? 0, actorId, ct);
         return NoContent();
     }

@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using Wallow.Shared.Kernel.Extensions;
 using Wallow.Shared.Kernel.Services;
 
 namespace Wallow.Shared.Infrastructure.Core.Services;
@@ -15,8 +16,7 @@ public sealed class CurrentUserService(IHttpContextAccessor httpContextAccessor)
             return null;
         }
 
-        string? userIdClaim = user.FindFirst(ClaimTypes.NameIdentifier)?.Value
-            ?? user.FindFirst("sub")?.Value;
+        string? userIdClaim = user.GetUserId();
 
         if (userIdClaim is not null && Guid.TryParse(userIdClaim, out Guid userId))
         {

@@ -8,6 +8,11 @@ public static class OrganizationCreatedNotificationHandler
 {
     public static async Task Handle(OrganizationCreatedEvent message, IMessageBus bus)
     {
+        if (string.IsNullOrWhiteSpace(message.CreatorEmail))
+        {
+            return;
+        }
+
         SendEmailCommand emailCommand = new(
             To: message.CreatorEmail,
             From: null,

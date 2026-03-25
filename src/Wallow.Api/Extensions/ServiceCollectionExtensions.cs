@@ -15,6 +15,7 @@ using StackExchange.Redis;
 using Wallow.Api.HealthChecks;
 using Wallow.Api.Middleware;
 using Wallow.Shared.Infrastructure.Core.Resilience;
+using Wallow.Shared.Kernel.Extensions;
 using Wallow.Shared.Kernel.Configuration;
 using Wallow.Storage.Domain.Enums;
 using Wallow.Storage.Infrastructure.Configuration;
@@ -215,7 +216,7 @@ internal static partial class ServiceCollectionExtensions
 
     private static string GetUserPartitionKey(HttpContext httpContext)
     {
-        string? userId = httpContext.User.FindFirst("sub")?.Value;
+        string? userId = httpContext.User.GetUserId();
         return userId ?? httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
     }
 

@@ -34,19 +34,23 @@ else
     echo "Layout already configured, skipping."
 fi
 
-# Create access key if it doesn't exist
+# Create or import access key
 KEY_NAME="${GARAGE_KEY_NAME:-wallow-dev}"
+ACCESS_KEY="${GARAGE_ACCESS_KEY:-}"
+SECRET_KEY="${GARAGE_SECRET_KEY:-}"
 KEY_EXISTS=$(garage key info "$KEY_NAME" 2>/dev/null || true)
 if [ -z "$KEY_EXISTS" ]; then
-    echo "Creating access key '$KEY_NAME'..."
-    KEY_OUTPUT=$(garage key create "$KEY_NAME")
-    echo "$KEY_OUTPUT"
+    if [ -n "$ACCESS_KEY" ] && [ -n "$SECRET_KEY" ]; then
+        echo "Importing access key '$KEY_NAME' with provided credentials..."
+        garage key import -n "$KEY_NAME" --yes "$ACCESS_KEY" "$SECRET_KEY"
+    else
+        echo "Creating access key '$KEY_NAME' (auto-generated)..."
+        KEY_OUTPUT=$(garage key create "$KEY_NAME")
+        echo "$KEY_OUTPUT"
+        ACCESS_KEY=$(echo "$KEY_OUTPUT" | grep "Key ID:" | awk '{print $NF}')
+        SECRET_KEY=$(echo "$KEY_OUTPUT" | grep "Secret key:" | awk '{print $NF}')
+    fi
 
-    # Extract key ID and secret from output
-    ACCESS_KEY=$(echo "$KEY_OUTPUT" | grep "Key ID:" | awk '{print $NF}')
-    SECRET_KEY=$(echo "$KEY_OUTPUT" | grep "Secret key:" | awk '{print $NF}')
-
-    # Write credentials to a file for the app to read
     echo "GARAGE_ACCESS_KEY=$ACCESS_KEY" > /var/lib/garage/credentials
     echo "GARAGE_SECRET_KEY=$SECRET_KEY" >> /var/lib/garage/credentials
     echo "Credentials written to /var/lib/garage/credentials"

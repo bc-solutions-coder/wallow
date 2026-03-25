@@ -7,6 +7,7 @@ using Wallow.Announcements.Application.Announcements.Commands.DismissAnnouncemen
 using Wallow.Announcements.Application.Announcements.DTOs;
 using Wallow.Announcements.Application.Announcements.Queries.GetActiveAnnouncements;
 using Wallow.Shared.Api.Extensions;
+using Wallow.Shared.Kernel.Extensions;
 using Wallow.Shared.Kernel.Identity.Authorization;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Shared.Kernel.Results;
@@ -75,14 +76,12 @@ public class AnnouncementsController(IMessageBus bus, ITenantContext tenantConte
 
     private List<string> GetUserRoles()
     {
-        return User.FindAll(System.Security.Claims.ClaimTypes.Role)
-            .Select(c => c.Value)
-            .ToList();
+        return User.GetRoles().ToList();
     }
 
     private string? GetUserPlan()
     {
-        return User.FindFirst("plan")?.Value;
+        return User.GetPlan();
     }
 
     private static AnnouncementResponse MapToResponse(AnnouncementDto dto)
