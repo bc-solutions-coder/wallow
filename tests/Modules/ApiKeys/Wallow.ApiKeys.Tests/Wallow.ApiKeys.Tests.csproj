@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Wallow.ApiKeys.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="FluentAssertions" />
+    <PackageReference Include="NSubstitute" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <Using Include="FluentAssertions" />
+    <Using Include="NSubstitute" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\src\Modules\ApiKeys\Wallow.ApiKeys.Domain\Wallow.ApiKeys.Domain.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Modules\ApiKeys\Wallow.ApiKeys.Application\Wallow.ApiKeys.Application.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Modules\ApiKeys\Wallow.ApiKeys.Infrastructure\Wallow.ApiKeys.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Modules\ApiKeys\Wallow.ApiKeys.Api\Wallow.ApiKeys.Api.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Modules\Identity\Wallow.Identity.Infrastructure\Wallow.Identity.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Shared\Wallow.Shared.Contracts\Wallow.Shared.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Shared\Wallow.Shared.Infrastructure\Wallow.Shared.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\Wallow.Tests.Common\Wallow.Tests.Common.csproj" />
+  </ItemGroup>
+
+</Project>
