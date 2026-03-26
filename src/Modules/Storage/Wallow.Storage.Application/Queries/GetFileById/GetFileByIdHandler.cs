@@ -21,11 +21,6 @@ public sealed class GetFileByIdHandler(IStoredFileRepository fileRepository)
             return Result.Failure<StoredFileDto>(Error.NotFound("File", query.FileId));
         }
 
-        if (file.TenantId.Value != query.TenantId)
-        {
-            return Result.Failure<StoredFileDto>(Error.NotFound("File", query.FileId));
-        }
-
         return Result.Success(file.ToDto());
     }
 }

@@ -57,14 +57,7 @@ public static class BillingInfrastructureExtensions
             options.AddInterceptors(sp.GetRequiredService<TenantSaveChangesInterceptor>());
         });
 
-        services.AddScoped<BillingDbContext>(sp =>
-        {
-            IDbContextFactory<BillingDbContext> factory = sp.GetRequiredService<IDbContextFactory<BillingDbContext>>();
-            BillingDbContext ctx = factory.CreateDbContext();
-            ITenantContext tenant = sp.GetRequiredService<ITenantContext>();
-            ctx.SetTenant(tenant.TenantId);
-            return ctx;
-        });
+        services.AddTenantAwareScopedContext<BillingDbContext>();
 
         // Billing repositories
         services.AddScoped<IInvoiceRepository, InvoiceRepository>();

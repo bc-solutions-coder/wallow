@@ -24,7 +24,6 @@ public sealed class GetFilesByBucketHandler(
 
         PagedResult<StoredFile> pagedFiles = await fileRepository.GetByBucketIdPagedAsync(
             bucket.Id,
-            query.TenantId,
             query.PathPrefix,
             query.Page,
             query.PageSize,

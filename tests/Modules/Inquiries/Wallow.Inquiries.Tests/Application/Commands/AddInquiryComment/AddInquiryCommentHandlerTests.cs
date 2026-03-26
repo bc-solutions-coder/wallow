@@ -15,7 +15,7 @@ public class AddInquiryCommentHandlerTests
     private readonly IMessageBus _bus = Substitute.For<IMessageBus>();
 
     private static AddInquiryCommentCommand BuildCommand() =>
-        new(InquiryId.New(), "user-123", "John Doe", "This is a comment.", false, Guid.NewGuid());
+        new(InquiryId.New(), "user-123", "John Doe", "This is a comment.", false);
 
     [Fact]
     public async Task HandleAsync_WithValidCommand_ReturnsSuccessWithId()

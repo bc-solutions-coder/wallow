@@ -59,7 +59,9 @@ builder.Services.AddAuthentication(options =>
         options.CorrelationCookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
         options.NonceCookie.SameSite = SameSiteMode.Lax;
         options.NonceCookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
-        options.Authority = builder.Configuration["ServiceUrls:AuthUrl"] ?? "http://localhost:5001";
+        options.Authority = builder.Configuration["Oidc:Authority"]
+            ?? builder.Configuration["ServiceUrls:AuthUrl"]
+            ?? "http://localhost:5001";
         options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
         options.ClientId = builder.Configuration["Oidc:ClientId"] ?? "wallow-web-client";
         options.ClientSecret = builder.Configuration["Oidc:ClientSecret"];
@@ -139,6 +141,8 @@ app.UseStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
+
+app.MapGet("/health", () => Results.Ok("Healthy"));
 
 app.MapGet("/authentication/login", (string? returnUrl) =>
 {

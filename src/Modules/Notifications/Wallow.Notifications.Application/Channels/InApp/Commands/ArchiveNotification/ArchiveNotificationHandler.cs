@@ -21,11 +21,6 @@ public sealed class ArchiveNotificationHandler(
             return Result.Failure(Error.NotFound("Notification", command.NotificationId.Value));
         }
 
-        if (notification.TenantId != command.TenantId)
-        {
-            return Result.Failure(Error.Unauthorized("Unauthorized access to notification"));
-        }
-
         if (notification.UserId != command.UserId)
         {
             return Result.Failure(Error.Unauthorized("Unauthorized access to notification"));

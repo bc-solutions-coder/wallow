@@ -74,6 +74,12 @@ public class TenantSaveChangesInterceptor(ITenantContext? tenantContext = null) 
             return tenantContext.TenantId;
         }
 
+        TenantId ambient = AmbientTenant.Current;
+        if (ambient != default)
+        {
+            return ambient;
+        }
+
         return default;
     }
 }

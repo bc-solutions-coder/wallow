@@ -31,29 +31,10 @@ public class GetPresignedUrlHandlerTests
     [Fact]
     public async Task Handle_WhenFileNotFound_ReturnsNotFoundFailure()
     {
-        GetPresignedUrlQuery query = new(Guid.NewGuid(), Guid.NewGuid());
+        GetPresignedUrlQuery query = new(Guid.NewGuid());
 
         _fileRepository.GetByIdAsync(Arg.Any<StoredFileId>(), Arg.Any<CancellationToken>())
             .Returns((StoredFile?)null);
-
-        Result<PresignedUrlResult> result = await _handler.Handle(query, CancellationToken.None);
-
-        result.IsFailure.Should().BeTrue();
-        result.Error.Code.Should().Contain("NotFound");
-    }
-
-    [Fact]
-    public async Task Handle_WhenFileExistsButWrongTenant_ReturnsNotFoundFailure()
-    {
-        TenantId fileTenantId = TenantId.New();
-        Guid differentTenantId = Guid.NewGuid();
-        StorageBucket bucket = StorageBucket.Create(fileTenantId, "bucket");
-        StoredFile file = StoredFile.Create(
-            fileTenantId, bucket.Id, "test.pdf", "application/pdf", 1000, "key", Guid.NewGuid());
-        GetPresignedUrlQuery query = new(differentTenantId, file.Id.Value);
-
-        _fileRepository.GetByIdAsync(Arg.Any<StoredFileId>(), Arg.Any<CancellationToken>())
-            .Returns(file);
 
         Result<PresignedUrlResult> result = await _handler.Handle(query, CancellationToken.None);
 
@@ -68,7 +49,7 @@ public class GetPresignedUrlHandlerTests
         StorageBucket bucket = StorageBucket.Create(tenantId, "bucket");
         StoredFile file = StoredFile.Create(
             tenantId, bucket.Id, "report.pdf", "application/pdf", 2000, "storage/key", Guid.NewGuid());
-        GetPresignedUrlQuery query = new(tenantId.Value, file.Id.Value);
+        GetPresignedUrlQuery query = new(file.Id.Value);
 
         _fileRepository.GetByIdAsync(Arg.Any<StoredFileId>(), Arg.Any<CancellationToken>())
             .Returns(file);
@@ -90,7 +71,7 @@ public class GetPresignedUrlHandlerTests
         StoredFile file = StoredFile.Create(
             tenantId, bucket.Id, "file.txt", "text/plain", 100, "key", Guid.NewGuid());
         TimeSpan customExpiry = TimeSpan.FromMinutes(30);
-        GetPresignedUrlQuery query = new(tenantId.Value, file.Id.Value, Expiry: customExpiry);
+        GetPresignedUrlQuery query = new(file.Id.Value, Expiry: customExpiry);
 
         _fileRepository.GetByIdAsync(Arg.Any<StoredFileId>(), Arg.Any<CancellationToken>())
             .Returns(file);
@@ -110,7 +91,7 @@ public class GetPresignedUrlHandlerTests
         StorageBucket bucket = StorageBucket.Create(tenantId, "bucket");
         StoredFile file = StoredFile.Create(
             tenantId, bucket.Id, "file.txt", "text/plain", 100, "key", Guid.NewGuid());
-        GetPresignedUrlQuery query = new(tenantId.Value, file.Id.Value);
+        GetPresignedUrlQuery query = new(file.Id.Value);
 
         _fileRepository.GetByIdAsync(Arg.Any<StoredFileId>(), Arg.Any<CancellationToken>())
             .Returns(file);
@@ -126,28 +107,10 @@ public class GetPresignedUrlHandlerTests
     [Fact]
     public async Task Handle_DoesNotCallStorageProvider_WhenFileNotFound()
     {
-        GetPresignedUrlQuery query = new(Guid.NewGuid(), Guid.NewGuid());
+        GetPresignedUrlQuery query = new(Guid.NewGuid());
 
         _fileRepository.GetByIdAsync(Arg.Any<StoredFileId>(), Arg.Any<CancellationToken>())
             .Returns((StoredFile?)null);
-
-        await _handler.Handle(query, CancellationToken.None);
-
-        await _storageProvider.DidNotReceive().GetPresignedUrlAsync(
-            Arg.Any<string>(), Arg.Any<TimeSpan>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task Handle_DoesNotCallStorageProvider_WhenTenantMismatch()
-    {
-        TenantId fileTenantId = TenantId.New();
-        StorageBucket bucket = StorageBucket.Create(fileTenantId, "bucket");
-        StoredFile file = StoredFile.Create(
-            fileTenantId, bucket.Id, "file.txt", "text/plain", 100, "key", Guid.NewGuid());
-        GetPresignedUrlQuery query = new(Guid.NewGuid(), file.Id.Value);
-
-        _fileRepository.GetByIdAsync(Arg.Any<StoredFileId>(), Arg.Any<CancellationToken>())
-            .Returns(file);
 
         await _handler.Handle(query, CancellationToken.None);
 

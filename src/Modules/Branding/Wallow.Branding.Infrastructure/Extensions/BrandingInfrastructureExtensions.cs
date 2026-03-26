@@ -52,14 +52,7 @@ public static class BrandingInfrastructureExtensions
             options.AddInterceptors(sp.GetRequiredService<TenantSaveChangesInterceptor>());
         });
 
-        services.AddScoped<BrandingDbContext>(sp =>
-        {
-            IDbContextFactory<BrandingDbContext> factory = sp.GetRequiredService<IDbContextFactory<BrandingDbContext>>();
-            BrandingDbContext ctx = factory.CreateDbContext();
-            ITenantContext tenant = sp.GetRequiredService<ITenantContext>();
-            ctx.SetTenant(tenant.TenantId);
-            return ctx;
-        });
+        services.AddTenantAwareScopedContext<BrandingDbContext>();
 
         // Dedicated bounded cache for branding — separate from the global IMemoryCache so that
         // SizeLimit works safely (third-party libs like OpenIddict don't set Size on entries)

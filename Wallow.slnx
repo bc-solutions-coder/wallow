@@ -78,10 +78,14 @@
     <Project Path="tests/Wallow.Auth.Tests/Wallow.Auth.Tests.csproj" />
     <Project Path="tests/Wallow.Api.Tests/Wallow.Api.Tests.csproj" />
     <Project Path="tests/Wallow.Architecture.Tests/Wallow.Architecture.Tests.csproj" />
+    <Project Path="tests/Wallow.E2E.Tests/Wallow.E2E.Tests.csproj" />
 
     <Project Path="tests/Wallow.Shared.Infrastructure.Tests/Wallow.Shared.Infrastructure.Tests.csproj" />
     <Project Path="tests/Wallow.Shared.Kernel.Tests/Wallow.Shared.Kernel.Tests.csproj" />
     <Project Path="tests/Wallow.Tests.Common/Wallow.Tests.Common.csproj" />
+    <Project Path="tests/Wallow.Auth.Component.Tests/Wallow.Auth.Component.Tests.csproj" />
+    <Project Path="tests/Wallow.Web.Component.Tests/Wallow.Web.Component.Tests.csproj" />
+    <Project Path="tests/Wallow.Web.Tests/Wallow.Web.Tests.csproj" />
   </Folder>
   <Folder Name="/tests/Benchmarks/">
     <Project Path="tests/Benchmarks/Wallow.Benchmarks.csproj" />

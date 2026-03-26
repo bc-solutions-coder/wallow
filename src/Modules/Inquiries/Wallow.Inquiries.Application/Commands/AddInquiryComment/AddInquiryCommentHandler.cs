@@ -2,7 +2,6 @@ using Wallow.Inquiries.Application.Interfaces;
 using Wallow.Inquiries.Domain.Entities;
 using Wallow.Inquiries.Domain.Identity;
 using Wallow.Shared.Contracts.Inquiries.Events;
-using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.Results;
 using Wolverine;
 
@@ -24,7 +23,6 @@ public static class AddInquiryCommentHandler
             command.AuthorName,
             command.Content,
             command.IsInternal,
-            new TenantId(command.TenantId),
             timeProvider);
 
         await commentRepository.AddAsync(comment, cancellationToken);
@@ -41,7 +39,7 @@ public static class AddInquiryCommentHandler
         {
             InquiryCommentId = comment.Id.Value,
             InquiryId = command.InquiryId.Value,
-            TenantId = command.TenantId,
+            TenantId = comment.TenantId.Value,
             AuthorId = command.AuthorId,
             AuthorName = command.AuthorName,
             IsInternal = command.IsInternal,

@@ -60,6 +60,8 @@ public partial class TenantResolutionMiddleware(RequestDelegate next, ILogger<Te
             if (resolvedTenantId.HasValue)
             {
                 tenantSetter.SetTenant(TenantId.Create(resolvedTenantId.Value), resolvedTenantName, resolvedRegion);
+                context.Items["TenantId"] = resolvedTenantId.Value.ToString();
+                context.Items["TenantName"] = resolvedTenantName;
             }
 
             if (resolvedRegion != RegionConfiguration.PrimaryRegion)

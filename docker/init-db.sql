@@ -25,12 +25,15 @@ CREATE SCHEMA IF NOT EXISTS inquiries;
 -- Audit schema
 CREATE SCHEMA IF NOT EXISTS audit;
 
+-- Elsa workflow engine schema
+CREATE SCHEMA IF NOT EXISTS "Elsa";
+
 -- Grant permissions to the application user
 DO $$
 DECLARE
     schema_name TEXT;
 BEGIN
-    FOR schema_name IN SELECT unnest(ARRAY['identity', 'billing', 'storage', 'notifications', 'messaging', 'announcements', 'inquiries', 'audit'])
+    FOR schema_name IN SELECT unnest(ARRAY['identity', 'billing', 'storage', 'notifications', 'messaging', 'announcements', 'inquiries', 'audit', 'Elsa'])
     LOOP
         EXECUTE format('GRANT ALL PRIVILEGES ON SCHEMA %I TO %I', schema_name, current_user);
         EXECUTE format('GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA %I TO %I', schema_name, current_user);
