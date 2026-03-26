@@ -9,6 +9,7 @@ public partial class SseRedisSubscriber : BackgroundService
     private readonly IConnectionMultiplexer _redis;
     private readonly SseConnectionManager _connectionManager;
     private readonly ILogger<SseRedisSubscriber> _logger;
+    private ISubscriber? _subscriber;
 
     public SseRedisSubscriber(
         IConnectionMultiplexer redis,
@@ -22,15 +23,36 @@ public partial class SseRedisSubscriber : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        ISubscriber subscriber = _redis.GetSubscriber();
+        _subscriber = _redis.GetSubscriber();
 
-        await subscriber.SubscribeAsync(
+        await _subscriber.SubscribeAsync(
             new RedisChannel("sse:tenant:*", RedisChannel.PatternMode.Pattern),
             (channel, message) => HandleTenantMessage(channel, message));
 
-        await subscriber.SubscribeAsync(
+        await _subscriber.SubscribeAsync(
             new RedisChannel("sse:user:*", RedisChannel.PatternMode.Pattern),
             (channel, message) => HandleUserMessage(channel, message));
+
+        // Keep the service alive until shutdown is requested
+        try
+        {
+            await Task.Delay(Timeout.Infinite, stoppingToken);
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected during shutdown
+        }
+    }
+
+    public override async Task StopAsync(CancellationToken cancellationToken)
+    {
+        if (_subscriber is not null)
+        {
+            await _subscriber.UnsubscribeAllAsync();
+            LogUnsubscribed();
+        }
+
+        await base.StopAsync(cancellationToken);
     }
 
     private void HandleTenantMessage(RedisChannel channel, RedisValue message)
@@ -118,6 +140,9 @@ public partial class SseRedisSubscriber : BackgroundService
             LogNoConnections(_logger, envelope.Type, envelope.Module);
         }
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Unsubscribed from all SSE Redis channels")]
+    private partial void LogUnsubscribed();
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Invalid tenant ID in channel: {Channel}")]
     private static partial void LogInvalidTenantId(ILogger logger, string channel);

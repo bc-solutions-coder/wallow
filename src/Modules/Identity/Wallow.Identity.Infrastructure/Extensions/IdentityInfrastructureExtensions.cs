@@ -26,6 +26,7 @@ using Wallow.Identity.Infrastructure.Services.ExtensionPoints;
 using Wallow.Shared.Contracts.Identity;
 using Wallow.Shared.Contracts.Setup;
 using Wallow.Shared.Infrastructure.Core.Extensions;
+using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
 
 
@@ -75,7 +76,7 @@ public static class IdentityInfrastructureExtensions
                 // when a new one is issued), providing theft detection out of the box.
                 options.DisableSlidingRefreshTokenExpiration();
 
-                if (environment.IsDevelopment())
+                if (environment.IsDevelopment() || environment.EnvironmentName == "Testing")
                 {
                     options.AddDevelopmentEncryptionCertificate()
                         .AddDevelopmentSigningCertificate();
@@ -205,7 +206,8 @@ public static class IdentityInfrastructureExtensions
             IDbContextFactory<IdentityDbContext> factory = sp.GetRequiredService<IDbContextFactory<IdentityDbContext>>();
             IdentityDbContext ctx = factory.CreateDbContext();
             ITenantContext tenant = sp.GetRequiredService<ITenantContext>();
-            ctx.SetTenant(tenant.TenantId);
+            TenantId tenantId = tenant.IsResolved ? tenant.TenantId : AmbientTenant.Current;
+            ctx.SetTenant(tenantId);
             return ctx;
         });
 

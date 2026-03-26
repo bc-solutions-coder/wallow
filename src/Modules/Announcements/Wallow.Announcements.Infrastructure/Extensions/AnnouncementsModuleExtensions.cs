@@ -49,14 +49,7 @@ public static partial class AnnouncementsModuleExtensions
             options.AddInterceptors(sp.GetRequiredService<TenantSaveChangesInterceptor>());
         });
 
-        services.AddScoped<AnnouncementsDbContext>(sp =>
-        {
-            IDbContextFactory<AnnouncementsDbContext> factory = sp.GetRequiredService<IDbContextFactory<AnnouncementsDbContext>>();
-            AnnouncementsDbContext ctx = factory.CreateDbContext();
-            ITenantContext tenant = sp.GetRequiredService<ITenantContext>();
-            ctx.SetTenant(tenant.TenantId);
-            return ctx;
-        });
+        services.AddTenantAwareScopedContext<AnnouncementsDbContext>();
 
         services.AddReadDbContext<AnnouncementsDbContext>(configuration);
 

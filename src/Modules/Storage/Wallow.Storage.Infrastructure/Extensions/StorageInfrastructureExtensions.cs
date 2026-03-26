@@ -69,14 +69,7 @@ public static class StorageInfrastructureExtensions
             options.AddInterceptors(sp.GetRequiredService<TenantSaveChangesInterceptor>());
         });
 
-        services.AddScoped<StorageDbContext>(sp =>
-        {
-            IDbContextFactory<StorageDbContext> factory = sp.GetRequiredService<IDbContextFactory<StorageDbContext>>();
-            StorageDbContext ctx = factory.CreateDbContext();
-            ITenantContext tenant = sp.GetRequiredService<ITenantContext>();
-            ctx.SetTenant(tenant.TenantId);
-            return ctx;
-        });
+        services.AddTenantAwareScopedContext<StorageDbContext>();
 
         services.AddScoped<IStorageBucketRepository, StorageBucketRepository>();
         services.AddScoped<IStoredFileRepository, StoredFileRepository>();

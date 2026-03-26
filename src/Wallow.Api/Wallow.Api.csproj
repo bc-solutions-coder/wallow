@@ -10,6 +10,12 @@
     <UserSecretsId>efd43489-cc17-4e04-9ea3-ac2326aa825a</UserSecretsId>
   </PropertyGroup>
 
+  <!-- Container image publishing (dotnet publish /t:PublishContainer) -->
+  <PropertyGroup>
+    <ContainerRepository>wallow-api</ContainerRepository>
+    <ContainerBaseImage>mcr.microsoft.com/dotnet/aspnet:10.0</ContainerBaseImage>
+  </PropertyGroup>
+
   <ItemGroup>
     <!-- API Documentation -->
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
@@ -38,6 +44,7 @@
 
     <!-- Logging -->
     <PackageReference Include="Serilog.AspNetCore" />
+    <PackageReference Include="Serilog.Expressions" />
     <PackageReference Include="Serilog.Sinks.Console" />
 
     <!-- OpenTelemetry -->

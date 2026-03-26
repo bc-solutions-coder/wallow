@@ -18,7 +18,11 @@ internal sealed class SetupMiddleware
         ISetupStatusProvider setupStatusProvider = context.RequestServices.GetRequiredService<ISetupStatusProvider>();
         bool setupRequired = await setupStatusProvider.IsSetupRequiredAsync(context.RequestAborted);
 
-        if (setupRequired && !context.Request.Path.StartsWithSegments(SetupPath, StringComparison.OrdinalIgnoreCase))
+        if (setupRequired
+            && !context.Request.Path.StartsWithSegments(SetupPath, StringComparison.OrdinalIgnoreCase)
+            && !context.Request.Path.StartsWithSegments("/health", StringComparison.OrdinalIgnoreCase)
+            && !context.Request.Path.StartsWithSegments("/.well-known", StringComparison.OrdinalIgnoreCase)
+            && !context.Request.Path.StartsWithSegments("/connect", StringComparison.OrdinalIgnoreCase))
         {
             context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
             context.Response.ContentType = "application/json";

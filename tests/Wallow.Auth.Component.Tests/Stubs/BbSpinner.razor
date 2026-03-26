@@ -1,0 +1,7 @@
+@namespace Wallow.Auth.Component.Tests.Stubs
+
+<span class="bb-spinner" @attributes="AdditionalAttributes"></span>
+
+@code {
+    [Parameter(CaptureUnmatchedValues = true)] public Dictionary<string, object>? AdditionalAttributes { get; set; }
+}

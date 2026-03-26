@@ -1,5 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
+  <!-- Container image publishing (dotnet publish /t:PublishContainer) -->
+  <PropertyGroup>
+    <ContainerRepository>wallow-web</ContainerRepository>
+    <ContainerBaseImage>mcr.microsoft.com/dotnet/aspnet:10.0</ContainerBaseImage>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="BlazorBlueprint.Components" />
     <PackageReference Include="BlazorBlueprint.Icons.Lucide" />
@@ -11,8 +17,8 @@
     <ProjectReference Include="..\Shared\Wallow.Shared.Kernel\Wallow.Shared.Kernel.csproj" />
   </ItemGroup>
 
-  <!-- Tailwind CSS build -->
-  <Target Name="TailwindBuild" BeforeTargets="Build">
+  <!-- Tailwind CSS build (skipped in Docker where the macOS binary isn't available) -->
+  <Target Name="TailwindBuild" BeforeTargets="Build" Condition="Exists('$(MSBuildProjectDirectory)/tailwindcss')">
     <Exec Command="./tailwindcss -i Styles/app.css -o wwwroot/css/app.css --minify" WorkingDirectory="$(MSBuildProjectDirectory)" />
   </Target>
 

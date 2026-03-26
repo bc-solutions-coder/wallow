@@ -1,0 +1,166 @@
+# docker-compose.test.yml
+# Test environment - extends base infrastructure with application services
+# Uses separate ports and volume namespace to avoid conflicts with dev environment
+
+services:
+  # ============================================
+  # INFRASTRUCTURE (from base compose)
+  # ============================================
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: wallow_test
+      POSTGRES_PASSWORD: wallow_test
+      POSTGRES_DB: wallow_test
+    volumes:
+      - test_postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/01-init-db.sql:ro
+    ports:
+      - "127.0.0.1:5442:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wallow_test -d wallow_test"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - wallow-test
+
+  valkey:
+    image: valkey/valkey:8-alpine
+    command: valkey-server --appendonly yes --requirepass WallowTestValkey123!
+    ports:
+      - "127.0.0.1:6389:6379"
+    volumes:
+      - test_valkey_data:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "-a", "WallowTestValkey123!", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - wallow-test
+
+  mailpit:
+    image: axllent/mailpit:v1.22
+    ports:
+      - "127.0.0.1:1035:1025"
+      - "127.0.0.1:8035:8025"
+    networks:
+      - wallow-test
+
+  garage:
+    build:
+      context: ./garage
+      dockerfile: Dockerfile
+    image: wallow-garage:v2.2.0-test
+    entrypoint: ["/bin/sh", "/etc/garage/init-garage.sh"]
+    volumes:
+      - test_garage_meta:/var/lib/garage/meta
+      - test_garage_data:/var/lib/garage/data
+      - ./garage/garage.toml:/etc/garage/garage.toml:ro
+      - ./garage/init-garage.sh:/etc/garage/init-garage.sh:ro
+    environment:
+      GARAGE_CONFIG_FILE: /etc/garage/garage.toml
+      GARAGE_KEY_NAME: wallow-test
+      GARAGE_ACCESS_KEY: GK0123456789abcdef01234567
+      GARAGE_SECRET_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      GARAGE_BUCKET: wallow-test-files
+    ports:
+      - "127.0.0.1:3910:3900"
+      - "127.0.0.1:3913:3903"
+    healthcheck:
+      test: ["CMD", "garage", "status"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - wallow-test
+
+  # ============================================
+  # APPLICATION SERVICES
+  # ============================================
+  wallow-api:
+    image: wallow-api:test
+    ports:
+      - "5050:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      # Override HTTPS_PORT from appsettings.Development.json to prevent HTTPS redirect
+      HTTPS_PORT: ""
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=wallow_test;Username=wallow_test;Password=wallow_test"
+      ConnectionStrings__Redis: "valkey:6379,password=WallowTestValkey123!,abortConnect=false"
+      Smtp__Host: mailpit
+      Smtp__Port: "1025"
+      Storage__Provider: S3
+      Storage__S3__Endpoint: "http://garage:3900"
+      Storage__S3__AccessKey: GK0123456789abcdef01234567
+      Storage__S3__SecretKey: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      Storage__S3__BucketName: wallow-test-files
+      Storage__S3__UsePathStyle: "true"
+      Storage__S3__Region: us-east-1
+      # Auth URL for link generation (browser-accessible from host)
+      AuthUrl: "http://localhost:5051"
+      # Override wallow-web-client redirect URIs for test ports (5053 instead of 5003)
+      PreRegisteredClients__Clients__1__RedirectUris__0: "http://localhost:5053/signin-oidc"
+      PreRegisteredClients__Clients__1__PostLogoutRedirectUris__0: "http://localhost:5053/signout-callback-oidc"
+      # Disable Elsa — background tasks race with migrations causing CPU spin
+      Elsa__Enabled: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+      garage:
+        condition: service_healthy
+    networks:
+      - wallow-test
+
+  wallow-auth:
+    image: wallow-auth:test
+    ports:
+      - "127.0.0.1:5051:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      # ApiBaseUrl is used for BOTH server-to-server calls and browser redirects
+      # (ticket exchange after login). Must be reachable from both contexts.
+      ApiBaseUrl: "http://host.docker.internal:5050"
+    depends_on:
+      - wallow-api
+    networks:
+      - wallow-test
+
+  wallow-web:
+    image: wallow-web:test
+    ports:
+      - "127.0.0.1:5053:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ServiceUrls__ApiUrl: "http://wallow-api:8080"
+      ServiceUrls__AuthUrl: "http://wallow-api:8080"
+      # Authority must be reachable from BOTH the browser (host) and this container.
+      # host.docker.internal resolves to the host from inside Docker (via extra_hosts)
+      # and to 127.0.0.1 on the CI host (via /etc/hosts entry in CI workflow).
+      Oidc__Authority: "http://host.docker.internal:5050"
+      Oidc__ClientId: wallow-web-client
+      Oidc__ClientSecret: wallow-web-secret
+    depends_on:
+      - wallow-api
+    networks:
+      - wallow-test
+
+volumes:
+  test_postgres_data:
+  test_valkey_data:
+  test_garage_meta:
+  test_garage_data:
+
+networks:
+  wallow-test:
+    driver: bridge

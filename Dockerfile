@@ -6,6 +6,7 @@ EXPOSE 8080
 
 FROM mcr.microsoft.com/dotnet/sdk:10.0@sha256:e362a8dbcd691522456da26a5198b8f3ca1d7641c95624fadc5e3e82678bd08a AS build
 ARG BUILD_CONFIGURATION=Release
+ARG BUILD_PROJECT=src/Wallow.Api/Wallow.Api.csproj
 WORKDIR /src
 
 # Copy only files needed for restore (better layer caching)
@@ -21,18 +22,25 @@ COPY --parents tests/**/*.csproj ./
 
 RUN dotnet restore "Wallow.slnx"
 
-# Now copy everything and build
+# Now copy everything
 COPY . .
-RUN dotnet build "src/Wallow.Api/Wallow.Api.csproj" -c $BUILD_CONFIGURATION -o /app/build
+# Restore creates obj/ metadata referencing bin/Debug output paths, but .dockerignore
+# excludes bin/. MSBuild glob expansion fails traversing the missing directories.
+# Create them so globs can resolve cleanly.
+RUN find /src/src -name '*.csproj' -execdir mkdir -p bin/Debug/net10.0 bin/Release/net10.0 \;
 
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
+ARG BUILD_PROJECT=src/Wallow.Api/Wallow.Api.csproj
 ARG VERSION=0.0.0-local
-RUN dotnet publish "src/Wallow.Api/Wallow.Api.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false /p:Version=${VERSION}
+RUN dotnet publish "$BUILD_PROJECT" -c $BUILD_CONFIGURATION -o /app/publish \
+    /p:UseAppHost=false /p:Version=${VERSION}
 
 FROM base AS final
+ARG ENTRYPOINT_DLL=Wallow.Api.dll
+ENV ENTRYPOINT_DLL=${ENTRYPOINT_DLL}
 WORKDIR /app
 COPY --from=publish /app/publish .
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8080/health || exit 1
-ENTRYPOINT ["dotnet", "Wallow.Api.dll"]
+ENTRYPOINT dotnet ${ENTRYPOINT_DLL}

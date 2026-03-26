@@ -564,7 +564,7 @@ public class StorageControllerTests
         await _controller.GetFile(fileId, CancellationToken.None);
 
         await _bus.Received(1).InvokeAsync<Result<StoredFileDto>>(
-            Arg.Is<GetFileByIdQuery>(q => q.TenantId == _tenantId && q.FileId == fileId),
+            Arg.Is<GetFileByIdQuery>(q => q.FileId == fileId),
             Arg.Any<CancellationToken>());
     }
 
@@ -610,7 +610,7 @@ public class StorageControllerTests
         await _controller.Download(fileId, CancellationToken.None);
 
         await _bus.Received(1).InvokeAsync<Result<PresignedUrlResult>>(
-            Arg.Is<GetPresignedUrlQuery>(q => q.TenantId == _tenantId && q.FileId == fileId),
+            Arg.Is<GetPresignedUrlQuery>(q => q.FileId == fileId),
             Arg.Any<CancellationToken>());
     }
 
@@ -653,7 +653,7 @@ public class StorageControllerTests
         await _controller.Delete(fileId, CancellationToken.None);
 
         await _bus.Received(1).InvokeAsync<Result>(
-            Arg.Is<DeleteFileCommand>(c => c.TenantId == _tenantId && c.FileId == fileId),
+            Arg.Is<DeleteFileCommand>(c => c.FileId == fileId),
             Arg.Any<CancellationToken>());
     }
 
@@ -722,7 +722,7 @@ public class StorageControllerTests
         await _controller.ListFiles("test-bucket", cancellationToken: CancellationToken.None);
 
         await _bus.Received(1).InvokeAsync<Result<PagedResult<StoredFileDto>>>(
-            Arg.Is<GetFilesByBucketQuery>(q => q.TenantId == _tenantId),
+            Arg.Is<GetFilesByBucketQuery>(q => q.BucketName == "test-bucket"),
             Arg.Any<CancellationToken>());
     }
 
@@ -907,7 +907,7 @@ public class StorageControllerTests
         await _controller.GetPresignedDownloadUrl(fileId, cancellationToken: CancellationToken.None);
 
         await _bus.Received(1).InvokeAsync<Result<PresignedUrlResult>>(
-            Arg.Is<GetPresignedUrlQuery>(q => q.TenantId == _tenantId),
+            Arg.Is<GetPresignedUrlQuery>(q => q.FileId == fileId),
             Arg.Any<CancellationToken>());
     }
 

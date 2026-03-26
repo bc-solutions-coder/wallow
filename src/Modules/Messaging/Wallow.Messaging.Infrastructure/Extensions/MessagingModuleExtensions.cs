@@ -48,14 +48,7 @@ public static partial class MessagingModuleExtensions
             options.AddInterceptors(sp.GetRequiredService<TenantSaveChangesInterceptor>());
         });
 
-        services.AddScoped<MessagingDbContext>(sp =>
-        {
-            IDbContextFactory<MessagingDbContext> factory = sp.GetRequiredService<IDbContextFactory<MessagingDbContext>>();
-            MessagingDbContext ctx = factory.CreateDbContext();
-            ITenantContext tenant = sp.GetRequiredService<ITenantContext>();
-            ctx.SetTenant(tenant.TenantId);
-            return ctx;
-        });
+        services.AddTenantAwareScopedContext<MessagingDbContext>();
 
         services.AddReadDbContext<MessagingDbContext>(configuration);
 

@@ -3,11 +3,10 @@ using Wallow.Billing.Application.Metering.Interfaces;
 using Wallow.Billing.Domain.Metering.Entities;
 using Wallow.Billing.Domain.Metering.Identity;
 using Wallow.Shared.Kernel.Identity;
-using Wallow.Shared.Kernel.MultiTenancy;
 
 namespace Wallow.Billing.Infrastructure.Persistence.Repositories;
 
-public sealed class QuotaDefinitionRepository(BillingDbContext context, ITenantContext tenantContext) : IQuotaDefinitionRepository
+public sealed class QuotaDefinitionRepository(BillingDbContext context) : IQuotaDefinitionRepository
 {
 
     public Task<QuotaDefinition?> GetByIdAsync(QuotaDefinitionId id, CancellationToken cancellationToken = default)
@@ -50,11 +49,9 @@ public sealed class QuotaDefinitionRepository(BillingDbContext context, ITenantC
         string meterCode,
         CancellationToken cancellationToken = default)
     {
-        TenantId tenantId = tenantContext.TenantId;
         return context.QuotaDefinitions
             .AsTracking()
             .FirstOrDefaultAsync(q =>
-                q.TenantId == tenantId &&
                 q.MeterCode == meterCode &&
                 q.PlanCode == null,
                 cancellationToken);
@@ -63,9 +60,7 @@ public sealed class QuotaDefinitionRepository(BillingDbContext context, ITenantC
     public async Task<IReadOnlyList<QuotaDefinition>> GetAllForTenantAsync(
         CancellationToken cancellationToken = default)
     {
-        TenantId tenantId = tenantContext.TenantId;
         return await context.QuotaDefinitions
-            .Where(q => q.TenantId == tenantId)
             .OrderBy(q => q.MeterCode)
             .ToListAsync(cancellationToken);
     }

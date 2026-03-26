@@ -26,7 +26,7 @@ public class GetFileByIdHandlerTests
         StorageBucket bucket = StorageBucket.Create(tenantId, "bucket");
         StoredFile file = StoredFile.Create(
             tenantId, bucket.Id, "test.pdf", "application/pdf", 5000, "key/test.pdf", Guid.NewGuid());
-        GetFileByIdQuery query = new(tenantId.Value, file.Id.Value);
+        GetFileByIdQuery query = new(file.Id.Value);
 
         _fileRepository.GetByIdAsync(Arg.Any<StoredFileId>(), Arg.Any<CancellationToken>())
             .Returns(file);
@@ -42,9 +42,8 @@ public class GetFileByIdHandlerTests
     [Fact]
     public async Task Handle_WhenFileNotFound_ReturnsNotFoundFailure()
     {
-        Guid tenantId = Guid.NewGuid();
         Guid fileId = Guid.NewGuid();
-        GetFileByIdQuery query = new(tenantId, fileId);
+        GetFileByIdQuery query = new(fileId);
 
         _fileRepository.GetByIdAsync(Arg.Any<StoredFileId>(), Arg.Any<CancellationToken>())
             .Returns((StoredFile?)null);
@@ -55,22 +54,4 @@ public class GetFileByIdHandlerTests
         result.Error.Code.Should().Contain("NotFound");
     }
 
-    [Fact]
-    public async Task Handle_WhenFileExistsButWrongTenant_ReturnsNotFoundFailure()
-    {
-        TenantId fileTenantId = TenantId.New();
-        Guid differentTenantId = Guid.NewGuid();
-        StorageBucket bucket = StorageBucket.Create(fileTenantId, "bucket");
-        StoredFile file = StoredFile.Create(
-            fileTenantId, bucket.Id, "test.pdf", "application/pdf", 5000, "key/test.pdf", Guid.NewGuid());
-        GetFileByIdQuery query = new(differentTenantId, file.Id.Value);
-
-        _fileRepository.GetByIdAsync(Arg.Any<StoredFileId>(), Arg.Any<CancellationToken>())
-            .Returns(file);
-
-        Result<StoredFileDto> result = await _handler.Handle(query, CancellationToken.None);
-
-        result.IsFailure.Should().BeTrue();
-        result.Error.Code.Should().Contain("NotFound");
-    }
 }

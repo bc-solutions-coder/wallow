@@ -3,8 +3,6 @@ using Wallow.Inquiries.Application.Interfaces;
 using Wallow.Inquiries.Application.Queries.GetInquiryComments;
 using Wallow.Inquiries.Domain.Entities;
 using Wallow.Inquiries.Domain.Identity;
-using Wallow.Shared.Kernel.Identity;
-
 namespace Wallow.Inquiries.Tests.Application.Queries.GetInquiryComments;
 
 public class GetInquiryCommentsHandlerTests
@@ -18,7 +16,7 @@ public class GetInquiryCommentsHandlerTests
     }
 
     private static InquiryComment CreateComment(InquiryId inquiryId, bool isInternal = false) =>
-        InquiryComment.Create(inquiryId, "user-1", "Author", "Comment content", isInternal, TenantId.New(), TimeProvider.System);
+        InquiryComment.Create(inquiryId, "user-1", "Author", "Comment content", isInternal, TimeProvider.System);
 
     [Fact]
     public async Task Handle_ReturnsAllComments()

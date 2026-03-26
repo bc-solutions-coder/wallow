@@ -76,6 +76,8 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseAntiforgery();
 
+app.MapGet("/health", () => Results.Ok("Healthy"));
+
 app.MapRazorComponents<Wallow.Auth.Components.App>()
     .AddInteractiveServerRenderMode();
 

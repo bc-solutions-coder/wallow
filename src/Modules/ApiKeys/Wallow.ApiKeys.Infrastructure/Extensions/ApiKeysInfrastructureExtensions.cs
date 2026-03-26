@@ -53,14 +53,7 @@ public static class ApiKeysInfrastructureExtensions
             options.AddInterceptors(sp.GetRequiredService<TenantSaveChangesInterceptor>());
         });
 
-        services.AddScoped<ApiKeysDbContext>(sp =>
-        {
-            IDbContextFactory<ApiKeysDbContext> factory = sp.GetRequiredService<IDbContextFactory<ApiKeysDbContext>>();
-            ApiKeysDbContext ctx = factory.CreateDbContext();
-            ITenantContext tenant = sp.GetRequiredService<ITenantContext>();
-            ctx.SetTenant(tenant.TenantId);
-            return ctx;
-        });
+        services.AddTenantAwareScopedContext<ApiKeysDbContext>();
 
         // ApiKeys repositories
         services.AddScoped<IApiKeyRepository, ApiKeyRepository>();

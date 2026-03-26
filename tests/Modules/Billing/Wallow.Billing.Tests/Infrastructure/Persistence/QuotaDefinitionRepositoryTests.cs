@@ -16,7 +16,7 @@ public class QuotaDefinitionRepositoryTests(PostgresContainerFixture fixture) : 
     protected override bool UseMigrateAsync => true;
 
     private QuotaDefinitionRepository CreateRepository() =>
-        new(DbContext, TenantContext);
+        new(DbContext);
 
     [Fact]
     public async Task Add_And_GetByIdAsync_ReturnsQuotaDefinition()

@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Wallow.Billing.Infrastructure.Persistence;
 using Wallow.Shared.Contracts.Metering;
-using Wallow.Shared.Kernel.Identity;
 
 namespace Wallow.Billing.Infrastructure.Services;
 
@@ -14,11 +13,8 @@ public sealed class UsageReportService(BillingDbContext dbContext) : IUsageRepor
         DateTime to,
         CancellationToken ct = default)
     {
-        TenantId tenantIdTyped = new(tenantId);
-
         List<UsageReportRow> results = await dbContext.UsageRecords
-            .Where(ur => ur.TenantId == tenantIdTyped
-                && ur.PeriodStart >= from
+            .Where(ur => ur.PeriodStart >= from
                 && ur.PeriodStart < to)
             .Join(
                 dbContext.MeterDefinitions,

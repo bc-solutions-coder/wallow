@@ -22,11 +22,6 @@ public sealed class DeleteFileHandler(
             return Result.Failure(Error.NotFound("File", command.FileId));
         }
 
-        if (file.TenantId.Value != command.TenantId)
-        {
-            return Result.Failure(Error.NotFound("File", command.FileId));
-        }
-
         await storageProvider.DeleteAsync(file.StorageKey, cancellationToken);
 
         fileRepository.Remove(file);
