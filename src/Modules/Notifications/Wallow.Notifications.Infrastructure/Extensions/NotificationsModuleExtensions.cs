@@ -72,14 +72,7 @@ public static partial class NotificationsModuleExtensions
             options.AddInterceptors(sp.GetRequiredService<TenantSaveChangesInterceptor>());
         });
 
-        services.AddScoped<NotificationsDbContext>(sp =>
-        {
-            IDbContextFactory<NotificationsDbContext> factory = sp.GetRequiredService<IDbContextFactory<NotificationsDbContext>>();
-            NotificationsDbContext ctx = factory.CreateDbContext();
-            ITenantContext tenant = sp.GetRequiredService<ITenantContext>();
-            ctx.SetTenant(tenant.TenantId);
-            return ctx;
-        });
+        services.AddTenantAwareScopedContext<NotificationsDbContext>();
 
         // Email repositories
         services.AddScoped<IEmailMessageRepository, EmailMessageRepository>();

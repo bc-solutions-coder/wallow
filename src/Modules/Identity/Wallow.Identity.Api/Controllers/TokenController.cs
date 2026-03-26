@@ -88,6 +88,19 @@ public sealed class TokenController(UserManager<WallowUser> userManager) : Contr
             identity.AddClaim(Claims.Role, role);
         }
 
+        // Carry forward tenant claims from the original principal
+        string? orgId = principal.GetClaim("org_id");
+        if (orgId is not null)
+        {
+            identity.SetClaim("org_id", orgId);
+        }
+
+        string? orgName = principal.GetClaim("org_name");
+        if (orgName is not null)
+        {
+            identity.SetClaim("org_name", orgName);
+        }
+
         foreach (Claim claim in identity.Claims)
         {
             claim.SetDestinations(GetDestinations(claim));
@@ -148,7 +161,7 @@ public sealed class TokenController(UserManager<WallowUser> userManager) : Contr
                 when claim.Subject?.HasScope(Scopes.Roles) == true
                 => [Destinations.AccessToken, Destinations.IdentityToken],
 
-            "tenant_id" => [Destinations.AccessToken, Destinations.IdentityToken],
+            "tenant_id" or "org_id" or "org_name" => [Destinations.AccessToken, Destinations.IdentityToken],
 
             Claims.Subject => [Destinations.AccessToken, Destinations.IdentityToken],
 

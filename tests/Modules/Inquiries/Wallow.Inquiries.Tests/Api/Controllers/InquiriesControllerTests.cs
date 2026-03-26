@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Wallow.Inquiries.Api.Contracts;
 using Wallow.Inquiries.Api.Controllers;
 using Wallow.Inquiries.Application.Commands.AddInquiryComment;
@@ -30,7 +31,8 @@ public class InquiriesControllerTests
         _bus = Substitute.For<IMessageBus>();
         _tenantContext = Substitute.For<ITenantContext>();
         _tenantContext.TenantId.Returns(TenantId.Create(Guid.NewGuid()));
-        _controller = new InquiriesController(_bus, _tenantContext);
+        ILogger<InquiriesController> logger = Substitute.For<ILogger<InquiriesController>>();
+        _controller = new InquiriesController(_bus, _tenantContext, logger);
         _controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext()
@@ -389,7 +391,6 @@ public class InquiriesControllerTests
     public async Task AddComment_PassesCorrectCommandFields()
     {
         Guid inquiryId = Guid.NewGuid();
-        Guid tenantId = _tenantContext.TenantId.Value;
         SetUserWithClaims(sub: "author-123", name: "Jane Doe");
 
         _bus.InvokeAsync<Result<InquiryCommentId>>(Arg.Any<AddInquiryCommentCommand>(), Arg.Any<CancellationToken>())
@@ -405,8 +406,7 @@ public class InquiriesControllerTests
                 c.AuthorId == "author-123" &&
                 c.AuthorName == "Jane Doe" &&
                 c.Content == "Internal note" &&
-                c.IsInternal &&
-                c.TenantId == tenantId),
+                c.IsInternal),
             Arg.Any<CancellationToken>());
     }
 

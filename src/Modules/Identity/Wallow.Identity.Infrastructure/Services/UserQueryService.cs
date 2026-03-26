@@ -30,7 +30,6 @@ public sealed partial class UserQueryService(
         DateTimeOffset toOffset = new(to, TimeSpan.Zero);
 
         int count = await dbContext.Users
-            .Where(u => u.TenantId == tenantId)
             .Where(u => u.CreatedAt >= fromOffset && u.CreatedAt < toOffset)
             .CountAsync(ct);
 
@@ -41,7 +40,6 @@ public sealed partial class UserQueryService(
     public async Task<int> GetActiveUsersCountAsync(Guid tenantId, CancellationToken ct = default)
     {
         int count = await dbContext.Users
-            .Where(u => u.TenantId == tenantId)
             .Where(u => u.IsActive)
             .CountAsync(ct);
 
@@ -52,7 +50,6 @@ public sealed partial class UserQueryService(
     public async Task<int> GetTotalUsersCountAsync(Guid tenantId, CancellationToken ct = default)
     {
         int count = await dbContext.Users
-            .Where(u => u.TenantId == tenantId)
             .CountAsync(ct);
 
         LogTotalUsersCount(count, tenantId);
@@ -61,8 +58,7 @@ public sealed partial class UserQueryService(
 
     public async Task<UserSearchPageResult> SearchUsersAsync(Guid tenantId, string? search, int skip, int take, CancellationToken ct = default)
     {
-        IQueryable<WallowUser> query = dbContext.Users
-            .Where(u => u.TenantId == tenantId);
+        IQueryable<WallowUser> query = dbContext.Users.AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(search))
         {

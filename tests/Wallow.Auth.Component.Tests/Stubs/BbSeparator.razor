@@ -1,0 +1,7 @@
+@namespace Wallow.Auth.Component.Tests.Stubs
+
+<hr class="bb-separator" @attributes="AdditionalAttributes" />
+
+@code {
+    [Parameter(CaptureUnmatchedValues = true)] public Dictionary<string, object>? AdditionalAttributes { get; set; }
+}

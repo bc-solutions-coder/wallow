@@ -29,11 +29,6 @@ public sealed class GetPresignedUrlHandler(
             return Result.Failure<PresignedUrlResult>(Error.NotFound("File", query.FileId));
         }
 
-        if (file.TenantId.Value != query.TenantId)
-        {
-            return Result.Failure<PresignedUrlResult>(Error.NotFound("File", query.FileId));
-        }
-
         if (file.Status != FileStatus.Available)
         {
             return Result.Failure<PresignedUrlResult>(Error.Validation("File.NotAvailable", "File is not yet available for download."));

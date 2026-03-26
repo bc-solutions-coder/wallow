@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+env:
+  REGISTRY: ghcr.io
+  IMAGE_BASE: ghcr.io/${{ github.repository }}
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -59,7 +63,7 @@ jobs:
         run: dotnet build --configuration Release
 
       - name: Run unit tests
-        run: dotnet test --no-build --configuration Release --filter "Category!=Integration" --verbosity normal --blame-hang-timeout 60s --collect "XPlat Code Coverage" --settings tests/coverage.runsettings --results-directory ./TestResults
+        run: dotnet test --no-build --configuration Release --filter "Category!=Integration&Category!=E2E" --verbosity normal --blame-hang-timeout 60s --collect "XPlat Code Coverage" --settings tests/coverage.runsettings --results-directory ./TestResults
 
       - name: Upload unit test coverage
         if: always()
@@ -132,6 +136,171 @@ jobs:
           path: ./TestResults/**/coverage.cobertura.xml
           if-no-files-found: error
           retention-days: 5
+
+  e2e:
+    needs: build
+    if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v5
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+
+      # Build container images directly via dotnet publish — no Dockerfile needed.
+      # Images are created in the local Docker daemon for E2E testing.
+      - name: Publish API container image
+        run: dotnet publish src/Wallow.Api/Wallow.Api.csproj -c Release /t:PublishContainer -p:ContainerImageTag=test -p:ContainerRepository=wallow-api
+
+      - name: Publish Auth container image
+        run: dotnet publish src/Wallow.Auth/Wallow.Auth.csproj -c Release /t:PublishContainer -p:ContainerImageTag=test -p:ContainerRepository=wallow-auth
+
+      - name: Publish Web container image
+        run: dotnet publish src/Wallow.Web/Wallow.Web.csproj -c Release /t:PublishContainer -p:ContainerImageTag=test -p:ContainerRepository=wallow-web
+
+      - name: Configure host.docker.internal for OIDC
+        run: echo "127.0.0.1 host.docker.internal" | sudo tee -a /etc/hosts
+
+      # Start containers BEFORE Playwright install so they boot in parallel
+      - name: Start test environment
+        run: docker compose -f docker/docker-compose.test.yml up -d
+
+      # Playwright install (~60s) overlaps with container startup (~60-90s)
+      - name: Build E2E tests and install Playwright
+        run: |
+          dotnet build tests/Wallow.E2E.Tests -c Release
+          pwsh tests/Wallow.E2E.Tests/bin/Release/net10.0/playwright.ps1 install --with-deps chromium
+
+      # By now containers should be ready (booted during Playwright install)
+      - name: Wait for services to be healthy
+        run: |
+          echo "Waiting for wallow-api..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:5050/health/ready > /dev/null 2>&1; then
+              echo "wallow-api is ready"
+              break
+            fi
+            if [ "$i" -eq 30 ]; then
+              echo "::error::wallow-api did not become healthy in time"
+              docker compose -f docker/docker-compose.test.yml logs
+              exit 1
+            fi
+            sleep 5
+          done
+
+          echo "Waiting for wallow-auth..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:5051/health > /dev/null 2>&1; then
+              echo "wallow-auth is ready"
+              break
+            fi
+            if [ "$i" -eq 30 ]; then
+              echo "::error::wallow-auth did not become healthy in time"
+              docker compose -f docker/docker-compose.test.yml logs
+              exit 1
+            fi
+            sleep 5
+          done
+
+          echo "Waiting for wallow-web..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:5053/health > /dev/null 2>&1; then
+              echo "wallow-web is ready"
+              break
+            fi
+            if [ "$i" -eq 30 ]; then
+              echo "::error::wallow-web did not become healthy in time"
+              docker compose -f docker/docker-compose.test.yml logs
+              exit 1
+            fi
+            sleep 5
+          done
+
+      - name: Run E2E tests
+        run: ./scripts/run-tests.sh e2e
+        env:
+          E2E_BASE_URL: "http://localhost:5050"
+          E2E_AUTH_URL: "http://localhost:5051"
+          E2E_WEB_URL: "http://localhost:5053"
+          E2E_MAILPIT_URL: "http://localhost:8035"
+          E2E_EXTERNAL_SERVICES: "true"
+
+      - name: Tear down test environment
+        if: always()
+        run: docker compose -f docker/docker-compose.test.yml down -v
+
+  # Push images to GHCR after ALL tests pass — only on main branch
+  push-images:
+    needs: [unit-tests, integration-tests, e2e]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v5
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push API image to GHCR
+        env:
+          SHA_TAG: ${{ github.sha }}
+        run: |
+          SHORT_SHA="${SHA_TAG:0:7}"
+          dotnet publish src/Wallow.Api/Wallow.Api.csproj -c Release /t:PublishContainer \
+            -p:ContainerRegistry=${{ env.REGISTRY }} \
+            -p:ContainerRepository=${{ github.repository }} \
+            -p:ContainerImageTags="\"latest;${SHORT_SHA}\""
+
+      - name: Push Auth image to GHCR
+        env:
+          SHA_TAG: ${{ github.sha }}
+        run: |
+          SHORT_SHA="${SHA_TAG:0:7}"
+          dotnet publish src/Wallow.Auth/Wallow.Auth.csproj -c Release /t:PublishContainer \
+            -p:ContainerRegistry=${{ env.REGISTRY }} \
+            -p:ContainerRepository=${{ github.repository }}-auth \
+            -p:ContainerImageTags="\"latest;${SHORT_SHA}\""
+
+      - name: Push Web image to GHCR
+        env:
+          SHA_TAG: ${{ github.sha }}
+        run: |
+          SHORT_SHA="${SHA_TAG:0:7}"
+          dotnet publish src/Wallow.Web/Wallow.Web.csproj -c Release /t:PublishContainer \
+            -p:ContainerRegistry=${{ env.REGISTRY }} \
+            -p:ContainerRepository=${{ github.repository }}-web \
+            -p:ContainerImageTags="\"latest;${SHORT_SHA}\""
 
   merge-coverage:
     needs: [unit-tests, integration-tests]

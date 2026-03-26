@@ -3,7 +3,6 @@ using Wallow.Inquiries.Domain.Entities;
 using Wallow.Inquiries.Domain.Identity;
 using Wallow.Inquiries.Infrastructure.Persistence;
 using Wallow.Inquiries.Infrastructure.Persistence.Repositories;
-using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Tests.Common.Bases;
 using Wallow.Tests.Common.Fixtures;
@@ -33,7 +32,7 @@ public class InquiryCommentRepositoryTests(PostgresContainerFixture fixture)
 
     private static InquiryComment CreateComment(InquiryId inquiryId, string content = "Test comment", bool isInternal = false)
     {
-        InquiryComment comment = InquiryComment.Create(inquiryId, "user-1", "Author Name", content, isInternal, TenantId.New(), TimeProvider.System);
+        InquiryComment comment = InquiryComment.Create(inquiryId, "user-1", "Author Name", content, isInternal, TimeProvider.System);
         comment.ClearDomainEvents();
         return comment;
     }
@@ -82,7 +81,7 @@ public class InquiryCommentRepositoryTests(PostgresContainerFixture fixture)
     {
         Inquiry inquiry = await SeedInquiryAsync();
         InquiryCommentRepository repository = CreateRepository();
-        InquiryComment comment = InquiryComment.Create(inquiry.Id, "author-42", "Jane Doe", "Detailed note", true, TenantId.New(), TimeProvider.System);
+        InquiryComment comment = InquiryComment.Create(inquiry.Id, "author-42", "Jane Doe", "Detailed note", true, TimeProvider.System);
         comment.ClearDomainEvents();
 
         await repository.AddAsync(comment, CancellationToken.None);

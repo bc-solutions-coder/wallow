@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Wallow.Inquiries.Api.Contracts;
 using Wallow.Inquiries.Api.Controllers;
 using Wallow.Inquiries.Application.DTOs;
@@ -23,7 +24,8 @@ public class InquiriesControllerAuthTests
     {
         _bus = Substitute.For<IMessageBus>();
         ITenantContext tenantContext = Substitute.For<ITenantContext>();
-        _controller = new InquiriesController(_bus, tenantContext);
+        ILogger<InquiriesController> logger = Substitute.For<ILogger<InquiriesController>>();
+        _controller = new InquiriesController(_bus, tenantContext, logger);
     }
 
     private void SetUser(string? sub = null, string? azp = null, params string[] permissions)

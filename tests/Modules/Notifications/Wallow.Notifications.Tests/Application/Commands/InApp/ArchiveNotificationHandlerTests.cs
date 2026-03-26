@@ -32,7 +32,7 @@ public class ArchiveNotificationHandlerTests
             .GetByIdAsync(notification.Id, Arg.Any<CancellationToken>())
             .Returns(notification);
 
-        ArchiveNotificationCommand command = new(notification.Id, tenantId, userId);
+        ArchiveNotificationCommand command = new(notification.Id, userId);
 
         Result result = await _handler.Handle(command, CancellationToken.None);
 
@@ -48,28 +48,7 @@ public class ArchiveNotificationHandlerTests
             .GetByIdAsync(Arg.Any<NotificationId>(), Arg.Any<CancellationToken>())
             .Returns((Notification?)null);
 
-        ArchiveNotificationCommand command = new(NotificationId.New(), TenantId.New(), Guid.NewGuid());
-
-        Result result = await _handler.Handle(command, CancellationToken.None);
-
-        result.IsFailure.Should().BeTrue();
-    }
-
-    [Fact]
-    public async Task Handle_WhenDifferentTenant_ReturnsUnauthorizedFailure()
-    {
-        TenantId ownerTenant = TenantId.New();
-        TenantId differentTenant = TenantId.New();
-        Guid userId = Guid.NewGuid();
-
-        Notification notification = Notification.Create(
-            ownerTenant, userId, NotificationType.SystemAlert, "Title", "Body", _timeProvider);
-
-        _notificationRepository
-            .GetByIdAsync(notification.Id, Arg.Any<CancellationToken>())
-            .Returns(notification);
-
-        ArchiveNotificationCommand command = new(notification.Id, differentTenant, userId);
+        ArchiveNotificationCommand command = new(NotificationId.New(), Guid.NewGuid());
 
         Result result = await _handler.Handle(command, CancellationToken.None);
 
@@ -90,7 +69,7 @@ public class ArchiveNotificationHandlerTests
             .GetByIdAsync(notification.Id, Arg.Any<CancellationToken>())
             .Returns(notification);
 
-        ArchiveNotificationCommand command = new(notification.Id, tenantId, differentUserId);
+        ArchiveNotificationCommand command = new(notification.Id, differentUserId);
 
         Result result = await _handler.Handle(command, CancellationToken.None);
 

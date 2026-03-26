@@ -41,14 +41,7 @@ public static class InquiriesInfrastructureExtensions
             options.AddInterceptors(sp.GetRequiredService<TenantSaveChangesInterceptor>());
         });
 
-        services.AddScoped<InquiriesDbContext>(sp =>
-        {
-            IDbContextFactory<InquiriesDbContext> factory = sp.GetRequiredService<IDbContextFactory<InquiriesDbContext>>();
-            InquiriesDbContext ctx = factory.CreateDbContext();
-            ITenantContext tenant = sp.GetRequiredService<ITenantContext>();
-            ctx.SetTenant(tenant.TenantId);
-            return ctx;
-        });
+        services.AddTenantAwareScopedContext<InquiriesDbContext>();
 
         services.AddReadDbContext<InquiriesDbContext>(configuration);
 

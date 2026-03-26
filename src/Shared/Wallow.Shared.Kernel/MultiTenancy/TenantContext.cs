@@ -15,6 +15,7 @@ public class TenantContext : ITenantContext, ITenantContextSetter
         TenantName = string.Empty;
         Region = RegionConfiguration.PrimaryRegion;
         IsResolved = true;
+        AmbientTenant.Current = tenantId;
     }
 
     public void SetTenant(TenantId tenantId, string tenantName, string region = RegionConfiguration.PrimaryRegion)
@@ -23,6 +24,7 @@ public class TenantContext : ITenantContext, ITenantContextSetter
         TenantName = tenantName;
         Region = region;
         IsResolved = true;
+        AmbientTenant.Current = tenantId;
     }
 
     public void Clear()
@@ -31,5 +33,6 @@ public class TenantContext : ITenantContext, ITenantContextSetter
         TenantName = string.Empty;
         Region = RegionConfiguration.PrimaryRegion;
         IsResolved = false;
+        AmbientTenant.Current = default;
     }
 }

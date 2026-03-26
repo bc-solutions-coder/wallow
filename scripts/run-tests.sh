@@ -28,14 +28,18 @@ resolve_filter() {
         inquiries)      echo "$REPO_ROOT/tests/Modules/Inquiries/Wallow.Inquiries.Tests" ;;
         branding)       echo "$REPO_ROOT/tests/Modules/Branding/Wallow.Branding.Tests" ;;
         apikeys)        echo "$REPO_ROOT/tests/Modules/ApiKeys/Wallow.ApiKeys.Tests" ;;
-        auth)           echo "$REPO_ROOT/tests/Wallow.Auth.Tests" ;;
-        api)            echo "$REPO_ROOT/tests/Wallow.Api.Tests" ;;
+        auth)            echo "$REPO_ROOT/tests/Wallow.Auth.Tests" ;;
+        auth-components) echo "$REPO_ROOT/tests/Wallow.Auth.Component.Tests" ;;
+        web)             echo "$REPO_ROOT/tests/Wallow.Web.Tests" ;;
+        web-components)  echo "$REPO_ROOT/tests/Wallow.Web.Component.Tests" ;;
+        e2e)             echo "$REPO_ROOT/tests/Wallow.E2E.Tests" ;;
+        api)             echo "$REPO_ROOT/tests/Wallow.Api.Tests" ;;
         arch|architecture) echo "$REPO_ROOT/tests/Wallow.Architecture.Tests" ;;
-        shared)         echo "$REPO_ROOT/tests/Wallow.Shared.Infrastructure.Tests" ;;
-        kernel)         echo "$REPO_ROOT/tests/Wallow.Shared.Kernel.Tests" ;;
-        integration)    echo "$REPO_ROOT/tests/Modules/Identity/Wallow.Identity.IntegrationTests" ;;
-        "")             echo "" ;;
-        *)              echo "$filter" ;;
+        shared)          echo "$REPO_ROOT/tests/Wallow.Shared.Infrastructure.Tests" ;;
+        kernel)          echo "$REPO_ROOT/tests/Wallow.Shared.Kernel.Tests" ;;
+        integration)     echo "$REPO_ROOT/tests/Modules/Identity/Wallow.Identity.IntegrationTests" ;;
+        "")              echo "" ;;
+        *)               echo "$filter" ;;
     esac
 }
 
@@ -45,6 +49,10 @@ PROJECT_PATH=$(resolve_filter "$MODULE_FILTER")
 CMD=(dotnet test --settings "$RUNSETTINGS" --logger "trx;LogFilePrefix=results" --results-directory "$TRX_DIR" --no-restore -v quiet)
 if [[ -n "$PROJECT_PATH" ]]; then
     CMD+=("$PROJECT_PATH")
+fi
+# Exclude E2E tests from standard runs; only include when explicitly requested via the e2e shorthand
+if [[ -z "$MODULE_FILTER" ]]; then
+    CMD+=(--filter "Category!=E2E")
 fi
 
 echo "=== WALLOW TEST RUN ==="

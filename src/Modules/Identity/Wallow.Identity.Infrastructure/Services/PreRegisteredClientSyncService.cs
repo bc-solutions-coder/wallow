@@ -228,9 +228,13 @@ public sealed partial class PreRegisteredClientSyncService(
         }
     }
 
+    private static bool IsServiceAccount(string clientId)
+        => clientId.StartsWith("sa-", StringComparison.Ordinal);
+
     private async Task<OpenIddictApplicationDescriptor> BuildDescriptorAsync(PreRegisteredClientDefinition client, CancellationToken ct)
     {
         string clientType = client.IsPublic ? ClientTypes.Public : ClientTypes.Confidential;
+        bool isServiceAccount = IsServiceAccount(client.ClientId);
 
         OpenIddictApplicationDescriptor descriptor = new()
         {
@@ -238,24 +242,27 @@ public sealed partial class PreRegisteredClientSyncService(
             ClientSecret = client.IsPublic ? null : client.Secret,
             DisplayName = client.DisplayName,
             ClientType = clientType,
-            Permissions =
-            {
-                Permissions.Endpoints.Authorization,
-                Permissions.Endpoints.EndSession,
-                Permissions.Endpoints.Token,
-                Permissions.GrantTypes.AuthorizationCode,
-                Permissions.GrantTypes.RefreshToken,
-                Permissions.ResponseTypes.Code
-            },
-            Requirements =
-            {
-                Requirements.Features.ProofKeyForCodeExchange
-            },
             Properties =
             {
                 [SourcePropertyKey] = JsonSerializer.SerializeToElement(SourcePropertyValue)
             }
         };
+
+        if (isServiceAccount)
+        {
+            descriptor.Permissions.Add(Permissions.Endpoints.Token);
+            descriptor.Permissions.Add(Permissions.GrantTypes.ClientCredentials);
+        }
+        else
+        {
+            descriptor.Permissions.Add(Permissions.Endpoints.Authorization);
+            descriptor.Permissions.Add(Permissions.Endpoints.EndSession);
+            descriptor.Permissions.Add(Permissions.Endpoints.Token);
+            descriptor.Permissions.Add(Permissions.GrantTypes.AuthorizationCode);
+            descriptor.Permissions.Add(Permissions.GrantTypes.RefreshToken);
+            descriptor.Permissions.Add(Permissions.ResponseTypes.Code);
+            descriptor.Requirements.Add(Requirements.Features.ProofKeyForCodeExchange);
+        }
 
         foreach (string uri in client.RedirectUris)
         {

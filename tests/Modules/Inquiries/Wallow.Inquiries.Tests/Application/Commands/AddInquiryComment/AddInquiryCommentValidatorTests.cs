@@ -9,7 +9,7 @@ public class AddInquiryCommentValidatorTests
     private readonly AddInquiryCommentValidator _validator = new();
 
     private static AddInquiryCommentCommand Valid() =>
-        new(InquiryId.New(), "user-123", "John Doe", "This is a valid comment.", false, Guid.NewGuid());
+        new(InquiryId.New(), "user-123", "John Doe", "This is a valid comment.", false);
 
     [Fact]
     public void Should_Have_Error_When_Content_Is_Empty()
