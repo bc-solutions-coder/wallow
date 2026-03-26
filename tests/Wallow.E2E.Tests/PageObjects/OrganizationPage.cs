@@ -17,17 +17,27 @@ public sealed class OrganizationPage
     {
         await _page.GotoAsync($"{_baseUrl}/dashboard/organizations");
         await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        await AppRegistrationPage.WaitForBlazorCircuitAsync(_page);
+        await _page.Locator("[data-testid='organizations-heading']")
+            .WaitForAsync(new() { Timeout = 10_000 });
     }
 
     public async Task<bool> IsLoadedAsync()
     {
-        ILocator heading = _page.Locator("h1:has-text('Organizations')");
-        return await heading.IsVisibleAsync();
+        try
+        {
+            await _page.Locator("[data-testid='organizations-heading']").WaitForAsync(new() { Timeout = 10_000 });
+            return true;
+        }
+        catch (TimeoutException)
+        {
+            return false;
+        }
     }
 
     public async Task<IReadOnlyList<OrganizationRow>> GetOrganizationsAsync()
     {
-        ILocator rows = _page.Locator("tbody tr");
+        ILocator rows = _page.Locator("[data-testid='organizations-row']");
         int count = await rows.CountAsync();
 
         List<OrganizationRow> organizations = [];
@@ -48,22 +58,14 @@ public sealed class OrganizationPage
 
     public async Task<bool> IsEmptyStateAsync()
     {
-        ILocator emptyMessage = _page.Locator("text=No organizations yet");
-        return await emptyMessage.IsVisibleAsync();
+        ILocator emptyState = _page.Locator("[data-testid='organizations-empty-state']");
+        return await emptyState.IsVisibleAsync();
     }
 
     public async Task ClickCreateOrganizationAsync()
     {
-        await _page.Locator("a:has-text('Create Organization')").First.ClickAsync();
-        await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        await _page.Locator("[data-testid='organizations-create-link']").ClickAsync();
     }
-
-    public async Task ViewDetailAsync(string organizationName)
-    {
-        await _page.Locator($"td:has-text('{organizationName}')").ClickAsync();
-        await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
-    }
-
 }
 
 public sealed record OrganizationRow(string Name, string Domain, string MemberCount);

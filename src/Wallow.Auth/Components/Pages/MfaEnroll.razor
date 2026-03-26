@@ -16,9 +16,11 @@
     <BbCardContent Class="px-0 space-y-4">
         @if (!string.IsNullOrEmpty(_errorMessage))
         {
-            <BbAlert Variant="AlertVariant.Danger">
-                <BbAlertDescription>@_errorMessage</BbAlertDescription>
-            </BbAlert>
+            <div data-testid="mfa-enroll-error">
+                <BbAlert Variant="AlertVariant.Danger">
+                    <BbAlertDescription>@_errorMessage</BbAlertDescription>
+                </BbAlert>
+            </div>
         }
 
         @if (_backupCodes is not null)
@@ -27,7 +29,7 @@
                 <BbAlertTitle>MFA enabled successfully</BbAlertTitle>
                 <BbAlertDescription>Save these backup codes in a safe place. They can be used to access your account if you lose your authenticator device.</BbAlertDescription>
             </BbAlert>
-            <div class="bg-muted rounded-md p-4 font-mono text-sm space-y-1">
+            <div class="bg-muted rounded-md p-4 font-mono text-sm space-y-1" data-testid="mfa-enroll-backup-codes">
                 @foreach (string backupCode in _backupCodes)
                 {
                     <div>@backupCode</div>
@@ -43,7 +45,7 @@
                 <p class="text-sm text-muted-foreground">Scan this QR URI in your authenticator app:</p>
                 <div class="bg-muted rounded-md p-4 font-mono text-xs break-all">@_qrUri</div>
                 <p class="text-xs text-muted-foreground">Or enter this secret manually:</p>
-                <div class="bg-muted rounded-md p-2 font-mono text-sm">@_secret</div>
+                <div class="bg-muted rounded-md p-2 font-mono text-sm" data-testid="mfa-enroll-secret">@_secret</div>
             </div>
 
             <form @onsubmit="HandleConfirm" @onsubmit:preventDefault>
@@ -53,13 +55,15 @@
                         <BbInput Id="code"
                                  Type="InputType.Text"
                                  Placeholder="Enter 6-digit code"
+                                 data-testid="mfa-enroll-code"
                                  @bind-Value="_code" />
                     </div>
 
                     <BbButton Class="w-full"
                               Type="ButtonType.Submit"
                               Loading="_isSubmitting"
-                              Disabled="_isSubmitting">
+                              Disabled="_isSubmitting"
+                              data-testid="mfa-enroll-submit">
                         Verify and enable MFA
                     </BbButton>
                 </div>
@@ -79,7 +83,8 @@
                 <BbButton Class="w-full"
                           Loading="_isLoading"
                           Disabled="_isLoading"
-                          OnClick="HandleStartEnroll">
+                          OnClick="HandleStartEnroll"
+                          data-testid="mfa-enroll-begin-setup">
                     Begin setup
                 </BbButton>
             </div>

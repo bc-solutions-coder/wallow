@@ -12,6 +12,7 @@ public sealed class DockerComposeFixture : IAsyncLifetime
     public string ApiBaseUrl { get; } = Environment.GetEnvironmentVariable("E2E_BASE_URL") ?? "http://localhost:5050";
     public string AuthBaseUrl { get; } = Environment.GetEnvironmentVariable("E2E_AUTH_URL") ?? "http://localhost:5051";
     public string WebBaseUrl { get; } = Environment.GetEnvironmentVariable("E2E_WEB_URL") ?? "http://localhost:5053";
+    public string MailpitBaseUrl { get; } = Environment.GetEnvironmentVariable("E2E_MAILPIT_URL") ?? "http://localhost:8035";
 
     /// <summary>
     /// When true, containers are managed externally (CI) — skip docker compose up/down.

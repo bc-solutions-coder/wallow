@@ -17,79 +17,79 @@ public sealed class AppRegistrationPage
     {
         await _page.GotoAsync($"{_baseUrl}/dashboard/apps/register");
         await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        await WaitForBlazorCircuitAsync(_page);
+        await _page.Locator("[data-testid='register-app-display-name']")
+            .WaitForAsync(new() { Timeout = 10_000 });
+    }
+
+    internal static async Task WaitForBlazorCircuitAsync(IPage page, int timeoutMs = 30_000)
+    {
+        // Wait for Blazor circuit to be fully connected.
+        // Check for data-blazor-ready (set by BlazorReadyIndicator component)
+        // or fall back to checking the Blazor global object.
+        await page.WaitForFunctionAsync(
+            "() => document.body.getAttribute('data-blazor-ready') === 'true' || (typeof Blazor !== 'undefined')",
+            null,
+            new() { Timeout = timeoutMs, PollingInterval = 200 });
+        // Blazor circuit needs time after JS loads to establish SignalR connection
+        // and replace SSR content with interactive components.
+        await Task.Delay(2000);
     }
 
     public async Task<bool> IsLoadedAsync()
     {
-        ILocator heading = _page.Locator("h1:has-text('Register New App')");
-        return await heading.IsVisibleAsync();
+        try
+        {
+            await _page.Locator("[data-testid='register-app-display-name']").WaitForAsync(new() { Timeout = 10_000 });
+            return true;
+        }
+        catch (TimeoutException)
+        {
+            return false;
+        }
     }
 
     public async Task FillFormAsync(
         string displayName,
         string clientType = "public",
-        string? redirectUris = null,
-        string? brandingDisplayName = null,
-        string? brandingTagline = null)
+        string? redirectUris = null)
     {
-        await _page.Locator("input").Filter(new() { HasText = "" }).First.FillAsync(displayName);
-
-        await _page.Locator("select").First.SelectOptionAsync(clientType);
+        await _page.Locator("[data-testid='register-app-display-name']").FillAsync(displayName);
+        await _page.Locator("[data-testid='register-app-client-type']").SelectOptionAsync(clientType);
 
         if (redirectUris is not null)
         {
-            await _page.Locator("textarea").FillAsync(redirectUris);
-        }
-
-        if (brandingDisplayName is not null)
-        {
-            ILocator brandingNameInput = _page.Locator("input[placeholder='Your Company Name']");
-            await brandingNameInput.FillAsync(brandingDisplayName);
-        }
-
-        if (brandingTagline is not null)
-        {
-            ILocator taglineInput = _page.Locator("input[placeholder='Your company tagline']");
-            await taglineInput.FillAsync(brandingTagline);
+            await _page.Locator("[data-testid='register-app-redirect-uris']").FillAsync(redirectUris);
         }
     }
 
     public async Task SubmitAsync()
     {
-        await _page.Locator("button[type='submit']").ClickAsync();
-        await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        await _page.Locator("[data-testid='register-app-submit']").ClickAsync();
+        // Wait for server response via SignalR (not HTTP)
+        await _page.Locator("[data-testid='register-app-success'], [data-testid='register-app-error']")
+            .First.WaitForAsync(new() { Timeout = 15_000 });
     }
 
     public async Task<AppRegistrationResult> GetResultAsync()
     {
-        ILocator successHeading = _page.Locator("h2:has-text('App Registered Successfully')");
-        bool isSuccess = await successHeading.IsVisibleAsync();
+        ILocator success = _page.Locator("[data-testid='register-app-success']");
+        bool isSuccess = await success.IsVisibleAsync();
 
         if (!isSuccess)
         {
-            ILocator errorContainer = _page.Locator(".bg-red-50 p");
-            bool hasError = await errorContainer.IsVisibleAsync();
-            string? errorMessage = hasError ? await errorContainer.InnerTextAsync() : null;
+            ILocator error = _page.Locator("[data-testid='register-app-error']");
+            bool hasError = await error.IsVisibleAsync();
+            string? errorMessage = hasError ? await error.InnerTextAsync() : null;
 
             return new AppRegistrationResult(false, null, null, errorMessage);
         }
 
-        ILocator clientIdCode = _page.Locator("code").First;
-        string clientId = await clientIdCode.InnerTextAsync();
+        ILocator clientIdLocator = _page.Locator("[data-testid='register-app-client-id']");
+        string clientId = await clientIdLocator.InnerTextAsync();
 
-        ILocator secretCode = _page.Locator(".bg-amber-50 code");
-        bool hasSecret = await secretCode.IsVisibleAsync();
-        string? clientSecret = hasSecret ? await secretCode.InnerTextAsync() : null;
-
-        return new AppRegistrationResult(true, clientId.Trim(), clientSecret?.Trim(), null);
+        return new AppRegistrationResult(true, clientId.Trim(), null, null);
     }
-
-    public async Task ClickBackToAppsAsync()
-    {
-        await _page.Locator("a:has-text('Back to Apps')").ClickAsync();
-        await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
-    }
-
 }
 
 public sealed record AppRegistrationResult(

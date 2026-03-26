@@ -15,7 +15,7 @@
 
     @if (_submitted)
     {
-        <div class="bg-white rounded-lg shadow-sm border border-[#e8d5b7] p-8 text-center">
+        <div data-testid="inquiry-success" class="bg-white rounded-lg shadow-sm border border-[#e8d5b7] p-8 text-center">
             <div class="text-[48px] leading-none mb-2">🐷</div>
             <h2 class="text-xl font-semibold text-[#3d2b1f] mb-2">Inquiry Submitted</h2>
             <p class="text-[#3d2b1f]/60 mb-6">Thank you! We'll get back to you shortly.</p>
@@ -30,7 +30,7 @@
         <div class="bg-white rounded-lg shadow-sm border border-[#e8d5b7] p-8">
             @if (_errorMessage is not null)
             {
-                <div class="bg-red-50 border border-red-300 rounded-md p-4 mb-6">
+                <div data-testid="inquiry-error" class="bg-red-50 border border-red-300 rounded-md p-4 mb-6">
                     <p class="text-red-800 text-sm">@_errorMessage</p>
                 </div>
             }
@@ -41,11 +41,13 @@
                         <div>
                             <label class="block text-sm font-medium text-[#3d2b1f] mb-1">Name</label>
                             <InputText @bind-Value="_form.Name"
+                                       data-testid="inquiry-name"
                                        class="w-full border border-[#e8d5b7] rounded-md px-4 py-2 text-sm text-[#3d2b1f] bg-[#faf6f1] focus:outline-none focus:ring-2 focus:ring-[#d4a017] focus:border-transparent" />
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-[#3d2b1f] mb-1">Email</label>
                             <InputText @bind-Value="_form.Email"
+                                       data-testid="inquiry-email"
                                        class="w-full border border-[#e8d5b7] rounded-md px-4 py-2 text-sm text-[#3d2b1f] bg-[#faf6f1] focus:outline-none focus:ring-2 focus:ring-[#d4a017] focus:border-transparent" />
                         </div>
                     </div>
@@ -54,12 +56,14 @@
                         <div>
                             <label class="block text-sm font-medium text-[#3d2b1f] mb-1">Phone</label>
                             <InputText @bind-Value="_form.Phone"
+                                       data-testid="inquiry-phone"
                                        class="w-full border border-[#e8d5b7] rounded-md px-4 py-2 text-sm text-[#3d2b1f] bg-[#faf6f1] focus:outline-none focus:ring-2 focus:ring-[#d4a017] focus:border-transparent"
                                        placeholder="Optional" />
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-[#3d2b1f] mb-1">Company</label>
                             <InputText @bind-Value="_form.Company"
+                                       data-testid="inquiry-company"
                                        class="w-full border border-[#e8d5b7] rounded-md px-4 py-2 text-sm text-[#3d2b1f] bg-[#faf6f1] focus:outline-none focus:ring-2 focus:ring-[#d4a017] focus:border-transparent"
                                        placeholder="Optional" />
                         </div>
@@ -69,6 +73,7 @@
                         <div>
                             <label class="block text-sm font-medium text-[#3d2b1f] mb-1">Project Type</label>
                             <InputSelect @bind-Value="_form.ProjectType"
+                                         data-testid="inquiry-project-type"
                                          class="w-full border border-[#e8d5b7] rounded-md px-4 py-2 text-sm text-[#3d2b1f] bg-[#faf6f1] focus:outline-none focus:ring-2 focus:ring-[#d4a017] focus:border-transparent">
                                 <option value="">Select...</option>
                                 <option value="web-app">Web Application</option>
@@ -82,6 +87,7 @@
                         <div>
                             <label class="block text-sm font-medium text-[#3d2b1f] mb-1">Budget Range</label>
                             <InputSelect @bind-Value="_form.BudgetRange"
+                                         data-testid="inquiry-budget-range"
                                          class="w-full border border-[#e8d5b7] rounded-md px-4 py-2 text-sm text-[#3d2b1f] bg-[#faf6f1] focus:outline-none focus:ring-2 focus:ring-[#d4a017] focus:border-transparent">
                                 <option value="">Select...</option>
                                 <option value="under-5k">Under $5,000</option>
@@ -94,6 +100,7 @@
                         <div>
                             <label class="block text-sm font-medium text-[#3d2b1f] mb-1">Timeline</label>
                             <InputSelect @bind-Value="_form.Timeline"
+                                         data-testid="inquiry-timeline"
                                          class="w-full border border-[#e8d5b7] rounded-md px-4 py-2 text-sm text-[#3d2b1f] bg-[#faf6f1] focus:outline-none focus:ring-2 focus:ring-[#d4a017] focus:border-transparent">
                                 <option value="">Select...</option>
                                 <option value="asap">ASAP</option>
@@ -108,6 +115,7 @@
                     <div>
                         <label class="block text-sm font-medium text-[#3d2b1f] mb-1">Message</label>
                         <InputTextArea @bind-Value="_form.Message"
+                                       data-testid="inquiry-message"
                                        rows="5"
                                        class="w-full border border-[#e8d5b7] rounded-md px-4 py-2 text-sm text-[#3d2b1f] bg-[#faf6f1] focus:outline-none focus:ring-2 focus:ring-[#d4a017] focus:border-transparent"
                                        placeholder="Tell us about your project..." />
@@ -115,6 +123,7 @@
 
                     <div class="pt-2">
                         <button type="submit"
+                                data-testid="inquiry-submit"
                                 disabled="@_submitting"
                                 class="w-full bg-[#d4a017] text-white font-medium px-6 py-3 rounded-full hover:bg-[#b8880f] disabled:opacity-50 transition-colors text-sm">
                             @(_submitting ? "Submitting..." : "Submit Inquiry")

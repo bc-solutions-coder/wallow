@@ -33,59 +33,58 @@ public sealed class RegisterPage
 
         await _page.GotoAsync(url);
         await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        await _page.Locator("[data-testid='register-email']")
+            .WaitForAsync(new() { Timeout = 15_000 });
     }
 
     public async Task FillFormAsync(string email, string password, string confirmPassword, bool acceptTerms = true, bool acceptPrivacy = true)
     {
-        await _page.Locator("#email").FillAsync(email);
-        await _page.Locator("#password").FillAsync(password);
-        await _page.Locator("#confirmPassword").FillAsync(confirmPassword);
+        await _page.Locator("[data-testid='register-email']").FillAsync(email);
+        await _page.Locator("[data-testid='register-password']").FillAsync(password);
+        await _page.Locator("[data-testid='register-confirm-password']").FillAsync(confirmPassword);
 
         if (acceptTerms)
         {
-            await _page.Locator("#termsAccepted").ClickAsync();
+            await _page.Locator("[data-testid='register-terms']").ClickAsync();
         }
 
         if (acceptPrivacy)
         {
-            await _page.Locator("#privacyAccepted").ClickAsync();
+            await _page.Locator("[data-testid='register-privacy']").ClickAsync();
         }
     }
 
     public async Task SubmitAsync()
     {
-        await _page.Locator("button[type='submit']").ClickAsync();
-        await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        await _page.Locator("[data-testid='register-submit']").ClickAsync();
+        // Blazor uses SignalR — caller handles navigation/error waits
     }
 
     public async Task<IReadOnlyList<string>> GetValidationErrorsAsync()
     {
-        // Error messages appear in danger alerts and inline validation text
-        ILocator alerts = _page.Locator("[data-variant='danger']");
-        int alertCount = await alerts.CountAsync();
+        ILocator errors = _page.Locator("[data-testid='register-error']");
+        int count = await errors.CountAsync();
 
-        List<string> errors = [];
-        for (int i = 0; i < alertCount; i++)
+        List<string> errorMessages = [];
+        for (int i = 0; i < count; i++)
         {
-            string text = await alerts.Nth(i).InnerTextAsync();
-            errors.Add(text.Trim());
+            string text = await errors.Nth(i).InnerTextAsync();
+            errorMessages.Add(text.Trim());
         }
 
-        ILocator inlineErrors = _page.Locator(".text-destructive");
-        int inlineCount = await inlineErrors.CountAsync();
-
-        for (int i = 0; i < inlineCount; i++)
-        {
-            string text = await inlineErrors.Nth(i).InnerTextAsync();
-            errors.Add(text.Trim());
-        }
-
-        return errors;
+        return errorMessages;
     }
 
     public async Task<bool> IsLoadedAsync()
     {
-        ILocator title = _page.Locator("text=Create an account");
-        return await title.IsVisibleAsync();
+        try
+        {
+            await _page.Locator("[data-testid='register-email']").WaitForAsync(new() { Timeout = 10_000 });
+            return true;
+        }
+        catch (TimeoutException)
+        {
+            return false;
+        }
     }
 }

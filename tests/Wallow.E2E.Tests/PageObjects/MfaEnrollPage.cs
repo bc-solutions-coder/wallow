@@ -21,79 +21,76 @@ public sealed class MfaEnrollPage
 
         await _page.GotoAsync(url);
         await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        await AppRegistrationPage.WaitForBlazorCircuitAsync(_page);
+        await _page.Locator("[data-testid='mfa-enroll-begin-setup']")
+            .WaitForAsync(new() { Timeout = 10_000 });
     }
 
     public async Task<bool> IsLoadedAsync()
     {
-        ILocator title = _page.Locator("text=Set up two-factor authentication");
-        return await title.IsVisibleAsync();
+        try
+        {
+            await _page.Locator("[data-testid='mfa-enroll-begin-setup']").WaitForAsync(new() { Timeout = 10_000 });
+            return true;
+        }
+        catch (TimeoutException)
+        {
+            return false;
+        }
     }
 
     public async Task ClickBeginSetupAsync()
     {
-        await _page.Locator("button:has-text('Begin setup')").ClickAsync();
-        await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        await _page.Locator("[data-testid='mfa-enroll-begin-setup']").ClickAsync();
+        await _page.Locator("[data-testid='mfa-enroll-secret']")
+            .WaitForAsync(new() { Timeout = 15_000 });
     }
 
     public async Task<bool> GetQrCodeAsync()
     {
-        ILocator secretDisplay = _page.Locator(".font-mono.text-sm");
-        return await secretDisplay.IsVisibleAsync();
+        ILocator secret = _page.Locator("[data-testid='mfa-enroll-secret']");
+        return await secret.IsVisibleAsync();
     }
 
     public async Task FillCodeAsync(string code)
     {
-        await _page.Locator("#code").FillAsync(code);
+        await _page.Locator("[data-testid='mfa-enroll-code']").FillAsync(code);
     }
 
     public async Task SubmitAsync()
     {
-        await _page.Locator("button[type='submit']").ClickAsync();
-        await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        await _page.Locator("[data-testid='mfa-enroll-submit']").ClickAsync();
+        await _page.Locator("[data-testid='mfa-enroll-error']")
+            .WaitForAsync(new() { Timeout = 15_000 });
     }
 
     public async Task<string?> GetErrorMessageAsync()
     {
-        ILocator alert = _page.Locator("[data-variant='danger']");
-        bool isVisible = await alert.IsVisibleAsync();
+        ILocator error = _page.Locator("[data-testid='mfa-enroll-error']");
+        bool isVisible = await error.IsVisibleAsync();
         if (!isVisible)
         {
             return null;
         }
 
-        return await alert.InnerTextAsync();
-    }
-
-    public async Task<bool> IsSuccessAsync()
-    {
-        ILocator successAlert = _page.Locator("text=MFA enabled successfully");
-        return await successAlert.IsVisibleAsync();
+        return await error.InnerTextAsync();
     }
 
     public async Task<IReadOnlyList<string>> GetBackupCodesAsync()
     {
-        ILocator codeElements = _page.Locator(".bg-muted.rounded-md.p-4.font-mono div");
-        int count = await codeElements.CountAsync();
+        ILocator backupCodes = _page.Locator("[data-testid='mfa-enroll-backup-codes']");
+        string text = await backupCodes.InnerTextAsync();
 
         List<string> codes = [];
-        for (int i = 0; i < count; i++)
+        foreach (string line in text.Split(['\n', '\r'], StringSplitOptions.RemoveEmptyEntries))
         {
-            string text = await codeElements.Nth(i).InnerTextAsync();
-            codes.Add(text.Trim());
+            string trimmed = line.Trim();
+            if (!string.IsNullOrEmpty(trimmed))
+            {
+                codes.Add(trimmed);
+            }
         }
 
         return codes;
-    }
-
-    public async Task ClickDoneAsync()
-    {
-        await _page.Locator("button:has-text('Done')").ClickAsync();
-        await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
-    }
-
-    public async Task ClickCancelAsync()
-    {
-        await _page.Locator("a:has-text('Cancel')").ClickAsync();
-        await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
     }
 }

@@ -21,51 +21,65 @@ public sealed class LoginPage
 
         await _page.GotoAsync(url);
         await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        await _page.Locator("[data-testid='login-email']")
+            .WaitForAsync(new() { Timeout = 15_000 });
     }
 
     public async Task FillEmailAsync(string email)
     {
-        await _page.Locator("#email").FillAsync(email);
+        await _page.Locator("[data-testid='login-email']").FillAsync(email);
     }
 
     public async Task FillPasswordAsync(string password)
     {
-        await _page.Locator("#password").FillAsync(password);
+        await _page.Locator("[data-testid='login-password']").FillAsync(password);
+    }
+
+    public async Task CheckRememberMeAsync()
+    {
+        await _page.Locator("[data-testid='login-remember-me']").ClickAsync();
     }
 
     public async Task SubmitAsync()
     {
-        await _page.Locator("button[type='submit']").ClickAsync();
+        await _page.Locator("[data-testid='login-submit']").ClickAsync();
         await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
     }
 
     public async Task<string?> GetErrorMessageAsync()
     {
-        ILocator alert = _page.Locator("[data-variant='danger']");
-        bool isVisible = await alert.IsVisibleAsync();
+        ILocator error = _page.Locator("[data-testid='login-error']");
+        bool isVisible = await error.IsVisibleAsync();
         if (!isVisible)
         {
             return null;
         }
 
-        return await alert.InnerTextAsync();
+        return await error.InnerTextAsync();
     }
 
     public async Task<bool> IsLoadedAsync()
     {
-        ILocator title = _page.Locator("text=Sign in to your account");
-        return await title.IsVisibleAsync();
+        try
+        {
+            await _page.Locator("[data-testid='login-email']").WaitForAsync(new() { Timeout = 10_000 });
+            return true;
+        }
+        catch (TimeoutException)
+        {
+            return false;
+        }
     }
 
     public async Task ClickForgotPasswordAsync()
     {
-        await _page.Locator("a[href='/forgot-password']").ClickAsync();
+        await _page.Locator("[data-testid='login-forgot-password']").ClickAsync();
         await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
     }
 
     public async Task ClickRegisterLinkAsync()
     {
-        await _page.Locator("a:has-text('Register')").ClickAsync();
+        await _page.Locator("[data-testid='login-register-link']").ClickAsync();
         await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
     }
 }
