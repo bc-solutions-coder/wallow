@@ -21,14 +21,20 @@ public sealed class DashboardPage
 
     public async Task<bool> IsLoadedAsync()
     {
-        ILocator heading = _page.Locator("h1:has-text('My Apps')");
-        return await heading.IsVisibleAsync();
+        try
+        {
+            await _page.Locator("[data-testid='apps-heading']").WaitForAsync(new() { Timeout = 10_000 });
+            return true;
+        }
+        catch (TimeoutException)
+        {
+            return false;
+        }
     }
 
     public async Task<string?> GetWelcomeMessageAsync()
     {
-        // The dashboard shows "My Apps" as the main heading
-        ILocator heading = _page.Locator("h1");
+        ILocator heading = _page.Locator("[data-testid='apps-heading']");
         bool isVisible = await heading.IsVisibleAsync();
         if (!isVisible)
         {

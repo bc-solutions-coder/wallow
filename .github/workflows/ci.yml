@@ -228,13 +228,21 @@ jobs:
           done
 
       - name: Run E2E tests
-        run: ./scripts/run-tests.sh e2e
+        run: dotnet test tests/Wallow.E2E.Tests --no-restore --verbosity normal --blame-hang-timeout 5m
         env:
           E2E_BASE_URL: "http://localhost:5050"
           E2E_AUTH_URL: "http://localhost:5051"
           E2E_WEB_URL: "http://localhost:5053"
           E2E_MAILPIT_URL: "http://localhost:8035"
           E2E_EXTERNAL_SERVICES: "true"
+
+      - name: Upload E2E failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-failure-artifacts
+          path: tests/Wallow.E2E.Tests/test-results/
+          retention-days: 7
 
       - name: Tear down test environment
         if: always()

@@ -63,6 +63,14 @@ public static class IdentityInfrastructureExtensions
                     .SetEndSessionEndpointUris("/connect/logout")
                     .SetUserInfoEndpointUris("/connect/userinfo");
 
+                // Allow explicit issuer override (needed when the API is behind a reverse proxy
+                // or when containers and browsers use different hostnames, e.g. E2E tests)
+                string? issuer = configuration["OpenIddict:Issuer"];
+                if (!string.IsNullOrEmpty(issuer))
+                {
+                    options.SetIssuer(new Uri(issuer));
+                }
+
                 options.AllowAuthorizationCodeFlow().RequireProofKeyForCodeExchange()
                     .AllowClientCredentialsFlow()
                     .AllowRefreshTokenFlow();

@@ -16,7 +16,7 @@
 
     @if (_result is { Success: true })
     {
-        <div class="bg-white rounded-lg shadow-sm border border-[#e8d5b7] p-8">
+        <div data-testid="register-app-success" class="bg-white rounded-lg shadow-sm border border-[#e8d5b7] p-8">
             <div class="text-center mb-6">
                 <div class="text-[48px] leading-none mb-2">🎉</div>
                 <h2 class="text-xl font-semibold text-[#3d2b1f]">App Registered Successfully</h2>
@@ -26,7 +26,7 @@
                 <div>
                     <label class="block text-xs font-semibold text-[#3d2b1f]/70 uppercase tracking-wider mb-1">Client ID</label>
                     <div class="flex items-center gap-2">
-                        <code class="flex-1 bg-[#faf6f1] border border-[#e8d5b7] rounded-md px-4 py-2 text-sm font-mono text-[#3d2b1f]">@_result.ClientId</code>
+                        <code data-testid="register-app-client-id" class="flex-1 bg-[#faf6f1] border border-[#e8d5b7] rounded-md px-4 py-2 text-sm font-mono text-[#3d2b1f]">@_result.ClientId</code>
                         <button @onclick="() => CopyToClipboard(_result.ClientId!)"
                                 class="bg-[#e8d5b7] text-[#3d2b1f] px-3 py-2 rounded-md text-sm hover:bg-[#d4a017] hover:text-white transition-colors">
                             Copy
@@ -62,7 +62,7 @@
         <div class="bg-white rounded-lg shadow-sm border border-[#e8d5b7] p-8">
             @if (_result is { Success: false })
             {
-                <div class="bg-red-50 border border-red-300 rounded-md p-4 mb-6">
+                <div data-testid="register-app-error" class="bg-red-50 border border-red-300 rounded-md p-4 mb-6">
                     <p class="text-red-800 text-sm">@_result.ErrorMessage</p>
                 </div>
             }
@@ -72,6 +72,7 @@
                     <div>
                         <label class="block text-sm font-medium text-[#3d2b1f] mb-1">App Name</label>
                         <InputText @bind-Value="_form.DisplayName"
+                                   data-testid="register-app-display-name"
                                    class="w-full border border-[#e8d5b7] rounded-md px-4 py-2 text-sm text-[#3d2b1f] bg-[#faf6f1] focus:outline-none focus:ring-2 focus:ring-[#d4a017] focus:border-transparent"
                                    placeholder="My Application" />
                     </div>
@@ -79,6 +80,7 @@
                     <div>
                         <label class="block text-sm font-medium text-[#3d2b1f] mb-1">Client Type</label>
                         <InputSelect @bind-Value="_form.ClientType"
+                                     data-testid="register-app-client-type"
                                      class="w-full border border-[#e8d5b7] rounded-md px-4 py-2 text-sm text-[#3d2b1f] bg-[#faf6f1] focus:outline-none focus:ring-2 focus:ring-[#d4a017] focus:border-transparent">
                             <option value="public">Public (SPA, mobile, desktop)</option>
                             <option value="confidential">Confidential (server-side)</option>
@@ -88,6 +90,7 @@
                     <div>
                         <label class="block text-sm font-medium text-[#3d2b1f] mb-1">Redirect URIs</label>
                         <InputTextArea @bind-Value="_form.RedirectUris"
+                                       data-testid="register-app-redirect-uris"
                                        rows="3"
                                        class="w-full border border-[#e8d5b7] rounded-md px-4 py-2 text-sm text-[#3d2b1f] bg-[#faf6f1] focus:outline-none focus:ring-2 focus:ring-[#d4a017] focus:border-transparent"
                                        placeholder="https://myapp.com/callback&#10;https://localhost:3000/callback" />
@@ -142,6 +145,7 @@
 
                     <div class="pt-2">
                         <button type="submit"
+                                data-testid="register-app-submit"
                                 disabled="@_submitting"
                                 class="w-full bg-[#d4a017] text-white font-medium px-6 py-3 rounded-full hover:bg-[#b8880f] disabled:opacity-50 transition-colors text-sm">
                             @(_submitting ? "Registering..." : "Register App")

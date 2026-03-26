@@ -104,6 +104,8 @@ services:
       # Override wallow-web-client redirect URIs for test ports (5053 instead of 5003)
       PreRegisteredClients__Clients__1__RedirectUris__0: "http://localhost:5053/signin-oidc"
       PreRegisteredClients__Clients__1__PostLogoutRedirectUris__0: "http://localhost:5053/signout-callback-oidc"
+      # Fix OIDC issuer so browser-facing tokens match the authority clients expect (localhost)
+      OpenIddict__Issuer: "http://localhost:5050"
       # Disable Elsa — background tasks race with migrations causing CPU spin
       Elsa__Enabled: "false"
     depends_on:
@@ -144,10 +146,10 @@ services:
       ASPNETCORE_URLS: http://+:8080
       ServiceUrls__ApiUrl: "http://wallow-api:8080"
       ServiceUrls__AuthUrl: "http://wallow-api:8080"
-      # Authority must be reachable from BOTH the browser (host) and this container.
-      # host.docker.internal resolves to the host from inside Docker (via extra_hosts)
-      # and to 127.0.0.1 on the CI host (via /etc/hosts entry in CI workflow).
-      Oidc__Authority: "http://host.docker.internal:5050"
+      # Authority = browser-facing URL (must match API's OpenIddict issuer for same-site cookies)
+      # MetadataAddress = container-reachable URL for OIDC discovery (host.docker.internal)
+      Oidc__Authority: "http://localhost:5050"
+      Oidc__MetadataAddress: "http://host.docker.internal:5050/.well-known/openid-configuration"
       Oidc__ClientId: wallow-web-client
       Oidc__ClientSecret: wallow-web-secret
     depends_on:

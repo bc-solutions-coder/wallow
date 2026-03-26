@@ -17,12 +17,22 @@ public sealed class InquiryPage
     {
         await _page.GotoAsync($"{_baseUrl}/dashboard/inquiries");
         await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        await AppRegistrationPage.WaitForBlazorCircuitAsync(_page);
+        await _page.Locator("[data-testid='inquiry-name']")
+            .WaitForAsync(new() { Timeout = 10_000 });
     }
 
     public async Task<bool> IsLoadedAsync()
     {
-        ILocator heading = _page.Locator("h1:has-text('Submit an Inquiry')");
-        return await heading.IsVisibleAsync();
+        try
+        {
+            await _page.Locator("[data-testid='inquiry-name']").WaitForAsync(new() { Timeout = 10_000 });
+            return true;
+        }
+        catch (TimeoutException)
+        {
+            return false;
+        }
     }
 
     public async Task FillFormAsync(
@@ -35,73 +45,60 @@ public sealed class InquiryPage
         string? budgetRange = null,
         string? timeline = null)
     {
-        ILocator nameInput = _page.Locator("label:has-text('Name') + input");
-        await nameInput.FillAsync(name);
-
-        ILocator emailInput = _page.Locator("label:has-text('Email') + input");
-        await emailInput.FillAsync(email);
+        await _page.Locator("[data-testid='inquiry-name']").FillAsync(name);
+        await _page.Locator("[data-testid='inquiry-email']").FillAsync(email);
 
         if (phone is not null)
         {
-            ILocator phoneInput = _page.Locator("input[placeholder='Optional']").First;
-            await phoneInput.FillAsync(phone);
+            await _page.Locator("[data-testid='inquiry-phone']").FillAsync(phone);
         }
 
         if (company is not null)
         {
-            ILocator companyInput = _page.Locator("input[placeholder='Optional']").Last;
-            await companyInput.FillAsync(company);
+            await _page.Locator("[data-testid='inquiry-company']").FillAsync(company);
         }
 
         if (projectType is not null)
         {
-            ILocator projectTypeSelect = _page.Locator("select").First;
-            await projectTypeSelect.SelectOptionAsync(projectType);
+            await _page.Locator("[data-testid='inquiry-project-type']").SelectOptionAsync(projectType);
         }
 
         if (budgetRange is not null)
         {
-            ILocator budgetSelect = _page.Locator("select").Nth(1);
-            await budgetSelect.SelectOptionAsync(budgetRange);
+            await _page.Locator("[data-testid='inquiry-budget-range']").SelectOptionAsync(budgetRange);
         }
 
         if (timeline is not null)
         {
-            ILocator timelineSelect = _page.Locator("select").Nth(2);
-            await timelineSelect.SelectOptionAsync(timeline);
+            await _page.Locator("[data-testid='inquiry-timeline']").SelectOptionAsync(timeline);
         }
 
-        ILocator messageTextarea = _page.Locator("textarea");
-        await messageTextarea.FillAsync(message);
+        await _page.Locator("[data-testid='inquiry-message']").FillAsync(message);
     }
 
     public async Task SubmitInquiryAsync()
     {
-        await _page.Locator("button[type='submit']").ClickAsync();
-        await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        await _page.Locator("[data-testid='inquiry-submit']").ClickAsync();
+        // Wait for server response via SignalR (not HTTP)
+        await _page.Locator("[data-testid='inquiry-success'], [data-testid='inquiry-error']")
+            .First.WaitForAsync(new() { Timeout = 15_000 });
     }
 
     public async Task<bool> IsSubmissionSuccessAsync()
     {
-        ILocator successHeading = _page.Locator("text=Inquiry Submitted");
-        return await successHeading.IsVisibleAsync();
+        ILocator success = _page.Locator("[data-testid='inquiry-success']");
+        return await success.IsVisibleAsync();
     }
 
     public async Task<string?> GetErrorMessageAsync()
     {
-        ILocator errorContainer = _page.Locator(".bg-red-50 p");
-        bool isVisible = await errorContainer.IsVisibleAsync();
+        ILocator error = _page.Locator("[data-testid='inquiry-error']");
+        bool isVisible = await error.IsVisibleAsync();
         if (!isVisible)
         {
             return null;
         }
 
-        return await errorContainer.InnerTextAsync();
-    }
-
-    public async Task ClickSubmitAnotherAsync()
-    {
-        await _page.Locator("button:has-text('Submit Another')").ClickAsync();
-        await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        return await error.InnerTextAsync();
     }
 }

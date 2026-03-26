@@ -58,9 +58,11 @@
 
         @if (!string.IsNullOrEmpty(_errorMessage))
         {
-            <BbAlert Variant="AlertVariant.Danger">
-                <BbAlertDescription>@_errorMessage</BbAlertDescription>
-            </BbAlert>
+            <div data-testid="register-error">
+                <BbAlert Variant="AlertVariant.Danger">
+                    <BbAlertDescription>@_errorMessage</BbAlertDescription>
+                </BbAlert>
+            </div>
         }
 
         <form @onsubmit="HandleRegister" @onsubmit:preventDefault>
@@ -70,6 +72,7 @@
                     <BbInput Id="email"
                              Type="InputType.Email"
                              Placeholder="name@example.com"
+                             data-testid="register-email"
                              @bind-Value="_email" />
                 </div>
 
@@ -87,6 +90,7 @@
                         <BbInput Id="password"
                                  Type="InputType.Password"
                                  Placeholder="Create a password"
+                                 data-testid="register-password"
                                  Value="_password"
                                  ValueChanged="@((string? v) => OnPasswordChanged(v))" />
                         @if (!string.IsNullOrEmpty(_password))
@@ -102,6 +106,7 @@
                         <BbInput Id="confirmPassword"
                                  Type="InputType.Password"
                                  Placeholder="Confirm your password"
+                                 data-testid="register-confirm-password"
                                  @bind-Value="_confirmPassword" />
                         @if (!string.IsNullOrEmpty(_confirmPassword) && _password != _confirmPassword)
                         {
@@ -112,13 +117,17 @@
 
                 <div class="space-y-3">
                     <div class="flex items-start space-x-2">
-                        <BbCheckbox Id="termsAccepted" @bind-Checked="_termsAccepted" />
+                        <span data-testid="register-terms">
+                            <BbCheckbox Id="termsAccepted" @bind-Checked="_termsAccepted" />
+                        </span>
                         <BbLabel For="termsAccepted" Class="text-sm font-normal leading-snug">
                             I agree to the <a href="/terms" class="text-primary underline-offset-4 hover:underline">Terms of Service</a>
                         </BbLabel>
                     </div>
                     <div class="flex items-start space-x-2">
-                        <BbCheckbox Id="privacyAccepted" @bind-Checked="_privacyAccepted" />
+                        <span data-testid="register-privacy">
+                            <BbCheckbox Id="privacyAccepted" @bind-Checked="_privacyAccepted" />
+                        </span>
                         <BbLabel For="privacyAccepted" Class="text-sm font-normal leading-snug">
                             I agree to the <a href="/privacy" class="text-primary underline-offset-4 hover:underline">Privacy Policy</a>
                         </BbLabel>
@@ -128,7 +137,8 @@
                 <BbButton Class="w-full"
                           Type="ButtonType.Submit"
                           Loading="_isSubmitting"
-                          Disabled="_isSubmitting">
+                          Disabled="_isSubmitting"
+                          data-testid="register-submit">
                     Create account
                 </BbButton>
             </div>

@@ -20,9 +20,11 @@
 
         @if (!string.IsNullOrEmpty(_errorMessage))
         {
-            <BbAlert Variant="AlertVariant.Danger">
-                <BbAlertDescription>@_errorMessage</BbAlertDescription>
-            </BbAlert>
+            <div data-testid="login-error">
+                <BbAlert Variant="AlertVariant.Danger">
+                    <BbAlertDescription>@_errorMessage</BbAlertDescription>
+                </BbAlert>
+            </div>
         }
 
         @if (_signedIn)
@@ -60,31 +62,36 @@
                             <BbInput Id="email"
                                      Type="InputType.Email"
                                      Placeholder="name@example.com"
+                                     data-testid="login-email"
                                      @bind-Value="_email" />
                         </div>
 
                         <div class="space-y-2">
                             <div class="flex items-center justify-between">
                                 <BbLabel For="password">Password</BbLabel>
-                                <a href="/forgot-password" class="text-sm text-muted-foreground hover:text-primary underline-offset-4 hover:underline">
+                                <a href="/forgot-password" class="text-sm text-muted-foreground hover:text-primary underline-offset-4 hover:underline" data-testid="login-forgot-password">
                                     Forgot password?
                                 </a>
                             </div>
                             <BbInput Id="password"
                                      Type="InputType.Password"
                                      Placeholder="Enter your password"
+                                     data-testid="login-password"
                                      @bind-Value="_password" />
                         </div>
 
                         <div class="flex items-center space-x-2">
-                            <BbCheckbox Id="rememberMe" @bind-Checked="_rememberMe" />
+                            <span data-testid="login-remember-me">
+                                <BbCheckbox Id="rememberMe" @bind-Checked="_rememberMe" />
+                            </span>
                             <BbLabel For="rememberMe" Class="text-sm font-normal">Remember me</BbLabel>
                         </div>
 
                         <BbButton Class="w-full"
                                   Type="ButtonType.Submit"
                                   Loading="_isSubmitting"
-                                  Disabled="_isSubmitting">
+                                  Disabled="_isSubmitting"
+                                  data-testid="login-submit">
                             Sign in
                         </BbButton>
                     </div>
@@ -192,7 +199,7 @@
     <BbCardFooter Class="px-0 pb-0 justify-center">
         <p class="text-sm text-muted-foreground">
             Don't have an account?
-            <a href="@RegisterUrl" class="text-primary underline-offset-4 hover:underline">Register</a>
+            <a href="@RegisterUrl" class="text-primary underline-offset-4 hover:underline" data-testid="login-register-link">Register</a>
         </p>
     </BbCardFooter>
 </BbCard>
