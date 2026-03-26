@@ -15,8 +15,8 @@ using StackExchange.Redis;
 using Wallow.Api.HealthChecks;
 using Wallow.Api.Middleware;
 using Wallow.Shared.Infrastructure.Core.Resilience;
-using Wallow.Shared.Kernel.Extensions;
 using Wallow.Shared.Kernel.Configuration;
+using Wallow.Shared.Kernel.Extensions;
 using Wallow.Storage.Domain.Enums;
 using Wallow.Storage.Infrastructure.Configuration;
 

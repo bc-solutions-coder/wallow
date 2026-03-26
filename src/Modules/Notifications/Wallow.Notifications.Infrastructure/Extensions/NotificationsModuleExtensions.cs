@@ -168,12 +168,10 @@ public static partial class NotificationsModuleExtensions
         switch (provider)
         {
             case "Smtp":
-                services.AddSingleton<SmtpConnectionPool>();
                 services.AddScoped<IEmailProvider, SmtpEmailProvider>();
                 break;
             default:
                 Console.WriteLine($"Warning: Unrecognized email provider '{provider}'. Defaulting to Smtp.");
-                services.AddSingleton<SmtpConnectionPool>();
                 services.AddScoped<IEmailProvider, SmtpEmailProvider>();
                 break;
         }

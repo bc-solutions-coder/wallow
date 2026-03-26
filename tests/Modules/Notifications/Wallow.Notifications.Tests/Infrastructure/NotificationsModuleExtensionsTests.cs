@@ -75,20 +75,6 @@ public class NotificationsModuleExtensionsTests
     }
 
     [Fact]
-    public void AddNotificationsModule_RegistersSmtpConnectionPool()
-    {
-        ServiceCollection services = new();
-        IConfiguration configuration = CreateConfiguration();
-
-        services.AddNotificationsModule(configuration);
-
-        ServiceDescriptor? descriptor = services.FirstOrDefault(
-            d => d.ServiceType == typeof(SmtpConnectionPool));
-        descriptor.Should().NotBeNull();
-        descriptor!.Lifetime.Should().Be(ServiceLifetime.Singleton);
-    }
-
-    [Fact]
     public void AddNotificationsModule_RegistersEmailService()
     {
         ServiceCollection services = new();

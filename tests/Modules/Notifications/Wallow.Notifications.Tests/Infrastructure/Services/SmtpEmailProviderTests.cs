@@ -9,10 +9,8 @@ using Wallow.Notifications.Infrastructure.Services;
 
 namespace Wallow.Notifications.Tests.Infrastructure.Services;
 
-public sealed class SmtpEmailProviderTests : IAsyncLifetime, IDisposable
+public sealed class SmtpEmailProviderTests
 {
-    private readonly SmtpConnectionPool _connectionPool;
-
     private readonly IOptions<SmtpSettings> _settings = Options.Create(new SmtpSettings
     {
         DefaultFromAddress = "noreply@test.com",
@@ -32,8 +30,6 @@ public sealed class SmtpEmailProviderTests : IAsyncLifetime, IDisposable
 #pragma warning disable CA2000 // LoggerFactory disposal not needed in tests
     public SmtpEmailProviderTests()
     {
-        _connectionPool = new SmtpConnectionPool(_settings, CreateLoggerFactory().CreateLogger<SmtpConnectionPool>());
-
         ResiliencePipelineBuilder builder = new();
         ResiliencePipeline pipeline = builder.Build();
 
@@ -43,23 +39,10 @@ public sealed class SmtpEmailProviderTests : IAsyncLifetime, IDisposable
 
     private SmtpEmailProvider CreateSut()
     {
-        return new SmtpEmailProvider(_connectionPool, _settings, _pipelineProvider,
+        return new SmtpEmailProvider(_settings, _pipelineProvider,
             CreateLoggerFactory().CreateLogger<SmtpEmailProvider>());
     }
 #pragma warning restore CA2000
-
-    public Task InitializeAsync() => Task.CompletedTask;
-
-    public async Task DisposeAsync()
-    {
-        await _connectionPool.DisposeAsync();
-    }
-
-    public void Dispose()
-    {
-        _connectionPool.Dispose();
-        GC.SuppressFinalize(this);
-    }
 
     [Fact]
     public async Task SendAsync_WhenSmtpUnavailable_ReturnsFailure()
