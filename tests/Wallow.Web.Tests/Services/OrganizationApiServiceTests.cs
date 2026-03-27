@@ -1,8 +1,5 @@
 using System.Net;
-using System.Security.Claims;
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
 using RichardSzalay.MockHttp;
 using Wallow.Web.Models;
 using Wallow.Web.Services;
@@ -27,9 +24,10 @@ public sealed class OrganizationApiServiceTests : IDisposable
         IHttpClientFactory factory = Substitute.For<IHttpClientFactory>();
         factory.CreateClient("WallowApi").Returns(httpClient);
 
-        IHttpContextAccessor httpContextAccessor = CreateHttpContextAccessor();
+        IHttpContextAccessor httpContextAccessor = Substitute.For<IHttpContextAccessor>();
+        TokenProvider tokenProvider = new(httpContextAccessor) { AccessToken = TestToken };
 
-        _sut = new OrganizationApiService(factory, httpContextAccessor);
+        _sut = new OrganizationApiService(factory, tokenProvider);
     }
 
     public void Dispose()
@@ -237,33 +235,4 @@ public sealed class OrganizationApiServiceTests : IDisposable
         result.Should().BeEmpty();
     }
 
-    // --- Helper ---
-
-    private static IHttpContextAccessor CreateHttpContextAccessor()
-    {
-        AuthenticationProperties authProperties = new();
-        authProperties.StoreTokens([new AuthenticationToken { Name = "access_token", Value = TestToken }]);
-
-        AuthenticationTicket ticket = new(
-            new ClaimsPrincipal(new ClaimsIdentity("test")),
-            authProperties,
-            "test");
-
-        IAuthenticationService authService = Substitute.For<IAuthenticationService>();
-        authService.AuthenticateAsync(Arg.Any<HttpContext>(), Arg.Any<string?>())
-            .Returns(AuthenticateResult.Success(ticket));
-
-        ServiceCollection services = new();
-        services.AddSingleton(authService);
-        ServiceProvider serviceProvider = services.BuildServiceProvider();
-
-        DefaultHttpContext httpContext = new()
-        {
-            RequestServices = serviceProvider
-        };
-
-        IHttpContextAccessor accessor = Substitute.For<IHttpContextAccessor>();
-        accessor.HttpContext.Returns(httpContext);
-        return accessor;
-    }
 }

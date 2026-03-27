@@ -7,6 +7,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Wallow.Web;
 using Wallow.Web.Configuration;
+using Wallow.Web.Middleware;
 using Wallow.Web.Services;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
@@ -154,9 +155,11 @@ builder.Services.AddHttpClient("WallowApi", client =>
 });
 
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<TokenProvider>();
 builder.Services.AddScoped<IAppRegistrationService, AppRegistrationService>();
 builder.Services.AddScoped<IOrganizationApiService, OrganizationApiService>();
 builder.Services.AddScoped<IInquiryService, InquiryService>();
+builder.Services.AddScoped<IMfaApiClient, MfaApiClient>();
 
 builder.Services.AddHealthChecks()
     .Add(new HealthCheckRegistration(
@@ -198,6 +201,7 @@ app.Use(async (context, next) =>
 app.UseStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<TokenCaptureMiddleware>();
 app.UseAntiforgery();
 
 app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions

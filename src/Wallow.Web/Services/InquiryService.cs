@@ -1,31 +1,29 @@
 using System.Net.Http.Headers;
-using Microsoft.AspNetCore.Authentication;
 using Wallow.Web.Models;
 
 namespace Wallow.Web.Services;
 
 public sealed class InquiryService(
     IHttpClientFactory httpClientFactory,
-    IHttpContextAccessor httpContextAccessor) : IInquiryService
+    TokenProvider tokenProvider) : IInquiryService
 {
     private const string BasePath = "api/v1/inquiries";
 
     public async Task<bool> SubmitInquiryAsync(InquiryModel model, CancellationToken ct = default)
     {
-        HttpClient client = await CreateAuthenticatedClientAsync();
+        HttpClient client = CreateAuthenticatedClient();
         HttpResponseMessage response = await client.PostAsJsonAsync(BasePath, model, ct);
 
         return response.IsSuccessStatusCode;
     }
 
-    private async Task<HttpClient> CreateAuthenticatedClientAsync()
+    private HttpClient CreateAuthenticatedClient()
     {
         HttpClient client = httpClientFactory.CreateClient("WallowApi");
-        string? token = await httpContextAccessor.HttpContext!.GetTokenAsync("access_token");
 
-        if (!string.IsNullOrEmpty(token))
+        if (!string.IsNullOrEmpty(tokenProvider.AccessToken))
         {
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenProvider.AccessToken);
         }
 
         return client;

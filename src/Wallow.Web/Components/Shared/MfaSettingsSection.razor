@@ -1,0 +1,224 @@
+@using Wallow.Web.Models
+@using Wallow.Web.Services
+@inject IMfaApiClient MfaApiClient
+@inject NavigationManager Navigation
+@inject IConfiguration Configuration
+
+<div class="bg-white rounded-lg shadow-sm border border-[#e8d5b7] p-8 mt-6">
+    <h2 class="text-lg font-semibold text-[#3d2b1f] mb-6">Multi-Factor Authentication</h2>
+
+    @if (_loading)
+    {
+        <p class="text-[#3d2b1f]/60 text-sm">Loading MFA status...</p>
+    }
+    else if (_status is not null)
+    {
+        <div class="space-y-5">
+            <div>
+                <label class="block text-xs font-semibold text-[#3d2b1f]/70 uppercase tracking-wider mb-1">Status</label>
+                <p data-testid="settings-mfa-status" class="text-sm font-medium @(_status.Enabled ? "text-green-700" : "text-[#3d2b1f]/50")">
+                    @(_status.Enabled ? "Enabled" : "Disabled")
+                </p>
+            </div>
+
+            @if (_status.Enabled)
+            {
+                <div>
+                    <label class="block text-xs font-semibold text-[#3d2b1f]/70 uppercase tracking-wider mb-1">Backup Codes Remaining</label>
+                    <p data-testid="settings-mfa-backup-count" class="text-sm text-[#3d2b1f]">@_status.BackupCodeCount</p>
+                </div>
+            }
+
+            @if (!_status.Enabled)
+            {
+                <button data-testid="settings-mfa-enable"
+                        @onclick="NavigateToEnrollment"
+                        class="bg-[#3d2b1f] text-white text-sm font-medium px-4 py-2 rounded-md hover:bg-[#3d2b1f]/90 transition-colors">
+                    Enable MFA
+                </button>
+            }
+            else
+            {
+                <div class="flex flex-wrap gap-3">
+                    @if (!_showDisableConfirm)
+                    {
+                        <button data-testid="settings-mfa-disable"
+                                @onclick="() => _showDisableConfirm = true"
+                                class="border border-red-300 text-red-700 text-sm font-medium px-4 py-2 rounded-md hover:bg-red-50 transition-colors">
+                            Disable MFA
+                        </button>
+                    }
+
+                    @if (!_showRegenerateConfirm)
+                    {
+                        <button data-testid="settings-mfa-regenerate"
+                                @onclick="() => _showRegenerateConfirm = true"
+                                class="border border-[#e8d5b7] text-[#3d2b1f] text-sm font-medium px-4 py-2 rounded-md hover:bg-[#e8d5b7]/30 transition-colors">
+                            Regenerate Backup Codes
+                        </button>
+                    }
+                </div>
+
+                @if (_showDisableConfirm)
+                {
+                    <div class="mt-4 p-4 border border-red-200 rounded-md bg-red-50">
+                        <p class="text-sm text-red-800 mb-3">Enter your password to disable MFA:</p>
+                        <input type="password"
+                               @bind="_disablePassword"
+                               placeholder="Password"
+                               data-testid="settings-mfa-confirm-password"
+                               class="border border-gray-300 rounded-md px-3 py-2 text-sm w-full mb-3" />
+                        <div class="flex gap-2">
+                            <button @onclick="DisableMfaAsync"
+                                    disabled="@_processing"
+                                    data-testid="settings-mfa-confirm-submit"
+                                    class="bg-red-600 text-white text-sm font-medium px-4 py-2 rounded-md hover:bg-red-700 disabled:opacity-50 transition-colors">
+                                @(_processing ? "Disabling..." : "Confirm Disable")
+                            </button>
+                            <button @onclick="CancelDisable"
+                                    class="border border-gray-300 text-[#3d2b1f] text-sm font-medium px-4 py-2 rounded-md hover:bg-gray-50 transition-colors">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                }
+
+                @if (_showRegenerateConfirm)
+                {
+                    <div class="mt-4 p-4 border border-[#e8d5b7] rounded-md bg-[#e8d5b7]/10">
+                        <p class="text-sm text-[#3d2b1f] mb-3">Enter your password to regenerate backup codes:</p>
+                        <input type="password"
+                               @bind="_regeneratePassword"
+                               placeholder="Password"
+                               data-testid="settings-mfa-confirm-password"
+                               class="border border-gray-300 rounded-md px-3 py-2 text-sm w-full mb-3" />
+                        <div class="flex gap-2">
+                            <button @onclick="RegenerateBackupCodesAsync"
+                                    disabled="@_processing"
+                                    data-testid="settings-mfa-confirm-submit"
+                                    class="bg-[#3d2b1f] text-white text-sm font-medium px-4 py-2 rounded-md hover:bg-[#3d2b1f]/90 disabled:opacity-50 transition-colors">
+                                @(_processing ? "Regenerating..." : "Confirm Regenerate")
+                            </button>
+                            <button @onclick="CancelRegenerate"
+                                    class="border border-gray-300 text-[#3d2b1f] text-sm font-medium px-4 py-2 rounded-md hover:bg-gray-50 transition-colors">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                }
+
+                @if (_regeneratedCodes is not null)
+                {
+                    <div class="mt-4 p-4 border border-green-200 rounded-md bg-green-50">
+                        <p class="text-sm font-semibold text-green-800 mb-2">New Backup Codes (save these somewhere safe):</p>
+                        <div class="font-mono text-sm space-y-1">
+                            @foreach (string code in _regeneratedCodes)
+                            {
+                                <div class="text-green-900">@(code)</div>
+                            }
+                        </div>
+                    </div>
+                }
+            }
+
+            @if (_errorMessage is not null)
+            {
+                <p class="text-sm text-red-600 mt-2">@_errorMessage</p>
+            }
+        </div>
+    }
+    else
+    {
+        <p class="text-[#3d2b1f]/60 text-sm">Unable to load MFA status.</p>
+    }
+</div>
+
+@code {
+    private MfaStatusResponse? _status;
+    private bool _loading = true;
+    private bool _processing;
+    private bool _showDisableConfirm;
+    private bool _showRegenerateConfirm;
+    private string _disablePassword = string.Empty;
+    private string _regeneratePassword = string.Empty;
+    private string? _errorMessage;
+    private List<string>? _regeneratedCodes;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _status = await MfaApiClient.GetMfaStatusAsync();
+        _loading = false;
+    }
+
+    private async Task NavigateToEnrollment()
+    {
+        // AuthPublicUrl is the browser-facing URL; AuthUrl may be a container-internal hostname
+        string authUrl = Configuration["ServiceUrls:AuthPublicUrl"]
+                         ?? Configuration["ServiceUrls:AuthUrl"]
+                         ?? string.Empty;
+
+        // Issue a short-lived enrollment token so the Auth app can authenticate the user
+        // via Identity.MfaPartial during the enrollment flow (the bearer token doesn't cross domains).
+        string? enrollToken = await MfaApiClient.IssueEnrollmentTokenAsync();
+        string enrollUrl = string.IsNullOrEmpty(enrollToken)
+            ? $"{authUrl}/mfa/enroll"
+            : $"{authUrl}/mfa/enroll?enrollToken={Uri.EscapeDataString(enrollToken)}";
+
+        Navigation.NavigateTo(enrollUrl, forceLoad: true);
+    }
+
+    private async Task DisableMfaAsync()
+    {
+        _errorMessage = null;
+        _processing = true;
+
+        bool success = await MfaApiClient.DisableMfaAsync(_disablePassword);
+        if (success)
+        {
+            _status = await MfaApiClient.GetMfaStatusAsync();
+            _showDisableConfirm = false;
+            _disablePassword = string.Empty;
+        }
+        else
+        {
+            _errorMessage = "Failed to disable MFA. Please check your password and try again.";
+        }
+
+        _processing = false;
+    }
+
+    private async Task RegenerateBackupCodesAsync()
+    {
+        _errorMessage = null;
+        _processing = true;
+
+        List<string>? codes = await MfaApiClient.RegenerateBackupCodesAsync(_regeneratePassword);
+        if (codes is not null)
+        {
+            _regeneratedCodes = codes;
+            _status = await MfaApiClient.GetMfaStatusAsync();
+            _showRegenerateConfirm = false;
+            _regeneratePassword = string.Empty;
+        }
+        else
+        {
+            _errorMessage = "Failed to regenerate backup codes. Please check your password and try again.";
+        }
+
+        _processing = false;
+    }
+
+    private void CancelDisable()
+    {
+        _showDisableConfirm = false;
+        _disablePassword = string.Empty;
+        _errorMessage = null;
+    }
+
+    private void CancelRegenerate()
+    {
+        _showRegenerateConfirm = false;
+        _regeneratePassword = string.Empty;
+        _errorMessage = null;
+    }
+}

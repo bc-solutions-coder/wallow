@@ -155,30 +155,6 @@ public class RequestContractTests
 
     #endregion
 
-    #region MfaLoginVerifyRequest
-
-    [Fact]
-    public void MfaLoginVerifyRequest_WithAllFields_CreatesInstance()
-    {
-        MfaLoginVerifyRequest request = new("user@test.com", "challenge-abc", "123456", true, true);
-
-        request.Email.Should().Be("user@test.com");
-        request.ChallengeToken.Should().Be("challenge-abc");
-        request.Code.Should().Be("123456");
-        request.RememberMe.Should().BeTrue();
-        request.UseBackupCode.Should().BeTrue();
-    }
-
-    [Fact]
-    public void MfaLoginVerifyRequest_WithDefaults_HasUseBackupCodeFalse()
-    {
-        MfaLoginVerifyRequest request = new("user@test.com", "token", "000000", false);
-
-        request.UseBackupCode.Should().BeFalse();
-    }
-
-    #endregion
-
     #region UpdateOrganizationSettingsRequest
 
     [Fact]

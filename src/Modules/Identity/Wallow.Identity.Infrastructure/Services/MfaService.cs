@@ -3,69 +3,58 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.Caching.Distributed;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using StackExchange.Redis;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
-using Wallow.Shared.Kernel.Results;
 
 namespace Wallow.Identity.Infrastructure.Services;
 
 public sealed partial class MfaService : IMfaService
 {
     private const string ProtectorPurpose = "Wallow.Identity.Mfa";
-    private const string ChallengeKeyPrefix = "mfa:challenge:";
-    private const string FailureKeyPrefix = "mfa:failures:";
     private const int TotpDigits = 6;
     private const int TotpStepSeconds = 30;
     private const int BackupCodeCount = 10;
     private const int BackupCodeLength = 8;
 
-    private static readonly TimeSpan _challengeTtl = TimeSpan.FromMinutes(5);
-
     private readonly IDataProtector _protector;
-    private readonly IDistributedCache _cache;
-    private readonly IDatabase _redis;
     private readonly UserManager<WallowUser> _userManager;
     private readonly ILogger<MfaService> _logger;
-    private readonly int _maxFailedAttempts;
 
     public MfaService(
         IDataProtectionProvider dataProtectionProvider,
-        IDistributedCache cache,
-        IConnectionMultiplexer connectionMultiplexer,
         UserManager<WallowUser> userManager,
-        IConfiguration configuration,
         ILogger<MfaService> logger)
     {
         _protector = dataProtectionProvider.CreateProtector(ProtectorPurpose);
-        _cache = cache;
-        _redis = connectionMultiplexer.GetDatabase();
         _userManager = userManager;
         _logger = logger;
-        _maxFailedAttempts = configuration.GetValue("Mfa:MaxFailedAttempts", 5);
     }
 
     public Task<(string Secret, string QrUri)> GenerateEnrollmentSecretAsync(string userId, CancellationToken ct)
     {
         byte[] secretBytes = RandomNumberGenerator.GetBytes(20);
         string base32Secret = ToBase32(secretBytes);
-
-        string protectedSecret = _protector.Protect(base32Secret);
-
         string qrUri = $"otpauth://totp/Wallow:{userId}?secret={base32Secret}&issuer=Wallow&digits={TotpDigits}&period={TotpStepSeconds}";
-
         LogEnrollmentSecretGenerated(userId);
-        return Task.FromResult((protectedSecret, qrUri));
+        return Task.FromResult((base32Secret, qrUri));
     }
 
-    public Task<bool> ValidateTotpAsync(string secret, string code, CancellationToken ct)
+    public Task<bool> ValidateTotpAsync(string base32Secret, string code, CancellationToken ct)
     {
-        string base32Secret = _protector.Unprotect(secret);
-        byte[] secretBytes = FromBase32(base32Secret);
+        // The secret may be either raw base32 (during enrollment) or data-protected (during challenge).
+        // Try to unprotect first; if that fails, treat as raw base32.
+        string resolvedSecret;
+        try
+        {
+            resolvedSecret = _protector.Unprotect(base32Secret);
+        }
+        catch (CryptographicException)
+        {
+            resolvedSecret = base32Secret;
+        }
 
+        byte[] secretBytes = FromBase32(resolvedSecret);
         long currentStep = DateTimeOffset.UtcNow.ToUnixTimeSeconds() / TotpStepSeconds;
 
         // Allow a 1-step window in each direction to account for clock drift
@@ -83,68 +72,6 @@ public sealed partial class MfaService : IMfaService
         return Task.FromResult(false);
     }
 
-    public async Task<string> IssueChallengeAsync(string userId, CancellationToken ct)
-    {
-        string challengeToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
-
-        DistributedCacheEntryOptions options = new()
-        {
-            AbsoluteExpirationRelativeToNow = _challengeTtl
-        };
-
-        await _cache.SetStringAsync($"{ChallengeKeyPrefix}{userId}", challengeToken, options, ct);
-
-        // Reset failure count on new challenge
-        await _cache.RemoveAsync($"{FailureKeyPrefix}{userId}", ct);
-
-        LogChallengeIssued(userId);
-        return challengeToken;
-    }
-
-    public async Task<Result> ValidateChallengeAsync(string userId, string code, CancellationToken ct)
-    {
-        // Check lockout
-        string? failureCountStr = await _cache.GetStringAsync($"{FailureKeyPrefix}{userId}", ct);
-        int failureCount = int.TryParse(failureCountStr, out int parsed) ? parsed : 0;
-
-        if (failureCount >= _maxFailedAttempts)
-        {
-            LogChallengeLocked(userId, failureCount);
-            return Result.Failure(Error.Validation("Mfa.Locked", "Too many failed MFA attempts. Please request a new challenge."));
-        }
-
-        string? storedToken = await _cache.GetStringAsync($"{ChallengeKeyPrefix}{userId}", ct);
-
-        if (string.IsNullOrEmpty(storedToken))
-        {
-            return Result.Failure(Error.Validation("Mfa.ExpiredChallenge", "MFA challenge has expired. Please request a new one."));
-        }
-
-        bool isValid = CryptographicOperations.FixedTimeEquals(
-            Encoding.UTF8.GetBytes(storedToken),
-            Encoding.UTF8.GetBytes(code));
-
-        if (!isValid)
-        {
-            int newCount = failureCount + 1;
-            DistributedCacheEntryOptions failureOptions = new()
-            {
-                AbsoluteExpirationRelativeToNow = _challengeTtl
-            };
-            await _cache.SetStringAsync($"{FailureKeyPrefix}{userId}", newCount.ToString(), failureOptions, ct);
-
-            LogChallengeValidationFailed(userId, newCount);
-            return Result.Failure(Error.Validation("Mfa.InvalidCode", "Invalid MFA code."));
-        }
-
-        // Clean up on success
-        await _cache.RemoveAsync($"{ChallengeKeyPrefix}{userId}", ct);
-        await _cache.RemoveAsync($"{FailureKeyPrefix}{userId}", ct);
-
-        LogChallengeValidated(userId);
-        return Result.Success();
-    }
-
     public Task<List<string>> GenerateBackupCodesAsync(CancellationToken ct)
     {
         List<string> codes = new(BackupCodeCount);
@@ -160,17 +87,6 @@ public sealed partial class MfaService : IMfaService
         return Task.FromResult(codes);
     }
 
-    public async Task<string> IssueMfaChallengeTokenAsync(string userId, CancellationToken ct)
-    {
-        string token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
-        string redisKey = $"{ChallengeKeyPrefix}{userId}:{token}";
-
-        await _redis.StringSetAsync(redisKey, "1", _challengeTtl);
-
-        LogChallengeIssued(userId);
-        return token;
-    }
-
     public async Task<bool> ValidateBackupCodeAsync(string userId, string code, CancellationToken ct)
     {
         WallowUser? user = await _userManager.FindByIdAsync(userId);
@@ -181,7 +97,16 @@ public sealed partial class MfaService : IMfaService
 
         string codeHash = ComputeBackupCodeHash(code);
 
-        List<string>? storedHashes = JsonSerializer.Deserialize<List<string>>(user.BackupCodesHash);
+        List<string>? storedHashes;
+        try
+        {
+            storedHashes = JsonSerializer.Deserialize<List<string>>(user.BackupCodesHash);
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+
         if (storedHashes is null || !storedHashes.Remove(codeHash))
         {
             return false;
@@ -196,35 +121,10 @@ public sealed partial class MfaService : IMfaService
         return true;
     }
 
-    public async Task<bool> ValidateChallengeAsync(string userId, string challengeToken, string code, CancellationToken ct)
+    public string SerializeBackupCodesForStorage(IReadOnlyList<string> plainTextCodes)
     {
-        string redisKey = $"{ChallengeKeyPrefix}{userId}:{challengeToken}";
-
-        // Verify the challenge token exists in Redis
-        bool challengeExists = await _redis.KeyExistsAsync(redisKey);
-        if (!challengeExists)
-        {
-            return false;
-        }
-
-        // Validate the TOTP code against the user's stored secret
-        WallowUser? user = await _userManager.FindByIdAsync(userId);
-        if (user is null || string.IsNullOrEmpty(user.TotpSecretEncrypted))
-        {
-            return false;
-        }
-
-        bool isValid = await ValidateTotpAsync(user.TotpSecretEncrypted, code, ct);
-        if (!isValid)
-        {
-            return false;
-        }
-
-        // Delete the challenge token after successful validation
-        await _redis.KeyDeleteAsync(redisKey);
-
-        LogChallengeValidated(userId);
-        return true;
+        List<string> hashed = plainTextCodes.Select(ComputeBackupCodeHash).ToList();
+        return JsonSerializer.Serialize(hashed);
     }
 
     private static string ComputeBackupCodeHash(string code)
@@ -316,18 +216,6 @@ public sealed partial class MfaService : IMfaService
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Generated MFA enrollment secret for user {UserId}")]
     private partial void LogEnrollmentSecretGenerated(string userId);
-
-    [LoggerMessage(Level = LogLevel.Information, Message = "Issued MFA challenge for user {UserId}")]
-    private partial void LogChallengeIssued(string userId);
-
-    [LoggerMessage(Level = LogLevel.Information, Message = "MFA challenge validated for user {UserId}")]
-    private partial void LogChallengeValidated(string userId);
-
-    [LoggerMessage(Level = LogLevel.Warning, Message = "MFA challenge validation failed for user {UserId}, attempt {AttemptCount}")]
-    private partial void LogChallengeValidationFailed(string userId, int attemptCount);
-
-    [LoggerMessage(Level = LogLevel.Warning, Message = "MFA challenge locked for user {UserId} after {FailureCount} failed attempts")]
-    private partial void LogChallengeLocked(string userId, int failureCount);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "MFA backup code used for user {UserId}")]
     private partial void LogBackupCodeUsed(string userId);

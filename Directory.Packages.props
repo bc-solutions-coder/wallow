@@ -168,6 +168,10 @@
     <PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="10.1.0" />
     <PackageVersion Include="WireMock.Net" Version="2.0.0" />
     <!-- ======================================
+         TOTP (Time-based One-Time Password)
+         ====================================== -->
+    <PackageVersion Include="Otp.NET" Version="1.4.0" />
+    <!-- ======================================
          Code Coverage
          ====================================== -->
     <PackageVersion Include="coverlet.collector" Version="8.0.0" />

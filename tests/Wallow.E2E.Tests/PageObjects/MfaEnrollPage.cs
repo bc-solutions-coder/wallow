@@ -1,4 +1,5 @@
 using Microsoft.Playwright;
+using Wallow.E2E.Tests.Infrastructure;
 
 namespace Wallow.E2E.Tests.PageObjects;
 
@@ -21,16 +22,27 @@ public sealed class MfaEnrollPage
 
         await _page.GotoAsync(url);
         await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
-        await AppRegistrationPage.WaitForBlazorCircuitAsync(_page);
-        await _page.Locator("[data-testid='mfa-enroll-begin-setup']")
-            .WaitForAsync(new() { Timeout = 10_000 });
+        await E2ETestBase.WaitForBlazorReadyAsync(_page);
+        // Enrollment auto-starts; wait for either the secret or the fallback button.
+        ILocator secret = _page.Locator("[data-testid='mfa-enroll-secret']");
+        ILocator beginSetup = _page.Locator("[data-testid='mfa-enroll-begin-setup']");
+        await secret.Or(beginSetup).WaitForAsync(new() { Timeout = 15_000 });
     }
 
     public async Task<bool> IsLoadedAsync()
     {
         try
         {
-            await _page.Locator("[data-testid='mfa-enroll-begin-setup']").WaitForAsync(new() { Timeout = 10_000 });
+            // When redirected from another app (e.g. Web settings), wait for
+            // the URL to land on /mfa/enroll before checking for Blazor elements.
+            await _page.WaitForURLAsync("**/mfa/enroll**", new() { Timeout = 15_000 });
+            await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+            await E2ETestBase.WaitForBlazorReadyAsync(_page);
+            // Enrollment auto-starts on page load. Wait for either the secret
+            // (success) or the begin-setup fallback button (auth cookie missing).
+            ILocator secret = _page.Locator("[data-testid='mfa-enroll-secret']");
+            ILocator beginSetup = _page.Locator("[data-testid='mfa-enroll-begin-setup']");
+            await secret.Or(beginSetup).WaitForAsync(new() { Timeout = 15_000 });
             return true;
         }
         catch (TimeoutException)
@@ -41,15 +53,27 @@ public sealed class MfaEnrollPage
 
     public async Task ClickBeginSetupAsync()
     {
+        // Enrollment auto-starts on page load during prerender. If the secret
+        // is already visible, the begin-setup button was never rendered.
+        ILocator secret = _page.Locator("[data-testid='mfa-enroll-secret']");
+        if (await secret.IsVisibleAsync())
+        {
+            return;
+        }
+
         await _page.Locator("[data-testid='mfa-enroll-begin-setup']").ClickAsync();
-        await _page.Locator("[data-testid='mfa-enroll-secret']")
-            .WaitForAsync(new() { Timeout = 15_000 });
+        await secret.WaitForAsync(new() { Timeout = 15_000 });
+    }
+
+    public async Task<string> GetSecretTextAsync()
+    {
+        return await _page.Locator("[data-testid='mfa-enroll-secret']").InnerTextAsync();
     }
 
     public async Task<bool> GetQrCodeAsync()
     {
-        ILocator secret = _page.Locator("[data-testid='mfa-enroll-secret']");
-        return await secret.IsVisibleAsync();
+        ILocator qrCode = _page.Locator("[data-testid='mfa-enroll-qr']");
+        return await qrCode.IsVisibleAsync();
     }
 
     public async Task FillCodeAsync(string code)
@@ -60,8 +84,29 @@ public sealed class MfaEnrollPage
     public async Task SubmitAsync()
     {
         await _page.Locator("[data-testid='mfa-enroll-submit']").ClickAsync();
-        await _page.Locator("[data-testid='mfa-enroll-error']")
-            .WaitForAsync(new() { Timeout = 15_000 });
+        await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+
+        // Race both outcomes — whichever appears first wins.
+        // Use a generous timeout: on cold databases the API call to confirm
+        // enrollment and generate backup codes can be slow, and the Blazor
+        // SignalR circuit must then push the DOM diff to the browser.
+        ILocator backupCodesLocator = _page.Locator("[data-testid='mfa-enroll-backup-codes']");
+        ILocator errorLocator = _page.Locator("[data-testid='mfa-enroll-error']");
+        ILocator either = backupCodesLocator.Or(errorLocator);
+
+        await either.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = 45_000 });
+
+        if (await errorLocator.IsVisibleAsync())
+        {
+            string message = await errorLocator.InnerTextAsync();
+            throw new InvalidOperationException($"MFA enrollment failed: {message}");
+        }
+    }
+
+    public async Task WaitForBackupCodesAsync()
+    {
+        await _page.Locator("[data-testid='mfa-enroll-backup-codes']")
+            .WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = 30_000 });
     }
 
     public async Task<string?> GetErrorMessageAsync()
