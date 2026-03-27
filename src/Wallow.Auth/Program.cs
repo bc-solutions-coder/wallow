@@ -1,6 +1,8 @@
 using System.Text.Json;
 using BlazorBlueprint.Components;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Polly;
+using Wallow.Auth;
 using Wallow.Auth.Configuration;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
@@ -65,6 +67,17 @@ builder.Services.AddHttpClient("AuthApi", client =>
 builder.Services.AddScoped<Wallow.Auth.Services.IAuthApiClient, Wallow.Auth.Services.AuthApiClient>();
 builder.Services.AddScoped<Wallow.Auth.Services.IClientBrandingClient, Wallow.Auth.Services.ClientBrandingApiClient>();
 
+builder.Services.AddHealthChecks()
+    .Add(new HealthCheckRegistration(
+        "api",
+        sp =>
+        {
+            IHttpClientFactory httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
+            return new ApiHealthCheck(httpClientFactory, "AuthApi");
+        },
+        failureStatus: HealthStatus.Unhealthy,
+        tags: ["ready"]));
+
 WebApplication app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
@@ -76,7 +89,25 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseAntiforgery();
 
-app.MapGet("/health", () => Results.Ok("Healthy"));
+app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    ResponseWriter = async (context, report) =>
+    {
+        context.Response.ContentType = "application/json";
+        object response = new
+        {
+            status = report.Status.ToString(),
+            checks = report.Entries.Select(e => new
+            {
+                name = e.Key,
+                status = e.Value.Status.ToString(),
+                description = e.Value.Description,
+                error = e.Value.Exception?.Message
+            })
+        };
+        await context.Response.WriteAsJsonAsync(response);
+    }
+});
 
 app.MapRazorComponents<Wallow.Auth.Components.App>()
     .AddInteractiveServerRenderMode();
