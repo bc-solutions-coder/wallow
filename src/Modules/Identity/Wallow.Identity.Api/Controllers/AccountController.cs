@@ -39,6 +39,8 @@ public sealed partial class AccountController(
     IPasswordlessService passwordlessService,
     IMfaExemptionChecker mfaExemptionChecker,
     IMfaService mfaService,
+    IMfaPartialAuthService mfaPartialAuthService,
+    IOrganizationMfaPolicyService orgMfaPolicyService,
     ILogger<AccountController> logger,
     TimeProvider timeProvider) : ControllerBase
 {
@@ -60,7 +62,6 @@ public sealed partial class AccountController(
     [AllowAnonymous]
     public async Task<IActionResult> Login([FromBody] AccountLoginRequest request, CancellationToken ct)
     {
-        // Validate credentials without setting a cookie (the cookie must be set on the browser, not the server-to-server call)
         WallowUser? user = await signInManager.UserManager.FindByEmailAsync(request.Email);
         if (user is null)
         {
@@ -72,12 +73,34 @@ public sealed partial class AccountController(
 
         if (result.Succeeded)
         {
+            // User has MFA enabled and is not exempt — issue partial cookie, require MFA verification
             if (user.MfaEnabled && !await mfaExemptionChecker.IsExemptAsync(user, ct))
             {
-                string challengeToken = await mfaService.IssueMfaChallengeTokenAsync(user.Id.ToString(), ct);
-                return Ok(new { succeeded = false, mfaRequired = true, challengeToken });
+                await mfaPartialAuthService.IssuePartialCookieAsync(
+                    new MfaPartialAuthPayload(user.Id.ToString(), user.Email!, "password", request.RememberMe, timeProvider.GetUtcNow()),
+                    ct);
+                return Ok(new { succeeded = false, mfaRequired = true });
             }
 
+            // Check org-level MFA policy for users who haven't enrolled yet
+            OrgMfaPolicyResult? orgPolicy = await orgMfaPolicyService.CheckAsync(user.Id, ct);
+            if (orgPolicy is { RequiresMfa: true })
+            {
+                if (orgPolicy.IsInGracePeriod)
+                {
+                    // Grace period active — issue ticket so browser can exchange it for a cookie, but flag enrollment needed
+                    string graceTicket = CreateSignInTicket(user.Email!, request.RememberMe);
+                    return Ok(new { succeeded = true, mfaEnrollmentRequired = true, mfaGraceDeadline = user.MfaGraceDeadline, signInTicket = graceTicket });
+                }
+
+                // Grace expired — block full sign-in, issue partial cookie
+                await mfaPartialAuthService.IssuePartialCookieAsync(
+                    new MfaPartialAuthPayload(user.Id.ToString(), user.Email!, "password", request.RememberMe, timeProvider.GetUtcNow()),
+                    ct);
+                return Ok(new { succeeded = false, mfaEnrollmentRequired = true });
+            }
+
+            // No MFA needed — sign in normally
             string ticket = CreateSignInTicket(user.Email!, request.RememberMe);
             return Ok(new { succeeded = true, signInTicket = ticket });
         }
@@ -97,27 +120,34 @@ public sealed partial class AccountController(
 
     [HttpPost("mfa/verify")]
     [AllowAnonymous]
-    public async Task<IActionResult> VerifyMfaChallenge([FromBody] MfaLoginVerifyRequest request, CancellationToken ct)
+    public async Task<IActionResult> VerifyMfaChallenge([FromBody] Contracts.Requests.MfaVerifyRequest request, CancellationToken ct)
     {
-        WallowUser? user = await signInManager.UserManager.FindByEmailAsync(request.Email);
-        if (user is null)
+        MfaPartialAuthPayload? payload = await mfaPartialAuthService.ValidatePartialCookieAsync(ct);
+        if (payload is null)
         {
-            return Unauthorized(new { succeeded = false, error = "invalid_credentials" });
+            return Unauthorized(new { succeeded = false, error = "no_mfa_session" });
         }
 
-        string userId = user.Id.ToString();
+        WallowUser? user = await signInManager.UserManager.FindByIdAsync(payload.UserId);
+        if (user is null || string.IsNullOrEmpty(user.TotpSecretEncrypted))
+        {
+            return Unauthorized(new { succeeded = false, error = "invalid_code" });
+        }
 
-        bool isValid = request.UseBackupCode
-            ? await mfaService.ValidateBackupCodeAsync(userId, request.Code, ct)
-            : await mfaService.ValidateChallengeAsync(userId, request.ChallengeToken, request.Code, ct);
+        // Try TOTP first, then fall back to backup code
+        bool isValid = await mfaService.ValidateTotpAsync(user.TotpSecretEncrypted, request.Code, ct)
+                       || await mfaService.ValidateBackupCodeAsync(payload.UserId, request.Code, ct);
 
         if (!isValid)
         {
-            return Unauthorized(new { succeeded = false, error = "invalid_mfa_code" });
+            return Unauthorized(new { succeeded = false, error = "invalid_code" });
         }
 
-        string ticket = CreateSignInTicket(user.Email!, request.RememberMe);
-        return Ok(new { succeeded = true, signInTicket = ticket });
+        await mfaPartialAuthService.UpgradeToFullAuthAsync(payload.UserId, payload.RememberMe, ct);
+
+        string? email = user.Email;
+        string? signInTicket = email is not null ? CreateSignInTicket(email, payload.RememberMe) : null;
+        return Ok(new { succeeded = true, signInTicket });
     }
 
     [HttpGet("external-login")]
@@ -173,6 +203,53 @@ public sealed partial class AccountController(
         if (signInResult.Succeeded)
         {
             await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
+
+            string? signedInEmail = ExternalLoginClaimsHelper.ExtractEmail(info.Principal.Claims);
+            WallowUser? signedInUser = signedInEmail is not null
+                ? await signInManager.UserManager.FindByEmailAsync(signedInEmail)
+                : null;
+
+            if (signedInUser is not null && signedInUser.MfaEnabled
+                && !await mfaExemptionChecker.IsExemptAsync(signedInUser, HttpContext.RequestAborted))
+            {
+                await HttpContext.SignOutAsync();
+                await mfaPartialAuthService.IssuePartialCookieAsync(
+                    new MfaPartialAuthPayload(
+                        signedInUser.Id.ToString(),
+                        signedInEmail!,
+                        $"external:{info.LoginProvider}",
+                        false,
+                        timeProvider.GetUtcNow()),
+                    HttpContext.RequestAborted);
+
+                string encodedReturn = Uri.EscapeDataString(returnUrl);
+                return Redirect($"{authUrl}/mfa/challenge?returnUrl={encodedReturn}");
+            }
+
+            // Check org-level MFA policy for users who haven't enrolled yet
+            if (signedInUser is not null && !signedInUser.MfaEnabled)
+            {
+                OrgMfaPolicyResult? orgPolicy = await orgMfaPolicyService.CheckAsync(signedInUser.Id, HttpContext.RequestAborted);
+                if (orgPolicy is { RequiresMfa: true })
+                {
+                    if (!orgPolicy.IsInGracePeriod)
+                    {
+                        await HttpContext.SignOutAsync();
+                        await mfaPartialAuthService.IssuePartialCookieAsync(
+                            new MfaPartialAuthPayload(
+                                signedInUser.Id.ToString(),
+                                signedInEmail!,
+                                $"external:{info.LoginProvider}",
+                                false,
+                                timeProvider.GetUtcNow()),
+                            HttpContext.RequestAborted);
+
+                        string encodedReturn = Uri.EscapeDataString(returnUrl);
+                        return Redirect($"{authUrl}/mfa/challenge?returnUrl={encodedReturn}");
+                    }
+                }
+            }
+
             return Redirect(returnUrl);
         }
 
@@ -207,8 +284,9 @@ public sealed partial class AccountController(
         (string firstName, string lastName) = ExternalLoginClaimsHelper.ExtractName(info.Principal.Claims, email);
 
         IDataProtector protector = dataProtectionProvider.CreateProtector("ExternalLogin");
-        string cookieValue = protector.Protect(
+        byte[] plainBytes = System.Text.Encoding.UTF8.GetBytes(
             $"{info.LoginProvider}|{info.ProviderKey}|{email}|{firstName}|{lastName}|{emailVerified}");
+        string cookieValue = System.Text.Encoding.UTF8.GetString(protector.Protect(plainBytes));
 
         Response.Cookies.Append("ExternalLoginState", cookieValue, new CookieOptions
         {
@@ -257,7 +335,17 @@ public sealed partial class AccountController(
         try
         {
             IDataProtector protector = dataProtectionProvider.CreateProtector("ExternalLogin");
-            decrypted = protector.Unprotect(cookieValue);
+            // Try raw byte decryption first, then fall back to base64url string decryption
+            try
+            {
+                byte[] decryptedBytes = protector.Unprotect(
+                    System.Text.Encoding.UTF8.GetBytes(cookieValue));
+                decrypted = System.Text.Encoding.UTF8.GetString(decryptedBytes);
+            }
+            catch
+            {
+                decrypted = protector.Unprotect(cookieValue);
+            }
         }
         catch (Exception)
         {
@@ -362,6 +450,14 @@ public sealed partial class AccountController(
                 FirstName = user.FirstName,
                 VerifyUrl = verifyUrl
             });
+        }
+
+        // Check org-level MFA policy for new user — set grace deadline if MFA required
+        OrgMfaPolicyResult? newUserOrgPolicy = await orgMfaPolicyService.CheckAsync(user.Id, HttpContext.RequestAborted);
+        if (newUserOrgPolicy is { RequiresMfa: true })
+        {
+            user.SetMfaGraceDeadline(timeProvider.GetUtcNow().AddDays(14));
+            await signInManager.UserManager.UpdateAsync(user);
         }
 
         await signInManager.SignInAsync(user, isPersistent: false);
