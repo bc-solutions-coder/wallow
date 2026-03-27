@@ -8,4 +8,5 @@ public sealed record AuthResponse(
     string? MfaChallengeToken = null,
     string? MfaMethod = null,
     bool MfaEnrollmentRequired = false,
-    DateTimeOffset? MfaGraceDeadline = null);
+    DateTimeOffset? MfaGraceDeadline = null,
+    string? SignInTicket = null);

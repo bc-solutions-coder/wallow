@@ -317,7 +317,11 @@
             LoginRequest request = new(_email, _password, _rememberMe);
             AuthResponse result = await AuthClient.LoginAsync(request);
 
-            if (result.Succeeded)
+            if (result.MfaRequired || result.MfaEnrollmentRequired)
+            {
+                HandleSuccessfulAuth(result);
+            }
+            else if (result.Succeeded)
             {
                 HandleSuccessfulAuth(result);
             }
@@ -458,10 +462,10 @@
 
     private void HandleSuccessfulAuth(AuthResponse result)
     {
-        if (result.MfaChallengeRequired)
+        if (result.MfaRequired)
         {
-            string challengeUrl = $"/mfa/challenge?token={Uri.EscapeDataString(result.MfaChallengeToken ?? "")}&method={Uri.EscapeDataString(result.MfaMethod ?? "")}";
-            Navigation.NavigateTo(challengeUrl);
+            string challengeUrl = BuildMfaRedirectUrl("/mfa/challenge");
+            Navigation.NavigateTo(challengeUrl, forceLoad: true);
             return;
         }
 
@@ -471,7 +475,8 @@
 
             if (!withinGracePeriod)
             {
-                Navigation.NavigateTo("/mfa/enroll");
+                string enrollUrl = BuildMfaRedirectUrl("/mfa/enroll");
+                Navigation.NavigateTo(enrollUrl, forceLoad: true);
                 return;
             }
 
@@ -480,7 +485,7 @@
             _mfaGraceDeadline = result.MfaGraceDeadline?.DateTime;
         }
 
-        if (!string.IsNullOrEmpty(ReturnUrl) && !string.IsNullOrEmpty(result.SignInTicket))
+        if (!string.IsNullOrEmpty(ReturnUrl))
         {
             if (IsAbsoluteHttpUrl(ReturnUrl))
             {
@@ -488,14 +493,54 @@
                 return;
             }
 
-            string encodedTicket = Uri.EscapeDataString(result.SignInTicket);
-            string encodedReturnUrl = Uri.EscapeDataString(ReturnUrl);
-            string exchangeUrl = $"{ApiBaseUrl}/api/v1/identity/auth/exchange-ticket?ticket={encodedTicket}&returnUrl={encodedReturnUrl}";
-            Navigation.NavigateTo(exchangeUrl, forceLoad: true);
+            // When the API issued a sign-in ticket, exchange it via the API's cookie-setting
+            // endpoint so the browser has an auth cookie before hitting /connect/authorize.
+            if (!string.IsNullOrEmpty(result.SignInTicket))
+            {
+                string exchangeUrl = $"{ApiBaseUrl}/api/v1/identity/auth/exchange-ticket" +
+                    $"?ticket={Uri.EscapeDataString(result.SignInTicket)}" +
+                    $"&returnUrl={Uri.EscapeDataString(ReturnUrl)}";
+                Navigation.NavigateTo(exchangeUrl, forceLoad: true);
+                return;
+            }
+
+            Navigation.NavigateTo(BuildApiReturnUrl(ReturnUrl), forceLoad: true);
         }
         else
         {
             _signedIn = true;
         }
+    }
+
+    /// <summary>
+    /// Converts a relative returnUrl (originating from the API's authorize endpoint) into an
+    /// absolute URL targeting the API server. Without this, the browser resolves the relative
+    /// path against the Auth server's origin, which doesn't host /connect/authorize.
+    /// </summary>
+    private string BuildApiReturnUrl(string relativeUrl) =>
+        relativeUrl.StartsWith('/') ? $"{ApiBaseUrl}{relativeUrl}" : relativeUrl;
+
+    /// <summary>
+    /// Builds an MFA redirect URL that includes the cookie relay key (if any) so the
+    /// browser receives API-issued cookies (e.g., Identity.MfaPartial) on the forceLoad navigation.
+    /// </summary>
+    private string BuildMfaRedirectUrl(string path)
+    {
+        List<string> queryParams = [];
+
+        string? relayKey = AuthClient.GetPendingCookieRelayKey();
+        if (!string.IsNullOrEmpty(relayKey))
+        {
+            queryParams.Add($"cookieRelay={Uri.EscapeDataString(relayKey)}");
+        }
+
+        if (!string.IsNullOrEmpty(ReturnUrl))
+        {
+            queryParams.Add($"returnUrl={Uri.EscapeDataString(ReturnUrl)}");
+        }
+
+        return queryParams.Count > 0
+            ? $"{path}?{string.Join("&", queryParams)}"
+            : path;
     }
 }

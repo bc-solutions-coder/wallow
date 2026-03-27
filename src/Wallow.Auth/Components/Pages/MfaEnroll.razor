@@ -1,10 +1,18 @@
 @page "/mfa/enroll"
 @rendermode InteractiveServer
 
-@inject IHttpClientFactory HttpClientFactory
+@inject IAuthApiClient AuthClient
+@inject IJSRuntime JS
 @inject NavigationManager Navigation
+@inject IConfiguration Configuration
+@inject PersistentComponentState ApplicationState
+@inject ApiCookieJar CookieJar
+@inject IHttpContextAccessor HttpContextAccessor
 @using Wallow.Auth.Configuration
+@using Wallow.Auth.Services
+@using Microsoft.JSInterop
 @inject BrandingOptions Branding
+@implements IDisposable
 
 <PageTitle>Set Up MFA — @Branding.AppName</PageTitle>
 
@@ -35,15 +43,15 @@
                     <div>@backupCode</div>
                 }
             </div>
-            <BbButton Class="w-full" OnClick="@(() => Navigation.NavigateTo(ReturnUrl ?? "/"))">
+            <BbButton Class="w-full" OnClick="@(() => Navigation.NavigateTo(BuildApiReturnUrl(ReturnUrl ?? "/"), forceLoad: true))">
                 Done
             </BbButton>
         }
         else if (!string.IsNullOrEmpty(_secret))
         {
             <div class="text-center space-y-2">
-                <p class="text-sm text-muted-foreground">Scan this QR URI in your authenticator app:</p>
-                <div class="bg-muted rounded-md p-4 font-mono text-xs break-all">@_qrUri</div>
+                <p class="text-sm text-muted-foreground">Scan this QR code with your authenticator app:</p>
+                <div class="flex justify-center" data-testid="mfa-enroll-qr" id="mfa-enroll-qr"></div>
                 <p class="text-xs text-muted-foreground">Or enter this secret manually:</p>
                 <div class="bg-muted rounded-md p-2 font-mono text-sm" data-testid="mfa-enroll-secret">@_secret</div>
             </div>
@@ -80,13 +88,20 @@
                         <li>Access to your device during sign-in</li>
                     </ul>
                 </div>
-                <BbButton Class="w-full"
-                          Loading="_isLoading"
-                          Disabled="_isLoading"
-                          OnClick="HandleStartEnroll"
-                          data-testid="mfa-enroll-begin-setup">
-                    Begin setup
-                </BbButton>
+                @if (_isLoading)
+                {
+                    <BbButton Class="w-full" Loading="true" Disabled="true">
+                        Preparing setup…
+                    </BbButton>
+                }
+                else
+                {
+                    <BbButton Class="w-full"
+                              OnClick="HandleStartEnroll"
+                              data-testid="mfa-enroll-begin-setup">
+                        Begin setup
+                    </BbButton>
+                }
             </div>
         }
     </BbCardContent>
@@ -101,13 +116,95 @@
     [SupplyParameterFromQuery]
     public string? ReturnUrl { get; set; }
 
+    [SupplyParameterFromQuery]
+    public string? EnrollToken { get; set; }
+
     private string? _secret;
     private string? _qrUri;
     private string _code = string.Empty;
     private string? _errorMessage;
     private bool _isLoading;
     private bool _isSubmitting;
-    private List<string>? _backupCodes;
+    private IReadOnlyList<string>? _backupCodes;
+    private PersistingComponentStateSubscription _persistingSubscription;
+
+    // Enrollment calls the API during prerender (where HttpContext supplies the
+    // partial-auth cookie) and persists the result via PersistentComponentState.
+    // The interactive circuit restores the persisted data instead of re-calling
+    // the API (which would fail because HttpContext is null in the circuit).
+    // Cookie jar contents are also persisted so the confirm call can authenticate.
+    //
+    // When navigated from Web app settings, an EnrollToken query param is present.
+    // During prerender we exchange it for an Identity.MfaPartial partial-auth cookie
+    // (via CookieForwardingHandler) so subsequent enrollment API calls authenticate.
+    protected override async Task OnInitializedAsync()
+    {
+        _persistingSubscription = ApplicationState.RegisterOnPersisting(PersistEnrollmentState);
+
+        // Seed the circuit-scoped cookie jar from the browser's cookies during prerender.
+        // CookieForwardingHandler runs in IHttpClientFactory's handler scope which holds a
+        // separate ApiCookieJar instance, so the circuit-scoped jar used by PersistEnrollmentState
+        // and by AuthApiClient for direct cookie injection must be seeded here explicitly.
+        string? browserCookies = HttpContextAccessor.HttpContext?.Request.Headers.Cookie;
+        if (!string.IsNullOrEmpty(browserCookies))
+        {
+            CookieJar.SeedFromBrowserCookies(browserCookies);
+        }
+
+        if (ApplicationState.TryTakeFromJson<PersistedEnrollment>("MfaEnrollment", out PersistedEnrollment? persisted)
+            && persisted is not null
+            && !string.IsNullOrEmpty(persisted.Secret))
+        {
+            _secret = persisted.Secret;
+            _qrUri = persisted.QrUri;
+
+            // Restore the cookie jar so the confirm API call can forward the
+            // partial-auth cookie that was captured during prerender.
+            if (!string.IsNullOrEmpty(persisted.CookieHeader))
+            {
+                CookieJar.SeedFromBrowserCookies(persisted.CookieHeader);
+            }
+        }
+        else
+        {
+            // If an enrollment token was provided (settings-triggered flow), exchange it
+            // for a partial-auth cookie before calling the enrollment API. This runs during
+            // prerender where HttpContext is available so CookieForwardingHandler relays the
+            // Identity.MfaPartial Set-Cookie header to the browser.
+            if (!string.IsNullOrEmpty(EnrollToken))
+            {
+                await AuthClient.ExchangeEnrollmentTokenAsync(EnrollToken);
+            }
+
+            await HandleStartEnroll();
+        }
+    }
+
+    private Task PersistEnrollmentState()
+    {
+        if (!string.IsNullOrEmpty(_secret))
+        {
+            ApplicationState.PersistAsJson("MfaEnrollment", new PersistedEnrollment(
+                _secret, _qrUri, CookieJar.GetCookieHeader()));
+        }
+
+        return Task.CompletedTask;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!string.IsNullOrEmpty(_qrUri))
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("qrcode.generate", "mfa-enroll-qr", _qrUri);
+            }
+            catch (JSException)
+            {
+                // qrcode.js not loaded — QR display is optional; secret text suffices for enrollment
+            }
+        }
+    }
 
     private async Task HandleStartEnroll()
     {
@@ -116,17 +213,12 @@
 
         try
         {
-            HttpClient client = HttpClientFactory.CreateClient("AuthApi");
-            HttpResponseMessage response = await client.PostAsync("api/v1/identity/mfa/enroll/totp", null);
+            MfaEnrollResponse? result = await AuthClient.EnrollTotpAsync();
 
-            if (response.IsSuccessStatusCode)
+            if (result is not null)
             {
-                MfaEnrollResponse? body = await response.Content.ReadFromJsonAsync<MfaEnrollResponse>();
-                if (body is not null)
-                {
-                    _secret = body.Secret;
-                    _qrUri = body.QrUri;
-                }
+                _secret = result.Secret;
+                _qrUri = result.QrUri;
             }
             else
             {
@@ -156,20 +248,15 @@
                 return;
             }
 
-            HttpClient client = HttpClientFactory.CreateClient("AuthApi");
-            HttpResponseMessage response = await client.PostAsJsonAsync(
-                "api/v1/identity/mfa/enroll/confirm",
-                new { secret = _secret, code = _code });
+            MfaConfirmEnrollmentResponse result = await AuthClient.ConfirmEnrollmentAsync(_secret!, _code);
 
-            if (response.IsSuccessStatusCode)
+            if (result.Succeeded)
             {
-                MfaConfirmResponse? body = await response.Content.ReadFromJsonAsync<MfaConfirmResponse>();
-                _backupCodes = body?.BackupCodes ?? [];
+                _backupCodes = result.BackupCodes ?? Array.Empty<string>();
             }
             else
             {
-                MfaErrorResponse? error = await response.Content.ReadFromJsonAsync<MfaErrorResponse>();
-                _errorMessage = error?.Error switch
+                _errorMessage = result.Error switch
                 {
                     "invalid_code" => "Invalid verification code. Please try again.",
                     _ => "Failed to confirm MFA enrollment. Please try again."
@@ -180,13 +267,25 @@
         {
             _errorMessage = "Unable to reach the server. Please try again later.";
         }
+        catch (Exception)
+        {
+            _errorMessage = "An unexpected error occurred. Please try again.";
+        }
         finally
         {
             _isSubmitting = false;
         }
     }
 
-    private sealed record MfaEnrollResponse(string Secret, string QrUri);
-    private sealed record MfaConfirmResponse(bool Succeeded, List<string> BackupCodes);
-    private sealed record MfaErrorResponse(bool Succeeded, string? Error);
+    private string ApiBaseUrl => Configuration["ApiBaseUrl"] ?? "http://localhost:5001";
+
+    private string BuildApiReturnUrl(string relativeUrl) =>
+        relativeUrl.StartsWith('/') ? $"{ApiBaseUrl}{relativeUrl}" : relativeUrl;
+
+    public void Dispose()
+    {
+        _persistingSubscription.Dispose();
+    }
+
+    private sealed record PersistedEnrollment(string? Secret, string? QrUri, string? CookieHeader);
 }

@@ -3,6 +3,7 @@
 
 @inject IAuthApiClient AuthClient
 @inject NavigationManager Navigation
+@inject IConfiguration Configuration
 @using Wallow.Auth.Configuration
 @inject BrandingOptions Branding
 
@@ -145,8 +146,19 @@
             if (result.Succeeded)
             {
                 _verified = true;
-                string redirectUrl = ReturnUrl ?? "/";
-                Navigation.NavigateTo(redirectUrl, forceLoad: true);
+
+                if (!string.IsNullOrEmpty(ReturnUrl) && !string.IsNullOrEmpty(result.SignInTicket))
+                {
+                    string exchangeUrl = $"{ApiBaseUrl}/api/v1/identity/auth/exchange-ticket" +
+                        $"?ticket={Uri.EscapeDataString(result.SignInTicket)}" +
+                        $"&returnUrl={Uri.EscapeDataString(ReturnUrl)}";
+                    Navigation.NavigateTo(exchangeUrl, forceLoad: true);
+                }
+                else
+                {
+                    string redirectUrl = BuildApiReturnUrl(ReturnUrl ?? "/");
+                    Navigation.NavigateTo(redirectUrl, forceLoad: true);
+                }
             }
             else
             {
@@ -169,4 +181,9 @@
             _isSubmitting = false;
         }
     }
+
+    private string ApiBaseUrl => Configuration["ApiBaseUrl"] ?? "http://localhost:5001";
+
+    private string BuildApiReturnUrl(string relativeUrl) =>
+        relativeUrl.StartsWith('/') ? $"{ApiBaseUrl}{relativeUrl}" : relativeUrl;
 }

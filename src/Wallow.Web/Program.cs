@@ -3,7 +3,9 @@ using BlazorBlueprint.Components;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using Wallow.Web;
 using Wallow.Web.Configuration;
 using Wallow.Web.Services;
 
@@ -156,6 +158,17 @@ builder.Services.AddScoped<IAppRegistrationService, AppRegistrationService>();
 builder.Services.AddScoped<IOrganizationApiService, OrganizationApiService>();
 builder.Services.AddScoped<IInquiryService, InquiryService>();
 
+builder.Services.AddHealthChecks()
+    .Add(new HealthCheckRegistration(
+        "api",
+        sp =>
+        {
+            IHttpClientFactory httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
+            return new ApiHealthCheck(httpClientFactory, "WallowApi");
+        },
+        failureStatus: HealthStatus.Unhealthy,
+        tags: ["ready"]));
+
 WebApplication app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
@@ -187,7 +200,25 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
 
-app.MapGet("/health", () => Results.Ok("Healthy"));
+app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    ResponseWriter = async (context, report) =>
+    {
+        context.Response.ContentType = "application/json";
+        object response = new
+        {
+            status = report.Status.ToString(),
+            checks = report.Entries.Select(e => new
+            {
+                name = e.Key,
+                status = e.Value.Status.ToString(),
+                description = e.Value.Description,
+                error = e.Value.Exception?.Message
+            })
+        };
+        await context.Response.WriteAsJsonAsync(response);
+    }
+});
 
 app.MapGet("/authentication/login", (string? returnUrl) =>
 {
