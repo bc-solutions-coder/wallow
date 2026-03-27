@@ -3,7 +3,7 @@ using Wallow.Auth.Models;
 
 namespace Wallow.Auth.Services;
 
-public sealed class AuthApiClient(IHttpClientFactory httpClientFactory) : IAuthApiClient
+public sealed class AuthApiClient(IHttpClientFactory httpClientFactory, ApiCookieJar? cookieJar = null) : IAuthApiClient
 {
     private const string BasePath = "api/v1/identity/auth";
 
@@ -232,12 +232,12 @@ public sealed class AuthApiClient(IHttpClientFactory httpClientFactory) : IAuthA
         return body ?? new AuthResponse(Succeeded: false, Error: "unknown_error");
     }
 
-    public async Task<AuthResponse> VerifyMfaChallengeAsync(string challengeToken, string code, CancellationToken ct = default)
+    public async Task<AuthResponse> VerifyMfaChallengeAsync(string code, CancellationToken ct = default)
     {
         HttpClient client = httpClientFactory.CreateClient("AuthApi");
         HttpResponseMessage response = await client.PostAsJsonAsync(
             $"{BasePath}/mfa/verify",
-            new { ChallengeToken = challengeToken, Code = code, UseBackupCode = false }, ct);
+            new { Code = code, UseBackupCode = false }, ct);
 
         string content = await response.Content.ReadAsStringAsync(ct);
 
@@ -258,12 +258,12 @@ public sealed class AuthApiClient(IHttpClientFactory httpClientFactory) : IAuthA
         return body ?? new AuthResponse(Succeeded: false, Error: "unknown_error");
     }
 
-    public async Task<AuthResponse> UseBackupCodeAsync(string challengeToken, string code, CancellationToken ct = default)
+    public async Task<AuthResponse> UseBackupCodeAsync(string code, CancellationToken ct = default)
     {
         HttpClient client = httpClientFactory.CreateClient("AuthApi");
         HttpResponseMessage response = await client.PostAsJsonAsync(
             $"{BasePath}/mfa/verify",
-            new { ChallengeToken = challengeToken, Code = code, UseBackupCode = true }, ct);
+            new { Code = code, UseBackupCode = true }, ct);
 
         string content = await response.Content.ReadAsStringAsync(ct);
 
@@ -310,6 +310,81 @@ public sealed class AuthApiClient(IHttpClientFactory httpClientFactory) : IAuthA
 
         return response.IsSuccessStatusCode;
     }
+
+    public async Task<MfaEnrollResponse?> EnrollTotpAsync(CancellationToken ct = default)
+    {
+        HttpClient client = httpClientFactory.CreateClient("AuthApi");
+
+        // Inject cookies from the circuit-scoped jar directly on the request.
+        // See ConfirmEnrollmentAsync for why this is necessary.
+        using HttpRequestMessage request = new(HttpMethod.Post, "api/v1/identity/mfa/enroll/totp");
+
+        string? cookies = cookieJar?.GetCookieHeader();
+        if (!string.IsNullOrEmpty(cookies))
+        {
+            request.Headers.TryAddWithoutValidation("Cookie", cookies);
+        }
+
+        HttpResponseMessage response = await client.SendAsync(request, ct);
+
+        if (response.IsSuccessStatusCode)
+        {
+            return await response.Content.ReadFromJsonAsync<MfaEnrollResponse>(ct);
+        }
+
+        return null;
+    }
+
+    public async Task<MfaConfirmEnrollmentResponse> ConfirmEnrollmentAsync(string secret, string code, CancellationToken ct = default)
+    {
+        HttpClient client = httpClientFactory.CreateClient("AuthApi");
+
+        // Build the request manually so we can inject cookies from the circuit-scoped jar.
+        // CookieForwardingHandler runs in IHttpClientFactory's handler scope, which holds
+        // a DIFFERENT ApiCookieJar instance than the Blazor circuit scope. During prerender
+        // this is fine (HttpContext supplies cookies), but in the interactive phase the
+        // handler's jar is empty. We compensate by setting the Cookie header here directly.
+        using HttpRequestMessage request = new(HttpMethod.Post, "api/v1/identity/mfa/enroll/confirm");
+        request.Content = JsonContent.Create(new { secret, code });
+
+        string? cookies = cookieJar?.GetCookieHeader();
+        if (!string.IsNullOrEmpty(cookies))
+        {
+            request.Headers.TryAddWithoutValidation("Cookie", cookies);
+        }
+
+        HttpResponseMessage response = await client.SendAsync(request, ct);
+
+        if (response.IsSuccessStatusCode)
+        {
+            MfaConfirmEnrollmentResponse? body = await response.Content.ReadFromJsonAsync<MfaConfirmEnrollmentResponse>(ct);
+            return body ?? new MfaConfirmEnrollmentResponse(Succeeded: true);
+        }
+
+        // The API may return ProblemDetails or an empty body on auth failures (401/403),
+        // which cannot be deserialized as MfaConfirmEnrollmentResponse.
+        try
+        {
+            MfaConfirmEnrollmentResponse? error = await response.Content.ReadFromJsonAsync<MfaConfirmEnrollmentResponse>(ct);
+            return error ?? new MfaConfirmEnrollmentResponse(Succeeded: false, Error: "unknown_error");
+        }
+        catch (JsonException)
+        {
+            return new MfaConfirmEnrollmentResponse(Succeeded: false, Error: "unknown_error");
+        }
+    }
+
+    public async Task<bool> ExchangeEnrollmentTokenAsync(string token, CancellationToken ct = default)
+    {
+        HttpClient client = httpClientFactory.CreateClient("AuthApi");
+        string encodedToken = Uri.EscapeDataString(token);
+        HttpResponseMessage response = await client.PostAsync(
+            $"api/v1/identity/mfa/enroll/exchange-token?token={encodedToken}", null, ct);
+
+        return response.IsSuccessStatusCode;
+    }
+
+    public string? GetPendingCookieRelayKey() => cookieJar?.PendingRelayKey;
 
     private sealed record RedirectUriValidationResponse(bool Allowed);
     private sealed record OrganizationDomainMatchResponse(string? OrgName);

@@ -328,7 +328,7 @@ public sealed class AuthApiClientTests : IDisposable
         _mockHttp.When(HttpMethod.Post, "http://localhost:5000/api/v1/identity/auth/mfa/verify")
             .Respond("application/json", """{"succeeded":true}""");
 
-        AuthResponse result = await _sut.VerifyMfaChallengeAsync("challenge-token", "123456");
+        AuthResponse result = await _sut.VerifyMfaChallengeAsync("123456");
 
         result.Succeeded.Should().BeTrue();
     }
@@ -340,7 +340,7 @@ public sealed class AuthApiClientTests : IDisposable
             .Respond(HttpStatusCode.BadRequest, "application/json",
                 """{"succeeded":false,"error":"invalid_mfa_code"}""");
 
-        AuthResponse result = await _sut.VerifyMfaChallengeAsync("challenge-token", "000000");
+        AuthResponse result = await _sut.VerifyMfaChallengeAsync("000000");
 
         result.Succeeded.Should().BeFalse();
         result.Error.Should().Be("invalid_mfa_code");
@@ -352,7 +352,7 @@ public sealed class AuthApiClientTests : IDisposable
         _mockHttp.When(HttpMethod.Post, "http://localhost:5000/api/v1/identity/auth/mfa/verify")
             .Respond("application/json", """{"succeeded":true}""");
 
-        AuthResponse result = await _sut.UseBackupCodeAsync("challenge-token", "backup-code");
+        AuthResponse result = await _sut.UseBackupCodeAsync("backup-code");
 
         result.Succeeded.Should().BeTrue();
     }
@@ -364,7 +364,7 @@ public sealed class AuthApiClientTests : IDisposable
             .Respond(HttpStatusCode.BadRequest, "application/json",
                 """{"succeeded":false,"error":"invalid_backup_code"}""");
 
-        AuthResponse result = await _sut.UseBackupCodeAsync("challenge-token", "bad-code");
+        AuthResponse result = await _sut.UseBackupCodeAsync("bad-code");
 
         result.Succeeded.Should().BeFalse();
         result.Error.Should().Be("invalid_backup_code");

@@ -1,10 +1,6 @@
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.Caching.Distributed;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using StackExchange.Redis;
 
 using Wallow.Identity.Domain.Entities;
 using Wallow.Identity.Infrastructure.Services;
@@ -13,30 +9,14 @@ namespace Wallow.Identity.Tests.Infrastructure;
 
 public class MfaServiceTests
 {
-    private readonly IDataProtectionProvider _dataProtectionProvider;
-    private readonly IDistributedCache _cache;
-    private readonly IConnectionMultiplexer _connectionMultiplexer;
-    private readonly UserManager<WallowUser> _userManager;
-    private readonly IConfiguration _configuration;
-    private readonly ILogger<MfaService> _logger;
     private readonly MfaService _sut;
 
     public MfaServiceTests()
     {
-        _dataProtectionProvider = DataProtectionProvider.Create("test");
-        _cache = Substitute.For<IDistributedCache>();
-        _connectionMultiplexer = Substitute.For<IConnectionMultiplexer>();
-        _connectionMultiplexer.GetDatabase(Arg.Any<int>(), Arg.Any<object>()).Returns(Substitute.For<IDatabase>());
-        _userManager = Substitute.For<UserManager<WallowUser>>(
+        IDataProtectionProvider dataProtectionProvider = DataProtectionProvider.Create("test");
+        UserManager<WallowUser> userManager = Substitute.For<UserManager<WallowUser>>(
             Substitute.For<IUserStore<WallowUser>>(), null, null, null, null, null, null, null, null);
-        _configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["Mfa:MaxFailedAttempts"] = "5"
-            })
-            .Build();
-        _logger = NullLogger<MfaService>.Instance;
-        _sut = new MfaService(_dataProtectionProvider, _cache, _connectionMultiplexer, _userManager, _configuration, _logger);
+        _sut = new MfaService(dataProtectionProvider, userManager, NullLogger<MfaService>.Instance);
     }
 
     [Fact]
@@ -87,163 +67,6 @@ public class MfaServiceTests
     }
 
     [Fact]
-    public async Task IssueChallengeAsync_WithValidUserId_ReturnsChallengeToken()
-    {
-        string userId = "user-456";
-
-        string token = await _sut.IssueChallengeAsync(userId, CancellationToken.None);
-
-        token.Should().NotBeNullOrEmpty();
-    }
-
-    [Fact]
-    public async Task IssueChallengeAsync_StoresChallengeInCache()
-    {
-        string userId = "user-456";
-
-        await _sut.IssueChallengeAsync(userId, CancellationToken.None);
-
-        await _cache.Received(1).SetAsync(
-            Arg.Is<string>(k => k == $"mfa:challenge:{userId}"),
-            Arg.Any<byte[]>(),
-            Arg.Any<DistributedCacheEntryOptions>(),
-            Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task IssueChallengeAsync_ResetsFailureCount()
-    {
-        string userId = "user-456";
-
-        await _sut.IssueChallengeAsync(userId, CancellationToken.None);
-
-        await _cache.Received(1).RemoveAsync(
-            Arg.Is<string>(k => k == $"mfa:failures:{userId}"),
-            Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task IssueChallengeAsync_CalledTwice_ReturnsDifferentTokens()
-    {
-        string userId = "user-456";
-
-        string first = await _sut.IssueChallengeAsync(userId, CancellationToken.None);
-        string second = await _sut.IssueChallengeAsync(userId, CancellationToken.None);
-
-        first.Should().NotBe(second);
-    }
-
-    [Fact]
-    public async Task ValidateChallengeAsync_WithExpiredChallenge_ReturnsFailure()
-    {
-        string userId = "user-789";
-        _cache.GetAsync(Arg.Is<string>(k => k == $"mfa:failures:{userId}"), Arg.Any<CancellationToken>())
-            .Returns((byte[]?)null);
-        _cache.GetAsync(Arg.Is<string>(k => k == $"mfa:challenge:{userId}"), Arg.Any<CancellationToken>())
-            .Returns((byte[]?)null);
-
-        Wallow.Shared.Kernel.Results.Result result = await _sut.ValidateChallengeAsync(userId, "some-code", CancellationToken.None);
-
-        result.IsSuccess.Should().BeFalse();
-        result.Error.Code.Should().Be("Mfa.ExpiredChallenge");
-    }
-
-    [Fact]
-    public async Task ValidateChallengeAsync_WithInvalidCode_ReturnsFailureAndIncrementsCount()
-    {
-        string userId = "user-789";
-        byte[] storedToken = System.Text.Encoding.UTF8.GetBytes("valid-token");
-
-        _cache.GetAsync(Arg.Is<string>(k => k == $"mfa:failures:{userId}"), Arg.Any<CancellationToken>())
-            .Returns((byte[]?)null);
-        _cache.GetAsync(Arg.Is<string>(k => k == $"mfa:challenge:{userId}"), Arg.Any<CancellationToken>())
-            .Returns(storedToken);
-
-        Wallow.Shared.Kernel.Results.Result result = await _sut.ValidateChallengeAsync(userId, "wrong-code", CancellationToken.None);
-
-        result.IsSuccess.Should().BeFalse();
-        result.Error.Code.Should().Be("Mfa.InvalidCode");
-
-        await _cache.Received(1).SetAsync(
-            Arg.Is<string>(k => k == $"mfa:failures:{userId}"),
-            Arg.Any<byte[]>(),
-            Arg.Any<DistributedCacheEntryOptions>(),
-            Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task ValidateChallengeAsync_WithValidCode_ReturnsSuccess()
-    {
-        string userId = "user-789";
-        string challengeCode = "correct-token";
-        byte[] storedToken = System.Text.Encoding.UTF8.GetBytes(challengeCode);
-
-        _cache.GetAsync(Arg.Is<string>(k => k == $"mfa:failures:{userId}"), Arg.Any<CancellationToken>())
-            .Returns((byte[]?)null);
-        _cache.GetAsync(Arg.Is<string>(k => k == $"mfa:challenge:{userId}"), Arg.Any<CancellationToken>())
-            .Returns(storedToken);
-
-        Wallow.Shared.Kernel.Results.Result result = await _sut.ValidateChallengeAsync(userId, challengeCode, CancellationToken.None);
-
-        result.IsSuccess.Should().BeTrue();
-    }
-
-    [Fact]
-    public async Task ValidateChallengeAsync_WithValidCode_CleansUpCache()
-    {
-        string userId = "user-789";
-        string challengeCode = "correct-token";
-        byte[] storedToken = System.Text.Encoding.UTF8.GetBytes(challengeCode);
-
-        _cache.GetAsync(Arg.Is<string>(k => k == $"mfa:failures:{userId}"), Arg.Any<CancellationToken>())
-            .Returns((byte[]?)null);
-        _cache.GetAsync(Arg.Is<string>(k => k == $"mfa:challenge:{userId}"), Arg.Any<CancellationToken>())
-            .Returns(storedToken);
-
-        await _sut.ValidateChallengeAsync(userId, challengeCode, CancellationToken.None);
-
-        await _cache.Received().RemoveAsync(
-            Arg.Is<string>(k => k == $"mfa:challenge:{userId}"),
-            Arg.Any<CancellationToken>());
-        await _cache.Received().RemoveAsync(
-            Arg.Is<string>(k => k == $"mfa:failures:{userId}"),
-            Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task ValidateChallengeAsync_WhenLockedOut_ReturnsFailure()
-    {
-        string userId = "user-789";
-        byte[] failureCount = System.Text.Encoding.UTF8.GetBytes("5");
-
-        _cache.GetAsync(Arg.Is<string>(k => k == $"mfa:failures:{userId}"), Arg.Any<CancellationToken>())
-            .Returns(failureCount);
-
-        Wallow.Shared.Kernel.Results.Result result = await _sut.ValidateChallengeAsync(userId, "any-code", CancellationToken.None);
-
-        result.IsSuccess.Should().BeFalse();
-        result.Error.Code.Should().Be("Mfa.Locked");
-    }
-
-    [Fact]
-    public async Task ValidateChallengeAsync_WhenBelowLockoutThreshold_DoesNotLock()
-    {
-        string userId = "user-789";
-        byte[] failureCount = System.Text.Encoding.UTF8.GetBytes("4");
-        string challengeCode = "correct-token";
-        byte[] storedToken = System.Text.Encoding.UTF8.GetBytes(challengeCode);
-
-        _cache.GetAsync(Arg.Is<string>(k => k == $"mfa:failures:{userId}"), Arg.Any<CancellationToken>())
-            .Returns(failureCount);
-        _cache.GetAsync(Arg.Is<string>(k => k == $"mfa:challenge:{userId}"), Arg.Any<CancellationToken>())
-            .Returns(storedToken);
-
-        Wallow.Shared.Kernel.Results.Result result = await _sut.ValidateChallengeAsync(userId, challengeCode, CancellationToken.None);
-
-        result.IsSuccess.Should().BeTrue();
-    }
-
-    [Fact]
     public async Task GenerateBackupCodesAsync_Returns10Codes()
     {
         List<string> codes = await _sut.GenerateBackupCodesAsync(CancellationToken.None);
@@ -277,27 +100,5 @@ public class MfaServiceTests
         List<string> second = await _sut.GenerateBackupCodesAsync(CancellationToken.None);
 
         first.Should().NotBeEquivalentTo(second);
-    }
-
-    [Fact]
-    public async Task ValidateChallengeAsync_WithCustomMaxFailedAttempts_RespectsConfiguration()
-    {
-        IConfiguration customConfig = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["Mfa:MaxFailedAttempts"] = "2"
-            })
-            .Build();
-        MfaService customSut = new(_dataProtectionProvider, _cache, _connectionMultiplexer, _userManager, customConfig, _logger);
-
-        string userId = "user-custom";
-        byte[] failureCount = System.Text.Encoding.UTF8.GetBytes("2");
-        _cache.GetAsync(Arg.Is<string>(k => k == $"mfa:failures:{userId}"), Arg.Any<CancellationToken>())
-            .Returns(failureCount);
-
-        Wallow.Shared.Kernel.Results.Result result = await customSut.ValidateChallengeAsync(userId, "any-code", CancellationToken.None);
-
-        result.IsSuccess.Should().BeFalse();
-        result.Error.Code.Should().Be("Mfa.Locked");
     }
 }

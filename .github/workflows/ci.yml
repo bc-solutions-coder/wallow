@@ -228,7 +228,7 @@ jobs:
           done
 
       - name: Run E2E tests
-        run: dotnet test tests/Wallow.E2E.Tests --no-restore --verbosity normal --blame-hang-timeout 5m
+        run: ./scripts/run-tests.sh e2e
         env:
           E2E_BASE_URL: "http://localhost:5050"
           E2E_AUTH_URL: "http://localhost:5051"
@@ -238,7 +238,7 @@ jobs:
 
       - name: Upload E2E failure artifacts
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-failure-artifacts
           path: tests/Wallow.E2E.Tests/test-results/

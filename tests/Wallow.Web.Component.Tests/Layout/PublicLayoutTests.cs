@@ -2,6 +2,7 @@ using Bunit;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
 using Wallow.Web.Components.Layout;
+using Wallow.Web.Components.Shared;
 using Wallow.Web.Configuration;
 
 namespace Wallow.Web.Component.Tests.Layout;
@@ -11,6 +12,7 @@ public sealed class PublicLayoutTests : BunitContext
     public PublicLayoutTests()
     {
         Services.AddSingleton(new BrandingOptions());
+        ComponentFactories.AddStub<BlazorReadyIndicator>();
     }
 
     [Fact]

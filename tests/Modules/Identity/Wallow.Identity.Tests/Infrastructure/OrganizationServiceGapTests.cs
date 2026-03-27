@@ -120,10 +120,12 @@ public sealed class OrganizationServiceGapTests : IDisposable
     }
 
     [Fact]
-    public async Task UpdateSettings_None_Throws()
+    public async Task UpdateSettings_None_CreatesSettings()
     {
-        Func<Task> act = () => _sut.UpdateSettingsAsync(Guid.NewGuid(), true, false, 7, Guid.NewGuid());
-        await act.Should().ThrowAsync<InvalidOperationException>();
+        Guid oid = Guid.NewGuid();
+        Guid actorId = Guid.NewGuid();
+        await _sut.UpdateSettingsAsync(oid, true, false, 7, actorId);
+        await _messageBus.Received(1).PublishAsync(Arg.Is<OrganizationSettingsUpdatedEvent>(e => e.RequireMfa && e.MfaGracePeriodDays == 7));
     }
 
     [Fact]

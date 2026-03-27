@@ -5,8 +5,6 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Distributed;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
@@ -488,23 +486,15 @@ public sealed class OidcFederationServiceGapTests
 
 public sealed class MfaServiceAdditionalGapTests
 {
-    private readonly IDatabase _redisDb;
     private readonly UserManager<WallowUser> _userManager;
     private readonly MfaService _sut;
-    private readonly IDataProtectionProvider _dp;
 
     public MfaServiceAdditionalGapTests()
     {
-        _dp = DataProtectionProvider.Create("test");
-        IDistributedCache cache = Substitute.For<IDistributedCache>();
-        IConnectionMultiplexer mux = Substitute.For<IConnectionMultiplexer>();
-        _redisDb = Substitute.For<IDatabase>();
-        mux.GetDatabase(Arg.Any<int>(), Arg.Any<object>()).Returns(_redisDb);
+        IDataProtectionProvider dp = DataProtectionProvider.Create("test");
         _userManager = Substitute.For<UserManager<WallowUser>>(
             Substitute.For<IUserStore<WallowUser>>(), null, null, null, null, null, null, null, null);
-        IConfiguration cfg = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?> { ["Mfa:MaxFailedAttempts"] = "5" }).Build();
-        _sut = new MfaService(_dp, cache, mux, _userManager, cfg, NullLogger<MfaService>.Instance);
+        _sut = new MfaService(dp, _userManager, NullLogger<MfaService>.Instance);
     }
 
     [Fact]
@@ -524,23 +514,6 @@ public sealed class MfaServiceAdditionalGapTests
 
         result.Should().BeTrue();
         await _userManager.Received(1).UpdateAsync(user);
-    }
-
-    [Fact]
-    public async Task ValidateChallengeAsync_ThreeArg_InvalidTotpCode_ReturnsFalse()
-    {
-        _redisDb.KeyExistsAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>()).Returns(true);
-
-        WallowUser user = WallowUser.Create(Guid.NewGuid(), "Test", "User", "u@t.com", TimeProvider.System);
-        // Generate an enrollment secret so TotpSecretEncrypted is set
-        (string secret, string _) = await _sut.GenerateEnrollmentSecretAsync("u1", CancellationToken.None);
-        typeof(WallowUser).GetProperty("TotpSecretEncrypted")!.SetValue(user, secret);
-
-        _userManager.FindByIdAsync("u1").Returns(user);
-
-        bool result = await _sut.ValidateChallengeAsync("u1", "ct", "000000", CancellationToken.None);
-
-        result.Should().BeFalse();
     }
 }
 

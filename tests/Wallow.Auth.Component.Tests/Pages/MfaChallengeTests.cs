@@ -1,5 +1,4 @@
 using Bunit;
-using Bunit.TestDoubles;
 using Microsoft.Extensions.DependencyInjection;
 using Wallow.Auth.Components.Pages;
 using Wallow.Auth.Configuration;
@@ -21,17 +20,9 @@ public sealed class MfaChallengeTests : BunitContext
         Services.AddSingleton(new BrandingOptions { AppName = "TestApp" });
     }
 
-    private void NavigateWithChallengeToken(string token)
-    {
-        BunitNavigationManager navMan = Services.GetRequiredService<BunitNavigationManager>();
-        navMan.NavigateTo($"/mfa/challenge?ChallengeToken={Uri.EscapeDataString(token)}");
-    }
-
     [Fact]
-    public void Renders_OtpInputFormWithChallengeToken()
+    public void Renders_OtpInputForm()
     {
-        NavigateWithChallengeToken("challenge-123");
-
         IRenderedComponent<MfaChallenge> cut = Render<MfaChallenge>();
 
         cut.Markup.Should().Contain("Two-factor authentication");
@@ -40,20 +31,10 @@ public sealed class MfaChallengeTests : BunitContext
     }
 
     [Fact]
-    public void MissingChallengeToken_ShowsError()
-    {
-        IRenderedComponent<MfaChallenge> cut = Render<MfaChallenge>();
-
-        cut.Markup.Should().Contain("Missing challenge token");
-    }
-
-    [Fact]
     public async Task Submit_WithValidCode_CallsVerifyAndShowsSuccess()
     {
-        _authClient.VerifyMfaChallengeAsync("challenge-123", "123456", Arg.Any<CancellationToken>())
+        _authClient.VerifyMfaChallengeAsync("123456", Arg.Any<CancellationToken>())
             .Returns(new AuthResponse(true));
-
-        NavigateWithChallengeToken("challenge-123");
 
         IRenderedComponent<MfaChallenge> cut = Render<MfaChallenge>();
 
@@ -67,8 +48,6 @@ public sealed class MfaChallengeTests : BunitContext
     [Fact]
     public async Task Submit_WithEmptyCode_ShowsValidationError()
     {
-        NavigateWithChallengeToken("challenge-123");
-
         IRenderedComponent<MfaChallenge> cut = Render<MfaChallenge>();
 
         await cut.Find("form").SubmitAsync();
@@ -79,8 +58,6 @@ public sealed class MfaChallengeTests : BunitContext
     [Fact]
     public void ToggleToBackupCodeMode_ChangesDescription()
     {
-        NavigateWithChallengeToken("challenge-123");
-
         IRenderedComponent<MfaChallenge> cut = Render<MfaChallenge>();
 
         AngleSharp.Dom.IElement toggleButton = cut.FindAll("button[type='button']")
@@ -94,10 +71,8 @@ public sealed class MfaChallengeTests : BunitContext
     [Fact]
     public async Task BackupCodeMode_Submit_CallsUseBackupCode()
     {
-        _authClient.UseBackupCodeAsync("challenge-123", "BACKUP-CODE", Arg.Any<CancellationToken>())
+        _authClient.UseBackupCodeAsync("BACKUP-CODE", Arg.Any<CancellationToken>())
             .Returns(new AuthResponse(true));
-
-        NavigateWithChallengeToken("challenge-123");
 
         IRenderedComponent<MfaChallenge> cut = Render<MfaChallenge>();
 
@@ -110,16 +85,14 @@ public sealed class MfaChallengeTests : BunitContext
         await cut.Find("form").SubmitAsync();
 
         cut.Markup.Should().Contain("Verification successful");
-        await _authClient.Received(1).UseBackupCodeAsync("challenge-123", "BACKUP-CODE", Arg.Any<CancellationToken>());
+        await _authClient.Received(1).UseBackupCodeAsync("BACKUP-CODE", Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task InvalidCode_ShowsErrorMessage()
     {
-        _authClient.VerifyMfaChallengeAsync("challenge-123", "wrong", Arg.Any<CancellationToken>())
+        _authClient.VerifyMfaChallengeAsync("wrong", Arg.Any<CancellationToken>())
             .Returns(new AuthResponse(false, Error: "invalid_code"));
-
-        NavigateWithChallengeToken("challenge-123");
 
         IRenderedComponent<MfaChallenge> cut = Render<MfaChallenge>();
 
@@ -133,10 +106,8 @@ public sealed class MfaChallengeTests : BunitContext
     [Fact]
     public async Task ExpiredChallenge_ShowsError()
     {
-        _authClient.VerifyMfaChallengeAsync("challenge-123", "123456", Arg.Any<CancellationToken>())
+        _authClient.VerifyMfaChallengeAsync("123456", Arg.Any<CancellationToken>())
             .Returns(new AuthResponse(false, Error: "expired_challenge"));
-
-        NavigateWithChallengeToken("challenge-123");
 
         IRenderedComponent<MfaChallenge> cut = Render<MfaChallenge>();
 

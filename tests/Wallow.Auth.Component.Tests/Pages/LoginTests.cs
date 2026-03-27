@@ -51,7 +51,7 @@ public sealed class LoginTests : BunitContext
     public void Submit_WithValidCredentials_CallsLoginAndShowsSuccess()
     {
         _authClient.LoginAsync(Arg.Any<LoginRequest>(), Arg.Any<CancellationToken>())
-            .Returns(new AuthResponse(Succeeded: true, SignInTicket: null));
+            .Returns(new AuthResponse(Succeeded: true));
 
         IRenderedComponent<Login> cut = Render<Login>();
 
@@ -93,10 +93,10 @@ public sealed class LoginTests : BunitContext
     }
 
     [Fact]
-    public void Submit_WithReturnUrl_NavigatesToExchangeTicket()
+    public void Submit_WithReturnUrl_NavigatesToReturnUrl()
     {
         _authClient.LoginAsync(Arg.Any<LoginRequest>(), Arg.Any<CancellationToken>())
-            .Returns(new AuthResponse(Succeeded: true, SignInTicket: "ticket-123"));
+            .Returns(new AuthResponse(Succeeded: true));
 
         BunitNavigationManager navMan = Services.GetRequiredService<BunitNavigationManager>();
         navMan.NavigateTo("/login?ReturnUrl=%2Fdashboard");
@@ -107,15 +107,14 @@ public sealed class LoginTests : BunitContext
         cut.Find("input[placeholder='Enter your password']").Input("P@ssword1");
         cut.Find("form").Submit();
 
-        navMan.Uri.Should().Contain("exchange-ticket");
-        navMan.Uri.Should().Contain("ticket-123");
+        navMan.Uri.Should().Contain("/dashboard");
     }
 
     [Fact]
     public void Submit_WithAbsoluteReturnUrl_NavigatesToError()
     {
         _authClient.LoginAsync(Arg.Any<LoginRequest>(), Arg.Any<CancellationToken>())
-            .Returns(new AuthResponse(Succeeded: true, SignInTicket: "ticket-123"));
+            .Returns(new AuthResponse(Succeeded: true));
 
         BunitNavigationManager navMan = Services.GetRequiredService<BunitNavigationManager>();
         navMan.NavigateTo("/login?ReturnUrl=https%3A%2F%2Fevil.com");

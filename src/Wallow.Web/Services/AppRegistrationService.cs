@@ -1,18 +1,17 @@
 using System.Net.Http.Headers;
-using Microsoft.AspNetCore.Authentication;
 using Wallow.Web.Models;
 
 namespace Wallow.Web.Services;
 
 public sealed class AppRegistrationService(
     IHttpClientFactory httpClientFactory,
-    IHttpContextAccessor httpContextAccessor) : IAppRegistrationService
+    TokenProvider tokenProvider) : IAppRegistrationService
 {
     private const string BasePath = "api/v1/identity/apps";
 
     public async Task<List<AppModel>> GetAppsAsync(CancellationToken ct = default)
     {
-        HttpClient client = await CreateAuthenticatedClientAsync();
+        HttpClient client = CreateAuthenticatedClient();
         HttpResponseMessage response = await client.GetAsync(BasePath, ct);
 
         if (response.IsSuccessStatusCode)
@@ -26,7 +25,7 @@ public sealed class AppRegistrationService(
 
     public async Task<AppModel?> GetAppAsync(string clientId, CancellationToken ct = default)
     {
-        HttpClient client = await CreateAuthenticatedClientAsync();
+        HttpClient client = CreateAuthenticatedClient();
         HttpResponseMessage response = await client.GetAsync($"{BasePath}/{clientId}", ct);
 
         if (response.IsSuccessStatusCode)
@@ -39,7 +38,7 @@ public sealed class AppRegistrationService(
 
     public async Task<RegisterAppResult> RegisterAppAsync(RegisterAppModel model, CancellationToken ct = default)
     {
-        HttpClient client = await CreateAuthenticatedClientAsync();
+        HttpClient client = CreateAuthenticatedClient();
 
         // Map Web model to API contract: DisplayName -> ClientName, Scopes -> RequestedScopes
         object apiRequest = new
@@ -86,7 +85,7 @@ public sealed class AppRegistrationService(
         string? logoContentType,
         CancellationToken ct = default)
     {
-        HttpClient client = await CreateAuthenticatedClientAsync();
+        HttpClient client = CreateAuthenticatedClient();
 
         using MultipartFormDataContent content = new();
         content.Add(new StringContent(displayName), "DisplayName");
@@ -113,14 +112,13 @@ public sealed class AppRegistrationService(
     }
 #pragma warning restore CA2000
 
-    private async Task<HttpClient> CreateAuthenticatedClientAsync()
+    private HttpClient CreateAuthenticatedClient()
     {
         HttpClient client = httpClientFactory.CreateClient("WallowApi");
-        string? token = await httpContextAccessor.HttpContext!.GetTokenAsync("access_token");
 
-        if (!string.IsNullOrEmpty(token))
+        if (!string.IsNullOrEmpty(tokenProvider.AccessToken))
         {
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenProvider.AccessToken);
         }
 
         return client;

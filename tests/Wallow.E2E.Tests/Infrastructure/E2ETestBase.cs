@@ -24,15 +24,9 @@ public abstract class E2ETestBase : IClassFixture<DockerComposeFixture>, IClassF
 
     public virtual async Task InitializeAsync()
     {
-        BrowserNewContextOptions contextOptions = new();
-
         bool recordVideo = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("E2E_VIDEO"));
-        if (recordVideo)
-        {
-            contextOptions.RecordVideoDir = Path.Combine("test-results", "videos");
-        }
 
-        Context = await Playwright.Browser.NewContextAsync(contextOptions);
+        Context = await Playwright.CreateBrowserContextAsync(recordVideo: recordVideo);
 
         bool enableTracing = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("E2E_TRACING"));
         if (enableTracing)
@@ -64,7 +58,7 @@ public abstract class E2ETestBase : IClassFixture<DockerComposeFixture>, IClassF
         _testFailed = true;
     }
 
-    protected static async Task WaitForBlazorReadyAsync(IPage page, int timeoutMs = 15_000)
+    internal static async Task WaitForBlazorReadyAsync(IPage page, int timeoutMs = 15_000)
     {
         // First try the fast path: BlazorReadyIndicator component
         try

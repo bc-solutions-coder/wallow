@@ -13,28 +13,6 @@ public sealed class DashboardFlowTests : AuthenticatedE2ETestBase
     {
     }
 
-    [Fact(Skip = "MFA enrollment flow requires Auth app → API authentication which is not yet implemented. See beads issue for tracking.")]
-    public async Task MfaEnrollmentFlow_ShowsSetupPageAndAcceptsCode()
-    {
-        MfaEnrollPage mfaPage = new(Page, Docker.AuthBaseUrl);
-        await mfaPage.NavigateAsync();
-
-        bool isLoaded = await mfaPage.IsLoadedAsync();
-        Assert.True(isLoaded, "MFA enrollment page should be loaded");
-
-        await mfaPage.ClickBeginSetupAsync();
-
-        bool hasQrCode = await mfaPage.GetQrCodeAsync();
-        Assert.True(hasQrCode, "QR code secret should be displayed after beginning setup");
-
-        // Submit an invalid code to verify the error handling path
-        await mfaPage.FillCodeAsync("000000");
-        await mfaPage.SubmitAsync();
-
-        string? errorMessage = await mfaPage.GetErrorMessageAsync();
-        Assert.NotNull(errorMessage);
-    }
-
     [Fact]
     public async Task AppRegistrationFlow_RegistersNewApplication()
     {
@@ -101,5 +79,30 @@ public sealed class DashboardFlowTests : AuthenticatedE2ETestBase
 
         bool isSuccess = await inquiryPage.IsSubmissionSuccessAsync();
         Assert.True(isSuccess, "Inquiry submission should succeed");
+    }
+
+    [Fact]
+    public async Task MfaEnrollmentFlow_ShowsSetupPageAndAcceptsCode()
+    {
+        SettingsMfaSection settingsMfa = new(Page, Docker.WebBaseUrl);
+        await settingsMfa.NavigateAsync();
+
+        await settingsMfa.ClickEnableAsync();
+
+        MfaEnrollPage enrollPage = new(Page, Docker.AuthBaseUrl);
+        bool isLoaded = await enrollPage.IsLoadedAsync();
+        Assert.True(isLoaded, "MFA enrollment page should be loaded");
+
+        await enrollPage.ClickBeginSetupAsync();
+
+        string secret = await enrollPage.GetSecretTextAsync();
+        Assert.False(string.IsNullOrWhiteSpace(secret), "TOTP secret should be displayed");
+
+        string code = await TotpHelper.GenerateFreshCodeAsync(secret);
+        await enrollPage.FillCodeAsync(code);
+        await enrollPage.SubmitAsync();
+
+        IReadOnlyList<string> backupCodes = await enrollPage.GetBackupCodesAsync();
+        Assert.NotEmpty(backupCodes);
     }
 }

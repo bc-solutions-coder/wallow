@@ -12,6 +12,7 @@
     <PackageReference Include="xunit.runner.visualstudio" />
     <PackageReference Include="FluentAssertions" />
     <PackageReference Include="Microsoft.Playwright" />
+    <PackageReference Include="Otp.NET" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Domain.Identity;
 using Wallow.Identity.Infrastructure.Persistence;
 
 namespace Wallow.Identity.Infrastructure.Services;
@@ -25,7 +26,9 @@ public sealed class MfaExemptionChecker : IMfaExemptionChecker
         }
 
         // Find the user's organization membership
+        // IgnoreQueryFilters: this runs during login when tenant context is not yet set
         OrganizationMember? membership = await _dbContext.OrganizationMembers
+            .IgnoreQueryFilters()
             .FirstOrDefaultAsync(m => m.UserId == user.Id, ct);
 
         if (membership is null)
@@ -34,10 +37,11 @@ public sealed class MfaExemptionChecker : IMfaExemptionChecker
         }
 
         // EF shadow property holds the FK — read it via Entry
-        Guid organizationId = _dbContext.Entry(membership).Property<Guid>("organization_id").CurrentValue;
+        OrganizationId organizationId = _dbContext.Entry(membership).Property<OrganizationId>("organization_id").CurrentValue;
 
         OrganizationSettings? settings = await _dbContext.OrganizationSettings
-            .FirstOrDefaultAsync(s => s.OrganizationId.Value == organizationId, ct);
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(s => s.OrganizationId == organizationId, ct);
 
         if (settings is null)
         {

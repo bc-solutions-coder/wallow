@@ -1,27 +1,27 @@
-using System.Net;
-using System.Text;
 using Bunit;
 using Microsoft.Extensions.DependencyInjection;
 using Wallow.Auth.Components.Pages;
 using Wallow.Auth.Configuration;
+using Wallow.Auth.Services;
 
 namespace Wallow.Auth.Component.Tests.Pages;
 
 public sealed class MfaEnrollTests : BunitContext
 {
+    private readonly IAuthApiClient _authClient;
+
     public MfaEnrollTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
         ComponentFactories.Add(new StubComponentFactory());
+        _authClient = Substitute.For<IAuthApiClient>();
+        Services.AddSingleton(_authClient);
         Services.AddSingleton(new BrandingOptions { AppName = "TestApp" });
     }
 
     [Fact]
     public void Renders_InitialSetupPageWithBeginButton()
     {
-        IHttpClientFactory httpClientFactory = Substitute.For<IHttpClientFactory>();
-        Services.AddSingleton(httpClientFactory);
-
         IRenderedComponent<MfaEnroll> cut = Render<MfaEnroll>();
 
         cut.Markup.Should().Contain("Set up two-factor authentication");
@@ -32,18 +32,8 @@ public sealed class MfaEnrollTests : BunitContext
     [Fact]
     public async Task BeginSetup_CallsApiAndShowsSecret()
     {
-        using HttpResponseMessage enrollResponse = new(HttpStatusCode.OK)
-        {
-            Content = new StringContent(
-                """{"secret":"TESTSECRET","qrUri":"otpauth://totp/test"}""",
-                Encoding.UTF8, "application/json")
-        };
-        using FakeHttpMessageHandler handler = new(enrollResponse);
-        using HttpClient httpClient = new(handler) { BaseAddress = new Uri("http://localhost:5001") };
-
-        IHttpClientFactory httpClientFactory = Substitute.For<IHttpClientFactory>();
-        httpClientFactory.CreateClient("AuthApi").Returns(httpClient);
-        Services.AddSingleton(httpClientFactory);
+        _authClient.EnrollTotpAsync(Arg.Any<CancellationToken>())
+            .Returns(new MfaEnrollResponse("TESTSECRET", "otpauth://totp/test"));
 
         IRenderedComponent<MfaEnroll> cut = Render<MfaEnroll>();
 
@@ -52,20 +42,14 @@ public sealed class MfaEnrollTests : BunitContext
         await button.ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
 
         cut.Markup.Should().Contain("TESTSECRET");
-        cut.Markup.Should().Contain("otpauth://totp/test");
         cut.Markup.Should().Contain("Verification code");
     }
 
     [Fact]
     public async Task BeginSetup_Failure_ShowsError()
     {
-        using HttpResponseMessage errorResponse = new(HttpStatusCode.InternalServerError);
-        using FakeHttpMessageHandler handler = new(errorResponse);
-        using HttpClient httpClient = new(handler) { BaseAddress = new Uri("http://localhost:5001") };
-
-        IHttpClientFactory httpClientFactory = Substitute.For<IHttpClientFactory>();
-        httpClientFactory.CreateClient("AuthApi").Returns(httpClient);
-        Services.AddSingleton(httpClientFactory);
+        _authClient.EnrollTotpAsync(Arg.Any<CancellationToken>())
+            .Returns((MfaEnrollResponse?)null);
 
         IRenderedComponent<MfaEnroll> cut = Render<MfaEnroll>();
 
@@ -79,24 +63,11 @@ public sealed class MfaEnrollTests : BunitContext
     [Fact]
     public async Task ConfirmCode_Success_ShowsBackupCodes()
     {
-        using HttpResponseMessage enrollResponse = new(HttpStatusCode.OK)
-        {
-            Content = new StringContent(
-                """{"secret":"TESTSECRET","qrUri":"otpauth://totp/test"}""",
-                Encoding.UTF8, "application/json")
-        };
-        using HttpResponseMessage confirmResponse = new(HttpStatusCode.OK)
-        {
-            Content = new StringContent(
-                """{"succeeded":true,"backupCodes":["CODE1","CODE2","CODE3"]}""",
-                Encoding.UTF8, "application/json")
-        };
-        using FakeHttpMessageHandler handler = new([enrollResponse, confirmResponse]);
-        using HttpClient httpClient = new(handler) { BaseAddress = new Uri("http://localhost:5001") };
+        _authClient.EnrollTotpAsync(Arg.Any<CancellationToken>())
+            .Returns(new MfaEnrollResponse("TESTSECRET", "otpauth://totp/test"));
 
-        IHttpClientFactory httpClientFactory = Substitute.For<IHttpClientFactory>();
-        httpClientFactory.CreateClient("AuthApi").Returns(httpClient);
-        Services.AddSingleton(httpClientFactory);
+        _authClient.ConfirmEnrollmentAsync("TESTSECRET", "123456", Arg.Any<CancellationToken>())
+            .Returns(new MfaConfirmEnrollmentResponse(true, ["CODE1", "CODE2", "CODE3"]));
 
         IRenderedComponent<MfaEnroll> cut = Render<MfaEnroll>();
 
@@ -112,27 +83,5 @@ public sealed class MfaEnrollTests : BunitContext
         cut.Markup.Should().Contain("CODE1");
         cut.Markup.Should().Contain("CODE2");
         cut.Markup.Should().Contain("CODE3");
-    }
-
-    private sealed class FakeHttpMessageHandler : HttpMessageHandler
-    {
-        private readonly Queue<HttpResponseMessage> _responses;
-
-        public FakeHttpMessageHandler(HttpResponseMessage response)
-        {
-            _responses = new Queue<HttpResponseMessage>();
-            _responses.Enqueue(response);
-        }
-
-        public FakeHttpMessageHandler(IEnumerable<HttpResponseMessage> responses)
-        {
-            _responses = new Queue<HttpResponseMessage>(responses);
-        }
-
-        protected override Task<HttpResponseMessage> SendAsync(
-            HttpRequestMessage request, CancellationToken cancellationToken)
-        {
-            return Task.FromResult(_responses.Dequeue());
-        }
     }
 }

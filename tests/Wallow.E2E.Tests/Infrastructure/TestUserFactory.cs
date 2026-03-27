@@ -1,6 +1,6 @@
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 
 namespace Wallow.E2E.Tests.Infrastructure;
 
@@ -18,6 +18,122 @@ public static class TestUserFactory
         await VerifyEmailAsync(mailpitBaseUrl, email);
 
         return new TestUser(email, TestPassword);
+    }
+
+    public static async Task<MfaTestUser> CreateWithMfaAsync(string apiBaseUrl, string mailpitBaseUrl)
+    {
+        TestUser user = await CreateAsync(apiBaseUrl, mailpitBaseUrl);
+        using HttpClient httpClient = CreateCookieClient();
+
+        bool loggedIn = await LoginAndExchangeTicketAsync(httpClient, apiBaseUrl, user.Email, user.Password);
+        if (!loggedIn)
+        {
+            throw new InvalidOperationException(
+                "CreateWithMfaAsync failed: the shared org requires MFA (login returned partial auth). " +
+                "This usually means a prior test contaminated the org. Reset the database or check test isolation.");
+        }
+
+        // Begin TOTP enrollment
+        HttpResponseMessage enrollResponse = await httpClient.PostAsync(
+            $"{apiBaseUrl}/api/v1/identity/mfa/enroll/totp", null);
+        enrollResponse.EnsureSuccessStatusCode();
+
+        JsonElement enrollResult = await enrollResponse.Content.ReadFromJsonAsync<JsonElement>();
+        string secret = enrollResult.GetProperty("secret").GetString()
+            ?? throw new InvalidOperationException("TOTP enrollment did not return a secret.");
+
+        // Confirm enrollment with a valid TOTP code
+        string code = await TotpHelper.GenerateFreshCodeAsync(secret);
+        HttpResponseMessage confirmResponse = await httpClient.PostAsJsonAsync(
+            $"{apiBaseUrl}/api/v1/identity/mfa/enroll/confirm",
+            new { secret, code });
+        confirmResponse.EnsureSuccessStatusCode();
+
+        JsonElement confirmResult = await confirmResponse.Content.ReadFromJsonAsync<JsonElement>();
+        List<string> backupCodes = confirmResult.GetProperty("backupCodes")
+            .EnumerateArray()
+            .Select(e => e.GetString()!)
+            .ToList();
+
+        return new MfaTestUser(user.Email, user.Password, secret, backupCodes);
+    }
+
+    public static Task<MfaTestUser> CreateInMfaRequiredOrgAsync(string apiBaseUrl, string mailpitBaseUrl)
+        => CreateInMfaRequiredOrgAsync(apiBaseUrl, mailpitBaseUrl, gracePeriodDays: 0);
+
+    public static async Task<MfaTestUser> CreateInMfaRequiredOrgAsync(
+        string apiBaseUrl, string mailpitBaseUrl, int gracePeriodDays)
+    {
+        TestUser user = await CreateAsync(apiBaseUrl, mailpitBaseUrl);
+        using HttpClient httpClient = CreateCookieClient();
+
+        await LoginAndExchangeTicketAsync(httpClient, apiBaseUrl, user.Email, user.Password);
+
+        // Create an isolated org so MFA settings don't pollute the shared "Wallow" org
+        HttpResponseMessage isolateResponse = await httpClient.PostAsJsonAsync(
+            $"{apiBaseUrl}/api/v1/identity/test/isolated-org",
+            new { requireMfa = true, gracePeriodDays });
+        isolateResponse.EnsureSuccessStatusCode();
+
+        // Allow cache/projection propagation before the test navigates to the OIDC flow
+        await Task.Delay(500);
+
+        return new MfaTestUser(user.Email, user.Password, string.Empty, []);
+    }
+
+    private static HttpClient CreateCookieClient()
+    {
+#pragma warning disable CA2000 // Handler is disposed by HttpClient via disposeHandler: true
+        HttpClientHandler handler = new()
+        {
+            CookieContainer = new CookieContainer(),
+            UseCookies = true,
+            CheckCertificateRevocationList = true
+        };
+#pragma warning restore CA2000
+        return new HttpClient(handler, disposeHandler: true) { Timeout = TimeSpan.FromSeconds(30) };
+    }
+
+    /// <summary>
+    /// Logs in and exchanges the sign-in ticket for a full auth cookie.
+    /// Returns true when full auth was obtained, false when MFA enrollment is required
+    /// (no grace period) — in that case only a partial auth cookie is available.
+    /// </summary>
+    private static async Task<bool> LoginAndExchangeTicketAsync(
+        HttpClient httpClient, string apiBaseUrl, string email, string password)
+    {
+        HttpResponseMessage loginResponse = await httpClient.PostAsJsonAsync(
+            $"{apiBaseUrl}/api/v1/identity/auth/login",
+            new { email, password, rememberMe = false });
+        loginResponse.EnsureSuccessStatusCode();
+
+        JsonElement loginResult = await loginResponse.Content.ReadFromJsonAsync<JsonElement>();
+
+        bool succeeded = loginResult.GetProperty("succeeded").GetBoolean();
+        bool mfaRequired = loginResult.TryGetProperty("mfaRequired", out JsonElement mfaProp) && mfaProp.GetBoolean();
+        bool mfaEnrollmentRequired = loginResult.TryGetProperty("mfaEnrollmentRequired", out JsonElement enrollProp) && enrollProp.GetBoolean();
+
+        if (!succeeded && !mfaRequired && !mfaEnrollmentRequired)
+        {
+            throw new InvalidOperationException(
+                $"Login failed for {email}: {loginResult}");
+        }
+
+        // When MFA enrollment is required without a grace period, the login issues a partial
+        // cookie instead of a sign-in ticket. The org already requires MFA — no ticket to exchange.
+        if (mfaEnrollmentRequired && !succeeded)
+        {
+            return false;
+        }
+
+        string signInTicket = loginResult.GetProperty("signInTicket").GetString()
+            ?? throw new InvalidOperationException("Login did not return a signInTicket.");
+
+        // Exchange the ticket for an auth cookie
+        HttpResponseMessage exchangeResponse = await httpClient.GetAsync(
+            $"{apiBaseUrl}/api/v1/identity/auth/exchange-ticket?ticket={Uri.EscapeDataString(signInTicket)}");
+        exchangeResponse.EnsureSuccessStatusCode();
+        return true;
     }
 
     private static async Task RegisterUserAsync(string apiBaseUrl, string email)
@@ -40,52 +156,14 @@ public static class TestUserFactory
 
     private static async Task VerifyEmailAsync(string mailpitBaseUrl, string email)
     {
-        using HttpClient httpClient = new() { Timeout = TimeSpan.FromSeconds(30) };
+        // Try "verify" first, fall back to "confirm"
+        string verificationLink = await MailpitHelper.SearchForLinkAsync(
+            mailpitBaseUrl, email, "verify", MaxMailRetries, (int)_mailPollInterval.TotalSeconds);
 
-        string verificationLink = string.Empty;
-
-        for (int attempt = 0; attempt < MaxMailRetries; attempt++)
+        if (string.IsNullOrEmpty(verificationLink))
         {
-            HttpResponseMessage response = await httpClient.GetAsync(
-                $"{mailpitBaseUrl}/api/v1/search?query=to:{email}");
-
-            if (response.IsSuccessStatusCode)
-            {
-                string json = await response.Content.ReadAsStringAsync();
-                MailpitSearchResult? result = JsonSerializer.Deserialize<MailpitSearchResult>(json);
-
-                if (result?.Messages is { Count: > 0 })
-                {
-                    // Check all messages — registration may send multiple emails
-                    foreach (MailpitMessageSummary msg in result.Messages)
-                    {
-                        HttpResponseMessage msgResponse = await httpClient.GetAsync(
-                            $"{mailpitBaseUrl}/api/v1/message/{msg.Id}");
-
-                        if (msgResponse.IsSuccessStatusCode)
-                        {
-                            MailpitMessage? message = await msgResponse.Content.ReadFromJsonAsync<MailpitMessage>();
-                            string body = message?.Text ?? message?.Html ?? string.Empty;
-
-                            verificationLink = ExtractLinkContaining(body, "verify")
-                                ?? ExtractLinkContaining(body, "confirm")
-                                ?? string.Empty;
-
-                            if (!string.IsNullOrEmpty(verificationLink))
-                            {
-                                break;
-                            }
-                        }
-                    }
-
-                    if (!string.IsNullOrEmpty(verificationLink))
-                    {
-                        break;
-                    }
-                }
-            }
-
-            await Task.Delay(_mailPollInterval);
+            verificationLink = await MailpitHelper.SearchForLinkAsync(
+                mailpitBaseUrl, email, "confirm", maxRetries: 3, pollIntervalSeconds: 1);
         }
 
         if (string.IsNullOrEmpty(verificationLink))
@@ -95,57 +173,8 @@ public static class TestUserFactory
         }
 
         // Visit the verification link to confirm the account
+        using HttpClient httpClient = new() { Timeout = TimeSpan.FromSeconds(30) };
         HttpResponseMessage verifyResponse = await httpClient.GetAsync(verificationLink);
         verifyResponse.EnsureSuccessStatusCode();
-    }
-
-    private static string? ExtractLinkContaining(string body, string keyword)
-    {
-        int searchIndex = 0;
-        while (searchIndex < body.Length)
-        {
-            int httpIndex = body.IndexOf("http", searchIndex, StringComparison.OrdinalIgnoreCase);
-            if (httpIndex < 0)
-            {
-                break;
-            }
-
-            int endIndex = body.IndexOfAny([' ', '"', '\'', '<', '\n', '\r'], httpIndex);
-            if (endIndex < 0)
-            {
-                endIndex = body.Length;
-            }
-
-            string url = body[httpIndex..endIndex];
-            if (url.Contains(keyword, StringComparison.OrdinalIgnoreCase))
-            {
-                return url;
-            }
-
-            searchIndex = endIndex;
-        }
-
-        return null;
-    }
-
-    private sealed class MailpitSearchResult
-    {
-        [JsonPropertyName("messages")]
-        public List<MailpitMessageSummary> Messages { get; set; } = [];
-    }
-
-    private sealed class MailpitMessageSummary
-    {
-        [JsonPropertyName("ID")]
-        public string Id { get; set; } = string.Empty;
-    }
-
-    private sealed class MailpitMessage
-    {
-        [JsonPropertyName("Text")]
-        public string? Text { get; set; }
-
-        [JsonPropertyName("HTML")]
-        public string? Html { get; set; }
     }
 }

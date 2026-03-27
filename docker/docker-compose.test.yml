@@ -145,7 +145,8 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
       ServiceUrls__ApiUrl: "http://wallow-api:8080"
-      ServiceUrls__AuthUrl: "http://wallow-api:8080"
+      ServiceUrls__AuthUrl: "http://wallow-auth:8080"
+      ServiceUrls__AuthPublicUrl: "http://localhost:5051"
       # Authority = browser-facing URL (must match API's OpenIddict issuer for same-site cookies)
       # MetadataAddress = container-reachable URL for OIDC discovery (host.docker.internal)
       Oidc__Authority: "http://localhost:5050"

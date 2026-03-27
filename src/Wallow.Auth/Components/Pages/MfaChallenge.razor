@@ -26,22 +26,20 @@
     <BbCardContent Class="px-0 space-y-4">
         @if (!string.IsNullOrEmpty(_errorMessage))
         {
-            <BbAlert Variant="AlertVariant.Danger">
-                <BbAlertDescription>@_errorMessage</BbAlertDescription>
-            </BbAlert>
+            <div data-testid="mfa-challenge-error">
+                <BbAlert Variant="AlertVariant.Danger">
+                    <BbAlertDescription>@_errorMessage</BbAlertDescription>
+                </BbAlert>
+            </div>
         }
 
         @if (_verified)
         {
-            <BbAlert Variant="AlertVariant.Success">
-                <BbAlertDescription>Verification successful. Redirecting...</BbAlertDescription>
-            </BbAlert>
-        }
-        else if (string.IsNullOrEmpty(ChallengeToken))
-        {
-            <BbAlert Variant="AlertVariant.Danger">
-                <BbAlertDescription>Missing challenge token. Please sign in again.</BbAlertDescription>
-            </BbAlert>
+            <div data-testid="mfa-challenge-success">
+                <BbAlert Variant="AlertVariant.Success">
+                    <BbAlertDescription>Verification successful. Redirecting...</BbAlertDescription>
+                </BbAlert>
+            </div>
         }
         else
         {
@@ -54,6 +52,7 @@
                             <BbInput Id="code"
                                      Type="InputType.Text"
                                      Placeholder="Enter backup code"
+                                     data-testid="mfa-challenge-backup-code"
                                      @bind-Value="_code" />
                         }
                         else
@@ -62,6 +61,7 @@
                             <BbInput Id="code"
                                      Type="InputType.Text"
                                      Placeholder="Enter 6-digit code"
+                                     data-testid="mfa-challenge-code"
                                      @bind-Value="_code" />
                         }
                     </div>
@@ -69,13 +69,15 @@
                     <BbButton Class="w-full"
                               Type="ButtonType.Submit"
                               Loading="_isSubmitting"
-                              Disabled="_isSubmitting">
+                              Disabled="_isSubmitting"
+                              data-testid="mfa-challenge-submit">
                         Verify
                     </BbButton>
 
                     <div class="text-center">
                         <button type="button"
                                 class="text-sm text-muted-foreground hover:text-primary underline-offset-4 hover:underline"
+                                data-testid="mfa-challenge-toggle-backup"
                                 @onclick="ToggleBackupCode">
                             @if (_useBackupCode)
                             {
@@ -99,9 +101,6 @@
 </BbCard>
 
 @code {
-    [SupplyParameterFromQuery]
-    public string? ChallengeToken { get; set; }
-
     [SupplyParameterFromQuery]
     public string? ReturnUrl { get; set; }
 
@@ -133,15 +132,9 @@
                 return;
             }
 
-            if (string.IsNullOrWhiteSpace(ChallengeToken))
-            {
-                _errorMessage = "Missing challenge token. Please sign in again.";
-                return;
-            }
-
             AuthResponse result = _useBackupCode
-                ? await AuthClient.UseBackupCodeAsync(ChallengeToken, _code)
-                : await AuthClient.VerifyMfaChallengeAsync(ChallengeToken, _code);
+                ? await AuthClient.UseBackupCodeAsync(_code)
+                : await AuthClient.VerifyMfaChallengeAsync(_code);
 
             if (result.Succeeded)
             {
@@ -154,11 +147,11 @@
                         $"&returnUrl={Uri.EscapeDataString(ReturnUrl)}";
                     Navigation.NavigateTo(exchangeUrl, forceLoad: true);
                 }
-                else
+                else if (!string.IsNullOrEmpty(ReturnUrl))
                 {
-                    string redirectUrl = BuildApiReturnUrl(ReturnUrl ?? "/");
-                    Navigation.NavigateTo(redirectUrl, forceLoad: true);
+                    Navigation.NavigateTo(BuildApiReturnUrl(ReturnUrl), forceLoad: true);
                 }
+                // No ReturnUrl — direct login, not OIDC. Show success state without redirecting.
             }
             else
             {

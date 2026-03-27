@@ -287,16 +287,65 @@ public sealed partial class OrganizationService(
     public async Task UpdateSettingsAsync(Guid organizationId, bool requireMfa, bool allowPasswordlessLogin, int mfaGracePeriodDays, Guid actorId, CancellationToken ct = default)
     {
         OrganizationId orgId = OrganizationId.Create(organizationId);
+
+        // Use IgnoreQueryFilters to bypass tenant filter — settings may exist from org creation
+        // under a different tenant context, and the unique constraint on organization_id is global.
+        // AsTracking ensures EF Core detects mutations even though the DbContext defaults to NoTracking.
         OrganizationSettings? settings = await dbContext.OrganizationSettings
+            .AsTracking()
+            .IgnoreQueryFilters()
             .FirstOrDefaultAsync(s => s.OrganizationId == orgId, ct);
 
         if (settings is null)
         {
-            throw new InvalidOperationException($"Organization settings for {organizationId} not found");
+            settings = OrganizationSettings.Create(
+                orgId,
+                tenantContext.TenantId,
+                requireMfa,
+                allowPasswordlessLogin,
+                mfaGracePeriodDays,
+                actorId,
+                timeProvider);
+            dbContext.OrganizationSettings.Add(settings);
         }
-
-        settings.Update(requireMfa, allowPasswordlessLogin, mfaGracePeriodDays, actorId, timeProvider);
+        else
+        {
+            settings.Update(requireMfa, allowPasswordlessLogin, mfaGracePeriodDays, actorId, timeProvider);
+        }
         await dbContext.SaveChangesAsync(ct);
+
+        // When enabling MFA with a grace period, set MfaGraceDeadline on unenrolled members
+        // so the login flow can detect they're within the grace window
+        if (requireMfa && mfaGracePeriodDays > 0)
+        {
+            DateTimeOffset graceDeadline = timeProvider.GetUtcNow().AddDays(mfaGracePeriodDays);
+
+            Organization? org = await dbContext.Organizations
+                .IgnoreQueryFilters()
+                .Include(o => o.Members)
+                .FirstOrDefaultAsync(o => o.Id == orgId, ct);
+
+            if (org is not null)
+            {
+                List<Guid> memberUserIds = org.Members.Select(m => m.UserId).ToList();
+
+                List<WallowUser> unenrolledMembers = await dbContext.Users
+                    .AsTracking()
+                    .IgnoreQueryFilters()
+                    .Where(u => memberUserIds.Contains(u.Id) && !u.MfaEnabled)
+                    .ToListAsync(ct);
+
+                foreach (WallowUser member in unenrolledMembers)
+                {
+                    member.SetMfaGraceDeadline(graceDeadline);
+                }
+
+                if (unenrolledMembers.Count > 0)
+                {
+                    await dbContext.SaveChangesAsync(ct);
+                }
+            }
+        }
 
         await messageBus.PublishAsync(new OrganizationSettingsUpdatedEvent
         {
@@ -330,7 +379,9 @@ public sealed partial class OrganizationService(
     public async Task<OrganizationBrandingDto> UpdateBrandingAsync(Guid organizationId, string? displayName, string? logoUrl, string? primaryColor, Guid actorId, CancellationToken ct = default)
     {
         OrganizationId orgId = OrganizationId.Create(organizationId);
+        // AsTracking ensures EF Core detects mutations even though the DbContext defaults to NoTracking.
         OrganizationBranding? branding = await dbContext.OrganizationBrandings
+            .AsTracking()
             .FirstOrDefaultAsync(b => b.OrganizationId == orgId, ct);
 
         if (branding is null)

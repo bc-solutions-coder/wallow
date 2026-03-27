@@ -49,10 +49,22 @@ builder.Services.AddBlazorBlueprintComponents();
 string apiBaseUrl = builder.Configuration["ApiBaseUrl"]
     ?? throw new InvalidOperationException("ApiBaseUrl must be configured");
 
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddSingleton<Wallow.Auth.Services.CookieRelayStore>();
+builder.Services.AddScoped<Wallow.Auth.Services.ApiCookieJar>();
+builder.Services.AddTransient<Wallow.Auth.Services.CookieForwardingHandler>();
+
 builder.Services.AddHttpClient("AuthApi", client =>
 {
     client.BaseAddress = new Uri(apiBaseUrl);
 })
+.ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+{
+    // Disable built-in cookie handling — CookieForwardingHandler manages cookies manually
+    // to relay partial auth cookies (MFA flow) between API calls within the same Blazor circuit
+    UseCookies = false
+})
+.AddHttpMessageHandler<Wallow.Auth.Services.CookieForwardingHandler>()
 .AddStandardResilienceHandler(options =>
 {
     options.Retry.MaxRetryAttempts = 5;
@@ -87,6 +99,7 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
+app.UseMiddleware<Wallow.Auth.Services.CookieRelayMiddleware>();
 app.UseAntiforgery();
 
 app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions

@@ -79,6 +79,8 @@ public static class RolePermissionMapping
         ["user"] =
         [
             PermissionType.OrganizationsRead,
+            PermissionType.OrganizationsCreate,
+            PermissionType.OrganizationsUpdate,
             PermissionType.MessagingAccess,
             PermissionType.NotificationRead,
             PermissionType.EmailPreferenceManage,

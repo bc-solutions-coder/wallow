@@ -86,7 +86,7 @@ public sealed class AuthFlowTests : E2ETestBase
         await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
 
         // Verify the reset email was sent via Mailpit
-        string resetLink = await GetPasswordResetLinkFromMailpitAsync(user.Email);
+        string resetLink = await MailpitHelper.SearchForLinkAsync(Docker.MailpitBaseUrl, user.Email, "reset");
         Assert.False(string.IsNullOrEmpty(resetLink), "Password reset link should be present in email");
 
         // Visit the reset link and set a new password
@@ -94,19 +94,19 @@ public sealed class AuthFlowTests : E2ETestBase
         await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
 
         string newPassword = "NewP@ssw0rd!Strong34";
-        ILocator passwordField = Page.Locator("[data-testid='reset-password']");
+        ILocator passwordField = Page.GetByTestId("reset-password-new-password");
         if (await passwordField.IsVisibleAsync())
         {
             await passwordField.FillAsync(newPassword);
         }
 
-        ILocator confirmField = Page.Locator("[data-testid='reset-confirm-password']");
+        ILocator confirmField = Page.GetByTestId("reset-password-confirm");
         if (await confirmField.IsVisibleAsync())
         {
             await confirmField.FillAsync(newPassword);
         }
 
-        ILocator submitButton = Page.Locator("[data-testid='reset-password-submit']");
+        ILocator submitButton = Page.GetByTestId("reset-password-submit");
         if (await submitButton.IsVisibleAsync())
         {
             await submitButton.ClickAsync();
@@ -136,84 +136,4 @@ public sealed class AuthFlowTests : E2ETestBase
         Assert.Contains("login", currentUrl, StringComparison.OrdinalIgnoreCase);
     }
 
-    private async Task<string> GetPasswordResetLinkFromMailpitAsync(string recipientEmail)
-    {
-        using HttpClient httpClient = new();
-        httpClient.Timeout = TimeSpan.FromSeconds(30);
-
-        for (int attempt = 0; attempt < 10; attempt++)
-        {
-            HttpResponseMessage response = await httpClient.GetAsync(
-                $"{Docker.MailpitBaseUrl}/api/v1/search?query=to:{recipientEmail}");
-
-            if (response.IsSuccessStatusCode)
-            {
-                string json = await response.Content.ReadAsStringAsync();
-                System.Text.Json.JsonDocument doc = System.Text.Json.JsonDocument.Parse(json);
-
-                if (doc.RootElement.TryGetProperty("messages", out System.Text.Json.JsonElement messages)
-                    && messages.GetArrayLength() > 0)
-                {
-                    // Look for the reset email (second email after verification)
-                    foreach (System.Text.Json.JsonElement msg in messages.EnumerateArray())
-                    {
-                        string messageId = msg.GetProperty("ID").GetString() ?? string.Empty;
-                        HttpResponseMessage msgResponse = await httpClient.GetAsync(
-                            $"{Docker.MailpitBaseUrl}/api/v1/message/{messageId}");
-
-                        if (msgResponse.IsSuccessStatusCode)
-                        {
-                            System.Text.Json.JsonDocument msgDoc = System.Text.Json.JsonDocument.Parse(
-                                await msgResponse.Content.ReadAsStringAsync());
-
-                            string body = msgDoc.RootElement.TryGetProperty("Text", out System.Text.Json.JsonElement text)
-                                ? text.GetString() ?? string.Empty
-                                : string.Empty;
-
-                            string? link = ExtractLinkContaining(body, "reset-password")
-                                ?? ExtractLinkContaining(body, "reset");
-
-                            if (link is not null)
-                            {
-                                return link;
-                            }
-                        }
-                    }
-                }
-            }
-
-            await Task.Delay(TimeSpan.FromSeconds(2));
-        }
-
-        return string.Empty;
-    }
-
-    private static string? ExtractLinkContaining(string body, string keyword)
-    {
-        int searchIndex = 0;
-        while (searchIndex < body.Length)
-        {
-            int httpIndex = body.IndexOf("http", searchIndex, StringComparison.OrdinalIgnoreCase);
-            if (httpIndex < 0)
-            {
-                break;
-            }
-
-            int endIndex = body.IndexOfAny([' ', '"', '\'', '<', '\n', '\r'], httpIndex);
-            if (endIndex < 0)
-            {
-                endIndex = body.Length;
-            }
-
-            string url = body[httpIndex..endIndex];
-            if (url.Contains(keyword, StringComparison.OrdinalIgnoreCase))
-            {
-                return url;
-            }
-
-            searchIndex = endIndex;
-        }
-
-        return null;
-    }
 }

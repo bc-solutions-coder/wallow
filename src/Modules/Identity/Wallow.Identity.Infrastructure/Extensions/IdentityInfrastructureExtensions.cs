@@ -47,7 +47,8 @@ public static class IdentityInfrastructureExtensions
             .AddRoles<WallowRole>()
             .AddSignInManager()
             .AddEntityFrameworkStores<IdentityDbContext>()
-            .AddDefaultTokenProviders();
+            .AddDefaultTokenProviders()
+            .AddClaimsPrincipalFactory<WallowUserClaimsPrincipalFactory>();
 
         services.AddOpenIddict()
             .AddCore(options =>
@@ -309,6 +310,12 @@ public static class IdentityInfrastructureExtensions
         services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
         services.AddSingleton<IAuthorizationPolicyProvider, PermissionAuthorizationPolicyProvider>();
         services.AddSingleton<IRolePermissionLookup, RolePermissionLookup>();
+        services.AddScoped<IAuthorizationHandler, MfaPartialAuthorizationHandler>();
+        services.AddAuthorization(options =>
+        {
+            options.AddPolicy("MfaPartial", policy =>
+                policy.AddRequirements(new MfaPartialRequirement()));
+        });
     }
 
     private static void AddMultiTenancy(this IServiceCollection services)
@@ -339,6 +346,7 @@ public static class IdentityInfrastructureExtensions
         services.AddScoped<ScimGroupService>();
         services.AddScoped<IScimService, ScimService>();
         services.AddScoped<IOrganizationService, OrganizationService>();
+        services.AddScoped<ITestSupportService, TestSupportService>();
         services.AddScoped<IDeveloperAppService, OpenIddictDeveloperAppService>();
         services.AddScoped<IClientTenantResolver, ClientTenantResolver>();
         services.AddScoped<IRedirectUriValidator, OpenIddictRedirectUriValidator>();
@@ -353,9 +361,10 @@ public static class IdentityInfrastructureExtensions
         services.TryAddScoped<IClaimsEnricher, NoOpClaimsEnricher>();
         services.TryAddScoped<IRegistrationValidator, NoOpRegistrationValidator>();
         services.TryAddScoped<IExternalClaimsMapper, NoOpExternalClaimsMapper>();
-        services.TryAddScoped<IMfaChallengeHandler, NoOpMfaChallengeHandler>();
         services.AddScoped<IMfaExemptionChecker, MfaExemptionChecker>();
         services.TryAddScoped<IMfaService, MfaService>();
+        services.AddScoped<IMfaPartialAuthService, MfaPartialAuthService>();
+        services.AddScoped<IOrganizationMfaPolicyService, OrganizationMfaPolicyService>();
         services.AddScoped<IPasswordlessService, PasswordlessService>();
 
         services.AddSingleton<ServiceAccountUsageBuffer>();
