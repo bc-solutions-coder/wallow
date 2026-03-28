@@ -14,7 +14,7 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio" />
-    <PackageReference Include="FluentAssertions" />
+    <PackageReference Include="AwesomeAssertions" />
     <PackageReference Include="NSubstitute" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
@@ -22,7 +22,7 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
-    <Using Include="FluentAssertions" />
+    <Using Include="AwesomeAssertions" />
     <Using Include="NSubstitute" />
   </ItemGroup>
 

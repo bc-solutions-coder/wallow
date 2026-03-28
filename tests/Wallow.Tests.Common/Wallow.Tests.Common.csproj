@@ -10,7 +10,7 @@
 
   <ItemGroup>
     <PackageReference Include="Bogus" />
-    <PackageReference Include="FluentAssertions" />
+    <PackageReference Include="AwesomeAssertions" />
     <PackageReference Include="NSubstitute" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
