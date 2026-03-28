@@ -155,8 +155,8 @@ public sealed class StorageExtensionsTests
             d => d.ServiceType == typeof(IFileScanner));
 
         scannerDescriptor.Should().NotBeNull();
-        scannerDescriptor!.ImplementationType.Should().Be<ClamAvFileScanner>();
-        scannerDescriptor.Lifetime.Should().Be(ServiceLifetime.Scoped);
+        scannerDescriptor!.ImplementationType.Should().Be<NoOpFileScanner>();
+        scannerDescriptor.Lifetime.Should().Be(ServiceLifetime.Singleton);
     }
 
     [Fact]
@@ -169,19 +169,13 @@ public sealed class StorageExtensionsTests
 
         ServiceCollection services = CreateBaseServices(configuration);
         services.AddStorageInfrastructure(configuration);
+        ServiceProvider provider = services.BuildServiceProvider();
 
-        ServiceDescriptor? healthCheckDescriptor = services.FirstOrDefault(
-            d => d.ServiceType == typeof(IHealthCheck));
+        HealthCheckServiceOptions healthOptions = provider.GetRequiredService<IOptions<HealthCheckServiceOptions>>().Value;
+        HealthCheckRegistration? clamRegistration = healthOptions.Registrations
+            .FirstOrDefault(r => r.Name == "clamav");
 
-        // Health checks are registered through IHealthChecksBuilder, verify via the registration
-        bool hasHealthChecks = services.Any(
-            d => d.ServiceType == typeof(HealthCheckRegistration));
-
-        // The AddHealthChecks extension registers HealthCheckService
-        bool hasHealthCheckService = services.Any(
-            d => d.ServiceType == typeof(HealthCheckService));
-
-        hasHealthCheckService.Should().BeTrue();
+        clamRegistration.Should().BeNull();
     }
 
     [Fact]
@@ -279,8 +273,9 @@ public sealed class StorageExtensionsTests
         IConfiguration configuration = BuildConfiguration(new Dictionary<string, string?>
         {
             ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Database=test",
-            ["Storage:ClamAvHost"] = "clamav.internal",
-            ["Storage:ClamAvPort"] = "3311"
+            ["Storage:ClamAv:Enabled"] = "true",
+            ["Storage:ClamAv:Host"] = "clamav.internal",
+            ["Storage:ClamAv:Port"] = "3311"
         });
 
         ServiceCollection services = CreateBaseServices(configuration);
@@ -502,8 +497,9 @@ public sealed class StorageExtensionsTests
         {
             ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Database=test",
             ["Storage:Provider"] = "Local",
-            ["Storage:ClamAvHost"] = "clam.internal",
-            ["Storage:ClamAvPort"] = "9999"
+            ["Storage:ClamAv:Enabled"] = "true",
+            ["Storage:ClamAv:Host"] = "clam.internal",
+            ["Storage:ClamAv:Port"] = "9999"
         });
 
         ServiceCollection services = CreateBaseServices(configuration);
@@ -513,8 +509,9 @@ public sealed class StorageExtensionsTests
         StorageOptions options = provider.GetRequiredService<IOptions<StorageOptions>>().Value;
 
         options.Provider.Should().Be(Storage.Domain.Enums.StorageProvider.Local);
-        options.ClamAvHost.Should().Be("clam.internal");
-        options.ClamAvPort.Should().Be(9999);
+        options.ClamAv.Enabled.Should().BeTrue();
+        options.ClamAv.Host.Should().Be("clam.internal");
+        options.ClamAv.Port.Should().Be(9999);
     }
 
     [Fact]
@@ -522,7 +519,8 @@ public sealed class StorageExtensionsTests
     {
         IConfiguration configuration = BuildConfiguration(new Dictionary<string, string?>
         {
-            ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Database=test"
+            ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Database=test",
+            ["Storage:ClamAv:Enabled"] = "true"
         });
 
         ServiceCollection services = CreateBaseServices(configuration);
@@ -552,8 +550,9 @@ public sealed class StorageExtensionsTests
         StorageOptions options = provider.GetRequiredService<IOptions<StorageOptions>>().Value;
 
         options.Provider.Should().Be(Storage.Domain.Enums.StorageProvider.Local);
-        options.ClamAvHost.Should().Be("localhost");
-        options.ClamAvPort.Should().Be(3310);
+        options.ClamAv.Enabled.Should().BeFalse();
+        options.ClamAv.Host.Should().Be("localhost");
+        options.ClamAv.Port.Should().Be(3310);
     }
 
     [Fact]
@@ -599,7 +598,8 @@ public sealed class StorageExtensionsTests
     {
         IConfiguration configuration = BuildConfiguration(new Dictionary<string, string?>
         {
-            ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Database=test"
+            ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Database=test",
+            ["Storage:ClamAv:Enabled"] = "true"
         });
 
         ServiceCollection services = CreateBaseServices(configuration);
@@ -650,6 +650,106 @@ public sealed class StorageExtensionsTests
         WebApplication result = await app.InitializeStorageModuleAsync();
 
         result.Should().BeSameAs(app);
+    }
+
+    [Fact]
+    public void AddStorageInfrastructure_WhenClamAvEnabled_RegistersClamAvFileScanner()
+    {
+        IConfiguration configuration = BuildConfiguration(new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Database=test",
+            ["Storage:ClamAv:Enabled"] = "true"
+        });
+
+        ServiceCollection services = CreateBaseServices(configuration);
+        services.AddStorageInfrastructure(configuration);
+
+        ServiceDescriptor? scannerDescriptor = services.FirstOrDefault(
+            d => d.ServiceType == typeof(IFileScanner));
+
+        scannerDescriptor.Should().NotBeNull();
+        scannerDescriptor!.ImplementationType.Should().Be<ClamAvFileScanner>();
+        scannerDescriptor.Lifetime.Should().Be(ServiceLifetime.Scoped);
+    }
+
+    [Fact]
+    public void AddStorageInfrastructure_WhenClamAvDisabled_RegistersNoOpFileScanner()
+    {
+        IConfiguration configuration = BuildConfiguration(new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Database=test",
+            ["Storage:ClamAv:Enabled"] = "false"
+        });
+
+        ServiceCollection services = CreateBaseServices(configuration);
+        services.AddStorageInfrastructure(configuration);
+
+        ServiceDescriptor? scannerDescriptor = services.FirstOrDefault(
+            d => d.ServiceType == typeof(IFileScanner));
+
+        scannerDescriptor.Should().NotBeNull();
+        scannerDescriptor!.ImplementationType.Should().Be<NoOpFileScanner>();
+        scannerDescriptor.Lifetime.Should().Be(ServiceLifetime.Singleton);
+    }
+
+    [Fact]
+    public void AddStorageInfrastructure_WhenClamAvDisabled_DoesNotRegisterHealthCheck()
+    {
+        IConfiguration configuration = BuildConfiguration(new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Database=test",
+            ["Storage:ClamAv:Enabled"] = "false"
+        });
+
+        ServiceCollection services = CreateBaseServices(configuration);
+        services.AddStorageInfrastructure(configuration);
+        ServiceProvider provider = services.BuildServiceProvider();
+
+        HealthCheckServiceOptions healthOptions = provider.GetRequiredService<IOptions<HealthCheckServiceOptions>>().Value;
+        HealthCheckRegistration? clamRegistration = healthOptions.Registrations
+            .FirstOrDefault(r => r.Name == "clamav");
+
+        clamRegistration.Should().BeNull();
+    }
+
+    [Fact]
+    public void AddStorageInfrastructure_WhenClamAvEnabled_RegistersHealthCheck()
+    {
+        IConfiguration configuration = BuildConfiguration(new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Database=test",
+            ["Storage:ClamAv:Enabled"] = "true"
+        });
+
+        ServiceCollection services = CreateBaseServices(configuration);
+        services.AddStorageInfrastructure(configuration);
+        ServiceProvider provider = services.BuildServiceProvider();
+
+        HealthCheckServiceOptions healthOptions = provider.GetRequiredService<IOptions<HealthCheckServiceOptions>>().Value;
+        HealthCheckRegistration? clamRegistration = healthOptions.Registrations
+            .FirstOrDefault(r => r.Name == "clamav");
+
+        clamRegistration.Should().NotBeNull();
+        clamRegistration!.Tags.Should().Contain("clamav");
+    }
+
+    [Fact]
+    public void AddStorageInfrastructure_DefaultConfig_DisablesClamAv()
+    {
+        IConfiguration configuration = BuildConfiguration(new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Database=test"
+        });
+
+        ServiceCollection services = CreateBaseServices(configuration);
+        services.AddStorageInfrastructure(configuration);
+        ServiceProvider provider = services.BuildServiceProvider();
+
+        StorageOptions options = provider.GetRequiredService<IOptions<StorageOptions>>().Value;
+
+        options.ClamAv.Enabled.Should().BeFalse();
+        options.ClamAv.Host.Should().Be("localhost");
+        options.ClamAv.Port.Should().Be(3310);
     }
 
     private sealed class FakeClamAvServer : IDisposable

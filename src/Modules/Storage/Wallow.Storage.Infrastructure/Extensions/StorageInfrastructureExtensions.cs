@@ -34,8 +34,7 @@ public static class StorageInfrastructureExtensions
         services.AddReadDbContext<StorageDbContext>(configuration);
         services.AddSettings<StorageDbContext, StorageSettingKeys>("storage");
         services.AddStorageProvider(configuration);
-        services.AddScoped<IFileScanner, ClamAvFileScanner>();
-        services.AddClamAvHealthCheck(configuration);
+        services.AddFileScanning(configuration);
 
         return services;
     }
@@ -114,18 +113,26 @@ public static class StorageInfrastructureExtensions
         }
     }
 
-    private static void AddClamAvHealthCheck(
+    private static void AddFileScanning(
         this IServiceCollection services,
         IConfiguration configuration)
     {
         StorageOptions storageOptions = configuration.GetSection(StorageOptions.SectionName).Get<StorageOptions>()
                                         ?? new StorageOptions();
 
-        services.AddHealthChecks()
-            .AddCheck(
-                "clamav",
-                new ClamAvHealthCheck(storageOptions.ClamAvHost, storageOptions.ClamAvPort),
-                tags: ["clamav"]);
+        if (storageOptions.ClamAv.Enabled)
+        {
+            services.AddScoped<IFileScanner, ClamAvFileScanner>();
+            services.AddHealthChecks()
+                .AddCheck(
+                    "clamav",
+                    new ClamAvHealthCheck(storageOptions.ClamAv.Host, storageOptions.ClamAv.Port),
+                    tags: ["clamav"]);
+        }
+        else
+        {
+            services.AddSingleton<IFileScanner, NoOpFileScanner>();
+        }
     }
 }
 
