@@ -14,10 +14,16 @@
 
 ### 1. Start Infrastructure
 
-Wallow depends on PostgreSQL, Valkey (Redis-compatible cache), GarageHQ (S3-compatible object storage), Mailpit, and ClamAV. Docker Compose provisions all of them:
+Wallow depends on PostgreSQL, Valkey (Redis-compatible cache), GarageHQ (S3-compatible object storage), and Mailpit. Docker Compose provisions all of them:
 
 ```bash
 cd docker && docker compose up -d
+```
+
+To also start ClamAV for virus scanning on file uploads (optional):
+
+```bash
+cd docker && docker compose --profile clamav up -d
 ```
 
 Authentication is handled by the embedded OpenIddict server (part of the Identity module), so no external identity provider container is needed.
@@ -62,6 +68,7 @@ Integration tests require Docker. Testcontainers spins up ephemeral Postgres and
 | Mailpit | http://localhost:8025 | - |
 | PostgreSQL | localhost:5432 | See `docker/.env` |
 | AsyncAPI Viewer | http://localhost:5000/asyncapi | Dev only |
+| ClamAV (optional) | localhost:3310 | - |
 | Grafana | http://localhost:3001 | admin / admin |
 
 ### Getting a Test Token

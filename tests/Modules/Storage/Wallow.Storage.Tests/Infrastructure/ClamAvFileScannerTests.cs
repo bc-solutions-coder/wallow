@@ -460,8 +460,7 @@ public sealed class ClamAvFileScannerTests
     {
         IOptions<StorageOptions> options = Options.Create(new StorageOptions
         {
-            ClamAvHost = "127.0.0.1",
-            ClamAvPort = port
+            ClamAv = new ClamAvOptions { Host = "127.0.0.1", Port = port }
         });
         return new ClamAvFileScanner(options, NullLogger<ClamAvFileScanner>.Instance);
     }
@@ -470,8 +469,7 @@ public sealed class ClamAvFileScannerTests
     {
         IOptions<StorageOptions> options = Options.Create(new StorageOptions
         {
-            ClamAvHost = "127.0.0.1",
-            ClamAvPort = port
+            ClamAv = new ClamAvOptions { Host = "127.0.0.1", Port = port }
         });
         ILoggerFactory factory = LoggerFactory.Create(builder =>
             builder.SetMinimumLevel(LogLevel.Trace).AddSimpleConsole());
