@@ -198,6 +198,11 @@ Wallow uses GarageHQ as the default S3-compatible object storage. The `S3Storage
       "BucketName": "wallow-files",
       "UsePathStyle": true,
       "Region": "us-east-1"
+    },
+    "ClamAv": {
+      "Enabled": true,
+      "Host": "clamav",
+      "Port": 3310
     }
   }
 }
@@ -214,8 +219,45 @@ Wallow uses GarageHQ as the default S3-compatible object storage. The `S3Storage
 | `S3.BucketName` | `wallow-files` | S3 bucket name |
 | `S3.UsePathStyle` | `true` | Use path-style URLs (required for GarageHQ and MinIO) |
 | `S3.Region` | `us-east-1` | S3 region |
+| `ClamAv.Enabled` | `false` | Enable ClamAV virus scanning on file uploads |
+| `ClamAv.Host` | `localhost` | ClamAV daemon hostname |
+| `ClamAv.Port` | `3310` | ClamAV daemon port |
 
 **Local development**: GarageHQ runs on `http://localhost:3900` via Docker Compose. The init script auto-creates the access key and bucket. Admin API at `http://localhost:3903`.
+
+#### ClamAV Virus Scanning (Optional)
+
+ClamAV virus scanning is **disabled by default**. When disabled, file uploads skip scanning entirely (a no-op scanner returns clean for all files). To enable scanning:
+
+1. Start the ClamAV container using the Docker Compose profile:
+
+   ```bash
+   cd docker && docker compose --profile clamav up -d
+   ```
+
+2. Enable scanning in your configuration:
+
+   ```json
+   {
+     "Storage": {
+       "ClamAv": {
+         "Enabled": true,
+         "Host": "localhost",
+         "Port": 3310
+       }
+     }
+   }
+   ```
+
+   Or via environment variables:
+
+   ```bash
+   Storage__ClamAv__Enabled=true
+   Storage__ClamAv__Host=localhost
+   Storage__ClamAv__Port=3310
+   ```
+
+When enabled, all file uploads are scanned synchronously before storage. Infected files are rejected with a validation error. A ClamAV health check is also registered at `/health` (tagged `clamav`).
 
 ---
 
@@ -517,7 +559,7 @@ This starts the following services:
 | Valkey | 6379 | Cache and SignalR backplane | See `docker/.env` |
 | GarageHQ | 3900, 3903 | S3-compatible object storage (S3 API: 3900, Admin: 3903) | See `docker/.env` |
 | Mailpit | 1025, 8025 | Email testing (SMTP: 1025, UI: 8025) | N/A |
-| ClamAV | 3310 | Antivirus file scanning | N/A |
+| ClamAV (optional) | 3310 | Antivirus file scanning (`--profile clamav`) | N/A |
 | Grafana LGTM | 3000, 4317, 4318 | Observability (Grafana: 3000, OTLP gRPC: 4317, OTLP HTTP: 4318) | `admin` / `admin` |
 
 Docker environment variables are configured in `docker/.env` (copy from `docker/.env.example` and set your own values):
@@ -571,6 +613,14 @@ public sealed class StorageOptions
     public StorageProvider Provider { get; set; } = StorageProvider.Local;
     public LocalStorageOptions Local { get; set; } = new();
     public S3StorageOptions S3 { get; set; } = new();
+    public ClamAvOptions ClamAv { get; set; } = new();
+}
+
+public sealed class ClamAvOptions
+{
+    public bool Enabled { get; set; }        // false by default
+    public string Host { get; set; } = "localhost";
+    public int Port { get; set; } = 3310;
 }
 
 public sealed class LocalStorageOptions

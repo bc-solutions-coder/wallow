@@ -161,6 +161,7 @@ services:
     networks:
       - wallow
     restart: unless-stopped
+    profiles: ["clamav"]
 
   # ============================================
   # DOCS SITE (static DocFX site via nginx)

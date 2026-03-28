@@ -5,8 +5,11 @@ Wallow is a .NET 10 modular monolith with multi-tenancy, Clean Architecture, DDD
 ## Commands
 
 ```bash
-# Start infrastructure (Postgres, Valkey, GarageHQ, Mailpit, ClamAV, Grafana)
+# Start infrastructure (Postgres, Valkey, GarageHQ, Mailpit, Grafana)
 cd docker && docker compose up -d
+
+# Start infrastructure with ClamAV virus scanning
+cd docker && docker compose --profile clamav up -d
 
 # Run the API
 dotnet run --project src/Wallow.Api

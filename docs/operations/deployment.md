@@ -334,6 +334,14 @@ Storage__Local__BaseUrl=https://api.yourdomain.com
 # Storage__S3__UsePathStyle=false
 
 # =============================================================================
+# CLAMAV VIRUS SCANNING (disabled by default)
+# =============================================================================
+# Enable to scan uploaded files for malware. Requires a running ClamAV daemon.
+# Storage__ClamAv__Enabled=true
+# Storage__ClamAv__Host=clamav
+# Storage__ClamAv__Port=3310
+
+# =============================================================================
 # EXTERNAL AUTH PROVIDERS (optional — uncomment to enable SSO)
 # =============================================================================
 # Authentication__Google__ClientId=
