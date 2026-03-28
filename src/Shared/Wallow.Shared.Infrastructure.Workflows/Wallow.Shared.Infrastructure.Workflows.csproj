@@ -19,7 +19,7 @@
     <PackageReference Include="Elsa.Workflows.Management" />
     <PackageReference Include="Elsa.Workflows.Runtime" />
     <PackageReference Include="Elsa.Workflows.Api" />
-    <PackageReference Include="Elsa.EntityFrameworkCore.PostgreSql" />
+    <PackageReference Include="Elsa.Persistence.EFCore.PostgreSql" />
     <PackageReference Include="Elsa.Identity" />
     <PackageReference Include="Elsa.Scheduling" />
     <PackageReference Include="Elsa.Email" />
