@@ -56,8 +56,8 @@ public sealed class ResetPasswordTests : BunitContext
         NavigateWithParams();
         IRenderedComponent<ResetPassword> cut = Render<ResetPassword>();
 
-        cut.Find("#new-password").Change("Password1!");
-        cut.Find("#confirm-password").Change("DifferentPassword!");
+        await cut.Find("#new-password").ChangeAsync(new Microsoft.AspNetCore.Components.ChangeEventArgs { Value = "Password1!" });
+        await cut.Find("#confirm-password").ChangeAsync(new Microsoft.AspNetCore.Components.ChangeEventArgs { Value = "DifferentPassword!" });
 
         AngleSharp.Dom.IElement button = cut.FindAll("button")
             .First(b => b.TextContent.Contains("Reset password"));
@@ -75,8 +75,8 @@ public sealed class ResetPasswordTests : BunitContext
         NavigateWithParams();
         IRenderedComponent<ResetPassword> cut = Render<ResetPassword>();
 
-        cut.Find("#new-password").Change("NewPassword1!");
-        cut.Find("#confirm-password").Change("NewPassword1!");
+        await cut.Find("#new-password").ChangeAsync(new Microsoft.AspNetCore.Components.ChangeEventArgs { Value = "NewPassword1!" });
+        await cut.Find("#confirm-password").ChangeAsync(new Microsoft.AspNetCore.Components.ChangeEventArgs { Value = "NewPassword1!" });
 
         AngleSharp.Dom.IElement button = cut.FindAll("button")
             .First(b => b.TextContent.Contains("Reset password"));
@@ -95,8 +95,8 @@ public sealed class ResetPasswordTests : BunitContext
         NavigateWithParams();
         IRenderedComponent<ResetPassword> cut = Render<ResetPassword>();
 
-        cut.Find("#new-password").Change("NewPassword1!");
-        cut.Find("#confirm-password").Change("NewPassword1!");
+        await cut.Find("#new-password").ChangeAsync(new Microsoft.AspNetCore.Components.ChangeEventArgs { Value = "NewPassword1!" });
+        await cut.Find("#confirm-password").ChangeAsync(new Microsoft.AspNetCore.Components.ChangeEventArgs { Value = "NewPassword1!" });
 
         AngleSharp.Dom.IElement button = cut.FindAll("button")
             .First(b => b.TextContent.Contains("Reset password"));

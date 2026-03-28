@@ -92,19 +92,19 @@ public sealed class AcceptTermsTests : BunitContext
     }
 
     [Fact]
-    public void AcceptButton_NavigatesWhenBothCheckboxesChecked()
+    public async Task AcceptButton_NavigatesWhenBothCheckboxesChecked()
     {
         NavigateWithParams(returnUrl: "/dashboard");
 
         IRenderedComponent<AcceptTerms> cut = Render<AcceptTerms>();
 
-        IRefreshableElementCollection<AngleSharp.Dom.IElement> checkboxes = cut.FindAll("input[type='checkbox']");
-        checkboxes[0].Change(true);
-        checkboxes[1].Change(true);
+        IReadOnlyList<AngleSharp.Dom.IElement> checkboxes = cut.FindAll("input[type='checkbox']");
+        await checkboxes[0].ChangeAsync(new Microsoft.AspNetCore.Components.ChangeEventArgs { Value = true });
+        await checkboxes[1].ChangeAsync(new Microsoft.AspNetCore.Components.ChangeEventArgs { Value = true });
 
         AngleSharp.Dom.IElement button = cut.FindAll("button")
             .First(b => b.TextContent.Contains("Create Account"));
-        button.Click();
+        await button.ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
 
         BunitNavigationManager navMan = Services.GetRequiredService<BunitNavigationManager>();
         navMan.Uri.Should().Contain("complete-external-registration");

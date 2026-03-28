@@ -58,13 +58,13 @@ public sealed class MfaChallengeTests : BunitContext
     }
 
     [Fact]
-    public void ToggleToBackupCodeMode_ChangesDescription()
+    public async Task ToggleToBackupCodeMode_ChangesDescription()
     {
         IRenderedComponent<MfaChallenge> cut = Render<MfaChallenge>();
 
         AngleSharp.Dom.IElement toggleButton = cut.FindAll("button[type='button']")
             .First(b => b.TextContent.Contains("Use backup code instead"));
-        toggleButton.Click();
+        await toggleButton.ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
 
         cut.Markup.Should().Contain("backup codes");
         cut.Markup.Should().Contain("Use authenticator code instead");
@@ -80,7 +80,7 @@ public sealed class MfaChallengeTests : BunitContext
 
         AngleSharp.Dom.IElement toggleButton = cut.FindAll("button[type='button']")
             .First(b => b.TextContent.Contains("Use backup code instead"));
-        toggleButton.Click();
+        await toggleButton.ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
 
         AngleSharp.Dom.IElement codeInput = cut.Find("#code");
         await codeInput.InputAsync(new Microsoft.AspNetCore.Components.ChangeEventArgs { Value = "BACKUP-CODE" });
