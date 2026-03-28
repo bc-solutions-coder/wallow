@@ -14,11 +14,12 @@ namespace Wallow.Identity.Api.Controllers;
 [Controller]
 [Route("~/connect/userinfo")]
 [AllowAnonymous]
+[IgnoreAntiforgeryToken]
 public sealed class UserinfoController : Controller
 {
     // OAuth userinfo endpoint — antiforgery tokens are not applicable for OAuth flows
 #pragma warning disable CA5391
-    [HttpGet, HttpPost, IgnoreAntiforgeryToken]
+    [HttpGet, HttpPost]
     public async Task<IActionResult> Userinfo()
 #pragma warning restore CA5391
     {

@@ -19,6 +19,7 @@ namespace Wallow.Announcements.Api.Controllers;
 [HasPermission(PermissionType.ChangelogManage)]
 [Tags("Admin - Changelog")]
 [Produces("application/json")]
+[IgnoreAntiforgeryToken]
 public class AdminChangelogController(IMessageBus bus, IHtmlSanitizationService sanitizer) : ControllerBase
 {
 

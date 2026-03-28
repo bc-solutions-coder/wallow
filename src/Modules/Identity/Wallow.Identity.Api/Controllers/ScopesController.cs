@@ -18,6 +18,7 @@ namespace Wallow.Identity.Api.Controllers;
 [Authorize]
 [Tags("API Scopes")]
 [Produces("application/json")]
+[IgnoreAntiforgeryToken]
 public class ScopesController(IApiScopeRepository apiScopeRepository) : ControllerBase
 {
 

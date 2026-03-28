@@ -21,6 +21,7 @@ namespace Wallow.Billing.Api.Controllers;
 [Tags("Metering")]
 [Produces("application/json")]
 [Consumes("application/json")]
+[IgnoreAntiforgeryToken]
 public class QuotasController(IMessageBus bus) : ControllerBase
 {
 

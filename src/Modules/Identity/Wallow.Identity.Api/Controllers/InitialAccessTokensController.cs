@@ -20,6 +20,7 @@ namespace Wallow.Identity.Api.Controllers;
 [Tags("InitialAccessTokens")]
 [Produces("application/json")]
 [Consumes("application/json")]
+[IgnoreAntiforgeryToken]
 public class InitialAccessTokensController(IInitialAccessTokenRepository repository) : ControllerBase
 {
     [HttpPost]

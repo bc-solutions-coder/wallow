@@ -18,6 +18,7 @@ namespace Wallow.Announcements.Api.Controllers;
 [AllowAnonymous]
 [Tags("Changelog")]
 [Produces("application/json")]
+[IgnoreAntiforgeryToken]
 public class ChangelogController(IMessageBus bus) : ControllerBase
 {
 

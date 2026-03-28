@@ -26,6 +26,7 @@ namespace Wallow.Identity.Api.Controllers;
 [Tags("SCIM")]
 [Produces("application/scim+json", "application/json")]
 [Consumes("application/scim+json", "application/json")]
+[IgnoreAntiforgeryToken]
 public partial class ScimController(IScimService scimService, IConfiguration configuration, ILogger<ScimController> logger, IHostEnvironment environment) : ControllerBase
 {
     private static readonly string[] _resourceTypeSchema = ["urn:ietf:params:scim:schemas:core:2.0:ResourceType"];

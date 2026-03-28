@@ -22,6 +22,7 @@ namespace Wallow.Announcements.Api.Controllers;
 [Authorize]
 [Tags("Announcements")]
 [Produces("application/json")]
+[IgnoreAntiforgeryToken]
 public class AnnouncementsController(IMessageBus bus, ITenantContext tenantContext, ICurrentUserService currentUserService) : ControllerBase
 {
 

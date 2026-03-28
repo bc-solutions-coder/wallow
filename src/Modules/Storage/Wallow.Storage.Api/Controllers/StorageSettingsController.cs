@@ -18,6 +18,7 @@ namespace Wallow.Storage.Api.Controllers;
 [Authorize]
 [Tags("Storage Settings")]
 [Produces("application/json")]
+[IgnoreAntiforgeryToken]
 public class StorageSettingsController(
     [FromKeyedServices("storage")] ISettingsService settingsService,
     [FromKeyedServices("storage")] ISettingRegistry settingRegistry,

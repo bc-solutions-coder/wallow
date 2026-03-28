@@ -18,6 +18,7 @@ namespace Wallow.Identity.Api.Controllers;
 [Authorize]
 [Tags("Identity Settings")]
 [Produces("application/json")]
+[IgnoreAntiforgeryToken]
 public class IdentitySettingsController(
     [FromKeyedServices("identity")] ISettingsService settingsService,
     [FromKeyedServices("identity")] ISettingRegistry settingRegistry,

@@ -17,6 +17,7 @@ namespace Wallow.Billing.Api.Controllers;
 [Authorize]
 [Tags("Metering")]
 [Produces("application/json")]
+[IgnoreAntiforgeryToken]
 public class MetersController(IMessageBus bus) : ControllerBase
 {
 

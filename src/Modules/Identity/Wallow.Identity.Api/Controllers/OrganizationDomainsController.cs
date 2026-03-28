@@ -16,6 +16,7 @@ namespace Wallow.Identity.Api.Controllers;
 [Tags("Organization Domains")]
 [Produces("application/json")]
 [Consumes("application/json")]
+[IgnoreAntiforgeryToken]
 public class OrganizationDomainsController(
     IDomainAssignmentService domainAssignmentService,
     IOrganizationDomainRepository domainRepository) : ControllerBase

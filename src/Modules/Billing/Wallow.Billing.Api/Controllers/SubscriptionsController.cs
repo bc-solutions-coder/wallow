@@ -25,6 +25,7 @@ namespace Wallow.Billing.Api.Controllers;
 [Tags("Subscriptions")]
 [Produces("application/json")]
 [Consumes("application/json")]
+[IgnoreAntiforgeryToken]
 public class SubscriptionsController(IMessageBus bus, ICurrentUserService currentUserService) : ControllerBase
 {
 

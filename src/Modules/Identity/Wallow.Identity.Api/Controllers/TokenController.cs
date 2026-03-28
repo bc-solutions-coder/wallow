@@ -19,11 +19,12 @@ namespace Wallow.Identity.Api.Controllers;
 [Route("~/connect/token")]
 [AllowAnonymous]
 [EnableRateLimiting("auth")]
+[IgnoreAntiforgeryToken]
 public sealed class TokenController(UserManager<WallowUser> userManager) : Controller
 {
     // OAuth token endpoint — antiforgery tokens are not applicable for machine-to-machine OAuth flows
 #pragma warning disable CA5391
-    [HttpPost, Produces("application/json"), IgnoreAntiforgeryToken]
+    [HttpPost, Produces("application/json")]
     public async Task<IActionResult> Exchange()
 #pragma warning restore CA5391
     {
