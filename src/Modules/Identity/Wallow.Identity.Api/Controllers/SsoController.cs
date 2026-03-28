@@ -16,6 +16,7 @@ namespace Wallow.Identity.Api.Controllers;
 [Tags("SSO")]
 [Produces("application/json")]
 [Consumes("application/json")]
+[IgnoreAntiforgeryToken]
 public class SsoController(ISsoService ssoService) : ControllerBase
 {
     [HttpGet]

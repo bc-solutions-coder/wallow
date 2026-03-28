@@ -19,6 +19,7 @@ namespace Wallow.Identity.Api.Controllers;
 [Tags("Organizations")]
 [Produces("application/json")]
 [Consumes("application/json")]
+[IgnoreAntiforgeryToken]
 public class OrganizationsController(IOrganizationService orgService, ITenantContext tenantContext) : ControllerBase
 {
 

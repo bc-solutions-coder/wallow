@@ -24,6 +24,7 @@ namespace Wallow.Notifications.Api.Controllers;
 [Route("api/v{version:apiVersion}/admin/push/config")]
 [Tags("Admin - Push Configuration")]
 [Produces("application/json")]
+[IgnoreAntiforgeryToken]
 public class PushConfigurationController(IMessageBus bus, ITenantContext tenantContext) : ControllerBase
 {
     [HttpGet]

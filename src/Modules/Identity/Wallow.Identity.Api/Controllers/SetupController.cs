@@ -19,6 +19,7 @@ namespace Wallow.Identity.Api.Controllers;
 [Tags("Setup")]
 [Produces("application/json")]
 [Consumes("application/json")]
+[IgnoreAntiforgeryToken]
 public class SetupController(IMessageBus messageBus) : ControllerBase
 {
     [HttpGet("status")]

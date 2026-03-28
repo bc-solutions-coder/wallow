@@ -43,6 +43,7 @@ using Wallow.Shared.Infrastructure.Core.Middleware;
 using Wallow.Shared.Infrastructure.Core.Services;
 using Wallow.Shared.Infrastructure.Workflows.Workflows;
 using Wallow.Shared.Kernel.Extensions;
+using Microsoft.AspNetCore.Mvc;
 using Wolverine;
 using Wolverine.EntityFrameworkCore;
 using Wolverine.FluentValidation;
@@ -308,7 +309,11 @@ try
 
     // Core services
     builder.Services.AddHttpContextAccessor();
-    builder.Services.AddControllersWithViews();
+    builder.Services.AddAntiforgery();
+    builder.Services.AddControllersWithViews(options =>
+    {
+        options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute());
+    });
     builder.Services.AddApiVersioning(opts =>
     {
         opts.DefaultApiVersion = new ApiVersion(1);
@@ -557,6 +562,9 @@ try
 
     // Authorization (checks [HasPermission] attributes)
     app.UseAuthorization();
+
+    // Antiforgery token validation for MVC form posts (paired with AutoValidateAntiforgeryTokenAttribute)
+    app.UseAntiforgery();
 
     // Module tagging (tags HTTP requests with wallow.module for observability)
     app.UseMiddleware<ModuleTaggingMiddleware>();

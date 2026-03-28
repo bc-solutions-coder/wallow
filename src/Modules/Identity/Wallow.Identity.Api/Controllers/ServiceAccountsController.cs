@@ -21,6 +21,7 @@ namespace Wallow.Identity.Api.Controllers;
 [Tags("Service Accounts")]
 [Produces("application/json")]
 [Consumes("application/json")]
+[IgnoreAntiforgeryToken]
 public class ServiceAccountsController(IServiceAccountService serviceAccountService) : ControllerBase
 {
 

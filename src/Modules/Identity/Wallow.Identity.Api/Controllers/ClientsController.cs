@@ -23,6 +23,7 @@ namespace Wallow.Identity.Api.Controllers;
 [Tags("Clients")]
 [Produces("application/json")]
 [Consumes("application/json")]
+[IgnoreAntiforgeryToken]
 public class ClientsController(
     IOpenIddictApplicationManager applicationManager,
     IOrganizationService organizationService) : ControllerBase

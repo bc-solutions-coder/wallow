@@ -17,6 +17,7 @@ namespace Wallow.Identity.Api.Controllers;
 [Tags("Membership Requests")]
 [Produces("application/json")]
 [Consumes("application/json")]
+[IgnoreAntiforgeryToken]
 public class MembershipRequestsController(
     IDomainAssignmentService domainAssignmentService,
     IMembershipRequestRepository membershipRequestRepository) : ControllerBase
