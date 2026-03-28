@@ -237,7 +237,6 @@ jobs:
         run: |
           docker build -f - -t wallow-migrations:test . <<'DOCKERFILE'
           FROM mcr.microsoft.com/dotnet/aspnet:10.0
-          RUN apt-get update && apt-get install -y --no-install-recommends postgresql-client && rm -rf /var/lib/apt/lists/*
           WORKDIR /app
           COPY bundles/ bundles/
           COPY scripts/apply-migrations.sh .

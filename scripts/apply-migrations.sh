@@ -12,12 +12,6 @@ if [[ -z "${CONNECTION_STRING:-}" ]]; then
     exit 1
 fi
 
-# Create schemas for third-party tools that manage their own tables but don't create schemas.
-# EF Core module schemas are created by migrationBuilder.EnsureSchema() in the bundles.
-echo "Creating third-party schemas (Elsa, Hangfire)..."
-psql "${CONNECTION_STRING}" -c 'CREATE SCHEMA IF NOT EXISTS "Elsa"; CREATE SCHEMA IF NOT EXISTS "hangfire";'
-echo "Third-party schemas ready."
-
 MODULES=(
     identity
     billing
