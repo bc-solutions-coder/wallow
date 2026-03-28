@@ -211,3 +211,41 @@ Missing design-time tenant context:
 - Create `DesignTimeTenantContext` implementing `ITenantContext`
 - Use it in your `DbContextFactory`
 
+## Production Migrations
+
+In production and staging, migrations are **not** applied by the application at startup. Instead, a dedicated **init container** runs migration bundles before the app services start.
+
+### How It Works
+
+The `Dockerfile` has a `migrations-runner` build target that:
+
+1. Installs `dotnet-ef` tools in the SDK image
+2. Generates an EF Core migration bundle for each of the 10 DbContexts
+3. Packages them with a runner script into a lightweight runtime image
+
+The `wallow-migrations` service in docker-compose runs this image as an init container. App services depend on it with `condition: service_completed_successfully`.
+
+### Environments
+
+| Environment | Migration Strategy |
+|-------------|-------------------|
+| Development (`dotnet run`) | Auto-migrate at startup via `MigrateAsync()` |
+| Testing (Testcontainers) | Auto-migrate at startup via `MigrateAsync()` |
+| E2E (`docker-compose.test.yml`) | Init container (`wallow-migrations`) |
+| Staging | Init container (`wallow-migrations`) |
+| Production | Init container (`wallow-migrations`) |
+
+### Building the Migration Image Locally
+
+```bash
+docker build --target migrations-runner -t wallow-migrations:local .
+```
+
+### Running Migrations Manually
+
+```bash
+docker run --rm --network wallow \
+    -e CONNECTION_STRING="Host=localhost;Port=5432;Database=wallow;Username=postgres;Password=postgres" \
+    wallow-migrations:local
+```
+

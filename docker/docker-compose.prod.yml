@@ -99,6 +99,29 @@ services:
 
   # No Mailpit in production - use real SMTP service
 
+  # ============================================
+  # DATABASE MIGRATIONS (init container)
+  # ============================================
+  wallow-migrations:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: migrations-runner
+    container_name: ${COMPOSE_PROJECT_NAME:-wallow}-migrations
+    environment:
+      CONNECTION_STRING: "Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    networks:
+      - wallow
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   wallow-api:
     build:
       context: ..
@@ -115,6 +138,9 @@ services:
       - ServiceUrls__AuthUrl=http://wallow-auth:8080
       - ServiceUrls__WebUrl=http://wallow-web:8080
       - ConnectionStrings__ReadReplicaConnection=Host=postgres-replica;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+    depends_on:
+      wallow-migrations:
+        condition: service_completed_successfully
     deploy:
       resources:
         limits:
@@ -146,6 +172,9 @@ services:
     environment:
       - ServiceUrls__ApiUrl=http://wallow-api:8080
       - ServiceUrls__WebUrl=http://wallow-web:8080
+    depends_on:
+      wallow-migrations:
+        condition: service_completed_successfully
     deploy:
       resources:
         limits:
@@ -177,6 +206,9 @@ services:
     environment:
       - ServiceUrls__ApiUrl=http://wallow-api:8080
       - ServiceUrls__AuthUrl=http://wallow-auth:8080
+    depends_on:
+      wallow-migrations:
+        condition: service_completed_successfully
     deploy:
       resources:
         limits:

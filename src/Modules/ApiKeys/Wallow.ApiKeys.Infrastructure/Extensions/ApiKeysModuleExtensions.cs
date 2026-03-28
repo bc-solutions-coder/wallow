@@ -21,6 +21,8 @@ public static partial class ApiKeysModuleExtensions
     public static async Task<WebApplication> InitializeApiKeysModuleAsync(
         this WebApplication app)
     {
+        ILogger logger = app.Services.GetRequiredService<ILoggerFactory>()
+            .CreateLogger("ApiKeysModule");
         try
         {
             await using AsyncServiceScope scope = app.Services.CreateAsyncScope();
@@ -28,17 +30,19 @@ public static partial class ApiKeysModuleExtensions
             if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))
             {
                 await db.Database.MigrateAsync();
+                LogMigrationsApplied(logger);
             }
         }
         catch (Exception ex)
         {
-            ILogger logger = app.Services.GetRequiredService<ILoggerFactory>()
-                .CreateLogger("ApiKeysModule");
             LogStartupFailed(logger, ex);
         }
 
         return app;
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "ApiKeys module database migrations applied")]
+    private static partial void LogMigrationsApplied(ILogger logger);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "ApiKeys module startup failed. Ensure PostgreSQL is running.")]
     private static partial void LogStartupFailed(ILogger logger, Exception ex);

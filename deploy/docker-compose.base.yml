@@ -3,6 +3,21 @@
 
 services:
   # ============================================
+  # DATABASE MIGRATIONS (init container)
+  # ============================================
+  migrations:
+    image: ${APP_IMAGE}-migrations:${APP_TAG}
+    container_name: ${COMPOSE_PROJECT_NAME:-wallow}-migrations
+    environment:
+      CONNECTION_STRING: Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    networks:
+      - wallow
+
+  # ============================================
   # APPLICATION
   # ============================================
   app:
@@ -15,6 +30,8 @@ services:
       ConnectionStrings__ReadReplicaConnection: Host=postgres-replica;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
       ConnectionStrings__Redis: valkey:6379,password=${VALKEY_PASSWORD},abortConnect=false
     depends_on:
+      migrations:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       postgres-replica:

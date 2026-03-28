@@ -212,6 +212,32 @@ fi
 log_success "Image pulled successfully."
 
 # ============================================
+# STEP 5b: RUN DATABASE MIGRATIONS
+# ============================================
+log "Running database migrations..."
+
+# The migrations service is defined in docker-compose.base.yml
+# It uses the same APP_IMAGE/APP_TAG with a -migrations suffix
+if $COMPOSE_CMD run --rm migrations 2>/dev/null; then
+    log_success "Migrations applied successfully."
+else
+    # If migrations service isn't defined or image doesn't exist, warn and continue
+    # This allows backward compatibility with deployments that predate the migration container
+    EXIT_CODE=$?
+    if [[ $EXIT_CODE -eq 1 ]]; then
+        log_warn "Migration service not available (service may not be defined yet). Continuing deployment..."
+    else
+        log_error "Database migrations failed (exit code: $EXIT_CODE)! Aborting deployment."
+        # Restore previous tag
+        if [[ -n "$PREV_TAG" ]]; then
+            sed -i'' -e "s/^APP_TAG=.*/APP_TAG=$PREV_TAG/" .env
+            log "Restored APP_TAG to $PREV_TAG"
+        fi
+        exit 1
+    fi
+fi
+
+# ============================================
 # STEP 6: RESTART APP CONTAINER ONLY
 # ============================================
 log "Restarting app container..."

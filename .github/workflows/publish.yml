@@ -55,7 +55,7 @@ jobs:
         run: |
           MAJOR_MINOR="${VERSION%.*}"
 
-          for suffix in "" "-auth" "-web"; do
+          for suffix in "" "-auth" "-web" "-migrations"; do
             image="${IMAGE_BASE}${suffix}"
 
             echo "Pulling ${image}:latest..."
@@ -75,6 +75,14 @@ jobs:
         uses: aquasecurity/trivy-action@0.35.0
         with:
           image-ref: ${{ env.IMAGE_BASE }}:${{ steps.version.outputs.semver }}
+          format: table
+          exit-code: '1'
+          severity: CRITICAL,HIGH
+
+      - name: Scan migrations image for vulnerabilities
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          image-ref: ${{ env.IMAGE_BASE }}-migrations:${{ steps.version.outputs.semver }}
           format: table
           exit-code: '1'
           severity: CRITICAL,HIGH

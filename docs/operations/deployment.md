@@ -421,19 +421,54 @@ docker compose -f docker-compose.base.yml -f docker-compose.prod.yml pull app
 docker compose -f docker-compose.base.yml -f docker-compose.prod.yml up -d app
 ```
 
-### 7.2 Watch Startup Logs
+### 7.2 Database Migrations
+
+Database schema changes are applied automatically by the `wallow-migrations` init container before the app starts. This runs on every deployment.
+
+**How it works:**
+
+1. `docker compose up` starts the `wallow-migrations` service first
+2. It waits for PostgreSQL to be healthy
+3. Runs EF Core migration bundles for all 10 database contexts (9 modules + audit)
+4. Exits with code 0 on success — app services then start
+5. Exits with non-zero on failure — app services are blocked from starting
+
+**Viewing migration logs:**
+
+```bash
+docker logs ${COMPOSE_PROJECT_NAME:-wallow}-migrations
+```
+
+**Manual migration (emergency):**
+
+If you need to run migrations outside of compose:
+
+```bash
+docker run --rm --network wallow \
+    -e CONNECTION_STRING="Host=postgres;Port=5432;Database=wallow;Username=wallow;Password=..." \
+    ghcr.io/bc-solutions-coder/wallow-migrations:latest
+```
+
+**Troubleshooting migration failures:**
+
+- Check the migration container logs for the specific module that failed
+- Verify PostgreSQL is healthy and accessible
+- Ensure the database user has DDL permissions (CREATE TABLE, ALTER TABLE, etc.)
+- If a migration is partially applied, fix the issue and re-deploy — bundles are idempotent
+
+### 7.3 Watch Startup Logs
 
 ```bash
 docker logs -f wallow-prod-app
 ```
 
-### 7.3 First Run — Automatic Account & Client Creation
+### 7.4 First Run — Automatic Account & Client Creation
 
 On first startup, the API runs a multi-step initialization sequence that automatically creates everything you need:
 
 | Step | What Happens | Triggered By |
 |------|-------------|--------------|
-| 1. Database migration | EF Core creates all module schemas and tables | Always (first run) |
+| 1. Database migration | `wallow-migrations` init container applies EF Core bundles for all 10 schemas | Every deployment (idempotent) |
 | 2. Default roles | Creates `admin`, `manager`, `user` roles | Always (idempotent) |
 | 3. Admin account | Creates the initial admin user with email confirmed and `admin` role assigned | `AdminBootstrap__*` env vars |
 | 4. OIDC clients | Creates/updates OAuth2 client applications in OpenIddict | `PreRegisteredClients__*` env vars |
@@ -475,7 +510,7 @@ curl -X POST https://api.yourdomain.com/api/v1/identity/setup/complete
 
 **Recommendation for production:** Always set `AdminBootstrap__*` in your `.env` so the API is fully operational on first boot without manual intervention. The bootstrap is idempotent — if the admin already exists, it's skipped.
 
-### 7.4 Account Auto-Creation Summary
+### 7.5 Account Auto-Creation Summary
 
 | Method | When It Runs | What Gets Created |
 |--------|-------------|-------------------|
@@ -489,7 +524,7 @@ curl -X POST https://api.yourdomain.com/api/v1/identity/setup/complete
 
 Self-registration is always available — there is no global toggle to disable it. Forks can implement the `IRegistrationValidator` extension point to add domain restrictions or approval workflows.
 
-### 7.5 Health Check
+### 7.6 Health Check
 
 ```bash
 # From the server
@@ -498,7 +533,7 @@ curl http://localhost:8080/health/ready
 
 Expected: `Healthy`
 
-### 7.6 Using the Deploy Script
+### 7.7 Using the Deploy Script
 
 For subsequent deployments, use the included script:
 
@@ -512,7 +547,7 @@ bash /opt/wallow/scripts/deploy.sh prod latest
 
 The script pulls the new image, restarts only the app container (no infrastructure downtime), runs health checks, and automatically rolls back if the health check fails.
 
-### 7.7 CI/CD Automated Deployment
+### 7.8 CI/CD Automated Deployment
 
 The repository's CI/CD pipeline automates the full flow:
 
@@ -946,6 +981,22 @@ docker logs wallow-prod-app --tail 200
 # - Missing Identity__SigningKey
 # - Wrong database password
 # - Database not reachable (Postgres not started)
+```
+
+### Migrations Failed
+
+```bash
+# Check which module failed
+docker logs ${COMPOSE_PROJECT_NAME:-wallow}-migrations
+
+# Common causes:
+# - Database user lacks DDL permissions
+# - PostgreSQL not healthy when migrations started
+# - Conflicting manual schema changes
+# - Migration was partially applied (fix and re-deploy)
+
+# Re-run migrations manually
+docker compose -f docker-compose.base.yml -f docker-compose.prod.yml run --rm migrations
 ```
 
 ### Health Check Fails
