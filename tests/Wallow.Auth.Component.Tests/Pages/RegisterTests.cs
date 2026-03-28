@@ -1,5 +1,6 @@
 using Bunit;
 using Bunit.TestDoubles;
+using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Wallow.Auth.Components.Pages;
@@ -51,65 +52,65 @@ public sealed class RegisterTests : BunitContext
     }
 
     [Fact]
-    public void Submit_WithMismatchedPasswords_ShowsError()
+    public async Task Submit_WithMismatchedPasswords_ShowsError()
     {
         IRenderedComponent<Register> cut = Render<Register>();
 
-        cut.Find("input[placeholder='name@example.com']").Input("user@test.com");
-        cut.Find("input[placeholder='Create a password']").Input("P@ssword1");
-        cut.Find("input[placeholder='Confirm your password']").Input("Different1");
+        await cut.Find("input[placeholder='name@example.com']").InputAsync(new ChangeEventArgs { Value = "user@test.com" });
+        await cut.Find("input[placeholder='Create a password']").InputAsync(new ChangeEventArgs { Value = "P@ssword1" });
+        await cut.Find("input[placeholder='Confirm your password']").InputAsync(new ChangeEventArgs { Value = "Different1" });
 
         // Check terms and privacy checkboxes (indices 1 and 2; index 0 is passwordless)
-        IRefreshableElementCollection<AngleSharp.Dom.IElement> checkboxes = cut.FindAll("input[type='checkbox']");
-        checkboxes[1].Change(true);
-        checkboxes[2].Change(true);
+        IReadOnlyList<AngleSharp.Dom.IElement> checkboxes = cut.FindAll("input[type='checkbox']");
+        await checkboxes[1].ChangeAsync(new ChangeEventArgs { Value = true });
+        await checkboxes[2].ChangeAsync(new ChangeEventArgs { Value = true });
 
-        cut.Find("form").Submit();
+        await cut.Find("form").SubmitAsync();
 
         cut.Markup.Should().Contain("Passwords do not match.");
-        _authClient.DidNotReceive().RegisterAsync(Arg.Any<RegisterRequest>(), Arg.Any<CancellationToken>());
+        await _authClient.DidNotReceive().RegisterAsync(Arg.Any<RegisterRequest>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public void Submit_WithoutTermsAccepted_ShowsError()
+    public async Task Submit_WithoutTermsAccepted_ShowsError()
     {
         IRenderedComponent<Register> cut = Render<Register>();
 
-        cut.Find("input[placeholder='name@example.com']").Input("user@test.com");
-        cut.Find("input[placeholder='Create a password']").Input("P@ssword1");
-        cut.Find("input[placeholder='Confirm your password']").Input("P@ssword1");
+        await cut.Find("input[placeholder='name@example.com']").InputAsync(new ChangeEventArgs { Value = "user@test.com" });
+        await cut.Find("input[placeholder='Create a password']").InputAsync(new ChangeEventArgs { Value = "P@ssword1" });
+        await cut.Find("input[placeholder='Confirm your password']").InputAsync(new ChangeEventArgs { Value = "P@ssword1" });
 
         // Accept privacy but not terms
-        IRefreshableElementCollection<AngleSharp.Dom.IElement> checkboxes = cut.FindAll("input[type='checkbox']");
-        checkboxes[2].Change(true);
+        IReadOnlyList<AngleSharp.Dom.IElement> checkboxes = cut.FindAll("input[type='checkbox']");
+        await checkboxes[2].ChangeAsync(new ChangeEventArgs { Value = true });
 
-        cut.Find("form").Submit();
+        await cut.Find("form").SubmitAsync();
 
         cut.Markup.Should().Contain("You must agree to the Terms of Service.");
-        _authClient.DidNotReceive().RegisterAsync(Arg.Any<RegisterRequest>(), Arg.Any<CancellationToken>());
+        await _authClient.DidNotReceive().RegisterAsync(Arg.Any<RegisterRequest>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public void Submit_WithoutPrivacyAccepted_ShowsError()
+    public async Task Submit_WithoutPrivacyAccepted_ShowsError()
     {
         IRenderedComponent<Register> cut = Render<Register>();
 
-        cut.Find("input[placeholder='name@example.com']").Input("user@test.com");
-        cut.Find("input[placeholder='Create a password']").Input("P@ssword1");
-        cut.Find("input[placeholder='Confirm your password']").Input("P@ssword1");
+        await cut.Find("input[placeholder='name@example.com']").InputAsync(new ChangeEventArgs { Value = "user@test.com" });
+        await cut.Find("input[placeholder='Create a password']").InputAsync(new ChangeEventArgs { Value = "P@ssword1" });
+        await cut.Find("input[placeholder='Confirm your password']").InputAsync(new ChangeEventArgs { Value = "P@ssword1" });
 
         // Accept terms but not privacy
-        IRefreshableElementCollection<AngleSharp.Dom.IElement> checkboxes = cut.FindAll("input[type='checkbox']");
-        checkboxes[1].Change(true);
+        IReadOnlyList<AngleSharp.Dom.IElement> checkboxes = cut.FindAll("input[type='checkbox']");
+        await checkboxes[1].ChangeAsync(new ChangeEventArgs { Value = true });
 
-        cut.Find("form").Submit();
+        await cut.Find("form").SubmitAsync();
 
         cut.Markup.Should().Contain("You must agree to the Privacy Policy.");
-        _authClient.DidNotReceive().RegisterAsync(Arg.Any<RegisterRequest>(), Arg.Any<CancellationToken>());
+        await _authClient.DidNotReceive().RegisterAsync(Arg.Any<RegisterRequest>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public void Submit_WithValidData_NavigatesToVerifyEmail()
+    public async Task Submit_WithValidData_NavigatesToVerifyEmail()
     {
         _authClient.RegisterAsync(Arg.Any<RegisterRequest>(), Arg.Any<CancellationToken>())
             .Returns(new AuthResponse(Succeeded: true));
@@ -118,47 +119,47 @@ public sealed class RegisterTests : BunitContext
 
         IRenderedComponent<Register> cut = Render<Register>();
 
-        cut.Find("input[placeholder='name@example.com']").Input("user@test.com");
-        cut.Find("input[placeholder='Create a password']").Input("P@ssword1");
-        cut.Find("input[placeholder='Confirm your password']").Input("P@ssword1");
+        await cut.Find("input[placeholder='name@example.com']").InputAsync(new ChangeEventArgs { Value = "user@test.com" });
+        await cut.Find("input[placeholder='Create a password']").InputAsync(new ChangeEventArgs { Value = "P@ssword1" });
+        await cut.Find("input[placeholder='Confirm your password']").InputAsync(new ChangeEventArgs { Value = "P@ssword1" });
 
-        IRefreshableElementCollection<AngleSharp.Dom.IElement> checkboxes = cut.FindAll("input[type='checkbox']");
-        checkboxes[1].Change(true);
-        checkboxes[2].Change(true);
+        IReadOnlyList<AngleSharp.Dom.IElement> checkboxes = cut.FindAll("input[type='checkbox']");
+        await checkboxes[1].ChangeAsync(new ChangeEventArgs { Value = true });
+        await checkboxes[2].ChangeAsync(new ChangeEventArgs { Value = true });
 
-        cut.Find("form").Submit();
+        await cut.Find("form").SubmitAsync();
 
         BunitNavigationManager navMan = Services.GetRequiredService<BunitNavigationManager>();
         navMan.Uri.Should().Contain("/verify-email");
     }
 
     [Fact]
-    public void Submit_WithEmptyEmail_ShowsError()
+    public async Task Submit_WithEmptyEmail_ShowsError()
     {
         IRenderedComponent<Register> cut = Render<Register>();
 
-        cut.Find("form").Submit();
+        await cut.Find("form").SubmitAsync();
 
         cut.Markup.Should().Contain("Please enter your email address.");
     }
 
     [Fact]
-    public void Submit_WithEmailTaken_ShowsError()
+    public async Task Submit_WithEmailTaken_ShowsError()
     {
         _authClient.RegisterAsync(Arg.Any<RegisterRequest>(), Arg.Any<CancellationToken>())
             .Returns(new AuthResponse(Succeeded: false, Error: "email_taken"));
 
         IRenderedComponent<Register> cut = Render<Register>();
 
-        cut.Find("input[placeholder='name@example.com']").Input("user@test.com");
-        cut.Find("input[placeholder='Create a password']").Input("P@ssword1");
-        cut.Find("input[placeholder='Confirm your password']").Input("P@ssword1");
+        await cut.Find("input[placeholder='name@example.com']").InputAsync(new ChangeEventArgs { Value = "user@test.com" });
+        await cut.Find("input[placeholder='Create a password']").InputAsync(new ChangeEventArgs { Value = "P@ssword1" });
+        await cut.Find("input[placeholder='Confirm your password']").InputAsync(new ChangeEventArgs { Value = "P@ssword1" });
 
-        IRefreshableElementCollection<AngleSharp.Dom.IElement> checkboxes = cut.FindAll("input[type='checkbox']");
-        checkboxes[1].Change(true);
-        checkboxes[2].Change(true);
+        IReadOnlyList<AngleSharp.Dom.IElement> checkboxes = cut.FindAll("input[type='checkbox']");
+        await checkboxes[1].ChangeAsync(new ChangeEventArgs { Value = true });
+        await checkboxes[2].ChangeAsync(new ChangeEventArgs { Value = true });
 
-        cut.Find("form").Submit();
+        await cut.Find("form").SubmitAsync();
 
         cut.Markup.Should().Contain("An account with this email already exists.");
     }
@@ -173,7 +174,7 @@ public sealed class RegisterTests : BunitContext
     }
 
     [Fact]
-    public void Submit_WithReturnUrl_NavigatesToVerifyEmailWithReturnUrl()
+    public async Task Submit_WithReturnUrl_NavigatesToVerifyEmailWithReturnUrl()
     {
         _authClient.RegisterAsync(Arg.Any<RegisterRequest>(), Arg.Any<CancellationToken>())
             .Returns(new AuthResponse(Succeeded: true));
@@ -185,32 +186,32 @@ public sealed class RegisterTests : BunitContext
 
         IRenderedComponent<Register> cut = Render<Register>();
 
-        cut.Find("input[placeholder='name@example.com']").Input("user@test.com");
-        cut.Find("input[placeholder='Create a password']").Input("P@ssword1");
-        cut.Find("input[placeholder='Confirm your password']").Input("P@ssword1");
+        await cut.Find("input[placeholder='name@example.com']").InputAsync(new ChangeEventArgs { Value = "user@test.com" });
+        await cut.Find("input[placeholder='Create a password']").InputAsync(new ChangeEventArgs { Value = "P@ssword1" });
+        await cut.Find("input[placeholder='Confirm your password']").InputAsync(new ChangeEventArgs { Value = "P@ssword1" });
 
-        IRefreshableElementCollection<AngleSharp.Dom.IElement> checkboxes = cut.FindAll("input[type='checkbox']");
-        checkboxes[1].Change(true);
-        checkboxes[2].Change(true);
+        IReadOnlyList<AngleSharp.Dom.IElement> checkboxes = cut.FindAll("input[type='checkbox']");
+        await checkboxes[1].ChangeAsync(new ChangeEventArgs { Value = true });
+        await checkboxes[2].ChangeAsync(new ChangeEventArgs { Value = true });
 
-        cut.Find("form").Submit();
+        await cut.Find("form").SubmitAsync();
 
         navMan.Uri.Should().Contain("/verify-email");
         navMan.Uri.Should().Contain("returnUrl");
     }
 
     [Fact]
-    public void Submit_WithEmptyPassword_ShowsError()
+    public async Task Submit_WithEmptyPassword_ShowsError()
     {
         IRenderedComponent<Register> cut = Render<Register>();
 
-        cut.Find("input[placeholder='name@example.com']").Input("user@test.com");
+        await cut.Find("input[placeholder='name@example.com']").InputAsync(new ChangeEventArgs { Value = "user@test.com" });
 
-        IRefreshableElementCollection<AngleSharp.Dom.IElement> checkboxes = cut.FindAll("input[type='checkbox']");
-        checkboxes[1].Change(true);
-        checkboxes[2].Change(true);
+        IReadOnlyList<AngleSharp.Dom.IElement> checkboxes = cut.FindAll("input[type='checkbox']");
+        await checkboxes[1].ChangeAsync(new ChangeEventArgs { Value = true });
+        await checkboxes[2].ChangeAsync(new ChangeEventArgs { Value = true });
 
-        cut.Find("form").Submit();
+        await cut.Find("form").SubmitAsync();
 
         cut.Markup.Should().Contain("Please enter a password.");
     }

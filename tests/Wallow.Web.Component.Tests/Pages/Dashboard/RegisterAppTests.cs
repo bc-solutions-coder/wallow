@@ -53,7 +53,7 @@ public sealed class RegisterAppTests : BunitContext
         IRenderedComponent<RegisterApp> cut = Render<RegisterApp>();
 
         AngleSharp.Dom.IElement nameInput = cut.Find("input");
-        nameInput.Change("Test Application");
+        await nameInput.ChangeAsync(new Microsoft.AspNetCore.Components.ChangeEventArgs { Value = "Test Application" });
 
         AngleSharp.Dom.IElement form = cut.Find("form");
         await cut.InvokeAsync(() => form.Submit());

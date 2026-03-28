@@ -42,7 +42,7 @@ public sealed class InquiriesTests : BunitContext
     {
         IRenderedComponent<Inquiries> cut = Render<Inquiries>();
 
-        IRefreshableElementCollection<AngleSharp.Dom.IElement> inputs = cut.FindAll("input");
+        IReadOnlyList<AngleSharp.Dom.IElement> inputs = cut.FindAll("input");
         bool hasTestUser = inputs.Any(i => i.GetAttribute("value") == "Test User");
         bool hasTestEmail = inputs.Any(i => i.GetAttribute("value") == "test@example.com");
 
@@ -109,7 +109,7 @@ public sealed class InquiriesTests : BunitContext
         cut.WaitForAssertion(() => cut.Markup.Should().Contain("Submit Another"));
 
         AngleSharp.Dom.IElement submitAnotherButton = cut.Find("button");
-        submitAnotherButton.Click();
+        await submitAnotherButton.ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
 
         cut.WaitForAssertion(() =>
         {

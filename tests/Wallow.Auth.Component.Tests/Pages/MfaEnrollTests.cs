@@ -1,4 +1,5 @@
 using Bunit;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Wallow.Auth.Components.Pages;
@@ -19,6 +20,9 @@ public sealed class MfaEnrollTests : BunitContext
         Services.AddSingleton(_authClient);
         Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         Services.AddSingleton(new BrandingOptions { AppName = "TestApp" });
+        Services.AddSingleton(Substitute.For<IHttpContextAccessor>());
+        Services.AddSingleton(new ApiCookieJar());
+        AddBunitPersistentComponentState();
     }
 
     [Fact]
@@ -32,32 +36,25 @@ public sealed class MfaEnrollTests : BunitContext
     }
 
     [Fact]
-    public async Task BeginSetup_CallsApiAndShowsSecret()
+    public void BeginSetup_CallsApiAndShowsSecret()
     {
         _authClient.EnrollTotpAsync(Arg.Any<CancellationToken>())
             .Returns(new MfaEnrollResponse("TESTSECRET", "otpauth://totp/test"));
 
+        // Component auto-enrolls in OnInitializedAsync when no persisted state exists
         IRenderedComponent<MfaEnroll> cut = Render<MfaEnroll>();
-
-        AngleSharp.Dom.IElement button = cut.FindAll("button")
-            .First(b => b.TextContent.Contains("Begin setup"));
-        await button.ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
 
         cut.Markup.Should().Contain("TESTSECRET");
         cut.Markup.Should().Contain("Verification code");
     }
 
     [Fact]
-    public async Task BeginSetup_Failure_ShowsError()
+    public void BeginSetup_Failure_ShowsError()
     {
         _authClient.EnrollTotpAsync(Arg.Any<CancellationToken>())
             .Returns((MfaEnrollResponse?)null);
 
         IRenderedComponent<MfaEnroll> cut = Render<MfaEnroll>();
-
-        AngleSharp.Dom.IElement button = cut.FindAll("button")
-            .First(b => b.TextContent.Contains("Begin setup"));
-        await button.ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
 
         cut.Markup.Should().Contain("Failed to start MFA enrollment");
     }
@@ -71,11 +68,8 @@ public sealed class MfaEnrollTests : BunitContext
         _authClient.ConfirmEnrollmentAsync("TESTSECRET", "123456", Arg.Any<CancellationToken>())
             .Returns(new MfaConfirmEnrollmentResponse(true, ["CODE1", "CODE2", "CODE3"]));
 
+        // Component auto-enrolls and shows the secret/QR code view
         IRenderedComponent<MfaEnroll> cut = Render<MfaEnroll>();
-
-        AngleSharp.Dom.IElement beginButton = cut.FindAll("button")
-            .First(b => b.TextContent.Contains("Begin setup"));
-        await beginButton.ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
 
         AngleSharp.Dom.IElement codeInput = cut.Find("#code");
         await codeInput.InputAsync(new Microsoft.AspNetCore.Components.ChangeEventArgs { Value = "123456" });
