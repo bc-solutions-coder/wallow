@@ -77,6 +77,19 @@ services:
       - wallow-test
 
   # ============================================
+  # DATABASE MIGRATIONS (init container)
+  # ============================================
+  wallow-migrations:
+    image: wallow-migrations:test
+    environment:
+      CONNECTION_STRING: "Host=postgres;Port=5432;Database=wallow_test;Username=wallow_test;Password=wallow_test"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - wallow-test
+
+  # ============================================
   # APPLICATION SERVICES
   # ============================================
   wallow-api:
@@ -109,8 +122,8 @@ services:
       # Disable Elsa — background tasks race with migrations causing CPU spin
       Elsa__Enabled: "false"
     depends_on:
-      postgres:
-        condition: service_healthy
+      wallow-migrations:
+        condition: service_completed_successfully
       valkey:
         condition: service_healthy
       garage:

@@ -24,6 +24,8 @@ public static partial class BillingModuleExtensions
     public static async Task<WebApplication> InitializeBillingModuleAsync(
         this WebApplication app)
     {
+        ILogger logger = app.Services.GetRequiredService<ILoggerFactory>()
+            .CreateLogger("BillingModule");
         try
         {
             await using AsyncServiceScope scope = app.Services.CreateAsyncScope();
@@ -31,19 +33,21 @@ public static partial class BillingModuleExtensions
             if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))
             {
                 await db.Database.MigrateAsync();
+                LogMigrationsApplied(logger);
             }
 
             await MeteringDbSeeder.SeedAsync(db);
         }
         catch (Exception ex)
         {
-            ILogger logger = app.Services.GetRequiredService<ILoggerFactory>()
-                .CreateLogger("BillingModule");
             LogStartupFailed(logger, ex);
         }
 
         return app;
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Billing module database migrations applied")]
+    private static partial void LogMigrationsApplied(ILogger logger);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Billing module startup failed. Ensure PostgreSQL is running.")]
     private static partial void LogStartupFailed(ILogger logger, Exception ex);

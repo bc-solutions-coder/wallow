@@ -605,6 +605,8 @@ dotnet ef database update \
 
 Migrations also run automatically at startup via `Initialize{Module}ModuleAsync()`.
 
+> **Note:** Auto-migration at startup only applies in Development and Testing environments. In production and staging, a dedicated init container applies migrations before the app starts. See [Database Migrations](../development/database-migrations.md#production-migrations) for details.
+
 ### Write vs. Read Strategy
 
 - **Writes**: EF Core through repositories.

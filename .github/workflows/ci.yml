@@ -175,6 +175,9 @@ jobs:
       - name: Publish Web container image
         run: dotnet publish src/Wallow.Web/Wallow.Web.csproj -c Release /t:PublishContainer -p:ContainerImageTag=test -p:ContainerRepository=wallow-web
 
+      - name: Build migrations container image
+        run: docker build --target migrations-runner -t wallow-migrations:test .
+
       - name: Configure host.docker.internal for OIDC
         run: echo "127.0.0.1 host.docker.internal" | sudo tee -a /etc/hosts
 
@@ -315,6 +318,16 @@ jobs:
             -p:ContainerRegistry=${{ env.REGISTRY }} \
             -p:ContainerRepository=${{ github.repository }}-web \
             -p:ContainerImageTags="\"latest;${SHORT_SHA}\""
+
+      - name: Build and push migrations image to GHCR
+        env:
+          SHA_TAG: ${{ github.sha }}
+        run: |
+          SHORT_SHA="${SHA_TAG:0:7}"
+          docker build --target migrations-runner \
+            -t ${{ env.IMAGE_BASE }}-migrations:latest \
+            -t ${{ env.IMAGE_BASE }}-migrations:${SHORT_SHA} .
+          docker push ${{ env.IMAGE_BASE }}-migrations --all-tags
 
   merge-coverage:
     needs: [unit-tests, integration-tests]

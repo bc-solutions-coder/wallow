@@ -25,22 +25,26 @@ public static partial class StorageModuleExtensions
     {
         if (app.Environment.IsDevelopment())
         {
+            ILogger logger = app.Services.GetRequiredService<ILoggerFactory>()
+                .CreateLogger("StorageModule");
             try
             {
                 await using AsyncServiceScope scope = app.Services.CreateAsyncScope();
                 StorageDbContext db = scope.ServiceProvider.GetRequiredService<StorageDbContext>();
                 await db.Database.MigrateAsync();
+                LogMigrationsApplied(logger);
             }
             catch (Exception ex)
             {
-                ILogger logger = app.Services.GetRequiredService<ILoggerFactory>()
-                    .CreateLogger("StorageModule");
                 LogStartupFailed(logger, ex);
             }
         }
 
         return app;
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Storage module database migrations applied")]
+    private static partial void LogMigrationsApplied(ILogger logger);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Storage module startup failed. Ensure PostgreSQL is running.")]
     private static partial void LogStartupFailed(ILogger logger, Exception ex);
