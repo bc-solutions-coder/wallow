@@ -21,44 +21,27 @@ HTTP Response (JSON or ProblemDetails)
 ```
 
 **Key principles:**
-- Controllers are thin - they delegate to Wolverine handlers immediately
+- Controllers are thin -- they delegate to Wolverine handlers immediately
 - Commands/queries are immutable records
 - Handlers return `Result<T>` instead of throwing exceptions for expected failures
 - FluentValidation validates commands before handlers execute
 - Global exception handling catches unexpected errors
+- Routes are versioned: `api/v{version:apiVersion}/{module}/{resource}`
 
 ## Controller Patterns
 
 ### Basic Controller Structure
 
 ```csharp
-using Wallow.Billing.Api.Contracts.Invoices;
-using Wallow.Billing.Api.Extensions;
-using Wallow.Billing.Application.Commands.CreateInvoice;
-using Wallow.Billing.Application.DTOs;
-using Wallow.Shared.Kernel.Results;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Wolverine;
-
-namespace Wallow.Billing.Api.Controllers;
-
 [ApiController]
-[Route("api/billing/invoices")]
+[ApiVersion(1)]
+[Route("api/v{version:apiVersion}/billing/invoices")]
 [Authorize]
 [Tags("Invoices")]
 [Produces("application/json")]
 [Consumes("application/json")]
-public class InvoicesController : ControllerBase
+public class InvoicesController(IMessageBus bus, ICurrentUserService currentUserService) : ControllerBase
 {
-    private readonly IMessageBus _bus;
-
-    public InvoicesController(IMessageBus bus)
-    {
-        _bus = bus;
-    }
-
     // ... endpoints
 }
 ```
@@ -70,7 +53,8 @@ Every controller should include:
 | Attribute | Purpose |
 |-----------|---------|
 | `[ApiController]` | Enables automatic model validation and binding |
-| `[Route("api/{module}/{resource}")]` | RESTful route pattern |
+| `[ApiVersion(1)]` | API version number |
+| `[Route("api/v{version:apiVersion}/{module}/{resource}")]` | Versioned RESTful route pattern |
 | `[Authorize]` | Requires authentication (JWT or API key) |
 | `[Tags("...")]` | OpenAPI grouping for Scalar documentation |
 | `[Produces("application/json")]` | Response content type |
@@ -79,83 +63,44 @@ Every controller should include:
 ### Route Conventions
 
 ```
-GET    /api/{module}/{resources}              List all
-GET    /api/{module}/{resources}/{id}         Get by ID
-POST   /api/{module}/{resources}              Create
-PUT    /api/{module}/{resources}/{id}         Update
-DELETE /api/{module}/{resources}/{id}         Delete
-POST   /api/{module}/{resources}/{id}/action  Custom action
+GET    /api/v1/{module}/{resources}              List all
+GET    /api/v1/{module}/{resources}/{id}         Get by ID
+POST   /api/v1/{module}/{resources}              Create
+PUT    /api/v1/{module}/{resources}/{id}         Update
+DELETE /api/v1/{module}/{resources}/{id}         Delete
+POST   /api/v1/{module}/{resources}/{id}/action  Custom action
 ```
 
 Examples from the codebase:
-- `GET /api/billing/invoices` - List invoices
-- `GET /api/billing/invoices/{id}` - Get invoice by ID
-- `POST /api/billing/invoices/{id}/issue` - Issue an invoice
-- `GET /api/communications/notifications` - Get user notifications
+- `GET /api/v1/billing/invoices` - List invoices
+- `GET /api/v1/billing/invoices/{id}` - Get invoice by ID
+- `POST /api/v1/billing/invoices/{id}/issue` - Issue an invoice
+- `GET /api/v1/notifications/notifications` - Get user notifications
 
 ### Injecting Dependencies
 
-Controllers inject:
-- `IMessageBus` - Wolverine mediator for commands/queries
-- `ITenantContext` - Current tenant from JWT (optional)
+Controllers use primary constructors and inject:
+- `IMessageBus` -- Wolverine mediator for commands/queries
+- `ICurrentUserService` -- Current user ID and context from JWT
 - Domain services directly when CQRS is not used (Identity module pattern)
 
 ```csharp
-// Standard pattern: Use Wolverine for CQRS
-public class InvoicesController : ControllerBase
+// Standard pattern: primary constructor with Wolverine + user service
+public class InvoicesController(IMessageBus bus, ICurrentUserService currentUserService) : ControllerBase
 {
-    private readonly IMessageBus _bus;
-    private readonly ITenantContext _tenantContext;
-
-    public InvoicesController(IMessageBus bus, ITenantContext tenantContext)
-    {
-        _bus = bus;
-        _tenantContext = tenantContext;
-    }
-}
-
-// Exception: Identity module calls user management services directly
-public class UsersController : ControllerBase
-{
-    private readonly IUserManagementService _userManagement;
-
-    public UsersController(IUserManagementService userManagement)
-    {
-        _userManagement = userManagement;
-    }
+    // ...
 }
 ```
 
 ### Accessing Current User
 
-Extract user ID and name from JWT claims:
+Use `ICurrentUserService` (injected via primary constructor) to access the current user. Never use raw `FindFirst` / `FindFirstValue` on `ClaimsPrincipal`.
 
 ```csharp
-private Guid GetCurrentUserId()
-{
-    var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
-        ?? User.FindFirst("sub")?.Value;
-
-    if (userIdClaim is not null && Guid.TryParse(userIdClaim, out var userId))
-        return userId;
-
-    return Guid.Empty;
-}
-
-private (Guid UserId, string UserName) GetCurrentUser()
-{
-    var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
-        ?? User.FindFirst("sub")?.Value;
-    var userName = User.FindFirst(ClaimTypes.Name)?.Value
-        ?? User.FindFirst("name")?.Value
-        ?? "Unknown User";
-
-    if (userIdClaim is not null && Guid.TryParse(userIdClaim, out var userId))
-        return (userId, userName);
-
-    return (Guid.Empty, userName);
-}
+Guid? userId = currentUserService.GetCurrentUserId();
 ```
+
+For claim access outside controllers, use the extension methods in `ClaimsPrincipalExtensions` from `Wallow.Shared.Kernel.Extensions` (e.g., `GetUserId()`, `GetEmail()`, `GetRoles()`).
 
 ### ProducesResponseType Attributes
 
@@ -217,15 +162,6 @@ Contracts/
 ### Request Records
 
 Use `record` types for immutable request contracts:
-
-```csharp
-namespace Wallow.Billing.Api.Contracts.Invoices;
-
-public sealed record CreateInvoiceRequest(
-    string InvoiceNumber,
-    string Currency,
-    DateTime? DueDate);
-```
 
 ```csharp
 namespace Wallow.Billing.Api.Contracts.Invoices;
@@ -353,17 +289,17 @@ public async Task<IActionResult> Create(
     [FromBody] CreateInvoiceRequest request,
     CancellationToken cancellationToken)
 {
-    var userId = GetCurrentUserId();
+    Guid? userId = currentUserService.GetCurrentUserId();
 
     // 1. Map request to command
     var command = new CreateInvoiceCommand(
-        userId,
+        userId!.Value,
         request.InvoiceNumber,
         request.Currency,
         request.DueDate);
 
     // 2. Send to handler via Wolverine
-    var result = await _bus.InvokeAsync<Result<InvoiceDto>>(command, cancellationToken);
+    var result = await bus.InvokeAsync<Result<InvoiceDto>>(command, cancellationToken);
 
     // 3. Map result to HTTP response
     return result.Map(ToInvoiceResponse)
@@ -435,11 +371,11 @@ return Result.Failure<InvoiceDto>(
 
 ### Result Extensions
 
-Each module has a `ResultExtensions.cs` that maps Results to HTTP responses:
+`ResultExtensions` in `Wallow.Shared.Api` maps Results to HTTP responses for all modules:
 
 ```csharp
-// src/Modules/Billing/Wallow.Billing.Api/Extensions/ResultExtensions.cs
-namespace Wallow.Billing.Api.Extensions;
+// src/Shared/Wallow.Shared.Api/Extensions/ResultExtensions.cs
+namespace Wallow.Shared.Api.Extensions;
 
 public static class ResultExtensions
 {
@@ -495,7 +431,7 @@ public static class ResultExtensions
 
 ```csharp
 // Transform DTO to response before converting to action result
-var result = await _bus.InvokeAsync<Result<InvoiceDto>>(command, cancellationToken);
+var result = await bus.InvokeAsync<Result<InvoiceDto>>(command, cancellationToken);
 
 return result.Map(ToInvoiceResponse)
     .ToCreatedResult($"/api/billing/invoices/{result.Value?.Id}");
@@ -573,36 +509,6 @@ public sealed class CreateInvoiceValidator : AbstractValidator<CreateInvoiceComm
 }
 ```
 
-### Common Validation Rules
-
-```csharp
-// Required field
-RuleFor(x => x.Name)
-    .NotEmpty().WithMessage("Name is required");
-
-// String length
-RuleFor(x => x.Description)
-    .MaximumLength(1000).WithMessage("Description must not exceed 1000 characters");
-
-// Email format
-RuleFor(x => x.Email)
-    .NotEmpty().WithMessage("Email is required")
-    .EmailAddress().WithMessage("Email must be a valid email address");
-
-// Enum values
-RuleFor(x => x.Status)
-    .IsInEnum().WithMessage("Invalid status value");
-
-// GUID not empty
-RuleFor(x => x.EntityId)
-    .NotEmpty().WithMessage("EntityId is required");
-
-// Custom validation
-RuleFor(x => x.StartDate)
-    .LessThan(x => x.EndDate)
-    .WithMessage("Start date must be before end date");
-```
-
 ### Validation Failure Response
 
 When validation fails, Wolverine returns a `400 Bad Request` with validation errors:
@@ -623,31 +529,7 @@ When validation fails, Wolverine returns a `400 Bad Request` with validation err
 
 ### Global Exception Handler
 
-Unexpected exceptions are caught by `GlobalExceptionHandler`:
-
-```csharp
-// src/Wallow.Api/Middleware/GlobalExceptionHandler.cs
-public class GlobalExceptionHandler : IExceptionHandler
-{
-    public async ValueTask<bool> TryHandleAsync(
-        HttpContext httpContext,
-        Exception exception,
-        CancellationToken cancellationToken)
-    {
-        var traceId = Activity.Current?.Id ?? httpContext.TraceIdentifier;
-
-        _logger.LogError(exception,
-            "Unhandled exception occurred. TraceId: {TraceId}, Path: {Path}",
-            traceId, httpContext.Request.Path);
-
-        var problemDetails = CreateProblemDetails(exception, traceId);
-        httpContext.Response.StatusCode = problemDetails.Status ?? 500;
-
-        await httpContext.Response.WriteAsJsonAsync(problemDetails, cancellationToken);
-        return true;
-    }
-}
-```
+Unexpected exceptions are caught by `GlobalExceptionHandler` (`src/Wallow.Api/Middleware/GlobalExceptionHandler.cs`), which implements `IExceptionHandler`. It logs the error, maps the exception type to an HTTP status code, and returns a Problem Details response.
 
 ### Exception to Status Code Mapping
 
@@ -704,8 +586,7 @@ public class UsersController : ControllerBase
 Use `[HasPermission]` for fine-grained access control:
 
 ```csharp
-using Wallow.Identity.Api.Authorization;
-using Wallow.Identity.Domain.Enums;
+using Wallow.Shared.Kernel.Identity.Authorization;
 
 [HttpGet]
 [HasPermission(PermissionType.UsersRead)]
@@ -722,33 +603,17 @@ public async Task<ActionResult> AssignRole(Guid userId, ...)
 
 ### Available Permissions
 
-Permissions are defined in `PermissionType` enum:
+Permissions are defined as string constants in `PermissionType` (`Wallow.Shared.Kernel.Identity.Authorization`):
 
 ```csharp
-public enum PermissionType
+public static class PermissionType
 {
-    // User management
-    UsersRead = 100,
-    UsersCreate = 101,
-    UsersUpdate = 102,
-    UsersDelete = 103,
-
-    // Role management
-    RolesRead = 200,
-    RolesCreate = 201,
-    RolesUpdate = 202,
-    RolesDelete = 203,
-
-    // Billing
-    BillingRead = 500,
-    BillingManage = 501,
-    InvoicesRead = 502,
-    InvoicesWrite = 503,
-
-    // Admin
-    AdminAccess = 900,
-    SystemSettings = 901,
-
+    public const string UsersRead = "UsersRead";
+    public const string UsersCreate = "UsersCreate";
+    public const string BillingRead = "BillingRead";
+    public const string InvoicesRead = "InvoicesRead";
+    public const string InvoicesWrite = "InvoicesWrite";
+    public const string AdminAccess = "AdminAccess";
     // ... more permissions
 }
 ```
@@ -769,28 +634,7 @@ PermissionExpansionMiddleware: admin → [UsersRead, UsersCreate, UsersUpdate, .
 
 ### Accessing Tenant Context
 
-For multi-tenant operations:
-
-```csharp
-public class StorageController : ControllerBase
-{
-    private readonly ITenantContext _tenantContext;
-
-    public StorageController(IMessageBus bus, ITenantContext tenantContext)
-    {
-        _tenantContext = tenantContext;
-    }
-
-    [HttpPost("upload")]
-    public async Task<IActionResult> Upload(...)
-    {
-        var command = new UploadFileCommand(
-            _tenantContext.TenantId.Value,  // Current tenant from JWT
-            GetCurrentUserId(),
-            ...);
-    }
-}
-```
+For multi-tenant operations, inject `ITenantContext` via the primary constructor. The tenant is resolved automatically from the JWT by `TenantResolutionMiddleware`.
 
 ## Adding a New Endpoint
 
@@ -798,7 +642,7 @@ public class StorageController : ControllerBase
 
 1. **Define the contract** (if needed)
    ```
-   src/Modules/{Module}/Wallow.{Module}.Api/Contracts/Requests/{Name}Request.cs
+   src/Modules/{Module}/Wallow.{Module}.Api/Contracts/{Feature}/{Name}Request.cs
    ```
 
 2. **Create the command/query**
@@ -821,7 +665,7 @@ public class StorageController : ControllerBase
    - HTTP method attribute
    - ProducesResponseType attributes
    - Map request to command
-   - Invoke via `_bus.InvokeAsync`
+   - Invoke via `bus.InvokeAsync`
    - Map result to response
 
 ### Example: Adding "Archive Invoice" Endpoint
@@ -879,8 +723,8 @@ public sealed class ArchiveInvoiceHandler(IInvoiceRepository repo)
 [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
 public async Task<IActionResult> Archive(Guid id, CancellationToken ct)
 {
-    var command = new ArchiveInvoiceCommand(id, GetCurrentUserId());
-    var result = await _bus.InvokeAsync<Result>(command, ct);
+    var command = new ArchiveInvoiceCommand(id, currentUserService.GetCurrentUserId()!.Value);
+    var result = await bus.InvokeAsync<Result>(command, ct);
 
     if (result.IsSuccess)
         return NoContent();
@@ -920,8 +764,8 @@ public async Task<IActionResult> Upload(
     await using var stream = file.OpenReadStream();
 
     var command = new UploadFileCommand(
-        _tenantContext.TenantId.Value,
-        GetCurrentUserId(),
+        tenantContext.TenantId.Value,
+        currentUserService.GetCurrentUserId()!.Value,
         bucket,
         file.FileName,
         file.ContentType,
@@ -929,7 +773,7 @@ public async Task<IActionResult> Upload(
         file.Length,
         path);
 
-    var result = await _bus.InvokeAsync<Result<UploadResult>>(command, cancellationToken);
+    var result = await bus.InvokeAsync<Result<UploadResult>>(command, cancellationToken);
 
     return result.Map(ToUploadResponse)
         .ToCreatedResult($"/api/storage/files/{result.Value?.FileId}");
@@ -942,20 +786,15 @@ public async Task<IActionResult> Upload(
 
 ```csharp
 [HttpGet]
-[ProducesResponseType(typeof(PagedResult<InvoiceDto>), StatusCodes.Status200OK)]
+[ProducesResponseType(typeof(PagedResult<InvoiceResponse>), StatusCodes.Status200OK)]
 public async Task<IActionResult> GetAll(
-    [FromQuery] string? search = null,
-    [FromQuery] int page = 1,
-    [FromQuery] int pageSize = 20,
+    [FromQuery] int skip = 0,
+    [FromQuery] int take = 50,
     CancellationToken ct = default)
 {
-    var query = new GetInvoicesQuery(
-        _tenantContext.TenantId.Value,
-        search,
-        page,
-        pageSize);
+    Result<PagedResult<InvoiceDto>> result = await bus.InvokeAsync<Result<PagedResult<InvoiceDto>>>(
+        new GetAllInvoicesQuery(skip, take), ct);
 
-    var result = await _bus.InvokeAsync<Result<PagedResult<InvoiceDto>>>(query, ct);
     return result.ToActionResult();
 }
 ```
@@ -963,7 +802,7 @@ public async Task<IActionResult> GetAll(
 ### Nested Resources
 
 ```csharp
-// GET /api/billing/invoices/{id}/line-items
+// GET /api/v1/billing/invoices/{id}/line-items
 [HttpGet("{id:guid}/line-items")]
 [ProducesResponseType(typeof(IReadOnlyList<InvoiceLineItemDto>), StatusCodes.Status200OK)]
 public async Task<IActionResult> GetLineItems(
@@ -971,7 +810,7 @@ public async Task<IActionResult> GetLineItems(
     CancellationToken ct = default)
 {
     var query = new GetInvoiceLineItemsQuery(id);
-    var result = await _bus.InvokeAsync<Result<IReadOnlyList<InvoiceLineItemDto>>>(query, ct);
+    var result = await bus.InvokeAsync<Result<IReadOnlyList<InvoiceLineItemDto>>>(query, ct);
     return result.ToActionResult();
 }
 ```
@@ -981,14 +820,14 @@ public async Task<IActionResult> GetLineItems(
 For operations that don't fit REST:
 
 ```csharp
-// POST /api/billing/invoices/{id}/issue
+// POST /api/v1/billing/invoices/{id}/issue
 [HttpPost("{id:guid}/issue")]
 [ProducesResponseType(typeof(InvoiceResponse), StatusCodes.Status200OK)]
 [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
 public async Task<IActionResult> Issue(Guid id, CancellationToken ct)
 {
-    var command = new IssueInvoiceCommand(id, GetCurrentUserId());
-    var result = await _bus.InvokeAsync<Result<InvoiceDto>>(command, ct);
+    var command = new IssueInvoiceCommand(id, currentUserService.GetCurrentUserId()!.Value);
+    var result = await bus.InvokeAsync<Result<InvoiceDto>>(command, ct);
     return result.Map(ToInvoiceResponse).ToActionResult();
 }
 ```
@@ -1001,8 +840,8 @@ public async Task<IActionResult> Issue(Guid id, CancellationToken ct)
 [ProducesResponseType(StatusCodes.Status302Found)]
 public async Task<IActionResult> Download(Guid id, CancellationToken ct)
 {
-    var result = await _bus.InvokeAsync<Result<PresignedUrlResult>>(
-        new GetPresignedUrlQuery(_tenantContext.TenantId.Value, id), ct);
+    var result = await bus.InvokeAsync<Result<PresignedUrlResult>>(
+        new GetPresignedUrlQuery(tenantContext.TenantId.Value, id), ct);
 
     if (result.IsFailure)
         return result.ToActionResult();
@@ -1016,7 +855,7 @@ public async Task<IActionResult> Download(Guid id, CancellationToken ct)
 See `docs/development/testing.md` for comprehensive testing patterns. Quick overview:
 
 ```csharp
-public class InvoicesControllerTests : IntegrationTestBase
+public class InvoicesControllerTests : WallowIntegrationTestBase
 {
     [Fact]
     public async Task Create_ReturnsCreated_WithValidRequest()
@@ -1038,7 +877,7 @@ public class InvoicesControllerTests : IntegrationTestBase
 
 ## Related Documentation
 
-- `docs/getting-started/developer-guide.md` - Overall development workflow
-- `docs/development/testing.md` - Testing patterns and fixtures
-- `docs/architecture/module-creation.md` - Creating new modules
-- `docs/architecture/authorization.md` - Permission system details
+- [Developer guide](../getting-started/developer-guide.md) -- Overall development workflow
+- [Testing guide](testing.md) -- Testing patterns and fixtures
+- [Module creation guide](../architecture/module-creation.md) -- Creating new modules
+- [Authorization guide](../architecture/authorization.md) -- Permission system details

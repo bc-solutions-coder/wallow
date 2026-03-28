@@ -30,6 +30,13 @@ All telemetry is exported via OpenTelemetry Protocol (OTLP) to a Grafana LGTM (L
 └────────────────────────────┼────────────────────────────────────────┘
                              │
                              ▼
+              ┌──────────────────────────┐
+              │  Grafana Alloy           │
+              │  (OTLP Collector)        │
+              │  gRPC :4317 / HTTP :4318 │
+              └────────────┬─────────────┘
+                           │
+                           ▼
               ┌──────────────────────────────┐
               │  Grafana LGTM                │
               │  ┌────────┐ ┌─────┐ ┌─────┐  │
@@ -39,7 +46,7 @@ All telemetry is exported via OpenTelemetry Protocol (OTLP) to a Grafana LGTM (L
               │           │                  │
               │     ┌─────▼──────┐           │
               │     │  Grafana   │           │
-              │     │    UI      │           │
+              │     │  UI :3001  │           │
               │     └────────────┘           │
               └──────────────────────────────┘
 ```
@@ -50,153 +57,59 @@ Wallow uses Serilog for structured logging with rich context enrichment.
 
 ### Configuration
 
-Serilog is configured in `Program.cs`:
+Serilog is configured in `Program.cs` with:
 
-```csharp
-builder.Host.UseSerilog((context, services, configuration) =>
-{
-    configuration
-        .ReadFrom.Configuration(context.Configuration)
-        .ReadFrom.Services(services)
-        .Enrich.FromLogContext()
-        .Enrich.With<ModuleEnricher>()
-        .Enrich.WithProperty("Application", "Wallow")
-        .WriteTo.Console(outputTemplate:
-            "[{Timestamp:HH:mm:ss} {Level:u3}] [{Module}] {Message:lj} {Properties:j}{NewLine}{Exception}");
-
-    // OpenTelemetry logging - enable via configuration
-    if (context.Configuration.GetValue("OpenTelemetry:EnableLogging", false))
-    {
-        var otlpEndpoint = context.Configuration["OpenTelemetry:OtlpEndpoint"]
-            ?? "http://localhost:4318";
-        var serviceName = context.Configuration["OpenTelemetry:ServiceName"]
-            ?? "Wallow";
-
-        configuration.WriteTo.OpenTelemetry(options =>
-        {
-            options.Endpoint = otlpEndpoint + "/v1/logs";
-            options.ResourceAttributes = new Dictionary<string, object>
-            {
-                ["service.name"] = serviceName,
-                ["service.namespace"] = "Wallow",
-                ["deployment.environment"] = context.HostingEnvironment.EnvironmentName
-            };
-        });
-    }
-});
-```
+- **Enrichment**: `FromLogContext()`, `ModuleEnricher` (extracts module name from namespace), `PiiDestructuringPolicy`, and an `Application` property from `Logging:NamespacePrefix`.
+- **Console output**: Uses `ExpressionTemplate` with color-coded output showing module, tenant, user, client, HTTP method/status, and request protocol.
+- **OTLP export**: When `OpenTelemetry:EnableLogging` is `true`, logs are shipped via OTLP HTTP to `{OtlpEndpoint}/v1/logs` with `service.name`, `service.namespace`, and `deployment.environment` resource attributes.
 
 ### Log Level Configuration
 
-Log levels are configured in `appsettings.json` and environment-specific files:
+Log levels are configured in `appsettings.json` (base) and `appsettings.Development.json` (overrides for local development). The base configuration uses Serilog overrides:
 
-**Development (`appsettings.Development.json`):**
 ```json
 {
-  "Logging": {
-    "LogLevel": {
-      "Default": "Debug",
-      "Microsoft.AspNetCore": "Information",
-      "Microsoft.EntityFrameworkCore": "Information"
-    }
-  },
-  "OpenTelemetry": {
-    "EnableLogging": true
-  }
-}
-```
-
-**Production (`appsettings.Production.json`):**
-```json
-{
-  "Logging": {
-    "LogLevel": {
-      "Default": "Warning",
-      "Microsoft.AspNetCore": "Warning",
-      "Microsoft.EntityFrameworkCore": "Error"
+  "Serilog": {
+    "MinimumLevel": {
+      "Default": "Information",
+      "Override": {
+        "Microsoft.AspNetCore": "Warning",
+        "Microsoft.EntityFrameworkCore": "Warning",
+        "Wolverine": "Warning"
+      }
     }
   }
 }
 ```
+
+In Development, the `Logging:LogLevel:Default` is set to `Debug` and OpenTelemetry logging is enabled by default. For production, configure log levels via environment variables (e.g., `Serilog__MinimumLevel__Default=Warning`).
 
 ### Module Enricher
 
-The `ModuleEnricher` automatically tags logs with the module name based on the source context namespace:
-
-```csharp
-// src/Wallow.Api/Logging/ModuleEnricher.cs
-public class ModuleEnricher : ILogEventEnricher
-{
-    public void Enrich(LogEvent logEvent, ILogEventPropertyFactory propertyFactory)
-    {
-        var module = "System";
-
-        if (logEvent.Properties.TryGetValue("SourceContext", out var sourceContext))
-        {
-            var contextValue = sourceContext.ToString().Trim('"');
-            var parts = contextValue.Split('.');
-
-            // Wallow.{X}.* -> Module = X
-            if (parts.Length >= 2 && parts[0] == "Wallow")
-            {
-                module = parts[1];
-            }
-        }
-
-        logEvent.AddPropertyIfAbsent(propertyFactory.CreateProperty("Module", module));
-    }
-}
-```
+The `ModuleEnricher` (at `src/Wallow.Api/Logging/ModuleEnricher.cs`) automatically tags logs with the module name extracted from the `SourceContext` namespace using the pattern `{NamespacePrefix}.{ModuleName}.*`. The prefix defaults to `"Wallow"` but can be overridden via `Logging:NamespacePrefix` configuration, supporting fork customization.
 
 This produces log output like:
 ```
 [14:32:15 INF] [Billing] Invoice INV-2026-001 created for tenant acme-corp
-[14:32:16 INF] [Communications] Sending invoice notification to customer@example.com
-[14:32:17 INF] [Communications] Push notification queued for user usr_abc123
+[14:32:16 INF] [Notifications] Sending invoice notification to customer@example.com
+[14:32:17 INF] [Notifications] Push notification queued for user usr_abc123
 ```
 
 ### Request Logging
 
-Serilog request logging is configured with additional enrichment:
-
-```csharp
-app.UseSerilogRequestLogging(options =>
-{
-    options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
-    {
-        diagnosticContext.Set("RequestHost", httpContext.Request.Host.Value);
-        diagnosticContext.Set("UserAgent", httpContext.Request.Headers.UserAgent.ToString());
-    };
-});
-```
+Serilog request logging is configured in `Program.cs` with a custom message template (`{RequestPath} in {Elapsed:0.0000} ms`) and enrichment for `RequestHost` and `UserAgent`.
 
 ### Writing Effective Log Messages
 
-Follow these patterns for consistent, useful logs:
+Wallow uses the `[LoggerMessage]` source generator pattern for all logging. Never call `_logger.LogInformation(...)` directly. See `.claude/rules/LOGGING.md` for the full pattern.
 
 ```csharp
-// Use structured logging with named parameters
-_logger.LogInformation(
-    "Invoice {InvoiceId} created for tenant {TenantId} with total {Total:C}",
-    invoice.Id, tenantId, invoice.Total);
+// Define as private partial void methods at the bottom of a partial class
+[LoggerMessage(Level = LogLevel.Information, Message = "Invoice {InvoiceId} created for tenant {TenantId}")]
+private partial void LogInvoiceCreated(Guid invoiceId, Guid tenantId);
 
-// Include correlation context
-_logger.LogWarning(
-    "Payment retry {Attempt} of {MaxAttempts} for invoice {InvoiceId}",
-    attempt, maxAttempts, invoiceId);
-
-// Log exceptions with context
-_logger.LogError(
-    exception,
-    "Failed to process payment for invoice {InvoiceId}. Gateway: {Gateway}",
-    invoiceId, gateway);
-
-// Use appropriate log levels
-_logger.LogDebug("Starting invoice processing for {LineItemCount} items", lineItems.Count);
-_logger.LogInformation("Invoice {InvoiceId} issued successfully", invoiceId);
-_logger.LogWarning("Payment retry {Attempt} of {MaxAttempts} for invoice {InvoiceId}", attempt, maxAttempts, invoiceId);
-_logger.LogError("Payment gateway timeout for transaction {TransactionId}", transactionId);
-_logger.LogCritical("Database connection lost, entering degraded mode");
+[LoggerMessage(Level = LogLevel.Warning, Message = "Payment retry {Attempt} of {MaxAttempts} for invoice {InvoiceId}")]
+private partial void LogPaymentRetry(int attempt, int maxAttempts, Guid invoiceId);
 ```
 
 ## OpenTelemetry Tracing
@@ -205,41 +118,13 @@ OpenTelemetry provides distributed tracing across HTTP requests, database operat
 
 ### Configuration
 
-Tracing is configured in `ServiceCollectionExtensions.cs`:
+Tracing is configured via `AddObservability()` in `src/Wallow.Api/Extensions/ServiceCollectionExtensions.cs`. It reads `OpenTelemetry:ServiceName` and `OpenTelemetry:OtlpGrpcEndpoint` from configuration. In non-Development environments, `OtlpGrpcEndpoint` is required.
 
-```csharp
-public static IServiceCollection AddObservability(
-    this IServiceCollection services,
-    IConfiguration configuration,
-    IHostEnvironment environment)
-{
-    var serviceName = configuration["OpenTelemetry:ServiceName"] ?? "Wallow";
-    var otlpGrpcEndpoint = configuration["OpenTelemetry:OtlpGrpcEndpoint"] ?? "http://localhost:4317";
-
-    services.AddOpenTelemetry()
-        .ConfigureResource(resource => resource
-            .AddService(
-                serviceName: serviceName,
-                serviceNamespace: "Wallow",
-                serviceVersion: typeof(ServiceCollectionExtensions).Assembly
-                    .GetName().Version?.ToString() ?? "1.0.0")
-            .AddAttributes(new KeyValuePair<string, object>[]
-            {
-                new("deployment.environment", environment.EnvironmentName)
-            }))
-        .WithTracing(tracing => tracing
-            .AddAspNetCoreInstrumentation()
-            .AddEntityFrameworkCoreInstrumentation()
-            .AddHttpClientInstrumentation()
-            .AddSource("Wolverine")
-            .AddOtlpExporter(options =>
-            {
-                options.Endpoint = new Uri(otlpGrpcEndpoint);
-            }));
-
-    return services;
-}
-```
+Key aspects of the tracing configuration:
+- **Sampling**: Uses `ParentBasedSampler` with `TraceIdRatioBasedSampler`. The ratio defaults to 1.0 (100%) in Development and 0.1 (10%) in production, configurable via `Observability:TraceSamplingRatio`.
+- **Instrumentation**: ASP.NET Core, EF Core, HttpClient, and Wolverine are all auto-instrumented.
+- **Source registration**: Uses `.AddSource("Wallow.*")` wildcard to capture all module activity sources.
+- **Export**: OTLP gRPC exporter sends to the configured endpoint.
 
 ### Auto-Instrumentation
 
@@ -257,30 +142,31 @@ The following are automatically instrumented:
 Traces are automatically propagated through:
 
 - **HTTP Headers**: W3C Trace Context (`traceparent`, `tracestate`)
-- **RabbitMQ Messages**: Wolverine propagates trace context through message headers
+- **Wolverine Messages**: Wolverine propagates trace context through in-memory message headers
 - **SignalR**: Trace context flows through WebSocket connections
 
 ### Adding Custom Spans
 
-For custom operations that need tracing:
+Use `Diagnostics.CreateActivitySource()` from `Wallow.Shared.Kernel` to create module-scoped activity sources. All `Wallow.*` sources are captured automatically by the wildcard registration in `AddObservability()`.
 
 ```csharp
 using System.Diagnostics;
+using Wallow.Shared.Kernel;
 
 public class PaymentService
 {
-    private static readonly ActivitySource ActivitySource = new("Wallow.Billing");
+    private static readonly ActivitySource ActivitySource =
+        Diagnostics.CreateActivitySource("Billing"); // creates "Wallow.Billing"
 
     public async Task<PaymentResult> ProcessPaymentAsync(PaymentRequest request)
     {
-        using var activity = ActivitySource.StartActivity("ProcessPayment");
+        using Activity? activity = ActivitySource.StartActivity("ProcessPayment");
         activity?.SetTag("payment.amount", request.Amount);
         activity?.SetTag("payment.currency", request.Currency);
-        activity?.SetTag("payment.gateway", request.Gateway);
 
         try
         {
-            var result = await _gateway.ChargeAsync(request);
+            PaymentResult result = await _gateway.ChargeAsync(request);
             activity?.SetTag("payment.status", result.Status);
             return result;
         }
@@ -293,38 +179,11 @@ public class PaymentService
 }
 ```
 
-Register the ActivitySource in OpenTelemetry configuration:
-
-```csharp
-.WithTracing(tracing => tracing
-    .AddSource("Wallow.Billing")  // Add your custom source
-    // ... other configuration
-```
-
 ### Correlating Errors with Traces
 
-The `GlobalExceptionHandler` includes trace IDs in error responses:
+The `GlobalExceptionHandler` (at `src/Wallow.Api/Middleware/GlobalExceptionHandler.cs`) includes trace IDs in all error responses. It extracts the trace ID from the current `Activity` or falls back to `HttpContext.TraceIdentifier`, then includes it in the Problem Details response:
 
-```csharp
-var traceId = System.Diagnostics.Activity.Current?.Id ?? httpContext.TraceIdentifier;
 
-_logger.LogError(
-    exception,
-    "Unhandled exception occurred. TraceId: {TraceId}, Path: {Path}",
-    traceId,
-    httpContext.Request.Path);
-
-var problemDetails = new ProblemDetails
-{
-    // ...
-    Extensions =
-    {
-        ["traceId"] = traceId
-    }
-};
-```
-
-Error responses include the trace ID:
 ```json
 {
   "type": "https://tools.ietf.org/html/rfc7231#section-6.6.1",
@@ -357,13 +216,11 @@ The following metrics are automatically collected:
 
 Wallow provides a shared `Meter` for custom metrics:
 
-```csharp
-// src/Shared/Wallow.Shared.Kernel/Diagnostics.cs
-public static class Diagnostics
-{
-    public static readonly Meter Meter = new("Wallow");
-}
-```
+The `Diagnostics` class (at `src/Shared/Wallow.Shared.Kernel/Diagnostics.cs`) provides:
+- `Diagnostics.Meter` -- the shared `Meter` instance (name defaults to `"Wallow"`)
+- `Diagnostics.CreateActivitySource(moduleName)` -- creates `"Wallow.{moduleName}"`
+- `Diagnostics.CreateMeter(moduleName)` -- creates a module-scoped meter
+- `Diagnostics.Initialize(prefix)` -- allows forks to change the prefix from `"Wallow"`
 
 Create custom metrics:
 
@@ -400,13 +257,7 @@ public class InvoiceService
 }
 ```
 
-The `Wallow` meter is already registered in the OpenTelemetry configuration:
-
-```csharp
-.WithMetrics(metrics => metrics
-    .AddMeter("Wallow")  // Custom Wallow metrics
-    // ... other configuration
-```
+The `Wallow` meter and all module-scoped meters are registered in the OpenTelemetry configuration via `.AddMeter("Wallow")` and `.AddMeter("Wallow.*")`.
 
 ## Local Development
 
@@ -419,33 +270,23 @@ cd docker
 docker compose up -d grafana-lgtm
 ```
 
-This starts:
-- **Grafana** on http://localhost:3001 (admin/admin)
-- **OTLP gRPC receiver** on port 4317
-- **OTLP HTTP receiver** on port 4318
+This starts the Grafana LGTM container. The full observability stack also requires the Alloy collector (`alloy` service), which starts automatically as a dependency.
+
+- **Grafana** on http://localhost:3001 (password from `GF_ADMIN_PASSWORD` in `docker/.env`)
+- **OTLP gRPC receiver** on port 4317 (via Alloy)
+- **OTLP HTTP receiver** on port 4318 (via Alloy)
 - **Loki** for logs
 - **Tempo** for traces
 - **Prometheus** for metrics
 
 ### Configuration for Local Development
 
-Enable OpenTelemetry logging in `appsettings.Development.json`:
-
-```json
-{
-  "OpenTelemetry": {
-    "EnableLogging": true,
-    "ServiceName": "Wallow",
-    "OtlpEndpoint": "http://localhost:4318",
-    "OtlpGrpcEndpoint": "http://localhost:4317"
-  }
-}
-```
+OpenTelemetry is already enabled in `appsettings.Development.json` with endpoints pointing to `localhost:4317` (gRPC) and `localhost:4318` (HTTP). No additional configuration is needed.
 
 ### Accessing Grafana
 
-1. Open http://localhost:3000
-2. Login with admin/admin
+1. Open http://localhost:3001
+2. Login with the password from `docker/.env` (`GF_ADMIN_PASSWORD`)
 3. Navigate to **Explore** to query data sources:
    - **Loki** - Log queries using LogQL
    - **Tempo** - Trace searches by trace ID or service
@@ -459,6 +300,12 @@ Wallow includes pre-configured dashboards in `docker/grafana/dashboards/`:
 |-----------|-------------|
 | **ASP.NET Core OTel** | HTTP request metrics, latencies, error rates |
 | **.NET Runtime** | GC metrics, thread pool, memory usage |
+| **Module Overview** | Per-module metrics overview |
+| **Billing Dashboard** | Billing-specific metrics |
+| **Messaging Dashboard** | Message processing metrics |
+| **Sales Dashboard** | Sales-related metrics |
+| **SLO Monitoring** | Service level objective tracking |
+| **Multi-Region Overview** | Cross-region metrics |
 
 Access dashboards at: **Dashboards** > **Browse** > Select dashboard
 
@@ -502,57 +349,26 @@ Example TraceQL query:
 
 ### OTLP Endpoints
 
-Configure OTLP endpoints via environment variables or appsettings:
+Configure OTLP endpoints via environment variables:
 
-```json
-{
-  "OpenTelemetry": {
-    "EnableLogging": true,
-    "ServiceName": "Wallow",
-    "OtlpEndpoint": "https://otel-collector.yourcompany.com",
-    "OtlpGrpcEndpoint": "https://otel-collector.yourcompany.com:4317"
-  }
-}
-```
-
-Or via environment variables:
 ```bash
-export OpenTelemetry__ServiceName="Wallow-Production"
-export OpenTelemetry__OtlpEndpoint="https://otel-collector.yourcompany.com"
-export OpenTelemetry__OtlpGrpcEndpoint="https://otel-collector.yourcompany.com:4317"
+OpenTelemetry__EnableLogging=true
+OpenTelemetry__ServiceName=Wallow
+OpenTelemetry__OtlpEndpoint=https://otel-collector.yourcompany.com
+OpenTelemetry__OtlpGrpcEndpoint=https://otel-collector.yourcompany.com:4317
 ```
 
-### Log Shipping
+`OtlpGrpcEndpoint` is required in non-Development environments. The API will throw on startup if it is not configured.
 
-For production, logs can be shipped to:
-
-1. **OTLP Collector**: Enable `OpenTelemetry:EnableLogging` to send logs via OTLP
-2. **Managed Services**: Configure Serilog sinks for services like Datadog, Seq, or Elastic
-
-Example adding a Seq sink:
-```csharp
-configuration.WriteTo.Seq("https://seq.yourcompany.com");
-```
+`OtlpEndpoint` is used for Serilog log shipping (HTTP) when `EnableLogging` is `true`. `OtlpGrpcEndpoint` is used for traces and metrics.
 
 ### Performance Considerations
 
-1. **Sampling**: For high-traffic production systems, configure trace sampling:
-   ```csharp
-   .WithTracing(tracing => tracing
-       .SetSampler(new TraceIdRatioBasedSampler(0.1))  // 10% sampling
-       // ...
-   ```
+1. **Sampling**: Trace sampling is already configured in `AddObservability()`. It defaults to 10% in production. Override via `Observability:TraceSamplingRatio` configuration key.
 
-2. **Log Levels**: Use Warning or higher in production to reduce log volume
+2. **Log Levels**: Use Warning or higher in production to reduce log volume.
 
-3. **Batch Export**: OTLP exporters batch by default. Adjust if needed:
-   ```csharp
-   .AddOtlpExporter(options =>
-   {
-       options.BatchExportProcessorOptions.MaxQueueSize = 2048;
-       options.BatchExportProcessorOptions.ScheduledDelayMilliseconds = 5000;
-   })
-   ```
+3. **Batch Export**: OTLP exporters batch by default. The defaults are suitable for most workloads.
 
 ## Debugging with Traces
 
@@ -590,9 +406,9 @@ Wolverine messages carry trace context automatically. To trace a message:
 3. Use trace ID from logs to view full execution trace
 
 **Message Processing Issues:**
-1. Check RabbitMQ management UI for queue depth
-2. Search logs for message type
-3. Look for error patterns in Wolverine dead letter queues
+1. Search logs for the message type
+2. Check the Wolverine envelope tables for stuck or errored messages
+3. Use trace ID from logs to view full execution trace
 
 ## Adding Observability to New Code
 
@@ -609,9 +425,9 @@ Add custom telemetry for:
 
 **Activity Sources (Tracing):**
 ```csharp
-// Format: Wallow.{ModuleName}
-private static readonly ActivitySource ActivitySource = new("Wallow.Billing");
-private static readonly ActivitySource ActivitySource = new("Wallow.Storage");
+// Use Diagnostics.CreateActivitySource() — produces "Wallow.{ModuleName}"
+private static readonly ActivitySource ActivitySource = Diagnostics.CreateActivitySource("Billing");
+private static readonly ActivitySource ActivitySource = Diagnostics.CreateActivitySource("Storage");
 ```
 
 **Metrics:**
@@ -623,92 +439,53 @@ Diagnostics.Meter.CreateHistogram<double>("wallow.billing.payment_duration_secon
 Diagnostics.Meter.CreateCounter<long>("wallow.storage.files_uploaded");
 ```
 
-**Log Properties:**
+**Log Message Properties:**
+Use PascalCase for property names. Include IDs, counts, durations, and statuses.
+
 ```csharp
-// Use PascalCase for property names
-// Include IDs, counts, durations, statuses
-_logger.LogInformation(
-    "Order {OrderId} processed in {DurationMs}ms with {ItemCount} items. Status: {Status}",
-    orderId, duration.TotalMilliseconds, itemCount, status);
+[LoggerMessage(Level = LogLevel.Information,
+    Message = "Order {OrderId} processed in {DurationMs}ms with {ItemCount} items. Status: {Status}")]
+private partial void LogOrderProcessed(Guid orderId, double durationMs, int itemCount, string status);
 ```
 
 ### Complete Example: Adding Observability to a Service
+
+This example shows the three pillars (traces, metrics, logging) combined in a single service. Note the use of `[LoggerMessage]` source generator for logging and `Diagnostics.CreateActivitySource()` for tracing.
 
 ```csharp
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using Wallow.Shared.Kernel;
 
-public class PaymentService
+public sealed partial class PaymentService(
+    ILogger<PaymentService> logger,
+    IPaymentRepository repository)
 {
     private static readonly ActivitySource ActivitySource =
         Diagnostics.CreateActivitySource("Billing");
 
     private static readonly Counter<long> PaymentsProcessed =
         Diagnostics.Meter.CreateCounter<long>(
-            "wallow.billing.payments_processed",
+            "wallow.billing.payments_processed_total",
             description: "Number of payments processed");
 
-    private static readonly Histogram<double> PaymentDuration =
-        Diagnostics.Meter.CreateHistogram<double>(
-            "wallow.billing.payment_duration_seconds",
-            unit: "s",
-            description: "Time to process a payment");
-
-    private readonly ILogger<PaymentService> _logger;
-    private readonly IPaymentRepository _repository;
-
-    public PaymentService(
-        ILogger<PaymentService> logger,
-        IPaymentRepository repository)
-    {
-        _logger = logger;
-        _repository = repository;
-    }
-
     public async Task<PaymentResult> ProcessPaymentAsync(
-        PaymentRequest request,
-        CancellationToken cancellationToken)
+        PaymentRequest request, CancellationToken ct)
     {
-        using var activity = ActivitySource.StartActivity("ProcessPayment");
+        using Activity? activity = ActivitySource.StartActivity("ProcessPayment");
         activity?.SetTag("payment.invoice_id", request.InvoiceId.ToString());
         activity?.SetTag("payment.amount", request.Amount);
-        activity?.SetTag("payment.tenant_id", request.TenantId.ToString());
-
-        var stopwatch = Stopwatch.StartNew();
-
-        _logger.LogDebug(
-            "Processing payment of {Amount} for invoice {InvoiceId}",
-            request.Amount, request.InvoiceId);
 
         try
         {
-            var result = await _repository.ProcessAsync(request, cancellationToken);
-
-            stopwatch.Stop();
+            PaymentResult result = await repository.ProcessAsync(request, ct);
             activity?.SetTag("payment.success", result.IsSuccess);
 
             if (result.IsSuccess)
             {
                 PaymentsProcessed.Add(1,
-                    new KeyValuePair<string, object?>("tenant_id", request.TenantId.ToString()),
                     new KeyValuePair<string, object?>("method", request.Method));
-
-                PaymentDuration.Record(
-                    stopwatch.Elapsed.TotalSeconds,
-                    new KeyValuePair<string, object?>("tenant_id", request.TenantId.ToString()));
-
-                _logger.LogInformation(
-                    "Payment {PaymentId} processed for invoice {InvoiceId}. " +
-                    "Amount: {Amount}, Duration: {DurationMs}ms",
-                    result.PaymentId, request.InvoiceId,
-                    request.Amount, stopwatch.ElapsedMilliseconds);
-            }
-            else
-            {
-                _logger.LogWarning(
-                    "Payment failed for invoice {InvoiceId}: {Reason}",
-                    request.InvoiceId, result.FailureReason);
+                LogPaymentProcessed(result.PaymentId, request.InvoiceId);
             }
 
             return result;
@@ -717,24 +494,20 @@ public class PaymentService
         {
             activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
             activity?.RecordException(ex);
-
-            _logger.LogError(ex,
-                "Error processing payment for invoice {InvoiceId}",
-                request.InvoiceId);
+            LogPaymentError(request.InvoiceId, ex);
             throw;
         }
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Payment {PaymentId} processed for invoice {InvoiceId}")]
+    private partial void LogPaymentProcessed(Guid paymentId, Guid invoiceId);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Error processing payment for invoice {InvoiceId}")]
+    private partial void LogPaymentError(Guid invoiceId, Exception ex);
 }
 ```
 
-Register the custom ActivitySource:
-
-```csharp
-// In ServiceCollectionExtensions.cs
-.WithTracing(tracing => tracing
-    .AddSource("Wallow.Billing")  // Add this line
-    // ... existing configuration
-```
+Activity sources using `Diagnostics.CreateActivitySource()` are automatically captured by the `Wallow.*` wildcard in the tracing configuration.
 
 ## Troubleshooting
 
@@ -830,7 +603,6 @@ FileSizeBytes.Record((double)file.SizeBytes);
 Use `Diagnostics.CreateActivitySource` for module-scoped tracing:
 
 ```csharp
-// From Storage — StorageReadService.cs
 private static readonly ActivitySource StorageActivitySource =
     Diagnostics.CreateActivitySource("Storage");
 
@@ -841,12 +613,12 @@ activity?.SetTag("storage.tenant_id", query.TenantId.ToString());
 activity?.SetTag("storage.file_count", fileList.Count);
 ```
 
-Register each module's `ActivitySource` in `ServiceCollectionExtensions.cs`:
+All `Wallow.*` activity sources are registered via a wildcard in `ServiceCollectionExtensions.cs`:
 
 ```csharp
 .WithTracing(tracing => tracing
-    .AddSource("Wallow.Storage")
-    // ... other sources
+    .AddSource("Wallow.*")
+    // ... other configuration
 ```
 
 ### Creating Grafana Dashboard Panels
@@ -862,7 +634,7 @@ With metrics flowing to Prometheus, create dashboard panels using PromQL:
 
 > **Note:** Prometheus converts dots to underscores, so `wallow.billing.invoices_created_total` becomes `wallow_billing_invoices_created_total`.
 
-> **Current modules:** Identity, Storage, Communications, Billing, Configuration. Use these module names in your metrics and traces.
+> **Current modules:** Identity, Billing, Storage, Notifications, Messaging, Announcements, Inquiries, ApiKeys, Branding. Use these module names in your metrics and traces.
 
 To add a panel: **Grafana** > **Dashboards** > **New Dashboard** > **Add visualization** > select **Prometheus** data source > enter the PromQL query > choose an appropriate visualization (Stat for counters, Time Series for rates, Heatmap for histograms).
 

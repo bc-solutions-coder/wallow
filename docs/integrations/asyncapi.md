@@ -75,10 +75,10 @@ Key source files:
 | File | Purpose |
 |------|---------|
 | `src/Wallow.Api/Extensions/AsyncApiEndpointExtensions.cs` | Endpoint registration (dev only) |
-| `src/Shared/Wallow.Shared.Infrastructure/AsyncApi/EventFlowDiscovery.cs` | Reflection-based event and consumer discovery |
-| `src/Shared/Wallow.Shared.Infrastructure/AsyncApi/AsyncApiDocumentGenerator.cs` | AsyncAPI 3.0 JSON document builder |
-| `src/Shared/Wallow.Shared.Infrastructure/AsyncApi/MermaidFlowGenerator.cs` | Mermaid diagram generator |
-| `src/Shared/Wallow.Shared.Infrastructure/AsyncApi/JsonSchemaGenerator.cs` | C# type to JSON Schema converter |
+| `src/Shared/Wallow.Shared.Infrastructure.Workflows/AsyncApi/EventFlowDiscovery.cs` | Reflection-based event and consumer discovery |
+| `src/Shared/Wallow.Shared.Infrastructure.Workflows/AsyncApi/AsyncApiDocumentGenerator.cs` | AsyncAPI 3.0 JSON document builder |
+| `src/Shared/Wallow.Shared.Infrastructure.Workflows/AsyncApi/MermaidFlowGenerator.cs` | Mermaid diagram generator |
+| `src/Shared/Wallow.Shared.Infrastructure.Workflows/AsyncApi/JsonSchemaGenerator.cs` | C# type to JSON Schema converter |
 
 ---
 
@@ -93,7 +93,7 @@ Follow the existing conventions to ensure clean discovery:
 - Use past-tense naming: `InvoicePaidEvent`, not `PayInvoiceEvent`
 - Use primitive types (`Guid`, `string`, `decimal`) — not domain value objects
 
-See the [Messaging Guide](../architecture/messaging.md#8-integration-events) for full event authoring details.
+See the [Messaging Guide](../architecture/messaging.md#integration-events) for full event authoring details.
 
 ---
 

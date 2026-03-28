@@ -85,8 +85,8 @@ Both `Wallow.Auth` and `Wallow.Web` load `branding.json` at startup and bind it 
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Host=localhost;Port=5432;Database=wallow;Username=wallow;Password=wallow",
-    "Redis": "localhost:6379,abortConnect=false"
+    "DefaultConnection": "Host=localhost;Port=5432;Database=wallow;Username=wallow;Password=SET_VIA_ENV_OR_USER_SECRETS;SSL Mode=Disable",
+    "Redis": "localhost:6379,password=,abortConnect=false"
   }
 }
 ```
@@ -95,21 +95,6 @@ Both `Wallow.Auth` and `Wallow.Web` load `branding.json` at startup and bind it 
 |-----|-------------|---------------------|
 | `DefaultConnection` | PostgreSQL connection string | `ConnectionStrings__DefaultConnection` |
 | `Redis` | Redis/Valkey connection string for caching and SignalR backplane | `ConnectionStrings__Redis` |
-
-### Messaging Transport (Optional)
-
-Wolverine uses in-memory transport by default. To enable RabbitMQ for cross-instance messaging, set `ModuleMessaging:Transport` to `RabbitMq` and add the connection string. See `docs/plans/2026-03-24-wolverine-rabbitmq-transport-design.md`.
-
-```json
-{
-  "ModuleMessaging": {
-    "Transport": "RabbitMq"
-  },
-  "ConnectionStrings": {
-    "RabbitMq": "amqp://guest:guest@localhost:5672"
-  }
-}
-```
 
 ### CORS
 
@@ -189,12 +174,12 @@ Wallow uses GarageHQ as the default S3-compatible object storage. The `S3Storage
     "Provider": "S3",
     "Local": {
       "BasePath": "/var/wallow/storage",
-      "BaseUrl": "http://localhost:5000"
+      "BaseUrl": "http://localhost:5001"
     },
     "S3": {
       "Endpoint": "http://localhost:3900",
-      "AccessKey": "wallow",
-      "SecretKey": "wallowsecretkey1234567890abcdefgh",
+      "AccessKey": "SET_VIA_Storage__S3__AccessKey",
+      "SecretKey": "SET_VIA_Storage__S3__SecretKey",
       "BucketName": "wallow-files",
       "UsePathStyle": true,
       "Region": "us-east-1"
@@ -314,48 +299,12 @@ public static IServiceCollection AddYourModuleInfrastructure(
 
 ### 4. Inject and Use Options
 
-In services or controllers:
+Inject `IOptions<YourModuleOptions>` into any service or controller and access `.Value`:
 
 ```csharp
-public class YourService
+public class YourService(IOptions<YourModuleOptions> options)
 {
-    private readonly YourModuleOptions _options;
-
-    public YourService(IOptions<YourModuleOptions> options)
-    {
-        _options = options.Value;
-    }
-
-    public async Task DoSomethingAsync()
-    {
-        if (_options.MaxRetries > 0)
-        {
-            // Use the configured value
-        }
-    }
-}
-```
-
-In controllers:
-
-```csharp
-public class YourController : ControllerBase
-{
-    private readonly YourModuleOptions _options;
-
-    public YourController(IOptions<YourModuleOptions> options)
-    {
-        _options = options.Value;
-    }
-
-    [HttpPost]
-    public IActionResult ValidateApiKey([FromQuery] string apiKey)
-    {
-        if (apiKey != _options.ApiKey)
-            return Unauthorized();
-
-        return Ok();
-    }
+    private readonly YourModuleOptions _options = options.Value;
 }
 ```
 
@@ -401,15 +350,15 @@ dotnet run --environment Production
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Host=localhost;Port=5432;Database=wallow;Username=wallow;Password=wallow",
-    "Redis": "localhost:6379,abortConnect=false"
+    "DefaultConnection": "Host=localhost;Port=5432;Database=wallow;Username=wallow;Password=SET_VIA_ENV_OR_USER_SECRETS",
+    "Redis": "localhost:6379,password=,abortConnect=false"
   },
   "Storage": {
     "Provider": "S3",
     "S3": {
       "Endpoint": "http://localhost:3900",
-      "AccessKey": "wallow",
-      "SecretKey": "wallowsecretkey1234567890abcdefgh",
+      "AccessKey": "SET_VIA_Storage__S3__AccessKey",
+      "SecretKey": "SET_VIA_Storage__S3__SecretKey",
       "BucketName": "wallow-files",
       "UsePathStyle": true,
       "Region": "us-east-1"
@@ -560,20 +509,21 @@ This starts the following services:
 | GarageHQ | 3900, 3903 | S3-compatible object storage (S3 API: 3900, Admin: 3903) | See `docker/.env` |
 | Mailpit | 1025, 8025 | Email testing (SMTP: 1025, UI: 8025) | N/A |
 | ClamAV (optional) | 3310 | Antivirus file scanning (`--profile clamav`) | N/A |
-| Grafana LGTM | 3000, 4317, 4318 | Observability (Grafana: 3000, OTLP gRPC: 4317, OTLP HTTP: 4318) | `admin` / `admin` |
+| Grafana LGTM | 3001, 4317, 4318 | Observability (Grafana: 3001, OTLP gRPC: 4317, OTLP HTTP: 4318) | `admin` / See `docker/.env` |
 
 Docker environment variables are configured in `docker/.env` (copy from `docker/.env.example` and set your own values):
 
 ```env
 COMPOSE_PROJECT_NAME=wallow
 POSTGRES_USER=wallow
-POSTGRES_PASSWORD=CHANGE_ME
+POSTGRES_PASSWORD=changeme
 POSTGRES_DB=wallow
-VALKEY_PASSWORD=CHANGE_ME
+VALKEY_PASSWORD=changeme
 GARAGE_KEY_NAME=wallow-dev
-GARAGE_ACCESS_KEY=CHANGE_ME
-GARAGE_SECRET_KEY=CHANGE_ME
+GARAGE_ACCESS_KEY=changeme
+GARAGE_SECRET_KEY=changeme
 GARAGE_BUCKET=wallow-files
+GF_ADMIN_PASSWORD=changeme
 ```
 
 ## User Secrets (Development Only)
@@ -600,210 +550,23 @@ Secrets are stored in:
 - **macOS/Linux**: `~/.microsoft/usersecrets/<user_secrets_id>/secrets.json`
 - **Windows**: `%APPDATA%\Microsoft\UserSecrets\<user_secrets_id>\secrets.json`
 
-## Real Examples in Wallow
-
-### Storage Module
-
-```csharp
-// StorageOptions.cs
-public sealed class StorageOptions
-{
-    public const string SectionName = "Storage";
-
-    public StorageProvider Provider { get; set; } = StorageProvider.Local;
-    public LocalStorageOptions Local { get; set; } = new();
-    public S3StorageOptions S3 { get; set; } = new();
-    public ClamAvOptions ClamAv { get; set; } = new();
-}
-
-public sealed class ClamAvOptions
-{
-    public bool Enabled { get; set; }        // false by default
-    public string Host { get; set; } = "localhost";
-    public int Port { get; set; } = 3310;
-}
-
-public sealed class LocalStorageOptions
-{
-    public string BasePath { get; set; } = "/var/wallow/storage";
-    public string? BaseUrl { get; set; }
-}
-
-public sealed class S3StorageOptions
-{
-    public string Endpoint { get; set; } = string.Empty;
-    public string AccessKey { get; set; } = string.Empty;
-    public string SecretKey { get; set; } = string.Empty;
-    public string BucketName { get; set; } = string.Empty;
-    public bool UsePathStyle { get; set; } = true;
-    public string Region { get; set; } = "us-east-1";
-}
-```
-
-```json
-// appsettings.json
-{
-  "Storage": {
-    "Provider": "S3",
-    "Local": {
-      "BasePath": "/var/wallow/storage",
-      "BaseUrl": "http://localhost:5000"
-    },
-    "S3": {
-      "Endpoint": "http://localhost:3900",
-      "AccessKey": "wallow",
-      "SecretKey": "wallowsecretkey1234567890abcdefgh",
-      "BucketName": "wallow-files"
-    }
-  }
-}
-```
-
-### Notifications Module (Email/SMTP)
-
-```csharp
-// SmtpSettings.cs (in Wallow.Notifications.Infrastructure)
-public sealed class SmtpSettings
-{
-    public string Host { get; set; } = "localhost";
-    public int Port { get; set; } = 1025;
-    public bool UseSsl { get; set; } = false;
-    public string? Username { get; set; }
-    public string? Password { get; set; }
-    public string DefaultFromAddress { get; set; } = "noreply@wallow.local";
-    public string DefaultFromName { get; set; } = "Wallow";
-    public int MaxRetries { get; set; } = 3;
-    public int TimeoutSeconds { get; set; } = 30;
-}
-```
-
-```json
-// appsettings.json
-{
-  "Smtp": {
-    "Host": "localhost",
-    "Port": 1025,
-    "UseSsl": false,
-    "Username": "",
-    "Password": "",
-    "DefaultFromAddress": "noreply@wallow.local",
-    "DefaultFromName": "Wallow",
-    "MaxRetries": 3,
-    "TimeoutSeconds": 30
-  }
-}
-```
-
 ## Advanced Patterns
 
-### Selecting Implementation at Startup
+### Options Variants
 
-Use configuration to choose which implementation to register:
-
-```csharp
-private static IServiceCollection AddStorageProvider(
-    this IServiceCollection services,
-    IConfiguration configuration)
-{
-    // Bind options for DI
-    services.Configure<StorageOptions>(
-        configuration.GetSection(StorageOptions.SectionName));
-
-    // Read immediately to select provider
-    var storageOptions = configuration
-        .GetSection(StorageOptions.SectionName)
-        .Get<StorageOptions>() ?? new StorageOptions();
-
-    switch (storageOptions.Provider)
-    {
-        case StorageProvider.S3:
-            services.AddSingleton<IStorageProvider, S3StorageProvider>();
-            break;
-        case StorageProvider.Local:
-        default:
-            services.AddSingleton<IStorageProvider, LocalStorageProvider>();
-            break;
-    }
-
-    return services;
-}
-```
-
-### IOptionsSnapshot for Reloadable Configuration
-
-Use `IOptionsSnapshot<T>` when you need configuration that reloads on change:
-
-```csharp
-public class MyService
-{
-    private readonly IOptionsSnapshot<YourModuleOptions> _options;
-
-    public MyService(IOptionsSnapshot<YourModuleOptions> options)
-    {
-        _options = options;
-    }
-
-    public void DoWork()
-    {
-        // Gets current value on each request
-        var currentOptions = _options.Value;
-    }
-}
-```
-
-### IOptionsMonitor for Background Services
-
-Use `IOptionsMonitor<T>` in singletons or background services:
-
-```csharp
-public class BackgroundWorker : BackgroundService
-{
-    private readonly IOptionsMonitor<YourModuleOptions> _options;
-
-    public BackgroundWorker(IOptionsMonitor<YourModuleOptions> options)
-    {
-        _options = options;
-
-        // React to configuration changes
-        _options.OnChange(newOptions =>
-        {
-            // Handle configuration update
-        });
-    }
-
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            var currentValue = _options.CurrentValue;
-            // Use current configuration
-        }
-    }
-}
-```
+- **`IOptions<T>`** -- Singleton, read once at startup. Use for configuration that does not change.
+- **`IOptionsSnapshot<T>`** -- Scoped, re-reads on each request. Use for configuration that may change at runtime.
+- **`IOptionsMonitor<T>`** -- Singleton with change notifications. Use in background services.
 
 ### Validation with Data Annotations
 
+Register options with `ValidateDataAnnotations()` and `ValidateOnStart()` to fail fast on misconfiguration:
+
 ```csharp
-using System.ComponentModel.DataAnnotations;
-
-public sealed class YourModuleOptions
-{
-    public const string SectionName = "YourModule";
-
-    [Required]
-    [MinLength(10)]
-    public string ApiKey { get; set; } = string.Empty;
-
-    [Range(1, 10)]
-    public int MaxRetries { get; set; } = 3;
-}
-
-// Registration with validation
 services.AddOptions<YourModuleOptions>()
     .Bind(configuration.GetSection(YourModuleOptions.SectionName))
     .ValidateDataAnnotations()
-    .ValidateOnStart(); // Fail fast if invalid
+    .ValidateOnStart();
 ```
 
 ## Best Practices

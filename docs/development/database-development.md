@@ -8,7 +8,7 @@ Wallow uses EF Core as the primary ORM for all modules:
 
 | Approach | Technology | Use Case | Modules |
 |----------|------------|----------|---------|
-| **Relational (EF Core)** | EF Core + PostgreSQL | Standard CRUD, writes, change tracking | Billing, Identity, Communications, Storage, Configuration |
+| **Relational (EF Core)** | EF Core + PostgreSQL | Standard CRUD, writes, change tracking | Identity, Billing, Storage, Notifications, Messaging, Announcements, Inquiries, ApiKeys, Branding |
 | **Read Queries (Dapper)** | Dapper + PostgreSQL | Complex reporting, aggregations | Cross-module reporting services |
 
 All modules share a single PostgreSQL instance but use separate schemas for isolation.
@@ -237,51 +237,28 @@ public sealed class InvoiceRepository : IInvoiceRepository
 - Performance-critical read paths
 - Queries spanning multiple schemas
 
-**Dapper Example:**
+**Read-optimized query via IReadDbContext:**
+
+For reporting queries, the codebase uses `IReadDbContext<TContext>` which provides a read-only DbContext instance (potentially routed to a read replica):
+
 ```csharp
 // src/Modules/Billing/Wallow.Billing.Infrastructure/Services/InvoiceReportService.cs
-public sealed class InvoiceReportService : IInvoiceReportService
+public sealed class InvoiceReportService(IReadDbContext<BillingDbContext> readDbContext) : IInvoiceReportService
 {
-    private readonly string _connectionString;
-
-    public InvoiceReportService(IConfiguration configuration)
-    {
-        _connectionString = configuration.GetConnectionString("DefaultConnection")
-            ?? throw new InvalidOperationException("Connection string not found.");
-    }
-
     public async Task<IReadOnlyList<InvoiceReportRow>> GetInvoicesAsync(
-        Guid tenantId,
-        DateTime from,
-        DateTime to,
-        CancellationToken ct = default)
+        DateTime from, DateTime to, CancellationToken ct = default)
     {
-        const string sql = """
-            SELECT
-                i."InvoiceNumber",
-                'User_' || i."UserId" as "CustomerName",
-                i."TotalAmount_Amount" as "Amount",
-                i."TotalAmount_Currency" as "Currency",
-                i."Status"::text as "Status",
-                i."CreatedAt" as "IssueDate",
-                i."DueDate"
-            FROM billing."Invoices" i
-            WHERE i."TenantId" = @TenantId
-              AND i."Status" != 0
-              AND i."CreatedAt" >= @From
-              AND i."CreatedAt" < @To
-            ORDER BY i."CreatedAt" DESC
-            """;
-
-        await using var connection = new NpgsqlConnection(_connectionString);
-        var results = await connection.QueryAsync<InvoiceReportRow>(
-            sql,
-            new { TenantId = tenantId, From = from, To = to });
-
-        return results.AsList();
+        return await readDbContext.Context.Invoices
+            .Where(i => i.Status != InvoiceStatus.Draft)
+            .Where(i => i.CreatedAt >= from && i.CreatedAt < to)
+            .OrderByDescending(i => i.CreatedAt)
+            .Select(i => new InvoiceReportRow(...))
+            .ToListAsync(ct);
     }
 }
 ```
+
+Dapper can still be used for raw SQL queries when needed, particularly for complex aggregations or cross-schema joins.
 
 ## Database Schema Management
 
@@ -289,14 +266,18 @@ public sealed class InvoiceReportService : IInvoiceReportService
 
 Each module uses its own PostgreSQL schema:
 
-| Module | Schema | Tables |
-|--------|--------|--------|
-| Billing | `billing` | invoices, payments, subscriptions, meter_definitions, usage_records, quota_definitions |
-| Identity | `identity` | service_accounts, api_scopes, sso_configs, scim_configs |
-| Communications | `communications` | email_messages, email_preferences, notifications, announcements, changelog_entries |
-| Storage | `storage` | stored_files, storage_buckets |
-| Configuration | `configuration` | feature_flags, custom_field_definitions |
-| Audit (Shared) | `audit` | audit_entries |
+| Module | Schema |
+|--------|--------|
+| Identity | `identity` |
+| Billing | `billing` |
+| Storage | `storage` |
+| Notifications | `notifications` |
+| Messaging | `messaging` |
+| Announcements | `announcements` |
+| Inquiries | `inquiries` |
+| ApiKeys | `apikeys` |
+| Branding | `branding` |
+| Audit (Shared) | `audit` |
 
 This is configured in each DbContext:
 ```csharp
@@ -305,13 +286,12 @@ modelBuilder.HasDefaultSchema("billing");
 
 ### Connection String Configuration
 
-**appsettings.json:**
+**appsettings.Development.json:**
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Host=localhost;Port=5432;Database=wallow;Username=wallow;Password=wallow",
-    "Redis": "localhost:6379,abortConnect=false",
-    "RabbitMq": "amqp://guest:guest@localhost:5672"
+    "DefaultConnection": "Host=localhost;Port=5432;Database=wallow;Username=wallow;Password=wallow;SSL Mode=Disable",
+    "Redis": "localhost:6379,password=WallowValkey123!,abortConnect=false"
   }
 }
 ```
@@ -359,10 +339,10 @@ docker compose up -d
 
 This provides:
 - **PostgreSQL 18** on port 5432
-- **RabbitMQ** on ports 5672 (AMQP) / 15672 (management)
 - **Valkey** (Redis-compatible) on port 6379
+- **GarageHQ** (S3-compatible) on port 3900
 - **Mailpit** on ports 1025 (SMTP) / 8025 (web UI)
-- **Grafana LGTM** on port 3000
+- **Grafana LGTM** on port 3001
 
 ### Database Access
 
@@ -385,7 +365,7 @@ docker exec -it wallow-postgres psql -U wallow -d wallow
 |----------|------------|-----------|
 | Simple CRUD | EF Core | Standard patterns, change tracking |
 | Complex joins/aggregates | Dapper | Raw SQL performance |
-| Audit-critical data | EF Core + Audit.NET | Interceptor-based audit trail in Shared.Infrastructure |
+| Audit-critical data | EF Core + Audit interceptor | Interceptor-based audit trail in Shared.Infrastructure.Core |
 | High-throughput reads | Dapper + Materialized Views | Maximum performance |
 
 ### Performance Considerations
@@ -428,33 +408,8 @@ catch
 ### Testing Patterns
 
 **Integration tests with Testcontainers:**
-```csharp
-public class DapperQueryTests : IAsyncLifetime
-{
-    private PostgreSqlContainer _postgresContainer = null!;
 
-    public async Task InitializeAsync()
-    {
-        _postgresContainer = new PostgreSqlBuilder("postgres:18-alpine").Build();
-        await _postgresContainer.StartAsync();
-    }
-
-    [Fact]
-    public async Task Query_ReturnsExpectedResults()
-    {
-        // Setup schema and seed data
-        await using NpgsqlConnection connection = new(_postgresContainer.GetConnectionString());
-        await connection.OpenAsync();
-        // ... create tables, insert test data
-
-        // Query with Dapper
-        IEnumerable<InvoiceReportRow> results = await connection.QueryAsync<InvoiceReportRow>(
-            sql, new { TenantId = tenantId, From = from, To = to });
-
-        results.Should().HaveCount(1);
-    }
-}
-```
+Integration tests use `WallowApiFactory` which manages PostgreSQL and Valkey containers automatically. See the [testing guide](testing.md) for details on `WallowApiFactory` and container lifecycle.
 
 ## Quick Reference
 
@@ -481,7 +436,7 @@ src/Modules/{Module}/
 
 ```bash
 # Run tests
-dotnet test
+./scripts/run-tests.sh
 
 # Create migration
 dotnet ef migrations add MigrationName \

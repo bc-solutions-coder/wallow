@@ -25,6 +25,5 @@ docs/
 ## Rules
 
 - **Docs site content only** — no plans, designs, specs, or session artifacts
-- **Agent-generated docs** (module creation guides, AI instructions) go in `.claude/docs/`, not here
 - **File naming** — always lowercase kebab-case (e.g., `api-development.md`)
 - **Cross-references** — use relative paths (e.g., `../architecture/messaging.md`)

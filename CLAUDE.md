@@ -21,7 +21,8 @@ dotnet run --project src/Wallow.Api
 ./scripts/run-tests.sh billing
 ./scripts/run-tests.sh identity
 # Supported: identity, billing, storage, notifications, messaging, announcements,
-#            inquiries, branding, apikeys, auth, api, arch, shared, kernel, integration
+#            inquiries, branding, apikeys, auth, auth-components, web, web-components,
+#            e2e, api, arch, shared, kernel, integration
 
 # EF Core migrations
 dotnet ef migrations add MigrationName \
@@ -32,7 +33,7 @@ dotnet ef migrations add MigrationName \
 
 ## Architecture
 
-**Modules:** Identity, Billing, Storage, Notifications, Messaging, Announcements, Inquiries
+**Modules:** Identity, Billing, Storage, Notifications, Messaging, Announcements, Inquiries, ApiKeys, Branding
 
 - Modules communicate via Wolverine in-memory events, never direct references
 - Modules only reference `Shared.Contracts` for cross-module communication
@@ -70,7 +71,7 @@ Automated semver via [Conventional Commits](https://www.conventionalcommits.org/
 
 | Service | URL | Credentials |
 |---------|-----|-------------|
-| API | http://localhost:5000 | N/A |
+| API | http://localhost:5001 | N/A |
 | Docs | http://localhost:5004 | N/A |
 | GarageHQ (S3) | http://localhost:3900 | See `docker/.env` |
 | Mailpit | http://localhost:8025 | N/A |
@@ -81,8 +82,7 @@ Automated semver via [Conventional Commits](https://www.conventionalcommits.org/
 - **Fork guide:** `docs/getting-started/fork-guide.md`
 - **Configuration guide:** `docs/getting-started/configuration.md`
 - **Frontend setup:** `docs/development/frontend-setup.md`
-- **Module creation guide:** `.claude/docs/module-creation.md`
-- **Module simplification:** `.claude/docs/module-simplification.md`
+- **Module creation guide:** `docs/architecture/module-creation.md`
 - **Developer guide:** `docs/getting-started/developer-guide.md`
 - **Deployment & CI/CD:** `docs/operations/deployment.md`
 - **Versioning guide:** `docs/operations/versioning.md`

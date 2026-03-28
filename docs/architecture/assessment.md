@@ -2,15 +2,13 @@
 
 This document assesses Wallow's implementation of Domain-Driven Design (DDD) and Clean Architecture patterns, providing guidance for building new modules consistently.
 
-**Last Updated:** February 2026
-
 ---
 
 ## Executive Summary
 
 | Dimension | Score | Verdict |
 |-----------|-------|---------|
-| **Clean Architecture** | 9/10 | Excellent - textbook layer separation |
+| **Clean Architecture** | 9/10 | Excellent — textbook layer separation |
 | **DDD** | 7/10 | Good foundations, gaps in consistency |
 | **Overall Maturity** | 8/10 | Intermediate-to-Advanced |
 
@@ -53,11 +51,11 @@ The dependency direction is textbook correct:
 
 | Aspect | Implementation | Grade |
 |--------|---------------|-------|
-| **Dependency Direction** | Outer layers depend on inner | ✓ |
-| **No Infrastructure Leaks** | Domain and Application are framework-free | ✓ |
-| **Interface Segregation** | Interfaces in Application, implementations in Infrastructure | ✓ |
-| **Use Cases** | Commands/Queries represent distinct use cases | ✓ |
-| **DTOs** | Separate request/response contracts per layer | ✓ |
+| **Dependency Direction** | Outer layers depend on inner | Pass |
+| **No Infrastructure Leaks** | Domain and Application are framework-free | Pass |
+| **Interface Segregation** | Interfaces in Application, implementations in Infrastructure | Pass |
+| **Use Cases** | Commands/Queries represent distinct use cases | Pass |
+| **DTOs** | Separate request/response contracts per layer | Pass |
 
 ### Project Reference Rules
 
@@ -87,45 +85,34 @@ The dependency direction is textbook correct:
 
 ### Aggregates (8/10)
 
-**Strong in traditional modules** (Billing, Notifications, Storage). Aggregates protect invariants and raise domain events.
+Strong in traditional modules (Billing, Notifications, Storage). Aggregates protect invariants and raise domain events.
 
 ### Entities vs Value Objects (8/10)
 
-**Money** in Billing is an excellent Value Object example:
-- Immutable
-- Operator overloading for domain language
-- Factory method enforces validation
-
-**Gap:** Value Objects could be used more broadly across modules.
+**Money** in Billing is an excellent Value Object example: immutable, with operator overloading for domain language and a factory method that enforces validation.
 
 ### Domain Events (7/10)
 
 **Good:**
 - Past-tense naming (`InvoiceCreatedDomainEvent`)
 - Raised from aggregates
-- Handlers bridge to integration events
+- Handlers bridge to integration events via Wolverine
 
 **Gap:**
-- Event dispatch mechanism is implicit (hidden by Wolverine)
-- No event versioning strategy
+- Event dispatch mechanism is implicit (hidden by Wolverine auto-discovery)
 
 ### Repositories (9/10)
 
-**Excellent pattern:**
-- Interfaces in Application layer
-- Implementations in Infrastructure layer
-- Work with Aggregate Roots, not individual entities
-- Explicit `SaveChangesAsync`
+Interfaces live in the Application layer; implementations in Infrastructure. Repositories work with Aggregate Roots and expose explicit `SaveChangesAsync`.
 
 ### Domain Services (6/10)
 
-**Gap:** No explicit Domain Services layer. Cross-aggregate logic sometimes lives in Application layer services rather than Domain layer.
+No explicit Domain Services layer. Cross-aggregate logic sometimes lives in Application layer services rather than Domain layer.
 
 ### Bounded Context Enforcement (8/10)
 
-**Strong:**
 - No cross-module project references
-- Communication via `Shared.Contracts` events
+- Communication via `Shared.Contracts` events dispatched through Wolverine
 - Each module owns its database schema
 - Violations caught at compile time
 
@@ -133,15 +120,15 @@ The dependency direction is textbook correct:
 
 ## 3. Three Module Patterns
 
-Wallow uses three distinct architectural patterns. Understanding these is essential before building new modules.
+Wallow uses two distinct architectural patterns. Understanding these is essential before building new modules.
 
 ### Pattern 1: Traditional DDD
 
 **Used by:** Billing, Notifications, Messaging, Announcements, Storage, Inquiries.
 
 ```
-Domain:        Aggregates with behavior, Value Objects, Domain Events
-Application:   Commands, Queries, Handlers, Repository interfaces
+Domain:         Aggregates with behavior, Value Objects, Domain Events
+Application:    Commands, Queries, Handlers, Repository interfaces
 Infrastructure: EF Core, Repositories implement interfaces
 ```
 
@@ -155,15 +142,14 @@ Infrastructure: EF Core, Repositories implement interfaces
 - CRUD-heavy operations
 - Complex business invariants
 - Traditional business logic
-- No need for full audit trail
 
 ### Pattern 2: External Adapter
 
 **Used by:** Identity
 
 ```
-Domain:        Thin entities (validation only)
-Application:   Light command handlers
+Domain:         Thin entities (validation only)
+Application:    Light command handlers
 Infrastructure: Heavy services wrapping external system
 ```
 
@@ -176,10 +162,8 @@ Infrastructure: Heavy services wrapping external system
 **Use when:**
 - Wrapping an external system (IdP, payment gateway, workflow engine)
 - External system owns the "truth"
-- Business logic lives in external system
 
-**Examples:**
-- **Identity**: ASP.NET Core Identity owns user/role management
+**Example:** Identity wraps ASP.NET Core Identity for user/role management.
 
 ---
 
@@ -189,7 +173,7 @@ Infrastructure: Heavy services wrapping external system
 
 | Module | Pattern | DDD Score | Notes |
 |--------|---------|-----------|-------|
-| **Billing** | Traditional | 9/10 | Reference implementation. Perfect aggregates, Money VO, domain events. |
+| **Billing** | Traditional | 9/10 | Reference implementation. Proper aggregates, Money VO, domain events. |
 
 ### Tier 2: Production Ready
 
@@ -211,9 +195,9 @@ Infrastructure: Heavy services wrapping external system
 
 | Capability | Location | Notes |
 |------------|----------|-------|
-| **Auditing** | `Shared.Infrastructure/Auditing/` | Audit.NET EF Core interceptor. Cross-cutting. |
-| **Background Jobs** | `Shared.Infrastructure/BackgroundJobs/` | IJobScheduler over Hangfire. |
-| **Workflows** | `Shared.Infrastructure/Workflows/` | Elsa 3 workflow engine integration. |
+| **Auditing** | `Shared.Infrastructure.Core/Auditing/` | Custom EF Core `SaveChanges` interceptor. Cross-cutting. |
+| **Background Jobs** | `Shared.Infrastructure.BackgroundJobs/` | `IJobScheduler` over Hangfire. |
+| **Workflows** | `Shared.Infrastructure.Workflows/` | Elsa workflow engine integration. |
 
 ---
 
@@ -231,7 +215,7 @@ Infrastructure: Heavy services wrapping external system
 
 ### Gap 2: Value Objects Adoption Expanding
 
-**Progress:** Value Objects are now used in multiple modules beyond Billing:
+Value Objects are used in multiple modules:
 
 | Module | Value Objects |
 |--------|--------------|
@@ -239,10 +223,7 @@ Infrastructure: Heavy services wrapping external system
 | Notifications | `EmailAddress` (validation), `EmailContent` |
 | Storage | `RetentionPolicy` |
 
-**Recommendation:** Continue extracting Value Objects when:
-- Field has validation rules
-- Field has domain meaning
-- Field could have behavior (formatting, comparison)
+**Recommendation:** Continue extracting Value Objects when a field has validation rules, domain meaning, or behavior (formatting, comparison).
 
 **Priority:** Low (good progress made)
 
@@ -250,33 +231,11 @@ Infrastructure: Heavy services wrapping external system
 
 ### Gap 3: Event Dispatch Visibility
 
-**Problem:** How domain events become integration events is implicit.
+**Problem:** How domain events become integration events is implicit. Wolverine auto-discovers handlers, so the event pipeline is not immediately obvious from the code.
 
-```csharp
-// Handler exists but orchestration hidden
-public sealed class InvoiceCreatedDomainEventHandler
-{
-    public async Task Handle(InvoiceCreatedDomainEvent domainEvent, ...)
-    // When/where is this called? Hidden by Wolverine.
-}
-```
-
-**Recommendation:** Document the event pipeline. Add explicit `IEventDispatcher` interface for visibility.
+**Recommendation:** Document the event pipeline clearly so new developers understand the flow.
 
 **Priority:** Low (documentation issue)
-
----
-
-### Gap 4: No Event Versioning Strategy
-
-**Problem:** Events lack versioning for schema evolution.
-
-**Recommendation:** Before going to production, define:
-- How events will be versioned
-- How old events will be migrated/upcasted
-- Schema registry (optional)
-
-**Priority:** Medium (pre-production)
 
 ---
 
@@ -312,36 +271,35 @@ Is this module wrapping an external system?
 ### Gold Standard: Billing Invoice Aggregate
 
 ```csharp
-public sealed class Invoice : AggregateRoot<InvoiceId>, ITenantScoped
+public sealed class Invoice : AggregateRoot<InvoiceId>, ITenantScoped, IHasCustomFields
 {
-    // Private collection, exposed as read-only
     private readonly List<InvoiceLineItem> _lineItems = [];
     public IReadOnlyCollection<InvoiceLineItem> LineItems => _lineItems.AsReadOnly();
 
-    // All state changes through domain methods
-    public void AddLineItem(string description, Money unitPrice, int quantity, Guid updatedByUserId)
+    public void AddLineItem(string description, Money unitPrice, int quantity,
+        Guid updatedByUserId, TimeProvider timeProvider)
     {
-        // Invariant enforcement
         if (Status != InvoiceStatus.Draft)
             throw new InvalidInvoiceException("Can only add line items to draft invoices");
         if (quantity <= 0)
-            throw new BusinessRuleException("Billing.InvalidQuantity", "Quantity must be greater than zero");
+            throw new BusinessRuleException("Billing.InvalidQuantity",
+                "Quantity must be greater than zero");
 
-        // Encapsulated state change
-        var lineItem = InvoiceLineItem.Create(Id, description, unitPrice, quantity);
+        InvoiceLineItem lineItem = InvoiceLineItem.Create(Id, description, unitPrice, quantity);
         _lineItems.Add(lineItem);
-        RecalculateTotal();  // Maintains aggregate consistency
+        RecalculateTotal();
+        SetUpdated(timeProvider.GetUtcNow(), updatedByUserId);
     }
 
-    // Domain events raised from aggregate
-    public void MarkAsPaid(Guid paymentId, Guid updatedByUserId)
+    public void MarkAsPaid(Guid paymentId, Guid updatedByUserId, TimeProvider timeProvider)
     {
         if (Status != InvoiceStatus.Issued && Status != InvoiceStatus.Overdue)
-            throw new InvalidInvoiceException("Can only mark issued or overdue invoices as paid");
+            throw new InvalidInvoiceException(
+                "Can only mark issued or overdue invoices as paid");
 
         Status = InvoiceStatus.Paid;
-        PaidAt = DateTime.UtcNow;
-        SetUpdated(updatedByUserId);
+        PaidAt = timeProvider.GetUtcNow().UtcDateTime;
+        SetUpdated(timeProvider.GetUtcNow(), updatedByUserId);
 
         RaiseDomainEvent(new InvoicePaidDomainEvent(Id.Value, paymentId, PaidAt.Value));
     }
@@ -356,70 +314,29 @@ public sealed class Money : ValueObject
     public decimal Amount { get; }
     public string Currency { get; }
 
-    // Factory method enforces immutability
     public static Money Create(decimal amount, string currency)
     {
         if (amount < 0)
-            throw new BusinessRuleException("Billing.NegativeAmount", "Amount cannot be negative");
-        if (currency.Length != 3)
-            throw new BusinessRuleException("Billing.InvalidCurrency", "Currency must be 3-letter ISO code");
+            throw new BusinessRuleException("Billing.InvalidMoney",
+                "Money amount cannot be negative");
+        if (string.IsNullOrWhiteSpace(currency) || currency.Length != 3)
+            throw new BusinessRuleException("Billing.InvalidMoney",
+                "Currency must be a 3-letter ISO code");
         return new Money(amount, currency.ToUpperInvariant());
     }
 
-    // Operator overloading for domain language
     public static Money operator +(Money left, Money right)
     {
         if (left.Currency != right.Currency)
-            throw new BusinessRuleException("Billing.CurrencyMismatch", "Cannot add money with different currencies");
+            throw new BusinessRuleException("Billing.InvalidMoney",
+                $"Cannot add money with different currencies: {left.Currency} and {right.Currency}");
         return new Money(left.Amount + right.Amount, left.Currency);
     }
 
-    // Equality by value
     protected override IEnumerable<object?> GetEqualityComponents()
     {
         yield return Amount;
         yield return Currency;
-    }
-}
-```
-
-### Command Handler Pattern
-
-```csharp
-public sealed class CreateInvoiceHandler
-{
-    private readonly IInvoiceRepository _invoiceRepository;
-
-    public CreateInvoiceHandler(IInvoiceRepository invoiceRepository)
-    {
-        _invoiceRepository = invoiceRepository;
-    }
-
-    public async Task<Result<InvoiceDto>> Handle(
-        CreateInvoiceCommand command,
-        CancellationToken cancellationToken)
-    {
-        // 1. Validation (application-level)
-        var exists = await _invoiceRepository.ExistsByInvoiceNumberAsync(
-            command.InvoiceNumber, cancellationToken);
-        if (exists)
-            return Result.Failure<InvoiceDto>(
-                Error.Conflict($"Invoice '{command.InvoiceNumber}' already exists"));
-
-        // 2. Domain creates the aggregate (domain-level)
-        var invoice = Invoice.Create(
-            command.UserId,
-            command.InvoiceNumber,
-            command.Currency,
-            command.UserId,
-            command.DueDate);
-
-        // 3. Persist
-        _invoiceRepository.Add(invoice);
-        await _invoiceRepository.SaveChangesAsync(cancellationToken);
-
-        // 4. Return DTO
-        return invoice.ToDto();
     }
 }
 ```
@@ -432,6 +349,8 @@ public interface IInvoiceRepository
     Task<Invoice?> GetByIdAsync(InvoiceId id, CancellationToken cancellationToken = default);
     Task<Invoice?> GetByIdWithLineItemsAsync(InvoiceId id, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Invoice>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Invoice>> GetAllAsync(int skip = 0, int take = 50, CancellationToken cancellationToken = default);
+    Task<int> CountAllAsync(CancellationToken cancellationToken = default);
     Task<bool> ExistsByInvoiceNumberAsync(string invoiceNumber, CancellationToken cancellationToken = default);
     void Add(Invoice invoice);
     void Update(Invoice invoice);
@@ -461,7 +380,6 @@ public interface IInvoiceRepository
 |--------|--------|----------|
 | Domain Services layer | Missing | High |
 | Value Objects | Expanding (Billing, Notifications, Storage) | Low |
-| Event versioning | Not defined | Medium |
 | Event dispatch visibility | Implicit | Low |
 
 ### Bottom Line
@@ -470,4 +388,4 @@ public interface IInvoiceRepository
 
 ---
 
-*This assessment covers the 8 core modules in the Wallow platform. Billing remains the gold standard for traditional DDD. Notifications demonstrates good Value Object adoption. Identity demonstrates the External Adapter pattern. Cross-cutting capabilities (Auditing, Background Jobs, Workflows) live in Shared.Infrastructure. See [Module Creation Guide](module-creation.md) for step-by-step module creation instructions.*
+*This assessment covers the 7 core modules in the Wallow platform. Billing remains the gold standard for traditional DDD. Notifications demonstrates good Value Object adoption. Identity demonstrates the External Adapter pattern. Cross-cutting capabilities (Auditing, Background Jobs, Workflows) live in separate Shared.Infrastructure projects. See the [Module Creation Guide](module-creation.md) for step-by-step module creation instructions.*

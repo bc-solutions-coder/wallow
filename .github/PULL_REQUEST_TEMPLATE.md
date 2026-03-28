@@ -25,7 +25,7 @@
 
 ## Testing
 
-- [ ] All existing tests pass (`dotnet test`)
+- [ ] All existing tests pass (`./scripts/run-tests.sh`)
 - [ ] New tests added for new functionality
 - [ ] Manual testing performed (describe below if applicable)
 

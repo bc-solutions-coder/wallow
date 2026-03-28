@@ -353,6 +353,11 @@ Storage__Local__BaseUrl=https://api.yourdomain.com
 # Authentication__GitHub__ClientId=
 # Authentication__GitHub__ClientSecret=
 
+# Authentication__Apple__ServiceId=
+# Authentication__Apple__TeamId=
+# Authentication__Apple__KeyId=
+# Authentication__Apple__PrivateKeyPath=
+
 # =============================================================================
 # OBSERVABILITY (optional — OpenTelemetry)
 # =============================================================================
@@ -477,7 +482,7 @@ curl -X POST https://api.yourdomain.com/api/v1/identity/setup/complete
 | **AdminBootstrap** | First startup (if configured) | Admin user with confirmed email + admin role |
 | **PreRegisteredClients + SeedMembers** | Every startup (sync) | OIDC clients, organizations, org memberships |
 | **Self-Registration** | Anytime (always enabled) | Users register themselves via `/api/v1/identity/auth/register` |
-| **External OAuth** (Google, Microsoft, GitHub, Apple) | Anytime (if configured) | Users auto-created on first external login |
+| **External OAuth** (Google, Microsoft, GitHub, Apple) | Anytime (if providers configured) | Users auto-created on first external login |
 | **SSO Auto-Provisioning** | Anytime (per-org SSO config) | Users auto-created from SAML/OIDC IdP (`AutoProvisionUsers=true` by default) |
 | **SCIM Provisioning** | Anytime (per-org SCIM config) | Users created/updated/deactivated by external directory sync |
 | **Invitations** | Anytime | Org admins invite users by email; user account created on acceptance |
@@ -511,9 +516,9 @@ The script pulls the new image, restarts only the app container (no infrastructu
 
 The repository's CI/CD pipeline automates the full flow:
 
-1. Push to `main` → release-please creates/updates a Release PR with changelog
-2. Merge the Release PR → creates a git tag (`v1.2.3`)
-3. Tag push triggers `publish.yml` → builds Docker image, scans with Trivy, pushes to GHCR with tags (`1.2.3`, `1.2`, `latest`)
+1. Push to `main` → CI (`ci.yml`) builds, tests, and pushes images with `:latest` and `:sha` tags to GHCR. release-please creates/updates a Release PR with changelog.
+2. Merge the Release PR → release-please creates a git tag (`v1.2.3`) and GitHub Release.
+3. Tag push triggers `publish.yml` → retags the `:latest` images with semver tags (`1.2.3`, `1.2`) and scans with Trivy.
 
 To deploy the published image to your server, SSH in and run:
 
@@ -608,11 +613,16 @@ This is fully idempotent — safe to restart without duplicating data.
 | Category | Scopes |
 |----------|--------|
 | Standard | `openid`, `email`, `profile`, `roles`, `offline_access` |
-| Billing | `billing.read`, `billing.manage`, `invoices.read`, `invoices.manage`, `payments.read`, `payments.manage`, `subscriptions.read`, `subscriptions.manage` |
-| Identity | `users.read`, `users.write`, `users.manage`, `roles.read`, `roles.manage`, `organizations.read`, `organizations.write`, `organizations.manage` |
+| Billing | `billing.read`, `billing.manage`, `invoices.read`, `invoices.write`, `payments.read`, `payments.write`, `subscriptions.read`, `subscriptions.write` |
+| Identity | `users.read`, `users.write`, `users.manage`, `roles.read`, `roles.write`, `roles.manage`, `organizations.read`, `organizations.write`, `organizations.manage` |
 | Storage | `storage.read`, `storage.write` |
-| Communications | `messaging.read`, `messaging.write`, `announcements.read`, `announcements.manage`, `notifications.read`, `notifications.manage` |
-| Platform | `apikeys.manage`, `sso.read`, `sso.manage`, `scim.manage`, `configuration.read`, `configuration.manage`, `serviceaccounts.read`, `serviceaccounts.manage`, `webhooks.read`, `webhooks.manage` |
+| Communications | `messaging.access`, `announcements.read`, `announcements.manage`, `changelog.manage`, `notifications.read`, `notifications.write` |
+| Inquiries | `inquiries.read`, `inquiries.write` |
+| Identity (API Keys) | `apikeys.read`, `apikeys.write`, `apikeys.manage` |
+| Identity (SSO/SCIM) | `sso.read`, `sso.manage`, `scim.manage` |
+| Identity (Service Accounts) | `serviceaccounts.read`, `serviceaccounts.write`, `serviceaccounts.manage` |
+| Configuration | `configuration.read`, `configuration.manage` |
+| Platform | `webhooks.manage` |
 
 ---
 

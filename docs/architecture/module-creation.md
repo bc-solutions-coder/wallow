@@ -1,6 +1,6 @@
 # Module Creation Guide
 
-The definitive step-by-step guide for adding a new module to Wallow.
+Step-by-step guide for adding a new module to Wallow.
 
 ---
 
@@ -8,194 +8,156 @@ The definitive step-by-step guide for adding a new module to Wallow.
 
 Before creating a new module:
 
-- [ ] Understand Clean Architecture layers (Domain, Application, Infrastructure, Api)
-- [ ] Review the [Billing module](/src/Modules/Billing/) as the reference implementation
-- [ ] Decide on your module name
-- [ ] Identify primary entities and their relationships
-- [ ] Determine if the module needs database persistence (EF Core) or is stateless
+- Understand Clean Architecture layers (Domain, Application, Infrastructure, Api)
+- Review the [Billing module](../../src/Modules/Billing/) as the reference implementation
+- Decide on your module name (PascalCase, singular noun)
+- Identify primary entities and their relationships
+- Determine if the module needs database persistence (EF Core) or is stateless
 
-> **Current modules:** Identity, Billing, Storage, Notifications, Messaging, Announcements, Inquiries. New modules should complement these existing capabilities.
+> **Current modules:** Identity, Billing, Branding, Storage, Notifications, Messaging, Announcements, Inquiries, ApiKeys. New modules should complement these existing capabilities.
 
 ---
 
 ## Quick Start Checklist
 
-| Step | Action | Files Created |
-|------|--------|---------------|
-| 1 | Create project structure | 4 `.csproj` files |
-| 2 | Configure project references | Update all 4 `.csproj` files |
-| 3 | Create Domain layer | IDs, Entities, Events |
-| 4 | Create Application layer | Commands, Queries, Handlers, Interfaces |
-| 5 | Create Infrastructure layer | DbContext, Configurations, Repositories, Extensions |
-| 6 | Create API layer | Controllers, Contracts |
-| 7 | Register in WallowModules.cs | Update `WallowModules.cs` |
-| 8 | Create database migration | Run `dotnet ef migrations add` |
-| 9 | Add tests | Unit and integration tests |
-| 10 | Add inter-module communication | Events in `Shared.Contracts` |
+| Step | Action |
+|------|--------|
+| 1 | Create 4 class library projects |
+| 2 | Configure project references |
+| 3 | Create Domain layer (IDs, entities, events) |
+| 4 | Create Application layer (commands, queries, handlers, interfaces) |
+| 5 | Create Infrastructure layer (DbContext, repositories, DI extensions) |
+| 6 | Create API layer (controllers, request/response contracts) |
+| 7 | Register in `WallowModules.cs` |
+| 8 | Add feature flag to `appsettings.json` |
+| 9 | Create database migration |
+| 10 | Add tests |
+| 11 | Define integration events in `Shared.Contracts` (if needed) |
 
 ---
 
 ## Step 1: Create Project Structure
 
-Create 4 class library projects following the naming convention `Wallow.{ModuleName}.{Layer}`:
+Create 4 class library projects following the naming convention `Wallow.{Module}.{Layer}`:
 
 ```bash
-# Create module directory
-mkdir -p src/Modules/{ModuleName}
+mkdir -p src/Modules/{Module}
 
-# Create projects (from solution root)
-dotnet new classlib -n Wallow.{ModuleName}.Domain -o src/Modules/{ModuleName}/Wallow.{ModuleName}.Domain
-dotnet new classlib -n Wallow.{ModuleName}.Application -o src/Modules/{ModuleName}/Wallow.{ModuleName}.Application
-dotnet new classlib -n Wallow.{ModuleName}.Infrastructure -o src/Modules/{ModuleName}/Wallow.{ModuleName}.Infrastructure
-dotnet new classlib -n Wallow.{ModuleName}.Api -o src/Modules/{ModuleName}/Wallow.{ModuleName}.Api
+dotnet new classlib -n Wallow.{Module}.Domain -o src/Modules/{Module}/Wallow.{Module}.Domain
+dotnet new classlib -n Wallow.{Module}.Application -o src/Modules/{Module}/Wallow.{Module}.Application
+dotnet new classlib -n Wallow.{Module}.Infrastructure -o src/Modules/{Module}/Wallow.{Module}.Infrastructure
+dotnet new classlib -n Wallow.{Module}.Api -o src/Modules/{Module}/Wallow.{Module}.Api
 
-# Add to solution
-dotnet sln add src/Modules/{ModuleName}/**/*.csproj
+dotnet sln add src/Modules/{Module}/**/*.csproj
 ```
 
 **Directory structure:**
 
 ```
-src/Modules/{ModuleName}/
-├── Wallow.{ModuleName}.Domain/
+src/Modules/{Module}/
+├── Wallow.{Module}.Domain/
 │   ├── Identity/              # Strongly-typed IDs
-│   ├── Entities/              # Domain entities/aggregates
+│   ├── Entities/              # Domain entities and aggregate roots
 │   ├── Enums/                 # Enumerations
 │   ├── Events/                # Domain events
-│   ├── ValueObjects/          # (optional) Value objects
-│   └── Exceptions/            # (optional) Custom exceptions
+│   ├── ValueObjects/          # Value objects (optional)
+│   └── Exceptions/            # Custom exceptions (optional)
 │
-├── Wallow.{ModuleName}.Application/
+├── Wallow.{Module}.Application/
 │   ├── Commands/              # CQRS command handlers
 │   ├── Queries/               # CQRS query handlers
 │   ├── DTOs/                  # Data transfer objects
 │   ├── Interfaces/            # Repository contracts
 │   ├── EventHandlers/         # Domain-to-integration event bridges
 │   ├── Extensions/            # Application layer DI registration
-│   ├── Mappings/              # (optional) Entity-to-DTO mappings
-│   └── Validators/            # (optional) FluentValidation
+│   ├── Mappings/              # Entity-to-DTO mappings (optional)
+│   └── Validators/            # FluentValidation validators (optional)
 │
-├── Wallow.{ModuleName}.Infrastructure/
-│   ├── Extensions/            # DI registration
+├── Wallow.{Module}.Infrastructure/
+│   ├── Extensions/            # DI registration and module extensions
 │   ├── Persistence/           # DbContext, repositories
-│   │   ├── Configurations/    # Entity configurations
+│   │   ├── Configurations/    # EF Core entity configurations
 │   │   └── Repositories/      # Repository implementations
 │   └── Migrations/            # EF Core migrations
 │
-└── Wallow.{ModuleName}.Api/
+└── Wallow.{Module}.Api/
     ├── Controllers/           # API endpoints
-    ├── Contracts/             # Request/Response DTOs
-    └── Extensions/            # (optional) API-layer utilities like ResultExtensions
+    └── Contracts/             # Request/Response DTOs
 ```
 
 ---
 
 ## Step 2: Configure Project References
 
-### Domain (zero external dependencies)
+Each layer has strict dependency rules.
+
+**Domain** references only `Shared.Kernel` (no other dependencies):
 
 ```xml
-<!-- Wallow.{ModuleName}.Domain.csproj -->
-<Project Sdk="Microsoft.NET.Sdk">
-
-  <PropertyGroup>
-    <RootNamespace>Wallow.{ModuleName}.Domain</RootNamespace>
-  </PropertyGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\..\..\Shared\Wallow.Shared.Kernel\Wallow.Shared.Kernel.csproj" />
-  </ItemGroup>
-
-</Project>
+<ItemGroup>
+  <ProjectReference Include="..\..\..\Shared\Wallow.Shared.Kernel\Wallow.Shared.Kernel.csproj" />
+</ItemGroup>
 ```
 
-### Application (depends on Domain)
+**Application** references Domain, `Shared.Kernel`, and `Shared.Contracts`:
 
 ```xml
-<!-- Wallow.{ModuleName}.Application.csproj -->
-<Project Sdk="Microsoft.NET.Sdk">
-
-  <PropertyGroup>
-    <RootNamespace>Wallow.{ModuleName}.Application</RootNamespace>
-  </PropertyGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\Wallow.{ModuleName}.Domain\Wallow.{ModuleName}.Domain.csproj" />
-    <ProjectReference Include="..\..\..\Shared\Wallow.Shared.Kernel\Wallow.Shared.Kernel.csproj" />
-    <ProjectReference Include="..\..\..\Shared\Wallow.Shared.Contracts\Wallow.Shared.Contracts.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="FluentValidation" />
-    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
-  </ItemGroup>
-
-</Project>
+<ItemGroup>
+  <ProjectReference Include="..\Wallow.{Module}.Domain\Wallow.{Module}.Domain.csproj" />
+  <ProjectReference Include="..\..\..\Shared\Wallow.Shared.Kernel\Wallow.Shared.Kernel.csproj" />
+  <ProjectReference Include="..\..\..\Shared\Wallow.Shared.Contracts\Wallow.Shared.Contracts.csproj" />
+</ItemGroup>
+<ItemGroup>
+  <PackageReference Include="FluentValidation" />
+  <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+</ItemGroup>
 ```
 
-### Infrastructure (implements Application interfaces)
+**Infrastructure** references Domain, Application, and `Shared.Infrastructure`:
 
 ```xml
-<!-- Wallow.{ModuleName}.Infrastructure.csproj -->
-<Project Sdk="Microsoft.NET.Sdk">
-
-  <PropertyGroup>
-    <RootNamespace>Wallow.{ModuleName}.Infrastructure</RootNamespace>
-  </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Dapper" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore" />
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\Wallow.{ModuleName}.Domain\Wallow.{ModuleName}.Domain.csproj" />
-    <ProjectReference Include="..\Wallow.{ModuleName}.Application\Wallow.{ModuleName}.Application.csproj" />
-    <ProjectReference Include="..\..\..\Shared\Wallow.Shared.Infrastructure\Wallow.Shared.Infrastructure.csproj" />
-  </ItemGroup>
-
-</Project>
+<ItemGroup>
+  <PackageReference Include="Dapper" />
+  <PackageReference Include="Microsoft.EntityFrameworkCore" />
+  <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+  <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+    <PrivateAssets>all</PrivateAssets>
+    <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+  </PackageReference>
+</ItemGroup>
+<ItemGroup>
+  <ProjectReference Include="..\Wallow.{Module}.Domain\Wallow.{Module}.Domain.csproj" />
+  <ProjectReference Include="..\Wallow.{Module}.Application\Wallow.{Module}.Application.csproj" />
+  <ProjectReference Include="..\..\..\Shared\Wallow.Shared.Infrastructure\Wallow.Shared.Infrastructure.csproj" />
+</ItemGroup>
 ```
 
-### Api (depends on Application only)
+**Api** references only Application (not Infrastructure):
 
 ```xml
-<!-- Wallow.{ModuleName}.Api.csproj -->
-<Project Sdk="Microsoft.NET.Sdk">
-
-  <PropertyGroup>
-    <RootNamespace>Wallow.{ModuleName}.Api</RootNamespace>
-  </PropertyGroup>
-
-  <ItemGroup>
-    <FrameworkReference Include="Microsoft.AspNetCore.App" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\Wallow.{ModuleName}.Application\Wallow.{ModuleName}.Application.csproj" />
-  </ItemGroup>
-
-</Project>
+<ItemGroup>
+  <FrameworkReference Include="Microsoft.AspNetCore.App" />
+</ItemGroup>
+<ItemGroup>
+  <ProjectReference Include="..\Wallow.{Module}.Application\Wallow.{Module}.Application.csproj" />
+</ItemGroup>
 ```
 
-> **Note:** The Api layer does NOT reference Infrastructure. Module registration is done via Infrastructure extensions, and DI wiring is handled by `WallowModules.cs`.
+Module registration is handled by Infrastructure extensions called from `WallowModules.cs`, so the Api layer never needs to reference Infrastructure directly.
 
 ---
 
 ## Step 3: Create Domain Layer
 
-### 3.1 Strongly-Typed ID
+### Strongly-Typed ID
+
+Every entity needs a strongly-typed ID that implements `IStronglyTypedId<T>`:
 
 ```csharp
 // Identity/{Entity}Id.cs
 using Wallow.Shared.Kernel.Identity;
 
-namespace Wallow.{ModuleName}.Domain.Identity;
+namespace Wallow.{Module}.Domain.Identity;
 
 public readonly record struct {Entity}Id(Guid Value) : IStronglyTypedId<{Entity}Id>
 {
@@ -204,101 +166,44 @@ public readonly record struct {Entity}Id(Guid Value) : IStronglyTypedId<{Entity}
 }
 ```
 
-### 3.2 Domain Entity
+### Domain Entity
 
-```csharp
-// Entities/{Entity}.cs
-using Wallow.{ModuleName}.Domain.Events;
-using Wallow.{ModuleName}.Domain.Identity;
-using Wallow.Shared.Kernel.Domain;
-using Wallow.Shared.Kernel.Identity;
-using Wallow.Shared.Kernel.MultiTenancy;
+Aggregate roots extend `AggregateRoot<TId>` and implement `ITenantScoped` for multi-tenancy. Use factory methods instead of public constructors. Raise domain events from entity methods.
 
-namespace Wallow.{ModuleName}.Domain.Entities;
+Key conventions:
+- Private parameterless constructor for EF Core
+- `Create()` static factory method that validates input and raises a domain event
+- Call `SetCreated(userId)` and `SetUpdated(userId)` for audit fields
+- Throw `BusinessRuleException` for domain rule violations
 
-/// <summary>
-/// {Entity} aggregate root.
-/// </summary>
-public sealed class {Entity} : AggregateRoot<{Entity}Id>, ITenantScoped
-{
-    public TenantId TenantId { get; set; }
-    public string Name { get; private set; } = string.Empty;
-    // Add other properties...
+### Domain Event
 
-    private {Entity}() { } // EF Core constructor
-
-    private {Entity}(string name)
-    {
-        Id = {Entity}Id.New();
-        Name = name;
-    }
-
-    public static {Entity} Create(string name, Guid createdByUserId)
-    {
-        if (string.IsNullOrWhiteSpace(name))
-            throw new BusinessRuleException("{ModuleName}.NameRequired", "Name cannot be empty");
-
-        var entity = new {Entity}(name);
-        entity.SetCreated(createdByUserId);
-
-        entity.RaiseDomainEvent(new {Entity}CreatedDomainEvent(entity.Id.Value, name));
-
-        return entity;
-    }
-
-    public void Update(string name, Guid updatedByUserId)
-    {
-        Name = name;
-        SetUpdated(updatedByUserId);
-    }
-}
-```
-
-### 3.3 Domain Event
+Domain events are simple records extending `DomainEvent`:
 
 ```csharp
 // Events/{Entity}CreatedDomainEvent.cs
 using Wallow.Shared.Kernel.Domain;
 
-namespace Wallow.{ModuleName}.Domain.Events;
+namespace Wallow.{Module}.Domain.Events;
 
-public sealed record {Entity}CreatedDomainEvent(
-    Guid {Entity}Id,
-    string Name
-) : DomainEvent;
+public sealed record {Entity}CreatedDomainEvent(Guid {Entity}Id, string Name) : DomainEvent;
 ```
 
 ---
 
 ## Step 4: Create Application Layer
 
-### 4.1 Command
+### Command and Handler
+
+Commands are plain records. Handlers use the primary constructor pattern with Wolverine:
 
 ```csharp
 // Commands/Create{Entity}/Create{Entity}Command.cs
-namespace Wallow.{ModuleName}.Application.Commands.Create{Entity};
-
-public sealed record Create{Entity}Command(
-    string Name
-    // Add other properties as needed
-);
+public sealed record Create{Entity}Command(string Name);
 ```
-
-### 4.2 Handler (Primary Constructor Pattern)
-
-Wolverine supports multiple handler patterns. The primary constructor pattern is preferred for most handlers:
 
 ```csharp
 // Commands/Create{Entity}/Create{Entity}Handler.cs
-using Wallow.{ModuleName}.Application.DTOs;
-using Wallow.{ModuleName}.Application.Interfaces;
-using Wallow.{ModuleName}.Application.Mappings;
-using Wallow.{ModuleName}.Domain.Entities;
-using Wallow.Shared.Kernel.Results;
-using Wolverine;
-
-namespace Wallow.{ModuleName}.Application.Commands.Create{Entity};
-
 public sealed class Create{Entity}Handler(
     I{Entity}Repository repository,
     IMessageBus messageBus)
@@ -307,181 +212,72 @@ public sealed class Create{Entity}Handler(
         Create{Entity}Command command,
         CancellationToken cancellationToken)
     {
-        // Validation
-        var exists = await repository.ExistsByNameAsync(command.Name, cancellationToken);
-        if (exists)
-        {
-            return Result.Failure<{Entity}Dto>(
-                Error.Conflict($"{Entity} '{command.Name}' already exists"));
-        }
-
-        // Create entity
-        var entity = {Entity}.Create(
-            command.Name,
-            command.UserId);
-
-        // Persist
-        repository.Add(entity);
-        await repository.SaveChangesAsync(cancellationToken);
-
-        return Result.Success(entity.ToDto());
+        // Validate, create entity, persist, return DTO
     }
 }
 ```
 
-### 4.3 Query
+Wolverine auto-discovers handlers in all `Wallow.*` assemblies. No manual registration is needed.
 
-```csharp
-// Queries/Get{Entity}ById/Get{Entity}ByIdQuery.cs
-namespace Wallow.{ModuleName}.Application.Queries.Get{Entity}ById;
+### Query and Handler
 
-public sealed record Get{Entity}ByIdQuery(Guid Id);
-```
+Use the same pattern for queries. For complex read queries, define an `I{Module}QueryService` interface and implement it with Dapper in the Infrastructure layer. Use EF Core repositories for simple lookups.
 
-```csharp
-// Queries/Get{Entity}ById/Get{Entity}ByIdHandler.cs
-using Wallow.{ModuleName}.Application.DTOs;
-using Wallow.{ModuleName}.Application.Interfaces;
-using Wallow.{ModuleName}.Application.Mappings;
-using Wallow.{ModuleName}.Domain.Identity;
-using Wallow.Shared.Kernel.Results;
+### Repository Interface
 
-namespace Wallow.{ModuleName}.Application.Queries.Get{Entity}ById;
-
-public sealed class Get{Entity}ByIdHandler(I{Entity}Repository repository)
-{
-    public async Task<Result<{Entity}Dto>> Handle(
-        Get{Entity}ByIdQuery query,
-        CancellationToken cancellationToken)
-    {
-        var entity = await repository.GetByIdAsync(
-            {Entity}Id.Create(query.Id), cancellationToken);
-
-        if (entity is null)
-        {
-            return Result.Failure<{Entity}Dto>(
-                Error.NotFound($"{Entity} with ID '{query.Id}' not found"));
-        }
-
-        return Result.Success(entity.ToDto());
-    }
-}
-```
-
-### 4.4 Repository Interface
+Define repository contracts in the Application layer:
 
 ```csharp
 // Interfaces/I{Entity}Repository.cs
-using Wallow.{ModuleName}.Domain.Entities;
-using Wallow.{ModuleName}.Domain.Identity;
-
-namespace Wallow.{ModuleName}.Application.Interfaces;
-
 public interface I{Entity}Repository
 {
     Task<{Entity}?> GetByIdAsync({Entity}Id id, CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<{Entity}>> GetAllAsync(CancellationToken cancellationToken = default);
-    Task<bool> ExistsByNameAsync(string name, CancellationToken cancellationToken = default);
     void Add({Entity} entity);
-    void Update({Entity} entity);
-    void Remove({Entity} entity);
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }
 ```
 
-### 4.5 DTO
+### DTOs and Mappings
+
+DTOs are sealed records in the `DTOs/` folder. Mapping extension methods live in `Mappings/{Entity}Mappings.cs` and convert entities to DTOs via `ToDto()` extension methods.
+
+### Validators
+
+Use FluentValidation. Validators are auto-registered via `AddValidatorsFromAssembly` in the Application extensions.
+
+### Domain Event Handler (Bridge to Integration Events)
+
+Domain event handlers in the Application layer translate domain events into integration events for cross-module consumption:
 
 ```csharp
-// DTOs/{Entity}Dto.cs
-namespace Wallow.{ModuleName}.Application.DTOs;
-
-public sealed record {Entity}Dto(
-    Guid Id,
-    string Name,
-    DateTime CreatedAt,
-    DateTime? UpdatedAt
-);
-```
-
-### 4.6 Mappings
-
-```csharp
-// Mappings/{Entity}Mappings.cs
-using Wallow.{ModuleName}.Application.DTOs;
-using Wallow.{ModuleName}.Domain.Entities;
-
-namespace Wallow.{ModuleName}.Application.Mappings;
-
-public static class {Entity}Mappings
+public static class {Entity}CreatedDomainEventHandler
 {
-    public static {Entity}Dto ToDto(this {Entity} entity) => new(
-        entity.Id.Value,
-        entity.Name,
-        entity.CreatedAt,
-        entity.UpdatedAt
-    );
-}
-```
-
-### 4.7 Validator (Optional)
-
-```csharp
-// Commands/Create{Entity}/Create{Entity}Validator.cs
-using FluentValidation;
-
-namespace Wallow.{ModuleName}.Application.Commands.Create{Entity};
-
-public sealed class Create{Entity}Validator : AbstractValidator<Create{Entity}Command>
-{
-    public Create{Entity}Validator()
+    public static async Task HandleAsync(
+        {Entity}CreatedDomainEvent domainEvent,
+        IMessageBus bus,
+        CancellationToken cancellationToken)
     {
-        RuleFor(x => x.Name)
-            .NotEmpty()
-            .MaximumLength(200);
+        await bus.PublishAsync(new {Entity}CreatedEvent
+        {
+            {Entity}Id = domainEvent.{Entity}Id,
+            Name = domainEvent.Name,
+        });
     }
 }
 ```
 
-### 4.8 Domain Event Handler (Bridge to Integration Event)
+### Application Extensions
+
+Register validators in an extension method:
 
 ```csharp
-// EventHandlers/{Entity}CreatedDomainEventHandler.cs
-using Wallow.{ModuleName}.Domain.Events;
-using Wallow.{ModuleName}.Application.Interfaces;
-using Wallow.{ModuleName}.Domain.Identity;
-using Microsoft.Extensions.Logging;
-using Wolverine;
-
-namespace Wallow.{ModuleName}.Application.EventHandlers;
-
-public sealed class {Entity}CreatedDomainEventHandler
+// Extensions/ApplicationExtensions.cs
+public static class ApplicationExtensions
 {
-    public static async Task HandleAsync(
-        {Entity}CreatedDomainEvent domainEvent,
-        I{Entity}Repository repository,
-        IMessageBus bus,
-        ILogger<{Entity}CreatedDomainEventHandler> logger,
-        CancellationToken cancellationToken)
+    public static IServiceCollection Add{Module}Application(this IServiceCollection services)
     {
-        logger.LogInformation(
-            "Handling {Entity}CreatedDomainEvent for {Entity} {Id}",
-            domainEvent.{Entity}Id);
-
-        // Enrich with additional data if needed
-        var entity = await repository.GetByIdAsync(
-            {Entity}Id.Create(domainEvent.{Entity}Id), cancellationToken);
-
-        // Publish integration event for other modules
-        await bus.PublishAsync(new Wallow.Shared.Contracts.{ModuleName}.Events.{Entity}CreatedEvent
-        {
-            {Entity}Id = domainEvent.{Entity}Id,
-            Name = domainEvent.Name,
-            // Map other properties...
-        });
-
-        logger.LogInformation(
-            "Published {Entity}CreatedEvent for {Entity} {Id}",
-            domainEvent.{Entity}Id);
+        services.AddValidatorsFromAssembly(typeof(ApplicationExtensions).Assembly);
+        return services;
     }
 }
 ```
@@ -490,304 +286,67 @@ public sealed class {Entity}CreatedDomainEventHandler
 
 ## Step 5: Create Infrastructure Layer
 
-### 5.1 DbContext
+### DbContext
+
+Each module owns its own PostgreSQL schema (lowercase module name). The DbContext must:
+- Set a default schema via `modelBuilder.HasDefaultSchema("{modulename}")`
+- Apply entity configurations from the assembly
+- Apply tenant query filters for all `ITenantScoped` entities
+
+The tenant query filter pattern uses expression trees to dynamically add `WHERE tenant_id = @currentTenantId` to all queries. See `BillingDbContext` for the canonical implementation.
+
+### Entity Configuration
+
+EF Core entity configurations follow these conventions:
+- Table names: lowercase, plural (e.g., `invoices`)
+- Column names: snake_case (e.g., `created_at`, `tenant_id`)
+- Primary key: use `StronglyTypedIdConverter<TId>()` with `ValueGeneratedNever()`
+- TenantId: convert with `id => id.Value, value => TenantId.Create(value)`
+- Always add an index on `tenant_id`
+- Always call `builder.Ignore(e => e.DomainEvents)`
+
+### Repository Implementation
+
+Repositories implement the Application layer interfaces using the module's DbContext.
+
+### Design-Time Factory
+
+Required for `dotnet ef migrations` to work. Create `{Module}DbContextFactory` implementing `IDesignTimeDbContextFactory<{Module}DbContext>` with a placeholder connection string and a `DesignTimeTenantContext` mock. See `BillingDbContextFactory` for reference.
+
+### Infrastructure Extensions
+
+Two extension classes in the Infrastructure layer:
+
+**`{Module}InfrastructureExtensions.cs`** registers the DbContext (with `TenantSaveChangesInterceptor`), repositories, and any module-specific services:
 
 ```csharp
-// Persistence/{ModuleName}DbContext.cs
-using Wallow.{ModuleName}.Domain.Entities;
-using Wallow.Shared.Kernel.MultiTenancy;
-using Microsoft.EntityFrameworkCore;
-
-namespace Wallow.{ModuleName}.Infrastructure.Persistence;
-
-public sealed class {ModuleName}DbContext : DbContext
+services.AddDbContext<{Module}DbContext>((sp, options) =>
 {
-    private readonly ITenantContext _tenantContext;
-
-    public DbSet<{Entity}> {Entities} => Set<{Entity}>();
-
-    public {ModuleName}DbContext(
-        DbContextOptions<{ModuleName}DbContext> options,
-        ITenantContext tenantContext) : base(options)
+    options.UseNpgsql(connectionString, npgsql =>
     {
-        _tenantContext = tenantContext;
-    }
-
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
-    {
-        // Set schema (lowercase, no underscores)
-        modelBuilder.HasDefaultSchema("{modulename}");
-
-        // Apply configurations from assembly
-        modelBuilder.ApplyConfigurationsFromAssembly(typeof({ModuleName}DbContext).Assembly);
-
-        // Apply tenant query filters for all ITenantScoped entities
-        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
-        {
-            if (typeof(ITenantScoped).IsAssignableFrom(entityType.ClrType))
-            {
-                var parameter = System.Linq.Expressions.Expression.Parameter(entityType.ClrType, "e");
-                var property = System.Linq.Expressions.Expression.Property(parameter, nameof(ITenantScoped.TenantId));
-                var tenantId = System.Linq.Expressions.Expression.Property(
-                    System.Linq.Expressions.Expression.Constant(_tenantContext),
-                    nameof(ITenantContext.TenantId));
-                var equals = System.Linq.Expressions.Expression.Equal(property, tenantId);
-                var lambda = System.Linq.Expressions.Expression.Lambda(equals, parameter);
-
-                modelBuilder.Entity(entityType.ClrType).HasQueryFilter(lambda);
-            }
-        }
-    }
-}
+        npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "{modulename}");
+    });
+    options.AddInterceptors(sp.GetRequiredService<TenantSaveChangesInterceptor>());
+});
 ```
 
-### 5.2 Entity Configuration
+**`{Module}ModuleExtensions.cs`** provides the two entry points called by `WallowModules.cs`:
 
 ```csharp
-// Persistence/Configurations/{Entity}Configuration.cs
-using Wallow.{ModuleName}.Domain.Entities;
-using Wallow.{ModuleName}.Domain.Identity;
-using Wallow.Shared.Kernel.Identity;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Builders;
-
-namespace Wallow.{ModuleName}.Infrastructure.Persistence.Configurations;
-
-public sealed class {Entity}Configuration : IEntityTypeConfiguration<{Entity}>
+public static IServiceCollection Add{Module}Module(
+    this IServiceCollection services, IConfiguration configuration)
 {
-    public void Configure(EntityTypeBuilder<{Entity}> builder)
-    {
-        // Table name (lowercase, plural)
-        builder.ToTable("{entities}");
-
-        // Primary key
-        builder.HasKey(e => e.Id);
-        builder.Property(e => e.Id)
-            .HasConversion(new StronglyTypedIdConverter<{Entity}Id>())
-            .HasColumnName("id")
-            .ValueGeneratedNever();
-
-        // TenantId (required for multi-tenancy)
-        builder.Property(e => e.TenantId)
-            .HasConversion(id => id.Value, value => TenantId.Create(value))
-            .HasColumnName("tenant_id")
-            .IsRequired();
-
-        // Properties (all snake_case)
-        builder.Property(e => e.Name)
-            .HasColumnName("name")
-            .HasMaxLength(200)
-            .IsRequired();
-
-        // Audit fields
-        builder.Property(e => e.CreatedAt)
-            .HasColumnName("created_at")
-            .IsRequired();
-
-        builder.Property(e => e.UpdatedAt)
-            .HasColumnName("updated_at");
-
-        builder.Property(e => e.CreatedBy)
-            .HasColumnName("created_by");
-
-        builder.Property(e => e.UpdatedBy)
-            .HasColumnName("updated_by");
-
-        // Ignore domain events (not persisted)
-        builder.Ignore(e => e.DomainEvents);
-
-        // Indexes
-        builder.HasIndex(e => e.TenantId);
-        builder.HasIndex(e => e.Name);
-    }
+    services.Add{Module}Application();
+    services.Add{Module}Infrastructure(configuration);
+    return services;
 }
-```
 
-### 5.3 Repository Implementation
-
-```csharp
-// Persistence/Repositories/{Entity}Repository.cs
-using Wallow.{ModuleName}.Application.Interfaces;
-using Wallow.{ModuleName}.Domain.Entities;
-using Wallow.{ModuleName}.Domain.Identity;
-using Microsoft.EntityFrameworkCore;
-
-namespace Wallow.{ModuleName}.Infrastructure.Persistence.Repositories;
-
-public sealed class {Entity}Repository : I{Entity}Repository
+public static async Task<WebApplication> Initialize{Module}ModuleAsync(this WebApplication app)
 {
-    private readonly {ModuleName}DbContext _context;
-
-    public {Entity}Repository({ModuleName}DbContext context)
-    {
-        _context = context;
-    }
-
-    public async Task<{Entity}?> GetByIdAsync({Entity}Id id, CancellationToken cancellationToken = default)
-    {
-        return await _context.{Entities}.FindAsync([id], cancellationToken);
-    }
-
-    public async Task<IReadOnlyList<{Entity}>> GetAllAsync(CancellationToken cancellationToken = default)
-    {
-        return await _context.{Entities}
-            .OrderByDescending(e => e.CreatedAt)
-            .ToListAsync(cancellationToken);
-    }
-
-    public async Task<bool> ExistsByNameAsync(string name, CancellationToken cancellationToken = default)
-    {
-        return await _context.{Entities}
-            .AnyAsync(e => e.Name == name, cancellationToken);
-    }
-
-    public void Add({Entity} entity)
-    {
-        _context.{Entities}.Add(entity);
-    }
-
-    public void Update({Entity} entity)
-    {
-        _context.{Entities}.Update(entity);
-    }
-
-    public void Remove({Entity} entity)
-    {
-        _context.{Entities}.Remove(entity);
-    }
-
-    public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
-    {
-        await _context.SaveChangesAsync(cancellationToken);
-    }
-}
-```
-
-### 5.4 Design-Time Factory (for EF Migrations)
-
-```csharp
-// Persistence/{ModuleName}DbContextFactory.cs
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Design;
-
-namespace Wallow.{ModuleName}.Infrastructure.Persistence;
-
-/// <summary>
-/// Design-time factory for {ModuleName}DbContext to enable EF Core migrations.
-/// Only used at design-time by dotnet ef commands.
-/// </summary>
-public class {ModuleName}DbContextFactory : IDesignTimeDbContextFactory<{ModuleName}DbContext>
-{
-    public {ModuleName}DbContext CreateDbContext(string[] args)
-    {
-        var optionsBuilder = new DbContextOptionsBuilder<{ModuleName}DbContext>();
-
-        // Use a placeholder connection string for design-time
-        optionsBuilder.UseNpgsql("Host=localhost;Database=wallow;Username=postgres;Password=postgres");
-
-        // Create a mock tenant context for design-time
-        var mockTenantContext = new DesignTimeTenantContext();
-
-        return new {ModuleName}DbContext(optionsBuilder.Options, mockTenantContext);
-    }
-}
-```
-
-### 5.5 Design-Time Tenant Context
-
-```csharp
-// Persistence/DesignTimeTenantContext.cs
-using Wallow.Shared.Kernel.Identity;
-using Wallow.Shared.Kernel.MultiTenancy;
-
-namespace Wallow.{ModuleName}.Infrastructure.Persistence;
-
-/// <summary>
-/// Mock ITenantContext for design-time migrations.
-/// Returns a placeholder TenantId that is never used at runtime.
-/// </summary>
-internal sealed class DesignTimeTenantContext : ITenantContext
-{
-    public TenantId TenantId => new(Guid.Parse("00000000-0000-0000-0000-000000000000"));
-    public string TenantName => "design-time";
-    public bool IsResolved => true;
-
-    public void SetTenant(TenantId tenantId, string tenantName = "")
-    {
-        // No-op for design-time
-    }
-
-    public void Clear()
-    {
-        // No-op for design-time
-    }
-}
-```
-
-### 5.6 Application Extensions
-
-First, create the Application layer extension for validator registration:
-
-```csharp
-// Application/Extensions/ApplicationExtensions.cs
-using FluentValidation;
-using Microsoft.Extensions.DependencyInjection;
-
-namespace Wallow.{ModuleName}.Application.Extensions;
-
-public static class ApplicationExtensions
-{
-    public static IServiceCollection Add{ModuleName}Application(this IServiceCollection services)
-    {
-        services.AddValidatorsFromAssembly(typeof(ApplicationExtensions).Assembly);
-        return services;
-    }
-}
-```
-
-### 5.7 Infrastructure Extensions
-
-```csharp
-// Infrastructure/Extensions/{ModuleName}InfrastructureExtensions.cs
-using Wallow.{ModuleName}.Application.Interfaces;
-using Wallow.{ModuleName}.Infrastructure.Persistence;
-using Wallow.{ModuleName}.Infrastructure.Persistence.Repositories;
-using Wallow.Shared.Kernel.MultiTenancy;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-
-namespace Wallow.{ModuleName}.Infrastructure.Extensions;
-
-public static class {ModuleName}InfrastructureExtensions
-{
-    public static IServiceCollection Add{ModuleName}Infrastructure(
-        this IServiceCollection services, IConfiguration configuration)
-    {
-        services.Add{ModuleName}Persistence(configuration);
-
-        return services;
-    }
-
-    private static IServiceCollection Add{ModuleName}Persistence(
-        this IServiceCollection services, IConfiguration configuration)
-    {
-        var connectionString = configuration.GetConnectionString("DefaultConnection");
-
-        services.AddDbContext<{ModuleName}DbContext>((sp, options) =>
-        {
-            options.UseNpgsql(connectionString, npgsql =>
-            {
-                npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "{modulename}");
-            });
-            options.AddInterceptors(sp.GetRequiredService<TenantSaveChangesInterceptor>());
-        });
-
-        // Register repositories
-        services.AddScoped<I{Entity}Repository, {Entity}Repository>();
-
-        return services;
-    }
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<{Module}DbContext>();
+    await db.Database.MigrateAsync();
+    return app;
 }
 ```
 
@@ -795,577 +354,177 @@ public static class {ModuleName}InfrastructureExtensions
 
 ## Step 6: Create API Layer
 
-### 6.1 Module Extensions (in Infrastructure layer)
+### Controller
 
-Module extensions live in the **Infrastructure** layer, not Api. This keeps the Api layer focused on controllers and contracts:
+Controllers use Wolverine's `IMessageBus` to dispatch commands and queries. Follow these conventions:
+- Route: `api/{modulename}/{entities}` (all lowercase)
+- Annotate with `[Authorize]`, `[Tags("{Entities}")]`, `[Produces("application/json")]`
+- Map Application DTOs to API-layer response records in the controller
+- Use `Result<T>` from `Wallow.Shared.Kernel.Results` and convert with `.ToActionResult()`
+
+### Request/Response Contracts
+
+Define sealed records in the `Contracts/` folder. Keep them separate from Application DTOs so the API contract can evolve independently.
+
+---
+
+## Step 7: Register in WallowModules.cs
+
+Edit `src/Wallow.Api/WallowModules.cs`:
+
+1. Add the using statement: `using Wallow.{Module}.Infrastructure.Extensions;`
+
+2. In `AddWallowModules()`, add the feature-flagged registration in the appropriate section (platform or feature modules):
 
 ```csharp
-// Infrastructure/Extensions/{ModuleName}ModuleExtensions.cs
-using Wallow.{ModuleName}.Application.Extensions;
-using Wallow.{ModuleName}.Infrastructure.Persistence;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-
-namespace Wallow.{ModuleName}.Infrastructure.Extensions;
-
-public static class {ModuleName}ModuleExtensions
+if (featureManager.IsEnabledAsync("Modules.{Module}").GetAwaiter().GetResult())
 {
-    public static IServiceCollection Add{ModuleName}Module(
-        this IServiceCollection services,
-        IConfiguration configuration)
-    {
-        services.Add{ModuleName}Application();
-        services.Add{ModuleName}Infrastructure(configuration);
-        return services;
-    }
-
-    public static async Task<WebApplication> Initialize{ModuleName}ModuleAsync(
-        this WebApplication app)
-    {
-        try
-        {
-            using var scope = app.Services.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<{ModuleName}DbContext>();
-            await db.Database.MigrateAsync();
-        }
-        catch (Exception ex)
-        {
-            var logger = app.Services.GetRequiredService<ILoggerFactory>()
-                .CreateLogger("{ModuleName}Module");
-            logger.LogWarning(ex, "{ModuleName} module startup failed. Ensure PostgreSQL is running.");
-        }
-
-        return app;
-    }
+    services.Add{Module}Module(configuration);
 }
 ```
 
-### 6.2 Controller
+3. In `InitializeWallowModulesAsync()`, add the corresponding initialization:
 
 ```csharp
-// Controllers/{Entities}Controller.cs
-using Wallow.{ModuleName}.Api.Contracts;
-using Wallow.{ModuleName}.Application.Commands.Create{Entity};
-using Wallow.{ModuleName}.Application.DTOs;
-using Wallow.{ModuleName}.Application.Queries.Get{Entity}ById;
-using Wallow.{ModuleName}.Application.Queries.GetAll{Entities};
-using Wallow.Shared.Kernel.Results;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Wolverine;
-
-namespace Wallow.{ModuleName}.Api.Controllers;
-
-[ApiController]
-[Route("api/{modulename}/{entities}")]
-[Authorize]
-[Tags("{Entities}")]
-[Produces("application/json")]
-[Consumes("application/json")]
-public class {Entities}Controller : ControllerBase
+if (await featureManager.IsEnabledAsync("Modules.{Module}"))
 {
-    private readonly IMessageBus _bus;
-
-    public {Entities}Controller(IMessageBus bus)
-    {
-        _bus = bus;
-    }
-
-    /// <summary>
-    /// Get all {entities}.
-    /// </summary>
-    [HttpGet]
-    [ProducesResponseType(typeof(IReadOnlyList<{Entity}Response>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
-    {
-        var result = await _bus.InvokeAsync<Result<IReadOnlyList<{Entity}Dto>>>(
-            new GetAll{Entities}Query(), cancellationToken);
-
-        return result.Map(items =>
-            (IReadOnlyList<{Entity}Response>)items.Select(ToResponse).ToList())
-            .ToActionResult();
-    }
-
-    /// <summary>
-    /// Get a specific {entity} by ID.
-    /// </summary>
-    [HttpGet("{id:guid}")]
-    [ProducesResponseType(typeof({Entity}Response), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
-    {
-        var result = await _bus.InvokeAsync<Result<{Entity}Dto>>(
-            new Get{Entity}ByIdQuery(id), cancellationToken);
-
-        return result.Map(ToResponse).ToActionResult();
-    }
-
-    /// <summary>
-    /// Create a new {entity}.
-    /// </summary>
-    [HttpPost]
-    [ProducesResponseType(typeof({Entity}Response), StatusCodes.Status201Created)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> Create(
-        [FromBody] Create{Entity}Request request,
-        CancellationToken cancellationToken)
-    {
-        var command = new Create{Entity}Command(request.Name);
-
-        var result = await _bus.InvokeAsync<Result<{Entity}Dto>>(command, cancellationToken);
-
-        return result.Match(
-            onSuccess: dto => CreatedAtAction(nameof(GetById), new { id = dto.Id }, ToResponse(dto)),
-            onFailure: error => result.ToActionResult()
-        );
-    }
-
-    private static {Entity}Response ToResponse({Entity}Dto dto) => new(
-        dto.Id,
-        dto.Name,
-        dto.CreatedAt,
-        dto.UpdatedAt
-    );
+    await app.Initialize{Module}ModuleAsync();
 }
 ```
 
-### 6.3 Request/Response Contracts
+> **Note:** Identity is a required platform dependency and is always registered without a feature flag. All other modules are behind feature flags.
 
-```csharp
-// Contracts/Create{Entity}Request.cs
-namespace Wallow.{ModuleName}.Api.Contracts;
+---
 
-public sealed record Create{Entity}Request(string Name);
-```
+## Step 8: Add Feature Flag
 
-```csharp
-// Contracts/{Entity}Response.cs
-namespace Wallow.{ModuleName}.Api.Contracts;
+Add the feature flag to `appsettings.json` under `FeatureManagement`:
 
-public sealed record {Entity}Response(
-    Guid Id,
-    string Name,
-    DateTime CreatedAt,
-    DateTime? UpdatedAt
-);
-```
-
-### 6.4 Result Extensions (if not shared)
-
-```csharp
-// Extensions/ResultExtensions.cs
-using Wallow.Shared.Kernel.Results;
-using Microsoft.AspNetCore.Mvc;
-
-namespace Wallow.{ModuleName}.Api.Extensions;
-
-public static class ResultExtensions
+```json
 {
-    public static IActionResult ToActionResult(this Result result)
-    {
-        if (result.IsSuccess)
-            return new OkResult();
-
-        return ToProblemDetails(result.Error);
-    }
-
-    public static IActionResult ToActionResult<T>(this Result<T> result)
-    {
-        if (result.IsSuccess)
-            return new OkObjectResult(result.Value);
-
-        return ToProblemDetails(result.Error);
-    }
-
-    public static IActionResult ToCreatedResult<T>(this Result<T> result, string? location)
-    {
-        if (result.IsSuccess)
-            return new CreatedResult(location, result.Value);
-
-        return ToProblemDetails(result.Error);
-    }
-
-    private static IActionResult ToProblemDetails(Error error) =>
-        error.Type switch
-        {
-            ErrorType.NotFound => new NotFoundObjectResult(new ProblemDetails
-            {
-                Title = "Not Found",
-                Detail = error.Message,
-                Status = 404
-            }),
-            ErrorType.Conflict => new ConflictObjectResult(new ProblemDetails
-            {
-                Title = "Conflict",
-                Detail = error.Message,
-                Status = 409
-            }),
-            ErrorType.Validation => new BadRequestObjectResult(new ProblemDetails
-            {
-                Title = "Validation Error",
-                Detail = error.Message,
-                Status = 400
-            }),
-            _ => new ObjectResult(new ProblemDetails
-            {
-                Title = "Error",
-                Detail = error.Message,
-                Status = 500
-            })
-            { StatusCode = 500 }
-        };
+  "FeatureManagement": {
+    "Modules.{Module}": true
+  }
 }
 ```
 
 ---
 
-## Step 7: Register Module in WallowModules.cs
-
-All modules are registered in `src/Wallow.Api/WallowModules.cs`. This provides centralized, explicit module management.
-
-### 7.1 Add Using Statement
-
-```csharp
-using Wallow.{ModuleName}.Infrastructure.Extensions;
-```
-
-### 7.2 Register in AddWallowModules()
-
-Add your module to the appropriate section based on its type:
-
-```csharp
-public static IServiceCollection AddWallowModules(
-    this IServiceCollection services,
-    IConfiguration configuration)
-{
-    services.AddSingleton(configuration);
-    services.AddFeatureManagement();
-    ServiceProvider tempProvider = services.BuildServiceProvider();
-    IFeatureManager featureManager = tempProvider.GetRequiredService<IFeatureManager>();
-
-    // PLATFORM MODULES - Core infrastructure services
-    if (featureManager.IsEnabledAsync("Modules.Identity").GetAwaiter().GetResult())
-        services.AddIdentityModule(configuration);
-
-    if (featureManager.IsEnabledAsync("Modules.Billing").GetAwaiter().GetResult())
-        services.AddBillingModule(configuration);
-
-    if (featureManager.IsEnabledAsync("Modules.Notifications").GetAwaiter().GetResult())
-        services.AddNotificationsModule(configuration);
-
-    if (featureManager.IsEnabledAsync("Modules.Messaging").GetAwaiter().GetResult())
-        services.AddMessagingModule(configuration);
-
-    if (featureManager.IsEnabledAsync("Modules.Announcements").GetAwaiter().GetResult())
-        services.AddAnnouncementsModule(configuration);
-
-    if (featureManager.IsEnabledAsync("Modules.Storage").GetAwaiter().GetResult())
-        services.AddStorageModule(configuration);
-
-    // FEATURE MODULES - Higher-level application features
-    if (featureManager.IsEnabledAsync("Modules.Inquiries").GetAwaiter().GetResult())
-        services.AddInquiriesModule(configuration);
-
-    // Add your module in the appropriate section:
-    if (featureManager.IsEnabledAsync("Modules.{ModuleName}").GetAwaiter().GetResult())
-        services.Add{ModuleName}Module(configuration);
-
-    return services;
-}
-```
-
-### 7.3 Register in InitializeWallowModulesAsync()
-
-```csharp
-public static async Task InitializeWallowModulesAsync(this WebApplication app)
-{
-    // ... existing modules ...
-
-    await app.Initialize{ModuleName}ModuleAsync();
-}
-```
-
-> **Note:** Wolverine handler discovery and RabbitMQ routing are automatic. Program.cs uses `UseConventionalRouting()` and discovers all handlers in `Wallow.*` assemblies automatically. No manual handler registration or RabbitMQ configuration is needed.
-
----
-
-## Step 8: Create Database Migration
+## Step 9: Create Database Migration
 
 ```bash
 dotnet ef migrations add InitialCreate \
-    --project src/Modules/{ModuleName}/Wallow.{ModuleName}.Infrastructure \
+    --project src/Modules/{Module}/Wallow.{Module}.Infrastructure \
     --startup-project src/Wallow.Api \
-    --context {ModuleName}DbContext
+    --context {Module}DbContext
 ```
 
-The migration will run automatically on startup via `Initialize{ModuleName}ModuleAsync()`.
+The migration runs automatically on startup via `Initialize{Module}ModuleAsync()`.
 
 ---
 
-## Step 9: Add Tests
+## Step 10: Add Tests
 
-### 9.1 Test Project Structure
+Create a test project at `tests/Modules/{Module}/Wallow.{Module}.Tests/`. Use NSubstitute for mocking and FluentAssertions for assertions.
 
-```
-tests/Modules/{ModuleName}/
-├── {ModuleName}.Domain.Tests/        # Domain unit tests
-├── {ModuleName}.Application.Tests/   # Handler unit tests
-├── {ModuleName}.Architecture.Tests/  # Architecture validation
-└── {ModuleName}.IntegrationTests/    # Full integration tests
+Run tests with:
+
+```bash
+./scripts/run-tests.sh {module}
 ```
 
-### 9.2 Unit Test Example
-
-```csharp
-public class Create{Entity}HandlerTests
-{
-    private readonly I{Entity}Repository _repository;
-    private readonly Create{Entity}Handler _handler;
-
-    public Create{Entity}HandlerTests()
-    {
-        _repository = Substitute.For<I{Entity}Repository>();
-        _handler = new Create{Entity}Handler(_repository);
-    }
-
-    [Fact]
-    public async Task Handle_WithValidCommand_ShouldCreate{Entity}()
-    {
-        // Arrange
-        var command = new Create{Entity}Command("Test Name");
-        _repository.ExistsByNameAsync(command.Name, Arg.Any<CancellationToken>())
-            .Returns(false);
-
-        // Act
-        var result = await _handler.Handle(command, CancellationToken.None);
-
-        // Assert
-        result.IsSuccess.Should().BeTrue();
-        _repository.Received(1).Add(Arg.Any<{Entity}>());
-        await _repository.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task Handle_WithDuplicateName_ShouldReturnConflict()
-    {
-        // Arrange
-        var command = new Create{Entity}Command("Existing Name");
-        _repository.ExistsByNameAsync(command.Name, Arg.Any<CancellationToken>())
-            .Returns(true);
-
-        // Act
-        var result = await _handler.Handle(command, CancellationToken.None);
-
-        // Assert
-        result.IsSuccess.Should().BeFalse();
-        result.Error.Type.Should().Be(ErrorType.Conflict);
-    }
-}
-```
-
-### 9.3 Integration Test Example
-
-```csharp
-public class {Entities}ControllerTests : IClassFixture<WallowApiFactory>
-{
-    private readonly HttpClient _client;
-
-    public {Entities}ControllerTests(WallowApiFactory factory)
-    {
-        _client = factory.CreateClient();
-    }
-
-    [Fact]
-    public async Task Create{Entity}_ShouldReturn201()
-    {
-        // Arrange
-        var request = new Create{Entity}Request("Test {Entity}");
-
-        // Act
-        var response = await _client.PostAsJsonAsync("/api/{modulename}/{entities}", request);
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.Created);
-    }
-}
-```
+where `{module}` is the lowercase module name.
 
 ---
 
-## Step 10: Inter-Module Communication
+## Step 11: Inter-Module Communication
 
-### 10.1 Define Integration Event in Shared.Contracts
+### Publishing Integration Events
+
+Define integration events in `src/Shared/Wallow.Shared.Contracts/{Module}/Events/`. Integration events use primitive types (not strongly-typed IDs) so consuming modules have no domain dependencies:
 
 ```csharp
-// src/Shared/Wallow.Shared.Contracts/{ModuleName}/Events/{Entity}CreatedEvent.cs
-namespace Wallow.Shared.Contracts.{ModuleName}.Events;
-
-/// <summary>
-/// Published when a {entity} is created.
-/// Consumers: [list expected consumers]
-/// </summary>
+// src/Shared/Wallow.Shared.Contracts/{Module}/Events/{Entity}CreatedEvent.cs
 public sealed record {Entity}CreatedEvent : IntegrationEvent
 {
     public required Guid {Entity}Id { get; init; }
     public required string Name { get; init; }
-    // Add properties that consumers need (use primitive types, not strongly-typed IDs)
 }
 ```
 
-### 10.2 Consuming Events from Other Modules
+### Consuming Events from Other Modules
+
+Create Wolverine handlers in your Application layer that reference events from `Shared.Contracts`:
 
 ```csharp
-// Application/EventHandlers/SomeModuleEventHandler.cs
-using Wallow.Shared.Contracts.SomeModule.Events;
-
-namespace Wallow.{ModuleName}.Application.EventHandlers;
-
-public static class SomeModuleEventHandler
+public static class SomeExternalEventHandler
 {
     public static async Task HandleAsync(
-        SomeEvent evt,
-        I{SomeService} service,
-        ILogger<SomeModuleEventHandler> logger,
+        SomeExternalEvent evt,
+        I{LocalService} service,
         CancellationToken cancellationToken)
     {
-        logger.LogInformation("Handling SomeEvent {EventId}", evt.EventId);
-
-        // Process the event
         await service.ProcessAsync(evt, cancellationToken);
     }
 }
 ```
 
----
-
-## Patterns Reference
-
-### Handler Pattern (Primary Constructor - Preferred)
-
-```csharp
-public sealed class {Command}Handler(
-    IDependency dependency,
-    IMessageBus messageBus)
-{
-    public async Task<Result<{Dto}>> Handle(
-        {Command} command,
-        CancellationToken cancellationToken)
-    {
-        // Implementation
-    }
-}
-```
-
-### DbContext with Tenant Filters
-
-```csharp
-protected override void OnModelCreating(ModelBuilder modelBuilder)
-{
-    modelBuilder.HasDefaultSchema("{modulename}");
-    modelBuilder.ApplyConfigurationsFromAssembly(typeof({ModuleName}DbContext).Assembly);
-
-    foreach (var entityType in modelBuilder.Model.GetEntityTypes())
-    {
-        if (typeof(ITenantScoped).IsAssignableFrom(entityType.ClrType))
-        {
-            var parameter = Expression.Parameter(entityType.ClrType, "e");
-            var property = Expression.Property(parameter, nameof(ITenantScoped.TenantId));
-            var tenantId = Expression.Property(Expression.Constant(_tenantContext), nameof(ITenantContext.TenantId));
-            var equals = Expression.Equal(property, tenantId);
-            var lambda = Expression.Lambda(equals, parameter);
-
-            modelBuilder.Entity(entityType.ClrType).HasQueryFilter(lambda);
-        }
-    }
-}
-```
-
-### Entity Configuration with StronglyTypedIdConverter and snake_case
-
-```csharp
-public void Configure(EntityTypeBuilder<{Entity}> builder)
-{
-    builder.ToTable("{entities}");
-
-    builder.HasKey(e => e.Id);
-    builder.Property(e => e.Id)
-        .HasConversion(new StronglyTypedIdConverter<{Entity}Id>())
-        .HasColumnName("id")
-        .ValueGeneratedNever();
-
-    builder.Property(e => e.TenantId)
-        .HasConversion(id => id.Value, value => TenantId.Create(value))
-        .HasColumnName("tenant_id")
-        .IsRequired();
-
-    builder.Property(e => e.Name)
-        .HasColumnName("name")
-        .HasMaxLength(200);
-
-    builder.Property(e => e.CreatedAt)
-        .HasColumnName("created_at");
-
-    builder.Property(e => e.UpdatedAt)
-        .HasColumnName("updated_at");
-
-    builder.Ignore(e => e.DomainEvents);
-
-    builder.HasIndex(e => e.TenantId);
-}
-```
+Modules must never reference each other directly. All cross-module communication goes through `Shared.Contracts` events and Wolverine's in-memory message bus.
 
 ---
 
-## Common Mistakes to Avoid
+## Shared Infrastructure
 
-Based on analysis of existing modules:
+These cross-cutting capabilities in the Shared layer are available to all modules:
+
+| Capability | Location | Description |
+|------------|----------|-------------|
+| Auditing | `Shared.Infrastructure.Core/Auditing/` | EF Core `SaveChangesInterceptor` for entity change audits |
+| Background Jobs | `Shared.Infrastructure.BackgroundJobs/` | `IJobScheduler` abstraction over Hangfire |
+| Workflows | `Shared.Infrastructure.Workflows/` | Elsa 3 workflow engine integration |
+
+---
+
+## Common Mistakes
 
 | Mistake | Correct Approach |
 |---------|------------------|
 | Direct cross-module references | Use `Shared.Contracts` events only |
-| Api referencing Infrastructure | Api should only reference Application; module registration is in Infrastructure |
-| Module extensions in Api layer | Put `{ModuleName}ModuleExtensions.cs` in Infrastructure/Extensions |
+| Api referencing Infrastructure | Api references Application only; DI wiring is in Infrastructure |
+| Module extensions in Api layer | Put `{Module}ModuleExtensions.cs` in `Infrastructure/Extensions/` |
 | PascalCase column names | Always use `.HasColumnName("snake_case")` |
 | Inline ID conversion | Use `StronglyTypedIdConverter<TId>()` |
 | Missing tenant query filters | Apply filters for all `ITenantScoped` entities |
-| Missing TenantId index | Always index `tenant_id` column |
-| Domain events not bridged | Create handlers that publish integration events |
-| Forgetting to register in WallowModules.cs | Add both `Add{Module}Module` and `Initialize{Module}ModuleAsync` calls |
-| Missing design-time DbContext factory | Required for `dotnet ef migrations` |
+| Missing TenantId index | Always index the `tenant_id` column |
+| Domain events not bridged | Create handlers that translate domain events to integration events |
+| Forgetting `WallowModules.cs` | Add both `Add{Module}Module` and `Initialize{Module}ModuleAsync` calls |
+| Missing design-time factory | Required for `dotnet ef migrations` commands |
+| Missing feature flag | Add `Modules.{Module}` to `appsettings.json` `FeatureManagement` |
 
 ---
 
-## Checklist Before PR
+## Pre-PR Checklist
 
-- [ ] All 4 projects created with correct naming
-- [ ] Project references follow dependency rules (Api references Application only, not Infrastructure)
+- [ ] All 4 projects created with correct naming and added to solution
+- [ ] Project references follow dependency rules
 - [ ] Strongly-typed IDs implement `IStronglyTypedId<T>`
 - [ ] Entities implement `ITenantScoped` (if tenant-scoped)
-- [ ] Entities use factory methods (not public constructors)
+- [ ] Entities use factory methods, not public constructors
 - [ ] Domain events raised in entity methods
-- [ ] DbContext sets lowercase schema
-- [ ] DbContext applies tenant query filters
-- [ ] Entity configurations use `StronglyTypedIdConverter<T>`
-- [ ] All columns use snake_case naming
+- [ ] DbContext sets lowercase schema and applies tenant query filters
+- [ ] Entity configurations use `StronglyTypedIdConverter<T>` and snake_case columns
 - [ ] TenantId column is indexed
-- [ ] DomainEvents property is ignored
+- [ ] DomainEvents property is ignored in entity configurations
 - [ ] Repository implements interface from Application layer
 - [ ] Handlers use primary constructor pattern
-- [ ] Validators use FluentValidation
-- [ ] Application extensions created (`Add{Module}Application`)
-- [ ] Infrastructure extensions created (`Add{Module}Infrastructure`)
-- [ ] Module extensions in Infrastructure layer (`Add{Module}Module`, `Initialize{Module}ModuleAsync`)
-- [ ] Module registered in WallowModules.cs (both `AddWallowModules` and `InitializeWallowModulesAsync`)
-- [ ] Integration events defined in Shared.Contracts (if needed)
-- [ ] Initial migration created and runs
-- [ ] Unit tests for handlers
-- [ ] Integration tests for controllers
-- [ ] No cross-module direct references
+- [ ] Application extensions register validators
+- [ ] Module extensions in Infrastructure layer
+- [ ] Module registered in `WallowModules.cs` with feature flag
+- [ ] Feature flag added to `appsettings.json`
+- [ ] Initial migration created and runs successfully
+- [ ] Tests pass via `./scripts/run-tests.sh`
+- [ ] No direct cross-module references
 
 ---
 
-*Based on the Billing module reference implementation. Current modules: Identity, Billing, Storage, Notifications, Messaging, Announcements, Inquiries.*
+*Reference implementation: [Billing module](../../src/Modules/Billing/). Current modules: Identity, Billing, Branding, Storage, Notifications, Messaging, Announcements, Inquiries, ApiKeys.*

@@ -2,13 +2,13 @@
 
 ## Overview
 
-The Identity module owns authentication, authorization, multi-tenancy, and user/organization management for the Wallow platform. Authentication is handled by **OpenIddict** (embedded OAuth 2.0 / OpenID Connect server) backed by **ASP.NET Core Identity** for user/role storage.
+The Identity module owns authentication, authorization, multi-tenancy, and user/organization management. Authentication is handled by **OpenIddict** (embedded OAuth 2.0 / OpenID Connect server) backed by **ASP.NET Core Identity** for user/role storage.
 
 The module provides:
 
 - OpenIddict OIDC server with authorization code flow (PKCE), client credentials, and refresh tokens
 - ASP.NET Core Identity for user/role storage and password management
-- Role-based access control (RBAC) via permission-based authorization
+- Permission-based RBAC via role expansion
 - Tenant resolution from JWT `org_id` claims
 - Multi-tenancy support enabling tenant isolation across all modules
 - Service account lifecycle management (OpenIddict client credentials)
@@ -20,14 +20,14 @@ The module provides:
 ## Key Features
 
 ### Authentication
-- **OpenIddict OIDC**: Embedded OAuth 2.0 / OpenID Connect server supporting authorization code flow (with PKCE), client credentials, and refresh tokens
+- **OpenIddict OIDC**: Authorization code flow (with PKCE), client credentials, and refresh tokens
 - **Endpoints**: `/connect/authorize`, `/connect/token`, `/connect/logout`, `/connect/userinfo`
-- **ASP.NET Core Identity**: `WallowUser` and `WallowRole` stored in the `identity` PostgreSQL schema. Password hashing, email confirmation, and token generation handled by Identity framework
+- **ASP.NET Core Identity**: `WallowUser` and `WallowRole` stored in the `identity` PostgreSQL schema
 - **SignalR Support**: Query string token authentication for WebSocket connections
 
 ### Authorization
 - **Permission-Based RBAC**: Granular permissions across Users, Roles, Billing, Organizations, and Admin
-- **Role Expansion**: Roles are expanded to permissions at request time via `PermissionExpansionMiddleware`
+- **Role Expansion**: Roles expanded to permissions at request time via `PermissionExpansionMiddleware`
 - **Three Role Tiers**: `admin` (all permissions), `manager` (subset), `user` (basic access)
 - **RolePermissionLookup**: Single source of truth for role-to-permission expansion
 
@@ -60,65 +60,17 @@ The module provides:
 
 ## Architecture
 
-```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│  Controllers    │────>│  Application    │────>│  OpenIddict     │
-│  (Auth, Users,  │     │  Services       │     │  + ASP.NET Core │
-│   Orgs, etc.)   │     │                 │     │  Identity       │
-└─────────────────┘     └─────────────────┘     └─────────────────┘
-         │
-         ▼
-┌─────────────────┐     ┌─────────────────┐
-│  Integration    │     │  Identity       │
-│  Events (MQ)    │     │  DbContext      │
-└─────────────────┘     └─────────────────┘
-```
-
 ### Clean Architecture Layers
 
 ```
-┌────────────────────────────────────────────────────────────────────┐
-│ Api (Wallow.Identity.Api)                                         │
-│ - Controllers: Users, Organizations, Roles, Service Accounts,     │
-│   SSO, SCIM, Clients, Apps, API Keys                              │
-│ - Auth: AuthorizationController, TokenController, LogoutController│
-│ - Module registration via AddIdentityModule()                     │
-└────────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌────────────────────────────────────────────────────────────────────┐
-│ Application (Wallow.Identity.Application)                         │
-│ - Interfaces (IUserManagementService, IOrganizationService,       │
-│   IServiceAccountService, IDeveloperAppService)                   │
-│ - DTOs (UserDto, OrganizationDto, SsoConfigurationDto)            │
-│ - Commands/Queries for Service Accounts, SSO, SCIM               │
-└────────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌────────────────────────────────────────────────────────────────────┐
-│ Infrastructure (Wallow.Identity.Infrastructure)                   │
-│ - IdentityDbContext (identity schema, inherits                    │
-│   IdentityDbContext<WallowUser, WallowRole, Guid>)               │
-│ - OpenIddict EF Core stores integration                           │
-│ - OpenIddictServiceAccountService, OpenIddictDeveloperAppService │
-│ - Authorization pipeline (HasPermissionAttribute, handlers)       │
-│ - Middleware (TenantResolution, PermissionExpansion,              │
-│   ServiceAccountTracking)                                         │
-└────────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌────────────────────────────────────────────────────────────────────┐
-│ Domain (Wallow.Identity.Domain)                                   │
-│ - Entities: WallowUser, WallowRole, Organization, ApiScope,      │
-│   ServiceAccountMetadata, SsoConfiguration, ScimConfiguration,   │
-│   ScimSyncLog                                                     │
-│ - Enums: PermissionType, SsoProtocol, SsoStatus,                 │
-│   ServiceAccountStatus, SamlNameIdFormat, ScimOperation,         │
-│   ScimResourceType                                                │
-│ - Domain Events: SsoConfigurationActivatedEvent,                 │
-│   ScimSyncCompletedEvent                                          │
-└────────────────────────────────────────────────────────────────────┘
+src/Modules/Identity/
++-- Wallow.Identity.Domain         # Entities, Enums, Domain Events
++-- Wallow.Identity.Application    # Interfaces, DTOs, Commands, Queries
++-- Wallow.Identity.Infrastructure # DbContext, OpenIddict, Authorization, Middleware
++-- Wallow.Identity.Api            # Controllers, Auth endpoints, Module registration
 ```
+
+**Database Schema**: `identity` (PostgreSQL)
 
 ### Middleware Pipeline
 
@@ -131,108 +83,16 @@ The following middleware executes in strict order:
 
 ## Domain Entities
 
-### WallowUser
-ASP.NET Core Identity user entity, stored in the `identity` PostgreSQL schema.
-
-### WallowRole
-ASP.NET Core Identity role entity, stored in the `identity` PostgreSQL schema.
-
-### Organization
-Represents a tenant organization.
-
-### ApiScope
-System-defined OAuth2 scopes that can be assigned to service accounts. Scopes map to permissions for client credentials flow.
-
-| Property | Type | Description |
-|----------|------|-------------|
-| Code | string | Unique scope code (e.g., "invoices.read") |
-| DisplayName | string | Human-readable name |
-| Category | string | Category for UI grouping (e.g., "Billing") |
-| Description | string? | What this scope grants access to |
-| IsDefault | bool | Included by default for new service accounts |
-
-### ServiceAccountMetadata
-Local reference to an OpenIddict service account application. Stores metadata for tenant-specific queries and usage tracking.
-
-| Property | Type | Description |
-|----------|------|-------------|
-| TenantId | TenantId | Owning tenant |
-| Name | string | Human-readable name |
-| Status | ServiceAccountStatus | Active or Revoked |
-| Scopes | List&lt;string&gt; | Assigned OAuth2 scopes |
-| LastUsedAt | DateTime? | Last API call timestamp |
-
-### SsoConfiguration
-Enterprise SSO identity provider configuration for a tenant.
-
-| Property | Type | Description |
-|----------|------|-------------|
-| TenantId | TenantId | Owning tenant |
-| Protocol | SsoProtocol | SAML or OIDC |
-| Status | SsoStatus | Draft, Testing, Active, or Disabled |
-| DisplayName | string | Name shown to users |
-| EnforceForAllUsers | bool | Require SSO for all tenant users |
-| AutoProvisionUsers | bool | Create users on first SSO login |
-| SyncGroupsAsRoles | bool | Map IdP groups to roles |
-
-### ScimConfiguration
-SCIM 2.0 provisioning configuration for a tenant.
-
-| Property | Type | Description |
-|----------|------|-------------|
-| TenantId | TenantId | Owning tenant |
-| IsEnabled | bool | Whether SCIM endpoint is active |
-| BearerToken | string | Hashed authentication token |
-| TokenPrefix | string | Token prefix for identification |
-| AutoActivateUsers | bool | Activate users on creation |
-| DeprovisionOnDelete | bool | Delete users on SCIM delete |
-
-### ScimSyncLog
-Audit log of SCIM provisioning operations.
-
-## Enums
-
-### PermissionType
-40+ granular permissions for RBAC:
-
-```csharp
-// User Management (100-103)
-UsersRead, UsersCreate, UsersUpdate, UsersDelete
-
-// Role Management (200-203)
-RolesRead, RolesCreate, RolesUpdate, RolesDelete
-
-// Billing (500-507)
-BillingRead, BillingManage, InvoicesRead, InvoicesWrite,
-PaymentsRead, PaymentsWrite, SubscriptionsRead, SubscriptionsWrite
-
-// Organizations (600-603)
-OrganizationsRead, OrganizationsCreate, OrganizationsUpdate, OrganizationsManageMembers
-
-// API Keys (700-703)
-ApiKeysRead, ApiKeysCreate, ApiKeysUpdate, ApiKeysDelete
-
-// Webhooks (850)
-WebhooksManage
-
-// SSO/SCIM (860-862)
-SsoRead, SsoManage, ScimManage
-
-// Admin (900-901)
-AdminAccess, SystemSettings
-```
-
-### Role-Permission Mapping
-
-| Role | Permissions |
-|------|-------------|
-| `admin` | All permissions |
-| `manager` | UsersRead, BillingRead, OrganizationsRead, OrganizationsManageMembers, ApiKeys*, SsoRead |
-| `user` | OrganizationsRead |
+- **WallowUser** - ASP.NET Core Identity user entity
+- **WallowRole** - ASP.NET Core Identity role entity
+- **Organization** - Represents a tenant organization
+- **ApiScope** - System-defined OAuth2 scopes assignable to service accounts
+- **ServiceAccountMetadata** - Local reference to an OpenIddict service account application with usage tracking
+- **SsoConfiguration** - Enterprise SSO identity provider configuration per tenant
+- **ScimConfiguration** - SCIM 2.0 provisioning configuration per tenant
+- **ScimSyncLog** - Audit log of SCIM provisioning operations
 
 ## Commands and Queries
-
-Service account management uses CQRS:
 
 ### Service Account Commands
 
@@ -251,41 +111,32 @@ Service account management uses CQRS:
 | `GetServiceAccountQuery` | Get a specific service account by ID |
 | `GetApiScopesQuery` | List available API scopes |
 
-## Domain Events
-
-Events raised within the module:
-
-| Event | When Raised |
-|-------|-------------|
-| `SsoConfigurationActivatedEvent` | SSO configuration is activated for a tenant |
-| `ScimSyncCompletedEvent` | A SCIM provisioning operation completes |
-
 ## Integration Events Published
 
-Events published to RabbitMQ for cross-module communication:
+Events published via Wolverine for cross-module communication:
 
-| Event | Trigger | Consumers |
-|-------|---------|-----------|
-| `UserRegisteredEvent` | User created | Communications (welcome email) |
-| `UserRoleChangedEvent` | Role assigned/removed | Communications |
-| `OrganizationCreatedEvent` | Organization created | Billing (setup subscription) |
-| `OrganizationMemberAddedEvent` | Member added to organization | Communications |
-| `PasswordResetRequestedEvent` | Password reset initiated | Communications |
+| Event | Trigger |
+|-------|---------|
+| `UserRegisteredEvent` | User created |
+| `UserRoleChangedEvent` | Role assigned/removed |
+| `OrganizationCreatedEvent` | Organization created |
+| `OrganizationMemberAddedEvent` | Member added to organization |
+| `PasswordResetRequestedEvent` | Password reset initiated |
 
 ## Integration Events Consumed
 
-None - Identity is a source module, not a consumer.
+None. Identity is a source module, not a consumer.
 
 ## API Endpoints
 
 ### Auth (`/connect`)
 
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| GET/POST | `/authorize` | OAuth 2.0 authorization endpoint | No |
-| POST | `/token` | OAuth 2.0 token endpoint | No |
-| GET/POST | `/logout` | End-session endpoint | No |
-| GET/POST | `/userinfo` | OpenID Connect userinfo | Yes |
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET/POST | `/authorize` | OAuth 2.0 authorization endpoint |
+| POST | `/token` | OAuth 2.0 token endpoint |
+| GET/POST | `/logout` | End-session endpoint |
+| GET/POST | `/userinfo` | OpenID Connect userinfo |
 
 ### Users (`/api/users`)
 
@@ -388,36 +239,16 @@ SCIM 2.0 endpoints use Bearer token authentication (not OAuth):
 | GET | `/Schemas` | SCIM schemas |
 | GET | `/ResourceTypes` | Available resource types |
 
-## Configuration Requirements
-
-### appsettings.json
-
-```json
-{
-  "ConnectionStrings": {
-    "Identity": "Host=localhost;Database=wallow;Username=postgres;Password=postgres"
-  }
-}
-```
+## Configuration
 
 OpenIddict configuration (encryption/signing certificates, client registrations) is managed through `IdentityDbContext` and seeded at startup via `ApiScopeSeeder`. Development uses auto-generated encryption/signing certificates.
 
-## Dependencies on Other Modules
-
-The Identity module depends only on shared infrastructure:
+## Dependencies
 
 | Dependency | Purpose |
 |------------|---------|
-| Wallow.Shared.Kernel | `ITenantContext`, `TenantId`, base entity types |
-| Wallow.Shared.Contracts | Integration event definitions |
-
-## Other Modules Depending on Identity
-
-All modules depend on Identity's infrastructure:
-
-- **TenantContext**: Resolved by `TenantResolutionMiddleware` for tenant-scoped queries
-- **Permission Claims**: Expanded by `PermissionExpansionMiddleware` for authorization
-- **Integration Events**: Consumed by Communications (welcome emails, notifications), Billing (org setup)
+| `Wallow.Shared.Kernel` | `ITenantContext`, `TenantId`, base entity types |
+| `Wallow.Shared.Contracts` | Integration event definitions |
 
 ## Adding a New Permission
 
@@ -426,28 +257,17 @@ All modules depend on Identity's infrastructure:
 3. If scope-based, add to `PermissionExpansionMiddleware.MapScopeToPermission()`
 4. Apply `[HasPermission(PermissionType.NewPermission)]` to controller actions
 
+## Testing
+
+```bash
+./scripts/run-tests.sh identity
+```
+
 ## EF Core Migrations
 
 ```bash
-# Create a new migration
 dotnet ef migrations add MigrationName \
     --project src/Modules/Identity/Wallow.Identity.Infrastructure \
     --startup-project src/Wallow.Api \
     --context IdentityDbContext
-
-# Apply migrations
-dotnet ef database update \
-    --project src/Modules/Identity/Wallow.Identity.Infrastructure \
-    --startup-project src/Wallow.Api \
-    --context IdentityDbContext
 ```
-
-## Libraries
-
-| Package | Purpose |
-|---------|---------|
-| OpenIddict | OAuth 2.0 / OpenID Connect server |
-| Microsoft.AspNetCore.Identity.EntityFrameworkCore | User/role storage |
-| Microsoft.EntityFrameworkCore | Database access |
-| Npgsql.EntityFrameworkCore.PostgreSQL | PostgreSQL provider |
-| StackExchange.Redis | API key caching |

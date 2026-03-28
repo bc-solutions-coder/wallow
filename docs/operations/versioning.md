@@ -57,7 +57,7 @@ feature branch ──PR──► main branch ──release PR──► tag + Git
 1. **Feature branches** — Develop and PR into main. CI runs tests.
 2. **Merge to main** — release-please analyzes commits and creates/updates a **Release PR** with changelog and version bump.
 3. **Merge the Release PR** — release-please creates a git tag (`v0.2.0`) and GitHub Release.
-4. **Tag triggers publish** — The publish workflow builds a Docker image and pushes to GHCR.
+4. **Tag triggers publish** — The publish workflow (`publish.yml`) retags the `:latest` images with semver versions and scans with Trivy. Images are already built and pushed by CI on merge to main.
 
 ### Example Sequence
 
@@ -92,7 +92,7 @@ release-please automatically updates `Directory.Build.props` with the new versio
 | Artifact | How | Example |
 |----------|-----|---------|
 | `Directory.Build.props` | Updated by release-please in the Release PR | `<Version>0.2.0</Version>` |
-| Docker image tag | Publish workflow on tag push | `0.2.0`, `0.2`, `latest` |
+| Docker image tags | CI pushes `:latest` and `:sha`; publish adds semver tags | `0.2.0`, `0.2`, `latest` |
 | Git tags | Created by release-please on Release PR merge | `v0.2.0` |
 | GitHub Releases | Created by release-please with auto-generated changelog | `v0.2.0` |
 

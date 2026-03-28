@@ -40,18 +40,16 @@ The API starts on `http://localhost:5000`. Interactive API documentation is avai
 
 ```bash
 # All tests
-dotnet test
+./scripts/run-tests.sh
+
+# Specific module
+./scripts/run-tests.sh billing
 
 # Specific test project
-dotnet test tests/Modules/Billing/Billing.Domain.Tests
-
-# All Billing tests (using filter)
-dotnet test --filter "FullyQualifiedName~Billing"
-
-# By category
-dotnet test --filter "Category=Unit"
-dotnet test --filter "Category=Integration"
+./scripts/run-tests.sh tests/Modules/Billing/Wallow.Billing.Tests
 ```
+
+The script outputs structured per-assembly pass/fail counts and lists individual failed test names. Supported shorthands: `identity`, `billing`, `storage`, `notifications`, `messaging`, `announcements`, `inquiries`, `branding`, `apikeys`, `auth`, `api`, `arch`, `shared`, `kernel`, `integration`.
 
 Integration tests require Docker. Testcontainers spins up ephemeral Postgres and Valkey containers automatically.
 
@@ -64,7 +62,7 @@ Integration tests require Docker. Testcontainers spins up ephemeral Postgres and
 | OpenIddict Authorize | http://localhost:5000/connect/authorize | - |
 | OpenIddict Token | http://localhost:5000/connect/token | - |
 | GarageHQ (S3 API) | http://localhost:3900 | See `docker/.env` |
-| GarageHQ (Admin API) | http://localhost:3903 | `wallow-admin-token` |
+| GarageHQ (Admin API) | http://localhost:3903 | See `docker/.env` |
 | Mailpit | http://localhost:8025 | - |
 | PostgreSQL | localhost:5432 | See `docker/.env` |
 | AsyncAPI Viewer | http://localhost:5000/asyncapi | Dev only |
@@ -98,7 +96,7 @@ cd docker && docker compose down -v && docker compose up -d
 
 Wallow is a modular monolith. Each module is an autonomous bounded context that follows Clean Architecture internally and communicates with other modules exclusively through integration events over Wolverine. Modules never reference each other directly.
 
-**Modules:** Identity, Billing, Storage, Notifications, Messaging, Announcements, Inquiries
+**Modules:** Identity, Billing, Branding, Storage, Notifications, Messaging, Announcements, Inquiries, ApiKeys
 
 **Shared libraries:**
 - `Wallow.Shared.Contracts` -- Cross-module integration events and DTOs
@@ -111,43 +109,21 @@ Wallow is a modular monolith. Each module is an autonomous bounded context that 
 
 Cross-cutting capabilities that were previously separate modules now live in `Wallow.Shared.Infrastructure` and are registered centrally. Modules access these through DI -- they don't reference other modules.
 
-### Auditing (`Shared.Infrastructure/Auditing/`)
+### Auditing (`Shared.Infrastructure.Core/Auditing/`)
 
 An EF Core `SaveChangesInterceptor` that automatically captures all entity changes (inserts, updates, deletes) across every module's DbContext. Audit entries include the entity type, primary key, old/new values (serialized JSON), the acting user, tenant, and timestamp. Entries are stored in a dedicated `audit` schema via `AuditDbContext`.
 
 **Registration:** `services.AddWallowAuditing(configuration)` registers the `AuditDbContext` and `AuditInterceptor` singleton. Module DbContexts pick up auditing automatically by adding the interceptor to their options (via `options.AddInterceptors(sp.GetRequiredService<AuditInterceptor>())`).
 
-### Background Jobs (`Shared.Infrastructure/BackgroundJobs/`)
+### Background Jobs (`Shared.Infrastructure.BackgroundJobs/`)
 
 A thin `IJobScheduler` abstraction (defined in `Shared.Kernel/BackgroundJobs/`) over Hangfire for fire-and-forget and recurring jobs. Modules inject `IJobScheduler` to enqueue work without depending on Hangfire directly.
 
-```csharp
-public interface IJobScheduler
-{
-    string Enqueue(Expression<Func<Task>> job);
-    string Enqueue<T>(Expression<Func<T, Task>> job);
-    void AddRecurring(string id, string cron, Expression<Func<Task>> job);
-    void RemoveRecurring(string id);
-}
-```
-
 **Registration:** `services.AddWallowBackgroundJobs()` registers `HangfireJobScheduler` as the `IJobScheduler` implementation.
 
-### Workflows (`Shared.Infrastructure/Workflows/`)
+### Workflows (`Shared.Infrastructure.Workflows/`)
 
 Elsa 3 workflow engine integration for long-running, multi-step business processes. Elsa stores workflow definitions and runtime state in PostgreSQL via EF Core. Modules define custom workflow activities by extending `WorkflowActivityBase`, which adds module-scoped logging and execution context. Activities are auto-discovered from all `Wallow.*` assemblies at startup.
-
-```csharp
-public class SendWelcomeEmailActivity : WorkflowActivityBase
-{
-    public override string ModuleName => "Notifications";
-
-    protected override async ValueTask ExecuteActivityAsync(ActivityExecutionContext context)
-    {
-        // Activity logic here
-    }
-}
-```
 
 **Registration:** `services.AddWallowWorkflows(configuration)` registers Elsa with PostgreSQL persistence, scheduling, HTTP activities, and email integration.
 
@@ -171,11 +147,11 @@ src/
     Announcements/
     Inquiries/
   Shared/
-    Wallow.Shared.Contracts/         # Cross-module events and DTOs
-    Wallow.Shared.Kernel/            # Base classes, multi-tenancy, shared abstractions
-    Wallow.Shared.Infrastructure/          # Cross-cutting infrastructure base
-    Wallow.Shared.Infrastructure.Core/    # Shared infrastructure core
-    Wallow.Shared.Infrastructure.Plugins/ # Plugin abstractions
+    Wallow.Shared.Contracts/                     # Cross-module events and DTOs
+    Wallow.Shared.Kernel/                        # Base classes, multi-tenancy, shared abstractions
+    Wallow.Shared.Infrastructure/                # Settings and shared infrastructure
+    Wallow.Shared.Infrastructure.Core/           # Auditing, caching, messaging middleware
+    Wallow.Shared.Infrastructure.Plugins/        # Plugin loading and lifecycle
     Wallow.Shared.Infrastructure.BackgroundJobs/ # IJobScheduler / Hangfire
     Wallow.Shared.Infrastructure.Workflows/      # Elsa 3 workflow engine
 
@@ -438,7 +414,7 @@ public static class CreateInvoiceHandler
 
 ### Message Routing
 
-Wolverine uses in-memory transport by default. Set `ModuleMessaging:Transport` to `RabbitMq` in appsettings to enable distributed messaging via RabbitMQ. See `docs/plans/2026-03-24-wolverine-rabbitmq-transport-design.md` for details.
+Wolverine uses in-memory transport for all module-to-module messaging. Messages are routed automatically by type -- no manual routing configuration is needed.
 
 ### Module Type Examples
 
@@ -466,7 +442,7 @@ public static class ExampleModuleExtensions
 
 ## Cross-Module Communication
 
-Modules communicate through integration events published over Wolverine (in-memory bus by default, RabbitMQ optional). Events are defined in `Shared.Contracts`.
+Modules communicate through integration events published over Wolverine (in-memory bus). Events are defined in `Shared.Contracts`.
 
 ### Defining an Event
 
@@ -569,7 +545,7 @@ Tenant isolation is enforced at three layers.
 
 ### 1. Middleware
 
-`TenantResolutionMiddleware` reads the `org_id` claim (flat GUID string) from the JWT and populates `ITenantContext` for the request scope.
+`TenantResolutionMiddleware` (in `Identity.Infrastructure/MultiTenancy/`) reads the `org_id` claim from the JWT and populates `ITenantContext` for the request scope.
 
 ### 2. Entity Marking
 
@@ -627,7 +603,7 @@ dotnet ef database update \
     --context {Module}DbContext
 ```
 
-Migrations also run automatically at startup via `Use{Module}ModuleAsync()`.
+Migrations also run automatically at startup via `Initialize{Module}ModuleAsync()`.
 
 ### Write vs. Read Strategy
 
@@ -747,7 +723,7 @@ public class InvoicesControllerTests : IClassFixture<WallowApiFactory>
 | Framework | .NET 10 |
 | Database | PostgreSQL 18 |
 | ORM | EF Core + Dapper |
-| CQRS & Messaging | Wolverine (mediator + in-memory bus, optional RabbitMQ) |
+| CQRS & Messaging | Wolverine (mediator + in-memory bus) |
 | Logging | Serilog |
 | Real-time | SignalR |
 | Validation | FluentValidation |

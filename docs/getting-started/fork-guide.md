@@ -154,7 +154,7 @@ foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies()
 ```bash
 dotnet restore YourProduct.slnx
 dotnet build YourProduct.slnx
-dotnet test
+./scripts/run-tests.sh
 ```
 
 Fix any remaining `Wallow` references the compiler surfaces. Also verify the Dockerfile:
@@ -216,7 +216,7 @@ If you operate a fork that processes personal data of EU residents, you are the 
 
 ## Configuring Modules
 
-Wallow ships with seven modules: Identity, Billing, Storage, Notifications, Messaging, Announcements, and Inquiries. All modules are enabled by default and can be toggled via feature flags -- no source code changes required.
+Wallow ships with multiple modules. Most are enabled by default and can be toggled via feature flags -- no source code changes required. Identity is always registered (not behind a feature flag).
 
 ### Enabling and disabling modules
 
@@ -225,13 +225,15 @@ Modules are controlled by the `FeatureManagement` section in `appsettings.json`.
 ```json
 {
   "FeatureManagement": {
-    "Modules.Identity": true,
     "Modules.Billing": true,
+    "Modules.Branding": true,
     "Modules.Storage": true,
     "Modules.Notifications": true,
     "Modules.Messaging": true,
     "Modules.Announcements": true,
-    "Modules.Inquiries": true
+    "Modules.Configuration": true,
+    "Modules.Inquiries": true,
+    "Modules.ApiKeys": false
   }
 }
 ```
@@ -246,37 +248,11 @@ To disable a module, set its value to `false`:
 }
 ```
 
-This is wired in `WallowModules.cs`, which uses `IFeatureManager` to check feature flags before registering each module:
-
-```csharp
-IFeatureManager featureManager = services.BuildServiceProvider().GetRequiredService<IFeatureManager>();
-
-if (await featureManager.IsEnabledAsync("Modules.Identity"))
-    services.AddIdentityModule(configuration);
-
-if (await featureManager.IsEnabledAsync("Modules.Billing"))
-    services.AddBillingModule(configuration);
-```
-
-When a module is disabled, its DI services, database migrations, API controllers, and Wolverine handlers are all excluded from the application.
+This is wired in `WallowModules.cs`, which uses `IFeatureManager` to check feature flags before registering each module. Identity is always registered as a required platform dependency. When a module is disabled, its DI services, database migrations, API controllers, and Wolverine handlers are all excluded from the application.
 
 ### Module-specific configuration
 
-Each module reads its own configuration section from `appsettings.json`. Common patterns:
-
-```json
-{
-  "Email": {
-    "Provider": "Smtp",
-    "Smtp": {
-      "Host": "localhost",
-      "Port": 1025
-    }
-  }
-}
-```
-
-Provider implementations are swapped via DI registration in each module's Infrastructure layer.
+Each module reads its own configuration section from `appsettings.json`. See the [Configuration Guide](configuration.md) for the full reference of all configuration sections (`Smtp`, `Storage`, `OpenTelemetry`, etc.).
 
 ### Environment-specific overrides
 
@@ -286,9 +262,10 @@ Use `appsettings.{Environment}.json` or environment variables to configure modul
 # Disable billing in development
 FeatureManagement__Modules.Billing=false
 
-# Configure email provider in production
-Email__Provider=SendGrid
-Email__SendGrid__ApiKey=your-key
+# Configure SMTP for production
+Smtp__Host=smtp.example.com
+Smtp__Port=587
+Smtp__UseSsl=true
 ```
 
 ---
@@ -383,11 +360,9 @@ dotnet sln YourProduct.slnx add src/Modules/YourModule/YourProduct.YourModule.In
 dotnet sln YourProduct.slnx add src/Modules/YourModule/YourProduct.YourModule.Api
 ```
 
-### 7. RabbitMQ and handler discovery (automatic)
+### 7. Handler discovery (automatic)
 
-Wolverine is configured with `UseConventionalRouting()` which automatically creates exchanges and queues based on message types. No manual routing configuration is needed.
-
-Handler discovery is also automatic -- Wolverine scans all assemblies whose names start with `YourProduct.` (after renaming from `Wallow`). Just create handlers following Wolverine conventions:
+Wolverine scans all assemblies whose names start with `YourProduct.` (after renaming from `Wallow`) and uses in-memory transport for all messaging. No manual routing configuration is needed. Just create handlers following Wolverine conventions:
 
 ```csharp
 public static class CreateSomethingHandler
@@ -404,7 +379,7 @@ public static class CreateSomethingHandler
 
 No manual assembly registration is required.
 
-For more detail, see `docs/architecture/module-creation.md`.
+For more detail, see the [Module Creation Guide](../architecture/module-creation.md).
 
 ---
 
@@ -612,7 +587,7 @@ public static class OrderPlacedEventHandler
 }
 ```
 
-Wolverine's `UseConventionalRouting()` automatically creates the necessary RabbitMQ exchanges and queues. No manual registration is needed.
+Wolverine automatically discovers handlers by convention. No manual registration is needed.
 
 ---
 
@@ -810,20 +785,16 @@ public class OrdersControllerTests
 }
 ```
 
-Integration tests require Docker. Testcontainers spins up ephemeral Postgres, RabbitMQ, and Redis containers.
+Integration tests require Docker. Testcontainers spins up ephemeral Postgres and Valkey containers.
 
 ### 4. Run tests
 
 ```bash
 # All tests
-dotnet test
+./scripts/run-tests.sh
 
 # Only your module
-dotnet test tests/Modules/YourModule/YourProduct.YourModule.Tests
-
-# By category
-dotnet test --filter "Category=Unit"
-dotnet test --filter "Category=Integration"
+./scripts/run-tests.sh tests/Modules/YourModule/YourProduct.YourModule.Tests
 ```
 
 ---
@@ -924,18 +895,24 @@ git push origin main
 
 ---
 
-## Checklist
+## Checklist (Approach A)
 
 - [ ] Fork created and cloned
+- [ ] `branding.json` customized with your product identity
+- [ ] `appsettings.json` configured (CORS, SMTP, OpenTelemetry service name)
+- [ ] Merge driver activated (`git config merge.ours.driver true`)
+- [ ] `dotnet build` succeeds
+- [ ] `./scripts/run-tests.sh` passes
+- [ ] Upstream remote added for future syncing
+- [ ] Module toggles configured in `FeatureManagement` section
+
+## Checklist (Approach B -- Full Rename)
+
 - [ ] All `Wallow.*` references renamed to `YourProduct.*`
 - [ ] Solution file renamed and project paths updated
 - [ ] Docker Compose configuration updated
-- [ ] Identity configuration updated
 - [ ] CI/CD workflows updated
 - [ ] Dockerfile updated
 - [ ] Wolverine assembly scanning prefix updated
 - [ ] `dotnet build` succeeds
-- [ ] `dotnet test` passes
-- [ ] Upstream remote added for future syncing
-- [ ] Module toggles configured in `appsettings.json`
-- [ ] Plugin directory set up (if using plugins)
+- [ ] `./scripts/run-tests.sh` passes

@@ -33,7 +33,7 @@ cd docker && docker compose ps
 
 # View logs for specific container
 docker compose logs postgres
-docker compose logs rabbitmq
+docker compose logs valkey
 ```
 
 #### Common Causes and Solutions
@@ -123,54 +123,6 @@ docker compose up -d postgres
 FATAL: no pg_hba.conf entry for host
 ```
 Check `docker/init-db.sql` and ensure the database user has proper permissions.
-
-### RabbitMQ Connection Issues
-
-#### Symptom
-```
-RabbitMQ.Client.Exceptions.BrokerUnreachableException: None of the specified endpoints were reachable
-```
-
-#### Diagnosis
-```bash
-# Check RabbitMQ container
-docker compose ps rabbitmq
-
-# Test management UI
-curl -u guest:guest http://localhost:15672/api/overview
-
-# Check logs
-docker compose logs rabbitmq
-```
-
-#### Solutions
-
-**Container not healthy:**
-```bash
-# Wait for RabbitMQ to fully start (can take 30+ seconds)
-docker compose logs -f rabbitmq
-
-# Look for: "Server startup complete"
-```
-
-**Wrong connection string:**
-```json
-{
-  "ConnectionStrings": {
-    "RabbitMq": "amqp://guest:guest@localhost:5672"
-  }
-}
-```
-
-**Virtual host not found:**
-```
-RabbitMQ.Client.Exceptions.OperationInterruptedException: AMQP close-reason: NOT_FOUND - no vhost '/'
-```
-The default vhost `/` should exist. If using a custom vhost, create it:
-```bash
-docker exec wallow-rabbitmq rabbitmqctl add_vhost wallow
-docker exec wallow-rabbitmq rabbitmqctl set_permissions -p wallow guest ".*" ".*" ".*"
-```
 
 ### Valkey/Redis Connection Problems
 
@@ -294,8 +246,8 @@ curl -X POST http://localhost:5000/api/auth/refresh \
 
 #### Diagnosis
 Decode your JWT token at https://jwt.io and check:
-- `realm_access.roles` - Should contain role names
-- `organization` or `org_id` - Should contain tenant ID
+- `role` claim - Should contain role names
+- `organization` claim - Should contain tenant ID
 
 #### Solutions
 
@@ -476,22 +428,13 @@ WHERE datname = 'wallow'
 
 ## 4. Messaging Issues
 
+Wallow uses Wolverine with in-memory messaging. There is no external message broker.
+
 ### Messages Not Being Delivered
 
 #### Symptom
 - Events published but handlers never execute
 - No errors in logs
-
-#### Diagnosis
-```bash
-# Check RabbitMQ management UI
-open http://localhost:15672
-# Login: see docker/.env for credentials
-
-# Look for:
-# - Queues tab: messages should be 0 if consumed
-# - Exchanges tab: check bindings exist
-```
 
 #### Solutions
 
@@ -512,53 +455,9 @@ public static class MyEventHandler
 }
 ```
 
-**Missing queue binding:**
-Check `Program.cs` for routing configuration:
-```csharp
-opts.PublishMessage<MyEvent>().ToRabbitExchange("my-events");
-opts.ListenToRabbitQueue("my-inbox");
-```
-
-**RabbitMQ not connected:**
-```bash
-# Verify connection
-docker exec wallow-rabbitmq rabbitmqctl list_connections
-```
-
-### Dead Letter Queue Buildup
-
-#### Symptom
-Messages accumulating in error queues.
-
-#### Diagnosis
-```bash
-# Check dead letter queue in RabbitMQ UI
-# Or via CLI:
-docker exec wallow-rabbitmq rabbitmqctl list_queues name messages | grep -i error
-```
-
-#### Solutions
-
-**View failed message details:**
-In RabbitMQ Management UI:
-1. Go to Queues
-2. Select the error queue (e.g., `wolverine.errors`)
-3. Click "Get Message(s)" to see payload and headers
-
-**Reprocess dead letters:**
+**Check Wolverine envelope tables for errored messages:**
 ```sql
--- Check Wolverine incoming_envelopes table
 SELECT * FROM wolverine.wolverine_incoming_envelopes WHERE status = 'error';
-```
-
-**Fix the handler and replay:**
-1. Fix the bug in your handler
-2. Deploy the fix
-3. Use RabbitMQ UI to move messages from DLQ back to original queue
-
-**Clear dead letter queue:**
-```bash
-docker exec wallow-rabbitmq rabbitmqctl purge_queue wolverine.errors
 ```
 
 ### Handler Not Being Discovered
@@ -677,7 +576,6 @@ In Docker Desktop settings, increase:
 ```bash
 # Find conflicting ports
 lsof -i :5432
-lsof -i :5672
 lsof -i :6379
 ```
 
@@ -685,7 +583,6 @@ lsof -i :6379
 ```bash
 # Pull images manually
 docker pull postgres:18-alpine
-docker pull rabbitmq:4.2-management-alpine
 docker pull valkey/valkey:8-alpine
 ```
 
@@ -923,27 +820,7 @@ Already configured in `Program.cs`:
 opts.ConfigureMessageLogging(); // Logs message execution
 ```
 
-### RabbitMQ Management Console Usage
-
-**Access:**
-```
-URL: http://localhost:15672
-Username: guest
-Password: guest
-```
-
-**Key tabs:**
-- **Overview**: Connection count, message rates
-- **Queues**: Message backlog, consumer count
-- **Exchanges**: Bindings between exchanges and queues
-- **Connections**: Active connections from applications
-
-**Useful actions:**
-- **Purge queue**: Clear all messages (for testing)
-- **Get messages**: View message payload without consuming
-- **Move messages**: Transfer from error queue to original
-
-### Checking Outbox Table
+### Checking Wolverine Envelope Tables
 
 **View pending outbox messages:**
 ```sql
@@ -990,11 +867,6 @@ docker compose logs --tail=50
 docker exec wallow-postgres psql -U wallow -d wallow -c "SELECT 1"
 ```
 
-**Test RabbitMQ connectivity:**
-```bash
-docker exec wallow-rabbitmq rabbitmq-diagnostics check_running
-```
-
 **Test Redis/Valkey connectivity:**
 ```bash
 docker exec wallow-valkey valkey-cli ping
@@ -1020,11 +892,10 @@ cd docker && docker compose down -v && docker compose up -d
 
 | HTTP Status | Exception Type | Meaning |
 |------------|----------------|---------|
-| 400 | `ValidationException` | Invalid request data |
-| 401 | `SecurityTokenException` | Authentication failed |
-| 403 | `UnauthorizedAccessException` | Missing permission |
+| 400 | `ValidationException`, `ArgumentException` | Invalid request data |
+| 401 | `UnauthorizedAccessException` | Authentication failed |
+| 403 | `ForbiddenAccessException` | Missing permission |
 | 404 | `EntityNotFoundException` | Resource not found |
-| 409 | `DbUpdateConcurrencyException` | Optimistic concurrency conflict |
 | 422 | `BusinessRuleException` | Business rule violation |
 | 500 | Unhandled exception | Server error |
 
@@ -1050,5 +921,5 @@ If you cannot resolve an issue:
 
 4. **Run architecture tests:**
    ```bash
-   dotnet test tests/Wallow.Architecture.Tests
+   ./scripts/run-tests.sh arch
    ```

@@ -40,6 +40,14 @@
       href: development/database-migrations.md
     - name: Testing
       href: development/testing.md
+    - name: E2E Testing
+      href: development/testing-e2e.md
+    - name: Testing with Docker
+      href: development/testing-docker.md
+    - name: CI/CD Pipeline
+      href: development/testing-ci.md
+    - name: Code Coverage
+      href: development/testing-coverage.md
     - name: Frontend Setup
       href: development/frontend-setup.md
 - name: Operations

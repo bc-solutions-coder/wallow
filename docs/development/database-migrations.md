@@ -8,7 +8,7 @@ Wallow uses **EF Core Migrations** for all modules. Each module owns its own Pos
 
 ### Key Principles
 
-1. **One schema per module** - Each module uses a separate PostgreSQL schema (e.g., `billing`, `identity`, `communications`)
+1. **One schema per module** - Each module uses a separate PostgreSQL schema (e.g., `billing`, `identity`, `notifications`)
 2. **Isolated migration history** - Each EF Core schema has its own `__EFMigrationsHistory` table
 3. **Auto-migration at startup** - Migrations run automatically when the API starts
 4. **Multi-tenancy support** - Migrations use a `DesignTimeTenantContext` mock for design-time operations
@@ -169,19 +169,23 @@ dotnet ef migrations add AddPaymentRefundField \
 
 ### EF Core Modules
 
-| Module | Schema | Has Migrations | Has Factory | Notes |
-|--------|--------|----------------|-------------|-------|
-| Billing | `billing` | Yes | Yes | Includes metering entities (meters, usage, quotas) |
-| Identity | `identity` | Yes | No | Has migrations in `Persistence/Migrations/` subfolder |
-| Communications | `communications` | **No** | **No** | Email, notifications, announcements, changelog. Needs migrations/factory |
-| Storage | `storage` | Yes | Yes | |
-| Configuration | `configuration` | Yes | Yes | Feature flags and custom fields |
+| Module | Schema | Has Migrations | Has Factory |
+|--------|--------|----------------|-------------|
+| Identity | `identity` | Yes | Yes |
+| Billing | `billing` | Yes | Yes |
+| Storage | `storage` | Yes | Yes |
+| Notifications | `notifications` | Yes | Yes |
+| Messaging | `messaging` | Yes | Yes |
+| Announcements | `announcements` | Yes | Yes |
+| Inquiries | `inquiries` | Yes | Yes |
+| ApiKeys | `apikeys` | Yes | Yes |
+| Branding | `branding` | Yes | Yes |
 
 ### Shared Infrastructure
 
 | Context | Schema | Has Migrations | Notes |
 |---------|--------|----------------|-------|
-| AuditDbContext | `audit` | Yes | Audit.NET interceptor in Shared.Infrastructure |
+| AuditDbContext | `audit` | Yes | Audit interceptor in Shared.Infrastructure.Core |
 
 ## Troubleshooting
 

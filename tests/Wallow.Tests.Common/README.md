@@ -2,144 +2,65 @@
 
 Shared test infrastructure for Wallow integration tests.
 
-## Features
-
-- **Testcontainers Fixtures**: PostgreSQL, RabbitMQ, and Redis containers
-- **WebApplicationFactory**: Pre-configured API factory with test containers
-- **JWT Auth Helpers**: Generate test tokens and authenticate HTTP clients
-- **Reusable across all test projects**
-
-## Usage
-
-### Using WallowApiFactory
-
-```csharp
-using Wallow.Tests.Common.Factories;
-using Wallow.Tests.Common.Helpers;
-
-public class MyIntegrationTests : IAsyncLifetime
-{
-    private WallowApiFactory _factory = null!;
-
-    public async Task InitializeAsync()
-    {
-        _factory = new WallowApiFactory();
-        await _factory.InitializeAsync();
-    }
-
-    public async Task DisposeAsync()
-    {
-        await _factory.DisposeAsync();
-    }
-
-    [Fact]
-    public async Task GetEndpoint_WithAuth_ReturnsOk()
-    {
-        var client = _factory.CreateClient().WithAuth("user-123");
-
-        var response = await client.GetAsync("/api/tasks");
-
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-    }
-}
-```
-
-### Using Individual Fixtures
-
-```csharp
-using Wallow.Tests.Common.Fixtures;
-
-public class DatabaseTests : IClassFixture<DatabaseFixture>
-{
-    private readonly DatabaseFixture _db;
-
-    public DatabaseTests(DatabaseFixture db)
-    {
-        _db = db;
-    }
-
-    [Fact]
-    public void CanConnectToDatabase()
-    {
-        var connectionString = _db.ConnectionString;
-        // Use connection string...
-    }
-}
-```
-
-### Generating JWT Tokens
-
-```csharp
-using Wallow.Tests.Common.Helpers;
-
-// Simple token
-var token = JwtTokenHelper.GenerateToken("user-123");
-
-// Token with roles
-var adminToken = JwtTokenHelper.GenerateToken("admin-1", roles: new[] { "Admin", "User" });
-
-// Token with email
-var tokenWithEmail = JwtTokenHelper.GenerateToken("user-456", email: "test@example.com");
-```
-
-### Authenticating HTTP Clients
-
-```csharp
-using Wallow.Tests.Common.Helpers;
-
-var client = factory.CreateClient();
-
-// Authenticate as user
-client.WithAuth("user-123");
-
-// Authenticate with roles
-client.WithAuth("admin-1", roles: new[] { "Admin" });
-
-var response = await client.GetAsync("/api/protected-endpoint");
-```
-
 ## Components
 
 ### Fixtures
 
-- **DatabaseFixture**: PostgreSQL 18 container
-- **RabbitMqFixture**: RabbitMQ 4.2 container
-- **RedisFixture**: Valkey 8 container
-
-All implement `IAsyncLifetime` for proper lifecycle management.
+- **DatabaseFixture** (`Fixtures/DatabaseFixture.cs`): PostgreSQL 18 container via Testcontainers. Implements `IAsyncLifetime`.
+- **RedisFixture** (`Fixtures/RedisFixture.cs`): Valkey 8 container via Testcontainers. Implements `IAsyncLifetime`.
+- **PostgresContainerFixture** (`Fixtures/PostgresContainerFixture.cs`): Lower-level Postgres container fixture.
 
 ### Factories
 
-- **WallowApiFactory**: Combines all containers + WebApplicationFactory
-  - Auto-configures connection strings
-  - Sets up test JWT configuration
-  - Provides pre-configured HttpClient
+- **WallowApiFactory** (`Factories/WallowApiFactory.cs`): Full API pipeline combining PostgreSQL and Valkey containers with `WebApplicationFactory<Program>`. Configures `TestAuthHandler`, replaces external service dependencies with fakes, and bootstraps an admin user for `SetupMiddleware`.
 
 ### Helpers
 
-- **JwtTokenHelper**: Generate valid JWT tokens for testing
-- **HttpClientExtensions**: Extension methods to authenticate HttpClient instances
+- **TestAuthHandler** (`Helpers/TestAuthHandler.cs`): Fake authentication handler. By default authenticates as admin. Supports customization via headers:
+  - `X-Test-User-Id` and `X-Test-Roles`: set a custom user identity
+  - `X-Test-Auth-Skip: true`: fail authentication (simulate unauthenticated request)
+  - Also parses `test-token:{userId}:{roles}` format from Bearer tokens (used by SignalR tests)
+- **JwtTokenHelper** (`Helpers/JwtTokenHelper.cs`): Generates and parses test tokens in `test-token:{userId}:{roles}` format for `TestAuthHandler`.
+- **TestConstants** (`Helpers/TestConstants.cs`): Fixed GUIDs for `AdminUserId`, `TestOrgId`, and `TestTenantId`.
+- **LoggerAssertionExtensions** (`Helpers/LoggerAssertionExtensions.cs`): Assertion helpers for logger verification.
+
+### Bases
+
+- **WallowIntegrationTestBase** (`Bases/WallowIntegrationTestBase.cs`): Base class for integration tests using `WallowApiFactory`.
+- **DbContextIntegrationTestBase** (`Bases/DbContextIntegrationTestBase.cs`): Base class for tests that work directly with a `DbContext`.
+
+### Builders
+
+- **InvoiceBuilder** (`Builders/InvoiceBuilder.cs`): Fluent builder for invoice entities.
+
+### Fakes
+
+- **FakeUserManagementService**: No-op replacement for `IUserManagementService`
+- **FakeInvoiceQueryService**: Returns empty/zero results for `IInvoiceQueryService`
+- **FakeMeteringQueryService**: Returns null quotas for `IMeteringQueryService`
+- **FakeUserQueryService**: Returns zero counts for `IUserQueryService`
+- **NoOpHybridCache**: No-op replacement for `HybridCache`
 
 ## Configuration
 
-The factory uses these test configuration values:
+`WallowApiFactory` sets these configuration values at startup:
 
+| Key | Source |
+|-----|--------|
+| `ConnectionStrings:DefaultConnection` | Testcontainers PostgreSQL |
+| `ConnectionStrings:Redis` | Testcontainers Valkey (with `allowAdmin=true`) |
+| `OpenIddict:SigningCertPath` | Ephemeral self-signed certificate |
+| `OpenIddict:EncryptionCertPath` | Ephemeral self-signed certificate |
+| `AdminBootstrap:Email` | `admin@wallow.test` |
+
+## Running Tests
+
+Always use the test script, never bare `dotnet test`:
+
+```bash
+# Run all tests
+./scripts/run-tests.sh
+
+# Run specific module tests
+./scripts/run-tests.sh shared
 ```
-ConnectionStrings:DefaultConnection = (Postgres container)
-ConnectionStrings:RabbitMq = (RabbitMQ container)
-ConnectionStrings:Redis = (Redis container)
-Jwt:Secret = "test-jwt-secret-key-for-integration-tests-must-be-at-least-32-characters-long"
-Jwt:Issuer = "Wallow.Test"
-Jwt:Audience = "Wallow.Test.Client"
-Jwt:AccessTokenExpiryMinutes = 60
-Jwt:RefreshTokenExpiryDays = 7
-```
-
-## Dependencies
-
-- Testcontainers 4.10.0
-- xUnit
-- Microsoft.AspNetCore.Mvc.Testing
-- Microsoft.AspNetCore.SignalR.Client
-- Microsoft.AspNetCore.Authentication.JwtBearer
-- FluentAssertions
