@@ -1,4 +1,5 @@
 using Bunit;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Wallow.Auth.Components.Pages;
 using Wallow.Auth.Configuration;
@@ -16,6 +17,7 @@ public sealed class MfaEnrollTests : BunitContext
         ComponentFactories.Add(new StubComponentFactory());
         _authClient = Substitute.For<IAuthApiClient>();
         Services.AddSingleton(_authClient);
+        Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         Services.AddSingleton(new BrandingOptions { AppName = "TestApp" });
     }
 

@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 
 namespace Wallow.E2E.Tests.Infrastructure;
 
