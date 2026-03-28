@@ -25,6 +25,7 @@ namespace Wallow.Notifications.Api.Controllers;
 [Tags("Push Devices")]
 [Produces("application/json")]
 [Consumes("application/json")]
+[IgnoreAntiforgeryToken]
 public class PushDevicesController(
     IMessageBus bus,
     ICurrentUserService currentUserService,

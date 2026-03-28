@@ -25,6 +25,7 @@ namespace Wallow.Billing.Api.Controllers;
 [Tags("Custom Field Definitions")]
 [Produces("application/json")]
 [Consumes("application/json")]
+[IgnoreAntiforgeryToken]
 public class CustomFieldDefinitionsController(IMessageBus bus) : ControllerBase
 {
 

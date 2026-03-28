@@ -28,6 +28,7 @@ namespace Wallow.Messaging.Api.Controllers;
 [Tags("Conversations")]
 [Produces("application/json")]
 [Consumes("application/json")]
+[IgnoreAntiforgeryToken]
 public class ConversationsController(IMessageBus bus, IHtmlSanitizationService sanitizer, ICurrentUserService currentUserService, IMessagingQueryService messagingQueryService) : ControllerBase
 {
     [HttpPost]

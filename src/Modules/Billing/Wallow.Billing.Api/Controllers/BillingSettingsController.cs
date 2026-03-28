@@ -18,6 +18,7 @@ namespace Wallow.Billing.Api.Controllers;
 [Authorize]
 [Tags("Billing Settings")]
 [Produces("application/json")]
+[IgnoreAntiforgeryToken]
 public class BillingSettingsController(
     [FromKeyedServices("billing")] ISettingsService settingsService,
     [FromKeyedServices("billing")] ISettingRegistry settingRegistry,

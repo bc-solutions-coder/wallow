@@ -19,6 +19,7 @@ namespace Wallow.Identity.Api.Controllers;
 [Controller]
 [Route("connect/authorize")]
 [AllowAnonymous]
+[IgnoreAntiforgeryToken]
 public sealed class AuthorizationController(
     UserManager<WallowUser> userManager,
     IConfiguration configuration,
@@ -215,7 +216,7 @@ public sealed class AuthorizationController(
 
     // OAuth authorization endpoint — antiforgery tokens are not applicable for OAuth flows
 #pragma warning disable CA5391
-    [HttpPost, IgnoreAntiforgeryToken]
+    [HttpPost]
     public Task<IActionResult> AuthorizePost() => Authorize();
 #pragma warning restore CA5391
 

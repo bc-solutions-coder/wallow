@@ -27,6 +27,7 @@ namespace Wallow.Identity.Api.Controllers;
 [ApiVersion(1)]
 [Route("api/v{version:apiVersion}/identity/auth")]
 [EnableRateLimiting("auth")]
+[IgnoreAntiforgeryToken]
 public sealed partial class AccountController(
     SignInManager<WallowUser> signInManager,
     IConfiguration configuration,

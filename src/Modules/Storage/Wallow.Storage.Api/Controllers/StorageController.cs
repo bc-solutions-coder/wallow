@@ -33,6 +33,7 @@ namespace Wallow.Storage.Api.Controllers;
 [Authorize]
 [Tags("Storage")]
 [Produces("application/json")]
+[IgnoreAntiforgeryToken]
 public sealed class StorageController(IMessageBus bus, ITenantContext tenantContext, ICurrentUserService currentUserService) : ControllerBase
 {
 
