@@ -75,5 +75,10 @@ src/Wallow.Web/wwwroot/css/app.css
 # DocFX generated output
 .docfx/
 
+# Plans, specs, and superpowers docs (local only)
+docs/plans/
+docs/specs/
+docs/superpowers/
+
 # Beads / Dolt files (added by bd init)
 .beads-credential-key

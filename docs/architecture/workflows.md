@@ -125,13 +125,13 @@ In development, a default signing key is used automatically. In production, `Els
 
 | Package | Version | Purpose |
 |---------|---------|---------|
-| `Elsa` | 3.5.3 | Core workflow engine |
-| `Elsa.EntityFrameworkCore.PostgreSql` | 3.5.3 | PostgreSQL persistence |
-| `Elsa.Scheduling` | 3.5.3 | Timer/cron support |
-| `Elsa.Email` | 3.5.3 | Email activities |
-| `Elsa.Http` | 3.5.3 | HTTP triggers/activities |
-| `Elsa.Identity` | 3.5.3 | Identity and token management |
-| `Elsa.Workflows.Api` | 3.5.3 | Management API (dev only) |
+| `Elsa` | 3.6.0 | Core workflow engine |
+| `Elsa.Persistence.EFCore.PostgreSql` | 3.6.0 | PostgreSQL persistence |
+| `Elsa.Scheduling` | 3.6.0 | Timer/cron support |
+| `Elsa.Email` | 3.6.0 | Email activities |
+| `Elsa.Http` | 3.6.0 | HTTP triggers/activities |
+| `Elsa.Identity` | 3.6.0 | Identity and token management |
+| `Elsa.Workflows.Api` | 3.6.0 | Management API (dev only) |
 
 ## Adding Activities from a Module
 
