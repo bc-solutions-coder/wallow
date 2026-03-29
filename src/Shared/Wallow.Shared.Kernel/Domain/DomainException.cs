@@ -54,5 +54,8 @@ public sealed class EntityNotFoundException(string entityName, object entityId)
 public class BusinessRuleException(string code, string message)
     : DomainException(code, message);
 
+/// <summary>
+/// Exception thrown when the caller lacks permission to perform the operation.
+/// </summary>
 public sealed class ForbiddenAccessException(string message)
     : DomainException("Access.Forbidden", message);
