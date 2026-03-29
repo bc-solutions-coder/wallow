@@ -27,7 +27,7 @@
 .claude
 .githooks
 .github
-docs
+docs/plans
 deploy
 LICENSE
 README.md

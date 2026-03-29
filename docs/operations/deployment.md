@@ -2,7 +2,7 @@
 
 Wallow deploys as a set of Docker containers managed by a single `docker-compose.yml`. The canonical deployment configuration lives in `deploy/dockhand/` and is designed for servers running [Dockhand](https://dockhand.dev) with [Pangolin](https://pangolin.dev) handling TLS and routing.
 
-For step-by-step setup instructions (secrets generation, `.env` configuration, Pangolin routes, verification, and ongoing operations), see the **[Dockhand deployment README](../../deploy/dockhand/README.md)**.
+For step-by-step setup instructions (secrets generation, `.env` configuration, Pangolin routes, verification, and ongoing operations), see the **[Dockhand deployment README](https://github.com/bc-solutions-coder/wallow/blob/main/deploy/dockhand/README.md)**.
 
 This page provides an architecture overview, explains what happens on first boot, and covers topics that apply regardless of how you run the containers.
 
@@ -150,7 +150,7 @@ See `deploy/dockhand/.env.example` for the full list of variables with descripti
 | **Storage** | `GARAGE_ACCESS_KEY`, `GARAGE_SECRET_KEY` |
 | **Optional** | External auth providers, OpenTelemetry, feature flags |
 
-The [Dockhand README](../../deploy/dockhand/README.md) walks through secrets generation and configuration step by step.
+The [Dockhand README](https://github.com/bc-solutions-coder/wallow/blob/main/deploy/dockhand/README.md) walks through secrets generation and configuration step by step.
 
 ---
 
