@@ -56,6 +56,8 @@
       href: operations/versioning.md
     - name: Observability
       href: operations/observability.md
+    - name: Audit Events
+      href: operations/audit-events.md
     - name: Troubleshooting
       href: operations/troubleshooting.md
 - name: Integrations
