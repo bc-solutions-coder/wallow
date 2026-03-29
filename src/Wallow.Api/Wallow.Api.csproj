@@ -14,7 +14,12 @@
   <PropertyGroup>
     <ContainerRepository>wallow-api</ContainerRepository>
     <ContainerBaseImage>mcr.microsoft.com/dotnet/aspnet:10.0</ContainerBaseImage>
+    <ContainerEntrypoint>/app/entrypoint.sh</ContainerEntrypoint>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="../../docker/images/api/entrypoint.sh" CopyToPublishDirectory="PreserveNewest" Link="entrypoint.sh" />
+  </ItemGroup>
 
   <ItemGroup>
     <!-- API Documentation -->
@@ -103,5 +108,27 @@
     <ProjectReference Include="..\Shared\Wallow.Shared.Contracts\Wallow.Shared.Contracts.csproj" />
     <ProjectReference Include="..\Shared\Wallow.Shared.Infrastructure\Wallow.Shared.Infrastructure.csproj" />
   </ItemGroup>
+
+  <!-- Build EF Core migration bundles (opt-in: -p:BuildMigrationBundles=true) -->
+  <PropertyGroup>
+    <RepoRoot>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/../..'))</RepoRoot>
+  </PropertyGroup>
+  <Target Name="BuildMigrationBundles" AfterTargets="Publish" BeforeTargets="PublishContainer" Condition="'$(BuildMigrationBundles)' == 'true'">
+    <PropertyGroup>
+      <BundleDir>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/$(PublishDir)/bundles'))</BundleDir>
+    </PropertyGroup>
+    <Message Importance="high" Text="Building EF Core migration bundles..." />
+    <MakeDir Directories="$(BundleDir)" />
+    <Exec Command="dotnet ef migrations bundle --project src/Modules/Identity/Wallow.Identity.Infrastructure/Wallow.Identity.Infrastructure.csproj --startup-project src/Wallow.Api/Wallow.Api.csproj --context IdentityDbContext --output $(BundleDir)/efbundle-identity --configuration $(Configuration) --force --no-build" WorkingDirectory="$(RepoRoot)" />
+    <Exec Command="dotnet ef migrations bundle --project src/Modules/Billing/Wallow.Billing.Infrastructure/Wallow.Billing.Infrastructure.csproj --startup-project src/Wallow.Api/Wallow.Api.csproj --context BillingDbContext --output $(BundleDir)/efbundle-billing --configuration $(Configuration) --force --no-build" WorkingDirectory="$(RepoRoot)" />
+    <Exec Command="dotnet ef migrations bundle --project src/Modules/Storage/Wallow.Storage.Infrastructure/Wallow.Storage.Infrastructure.csproj --startup-project src/Wallow.Api/Wallow.Api.csproj --context StorageDbContext --output $(BundleDir)/efbundle-storage --configuration $(Configuration) --force --no-build" WorkingDirectory="$(RepoRoot)" />
+    <Exec Command="dotnet ef migrations bundle --project src/Modules/Notifications/Wallow.Notifications.Infrastructure/Wallow.Notifications.Infrastructure.csproj --startup-project src/Wallow.Api/Wallow.Api.csproj --context NotificationsDbContext --output $(BundleDir)/efbundle-notifications --configuration $(Configuration) --force --no-build" WorkingDirectory="$(RepoRoot)" />
+    <Exec Command="dotnet ef migrations bundle --project src/Modules/Messaging/Wallow.Messaging.Infrastructure/Wallow.Messaging.Infrastructure.csproj --startup-project src/Wallow.Api/Wallow.Api.csproj --context MessagingDbContext --output $(BundleDir)/efbundle-messaging --configuration $(Configuration) --force --no-build" WorkingDirectory="$(RepoRoot)" />
+    <Exec Command="dotnet ef migrations bundle --project src/Modules/Announcements/Wallow.Announcements.Infrastructure/Wallow.Announcements.Infrastructure.csproj --startup-project src/Wallow.Api/Wallow.Api.csproj --context AnnouncementsDbContext --output $(BundleDir)/efbundle-announcements --configuration $(Configuration) --force --no-build" WorkingDirectory="$(RepoRoot)" />
+    <Exec Command="dotnet ef migrations bundle --project src/Modules/ApiKeys/Wallow.ApiKeys.Infrastructure/Wallow.ApiKeys.Infrastructure.csproj --startup-project src/Wallow.Api/Wallow.Api.csproj --context ApiKeysDbContext --output $(BundleDir)/efbundle-apikeys --configuration $(Configuration) --force --no-build" WorkingDirectory="$(RepoRoot)" />
+    <Exec Command="dotnet ef migrations bundle --project src/Modules/Branding/Wallow.Branding.Infrastructure/Wallow.Branding.Infrastructure.csproj --startup-project src/Wallow.Api/Wallow.Api.csproj --context BrandingDbContext --output $(BundleDir)/efbundle-branding --configuration $(Configuration) --force --no-build" WorkingDirectory="$(RepoRoot)" />
+    <Exec Command="dotnet ef migrations bundle --project src/Modules/Inquiries/Wallow.Inquiries.Infrastructure/Wallow.Inquiries.Infrastructure.csproj --startup-project src/Wallow.Api/Wallow.Api.csproj --context InquiriesDbContext --output $(BundleDir)/efbundle-inquiries --configuration $(Configuration) --force --no-build" WorkingDirectory="$(RepoRoot)" />
+    <Exec Command="dotnet ef migrations bundle --project src/Shared/Wallow.Shared.Infrastructure.Core/Wallow.Shared.Infrastructure.Core.csproj --startup-project src/Wallow.Api/Wallow.Api.csproj --context AuditDbContext --output $(BundleDir)/efbundle-audit --configuration $(Configuration) --force --no-build" WorkingDirectory="$(RepoRoot)" />
+  </Target>
 
 </Project>

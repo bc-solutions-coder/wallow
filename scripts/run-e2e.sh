@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Run E2E tests with full lifecycle management.
-# Builds once on the host, publishes container images, starts the test stack,
-# runs tests, and tears everything down.
+# Builds once on the host, publishes container images via dotnet publish /t:PublishContainer,
+# starts the test stack, runs tests, and tears everything down.
 #
 # Usage:
 #   ./scripts/run-e2e.sh              # Build, publish images, test, teardown
@@ -71,11 +71,35 @@ cleanup() {
 trap cleanup EXIT
 
 # ============================================
-# Step 1: Build container images
+# Step 1: Build and publish container images
 # ============================================
 if [[ "$SKIP_BUILD" == "false" ]]; then
-    echo "=== Building container images ==="
-    $COMPOSE_CMD build
+    echo "=== Building solution ==="
+    dotnet build "$REPO_ROOT/Wallow.slnx" -c Release
+
+    echo ""
+    echo "=== Publishing container images ==="
+
+    echo "  Publishing wallow-api:test (with migration bundles)..."
+    dotnet publish "$REPO_ROOT/src/Wallow.Api/Wallow.Api.csproj" \
+        -c Release --no-build /t:PublishContainer \
+        -p:ContainerImageTag=test \
+        -p:BuildMigrationBundles=true
+
+    echo "  Publishing wallow-auth:test..."
+    dotnet publish "$REPO_ROOT/src/Wallow.Auth/Wallow.Auth.csproj" \
+        -c Release --no-build /t:PublishContainer \
+        -p:ContainerImageTag=test
+
+    echo "  Publishing wallow-web:test..."
+    dotnet publish "$REPO_ROOT/src/Wallow.Web/Wallow.Web.csproj" \
+        -c Release --no-build /t:PublishContainer \
+        -p:ContainerImageTag=test
+
+    echo ""
+    echo "=== Building infrastructure images ==="
+    $COMPOSE_CMD build garage
+
     echo "=== All images ready ==="
 else
     echo "=== Skipping build (--no-build) ==="

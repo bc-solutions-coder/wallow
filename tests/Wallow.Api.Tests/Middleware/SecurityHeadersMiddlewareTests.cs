@@ -46,7 +46,8 @@ public sealed class SecurityHeadersMiddlewareTests
     {
         IHeaderDictionary headers = await InvokeAndGetHeaders("Development");
 
-        headers["Content-Security-Policy"].ToString().Should().Be("default-src 'self'");
+        headers["Content-Security-Policy"].ToString()
+            .Should().Be("default-src 'self'; script-src 'self' https://static.cloudflareinsights.com");
     }
 
     [Fact]
@@ -141,7 +142,8 @@ public sealed class SecurityHeadersMiddlewareTests
     {
         IHeaderDictionary headers = await InvokeAndGetHeaders("Development", "/api/some-endpoint");
 
-        headers["Content-Security-Policy"].ToString().Should().Be("default-src 'self'");
+        headers["Content-Security-Policy"].ToString()
+            .Should().Be("default-src 'self'; script-src 'self' https://static.cloudflareinsights.com");
     }
 
     private Task<IHeaderDictionary> InvokeAndGetHeaders(string environmentName)

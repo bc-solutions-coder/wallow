@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
@@ -100,6 +101,9 @@ public static class IdentityInfrastructureExtensions
                         ?? throw new InvalidOperationException("OpenIddict:EncryptionCertPath is required in non-development environments.");
                     string encryptionCertPassword = configuration["OpenIddict:EncryptionCertPassword"]
                         ?? throw new InvalidOperationException("OpenIddict:EncryptionCertPassword is required in non-development environments.");
+
+                    EnsureCertificateExists(signingCertPath, signingCertPassword, "CN=Wallow Signing Certificate");
+                    EnsureCertificateExists(encryptionCertPath, encryptionCertPassword, "CN=Wallow Encryption Certificate");
 
                     options.AddSigningCertificate(X509CertificateLoader.LoadPkcs12FromFile(signingCertPath, signingCertPassword))
                         .AddEncryptionCertificate(X509CertificateLoader.LoadPkcs12FromFile(encryptionCertPath, encryptionCertPassword));
@@ -371,5 +375,33 @@ public static class IdentityInfrastructureExtensions
 
         services.AddSingleton<ServiceAccountUsageBuffer>();
         services.AddHostedService<ServiceAccountTrackingBackgroundService>();
+    }
+
+    private static void EnsureCertificateExists(string certPath, string certPassword, string subjectName)
+    {
+        if (File.Exists(certPath))
+        {
+            return;
+        }
+
+        string? directory = Path.GetDirectoryName(certPath);
+        if (!string.IsNullOrEmpty(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        using RSA rsa = RSA.Create(2048);
+        CertificateRequest request = new(subjectName, rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+
+        request.CertificateExtensions.Add(
+            new X509BasicConstraintsExtension(false, false, 0, true));
+        request.CertificateExtensions.Add(
+            new X509KeyUsageExtension(X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.KeyEncipherment, true));
+
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        using X509Certificate2 cert = request.CreateSelfSigned(now, now.AddYears(10));
+
+        byte[] pfxBytes = cert.Export(X509ContentType.Pfx, certPassword);
+        File.WriteAllBytes(certPath, pfxBytes);
     }
 }

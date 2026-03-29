@@ -1,12 +1,14 @@
 #!/bin/sh
 set -e
 
-# Defaults
-GARAGE_REGION="${GARAGE_REGION:-us-east-1}"
-GARAGE_S3_PORT="${GARAGE_S3_PORT:-3900}"
-GARAGE_ADMIN_PORT="${GARAGE_ADMIN_PORT:-3903}"
-GARAGE_KEY_NAME="${GARAGE_KEY_NAME:-wallow}"
-GARAGE_BUCKET="${GARAGE_BUCKET:-wallow-files}"
+# Defaults (exported so envsubst can see them)
+export GARAGE_REGION="${GARAGE_REGION:-us-east-1}"
+export GARAGE_S3_PORT="${GARAGE_S3_PORT:-3900}"
+export GARAGE_ADMIN_PORT="${GARAGE_ADMIN_PORT:-3903}"
+export GARAGE_KEY_NAME="${GARAGE_KEY_NAME:-wallow}"
+export GARAGE_BUCKET="${GARAGE_BUCKET:-wallow-files}"
+export GARAGE_RPC_SECRET="${GARAGE_RPC_SECRET}"
+export GARAGE_ADMIN_TOKEN="${GARAGE_ADMIN_TOKEN}"
 
 # Generate config from template
 envsubst < /etc/garage/garage.toml.template > /etc/garage.toml

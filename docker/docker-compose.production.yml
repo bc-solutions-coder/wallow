@@ -214,9 +214,7 @@ services:
   # WALLOW API
   # ============================================
   wallow-api:
-    build:
-      context: ..
-      dockerfile: docker/images/api/Dockerfile
+    image: wallow-api:${VERSION:-latest}
     container_name: ${COMPOSE_PROJECT_NAME:-wallow}-api
     restart: unless-stopped
     read_only: true
@@ -231,10 +229,11 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:8080
-      # Cert generation
-      CERT_DIR: /app/certs
-      OPENIDDICT_SIGNING_CERT_PASSWORD: ${OPENIDDICT_SIGNING_CERT_PASSWORD}
-      OPENIDDICT_ENCRYPTION_CERT_PASSWORD: ${OPENIDDICT_ENCRYPTION_CERT_PASSWORD}
+      # OpenIddict certificates (auto-generated on first startup if missing)
+      OpenIddict__SigningCertPath: /app/certs/signing.pfx
+      OpenIddict__SigningCertPassword: ${OPENIDDICT_SIGNING_CERT_PASSWORD}
+      OpenIddict__EncryptionCertPath: /app/certs/encryption.pfx
+      OpenIddict__EncryptionCertPassword: ${OPENIDDICT_ENCRYPTION_CERT_PASSWORD}
       # Migrations
       CONNECTION_STRING: "Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
       # Database
@@ -323,9 +322,7 @@ services:
   # WALLOW AUTH
   # ============================================
   wallow-auth:
-    build:
-      context: ..
-      dockerfile: docker/images/auth/Dockerfile
+    image: wallow-auth:${VERSION:-latest}
     container_name: ${COMPOSE_PROJECT_NAME:-wallow}-auth
     restart: unless-stopped
     read_only: true
@@ -368,9 +365,7 @@ services:
   # WALLOW WEB
   # ============================================
   wallow-web:
-    build:
-      context: ..
-      dockerfile: docker/images/web/Dockerfile
+    image: wallow-web:${VERSION:-latest}
     container_name: ${COMPOSE_PROJECT_NAME:-wallow}-web
     restart: unless-stopped
     read_only: true

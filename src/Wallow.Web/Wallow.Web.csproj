@@ -18,6 +18,10 @@
     <ProjectReference Include="..\Shared\Wallow.Shared.Kernel\Wallow.Shared.Kernel.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="..\..\branding.json" CopyToPublishDirectory="PreserveNewest" Link="branding.json" />
+  </ItemGroup>
+
   <!-- Tailwind CSS build (skipped in Docker where the macOS binary isn't available) -->
   <Target Name="TailwindBuild" BeforeTargets="Build" Condition="Exists('$(MSBuildProjectDirectory)/tailwindcss')">
     <Exec Command="./tailwindcss -i Styles/app.css -o wwwroot/css/app.css --minify" WorkingDirectory="$(MSBuildProjectDirectory)" />

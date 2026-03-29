@@ -52,7 +52,7 @@ services:
     build:
       context: ./images/garage
     environment:
-      GARAGE_RPC_SECRET: test-rpc-secret-000000000000000000000000000000000000000000000000000000000000
+      GARAGE_RPC_SECRET: abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789
       GARAGE_ADMIN_TOKEN: test-admin-token
       GARAGE_KEY_NAME: wallow-test
       GARAGE_ACCESS_KEY: GK0123456789abcdef01234567
@@ -77,9 +77,6 @@ services:
   # ============================================
   wallow-api:
     image: wallow-api:test
-    build:
-      context: ..
-      dockerfile: docker/images/api/Dockerfile
     ports:
       - "5050:8080"
     environment:
@@ -124,9 +121,6 @@ services:
 
   wallow-auth:
     image: wallow-auth:test
-    build:
-      context: ..
-      dockerfile: docker/images/auth/Dockerfile
     ports:
       - "127.0.0.1:5051:8080"
     extra_hosts:
@@ -144,9 +138,6 @@ services:
 
   wallow-web:
     image: wallow-web:test
-    build:
-      context: ..
-      dockerfile: docker/images/web/Dockerfile
     ports:
       - "127.0.0.1:5053:8080"
     extra_hosts:
