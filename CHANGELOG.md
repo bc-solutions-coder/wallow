@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.2](https://github.com/bc-solutions-coder/wallow/compare/v1.0.1...v1.0.2) (2026-03-29)
+
+
+### Bug Fixes
+
+* **deploy:** make dockhand stack self-contained and fix container failures ([74fad68](https://github.com/bc-solutions-coder/wallow/commit/74fad68681d3d317f199bfc6cb7a094388646e49))
+
 ## [1.0.1](https://github.com/bc-solutions-coder/wallow/compare/v1.0.0...v1.0.1) (2026-03-29)
 
 
