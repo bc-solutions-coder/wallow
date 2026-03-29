@@ -1,7 +1,5 @@
 using System.Reflection;
 using Asp.Versioning;
-using Elsa.Extensions;
-using Elsa.Workflows.Api;
 using Hangfire;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Mvc;
@@ -42,7 +40,6 @@ using Wallow.Shared.Infrastructure.Core.Cache;
 using Wallow.Shared.Infrastructure.Core.Messaging;
 using Wallow.Shared.Infrastructure.Core.Middleware;
 using Wallow.Shared.Infrastructure.Core.Services;
-using Wallow.Shared.Infrastructure.Workflows.Workflows;
 using Wallow.Shared.Kernel.Extensions;
 using Wolverine;
 using Wolverine.EntityFrameworkCore;
@@ -333,7 +330,6 @@ try
     builder.Services.AddObservability(builder.Configuration, builder.Environment);
     builder.Services.AddHangfireServices(builder.Configuration);
     builder.Services.AddWallowBackgroundJobs();
-    builder.Services.AddWallowWorkflows(builder.Configuration, builder.Environment);
     builder.Services.AddScoped<SystemHeartbeatJob>();
     if (!builder.Environment.IsDevelopment() && !builder.Environment.IsEnvironment("Testing"))
     {
@@ -577,22 +573,6 @@ try
 
     // Endpoints
     app.MapControllers();
-
-    // Elsa Workflow engine — skip when disabled via config or in Testing environment
-    bool elsaEnabled = app.Configuration.GetValue("Elsa:Enabled", true)
-                       && !app.Environment.IsEnvironment("Testing");
-    if (elsaEnabled)
-    {
-        app.UseWorkflows();
-    }
-
-    // Elsa Workflow management API (dev only — not exposed in production, requires Elsa enabled)
-    if (app.Environment.IsDevelopment() && elsaEnabled)
-    {
-        string elsaRoutePrefix = app.Services.GetRequiredService<IOptions<ApiEndpointOptions>>().Value.RoutePrefix;
-        app.UseWorkflowsApi(elsaRoutePrefix);
-        app.UseJsonSerializationErrorHandler();
-    }
 
     app.MapHub<RealtimeHub>("/hubs/realtime");
     app.MapGet("/events", SseEndpoint.HandleSseConnection).RequireAuthorization();

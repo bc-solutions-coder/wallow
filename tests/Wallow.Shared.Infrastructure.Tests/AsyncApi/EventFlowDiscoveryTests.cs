@@ -2,8 +2,8 @@ using System.Reflection;
 using Wallow.Shared.Contracts.Billing.Events;
 using Wallow.Shared.Contracts.TestSales.Events;
 using Wallow.Shared.Handlers;
+using Wallow.Shared.Infrastructure.AsyncApi;
 using Wallow.Shared.Infrastructure.Tests.AsyncApi.Stubs;
-using Wallow.Shared.Infrastructure.Workflows.AsyncApi;
 using Wallow.TestBilling.Application.Sagas;
 using Wallow.TestBilling.Infrastructure.Consumers;
 

@@ -1,7 +1,7 @@
 using System.Reflection;
 using Wallow.Shared.Contracts;
 
-namespace Wallow.Shared.Infrastructure.Workflows.AsyncApi;
+namespace Wallow.Shared.Infrastructure.AsyncApi;
 
 public sealed record EventFlowInfo(
     Type EventType,

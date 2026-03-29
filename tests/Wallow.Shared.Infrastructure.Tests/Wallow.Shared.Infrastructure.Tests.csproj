@@ -17,8 +17,6 @@
     <PackageReference Include="Testcontainers.PostgreSql" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
-    <PackageReference Include="Elsa.Workflows.Core" />
-    <PackageReference Include="Elsa.Workflows.Runtime" />
   </ItemGroup>
 
   <ItemGroup>
@@ -29,7 +27,6 @@
     <ProjectReference Include="..\..\src\Shared\Wallow.Shared.Infrastructure\Wallow.Shared.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Shared\Wallow.Shared.Infrastructure.Core\Wallow.Shared.Infrastructure.Core.csproj" />
     <ProjectReference Include="..\..\src\Shared\Wallow.Shared.Infrastructure.Plugins\Wallow.Shared.Infrastructure.Plugins.csproj" />
-    <ProjectReference Include="..\..\src\Shared\Wallow.Shared.Infrastructure.Workflows\Wallow.Shared.Infrastructure.Workflows.csproj" />
     <ProjectReference Include="..\..\src\Shared\Wallow.Shared.Infrastructure.BackgroundJobs\Wallow.Shared.Infrastructure.BackgroundJobs.csproj" />
     <ProjectReference Include="..\..\src\Shared\Wallow.Shared.Contracts\Wallow.Shared.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Shared\Wallow.Shared.Kernel\Wallow.Shared.Kernel.csproj" />

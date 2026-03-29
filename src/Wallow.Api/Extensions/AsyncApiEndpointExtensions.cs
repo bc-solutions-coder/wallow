@@ -1,5 +1,5 @@
 using System.Reflection;
-using Wallow.Shared.Infrastructure.Workflows.AsyncApi;
+using Wallow.Shared.Infrastructure.AsyncApi;
 
 namespace Wallow.Api.Extensions;
 

@@ -70,7 +70,6 @@
     <Project Path="src/Shared/Wallow.Shared.Infrastructure.BackgroundJobs/Wallow.Shared.Infrastructure.BackgroundJobs.csproj" />
     <Project Path="src/Shared/Wallow.Shared.Infrastructure.Core/Wallow.Shared.Infrastructure.Core.csproj" />
     <Project Path="src/Shared/Wallow.Shared.Infrastructure.Plugins/Wallow.Shared.Infrastructure.Plugins.csproj" />
-    <Project Path="src/Shared/Wallow.Shared.Infrastructure.Workflows/Wallow.Shared.Infrastructure.Workflows.csproj" />
     <Project Path="src/Shared/Wallow.Shared.Infrastructure/Wallow.Shared.Infrastructure.csproj" />
     <Project Path="src/Shared/Wallow.Shared.Kernel/Wallow.Shared.Kernel.csproj" />
   </Folder>

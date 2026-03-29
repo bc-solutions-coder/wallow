@@ -71,11 +71,7 @@
     <PackageReference Include="Hangfire.AspNetCore" />
     <PackageReference Include="Hangfire.PostgreSql" />
 
-    <!-- Reverse Proxy -->
-
-    <!-- Workflow Engine -->
-    <PackageReference Include="Elsa.Workflows.Api" />
-  </ItemGroup>
+    <!-- Reverse Proxy -->  </ItemGroup>
 
   <ItemGroup>
     <!-- Module Api projects -->
