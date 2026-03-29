@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.1.0](https://github.com/bc-solutions-coder/wallow/compare/v1.0.3...v1.1.0) (2026-03-29)
+
+
+### Features
+
+* **identity:** implement auth security hardening ([539276e](https://github.com/bc-solutions-coder/wallow/commit/539276e93b6c77c35ff3d445ee75a95def067c4a))
+* migrate app containers to dotnet publish /t:PublishContainer ([a82a0c3](https://github.com/bc-solutions-coder/wallow/commit/a82a0c347f981ccaaf81cc95382db53f29caebb6))
+* unified docker production stack with custom images ([5142f9c](https://github.com/bc-solutions-coder/wallow/commit/5142f9c12517104e523df7cac3cfd916f19d1a22))
+
+
+### Bug Fixes
+
+* **ci:** correct garage service name in docker compose build ([e4db5fb](https://github.com/bc-solutions-coder/wallow/commit/e4db5fb4b8e5328176c0a13f71945f7aa633a420))
+* **ci:** restore dotnet-ef tool before publishing container images ([ac0c764](https://github.com/bc-solutions-coder/wallow/commit/ac0c764aeeea5f9515880733ba2b25afe7da4112))
+* **ci:** update docker image build to use dotnet publish /t:PublishContainer ([e509f61](https://github.com/bc-solutions-coder/wallow/commit/e509f619c2c843f9797b5b57500c84c342d63f71))
+* **identity:** resolve scoped service DI violation in SessionActivityMiddleware ([f2db335](https://github.com/bc-solutions-coder/wallow/commit/f2db3359a994561c622194746b33edae51b8990d))
+* reduce flakiness in AuditInterceptorTests by sharing Postgres container ([76ab6c6](https://github.com/bc-solutions-coder/wallow/commit/76ab6c6684eab6393f857884363a4678e9cc9f65))
+* resolve 167 codebase audit findings across all modules ([#18](https://github.com/bc-solutions-coder/wallow/issues/18)) ([d9d3c98](https://github.com/bc-solutions-coder/wallow/commit/d9d3c98a01ca291dbc6a8267baf81d374101bb58))
+* restore garage docker files accidentally deleted in 5142f9c1 ([633219c](https://github.com/bc-solutions-coder/wallow/commit/633219c5409408b53a9820b67af5d78d6aad867e))
+
 ## [1.0.3](https://github.com/bc-solutions-coder/wallow/compare/v1.0.2...v1.0.3) (2026-03-29)
 
 
