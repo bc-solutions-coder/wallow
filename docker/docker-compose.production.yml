@@ -67,6 +67,7 @@ services:
   # DATABASE (Read Replica)
   # ============================================
   postgres-replica:
+    image: wallow-postgres-replica:latest
     build:
       context: ./images/postgres-replica
     container_name: ${COMPOSE_PROJECT_NAME:-wallow}-postgres-replica

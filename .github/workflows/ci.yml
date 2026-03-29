@@ -163,7 +163,7 @@ jobs:
           if-no-files-found: error
           retention-days: 5
 
-  docker-images:
+  docker-images-infra:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -171,20 +171,75 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Build all test images
-        run: docker compose -f docker/docker-compose.test.yml build
+      - name: Build infra images
+        run: |
+          docker compose -f docker/docker-compose.test.yml build wallow-garage
+          docker build -t wallow-postgres-replica:latest docker/images/postgres-replica
 
-      - name: Save container images to cache
-        run: docker save wallow-api:test wallow-auth:test wallow-web:test wallow-garage:test | gzip > /tmp/wallow-images.tar.gz
+      - name: Save infra images to cache
+        run: docker save wallow-garage:test wallow-postgres-replica:latest | gzip > /tmp/wallow-infra-images.tar.gz
 
-      - name: Cache container images
+      - name: Cache infra images
         uses: actions/cache/save@v5
         with:
-          path: /tmp/wallow-images.tar.gz
-          key: images-${{ runner.os }}-${{ github.sha }}
+          path: /tmp/wallow-infra-images.tar.gz
+          key: infra-images-${{ runner.os }}-${{ github.sha }}
+
+  docker-images-app:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v5
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+
+      - name: Restore build output
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            **/bin/Release
+            **/obj
+          key: build-${{ runner.os }}-${{ github.sha }}
+          fail-on-cache-miss: true
+
+      - name: Publish .NET container images
+        run: |
+          dotnet publish src/Wallow.Api/Wallow.Api.csproj \
+            -c Release --no-build /t:PublishContainer \
+            -p:ContainerImageTag=test \
+            -p:BuildMigrationBundles=true
+          dotnet publish src/Wallow.Auth/Wallow.Auth.csproj \
+            -c Release --no-build /t:PublishContainer \
+            -p:ContainerImageTag=test
+          dotnet publish src/Wallow.Web/Wallow.Web.csproj \
+            -c Release --no-build /t:PublishContainer \
+            -p:ContainerImageTag=test
+
+      - name: Save app images to cache
+        run: docker save wallow-api:test wallow-auth:test wallow-web:test | gzip > /tmp/wallow-app-images.tar.gz
+
+      - name: Cache app images
+        uses: actions/cache/save@v5
+        with:
+          path: /tmp/wallow-app-images.tar.gz
+          key: app-images-${{ runner.os }}-${{ github.sha }}
 
   e2e:
-    needs: [build, docker-images]
+    needs: [build, docker-images-infra, docker-images-app]
     runs-on: ubuntu-latest
 
     permissions:
@@ -215,15 +270,24 @@ jobs:
           key: build-${{ runner.os }}-${{ github.sha }}
           fail-on-cache-miss: true
 
-      - name: Restore container images
+      - name: Restore infra images
         uses: actions/cache/restore@v5
         with:
-          path: /tmp/wallow-images.tar.gz
-          key: images-${{ runner.os }}-${{ github.sha }}
+          path: /tmp/wallow-infra-images.tar.gz
+          key: infra-images-${{ runner.os }}-${{ github.sha }}
+          fail-on-cache-miss: true
+
+      - name: Restore app images
+        uses: actions/cache/restore@v5
+        with:
+          path: /tmp/wallow-app-images.tar.gz
+          key: app-images-${{ runner.os }}-${{ github.sha }}
           fail-on-cache-miss: true
 
       - name: Load container images
-        run: docker load < /tmp/wallow-images.tar.gz
+        run: |
+          docker load < /tmp/wallow-infra-images.tar.gz
+          docker load < /tmp/wallow-app-images.tar.gz
 
       - name: Configure host.docker.internal for OIDC
         run: echo "127.0.0.1 host.docker.internal" | sudo tee -a /etc/hosts
@@ -316,15 +380,24 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Restore container images
+      - name: Restore app images
         uses: actions/cache/restore@v5
         with:
-          path: /tmp/wallow-images.tar.gz
-          key: images-${{ runner.os }}-${{ github.sha }}
+          path: /tmp/wallow-app-images.tar.gz
+          key: app-images-${{ runner.os }}-${{ github.sha }}
+          fail-on-cache-miss: true
+
+      - name: Restore infra images
+        uses: actions/cache/restore@v5
+        with:
+          path: /tmp/wallow-infra-images.tar.gz
+          key: infra-images-${{ runner.os }}-${{ github.sha }}
           fail-on-cache-miss: true
 
       - name: Load container images
-        run: docker load < /tmp/wallow-images.tar.gz
+        run: |
+          docker load < /tmp/wallow-app-images.tar.gz
+          docker load < /tmp/wallow-infra-images.tar.gz
 
       - name: Log in to Container Registry
         uses: docker/login-action@v4
@@ -343,6 +416,8 @@ jobs:
             ["wallow-api:test"]="${IMAGE_BASE}"
             ["wallow-auth:test"]="${IMAGE_BASE}-auth"
             ["wallow-web:test"]="${IMAGE_BASE}-web"
+            ["wallow-garage:test"]="${IMAGE_BASE}-garage"
+            ["wallow-postgres-replica:latest"]="${IMAGE_BASE}-postgres-replica"
           )
           for local_tag in "${!IMAGE_MAP[@]}"; do
             remote="${IMAGE_MAP[$local_tag]}"
