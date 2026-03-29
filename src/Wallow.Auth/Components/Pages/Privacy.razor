@@ -6,10 +6,11 @@
 
 <BbCard Class="border-0 shadow-none bg-transparent">
     <BbCardHeader Class="px-0 pt-0 text-center">
-        <BbCardTitle>Privacy Policy</BbCardTitle>
+        <BbCardTitle><span data-testid="privacy-heading">Privacy Policy</span></BbCardTitle>
         <BbCardDescription>Last updated: March 20, 2026</BbCardDescription>
     </BbCardHeader>
     <BbCardContent Class="px-0 space-y-4 text-sm text-muted-foreground">
+        <div data-testid="privacy-content" class="space-y-4">
         <section class="space-y-2">
             <h3 class="font-medium text-foreground">1. Information We Collect</h3>
             <p>We collect information you provide directly, such as your email address and password when creating an account. We also collect usage data including access times, pages viewed, and the referring URL.</p>
@@ -54,9 +55,10 @@
             <h3 class="font-medium text-foreground">9. Contact</h3>
             <p>If you have any questions about this Privacy Policy, please contact us at privacy@@wallow.dev.</p>
         </section>
+        </div>
     </BbCardContent>
     <BbCardFooter Class="px-0 pt-6 pb-8 justify-center">
-        <BbButton Variant="ButtonVariant.Outline" Href="/register" Class="w-full">
+        <BbButton data-testid="privacy-back-button" Variant="ButtonVariant.Outline" Href="/register" Class="w-full">
             Back to Register
         </BbButton>
     </BbCardFooter>

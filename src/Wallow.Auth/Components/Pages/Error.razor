@@ -6,20 +6,22 @@
 
 <BbCard>
     <BbCardHeader>
-        <BbCardTitle>Something went wrong</BbCardTitle>
+        <BbCardTitle><span data-testid="error-heading">Something went wrong</span></BbCardTitle>
     </BbCardHeader>
     <BbCardContent>
-        <BbAlert Variant="AlertVariant.Danger">
-            <BbAlertDescription>@ErrorMessage</BbAlertDescription>
-        </BbAlert>
+        <div data-testid="error-message">
+            <BbAlert Variant="AlertVariant.Danger">
+                <BbAlertDescription>@ErrorMessage</BbAlertDescription>
+            </BbAlert>
+        </div>
     </BbCardContent>
     <BbCardFooter>
         <div class="flex flex-col items-center gap-2 w-full">
             @if (Reason == "not_a_member")
             {
-                <a href="/logout" class="text-sm font-medium text-primary hover:text-primary/80">Sign out and try a different account</a>
+                <a href="/logout" data-testid="error-sign-out-link" class="text-sm font-medium text-primary hover:text-primary/80">Sign out and try a different account</a>
             }
-            <a href="/" class="text-sm text-muted-foreground hover:text-foreground">Back to home</a>
+            <a href="/" data-testid="error-back-link" class="text-sm text-muted-foreground hover:text-foreground">Back to home</a>
         </div>
     </BbCardFooter>
 </BbCard>

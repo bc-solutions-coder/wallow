@@ -82,6 +82,42 @@ public static class TestUserFactory
         return new MfaTestUser(user.Email, user.Password, secret, backupCodes);
     }
 
+    public static async Task<OrgAdminTestUser> CreateOrgAdminAsync(string apiBaseUrl, string mailpitBaseUrl)
+    {
+        TestUser user = await CreateAsync(apiBaseUrl, mailpitBaseUrl);
+
+#pragma warning disable CA2000 // Handler is disposed by HttpClient via disposeHandler: true
+        HttpClientHandler handler = new()
+        {
+            CookieContainer = new System.Net.CookieContainer(),
+            UseCookies = true,
+            CheckCertificateRevocationList = true
+        };
+#pragma warning restore CA2000
+        using HttpClient httpClient = new(handler, disposeHandler: true) { Timeout = TimeSpan.FromSeconds(30) };
+
+        bool loggedIn = await LoginAndExchangeTicketAsync(httpClient, apiBaseUrl, user.Email, user.Password);
+        if (!loggedIn)
+        {
+            throw new InvalidOperationException(
+                $"CreateOrgAdminAsync failed: login did not produce full auth for {user.Email}.");
+        }
+
+        // Create a new organization; the creator becomes its admin
+        HttpResponseMessage createOrgResponse = await httpClient.PostAsJsonAsync(
+            $"{apiBaseUrl}/api/v1/identity/organizations",
+            new { name = $"org-{Guid.NewGuid():N}", domain = (string?)null });
+        createOrgResponse.EnsureSuccessStatusCode();
+
+        JsonElement createOrgResult = await createOrgResponse.Content.ReadFromJsonAsync<JsonElement>();
+        Guid orgId = createOrgResult.GetProperty("organizationId").GetGuid();
+
+        // Extract the auth cookie header so callers can make authenticated API requests
+        string authCookie = handler.CookieContainer.GetCookieHeader(new Uri(apiBaseUrl));
+
+        return new OrgAdminTestUser(user.Email, user.Password, orgId, authCookie);
+    }
+
     public static Task<MfaTestUser> CreateInMfaRequiredOrgAsync(string apiBaseUrl, string mailpitBaseUrl)
         => CreateInMfaRequiredOrgAsync(apiBaseUrl, mailpitBaseUrl, gracePeriodDays: 0);
 

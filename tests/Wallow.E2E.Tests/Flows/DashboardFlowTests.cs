@@ -14,6 +14,7 @@ public sealed class DashboardFlowTests : AuthenticatedE2ETestBase
     }
 
     [Fact]
+    [Trait("E2EGroup", "AppRegistration")]
     public async Task AppRegistrationFlow_RegistersNewApplication()
     {
         AppRegistrationPage appPage = new(Page, Docker.WebBaseUrl);

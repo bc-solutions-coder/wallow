@@ -10,22 +10,24 @@
 
 <BbCard Class="border-0 shadow-none bg-transparent">
     <BbCardHeader Class="px-0 pt-0 text-center">
-        <BbCardTitle>Almost there!</BbCardTitle>
+        <BbCardTitle><span data-testid="accept-terms-heading">Almost there!</span></BbCardTitle>
         <BbCardDescription>Please accept our terms to create your account</BbCardDescription>
     </BbCardHeader>
     <BbCardContent Class="px-0 space-y-4">
         @if (!string.IsNullOrEmpty(Error))
         {
-            <BbAlert Variant="AlertVariant.Danger">
-                <BbAlertDescription>
-                    @(Error switch
-                    {
-                        "terms_required" => "You must accept the terms to continue.",
-                        "session_expired" => "Your session has expired. Please try signing in again.",
-                        _ => "An error occurred. Please try again."
-                    })
-                </BbAlertDescription>
-            </BbAlert>
+            <div data-testid="accept-terms-error">
+                <BbAlert Variant="AlertVariant.Danger">
+                    <BbAlertDescription>
+                        @(Error switch
+                        {
+                            "terms_required" => "You must accept the terms to continue.",
+                            "session_expired" => "Your session has expired. Please try signing in again.",
+                            _ => "An error occurred. Please try again."
+                        })
+                    </BbAlertDescription>
+                </BbAlert>
+            </div>
         }
 
         @if (!string.IsNullOrEmpty(Email))
@@ -38,7 +40,7 @@
         }
 
         <div class="space-y-3">
-            <div class="flex items-start space-x-2">
+            <div data-testid="accept-terms-checkbox" class="flex items-start space-x-2">
                 <BbCheckbox Id="termsAccepted" @bind-Checked="_termsAccepted" />
                 <BbLabel For="termsAccepted" Class="text-sm font-normal leading-snug">
                     I agree to the
@@ -46,7 +48,7 @@
                 </BbLabel>
             </div>
 
-            <div class="flex items-start space-x-2">
+            <div data-testid="accept-terms-privacy-checkbox" class="flex items-start space-x-2">
                 <BbCheckbox Id="privacyAccepted" @bind-Checked="_privacyAccepted" />
                 <BbLabel For="privacyAccepted" Class="text-sm font-normal leading-snug">
                     I agree to the
@@ -55,7 +57,8 @@
             </div>
         </div>
 
-        <BbButton Class="w-full"
+        <BbButton data-testid="accept-terms-submit"
+                  Class="w-full"
                   Disabled="@(!_termsAccepted || !_privacyAccepted)"
                   OnClick="HandleAcceptTerms">
             Create Account

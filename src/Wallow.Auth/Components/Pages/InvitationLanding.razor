@@ -18,13 +18,15 @@
     <BbCardContent Class="px-0 space-y-4">
         @if (_isLoading)
         {
-            <p class="text-sm text-muted-foreground text-center">Loading invitation...</p>
+            <p data-testid="invitation-loading" class="text-sm text-muted-foreground text-center">Loading invitation...</p>
         }
         else if (!string.IsNullOrEmpty(_errorMessage))
         {
-            <BbAlert Variant="AlertVariant.Danger">
-                <BbAlertDescription>@_errorMessage</BbAlertDescription>
-            </BbAlert>
+            <div data-testid="invitation-error">
+                <BbAlert Variant="AlertVariant.Danger">
+                    <BbAlertDescription>@_errorMessage</BbAlertDescription>
+                </BbAlert>
+            </div>
 
             <div class="text-center">
                 <a href="/login" class="text-sm text-muted-foreground hover:text-foreground">Back to sign in</a>
@@ -32,17 +34,21 @@
         }
         else if (_invitation is not null)
         {
-            <BbAlert Variant="AlertVariant.Info">
-                <BbAlertDescription>
-                    You've been invited to join @Branding.AppName as @_invitation.Email.
-                </BbAlertDescription>
-            </BbAlert>
+            <div data-testid="invitation-info">
+                <BbAlert Variant="AlertVariant.Info">
+                    <BbAlertDescription>
+                        You've been invited to join @Branding.AppName as @_invitation.Email.
+                    </BbAlertDescription>
+                </BbAlert>
+            </div>
 
             @if (_isExpired)
             {
-                <BbAlert Variant="AlertVariant.Danger">
-                    <BbAlertDescription>This invitation has expired. Please ask your administrator to send a new one.</BbAlertDescription>
-                </BbAlert>
+                <div data-testid="invitation-expired">
+                    <BbAlert Variant="AlertVariant.Danger">
+                        <BbAlertDescription>This invitation has expired. Please ask your administrator to send a new one.</BbAlertDescription>
+                    </BbAlert>
+                </div>
             }
             else if (_isAuthenticated)
             {
@@ -50,19 +56,23 @@
 
                 @if (!string.IsNullOrEmpty(_acceptError))
                 {
-                    <BbAlert Variant="AlertVariant.Danger">
-                        <BbAlertDescription>@_acceptError</BbAlertDescription>
-                    </BbAlert>
+                    <div data-testid="invitation-accept-error">
+                        <BbAlert Variant="AlertVariant.Danger">
+                            <BbAlertDescription>@_acceptError</BbAlertDescription>
+                        </BbAlert>
+                    </div>
                 }
 
                 <div class="flex gap-2">
-                    <BbButton Class="flex-1"
+                    <BbButton data-testid="invitation-accept"
+                              Class="flex-1"
                               Loading="_isSubmitting"
                               Disabled="_isSubmitting"
                               OnClick="HandleAccept">
                         Yes, join
                     </BbButton>
-                    <BbButton Class="flex-1"
+                    <BbButton data-testid="invitation-decline"
+                              Class="flex-1"
                               Variant="ButtonVariant.Outline"
                               Disabled="_isSubmitting"
                               Href="/">
@@ -73,11 +83,13 @@
             else
             {
                 <div class="space-y-3">
-                    <BbButton Class="w-full"
+                    <BbButton data-testid="invitation-create-account"
+                              Class="w-full"
                               Href="@GetRegisterUrl()">
                         Create account
                     </BbButton>
-                    <BbButton Class="w-full"
+                    <BbButton data-testid="invitation-sign-in"
+                              Class="w-full"
                               Variant="ButtonVariant.Outline"
                               Href="@GetLoginUrl()">
                         Sign in to accept

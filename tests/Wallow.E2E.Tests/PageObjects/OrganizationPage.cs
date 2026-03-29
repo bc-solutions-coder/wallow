@@ -66,6 +66,11 @@ public sealed class OrganizationPage
     {
         await _page.Locator("[data-testid='organizations-create-link']").ClickAsync();
     }
+
+    public async Task ClickOrganizationRowAsync(string orgName)
+    {
+        await _page.Locator($"[data-testid='organizations-row-link']:has-text('{orgName}')").ClickAsync();
+    }
 }
 
 public sealed record OrganizationRow(string Name, string Domain, string MemberCount);

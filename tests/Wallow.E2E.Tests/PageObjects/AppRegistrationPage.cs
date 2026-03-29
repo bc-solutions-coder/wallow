@@ -90,6 +90,54 @@ public sealed class AppRegistrationPage
 
         return new AppRegistrationResult(true, clientId.Trim(), null, null);
     }
+
+    public async Task FillBrandingAsync(string companyName, string? tagline)
+    {
+        await _page.Locator("[data-testid='register-app-branding-display-name']").FillAsync(companyName);
+
+        if (tagline is not null)
+        {
+            await _page.Locator("[data-testid='register-app-branding-tagline']").FillAsync(tagline);
+        }
+    }
+
+    public async Task UploadLogoAsync(string filePath)
+    {
+        await _page.Locator("[data-testid='register-app-logo-input']").SetInputFilesAsync(filePath);
+    }
+
+    public async Task ToggleScopeAsync(string scope)
+    {
+        string testId = $"register-app-scope-{scope.Replace('.', '-')}";
+        await _page.Locator($"[data-testid='{testId}']").ClickAsync();
+    }
+
+    public async Task<bool> IsScopeSelectedAsync(string scope)
+    {
+        string testId = $"register-app-scope-{scope.Replace('.', '-')}";
+        ILocator locator = _page.Locator($"[data-testid='{testId}']");
+        string? ariaPressed = await locator.GetAttributeAsync("aria-pressed");
+        if (ariaPressed is not null)
+        {
+            return ariaPressed == "true";
+        }
+
+        string? ariaChecked = await locator.GetAttributeAsync("aria-checked");
+        if (ariaChecked is not null)
+        {
+            return ariaChecked == "true";
+        }
+
+        // Fall back to checking for a selected/active CSS class
+        string? classAttr = await locator.GetAttributeAsync("class");
+        return classAttr is not null && (classAttr.Contains("selected") || classAttr.Contains("active"));
+    }
+
+    public async Task<string> GetClientSecretAsync()
+    {
+        string text = await _page.Locator("[data-testid='register-app-client-secret']").InnerTextAsync();
+        return text.Trim();
+    }
 }
 
 public sealed record AppRegistrationResult(

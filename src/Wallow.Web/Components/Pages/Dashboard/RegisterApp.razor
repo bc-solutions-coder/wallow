@@ -39,7 +39,7 @@
                     <div class="bg-amber-50 border border-amber-300 rounded-md p-4">
                         <p class="text-amber-800 text-sm font-semibold mb-2">Save your client secret now. It will not be shown again.</p>
                         <div class="flex items-center gap-2">
-                            <code class="flex-1 bg-white border border-amber-300 rounded-md px-4 py-2 text-sm font-mono text-[#3d2b1f] break-all">@_result.ClientSecret</code>
+                            <code data-testid="register-app-client-secret" class="flex-1 bg-white border border-amber-300 rounded-md px-4 py-2 text-sm font-mono text-[#3d2b1f] break-all">@_result.ClientSecret</code>
                             <button @onclick="() => CopyToClipboard(_result.ClientSecret!)"
                                     class="bg-amber-200 text-amber-900 px-3 py-2 rounded-md text-sm hover:bg-amber-300 transition-colors">
                                 Copy
@@ -104,6 +104,7 @@
                             {
                                 bool isSelected = _form.SelectedScopes.Contains(scope);
                                 <button type="button"
+                                        data-testid="@($"register-app-scope-{scope.Replace('.', '-')}")"
                                         @onclick="() => ToggleScope(scope)"
                                         class="@(isSelected
                                             ? "bg-[#d4a017] text-white"
@@ -120,6 +121,7 @@
                             <div>
                                 <label class="block text-sm font-medium text-[#3d2b1f] mb-1">Company Display Name</label>
                                 <InputText @bind-Value="_form.BrandingDisplayName"
+                                           data-testid="register-app-branding-display-name"
                                            class="w-full border border-[#e8d5b7] rounded-md px-4 py-2 text-sm text-[#3d2b1f] bg-[#faf6f1] focus:outline-none focus:ring-2 focus:ring-[#d4a017] focus:border-transparent"
                                            placeholder="Your Company Name" />
                                 <p class="text-xs text-[#3d2b1f]/50 mt-1">Shown on login/register pages when users authenticate via your app</p>
@@ -127,12 +129,14 @@
                             <div>
                                 <label class="block text-sm font-medium text-[#3d2b1f] mb-1">Tagline</label>
                                 <InputText @bind-Value="_form.BrandingTagline"
+                                           data-testid="register-app-branding-tagline"
                                            class="w-full border border-[#e8d5b7] rounded-md px-4 py-2 text-sm text-[#3d2b1f] bg-[#faf6f1] focus:outline-none focus:ring-2 focus:ring-[#d4a017] focus:border-transparent"
                                            placeholder="Your company tagline" />
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-[#3d2b1f] mb-1">Logo</label>
                                 <InputFile OnChange="OnLogoSelected"
+                                           data-testid="register-app-logo-input"
                                            AdditionalAttributes="@_logoFileAttributes" />
                                 <p class="text-xs text-[#3d2b1f]/50 mt-1">PNG, JPEG, or WebP. Max 2MB.</p>
                                 @if (_logoPreviewUrl is not null)

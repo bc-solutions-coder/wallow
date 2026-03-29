@@ -46,7 +46,9 @@
                     @foreach (OrganizationModel org in _organizations)
                     {
                         <tr data-testid="organizations-row" class="hover:bg-[#faf6f1]/50">
-                            <td class="px-6 py-4 text-sm font-medium text-[#3d2b1f]">@org.Name</td>
+                            <td class="px-6 py-4 text-sm font-medium text-[#3d2b1f]">
+                                <a data-testid="organizations-row-link" href="/dashboard/organizations/@org.Id" class="text-[#3d2b1f] hover:text-[#d4a017] no-underline">@org.Name</a>
+                            </td>
                             <td class="px-6 py-4 text-sm text-[#3d2b1f]/70 font-mono">@(org.Domain ?? "—")</td>
                             <td class="px-6 py-4">
                                 <span class="inline-block bg-[#e8d5b7] text-[#3d2b1f] text-xs font-medium px-2.5 py-0.5 rounded-full">

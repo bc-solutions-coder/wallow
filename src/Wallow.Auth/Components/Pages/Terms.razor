@@ -6,10 +6,11 @@
 
 <BbCard Class="border-0 shadow-none bg-transparent">
     <BbCardHeader Class="px-0 pt-0 text-center">
-        <BbCardTitle>Terms of Service</BbCardTitle>
+        <BbCardTitle><span data-testid="terms-heading">Terms of Service</span></BbCardTitle>
         <BbCardDescription>Last updated: March 20, 2026</BbCardDescription>
     </BbCardHeader>
     <BbCardContent Class="px-0 space-y-4 text-sm text-muted-foreground">
+        <div data-testid="terms-content" class="space-y-4">
         <section class="space-y-2">
             <h3 class="font-medium text-foreground">1. Acceptance of Terms</h3>
             <p>By accessing or using Wallow, you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use the service.</p>
@@ -54,9 +55,10 @@
             <h3 class="font-medium text-foreground">9. Contact</h3>
             <p>If you have any questions about these Terms of Service, please contact us at support@@wallow.dev.</p>
         </section>
+        </div>
     </BbCardContent>
     <BbCardFooter Class="px-0 pt-6 pb-8 justify-center">
-        <BbButton Variant="ButtonVariant.Outline" Href="/register" Class="w-full">
+        <BbButton data-testid="terms-back-button" Variant="ButtonVariant.Outline" Href="/register" Class="w-full">
             Back to Register
         </BbButton>
     </BbCardFooter>
