@@ -167,6 +167,7 @@ try
     // ============================================================================
     Wallow.Api.WallowModules.AddWallowModules(builder.Services, builder.Configuration, builder.Environment);
     builder.Services.AddWallowAuditing(builder.Configuration);
+    builder.Services.AddAuthAuditing(builder.Configuration);
 
     // Wolverine — unified CQRS mediator + message bus
     // Use ManualOnly to prevent Wolverine from scanning native DLLs (QuestPDF/Skia)
@@ -343,6 +344,7 @@ try
     // ============================================================================
     await Wallow.Api.WallowModules.InitializeWallowModulesAsync(app);
     await app.InitializeAuditingAsync();
+    await app.InitializeAuthAuditingAsync();
 
     // Seed default roles, sync pre-registered OAuth2 clients, and bootstrap admin if configured
     await using (AsyncServiceScope seedScope = app.Services.CreateAsyncScope())
@@ -557,6 +559,10 @@ try
     // Authorization (checks [HasPermission] attributes)
     app.UseAuthorization();
 
+    // Session management (revoke tokens for invalidated sessions, track activity)
+    app.UseSessionRevocation();
+    app.UseSessionActivity();
+
     // Antiforgery token validation for MVC form posts (paired with AutoValidateAntiforgeryTokenAttribute)
     app.UseAntiforgery();
 
@@ -605,6 +611,11 @@ try
             "expired-invitation-pruning",
             job => job.ExecuteAsync(),
             "0 * * * *");
+
+        jobManager.AddOrUpdate<SessionPruningJob>(
+            "session-pruning",
+            job => job.ExecuteAsync(),
+            Cron.Daily());
 
     }
     // Unhook OpenTelemetry Redis profiler before DI disposal to prevent ObjectDisposedException

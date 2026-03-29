@@ -9,6 +9,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using StackExchange.Redis;
 using Wallow.Identity.Api.Contracts.Requests;
 using Wallow.Identity.Api.Controllers;
 using Wallow.Identity.Application.DTOs;
@@ -59,6 +60,11 @@ public class AccountControllerAdditionalTests
         _clientTenantResolver = Substitute.For<IClientTenantResolver>();
         _passwordlessService = Substitute.For<IPasswordlessService>();
 
+        IConnectionMultiplexer redisMultiplexer = Substitute.For<IConnectionMultiplexer>();
+        IDatabase redisDb = Substitute.For<IDatabase>();
+        redisMultiplexer.GetDatabase(Arg.Any<int>(), Arg.Any<object>()).Returns(redisDb);
+        redisDb.StringSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<TimeSpan?>(), Arg.Any<bool>(), Arg.Any<When>(), Arg.Any<CommandFlags>()).Returns(true);
+
         _controller = new AccountController(
             _signInManager,
             configuration,
@@ -73,6 +79,8 @@ public class AccountControllerAdditionalTests
             Substitute.For<IMfaService>(),
             Substitute.For<IMfaPartialAuthService>(),
             Substitute.For<IOrganizationMfaPolicyService>(),
+            Substitute.For<IMfaLockoutService>(),
+            redisMultiplexer,
             Substitute.For<ILogger<AccountController>>(),
             TimeProvider.System);
 

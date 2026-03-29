@@ -23,6 +23,7 @@ namespace Wallow.Identity.Api.Controllers;
 public sealed partial class MfaController(
     IMfaService mfaService,
     IMfaPartialAuthService mfaPartialAuthService,
+    IMfaLockoutService mfaLockoutService,
     UserManager<WallowUser> userManager,
     IMessageBus messageBus,
     ITenantContext tenantContext,
@@ -200,7 +201,7 @@ public sealed partial class MfaController(
     }
 
     [HttpPost("admin/{userId}/clear-lockout")]
-    public async Task<IActionResult> AdminClearLockout(string userId, CancellationToken _)
+    public async Task<IActionResult> AdminClearLockout(string userId, CancellationToken ct)
     {
         WallowUser? user = await userManager.FindByIdAsync(userId);
         if (user is null)
@@ -210,6 +211,7 @@ public sealed partial class MfaController(
 
         await userManager.SetLockoutEndDateAsync(user, null);
         await userManager.ResetAccessFailedCountAsync(user);
+        await mfaLockoutService.ResetAsync(user.Id, ct);
 
         string currentUserId = GetUserIdClaim();
         await messageBus.PublishAsync(new UserMfaLockoutClearedEvent

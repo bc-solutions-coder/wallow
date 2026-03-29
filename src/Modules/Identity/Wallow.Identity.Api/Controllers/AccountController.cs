@@ -9,12 +9,14 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using StackExchange.Redis;
 using Wallow.Identity.Api.Contracts.Requests;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Helpers;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Shared.Contracts.Identity.Events;
+using Wallow.Shared.Kernel.Extensions;
 using Wolverine;
 
 namespace Wallow.Identity.Api.Controllers;
@@ -42,6 +44,8 @@ public sealed partial class AccountController(
     IMfaService mfaService,
     IMfaPartialAuthService mfaPartialAuthService,
     IOrganizationMfaPolicyService orgMfaPolicyService,
+    IMfaLockoutService mfaLockoutService,
+    IConnectionMultiplexer redis,
     ILogger<AccountController> logger,
     TimeProvider timeProvider) : ControllerBase
 {
@@ -63,9 +67,18 @@ public sealed partial class AccountController(
     [AllowAnonymous]
     public async Task<IActionResult> Login([FromBody] AccountLoginRequest request, CancellationToken ct)
     {
+        string? ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+
         WallowUser? user = await signInManager.UserManager.FindByEmailAsync(request.Email);
         if (user is null)
         {
+            await messageBus.PublishAsync(new UserLoginFailedEvent
+            {
+                UserId = Guid.Empty,
+                TenantId = Guid.Empty,
+                IpAddress = ipAddress,
+                Reason = "account_not_found"
+            });
             return Unauthorized(new { succeeded = false, error = "invalid_credentials" });
         }
 
@@ -90,6 +103,12 @@ public sealed partial class AccountController(
                 if (orgPolicy.IsInGracePeriod)
                 {
                     // Grace period active — issue ticket so browser can exchange it for a cookie, but flag enrollment needed
+                    await messageBus.PublishAsync(new UserLoginSucceededEvent
+                    {
+                        UserId = user.Id,
+                        TenantId = user.TenantId,
+                        IpAddress = ipAddress
+                    });
                     string graceTicket = CreateSignInTicket(user.Email!, request.RememberMe);
                     return Ok(new { succeeded = true, mfaEnrollmentRequired = true, mfaGraceDeadline = user.MfaGraceDeadline, signInTicket = graceTicket });
                 }
@@ -102,12 +121,24 @@ public sealed partial class AccountController(
             }
 
             // No MFA needed — sign in normally
+            await messageBus.PublishAsync(new UserLoginSucceededEvent
+            {
+                UserId = user.Id,
+                TenantId = user.TenantId,
+                IpAddress = ipAddress
+            });
             string ticket = CreateSignInTicket(user.Email!, request.RememberMe);
             return Ok(new { succeeded = true, signInTicket = ticket });
         }
 
         if (result.IsLockedOut)
         {
+            await messageBus.PublishAsync(new UserAccountLockedOutEvent
+            {
+                UserId = user.Id,
+                TenantId = user.TenantId,
+                IpAddress = ipAddress
+            });
             return StatusCode(423, new { succeeded = false, error = "locked_out" });
         }
 
@@ -116,6 +147,13 @@ public sealed partial class AccountController(
             return StatusCode(403, new { succeeded = false, error = "email_not_confirmed" });
         }
 
+        await messageBus.PublishAsync(new UserLoginFailedEvent
+        {
+            UserId = user.Id,
+            TenantId = user.TenantId,
+            IpAddress = ipAddress,
+            Reason = "invalid_credentials"
+        });
         return Unauthorized(new { succeeded = false, error = "invalid_credentials" });
     }
 
@@ -123,6 +161,8 @@ public sealed partial class AccountController(
     [AllowAnonymous]
     public async Task<IActionResult> VerifyMfaChallenge([FromBody] Contracts.Requests.MfaVerifyRequest request, CancellationToken ct)
     {
+        string? mfaIpAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+
         MfaPartialAuthPayload? payload = await mfaPartialAuthService.ValidatePartialCookieAsync(ct);
         if (payload is null)
         {
@@ -135,16 +175,55 @@ public sealed partial class AccountController(
             return Unauthorized(new { succeeded = false, error = "invalid_code" });
         }
 
+        // Check if user is already locked out from MFA attempts
+        if (user.IsMfaLockedOut(timeProvider))
+        {
+            await messageBus.PublishAsync(new UserMfaLockedOutEvent
+            {
+                UserId = user.Id,
+                TenantId = user.TenantId,
+                LockoutCount = user.MfaLockoutCount
+            });
+            return StatusCode(423, new { succeeded = false, error = "mfa_locked_out" });
+        }
+
         // Try TOTP first, then fall back to backup code
         bool isValid = await mfaService.ValidateTotpAsync(user.TotpSecretEncrypted, request.Code, ct)
                        || await mfaService.ValidateBackupCodeAsync(payload.UserId, request.Code, ct);
 
         if (!isValid)
         {
+            MfaLockoutResult lockoutResult = await mfaLockoutService.RecordFailureAsync(user.Id, 5, ct);
+            if (lockoutResult.IsLockedOut)
+            {
+                await messageBus.PublishAsync(new UserMfaLockedOutEvent
+                {
+                    UserId = user.Id,
+                    TenantId = user.TenantId,
+                    LockoutCount = lockoutResult.LockoutCount
+                });
+                return StatusCode(423, new { succeeded = false, error = "mfa_locked_out" });
+            }
+
+            await messageBus.PublishAsync(new UserLoginFailedEvent
+            {
+                UserId = user.Id,
+                TenantId = user.TenantId,
+                IpAddress = mfaIpAddress,
+                Reason = "invalid_mfa_code"
+            });
             return Unauthorized(new { succeeded = false, error = "invalid_code" });
         }
 
+        await mfaLockoutService.ResetAsync(user.Id, ct);
         await mfaPartialAuthService.UpgradeToFullAuthAsync(payload.UserId, payload.RememberMe, ct);
+
+        await messageBus.PublishAsync(new UserLoginSucceededEvent
+        {
+            UserId = user.Id,
+            TenantId = user.TenantId,
+            IpAddress = mfaIpAddress
+        });
 
         string? email = user.Email;
         string? signInTicket = email is not null ? CreateSignInTicket(email, payload.RememberMe) : null;
@@ -477,6 +556,14 @@ public sealed partial class AccountController(
             return BadRequest(new { succeeded = false, error = "invalid_or_expired_ticket" });
         }
 
+        // Replay prevention: each ticket can only be exchanged once
+        IDatabase redisDb = redis.GetDatabase();
+        bool wasSet = await redisDb.StringSetAsync($"ticket:used:{payload.Jti}", "1", TimeSpan.FromSeconds(90), false, When.NotExists);
+        if (!wasSet)
+        {
+            return Unauthorized(new { succeeded = false, error = "ticket_already_used" });
+        }
+
         WallowUser? user = await signInManager.UserManager.FindByEmailAsync(payload.Email);
         if (user is null)
         {
@@ -771,6 +858,104 @@ public sealed partial class AccountController(
         return Ok(new { succeeded = true, email = result.Email });
     }
 
+    [HttpPost("change-email")]
+    [Authorize]
+    public async Task<IActionResult> ChangeEmail([FromBody] ChangeEmailRequest request)
+    {
+        string? userId = User.GetUserId();
+        if (string.IsNullOrEmpty(userId))
+        {
+            return Unauthorized(new { succeeded = false, error = "unauthorized" });
+        }
+
+        WallowUser? user = await signInManager.UserManager.FindByIdAsync(userId);
+        if (user is null)
+        {
+            return Unauthorized(new { succeeded = false, error = "unauthorized" });
+        }
+
+        if (string.Equals(user.Email, request.NewEmail, StringComparison.OrdinalIgnoreCase))
+        {
+            return BadRequest(new { succeeded = false, error = "same_email" });
+        }
+
+        // Rate limit: max 3 email change requests per hour per user
+        IDatabase redisDb = redis.GetDatabase();
+        string rateLimitKey = $"email:change:rate:{userId}";
+        long count = await redisDb.StringIncrementAsync(rateLimitKey);
+        if (count == 1)
+        {
+            await redisDb.KeyExpireAsync(rateLimitKey, TimeSpan.FromHours(1));
+        }
+
+        if (count > 3)
+        {
+            return StatusCode(429, new { succeeded = false, error = "rate_limited" });
+        }
+
+        DateTimeOffset expiry = timeProvider.GetUtcNow().AddHours(24);
+        user.InitiateEmailChange(request.NewEmail, expiry, timeProvider);
+        await signInManager.UserManager.UpdateAsync(user);
+
+        string token = await signInManager.UserManager.GenerateChangeEmailTokenAsync(user, request.NewEmail);
+        string authUrl = GetRequiredAuthUrl();
+        string confirmUrl = $"{authUrl}/confirm-email-change?token={Uri.EscapeDataString(token)}&userId={Uri.EscapeDataString(userId)}&newEmail={Uri.EscapeDataString(request.NewEmail)}";
+
+        await messageBus.PublishAsync(new UserEmailChangeRequestedEvent
+        {
+            UserId = user.Id,
+            TenantId = user.TenantId,
+            NewEmail = request.NewEmail,
+            ConfirmationUrl = confirmUrl,
+            ExpiresAt = expiry
+        });
+
+        return Ok(new { succeeded = true });
+    }
+
+    [HttpGet("confirm-email-change")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ConfirmEmailChange(
+        [FromQuery] string token,
+        [FromQuery] string userId,
+        [FromQuery] string newEmail)
+    {
+        WallowUser? user = await signInManager.UserManager.FindByIdAsync(userId);
+        if (user is null)
+        {
+            return BadRequest(new { succeeded = false, error = "invalid_token" });
+        }
+
+        if (user.PendingEmailExpiry < timeProvider.GetUtcNow())
+        {
+            user.ClearPendingEmailChange();
+            await signInManager.UserManager.UpdateAsync(user);
+            return BadRequest(new { succeeded = false, error = "token_expired" });
+        }
+
+        string oldEmail = user.Email!;
+
+        IdentityResult result = await signInManager.UserManager.ChangeEmailAsync(user, newEmail, token);
+        if (!result.Succeeded)
+        {
+            return BadRequest(new { succeeded = false, error = "invalid_token" });
+        }
+
+        await signInManager.UserManager.SetUserNameAsync(user, newEmail);
+        user.ClearPendingEmailChange();
+        await signInManager.UserManager.UpdateAsync(user);
+
+        await messageBus.PublishAsync(new UserEmailChangedEvent
+        {
+            UserId = user.Id,
+            TenantId = user.TenantId,
+            OldEmail = oldEmail,
+            NewEmail = newEmail
+        });
+
+        return Ok(new { succeeded = true });
+    }
+
     private string GetRequiredAuthUrl() =>
         configuration["AuthUrl"] ?? throw new InvalidOperationException(
             "AuthUrl must be configured in appsettings.json. " +
@@ -782,7 +967,7 @@ public sealed partial class AccountController(
             .CreateProtector(TicketPurpose)
             .ToTimeLimitedDataProtector();
 
-        SignInTicketPayload payload = new(email, rememberMe);
+        SignInTicketPayload payload = new(email, rememberMe, Guid.NewGuid());
         string json = JsonSerializer.Serialize(payload);
         return protector.Protect(json, _ticketLifetime);
     }
@@ -804,7 +989,7 @@ public sealed partial class AccountController(
         }
     }
 
-    private sealed record SignInTicketPayload(string Email, bool RememberMe);
+    private sealed record SignInTicketPayload(string Email, bool RememberMe, Guid Jti);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Email verification requested for {Email}")]
     private partial void LogEmailVerificationRequested(string email);

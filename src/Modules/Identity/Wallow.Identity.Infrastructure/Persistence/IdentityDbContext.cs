@@ -41,6 +41,7 @@ public sealed class IdentityDbContext : AspNetIdentityDbContext
     public DbSet<MembershipRequest> MembershipRequests => Set<MembershipRequest>();
     public DbSet<OrganizationSettings> OrganizationSettings => Set<OrganizationSettings>();
     public DbSet<OrganizationBranding> OrganizationBrandings => Set<OrganizationBranding>();
+    public DbSet<ActiveSession> ActiveSessions => Set<ActiveSession>();
 
     public IdentityDbContext(
         DbContextOptions<IdentityDbContext> options,

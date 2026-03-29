@@ -17,6 +17,7 @@ public class MfaControllerTests
 {
     private readonly IMfaService _mfaService;
     private readonly IMfaPartialAuthService _mfaPartialAuthService = Substitute.For<IMfaPartialAuthService>();
+    private readonly IMfaLockoutService _mfaLockoutService;
     private readonly UserManager<WallowUser> _userManager;
     private readonly IMessageBus _messageBus;
     private readonly ITenantContext _tenantContext;
@@ -27,6 +28,7 @@ public class MfaControllerTests
     public MfaControllerTests()
     {
         _mfaService = Substitute.For<IMfaService>();
+        _mfaLockoutService = Substitute.For<IMfaLockoutService>();
         _userManager = Substitute.For<UserManager<WallowUser>>(
             Substitute.For<IUserStore<WallowUser>>(), null, null, null, null, null, null, null, null);
         _messageBus = Substitute.For<IMessageBus>();
@@ -38,7 +40,7 @@ public class MfaControllerTests
 
         IDataProtectionProvider dataProtectionProvider = Substitute.For<IDataProtectionProvider>();
         ILogger<MfaController> logger = Substitute.For<ILogger<MfaController>>();
-        _controller = new MfaController(_mfaService, _mfaPartialAuthService, _userManager, _messageBus, _tenantContext, dataProtectionProvider, logger);
+        _controller = new MfaController(_mfaService, _mfaPartialAuthService, _mfaLockoutService, _userManager, _messageBus, _tenantContext, dataProtectionProvider, logger);
 
         ClaimsIdentity identity = new(
             [new Claim(ClaimTypes.NameIdentifier, TestUserId)],
@@ -300,6 +302,48 @@ public class MfaControllerTests
         OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
         string json = System.Text.Json.JsonSerializer.Serialize(ok.Value);
         json.Should().Contain("succeeded");
+    }
+
+    [Fact]
+    public async Task AdminClearLockout_WhenUserFound_CallsMfaLockoutResetAsync()
+    {
+        WallowUser user = WallowUser.Create(Guid.Empty, "Test", "User", "test@test.com", TimeProvider.System);
+        string targetUserId = user.Id.ToString();
+        _userManager.FindByIdAsync(targetUserId).Returns(user);
+        _userManager.SetLockoutEndDateAsync(user, null).Returns(IdentityResult.Success);
+        _userManager.ResetAccessFailedCountAsync(user).Returns(IdentityResult.Success);
+
+        await _controller.AdminClearLockout(targetUserId, CancellationToken.None);
+
+        await _mfaLockoutService.Received(1).ResetAsync(user.Id, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AdminClearLockout_WhenUserHasNoActiveLockout_StillCallsMfaLockoutResetAsync()
+    {
+        // Idempotent: ResetAsync is called even when user has no active MFA lockout
+        WallowUser user = WallowUser.Create(Guid.Empty, "Test", "User", "test@test.com", TimeProvider.System);
+        string targetUserId = user.Id.ToString();
+        _userManager.FindByIdAsync(targetUserId).Returns(user);
+        _userManager.SetLockoutEndDateAsync(user, null).Returns(IdentityResult.Success);
+        _userManager.ResetAccessFailedCountAsync(user).Returns(IdentityResult.Success);
+
+        IActionResult result = await _controller.AdminClearLockout(targetUserId, CancellationToken.None);
+
+        result.Should().BeOfType<OkObjectResult>();
+        await _mfaLockoutService.Received(1).ResetAsync(user.Id, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AdminClearLockout_WhenUserNotFound_ReturnsNotFoundWithoutCallingResetAsync()
+    {
+        string targetUserId = Guid.NewGuid().ToString();
+        _userManager.FindByIdAsync(targetUserId).Returns((WallowUser?)null);
+
+        IActionResult result = await _controller.AdminClearLockout(targetUserId, CancellationToken.None);
+
+        result.Should().BeOfType<NotFoundObjectResult>();
+        await _mfaLockoutService.DidNotReceive().ResetAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 
     #endregion

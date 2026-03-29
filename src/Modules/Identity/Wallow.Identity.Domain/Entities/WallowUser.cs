@@ -29,6 +29,16 @@ public sealed class WallowUser : IdentityUser<Guid>
 
     public DateTimeOffset? MfaGraceDeadline { get; private set; }
 
+    public int MfaFailedAttempts { get; private set; }
+
+    public DateTimeOffset? MfaLockoutEnd { get; private set; }
+
+    public int MfaLockoutCount { get; private set; }
+
+    public string? PendingEmail { get; private set; }
+
+    public DateTimeOffset? PendingEmailExpiry { get; private set; }
+
     private WallowUser() { } // EF Core
 
     public static WallowUser Create(
@@ -144,5 +154,77 @@ public sealed class WallowUser : IdentityUser<Guid>
 
         FirstName = firstName;
         LastName = lastName;
+    }
+
+    public void RecordMfaFailure(int maxAttempts, TimeProvider timeProvider)
+    {
+        MfaFailedAttempts++;
+
+        if (MfaFailedAttempts >= maxAttempts)
+        {
+            // Exponential backoff: 15min * 2^lockoutCount, capped at 24 hours
+            double multiplier = Math.Pow(2, MfaLockoutCount);
+            TimeSpan duration = TimeSpan.FromMinutes(15 * multiplier);
+            TimeSpan maxDuration = TimeSpan.FromHours(24);
+            if (duration > maxDuration)
+            {
+                duration = maxDuration;
+            }
+
+            MfaLockoutEnd = timeProvider.GetUtcNow() + duration;
+            MfaLockoutCount++;
+        }
+    }
+
+    public void ResetMfaAttempts()
+    {
+        MfaFailedAttempts = 0;
+        MfaLockoutEnd = null;
+    }
+
+    public bool IsMfaLockedOut(TimeProvider timeProvider)
+    {
+        return MfaLockoutEnd is not null && MfaLockoutEnd > timeProvider.GetUtcNow();
+    }
+
+    public void InitiateEmailChange(string newEmail, DateTimeOffset expiry, TimeProvider timeProvider)
+    {
+        if (string.IsNullOrWhiteSpace(newEmail))
+        {
+            throw new BusinessRuleException(
+                "Identity.EmailRequired",
+                "New email cannot be empty");
+        }
+
+        if (expiry <= timeProvider.GetUtcNow())
+        {
+            throw new BusinessRuleException(
+                "Identity.ExpiryMustBeFuture",
+                "Email change expiry must be in the future");
+        }
+
+        PendingEmail = newEmail;
+        PendingEmailExpiry = expiry;
+    }
+
+    public void ConfirmEmailChange()
+    {
+        if (PendingEmail is null)
+        {
+            throw new BusinessRuleException(
+                "Identity.NoPendingEmailChange",
+                "No pending email change to confirm");
+        }
+
+        Email = PendingEmail;
+        UserName = PendingEmail;
+        PendingEmail = null;
+        PendingEmailExpiry = null;
+    }
+
+    public void ClearPendingEmailChange()
+    {
+        PendingEmail = null;
+        PendingEmailExpiry = null;
     }
 }

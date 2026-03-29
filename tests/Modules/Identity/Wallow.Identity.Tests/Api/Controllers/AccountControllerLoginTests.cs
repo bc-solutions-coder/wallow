@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using StackExchange.Redis;
 using Wallow.Identity.Api.Controllers;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
@@ -70,6 +71,8 @@ public class AccountControllerLoginTests
             _mfaService,
             _mfaPartialAuthService,
             _orgMfaPolicyService,
+            Substitute.For<IMfaLockoutService>(),
+            Substitute.For<IConnectionMultiplexer>(),
             logger,
             timeProvider);
 

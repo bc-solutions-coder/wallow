@@ -13,6 +13,9 @@
 # instead of the Dolt database
 # no-db: false
 
+dolt:
+  port: 53469
+
 # Enable JSON output by default
 # json: false
 

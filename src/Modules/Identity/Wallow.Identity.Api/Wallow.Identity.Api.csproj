@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <PackageReference Include="OpenIddict.AspNetCore" />
+    <PackageReference Include="StackExchange.Redis" />
   </ItemGroup>
 
   <ItemGroup>

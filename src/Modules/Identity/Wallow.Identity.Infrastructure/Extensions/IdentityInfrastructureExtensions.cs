@@ -365,6 +365,8 @@ public static class IdentityInfrastructureExtensions
         services.TryAddScoped<IMfaService, MfaService>();
         services.AddScoped<IMfaPartialAuthService, MfaPartialAuthService>();
         services.AddScoped<IOrganizationMfaPolicyService, OrganizationMfaPolicyService>();
+        services.AddScoped<IMfaLockoutService, MfaLockoutService>();
+        services.AddScoped<ISessionService, SessionService>();
         services.AddScoped<IPasswordlessService, PasswordlessService>();
 
         services.AddSingleton<ServiceAccountUsageBuffer>();
