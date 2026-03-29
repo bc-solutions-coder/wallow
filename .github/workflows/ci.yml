@@ -173,7 +173,7 @@ jobs:
 
       - name: Build infra images
         run: |
-          docker compose -f docker/docker-compose.test.yml build wallow-garage
+          docker compose -f docker/docker-compose.test.yml build garage
           docker build -t wallow-postgres-replica:latest docker/images/postgres-replica
 
       - name: Save infra images to cache
