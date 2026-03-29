@@ -46,16 +46,32 @@ public sealed class LoginPage
         await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
     }
 
-    public async Task<string?> GetErrorMessageAsync()
+    public async Task<string?> GetErrorMessageAsync(int timeoutMs = 3_000)
     {
         ILocator error = _page.Locator("[data-testid='login-error']");
-        bool isVisible = await error.IsVisibleAsync();
-        if (!isVisible)
+        try
+        {
+            await error.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = timeoutMs });
+            return await error.InnerTextAsync();
+        }
+        catch (TimeoutException)
         {
             return null;
         }
+    }
 
-        return await error.InnerTextAsync();
+    public async Task<bool> IsErrorVisibleAsync(int timeoutMs = 3_000)
+    {
+        ILocator error = _page.Locator("[data-testid='login-error']");
+        try
+        {
+            await error.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = timeoutMs });
+            return true;
+        }
+        catch (TimeoutException)
+        {
+            return false;
+        }
     }
 
     public async Task<bool> IsLoadedAsync()

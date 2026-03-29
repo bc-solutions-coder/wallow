@@ -2,12 +2,12 @@ using Microsoft.Playwright;
 
 namespace Wallow.E2E.Tests.PageObjects;
 
-public sealed class DashboardPage
+public sealed class LogoutPage
 {
     private readonly IPage _page;
     private readonly string _baseUrl;
 
-    public DashboardPage(IPage page, string baseUrl)
+    public LogoutPage(IPage page, string baseUrl)
     {
         _page = page;
         _baseUrl = baseUrl;
@@ -15,7 +15,7 @@ public sealed class DashboardPage
 
     public async Task NavigateAsync()
     {
-        await _page.GotoAsync($"{_baseUrl}/dashboard/apps");
+        await _page.GotoAsync($"{_baseUrl}/logout");
         await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
     }
 
@@ -23,7 +23,7 @@ public sealed class DashboardPage
     {
         try
         {
-            await _page.Locator("[data-testid='apps-heading']").WaitForAsync(new() { Timeout = 10_000 });
+            await _page.Locator("[data-testid='logout-confirm-heading']").WaitForAsync(new() { Timeout = 10_000 });
             return true;
         }
         catch (TimeoutException)
@@ -32,9 +32,15 @@ public sealed class DashboardPage
         }
     }
 
-    public async Task<string?> GetWelcomeMessageAsync()
+    public async Task ConfirmLogoutAsync()
     {
-        ILocator heading = _page.Locator("[data-testid='apps-heading']");
+        await _page.Locator("[data-testid='logout-confirm-button']").ClickAsync();
+        await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+    }
+
+    public async Task<string?> GetHeadingTextAsync()
+    {
+        ILocator heading = _page.Locator("[data-testid='logout-confirm-heading']");
         bool isVisible = await heading.IsVisibleAsync();
         if (!isVisible)
         {
@@ -42,12 +48,5 @@ public sealed class DashboardPage
         }
 
         return await heading.InnerTextAsync();
-    }
-
-    public async Task ClickLogoutAsync()
-    {
-        // No WaitForLoadState here — OIDC logout triggers a multi-hop cross-origin
-        // redirect chain that never reaches NetworkIdle. Callers synchronize via WaitForURLAsync.
-        await _page.Locator("[data-testid='dashboard-logout-link']").ClickAsync();
     }
 }

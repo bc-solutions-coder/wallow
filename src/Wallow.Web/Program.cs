@@ -245,11 +245,9 @@ app.MapGet("/authentication/login", (string? returnUrl) =>
     }, [OpenIdConnectDefaults.AuthenticationScheme]);
 });
 
-app.MapGet("/authentication/logout", async (HttpContext context) =>
-{
-    await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-    await context.SignOutAsync(OpenIdConnectDefaults.AuthenticationScheme);
-});
+app.MapGet("/authentication/logout", () =>
+    TypedResults.SignOut(new AuthenticationProperties { RedirectUri = "/authentication/login" },
+        [CookieAuthenticationDefaults.AuthenticationScheme, OpenIdConnectDefaults.AuthenticationScheme]));
 
 app.MapRazorComponents<Wallow.Web.Components.App>()
     .AddInteractiveServerRenderMode();
