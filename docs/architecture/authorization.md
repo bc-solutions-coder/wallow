@@ -187,6 +187,108 @@ public class InvoiceService(ITenantContext tenantContext)
 
 ---
 
+## MFA Lockout
+
+MFA lockout is a separate mechanism from ASP.NET Core Identity's password lockout. Both can be active simultaneously — they protect different authentication stages.
+
+### How It Works
+
+```
+MFA code submitted
+        │
+        ▼
+┌─────────────────────────────────────────┐
+│ Check IsMfaLockedOut()                  │
+│ - Active lockout? → 423 immediately     │
+└─────────────────────────────────────────┘
+        │ Not locked out
+        ▼
+┌─────────────────────────────────────────┐
+│ Validate TOTP / backup code             │
+│ - Valid? → complete login, reset count  │
+│ - Invalid? → RecordFailure()            │
+└─────────────────────────────────────────┘
+        │ Invalid
+        ▼
+┌─────────────────────────────────────────┐
+│ IMfaLockoutService.RecordFailureAsync() │
+│ - Increment MfaFailedAttempts           │
+│ - On 5th failure: lock + escalate       │
+└─────────────────────────────────────────┘
+```
+
+### Lockout Thresholds and Durations
+
+A lockout triggers after **5 consecutive failed MFA attempts**. Each subsequent lockout doubles the duration (exponential backoff), capped at 24 hours:
+
+| Lockout # | Duration |
+|-----------|----------|
+| 1st | 15 minutes |
+| 2nd | 30 minutes |
+| 3rd | 1 hour |
+| 4th | 2 hours |
+| 5th+ | capped at 24 hours |
+
+The `MfaLockoutCount` on the user record tracks how many times the user has been locked out. It is only reset by an admin clear (not by a successful login), so repeat offenders accumulate progressively longer lockouts.
+
+### Error Response
+
+When a user is locked out, the API returns HTTP **423 Locked**:
+
+```json
+{ "succeeded": false, "error": "mfa_locked_out" }
+```
+
+The lockout end time is not included in the response body — clients should display a generic "too many attempts" message and not expose the exact unlock time to callers.
+
+A `UserMfaLockedOutEvent` is published on the Wolverine bus when a lockout occurs, allowing the Notifications module to email the user.
+
+### Relationship to Password Lockout
+
+ASP.NET Core Identity's built-in password lockout (failed `SignInManager.PasswordSignInAsync` calls) operates independently of MFA lockout:
+
+- **Password lockout** triggers during the password step and uses Identity's `LockoutEnd` / `AccessFailedCount` fields.
+- **MFA lockout** triggers during the MFA step and uses `MfaLockoutEnd` / `MfaFailedAttempts` fields on `WallowUser`.
+
+A user could be subject to both simultaneously. The admin clear-lockout endpoint (below) resets **both**.
+
+### Admin Clear-Lockout Endpoint
+
+Admins can clear all lockout state for a user — both password lockout and MFA lockout — via:
+
+```
+POST /api/v1/identity/mfa/admin/{userId}/clear-lockout
+```
+
+Requires: `Authorization: Bearer <admin-token>` (caller must have the `admin` role).
+
+**What it clears:**
+- `LockoutEnd` and `AccessFailedCount` (Identity password lockout)
+- `MfaLockoutEnd`, `MfaFailedAttempts`, and `MfaLockoutCount` (MFA lockout, including the escalation counter)
+- The Redis cache entry for the MFA lockout
+
+A `UserMfaLockoutClearedEvent` is published after a successful clear, recording which admin performed the action.
+
+**Example:**
+
+```bash
+curl -X POST \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  http://localhost:5001/api/v1/identity/mfa/admin/550e8400-e29b-41d4-a716-446655440000/clear-lockout
+```
+
+**Response:**
+
+```json
+{ "succeeded": true }
+```
+
+**Troubleshooting MFA lockout**
+- `423` on MFA submit but lockout time has passed — the Redis cache entry may outlive the DB record in edge cases; an admin clear resolves this
+- Admin clear returns `404` — verify the user ID is correct; the endpoint looks up by Identity user ID (GUID), not email
+
+---
+
 ## Middleware Pipeline Order
 
 The authorization middleware must be registered in the correct order in `Program.cs`:

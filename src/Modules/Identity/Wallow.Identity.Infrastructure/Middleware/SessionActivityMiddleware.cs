@@ -7,14 +7,13 @@ namespace Wallow.Identity.Infrastructure.Middleware;
 
 public sealed class SessionActivityMiddleware(
     RequestDelegate next,
-    IConnectionMultiplexer connectionMultiplexer,
-    ISessionService sessionService)
+    IConnectionMultiplexer connectionMultiplexer)
 {
     private const string CookieName = "wallow.session";
     private const string ThrottleKeyPrefix = "session:touched:";
     private static readonly TimeSpan _throttleTtl = TimeSpan.FromSeconds(60);
 
-    public async Task InvokeAsync(HttpContext context)
+    public async Task InvokeAsync(HttpContext context, ISessionService sessionService)
     {
         await next(context);
 

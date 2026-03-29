@@ -28,7 +28,7 @@ public class SessionActivityMiddlewareTests
             User = new ClaimsPrincipal(new ClaimsIdentity())
         };
 
-        await middleware.InvokeAsync(context);
+        await middleware.InvokeAsync(context, _sessionService);
 
         nextCalled.Should().BeTrue();
         await _sessionService.DidNotReceive()
@@ -43,7 +43,7 @@ public class SessionActivityMiddlewareTests
 
         DefaultHttpContext context = CreateAuthenticatedContext(sessionToken: null);
 
-        await middleware.InvokeAsync(context);
+        await middleware.InvokeAsync(context, _sessionService);
 
         nextCalled.Should().BeTrue();
         await _sessionService.DidNotReceive()
@@ -69,7 +69,7 @@ public class SessionActivityMiddlewareTests
         string token = "test-session-token";
         DefaultHttpContext context = CreateAuthenticatedContext(token);
 
-        await middleware.InvokeAsync(context);
+        await middleware.InvokeAsync(context, _sessionService);
 
         nextCalled.Should().BeTrue();
         await _sessionService.Received(1)
@@ -94,7 +94,7 @@ public class SessionActivityMiddlewareTests
 
         DefaultHttpContext context = CreateAuthenticatedContext("test-session-token");
 
-        await middleware.InvokeAsync(context);
+        await middleware.InvokeAsync(context, _sessionService);
 
         nextCalled.Should().BeTrue();
         await _sessionService.DidNotReceive()
@@ -118,7 +118,7 @@ public class SessionActivityMiddlewareTests
 
         DefaultHttpContext context = CreateAuthenticatedContext("some-token");
 
-        await middleware.InvokeAsync(context);
+        await middleware.InvokeAsync(context, _sessionService);
 
         nextCalled.Should().BeTrue();
     }
@@ -131,8 +131,7 @@ public class SessionActivityMiddlewareTests
                 onNext?.Invoke();
                 return Task.CompletedTask;
             },
-            _mux,
-            _sessionService);
+            _mux);
     }
 
     private static DefaultHttpContext CreateAuthenticatedContext(string? sessionToken)
