@@ -1,15 +1,15 @@
 using System.Diagnostics;
 using System.Net.Http.Json;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Application.Telemetry;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Identity.Domain.Enums;
+using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Shared.Kernel.Services;
-using Wallow.Shared.Kernel.Identity;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Logging;
 
 namespace Wallow.Identity.Infrastructure.Services;
 
@@ -224,7 +224,7 @@ public sealed partial class OidcFederationService(
             return $"{request.Scheme}://{request.Host}";
         }
 
-        return "https://localhost:5000";
+        return "https://localhost:5001";
     }
 
     private SsoConfigurationDto MapToDto(SsoConfiguration config)

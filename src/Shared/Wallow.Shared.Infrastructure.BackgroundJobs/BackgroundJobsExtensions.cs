@@ -1,5 +1,5 @@
-using Wallow.Shared.Kernel.BackgroundJobs;
 using Microsoft.Extensions.DependencyInjection;
+using Wallow.Shared.Kernel.BackgroundJobs;
 
 namespace Wallow.Shared.Infrastructure.BackgroundJobs;
 

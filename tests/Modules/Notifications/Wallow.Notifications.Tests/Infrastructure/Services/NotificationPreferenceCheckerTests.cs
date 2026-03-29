@@ -1,10 +1,10 @@
+using Microsoft.EntityFrameworkCore;
 using Wallow.Notifications.Domain.Preferences;
 using Wallow.Notifications.Domain.Preferences.Entities;
 using Wallow.Notifications.Infrastructure.Persistence;
 using Wallow.Notifications.Infrastructure.Services;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
-using Microsoft.EntityFrameworkCore;
 
 namespace Wallow.Notifications.Tests.Infrastructure.Services;
 
@@ -24,7 +24,8 @@ public sealed class NotificationPreferenceCheckerTests : IDisposable
             .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
             .Options;
 
-        _dbContext = new NotificationsDbContext(options, tenantContext);
+        _dbContext = new NotificationsDbContext(options);
+        _dbContext.SetTenant(tenantContext.TenantId);
         _checker = new NotificationPreferenceChecker(_dbContext);
     }
 

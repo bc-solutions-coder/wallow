@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Wallow.Messaging.Application.Conversations.EventHandlers;
 using Wallow.Messaging.Application.Conversations.Interfaces;
 using Wallow.Messaging.Domain.Conversations.Entities;
@@ -5,7 +6,6 @@ using Wallow.Messaging.Domain.Conversations.Events;
 using Wallow.Messaging.Domain.Conversations.Identity;
 using Wallow.Shared.Contracts.Messaging.Events;
 using Wallow.Shared.Kernel.Identity;
-using Microsoft.Extensions.Logging;
 using Wolverine;
 
 namespace Wallow.Messaging.Tests.Application.EventHandlers;
@@ -104,5 +104,39 @@ public class MessageSentEventHandlerTests
             domainEvent, _repository, _bus, _logger, CancellationToken.None);
 
         await _bus.DidNotReceive().PublishAsync(Arg.Any<MessageSentIntegrationEvent>());
+    }
+
+    [Fact]
+    public async Task HandleAsync_InactiveParticipant_ExcludedFromParticipantIds()
+    {
+        TenantId tenantId = TenantId.New();
+        Guid senderId = Guid.NewGuid();
+        Guid activeRecipientId = Guid.NewGuid();
+        Guid inactiveRecipientId = Guid.NewGuid();
+
+        Conversation conversation = Conversation.CreateGroup(
+            tenantId, senderId, "Test Group",
+            new[] { activeRecipientId, inactiveRecipientId }, TimeProvider.System);
+
+        Participant inactiveParticipant = conversation.Participants
+            .First(p => p.UserId == inactiveRecipientId);
+        inactiveParticipant.Leave();
+
+        conversation.SendMessage(senderId, "Hello group!", TimeProvider.System);
+        Message message = conversation.Messages[^1];
+
+        _repository.GetByIdAsync(Arg.Any<ConversationId>(), Arg.Any<CancellationToken>())
+            .Returns(conversation);
+
+        MessageSentDomainEvent domainEvent = new(
+            conversation.Id.Value, message.Id.Value, senderId, tenantId.Value);
+
+        await MessageSentEventHandler.HandleAsync(
+            domainEvent, _repository, _bus, _logger, CancellationToken.None);
+
+        await _bus.Received(1).PublishAsync(Arg.Is<MessageSentIntegrationEvent>(e =>
+            e.ParticipantIds.Contains(activeRecipientId) &&
+            !e.ParticipantIds.Contains(inactiveRecipientId) &&
+            !e.ParticipantIds.Contains(senderId)));
     }
 }

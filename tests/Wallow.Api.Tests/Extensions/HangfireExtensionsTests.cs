@@ -1,8 +1,9 @@
-using Wallow.Api.Extensions;
 using Hangfire;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Wallow.Api.Extensions;
 
 namespace Wallow.Api.Tests.Extensions;
 
@@ -92,5 +93,18 @@ public class HangfireExtensionsTests
         JobStorage? storage = provider.GetService<JobStorage>();
         storage.Should().NotBeNull();
         storage.Should().BeOfType<Hangfire.PostgreSql.PostgreSqlStorage>();
+    }
+
+    [Fact]
+    public void UseHangfireDashboard_ReturnsSameWebApplication()
+    {
+        WebApplicationBuilder builder = WebApplication.CreateBuilder();
+        (_, IConfiguration configuration) = CreateTestDependencies();
+        builder.Services.AddHangfireServices(configuration);
+        WebApplication app = builder.Build();
+
+        WebApplication result = app.UseHangfireDashboard();
+
+        result.Should().BeSameAs(app);
     }
 }

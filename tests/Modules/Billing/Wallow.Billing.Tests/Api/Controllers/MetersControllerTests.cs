@@ -1,9 +1,9 @@
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Wallow.Billing.Api.Controllers;
 using Wallow.Billing.Application.Metering.DTOs;
 using Wallow.Billing.Application.Metering.Queries.GetMeterDefinitions;
 using Wallow.Shared.Kernel.Results;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Wolverine;
 
 namespace Wallow.Billing.Tests.Api.Controllers;

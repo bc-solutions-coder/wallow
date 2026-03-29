@@ -7,5 +7,4 @@ public sealed record AddInquiryCommentCommand(
     string AuthorId,
     string AuthorName,
     string Content,
-    bool IsInternal,
-    Guid TenantId);
+    bool IsInternal);

@@ -1,7 +1,7 @@
+using Microsoft.EntityFrameworkCore;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Tests.Common.Fixtures;
-using Microsoft.EntityFrameworkCore;
 
 namespace Wallow.Tests.Common.Bases;
 
@@ -69,11 +69,11 @@ public abstract class DbContextIntegrationTestBase<TDbContext> : IAsyncLifetime
 
     /// <summary>
     /// Creates the DbContext instance. Override if your DbContext has a non-standard constructor.
-    /// Default assumes constructor(DbContextOptions&lt;TDbContext&gt;, ITenantContext).
+    /// Default assumes constructor(DbContextOptions&lt;TDbContext&gt;) with SetTenant called after.
     /// </summary>
     protected virtual TDbContext CreateDbContext(DbContextOptions<TDbContext> options, ITenantContext tenantContext)
     {
-        return (TDbContext)Activator.CreateInstance(typeof(TDbContext), options, tenantContext)!;
+        return (TDbContext)Activator.CreateInstance(typeof(TDbContext), options)!;
     }
 
     protected TDbContext CreateDbContextForTenant(TenantId tenantId, string tenantName = "OtherTenant")
@@ -83,7 +83,7 @@ public abstract class DbContextIntegrationTestBase<TDbContext> : IAsyncLifetime
         return BuildDbContext(otherContext);
     }
 
-    private TDbContext BuildDbContext(ITenantContext tenantContext)
+    private TDbContext BuildDbContext(TenantContext tenantContext)
     {
         DbContextOptionsBuilder<TDbContext> builder = ConfigureOptions(
             new DbContextOptionsBuilder<TDbContext>(),
@@ -91,7 +91,13 @@ public abstract class DbContextIntegrationTestBase<TDbContext> : IAsyncLifetime
 
         builder.AddInterceptors(new TenantSaveChangesInterceptor(tenantContext));
 
-        return CreateDbContext(builder.Options, tenantContext);
+        TDbContext ctx = CreateDbContext(builder.Options, tenantContext);
+
+        // Call SetTenant via reflection since TDbContext constraint is just DbContext
+        System.Reflection.MethodInfo? setTenantMethod = ctx.GetType().GetMethod("SetTenant");
+        setTenantMethod?.Invoke(ctx, [tenantContext.TenantId]);
+
+        return ctx;
     }
 
     public virtual async Task DisposeAsync()

@@ -1,3 +1,4 @@
+using NSubstitute.ExceptionExtensions;
 using Wallow.Identity.Application.Commands.CreateServiceAccount;
 using Wallow.Identity.Application.Commands.RevokeServiceAccount;
 using Wallow.Identity.Application.Commands.RotateServiceAccountSecret;
@@ -5,7 +6,6 @@ using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Identity;
 using Wallow.Shared.Kernel.Results;
-using NSubstitute.ExceptionExtensions;
 
 namespace Wallow.Identity.Tests.Application.Handlers;
 

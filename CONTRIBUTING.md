@@ -23,10 +23,10 @@ Thank you for your interest in contributing to Wallow! This guide will help you 
    ```
 4. Run all tests to verify your setup:
    ```bash
-   dotnet test
+   ./scripts/run-tests.sh
    ```
 
-See the [Developer Guide](docs/DEVELOPER_GUIDE.md) for detailed setup instructions and service URLs.
+See the [Developer Guide](docs/getting-started/developer-guide.md) for detailed setup instructions and service URLs.
 
 ## How to Contribute
 
@@ -54,15 +54,15 @@ See the [Developer Guide](docs/DEVELOPER_GUIDE.md) for detailed setup instructio
 
 Wallow is a modular monolith following Clean Architecture and DDD principles. Before contributing, understand these rules:
 
-- **Modules:** Identity, Storage, Communications, Billing, Notifications
+- **Modules:** Identity, Billing, Storage, Notifications, Messaging, Announcements, Inquiries
 - **Layer order:** Domain → Application → Infrastructure → Api
 - Domain has no external dependencies; Application depends only on Domain
-- Modules communicate via RabbitMQ events, never direct project references
+- Modules communicate via Wolverine in-memory events, never direct project references
 - Cross-module contracts go in `Shared.Contracts` only
 - Each module owns its own database schema
 - Use EF Core for writes, Dapper for complex reads
 
-For adding new modules, see `docs/claude/module-creation.md`.
+For adding new modules, see `docs/architecture/module-creation.md`.
 
 ## Commit Messages
 
@@ -102,7 +102,7 @@ Add `!` after the type for breaking changes: `feat!: redesign authentication API
 
 ## Pull Request Process
 
-1. Ensure all tests pass: `dotnet test`
+1. Ensure all tests pass: `./scripts/run-tests.sh`
 2. Update documentation if you changed public APIs or behavior
 3. Fill out the PR template completely
 4. Request review from a maintainer

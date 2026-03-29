@@ -1,6 +1,0 @@
-.git
-*.md
-tests/
-*.test.yaml
-.gitignore
-.DS_Store

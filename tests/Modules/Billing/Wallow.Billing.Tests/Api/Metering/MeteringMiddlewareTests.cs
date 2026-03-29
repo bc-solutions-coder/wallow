@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Caching.Hybrid;
 using Wallow.Billing.Api.Middleware;
 using Wallow.Billing.Application.Metering.DTOs;
 using Wallow.Billing.Application.Metering.Services;
@@ -5,8 +7,6 @@ using Wallow.Billing.Domain.Metering.Enums;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Tests.Common.Fakes;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Caching.Hybrid;
 using Wolverine;
 
 namespace Wallow.Billing.Tests.Api.Metering;

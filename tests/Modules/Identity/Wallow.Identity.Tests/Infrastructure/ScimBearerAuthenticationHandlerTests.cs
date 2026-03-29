@@ -1,15 +1,15 @@
 using System.Text.Encodings.Web;
-using Wallow.Identity.Domain.Entities;
-using Wallow.Identity.Infrastructure.Authorization;
-using Wallow.Identity.Infrastructure.Persistence;
-using Wallow.Shared.Kernel.Identity;
-using Wallow.Shared.Kernel.MultiTenancy;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Infrastructure.Authorization;
+using Wallow.Identity.Infrastructure.Persistence;
+using Wallow.Shared.Kernel.Identity;
+using Wallow.Shared.Kernel.MultiTenancy;
 
 namespace Wallow.Identity.Tests.Infrastructure;
 
@@ -29,7 +29,8 @@ public sealed class ScimBearerAuthenticationHandlerTests : IDisposable
             .Options;
 
         IDataProtectionProvider dataProtectionProvider = DataProtectionProvider.Create("Wallow.Identity.Tests");
-        _dbContext = new IdentityDbContext(options, _tenantContext, dataProtectionProvider);
+        _dbContext = new IdentityDbContext(options, dataProtectionProvider);
+        _dbContext.SetTenant(new TenantId(_tenantId));
     }
 
     public void Dispose()

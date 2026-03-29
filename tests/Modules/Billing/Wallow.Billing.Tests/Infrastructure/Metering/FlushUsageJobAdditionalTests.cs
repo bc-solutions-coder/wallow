@@ -1,10 +1,10 @@
+using Microsoft.Extensions.Logging;
+using StackExchange.Redis;
 using Wallow.Billing.Application.Metering.Interfaces;
 using Wallow.Billing.Domain.Metering.Entities;
 using Wallow.Billing.Infrastructure.Jobs;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
-using Microsoft.Extensions.Logging;
-using StackExchange.Redis;
 using Wolverine;
 
 namespace Wallow.Billing.Tests.Infrastructure.Metering;

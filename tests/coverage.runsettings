@@ -6,8 +6,8 @@
         <Configuration>
           <Format>cobertura</Format>
           <Include>[Wallow.*]*</Include>
-          <Exclude>[*]*.Migrations.*,[*]*Program,[*]*Startup,[*]*.Extensions.*Module*,[*]*AssemblyInfo,[*]*WallowModules,[Wallow.Tests.Common]*,[Wallow.Benchmarks]*,[*.Tests]*,[*.IntegrationTests]*,[*]System.Runtime.CompilerServices.*</Exclude>
-          <ExcludeByFile>**/Migrations/**/*.cs,**/Logging.g.cs,**/RegexGenerator.g.cs,**/*.generated.cs</ExcludeByFile>
+          <Exclude>[*]*.Migrations.*,[*]*Program,[*]*Startup,[*]*.Extensions.*Module*,[*]*AssemblyInfo,[*]*WallowModules,[Wallow.Tests.Common]*,[Wallow.Benchmarks]*,[*.Tests]*,[*.IntegrationTests]*,[*]System.Runtime.CompilerServices.*,[Wallow.Auth]*</Exclude>
+          <ExcludeByFile>**/Migrations/**/*.cs,**/Logging.g.cs,**/LoggerMessage.g.cs,**/RegexGenerator.g.cs,**/*.generated.cs,**/DesignTimeTenantContext.cs,**/*DbContextFactory.cs</ExcludeByFile>
           <ExcludeByAttribute>CompilerGeneratedAttribute,ExcludeFromCodeCoverageAttribute</ExcludeByAttribute>
           <IncludeTestAssembly>false</IncludeTestAssembly>
           <SingleHit>false</SingleHit>

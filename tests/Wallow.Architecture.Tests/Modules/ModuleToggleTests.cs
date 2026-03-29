@@ -1,14 +1,16 @@
 using System.Reflection;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Hosting.Internal;
+using NSubstitute;
+using StackExchange.Redis;
 using Wallow.Announcements.Infrastructure.Persistence;
 using Wallow.Billing.Infrastructure.Persistence;
 using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Messaging.Infrastructure.Persistence;
 using Wallow.Notifications.Infrastructure.Persistence;
 using Wallow.Storage.Infrastructure.Persistence;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Hosting.Internal;
 
 namespace Wallow.Architecture.Tests.Modules;
 
@@ -22,7 +24,7 @@ public class ModuleToggleTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["FeatureManagement:Modules.Identity"] = "false",
-                ["FeatureManagement:Modules.Billing"] = "true",
+                ["FeatureManagement:Modules.Billing"] = "false",
                 ["FeatureManagement:Modules.Notifications"] = "true",
                 ["FeatureManagement:Modules.Messaging"] = "true",
                 ["FeatureManagement:Modules.Announcements"] = "true",
@@ -34,11 +36,19 @@ public class ModuleToggleTests
 
         InvokeAddWallowModules(services, configuration);
 
+        // Identity is a required platform dependency — always registered even when the feature flag is false
         bool hasIdentityDbContext = services.Any(
             sd => sd.ServiceType == typeof(IdentityDbContext));
 
-        hasIdentityDbContext.Should().BeFalse(
-            "Identity module is disabled and should not register any services");
+        hasIdentityDbContext.Should().BeTrue(
+            "Identity module is a required platform dependency and should always be registered");
+
+        // Optional modules respect their feature flags
+        bool hasBillingDbContext = services.Any(
+            sd => sd.ServiceType == typeof(BillingDbContext));
+
+        hasBillingDbContext.Should().BeFalse(
+            "Billing module is disabled and should not register any services");
     }
 
     [Fact]
@@ -77,6 +87,10 @@ public class ModuleToggleTests
 
     private static void InvokeAddWallowModules(IServiceCollection services, IConfiguration configuration)
     {
+        // Modules resolve IConnectionMultiplexer at registration time for Redis-backed services
+        IConnectionMultiplexer mockRedis = Substitute.For<IConnectionMultiplexer>();
+        services.AddSingleton(mockRedis);
+
         Assembly apiAssembly = Assembly.Load("Wallow.Api");
         Type wallowModulesType = apiAssembly.GetType("Wallow.Api.WallowModules")!;
         MethodInfo addMethod = wallowModulesType.GetMethod(

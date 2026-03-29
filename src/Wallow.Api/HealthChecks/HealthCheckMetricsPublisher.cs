@@ -1,6 +1,6 @@
 using System.Diagnostics.Metrics;
-using Wallow.Shared.Kernel;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Wallow.Shared.Kernel;
 
 namespace Wallow.Api.HealthChecks;
 

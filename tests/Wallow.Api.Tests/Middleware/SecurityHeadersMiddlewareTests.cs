@@ -1,7 +1,7 @@
-using Wallow.Api.Middleware;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
+using Wallow.Api.Middleware;
 
 namespace Wallow.Api.Tests.Middleware;
 
@@ -55,7 +55,7 @@ public sealed class SecurityHeadersMiddlewareTests
         IHeaderDictionary headers = await InvokeAndGetHeaders("Production");
 
         headers["Strict-Transport-Security"].ToString()
-            .Should().Be("max-age=31536000; includeSubDomains");
+            .Should().Be("max-age=31536000; includeSubDomains; preload");
     }
 
     [Fact]
@@ -96,14 +96,67 @@ public sealed class SecurityHeadersMiddlewareTests
         headers.Should().ContainKey("Strict-Transport-Security");
     }
 
-    private async Task<IHeaderDictionary> InvokeAndGetHeaders(string environmentName)
+    [Fact]
+    public async Task InvokeAsync_ForConnectPath_AllowsInlineScriptsAndStyles()
+    {
+        IHeaderDictionary headers = await InvokeAndGetHeaders("Development", "/connect/authorize");
+
+        string csp = headers["Content-Security-Policy"].ToString();
+        csp.Should().Contain("script-src 'self' 'unsafe-inline'");
+        csp.Should().Contain("style-src 'self' 'unsafe-inline'");
+    }
+
+    [Fact]
+    public async Task InvokeAsync_ForHangfirePath_AllowsJsDelivrAndInlineStyles()
+    {
+        IHeaderDictionary headers = await InvokeAndGetHeaders("Development", "/hangfire");
+
+        string csp = headers["Content-Security-Policy"].ToString();
+        csp.Should().Contain("script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net");
+        csp.Should().Contain("style-src 'self' 'unsafe-inline'");
+    }
+
+    [Fact]
+    public async Task InvokeAsync_ForScalarPath_AllowsDataImagesAndFonts()
+    {
+        IHeaderDictionary headers = await InvokeAndGetHeaders("Development", "/scalar/v1");
+
+        string csp = headers["Content-Security-Policy"].ToString();
+        csp.Should().Contain("img-src 'self' data:");
+        csp.Should().Contain("font-src 'self' data:");
+        csp.Should().Contain("script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net");
+    }
+
+    [Fact]
+    public async Task InvokeAsync_ForHubsPath_AllowsWebSocketConnections()
+    {
+        IHeaderDictionary headers = await InvokeAndGetHeaders("Development", "/hubs/realtime");
+
+        string csp = headers["Content-Security-Policy"].ToString();
+        csp.Should().Contain("connect-src 'self' ws: wss:");
+    }
+
+    [Fact]
+    public async Task InvokeAsync_ForDefaultPath_UsesStrictCsp()
+    {
+        IHeaderDictionary headers = await InvokeAndGetHeaders("Development", "/api/some-endpoint");
+
+        headers["Content-Security-Policy"].ToString().Should().Be("default-src 'self'");
+    }
+
+    private Task<IHeaderDictionary> InvokeAndGetHeaders(string environmentName)
+    {
+        return InvokeAndGetHeaders(environmentName, "/");
+    }
+
+    private async Task<IHeaderDictionary> InvokeAndGetHeaders(string environmentName, string path)
     {
         _environment.EnvironmentName.Returns(environmentName);
         CallbackCapturingResponseFeature responseFeature = new();
         FeatureCollection features = new();
         features.Set<IHttpResponseFeature>(responseFeature);
         features.Set<IHttpResponseBodyFeature>(new StreamResponseBodyFeature(Stream.Null));
-        features.Set<IHttpRequestFeature>(new HttpRequestFeature { Path = "/" });
+        features.Set<IHttpRequestFeature>(new HttpRequestFeature { Path = path });
         DefaultHttpContext httpContext = new(features);
 
         SecurityHeadersMiddleware sut = new(_ => Task.CompletedTask, _environment);

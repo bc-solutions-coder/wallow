@@ -1,3 +1,14 @@
+using Microsoft.AspNetCore.Builder;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Npgsql;
+using Polly;
+using Polly.Retry;
+using Polly.Timeout;
 using Wallow.Notifications.Application.Channels.Email.Interfaces;
 using Wallow.Notifications.Application.Channels.InApp.Interfaces;
 using Wallow.Notifications.Application.Channels.Push.Interfaces;
@@ -9,18 +20,9 @@ using Wallow.Notifications.Infrastructure.Persistence;
 using Wallow.Notifications.Infrastructure.Persistence.Repositories;
 using Wallow.Notifications.Infrastructure.Services;
 using Wallow.Shared.Contracts.Communications.Email;
+using Wallow.Shared.Infrastructure.Core.Extensions;
 using Wallow.Shared.Infrastructure.Core.Resilience;
 using Wallow.Shared.Kernel.MultiTenancy;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using Polly;
-using Polly.Retry;
-using Polly.Timeout;
 
 namespace Wallow.Notifications.Infrastructure.Extensions;
 
@@ -34,18 +36,29 @@ public static partial class NotificationsModuleExtensions
         services
             .AddNotificationsPersistence(configuration)
             .AddNotificationsServices(configuration);
+        services.AddReadDbContext<NotificationsDbContext>(configuration);
 
         return services;
     }
 
     private static IServiceCollection AddNotificationsPersistence(
         this IServiceCollection services,
-        IConfiguration _)
+        IConfiguration configuration)
     {
-        services.AddDbContext<NotificationsDbContext>((sp, options) =>
+        int maxPoolSize = configuration.GetValue("Database:MaxPoolSize", 200);
+        int minPoolSize = configuration.GetValue("Database:MinPoolSize", 10);
+
+        string defaultConnectionString = configuration.GetConnectionString("DefaultConnection")
+            ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured.");
+
+        services.AddPooledDbContextFactory<NotificationsDbContext>((sp, options) =>
         {
-            string? connectionString = sp.GetRequiredService<IConfiguration>().GetConnectionString("DefaultConnection");
-            options.UseNpgsql(connectionString, npgsql =>
+            NpgsqlConnectionStringBuilder builder = new(defaultConnectionString)
+            {
+                MaxPoolSize = maxPoolSize,
+                MinPoolSize = minPoolSize
+            };
+            options.UseNpgsql(builder.ConnectionString, npgsql =>
             {
                 npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "notifications");
                 npgsql.EnableRetryOnFailure(
@@ -58,6 +71,8 @@ public static partial class NotificationsModuleExtensions
                 w.Ignore(RelationalEventId.PendingModelChangesWarning));
             options.AddInterceptors(sp.GetRequiredService<TenantSaveChangesInterceptor>());
         });
+
+        services.AddTenantAwareScopedContext<NotificationsDbContext>();
 
         // Email repositories
         services.AddScoped<IEmailMessageRepository, EmailMessageRepository>();
@@ -107,7 +122,7 @@ public static partial class NotificationsModuleExtensions
         services.AddScoped<IEmailTemplateService, SimpleEmailTemplateService>();
 
         // InApp notification services
-        services.AddScoped<INotificationService, SignalRNotificationService>();
+        services.AddScoped<INotificationService, SseNotificationService>();
 
         // Preference checking
         services.AddScoped<INotificationPreferenceChecker, NotificationPreferenceChecker>();
@@ -131,8 +146,8 @@ public static partial class NotificationsModuleExtensions
         }
 
         // Push services
-        services.Configure<PushSettings>(configuration.GetSection("PushSettings"));
         services.AddDataProtection();
+        services.Configure<PushSettings>(configuration.GetSection("PushSettings"));
         services.AddSingleton<IPushCredentialEncryptor, PushCredentialEncryptor>();
         services.AddScoped<IPushProviderFactory, PushProviderFactory>();
 
@@ -146,12 +161,10 @@ public static partial class NotificationsModuleExtensions
         switch (provider)
         {
             case "Smtp":
-                services.AddSingleton<SmtpConnectionPool>();
                 services.AddScoped<IEmailProvider, SmtpEmailProvider>();
                 break;
             default:
                 Console.WriteLine($"Warning: Unrecognized email provider '{provider}'. Defaulting to Smtp.");
-                services.AddSingleton<SmtpConnectionPool>();
                 services.AddScoped<IEmailProvider, SmtpEmailProvider>();
                 break;
         }
@@ -160,6 +173,8 @@ public static partial class NotificationsModuleExtensions
     public static async Task<WebApplication> InitializeNotificationsModuleAsync(
         this WebApplication app)
     {
+        ILogger logger = app.Services.GetRequiredService<ILoggerFactory>()
+            .CreateLogger("NotificationsModule");
         try
         {
             await using AsyncServiceScope scope = app.Services.CreateAsyncScope();
@@ -167,17 +182,19 @@ public static partial class NotificationsModuleExtensions
             if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))
             {
                 await db.Database.MigrateAsync();
+                LogMigrationsApplied(logger);
             }
         }
         catch (Exception ex)
         {
-            ILogger logger = app.Services.GetRequiredService<ILoggerFactory>()
-                .CreateLogger("NotificationsModule");
             LogStartupFailed(logger, ex);
         }
 
         return app;
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Notifications module database migrations applied")]
+    private static partial void LogMigrationsApplied(ILogger logger);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Notifications module startup failed. Ensure PostgreSQL is running.")]
     private static partial void LogStartupFailed(ILogger logger, Exception ex);

@@ -1,8 +1,8 @@
+using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.Extensions.DependencyInjection;
 using Wallow.Shared.Contracts.Realtime;
 using Wallow.Tests.Common.Factories;
 using Wallow.Tests.Common.Helpers;
-using Microsoft.AspNetCore.SignalR.Client;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Wallow.Api.Tests.Integration;
 

@@ -1,0 +1,102 @@
+@page "/accept-terms"
+@rendermode InteractiveServer
+
+@inject NavigationManager Navigation
+@inject IConfiguration Configuration
+@using Wallow.Auth.Configuration
+@inject BrandingOptions Branding
+
+<PageTitle>Accept Terms — @Branding.AppName</PageTitle>
+
+<BbCard Class="border-0 shadow-none bg-transparent">
+    <BbCardHeader Class="px-0 pt-0 text-center">
+        <BbCardTitle>Almost there!</BbCardTitle>
+        <BbCardDescription>Please accept our terms to create your account</BbCardDescription>
+    </BbCardHeader>
+    <BbCardContent Class="px-0 space-y-4">
+        @if (!string.IsNullOrEmpty(Error))
+        {
+            <BbAlert Variant="AlertVariant.Danger">
+                <BbAlertDescription>
+                    @(Error switch
+                    {
+                        "terms_required" => "You must accept the terms to continue.",
+                        "session_expired" => "Your session has expired. Please try signing in again.",
+                        _ => "An error occurred. Please try again."
+                    })
+                </BbAlertDescription>
+            </BbAlert>
+        }
+
+        @if (!string.IsNullOrEmpty(Email))
+        {
+            <div class="rounded-md border p-3 text-sm">
+                <p class="text-muted-foreground">Signing up as</p>
+                <p class="font-medium">@Name</p>
+                <p class="text-muted-foreground">@Email</p>
+            </div>
+        }
+
+        <div class="space-y-3">
+            <div class="flex items-start space-x-2">
+                <BbCheckbox Id="termsAccepted" @bind-Checked="_termsAccepted" />
+                <BbLabel For="termsAccepted" Class="text-sm font-normal leading-snug">
+                    I agree to the
+                    <a href="/terms-of-service" target="_blank" class="text-primary underline-offset-4 hover:underline">Terms of Service</a>
+                </BbLabel>
+            </div>
+
+            <div class="flex items-start space-x-2">
+                <BbCheckbox Id="privacyAccepted" @bind-Checked="_privacyAccepted" />
+                <BbLabel For="privacyAccepted" Class="text-sm font-normal leading-snug">
+                    I agree to the
+                    <a href="/privacy-policy" target="_blank" class="text-primary underline-offset-4 hover:underline">Privacy Policy</a>
+                </BbLabel>
+            </div>
+        </div>
+
+        <BbButton Class="w-full"
+                  Disabled="@(!_termsAccepted || !_privacyAccepted)"
+                  OnClick="HandleAcceptTerms">
+            Create Account
+        </BbButton>
+    </BbCardContent>
+    <BbCardFooter Class="px-0 pb-0 justify-center">
+        <p class="text-sm text-muted-foreground">
+            Changed your mind?
+            <a href="/login" class="text-primary underline-offset-4 hover:underline">Back to sign in</a>
+        </p>
+    </BbCardFooter>
+</BbCard>
+
+@code {
+    [SupplyParameterFromQuery]
+    public string? ReturnUrl { get; set; }
+
+    [SupplyParameterFromQuery]
+    public string? Email { get; set; }
+
+    [SupplyParameterFromQuery]
+    public string? Name { get; set; }
+
+    [SupplyParameterFromQuery]
+    public string? Error { get; set; }
+
+    private bool _termsAccepted;
+    private bool _privacyAccepted;
+
+    private string ApiBaseUrl => Configuration["ApiBaseUrl"] ?? "http://localhost:5001";
+
+    private void HandleAcceptTerms()
+    {
+        if (!_termsAccepted || !_privacyAccepted)
+        {
+            return;
+        }
+
+        string encodedReturnUrl = Uri.EscapeDataString(ReturnUrl ?? "/");
+        string completeUrl = $"{ApiBaseUrl}/api/v1/identity/auth/complete-external-registration?acceptedTerms=true&returnUrl={encodedReturnUrl}";
+
+        Navigation.NavigateTo(completeUrl, forceLoad: true);
+    }
+}

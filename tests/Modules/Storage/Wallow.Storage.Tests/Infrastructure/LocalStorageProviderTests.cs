@@ -1,6 +1,6 @@
+using Microsoft.Extensions.Options;
 using Wallow.Storage.Infrastructure.Configuration;
 using Wallow.Storage.Infrastructure.Providers;
-using Microsoft.Extensions.Options;
 
 namespace Wallow.Storage.Tests.Infrastructure;
 

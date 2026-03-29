@@ -1,23 +1,28 @@
+using System.Text.RegularExpressions;
 using System.Threading.RateLimiting;
-using Wallow.Api.HealthChecks;
-using Wallow.Api.Middleware;
-using Wallow.Shared.Infrastructure.Core.Resilience;
-using Wallow.Storage.Domain.Enums;
-using Wallow.Storage.Infrastructure.Configuration;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.OpenApi;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
-using RabbitMQ.Client;
+using RedisRateLimiting;
 using Serilog;
+using StackExchange.Redis;
+using Wallow.Api.HealthChecks;
+using Wallow.Api.Middleware;
+using Wallow.Shared.Infrastructure.Core.Resilience;
+using Wallow.Shared.Kernel.Configuration;
+using Wallow.Shared.Kernel.Extensions;
+using Wallow.Storage.Domain.Enums;
+using Wallow.Storage.Infrastructure.Configuration;
 
 namespace Wallow.Api.Extensions;
 
-internal static class ServiceCollectionExtensions
+internal static partial class ServiceCollectionExtensions
 {
     public static IServiceCollection AddApiServices(
         this IServiceCollection services,
@@ -38,16 +43,21 @@ internal static class ServiceCollectionExtensions
         services.AddExceptionHandler<GlobalExceptionHandler>();
 
         // OpenAPI documentation (Scalar)
+        string appName = configuration["Branding:AppName"] ?? "Wallow";
         services.AddOpenApi("v1", options =>
         {
-            options.AddDocumentTransformer((document, _, _) => TransformDocumentInfo(document));
+            options.AddDocumentTransformer((document, _, _) => TransformDocumentInfo(document, appName));
             options.AddDocumentTransformer((document, _, _) => TransformDocumentSecurity(document));
             options.AddOperationTransformer((operation, context, _) =>
                 TransformOperationSecurity(operation, context));
+            options.AddOperationTransformer((operation, context, _) =>
+                TransformOperationModuleTag(operation, context));
         });
 
         // CORS
         string[] allowedOrigins = configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+        ServiceUrlsOptions serviceUrls = configuration.GetSection(ServiceUrlsOptions.SectionName).Get<ServiceUrlsOptions>()
+            ?? new ServiceUrlsOptions();
 
         if (!environment.IsDevelopment() && allowedOrigins.Length == 0)
         {
@@ -61,17 +71,17 @@ internal static class ServiceCollectionExtensions
             {
                 policy
                     .WithOrigins(allowedOrigins)
-                    .AllowAnyMethod()
+                    .WithMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
                     .AllowAnyHeader()
                     .AllowCredentials();
             });
 
-            // Named policy for development (explicit localhost origins for SignalR)
+            // Named policy for development (explicit origins for SignalR)
             options.AddPolicy("Development", policy =>
             {
                 policy
-                    .WithOrigins("http://localhost:3000", "http://localhost:5173", "http://localhost:5000")
-                    .AllowAnyMethod()
+                    .WithOrigins(serviceUrls.ApiUrl, serviceUrls.AuthUrl, serviceUrls.WebUrl)
+                    .WithMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
                     .AllowAnyHeader()
                     .AllowCredentials();
             });
@@ -97,22 +107,6 @@ internal static class ServiceCollectionExtensions
             .AddCheck("startup-ready", () => HealthCheckResult.Healthy(),
                 tags: ["infrastructure", "ready"]);
 
-        // RabbitMQ health check — only when RabbitMQ transport is active
-        string transport = configuration.GetValue<string>("ModuleMessaging:Transport") ?? "InMemory";
-        if (transport.Equals("RabbitMq", StringComparison.OrdinalIgnoreCase))
-        {
-            healthChecks.AddRabbitMQ(sp =>
-            {
-                IConfiguration config = sp.GetRequiredService<IConfiguration>();
-                string rabbitHost = config["RabbitMQ:Host"]!;
-                string rabbitUser = config["RabbitMQ:Username"]!;
-                string rabbitPass = config["RabbitMQ:Password"]!;
-                Uri rabbitUri = new($"amqp://{rabbitUser}:{rabbitPass}@{rabbitHost}:5672");
-                ConnectionFactory factory = new() { Uri = rabbitUri };
-                return factory.CreateConnectionAsync();
-            }, name: "rabbitmq", tags: ["messaging", "ready"]);
-        }
-
         // S3 health check - only when S3 storage provider is configured
         StorageOptions storageOptions = configuration.GetSection(StorageOptions.SectionName).Get<StorageOptions>()
                                         ?? new StorageOptions();
@@ -137,53 +131,53 @@ internal static class ServiceCollectionExtensions
             options.RejectionStatusCode = 429;
 
             options.AddPolicy("auth", httpContext =>
-                RateLimitPartition.GetFixedWindowLimiter(
+                RedisRateLimitPartition.GetFixedWindowRateLimiter(
                     GetTenantPartitionKey(httpContext),
-                    _ => new FixedWindowRateLimiterOptions
+                    _ => new RedisFixedWindowRateLimiterOptions
                     {
+                        ConnectionMultiplexerFactory = () => httpContext.RequestServices.GetRequiredService<IConnectionMultiplexer>(),
                         PermitLimit = RateLimitDefaults.AuthPermitLimit,
-                        Window = TimeSpan.FromMinutes(RateLimitDefaults.AuthWindowMinutes),
-                        QueueLimit = 0
+                        Window = TimeSpan.FromMinutes(RateLimitDefaults.AuthWindowMinutes)
                     }));
 
             options.AddPolicy("upload", httpContext =>
-                RateLimitPartition.GetFixedWindowLimiter(
+                RedisRateLimitPartition.GetFixedWindowRateLimiter(
                     GetTenantPartitionKey(httpContext),
-                    _ => new FixedWindowRateLimiterOptions
+                    _ => new RedisFixedWindowRateLimiterOptions
                     {
+                        ConnectionMultiplexerFactory = () => httpContext.RequestServices.GetRequiredService<IConnectionMultiplexer>(),
                         PermitLimit = RateLimitDefaults.UploadPermitLimit,
-                        Window = TimeSpan.FromHours(RateLimitDefaults.UploadWindowHours),
-                        QueueLimit = 0
+                        Window = TimeSpan.FromHours(RateLimitDefaults.UploadWindowHours)
                     }));
 
             options.AddPolicy("scim", httpContext =>
-                RateLimitPartition.GetFixedWindowLimiter(
+                RedisRateLimitPartition.GetFixedWindowRateLimiter(
                     GetTenantPartitionKey(httpContext),
-                    _ => new FixedWindowRateLimiterOptions
+                    _ => new RedisFixedWindowRateLimiterOptions
                     {
+                        ConnectionMultiplexerFactory = () => httpContext.RequestServices.GetRequiredService<IConnectionMultiplexer>(),
                         PermitLimit = RateLimitDefaults.ScimPermitLimit,
-                        Window = TimeSpan.FromMinutes(RateLimitDefaults.ScimWindowMinutes),
-                        QueueLimit = 0
+                        Window = TimeSpan.FromMinutes(RateLimitDefaults.ScimWindowMinutes)
                     }));
 
             options.AddPolicy("developer-app-registration", httpContext =>
-                RateLimitPartition.GetFixedWindowLimiter(
+                RedisRateLimitPartition.GetFixedWindowRateLimiter(
                     GetUserPartitionKey(httpContext),
-                    _ => new FixedWindowRateLimiterOptions
+                    _ => new RedisFixedWindowRateLimiterOptions
                     {
+                        ConnectionMultiplexerFactory = () => httpContext.RequestServices.GetRequiredService<IConnectionMultiplexer>(),
                         PermitLimit = RateLimitDefaults.DeveloperAppRegistrationPermitLimit,
-                        Window = TimeSpan.FromHours(RateLimitDefaults.DeveloperAppRegistrationWindowHours),
-                        QueueLimit = 0
+                        Window = TimeSpan.FromHours(RateLimitDefaults.DeveloperAppRegistrationWindowHours)
                     }));
 
             options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
-                RateLimitPartition.GetFixedWindowLimiter(
+                RedisRateLimitPartition.GetFixedWindowRateLimiter(
                     GetTenantPartitionKey(httpContext),
-                    _ => new FixedWindowRateLimiterOptions
+                    _ => new RedisFixedWindowRateLimiterOptions
                     {
+                        ConnectionMultiplexerFactory = () => httpContext.RequestServices.GetRequiredService<IConnectionMultiplexer>(),
                         PermitLimit = RateLimitDefaults.GlobalPermitLimit,
-                        Window = TimeSpan.FromHours(RateLimitDefaults.GlobalWindowHours),
-                        QueueLimit = 0
+                        Window = TimeSpan.FromHours(RateLimitDefaults.GlobalWindowHours)
                     }));
 
             options.OnRejected = async (context, cancellationToken) =>
@@ -222,7 +216,7 @@ internal static class ServiceCollectionExtensions
 
     private static string GetUserPartitionKey(HttpContext httpContext)
     {
-        string? userId = httpContext.User.FindFirst("sub")?.Value;
+        string? userId = httpContext.User.GetUserId();
         return userId ?? httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
     }
 
@@ -251,14 +245,13 @@ internal static class ServiceCollectionExtensions
                 "Set the 'OpenTelemetry:OtlpGrpcEndpoint' configuration value.");
         }
 
-        otlpGrpcEndpoint ??= "http://localhost:4317";
         Log.Information("OpenTelemetry OTLP endpoint: {OtlpEndpoint}", otlpGrpcEndpoint);
 
         services.AddOpenTelemetry()
             .ConfigureResource(resource => resource
                 .AddService(
                     serviceName: serviceName,
-                    serviceNamespace: "Wallow",
+                    serviceNamespace: configuration["Logging:NamespacePrefix"] ?? "Wallow",
                     serviceVersion: typeof(ServiceCollectionExtensions).Assembly
                         .GetName().Version?.ToString() ?? "1.0.0")
                 .AddAttributes(
@@ -296,42 +289,53 @@ internal static class ServiceCollectionExtensions
                     .AddRedisInstrumentation()
                     .AddSource("Wolverine")
                     .AddSource("Wallow")
-                    .AddSource("Wallow.*")
-                    .AddOtlpExporter(options =>
+                    .AddSource("Wallow.*");
+
+                if (!string.IsNullOrEmpty(otlpGrpcEndpoint))
+                {
+                    tracing.AddOtlpExporter(options =>
                     {
                         options.Endpoint = new Uri(otlpGrpcEndpoint);
                     });
+                }
             })
-            .WithMetrics(metrics => metrics
-                .SetExemplarFilter(ExemplarFilterType.TraceBased)
-                .AddAspNetCoreInstrumentation()
-                .AddProcessInstrumentation()
-                .AddRuntimeInstrumentation()
-                .AddHttpClientInstrumentation()
-                .AddMeter("Wolverine")
-                .AddMeter("Wallow")
-                .AddMeter("Wallow.*")
-                .AddMeter("Microsoft.AspNetCore.Authentication")
-                .AddMeter("Microsoft.AspNetCore.Authorization")
-                .AddMeter("Microsoft.Extensions.Http.Resilience")
-                .AddOtlpExporter(options =>
+            .WithMetrics(metrics =>
+            {
+                metrics
+                    .SetExemplarFilter(ExemplarFilterType.TraceBased)
+                    .AddAspNetCoreInstrumentation()
+                    .AddProcessInstrumentation()
+                    .AddRuntimeInstrumentation()
+                    .AddHttpClientInstrumentation()
+                    .AddMeter("Wolverine")
+                    .AddMeter("Wallow")
+                    .AddMeter("Wallow.*")
+                    .AddMeter("Microsoft.AspNetCore.Authentication")
+                    .AddMeter("Microsoft.AspNetCore.Authorization")
+                    .AddMeter("Microsoft.Extensions.Http.Resilience");
+
+                if (!string.IsNullOrEmpty(otlpGrpcEndpoint))
                 {
-                    options.Endpoint = new Uri(otlpGrpcEndpoint);
-                }));
+                    metrics.AddOtlpExporter(options =>
+                    {
+                        options.Endpoint = new Uri(otlpGrpcEndpoint);
+                    });
+                }
+            });
 
         return services;
     }
 
-    internal static Task TransformDocumentInfo(OpenApiDocument document)
+    internal static Task TransformDocumentInfo(OpenApiDocument document, string appName)
     {
         document.Info = new OpenApiInfo
         {
-            Title = "Wallow API",
+            Title = $"{appName} API",
             Version = "v1",
             Description = "A modular monolith API built with Clean Architecture, DDD, and CQRS",
             Contact = new OpenApiContact
             {
-                Name = "Wallow"
+                Name = appName
             }
         };
         return Task.CompletedTask;
@@ -371,6 +375,36 @@ internal static class ServiceCollectionExtensions
 
         return Task.CompletedTask;
     }
+
+    internal static Task TransformOperationModuleTag(
+        OpenApiOperation operation,
+        OpenApiOperationTransformerContext context)
+    {
+        // If the controller already has an explicit [Tags] attribute, don't override
+        if (context.Description.ActionDescriptor.EndpointMetadata.OfType<TagsAttribute>().Any())
+        {
+            return Task.CompletedTask;
+        }
+
+        string? ns = (context.Description.ActionDescriptor as ControllerActionDescriptor)
+            ?.ControllerTypeInfo.Namespace;
+
+        if (ns is not null)
+        {
+            Match match = ModuleNamePattern().Match(ns);
+            if (match.Success)
+            {
+                string moduleName = match.Groups[1].Value;
+                operation.Tags = new HashSet<OpenApiTagReference>();
+                operation.Tags.Add(new OpenApiTagReference(moduleName));
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
+    [GeneratedRegex(@"^Wallow\.(\w+)\.Api\b", RegexOptions.NonBacktracking)]
+    private static partial Regex ModuleNamePattern();
 
     internal static bool FilterTelemetryRequest(HttpContext context)
     {

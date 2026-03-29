@@ -1,7 +1,7 @@
+using Microsoft.Extensions.Logging;
 using Wallow.Billing.Domain.Events;
 using Wallow.Shared.Contracts.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
-using Microsoft.Extensions.Logging;
 using Wolverine;
 
 namespace Wallow.Billing.Application.EventHandlers;

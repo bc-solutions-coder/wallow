@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using Wallow.Shared.Contracts.Storage;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.Results;
@@ -7,7 +8,6 @@ using Wallow.Storage.Application.Interfaces;
 using Wallow.Storage.Application.Queries.GetPresignedUrl;
 using Wallow.Storage.Domain.Entities;
 using Wallow.Storage.Domain.Identity;
-using Microsoft.Extensions.Options;
 
 namespace Wallow.Storage.Tests.Application.Queries.GetPresignedUrl;
 
@@ -31,7 +31,7 @@ public class GetPresignedUrlFileStatusTests
         StorageBucketId bucketId = StorageBucketId.New();
         StoredFile file = StoredFile.CreatePendingValidation(
             tenantId, bucketId, "pending.pdf", "application/pdf", 1000, "key", Guid.NewGuid());
-        GetPresignedUrlQuery query = new(tenantId.Value, file.Id.Value);
+        GetPresignedUrlQuery query = new(file.Id.Value);
 
         _fileRepository.GetByIdAsync(Arg.Any<StoredFileId>(), Arg.Any<CancellationToken>())
             .Returns(file);
@@ -50,7 +50,7 @@ public class GetPresignedUrlFileStatusTests
         StoredFile file = StoredFile.CreatePendingValidation(
             tenantId, bucketId, "rejected.pdf", "application/pdf", 1000, "key", Guid.NewGuid());
         file.MarkAsRejected();
-        GetPresignedUrlQuery query = new(tenantId.Value, file.Id.Value);
+        GetPresignedUrlQuery query = new(file.Id.Value);
 
         _fileRepository.GetByIdAsync(Arg.Any<StoredFileId>(), Arg.Any<CancellationToken>())
             .Returns(file);
@@ -68,7 +68,7 @@ public class GetPresignedUrlFileStatusTests
         StorageBucket bucket = StorageBucket.Create(tenantId, "bucket");
         StoredFile file = StoredFile.Create(
             tenantId, bucket.Id, "available.pdf", "application/pdf", 1000, "storage/key", Guid.NewGuid());
-        GetPresignedUrlQuery query = new(tenantId.Value, file.Id.Value);
+        GetPresignedUrlQuery query = new(file.Id.Value);
 
         _fileRepository.GetByIdAsync(Arg.Any<StoredFileId>(), Arg.Any<CancellationToken>())
             .Returns(file);
@@ -93,7 +93,7 @@ public class GetPresignedUrlFileStatusTests
         GetPresignedUrlHandler handlerWithMaxExpiry = new(
             _fileRepository, _storageProvider, Options.Create(options));
         TimeSpan expiryOver2Hours = TimeSpan.FromHours(2);
-        GetPresignedUrlQuery query = new(tenantId.Value, file.Id.Value, Expiry: expiryOver2Hours);
+        GetPresignedUrlQuery query = new(file.Id.Value, Expiry: expiryOver2Hours);
 
         _fileRepository.GetByIdAsync(Arg.Any<StoredFileId>(), Arg.Any<CancellationToken>())
             .Returns(file);

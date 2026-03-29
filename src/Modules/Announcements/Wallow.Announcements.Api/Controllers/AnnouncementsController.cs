@@ -1,16 +1,17 @@
 using Asp.Versioning;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Wallow.Announcements.Api.Contracts.Responses;
 using Wallow.Announcements.Application.Announcements.Commands.DismissAnnouncement;
 using Wallow.Announcements.Application.Announcements.DTOs;
 using Wallow.Announcements.Application.Announcements.Queries.GetActiveAnnouncements;
 using Wallow.Shared.Api.Extensions;
+using Wallow.Shared.Kernel.Extensions;
 using Wallow.Shared.Kernel.Identity.Authorization;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Shared.Kernel.Results;
 using Wallow.Shared.Kernel.Services;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Wolverine;
 
 namespace Wallow.Announcements.Api.Controllers;
@@ -21,6 +22,7 @@ namespace Wallow.Announcements.Api.Controllers;
 [Authorize]
 [Tags("Announcements")]
 [Produces("application/json")]
+[IgnoreAntiforgeryToken]
 public class AnnouncementsController(IMessageBus bus, ITenantContext tenantContext, ICurrentUserService currentUserService) : ControllerBase
 {
 
@@ -75,14 +77,12 @@ public class AnnouncementsController(IMessageBus bus, ITenantContext tenantConte
 
     private List<string> GetUserRoles()
     {
-        return User.FindAll(System.Security.Claims.ClaimTypes.Role)
-            .Select(c => c.Value)
-            .ToList();
+        return User.GetRoles().ToList();
     }
 
     private string? GetUserPlan()
     {
-        return User.FindFirst("plan")?.Value;
+        return User.GetPlan();
     }
 
     private static AnnouncementResponse MapToResponse(AnnouncementDto dto)

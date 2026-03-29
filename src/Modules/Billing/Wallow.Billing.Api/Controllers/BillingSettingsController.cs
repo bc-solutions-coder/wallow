@@ -1,14 +1,14 @@
 using Asp.Versioning;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
 using Wallow.Shared.Api.Extensions;
 using Wallow.Shared.Kernel.Identity.Authorization;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Shared.Kernel.Results;
 using Wallow.Shared.Kernel.Services;
 using Wallow.Shared.Kernel.Settings;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Wallow.Billing.Api.Controllers;
 
@@ -18,6 +18,7 @@ namespace Wallow.Billing.Api.Controllers;
 [Authorize]
 [Tags("Billing Settings")]
 [Produces("application/json")]
+[IgnoreAntiforgeryToken]
 public class BillingSettingsController(
     [FromKeyedServices("billing")] ISettingsService settingsService,
     [FromKeyedServices("billing")] ISettingRegistry settingRegistry,

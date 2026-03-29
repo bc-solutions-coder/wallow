@@ -1,7 +1,6 @@
-using Wallow.Identity.Api.Contracts.Requests;
-using Wallow.Identity.Infrastructure.Middleware;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
+using Wallow.Identity.Infrastructure.Middleware;
 
 namespace Wallow.Identity.Tests.Infrastructure;
 
@@ -26,32 +25,4 @@ public class InfrastructureMiscTests
 
     #endregion
 
-    #region LogoutRequest
-
-    [Fact]
-    public void LogoutRequest_PropertyAccessible()
-    {
-        LogoutRequest request = new("my-refresh-token");
-
-        request.RefreshToken.Should().Be("my-refresh-token");
-    }
-
-    [Fact]
-    public void LogoutRequest_EmptyToken_IsValid()
-    {
-        LogoutRequest request = new("");
-
-        request.RefreshToken.Should().BeEmpty();
-    }
-
-    [Fact]
-    public void LogoutRequest_RecordEquality()
-    {
-        LogoutRequest request1 = new("token-abc");
-        LogoutRequest request2 = new("token-abc");
-
-        request1.Should().Be(request2);
-    }
-
-    #endregion
 }

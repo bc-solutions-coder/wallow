@@ -1,4 +1,6 @@
+using System.Reflection;
 using Wallow.Messaging.Domain.Conversations.Entities;
+using Wallow.Messaging.Domain.Conversations.Enums;
 using Wallow.Messaging.Domain.Conversations.Events;
 using Wallow.Messaging.Domain.Conversations.Exceptions;
 using Wallow.Shared.Kernel.Identity;
@@ -57,10 +59,16 @@ public class ConversationStateTests
     [Fact]
     public void SendMessage_ToArchivedConversation_ThrowsConversationException()
     {
-        // Conversation entity doesn't expose Archive method directly,
-        // so we test via the exception message from the domain
-        // Since there's no public Archive method, we skip this test
-        // unless the domain exposes archiving
+        Conversation conversation = CreateDirectConversation(out Guid senderId, out _);
+
+        // Use reflection to set Status to Archived since no public Archive method exists
+        PropertyInfo statusProperty = typeof(Conversation).GetProperty(nameof(Conversation.Status))!;
+        statusProperty.SetValue(conversation, ConversationStatus.Archived);
+
+        Action act = () => conversation.SendMessage(senderId, "Hello!", TimeProvider.System);
+
+        act.Should().Throw<ConversationException>()
+            .WithMessage("*archived conversation*");
     }
 
     [Fact]
@@ -97,6 +105,18 @@ public class ConversationStateTests
         Action act = () => conversation.MarkReadBy(nonParticipantId, TimeProvider.System);
 
         act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void MarkReadBy_WithInactiveParticipant_DoesNotUpdateLastReadAt()
+    {
+        Conversation conversation = CreateDirectConversation(out _, out Guid recipientId);
+        Participant recipient = conversation.Participants.Single(p => p.UserId == recipientId);
+        recipient.Leave();
+
+        conversation.MarkReadBy(recipientId, TimeProvider.System);
+
+        recipient.LastReadAt.Should().BeNull();
     }
 
     [Fact]

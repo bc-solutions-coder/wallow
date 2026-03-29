@@ -1,0 +1,12 @@
+@rendermode InteractiveServer
+@inject IJSRuntime JS
+
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JS.InvokeVoidAsync("document.body.setAttribute", "data-blazor-ready", "true");
+        }
+    }
+}

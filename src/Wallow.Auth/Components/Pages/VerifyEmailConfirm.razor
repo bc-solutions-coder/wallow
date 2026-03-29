@@ -1,0 +1,100 @@
+@page "/verify-email/confirm"
+@rendermode InteractiveServer
+@inject IAuthApiClient AuthApi
+@using Wallow.Auth.Configuration
+@inject BrandingOptions Branding
+
+<PageTitle>Verify Email — @Branding.AppName</PageTitle>
+
+<BbCard>
+    <BbCardHeader>
+        <BbCardTitle>Email Verification</BbCardTitle>
+    </BbCardHeader>
+    <BbCardContent>
+        @if (_loading)
+        {
+            <div class="flex items-center justify-center py-4">
+                <BbSpinner />
+                <span class="ml-2 text-sm text-muted-foreground">Verifying your email...</span>
+            </div>
+        }
+        else if (_succeeded)
+        {
+            <BbAlert>
+                <BbAlertTitle>Email verified!</BbAlertTitle>
+                <BbAlertDescription>Your email has been verified. You can now sign in.</BbAlertDescription>
+            </BbAlert>
+
+            @if (!string.IsNullOrEmpty(ReturnUrl))
+            {
+                <div class="mt-4">
+                    <BbButton Class="w-full" Href="@ReturnUrl">Continue</BbButton>
+                </div>
+            }
+        }
+        else
+        {
+            <BbAlert Variant="AlertVariant.Danger">
+                <BbAlertTitle>Verification failed</BbAlertTitle>
+                <BbAlertDescription>@_error</BbAlertDescription>
+            </BbAlert>
+        }
+    </BbCardContent>
+    <BbCardFooter>
+        <div class="text-center w-full">
+            <a href="@LoginUrl" class="text-sm text-muted-foreground hover:text-foreground">Go to sign in</a>
+        </div>
+    </BbCardFooter>
+</BbCard>
+
+@code {
+    [SupplyParameterFromQuery]
+    public string? Token { get; set; }
+
+    [SupplyParameterFromQuery]
+    public string? Email { get; set; }
+
+    [SupplyParameterFromQuery]
+    public string? ReturnUrl { get; set; }
+
+    private string LoginUrl => string.IsNullOrEmpty(ReturnUrl)
+        ? "/login"
+        : $"/login?returnUrl={Uri.EscapeDataString(ReturnUrl)}";
+
+    private bool _loading = true;
+    private bool _succeeded;
+    private string _error = "The verification link is invalid or has expired.";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (string.IsNullOrEmpty(Token) || string.IsNullOrEmpty(Email))
+        {
+            _loading = false;
+            _error = "Invalid verification link. Missing required parameters.";
+            return;
+        }
+
+        try
+        {
+            AuthResponse result = await AuthApi.VerifyEmailAsync(Email, Token);
+
+            _succeeded = result.Succeeded;
+            if (!result.Succeeded)
+            {
+                _error = result.Error switch
+                {
+                    "invalid_token" => "The verification link is invalid or has expired.",
+                    _ => "Failed to verify email. Please try again."
+                };
+            }
+        }
+        catch
+        {
+            _error = "An error occurred while verifying your email. Please try again.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}

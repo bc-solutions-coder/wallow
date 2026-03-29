@@ -6,8 +6,9 @@ namespace Wallow.Identity.IntegrationTests.Resilience;
 /// Tests HTTP client resilience policies (circuit breaker behavior).
 /// Uses WireMock to simulate upstream service failures.
 /// </summary>
+[Collection("IdentityResilience")]
 [Trait("Category", "Integration")]
-public class IdentityResilienceCircuitBreakerTests : IClassFixture<IdentityResilienceTestFactory>, IAsyncLifetime
+public class IdentityResilienceCircuitBreakerTests : IAsyncLifetime
 {
     private readonly IdentityResilienceTestFactory _factory;
     private IServiceScope? _scope;

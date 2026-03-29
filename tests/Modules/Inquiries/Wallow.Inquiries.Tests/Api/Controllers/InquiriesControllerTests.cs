@@ -1,15 +1,21 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Wallow.Inquiries.Api.Contracts;
 using Wallow.Inquiries.Api.Controllers;
+using Wallow.Inquiries.Application.Commands.AddInquiryComment;
 using Wallow.Inquiries.Application.Commands.SubmitInquiry;
 using Wallow.Inquiries.Application.Commands.UpdateInquiryStatus;
 using Wallow.Inquiries.Application.DTOs;
 using Wallow.Inquiries.Application.Queries.GetInquiries;
 using Wallow.Inquiries.Application.Queries.GetInquiryById;
+using Wallow.Inquiries.Application.Queries.GetInquiryComments;
 using Wallow.Inquiries.Domain.Enums;
-using Wallow.Shared.Kernel.Results;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+using Wallow.Inquiries.Domain.Identity;
+using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
+using Wallow.Shared.Kernel.Results;
 using Wolverine;
 
 namespace Wallow.Inquiries.Tests.Api.Controllers;
@@ -17,16 +23,44 @@ namespace Wallow.Inquiries.Tests.Api.Controllers;
 public class InquiriesControllerTests
 {
     private readonly IMessageBus _bus;
+    private readonly ITenantContext _tenantContext;
     private readonly InquiriesController _controller;
 
     public InquiriesControllerTests()
     {
         _bus = Substitute.For<IMessageBus>();
-        ITenantContext tenantContext = Substitute.For<ITenantContext>();
-        _controller = new InquiriesController(_bus, tenantContext);
+        _tenantContext = Substitute.For<ITenantContext>();
+        _tenantContext.TenantId.Returns(TenantId.Create(Guid.NewGuid()));
+        ILogger<InquiriesController> logger = Substitute.For<ILogger<InquiriesController>>();
+        _controller = new InquiriesController(_bus, _tenantContext, logger);
         _controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext()
+        };
+    }
+
+    private void SetUserWithClaims(string? sub = null, string? name = null, params string[] permissions)
+    {
+        List<Claim> claims = [];
+        if (sub is not null)
+        {
+            claims.Add(new Claim("sub", sub));
+        }
+
+        if (name is not null)
+        {
+            claims.Add(new Claim("name", name));
+        }
+
+        foreach (string permission in permissions)
+        {
+            claims.Add(new Claim("permission", permission));
+        }
+
+        ClaimsIdentity identity = new(claims, "TestAuth");
+        _controller.ControllerContext.HttpContext = new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(identity)
         };
     }
 
@@ -312,6 +346,186 @@ public class InquiriesControllerTests
         IActionResult result = await _controller.UpdateStatus(id, request, CancellationToken.None);
 
         result.Should().BeOfType<OkObjectResult>();
+    }
+
+    #endregion
+
+    #region AddComment
+
+    [Fact]
+    public async Task AddComment_WithValidRequest_ReturnsCreated()
+    {
+        Guid inquiryId = Guid.NewGuid();
+        Guid commentId = Guid.NewGuid();
+        SetUserWithClaims(sub: "user-1", name: "Test User");
+
+        _bus.InvokeAsync<Result<InquiryCommentId>>(Arg.Any<AddInquiryCommentCommand>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(InquiryCommentId.Create(commentId)));
+
+        AddInquiryCommentRequest request = new("Great progress!", false);
+
+        IActionResult result = await _controller.AddComment(inquiryId, request, CancellationToken.None);
+
+        CreatedResult created = result.Should().BeOfType<CreatedResult>().Subject;
+        created.Location.Should().Contain(commentId.ToString());
+    }
+
+    [Fact]
+    public async Task AddComment_WhenFailure_ReturnsError()
+    {
+        Guid inquiryId = Guid.NewGuid();
+        SetUserWithClaims(sub: "user-1", name: "Test User");
+
+        _bus.InvokeAsync<Result<InquiryCommentId>>(Arg.Any<AddInquiryCommentCommand>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Failure<InquiryCommentId>(Error.NotFound("Inquiry", inquiryId)));
+
+        AddInquiryCommentRequest request = new("Comment text", false);
+
+        IActionResult result = await _controller.AddComment(inquiryId, request, CancellationToken.None);
+
+        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        objectResult.StatusCode.Should().Be(StatusCodes.Status404NotFound);
+    }
+
+    [Fact]
+    public async Task AddComment_PassesCorrectCommandFields()
+    {
+        Guid inquiryId = Guid.NewGuid();
+        SetUserWithClaims(sub: "author-123", name: "Jane Doe");
+
+        _bus.InvokeAsync<Result<InquiryCommentId>>(Arg.Any<AddInquiryCommentCommand>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(InquiryCommentId.New()));
+
+        AddInquiryCommentRequest request = new("Internal note", true);
+
+        await _controller.AddComment(inquiryId, request, CancellationToken.None);
+
+        await _bus.Received(1).InvokeAsync<Result<InquiryCommentId>>(
+            Arg.Is<AddInquiryCommentCommand>(c =>
+                c.InquiryId == InquiryId.Create(inquiryId) &&
+                c.AuthorId == "author-123" &&
+                c.AuthorName == "Jane Doe" &&
+                c.Content == "Internal note" &&
+                c.IsInternal),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AddComment_WithNoNameClaim_UsesPreferredUsername()
+    {
+        Guid inquiryId = Guid.NewGuid();
+        List<Claim> claims =
+        [
+            new Claim("sub", "user-1"),
+            new Claim("preferred_username", "jdoe")
+        ];
+        _controller.ControllerContext.HttpContext = new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(new ClaimsIdentity(claims, "TestAuth"))
+        };
+
+        _bus.InvokeAsync<Result<InquiryCommentId>>(Arg.Any<AddInquiryCommentCommand>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(InquiryCommentId.New()));
+
+        AddInquiryCommentRequest request = new("Comment", false);
+
+        await _controller.AddComment(inquiryId, request, CancellationToken.None);
+
+        await _bus.Received(1).InvokeAsync<Result<InquiryCommentId>>(
+            Arg.Is<AddInquiryCommentCommand>(c => c.AuthorName == "jdoe"),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AddComment_WithNoNameOrUsername_UsesUnknown()
+    {
+        Guid inquiryId = Guid.NewGuid();
+        SetUserWithClaims(sub: "user-1");
+
+        _bus.InvokeAsync<Result<InquiryCommentId>>(Arg.Any<AddInquiryCommentCommand>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(InquiryCommentId.New()));
+
+        AddInquiryCommentRequest request = new("Comment", false);
+
+        await _controller.AddComment(inquiryId, request, CancellationToken.None);
+
+        await _bus.Received(1).InvokeAsync<Result<InquiryCommentId>>(
+            Arg.Is<AddInquiryCommentCommand>(c => c.AuthorName == "Unknown"),
+            Arg.Any<CancellationToken>());
+    }
+
+    #endregion
+
+    #region GetComments
+
+    [Fact]
+    public async Task GetComments_WithReadPermission_ReturnsAllComments()
+    {
+        Guid inquiryId = Guid.NewGuid();
+        SetUserWithClaims(sub: "admin", permissions: "InquiriesRead");
+
+        List<InquiryCommentDto> comments =
+        [
+            new InquiryCommentDto(Guid.NewGuid(), inquiryId, "author-1", "Author One", "Public comment", false, DateTimeOffset.UtcNow),
+            new InquiryCommentDto(Guid.NewGuid(), inquiryId, "author-2", "Author Two", "Internal note", true, DateTimeOffset.UtcNow)
+        ];
+
+        _bus.InvokeAsync<IReadOnlyList<InquiryCommentDto>>(Arg.Any<GetInquiryCommentsQuery>(), Arg.Any<CancellationToken>())
+            .Returns(comments);
+
+        IActionResult result = await _controller.GetComments(inquiryId, CancellationToken.None);
+
+        OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        IReadOnlyList<InquiryCommentResponse> responses = ok.Value.Should().BeAssignableTo<IReadOnlyList<InquiryCommentResponse>>().Subject;
+        responses.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public async Task GetComments_WithReadPermission_IncludesInternalComments()
+    {
+        Guid inquiryId = Guid.NewGuid();
+        SetUserWithClaims(sub: "admin", permissions: "InquiriesRead");
+
+        _bus.InvokeAsync<IReadOnlyList<InquiryCommentDto>>(Arg.Any<GetInquiryCommentsQuery>(), Arg.Any<CancellationToken>())
+            .Returns(new List<InquiryCommentDto>());
+
+        await _controller.GetComments(inquiryId, CancellationToken.None);
+
+        await _bus.Received(1).InvokeAsync<IReadOnlyList<InquiryCommentDto>>(
+            Arg.Is<GetInquiryCommentsQuery>(q =>
+                q.InquiryId == InquiryId.Create(inquiryId) &&
+                q.IncludeInternal),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task GetComments_MapsResponseFieldsCorrectly()
+    {
+        Guid inquiryId = Guid.NewGuid();
+        Guid commentId = Guid.NewGuid();
+        DateTimeOffset createdAt = DateTimeOffset.UtcNow;
+        SetUserWithClaims(sub: "admin", permissions: "InquiriesRead");
+
+        List<InquiryCommentDto> comments =
+        [
+            new InquiryCommentDto(commentId, inquiryId, "auth-1", "Author", "Content", true, createdAt)
+        ];
+
+        _bus.InvokeAsync<IReadOnlyList<InquiryCommentDto>>(Arg.Any<GetInquiryCommentsQuery>(), Arg.Any<CancellationToken>())
+            .Returns(comments);
+
+        IActionResult result = await _controller.GetComments(inquiryId, CancellationToken.None);
+
+        OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        IReadOnlyList<InquiryCommentResponse> responses = ok.Value.Should().BeAssignableTo<IReadOnlyList<InquiryCommentResponse>>().Subject;
+        InquiryCommentResponse response = responses[0];
+        response.Id.Should().Be(commentId);
+        response.InquiryId.Should().Be(inquiryId);
+        response.AuthorId.Should().Be("auth-1");
+        response.AuthorName.Should().Be("Author");
+        response.Content.Should().Be("Content");
+        response.IsInternal.Should().BeTrue();
+        response.CreatedAt.Should().Be(createdAt.UtcDateTime);
     }
 
     #endregion

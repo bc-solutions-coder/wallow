@@ -1,7 +1,7 @@
+using Microsoft.EntityFrameworkCore;
 using Wallow.Billing.Application.Interfaces;
 using Wallow.Billing.Domain.Entities;
 using Wallow.Billing.Domain.Identity;
-using Microsoft.EntityFrameworkCore;
 
 namespace Wallow.Billing.Infrastructure.Persistence.Repositories;
 
@@ -36,12 +36,19 @@ public sealed class InvoiceRepository(BillingDbContext context) : IInvoiceReposi
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyList<Invoice>> GetAllAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<Invoice>> GetAllAsync(int skip = 0, int take = 50, CancellationToken cancellationToken = default)
     {
         return await context.Invoices
             .Include(i => i.LineItems)
             .OrderByDescending(i => i.CreatedAt)
+            .Skip(skip)
+            .Take(take)
             .ToListAsync(cancellationToken);
+    }
+
+    public Task<int> CountAllAsync(CancellationToken cancellationToken = default)
+    {
+        return context.Invoices.CountAsync(cancellationToken);
     }
 
     public Task<bool> ExistsByInvoiceNumberAsync(string invoiceNumber, CancellationToken cancellationToken = default)

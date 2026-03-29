@@ -1,10 +1,9 @@
+using Microsoft.EntityFrameworkCore;
 using Wallow.Billing.Domain.CustomFields.Entities;
 using Wallow.Billing.Domain.Entities;
 using Wallow.Billing.Domain.Metering.Entities;
 using Wallow.Shared.Infrastructure.Core.Persistence;
 using Wallow.Shared.Infrastructure.Settings;
-using Wallow.Shared.Kernel.MultiTenancy;
-using Microsoft.EntityFrameworkCore;
 
 namespace Wallow.Billing.Infrastructure.Persistence;
 
@@ -21,8 +20,8 @@ public sealed class BillingDbContext : TenantAwareDbContext<BillingDbContext>
     public DbSet<TenantSettingEntity> TenantSettings => Set<TenantSettingEntity>();
     public DbSet<UserSettingEntity> UserSettings => Set<UserSettingEntity>();
 
-    public BillingDbContext(DbContextOptions<BillingDbContext> options, ITenantContext tenantContext)
-        : base(options, tenantContext)
+    public BillingDbContext(DbContextOptions<BillingDbContext> options)
+        : base(options)
     {
         ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
     }

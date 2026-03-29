@@ -1,4 +1,7 @@
 using Asp.Versioning;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Wallow.Notifications.Api.Contracts.InApp.Responses;
 using Wallow.Notifications.Application.Channels.InApp.Commands.MarkAllNotificationsRead;
 using Wallow.Notifications.Application.Channels.InApp.Commands.MarkNotificationRead;
@@ -10,9 +13,6 @@ using Wallow.Shared.Kernel.Identity.Authorization;
 using Wallow.Shared.Kernel.Pagination;
 using Wallow.Shared.Kernel.Results;
 using Wallow.Shared.Kernel.Services;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Wolverine;
 
 namespace Wallow.Notifications.Api.Controllers;
@@ -24,6 +24,7 @@ namespace Wallow.Notifications.Api.Controllers;
 [Tags("Notifications")]
 [Produces("application/json")]
 [Consumes("application/json")]
+[IgnoreAntiforgeryToken]
 public class NotificationsController(IMessageBus bus, ICurrentUserService currentUserService) : ControllerBase
 {
 
@@ -141,6 +142,7 @@ public class NotificationsController(IMessageBus bus, ICurrentUserService curren
         dto.Message,
         dto.IsRead,
         dto.ReadAt,
+        dto.ActionUrl,
         dto.CreatedAt,
         dto.UpdatedAt);
 }

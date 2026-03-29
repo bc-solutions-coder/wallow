@@ -1,4 +1,7 @@
 using Asp.Versioning;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Wallow.Billing.Application.CustomFields.Commands.CreateCustomFieldDefinition;
 using Wallow.Billing.Application.CustomFields.Commands.DeactivateCustomFieldDefinition;
 using Wallow.Billing.Application.CustomFields.Commands.ReorderCustomFields;
@@ -10,9 +13,6 @@ using Wallow.Shared.Api.Extensions;
 using Wallow.Shared.Kernel.CustomFields;
 using Wallow.Shared.Kernel.Identity.Authorization;
 using Wallow.Shared.Kernel.Results;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Wolverine;
 
 namespace Wallow.Billing.Api.Controllers;
@@ -25,6 +25,7 @@ namespace Wallow.Billing.Api.Controllers;
 [Tags("Custom Field Definitions")]
 [Produces("application/json")]
 [Consumes("application/json")]
+[IgnoreAntiforgeryToken]
 public class CustomFieldDefinitionsController(IMessageBus bus) : ControllerBase
 {
 

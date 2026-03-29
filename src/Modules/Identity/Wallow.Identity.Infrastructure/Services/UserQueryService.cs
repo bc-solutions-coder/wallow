@@ -1,9 +1,9 @@
-using Wallow.Identity.Domain.Entities;
-using Wallow.Identity.Infrastructure.Persistence;
-using Wallow.Shared.Contracts.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Infrastructure.Persistence;
+using Wallow.Shared.Contracts.Identity;
 
 namespace Wallow.Identity.Infrastructure.Services;
 
@@ -30,7 +30,6 @@ public sealed partial class UserQueryService(
         DateTimeOffset toOffset = new(to, TimeSpan.Zero);
 
         int count = await dbContext.Users
-            .Where(u => u.TenantId == tenantId)
             .Where(u => u.CreatedAt >= fromOffset && u.CreatedAt < toOffset)
             .CountAsync(ct);
 
@@ -41,7 +40,6 @@ public sealed partial class UserQueryService(
     public async Task<int> GetActiveUsersCountAsync(Guid tenantId, CancellationToken ct = default)
     {
         int count = await dbContext.Users
-            .Where(u => u.TenantId == tenantId)
             .Where(u => u.IsActive)
             .CountAsync(ct);
 
@@ -52,11 +50,60 @@ public sealed partial class UserQueryService(
     public async Task<int> GetTotalUsersCountAsync(Guid tenantId, CancellationToken ct = default)
     {
         int count = await dbContext.Users
-            .Where(u => u.TenantId == tenantId)
             .CountAsync(ct);
 
         LogTotalUsersCount(count, tenantId);
         return count;
+    }
+
+    public async Task<UserSearchPageResult> SearchUsersAsync(Guid tenantId, string? search, int skip, int take, CancellationToken ct = default)
+    {
+        IQueryable<WallowUser> query = dbContext.Users.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            string pattern = $"%{search}%";
+            query = query.Where(u =>
+                EF.Functions.ILike(u.Email!, pattern) ||
+                EF.Functions.ILike(u.FirstName!, pattern) ||
+                EF.Functions.ILike(u.LastName!, pattern));
+        }
+
+        int totalCount = await query.CountAsync(ct);
+
+        List<WallowUser> users = await query
+            .OrderBy(u => u.Email)
+            .Skip(skip)
+            .Take(take)
+            .ToListAsync(ct);
+
+        List<Guid> userIds = users.Select(u => u.Id).ToList();
+
+        // Batch role lookup: join UserRoles with Roles, group by UserId
+        Dictionary<Guid, List<string>> rolesByUserId = await dbContext.Set<IdentityUserRole<Guid>>()
+            .Where(ur => userIds.Contains(ur.UserId))
+            .Join(
+                dbContext.Set<WallowRole>(),
+                ur => ur.RoleId,
+                r => r.Id,
+                (ur, r) => new { ur.UserId, RoleName = r.Name! })
+            .GroupBy(x => x.UserId)
+            .ToDictionaryAsync(
+                g => g.Key,
+                g => g.Select(x => x.RoleName).ToList(),
+                ct);
+
+        List<UserSearchItem> items = users.Select(u => new UserSearchItem(
+            u.Id,
+            u.Email ?? string.Empty,
+            u.FirstName ?? string.Empty,
+            u.LastName ?? string.Empty,
+            u.IsActive,
+            rolesByUserId.GetValueOrDefault(u.Id, []))).ToList();
+
+        int page = take > 0 ? (skip / take) + 1 : 1;
+
+        return new UserSearchPageResult(items, totalCount, page, take);
     }
 }
 

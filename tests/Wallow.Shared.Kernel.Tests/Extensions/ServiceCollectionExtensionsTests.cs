@@ -1,6 +1,6 @@
+using Microsoft.Extensions.DependencyInjection;
 using Wallow.Shared.Kernel.Extensions;
 using Wallow.Shared.Kernel.MultiTenancy;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Wallow.Shared.Kernel.Tests.Extensions;
 
@@ -47,7 +47,7 @@ public class ServiceCollectionExtensionsTests
     }
 
     [Fact]
-    public void AddSharedKernel_RegistersTenantSaveChangesInterceptor_AsScoped()
+    public void AddSharedKernel_RegistersTenantSaveChangesInterceptor_AsSingleton()
     {
         ServiceCollection services = new();
 
@@ -56,7 +56,7 @@ public class ServiceCollectionExtensionsTests
         ServiceDescriptor? descriptor = services.FirstOrDefault(
             d => d.ServiceType == typeof(TenantSaveChangesInterceptor));
         descriptor.Should().NotBeNull();
-        descriptor.Lifetime.Should().Be(ServiceLifetime.Scoped);
+        descriptor.Lifetime.Should().Be(ServiceLifetime.Singleton);
     }
 
     [Fact]

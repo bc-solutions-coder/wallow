@@ -1,23 +1,30 @@
 using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Claims;
-using Wallow.Identity.Domain.Entities;
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using OpenIddict.Abstractions;
 using OpenIddict.Server.AspNetCore;
+using Wallow.Identity.Domain.Entities;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
 namespace Wallow.Identity.Api.Controllers;
 
+[ExcludeFromCodeCoverage]
 [Controller]
 [Route("~/connect/token")]
+[AllowAnonymous]
+[EnableRateLimiting("auth")]
+[IgnoreAntiforgeryToken]
 public sealed class TokenController(UserManager<WallowUser> userManager) : Controller
 {
     // OAuth token endpoint — antiforgery tokens are not applicable for machine-to-machine OAuth flows
 #pragma warning disable CA5391
-    [HttpPost, Produces("application/json"), IgnoreAntiforgeryToken]
+    [HttpPost, Produces("application/json")]
     public async Task<IActionResult> Exchange()
 #pragma warning restore CA5391
     {
@@ -82,32 +89,44 @@ public sealed class TokenController(UserManager<WallowUser> userManager) : Contr
             identity.AddClaim(Claims.Role, role);
         }
 
-        identity.SetScopes(principal.GetScopes());
+        // Carry forward tenant claims from the original principal
+        string? orgId = principal.GetClaim("org_id");
+        if (orgId is not null)
+        {
+            identity.SetClaim("org_id", orgId);
+        }
+
+        string? orgName = principal.GetClaim("org_name");
+        if (orgName is not null)
+        {
+            identity.SetClaim("org_name", orgName);
+        }
 
         foreach (Claim claim in identity.Claims)
         {
             claim.SetDestinations(GetDestinations(claim));
         }
 
-        return SignIn(new ClaimsPrincipal(identity),
+        ClaimsPrincipal claimsPrincipal = new(identity);
+        claimsPrincipal.SetScopes(principal.GetScopes());
+
+        return SignIn(claimsPrincipal,
             OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
     }
 
     private async Task<IActionResult> HandleClientCredentialsAsync()
     {
-        AuthenticateResult result = await HttpContext.AuthenticateAsync(
-            OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
-
-        ClaimsPrincipal principal = result.Principal
-            ?? throw new InvalidOperationException("The authenticated principal cannot be retrieved.");
+        OpenIddictRequest request = HttpContext.GetOpenIddictServerRequest()
+            ?? throw new InvalidOperationException("The OpenID Connect request cannot be retrieved.");
 
         ClaimsIdentity identity = new(
             authenticationType: OpenIddictServerAspNetCoreDefaults.AuthenticationScheme,
             nameType: Claims.Name,
             roleType: Claims.Role);
 
-        string? clientId = principal.GetClaim(Claims.Subject);
+        string? clientId = request.ClientId;
         identity.SetClaim(Claims.Subject, clientId);
+        identity.SetClaim(Claims.AuthorizedParty, clientId);
 
         // Extract tenant_id from service account client_id pattern: sa-{tenantId}-{name}
         if (clientId is not null)
@@ -119,14 +138,15 @@ public sealed class TokenController(UserManager<WallowUser> userManager) : Contr
             }
         }
 
-        identity.SetScopes(principal.GetScopes());
-
         foreach (Claim claim in identity.Claims)
         {
             claim.SetDestinations(GetDestinations(claim));
         }
 
-        return SignIn(new ClaimsPrincipal(identity),
+        ClaimsPrincipal claimsPrincipal = new(identity);
+        claimsPrincipal.SetScopes(request.GetScopes());
+
+        return SignIn(claimsPrincipal,
             OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
     }
 
@@ -142,7 +162,7 @@ public sealed class TokenController(UserManager<WallowUser> userManager) : Contr
                 when claim.Subject?.HasScope(Scopes.Roles) == true
                 => [Destinations.AccessToken, Destinations.IdentityToken],
 
-            "tenant_id" => [Destinations.AccessToken, Destinations.IdentityToken],
+            "tenant_id" or "org_id" or "org_name" => [Destinations.AccessToken, Destinations.IdentityToken],
 
             Claims.Subject => [Destinations.AccessToken, Destinations.IdentityToken],
 

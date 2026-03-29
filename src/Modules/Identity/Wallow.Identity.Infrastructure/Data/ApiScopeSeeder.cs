@@ -1,7 +1,7 @@
-using Wallow.Identity.Domain.Entities;
-using Wallow.Identity.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Infrastructure.Persistence;
 
 namespace Wallow.Identity.Infrastructure.Data;
 

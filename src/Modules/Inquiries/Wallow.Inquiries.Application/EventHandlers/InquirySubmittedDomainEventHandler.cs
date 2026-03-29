@@ -1,8 +1,8 @@
+using Microsoft.Extensions.Configuration;
 using Wallow.Inquiries.Application.Interfaces;
 using Wallow.Inquiries.Domain.Entities;
 using Wallow.Inquiries.Domain.Events;
 using Wallow.Inquiries.Domain.Identity;
-using Microsoft.Extensions.Configuration;
 using Wolverine;
 
 namespace Wallow.Inquiries.Application.EventHandlers;
@@ -20,6 +20,7 @@ public static class InquirySubmittedDomainEventHandler
             InquiryId.Create(domainEvent.InquiryId), ct);
 
         string adminEmail = configuration["Inquiries:AdminEmail"] ?? "admin@wallow.local";
+        List<Guid> adminUserIds = configuration.GetSection("Inquiries:AdminUserIds").Get<List<Guid>>() ?? [];
 
         await bus.PublishAsync(new Shared.Contracts.Inquiries.Events.InquirySubmittedEvent
         {
@@ -31,7 +32,8 @@ public static class InquirySubmittedDomainEventHandler
             ProjectType = domainEvent.ProjectType,
             Message = domainEvent.Message,
             SubmittedAt = inquiry?.CreatedAt ?? DateTime.UtcNow,
-            AdminEmail = adminEmail
+            AdminEmail = adminEmail,
+            AdminUserIds = adminUserIds
         });
     }
 }

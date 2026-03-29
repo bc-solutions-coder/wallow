@@ -21,7 +21,8 @@ public class InquirySubmittedNotificationHandlerTests
             ProjectType = "Sales Question",
             Message = "I have a question about pricing.",
             SubmittedAt = DateTime.UtcNow,
-            AdminEmail = "admin@company.com"
+            AdminEmail = "admin@company.com",
+            AdminUserIds = []
         };
 
         await InquirySubmittedNotificationHandler.Handle(@event, _bus);

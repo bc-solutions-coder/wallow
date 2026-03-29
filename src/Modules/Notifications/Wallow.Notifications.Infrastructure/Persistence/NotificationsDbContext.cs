@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Wallow.Notifications.Domain.Channels.Email.Entities;
 using Wallow.Notifications.Domain.Channels.InApp.Entities;
 using Wallow.Notifications.Domain.Channels.Push;
@@ -5,8 +6,6 @@ using Wallow.Notifications.Domain.Channels.Push.Entities;
 using Wallow.Notifications.Domain.Channels.Sms.Entities;
 using Wallow.Notifications.Domain.Preferences.Entities;
 using Wallow.Shared.Infrastructure.Core.Persistence;
-using Wallow.Shared.Kernel.MultiTenancy;
-using Microsoft.EntityFrameworkCore;
 
 namespace Wallow.Notifications.Infrastructure.Persistence;
 
@@ -31,8 +30,8 @@ public sealed class NotificationsDbContext : TenantAwareDbContext<NotificationsD
     public DbSet<TenantPushConfiguration> TenantPushConfigurations => Set<TenantPushConfiguration>();
     public DbSet<PushMessage> PushMessages => Set<PushMessage>();
 
-    public NotificationsDbContext(DbContextOptions<NotificationsDbContext> options, ITenantContext tenantContext)
-        : base(options, tenantContext)
+    public NotificationsDbContext(DbContextOptions<NotificationsDbContext> options)
+        : base(options)
     {
         ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
     }

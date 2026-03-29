@@ -3,11 +3,14 @@ using Wallow.Inquiries.Domain.Events;
 using Wallow.Inquiries.Domain.Exceptions;
 using Wallow.Inquiries.Domain.Identity;
 using Wallow.Shared.Kernel.Domain;
+using Wallow.Shared.Kernel.Identity;
+using Wallow.Shared.Kernel.MultiTenancy;
 
 namespace Wallow.Inquiries.Domain.Entities;
 
-public sealed class Inquiry : AggregateRoot<InquiryId>
+public sealed class Inquiry : AggregateRoot<InquiryId>, ITenantScoped
 {
+    public TenantId TenantId { get; init; }
     public string Name { get; private set; } = string.Empty;
     public string Email { get; private set; } = string.Empty;
     public string Phone { get; private set; } = string.Empty;
@@ -85,6 +88,19 @@ public sealed class Inquiry : AggregateRoot<InquiryId>
             Id.Value,
             oldStatus.ToString(),
             newStatus.ToString()));
+    }
+
+    public void LinkToSubmitter(string submitterId, TimeProvider timeProvider)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(submitterId);
+
+        if (SubmitterId is not null)
+        {
+            return;
+        }
+
+        SubmitterId = submitterId;
+        SetUpdated(timeProvider.GetUtcNow());
     }
 
     private static bool IsValidTransition(InquiryStatus current, InquiryStatus target) =>

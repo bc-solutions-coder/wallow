@@ -1,8 +1,7 @@
+using Microsoft.EntityFrameworkCore;
 using Wallow.Shared.Infrastructure.Core.Persistence;
 using Wallow.Shared.Infrastructure.Settings;
-using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Storage.Domain.Entities;
-using Microsoft.EntityFrameworkCore;
 
 namespace Wallow.Storage.Infrastructure.Persistence;
 
@@ -13,8 +12,8 @@ public sealed class StorageDbContext : TenantAwareDbContext<StorageDbContext>
     public DbSet<TenantSettingEntity> TenantSettings => Set<TenantSettingEntity>();
     public DbSet<UserSettingEntity> UserSettings => Set<UserSettingEntity>();
 
-    public StorageDbContext(DbContextOptions<StorageDbContext> options, ITenantContext tenantContext)
-        : base(options, tenantContext)
+    public StorageDbContext(DbContextOptions<StorageDbContext> options)
+        : base(options)
     {
         ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
     }

@@ -1,5 +1,4 @@
 using System.Net;
-using Wallow.Shared.Infrastructure.Core.Resilience;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Extensions.Logging;
@@ -9,6 +8,7 @@ using NSubstitute.Core;
 using Polly;
 using Polly.CircuitBreaker;
 using Polly.Retry;
+using Wallow.Shared.Infrastructure.Core.Resilience;
 
 #pragma warning disable CA1873
 #pragma warning disable CA2000

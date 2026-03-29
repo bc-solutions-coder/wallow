@@ -1,7 +1,7 @@
+using Microsoft.EntityFrameworkCore;
 using Wallow.Billing.Infrastructure.Persistence;
 using Wallow.Tests.Common.Bases;
 using Wallow.Tests.Common.Fixtures;
-using Microsoft.EntityFrameworkCore;
 
 namespace Wallow.Billing.Tests.Infrastructure.Persistence;
 

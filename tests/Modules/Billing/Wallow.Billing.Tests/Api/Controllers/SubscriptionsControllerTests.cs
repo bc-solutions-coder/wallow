@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Wallow.Billing.Api.Contracts.Subscriptions;
 using Wallow.Billing.Api.Controllers;
 using Wallow.Billing.Application.Commands.CancelSubscription;
@@ -8,8 +10,6 @@ using Wallow.Billing.Application.Queries.GetSubscriptionById;
 using Wallow.Billing.Application.Queries.GetSubscriptionsByUserId;
 using Wallow.Shared.Kernel.Results;
 using Wallow.Shared.Kernel.Services;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Wolverine;
 
 namespace Wallow.Billing.Tests.Api.Controllers;

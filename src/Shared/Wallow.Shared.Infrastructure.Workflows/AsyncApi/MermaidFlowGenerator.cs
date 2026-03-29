@@ -14,7 +14,7 @@ public static class MermaidFlowGenerator
         StringBuilder sb = new();
         sb.AppendLine("flowchart LR");
         sb.AppendLine();
-        sb.AppendLine("    exchange{{RabbitMQ}}");
+        sb.AppendLine("    exchange{{Message Bus}}");
 
         IOrderedEnumerable<IGrouping<string, EventFlowInfo>> grouped = flows
             .GroupBy(f => f.SourceModule)

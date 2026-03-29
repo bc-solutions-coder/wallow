@@ -1,14 +1,14 @@
-using Wallow.Identity.Domain.Entities;
-using Wallow.Tests.Common.Helpers;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
 using OpenIddict.Abstractions;
+using Wallow.Identity.Domain.Entities;
+using Wallow.Tests.Common.Helpers;
 
 namespace Wallow.Identity.IntegrationTests;
 
 /// <summary>
 /// Seeds test users via ASP.NET Core Identity and test OAuth2 clients via OpenIddict.
-/// Used by integration tests that need realistic identity state without Keycloak.
+/// Used by integration tests that need realistic identity state.
 /// </summary>
 public sealed class IdentityFixture
 {
@@ -16,6 +16,9 @@ public sealed class IdentityFixture
     public const string TestUserPassword = "Test1234!";
     public const string TestUserFirstName = "Test";
     public const string TestUserLastName = "User";
+
+    public const string AdminUserEmail = "admin@wallow.dev";
+    public const string AdminUserPassword = "Admin1234!";
 
     public const string ServiceAccountClientId = "test-service-account";
     public const string ServiceAccountClientSecret = "test-service-secret";
@@ -27,13 +30,50 @@ public sealed class IdentityFixture
 
     public async Task SeedAsync(IServiceProvider services)
     {
+        await SeedRolesAsync(services);
         await SeedUsersAsync(services);
         await SeedClientsAsync(services);
+    }
+
+    private static async Task SeedRolesAsync(IServiceProvider services)
+    {
+        RoleManager<WallowRole> roleManager = services.GetRequiredService<RoleManager<WallowRole>>();
+
+        string[] roles = ["admin", "manager", "user"];
+        foreach (string roleName in roles)
+        {
+            if (!await roleManager.RoleExistsAsync(roleName))
+            {
+                await roleManager.CreateAsync(new WallowRole { Name = roleName });
+            }
+        }
     }
 
     private async Task SeedUsersAsync(IServiceProvider services)
     {
         UserManager<WallowUser> userManager = services.GetRequiredService<UserManager<WallowUser>>();
+
+        // Seed admin user to satisfy SetupMiddleware (which blocks requests until an admin exists)
+        WallowUser? existingAdmin = await userManager.FindByEmailAsync(AdminUserEmail);
+        if (existingAdmin is null)
+        {
+            WallowUser adminUser = WallowUser.Create(
+                Guid.Empty,
+                "Admin",
+                "User",
+                AdminUserEmail,
+                TimeProvider.System);
+            adminUser.EmailConfirmed = true;
+
+            IdentityResult adminResult = await userManager.CreateAsync(adminUser, AdminUserPassword);
+            if (!adminResult.Succeeded)
+            {
+                string errors = string.Join("; ", adminResult.Errors.Select(e => e.Description));
+                throw new InvalidOperationException($"Failed to seed admin user: {errors}");
+            }
+
+            await userManager.AddToRoleAsync(adminUser, "admin");
+        }
 
         WallowUser? existing = await userManager.FindByEmailAsync(TestUserEmail);
         if (existing is not null)

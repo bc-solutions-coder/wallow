@@ -1,9 +1,10 @@
-using Wallow.Inquiries.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Wallow.Inquiries.Domain.Entities;
+using Wallow.Shared.Infrastructure.Core.Persistence;
 
 namespace Wallow.Inquiries.Infrastructure.Persistence;
 
-public sealed class InquiriesDbContext : DbContext
+public sealed class InquiriesDbContext : TenantAwareDbContext<InquiriesDbContext>
 {
     public DbSet<Inquiry> Inquiries => Set<Inquiry>();
     public DbSet<InquiryComment> InquiryComments => Set<InquiryComment>();
@@ -18,5 +19,7 @@ public sealed class InquiriesDbContext : DbContext
     {
         modelBuilder.HasDefaultSchema("inquiries");
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(InquiriesDbContext).Assembly);
+
+        ApplyTenantQueryFilters(modelBuilder);
     }
 }

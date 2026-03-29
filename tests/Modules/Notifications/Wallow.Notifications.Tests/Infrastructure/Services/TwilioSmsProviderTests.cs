@@ -1,9 +1,9 @@
 using System.Net;
 using System.Text;
-using Wallow.Notifications.Application.Channels.Sms.Interfaces;
-using Wallow.Notifications.Infrastructure.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Wallow.Notifications.Application.Channels.Sms.Interfaces;
+using Wallow.Notifications.Infrastructure.Services;
 
 namespace Wallow.Notifications.Tests.Infrastructure.Services;
 

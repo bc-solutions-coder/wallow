@@ -285,7 +285,8 @@ public class ContractEventsTests
             UserId = userId,
             TenantId = Guid.NewGuid(),
             Email = "reset@example.com",
-            ResetToken = "token-abc-123"
+            ResetToken = "token-abc-123",
+            ResetUrl = "http://localhost/reset?token=token-abc-123"
         };
 
         evt.UserId.Should().Be(userId);
@@ -446,7 +447,8 @@ public class ContractEventsTests
             ProjectType = "Question",
             Message = "Hello, I have a question",
             SubmittedAt = DateTime.UtcNow,
-            AdminEmail = "admin@wallow.dev"
+            AdminEmail = "admin@wallow.dev",
+            AdminUserIds = []
         };
 
         evt.InquiryId.Should().Be(inquiryId);
@@ -467,7 +469,8 @@ public class ContractEventsTests
             ProjectType = "Subject",
             Message = "Message",
             SubmittedAt = DateTime.UtcNow,
-            AdminEmail = "admin@wallow.dev"
+            AdminEmail = "admin@wallow.dev",
+            AdminUserIds = []
         };
 
         evt.Company.Should().BeNull();

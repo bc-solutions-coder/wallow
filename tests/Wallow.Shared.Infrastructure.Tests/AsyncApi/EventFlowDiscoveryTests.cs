@@ -141,6 +141,61 @@ namespace Wallow.Shared.Infrastructure.Tests.AsyncApi
             invoiceFlow.Consumers.Should().Contain(c =>
                 c.HandlerTypeName == nameof(TestOrderSaga) && c.HandlerMethodName == "HandleAsync" && c.IsSaga);
         }
+
+        [Fact]
+        public void Discover_EmptyAssemblyList_ReturnsEmpty()
+        {
+            IReadOnlyList<EventFlowInfo> flows = _sut.Discover([]);
+
+            flows.Should().BeEmpty();
+        }
+
+        [Fact]
+        public void Discover_EventWithFullName_SetsExchangeNameToFullName()
+        {
+            IReadOnlyList<EventFlowInfo> flows = _sut.Discover([typeof(TestOrderPlacedEvent).Assembly]);
+
+            EventFlowInfo flow = flows.Single(f => f.EventTypeName == nameof(TestInvoicePaidEvent));
+            flow.ExchangeName.Should().Be(typeof(TestInvoicePaidEvent).FullName);
+        }
+
+        [Fact]
+        public void Discover_EventNotTriggeredBySaga_HasSagaTriggerFalse()
+        {
+            IReadOnlyList<EventFlowInfo> flows = _sut.Discover([typeof(TestOrderPlacedEvent).Assembly]);
+
+            EventFlowInfo orphanFlow = flows.Single(f => f.EventTypeName == nameof(TestOrphanEvent));
+            orphanFlow.SagaTrigger.Should().BeFalse();
+        }
+
+        [Fact]
+        public void EventFlowInfo_ConsumerModules_ReturnsDistinctModules()
+        {
+            IReadOnlyList<EventFlowInfo> flows = _sut.Discover([typeof(TestOrderPlacedEvent).Assembly]);
+
+            EventFlowInfo orderFlow = flows.Single(f => f.EventTypeName == nameof(TestOrderPlacedEvent));
+            IReadOnlyList<string> modules = orderFlow.ConsumerModules;
+            modules.Should().OnlyHaveUniqueItems();
+        }
+
+        [Fact]
+        public void Discover_HandlerWithNoMatchingEventParam_IsIgnored()
+        {
+            IReadOnlyList<EventFlowInfo> flows = _sut.Discover([typeof(TestOrderPlacedEvent).Assembly]);
+
+            EventFlowInfo orphanFlow = flows.Single(f => f.EventTypeName == nameof(TestOrphanEvent));
+            orphanFlow.Consumers.Should().BeEmpty();
+        }
+
+        [Fact]
+        public void Discover_InvoicePaidEvent_HasSagaTriggerFalse()
+        {
+            // InvoicePaidEvent is handled by saga's Handle (not Start), so it should NOT be a saga trigger
+            IReadOnlyList<EventFlowInfo> flows = _sut.Discover([typeof(TestOrderPlacedEvent).Assembly]);
+
+            EventFlowInfo invoiceFlow = flows.Single(f => f.EventTypeName == nameof(TestInvoicePaidEvent));
+            invoiceFlow.SagaTrigger.Should().BeFalse();
+        }
     }
 }
 

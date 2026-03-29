@@ -1,0 +1,39 @@
+@page "/error"
+@using Wallow.Auth.Configuration
+@inject BrandingOptions Branding
+
+<PageTitle>Error — @Branding.AppName</PageTitle>
+
+<BbCard>
+    <BbCardHeader>
+        <BbCardTitle>Something went wrong</BbCardTitle>
+    </BbCardHeader>
+    <BbCardContent>
+        <BbAlert Variant="AlertVariant.Danger">
+            <BbAlertDescription>@ErrorMessage</BbAlertDescription>
+        </BbAlert>
+    </BbCardContent>
+    <BbCardFooter>
+        <div class="flex flex-col items-center gap-2 w-full">
+            @if (Reason == "not_a_member")
+            {
+                <a href="/logout" class="text-sm font-medium text-primary hover:text-primary/80">Sign out and try a different account</a>
+            }
+            <a href="/" class="text-sm text-muted-foreground hover:text-foreground">Back to home</a>
+        </div>
+    </BbCardFooter>
+</BbCard>
+
+@code {
+    [SupplyParameterFromQuery(Name = "reason")]
+    public string? Reason { get; set; }
+
+    private string ErrorMessage => Reason switch
+    {
+        "not_a_member" => "You don't have access to this application.",
+        "invalid_redirect_uri" => "The redirect destination is not permitted.",
+        "access_denied" => "Access was denied. Please try again or contact support.",
+        "invalid_request" => "The request was invalid. Please try again.",
+        _ => "An unexpected error occurred. Please try again."
+    };
+}

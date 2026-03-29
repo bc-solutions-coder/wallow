@@ -1,21 +1,28 @@
 # CLAUDE.md
 
-Wallow is a .NET 10 modular monolith with multi-tenancy, Clean Architecture, DDD, CQRS, and RabbitMQ messaging. Teams fork and extend this as a base platform.
+Wallow is a .NET 10 modular monolith with multi-tenancy, Clean Architecture, DDD, CQRS, and Wolverine in-memory messaging. Teams fork and extend this as a base platform.
 
 ## Commands
 
 ```bash
-# Start infrastructure (Postgres, Mailpit, Valkey)
+# Start infrastructure (Postgres, Valkey, GarageHQ, Mailpit, Grafana)
 cd docker && docker compose up -d
+
+# Start infrastructure with ClamAV virus scanning
+cd docker && docker compose --profile clamav up -d
 
 # Run the API
 dotnet run --project src/Wallow.Api
 
-# Run all tests
-dotnet test
+# Run all tests (structured output with per-assembly results)
+./scripts/run-tests.sh
 
 # Run specific module tests
-dotnet test tests/Modules/Billing/Billing.Domain.Tests
+./scripts/run-tests.sh billing
+./scripts/run-tests.sh identity
+# Supported: identity, billing, storage, notifications, messaging, announcements,
+#            inquiries, branding, apikeys, auth, auth-components, web, web-components,
+#            e2e, api, arch, shared, kernel, integration
 
 # EF Core migrations
 dotnet ef migrations add MigrationName \
@@ -26,9 +33,9 @@ dotnet ef migrations add MigrationName \
 
 ## Architecture
 
-**Modules:** Identity, Billing, Storage, Notifications, Messaging, Announcements, Inquiries
+**Modules:** Identity, Billing, Storage, Notifications, Messaging, Announcements, Inquiries, ApiKeys, Branding
 
-- Modules communicate via RabbitMQ events, never direct references
+- Modules communicate via Wolverine in-memory events, never direct references
 - Modules only reference `Shared.Contracts` for cross-module communication
 - Each module owns its database schema (separate PostgreSQL schemas)
 - Clean Architecture per module: Domain -> Application -> Infrastructure -> Api
@@ -37,9 +44,16 @@ dotnet ef migrations add MigrationName \
 - Wolverine auto-discovers handlers in all `Wallow.*` assemblies
 - Package versions centrally managed in `Directory.Packages.props`
 
+## Fork-First Architecture
+
+- **Two UI boundaries:** `Wallow.Auth` (login, register, password reset) and `Wallow.Web` (dashboard, public pages) — each is a separate Blazor app
+- **BrandingOptions pattern:** `Wallow.Auth` owns the canonical `BrandingOptions` class; `Wallow.Web` has a local copy. Both read from `branding.json` at the repo root
+- **Config-driven customization:** Forks customize identity via `branding.json` (name, icon, tagline, theme colors) and `appsettings.json` — no source code changes required for rebranding
+- **Merge driver:** `.gitattributes` marks `branding.json`, `appsettings*.json`, `docker/.env`, and `CLAUDE.md` as `merge=ours` so upstream merges preserve fork config
+
 ## Versioning
 
-Automated semver via [Conventional Commits](https://www.conventionalcommits.org/) + [release-please](https://github.com/googleapis/release-please). See `docs/VERSIONING_GUIDE.md`.
+Automated semver via [Conventional Commits](https://www.conventionalcommits.org/) + [release-please](https://github.com/googleapis/release-please). See `docs/operations/versioning.md`.
 
 **Commit message format:** `<type>[optional scope][!]: <description>`
 
@@ -57,18 +71,21 @@ Automated semver via [Conventional Commits](https://www.conventionalcommits.org/
 
 | Service | URL | Credentials |
 |---------|-----|-------------|
-| API | http://localhost:5000 | N/A |
-| RabbitMQ | http://localhost:15672 | See `docker/.env` |
+| API | http://localhost:5001 | N/A |
+| Docs | http://localhost:5004 | N/A |
+| GarageHQ (S3) | http://localhost:3900 | See `docker/.env` |
 | Mailpit | http://localhost:8025 | N/A |
 | Grafana | http://localhost:3001 | admin / admin |
 
 ## Documentation
 
-- **Module creation guide:** `docs/claude/module-creation.md`
-- **Module simplification:** `docs/claude/module-simplification.md`
-- **Developer guide:** `docs/DEVELOPER_GUIDE.md`
-- **Deployment & CI/CD:** `docs/DEPLOYMENT_GUIDE.md`
-- **Versioning guide:** `docs/VERSIONING_GUIDE.md`
+- **Fork guide:** `docs/getting-started/fork-guide.md`
+- **Configuration guide:** `docs/getting-started/configuration.md`
+- **Frontend setup:** `docs/development/frontend-setup.md`
+- **Module creation guide:** `docs/architecture/module-creation.md`
+- **Developer guide:** `docs/getting-started/developer-guide.md`
+- **Deployment & CI/CD:** `docs/operations/deployment.md`
+- **Versioning guide:** `docs/operations/versioning.md`
 
 ## Agent Instructions
 

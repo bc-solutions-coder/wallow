@@ -1,9 +1,8 @@
-using Wallow.Shared.Kernel.Identity;
+using Microsoft.EntityFrameworkCore;
 using Wallow.Shared.Kernel.Pagination;
 using Wallow.Storage.Application.Interfaces;
 using Wallow.Storage.Domain.Entities;
 using Wallow.Storage.Domain.Identity;
-using Microsoft.EntityFrameworkCore;
 
 namespace Wallow.Storage.Infrastructure.Persistence.Repositories;
 
@@ -39,15 +38,13 @@ public sealed class StoredFileRepository(StorageDbContext context) : IStoredFile
 
     public async Task<PagedResult<StoredFile>> GetByBucketIdPagedAsync(
         StorageBucketId bucketId,
-        Guid tenantId,
         string? pathPrefix,
         int page,
         int pageSize,
         CancellationToken cancellationToken = default)
     {
-        TenantId tenantIdValue = TenantId.Create(tenantId);
         IQueryable<StoredFile> query = context.Files
-            .Where(f => f.BucketId == bucketId && f.TenantId == tenantIdValue);
+            .Where(f => f.BucketId == bucketId);
 
         if (!string.IsNullOrWhiteSpace(pathPrefix))
         {

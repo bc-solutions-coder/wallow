@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using Wallow.Shared.Contracts.Storage;
 using Wallow.Shared.Kernel.Results;
 using Wallow.Storage.Application.Configuration;
@@ -6,7 +7,6 @@ using Wallow.Storage.Application.Interfaces;
 using Wallow.Storage.Domain.Entities;
 using Wallow.Storage.Domain.Enums;
 using Wallow.Storage.Domain.Identity;
-using Microsoft.Extensions.Options;
 
 namespace Wallow.Storage.Application.Queries.GetPresignedUrl;
 
@@ -25,11 +25,6 @@ public sealed class GetPresignedUrlHandler(
         StoredFile? file = await fileRepository.GetByIdAsync(fileId, cancellationToken);
 
         if (file is null)
-        {
-            return Result.Failure<PresignedUrlResult>(Error.NotFound("File", query.FileId));
-        }
-
-        if (file.TenantId.Value != query.TenantId)
         {
             return Result.Failure<PresignedUrlResult>(Error.NotFound("File", query.FileId));
         }

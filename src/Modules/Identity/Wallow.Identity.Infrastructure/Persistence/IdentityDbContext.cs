@@ -1,14 +1,15 @@
 using System.Linq.Expressions;
 using System.Reflection;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
+using OpenIddict.EntityFrameworkCore.Models;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Identity.Infrastructure.Persistence.Converters;
 using Wallow.Shared.Infrastructure.Settings;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
-using Microsoft.AspNetCore.DataProtection;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata;
 using AspNetIdentityDbContext = Microsoft.AspNetCore.Identity.EntityFrameworkCore.IdentityDbContext<
     Wallow.Identity.Domain.Entities.WallowUser,
     Wallow.Identity.Domain.Entities.WallowRole,
@@ -20,12 +21,11 @@ public sealed class IdentityDbContext : AspNetIdentityDbContext
 {
     private readonly IDataProtectionProvider _dataProtectionProvider;
 
-    // ReSharper disable once InconsistentNaming — Field must be protected for expression tree access
+    // ReSharper disable once InconsistentNaming — Field must be accessible for expression tree access in query filters
 #pragma warning disable SA1401, CA1051, IDE1006, IDE0052
-    private readonly TenantId _tenantId;
+    private TenantId _tenantId;
 #pragma warning restore SA1401, CA1051, IDE1006, IDE0052
 
-    public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
     public DbSet<ServiceAccountMetadata> ServiceAccountMetadata => Set<ServiceAccountMetadata>();
     public DbSet<ApiScope> ApiScopes => Set<ApiScope>();
     public DbSet<SsoConfiguration> SsoConfigurations => Set<SsoConfiguration>();
@@ -35,15 +35,25 @@ public sealed class IdentityDbContext : AspNetIdentityDbContext
     public DbSet<UserSettingEntity> UserSettings => Set<UserSettingEntity>();
     public DbSet<Organization> Organizations => Set<Organization>();
     public DbSet<OrganizationMember> OrganizationMembers => Set<OrganizationMember>();
+    public DbSet<InitialAccessToken> InitialAccessTokens => Set<InitialAccessToken>();
+    public DbSet<Invitation> Invitations => Set<Invitation>();
+    public DbSet<OrganizationDomain> OrganizationDomains => Set<OrganizationDomain>();
+    public DbSet<MembershipRequest> MembershipRequests => Set<MembershipRequest>();
+    public DbSet<OrganizationSettings> OrganizationSettings => Set<OrganizationSettings>();
+    public DbSet<OrganizationBranding> OrganizationBrandings => Set<OrganizationBranding>();
 
     public IdentityDbContext(
         DbContextOptions<IdentityDbContext> options,
-        ITenantContext tenantContext,
         IDataProtectionProvider dataProtectionProvider) : base(options)
     {
-        _tenantId = tenantContext.TenantId;
+        _tenantId = default;
         _dataProtectionProvider = dataProtectionProvider;
         ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+    }
+
+    public void SetTenant(TenantId tenantId)
+    {
+        _tenantId = tenantId;
     }
 
     protected override void OnModelCreating(ModelBuilder builder)
@@ -66,6 +76,13 @@ public sealed class IdentityDbContext : AspNetIdentityDbContext
             .Property(s => s.OidcClientSecret)
             .HasConversion(encryptedStringConverter);
 
+        // Indexes for efficient token cleanup (pruning expired/revoked tokens)
+        builder.Entity<OpenIddictEntityFrameworkCoreToken<Guid>>(b =>
+        {
+            b.HasIndex(t => t.ExpirationDate);
+            b.HasIndex("Status", "ExpirationDate");
+        });
+
         ApplyTenantQueryFilters(builder);
     }
 
@@ -80,6 +97,10 @@ public sealed class IdentityDbContext : AspNetIdentityDbContext
             b.Property(u => u.IsActive).HasColumnName("is_active");
             b.Property(u => u.CreatedAt).HasColumnName("created_at");
             b.Property(u => u.DeactivatedAt).HasColumnName("deactivated_at");
+            b.Property(u => u.MfaEnabled).HasColumnName("mfa_enabled");
+            b.Property(u => u.MfaMethod).HasColumnName("mfa_method").HasMaxLength(50);
+            b.Property(u => u.TotpSecretEncrypted).HasColumnName("totp_secret_encrypted").HasMaxLength(512);
+            b.Property(u => u.BackupCodesHash).HasColumnName("backup_codes_hash").HasMaxLength(1024);
             b.Property(u => u.Id).HasColumnName("id");
             b.Property(u => u.UserName).HasColumnName("user_name");
             b.Property(u => u.NormalizedUserName).HasColumnName("normalized_user_name");
@@ -95,6 +116,10 @@ public sealed class IdentityDbContext : AspNetIdentityDbContext
             b.Property(u => u.LockoutEnd).HasColumnName("lockout_end");
             b.Property(u => u.LockoutEnabled).HasColumnName("lockout_enabled");
             b.Property(u => u.AccessFailedCount).HasColumnName("access_failed_count");
+
+            b.HasIndex(u => new { u.TenantId, u.NormalizedEmail });
+            b.HasIndex(u => new { u.TenantId, u.IsActive });
+            b.HasIndex(u => new { u.TenantId, u.Id });
         });
 
         modelBuilder.Entity<WallowRole>(b =>
@@ -105,6 +130,8 @@ public sealed class IdentityDbContext : AspNetIdentityDbContext
             b.Property(r => r.Name).HasColumnName("name");
             b.Property(r => r.NormalizedName).HasColumnName("normalized_name");
             b.Property(r => r.ConcurrencyStamp).HasColumnName("concurrency_stamp");
+
+            b.HasIndex(r => new { r.TenantId, r.NormalizedName });
         });
 
         modelBuilder.Entity<IdentityUserRole<Guid>>(b =>

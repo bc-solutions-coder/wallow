@@ -1,6 +1,6 @@
 using System.Text.Json;
-using Wallow.Billing.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Wallow.Billing.Domain.Entities;
 
 namespace Wallow.Billing.Infrastructure.Persistence.Repositories;
 

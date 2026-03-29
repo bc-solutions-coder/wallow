@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Wallow.Inquiries.Domain.Entities;
 using Wallow.Inquiries.Domain.Identity;
 using Wallow.Inquiries.Infrastructure.Persistence;
@@ -5,7 +6,6 @@ using Wallow.Inquiries.Infrastructure.Persistence.Repositories;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Tests.Common.Bases;
 using Wallow.Tests.Common.Fixtures;
-using Microsoft.EntityFrameworkCore;
 
 namespace Wallow.Inquiries.Tests.Infrastructure.Persistence;
 

@@ -1,7 +1,7 @@
+using NSubstitute;
 using Wallow.Shared.Infrastructure.Core.Middleware;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
-using NSubstitute;
 using Wolverine;
 
 namespace Wallow.Shared.Infrastructure.Tests.Messaging;

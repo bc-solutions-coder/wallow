@@ -14,7 +14,7 @@ public static class WolverineAuthorizationMiddleware
             return;
         }
 
-        // External messages (e.g. RabbitMQ) must carry a tenant ID
+        // External messages must carry a tenant ID
         if (!envelope.Headers.TryGetValue(TenantIdHeader, out string? tenantId)
             || string.IsNullOrWhiteSpace(tenantId))
         {

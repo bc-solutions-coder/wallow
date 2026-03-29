@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Wallow.Announcements.Api.Contracts.Responses;
 using Wallow.Announcements.Api.Controllers;
 using Wallow.Announcements.Application.Announcements.Commands.DismissAnnouncement;
@@ -9,8 +11,6 @@ using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Shared.Kernel.Results;
 using Wallow.Shared.Kernel.Services;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Wolverine;
 
 namespace Wallow.Announcements.Tests.Api.Controllers;

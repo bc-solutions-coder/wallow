@@ -1,8 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: wallow-region-config
-data:
-  WALLOW_REGION: "eu-west"
-  AWS__S3__BucketName: "wallow-assets-eu-west"
-  AWS__S3__Region: "eu-west-1"

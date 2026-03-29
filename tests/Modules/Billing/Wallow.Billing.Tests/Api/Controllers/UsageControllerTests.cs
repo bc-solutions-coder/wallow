@@ -1,11 +1,11 @@
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Wallow.Billing.Api.Controllers;
 using Wallow.Billing.Application.Metering.DTOs;
 using Wallow.Billing.Application.Metering.Queries.GetCurrentUsage;
 using Wallow.Billing.Application.Metering.Queries.GetUsageHistory;
 using Wallow.Billing.Domain.Metering.Enums;
 using Wallow.Shared.Kernel.Results;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Wolverine;
 
 namespace Wallow.Billing.Tests.Api.Controllers;

@@ -28,6 +28,7 @@ public static class SubmitInquiryHandler
             timeProvider);
 
         await inquiryRepository.AddAsync(inquiry, cancellationToken);
+        await inquiryRepository.SaveChangesAsync(cancellationToken);
 
         return Result.Success(inquiry.ToDto());
     }

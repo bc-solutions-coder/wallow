@@ -1,14 +1,14 @@
 using Asp.Versioning;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
 using Wallow.Shared.Api.Extensions;
 using Wallow.Shared.Kernel.Identity.Authorization;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Shared.Kernel.Results;
 using Wallow.Shared.Kernel.Services;
 using Wallow.Shared.Kernel.Settings;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Wallow.Identity.Api.Controllers;
 
@@ -18,6 +18,7 @@ namespace Wallow.Identity.Api.Controllers;
 [Authorize]
 [Tags("Identity Settings")]
 [Produces("application/json")]
+[IgnoreAntiforgeryToken]
 public class IdentitySettingsController(
     [FromKeyedServices("identity")] ISettingsService settingsService,
     [FromKeyedServices("identity")] ISettingRegistry settingRegistry,

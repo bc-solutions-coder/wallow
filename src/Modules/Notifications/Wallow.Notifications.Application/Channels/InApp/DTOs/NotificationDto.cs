@@ -8,5 +8,6 @@ public sealed record NotificationDto(
     string Message,
     bool IsRead,
     DateTime? ReadAt,
+    string? ActionUrl,
     DateTime CreatedAt,
     DateTime? UpdatedAt);

@@ -11,6 +11,8 @@ public sealed class Organization : AggregateRoot<OrganizationId>, ITenantScoped
     public string Name { get; private set; } = string.Empty;
     public string Slug { get; private set; } = string.Empty;
     public bool IsActive { get; private set; }
+    public DateTimeOffset? ArchivedAt { get; private set; }
+    public Guid? ArchivedBy { get; private set; }
 
     private readonly List<OrganizationMember> _members = [];
     public IReadOnlyList<OrganizationMember> Members => _members.AsReadOnly();
@@ -85,7 +87,7 @@ public sealed class Organization : AggregateRoot<OrganizationId>, ITenantScoped
         SetUpdated(timeProvider.GetUtcNow(), updatedByUserId);
     }
 
-    public void Deactivate(Guid updatedByUserId, TimeProvider timeProvider)
+    public void Archive(Guid actorId, TimeProvider timeProvider)
     {
         if (!IsActive)
         {
@@ -95,10 +97,12 @@ public sealed class Organization : AggregateRoot<OrganizationId>, ITenantScoped
         }
 
         IsActive = false;
-        SetUpdated(timeProvider.GetUtcNow(), updatedByUserId);
+        ArchivedAt = timeProvider.GetUtcNow();
+        ArchivedBy = actorId;
+        SetUpdated(timeProvider.GetUtcNow(), actorId);
     }
 
-    public void Activate(Guid updatedByUserId, TimeProvider timeProvider)
+    public void Reactivate(Guid actorId, TimeProvider timeProvider)
     {
         if (IsActive)
         {
@@ -108,6 +112,18 @@ public sealed class Organization : AggregateRoot<OrganizationId>, ITenantScoped
         }
 
         IsActive = true;
-        SetUpdated(timeProvider.GetUtcNow(), updatedByUserId);
+        ArchivedAt = null;
+        ArchivedBy = null;
+        SetUpdated(timeProvider.GetUtcNow(), actorId);
+    }
+
+    public static void ConfirmNameForDeletion(Organization org, string confirmedName)
+    {
+        if (confirmedName != org.Name)
+        {
+            throw new BusinessRuleException(
+                "Identity.OrganizationNameMismatch",
+                "The confirmed name does not match the organization name");
+        }
     }
 }

@@ -1,7 +1,7 @@
+using Microsoft.EntityFrameworkCore;
 using Wallow.Notifications.Application.Preferences.Interfaces;
 using Wallow.Notifications.Domain.Preferences;
 using Wallow.Notifications.Domain.Preferences.Entities;
-using Microsoft.EntityFrameworkCore;
 
 namespace Wallow.Notifications.Infrastructure.Persistence.Repositories;
 

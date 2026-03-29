@@ -1,18 +1,20 @@
 <div align="center">
 
+<img src="assets/piggy-icon.svg" alt="Wallow" width="120" />
+
 # Wallow
 
 **A production-ready .NET modular monolith for building multi-tenant SaaS products.**
 
 Fork it. Add your domain modules. Deploy.
 
-<!-- Shields: replace with your own URLs or remove any that don't apply -->
 [![CI](https://github.com/bc-solutions-coder/Wallow/actions/workflows/ci.yml/badge.svg)](https://github.com/bc-solutions-coder/Wallow/actions/workflows/ci.yml)
 [![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Tests](https://img.shields.io/badge/tests-6%2C078_passing-brightgreen?logo=checkmarx&logoColor=white)](#testing)
+[![Coverage](https://img.shields.io/badge/coverage-97.7%25_lines_·_89.5%25_branches-brightgreen?logo=codecov&logoColor=white)](#testing)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)](docker/)
-[![Keycloak](https://img.shields.io/badge/Keycloak-26-4D4D4D?logo=keycloak&logoColor=white)](https://www.keycloak.org/)
 
 </div>
 
@@ -20,76 +22,11 @@ Fork it. Add your domain modules. Deploy.
 
 ## What is Wallow?
 
-Wallow provides the cross-cutting infrastructure every SaaS product needs out of the box: identity management, billing, notifications, messaging, file storage, and multi-tenant data isolation. You write the business logic.
+Wallow provides the cross-cutting infrastructure every SaaS product needs out of the box -- identity, billing, notifications, messaging, file storage, and multi-tenant data isolation. You write the business logic.
 
-New products are created by forking Wallow and adding domain-specific modules. The base platform stays generic -- improvements to shared infrastructure can be pulled from upstream into forks.
+The intended workflow is to **fork this repo and build your product on top**. Shared infrastructure improvements can be pulled from upstream into forks without conflicts.
 
-## Architecture
-
-Wallow is a **modular monolith**. Each module is an autonomous bounded context that follows Clean Architecture internally.
-
-```
-src/
-├── Wallow.Api/                  # Host, middleware, routing
-├── Modules/
-│   ├── Identity/                 # Auth, users, organizations, RBAC
-│   ├── Billing/                  # Payments, invoices, subscriptions
-│   ├── Storage/                  # File storage (S3, local)
-│   ├── Notifications/            # In-app and push notifications
-│   ├── Messaging/                # User-to-user conversations
-│   ├── Announcements/            # System-wide announcements
-│   └── Inquiries/                # Inquiry and question submission
-└── Shared/
-    ├── Contracts/                # Cross-module event definitions
-    └── Kernel/                   # Base classes, shared abstractions
-```
-
-Each module is structured in four layers:
-
-| Layer | Responsibility | Dependencies |
-|-------|----------------|--------------|
-| **Domain** | Entities, value objects, domain events | None |
-| **Application** | Commands, queries, handlers, DTOs | Domain |
-| **Infrastructure** | EF Core, Dapper, consumers, services | Application |
-| **API** | Controllers, request/response contracts | Application |
-
-Modules communicate through events over RabbitMQ via `Shared.Contracts` -- never direct references. Each module owns its own database schema.
-
-## Modules
-
-| Module | Responsibility |
-|--------|----------------|
-| **Identity** | Authentication, users, organizations, roles, RBAC via Keycloak 26 |
-| **Billing** | Payments, invoices, subscription lifecycle |
-| **Storage** | File storage abstraction (S3-compatible, local filesystem) |
-| **Notifications** | In-app and push notifications, delivery preferences |
-| **Messaging** | User-to-user conversations and threads |
-| **Announcements** | System-wide announcements and changelogs |
-| **Inquiries** | Inquiry and question submission |
-
-### Shared Infrastructure
-
-| Capability | Technology | Purpose |
-|------------|------------|---------|
-| Auditing | Audit.NET | Automatic entity change tracking via EF Core interceptor |
-| Background Jobs | Hangfire | Deferred and recurring job execution via `IJobScheduler` |
-| Workflows | Elsa 3 | Long-running, multi-step business processes |
-
-## Tech Stack
-
-| Purpose | Technology |
-|---------|------------|
-| Framework | .NET 10 |
-| Database | PostgreSQL 18 |
-| ORM | EF Core (writes) + Dapper (reads) |
-| CQRS & Messaging | Wolverine + RabbitMQ |
-| Caching | Valkey (Redis-compatible) |
-| Identity | Keycloak 26 |
-| Real-time | SignalR |
-| Validation | FluentValidation |
-| Logging | Serilog |
-| Tracing | OpenTelemetry |
-| Testing | xUnit, Testcontainers, FluentAssertions |
+> **New here?** Start with the [Fork Guide](docs/getting-started/fork-guide.md) or the [Developer Guide](docs/getting-started/developer-guide.md).
 
 ## Quick Start
 
@@ -104,87 +41,142 @@ Modules communicate through events over RabbitMQ via `Shared.Contracts` -- never
 cd docker && docker compose up -d
 ```
 
-This starts PostgreSQL, RabbitMQ, Mailpit, Valkey, and Keycloak.
+Starts PostgreSQL, Valkey, GarageHQ (S3), Mailpit, and Grafana.
 
-### 2. Run the API
+### 2. Run the apps
 
 ```bash
-dotnet run --project src/Wallow.Api
+dotnet run --project src/Wallow.Api       # API        → http://localhost:5001
+dotnet run --project src/Wallow.Auth      # Auth UI    → http://localhost:5002
+dotnet run --project src/Wallow.Web       # Web UI     → http://localhost:5003
 ```
 
 ### 3. Run tests
 
 ```bash
-dotnet test                                                    # all tests
-dotnet test tests/Modules/Billing/Wallow.Billing.Tests        # single module
+./scripts/run-tests.sh                    # all tests
+./scripts/run-tests.sh billing            # single module
 ```
+
+> See [Testing](docs/development/testing.md) for coverage, E2E, and CI details.
+
+## Architecture
+
+A **modular monolith** where each module is an autonomous bounded context following Clean Architecture. Modules communicate through Wolverine in-memory events via `Shared.Contracts` -- never direct references. Each module owns its own PostgreSQL schema.
+
+```
+src/
+├── Wallow.Api/                  # Host, middleware, routing
+├── Wallow.Auth/                 # Blazor: login, register, password reset
+├── Wallow.Web/                  # Blazor: dashboard and public pages
+├── Modules/
+│   ├── Identity/                # Auth, users, organizations, RBAC
+│   ├── Billing/                 # Payments, invoices, subscriptions
+│   ├── Storage/                 # File storage (S3-compatible)
+│   ├── Notifications/           # In-app and push notifications
+│   ├── Messaging/               # User-to-user conversations
+│   ├── Announcements/           # System-wide announcements
+│   ├── Inquiries/               # Inquiry and question submission
+│   ├── ApiKeys/                 # API key management
+│   └── Branding/                # Tenant branding configuration
+└── Shared/
+    ├── Contracts/               # Cross-module event definitions
+    └── Kernel/                  # Base classes, shared abstractions
+```
+
+Each module follows four layers: **Domain** (no dependencies) → **Application** → **Infrastructure** → **API**.
+
+> Deep dive: [Architecture Assessment](docs/architecture/assessment.md) · [Module Creation](docs/architecture/module-creation.md)
 
 ## Key Features
 
-- **Clean Architecture** -- Strict dependency rules per module with domain isolation
-- **Domain-Driven Design** -- Entities, value objects, domain events, bounded contexts
-- **CQRS** -- Command/query separation with Wolverine as mediator
-- **Multi-Tenancy** -- Schema-per-tenant data isolation with shared infrastructure
-- **Message-Based Communication** -- Events over RabbitMQ, never direct references
-- **Keycloak Identity** -- Authentication, RBAC, and user management
-- **Real-Time** -- Push notifications via SignalR with Redis backplane
-- **Observability** -- Serilog structured logging, OpenTelemetry tracing, Grafana dashboards
-- **Audit Trail** -- Automatic entity change auditing via Audit.NET
-- **Background Jobs** -- `IJobScheduler` abstraction backed by Hangfire
-- **Workflows** -- Elsa 3 workflow engine for long-running processes
+| Feature | Description |
+|---------|-------------|
+| **Clean Architecture** | Strict dependency rules per module with domain isolation |
+| **Domain-Driven Design** | Entities, value objects, domain events, bounded contexts |
+| **CQRS** | Command/query separation with Wolverine as mediator |
+| **Multi-Tenancy** | Schema-per-tenant data isolation, configurable resolution (header, subdomain, JWT) |
+| **Event-Driven** | Wolverine in-memory events between modules |
+| **Identity & RBAC** | OpenIddict + ASP.NET Core Identity |
+| **Real-Time** | Push notifications via SignalR |
+| **Observability** | Serilog structured logging, OpenTelemetry tracing, [Grafana dashboards](docs/operations/observability.md) |
+| **Audit Trail** | Automatic entity change auditing via Audit.NET |
+| **Background Jobs** | `IJobScheduler` abstraction backed by Hangfire |
+| **Workflows** | Elsa 3 engine for long-running business processes |
 
-## Multi-Tenancy
+## Tech Stack
 
-Schema-per-tenant with shared infrastructure. Each tenant gets isolated database schemas while sharing the same PostgreSQL instance, RabbitMQ broker, and application process. Tenant resolution happens at the middleware layer via configurable strategies (header, subdomain, or JWT claim).
+| Purpose | Technology |
+|---------|------------|
+| Framework | .NET 10 |
+| Database | PostgreSQL 18 |
+| ORM | EF Core + Dapper (available for raw SQL reads) |
+| CQRS & Messaging | Wolverine (in-memory) |
+| Caching | Valkey (Redis-compatible) |
+| Identity | OpenIddict + ASP.NET Core Identity |
+| Real-time | SignalR |
+| Validation | FluentValidation |
+| Logging & Tracing | Serilog, OpenTelemetry |
+| Testing | xUnit, Testcontainers, AwesomeAssertions |
 
-New tenant onboarding is config + migration, not a deployment.
+## Testing
 
-## Scalability
+6,078 tests across 45 assemblies, all passing.
 
-Wallow is designed for horizontal scaling from day one:
+| Metric | Coverage |
+|--------|----------|
+| Lines | **97.7%** (13,457 / 13,771) |
+| Branches | **89.5%** (2,235 / 2,497) |
+| Methods | **96.9%** (1,735 / 1,789) |
 
-| Strategy | How |
-|----------|-----|
-| **Horizontal scaling** | Stateless API behind a load balancer |
-| **Distributed cache** | Valkey/Redis for shared state and SignalR backplane |
-| **Competing consumers** | RabbitMQ enables parallel message processing across instances |
-| **Durable outbox** | Wolverine's transactional outbox ensures reliable messaging |
-| **Database scaling** | PgBouncer for connection pooling, read replicas for read-heavy workloads |
-| **Worker separation** | Separate API instances from background workers |
-| **Module extraction** | Extract high-load modules into independent services |
+> Details: [Testing Guide](docs/development/testing.md) · [Coverage](docs/development/testing-coverage.md) · [E2E Tests](docs/development/testing-e2e.md) · [CI](docs/development/testing-ci.md)
 
-## Fork Workflow
+## Configuration
 
-1. **Fork** this repository
-2. **Rename** namespaces from `Wallow.*` to `YourProduct.*`
-3. **Add domain modules** following the established Clean Architecture pattern
-4. **Configure tenants**
-5. **Deploy** -- the platform ships as a single deployable unit
+Wallow is designed to be customized without changing source code. All configuration flows through standard .NET mechanisms:
 
-Upstream improvements to shared infrastructure can be pulled into forks.
+| Area | Config Source | What it controls |
+|------|-------------|------------------|
+| **Branding** | `branding.json` | App name, icon, tagline, theme colors |
+| **Database** | `appsettings.json` | PostgreSQL and Valkey connection strings |
+| **Email** | `appsettings.json` | SMTP host, port, TLS, sender defaults |
+| **Storage** | `appsettings.json` | S3 endpoint, bucket, ClamAV virus scanning |
+| **Observability** | `appsettings.json` | OpenTelemetry OTLP endpoints, service name |
+| **CORS** | `appsettings.json` | Allowed origins for API requests |
+| **Environment** | Environment variables | Override any setting with `Section__Key` syntax |
+
+Configuration loads in order: `appsettings.json` → `appsettings.{Environment}.json` → environment variables → user secrets (dev only).
+
+> Full reference with examples for Docker, Kubernetes, and all module options: [Configuration Guide](docs/getting-started/configuration.md)
 
 ## Local Services
 
-| Service | URL | Credentials |
-|---------|-----|-------------|
-| API | http://localhost:5000 | -- |
-| API Docs | http://localhost:5000/scalar/v1 | -- |
-| Keycloak Admin | http://localhost:8080 | See `docker/.env` |
-| RabbitMQ | http://localhost:15672 | See `docker/.env` |
-| Mailpit | http://localhost:8025 | -- |
-| Grafana | http://localhost:3001 | admin / admin |
+| Service | URL |
+|---------|-----|
+| API | http://localhost:5001 |
+| API Docs (Scalar) | http://localhost:5001/scalar/v1 |
+| Auth UI | http://localhost:5002 |
+| Web UI | http://localhost:5003 |
+| Docs | http://localhost:5004 |
+| Mailpit | http://localhost:8025 |
+| GarageHQ (S3) | http://localhost:3900 |
+| Grafana | http://localhost:3001 |
+
+> Credentials and config: [Configuration Guide](docs/getting-started/configuration.md)
 
 ## Documentation
 
-| Doc | Description |
-|-----|-------------|
-| [Developer Guide](docs/DEVELOPER_GUIDE.md) | How to work in the codebase |
-| [Forking Guide](docs/FORKING_GUIDE.md) | Step-by-step guide for creating a new product |
-| [Deployment Guide](docs/DEPLOYMENT_GUIDE.md) | Server setup, CI/CD, and client app integration |
-| [Deployment Strategies](docs/deployment-strategies/) | Horizontal scaling, database scaling, worker separation, module extraction |
-| [Architecture Reference](docs/WALLOW.md) | Single architecture and design reference |
-| [Keycloak Integration](docs/plans/2026-02-05-keycloak-integration-design.md) | Identity provider setup |
+| Guide | Description |
+|-------|-------------|
+| [Developer Guide](docs/getting-started/developer-guide.md) | Day-to-day development workflow |
+| [Fork Guide](docs/getting-started/fork-guide.md) | Creating a new product from Wallow |
+| [Configuration](docs/getting-started/configuration.md) | Environment variables, branding, settings |
+| [Architecture](docs/architecture/assessment.md) | Design decisions and patterns |
+| [Module Creation](docs/architecture/module-creation.md) | Adding new modules |
+| [Deployment](docs/operations/deployment.md) | CI/CD, Docker, and production setup |
+| [Versioning](docs/operations/versioning.md) | Conventional Commits and release-please |
+| [Observability](docs/operations/observability.md) | Logging, tracing, and dashboards |
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+[MIT](LICENSE)

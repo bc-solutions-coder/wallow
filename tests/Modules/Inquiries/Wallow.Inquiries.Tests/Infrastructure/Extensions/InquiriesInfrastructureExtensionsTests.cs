@@ -1,14 +1,16 @@
-using Wallow.Inquiries.Application.Interfaces;
-using Wallow.Inquiries.Infrastructure.Extensions;
-using Wallow.Inquiries.Infrastructure.Persistence;
-using Wallow.Inquiries.Infrastructure.Persistence.Repositories;
-using Wallow.Inquiries.Infrastructure.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using StackExchange.Redis;
+using Wallow.Inquiries.Application.Interfaces;
+using Wallow.Inquiries.Infrastructure.Extensions;
+using Wallow.Inquiries.Infrastructure.Persistence;
+using Wallow.Inquiries.Infrastructure.Persistence.Repositories;
+using Wallow.Inquiries.Infrastructure.Services;
+using Wallow.Shared.Kernel.MultiTenancy;
 
 namespace Wallow.Inquiries.Tests.Infrastructure.Extensions;
 
@@ -94,6 +96,8 @@ public class InquiriesModuleExtensionsTests
             ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Database=test;Username=test;Password=test"
         });
         builder.Services.AddInquiriesModule(builder.Configuration);
+        builder.Services.AddScoped<ITenantContext>(_ => Substitute.For<ITenantContext>());
+        builder.Services.AddSingleton(_ => Substitute.For<IConnectionMultiplexer>());
 
         WebApplication app = builder.Build();
 
@@ -115,6 +119,8 @@ public class InquiriesModuleExtensionsTests
             ["ConnectionStrings:DefaultConnection"] = "Host=invalid-host-xyz;Database=test;Username=test;Password=test;Connect Timeout=1"
         });
         builder.Services.AddInquiriesModule(builder.Configuration);
+        builder.Services.AddScoped<ITenantContext>(_ => Substitute.For<ITenantContext>());
+        builder.Services.AddSingleton(_ => Substitute.For<IConnectionMultiplexer>());
         builder.Logging.ClearProviders().AddConsole();
 
         WebApplication app = builder.Build();
@@ -136,6 +142,8 @@ public class InquiriesModuleExtensionsTests
             ["ConnectionStrings:DefaultConnection"] = "Host=invalid-host-xyz;Database=test;Username=test;Password=test;Connect Timeout=1"
         });
         builder.Services.AddInquiriesModule(builder.Configuration);
+        builder.Services.AddScoped<ITenantContext>(_ => Substitute.For<ITenantContext>());
+        builder.Services.AddSingleton(_ => Substitute.For<IConnectionMultiplexer>());
         builder.Logging.ClearProviders().AddConsole();
 
         WebApplication app = builder.Build();
@@ -157,6 +165,8 @@ public class InquiriesModuleExtensionsTests
             ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Database=test;Username=test;Password=test"
         });
         builder.Services.AddInquiriesModule(builder.Configuration);
+        builder.Services.AddScoped<ITenantContext>(_ => Substitute.For<ITenantContext>());
+        builder.Services.AddSingleton(_ => Substitute.For<IConnectionMultiplexer>());
 
         WebApplication app = builder.Build();
 
@@ -290,35 +300,29 @@ public class InquiriesInfrastructureExtensionsTests
     }
 
     [Fact]
-    public void AddInquiriesInfrastructure_WithNullConnectionString_StillRegistersServices()
+    public void AddInquiriesInfrastructure_WithNullConnectionString_ThrowsInvalidOperationException()
     {
         ServiceCollection services = new();
         IConfiguration configuration = BuildConfiguration(connectionString: null);
 
-        services.AddInquiriesInfrastructure(configuration);
+        Action act = () => services.AddInquiriesInfrastructure(configuration);
 
-        ServiceDescriptor? dbContextDescriptor = services.FirstOrDefault(s => s.ServiceType == typeof(InquiriesDbContext));
-        dbContextDescriptor.Should().NotBeNull();
-
-        ServiceDescriptor? repoDescriptor = services.FirstOrDefault(s => s.ServiceType == typeof(IInquiryRepository));
-        repoDescriptor.Should().NotBeNull();
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*Connection string*not configured*");
     }
 
     [Fact]
-    public void AddInquiriesInfrastructure_WithMissingConnectionString_StillRegistersServices()
+    public void AddInquiriesInfrastructure_WithMissingConnectionString_ThrowsInvalidOperationException()
     {
         ServiceCollection services = new();
         IConfiguration configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>())
             .Build();
 
-        services.AddInquiriesInfrastructure(configuration);
+        Action act = () => services.AddInquiriesInfrastructure(configuration);
 
-        ServiceDescriptor? dbContextDescriptor = services.FirstOrDefault(s => s.ServiceType == typeof(InquiriesDbContext));
-        dbContextDescriptor.Should().NotBeNull();
-
-        ServiceDescriptor? repoDescriptor = services.FirstOrDefault(s => s.ServiceType == typeof(IInquiryRepository));
-        repoDescriptor.Should().NotBeNull();
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*Connection string*not configured*");
     }
 
     [Fact]

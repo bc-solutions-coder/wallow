@@ -1,8 +1,8 @@
 using FluentValidation;
+using Microsoft.Extensions.DependencyInjection;
 using Wallow.Identity.Application.Commands.CreateServiceAccount;
 using Wallow.Identity.Application.Commands.UpdateServiceAccountScopes;
 using Wallow.Identity.Application.Extensions;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Wallow.Identity.Tests.Application.Extensions;
 

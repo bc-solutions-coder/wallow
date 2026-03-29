@@ -1,4 +1,7 @@
 using Asp.Versioning;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Wallow.Notifications.Api.Contracts.Push;
 using Wallow.Notifications.Application.Channels.Push.Commands.RemoveTenantPushConfig;
 using Wallow.Notifications.Application.Channels.Push.Commands.SetTenantPushEnabled;
@@ -11,17 +14,17 @@ using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.Identity.Authorization;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Shared.Kernel.Results;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Wolverine;
 
 namespace Wallow.Notifications.Api.Controllers;
 
+[Authorize]
 [ApiController]
 [ApiVersion(1)]
 [Route("api/v{version:apiVersion}/admin/push/config")]
 [Tags("Admin - Push Configuration")]
 [Produces("application/json")]
+[IgnoreAntiforgeryToken]
 public class PushConfigurationController(IMessageBus bus, ITenantContext tenantContext) : ControllerBase
 {
     [HttpGet]

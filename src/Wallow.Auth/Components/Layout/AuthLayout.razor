@@ -1,0 +1,129 @@
+@inherits LayoutComponentBase
+@using Wallow.Auth.Configuration
+@using Wallow.Auth.Services
+@inject BrandingOptions Branding
+@inject IClientBrandingClient BrandingClient
+
+<HeadContent>
+    @if (_lightThemeColors.Count > 0 || _darkThemeColors.Count > 0)
+    {
+        <style>
+            :root {
+                @foreach ((string name, string value) in _lightThemeColors)
+                {
+                    @($"--{name}: {value};")
+                }
+            }
+            .dark {
+                @foreach ((string name, string value) in _darkThemeColors)
+                {
+                    @($"--{name}: {value};")
+                }
+            }
+        </style>
+    }
+</HeadContent>
+
+<div class="min-h-screen bg-background flex flex-col items-center justify-center px-4">
+    <div class="w-full max-w-[420px]">
+        <div class="text-center mb-8">
+            @if (_clientBranding is not null)
+            {
+                @if (!string.IsNullOrEmpty(_clientBranding.LogoUrl))
+                {
+                    <img src="@_clientBranding.LogoUrl" alt="@_clientBranding.DisplayName"
+                         class="size-30 mx-auto block" style="shape-rendering: geometricPrecision;" />
+                }
+                <h1 class="text-2xl font-bold text-foreground">@_clientBranding.DisplayName</h1>
+                @if (!string.IsNullOrEmpty(_clientBranding.Tagline))
+                {
+                    <p class="text-sm text-muted-foreground mt-1">@_clientBranding.Tagline</p>
+                }
+            }
+            else
+            {
+                <img src="@Branding.AppIcon" alt="@Branding.AppName"
+                     class="size-30 mx-auto block" style="shape-rendering: geometricPrecision;" />
+                <h1 class="text-2xl font-bold text-foreground">@Branding.AppName</h1>
+                @if (!string.IsNullOrEmpty(Branding.Tagline))
+                {
+                    <p class="text-sm text-muted-foreground mt-1">@Branding.Tagline</p>
+                }
+            }
+        </div>
+
+        @Body
+
+        <div class="mt-8 pt-4 border-t border-border">
+            @if (!string.IsNullOrEmpty(Branding.RepositoryUrl))
+            {
+                <a href="@Branding.RepositoryUrl" target="_blank" rel="noopener noreferrer"
+                   class="flex items-center justify-center gap-1.5 hover:opacity-80 transition-opacity">
+                    <img src="@Branding.AppIcon" alt="@Branding.AppName" class="size-8" />
+                    <span class="text-xs text-muted-foreground">
+                        A <span class="font-semibold text-muted-foreground">@Branding.AppName</span> App
+                    </span>
+                </a>
+            }
+            else
+            {
+                <div class="flex items-center justify-center gap-1.5">
+                    <img src="@Branding.AppIcon" alt="@Branding.AppName" class="size-8" />
+                    <span class="text-xs text-muted-foreground">
+                        A <span class="font-semibold text-muted-foreground">@Branding.AppName</span> App
+                    </span>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<BlazorReadyIndicator />
+
+@code {
+    [SupplyParameterFromQuery(Name = "client_id")]
+    public string? ClientId { get; set; }
+
+    private ClientBrandingResponse? _clientBranding;
+    private List<(string Name, string Value)> _lightThemeColors = new();
+    private List<(string Name, string Value)> _darkThemeColors = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!string.IsNullOrEmpty(ClientId))
+        {
+            _clientBranding = await BrandingClient.GetBrandingAsync(ClientId);
+
+            if (_clientBranding is not null && !string.IsNullOrEmpty(_clientBranding.ThemeJson))
+            {
+                _lightThemeColors = ParseThemeColors(_clientBranding.ThemeJson, "light");
+                _darkThemeColors = ParseThemeColors(_clientBranding.ThemeJson, "dark");
+            }
+        }
+    }
+
+    private static List<(string Name, string Value)> ParseThemeColors(string themeJson, string mode)
+    {
+        List<(string Name, string Value)> results = new();
+        using System.Text.Json.JsonDocument doc = System.Text.Json.JsonDocument.Parse(themeJson);
+        if (doc.RootElement.TryGetProperty(mode, out System.Text.Json.JsonElement modeElement))
+        {
+            foreach (System.Text.Json.JsonProperty prop in modeElement.EnumerateObject())
+            {
+                string cssName = ConvertToCssName(prop.Name);
+                string value = prop.Value.GetString() ?? "";
+                if (!string.IsNullOrEmpty(value))
+                {
+                    results.Add((cssName, value));
+                }
+            }
+        }
+        return results;
+    }
+
+    private static string ConvertToCssName(string propertyName)
+    {
+        return System.Text.RegularExpressions.Regex.Replace(
+            propertyName, "([a-z])([A-Z])", "$1-$2").ToLowerInvariant();
+    }
+}

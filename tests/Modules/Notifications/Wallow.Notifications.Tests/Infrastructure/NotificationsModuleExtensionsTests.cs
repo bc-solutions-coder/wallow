@@ -1,3 +1,9 @@
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Polly;
+using Polly.Registry;
 using Wallow.Notifications.Application.Channels.Email.Interfaces;
 using Wallow.Notifications.Application.Channels.InApp.Interfaces;
 using Wallow.Notifications.Application.Channels.Push.Interfaces;
@@ -10,12 +16,6 @@ using Wallow.Notifications.Infrastructure.Services;
 using Wallow.Shared.Contracts.Communications.Email;
 using Wallow.Shared.Contracts.Realtime;
 using Wallow.Shared.Kernel.MultiTenancy;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Polly;
-using Polly.Registry;
 
 namespace Wallow.Notifications.Tests.Infrastructure;
 
@@ -72,20 +72,6 @@ public class NotificationsModuleExtensionsTests
             d => d.ServiceType == typeof(IEmailProvider));
         descriptor.Should().NotBeNull();
         descriptor!.ImplementationType.Should().Be<SmtpEmailProvider>();
-    }
-
-    [Fact]
-    public void AddNotificationsModule_RegistersSmtpConnectionPool()
-    {
-        ServiceCollection services = new();
-        IConfiguration configuration = CreateConfiguration();
-
-        services.AddNotificationsModule(configuration);
-
-        ServiceDescriptor? descriptor = services.FirstOrDefault(
-            d => d.ServiceType == typeof(SmtpConnectionPool));
-        descriptor.Should().NotBeNull();
-        descriptor!.Lifetime.Should().Be(ServiceLifetime.Singleton);
     }
 
     [Fact]
@@ -450,8 +436,8 @@ public class NotificationsModuleExtensionsTests
             ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Port=1;Database=nonexistent;Timeout=1"
         });
         builder.Services.AddScoped<ITenantContext>(_ => Substitute.For<ITenantContext>());
-        builder.Services.AddScoped<TenantSaveChangesInterceptor>();
-        builder.Services.AddScoped<IRealtimeDispatcher>(_ => Substitute.For<IRealtimeDispatcher>());
+        builder.Services.AddSingleton(new TenantSaveChangesInterceptor());
+        builder.Services.AddSingleton<ISseDispatcher>(_ => Substitute.For<ISseDispatcher>());
         builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddHttpClient();
         builder.Services.AddNotificationsModule(builder.Configuration);

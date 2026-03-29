@@ -1,7 +1,7 @@
+using Microsoft.EntityFrameworkCore;
 using Wallow.Notifications.Infrastructure.Persistence;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
-using Microsoft.EntityFrameworkCore;
 
 namespace Wallow.Notifications.Tests.Infrastructure.Persistence;
 
@@ -18,7 +18,8 @@ public sealed class NotificationsDbContextTests : IDisposable
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options;
 
-        _context = new NotificationsDbContext(options, tenantContext);
+        _context = new NotificationsDbContext(options);
+        _context.SetTenant(tenantContext.TenantId);
     }
 
     public void Dispose()

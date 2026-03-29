@@ -25,6 +25,7 @@ public static class UpdateInquiryStatusHandler
 
         inquiry.TransitionTo(command.NewStatus, timeProvider);
         await inquiryRepository.UpdateAsync(inquiry, cancellationToken);
+        await inquiryRepository.SaveChangesAsync(cancellationToken);
 
         return Result.Success(inquiry.ToDto());
     }

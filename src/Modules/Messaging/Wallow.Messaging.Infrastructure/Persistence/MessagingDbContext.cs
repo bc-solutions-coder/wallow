@@ -1,7 +1,6 @@
+using Microsoft.EntityFrameworkCore;
 using Wallow.Messaging.Domain.Conversations.Entities;
 using Wallow.Shared.Infrastructure.Core.Persistence;
-using Wallow.Shared.Kernel.MultiTenancy;
-using Microsoft.EntityFrameworkCore;
 
 namespace Wallow.Messaging.Infrastructure.Persistence;
 
@@ -11,8 +10,8 @@ public sealed class MessagingDbContext : TenantAwareDbContext<MessagingDbContext
     public DbSet<Message> Messages => Set<Message>();
     public DbSet<Participant> Participants => Set<Participant>();
 
-    public MessagingDbContext(DbContextOptions<MessagingDbContext> options, ITenantContext tenantContext)
-        : base(options, tenantContext)
+    public MessagingDbContext(DbContextOptions<MessagingDbContext> options)
+        : base(options)
     {
         ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
     }

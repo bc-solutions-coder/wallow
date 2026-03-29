@@ -10,6 +10,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: read
+
     steps:
       - uses: actions/checkout@v6
 
@@ -35,6 +38,14 @@ jobs:
       - name: Check code formatting
         run: dotnet format Wallow.slnx --verify-no-changes --no-restore
 
+      - name: Cache build output
+        uses: actions/cache/save@v5
+        with:
+          path: |
+            **/bin/Release
+            **/obj
+          key: build-${{ runner.os }}-${{ github.sha }}
+
   unit-tests:
     needs: build
     runs-on: ubuntu-latest
@@ -55,11 +66,17 @@ jobs:
           restore-keys: |
             nuget-${{ runner.os }}-
 
-      - name: Build
-        run: dotnet build --configuration Release
+      - name: Restore build output
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            **/bin/Release
+            **/obj
+          key: build-${{ runner.os }}-${{ github.sha }}
+          fail-on-cache-miss: true
 
       - name: Run unit tests
-        run: dotnet test --no-build --configuration Release --filter "Category!=Integration" --verbosity normal --blame-hang-timeout 60s --collect "XPlat Code Coverage" --settings tests/coverage.runsettings --results-directory ./TestResults
+        run: dotnet test --no-build --configuration Release --filter "Category!=Integration&Category!=E2E" --verbosity normal --blame-hang-timeout 60s --collect "XPlat Code Coverage" --settings tests/coverage.runsettings --results-directory ./TestResults
 
       - name: Upload unit test coverage
         if: always()
@@ -89,25 +106,68 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
-      rabbitmq:
-        image: rabbitmq:4.2-management-alpine
-        ports:
-          - 5672:5672
-        options: >-
-          --health-cmd "rabbitmq-diagnostics -q ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+    steps:
+      - uses: actions/checkout@v6
 
-      valkey:
-        image: valkey/valkey:8-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "valkey-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+      - name: Start Valkey with password
+        run: |
+          docker run -d --name valkey -p 6379:6379 valkey/valkey:8-alpine \
+            valkey-server --requirepass WallowTestValkey123! --appendonly yes
+          for i in $(seq 1 10); do
+            if docker exec valkey valkey-cli -a WallowTestValkey123! ping 2>/dev/null | grep -q PONG; then
+              echo "Valkey is ready"
+              break
+            fi
+            if [ "$i" -eq 10 ]; then
+              echo "::error::Valkey did not become healthy in time"
+              docker logs valkey
+              exit 1
+            fi
+            sleep 1
+          done
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v5
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+
+      - name: Restore build output
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            **/bin/Release
+            **/obj
+          key: build-${{ runner.os }}-${{ github.sha }}
+          fail-on-cache-miss: true
+
+      - name: Run integration tests
+        run: dotnet test --no-build --configuration Release --filter "Category=Integration" --verbosity normal --blame-hang-timeout 5m --collect "XPlat Code Coverage" --settings tests/coverage.runsettings --results-directory ./TestResults
+        env:
+          ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=wallow_test;Username=wallow;Password=wallow"
+          Redis__ConnectionString: "localhost:6379,password=WallowTestValkey123!,abortConnect=false"
+
+      - name: Upload integration test coverage
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-integration
+          path: ./TestResults/**/coverage.cobertura.xml
+          if-no-files-found: error
+          retention-days: 5
+
+  docker-images:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - uses: actions/checkout@v6
@@ -125,24 +185,244 @@ jobs:
           restore-keys: |
             nuget-${{ runner.os }}-
 
-      - name: Build
-        run: dotnet build --configuration Release
+      - name: Restore build output
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            **/bin/Release
+            **/obj
+          key: build-${{ runner.os }}-${{ github.sha }}
+          fail-on-cache-miss: true
 
-      - name: Run integration tests
-        run: dotnet test --no-build --configuration Release --filter "Category=Integration" --verbosity normal --blame-hang-timeout 5m --collect "XPlat Code Coverage" --settings tests/coverage.runsettings --results-directory ./TestResults
+      - name: Publish API container image
+        run: dotnet publish src/Wallow.Api/Wallow.Api.csproj -c Release /t:PublishContainer -p:ContainerImageTag=test -p:ContainerRepository=wallow-api --no-build
+
+      - name: Publish Auth container image
+        run: dotnet publish src/Wallow.Auth/Wallow.Auth.csproj -c Release /t:PublishContainer -p:ContainerImageTag=test -p:ContainerRepository=wallow-auth --no-build
+
+      - name: Publish Web container image
+        run: dotnet publish src/Wallow.Web/Wallow.Web.csproj -c Release /t:PublishContainer -p:ContainerImageTag=test -p:ContainerRepository=wallow-web --no-build
+
+      - name: Build migration bundles
+        run: |
+          dotnet tool restore
+          MODULES=(
+            "Identity:IdentityDbContext"
+            "Billing:BillingDbContext"
+            "Storage:StorageDbContext"
+            "Notifications:NotificationsDbContext"
+            "Messaging:MessagingDbContext"
+            "Announcements:AnnouncementsDbContext"
+            "ApiKeys:ApiKeysDbContext"
+            "Branding:BrandingDbContext"
+            "Inquiries:InquiriesDbContext"
+          )
+          mkdir -p bundles
+          for entry in "${MODULES[@]}"; do
+            module="${entry%%:*}"
+            context="${entry##*:}"
+            dotnet ef migrations bundle \
+              --project "src/Modules/${module}/Wallow.${module}.Infrastructure/Wallow.${module}.Infrastructure.csproj" \
+              --startup-project src/Wallow.Api/Wallow.Api.csproj \
+              --context "$context" --output "bundles/efbundle-$(echo "$module" | tr '[:upper:]' '[:lower:]')" \
+              --configuration Release --force --no-build
+          done
+          dotnet ef migrations bundle \
+            --project src/Shared/Wallow.Shared.Infrastructure.Core/Wallow.Shared.Infrastructure.Core.csproj \
+            --startup-project src/Wallow.Api/Wallow.Api.csproj \
+            --context AuditDbContext --output bundles/efbundle-audit \
+            --configuration Release --force --no-build
+
+      - name: Build migrations container image
+        run: |
+          docker build -f - -t wallow-migrations:test . <<'DOCKERFILE'
+          FROM mcr.microsoft.com/dotnet/aspnet:10.0
+          WORKDIR /app
+          COPY bundles/ bundles/
+          COPY scripts/apply-migrations.sh .
+          RUN chmod +x apply-migrations.sh
+          ENTRYPOINT ["./apply-migrations.sh"]
+          DOCKERFILE
+
+      - name: Save container images to cache
+        run: docker save wallow-api:test wallow-auth:test wallow-web:test wallow-migrations:test | gzip > /tmp/wallow-images.tar.gz
+
+      - name: Cache container images
+        uses: actions/cache/save@v5
+        with:
+          path: /tmp/wallow-images.tar.gz
+          key: images-${{ runner.os }}-${{ github.sha }}
+
+  e2e:
+    needs: docker-images
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v5
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+
+      - name: Restore build output
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            **/bin/Release
+            **/obj
+          key: build-${{ runner.os }}-${{ github.sha }}
+          fail-on-cache-miss: true
+
+      - name: Restore container images
+        uses: actions/cache/restore@v5
+        with:
+          path: /tmp/wallow-images.tar.gz
+          key: images-${{ runner.os }}-${{ github.sha }}
+          fail-on-cache-miss: true
+
+      - name: Load container images
+        run: docker load < /tmp/wallow-images.tar.gz
+
+      - name: Configure host.docker.internal for OIDC
+        run: echo "127.0.0.1 host.docker.internal" | sudo tee -a /etc/hosts
+
+      # Start containers BEFORE Playwright install so they boot in parallel
+      - name: Start test environment
+        run: docker compose -f docker/docker-compose.test.yml up -d
+
+      # Playwright install (~60s) overlaps with container startup (~60-90s)
+      - name: Build E2E tests and install Playwright
+        run: |
+          dotnet build tests/Wallow.E2E.Tests -c Release --no-restore
+          pwsh tests/Wallow.E2E.Tests/bin/Release/net10.0/playwright.ps1 install --with-deps chromium
+
+      # By now containers should be ready (booted during Playwright install)
+      - name: Wait for services to be healthy
+        run: |
+          echo "Waiting for wallow-api..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:5050/health/ready > /dev/null 2>&1; then
+              echo "wallow-api is ready"
+              break
+            fi
+            if [ "$i" -eq 30 ]; then
+              echo "::error::wallow-api did not become healthy in time"
+              docker compose -f docker/docker-compose.test.yml logs
+              exit 1
+            fi
+            sleep 5
+          done
+
+          echo "Waiting for wallow-auth..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:5051/health > /dev/null 2>&1; then
+              echo "wallow-auth is ready"
+              break
+            fi
+            if [ "$i" -eq 30 ]; then
+              echo "::error::wallow-auth did not become healthy in time"
+              docker compose -f docker/docker-compose.test.yml logs
+              exit 1
+            fi
+            sleep 5
+          done
+
+          echo "Waiting for wallow-web..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:5053/health > /dev/null 2>&1; then
+              echo "wallow-web is ready"
+              break
+            fi
+            if [ "$i" -eq 30 ]; then
+              echo "::error::wallow-web did not become healthy in time"
+              docker compose -f docker/docker-compose.test.yml logs
+              exit 1
+            fi
+            sleep 5
+          done
+
+      - name: Run E2E tests
+        run: dotnet test tests/Wallow.E2E.Tests --no-build --configuration Release --settings tests/coverage.runsettings --verbosity normal --blame-hang-timeout 5m
         env:
-          ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=wallow_test;Username=wallow;Password=wallow"
-          RabbitMQ__Host: localhost
-          Redis__ConnectionString: "localhost:6379"
+          E2E_BASE_URL: "http://localhost:5050"
+          E2E_AUTH_URL: "http://localhost:5051"
+          E2E_WEB_URL: "http://localhost:5053"
+          E2E_MAILPIT_URL: "http://localhost:8035"
+          E2E_EXTERNAL_SERVICES: "true"
 
-      - name: Upload integration test coverage
-        if: always()
+      - name: Upload E2E failure artifacts
+        if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: coverage-integration
-          path: ./TestResults/**/coverage.cobertura.xml
-          if-no-files-found: error
-          retention-days: 5
+          name: e2e-failure-artifacts
+          path: tests/Wallow.E2E.Tests/test-results/
+          retention-days: 7
+
+      - name: Tear down test environment
+        if: always()
+        run: docker compose -f docker/docker-compose.test.yml down -v
+
+  # Push images to GHCR after ALL tests pass — only on main branch
+  push-images:
+    needs: [unit-tests, integration-tests, e2e]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Restore container images
+        uses: actions/cache/restore@v5
+        with:
+          path: /tmp/wallow-images.tar.gz
+          key: images-${{ runner.os }}-${{ github.sha }}
+          fail-on-cache-miss: true
+
+      - name: Load container images
+        run: docker load < /tmp/wallow-images.tar.gz
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tag and push images to GHCR
+        env:
+          IMAGE_BASE: ghcr.io/${{ github.repository }}
+          SHA_TAG: ${{ github.sha }}
+        run: |
+          SHORT_SHA="${SHA_TAG:0:7}"
+          declare -A IMAGE_MAP=(
+            ["wallow-api:test"]="${IMAGE_BASE}"
+            ["wallow-auth:test"]="${IMAGE_BASE}-auth"
+            ["wallow-web:test"]="${IMAGE_BASE}-web"
+            ["wallow-migrations:test"]="${IMAGE_BASE}-migrations"
+          )
+          for local_tag in "${!IMAGE_MAP[@]}"; do
+            remote="${IMAGE_MAP[$local_tag]}"
+            docker tag "$local_tag" "${remote}:latest"
+            docker tag "$local_tag" "${remote}:${SHORT_SHA}"
+            docker push "${remote}:latest"
+            docker push "${remote}:${SHORT_SHA}"
+            echo "Pushed ${remote}:latest and ${remote}:${SHORT_SHA}"
+          done
 
   merge-coverage:
     needs: [unit-tests, integration-tests]
@@ -150,6 +430,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
       - name: Download unit test coverage
         uses: actions/download-artifact@v8
         with:
@@ -189,10 +474,14 @@ jobs:
         if: steps.check-coverage.outputs.has_coverage == 'true'
         run: |
           LINE_RATE=$(grep -oP 'line-rate="\K[^"]+' ./coverage/merged/Cobertura.xml | head -1)
-          PERCENT=$(awk "BEGIN {printf \"%.1f\", ${LINE_RATE:-0} * 100}")
+          if [ -z "$LINE_RATE" ]; then
+            echo "::error::Failed to extract line-rate from Cobertura.xml"
+            exit 1
+          fi
+          PERCENT=$(awk "BEGIN {printf \"%.1f\", ${LINE_RATE} * 100}")
           echo "Line coverage: ${PERCENT}%"
           MIN=90
-          if [ "$(awk "BEGIN {print (${LINE_RATE:-0} * 100 < $MIN)}")" = "1" ]; then
+          if [ "$(awk "BEGIN {print (${LINE_RATE} * 100 < $MIN)}")" = "1" ]; then
             echo "::error::Coverage ${PERCENT}% is below minimum threshold of ${MIN}%"
             exit 1
           fi

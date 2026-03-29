@@ -1,3 +1,8 @@
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Infrastructure.Data;
 using Wallow.Identity.Infrastructure.Persistence;
@@ -7,15 +12,15 @@ using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Tests.Common.Bases;
 using Wallow.Tests.Common.Factories;
 using Wallow.Tests.Common.Helpers;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.TestHost;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 
 namespace Wallow.Identity.IntegrationTests;
 
+[CollectionDefinition("ServiceAccounts")]
+public class ServiceAccountTestCollection : ICollectionFixture<ServiceAccountTestFactory>;
+
+[Collection("ServiceAccounts")]
 [Trait("Category", "Integration")]
-public class ServiceAccountIntegrationTestBase(ServiceAccountTestFactory factory) : WallowIntegrationTestBase(factory), IClassFixture<ServiceAccountTestFactory>
+public class ServiceAccountIntegrationTestBase(ServiceAccountTestFactory factory) : WallowIntegrationTestBase(factory)
 {
     protected IServiceAccountService ServiceAccountService { get; set; } = null!;
     protected IApiScopeRepository ApiScopeRepository { get; set; } = null!;
@@ -44,11 +49,10 @@ public class ServiceAccountIntegrationTestBase(ServiceAccountTestFactory factory
 
     private static async Task CleanupDatabaseAsync(IdentityDbContext context)
     {
-        context.ScimSyncLogs.RemoveRange(context.ScimSyncLogs);
-        context.ScimConfigurations.RemoveRange(context.ScimConfigurations);
-        context.SsoConfigurations.RemoveRange(context.SsoConfigurations);
-        context.ServiceAccountMetadata.RemoveRange(context.ServiceAccountMetadata);
-        await context.SaveChangesAsync();
+        await context.ScimSyncLogs.ExecuteDeleteAsync();
+        await context.ScimConfigurations.ExecuteDeleteAsync();
+        await context.SsoConfigurations.ExecuteDeleteAsync();
+        await context.ServiceAccountMetadata.ExecuteDeleteAsync();
     }
 }
 

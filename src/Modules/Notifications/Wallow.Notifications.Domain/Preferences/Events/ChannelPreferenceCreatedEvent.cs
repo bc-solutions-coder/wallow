@@ -1,6 +1,6 @@
+using JetBrains.Annotations;
 using Wallow.Notifications.Domain.Preferences.Identity;
 using Wallow.Shared.Kernel.Domain;
-using JetBrains.Annotations;
 
 namespace Wallow.Notifications.Domain.Preferences.Events;
 

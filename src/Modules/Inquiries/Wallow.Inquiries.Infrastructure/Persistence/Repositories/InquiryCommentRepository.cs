@@ -1,7 +1,7 @@
+using Microsoft.EntityFrameworkCore;
 using Wallow.Inquiries.Application.Interfaces;
 using Wallow.Inquiries.Domain.Entities;
 using Wallow.Inquiries.Domain.Identity;
-using Microsoft.EntityFrameworkCore;
 
 namespace Wallow.Inquiries.Infrastructure.Persistence.Repositories;
 
@@ -35,5 +35,10 @@ public sealed class InquiryCommentRepository(InquiriesDbContext context) : IInqu
         return await query
             .OrderBy(c => c.CreatedAt)
             .ToListAsync(cancellationToken);
+    }
+
+    public Task SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        return context.SaveChangesAsync(cancellationToken);
     }
 }

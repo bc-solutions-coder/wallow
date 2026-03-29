@@ -1,6 +1,6 @@
+using Microsoft.EntityFrameworkCore;
 using Wallow.Shared.Infrastructure.Core.Persistence;
 using Wallow.Shared.Kernel.Identity;
-using Microsoft.EntityFrameworkCore;
 
 namespace Wallow.Shared.Infrastructure.Settings;
 

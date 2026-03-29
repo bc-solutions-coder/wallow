@@ -1,4 +1,8 @@
 using Asp.Versioning;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Wallow.Shared.Api.Extensions;
 using Wallow.Shared.Contracts.Storage;
 using Wallow.Shared.Contracts.Storage.Commands;
@@ -19,10 +23,6 @@ using Wallow.Storage.Application.Queries.GetFilesByBucket;
 using Wallow.Storage.Application.Queries.GetPresignedUrl;
 using Wallow.Storage.Application.Queries.GetUploadPresignedUrl;
 using Wallow.Storage.Domain.Enums;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.RateLimiting;
 using Wolverine;
 
 namespace Wallow.Storage.Api.Controllers;
@@ -33,6 +33,7 @@ namespace Wallow.Storage.Api.Controllers;
 [Authorize]
 [Tags("Storage")]
 [Produces("application/json")]
+[IgnoreAntiforgeryToken]
 public sealed class StorageController(IMessageBus bus, ITenantContext tenantContext, ICurrentUserService currentUserService) : ControllerBase
 {
 
@@ -187,7 +188,7 @@ public sealed class StorageController(IMessageBus bus, ITenantContext tenantCont
     public async Task<IActionResult> GetFile(Guid id, CancellationToken cancellationToken)
     {
         Result<StoredFileDto> result = await bus.InvokeAsync<Result<StoredFileDto>>(
-            new GetFileByIdQuery(tenantContext.TenantId.Value, id), cancellationToken);
+            new GetFileByIdQuery(id), cancellationToken);
 
         return result.Map(ToFileMetadataResponse).ToActionResult();
     }
@@ -202,7 +203,7 @@ public sealed class StorageController(IMessageBus bus, ITenantContext tenantCont
     public async Task<IActionResult> Download(Guid id, CancellationToken cancellationToken)
     {
         Result<PresignedUrlResult> result = await bus.InvokeAsync<Result<PresignedUrlResult>>(
-            new GetPresignedUrlQuery(tenantContext.TenantId.Value, id), cancellationToken);
+            new GetPresignedUrlQuery(id), cancellationToken);
 
         if (result.IsFailure)
         {
@@ -222,7 +223,7 @@ public sealed class StorageController(IMessageBus bus, ITenantContext tenantCont
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         Result result = await bus.InvokeAsync<Result>(
-            new DeleteFileCommand(tenantContext.TenantId.Value, id), cancellationToken);
+            new DeleteFileCommand(id), cancellationToken);
 
         if (result.IsSuccess)
         {
@@ -247,7 +248,7 @@ public sealed class StorageController(IMessageBus bus, ITenantContext tenantCont
         CancellationToken cancellationToken = default)
     {
         Result<PagedResult<StoredFileDto>> result = await bus.InvokeAsync<Result<PagedResult<StoredFileDto>>>(
-            new GetFilesByBucketQuery(tenantContext.TenantId.Value, bucket, path, page, pageSize), cancellationToken);
+            new GetFilesByBucketQuery(bucket, path, page, pageSize), cancellationToken);
 
         return result.Map(paged => new PagedResult<FileMetadataResponse>(
                 paged.Items.Select(ToFileMetadataResponse).ToList(),
@@ -312,7 +313,7 @@ public sealed class StorageController(IMessageBus bus, ITenantContext tenantCont
             : null;
 
         Result<PresignedUrlResult> result = await bus.InvokeAsync<Result<PresignedUrlResult>>(
-            new GetPresignedUrlQuery(tenantContext.TenantId.Value, id, expiry), cancellationToken);
+            new GetPresignedUrlQuery(id, expiry), cancellationToken);
 
         return result.Map(r => new PresignedUrlResponse(r.Url, r.ExpiresAt))
             .ToActionResult();

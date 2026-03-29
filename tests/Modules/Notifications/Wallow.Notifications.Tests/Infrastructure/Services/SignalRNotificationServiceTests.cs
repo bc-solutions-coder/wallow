@@ -1,9 +1,9 @@
+using Microsoft.Extensions.Logging;
+using NSubstitute.ExceptionExtensions;
 using Wallow.Notifications.Application.Channels.InApp.Interfaces;
 using Wallow.Notifications.Infrastructure.Services;
 using Wallow.Shared.Contracts.Realtime;
 using Wallow.Shared.Kernel.Identity;
-using Microsoft.Extensions.Logging;
-using NSubstitute.ExceptionExtensions;
 
 namespace Wallow.Notifications.Tests.Infrastructure.Services;
 
@@ -90,7 +90,7 @@ public class SignalRNotificationServiceTests
         using CancellationTokenSource cts = new();
         CancellationToken token = cts.Token;
 
-        await _sut.SendToUserAsync(userId, "Title", "Message", "info", token);
+        await _sut.SendToUserAsync(userId, "Title", "Message", "info", null, token);
 
         await _dispatcher.Received(1).SendToUserAsync(
             Arg.Any<string>(),

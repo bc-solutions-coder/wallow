@@ -1,4 +1,7 @@
 using System.Globalization;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
@@ -6,9 +9,6 @@ using Wallow.Identity.Domain.Enums;
 using Wallow.Identity.Infrastructure.Scim;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 
 namespace Wallow.Identity.Infrastructure.Services;
 
@@ -92,6 +92,9 @@ public sealed partial class ScimUserService(
 
             user.UserName = request.UserName;
             user.Email = email;
+            user.UpdateName(
+                request.Name?.GivenName ?? user.FirstName,
+                request.Name?.FamilyName ?? user.LastName);
 
             IdentityResult result = await userManager.UpdateAsync(user);
             if (!result.Succeeded)
@@ -454,7 +457,7 @@ public sealed partial class ScimUserService(
                     Primary = true
                 }
             ],
-            Active = user.IsActive && !user.LockoutEnabled,
+            Active = user.IsActive && !(user.LockoutEnabled && user.LockoutEnd > DateTimeOffset.UtcNow),
             Meta = new ScimMeta
             {
                 ResourceType = "User",

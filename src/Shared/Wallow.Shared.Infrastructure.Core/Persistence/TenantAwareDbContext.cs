@@ -1,22 +1,29 @@
 using System.Linq.Expressions;
 using System.Reflection;
-using Wallow.Shared.Kernel.Identity;
-using Wallow.Shared.Kernel.MultiTenancy;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Wallow.Shared.Kernel.Identity;
+using Wallow.Shared.Kernel.MultiTenancy;
 
 namespace Wallow.Shared.Infrastructure.Core.Persistence;
 
-public abstract class TenantAwareDbContext<TContext> : DbContext where TContext : DbContext
+public abstract class TenantAwareDbContext<TContext> : DbContext, ITenantAwareContext where TContext : DbContext
 {
     // ReSharper disable once InconsistentNaming — Field must be protected for expression tree access in subclasses
 #pragma warning disable SA1401, CA1051, IDE1006
-    protected readonly TenantId _tenantId;
+    protected TenantId _tenantId;
 #pragma warning restore SA1401, CA1051, IDE1006
 
-    protected TenantAwareDbContext(DbContextOptions<TContext> options, ITenantContext tenantContext) : base(options)
+    protected TenantAwareDbContext(DbContextOptions<TContext> options) : base(options)
     {
-        _tenantId = tenantContext.TenantId;
+        _tenantId = default;
+    }
+
+    public TenantId CurrentTenantId => _tenantId;
+
+    public void SetTenant(TenantId tenantId)
+    {
+        _tenantId = tenantId;
     }
 
     protected void ApplyTenantQueryFilters(ModelBuilder modelBuilder)
@@ -28,6 +35,9 @@ public abstract class TenantAwareDbContext<TContext> : DbContext where TContext 
                 ParameterExpression parameter = Expression.Parameter(entityType.ClrType, "e");
                 MemberExpression property = Expression.Property(parameter, nameof(ITenantScoped.TenantId));
 
+                // Reference this._tenantId — EF Core's QueryFilterRewritingExpressionVisitor
+                // rebinds the ConstantExpression to the current context instance at query time,
+                // so this works correctly with pooled DbContextFactory.
                 ConstantExpression contextExpression = Expression.Constant(this);
                 MemberExpression tenantIdField = Expression.Field(
                     contextExpression,

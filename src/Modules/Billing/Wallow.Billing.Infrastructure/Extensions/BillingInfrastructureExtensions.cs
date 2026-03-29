@@ -1,3 +1,7 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
 using Wallow.Billing.Application.Interfaces;
 using Wallow.Billing.Application.Metering.Interfaces;
 using Wallow.Billing.Application.Metering.Services;
@@ -8,11 +12,9 @@ using Wallow.Billing.Infrastructure.Persistence.Repositories;
 using Wallow.Billing.Infrastructure.Services;
 using Wallow.Shared.Contracts.Billing;
 using Wallow.Shared.Contracts.Metering;
+using Wallow.Shared.Infrastructure.Core.Extensions;
 using Wallow.Shared.Infrastructure.Settings;
 using Wallow.Shared.Kernel.MultiTenancy;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Wallow.Billing.Infrastructure.Extensions;
 
@@ -22,17 +24,28 @@ public static class BillingInfrastructureExtensions
         this IServiceCollection services, IConfiguration configuration)
     {
         services.AddBillingPersistence(configuration);
+        services.AddReadDbContext<BillingDbContext>(configuration);
         services.AddSettings<BillingDbContext, BillingSettingKeys>("billing");
         return services;
     }
 
     private static void AddBillingPersistence(
-        this IServiceCollection services, IConfiguration _)
+        this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddDbContext<BillingDbContext>((sp, options) =>
+        int maxPoolSize = configuration.GetValue("Database:MaxPoolSize", 200);
+        int minPoolSize = configuration.GetValue("Database:MinPoolSize", 10);
+
+        string defaultConnectionString = configuration.GetConnectionString("DefaultConnection")
+            ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured.");
+
+        services.AddPooledDbContextFactory<BillingDbContext>((sp, options) =>
         {
-            string? connectionString = sp.GetRequiredService<IConfiguration>().GetConnectionString("DefaultConnection");
-            options.UseNpgsql(connectionString, npgsql =>
+            NpgsqlConnectionStringBuilder builder = new(defaultConnectionString)
+            {
+                MaxPoolSize = maxPoolSize,
+                MinPoolSize = minPoolSize
+            };
+            options.UseNpgsql(builder.ConnectionString, npgsql =>
             {
                 npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "billing");
                 npgsql.EnableRetryOnFailure(
@@ -43,6 +56,8 @@ public static class BillingInfrastructureExtensions
             });
             options.AddInterceptors(sp.GetRequiredService<TenantSaveChangesInterceptor>());
         });
+
+        services.AddTenantAwareScopedContext<BillingDbContext>();
 
         // Billing repositories
         services.AddScoped<IInvoiceRepository, InvoiceRepository>();

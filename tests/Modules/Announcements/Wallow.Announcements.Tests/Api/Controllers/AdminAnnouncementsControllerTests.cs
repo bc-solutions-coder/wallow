@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Wallow.Announcements.Api.Contracts.Responses;
 using Wallow.Announcements.Api.Controllers;
 using Wallow.Announcements.Application.Announcements.Commands.ArchiveAnnouncement;
@@ -9,8 +11,6 @@ using Wallow.Announcements.Application.Announcements.Queries.GetAllAnnouncements
 using Wallow.Announcements.Domain.Announcements.Enums;
 using Wallow.Shared.Infrastructure.Core.Services;
 using Wallow.Shared.Kernel.Results;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Wolverine;
 
 namespace Wallow.Announcements.Tests.Api.Controllers;

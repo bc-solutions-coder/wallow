@@ -1,6 +1,6 @@
 using System.Security.Claims;
-using Wallow.Shared.Infrastructure.Core.Services;
 using Microsoft.AspNetCore.Http;
+using Wallow.Shared.Infrastructure.Core.Services;
 
 namespace Wallow.Identity.Tests.Infrastructure;
 

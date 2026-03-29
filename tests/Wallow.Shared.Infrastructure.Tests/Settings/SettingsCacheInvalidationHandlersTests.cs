@@ -1,8 +1,8 @@
+using Microsoft.Extensions.Caching.Distributed;
+using NSubstitute;
 using Wallow.Shared.Infrastructure.Settings;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.Settings;
-using Microsoft.Extensions.Caching.Distributed;
-using NSubstitute;
 
 namespace Wallow.Shared.Infrastructure.Tests.Settings;
 

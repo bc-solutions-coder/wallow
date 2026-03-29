@@ -1,10 +1,10 @@
 using System.Net;
 using Amazon.S3;
 using Amazon.S3.Model;
+using Microsoft.Extensions.Options;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Storage.Infrastructure.Configuration;
 using Wallow.Storage.Infrastructure.Providers;
-using Microsoft.Extensions.Options;
 
 namespace Wallow.Storage.Tests.Infrastructure;
 
@@ -314,6 +314,5 @@ public sealed class S3StorageProviderTests : IDisposable
     public void Dispose()
     {
         (_mockS3Client as IDisposable)?.Dispose();
-        (_provider as IDisposable)?.Dispose();
     }
 }

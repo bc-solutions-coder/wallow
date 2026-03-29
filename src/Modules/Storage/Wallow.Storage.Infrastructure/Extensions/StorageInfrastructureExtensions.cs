@@ -1,7 +1,14 @@
 using System.Net.Sockets;
 using Amazon;
 using Amazon.S3;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Options;
+using Npgsql;
 using Wallow.Shared.Contracts.Storage;
+using Wallow.Shared.Infrastructure.Core.Extensions;
 using Wallow.Shared.Infrastructure.Settings;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Storage.Application.Configuration;
@@ -13,11 +20,6 @@ using Wallow.Storage.Infrastructure.Persistence;
 using Wallow.Storage.Infrastructure.Persistence.Repositories;
 using Wallow.Storage.Infrastructure.Providers;
 using Wallow.Storage.Infrastructure.Scanning;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Microsoft.Extensions.Options;
 
 namespace Wallow.Storage.Infrastructure.Extensions;
 
@@ -29,22 +31,32 @@ public static class StorageInfrastructureExtensions
     {
         services.Configure<PresignedUrlOptions>(configuration.GetSection(PresignedUrlOptions.SectionName));
         services.AddStoragePersistence(configuration);
+        services.AddReadDbContext<StorageDbContext>(configuration);
         services.AddSettings<StorageDbContext, StorageSettingKeys>("storage");
         services.AddStorageProvider(configuration);
-        services.AddScoped<IFileScanner, ClamAvFileScanner>();
-        services.AddClamAvHealthCheck(configuration);
+        services.AddFileScanning(configuration);
 
         return services;
     }
 
     private static void AddStoragePersistence(
         this IServiceCollection services,
-        IConfiguration _)
+        IConfiguration configuration)
     {
-        services.AddDbContext<StorageDbContext>((sp, options) =>
+        int maxPoolSize = configuration.GetValue("Database:MaxPoolSize", 200);
+        int minPoolSize = configuration.GetValue("Database:MinPoolSize", 10);
+
+        string defaultConnectionString = configuration.GetConnectionString("DefaultConnection")
+            ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured.");
+
+        services.AddPooledDbContextFactory<StorageDbContext>((sp, options) =>
         {
-            string? connectionString = sp.GetRequiredService<IConfiguration>().GetConnectionString("DefaultConnection");
-            options.UseNpgsql(connectionString, npgsql =>
+            NpgsqlConnectionStringBuilder builder = new(defaultConnectionString)
+            {
+                MaxPoolSize = maxPoolSize,
+                MinPoolSize = minPoolSize
+            };
+            options.UseNpgsql(builder.ConnectionString, npgsql =>
             {
                 npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "storage");
                 npgsql.EnableRetryOnFailure(
@@ -55,6 +67,8 @@ public static class StorageInfrastructureExtensions
             });
             options.AddInterceptors(sp.GetRequiredService<TenantSaveChangesInterceptor>());
         });
+
+        services.AddTenantAwareScopedContext<StorageDbContext>();
 
         services.AddScoped<IStorageBucketRepository, StorageBucketRepository>();
         services.AddScoped<IStoredFileRepository, StoredFileRepository>();
@@ -77,10 +91,18 @@ public static class StorageInfrastructureExtensions
                     S3StorageOptions s3Options = sp.GetRequiredService<IOptions<StorageOptions>>().Value.S3;
                     AmazonS3Config config = new()
                     {
-                        ServiceURL = s3Options.Endpoint,
                         ForcePathStyle = s3Options.UsePathStyle,
-                        RegionEndpoint = RegionEndpoint.GetBySystemName(s3Options.Region)
+                        AuthenticationRegion = s3Options.Region
                     };
+
+                    if (!string.IsNullOrEmpty(s3Options.Endpoint))
+                    {
+                        config.ServiceURL = s3Options.Endpoint;
+                    }
+                    else
+                    {
+                        config.RegionEndpoint = RegionEndpoint.GetBySystemName(s3Options.Region);
+                    }
                     return new AmazonS3Client(s3Options.AccessKey, s3Options.SecretKey, config);
                 });
                 services.AddScoped<IStorageProvider, S3StorageProvider>();
@@ -91,18 +113,26 @@ public static class StorageInfrastructureExtensions
         }
     }
 
-    private static void AddClamAvHealthCheck(
+    private static void AddFileScanning(
         this IServiceCollection services,
         IConfiguration configuration)
     {
         StorageOptions storageOptions = configuration.GetSection(StorageOptions.SectionName).Get<StorageOptions>()
                                         ?? new StorageOptions();
 
-        services.AddHealthChecks()
-            .AddCheck(
-                "clamav",
-                new ClamAvHealthCheck(storageOptions.ClamAvHost, storageOptions.ClamAvPort),
-                tags: ["clamav"]);
+        if (storageOptions.ClamAv.Enabled)
+        {
+            services.AddScoped<IFileScanner, ClamAvFileScanner>();
+            services.AddHealthChecks()
+                .AddCheck(
+                    "clamav",
+                    new ClamAvHealthCheck(storageOptions.ClamAv.Host, storageOptions.ClamAv.Port),
+                    tags: ["clamav"]);
+        }
+        else
+        {
+            services.AddSingleton<IFileScanner, NoOpFileScanner>();
+        }
     }
 }
 

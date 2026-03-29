@@ -1,0 +1,393 @@
+# =============================================================================
+# Wallow Production Stack — wallow.dev
+# =============================================================================
+# Pangolin handles TLS + routing externally. Containers expose HTTP only.
+#
+# Usage:
+#   docker compose up -d
+#   docker compose logs -f
+#   docker compose pull && docker compose up -d   # upgrade to latest images
+# =============================================================================
+
+services:
+  # ============================================
+  # DATABASE (Primary)
+  # ============================================
+  postgres:
+    image: postgres:18-alpine
+    container_name: ${COMPOSE_PROJECT_NAME}-postgres
+    command: >
+      postgres
+      -c wal_level=replica
+      -c max_wal_senders=4
+      -c hot_standby=on
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - wallow
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # ============================================
+  # DATABASE (Read Replica)
+  # ============================================
+  postgres-replica:
+    image: postgres:18-alpine
+    container_name: ${COMPOSE_PROJECT_NAME}-postgres-replica
+    user: postgres
+    entrypoint: ["/bin/bash", "/init-replica.sh"]
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_replica_data:/var/lib/postgresql/data
+      - ../../docker/init-replica.sh:/init-replica.sh:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - wallow
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # ============================================
+  # CACHE + SIGNALR BACKPLANE (Valkey)
+  # ============================================
+  valkey:
+    image: valkey/valkey:8.1-alpine
+    container_name: ${COMPOSE_PROJECT_NAME}-valkey
+    command: valkey-server --appendonly yes --requirepass ${VALKEY_PASSWORD} --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - valkey_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "valkey-cli -a ${VALKEY_PASSWORD} ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - wallow
+    read_only: true
+    tmpfs:
+      - /tmp
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # ============================================
+  # OBJECT STORAGE (GarageHQ — S3-compatible)
+  # ============================================
+  garage:
+    image: dxflrs/garage:v2.2.0
+    container_name: ${COMPOSE_PROJECT_NAME}-garage
+    entrypoint: ["/bin/sh", "/etc/garage/init-garage.sh"]
+    volumes:
+      - garage_meta:/var/lib/garage/meta
+      - garage_data:/var/lib/garage/data
+      - ../../docker/garage/garage.toml:/etc/garage/garage.toml:ro
+      - ../../docker/garage/init-garage.sh:/etc/garage/init-garage.sh:ro
+    environment:
+      GARAGE_CONFIG_FILE: /etc/garage/garage.toml
+      GARAGE_KEY_NAME: ${GARAGE_KEY_NAME}
+      GARAGE_ACCESS_KEY: ${GARAGE_ACCESS_KEY}
+      GARAGE_SECRET_KEY: ${GARAGE_SECRET_KEY}
+      GARAGE_BUCKET: ${GARAGE_BUCKET}
+    healthcheck:
+      test: ["CMD", "garage", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - wallow
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # ============================================
+  # OBSERVABILITY (optional — enable with: docker compose --profile observability up -d)
+  # ============================================
+  alloy:
+    image: grafana/alloy:latest
+    container_name: ${COMPOSE_PROJECT_NAME}-alloy
+    volumes:
+      - ../../docker/alloy/config.alloy:/etc/alloy/config.alloy:ro
+    networks:
+      - wallow
+    restart: unless-stopped
+    profiles: ["observability"]
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  grafana-lgtm:
+    image: grafana/otel-lgtm:0.8.1
+    container_name: ${COMPOSE_PROJECT_NAME}-grafana-lgtm
+    ports:
+      - "127.0.0.1:3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GF_ADMIN_PASSWORD}
+    depends_on:
+      - alloy
+    healthcheck:
+      test: ["CMD", "test", "-f", "/tmp/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - wallow
+    restart: unless-stopped
+    profiles: ["observability"]
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # ============================================
+  # DATABASE MIGRATIONS (runs once, then exits)
+  # ============================================
+  wallow-migrations:
+    image: ${APP_IMAGE}-migrations:${APP_TAG}
+    container_name: ${COMPOSE_PROJECT_NAME}-migrations
+    environment:
+      CONNECTION_STRING: "Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    networks:
+      - wallow
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ============================================
+  # WALLOW API (api.wallow.dev)
+  # ============================================
+  wallow-api:
+    image: ${APP_IMAGE}:${APP_TAG}
+    container_name: ${COMPOSE_PROJECT_NAME}-api
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+    ports:
+      - "${API_PORT:-8080}:8080"
+    env_file: .env
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      # Database
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
+      ConnectionStrings__ReadReplicaConnection: "Host=postgres-replica;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
+      ConnectionStrings__Redis: "valkey:6379,password=${VALKEY_PASSWORD},abortConnect=false"
+      # SMTP
+      Smtp__Host: ${SMTP_HOST}
+      Smtp__Port: "${SMTP_PORT}"
+      Smtp__UseSsl: "${SMTP_USE_SSL}"
+      Smtp__Username: ${SMTP_USERNAME}
+      Smtp__Password: ${SMTP_PASSWORD}
+      Smtp__DefaultFromAddress: ${SMTP_FROM_ADDRESS}
+      Smtp__DefaultFromName: ${SMTP_FROM_NAME}
+      # S3 Storage (GarageHQ)
+      Storage__Provider: S3
+      Storage__S3__Endpoint: http://garage:3900
+      Storage__S3__AccessKey: ${GARAGE_ACCESS_KEY}
+      Storage__S3__SecretKey: ${GARAGE_SECRET_KEY}
+      Storage__S3__BucketName: ${GARAGE_BUCKET}
+      Storage__S3__UsePathStyle: "true"
+      Storage__S3__Region: us-east-1
+      # Service URLs (public-facing)
+      ServiceUrls__AuthUrl: https://auth.wallow.dev
+      ServiceUrls__WebUrl: https://wallow.dev
+      # OIDC Issuer (must match what browsers see)
+      OpenIddict__Issuer: https://api.wallow.dev
+      # Auth URL for email link generation
+      AuthUrl: https://auth.wallow.dev
+      # Cookie domain for cross-subdomain auth
+      Authentication__CookieDomain: .wallow.dev
+      # CORS
+      Cors__AllowedOrigins__0: https://wallow.dev
+      Cors__AllowedOrigins__1: https://auth.wallow.dev
+    depends_on:
+      wallow-migrations:
+        condition: service_completed_successfully
+      valkey:
+        condition: service_healthy
+      garage:
+        condition: service_healthy
+      postgres-replica:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - wallow
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 512M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ============================================
+  # WALLOW AUTH (auth.wallow.dev)
+  # ============================================
+  wallow-auth:
+    image: ${APP_IMAGE}-auth:${APP_TAG}
+    container_name: ${COMPOSE_PROJECT_NAME}-auth
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+    ports:
+      - "${AUTH_PORT:-8081}:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      # API base URL (server-to-server via internal network)
+      ApiBaseUrl: http://wallow-api:8080
+      ServiceUrls__ApiUrl: http://wallow-api:8080
+      ServiceUrls__WebUrl: https://wallow.dev
+    depends_on:
+      wallow-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - wallow
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 512M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ============================================
+  # WALLOW WEB (wallow.dev)
+  # ============================================
+  wallow-web:
+    image: ${APP_IMAGE}-web:${APP_TAG}
+    container_name: ${COMPOSE_PROJECT_NAME}-web
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+    ports:
+      - "${WEB_PORT:-8082}:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      # Internal service URLs (container-to-container)
+      ServiceUrls__ApiUrl: http://wallow-api:8080
+      ServiceUrls__AuthUrl: http://wallow-auth:8080
+      # Public-facing auth URL (for browser redirects)
+      ServiceUrls__AuthPublicUrl: https://auth.wallow.dev
+      # OIDC config
+      Oidc__Authority: https://api.wallow.dev
+      Oidc__ClientId: ${OIDC_CLIENT_ID}
+      Oidc__ClientSecret: ${OIDC_CLIENT_SECRET}
+    depends_on:
+      wallow-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - wallow
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 512M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  postgres_data:
+  postgres_replica_data:
+  valkey_data:
+  garage_meta:
+  garage_data:
+
+networks:
+  wallow:
+    driver: bridge

@@ -1,0 +1,43 @@
+@inherits LayoutComponentBase
+@attribute [Authorize]
+@inject Wallow.Web.Configuration.BrandingOptions Branding
+
+<div class="min-h-screen flex bg-[#faf6f1]">
+    <!-- Sidebar -->
+    <aside class="w-64 bg-[#3d2b1f] text-white flex flex-col shrink-0">
+        <div class="px-6 py-6 flex items-center gap-2 border-b border-white/10">
+            <img src="@Branding.AppIcon" alt="@Branding.AppName" class="size-8" style="shape-rendering: geometricPrecision;" />
+            <span class="font-bold text-lg">@Branding.AppName</span>
+        </div>
+
+        <nav class="flex-1 px-4 py-4 flex flex-col gap-1">
+            <NavLink href="/dashboard/apps" class="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-white/80 hover:text-white hover:bg-white/10 no-underline" ActiveClass="bg-white/10 text-white">
+                My Apps
+            </NavLink>
+            <NavLink href="/dashboard/inquiries" class="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-white/80 hover:text-white hover:bg-white/10 no-underline" ActiveClass="bg-white/10 text-white">
+                Inquiries
+            </NavLink>
+            <NavLink href="/dashboard/settings" class="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-white/80 hover:text-white hover:bg-white/10 no-underline" ActiveClass="bg-white/10 text-white">
+                Settings
+            </NavLink>
+            <AuthorizeView Roles="admin">
+                <NavLink href="/dashboard/organizations" class="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-white/80 hover:text-white hover:bg-white/10 no-underline" ActiveClass="bg-white/10 text-white">
+                    Organizations
+                </NavLink>
+            </AuthorizeView>
+        </nav>
+
+        <div class="px-4 py-4 border-t border-white/10">
+            <a href="/signout" class="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-white/80 hover:text-white hover:bg-white/10 no-underline">
+                Sign Out
+            </a>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 p-6 overflow-auto">
+        @Body
+    </main>
+</div>
+
+<BlazorReadyIndicator />

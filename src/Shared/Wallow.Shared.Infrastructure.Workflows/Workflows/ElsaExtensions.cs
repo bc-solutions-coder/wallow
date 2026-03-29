@@ -1,7 +1,7 @@
-using Elsa.EntityFrameworkCore.Extensions;
-using Elsa.EntityFrameworkCore.Modules.Management;
-using Elsa.EntityFrameworkCore.Modules.Runtime;
 using Elsa.Extensions;
+using Elsa.Persistence.EFCore.Extensions;
+using Elsa.Persistence.EFCore.Modules.Management;
+using Elsa.Persistence.EFCore.Modules.Runtime;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -15,6 +15,14 @@ public static class ElsaExtensions
         IConfiguration configuration,
         IHostEnvironment environment)
     {
+        // Skip Elsa when disabled via config or in Testing environment — workflow engine
+        // requires pre-existing DB tables and its background tasks race with migration
+        // hosted services, causing CPU spin when tables don't exist yet
+        if (!configuration.GetValue("Elsa:Enabled", true) || environment.EnvironmentName == "Testing")
+        {
+            return services;
+        }
+
         string connectionString = configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("ConnectionStrings:DefaultConnection is not configured.");
 
@@ -24,7 +32,11 @@ public static class ElsaExtensions
         {
             elsa.UseWorkflowManagement(management =>
             {
-                management.UseEntityFrameworkCore(ef => ef.UsePostgreSql(connectionString));
+                management.UseEntityFrameworkCore(ef =>
+                {
+                    ef.UsePostgreSql(connectionString);
+                    ef.RunMigrations = true;
+                });
 
                 // Auto-discover module workflow activities from all Wallow assemblies
                 IEnumerable<Type> activityTypes = AppDomain.CurrentDomain.GetAssemblies()
@@ -37,7 +49,11 @@ public static class ElsaExtensions
             });
 
             elsa.UseWorkflowRuntime(runtime =>
-                runtime.UseEntityFrameworkCore(ef => ef.UsePostgreSql(connectionString)));
+                runtime.UseEntityFrameworkCore(ef =>
+                {
+                    ef.UsePostgreSql(connectionString);
+                    ef.RunMigrations = true;
+                }));
 
             elsa.UseIdentity(identity =>
             {
@@ -64,7 +80,7 @@ public static class ElsaExtensions
             return configuredKey;
         }
 
-        if (environment.IsDevelopment())
+        if (environment.IsDevelopment() || environment.EnvironmentName == "Testing")
         {
             return "wallow-default-elsa-signing-key-replace-in-production";
         }

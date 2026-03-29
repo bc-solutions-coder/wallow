@@ -1,0 +1,74 @@
+- name: Overview
+  href: index.md
+- name: Getting Started
+  items:
+    - name: Fork Guide
+      href: getting-started/fork-guide.md
+    - name: Developer Guide
+      href: getting-started/developer-guide.md
+    - name: Onboarding
+      href: getting-started/onboarding.md
+    - name: Configuration
+      href: getting-started/configuration.md
+- name: Architecture
+  items:
+    - name: Architecture Assessment
+      href: architecture/assessment.md
+    - name: Module Creation
+      href: architecture/module-creation.md
+    - name: Authorization
+      href: architecture/authorization.md
+    - name: Messaging
+      href: architecture/messaging.md
+    - name: Background Jobs
+      href: architecture/background-jobs.md
+    - name: Caching
+      href: architecture/caching.md
+    - name: File Storage
+      href: architecture/file-storage.md
+    - name: Realtime
+      href: architecture/realtime.md
+    - name: Workflows
+      href: architecture/workflows.md
+- name: Development
+  items:
+    - name: API Development
+      href: development/api-development.md
+    - name: Database Development
+      href: development/database-development.md
+    - name: Database Migrations
+      href: development/database-migrations.md
+    - name: Testing
+      href: development/testing.md
+    - name: E2E Testing
+      href: development/testing-e2e.md
+    - name: Testing with Docker
+      href: development/testing-docker.md
+    - name: CI/CD Pipeline
+      href: development/testing-ci.md
+    - name: Code Coverage
+      href: development/testing-coverage.md
+    - name: Frontend Setup
+      href: development/frontend-setup.md
+- name: Operations
+  items:
+    - name: Deployment
+      href: operations/deployment.md
+    - name: Versioning
+      href: operations/versioning.md
+    - name: Observability
+      href: operations/observability.md
+    - name: Troubleshooting
+      href: operations/troubleshooting.md
+- name: Integrations
+  items:
+    - name: External Auth Setup
+      href: integrations/external-auth.md
+    - name: DCR Integration
+      href: integrations/dcr-integration.md
+    - name: AsyncAPI
+      href: integrations/asyncapi.md
+- name: API Reference
+  items:
+    - name: Service Accounts
+      href: api/service-accounts.md

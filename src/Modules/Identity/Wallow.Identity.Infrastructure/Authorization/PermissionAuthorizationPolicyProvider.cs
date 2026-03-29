@@ -1,20 +1,23 @@
-using Wallow.Shared.Kernel.Identity.Authorization;
+using System.Collections.Concurrent;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Options;
+using Wallow.Shared.Kernel.Identity.Authorization;
 
 namespace Wallow.Identity.Infrastructure.Authorization;
 
 public class PermissionAuthorizationPolicyProvider(IOptions<AuthorizationOptions> options) : IAuthorizationPolicyProvider
 {
     private readonly DefaultAuthorizationPolicyProvider _fallbackProvider = new(options);
+    private readonly ConcurrentDictionary<string, AuthorizationPolicy> _policyCache = new();
 
     public Task<AuthorizationPolicy?> GetPolicyAsync(string policyName)
     {
         if (PermissionType.All.Contains(policyName))
         {
-            AuthorizationPolicy policy = new AuthorizationPolicyBuilder()
-                .AddRequirements(new PermissionRequirement(policyName))
-                .Build();
+            AuthorizationPolicy policy = _policyCache.GetOrAdd(policyName, name =>
+                new AuthorizationPolicyBuilder()
+                    .AddRequirements(new PermissionRequirement(name))
+                    .Build());
 
             return Task.FromResult<AuthorizationPolicy?>(policy);
         }

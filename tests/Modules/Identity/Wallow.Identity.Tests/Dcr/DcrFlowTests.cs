@@ -1,15 +1,11 @@
 using System.Security.Claims;
-using Wallow.Identity.Application.Interfaces;
-using Wallow.Identity.Domain.Entities;
-using Wallow.Identity.Infrastructure.Authorization;
-using Wallow.Identity.Infrastructure.Middleware;
-using Wallow.Identity.Infrastructure.Repositories;
-using Wallow.Shared.Kernel.Identity;
-using Wallow.Shared.Kernel.Identity.Authorization;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Wallow.Identity.Infrastructure.Authorization;
+using Wallow.Identity.Infrastructure.Middleware;
+using Wallow.Identity.Infrastructure.Services;
+using Wallow.Shared.Kernel.Identity.Authorization;
 
 namespace Wallow.Identity.Tests.Dcr;
 
@@ -92,10 +88,10 @@ public class DcrFlowTests
     }
 
     [Fact]
-    public async Task Client_WithoutSaPrefix_GetsRoleBasedExpansion_NoRolesMeansNoPermissions()
+    public async Task Client_WithoutSaPrefix_NoRoles_StillGetsScopePermissions()
     {
-        // A client without the sa- prefix (e.g., a frontend app) should go through
-        // role-based expansion. With no roles, it gets zero permissions -> 403 in practice
+        // A user client without the sa- prefix gets role-based expansion (empty here)
+        // plus scope-based expansion as a supplement
         List<Claim> claims =
         [
             new Claim("azp", "my-frontend-app"),
@@ -112,32 +108,19 @@ public class DcrFlowTests
         PermissionExpansionMiddleware middleware = new(_ => Task.CompletedTask);
         await middleware.InvokeAsync(httpContext);
 
-        // Without sa- prefix and without roles, no permissions should be added
         List<string> permissions = httpContext.User.FindAll("permission")
             .Select(c => c.Value)
             .ToList();
-        permissions.Should().BeEmpty();
+        permissions.Should().Contain(PermissionType.InquiriesRead);
+        permissions.Should().Contain(PermissionType.InquiriesWrite);
     }
 
     [Fact]
-    public async Task TrackingMiddleware_UnknownSaClient_CreatesMetadataRecord()
+    public async Task TrackingMiddleware_SaClient_RecordsToBuffer()
     {
-        // When an unknown sa-* client makes a successful API call,
-        // the tracking middleware should lazily create a ServiceAccountMetadata record
-        IServiceAccountUnfilteredRepository unfilteredRepo = Substitute.For<IServiceAccountUnfilteredRepository>();
-        unfilteredRepo.GetByKeycloakClientIdAsync("sa-new-client", Arg.Any<CancellationToken>())
-            .Returns((ServiceAccountMetadata?)null);
-
-        IServiceAccountRepository repository = Substitute.For<IServiceAccountRepository>();
-        TimeProvider timeProvider = TimeProvider.System;
-
-        ServiceCollection services = new();
-        services.AddSingleton(unfilteredRepo);
-        services.AddSingleton(repository);
-        services.AddSingleton(timeProvider);
-        ServiceProvider serviceProvider = services.BuildServiceProvider();
-
-        IServiceScopeFactory scopeFactory = serviceProvider.GetRequiredService<IServiceScopeFactory>();
+        // When an sa-* client makes a successful API call,
+        // the tracking middleware should record the client ID to the buffer
+        ServiceAccountUsageBuffer buffer = new();
         ILogger<ServiceAccountTrackingMiddleware> logger = NullLogger<ServiceAccountTrackingMiddleware>.Instance;
 
         List<Claim> claims = [new Claim("azp", "sa-new-client")];
@@ -153,33 +136,19 @@ public class DcrFlowTests
         ServiceAccountTrackingMiddleware middleware = new(
             _ => Task.CompletedTask,
             logger,
-            scopeFactory);
+            buffer);
 
         await middleware.InvokeAsync(httpContext);
 
-        // Give fire-and-forget task time to complete
-        await Task.Delay(500);
-
-        repository.Received(1).Add(Arg.Is<ServiceAccountMetadata>(m =>
-            m.KeycloakClientId == "sa-new-client"));
-        await repository.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+        Dictionary<string, DateTimeOffset> entries = buffer.DrainAll();
+        entries.Should().ContainKey("sa-new-client");
     }
 
     [Fact]
-    public async Task TrackingMiddleware_NonSaClient_DoesNotTrack()
+    public async Task TrackingMiddleware_NonSaClient_DoesNotRecord()
     {
-        // Clients without sa- prefix should not be tracked by the middleware
-        IServiceAccountUnfilteredRepository unfilteredRepo = Substitute.For<IServiceAccountUnfilteredRepository>();
-        IServiceAccountRepository repository = Substitute.For<IServiceAccountRepository>();
-        TimeProvider timeProvider = TimeProvider.System;
-
-        ServiceCollection services = new();
-        services.AddSingleton(unfilteredRepo);
-        services.AddSingleton(repository);
-        services.AddSingleton(timeProvider);
-        ServiceProvider serviceProvider = services.BuildServiceProvider();
-
-        IServiceScopeFactory scopeFactory = serviceProvider.GetRequiredService<IServiceScopeFactory>();
+        // Clients without sa- or app- prefix should not be recorded
+        ServiceAccountUsageBuffer buffer = new();
         ILogger<ServiceAccountTrackingMiddleware> logger = NullLogger<ServiceAccountTrackingMiddleware>.Instance;
 
         List<Claim> claims = [new Claim("azp", "regular-client")];
@@ -195,47 +164,22 @@ public class DcrFlowTests
         ServiceAccountTrackingMiddleware middleware = new(
             _ => Task.CompletedTask,
             logger,
-            scopeFactory);
+            buffer);
 
         await middleware.InvokeAsync(httpContext);
 
-        await Task.Delay(200);
-
-        await unfilteredRepo.DidNotReceive().GetByKeycloakClientIdAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
-        repository.DidNotReceive().Add(Arg.Any<ServiceAccountMetadata>());
+        Dictionary<string, DateTimeOffset> entries = buffer.DrainAll();
+        entries.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task TrackingMiddleware_KnownSaClient_UpdatesLastUsed()
+    public async Task TrackingMiddleware_AppClient_RecordsToBuffer()
     {
-        // When a known sa-* client makes a request, the middleware should
-        // update the existing metadata's LastUsedAt timestamp
-        ServiceAccountMetadata existingMetadata = ServiceAccountMetadata.Create(
-            TenantId.Platform,
-            "sa-existing-client",
-            "Existing Client",
-            null,
-            [],
-            Guid.Empty,
-            TimeProvider.System);
-
-        IServiceAccountUnfilteredRepository unfilteredRepo = Substitute.For<IServiceAccountUnfilteredRepository>();
-        unfilteredRepo.GetByKeycloakClientIdAsync("sa-existing-client", Arg.Any<CancellationToken>())
-            .Returns(existingMetadata);
-
-        IServiceAccountRepository repository = Substitute.For<IServiceAccountRepository>();
-        TimeProvider timeProvider = TimeProvider.System;
-
-        ServiceCollection services = new();
-        services.AddSingleton(unfilteredRepo);
-        services.AddSingleton(repository);
-        services.AddSingleton(timeProvider);
-        ServiceProvider serviceProvider = services.BuildServiceProvider();
-
-        IServiceScopeFactory scopeFactory = serviceProvider.GetRequiredService<IServiceScopeFactory>();
+        // app-* prefixed clients should also be recorded
+        ServiceAccountUsageBuffer buffer = new();
         ILogger<ServiceAccountTrackingMiddleware> logger = NullLogger<ServiceAccountTrackingMiddleware>.Instance;
 
-        List<Claim> claims = [new Claim("azp", "sa-existing-client")];
+        List<Claim> claims = [new Claim("azp", "app-existing-client")];
         ClaimsIdentity identity = new(claims, "Bearer");
         ClaimsPrincipal principal = new(identity);
 
@@ -248,15 +192,11 @@ public class DcrFlowTests
         ServiceAccountTrackingMiddleware middleware = new(
             _ => Task.CompletedTask,
             logger,
-            scopeFactory);
+            buffer);
 
         await middleware.InvokeAsync(httpContext);
 
-        await Task.Delay(500);
-
-        existingMetadata.LastUsedAt.Should().NotBeNull();
-        await unfilteredRepo.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
-        // Should NOT create a new record since it already exists
-        repository.DidNotReceive().Add(Arg.Any<ServiceAccountMetadata>());
+        Dictionary<string, DateTimeOffset> entries = buffer.DrainAll();
+        entries.Should().ContainKey("app-existing-client");
     }
 }

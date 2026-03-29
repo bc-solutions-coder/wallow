@@ -1,8 +1,8 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Identity.Domain.Identity;
 using Wallow.Shared.Kernel.Identity;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Wallow.Identity.Infrastructure.Persistence.Configurations;
 
@@ -116,8 +116,8 @@ public sealed class SsoConfigurationConfiguration : IEntityTypeConfiguration<Sso
             .HasColumnName("sync_groups_as_roles")
             .IsRequired();
 
-        builder.Property(s => s.KeycloakIdpAlias)
-            .HasColumnName("keycloak_idp_alias")
+        builder.Property(s => s.IdpAlias)
+            .HasColumnName("idp_alias")
             .HasMaxLength(200);
 
         builder.Property(s => s.CreatedAt).HasColumnName("created_at");
@@ -125,9 +125,15 @@ public sealed class SsoConfigurationConfiguration : IEntityTypeConfiguration<Sso
         builder.Property(s => s.CreatedBy).HasColumnName("created_by");
         builder.Property(s => s.UpdatedBy).HasColumnName("updated_by");
 
+        builder.Property<uint>("xmin")
+            .HasColumnName("xmin")
+            .HasColumnType("xid")
+            .ValueGeneratedOnAddOrUpdate()
+            .IsConcurrencyToken();
+
         builder.HasIndex(s => s.TenantId);
-        builder.HasIndex(s => s.KeycloakIdpAlias)
+        builder.HasIndex(s => s.IdpAlias)
             .IsUnique()
-            .HasFilter("keycloak_idp_alias IS NOT NULL");
+            .HasFilter("idp_alias IS NOT NULL");
     }
 }

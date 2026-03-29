@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using Wallow.Notifications.Api.Contracts.Push;
 using Wallow.Notifications.Api.Controllers;
 using Wallow.Notifications.Application.Channels.Push.DTOs;
@@ -7,7 +8,6 @@ using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Shared.Kernel.Results;
 using Wallow.Shared.Kernel.Services;
-using Microsoft.AspNetCore.Mvc;
 using Wolverine;
 
 namespace Wallow.Notifications.Tests.Api;

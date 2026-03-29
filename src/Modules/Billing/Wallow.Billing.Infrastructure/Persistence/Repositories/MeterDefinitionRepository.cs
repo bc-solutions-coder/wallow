@@ -1,7 +1,7 @@
+using Microsoft.EntityFrameworkCore;
 using Wallow.Billing.Application.Metering.Interfaces;
 using Wallow.Billing.Domain.Metering.Entities;
 using Wallow.Billing.Domain.Metering.Identity;
-using Microsoft.EntityFrameworkCore;
 
 namespace Wallow.Billing.Infrastructure.Persistence.Repositories;
 

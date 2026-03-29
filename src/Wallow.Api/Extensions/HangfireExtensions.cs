@@ -1,6 +1,6 @@
-using Wallow.Api.Middleware;
 using Hangfire;
 using Hangfire.PostgreSql;
+using Wallow.Api.Middleware;
 
 namespace Wallow.Api.Extensions;
 
@@ -25,7 +25,11 @@ internal static class HangfireExtensions
                     });
         });
 
-        services.AddHangfireServer();
+        services.AddHangfireServer(options =>
+        {
+            options.ShutdownTimeout = TimeSpan.FromSeconds(15);
+            options.StopTimeout = TimeSpan.FromSeconds(5);
+        });
 
         return services;
     }

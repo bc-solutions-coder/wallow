@@ -1,16 +1,17 @@
 using System.Diagnostics;
-using Wallow.Notifications.Application.Channels.Email.Interfaces;
-using Wallow.Notifications.Application.Channels.Email.Telemetry;
+using MailKit.Net.Smtp;
+using MailKit.Security;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MimeKit;
 using Polly;
 using Polly.Registry;
+using Wallow.Notifications.Application.Channels.Email.Interfaces;
+using Wallow.Notifications.Application.Channels.Email.Telemetry;
 
 namespace Wallow.Notifications.Infrastructure.Services;
 
 public sealed partial class SmtpEmailProvider(
-    SmtpConnectionPool connectionPool,
     IOptions<SmtpSettings> settings,
     ResiliencePipelineProvider<string> pipelineProvider,
     ILogger<SmtpEmailProvider> logger) : IEmailProvider
@@ -100,7 +101,22 @@ public sealed partial class SmtpEmailProvider(
         {
             await _smtpPipeline.ExecuteAsync(async ct =>
             {
-                await connectionPool.SendAsync(message, ct);
+                using SmtpClient client = new();
+                client.Timeout = _settings.TimeoutSeconds * 1000;
+
+                SecureSocketOptions secureSocketOptions = _settings.UseSsl
+                    ? SecureSocketOptions.StartTls
+                    : SecureSocketOptions.None;
+
+                await client.ConnectAsync(_settings.Host, _settings.Port, secureSocketOptions, ct);
+
+                if (!string.IsNullOrWhiteSpace(_settings.Username) && !string.IsNullOrWhiteSpace(_settings.Password))
+                {
+                    await client.AuthenticateAsync(_settings.Username, _settings.Password, ct);
+                }
+
+                await client.SendAsync(message, ct);
+                await client.DisconnectAsync(true, ct);
             }, cancellationToken);
 
             string recipients = message.To.ToString();

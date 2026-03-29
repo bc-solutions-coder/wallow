@@ -93,6 +93,10 @@ namespace Wallow.Inquiries.Infrastructure.Migrations
                         .HasColumnType("character varying(45)")
                         .HasColumnName("submitter_ip_address");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
                     b.Property<string>("Timeline")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -114,6 +118,8 @@ namespace Wallow.Inquiries.Infrastructure.Migrations
                     b.HasIndex("Email");
 
                     b.HasIndex("Status");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("inquiries", "inquiries");
                 });

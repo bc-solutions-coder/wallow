@@ -1,9 +1,9 @@
-using Wallow.Tests.Common.Factories;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Time.Testing;
+using Wallow.Tests.Common.Factories;
 using WireMock.RequestBuilders;
 using WireMock.ResponseBuilders;
 using WireMock.Server;
@@ -75,4 +75,9 @@ public class IdentityResilienceTestFactory : WallowApiFactory
         _wireMock?.Stop();
         _wireMock?.Dispose();
     }
+}
+
+[CollectionDefinition("IdentityResilience")]
+public class IdentityResilienceTestCollection : ICollectionFixture<IdentityResilienceTestFactory>
+{
 }

@@ -1,11 +1,12 @@
-using Wallow.Identity.Application.DTOs;
-using Wallow.Identity.Application.Interfaces;
-using Wallow.Identity.Domain.Entities;
-using Wallow.Shared.Contracts.Identity.Events;
-using Wallow.Shared.Kernel.MultiTenancy;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Wallow.Identity.Application.DTOs;
+using Wallow.Identity.Application.Interfaces;
+using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Infrastructure.Persistence;
+using Wallow.Shared.Contracts.Identity.Events;
+using Wallow.Shared.Kernel.MultiTenancy;
 using Wolverine;
 
 namespace Wallow.Identity.Infrastructure.Services;
@@ -13,6 +14,7 @@ namespace Wallow.Identity.Infrastructure.Services;
 public sealed partial class UserManagementService(
     UserManager<WallowUser> userManager,
     RoleManager<WallowRole> roleManager,
+    IdentityDbContext dbContext,
     IMessageBus messageBus,
     ITenantContext tenantContext,
     TimeProvider timeProvider,
@@ -68,7 +70,8 @@ public sealed partial class UserManagementService(
             return null;
         }
 
-        IList<string> roles = await userManager.GetRolesAsync(user);
+        Dictionary<Guid, List<string>> rolesByUserId = await GetRolesByUserIdsAsync([user.Id], ct);
+        rolesByUserId.TryGetValue(user.Id, out List<string>? roles);
 
         return new UserDto(
             user.Id,
@@ -76,7 +79,7 @@ public sealed partial class UserManagementService(
             user.FirstName,
             user.LastName,
             user.IsActive,
-            roles.ToList().AsReadOnly());
+            roles?.AsReadOnly() ?? new List<string>().AsReadOnly());
     }
 
     public async Task<UserDto?> GetUserByEmailAsync(string email, CancellationToken ct = default)
@@ -87,7 +90,8 @@ public sealed partial class UserManagementService(
             return null;
         }
 
-        IList<string> roles = await userManager.GetRolesAsync(user);
+        Dictionary<Guid, List<string>> rolesByUserId = await GetRolesByUserIdsAsync([user.Id], ct);
+        rolesByUserId.TryGetValue(user.Id, out List<string>? roles);
 
         return new UserDto(
             user.Id,
@@ -95,7 +99,7 @@ public sealed partial class UserManagementService(
             user.FirstName,
             user.LastName,
             user.IsActive,
-            roles.ToList().AsReadOnly());
+            roles?.AsReadOnly() ?? new List<string>().AsReadOnly());
     }
 
     public async Task<IReadOnlyList<UserDto>> GetUsersAsync(
@@ -120,21 +124,48 @@ public sealed partial class UserManagementService(
             .Take(max)
             .ToListAsync(ct);
 
+        Dictionary<Guid, List<string>> rolesByUserId = await GetRolesByUserIdsAsync(
+            users.Select(u => u.Id).ToList(), ct);
+
         List<UserDto> result = new(users.Count);
         foreach (WallowUser user in users)
         {
-            IList<string> roles = await userManager.GetRolesAsync(user);
+            rolesByUserId.TryGetValue(user.Id, out List<string>? roles);
             result.Add(new UserDto(
                 user.Id,
                 user.Email ?? string.Empty,
                 user.FirstName,
                 user.LastName,
                 user.IsActive,
-                roles.ToList().AsReadOnly()));
+                roles?.AsReadOnly() ?? new List<string>().AsReadOnly()));
         }
 
         return result;
     }
+
+    private async Task<Dictionary<Guid, List<string>>> GetRolesByUserIdsAsync(
+        List<Guid> userIds,
+        CancellationToken ct)
+    {
+        List<UserRoleMapping> userRoleMappings = await dbContext.UserRoles
+            .Where(ur => userIds.Contains(ur.UserId))
+            .Join(
+                dbContext.Roles,
+                ur => ur.RoleId,
+                r => r.Id,
+                (ur, r) => new UserRoleMapping(ur.UserId, r.Name!))
+            .ToListAsync(ct);
+
+        Dictionary<Guid, List<string>> rolesByUserId = userRoleMappings
+            .GroupBy(x => x.UserId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Select(x => x.RoleName).ToList());
+
+        return rolesByUserId;
+    }
+
+    private sealed record UserRoleMapping(Guid UserId, string RoleName);
 
     public async Task DeactivateUserAsync(Guid userId, CancellationToken ct = default)
     {

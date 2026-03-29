@@ -1,8 +1,8 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Wallow.Inquiries.Domain.Entities;
 using Wallow.Inquiries.Domain.Identity;
 using Wallow.Shared.Kernel.Identity;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Wallow.Inquiries.Infrastructure.Persistence.Configurations;
 
@@ -17,6 +17,13 @@ public sealed class InquiryConfiguration : IEntityTypeConfiguration<Inquiry>
             .HasConversion(new StronglyTypedIdConverter<InquiryId>())
             .HasColumnName("id")
             .ValueGeneratedNever();
+
+        builder.Property(i => i.TenantId)
+            .HasConversion(new StronglyTypedIdConverter<TenantId>())
+            .HasColumnName("tenant_id")
+            .IsRequired();
+
+        builder.HasIndex(i => i.TenantId);
 
         builder.Property(i => i.Name)
             .HasColumnName("name")

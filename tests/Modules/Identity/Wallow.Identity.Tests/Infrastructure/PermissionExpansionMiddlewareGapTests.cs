@@ -1,7 +1,7 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Http;
 using Wallow.Identity.Infrastructure.Authorization;
 using Wallow.Shared.Kernel.Identity.Authorization;
-using Microsoft.AspNetCore.Http;
 
 namespace Wallow.Identity.Tests.Infrastructure;
 
@@ -32,7 +32,7 @@ public class PermissionExpansionMiddlewareGapTests
     }
 
     [Fact]
-    public async Task InvokeAsync_UserWithNoRolesAndNoRealmAccess_AddsNoPermissions()
+    public async Task InvokeAsync_UserWithNoRolesAndNoScopes_AddsNoPermissions()
     {
         Claim[] claims =
         [
@@ -51,6 +51,31 @@ public class PermissionExpansionMiddlewareGapTests
         await middleware.InvokeAsync(context);
 
         context.User.FindAll("permission").Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task InvokeAsync_UserWithNoRolesButWithScopes_GetsScopePermissions()
+    {
+        Claim[] claims =
+        [
+            new("client_id", "wallow-dev-client"),
+            new("sub", Guid.NewGuid().ToString()),
+            new("scope", "notifications.read inquiries.write")
+        ];
+
+        ClaimsIdentity identity = new(claims, "Bearer");
+        DefaultHttpContext context = new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(identity)
+        };
+
+        PermissionExpansionMiddleware middleware = new(_ => Task.CompletedTask);
+
+        await middleware.InvokeAsync(context);
+
+        List<string> permissions = context.User.FindAll("permission").Select(c => c.Value).ToList();
+        permissions.Should().Contain(PermissionType.NotificationRead);
+        permissions.Should().Contain(PermissionType.InquiriesWrite);
     }
 
     [Fact]
@@ -166,7 +191,7 @@ public class PermissionExpansionMiddlewareGapTests
     [InlineData("announcements.read", PermissionType.AnnouncementRead)]
     [InlineData("announcements.manage", PermissionType.AnnouncementManage)]
     [InlineData("changelog.manage", PermissionType.ChangelogManage)]
-    [InlineData("notifications.read", PermissionType.NotificationsRead)]
+    [InlineData("notifications.read", PermissionType.NotificationRead)]
     [InlineData("notifications.write", PermissionType.NotificationsWrite)]
     [InlineData("configuration.read", PermissionType.ConfigurationRead)]
     [InlineData("configuration.manage", PermissionType.ConfigurationManage)]

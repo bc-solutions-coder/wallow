@@ -1,9 +1,9 @@
+using Microsoft.Extensions.Logging;
 using Wallow.Billing.Application.Interfaces;
 using Wallow.Billing.Application.Telemetry;
 using Wallow.Billing.Domain.Entities;
 using Wallow.Billing.Domain.Events;
 using Wallow.Billing.Domain.Identity;
-using Microsoft.Extensions.Logging;
 using Wolverine;
 
 namespace Wallow.Billing.Application.EventHandlers;

@@ -1,10 +1,10 @@
 using System.Buffers;
 using System.Net.Sockets;
 using System.Text;
-using Wallow.Storage.Application.Interfaces;
-using Wallow.Storage.Infrastructure.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Wallow.Storage.Application.Interfaces;
+using Wallow.Storage.Infrastructure.Configuration;
 
 namespace Wallow.Storage.Infrastructure.Scanning;
 
@@ -25,7 +25,7 @@ public sealed partial class ClamAvFileScanner : IFileScanner
     public async Task<FileScanResult> ScanAsync(Stream fileStream, string fileName, CancellationToken cancellationToken = default)
     {
         using TcpClient client = new();
-        await client.ConnectAsync(_options.ClamAvHost, _options.ClamAvPort, cancellationToken);
+        await client.ConnectAsync(_options.ClamAv.Host, _options.ClamAv.Port, cancellationToken);
 
         await using NetworkStream stream = client.GetStream();
 

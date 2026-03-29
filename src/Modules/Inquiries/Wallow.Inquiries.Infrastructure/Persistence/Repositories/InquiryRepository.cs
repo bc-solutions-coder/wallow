@@ -1,7 +1,7 @@
+using Microsoft.EntityFrameworkCore;
 using Wallow.Inquiries.Application.Interfaces;
 using Wallow.Inquiries.Domain.Entities;
 using Wallow.Inquiries.Domain.Identity;
-using Microsoft.EntityFrameworkCore;
 
 namespace Wallow.Inquiries.Infrastructure.Persistence.Repositories;
 
@@ -39,5 +39,18 @@ public sealed class InquiryRepository(InquiriesDbContext context) : IInquiryRepo
             .Where(i => i.SubmitterId == submitterId)
             .OrderByDescending(i => i.CreatedAt)
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Inquiry>> GetUnlinkedByEmailAsync(string email, CancellationToken cancellationToken = default)
+    {
+        return await context.Inquiries
+            .AsTracking()
+            .Where(i => i.Email == email && i.SubmitterId == null)
+            .ToListAsync(cancellationToken);
+    }
+
+    public Task SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        return context.SaveChangesAsync(cancellationToken);
     }
 }

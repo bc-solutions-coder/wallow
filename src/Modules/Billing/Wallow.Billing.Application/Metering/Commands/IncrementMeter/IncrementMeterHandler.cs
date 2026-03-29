@@ -1,5 +1,5 @@
-using Wallow.Billing.Application.Metering.Services;
 using Microsoft.Extensions.Logging;
+using Wallow.Billing.Application.Metering.Services;
 
 namespace Wallow.Billing.Application.Metering.Commands.IncrementMeter;
 

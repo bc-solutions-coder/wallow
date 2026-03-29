@@ -62,4 +62,40 @@ public class SendEmailValidatorTests
         TestValidationResult<SendEmailCommand> result = _validator.TestValidate(command);
         result.ShouldHaveValidationErrorFor(x => x.Body);
     }
+
+    [Theory]
+    [InlineData("user@test.com\r")]
+    [InlineData("user@test.com\n")]
+    [InlineData("user@test.com\r\nBcc: attacker@evil.com")]
+    public void Should_Have_Error_When_ToContainsNewlines(string to)
+    {
+        SendEmailCommand command = new(to, null, "Subject", "Body");
+        TestValidationResult<SendEmailCommand> result = _validator.TestValidate(command);
+        result.ShouldHaveValidationErrorFor(x => x.To)
+            .WithErrorMessage("Recipient email must not contain control characters");
+    }
+
+    [Theory]
+    [InlineData("sender@test.com\r")]
+    [InlineData("sender@test.com\n")]
+    [InlineData("sender@test.com\r\nBcc: attacker@evil.com")]
+    public void Should_Have_Error_When_FromContainsNewlines(string from)
+    {
+        SendEmailCommand command = new("user@test.com", from, "Subject", "Body");
+        TestValidationResult<SendEmailCommand> result = _validator.TestValidate(command);
+        result.ShouldHaveValidationErrorFor(x => x.From)
+            .WithErrorMessage("Sender email must not contain control characters");
+    }
+
+    [Theory]
+    [InlineData("Subject\r")]
+    [InlineData("Subject\n")]
+    [InlineData("Subject\r\nBcc: attacker@evil.com")]
+    public void Should_Have_Error_When_SubjectContainsNewlines(string subject)
+    {
+        SendEmailCommand command = new("user@test.com", null, subject, "Body");
+        TestValidationResult<SendEmailCommand> result = _validator.TestValidate(command);
+        result.ShouldHaveValidationErrorFor(x => x.Subject)
+            .WithErrorMessage("Subject must not contain control characters");
+    }
 }

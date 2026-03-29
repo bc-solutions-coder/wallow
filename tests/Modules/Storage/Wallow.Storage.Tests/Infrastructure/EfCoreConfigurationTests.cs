@@ -1,10 +1,10 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Wallow.Shared.Infrastructure.Settings;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Storage.Domain.Entities;
 using Wallow.Storage.Infrastructure.Persistence;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace Wallow.Storage.Tests.Infrastructure;
 
@@ -22,7 +22,8 @@ public sealed class EfCoreConfigurationTests : IDisposable
             .UseSqlite("DataSource=:memory:")
             .Options;
 
-        _context = new StorageDbContext(options, tenantContext);
+        _context = new StorageDbContext(options);
+        _context.SetTenant(tenantContext.TenantId);
         _model = _context.Model;
     }
 

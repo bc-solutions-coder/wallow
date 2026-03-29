@@ -1,7 +1,7 @@
 using FluentValidation;
+using Microsoft.Extensions.DependencyInjection;
 using Wallow.Storage.Application.Commands.CreateBucket;
 using Wallow.Storage.Application.Extensions;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Wallow.Storage.Tests.Application;
 

@@ -1,10 +1,10 @@
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Identity.Infrastructure.Data;
 using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Shared.Kernel.MultiTenancy;
-using Microsoft.AspNetCore.DataProtection;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 
 namespace Wallow.Identity.Tests.Infrastructure;
 
@@ -21,7 +21,7 @@ public sealed class ApiScopeSeederGapTests : IDisposable
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options;
         IDataProtectionProvider dataProtectionProvider = DataProtectionProvider.Create("Wallow.Identity.Tests");
-        _dbContext = new IdentityDbContext(options, tenantContext, dataProtectionProvider);
+        _dbContext = new IdentityDbContext(options, dataProtectionProvider);
         _logger = Substitute.For<ILogger<ApiScopeSeeder>>();
         _seeder = new ApiScopeSeeder(_logger);
     }

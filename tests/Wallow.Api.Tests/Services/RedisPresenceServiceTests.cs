@@ -1,13 +1,14 @@
+using Microsoft.Extensions.Logging.Abstractions;
+using StackExchange.Redis;
 using Wallow.Api.Services;
 using Wallow.Shared.Contracts.Realtime;
 using Wallow.Tests.Common.Fixtures;
-using Microsoft.Extensions.Logging.Abstractions;
-using StackExchange.Redis;
 
 namespace Wallow.Api.Tests.Services;
 
+[Collection(nameof(Wallow.Api.Tests.Integration.RedisTestCollection))]
 [Trait("Category", "Integration")]
-public class RedisPresenceServiceTests(RedisFixture fixture) : IClassFixture<RedisFixture>, IAsyncLifetime
+public class RedisPresenceServiceTests(RedisFixture fixture) : IAsyncLifetime
 {
     private static readonly Guid _testTenantId = Guid.Parse("00000000-0000-0000-0000-000000000099");
     private ConnectionMultiplexer _multiplexer = null!;

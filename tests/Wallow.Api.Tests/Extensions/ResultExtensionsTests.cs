@@ -1,6 +1,6 @@
+using Microsoft.AspNetCore.Mvc;
 using Wallow.Shared.Api.Extensions;
 using Wallow.Shared.Kernel.Results;
-using Microsoft.AspNetCore.Mvc;
 
 namespace Wallow.Api.Tests.Extensions;
 

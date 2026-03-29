@@ -8,8 +8,8 @@
   <PropertyGroup>
     <!-- .NET Version-Coupled Packages -->
     <!-- These should match the .NET version (e.g., 10.0.x for .NET 10) -->
-    <MicrosoftExtensionsVersion>10.0.3</MicrosoftExtensionsVersion>
-    <EfCoreVersion>10.0.3</EfCoreVersion>
+    <MicrosoftExtensionsVersion>10.0.5</MicrosoftExtensionsVersion>
+    <EfCoreVersion>10.0.4</EfCoreVersion>
     <AspNetCoreVersion>10.0.2</AspNetCoreVersion>
   </PropertyGroup>
   <ItemGroup>
@@ -19,29 +19,29 @@
     <PackageVersion Include="Asp.Versioning.Mvc" Version="8.1.1" />
     <PackageVersion Include="Asp.Versioning.Mvc.ApiExplorer" Version="8.1.1" />
     <PackageVersion Include="Audit.EntityFramework.Core" Version="32.0.0" />
-    <PackageVersion Include="Elsa.Workflows.Core" Version="3.5.3" />
-    <PackageVersion Include="Elsa.Workflows.Management" Version="3.5.3" />
-    <PackageVersion Include="Elsa.Workflows.Runtime" Version="3.5.3" />
+    <PackageVersion Include="Elsa.Workflows.Core" Version="3.6.0" />
+    <PackageVersion Include="Elsa.Workflows.Management" Version="3.6.0" />
+    <PackageVersion Include="Elsa.Workflows.Runtime" Version="3.6.0" />
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="$(AspNetCoreVersion)" />
     <PackageVersion Include="MimeKit" Version="4.15.1" />
-    <PackageVersion Include="Scalar.AspNetCore" Version="2.12.32" />
+    <PackageVersion Include="Scalar.AspNetCore" Version="2.13.11" />
     <!-- ======================================
          Health Checks
          ====================================== -->
     <PackageVersion Include="AspNetCore.HealthChecks.NpgSql" Version="9.0.0" />
-    <PackageVersion Include="AspNetCore.HealthChecks.Rabbitmq" Version="9.0.0" />
     <PackageVersion Include="AspNetCore.HealthChecks.Hangfire" Version="9.0.0" />
     <!-- ======================================
          Logging
          ====================================== -->
     <PackageVersion Include="Serilog.AspNetCore" Version="10.0.0" />
+    <PackageVersion Include="Serilog.Expressions" Version="5.0.0" />
     <PackageVersion Include="Serilog.Sinks.Console" Version="6.1.1" />
     <!-- ======================================
          OpenTelemetry
          ====================================== -->
     <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.15.0" />
     <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.15.0" />
-    <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.15.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.15.1" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.EntityFrameworkCore" Version="1.15.0-beta.1" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.15.0" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.Process" Version="1.15.0-beta.1" />
@@ -57,11 +57,10 @@
     <!-- ======================================
          CQRS & Messaging (Wolverine)
          ====================================== -->
-    <PackageVersion Include="WolverineFx" Version="5.17.0" />
-    <PackageVersion Include="WolverineFx.RabbitMQ" Version="5.17.0" />
-    <PackageVersion Include="WolverineFx.FluentValidation" Version="5.17.0" />
-    <PackageVersion Include="WolverineFx.EntityFrameworkCore" Version="5.17.0" />
-    <PackageVersion Include="WolverineFx.Postgresql" Version="5.17.0" />
+    <PackageVersion Include="WolverineFx" Version="5.24.0" />
+    <PackageVersion Include="WolverineFx.FluentValidation" Version="5.24.0" />
+    <PackageVersion Include="WolverineFx.EntityFrameworkCore" Version="5.24.0" />
+    <PackageVersion Include="WolverineFx.Postgresql" Version="5.24.0" />
     <PackageVersion Include="FluentValidation" Version="12.1.1" />
     <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
     <!-- ======================================
@@ -70,34 +69,44 @@
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="$(EfCoreVersion)" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="$(EfCoreVersion)" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="$(EfCoreVersion)" />
-    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0" />
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.1" />
     <!-- ======================================
          Dapper (Micro-ORM)
          ====================================== -->
     <PackageVersion Include="Dapper" Version="2.1.72" />
     <!-- ======================================
-         Messaging (handled by WolverineFx.RabbitMQ above)
+         Messaging (handled by Wolverine in-memory bus)
          ====================================== -->
     <!-- ======================================
          Authentication & Security
          ====================================== -->
+    <PackageVersion Include="Microsoft.AspNetCore.DataProtection.StackExchangeRedis" Version="$(AspNetCoreVersion)" />
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="$(AspNetCoreVersion)" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="$(AspNetCoreVersion)" />
     <PackageVersion Include="Microsoft.FeatureManagement.AspNetCore" Version="4.4.0" />
-    <PackageVersion Include="OpenIddict.AspNetCore" Version="6.2.0" />
-    <PackageVersion Include="OpenIddict.EntityFrameworkCore" Version="6.2.0" />
+    <PackageVersion Include="OpenIddict.AspNetCore" Version="7.4.0" />
+    <PackageVersion Include="OpenIddict.EntityFrameworkCore" Version="7.4.0" />
     <PackageVersion Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Identity.Stores" Version="$(AspNetCoreVersion)" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.Google" Version="$(AspNetCoreVersion)" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.MicrosoftAccount" Version="$(AspNetCoreVersion)" />
+    <PackageVersion Include="AspNet.Security.OAuth.GitHub" Version="10.0.0" />
+    <PackageVersion Include="AspNet.Security.OAuth.Apple" Version="10.0.0" />
     <!-- ======================================
          Real-time (SignalR)
          ====================================== -->
     <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="$(AspNetCoreVersion)" />
     <PackageVersion Include="Microsoft.AspNetCore.SignalR.StackExchangeRedis" Version="$(AspNetCoreVersion)" />
-    <PackageVersion Include="StackExchange.Redis" Version="2.8.41" />
+    <PackageVersion Include="StackExchange.Redis" Version="2.12.4" />
     <PackageVersion Include="AspNetCore.HealthChecks.Redis" Version="9.0.0" />
+    <!-- ======================================
+         Rate Limiting (Redis-backed)
+         ====================================== -->
+    <PackageVersion Include="RedisRateLimiting" Version="1.2.1" />
     <!-- ======================================
          Distributed Caching
          ====================================== -->
-    <PackageVersion Include="Microsoft.Extensions.Caching.Hybrid" Version="10.3.0" />
+    <PackageVersion Include="Microsoft.Extensions.Caching.Hybrid" Version="10.4.0" />
     <PackageVersion Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="$(MicrosoftExtensionsVersion)" />
     <!-- ======================================
          Email
@@ -115,8 +124,8 @@
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="$(MicrosoftExtensionsVersion)" />
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="$(MicrosoftExtensionsVersion)" />
     <PackageVersion Include="Microsoft.Extensions.Http" Version="$(MicrosoftExtensionsVersion)" />
-    <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.1.0" />
-    <PackageVersion Include="Microsoft.Extensions.Resilience" Version="10.1.0" />
+    <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.4.0" />
+    <PackageVersion Include="Microsoft.Extensions.Resilience" Version="10.4.0" />
     <!-- ======================================
          HTML Processing
          ====================================== -->
@@ -124,55 +133,66 @@
     <!-- ======================================
          Workflow Engine (Elsa)
          ====================================== -->
-    <PackageVersion Include="Elsa" Version="3.5.3" />
-    <PackageVersion Include="Elsa.EntityFrameworkCore.PostgreSql" Version="3.5.3" />
-    <PackageVersion Include="Humanizer.Core" Version="3.0.1" />
-    <PackageVersion Include="Elsa.Identity" Version="3.5.3" />
-    <PackageVersion Include="Elsa.Workflows.Api" Version="3.5.3" />
-    <PackageVersion Include="Elsa.Scheduling" Version="3.5.3" />
-    <PackageVersion Include="Elsa.Email" Version="3.5.3" />
-    <PackageVersion Include="Elsa.Http" Version="3.5.3" />
+    <PackageVersion Include="Elsa" Version="3.6.0" />
+    <PackageVersion Include="Elsa.Persistence.EFCore.PostgreSql" Version="3.6.0" />
+    <PackageVersion Include="Humanizer.Core" Version="3.0.10" />
+    <PackageVersion Include="Elsa.Identity" Version="3.6.0" />
+    <PackageVersion Include="Elsa.Workflows.Api" Version="3.6.0" />
+    <PackageVersion Include="Elsa.Scheduling" Version="3.6.0" />
+    <PackageVersion Include="Elsa.Email" Version="3.6.0" />
+    <PackageVersion Include="Elsa.Http" Version="3.6.0" />
     <!-- ======================================
          Reverse Proxy (YARP)
          ====================================== -->
     <!-- ======================================
          Benchmarking
          ====================================== -->
-    <PackageVersion Include="BenchmarkDotNet" Version="0.14.0" />
+    <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
     <!-- ======================================
          Testing
          ====================================== -->
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.3.0" />
+    <PackageVersion Include="Microsoft.Playwright" Version="1.58.0" />
     <PackageVersion Include="xunit" Version="2.9.3" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
     <PackageVersion Include="Bogus" Version="35.6.5" />
-    <PackageVersion Include="FluentAssertions" Version="8.8.0" />
+    <PackageVersion Include="bunit" Version="2.6.2" />
+    <PackageVersion Include="AwesomeAssertions" Version="9.4.0" />
     <PackageVersion Include="NSubstitute" Version="5.3.0" />
-    <PackageVersion Include="Testcontainers" Version="4.10.0" />
-    <PackageVersion Include="Testcontainers.PostgreSql" Version="4.10.0" />
-    <PackageVersion Include="Testcontainers.RabbitMq" Version="4.10.0" />
-    <PackageVersion Include="Testcontainers.Redis" Version="4.10.0" />
+    <PackageVersion Include="Testcontainers" Version="4.11.0" />
+    <PackageVersion Include="Testcontainers.PostgreSql" Version="4.11.0" />
+    <PackageVersion Include="Testcontainers.Redis" Version="4.11.0" />
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="$(AspNetCoreVersion)" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="$(EfCoreVersion)" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="$(EfCoreVersion)" />
-    <PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="10.1.0" />
+    <PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="10.4.0" />
     <PackageVersion Include="WireMock.Net" Version="2.0.0" />
+    <!-- ======================================
+         TOTP (Time-based One-Time Password)
+         ====================================== -->
+    <PackageVersion Include="Otp.NET" Version="1.4.1" />
     <!-- ======================================
          Code Coverage
          ====================================== -->
-    <PackageVersion Include="coverlet.collector" Version="8.0.0" />
+    <PackageVersion Include="coverlet.collector" Version="8.0.1" />
     <!-- ======================================
          Architecture Testing
          ====================================== -->
     <PackageVersion Include="NetArchTest.Rules" Version="1.3.2" />
     <!-- ======================================
+         Blazor UI Components (BlazorBlueprint)
+         ====================================== -->
+    <PackageVersion Include="BlazorBlueprint.Components" Version="3.9.2" />
+    <PackageVersion Include="BlazorBlueprint.Icons.Lucide" Version="2.0.0" />
+    <PackageVersion Include="RichardSzalay.MockHttp" Version="7.0.0" />
+    <!-- ======================================
          Annotations
          ====================================== -->
-    <PackageVersion Include="JetBrains.Annotations" Version="2024.3.0" />
+    <PackageVersion Include="JetBrains.Annotations" Version="2025.2.4" />
     <!-- ======================================
          Code Analysis
          ====================================== -->
-    <PackageVersion Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.103" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.104" />
     <PackageVersion Include="StyleCop.Analyzers" Version="1.2.0-beta.556" />
     <PackageVersion Include="Meziantou.Analyzer" Version="3.0.19" />
     <PackageVersion Include="Roslynator.Analyzers" Version="4.15.0" />

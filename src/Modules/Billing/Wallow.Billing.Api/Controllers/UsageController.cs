@@ -1,4 +1,7 @@
 using Asp.Versioning;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Wallow.Billing.Application.Metering.DTOs;
 using Wallow.Billing.Application.Metering.Queries.GetCurrentUsage;
 using Wallow.Billing.Application.Metering.Queries.GetUsageHistory;
@@ -6,9 +9,6 @@ using Wallow.Billing.Domain.Metering.Enums;
 using Wallow.Shared.Api.Extensions;
 using Wallow.Shared.Kernel.Identity.Authorization;
 using Wallow.Shared.Kernel.Results;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Wolverine;
 
 namespace Wallow.Billing.Api.Controllers;
@@ -19,6 +19,7 @@ namespace Wallow.Billing.Api.Controllers;
 [Authorize]
 [Tags("Metering")]
 [Produces("application/json")]
+[IgnoreAntiforgeryToken]
 public class UsageController(IMessageBus bus) : ControllerBase
 {
 

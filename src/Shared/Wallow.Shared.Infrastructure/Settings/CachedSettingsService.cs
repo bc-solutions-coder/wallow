@@ -1,8 +1,8 @@
 using System.Text.Json;
+using Microsoft.Extensions.Caching.Distributed;
 using Wallow.Shared.Infrastructure.Core.Persistence;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.Settings;
-using Microsoft.Extensions.Caching.Distributed;
 
 namespace Wallow.Shared.Infrastructure.Settings;
 
@@ -142,19 +142,18 @@ public sealed class CachedSettingsService<TDbContext>(
     private List<ResolvedSetting> MergeTenantWithDefaults(
         IReadOnlyList<TenantSettingEntity> tenantSettings)
     {
-        Dictionary<string, TenantSettingEntity> tenantMap = tenantSettings.ToDictionary(s => s.SettingKey);
-        Dictionary<string, ResolvedSetting> result = new();
+        Dictionary<string, ResolvedSetting> result = new(registry.Metadata.Count + tenantSettings.Count);
 
-        // Start with code defaults
+        // Start with code defaults, using direct list lookup instead of intermediate dictionary
         foreach (KeyValuePair<string, SettingMetadata> kvp in registry.Metadata)
         {
             string defaultVal = Convert.ToString(kvp.Value.DefaultValue, System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty;
-            bool hasTenant = tenantMap.TryGetValue(kvp.Key, out TenantSettingEntity? tenantEntity);
+            TenantSettingEntity? tenantEntity = FindTenantSetting(tenantSettings, kvp.Key);
 
             result[kvp.Key] = new ResolvedSetting(
                 Key: kvp.Key,
-                Value: hasTenant ? tenantEntity!.Value : defaultVal,
-                Source: hasTenant ? "tenant" : "default",
+                Value: tenantEntity is not null ? tenantEntity.Value : defaultVal,
+                Source: tenantEntity is not null ? "tenant" : "default",
                 DisplayName: kvp.Value.DisplayName,
                 Description: kvp.Value.Description,
                 DefaultValue: defaultVal);
@@ -182,29 +181,27 @@ public sealed class CachedSettingsService<TDbContext>(
         IReadOnlyList<TenantSettingEntity> tenantSettings,
         IReadOnlyList<UserSettingEntity> userSettings)
     {
-        Dictionary<string, TenantSettingEntity> tenantMap = tenantSettings.ToDictionary(s => s.SettingKey);
-        Dictionary<string, UserSettingEntity> userMap = userSettings.ToDictionary(s => s.SettingKey);
-        Dictionary<string, ResolvedSetting> result = new();
+        Dictionary<string, ResolvedSetting> result = new(registry.Metadata.Count + tenantSettings.Count + userSettings.Count);
 
-        // Start with code defaults, overlay tenant, overlay user
+        // Start with code defaults, overlay tenant, overlay user via direct list lookups
         foreach (KeyValuePair<string, SettingMetadata> kvp in registry.Metadata)
         {
             string defaultVal = Convert.ToString(kvp.Value.DefaultValue, System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty;
-            bool hasTenant = tenantMap.TryGetValue(kvp.Key, out TenantSettingEntity? tenantEntity);
-            bool hasUser = userMap.TryGetValue(kvp.Key, out UserSettingEntity? userEntity);
+            TenantSettingEntity? tenantEntity = FindTenantSetting(tenantSettings, kvp.Key);
+            UserSettingEntity? userEntity = FindUserSetting(userSettings, kvp.Key);
 
             string value = defaultVal;
             string source = "default";
 
-            if (hasTenant)
+            if (tenantEntity is not null)
             {
-                value = tenantEntity!.Value;
+                value = tenantEntity.Value;
                 source = "tenant";
             }
 
-            if (hasUser)
+            if (userEntity is not null)
             {
-                value = userEntity!.Value;
+                value = userEntity.Value;
                 source = "user";
             }
 
@@ -222,12 +219,12 @@ public sealed class CachedSettingsService<TDbContext>(
         {
             if (!result.ContainsKey(entity.SettingKey))
             {
-                bool hasUser = userMap.TryGetValue(entity.SettingKey, out UserSettingEntity? userEntity);
+                UserSettingEntity? userEntity = FindUserSetting(userSettings, entity.SettingKey);
 
                 result[entity.SettingKey] = new ResolvedSetting(
                     Key: entity.SettingKey,
-                    Value: hasUser ? userEntity!.Value : entity.Value,
-                    Source: hasUser ? "user" : "tenant",
+                    Value: userEntity is not null ? userEntity.Value : entity.Value,
+                    Source: userEntity is not null ? "user" : "tenant",
                     DisplayName: null,
                     Description: null,
                     DefaultValue: null);
@@ -278,4 +275,30 @@ public sealed class CachedSettingsService<TDbContext>(
 
     private string UserCacheKey(Guid tenantId, Guid userId) =>
         $"settings:{registry.ModuleName}:{tenantId}:{userId}";
+
+    private static TenantSettingEntity? FindTenantSetting(IReadOnlyList<TenantSettingEntity> settings, string key)
+    {
+        for (int i = 0; i < settings.Count; i++)
+        {
+            if (string.Equals(settings[i].SettingKey, key, StringComparison.Ordinal))
+            {
+                return settings[i];
+            }
+        }
+
+        return null;
+    }
+
+    private static UserSettingEntity? FindUserSetting(IReadOnlyList<UserSettingEntity> settings, string key)
+    {
+        for (int i = 0; i < settings.Count; i++)
+        {
+            if (string.Equals(settings[i].SettingKey, key, StringComparison.Ordinal))
+            {
+                return settings[i];
+            }
+        }
+
+        return null;
+    }
 }

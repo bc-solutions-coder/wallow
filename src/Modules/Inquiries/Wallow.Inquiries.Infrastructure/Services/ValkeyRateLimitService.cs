@@ -1,5 +1,5 @@
-using Wallow.Inquiries.Application.Interfaces;
 using StackExchange.Redis;
+using Wallow.Inquiries.Application.Interfaces;
 
 namespace Wallow.Inquiries.Infrastructure.Services;
 

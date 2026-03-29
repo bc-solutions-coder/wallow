@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Wallow.Shared.Contracts.Storage;
 using Wallow.Shared.Contracts.Storage.Commands;
 using Wallow.Shared.Kernel.Identity;
@@ -19,8 +21,6 @@ using Wallow.Storage.Application.Queries.GetFilesByBucket;
 using Wallow.Storage.Application.Queries.GetPresignedUrl;
 using Wallow.Storage.Application.Queries.GetUploadPresignedUrl;
 using Wallow.Storage.Domain.Enums;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Wolverine;
 
 namespace Wallow.Storage.Tests.Api.Controllers;
@@ -564,7 +564,7 @@ public class StorageControllerTests
         await _controller.GetFile(fileId, CancellationToken.None);
 
         await _bus.Received(1).InvokeAsync<Result<StoredFileDto>>(
-            Arg.Is<GetFileByIdQuery>(q => q.TenantId == _tenantId && q.FileId == fileId),
+            Arg.Is<GetFileByIdQuery>(q => q.FileId == fileId),
             Arg.Any<CancellationToken>());
     }
 
@@ -610,7 +610,7 @@ public class StorageControllerTests
         await _controller.Download(fileId, CancellationToken.None);
 
         await _bus.Received(1).InvokeAsync<Result<PresignedUrlResult>>(
-            Arg.Is<GetPresignedUrlQuery>(q => q.TenantId == _tenantId && q.FileId == fileId),
+            Arg.Is<GetPresignedUrlQuery>(q => q.FileId == fileId),
             Arg.Any<CancellationToken>());
     }
 
@@ -653,7 +653,7 @@ public class StorageControllerTests
         await _controller.Delete(fileId, CancellationToken.None);
 
         await _bus.Received(1).InvokeAsync<Result>(
-            Arg.Is<DeleteFileCommand>(c => c.TenantId == _tenantId && c.FileId == fileId),
+            Arg.Is<DeleteFileCommand>(c => c.FileId == fileId),
             Arg.Any<CancellationToken>());
     }
 
@@ -722,7 +722,7 @@ public class StorageControllerTests
         await _controller.ListFiles("test-bucket", cancellationToken: CancellationToken.None);
 
         await _bus.Received(1).InvokeAsync<Result<PagedResult<StoredFileDto>>>(
-            Arg.Is<GetFilesByBucketQuery>(q => q.TenantId == _tenantId),
+            Arg.Is<GetFilesByBucketQuery>(q => q.BucketName == "test-bucket"),
             Arg.Any<CancellationToken>());
     }
 
@@ -907,7 +907,7 @@ public class StorageControllerTests
         await _controller.GetPresignedDownloadUrl(fileId, cancellationToken: CancellationToken.None);
 
         await _bus.Received(1).InvokeAsync<Result<PresignedUrlResult>>(
-            Arg.Is<GetPresignedUrlQuery>(q => q.TenantId == _tenantId),
+            Arg.Is<GetPresignedUrlQuery>(q => q.FileId == fileId),
             Arg.Any<CancellationToken>());
     }
 

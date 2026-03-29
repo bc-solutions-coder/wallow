@@ -1,5 +1,4 @@
-using Wallow.Api.Extensions;
-using Wallow.Api.Middleware;
+using System.Reflection;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.AspNetCore.Diagnostics;
@@ -7,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Abstractions;
 using Microsoft.AspNetCore.Mvc.ApiExplorer;
+using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Configuration;
@@ -16,6 +16,8 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
 using OpenTelemetry.Trace;
+using Wallow.Api.Extensions;
+using Wallow.Api.Middleware;
 
 namespace Wallow.Api.Tests.Extensions;
 
@@ -37,9 +39,6 @@ public class ServiceCollectionExtensionsTests
         {
             ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Database=test",
             ["ConnectionStrings:Redis"] = "localhost:6379",
-            ["RabbitMQ:Host"] = "localhost",
-            ["RabbitMQ:Username"] = "guest",
-            ["RabbitMQ:Password"] = "guest",
         };
 
         if (configOverrides is not null)
@@ -267,7 +266,7 @@ public class ServiceCollectionExtensionsTests
     {
         OpenApiDocument document = new();
 
-        await Wallow.Api.Extensions.ServiceCollectionExtensions.TransformDocumentInfo(document);
+        await Wallow.Api.Extensions.ServiceCollectionExtensions.TransformDocumentInfo(document, "Wallow");
 
         document.Info.Should().NotBeNull();
         document.Info.Title.Should().Be("Wallow API");
@@ -372,5 +371,104 @@ public class ServiceCollectionExtensionsTests
         bool result = Wallow.Api.Extensions.ServiceCollectionExtensions.FilterTelemetryRequest(httpContext);
 
         result.Should().Be(expected);
+    }
+
+    [Fact]
+    public async Task TransformOperationModuleTag_WithModuleNamespace_SetsModuleTag()
+    {
+        OpenApiOperation operation = new();
+        ControllerActionDescriptor actionDescriptor = new()
+        {
+            ControllerTypeInfo = typeof(Wallow.Billing.Api.Controllers.FakeBillingController).GetTypeInfo(),
+            EndpointMetadata = []
+        };
+        ApiDescription apiDescription = new()
+        {
+            ActionDescriptor = actionDescriptor
+        };
+        OpenApiOperationTransformerContext context = new()
+        {
+            Description = apiDescription,
+            DocumentName = "v1",
+            ApplicationServices = new ServiceCollection().BuildServiceProvider()
+        };
+
+        await Wallow.Api.Extensions.ServiceCollectionExtensions.TransformOperationModuleTag(operation, context);
+
+        operation.Tags.Should().NotBeNull();
+        operation.Tags.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public async Task TransformOperationModuleTag_WithExplicitTagsAttribute_DoesNotOverride()
+    {
+        OpenApiOperation operation = new()
+        {
+            Tags = new HashSet<OpenApiTagReference> { new OpenApiTagReference("ExistingTag") }
+        };
+        ActionDescriptor actionDescriptor = new()
+        {
+            EndpointMetadata = [new TagsAttribute("CustomTag")]
+        };
+        ApiDescription apiDescription = new()
+        {
+            ActionDescriptor = actionDescriptor
+        };
+        OpenApiOperationTransformerContext context = new()
+        {
+            Description = apiDescription,
+            DocumentName = "v1",
+            ApplicationServices = new ServiceCollection().BuildServiceProvider()
+        };
+
+        await Wallow.Api.Extensions.ServiceCollectionExtensions.TransformOperationModuleTag(operation, context);
+
+        operation.Tags.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public async Task TransformOperationModuleTag_WithNonControllerDescriptor_DoesNotSetTag()
+    {
+        OpenApiOperation operation = new();
+        ActionDescriptor actionDescriptor = new()
+        {
+            EndpointMetadata = []
+        };
+        ApiDescription apiDescription = new()
+        {
+            ActionDescriptor = actionDescriptor
+        };
+        OpenApiOperationTransformerContext context = new()
+        {
+            Description = apiDescription,
+            DocumentName = "v1",
+            ApplicationServices = new ServiceCollection().BuildServiceProvider()
+        };
+
+        await Wallow.Api.Extensions.ServiceCollectionExtensions.TransformOperationModuleTag(operation, context);
+
+        operation.Tags.Should().BeNullOrEmpty();
+    }
+
+    [Fact]
+    public async Task TransformDocumentInfo_WithCustomAppName_SetsCustomTitle()
+    {
+        OpenApiDocument document = new();
+
+        await Wallow.Api.Extensions.ServiceCollectionExtensions.TransformDocumentInfo(document, "MyBrand");
+
+        document.Info.Title.Should().Be("MyBrand API");
+        document.Info.Contact!.Name.Should().Be("MyBrand");
+    }
+
+    [Fact]
+    public void FilterTelemetryRequest_WithNullPath_ReturnsTrue()
+    {
+        DefaultHttpContext httpContext = new();
+        // Path is empty by default
+
+        bool result = Wallow.Api.Extensions.ServiceCollectionExtensions.FilterTelemetryRequest(httpContext);
+
+        result.Should().BeTrue();
     }
 }

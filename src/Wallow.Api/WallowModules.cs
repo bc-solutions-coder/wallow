@@ -1,13 +1,15 @@
 // Infrastructure extensions - canonical source for module registration
+using Microsoft.FeatureManagement;
 using Wallow.Announcements.Infrastructure.Extensions;
+using Wallow.ApiKeys.Infrastructure.Extensions;
 using Wallow.Billing.Infrastructure.Extensions;
+using Wallow.Branding.Infrastructure.Extensions;
 using Wallow.Identity.Infrastructure.Extensions;
 using Wallow.Inquiries.Infrastructure.Extensions;
 using Wallow.Messaging.Infrastructure.Extensions;
 using Wallow.Notifications.Infrastructure.Extensions;
 using Wallow.Shared.Infrastructure.Plugins;
 using Wallow.Storage.Infrastructure.Extensions;
-using Microsoft.FeatureManagement;
 
 namespace Wallow.Api;
 
@@ -33,14 +35,17 @@ internal static class WallowModules
         // PLATFORM MODULES
         // Core infrastructure services used across all domain modules
         // ============================================================================
-        if (featureManager.IsEnabledAsync("Modules.Identity").GetAwaiter().GetResult())
-        {
-            services.AddIdentityModule(configuration, environment);
-        }
+        // Identity is a required platform dependency — always registered, not behind a feature flag
+        services.AddIdentityModule(configuration, environment);
 
         if (featureManager.IsEnabledAsync("Modules.Billing").GetAwaiter().GetResult())
         {
             services.AddBillingModule(configuration);
+        }
+
+        if (featureManager.IsEnabledAsync("Modules.Branding").GetAwaiter().GetResult())
+        {
+            services.AddBrandingModule(configuration);
         }
 
         if (featureManager.IsEnabledAsync("Modules.Notifications").GetAwaiter().GetResult())
@@ -61,6 +66,11 @@ internal static class WallowModules
         if (featureManager.IsEnabledAsync("Modules.Storage").GetAwaiter().GetResult())
         {
             services.AddStorageModule(configuration);
+        }
+
+        if (featureManager.IsEnabledAsync("Modules.ApiKeys").GetAwaiter().GetResult())
+        {
+            services.AddApiKeysModule(configuration);
         }
 
         // ============================================================================
@@ -89,14 +99,17 @@ internal static class WallowModules
         // PLATFORM MODULES
         // Core infrastructure services - runs DB migrations
         // ============================================================================
-        if (await featureManager.IsEnabledAsync("Modules.Identity"))
-        {
-            await app.InitializeIdentityModuleAsync();
-        }
+        // Identity is a required platform dependency — always initialized
+        await app.InitializeIdentityModuleAsync();
 
         if (await featureManager.IsEnabledAsync("Modules.Billing"))
         {
             await app.InitializeBillingModuleAsync();
+        }
+
+        if (await featureManager.IsEnabledAsync("Modules.Branding"))
+        {
+            await app.InitializeBrandingModuleAsync();
         }
 
         if (await featureManager.IsEnabledAsync("Modules.Notifications"))
@@ -117,6 +130,11 @@ internal static class WallowModules
         if (await featureManager.IsEnabledAsync("Modules.Storage"))
         {
             await app.InitializeStorageModuleAsync();
+        }
+
+        if (await featureManager.IsEnabledAsync("Modules.ApiKeys"))
+        {
+            await app.InitializeApiKeysModuleAsync();
         }
 
         // ============================================================================

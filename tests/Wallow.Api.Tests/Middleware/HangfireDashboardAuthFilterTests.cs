@@ -1,9 +1,9 @@
 using System.Security.Claims;
-using Wallow.Api.Middleware;
 using Hangfire;
 using Hangfire.Dashboard;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Wallow.Api.Middleware;
 
 namespace Wallow.Api.Tests.Middleware;
 

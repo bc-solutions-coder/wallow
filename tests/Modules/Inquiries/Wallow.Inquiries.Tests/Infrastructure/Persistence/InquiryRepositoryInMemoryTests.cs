@@ -1,9 +1,11 @@
+using Microsoft.EntityFrameworkCore;
 using Wallow.Inquiries.Domain.Entities;
 using Wallow.Inquiries.Domain.Enums;
 using Wallow.Inquiries.Domain.Identity;
 using Wallow.Inquiries.Infrastructure.Persistence;
 using Wallow.Inquiries.Infrastructure.Persistence.Repositories;
-using Microsoft.EntityFrameworkCore;
+using Wallow.Shared.Kernel.Identity;
+using Wallow.Shared.Kernel.MultiTenancy;
 
 namespace Wallow.Inquiries.Tests.Infrastructure.Persistence;
 
@@ -13,10 +15,16 @@ public sealed class InquiryRepositoryInMemoryTests : IDisposable
 
     public InquiryRepositoryInMemoryTests()
     {
+        ITenantContext tenantContext = Substitute.For<ITenantContext>();
+        tenantContext.TenantId.Returns(TenantId.New());
+        tenantContext.IsResolved.Returns(true);
+
         DbContextOptions<InquiriesDbContext> options = new DbContextOptionsBuilder<InquiriesDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .AddInterceptors(new TenantSaveChangesInterceptor(tenantContext))
             .Options;
         _context = new InquiriesDbContext(options);
+        _context.SetTenant(tenantContext.TenantId);
     }
 
     public void Dispose()

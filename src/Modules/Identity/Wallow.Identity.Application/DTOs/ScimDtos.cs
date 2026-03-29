@@ -1,8 +1,8 @@
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 using System.Text.Json.Serialization;
+using JetBrains.Annotations;
 using Wallow.Identity.Domain.Enums;
 using Wallow.Identity.Domain.Identity;
-using JetBrains.Annotations;
 
 namespace Wallow.Identity.Application.DTOs;
 

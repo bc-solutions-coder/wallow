@@ -1,6 +1,6 @@
-using Wallow.Identity.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Wallow.Identity.Domain.Entities;
 
 namespace Wallow.Identity.Infrastructure.Persistence.Configurations;
 
@@ -20,5 +20,8 @@ public sealed class OrganizationMemberConfiguration : IEntityTypeConfiguration<O
             .HasColumnName("role")
             .HasMaxLength(100)
             .IsRequired();
+
+        builder.HasIndex("organization_id", nameof(OrganizationMember.UserId));
+        builder.HasIndex(e => e.UserId);
     }
 }

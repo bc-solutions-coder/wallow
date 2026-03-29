@@ -1,0 +1,46 @@
+@if (Visible && !_dismissed)
+{
+    <BbAlert Variant="AlertVariant.Warning" Class="mb-4">
+        <div class="flex items-center justify-between w-full">
+            <div>
+                <BbAlertTitle>MFA enrollment required</BbAlertTitle>
+                <BbAlertDescription>
+                    @if (GraceDeadline.HasValue)
+                    {
+                        @:Your organization requires two-factor authentication. Please set it up before @GraceDeadline.Value.ToString("MMMM d, yyyy").
+                    }
+                    else
+                    {
+                        @:Your organization requires two-factor authentication. Please set it up as soon as possible.
+                    }
+                </BbAlertDescription>
+            </div>
+            <div class="flex items-center gap-2 ml-4 shrink-0">
+                <BbButton Variant="ButtonVariant.Outline" Size="ButtonSize.Small" Href="/mfa/enroll">
+                    Set up now
+                </BbButton>
+                <button type="button"
+                        class="text-muted-foreground hover:text-foreground"
+                        @onclick="Dismiss">
+                    <span class="sr-only">Dismiss</span>
+                    &times;
+                </button>
+            </div>
+        </div>
+    </BbAlert>
+}
+
+@code {
+    [Parameter]
+    public bool Visible { get; set; }
+
+    [Parameter]
+    public DateTime? GraceDeadline { get; set; }
+
+    private bool _dismissed;
+
+    private void Dismiss()
+    {
+        _dismissed = true;
+    }
+}

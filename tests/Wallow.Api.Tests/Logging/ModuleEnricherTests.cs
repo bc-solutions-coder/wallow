@@ -1,6 +1,6 @@
-using Wallow.Api.Logging;
 using Serilog.Core;
 using Serilog.Events;
+using Wallow.Api.Logging;
 
 namespace Wallow.Api.Tests.Logging;
 

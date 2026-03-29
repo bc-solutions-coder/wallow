@@ -1,11 +1,11 @@
+using Microsoft.Extensions.Logging;
+using NSubstitute.Core;
 using Wallow.Billing.Application.EventHandlers;
 using Wallow.Billing.Application.Interfaces;
 using Wallow.Billing.Domain.Entities;
 using Wallow.Billing.Domain.Events;
 using Wallow.Billing.Domain.Identity;
 using Wallow.Shared.Contracts.Billing.Events;
-using Microsoft.Extensions.Logging;
-using NSubstitute.Core;
 using Wolverine;
 using static Wallow.Tests.Common.Helpers.LoggerAssertionExtensions;
 

@@ -1,6 +1,6 @@
-using Wallow.Shared.Infrastructure.Core.Cache;
 using Microsoft.Extensions.Caching.Distributed;
 using NSubstitute;
+using Wallow.Shared.Infrastructure.Core.Cache;
 
 namespace Wallow.Shared.Infrastructure.Tests.Cache;
 

@@ -1,8 +1,8 @@
+using Microsoft.Extensions.Logging;
 using Wallow.Billing.Application.Interfaces;
 using Wallow.Billing.Domain.Entities;
 using Wallow.Billing.Domain.ValueObjects;
 using Wallow.Billing.Infrastructure.Services;
-using Microsoft.Extensions.Logging;
 
 namespace Wallow.Billing.Tests.Infrastructure.Services;
 

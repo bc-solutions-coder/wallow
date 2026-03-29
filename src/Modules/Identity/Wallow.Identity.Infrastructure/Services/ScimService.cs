@@ -1,11 +1,11 @@
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.Extensions.Logging;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
-using Microsoft.Extensions.Logging;
 
 namespace Wallow.Identity.Infrastructure.Services;
 
@@ -174,7 +174,7 @@ public sealed partial class ScimService(IScimConfigurationRepository scimReposit
     }
 }
 
-internal sealed record ScimKeycloakUserRepresentation
+internal sealed record ScimUserRepresentation
 {
     public string? Id { get; init; }
     public string? Username { get; set; }
@@ -185,14 +185,14 @@ internal sealed record ScimKeycloakUserRepresentation
     public Dictionary<string, IEnumerable<string>>? Attributes { get; init; }
 }
 
-internal sealed record ScimKeycloakGroupRepresentation
+internal sealed record ScimGroupRepresentation
 {
     public string? Id { get; init; }
     public string? Name { get; init; }
     public Dictionary<string, IEnumerable<string>>? Attributes { get; init; }
 }
 
-internal sealed record ScimKeycloakRoleRepresentation
+internal sealed record ScimRoleRepresentation
 {
     public string? Id { get; init; }
     public string? Name { get; init; }

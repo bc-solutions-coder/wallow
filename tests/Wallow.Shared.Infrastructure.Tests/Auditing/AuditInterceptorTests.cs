@@ -1,7 +1,4 @@
 using System.Text.Json;
-using Wallow.Shared.Infrastructure.Core.Auditing;
-using Wallow.Shared.Kernel.Auditing;
-using Wallow.Shared.Kernel.MultiTenancy;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -10,6 +7,9 @@ using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 using Testcontainers.PostgreSql;
+using Wallow.Shared.Infrastructure.Core.Auditing;
+using Wallow.Shared.Kernel.Auditing;
+using Wallow.Shared.Kernel.MultiTenancy;
 
 namespace Wallow.Shared.Infrastructure.Tests.Auditing;
 

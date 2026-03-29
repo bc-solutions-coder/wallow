@@ -38,7 +38,7 @@ public sealed class StoredFileRepositoryPagedTests(PostgresContainerFixture fixt
         DbContext.ChangeTracker.Clear();
 
         PagedResult<StoredFile> result = await _repository.GetByBucketIdPagedAsync(
-            bucket.Id, TestTenantId.Value, null, page: 1, pageSize: 20);
+            bucket.Id, null, page: 1, pageSize: 20);
 
         result.TotalCount.Should().Be(3);
         result.Items.Should().HaveCount(3);
@@ -60,10 +60,10 @@ public sealed class StoredFileRepositoryPagedTests(PostgresContainerFixture fixt
         DbContext.ChangeTracker.Clear();
 
         PagedResult<StoredFile> page1 = await _repository.GetByBucketIdPagedAsync(
-            bucket.Id, TestTenantId.Value, null, page: 1, pageSize: 2);
+            bucket.Id, null, page: 1, pageSize: 2);
 
         PagedResult<StoredFile> page2 = await _repository.GetByBucketIdPagedAsync(
-            bucket.Id, TestTenantId.Value, null, page: 2, pageSize: 2);
+            bucket.Id, null, page: 2, pageSize: 2);
 
         page1.TotalCount.Should().Be(5);
         page1.Items.Should().HaveCount(2);
@@ -87,7 +87,7 @@ public sealed class StoredFileRepositoryPagedTests(PostgresContainerFixture fixt
         DbContext.ChangeTracker.Clear();
 
         PagedResult<StoredFile> result = await _repository.GetByBucketIdPagedAsync(
-            bucket.Id, TestTenantId.Value, "docs/", page: 1, pageSize: 20);
+            bucket.Id, "docs/", page: 1, pageSize: 20);
 
         result.TotalCount.Should().Be(2);
         result.Items.Should().HaveCount(2);
@@ -117,7 +117,7 @@ public sealed class StoredFileRepositoryPagedTests(PostgresContainerFixture fixt
         DbContext.ChangeTracker.Clear();
 
         PagedResult<StoredFile> result = await _repository.GetByBucketIdPagedAsync(
-            bucket.Id, TestTenantId.Value, null, page: 1, pageSize: 20);
+            bucket.Id, null, page: 1, pageSize: 20);
 
         result.TotalCount.Should().Be(1);
         result.Items.Should().HaveCount(1);
@@ -133,7 +133,7 @@ public sealed class StoredFileRepositoryPagedTests(PostgresContainerFixture fixt
         DbContext.ChangeTracker.Clear();
 
         PagedResult<StoredFile> result = await _repository.GetByBucketIdPagedAsync(
-            bucket.Id, TestTenantId.Value, null, page: 1, pageSize: 20);
+            bucket.Id, null, page: 1, pageSize: 20);
 
         result.TotalCount.Should().Be(0);
         result.Items.Should().BeEmpty();

@@ -1,7 +1,7 @@
+using Microsoft.EntityFrameworkCore;
 using Wallow.Announcements.Application.Changelogs.Interfaces;
 using Wallow.Announcements.Domain.Changelogs.Entities;
 using Wallow.Announcements.Domain.Changelogs.Identity;
-using Microsoft.EntityFrameworkCore;
 
 namespace Wallow.Announcements.Infrastructure.Persistence.Repositories;
 

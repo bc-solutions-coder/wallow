@@ -5,10 +5,10 @@ using Elsa.Workflows;
 using Elsa.Workflows.Activities;
 using Elsa.Workflows.CommitStates;
 using Elsa.Workflows.Models;
-using Wallow.Shared.Infrastructure.Workflows.Workflows;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
+using Wallow.Shared.Infrastructure.Workflows.Workflows;
 
 namespace Wallow.Shared.Infrastructure.Tests.Workflows;
 

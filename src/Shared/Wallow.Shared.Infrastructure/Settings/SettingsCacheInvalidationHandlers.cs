@@ -1,5 +1,5 @@
-using Wallow.Shared.Kernel.Settings;
 using Microsoft.Extensions.Caching.Distributed;
+using Wallow.Shared.Kernel.Settings;
 
 namespace Wallow.Shared.Infrastructure.Settings;
 

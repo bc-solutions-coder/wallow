@@ -1,14 +1,16 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Wallow.Inquiries.Api.Contracts;
 using Wallow.Inquiries.Api.Controllers;
 using Wallow.Inquiries.Application.DTOs;
 using Wallow.Inquiries.Application.Queries.GetInquiryById;
+using Wallow.Inquiries.Application.Queries.GetInquiryComments;
 using Wallow.Inquiries.Application.Queries.GetSubmittedInquiries;
 using Wallow.Shared.Kernel.Identity.Authorization;
-using Wallow.Shared.Kernel.Results;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Wallow.Shared.Kernel.MultiTenancy;
+using Wallow.Shared.Kernel.Results;
 using Wolverine;
 
 namespace Wallow.Inquiries.Tests.Api.Controllers;
@@ -22,7 +24,8 @@ public class InquiriesControllerAuthTests
     {
         _bus = Substitute.For<IMessageBus>();
         ITenantContext tenantContext = Substitute.For<ITenantContext>();
-        _controller = new InquiriesController(_bus, tenantContext);
+        ILogger<InquiriesController> logger = Substitute.For<ILogger<InquiriesController>>();
+        _controller = new InquiriesController(_bus, tenantContext, logger);
     }
 
     private void SetUser(string? sub = null, string? azp = null, params string[] permissions)
@@ -202,6 +205,102 @@ public class InquiriesControllerAuthTests
 
         await _bus.DidNotReceive().InvokeAsync<Result<IReadOnlyList<InquiryDto>>>(
             Arg.Any<GetSubmittedInquiriesQuery>(), Arg.Any<CancellationToken>());
+    }
+
+    #endregion
+
+    #region GetComments Auth
+
+    [Fact]
+    public async Task GetComments_WithInquiriesRead_ReturnsOkWithInternalComments()
+    {
+        Guid inquiryId = Guid.NewGuid();
+        SetUser(sub: "admin-user", permissions: PermissionType.InquiriesRead);
+
+        _bus.InvokeAsync<IReadOnlyList<InquiryCommentDto>>(Arg.Any<GetInquiryCommentsQuery>(), Arg.Any<CancellationToken>())
+            .Returns(new List<InquiryCommentDto>());
+
+        IActionResult result = await _controller.GetComments(inquiryId, CancellationToken.None);
+
+        result.Should().BeOfType<OkObjectResult>();
+
+        await _bus.Received(1).InvokeAsync<IReadOnlyList<InquiryCommentDto>>(
+            Arg.Is<GetInquiryCommentsQuery>(q => q.IncludeInternal),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task GetComments_OwnerWithoutReadPermission_ReturnsOkWithoutInternalComments()
+    {
+        Guid inquiryId = Guid.NewGuid();
+        string submitterId = "owner-user";
+        SetUser(sub: submitterId);
+
+        InquiryDto dto = CreateDto(inquiryId, submitterId: submitterId);
+        _bus.InvokeAsync<Result<InquiryDto>>(Arg.Any<GetInquiryByIdQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(dto));
+
+        _bus.InvokeAsync<IReadOnlyList<InquiryCommentDto>>(Arg.Any<GetInquiryCommentsQuery>(), Arg.Any<CancellationToken>())
+            .Returns(new List<InquiryCommentDto>());
+
+        IActionResult result = await _controller.GetComments(inquiryId, CancellationToken.None);
+
+        result.Should().BeOfType<OkObjectResult>();
+
+        await _bus.Received(1).InvokeAsync<IReadOnlyList<InquiryCommentDto>>(
+            Arg.Is<GetInquiryCommentsQuery>(q => !q.IncludeInternal),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task GetComments_NonOwnerWithoutReadPermission_Returns404()
+    {
+        Guid inquiryId = Guid.NewGuid();
+        SetUser(sub: "different-user");
+
+        InquiryDto dto = CreateDto(inquiryId, submitterId: "the-owner");
+        _bus.InvokeAsync<Result<InquiryDto>>(Arg.Any<GetInquiryByIdQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(dto));
+
+        IActionResult result = await _controller.GetComments(inquiryId, CancellationToken.None);
+
+        result.Should().BeOfType<NotFoundResult>();
+    }
+
+    [Fact]
+    public async Task GetComments_NoSubClaim_WithoutReadPermission_Returns404()
+    {
+        Guid inquiryId = Guid.NewGuid();
+        SetUser();
+
+        IActionResult result = await _controller.GetComments(inquiryId, CancellationToken.None);
+
+        result.Should().BeOfType<NotFoundResult>();
+    }
+
+    [Fact]
+    public async Task GetComments_ServiceAccount_WithoutReadPermission_Returns404()
+    {
+        Guid inquiryId = Guid.NewGuid();
+        SetUser(sub: "sa-service", azp: "sa-service");
+
+        IActionResult result = await _controller.GetComments(inquiryId, CancellationToken.None);
+
+        result.Should().BeOfType<NotFoundResult>();
+    }
+
+    [Fact]
+    public async Task GetComments_WhenInquiryNotFound_WithoutReadPermission_Returns404()
+    {
+        Guid inquiryId = Guid.NewGuid();
+        SetUser(sub: "some-user");
+
+        _bus.InvokeAsync<Result<InquiryDto>>(Arg.Any<GetInquiryByIdQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Failure<InquiryDto>(Error.NotFound("Inquiry", inquiryId)));
+
+        IActionResult result = await _controller.GetComments(inquiryId, CancellationToken.None);
+
+        result.Should().BeOfType<NotFoundResult>();
     }
 
     #endregion

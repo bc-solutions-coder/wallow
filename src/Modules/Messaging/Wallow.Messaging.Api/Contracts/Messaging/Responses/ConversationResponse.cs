@@ -1,5 +1,5 @@
-using Wallow.Messaging.Application.Conversations.DTOs;
 using JetBrains.Annotations;
+using Wallow.Messaging.Application.Conversations.DTOs;
 
 namespace Wallow.Messaging.Api.Contracts.Messaging.Responses;
 

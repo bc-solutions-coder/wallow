@@ -28,7 +28,7 @@ public class ApiConventionTests
             .GetTypes();
 
         // OpenIddict OIDC controllers use standard OAuth2/OIDC patterns, not REST API conventions
-        string[] oidcControllers = ["AuthorizationController", "TokenController", "LogoutController"];
+        string[] oidcControllers = ["AuthorizationController", "TokenController", "LogoutController", "UserinfoController"];
 
         foreach (Type controller in controllers)
         {
@@ -124,6 +124,55 @@ public class ApiConventionTests
         responseResult.IsSuccessful.Should().BeTrue(
             $"All response types in {moduleName} module should be in Contracts namespace. " +
             $"Failing types: {string.Join(", ", responseResult.FailingTypeNames ?? Array.Empty<string>())}");
+    }
+
+    [Theory]
+    [MemberData(nameof(GetModuleNames))]
+    public void AllControllers_ShouldDeclareAntiforgeryPosture(string moduleName)
+    {
+        Assembly apiAssembly = GetModuleAssembly(moduleName, "Api");
+
+        IEnumerable<Type> controllers = Types.InAssembly(apiAssembly)
+            .That()
+            .Inherit(typeof(ControllerBase))
+            .GetTypes();
+
+        string[] oidcControllers = ["AuthorizationController", "TokenController", "LogoutController", "UserinfoController"];
+
+        foreach (Type controller in controllers)
+        {
+            bool isOidc = oidcControllers.Contains(controller.Name, StringComparer.Ordinal);
+            bool hasClassLevelIgnore = controller.GetCustomAttribute<IgnoreAntiforgeryTokenAttribute>() is not null;
+
+            if (isOidc)
+            {
+                // OIDC controllers must have class-level [IgnoreAntiforgeryToken] OR
+                // every [HttpPost] action must have [IgnoreAntiforgeryToken] or [ValidateAntiForgeryToken]
+                if (!hasClassLevelIgnore)
+                {
+                    IEnumerable<MethodInfo> postActions = controller
+                        .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+                        .Where(m => m.GetCustomAttribute<HttpPostAttribute>() is not null);
+
+                    foreach (MethodInfo action in postActions)
+                    {
+                        bool hasActionLevelAttribute =
+                            action.GetCustomAttribute<IgnoreAntiforgeryTokenAttribute>() is not null ||
+                            action.GetCustomAttribute<ValidateAntiForgeryTokenAttribute>() is not null;
+
+                        hasActionLevelAttribute.Should().BeTrue(
+                            $"OIDC controller {controller.Name}.{action.Name} in {moduleName} module must have " +
+                            "[IgnoreAntiforgeryToken] or [ValidateAntiForgeryToken] on its [HttpPost] action " +
+                            "when the class lacks a class-level [IgnoreAntiforgeryToken]");
+                    }
+                }
+            }
+            else
+            {
+                hasClassLevelIgnore.Should().BeTrue(
+                    $"Controller {controller.Name} in {moduleName} module must have [IgnoreAntiforgeryToken] at class level");
+            }
+        }
     }
 
     private static Assembly GetModuleAssembly(string moduleName, string layer)

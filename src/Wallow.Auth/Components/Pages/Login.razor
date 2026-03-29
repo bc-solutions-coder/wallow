@@ -1,0 +1,546 @@
+@page "/login"
+@rendermode InteractiveServer
+
+@inject IAuthApiClient AuthClient
+@inject NavigationManager Navigation
+@inject IConfiguration Configuration
+@using Wallow.Auth.Configuration
+@inject BrandingOptions Branding
+@using Wallow.Auth.Components.Shared
+
+<PageTitle>Sign In — @Branding.AppName</PageTitle>
+
+<BbCard Class="border-0 shadow-none bg-transparent">
+    <BbCardHeader Class="px-0 pt-0 text-center">
+        <BbCardTitle>Sign in to your account</BbCardTitle>
+        <BbCardDescription>Enter your credentials to continue</BbCardDescription>
+    </BbCardHeader>
+    <BbCardContent Class="px-0 space-y-4">
+        <MfaEnrollmentBanner Visible="_showMfaEnrollmentBanner" GraceDeadline="_mfaGraceDeadline" />
+
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <div data-testid="login-error">
+                <BbAlert Variant="AlertVariant.Danger">
+                    <BbAlertDescription>@_errorMessage</BbAlertDescription>
+                </BbAlert>
+            </div>
+        }
+
+        @if (_signedIn)
+        {
+            <BbAlert Variant="AlertVariant.Success">
+                <BbAlertDescription>You are now signed in.</BbAlertDescription>
+            </BbAlert>
+        }
+        else
+        {
+            <div class="flex border-b border-border mb-4">
+                <button type="button"
+                        class="@TabClass(LoginTab.Password)"
+                        @onclick="() => SwitchTab(LoginTab.Password)">
+                    Password
+                </button>
+                <button type="button"
+                        class="@TabClass(LoginTab.MagicLink)"
+                        @onclick="() => SwitchTab(LoginTab.MagicLink)">
+                    Magic Link
+                </button>
+                <button type="button"
+                        class="@TabClass(LoginTab.Otp)"
+                        @onclick="() => SwitchTab(LoginTab.Otp)">
+                    OTP
+                </button>
+            </div>
+
+            @if (_activeTab == LoginTab.Password)
+            {
+                <form @onsubmit="HandleLogin" @onsubmit:preventDefault>
+                    <div class="space-y-4">
+                        <div class="space-y-2">
+                            <BbLabel For="email">Email</BbLabel>
+                            <BbInput Id="email"
+                                     Type="InputType.Email"
+                                     Placeholder="name@example.com"
+                                     data-testid="login-email"
+                                     @bind-Value="_email" />
+                        </div>
+
+                        <div class="space-y-2">
+                            <div class="flex items-center justify-between">
+                                <BbLabel For="password">Password</BbLabel>
+                                <a href="/forgot-password" class="text-sm text-muted-foreground hover:text-primary underline-offset-4 hover:underline" data-testid="login-forgot-password">
+                                    Forgot password?
+                                </a>
+                            </div>
+                            <BbInput Id="password"
+                                     Type="InputType.Password"
+                                     Placeholder="Enter your password"
+                                     data-testid="login-password"
+                                     @bind-Value="_password" />
+                        </div>
+
+                        <div class="flex items-center space-x-2">
+                            <span data-testid="login-remember-me">
+                                <BbCheckbox Id="rememberMe" @bind-Checked="_rememberMe" />
+                            </span>
+                            <BbLabel For="rememberMe" Class="text-sm font-normal">Remember me</BbLabel>
+                        </div>
+
+                        <BbButton Class="w-full"
+                                  Type="ButtonType.Submit"
+                                  Loading="_isSubmitting"
+                                  Disabled="_isSubmitting"
+                                  data-testid="login-submit">
+                            Sign in
+                        </BbButton>
+                    </div>
+                </form>
+            }
+            else if (_activeTab == LoginTab.MagicLink)
+            {
+                @if (_magicLinkSent)
+                {
+                    <BbAlert Variant="AlertVariant.Success">
+                        <BbAlertDescription>Check your email for a magic link.</BbAlertDescription>
+                    </BbAlert>
+                }
+                else
+                {
+                    <form @onsubmit="HandleSendMagicLink" @onsubmit:preventDefault>
+                        <div class="space-y-4">
+                            <div class="space-y-2">
+                                <BbLabel For="magicLinkEmail">Email</BbLabel>
+                                <BbInput Id="magicLinkEmail"
+                                         Type="InputType.Email"
+                                         Placeholder="name@example.com"
+                                         @bind-Value="_email" />
+                            </div>
+
+                            <BbButton Class="w-full"
+                                      Type="ButtonType.Submit"
+                                      Loading="_isSubmitting"
+                                      Disabled="_isSubmitting">
+                                Send link
+                            </BbButton>
+                        </div>
+                    </form>
+                }
+            }
+            else if (_activeTab == LoginTab.Otp)
+            {
+                @if (_otpSent)
+                {
+                    <form @onsubmit="HandleVerifyOtp" @onsubmit:preventDefault>
+                        <div class="space-y-4">
+                            <div class="space-y-2">
+                                <BbLabel For="otpCode">Enter the 6-digit code sent to your email</BbLabel>
+                                <BbInput Id="otpCode"
+                                         Type="InputType.Text"
+                                         Placeholder="000000"
+                                         @bind-Value="_otpCode" />
+                            </div>
+
+                            <BbButton Class="w-full"
+                                      Type="ButtonType.Submit"
+                                      Loading="_isSubmitting"
+                                      Disabled="_isSubmitting">
+                                Verify code
+                            </BbButton>
+                        </div>
+                    </form>
+                }
+                else
+                {
+                    <form @onsubmit="HandleSendOtp" @onsubmit:preventDefault>
+                        <div class="space-y-4">
+                            <div class="space-y-2">
+                                <BbLabel For="otpEmail">Email</BbLabel>
+                                <BbInput Id="otpEmail"
+                                         Type="InputType.Email"
+                                         Placeholder="name@example.com"
+                                         @bind-Value="_email" />
+                            </div>
+
+                            <BbButton Class="w-full"
+                                      Type="ButtonType.Submit"
+                                      Loading="_isSubmitting"
+                                      Disabled="_isSubmitting">
+                                Send code
+                            </BbButton>
+                        </div>
+                    </form>
+                }
+            }
+
+            @if (_externalProviders.Count > 0)
+            {
+                <div class="relative my-4">
+                    <div class="absolute inset-0 flex items-center">
+                        <BbSeparator />
+                    </div>
+                    <div class="relative flex justify-center text-xs uppercase">
+                        <span class="bg-background px-2 text-muted-foreground">Or continue with</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    @foreach (string provider in _externalProviders)
+                    {
+                        <BbButton Variant="ButtonVariant.Outline"
+                                  Href="@GetExternalLoginUrl(provider)">
+                            @provider
+                        </BbButton>
+                    }
+                </div>
+            }
+        }
+    </BbCardContent>
+    <BbCardFooter Class="px-0 pb-0 justify-center">
+        <p class="text-sm text-muted-foreground">
+            Don't have an account?
+            <a href="@RegisterUrl" class="text-primary underline-offset-4 hover:underline" data-testid="login-register-link">Register</a>
+        </p>
+    </BbCardFooter>
+</BbCard>
+
+@code {
+    private enum LoginTab { Password, MagicLink, Otp }
+
+    [SupplyParameterFromQuery]
+    public string? ReturnUrl { get; set; }
+
+    [SupplyParameterFromQuery(Name = "client_id")]
+    public string? ClientId { get; set; }
+
+    [SupplyParameterFromQuery]
+    public string? Error { get; set; }
+
+    private LoginTab _activeTab = LoginTab.Password;
+    private string _email = string.Empty;
+    private string _password = string.Empty;
+    private string _otpCode = string.Empty;
+    private bool _rememberMe;
+    private bool _isSubmitting;
+    private bool _signedIn;
+    private bool _magicLinkSent;
+    private bool _otpSent;
+    private string? _errorMessage;
+    private bool _showMfaEnrollmentBanner;
+    private DateTime? _mfaGraceDeadline;
+    private List<string> _externalProviders = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _externalProviders = await AuthClient.GetExternalProvidersAsync();
+        await base.OnInitializedAsync();
+    }
+
+    protected override void OnInitialized()
+    {
+        if (!string.IsNullOrEmpty(Error))
+        {
+            _errorMessage = Error switch
+            {
+                "external_login_failed" => "External sign-in failed. Please try again or use a different method.",
+                "session_expired" => "Your session has expired. Please try again.",
+                _ => "An error occurred. Please try again."
+            };
+        }
+    }
+
+    private string ApiBaseUrl => Configuration["ApiBaseUrl"] ?? "http://localhost:5001";
+
+    private string RegisterUrl
+    {
+        get
+        {
+            List<string> queryParams = [];
+
+            if (!string.IsNullOrEmpty(ClientId))
+                queryParams.Add($"client_id={Uri.EscapeDataString(ClientId)}");
+
+            if (!string.IsNullOrEmpty(ReturnUrl))
+                queryParams.Add($"returnUrl={Uri.EscapeDataString(ReturnUrl)}");
+
+            return queryParams.Count > 0
+                ? $"/register?{string.Join("&", queryParams)}"
+                : "/register";
+        }
+    }
+
+    private string TabClass(LoginTab tab) =>
+        tab == _activeTab
+            ? "flex-1 py-2 text-sm font-medium text-primary border-b-2 border-primary"
+            : "flex-1 py-2 text-sm font-medium text-muted-foreground hover:text-primary";
+
+    private void SwitchTab(LoginTab tab)
+    {
+        _activeTab = tab;
+        _errorMessage = null;
+        _magicLinkSent = false;
+        _otpSent = false;
+        _otpCode = string.Empty;
+    }
+
+    /// <summary>
+    /// Checks if a URL is an absolute HTTP/HTTPS or protocol-relative URL (open-redirect vectors).
+    /// Unlike Uri.TryCreate with UriKind.Absolute, this does not false-positive on Unix paths
+    /// which .NET treats as absolute file:// URIs on macOS/Linux.
+    /// </summary>
+    private static bool IsAbsoluteHttpUrl(string? url) =>
+        !string.IsNullOrEmpty(url) &&
+        (url.StartsWith("//", StringComparison.Ordinal) ||
+         url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+         url.StartsWith("https://", StringComparison.OrdinalIgnoreCase));
+
+    private string GetExternalLoginUrl(string provider)
+    {
+        string currentUrl = Navigation.Uri;
+        string encodedReturnUrl = Uri.EscapeDataString(ReturnUrl ?? currentUrl);
+        return $"{ApiBaseUrl}/api/v1/identity/auth/external-login?provider={provider}&returnUrl={encodedReturnUrl}";
+    }
+
+    private async Task HandleLogin()
+    {
+        _errorMessage = null;
+        _isSubmitting = true;
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(_email) || string.IsNullOrWhiteSpace(_password))
+            {
+                _errorMessage = "Please enter your email and password.";
+                return;
+            }
+
+            LoginRequest request = new(_email, _password, _rememberMe);
+            AuthResponse result = await AuthClient.LoginAsync(request);
+
+            if (result.MfaRequired || result.MfaEnrollmentRequired)
+            {
+                HandleSuccessfulAuth(result);
+            }
+            else if (result.Succeeded)
+            {
+                HandleSuccessfulAuth(result);
+            }
+            else
+            {
+                _errorMessage = result.Error switch
+                {
+                    "invalid_credentials" => "Invalid email or password.",
+                    "locked_out" => "Account locked. Try again later.",
+                    "email_not_confirmed" => "Please verify your email before signing in.",
+                    _ => "An error occurred. Please try again."
+                };
+            }
+        }
+        catch (HttpRequestException)
+        {
+            _errorMessage = "Unable to reach the server. Please try again later.";
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private async Task HandleSendMagicLink()
+    {
+        _errorMessage = null;
+        _isSubmitting = true;
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(_email))
+            {
+                _errorMessage = "Please enter your email.";
+                return;
+            }
+
+            AuthResponse result = await AuthClient.SendMagicLinkAsync(_email);
+
+            if (result.Succeeded)
+            {
+                _magicLinkSent = true;
+            }
+            else
+            {
+                _errorMessage = result.Error switch
+                {
+                    "user_not_found" => "No account found with that email.",
+                    _ => "An error occurred. Please try again."
+                };
+            }
+        }
+        catch (HttpRequestException)
+        {
+            _errorMessage = "Unable to reach the server. Please try again later.";
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private async Task HandleSendOtp()
+    {
+        _errorMessage = null;
+        _isSubmitting = true;
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(_email))
+            {
+                _errorMessage = "Please enter your email.";
+                return;
+            }
+
+            AuthResponse result = await AuthClient.SendOtpAsync(_email);
+
+            if (result.Succeeded)
+            {
+                _otpSent = true;
+            }
+            else
+            {
+                _errorMessage = result.Error switch
+                {
+                    "user_not_found" => "No account found with that email.",
+                    _ => "An error occurred. Please try again."
+                };
+            }
+        }
+        catch (HttpRequestException)
+        {
+            _errorMessage = "Unable to reach the server. Please try again later.";
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private async Task HandleVerifyOtp()
+    {
+        _errorMessage = null;
+        _isSubmitting = true;
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(_otpCode))
+            {
+                _errorMessage = "Please enter the verification code.";
+                return;
+            }
+
+            AuthResponse result = await AuthClient.VerifyOtpAsync(_email, _otpCode);
+
+            if (result.Succeeded)
+            {
+                HandleSuccessfulAuth(result);
+            }
+            else
+            {
+                _errorMessage = result.Error switch
+                {
+                    "invalid_code" => "Invalid or expired code. Please try again.",
+                    _ => "An error occurred. Please try again."
+                };
+            }
+        }
+        catch (HttpRequestException)
+        {
+            _errorMessage = "Unable to reach the server. Please try again later.";
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private void HandleSuccessfulAuth(AuthResponse result)
+    {
+        if (result.MfaRequired)
+        {
+            string challengeUrl = BuildMfaRedirectUrl("/mfa/challenge");
+            Navigation.NavigateTo(challengeUrl, forceLoad: true);
+            return;
+        }
+
+        if (result.MfaEnrollmentRequired)
+        {
+            bool withinGracePeriod = result.MfaGraceDeadline.HasValue && result.MfaGraceDeadline.Value > DateTimeOffset.UtcNow;
+
+            if (!withinGracePeriod)
+            {
+                string enrollUrl = BuildMfaRedirectUrl("/mfa/enroll");
+                Navigation.NavigateTo(enrollUrl, forceLoad: true);
+                return;
+            }
+
+            // Within grace period — show the banner but allow login to proceed
+            _showMfaEnrollmentBanner = true;
+            _mfaGraceDeadline = result.MfaGraceDeadline?.DateTime;
+        }
+
+        if (!string.IsNullOrEmpty(ReturnUrl))
+        {
+            if (IsAbsoluteHttpUrl(ReturnUrl))
+            {
+                Navigation.NavigateTo("/error?reason=invalid_redirect_uri", forceLoad: true);
+                return;
+            }
+
+            // When the API issued a sign-in ticket, exchange it via the API's cookie-setting
+            // endpoint so the browser has an auth cookie before hitting /connect/authorize.
+            if (!string.IsNullOrEmpty(result.SignInTicket))
+            {
+                string exchangeUrl = $"{ApiBaseUrl}/api/v1/identity/auth/exchange-ticket" +
+                    $"?ticket={Uri.EscapeDataString(result.SignInTicket)}" +
+                    $"&returnUrl={Uri.EscapeDataString(ReturnUrl)}";
+                Navigation.NavigateTo(exchangeUrl, forceLoad: true);
+                return;
+            }
+
+            Navigation.NavigateTo(BuildApiReturnUrl(ReturnUrl), forceLoad: true);
+        }
+        else
+        {
+            _signedIn = true;
+        }
+    }
+
+    /// <summary>
+    /// Converts a relative returnUrl (originating from the API's authorize endpoint) into an
+    /// absolute URL targeting the API server. Without this, the browser resolves the relative
+    /// path against the Auth server's origin, which doesn't host /connect/authorize.
+    /// </summary>
+    private string BuildApiReturnUrl(string relativeUrl) =>
+        relativeUrl.StartsWith('/') ? $"{ApiBaseUrl}{relativeUrl}" : relativeUrl;
+
+    /// <summary>
+    /// Builds an MFA redirect URL that includes the cookie relay key (if any) so the
+    /// browser receives API-issued cookies (e.g., Identity.MfaPartial) on the forceLoad navigation.
+    /// </summary>
+    private string BuildMfaRedirectUrl(string path)
+    {
+        List<string> queryParams = [];
+
+        string? relayKey = AuthClient.GetPendingCookieRelayKey();
+        if (!string.IsNullOrEmpty(relayKey))
+        {
+            queryParams.Add($"cookieRelay={Uri.EscapeDataString(relayKey)}");
+        }
+
+        if (!string.IsNullOrEmpty(ReturnUrl))
+        {
+            queryParams.Add($"returnUrl={Uri.EscapeDataString(ReturnUrl)}");
+        }
+
+        return queryParams.Count > 0
+            ? $"{path}?{string.Join("&", queryParams)}"
+            : path;
+    }
+}

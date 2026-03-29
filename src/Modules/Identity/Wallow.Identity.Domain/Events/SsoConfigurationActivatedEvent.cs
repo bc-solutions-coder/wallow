@@ -1,5 +1,5 @@
-using Wallow.Shared.Kernel.Domain;
 using JetBrains.Annotations;
+using Wallow.Shared.Kernel.Domain;
 
 namespace Wallow.Identity.Domain.Events;
 

@@ -1,5 +1,5 @@
-using Wallow.Notifications.Application.Channels.Sms.Interfaces;
 using Microsoft.Extensions.Logging;
+using Wallow.Notifications.Application.Channels.Sms.Interfaces;
 
 namespace Wallow.Notifications.Infrastructure.Services;
 

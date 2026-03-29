@@ -1,5 +1,7 @@
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging;
+using OpenIddict.Abstractions;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
@@ -8,8 +10,6 @@ using Wallow.Shared.Kernel.Domain;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Shared.Kernel.Services;
-using Microsoft.Extensions.Logging;
-using OpenIddict.Abstractions;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
 namespace Wallow.Identity.Infrastructure.Services;
@@ -88,7 +88,7 @@ public sealed partial class OpenIddictServiceAccountService(
         return accounts
             .Select(a => new ServiceAccountDto(
                 a.Id,
-                a.KeycloakClientId,
+                a.ClientId,
                 a.Name,
                 a.Description,
                 a.Status,
@@ -108,7 +108,7 @@ public sealed partial class OpenIddictServiceAccountService(
 
         return new ServiceAccountDto(
             account.Id,
-            account.KeycloakClientId,
+            account.ClientId,
             account.Name,
             account.Description,
             account.Status,
@@ -125,10 +125,10 @@ public sealed partial class OpenIddictServiceAccountService(
             throw new EntityNotFoundException(nameof(ServiceAccountMetadata), id.Value);
         }
 
-        LogRotatingSecret(metadata.KeycloakClientId);
+        LogRotatingSecret(metadata.ClientId);
 
-        object? application = await applicationManager.FindByClientIdAsync(metadata.KeycloakClientId, ct)
-            ?? throw new InvalidOperationException($"OpenIddict application '{metadata.KeycloakClientId}' not found");
+        object? application = await applicationManager.FindByClientIdAsync(metadata.ClientId, ct)
+            ?? throw new InvalidOperationException($"OpenIddict application '{metadata.ClientId}' not found");
 
         string newSecret = GenerateClientSecret();
 
@@ -137,7 +137,7 @@ public sealed partial class OpenIddictServiceAccountService(
         descriptor.ClientSecret = newSecret;
         await applicationManager.UpdateAsync(application, descriptor, ct);
 
-        LogSecretRotated(metadata.KeycloakClientId);
+        LogSecretRotated(metadata.ClientId);
 
         return new SecretRotatedResult(newSecret, DateTime.UtcNow);
     }
@@ -152,10 +152,10 @@ public sealed partial class OpenIddictServiceAccountService(
             throw new EntityNotFoundException(nameof(ServiceAccountMetadata), id.Value);
         }
 
-        LogUpdatingScopes(metadata.KeycloakClientId);
+        LogUpdatingScopes(metadata.ClientId);
 
-        object? application = await applicationManager.FindByClientIdAsync(metadata.KeycloakClientId, ct)
-            ?? throw new InvalidOperationException($"OpenIddict application '{metadata.KeycloakClientId}' not found");
+        object? application = await applicationManager.FindByClientIdAsync(metadata.ClientId, ct)
+            ?? throw new InvalidOperationException($"OpenIddict application '{metadata.ClientId}' not found");
 
         OpenIddictApplicationDescriptor descriptor = new();
         await applicationManager.PopulateAsync(descriptor, application, ct);
@@ -173,7 +173,7 @@ public sealed partial class OpenIddictServiceAccountService(
         metadata.UpdateScopes(scopesList, currentUserService.UserId ?? Guid.Empty, timeProvider);
         await repository.SaveChangesAsync(ct);
 
-        LogScopesUpdated(metadata.KeycloakClientId);
+        LogScopesUpdated(metadata.ClientId);
     }
 
     public async Task RevokeAsync(ServiceAccountMetadataId id, CancellationToken ct = default)
@@ -184,9 +184,9 @@ public sealed partial class OpenIddictServiceAccountService(
             throw new EntityNotFoundException(nameof(ServiceAccountMetadata), id.Value);
         }
 
-        LogRevokingServiceAccount(metadata.KeycloakClientId);
+        LogRevokingServiceAccount(metadata.ClientId);
 
-        object? application = await applicationManager.FindByClientIdAsync(metadata.KeycloakClientId, ct);
+        object? application = await applicationManager.FindByClientIdAsync(metadata.ClientId, ct);
         if (application is not null)
         {
             await applicationManager.DeleteAsync(application, ct);
@@ -196,7 +196,7 @@ public sealed partial class OpenIddictServiceAccountService(
         metadata.Revoke(currentUserService.UserId ?? Guid.Empty, timeProvider);
         await repository.SaveChangesAsync(ct);
 
-        LogServiceAccountRevoked(metadata.KeycloakClientId);
+        LogServiceAccountRevoked(metadata.ClientId);
     }
 
     private static string GenerateClientSecret()

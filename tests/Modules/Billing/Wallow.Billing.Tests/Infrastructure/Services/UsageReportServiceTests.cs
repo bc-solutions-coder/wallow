@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Wallow.Billing.Domain.Metering.Entities;
 using Wallow.Billing.Domain.Metering.Enums;
 using Wallow.Billing.Infrastructure.Persistence;
@@ -5,7 +6,6 @@ using Wallow.Billing.Infrastructure.Services;
 using Wallow.Shared.Contracts.Metering;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
-using Microsoft.EntityFrameworkCore;
 
 namespace Wallow.Billing.Tests.Infrastructure.Services;
 
@@ -92,31 +92,6 @@ public class UsageReportServiceTests
         results[0].Quantity.Should().Be(500);
     }
 
-    [Fact]
-    public async Task GetUsageAsync_RespectsTenantIsolation()
-    {
-        await using BillingDbContext dbContext = CreateDbContext();
-        DateTime from = new(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc);
-        DateTime to = new(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc);
-
-        MeterDefinition meter = MeterDefinition.Create(
-            "api.requests", "API Requests", "requests", MeterAggregation.Sum, true);
-        dbContext.MeterDefinitions.Add(meter);
-
-        UsageRecord record = UsageRecord.Create(_tenantId, "api.requests", new DateTime(2026, 2, 15, 0, 0, 0, DateTimeKind.Utc), new DateTime(2026, 2, 16, 0, 0, 0, DateTimeKind.Utc), 200, TimeProvider.System);
-        dbContext.UsageRecords.Add(record);
-        await dbContext.SaveChangesAsync();
-
-        Guid otherTenantId = Guid.NewGuid();
-
-        UsageReportService service = new(dbContext);
-
-        IReadOnlyList<UsageReportRow> results = await service.GetUsageAsync(
-            otherTenantId, from, to);
-
-        results.Should().BeEmpty();
-    }
-
     private BillingDbContext CreateDbContext()
     {
         DbContextOptions<BillingDbContext> options = new DbContextOptionsBuilder<BillingDbContext>()
@@ -126,6 +101,8 @@ public class UsageReportServiceTests
         ITenantContext tenantContext = Substitute.For<ITenantContext>();
         tenantContext.TenantId.Returns(_tenantId);
 
-        return new BillingDbContext(options, tenantContext);
+        BillingDbContext dbContext = new(options);
+        dbContext.SetTenant(_tenantId);
+        return dbContext;
     }
 }

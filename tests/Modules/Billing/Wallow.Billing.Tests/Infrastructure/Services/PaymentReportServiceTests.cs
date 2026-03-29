@@ -1,8 +1,7 @@
+using Microsoft.EntityFrameworkCore;
 using Wallow.Billing.Infrastructure.Persistence;
 using Wallow.Billing.Infrastructure.Services;
-using Wallow.Shared.Kernel.Identity;
-using Wallow.Shared.Kernel.MultiTenancy;
-using Microsoft.EntityFrameworkCore;
+using Wallow.Shared.Kernel.Persistence;
 
 namespace Wallow.Billing.Tests.Infrastructure.Services;
 
@@ -12,10 +11,10 @@ public class PaymentReportServiceTests
     public void Constructor_CreatesInstance()
     {
         using BillingDbContext dbContext = CreateDbContext();
-        ITenantContext tenantContext = Substitute.For<ITenantContext>();
-        tenantContext.TenantId.Returns(TenantId.Create(Guid.NewGuid()));
+        IReadDbContext<BillingDbContext> readDbContext = Substitute.For<IReadDbContext<BillingDbContext>>();
+        readDbContext.Context.Returns(dbContext);
 
-        PaymentReportService service = new(dbContext, tenantContext);
+        PaymentReportService service = new(readDbContext);
 
         service.Should().NotBeNull();
     }
@@ -26,9 +25,6 @@ public class PaymentReportServiceTests
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options;
 
-        ITenantContext tenantContext = Substitute.For<ITenantContext>();
-        tenantContext.TenantId.Returns(TenantId.Create(Guid.NewGuid()));
-
-        return new BillingDbContext(options, tenantContext);
+        return new BillingDbContext(options);
     }
 }

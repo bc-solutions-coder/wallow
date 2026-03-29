@@ -1,12 +1,12 @@
 using Asp.Versioning;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Wallow.Billing.Application.Metering.DTOs;
 using Wallow.Billing.Application.Metering.Queries.GetMeterDefinitions;
 using Wallow.Shared.Api.Extensions;
 using Wallow.Shared.Kernel.Identity.Authorization;
 using Wallow.Shared.Kernel.Results;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Wolverine;
 
 namespace Wallow.Billing.Api.Controllers;
@@ -17,6 +17,7 @@ namespace Wallow.Billing.Api.Controllers;
 [Authorize]
 [Tags("Metering")]
 [Produces("application/json")]
+[IgnoreAntiforgeryToken]
 public class MetersController(IMessageBus bus) : ControllerBase
 {
 

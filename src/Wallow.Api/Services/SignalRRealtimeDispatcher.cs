@@ -1,9 +1,9 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Microsoft.AspNetCore.SignalR;
 using Wallow.Api.Hubs;
 using Wallow.Shared.Contracts.Realtime;
 using Wallow.Shared.Infrastructure.Core.Services;
-using Microsoft.AspNetCore.SignalR;
 
 namespace Wallow.Api.Services;
 

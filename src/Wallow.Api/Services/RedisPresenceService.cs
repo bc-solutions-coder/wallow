@@ -1,5 +1,5 @@
-using Wallow.Shared.Contracts.Realtime;
 using StackExchange.Redis;
+using Wallow.Shared.Contracts.Realtime;
 
 namespace Wallow.Api.Services;
 

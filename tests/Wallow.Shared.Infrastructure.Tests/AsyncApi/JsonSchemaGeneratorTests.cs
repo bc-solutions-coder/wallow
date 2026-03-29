@@ -107,4 +107,140 @@ public class JsonSchemaGeneratorTests
         itemSchema["properties"]!.AsObject().ContainsKey("itemId").Should().BeTrue();
         itemSchema["properties"]!.AsObject().ContainsKey("quantity").Should().BeTrue();
     }
+
+    [Fact]
+    public void GetPropertySchema_float_returns_number_with_float_format()
+    {
+        JsonObject schema = JsonSchemaGenerator.GetPropertySchema(typeof(float));
+
+        schema["type"]!.GetValue<string>().Should().Be("number");
+        schema["format"]!.GetValue<string>().Should().Be("float");
+    }
+
+    [Fact]
+    public void GetPropertySchema_nullable_int_returns_integer()
+    {
+        JsonObject schema = JsonSchemaGenerator.GetPropertySchema(typeof(int?));
+
+        schema["type"]!.GetValue<string>().Should().Be("integer");
+        schema.ContainsKey("format").Should().BeFalse();
+    }
+
+    [Fact]
+    public void GetPropertySchema_nullable_bool_returns_boolean()
+    {
+        JsonObject schema = JsonSchemaGenerator.GetPropertySchema(typeof(bool?));
+
+        schema["type"]!.GetValue<string>().Should().Be("boolean");
+    }
+
+    [Fact]
+    public void GetPropertySchema_nullable_long_returns_integer_with_int64_format()
+    {
+        JsonObject schema = JsonSchemaGenerator.GetPropertySchema(typeof(long?));
+
+        schema["type"]!.GetValue<string>().Should().Be("integer");
+        schema["format"]!.GetValue<string>().Should().Be("int64");
+    }
+
+    [Fact]
+    public void GetPropertySchema_nullable_decimal_returns_number()
+    {
+        JsonObject schema = JsonSchemaGenerator.GetPropertySchema(typeof(decimal?));
+
+        schema["type"]!.GetValue<string>().Should().Be("number");
+    }
+
+    [Fact]
+    public void GetPropertySchema_nullable_double_returns_number_double()
+    {
+        JsonObject schema = JsonSchemaGenerator.GetPropertySchema(typeof(double?));
+
+        schema["type"]!.GetValue<string>().Should().Be("number");
+        schema["format"]!.GetValue<string>().Should().Be("double");
+    }
+
+    [Fact]
+    public void GetPropertySchema_nullable_float_returns_number_float()
+    {
+        JsonObject schema = JsonSchemaGenerator.GetPropertySchema(typeof(float?));
+
+        schema["type"]!.GetValue<string>().Should().Be("number");
+        schema["format"]!.GetValue<string>().Should().Be("float");
+    }
+
+    [Fact]
+    public void GetPropertySchema_nullable_DateTime_returns_string_datetime()
+    {
+        JsonObject schema = JsonSchemaGenerator.GetPropertySchema(typeof(DateTime?));
+
+        schema["type"]!.GetValue<string>().Should().Be("string");
+        schema["format"]!.GetValue<string>().Should().Be("date-time");
+    }
+
+    [Fact]
+    public void GetPropertySchema_nullable_TimeSpan_returns_string_duration()
+    {
+        JsonObject schema = JsonSchemaGenerator.GetPropertySchema(typeof(TimeSpan?));
+
+        schema["type"]!.GetValue<string>().Should().Be("string");
+        schema["format"]!.GetValue<string>().Should().Be("duration");
+    }
+
+    [Fact]
+    public void GetPropertySchema_list_of_strings_returns_array_of_string()
+    {
+        JsonObject schema = JsonSchemaGenerator.GetPropertySchema(typeof(List<string>));
+
+        schema["type"]!.GetValue<string>().Should().Be("array");
+        schema["items"]!["type"]!.GetValue<string>().Should().Be("string");
+    }
+
+    [Fact]
+    public void GetPropertySchema_list_of_guids_returns_array_of_uuid()
+    {
+        JsonObject schema = JsonSchemaGenerator.GetPropertySchema(typeof(List<Guid>));
+
+        schema["type"]!.GetValue<string>().Should().Be("array");
+        schema["items"]!["type"]!.GetValue<string>().Should().Be("string");
+        schema["items"]!["format"]!.GetValue<string>().Should().Be("uuid");
+    }
+
+    private sealed record DerivedEvent : BaseEvent
+    {
+        // ReSharper disable once UnusedMember.Local
+        public required string Extra { get; init; }
+    }
+
+    private record BaseEvent
+    {
+        // ReSharper disable once UnusedMember.Local
+        public required Guid BaseId { get; init; }
+    }
+
+    [Fact]
+    public void GenerateSchema_includes_base_class_properties()
+    {
+        JsonObject schema = JsonSchemaGenerator.GenerateSchema(typeof(DerivedEvent));
+
+        JsonObject props = schema["properties"]!.AsObject();
+        props.ContainsKey("extra").Should().BeTrue();
+        props.ContainsKey("baseId").Should().BeTrue();
+    }
+
+    // Non-primitive struct (not a collection, not a known type) should fall through to GenerateSchema
+    private struct CustomStruct
+    {
+        // ReSharper disable once UnusedMember.Local
+        public int X { get; set; }
+    }
+
+    [Fact]
+    public void GetPropertySchema_custom_struct_returns_object_schema()
+    {
+        JsonObject schema = JsonSchemaGenerator.GetPropertySchema(typeof(CustomStruct));
+
+        schema["type"]!.GetValue<string>().Should().Be("object");
+        schema["properties"]!.AsObject().ContainsKey("x").Should().BeTrue();
+    }
 }

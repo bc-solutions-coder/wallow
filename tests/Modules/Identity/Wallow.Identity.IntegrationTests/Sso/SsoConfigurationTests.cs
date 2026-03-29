@@ -1,4 +1,8 @@
 using System.Text.Json;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Enums;
@@ -7,17 +11,18 @@ using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Tests.Common.Factories;
 using Wallow.Tests.Common.Helpers;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.TestHost;
-using Microsoft.Extensions.DependencyInjection;
 using WireMock.RequestBuilders;
 using WireMock.ResponseBuilders;
 using WireMock.Server;
 
 namespace Wallow.Identity.IntegrationTests.Sso;
 
+[CollectionDefinition("SsoConfiguration")]
+public class SsoTestCollection : ICollectionFixture<SsoConfigurationTestFactory>;
+
+[Collection("SsoConfiguration")]
 [Trait("Category", "Integration")]
-public class SsoConfigurationTests : IClassFixture<SsoConfigurationTestFactory>, IAsyncLifetime
+public class SsoConfigurationTests : IAsyncLifetime
 {
     private readonly SsoConfigurationTestFactory _factory;
     private IServiceScope? _scope;
@@ -38,9 +43,7 @@ public class SsoConfigurationTests : IClassFixture<SsoConfigurationTestFactory>,
         _dbContext = scopedServices.GetRequiredService<IdentityDbContext>();
         await _dbContext.Database.EnsureCreatedAsync();
 
-        List<Domain.Entities.SsoConfiguration> existingConfigs = _dbContext.SsoConfigurations.ToList();
-        _dbContext.SsoConfigurations.RemoveRange(existingConfigs);
-        await _dbContext.SaveChangesAsync();
+        await _dbContext.SsoConfigurations.ExecuteDeleteAsync();
 
         _factory.ResetIdpMock();
     }
@@ -79,13 +82,6 @@ public class SsoConfigurationTests : IClassFixture<SsoConfigurationTestFactory>,
         result.Protocol.Should().Be(SsoProtocol.Oidc);
         result.OidcIssuer.Should().Be(mockIssuer);
         result.Status.Should().Be(SsoStatus.Draft);
-
-        IReadOnlyList<JsonElement> createdIdps = _factory.CreatedIdentityProviders;
-        createdIdps.Should().HaveCount(1);
-        JsonElement idp = createdIdps[0];
-        idp.GetProperty("displayName").GetString().Should().Be("Test OIDC Provider");
-        idp.GetProperty("providerId").GetString().Should().Be("oidc");
-        idp.GetProperty("enabled").GetBoolean().Should().BeFalse();
     }
 
     [Fact]
@@ -115,11 +111,6 @@ public class SsoConfigurationTests : IClassFixture<SsoConfigurationTestFactory>,
         SsoConfigurationDto? config = await _ssoService.GetConfigurationAsync();
         config.Should().NotBeNull();
         config!.Status.Should().Be(SsoStatus.Active);
-
-        IReadOnlyList<JsonElement> updatedIdps = _factory.UpdatedIdentityProviders;
-        updatedIdps.Should().HaveCount(1);
-        JsonElement idp = updatedIdps[0];
-        idp.GetProperty("enabled").GetBoolean().Should().BeTrue();
     }
 
     [Fact]
@@ -145,18 +136,12 @@ public class SsoConfigurationTests : IClassFixture<SsoConfigurationTestFactory>,
 
         _ = await _ssoService.SaveOidcConfigurationAsync(request);
         await _ssoService.ActivateAsync();
-        _factory.ResetUpdatedProviders();
 
         await _ssoService.DisableAsync();
 
         SsoConfigurationDto? config = await _ssoService.GetConfigurationAsync();
         config.Should().NotBeNull();
         config!.Status.Should().Be(SsoStatus.Disabled);
-
-        IReadOnlyList<JsonElement> updatedIdps = _factory.UpdatedIdentityProviders;
-        updatedIdps.Should().HaveCount(1);
-        JsonElement idp = updatedIdps[0];
-        idp.GetProperty("enabled").GetBoolean().Should().BeFalse();
     }
 
     [Fact]
@@ -262,11 +247,6 @@ public class SsoConfigurationTestFactory : WallowApiFactory
         builder.ConfigureTestServices(services =>
         {
             services.AddHttpContextAccessor();
-
-            services.AddHttpClient("KeycloakAdminClient", client =>
-            {
-                client.BaseAddress = new Uri(_idpMock.Url!);
-            });
 
             services.AddHttpClient(string.Empty, client =>
             {

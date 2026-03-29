@@ -42,7 +42,8 @@ public sealed class InquiryComment : AggregateRoot<InquiryCommentId>, ITenantSco
             inquiryId.Value,
             comment.TenantId.Value,
             authorId,
-            isInternal));
+            isInternal,
+            content));
 
         return comment;
     }

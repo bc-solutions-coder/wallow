@@ -1,7 +1,7 @@
+using Microsoft.EntityFrameworkCore;
 using Wallow.Messaging.Application.Conversations.Interfaces;
 using Wallow.Messaging.Domain.Conversations.Entities;
 using Wallow.Messaging.Domain.Conversations.Identity;
-using Microsoft.EntityFrameworkCore;
 
 namespace Wallow.Messaging.Infrastructure.Persistence.Repositories;
 

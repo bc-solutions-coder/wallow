@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Wallow.Notifications.Application.Channels.Email.Interfaces;
 using Wallow.Notifications.Domain.Channels.Email.Entities;
 using Wallow.Notifications.Domain.Channels.Email.Enums;
@@ -5,7 +6,6 @@ using Wallow.Notifications.Domain.Channels.Email.ValueObjects;
 using Wallow.Notifications.Infrastructure.Jobs;
 using Wallow.Shared.Contracts.Communications.Email;
 using Wallow.Shared.Kernel.Identity;
-using Microsoft.Extensions.Logging;
 
 namespace Wallow.Notifications.Tests.Infrastructure.Jobs;
 

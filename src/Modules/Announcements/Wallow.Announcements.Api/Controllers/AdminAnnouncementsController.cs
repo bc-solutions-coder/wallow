@@ -1,4 +1,6 @@
 using Asp.Versioning;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Wallow.Announcements.Api.Contracts.Responses;
 using Wallow.Announcements.Application.Announcements.Commands.ArchiveAnnouncement;
 using Wallow.Announcements.Application.Announcements.Commands.CreateAnnouncement;
@@ -11,8 +13,6 @@ using Wallow.Shared.Api.Extensions;
 using Wallow.Shared.Infrastructure.Core.Services;
 using Wallow.Shared.Kernel.Identity.Authorization;
 using Wallow.Shared.Kernel.Results;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Wolverine;
 
 namespace Wallow.Announcements.Api.Controllers;
@@ -23,6 +23,7 @@ namespace Wallow.Announcements.Api.Controllers;
 [HasPermission(PermissionType.AnnouncementManage)]
 [Tags("Admin - Announcements")]
 [Produces("application/json")]
+[IgnoreAntiforgeryToken]
 public class AdminAnnouncementsController(IMessageBus bus, IHtmlSanitizationService sanitizer) : ControllerBase
 {
 

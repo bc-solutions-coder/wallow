@@ -1,9 +1,9 @@
 using System.Text.Json;
+using Microsoft.Extensions.Caching.Distributed;
+using NSubstitute;
 using Wallow.Shared.Infrastructure.Settings;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.Settings;
-using Microsoft.Extensions.Caching.Distributed;
-using NSubstitute;
 
 namespace Wallow.Shared.Infrastructure.Tests.Settings;
 
@@ -275,5 +275,71 @@ public class CachedSettingsServiceTests
 
         await _cache.Received(1).GetAsync($"settings:test-module:{tenantId1}", Arg.Any<CancellationToken>());
         await _cache.Received(1).GetAsync($"settings:test-module:{tenantId2}", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task GetUserSettingsAsync_WithTenantCustomKeyAndUserOverride_UserWins()
+    {
+        _cache.GetAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns((byte[]?)null);
+        TenantId tid = TenantId.Create(_tenantId);
+        string userIdStr = _userId.ToString("D", System.Globalization.CultureInfo.InvariantCulture);
+
+        TenantSettingEntity tenantCustom = new(tid, "test-module", "custom.theme", "light");
+        UserSettingEntity userCustom = new(tid, userIdStr, "test-module", "custom.theme", "dark");
+
+        _tenantRepo.GetAllAsync(Arg.Any<TenantId>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns([tenantCustom]);
+        _userRepo.GetAllAsync(Arg.Any<TenantId>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns([userCustom]);
+
+        IReadOnlyList<ResolvedSetting> result = await _sut.GetUserSettingsAsync(_tenantId, _userId);
+
+        ResolvedSetting? themeSetting = result.FirstOrDefault(r => r.Key == "custom.theme");
+        themeSetting.Should().NotBeNull();
+        themeSetting!.Value.Should().Be("dark");
+        themeSetting.Source.Should().Be("user");
+    }
+
+    [Fact]
+    public async Task DeleteTenantSettingsAsync_WithMultipleKeys_DeletesAllAndInvalidatesCache()
+    {
+        List<string> keys = ["feature.enabled", "max.retries"];
+        await _sut.DeleteTenantSettingsAsync(_tenantId, keys, _userId);
+
+        await _tenantRepo.Received(2).DeleteAsync(Arg.Any<TenantId>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _cache.Received().RemoveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task DeleteUserSettingsAsync_WithMultipleKeys_DeletesAll()
+    {
+        List<string> keys = ["custom.a", "custom.b"];
+        await _sut.DeleteUserSettingsAsync(_tenantId, _userId, keys);
+
+        await _userRepo.Received(2).DeleteAsync(Arg.Any<TenantId>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task UpdateUserSettingsAsync_WithUnknownKey_ThrowsArgumentException()
+    {
+        _registry.IsCodeDefinedKey("unknown.bad-key").Returns(false);
+
+        List<SettingUpdate> updates = [new SettingUpdate("unknown.bad-key", "value")];
+
+        Func<Task> act = () => _sut.UpdateUserSettingsAsync(_tenantId, _userId, updates);
+
+        await act.Should().ThrowAsync<ArgumentException>().WithMessage("*Unknown setting key*");
+    }
+
+    [Fact]
+    public async Task UpdateTenantSettingsAsync_InvalidatesBothTenantAndUserCache()
+    {
+        _registry.IsCodeDefinedKey("feature.enabled").Returns(true);
+        List<SettingUpdate> updates = [new SettingUpdate("feature.enabled", "true")];
+
+        await _sut.UpdateTenantSettingsAsync(_tenantId, updates, _userId);
+
+        // Should invalidate both tenant cache and user cache (2 RemoveAsync calls)
+        await _cache.Received(2).RemoveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 }

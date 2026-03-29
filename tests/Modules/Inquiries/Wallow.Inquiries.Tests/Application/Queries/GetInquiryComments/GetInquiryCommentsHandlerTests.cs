@@ -3,7 +3,6 @@ using Wallow.Inquiries.Application.Interfaces;
 using Wallow.Inquiries.Application.Queries.GetInquiryComments;
 using Wallow.Inquiries.Domain.Entities;
 using Wallow.Inquiries.Domain.Identity;
-
 namespace Wallow.Inquiries.Tests.Application.Queries.GetInquiryComments;
 
 public class GetInquiryCommentsHandlerTests

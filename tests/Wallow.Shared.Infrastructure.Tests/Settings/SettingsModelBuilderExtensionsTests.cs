@@ -1,6 +1,6 @@
-using Wallow.Shared.Infrastructure.Settings;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Wallow.Shared.Infrastructure.Settings;
 
 namespace Wallow.Shared.Infrastructure.Tests.Settings;
 

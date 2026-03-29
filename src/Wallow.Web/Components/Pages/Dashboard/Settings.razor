@@ -1,0 +1,68 @@
+@page "/dashboard/settings"
+@layout DashboardLayout
+@attribute [Authorize]
+@rendermode InteractiveServer
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@using Wallow.Shared.Kernel.Extensions
+@inject AuthenticationStateProvider AuthStateProvider
+
+<div class="max-w-2xl mx-auto">
+    <h1 class="text-3xl font-bold text-[#3d2b1f] mb-8">Settings</h1>
+
+    <div class="bg-white rounded-lg shadow-sm border border-[#e8d5b7] p-8">
+        <h2 class="text-lg font-semibold text-[#3d2b1f] mb-6">Profile</h2>
+
+        @if (_name is not null || _email is not null)
+        {
+            <div class="space-y-5">
+                <div>
+                    <label class="block text-xs font-semibold text-[#3d2b1f]/70 uppercase tracking-wider mb-1">Name</label>
+                    <p class="text-[#3d2b1f] text-sm">@(_name ?? "Not set")</p>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-[#3d2b1f]/70 uppercase tracking-wider mb-1">Email</label>
+                    <p class="text-[#3d2b1f] text-sm">@(_email ?? "Not set")</p>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-[#3d2b1f]/70 uppercase tracking-wider mb-1">Roles</label>
+                    @if (_roles.Count > 0)
+                    {
+                        <div class="flex flex-wrap gap-2">
+                            @foreach (string role in _roles)
+                            {
+                                <span class="bg-[#e8d5b7] text-[#3d2b1f] text-xs font-medium px-3 py-1 rounded-full">@role</span>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-[#3d2b1f]/50 text-sm">No roles assigned</p>
+                    }
+                </div>
+            </div>
+        }
+        else
+        {
+            <p class="text-[#3d2b1f]/60 text-sm">Loading profile...</p>
+        }
+    </div>
+
+    <MfaSettingsSection />
+</div>
+
+@code {
+    private string? _name;
+    private string? _email;
+    private List<string> _roles = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        AuthenticationState authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        ClaimsPrincipal user = authState.User;
+
+        _name = user.GetDisplayName();
+        _email = user.GetEmail();
+        _roles = user.GetRoles().ToList();
+    }
+}

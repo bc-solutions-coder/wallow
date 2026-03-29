@@ -1,8 +1,8 @@
+using Microsoft.EntityFrameworkCore;
 using Wallow.Shared.Infrastructure.Core.Persistence;
 using Wallow.Shared.Infrastructure.Settings;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
-using Microsoft.EntityFrameworkCore;
 
 namespace Wallow.Shared.Kernel.Tests.Settings;
 
@@ -20,7 +20,9 @@ public class SettingRepositoriesTests
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options;
 
-        return new TestDbContext(options, tenantContext);
+        TestDbContext context = new TestDbContext(options);
+        context.SetTenant(_tenantId);
+        return context;
     }
 
     // ── TenantSettingRepository ──────────────────────────────────────────
@@ -244,8 +246,8 @@ public class SettingRepositoriesTests
 
     // ── Test support ─────────────────────────────────────────────────────
 
-    private sealed class TestDbContext(DbContextOptions<TestDbContext> options, ITenantContext tenantContext)
-        : TenantAwareDbContext<TestDbContext>(options, tenantContext)
+    private sealed class TestDbContext(DbContextOptions<TestDbContext> options)
+        : TenantAwareDbContext<TestDbContext>(options)
     {
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

@@ -1,10 +1,10 @@
+using Microsoft.AspNetCore.Mvc;
 using Wallow.Identity.Api.Contracts.Requests;
 using Wallow.Identity.Api.Controllers;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Enums;
 using Wallow.Identity.Domain.Identity;
-using Microsoft.AspNetCore.Mvc;
 
 namespace Wallow.Identity.Tests.Api.Controllers;
 
