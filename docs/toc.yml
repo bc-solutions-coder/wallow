@@ -16,6 +16,8 @@
       href: architecture/assessment.md
     - name: Module Creation
       href: architecture/module-creation.md
+    - name: Authentication
+      href: architecture/authentication.md
     - name: Authorization
       href: architecture/authorization.md
     - name: Messaging
