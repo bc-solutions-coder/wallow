@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.3](https://github.com/bc-solutions-coder/wallow/compare/v1.0.2...v1.0.3) (2026-03-29)
+
+
+### Bug Fixes
+
+* add last-release-sha to release-please config after history rewrite ([72967a6](https://github.com/bc-solutions-coder/wallow/commit/72967a608b8c0b598881234ee614c0a40c606166))
+
 ## [1.0.2](https://github.com/bc-solutions-coder/wallow/compare/v1.0.1...v1.0.2) (2026-03-29)
 
 
