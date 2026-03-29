@@ -2,6 +2,7 @@
 @rendermode InteractiveServer
 @inject IAuthApiClient AuthApi
 @using Wallow.Auth.Configuration
+@using Wallow.Auth.Helpers
 @inject BrandingOptions Branding
 
 <PageTitle>Verify Email — @Branding.AppName</PageTitle>
@@ -25,7 +26,7 @@
                 <BbAlertDescription>Your email has been verified. You can now sign in.</BbAlertDescription>
             </BbAlert>
 
-            @if (!string.IsNullOrEmpty(ReturnUrl))
+            @if (ReturnUrlValidator.IsSafe(ReturnUrl))
             {
                 <div class="mt-4">
                     <BbButton Class="w-full" Href="@ReturnUrl">Continue</BbButton>
@@ -57,9 +58,9 @@
     [SupplyParameterFromQuery]
     public string? ReturnUrl { get; set; }
 
-    private string LoginUrl => string.IsNullOrEmpty(ReturnUrl)
-        ? "/login"
-        : $"/login?returnUrl={Uri.EscapeDataString(ReturnUrl)}";
+    private string LoginUrl => ReturnUrlValidator.IsSafe(ReturnUrl)
+        ? $"/login?returnUrl={Uri.EscapeDataString(ReturnUrl!)}"
+        : "/login";
 
     private bool _loading = true;
     private bool _succeeded;

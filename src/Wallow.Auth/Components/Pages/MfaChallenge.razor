@@ -5,6 +5,7 @@
 @inject NavigationManager Navigation
 @inject IConfiguration Configuration
 @using Wallow.Auth.Configuration
+@using Wallow.Auth.Helpers
 @inject BrandingOptions Branding
 
 <PageTitle>MFA Verification — @Branding.AppName</PageTitle>
@@ -139,17 +140,18 @@
             if (result.Succeeded)
             {
                 _verified = true;
+                string? safeReturnUrl = ReturnUrlValidator.IsSafe(ReturnUrl) ? ReturnUrl : null;
 
-                if (!string.IsNullOrEmpty(ReturnUrl) && !string.IsNullOrEmpty(result.SignInTicket))
+                if (!string.IsNullOrEmpty(safeReturnUrl) && !string.IsNullOrEmpty(result.SignInTicket))
                 {
                     string exchangeUrl = $"{ApiBaseUrl}/api/v1/identity/auth/exchange-ticket" +
                         $"?ticket={Uri.EscapeDataString(result.SignInTicket)}" +
-                        $"&returnUrl={Uri.EscapeDataString(ReturnUrl)}";
+                        $"&returnUrl={Uri.EscapeDataString(safeReturnUrl)}";
                     Navigation.NavigateTo(exchangeUrl, forceLoad: true);
                 }
-                else if (!string.IsNullOrEmpty(ReturnUrl))
+                else if (!string.IsNullOrEmpty(safeReturnUrl))
                 {
-                    Navigation.NavigateTo(BuildApiReturnUrl(ReturnUrl), forceLoad: true);
+                    Navigation.NavigateTo(BuildApiReturnUrl(safeReturnUrl), forceLoad: true);
                 }
                 // No ReturnUrl — direct login, not OIDC. Show success state without redirecting.
             }

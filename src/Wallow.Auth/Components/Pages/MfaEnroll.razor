@@ -9,6 +9,7 @@
 @inject ApiCookieJar CookieJar
 @inject IHttpContextAccessor HttpContextAccessor
 @using Wallow.Auth.Configuration
+@using Wallow.Auth.Helpers
 @using Wallow.Auth.Services
 @using Microsoft.JSInterop
 @inject BrandingOptions Branding
@@ -43,7 +44,7 @@
                     <div>@backupCode</div>
                 }
             </div>
-            <BbButton Class="w-full" OnClick="@(() => Navigation.NavigateTo(BuildApiReturnUrl(ReturnUrl ?? "/"), forceLoad: true))">
+            <BbButton Class="w-full" OnClick="@(() => Navigation.NavigateTo(BuildApiReturnUrl(ReturnUrlValidator.Sanitize(ReturnUrl)), forceLoad: true))">
                 Done
             </BbButton>
         }

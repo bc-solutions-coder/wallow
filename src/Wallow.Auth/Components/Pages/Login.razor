@@ -5,6 +5,7 @@
 @inject NavigationManager Navigation
 @inject IConfiguration Configuration
 @using Wallow.Auth.Configuration
+@using Wallow.Auth.Helpers
 @inject BrandingOptions Branding
 @using Wallow.Auth.Components.Shared
 
@@ -283,16 +284,6 @@
         _otpCode = string.Empty;
     }
 
-    /// <summary>
-    /// Checks if a URL is an absolute HTTP/HTTPS or protocol-relative URL (open-redirect vectors).
-    /// Unlike Uri.TryCreate with UriKind.Absolute, this does not false-positive on Unix paths
-    /// which .NET treats as absolute file:// URIs on macOS/Linux.
-    /// </summary>
-    private static bool IsAbsoluteHttpUrl(string? url) =>
-        !string.IsNullOrEmpty(url) &&
-        (url.StartsWith("//", StringComparison.Ordinal) ||
-         url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
-         url.StartsWith("https://", StringComparison.OrdinalIgnoreCase));
 
     private string GetExternalLoginUrl(string provider)
     {
@@ -487,7 +478,7 @@
 
         if (!string.IsNullOrEmpty(ReturnUrl))
         {
-            if (IsAbsoluteHttpUrl(ReturnUrl))
+            if (!ReturnUrlValidator.IsSafe(ReturnUrl))
             {
                 Navigation.NavigateTo("/error?reason=invalid_redirect_uri", forceLoad: true);
                 return;

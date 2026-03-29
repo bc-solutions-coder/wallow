@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # init-replica.sh
 # Initializes the PostgreSQL read replica by streaming a base backup from the primary.
 # Used as the entrypoint for the postgres-replica container.
