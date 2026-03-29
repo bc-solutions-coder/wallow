@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/bc-solutions-coder/wallow/compare/v1.1.0...v1.2.0) (2026-03-29)
+
+
+### Features
+
+* self-contained API container with migrations, cert gen, and multi-arch support ([016c986](https://github.com/bc-solutions-coder/wallow/commit/016c98691295f1055a0d00cfc11890a30550b1aa))
+
 ## [1.1.0](https://github.com/bc-solutions-coder/wallow/compare/v1.0.3...v1.1.0) (2026-03-29)
 
 
