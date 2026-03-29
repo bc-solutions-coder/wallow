@@ -9,7 +9,7 @@ Step-by-step guide for adding a new module to Wallow.
 Before creating a new module:
 
 - Understand Clean Architecture layers (Domain, Application, Infrastructure, Api)
-- Review the [Billing module](../../src/Modules/Billing/) as the reference implementation
+- Review the [Billing module](https://github.com/bc-solutions-coder/wallow/tree/main/src/Modules/Billing) as the reference implementation
 - Decide on your module name (PascalCase, singular noun)
 - Identify primary entities and their relationships
 - Determine if the module needs database persistence (EF Core) or is stateless
@@ -527,4 +527,4 @@ These cross-cutting capabilities in the Shared layer are available to all module
 
 ---
 
-*Reference implementation: [Billing module](../../src/Modules/Billing/). Current modules: Identity, Billing, Branding, Storage, Notifications, Messaging, Announcements, Inquiries, ApiKeys.*
+*Reference implementation: [Billing module](https://github.com/bc-solutions-coder/wallow/tree/main/src/Modules/Billing). Current modules: Identity, Billing, Branding, Storage, Notifications, Messaging, Announcements, Inquiries, ApiKeys.*
