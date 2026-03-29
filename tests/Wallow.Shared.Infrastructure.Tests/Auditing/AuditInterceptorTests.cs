@@ -65,18 +65,25 @@ public class AuditTestDbContext : DbContext
     }
 }
 
-public class AuditInterceptorTests : IAsyncLifetime
+/// <summary>
+/// Shared Postgres container fixture for audit interceptor tests.
+/// One container is started per test class run instead of per test method,
+/// reducing Docker resource contention during parallel test execution.
+/// </summary>
+public class AuditInterceptorFixture : IAsyncLifetime
 {
     private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:18-alpine")
+        .WithCleanUp(true)
         .Build();
 
-    private ServiceProvider _serviceProvider = null!;
+    public string ConnectionString => _postgres.GetConnectionString();
+    public ServiceProvider ServiceProvider { get; private set; } = null!;
 
     public async Task InitializeAsync()
     {
         await _postgres.StartAsync();
 
-        ServiceCollection services = new ServiceCollection();
+        ServiceCollection services = new();
 
         IHttpContextAccessor httpContextAccessor = Substitute.For<IHttpContextAccessor>();
         services.AddSingleton(httpContextAccessor);
@@ -99,9 +106,9 @@ public class AuditInterceptorTests : IAsyncLifetime
                 .AddInterceptors(interceptor);
         });
 
-        _serviceProvider = services.BuildServiceProvider();
+        ServiceProvider = services.BuildServiceProvider();
 
-        using IServiceScope scope = _serviceProvider.CreateScope();
+        using IServiceScope scope = ServiceProvider.CreateScope();
 
         // Create schemas and tables via raw SQL to avoid EnsureCreatedAsync pitfall:
         // EnsureCreatedAsync is all-or-nothing — if any tables exist, the second call is a no-op.
@@ -117,14 +124,17 @@ public class AuditInterceptorTests : IAsyncLifetime
 
     public async Task DisposeAsync()
     {
-        await _serviceProvider.DisposeAsync();
+        await ServiceProvider.DisposeAsync();
         await _postgres.DisposeAsync();
     }
+}
 
+public class AuditInterceptorTests(AuditInterceptorFixture fixture) : IClassFixture<AuditInterceptorFixture>
+{
     [Fact]
     public async Task Insert_CreatesAuditEntry_WithInsertAction()
     {
-        using IServiceScope scope = _serviceProvider.CreateScope();
+        using IServiceScope scope = fixture.ServiceProvider.CreateScope();
         AuditTestDbContext testDb = scope.ServiceProvider.GetRequiredService<AuditTestDbContext>();
         AuditDbContext auditDb = scope.ServiceProvider.GetRequiredService<AuditDbContext>();
 
@@ -151,7 +161,7 @@ public class AuditInterceptorTests : IAsyncLifetime
     [Fact]
     public async Task Update_CreatesAuditEntry_WithOldAndNewValues()
     {
-        using IServiceScope scope = _serviceProvider.CreateScope();
+        using IServiceScope scope = fixture.ServiceProvider.CreateScope();
         AuditTestDbContext testDb = scope.ServiceProvider.GetRequiredService<AuditTestDbContext>();
         AuditDbContext auditDb = scope.ServiceProvider.GetRequiredService<AuditDbContext>();
 
@@ -181,7 +191,7 @@ public class AuditInterceptorTests : IAsyncLifetime
     [Fact]
     public async Task Delete_CreatesAuditEntry_WithOldValues()
     {
-        using IServiceScope scope = _serviceProvider.CreateScope();
+        using IServiceScope scope = fixture.ServiceProvider.CreateScope();
         AuditTestDbContext testDb = scope.ServiceProvider.GetRequiredService<AuditTestDbContext>();
         AuditDbContext auditDb = scope.ServiceProvider.GetRequiredService<AuditDbContext>();
 
@@ -209,7 +219,7 @@ public class AuditInterceptorTests : IAsyncLifetime
     [Fact]
     public async Task Insert_CompositeKey_SerializesAsCommaSeparatedString()
     {
-        using IServiceScope scope = _serviceProvider.CreateScope();
+        using IServiceScope scope = fixture.ServiceProvider.CreateScope();
         AuditTestDbContext testDb = scope.ServiceProvider.GetRequiredService<AuditTestDbContext>();
         AuditDbContext auditDb = scope.ServiceProvider.GetRequiredService<AuditDbContext>();
 
@@ -219,17 +229,16 @@ public class AuditInterceptorTests : IAsyncLifetime
         await testDb.SaveChangesAsync();
 
         List<AuditEntry> auditEntries = await auditDb.AuditEntries
-            .Where(e => e.EntityType == "CompositeKeyEntity")
+            .Where(e => e.EntityId == $"{partA},{partB}")
             .ToListAsync();
 
         auditEntries.Should().ContainSingle();
-        auditEntries[0].EntityId.Should().Be($"{partA},{partB}");
     }
 
     [Fact]
     public async Task Delete_CapturesOldValuesOnly_NewValuesIsNull()
     {
-        using IServiceScope scope = _serviceProvider.CreateScope();
+        using IServiceScope scope = fixture.ServiceProvider.CreateScope();
         AuditTestDbContext testDb = scope.ServiceProvider.GetRequiredService<AuditTestDbContext>();
         AuditDbContext auditDb = scope.ServiceProvider.GetRequiredService<AuditDbContext>();
 
@@ -256,7 +265,7 @@ public class AuditInterceptorTests : IAsyncLifetime
     [Fact]
     public async Task SavingChangesAsync_WhenContextIsAuditDbContext_SkipsAuditCapture()
     {
-        using IServiceScope scope = _serviceProvider.CreateScope();
+        using IServiceScope scope = fixture.ServiceProvider.CreateScope();
         AuditDbContext auditDb = scope.ServiceProvider.GetRequiredService<AuditDbContext>();
 
         int countBefore = await auditDb.AuditEntries.CountAsync();
@@ -288,13 +297,13 @@ public class AuditInterceptorTests : IAsyncLifetime
         services.AddSingleton<AuditInterceptor>();
 
         services.AddDbContext<AuditDbContext>(options =>
-            options.UseNpgsql(_postgres.GetConnectionString(), npgsql =>
+            options.UseNpgsql(fixture.ConnectionString, npgsql =>
                 npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "audit")));
 
         services.AddDbContext<AuditTestDbContext>((sp, options) =>
         {
             AuditInterceptor interceptor = sp.GetRequiredService<AuditInterceptor>();
-            options.UseNpgsql(_postgres.GetConnectionString())
+            options.UseNpgsql(fixture.ConnectionString)
                 .AddInterceptors(interceptor);
         });
 
@@ -324,7 +333,7 @@ public class AuditInterceptorTests : IAsyncLifetime
     [Fact]
     public async Task SavingChangesAsync_WhenContextIsNull_ReturnsWithoutCapture()
     {
-        using IServiceScope scope = _serviceProvider.CreateScope();
+        using IServiceScope scope = fixture.ServiceProvider.CreateScope();
         AuditInterceptor interceptor = scope.ServiceProvider.GetRequiredService<AuditInterceptor>();
         AuditDbContext auditDb = scope.ServiceProvider.GetRequiredService<AuditDbContext>();
 
@@ -347,10 +356,10 @@ public class AuditInterceptorTests : IAsyncLifetime
         ServiceCollection services = new ServiceCollection();
         services.AddLogging();
         services.AddDbContext<AuditDbContext>(options =>
-            options.UseNpgsql(_postgres.GetConnectionString(), npgsql =>
+            options.UseNpgsql(fixture.ConnectionString, npgsql =>
                 npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "audit")));
         services.AddDbContext<AuditTestDbContext>(options =>
-            options.UseNpgsql(_postgres.GetConnectionString()));
+            options.UseNpgsql(fixture.ConnectionString));
         await using ServiceProvider realProvider = services.BuildServiceProvider();
 
         // Wrap the real provider: first CreateScope call (CaptureChanges) throws,
@@ -412,7 +421,7 @@ public class AuditInterceptorTests : IAsyncLifetime
     [Fact]
     public async Task Insert_WithAuditIgnoreProperty_ExcludesIgnoredPropertyFromValues()
     {
-        using IServiceScope scope = _serviceProvider.CreateScope();
+        using IServiceScope scope = fixture.ServiceProvider.CreateScope();
         AuditTestDbContext testDb = scope.ServiceProvider.GetRequiredService<AuditTestDbContext>();
         AuditDbContext auditDb = scope.ServiceProvider.GetRequiredService<AuditDbContext>();
 
