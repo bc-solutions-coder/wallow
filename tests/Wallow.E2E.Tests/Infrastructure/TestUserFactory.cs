@@ -20,6 +20,30 @@ public static class TestUserFactory
         return new TestUser(email, TestPassword);
     }
 
+    public static async Task<UnverifiedTestUser> CreateUnverifiedAsync(string apiBaseUrl, string mailpitBaseUrl)
+    {
+        string email = $"e2e-{Guid.NewGuid():N}@test.local";
+
+        await RegisterUserAsync(apiBaseUrl, email);
+
+        string verificationLink = await MailpitHelper.SearchForLinkAsync(
+            mailpitBaseUrl, email, "verify", MaxMailRetries, (int)_mailPollInterval.TotalSeconds);
+
+        if (string.IsNullOrEmpty(verificationLink))
+        {
+            verificationLink = await MailpitHelper.SearchForLinkAsync(
+                mailpitBaseUrl, email, "confirm", maxRetries: 3, pollIntervalSeconds: 1);
+        }
+
+        if (string.IsNullOrEmpty(verificationLink))
+        {
+            throw new InvalidOperationException(
+                $"Failed to retrieve verification email for {email} after {MaxMailRetries} attempts.");
+        }
+
+        return new UnverifiedTestUser(email, TestPassword, verificationLink);
+    }
+
     public static async Task<MfaTestUser> CreateWithMfaAsync(string apiBaseUrl, string mailpitBaseUrl)
     {
         TestUser user = await CreateAsync(apiBaseUrl, mailpitBaseUrl);

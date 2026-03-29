@@ -14,36 +14,42 @@
     <BbCardContent>
         @if (_loading)
         {
-            <div class="flex items-center justify-center py-4">
+            <div data-testid="verify-email-confirm-loading" class="flex items-center justify-center py-4">
                 <BbSpinner />
                 <span class="ml-2 text-sm text-muted-foreground">Verifying your email...</span>
             </div>
         }
         else if (_succeeded)
         {
-            <BbAlert>
-                <BbAlertTitle>Email verified!</BbAlertTitle>
-                <BbAlertDescription>Your email has been verified. You can now sign in.</BbAlertDescription>
-            </BbAlert>
+            <div data-testid="verify-email-confirm-success">
+                <BbAlert>
+                    <BbAlertTitle>Email verified!</BbAlertTitle>
+                    <BbAlertDescription>Your email has been verified. You can now sign in.</BbAlertDescription>
+                </BbAlert>
+            </div>
 
             @if (ReturnUrlValidator.IsSafe(ReturnUrl))
             {
                 <div class="mt-4">
+                    <div data-testid="verify-email-confirm-continue">
                     <BbButton Class="w-full" Href="@ReturnUrl">Continue</BbButton>
+                </div>
                 </div>
             }
         }
         else
         {
-            <BbAlert Variant="AlertVariant.Danger">
-                <BbAlertTitle>Verification failed</BbAlertTitle>
-                <BbAlertDescription>@_error</BbAlertDescription>
-            </BbAlert>
+            <div data-testid="verify-email-confirm-error">
+                <BbAlert Variant="AlertVariant.Danger">
+                    <BbAlertTitle>Verification failed</BbAlertTitle>
+                    <BbAlertDescription>@_error</BbAlertDescription>
+                </BbAlert>
+            </div>
         }
     </BbCardContent>
     <BbCardFooter>
         <div class="text-center w-full">
-            <a href="@LoginUrl" class="text-sm text-muted-foreground hover:text-foreground">Go to sign in</a>
+            <a href="@LoginUrl" data-testid="verify-email-confirm-signin-link" class="text-sm text-muted-foreground hover:text-foreground">Go to sign in</a>
         </div>
     </BbCardFooter>
 </BbCard>

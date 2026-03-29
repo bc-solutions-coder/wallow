@@ -6,8 +6,8 @@
 
 <BbCard>
     <BbCardHeader>
-        <BbCardTitle>Check your email</BbCardTitle>
-        <BbCardDescription>We've sent a verification link to your email address.</BbCardDescription>
+        <BbCardTitle><span data-testid="verify-email-heading">Check your email</span></BbCardTitle>
+        <BbCardDescription><span data-testid="verify-email-description">We've sent a verification link to your email address.</span></BbCardDescription>
     </BbCardHeader>
     <BbCardContent>
         <p class="text-sm text-muted-foreground">
@@ -16,7 +16,7 @@
     </BbCardContent>
     <BbCardFooter>
         <div class="text-center w-full">
-            <a href="@LoginUrl" class="text-sm text-muted-foreground hover:text-foreground">Back to sign in</a>
+            <a href="@LoginUrl" data-testid="verify-email-back-link" class="text-sm text-muted-foreground hover:text-foreground">Back to sign in</a>
         </div>
     </BbCardFooter>
 </BbCard>
