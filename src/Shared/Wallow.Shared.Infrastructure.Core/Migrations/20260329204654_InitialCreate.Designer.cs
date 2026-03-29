@@ -9,53 +9,61 @@ using Wallow.Shared.Infrastructure.Core.Auditing;
 
 #nullable disable
 
-namespace Wallow.Shared.Infrastructure.Core.Migrations.AuthAudit
+namespace Wallow.Shared.Infrastructure.Core.Migrations
 {
-    [DbContext(typeof(AuthAuditDbContext))]
-    [Migration("20260329084041_InitialAuthAudit")]
-    partial class InitialAuthAudit
+    [DbContext(typeof(AuditDbContext))]
+    [Migration("20260329204654_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasDefaultSchema("auth_audit")
+                .HasDefaultSchema("audit")
                 .HasAnnotation("ProductVersion", "10.0.4")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("Wallow.Shared.Infrastructure.Core.Auditing.AuthAuditEntry", b =>
+            modelBuilder.Entity("Wallow.Shared.Infrastructure.Core.Auditing.AuditEntry", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<string>("EventType")
+                    b.Property<string>("Action")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("IpAddress")
+                    b.Property<string>("EntityId")
+                        .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<DateTimeOffset>("OccurredAt")
+                    b.Property<string>("EntityType")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("NewValues")
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("OldValues")
+                        .HasColumnType("jsonb");
+
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("Timestamp")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
                         .HasDefaultValueSql("now()");
 
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("UserAgent")
+                    b.Property<string>("UserId")
                         .HasColumnType("text");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
 
                     b.HasKey("Id");
 
-                    b.ToTable("auth_audit_entries", "auth_audit");
+                    b.ToTable("audit_entries", "audit");
                 });
 #pragma warning restore 612, 618
         }

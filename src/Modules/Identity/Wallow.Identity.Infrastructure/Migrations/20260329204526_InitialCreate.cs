@@ -16,6 +16,25 @@ namespace Wallow.Identity.Infrastructure.Migrations
                 name: "identity");
 
             migrationBuilder.CreateTable(
+                name: "active_sessions",
+                schema: "identity",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    user_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    tenant_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    session_token = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
+                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    last_activity_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    expires_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    is_revoked = table.Column<bool>(type: "boolean", nullable: false, defaultValue: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_active_sessions", x => x.id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "api_scopes",
                 schema: "identity",
                 columns: table => new
@@ -372,6 +391,11 @@ namespace Wallow.Identity.Infrastructure.Migrations
                     backup_codes_hash = table.Column<string>(type: "character varying(1024)", maxLength: 1024, nullable: true),
                     HasPassword = table.Column<bool>(type: "boolean", nullable: false),
                     MfaGraceDeadline = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    MfaFailedAttempts = table.Column<int>(type: "integer", nullable: false),
+                    MfaLockoutEnd = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    MfaLockoutCount = table.Column<int>(type: "integer", nullable: false),
+                    PendingEmail = table.Column<string>(type: "text", nullable: true),
+                    PendingEmailExpiry = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
                     user_name = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
                     normalized_user_name = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
                     email = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
@@ -629,7 +653,7 @@ namespace Wallow.Identity.Infrastructure.Migrations
                     ReferenceId = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
                     Status = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
                     Subject = table.Column<string>(type: "character varying(400)", maxLength: 400, nullable: true),
-                    Type = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true)
+                    Type = table.Column<string>(type: "character varying(150)", maxLength: 150, nullable: true)
                 },
                 constraints: table =>
                 {
@@ -647,6 +671,19 @@ namespace Wallow.Identity.Infrastructure.Migrations
                         principalTable: "OpenIddictAuthorizations",
                         principalColumn: "Id");
                 });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_active_sessions_session_token",
+                schema: "identity",
+                table: "active_sessions",
+                column: "session_token",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_active_sessions_user_id_is_revoked_expires_at",
+                schema: "identity",
+                table: "active_sessions",
+                columns: new[] { "user_id", "is_revoked", "expires_at" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_api_scopes_category",
@@ -958,6 +995,10 @@ namespace Wallow.Identity.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropTable(
+                name: "active_sessions",
+                schema: "identity");
+
             migrationBuilder.DropTable(
                 name: "api_scopes",
                 schema: "identity");

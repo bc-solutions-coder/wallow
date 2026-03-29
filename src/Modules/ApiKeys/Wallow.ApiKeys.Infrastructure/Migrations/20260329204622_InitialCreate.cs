@@ -38,6 +38,12 @@ namespace Wallow.ApiKeys.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateIndex(
+                name: "IX_api_keys_hashed_key",
+                schema: "apikeys",
+                table: "api_keys",
+                column: "hashed_key");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_api_keys_service_account_id",
                 schema: "apikeys",
                 table: "api_keys",

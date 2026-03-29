@@ -12,7 +12,7 @@ using Wallow.Messaging.Infrastructure.Persistence;
 namespace Wallow.Messaging.Infrastructure.Migrations
 {
     [DbContext(typeof(MessagingDbContext))]
-    [Migration("20260325165606_InitialCreate")]
+    [Migration("20260329204603_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -21,7 +21,7 @@ namespace Wallow.Messaging.Infrastructure.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("messaging")
-                .HasAnnotation("ProductVersion", "10.0.3")
+                .HasAnnotation("ProductVersion", "10.0.4")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);

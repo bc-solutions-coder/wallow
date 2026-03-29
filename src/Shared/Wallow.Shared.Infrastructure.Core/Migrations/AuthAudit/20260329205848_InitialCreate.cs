@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Wallow.Shared.Infrastructure.Core.Migrations.AuthAudit
 {
     /// <inheritdoc />
-    public partial class InitialAuthAudit : Migration
+    public partial class InitialCreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

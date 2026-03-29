@@ -12,8 +12,8 @@ using Wallow.ApiKeys.Infrastructure.Persistence;
 namespace Wallow.ApiKeys.Infrastructure.Migrations
 {
     [DbContext(typeof(ApiKeysDbContext))]
-    [Migration("20260329011441_AddApiKeyHashedKeyIndex")]
-    partial class AddApiKeyHashedKeyIndex
+    [Migration("20260329204622_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

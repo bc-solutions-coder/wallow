@@ -55,6 +55,15 @@ RUN mkdir -p /bundles && \
         --output /bundles/efbundle-audit \
         --configuration Release \
         --force \
+        --no-build && \
+    echo "Building AuthAudit migration bundle..." && \
+    dotnet ef migrations bundle \
+        --project src/Shared/Wallow.Shared.Infrastructure.Core/Wallow.Shared.Infrastructure.Core.csproj \
+        --startup-project src/Wallow.Api/Wallow.Api.csproj \
+        --context AuthAuditDbContext \
+        --output /bundles/efbundle-authaudit \
+        --configuration Release \
+        --force \
         --no-build
 
 # ============================================

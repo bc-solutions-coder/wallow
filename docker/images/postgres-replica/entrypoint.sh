@@ -18,8 +18,9 @@ if [ -z "$(ls -A "$PGDATA" 2>/dev/null)" ]; then
         -D "$PGDATA" \
         -Fp -Xs -R -v
 
+    chown -R postgres:postgres "$PGDATA"
     chmod 0700 "$PGDATA"
     echo "Replica: Base backup complete. Starting in standby mode."
 fi
 
-exec postgres
+exec gosu postgres postgres

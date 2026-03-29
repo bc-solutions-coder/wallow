@@ -12,7 +12,7 @@ using Wallow.Storage.Infrastructure.Persistence;
 namespace Wallow.Storage.Infrastructure.Migrations
 {
     [DbContext(typeof(StorageDbContext))]
-    [Migration("20260325165549_InitialCreate")]
+    [Migration("20260329204547_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -21,7 +21,7 @@ namespace Wallow.Storage.Infrastructure.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("storage")
-                .HasAnnotation("ProductVersion", "10.0.3")
+                .HasAnnotation("ProductVersion", "10.0.4")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);

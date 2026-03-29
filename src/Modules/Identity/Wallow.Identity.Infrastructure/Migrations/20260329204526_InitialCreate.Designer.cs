@@ -12,8 +12,8 @@ using Wallow.Identity.Infrastructure.Persistence;
 namespace Wallow.Identity.Infrastructure.Migrations
 {
     [DbContext(typeof(IdentityDbContext))]
-    [Migration("20260329092416_AuthSecurityHardening")]
-    partial class AuthSecurityHardening
+    [Migration("20260329204526_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

@@ -12,7 +12,7 @@ using Wallow.Branding.Infrastructure.Persistence;
 namespace Wallow.Branding.Infrastructure.Migrations
 {
     [DbContext(typeof(BrandingDbContext))]
-    [Migration("20260325165636_InitialCreate")]
+    [Migration("20260329204632_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -21,7 +21,7 @@ namespace Wallow.Branding.Infrastructure.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("branding")
-                .HasAnnotation("ProductVersion", "10.0.3")
+                .HasAnnotation("ProductVersion", "10.0.4")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);

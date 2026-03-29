@@ -67,9 +67,7 @@ services:
   # DATABASE (Read Replica)
   # ============================================
   postgres-replica:
-    image: wallow-postgres-replica:latest
-    build:
-      context: ./images/postgres-replica
+    image: ghcr.io/bc-solutions-coder/wallow-postgres-replica:${VERSION:-latest}
     container_name: ${COMPOSE_PROJECT_NAME:-wallow}-postgres-replica
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
@@ -134,8 +132,7 @@ services:
   # OBJECT STORAGE (GarageHQ — S3-compatible)
   # ============================================
   garage:
-    build:
-      context: ./images/garage
+    image: ghcr.io/bc-solutions-coder/wallow-garage:${VERSION:-latest}
     container_name: ${COMPOSE_PROJECT_NAME:-wallow}-garage
     environment:
       GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET}
@@ -215,7 +212,7 @@ services:
   # WALLOW API
   # ============================================
   wallow-api:
-    image: wallow-api:${VERSION:-latest}
+    image: ghcr.io/bc-solutions-coder/wallow:${VERSION:-latest}
     container_name: ${COMPOSE_PROJECT_NAME:-wallow}-api
     restart: unless-stopped
     read_only: true
@@ -223,8 +220,8 @@ services:
       - no-new-privileges:true
     tmpfs:
       - /tmp
-      - /app/App_Data
-      - /app/certs
+      - /app/App_Data:uid=0,gid=0
+      - /app/certs:uid=0,gid=0
     ports:
       - "${API_PORT:-8080}:8080"
     environment:
@@ -263,11 +260,6 @@ services:
       OpenIddict__Issuer: ${API_PUBLIC_URL:-https://api.wallow.dev}
       AuthUrl: ${AUTH_PUBLIC_URL:-https://auth.wallow.dev}
       Authentication__CookieDomain: ${COOKIE_DOMAIN:-.wallow.dev}
-      # OpenIddict signing & encryption certificates
-      OpenIddict__SigningCertPath: /app/certs/signing.pfx
-      OpenIddict__SigningCertPassword: ${OPENIDDICT_SIGNING_CERT_PASSWORD}
-      OpenIddict__EncryptionCertPath: /app/certs/encryption.pfx
-      OpenIddict__EncryptionCertPassword: ${OPENIDDICT_ENCRYPTION_CERT_PASSWORD}
       # CORS
       Cors__AllowedOrigins__0: ${WEB_PUBLIC_URL:-https://wallow.dev}
       Cors__AllowedOrigins__1: ${AUTH_PUBLIC_URL:-https://auth.wallow.dev}
@@ -323,7 +315,7 @@ services:
   # WALLOW AUTH
   # ============================================
   wallow-auth:
-    image: wallow-auth:${VERSION:-latest}
+    image: ghcr.io/bc-solutions-coder/wallow-auth:${VERSION:-latest}
     container_name: ${COMPOSE_PROJECT_NAME:-wallow}-auth
     restart: unless-stopped
     read_only: true
@@ -366,7 +358,7 @@ services:
   # WALLOW WEB
   # ============================================
   wallow-web:
-    image: wallow-web:${VERSION:-latest}
+    image: ghcr.io/bc-solutions-coder/wallow-web:${VERSION:-latest}
     container_name: ${COMPOSE_PROJECT_NAME:-wallow}-web
     restart: unless-stopped
     read_only: true

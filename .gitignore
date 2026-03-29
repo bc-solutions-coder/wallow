@@ -47,6 +47,7 @@ docker-compose.override.local.yml
 
 # Environment files (keep examples, ignore actual secrets)
 docker/.env
+docker/.env.production
 .env.local
 .env.*.local
 
