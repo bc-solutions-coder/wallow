@@ -1,6 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
-using Wallow.Billing.Api.Controllers;
+using Wallow.Shared.Api.Settings;
 using Wallow.Shared.Kernel.Settings;
 using Wallow.Tests.Common.Bases;
 using Wallow.Tests.Common.Factories;

@@ -23,9 +23,7 @@ public class GetInquiriesHandlerEdgeCaseTests
     [Fact]
     public async Task Handle_WithStatusFilter_WhenNoMatch_ReturnsEmptyList()
     {
-        Inquiry newInquiry = CreateInquiry("Alice");
-        List<Inquiry> inquiries = [newInquiry];
-        _repo.GetAllAsync(Arg.Any<CancellationToken>()).Returns(inquiries);
+        _repo.GetByStatusAsync(InquiryStatus.Reviewed, Arg.Any<CancellationToken>()).Returns(new List<Inquiry>());
 
         Result<IReadOnlyList<InquiryDto>> result = await _handler.Handle(new GetInquiriesQuery(InquiryStatus.Reviewed), CancellationToken.None);
 
@@ -36,15 +34,11 @@ public class GetInquiriesHandlerEdgeCaseTests
     [Fact]
     public async Task Handle_WithStatusFilter_ReturnsOnlyMatchingStatus()
     {
-        Inquiry newInquiry = CreateInquiry("Alice");
-        Inquiry reviewedInquiry = CreateInquiry("Bob");
-        reviewedInquiry.TransitionTo(InquiryStatus.Reviewed, TimeProvider.System);
         Inquiry contactedInquiry = CreateInquiry("Charlie");
         contactedInquiry.TransitionTo(InquiryStatus.Reviewed, TimeProvider.System);
         contactedInquiry.TransitionTo(InquiryStatus.Contacted, TimeProvider.System);
 
-        List<Inquiry> inquiries = [newInquiry, reviewedInquiry, contactedInquiry];
-        _repo.GetAllAsync(Arg.Any<CancellationToken>()).Returns(inquiries);
+        _repo.GetByStatusAsync(InquiryStatus.Contacted, Arg.Any<CancellationToken>()).Returns(new List<Inquiry> { contactedInquiry });
 
         Result<IReadOnlyList<InquiryDto>> result = await _handler.Handle(new GetInquiriesQuery(InquiryStatus.Contacted), CancellationToken.None);
 

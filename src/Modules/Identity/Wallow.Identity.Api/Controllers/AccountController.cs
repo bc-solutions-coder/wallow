@@ -343,7 +343,7 @@ public sealed partial class AccountController(
                     System.Text.Encoding.UTF8.GetBytes(cookieValue));
                 decrypted = System.Text.Encoding.UTF8.GetString(decryptedBytes);
             }
-            catch
+            catch (System.Security.Cryptography.CryptographicException)
             {
                 decrypted = protector.Unprotect(cookieValue);
             }

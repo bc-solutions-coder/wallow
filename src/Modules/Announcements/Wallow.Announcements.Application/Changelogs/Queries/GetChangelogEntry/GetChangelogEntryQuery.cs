@@ -1,5 +1,6 @@
 using Wallow.Announcements.Application.Changelogs.DTOs;
 using Wallow.Announcements.Application.Changelogs.Interfaces;
+using Wallow.Announcements.Application.Changelogs.Mappings;
 using Wallow.Announcements.Domain.Changelogs.Entities;
 using Wallow.Shared.Kernel.Results;
 
@@ -20,20 +21,7 @@ public sealed class GetChangelogByVersionHandler(IChangelogRepository repository
             return Result.Failure<ChangelogEntryDto>(Error.NotFound("Changelog", query.Version));
         }
 
-        return Result.Success(MapToDto(entry));
-    }
-
-    private static ChangelogEntryDto MapToDto(ChangelogEntry entry)
-    {
-        return new ChangelogEntryDto(
-            entry.Id.Value,
-            entry.Version,
-            entry.Title,
-            entry.Content,
-            entry.ReleasedAt,
-            entry.IsPublished,
-            entry.Items.Select(i => new ChangelogItemDto(i.Id.Value, i.Description, i.Type)).ToList(),
-            entry.CreatedAt);
+        return Result.Success(entry.ToDto());
     }
 }
 
@@ -49,19 +37,6 @@ public sealed class GetLatestChangelogHandler(IChangelogRepository repository)
             return Result.Failure<ChangelogEntryDto>(Error.NotFound("Changelog", "latest"));
         }
 
-        return Result.Success(MapToDto(entry));
-    }
-
-    private static ChangelogEntryDto MapToDto(ChangelogEntry entry)
-    {
-        return new ChangelogEntryDto(
-            entry.Id.Value,
-            entry.Version,
-            entry.Title,
-            entry.Content,
-            entry.ReleasedAt,
-            entry.IsPublished,
-            entry.Items.Select(i => new ChangelogItemDto(i.Id.Value, i.Description, i.Type)).ToList(),
-            entry.CreatedAt);
+        return Result.Success(entry.ToDto());
     }
 }

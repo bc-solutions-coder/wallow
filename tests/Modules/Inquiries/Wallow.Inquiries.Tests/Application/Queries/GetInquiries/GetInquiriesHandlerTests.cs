@@ -36,11 +36,8 @@ public class GetInquiriesHandlerTests
     public async Task Handle_WithStatusFilter_ReturnsFilteredInquiries()
     {
         Inquiry newInquiry = CreateInquiry("Alice");
-        Inquiry reviewedInquiry = CreateInquiry("Bob");
-        reviewedInquiry.TransitionTo(InquiryStatus.Reviewed, TimeProvider.System);
 
-        List<Inquiry> inquiries = [newInquiry, reviewedInquiry];
-        _repo.GetAllAsync(Arg.Any<CancellationToken>()).Returns(inquiries);
+        _repo.GetByStatusAsync(InquiryStatus.New, Arg.Any<CancellationToken>()).Returns(new List<Inquiry> { newInquiry });
 
         Result<IReadOnlyList<InquiryDto>> result = await _handler.Handle(new GetInquiriesQuery(InquiryStatus.New), CancellationToken.None);
 

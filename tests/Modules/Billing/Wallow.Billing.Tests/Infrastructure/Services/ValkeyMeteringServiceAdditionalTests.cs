@@ -40,7 +40,7 @@ public class ValkeyMeteringServiceAdditionalTests
         redis.GetDatabase(Arg.Any<int>(), Arg.Any<object>()).Returns(_database);
 
         ILogger<ValkeyMeteringService> logger = Substitute.For<ILogger<ValkeyMeteringService>>();
-        _service = new ValkeyMeteringService(redis, tenantContext, _quotaRepository, _usageRepository, _meterRepository, _messageBus, _subscriptionQueryService, logger);
+        _service = new ValkeyMeteringService(redis, tenantContext, _quotaRepository, _usageRepository, _meterRepository, _messageBus, _subscriptionQueryService, TimeProvider.System, logger);
     }
 
     [Fact]

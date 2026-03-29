@@ -12,6 +12,10 @@
     <PackageReference Include="Microsoft.Extensions.Http.Resilience" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Shared\Wallow.Shared.Api\Wallow.Shared.Api.csproj" />
+  </ItemGroup>
+
   <!-- Tailwind CSS build (skipped in Docker where the macOS binary isn't available) -->
   <Target Name="TailwindBuild" BeforeTargets="Build" Condition="Exists('$(MSBuildProjectDirectory)/tailwindcss')">
     <Exec Command="./tailwindcss -i Styles/app.css -o wwwroot/css/app.css --minify" WorkingDirectory="$(MSBuildProjectDirectory)" />

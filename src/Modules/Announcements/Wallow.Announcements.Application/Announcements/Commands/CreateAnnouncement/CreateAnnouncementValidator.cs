@@ -23,7 +23,7 @@ public sealed partial class CreateAnnouncementValidator : AbstractValidator<Crea
             .IsInEnum().WithMessage("Invalid announcement target");
 
         RuleFor(x => x.ActionUrl)
-            .MaximumLength(2000).WithMessage("Action URL must not exceed 2000 characters")
+            .MaximumLength(500).WithMessage("Action URL must not exceed 500 characters")
             .When(x => x.ActionUrl is not null);
 
         RuleFor(x => x.ActionLabel)
@@ -31,7 +31,7 @@ public sealed partial class CreateAnnouncementValidator : AbstractValidator<Crea
             .When(x => x.ActionLabel is not null);
 
         RuleFor(x => x.ImageUrl)
-            .MaximumLength(2000).WithMessage("Image URL must not exceed 2000 characters")
+            .MaximumLength(500).WithMessage("Image URL must not exceed 500 characters")
             .When(x => x.ImageUrl is not null);
     }
 

@@ -1,3 +1,4 @@
+using JetBrains.Annotations;
 using Wallow.Identity.Domain.Enums;
 using Wallow.Identity.Domain.Identity;
 using Wallow.Shared.Kernel.Domain;
@@ -126,25 +127,9 @@ public sealed class ServiceAccountMetadata : AuditableEntity<ServiceAccountMetad
     }
 
     /// <summary>
-    /// Updates the scopes assigned to this service account.
+    /// Updates the name and description of this service account.
     /// </summary>
-    public void UpdateScopes(IEnumerable<string> scopes, Guid updatedByUserId, TimeProvider timeProvider)
-    {
-        if (Status == ServiceAccountStatus.Revoked)
-        {
-            throw new BusinessRuleException(
-                "Identity.CannotUpdateRevokedServiceAccount",
-                "Cannot update a revoked service account");
-        }
-
-        _scopes.Clear();
-        _scopes.AddRange(scopes);
-        SetUpdated(timeProvider.GetUtcNow(), updatedByUserId);
-    }
-
-    /// <summary>
-    /// Updates the service account name and description.
-    /// </summary>
+    [UsedImplicitly]
     public void UpdateDetails(string name, string? description, Guid updatedByUserId, TimeProvider timeProvider)
     {
         if (Status == ServiceAccountStatus.Revoked)
@@ -165,4 +150,22 @@ public sealed class ServiceAccountMetadata : AuditableEntity<ServiceAccountMetad
         Description = description;
         SetUpdated(timeProvider.GetUtcNow(), updatedByUserId);
     }
+
+    /// <summary>
+    /// Updates the scopes assigned to this service account.
+    /// </summary>
+    public void UpdateScopes(IEnumerable<string> scopes, Guid updatedByUserId, TimeProvider timeProvider)
+    {
+        if (Status == ServiceAccountStatus.Revoked)
+        {
+            throw new BusinessRuleException(
+                "Identity.CannotUpdateRevokedServiceAccount",
+                "Cannot update a revoked service account");
+        }
+
+        _scopes.Clear();
+        _scopes.AddRange(scopes);
+        SetUpdated(timeProvider.GetUtcNow(), updatedByUserId);
+    }
+
 }

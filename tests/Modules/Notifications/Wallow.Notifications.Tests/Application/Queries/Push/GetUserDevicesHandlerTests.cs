@@ -31,7 +31,7 @@ public class GetUserDevicesHandlerTests
             .Returns(new List<DeviceRegistration> { device });
 
         Result<IReadOnlyList<DeviceRegistrationDto>> result = await _handler.Handle(
-            new GetUserDevicesQuery(userId, Guid.NewGuid()), CancellationToken.None);
+            new GetUserDevicesQuery(userId), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().HaveCount(1);
@@ -49,7 +49,7 @@ public class GetUserDevicesHandlerTests
             .Returns(new List<DeviceRegistration>());
 
         Result<IReadOnlyList<DeviceRegistrationDto>> result = await _handler.Handle(
-            new GetUserDevicesQuery(userId, Guid.NewGuid()), CancellationToken.None);
+            new GetUserDevicesQuery(userId), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().BeEmpty();

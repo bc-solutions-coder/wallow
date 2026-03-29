@@ -17,7 +17,7 @@ public class MeteringQueryServiceTests
     {
         _usageRecordRepository = Substitute.For<IUsageRecordRepository>();
         _quotaDefinitionRepository = Substitute.For<IQuotaDefinitionRepository>();
-        _service = new MeteringQueryService(_usageRecordRepository, _quotaDefinitionRepository);
+        _service = new MeteringQueryService(_usageRecordRepository, _quotaDefinitionRepository, TimeProvider.System);
     }
 
     [Fact]

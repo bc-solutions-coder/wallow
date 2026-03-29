@@ -43,7 +43,6 @@ public static class PermissionType
     public const string ApiKeysDelete = "ApiKeysDelete";
 
     // Notifications
-    public const string NotificationsRead = "NotificationsRead";
     public const string NotificationsWrite = "NotificationsWrite";
 
     // Webhooks
@@ -96,6 +95,7 @@ public static class PermissionType
 
     /// <summary>
     /// Returns all permission constants defined in this class.
+    /// Uses reflection to auto-discover permissions at startup. Not a hot path.
     /// </summary>
     public static IReadOnlyList<string> All { get; } = typeof(PermissionType)
         .GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)

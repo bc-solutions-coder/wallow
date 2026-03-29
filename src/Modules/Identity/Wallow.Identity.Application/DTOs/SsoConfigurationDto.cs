@@ -34,25 +34,6 @@ public record SsoConfigurationDto(
     string ServiceProviderMetadataUrl);
 
 /// <summary>
-/// Request to save SAML SSO configuration.
-/// </summary>
-public record SaveSamlConfigRequest(
-    string DisplayName,
-    string EntityId,
-    string SsoUrl,
-    string? SloUrl,
-    string Certificate,
-    SamlNameIdFormat NameIdFormat,
-    string EmailAttribute,
-    string FirstNameAttribute,
-    string LastNameAttribute,
-    string? GroupsAttribute,
-    bool EnforceForAllUsers,
-    bool AutoProvisionUsers,
-    string? DefaultRole,
-    bool SyncGroupsAsRoles);
-
-/// <summary>
 /// Request to save OIDC SSO configuration.
 /// </summary>
 public record SaveOidcConfigRequest(

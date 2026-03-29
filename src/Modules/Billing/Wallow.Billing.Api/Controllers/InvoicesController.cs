@@ -98,7 +98,7 @@ public class InvoicesController(IMessageBus bus, ICurrentUserService currentUser
         Guid? currentUserId = currentUserService.GetCurrentUserId();
         if (currentUserId is null)
         {
-            return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
+            return Problem(statusCode: 401, title: "Unauthorized", detail: "Authentication is required");
         }
 
         Guid targetUserId = request.UserId is not null && User.IsInRole("admin")
@@ -138,7 +138,7 @@ public class InvoicesController(IMessageBus bus, ICurrentUserService currentUser
         Guid? currentUserId = currentUserService.GetCurrentUserId();
         if (currentUserId is null)
         {
-            return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
+            return Problem(statusCode: 401, title: "Unauthorized", detail: "Authentication is required");
         }
 
         AddLineItemCommand command = new(
@@ -166,7 +166,7 @@ public class InvoicesController(IMessageBus bus, ICurrentUserService currentUser
         Guid? currentUserId = currentUserService.GetCurrentUserId();
         if (currentUserId is null)
         {
-            return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
+            return Problem(statusCode: 401, title: "Unauthorized", detail: "Authentication is required");
         }
 
         IssueInvoiceCommand command = new(id, currentUserId.Value);
@@ -189,7 +189,7 @@ public class InvoicesController(IMessageBus bus, ICurrentUserService currentUser
         Guid? currentUserId = currentUserService.GetCurrentUserId();
         if (currentUserId is null)
         {
-            return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
+            return Problem(statusCode: 401, title: "Unauthorized", detail: "Authentication is required");
         }
 
         CancelInvoiceCommand command = new(id, currentUserId.Value);

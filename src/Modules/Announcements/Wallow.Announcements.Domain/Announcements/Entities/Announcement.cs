@@ -1,3 +1,4 @@
+using JetBrains.Annotations;
 using Wallow.Announcements.Domain.Announcements.Enums;
 using Wallow.Announcements.Domain.Announcements.Identity;
 using Wallow.Shared.Kernel.Domain;
@@ -130,6 +131,7 @@ public sealed class Announcement : AggregateRoot<AnnouncementId>, ITenantScoped
         SetUpdated(timeProvider.GetUtcNow());
     }
 
+    [UsedImplicitly]
     public void Expire(TimeProvider timeProvider)
     {
         Status = AnnouncementStatus.Expired;

@@ -13,4 +13,5 @@ public sealed record InquiryDto(
     string Message,
     string Status,
     string SubmitterIpAddress,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    DateTime? UpdatedAt);

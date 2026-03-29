@@ -39,7 +39,7 @@ public class InquirySubmittedDomainEventHandlerTests
             inquiry.Timeline,
             inquiry.Message);
 
-        await InquirySubmittedDomainEventHandler.HandleAsync(domainEvent, repository, _configuration, bus, CancellationToken.None);
+        await InquirySubmittedDomainEventHandler.HandleAsync(domainEvent, repository, _configuration, bus, TimeProvider.System, CancellationToken.None);
 
         await bus.Received(1).PublishAsync(Arg.Is<InquirySubmittedEvent>(e =>
             e.InquiryId == domainEvent.InquiryId &&
@@ -74,7 +74,7 @@ public class InquirySubmittedDomainEventHandlerTests
             inquiry.Timeline,
             inquiry.Message);
 
-        await InquirySubmittedDomainEventHandler.HandleAsync(domainEvent, repository, _configuration, bus, CancellationToken.None);
+        await InquirySubmittedDomainEventHandler.HandleAsync(domainEvent, repository, _configuration, bus, TimeProvider.System, CancellationToken.None);
 
         await repository.Received(1).GetByIdAsync(Arg.Is<InquiryId>(id => id.Value == inquiryId.Value), Arg.Any<CancellationToken>());
     }

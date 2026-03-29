@@ -1,4 +1,5 @@
 using System.Text.Json;
+using JetBrains.Annotations;
 using Wallow.Shared.Kernel.Domain;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
@@ -115,21 +116,25 @@ public sealed class StorageBucket : AggregateRoot<StorageBucketId>, ITenantScope
         return sizeBytes <= MaxFileSizeBytes;
     }
 
+    [UsedImplicitly]
     public void UpdateDescription(string? description)
     {
         Description = description;
     }
 
+    [UsedImplicitly]
     public void UpdateAccess(AccessLevel access)
     {
         Access = access;
     }
 
+    [UsedImplicitly]
     public void UpdateMaxFileSize(long maxFileSizeBytes)
     {
         MaxFileSizeBytes = maxFileSizeBytes;
     }
 
+    [UsedImplicitly]
     public void UpdateAllowedContentTypes(IEnumerable<string>? contentTypes)
     {
         AllowedContentTypes = contentTypes is null
@@ -137,11 +142,13 @@ public sealed class StorageBucket : AggregateRoot<StorageBucketId>, ITenantScope
             : JsonSerializer.Serialize(contentTypes.ToList());
     }
 
+    [UsedImplicitly]
     public void UpdateRetention(RetentionPolicy? retention)
     {
         Retention = retention;
     }
 
+    [UsedImplicitly]
     public void UpdateVersioning(bool versioning)
     {
         Versioning = versioning;

@@ -1,3 +1,4 @@
+using JetBrains.Annotations;
 using Wallow.Notifications.Domain.Channels.Sms.Enums;
 using Wallow.Notifications.Domain.Channels.Sms.Events;
 using Wallow.Notifications.Domain.Channels.Sms.Identity;
@@ -77,6 +78,7 @@ public sealed class SmsMessage : AggregateRoot<SmsMessageId>, ITenantScoped
         RaiseDomainEvent(new SmsFailedDomainEvent(Id, reason));
     }
 
+    [UsedImplicitly]
     public void ResetForRetry(TimeProvider timeProvider)
     {
         Status = SmsStatus.Pending;

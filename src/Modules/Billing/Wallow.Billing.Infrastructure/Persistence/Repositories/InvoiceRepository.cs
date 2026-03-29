@@ -67,11 +67,6 @@ public sealed class InvoiceRepository(BillingDbContext context) : IInvoiceReposi
         context.Invoices.Update(invoice);
     }
 
-    public void Remove(Invoice invoice)
-    {
-        context.Invoices.Remove(invoice);
-    }
-
     public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         await context.SaveChangesAsync(cancellationToken);

@@ -1,5 +1,6 @@
 using Wallow.Announcements.Application.Changelogs.DTOs;
 using Wallow.Announcements.Application.Changelogs.Interfaces;
+using Wallow.Announcements.Application.Changelogs.Mappings;
 using Wallow.Announcements.Domain.Changelogs.Entities;
 using Wallow.Shared.Kernel.Results;
 
@@ -26,11 +27,6 @@ public sealed class CreateChangelogEntryHandler(
 
         await repository.AddAsync(entry, ct);
 
-        return Result.Success(MapToDto(entry));
+        return Result.Success(entry.ToDto());
     }
-
-    private static ChangelogEntryDto MapToDto(ChangelogEntry e) => new(
-        e.Id.Value, e.Version, e.Title, e.Content, e.ReleasedAt, e.IsPublished,
-        e.Items.Select(i => new ChangelogItemDto(i.Id.Value, i.Description, i.Type)).ToList(),
-        e.CreatedAt);
 }

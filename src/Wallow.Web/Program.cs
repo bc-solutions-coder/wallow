@@ -126,12 +126,18 @@ builder.Services.AddAuthentication(options =>
 
         options.Events.OnAuthenticationFailed = context =>
         {
-            Console.WriteLine($"OIDC Auth Failed: {context.Exception}");
+            ILogger logger = context.HttpContext.RequestServices
+                .GetRequiredService<ILoggerFactory>()
+                .CreateLogger("Wallow.Web.OidcAuth");
+            OidcLogMessages.AuthenticationFailed(logger, context.Exception);
             return Task.CompletedTask;
         };
         options.Events.OnRemoteFailure = context =>
         {
-            Console.WriteLine($"OIDC Remote Failure: {context.Failure}");
+            ILogger logger = context.HttpContext.RequestServices
+                .GetRequiredService<ILoggerFactory>()
+                .CreateLogger("Wallow.Web.OidcAuth");
+            OidcLogMessages.RemoteFailure(logger, context.Failure);
             return Task.CompletedTask;
         };
     });
@@ -167,7 +173,7 @@ builder.Services.AddHealthChecks()
         sp =>
         {
             IHttpClientFactory httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
-            return new ApiHealthCheck(httpClientFactory, "WallowApi");
+            return new Wallow.Shared.Api.ApiHealthCheck(httpClientFactory, "WallowApi");
         },
         failureStatus: HealthStatus.Unhealthy,
         tags: ["ready"]));

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Wallow.Inquiries.Application.Interfaces;
 using Wallow.Inquiries.Domain.Entities;
+using Wallow.Inquiries.Domain.Enums;
 using Wallow.Inquiries.Domain.Identity;
 
 namespace Wallow.Inquiries.Infrastructure.Persistence.Repositories;
@@ -18,6 +19,14 @@ public sealed class InquiryRepository(InquiriesDbContext context) : IInquiryRepo
     public async Task<IReadOnlyList<Inquiry>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         return await context.Inquiries
+            .OrderByDescending(i => i.CreatedAt)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Inquiry>> GetByStatusAsync(InquiryStatus status, CancellationToken cancellationToken = default)
+    {
+        return await context.Inquiries
+            .Where(i => i.Status == status)
             .OrderByDescending(i => i.CreatedAt)
             .ToListAsync(cancellationToken);
     }

@@ -64,7 +64,7 @@ public sealed class ApiKeysController(IApiKeyService apiKeyService, IScopeSubset
         Guid? userId = currentUserService.GetCurrentUserId();
         if (userId == null)
         {
-            return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
+            return Problem(statusCode: 401, title: "Unauthorized", detail: "Authentication is required");
         }
 
         Guid tenantId = tenantContext.TenantId.Value;
@@ -173,7 +173,7 @@ public sealed class ApiKeysController(IApiKeyService apiKeyService, IScopeSubset
         Guid? userId = currentUserService.GetCurrentUserId();
         if (userId == null)
         {
-            return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
+            return Problem(statusCode: 401, title: "Unauthorized", detail: "Authentication is required");
         }
 
         Guid tenantId = tenantContext.TenantId.Value;
@@ -207,7 +207,7 @@ public sealed class ApiKeysController(IApiKeyService apiKeyService, IScopeSubset
         Guid? userId = currentUserService.GetCurrentUserId();
         if (userId == null)
         {
-            return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
+            return Problem(statusCode: 401, title: "Unauthorized", detail: "Authentication is required");
         }
 
         bool revoked = await apiKeyService.RevokeApiKeyAsync(keyId, userId.Value, ct);

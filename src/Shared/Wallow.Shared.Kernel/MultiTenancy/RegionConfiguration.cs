@@ -8,5 +8,3 @@ public static class RegionConfiguration
 
     public const string PrimaryRegion = UsEast;
 }
-
-public record RegionSettings(string Name, bool IsPrimary, bool IsActive);

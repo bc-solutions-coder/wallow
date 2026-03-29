@@ -1,8 +1,8 @@
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
-namespace Wallow.Web;
+namespace Wallow.Shared.Api;
 
-internal sealed class ApiHealthCheck(IHttpClientFactory httpClientFactory, string httpClientName) : IHealthCheck
+public sealed class ApiHealthCheck(IHttpClientFactory httpClientFactory, string httpClientName) : IHealthCheck
 {
     public async Task<HealthCheckResult> CheckHealthAsync(
         HealthCheckContext context,

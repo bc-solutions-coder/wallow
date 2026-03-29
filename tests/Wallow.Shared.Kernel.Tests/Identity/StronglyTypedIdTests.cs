@@ -221,37 +221,3 @@ public class StronglyTypedIdConverterTests
         restored.Should().Be(original);
     }
 }
-
-public class StronglyTypedIdExtensionsTests
-{
-    [Fact]
-    public void EnsureId_WhenEmpty_GeneratesNewId()
-    {
-        TenantId empty = default;
-
-        TenantId result = empty.EnsureId();
-
-        result.Value.Should().NotBe(Guid.Empty);
-    }
-
-    [Fact]
-    public void EnsureId_WhenNonEmpty_ReturnsSameId()
-    {
-        TenantId id = TenantId.New();
-
-        TenantId result = id.EnsureId();
-
-        result.Should().Be(id);
-    }
-
-    [Fact]
-    public void EnsureId_WhenEmpty_GeneratesUniqueIds()
-    {
-        TenantId empty = default;
-
-        TenantId result1 = empty.EnsureId();
-        TenantId result2 = empty.EnsureId();
-
-        result1.Should().NotBe(result2);
-    }
-}

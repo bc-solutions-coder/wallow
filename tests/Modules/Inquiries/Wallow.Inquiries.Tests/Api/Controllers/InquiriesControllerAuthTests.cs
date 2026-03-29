@@ -67,7 +67,8 @@ public class InquiriesControllerAuthTests
             "We need help.",
             "New",
             "1.2.3.4",
-            DateTimeOffset.UtcNow);
+            DateTimeOffset.UtcNow,
+            null);
 
     #region GetById Auth
 

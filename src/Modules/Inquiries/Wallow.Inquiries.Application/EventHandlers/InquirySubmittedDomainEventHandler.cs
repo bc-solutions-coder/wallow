@@ -14,6 +14,7 @@ public static class InquirySubmittedDomainEventHandler
         IInquiryRepository repository,
         IConfiguration configuration,
         IMessageBus bus,
+        TimeProvider timeProvider,
         CancellationToken ct)
     {
         Inquiry? inquiry = await repository.GetByIdAsync(
@@ -31,7 +32,7 @@ public static class InquirySubmittedDomainEventHandler
             Phone = domainEvent.Phone,
             ProjectType = domainEvent.ProjectType,
             Message = domainEvent.Message,
-            SubmittedAt = inquiry?.CreatedAt ?? DateTime.UtcNow,
+            SubmittedAt = inquiry?.CreatedAt ?? timeProvider.GetUtcNow().UtcDateTime,
             AdminEmail = adminEmail,
             AdminUserIds = adminUserIds
         });

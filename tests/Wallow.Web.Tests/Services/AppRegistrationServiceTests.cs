@@ -10,7 +10,6 @@ public sealed class AppRegistrationServiceTests : IDisposable
 {
     private const string BaseUrl = "http://localhost:5000";
     private const string BasePath = "api/v1/identity/apps";
-    private const string TestToken = "test-bearer-token";
 
     private readonly MockHttpMessageHandler _mockHttp = new();
     private readonly AppRegistrationService _sut;
@@ -23,8 +22,7 @@ public sealed class AppRegistrationServiceTests : IDisposable
         IHttpClientFactory factory = Substitute.For<IHttpClientFactory>();
         factory.CreateClient("WallowApi").Returns(httpClient);
 
-        IHttpContextAccessor httpContextAccessor = Substitute.For<IHttpContextAccessor>();
-        TokenProvider tokenProvider = new(httpContextAccessor) { AccessToken = TestToken };
+        TokenProvider tokenProvider = new(Substitute.For<IHttpContextAccessor>()) { AccessToken = "test-token" };
 
         _sut = new AppRegistrationService(factory, tokenProvider);
     }

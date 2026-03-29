@@ -7,7 +7,7 @@ using Wallow.Shared.Kernel.Identity;
 
 namespace Wallow.ApiKeys.Infrastructure.Repositories;
 
-public sealed class ApiKeyRepository(ApiKeysDbContext context) : IApiKeyRepository
+public sealed class ApiKeyRepository(ApiKeysDbContext context, TimeProvider timeProvider) : IApiKeyRepository
 {
     public async Task AddAsync(ApiKey key, CancellationToken ct)
     {
@@ -23,6 +23,13 @@ public sealed class ApiKeyRepository(ApiKeysDbContext context) : IApiKeyReposito
             .FirstOrDefaultAsync(x => x.HashedKey == hash && x.TenantId == tid, ct);
     }
 
+    public Task<ApiKey?> GetByHashAsync(string hash, CancellationToken ct = default)
+    {
+        return context.ApiKeys
+            .AsTracking()
+            .FirstOrDefaultAsync(x => x.HashedKey == hash, ct);
+    }
+
     public Task<List<ApiKey>> ListByServiceAccountAsync(string serviceAccountId, Guid tenantId, CancellationToken ct)
     {
         TenantId tid = new(tenantId);
@@ -32,19 +39,20 @@ public sealed class ApiKeyRepository(ApiKeysDbContext context) : IApiKeyReposito
             .ToListAsync(ct);
     }
 
-    public async Task RevokeAsync(ApiKeyId id, Guid tenantId, CancellationToken ct)
+    public async Task RevokeAsync(ApiKeyId id, Guid tenantId, Guid revokedBy, CancellationToken ct)
     {
         TenantId tid = new(tenantId);
-        await context.ApiKeys
-            .Where(x => x.Id == id && x.TenantId == tid)
-            .ExecuteUpdateAsync(s => s.SetProperty(k => k.IsRevoked, true), ct);
-    }
-
-    public Task<ApiKey?> GetByIdAsync(ApiKeyId id, Guid tenantId, CancellationToken ct)
-    {
-        TenantId tid = new(tenantId);
-        return context.ApiKeys
+        ApiKey? key = await context.ApiKeys
             .AsTracking()
             .FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tid, ct);
+
+        if (key is null)
+        {
+            return;
+        }
+
+        key.Revoke(revokedBy, timeProvider);
+        await context.SaveChangesAsync(ct);
     }
+
 }

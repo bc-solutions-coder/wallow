@@ -6,6 +6,7 @@ using Wallow.Billing.Domain.Entities;
 using Wallow.Billing.Domain.Events;
 using Wallow.Billing.Domain.Identity;
 using Wallow.Shared.Contracts.Billing.Events;
+using Wallow.Shared.Contracts.Identity;
 using Wolverine;
 using static Wallow.Tests.Common.Helpers.LoggerAssertionExtensions;
 
@@ -15,12 +16,16 @@ public class InvoiceCreatedDomainEventHandlerTests
 {
     private readonly IInvoiceRepository _invoiceRepository;
     private readonly IMessageBus _messageBus;
+    private readonly IUserQueryService _userQueryService;
     private readonly ILogger<InvoiceCreatedDomainEventHandler> _logger;
 
     public InvoiceCreatedDomainEventHandlerTests()
     {
         _invoiceRepository = Substitute.For<IInvoiceRepository>();
         _messageBus = Substitute.For<IMessageBus>();
+        _userQueryService = Substitute.For<IUserQueryService>();
+        _userQueryService.GetUserEmailAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns("test@example.com");
         _logger = Substitute.For<ILogger<InvoiceCreatedDomainEventHandler>>();
         _logger.IsEnabled(Arg.Any<LogLevel>()).Returns(true);
     }
@@ -47,6 +52,8 @@ public class InvoiceCreatedDomainEventHandlerTests
             domainEvent,
             _invoiceRepository,
             _messageBus,
+            _userQueryService,
+            TimeProvider.System,
             _logger,
             CancellationToken.None);
 
@@ -79,6 +86,8 @@ public class InvoiceCreatedDomainEventHandlerTests
             domainEvent,
             _invoiceRepository,
             _messageBus,
+            _userQueryService,
+            TimeProvider.System,
             _logger,
             CancellationToken.None);
 
@@ -108,6 +117,8 @@ public class InvoiceCreatedDomainEventHandlerTests
             domainEvent,
             _invoiceRepository,
             _messageBus,
+            _userQueryService,
+            TimeProvider.System,
             _logger,
             cts.Token);
 
@@ -135,6 +146,8 @@ public class InvoiceCreatedDomainEventHandlerTests
             domainEvent,
             _invoiceRepository,
             _messageBus,
+            _userQueryService,
+            TimeProvider.System,
             _logger,
             CancellationToken.None);
 
@@ -164,6 +177,8 @@ public class InvoiceCreatedDomainEventHandlerTests
             domainEvent,
             _invoiceRepository,
             _messageBus,
+            _userQueryService,
+            TimeProvider.System,
             _logger,
             CancellationToken.None);
 

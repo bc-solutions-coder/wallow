@@ -18,7 +18,7 @@ public class IdentitySettingKeys : SettingRegistryBase
 
     public static readonly SettingDefinition<string> DateFormat = new(
         Key: "identity.date_format",
-        DefaultValue: "YYYY-MM-DD",
+        DefaultValue: "yyyy-MM-dd",
         Description: "Date format used in identity-related displays and exports");
 
     public static readonly SettingDefinition<string> Theme = new(

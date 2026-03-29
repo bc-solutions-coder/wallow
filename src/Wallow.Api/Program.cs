@@ -300,11 +300,9 @@ try
         IConnectionMultiplexer mux = sp.GetRequiredService<IConnectionMultiplexer>();
         return new ConfigureNamedOptions<RedisOptions>(
             Options.DefaultName,
-            options => options.ConnectionFactory = async _ =>
-            {
-                await Task.CompletedTask;
-                return mux;
-            });
+#pragma warning disable CA2025 // mux is a DI-managed singleton, not disposed here
+            options => options.ConnectionFactory = _ => Task.FromResult<IConnectionMultiplexer>(mux));
+#pragma warning restore CA2025
     });
 
     // Core services

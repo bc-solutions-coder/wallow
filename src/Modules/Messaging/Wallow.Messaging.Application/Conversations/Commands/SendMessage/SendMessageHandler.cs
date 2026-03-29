@@ -14,7 +14,7 @@ public sealed class SendMessageHandler(
         CancellationToken cancellationToken)
     {
         Conversation? conversation = await conversationRepository.GetByIdAsync(
-            new ConversationId(command.ConversationId),
+            ConversationId.Create(command.ConversationId),
             cancellationToken);
 
         if (conversation is null)

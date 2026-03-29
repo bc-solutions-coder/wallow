@@ -17,7 +17,7 @@ public static class PluginManifestLoader
             return [];
         }
 
-        List<PluginManifest> manifests = new List<PluginManifest>();
+        List<PluginManifest> manifests = [];
 
         foreach (string dir in Directory.GetDirectories(pluginsPath))
         {
@@ -42,7 +42,7 @@ public static class PluginManifestLoader
 
     private static void ValidateManifest(PluginManifest manifest, string path)
     {
-        List<string> missing = new List<string>();
+        List<string> missing = [];
 
         if (string.IsNullOrWhiteSpace(manifest.Id))
         {

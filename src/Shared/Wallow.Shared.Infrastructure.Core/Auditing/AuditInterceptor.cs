@@ -59,7 +59,7 @@ public sealed partial class AuditInterceptor(
                 tenantId = tenantContext.TenantId.Value;
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is InvalidOperationException or ObjectDisposedException)
         {
             LogContextResolutionFailed(ex);
         }

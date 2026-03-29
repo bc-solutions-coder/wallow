@@ -20,7 +20,7 @@ public sealed partial class MessageSentEventHandler
         LogHandlingMessageSent(logger, domainEvent.MessageId, domainEvent.ConversationId);
 
         Conversation? conversation = await conversationRepository.GetByIdAsync(
-            new ConversationId(domainEvent.ConversationId), cancellationToken);
+            ConversationId.Create(domainEvent.ConversationId), cancellationToken);
 
         if (conversation is null)
         {

@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Wallow.ApiKeys.Domain.ApiKeys;
 using Wallow.ApiKeys.Domain.Entities;
 using Wallow.ApiKeys.Infrastructure.Persistence;
 using Wallow.ApiKeys.Infrastructure.Repositories;
@@ -28,7 +27,7 @@ public sealed class ApiKeyRepositoryTests : IDisposable
 
         _context = new ApiKeysDbContext(options);
         _context.SetTenant(tenantContext.TenantId);
-        _sut = new ApiKeyRepository(_context);
+        _sut = new ApiKeyRepository(_context, TimeProvider.System);
     }
 
     public void Dispose()
@@ -96,39 +95,6 @@ public sealed class ApiKeyRepositoryTests : IDisposable
         await _context.SaveChangesAsync();
 
         ApiKey? result = await _sut.GetByHashAsync("tenant-specific-hash", Guid.NewGuid(), CancellationToken.None);
-
-        result.Should().BeNull();
-    }
-
-    [Fact]
-    public async Task GetByIdAsync_WhenExists_ReturnsApiKey()
-    {
-        ApiKey key = CreateApiKey();
-        _context.ApiKeys.Add(key);
-        await _context.SaveChangesAsync();
-
-        ApiKey? result = await _sut.GetByIdAsync(key.Id, _tenantId.Value, CancellationToken.None);
-
-        result.Should().NotBeNull();
-        result!.Id.Should().Be(key.Id);
-    }
-
-    [Fact]
-    public async Task GetByIdAsync_WhenNotExists_ReturnsNull()
-    {
-        ApiKey? result = await _sut.GetByIdAsync(ApiKeyId.New(), _tenantId.Value, CancellationToken.None);
-
-        result.Should().BeNull();
-    }
-
-    [Fact]
-    public async Task GetByIdAsync_WhenDifferentTenant_ReturnsNull()
-    {
-        ApiKey key = CreateApiKey();
-        _context.ApiKeys.Add(key);
-        await _context.SaveChangesAsync();
-
-        ApiKey? result = await _sut.GetByIdAsync(key.Id, Guid.NewGuid(), CancellationToken.None);
 
         result.Should().BeNull();
     }

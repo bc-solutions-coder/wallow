@@ -1,4 +1,3 @@
-using System.Net.Http.Headers;
 using Wallow.Web.Models;
 
 namespace Wallow.Web.Services;
@@ -8,6 +7,17 @@ public sealed class AppRegistrationService(
     TokenProvider tokenProvider) : IAppRegistrationService
 {
     private const string BasePath = "api/v1/identity/apps";
+
+    private HttpClient CreateAuthenticatedClient()
+    {
+        HttpClient client = httpClientFactory.CreateClient("WallowApi");
+        if (!string.IsNullOrEmpty(tokenProvider.AccessToken))
+        {
+            client.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", tokenProvider.AccessToken);
+        }
+        return client;
+    }
 
     public async Task<List<AppModel>> GetAppsAsync(CancellationToken ct = default)
     {
@@ -111,18 +121,6 @@ public sealed class AppRegistrationService(
         return response.IsSuccessStatusCode;
     }
 #pragma warning restore CA2000
-
-    private HttpClient CreateAuthenticatedClient()
-    {
-        HttpClient client = httpClientFactory.CreateClient("WallowApi");
-
-        if (!string.IsNullOrEmpty(tokenProvider.AccessToken))
-        {
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenProvider.AccessToken);
-        }
-
-        return client;
-    }
 
     // Matches the AppRegistrationResponse from the Identity API
     private sealed record AppRegistrationApiResponse(

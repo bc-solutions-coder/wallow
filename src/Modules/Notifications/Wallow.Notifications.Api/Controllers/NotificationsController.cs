@@ -43,7 +43,7 @@ public class NotificationsController(IMessageBus bus, ICurrentUserService curren
         Guid? userId = currentUserService.GetCurrentUserId();
         if (userId is null)
         {
-            return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
+            return Problem(statusCode: 401, title: "Unauthorized", detail: "Authentication is required");
         }
 
         Result<PagedResult<NotificationDto>> result = await bus.InvokeAsync<Result<PagedResult<NotificationDto>>>(
@@ -72,7 +72,7 @@ public class NotificationsController(IMessageBus bus, ICurrentUserService curren
         Guid? userId = currentUserService.GetCurrentUserId();
         if (userId is null)
         {
-            return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
+            return Problem(statusCode: 401, title: "Unauthorized", detail: "Authentication is required");
         }
 
         Result<int> result = await bus.InvokeAsync<Result<int>>(
@@ -94,7 +94,7 @@ public class NotificationsController(IMessageBus bus, ICurrentUserService curren
         Guid? userId = currentUserService.GetCurrentUserId();
         if (userId is null)
         {
-            return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
+            return Problem(statusCode: 401, title: "Unauthorized", detail: "Authentication is required");
         }
 
         Result result = await bus.InvokeAsync<Result>(
@@ -120,7 +120,7 @@ public class NotificationsController(IMessageBus bus, ICurrentUserService curren
         Guid? userId = currentUserService.GetCurrentUserId();
         if (userId is null)
         {
-            return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
+            return Problem(statusCode: 401, title: "Unauthorized", detail: "Authentication is required");
         }
 
         Result result = await bus.InvokeAsync<Result>(

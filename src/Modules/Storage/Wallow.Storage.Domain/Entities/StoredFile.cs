@@ -1,3 +1,4 @@
+using JetBrains.Annotations;
 using Wallow.Shared.Kernel.Domain;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
@@ -62,11 +63,13 @@ public sealed class StoredFile : AggregateRoot<StoredFileId>, ITenantScoped
         return file;
     }
 
+    [UsedImplicitly]
     public void UpdateMetadata(string? metadata)
     {
         Metadata = metadata;
     }
 
+    [UsedImplicitly]
     public void SetPublic(bool isPublic)
     {
         IsPublic = isPublic;

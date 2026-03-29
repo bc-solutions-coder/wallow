@@ -1,3 +1,4 @@
+using JetBrains.Annotations;
 using Wallow.Notifications.Domain.Channels.Push.Enums;
 using Wallow.Notifications.Domain.Channels.Push.Events;
 using Wallow.Notifications.Domain.Channels.Push.Identity;
@@ -68,6 +69,7 @@ public sealed class PushMessage : AggregateRoot<PushMessageId>, ITenantScoped
         RaiseDomainEvent(new PushMessageFailedDomainEvent(Id, reason));
     }
 
+    [UsedImplicitly]
     public void ResetForRetry(TimeProvider timeProvider)
     {
         Status = PushStatus.Pending;

@@ -78,7 +78,8 @@ public class InquiriesControllerTests
             "We need help building our platform.",
             status,
             "1.2.3.4",
-            DateTimeOffset.UtcNow);
+            DateTimeOffset.UtcNow,
+            null);
 
     #region Submit
 

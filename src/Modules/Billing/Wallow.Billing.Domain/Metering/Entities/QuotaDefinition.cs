@@ -52,7 +52,8 @@ public sealed class QuotaDefinition : AuditableEntity<QuotaDefinitionId>, ITenan
         decimal limit,
         QuotaPeriod period,
         QuotaAction onExceeded,
-        Guid createdByUserId)
+        Guid createdByUserId,
+        TimeProvider timeProvider)
     {
         Id = QuotaDefinitionId.New();
         MeterCode = meterCode;
@@ -61,7 +62,7 @@ public sealed class QuotaDefinition : AuditableEntity<QuotaDefinitionId>, ITenan
         Limit = limit;
         Period = period;
         OnExceeded = onExceeded;
-        SetCreated(DateTimeOffset.UtcNow, createdByUserId);
+        SetCreated(timeProvider.GetUtcNow(), createdByUserId);
     }
 
     public static QuotaDefinition CreatePlanQuota(
@@ -70,7 +71,8 @@ public sealed class QuotaDefinition : AuditableEntity<QuotaDefinitionId>, ITenan
         decimal limit,
         QuotaPeriod period,
         QuotaAction onExceeded,
-        Guid? createdByUserId = null)
+        Guid? createdByUserId = null,
+        TimeProvider? timeProvider = null)
     {
         if (string.IsNullOrWhiteSpace(meterCode))
         {
@@ -100,7 +102,8 @@ public sealed class QuotaDefinition : AuditableEntity<QuotaDefinitionId>, ITenan
             limit,
             period,
             onExceeded,
-            createdByUserId ?? Guid.Empty);
+            createdByUserId ?? Guid.Empty,
+            timeProvider ?? TimeProvider.System);
     }
 
     public static QuotaDefinition CreateTenantOverride(
@@ -109,7 +112,8 @@ public sealed class QuotaDefinition : AuditableEntity<QuotaDefinitionId>, ITenan
         decimal limit,
         QuotaPeriod period,
         QuotaAction onExceeded,
-        Guid? createdByUserId = null)
+        Guid? createdByUserId = null,
+        TimeProvider? timeProvider = null)
     {
         if (string.IsNullOrWhiteSpace(meterCode))
         {
@@ -139,10 +143,11 @@ public sealed class QuotaDefinition : AuditableEntity<QuotaDefinitionId>, ITenan
             limit,
             period,
             onExceeded,
-            createdByUserId ?? Guid.Empty);
+            createdByUserId ?? Guid.Empty,
+            timeProvider ?? TimeProvider.System);
     }
 
-    public void UpdateLimit(decimal limit, QuotaAction onExceeded, Guid updatedByUserId)
+    public void UpdateLimit(decimal limit, QuotaAction onExceeded, Guid updatedByUserId, TimeProvider? timeProvider = null)
     {
         if (limit < 0)
         {
@@ -153,6 +158,6 @@ public sealed class QuotaDefinition : AuditableEntity<QuotaDefinitionId>, ITenan
 
         Limit = limit;
         OnExceeded = onExceeded;
-        SetUpdated(DateTimeOffset.UtcNow, updatedByUserId);
+        SetUpdated((timeProvider ?? TimeProvider.System).GetUtcNow(), updatedByUserId);
     }
 }

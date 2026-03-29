@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Primitives;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Domain.ValueObjects;
 using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Shared.Kernel.MultiTenancy;
 
@@ -82,7 +83,7 @@ public sealed partial class ScimAuthenticationMiddleware(RequestDelegate next, I
         }
 
         // Validate full token hash with constant-time comparison
-        string hashedToken = HashToken(token);
+        string hashedToken = TokenHash.Compute(token);
         byte[] expectedBytes = Encoding.UTF8.GetBytes(config.BearerToken);
         byte[] actualBytes = Encoding.UTF8.GetBytes(hashedToken);
 
@@ -136,12 +137,6 @@ public sealed partial class ScimAuthenticationMiddleware(RequestDelegate next, I
         await context.Response.WriteAsJsonAsync(error);
     }
 
-    private static string HashToken(string token)
-    {
-        byte[] bytes = Encoding.UTF8.GetBytes(token);
-        byte[] hash = SHA256.HashData(bytes);
-        return Convert.ToBase64String(hash);
-    }
 }
 
 public sealed partial class ScimAuthenticationMiddleware

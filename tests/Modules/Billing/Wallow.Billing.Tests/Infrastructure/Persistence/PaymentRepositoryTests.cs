@@ -63,24 +63,6 @@ public class PaymentRepositoryTests(PostgresContainerFixture fixture) : DbContex
     }
 
     [Fact]
-    public async Task GetByUserIdAsync_ReturnsPaymentsForUser()
-    {
-        PaymentRepository repository = CreateRepository();
-        Invoice invoice = CreateIssuedInvoice("INV-PAY-003");
-        DbContext.Invoices.Add(invoice);
-        await DbContext.SaveChangesAsync();
-
-        Payment payment = Payment.Create(invoice.Id, TestUserId, Money.Create(100m, "USD"), PaymentMethod.CreditCard, TestUserId, TimeProvider.System);
-        repository.Add(payment);
-        await repository.SaveChangesAsync();
-
-        IReadOnlyList<Payment> result = await repository.GetByUserIdAsync(TestUserId);
-
-        result.Should().HaveCountGreaterThanOrEqualTo(1);
-        result.Should().AllSatisfy(p => p.UserId.Should().Be(TestUserId));
-    }
-
-    [Fact]
     public async Task GetAllAsync_ReturnsAllPayments()
     {
         PaymentRepository repository = CreateRepository();

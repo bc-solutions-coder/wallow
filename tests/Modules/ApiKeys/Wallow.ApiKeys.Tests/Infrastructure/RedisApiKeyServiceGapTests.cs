@@ -464,7 +464,7 @@ public class RedisApiKeyServiceGapTests
             new TenantId(tenantId), userId.ToString(), "fakehash", "Active Key",
             _readScope, DateTimeOffset.UtcNow.AddDays(30), userId, TimeProvider.System);
 
-        _apiKeyRepository.GetByHashAsync(Arg.Any<string>(), Guid.Empty, Arg.Any<CancellationToken>())
+        _apiKeyRepository.GetByHashAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(activeKey);
 
         RedisApiKeyService service = CreateService();
@@ -490,7 +490,7 @@ public class RedisApiKeyServiceGapTests
     [Fact]
     public async Task ValidateApiKeyAsync_CacheMiss_NullFromRepo_ReturnsNotFound()
     {
-        _apiKeyRepository.GetByHashAsync(Arg.Any<string>(), Guid.Empty, Arg.Any<CancellationToken>())
+        _apiKeyRepository.GetByHashAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns((ApiKey?)null);
 
         RedisApiKeyService service = CreateService();
@@ -514,7 +514,7 @@ public class RedisApiKeyServiceGapTests
             new TenantId(tenantId), userId.ToString(), "fakehash", "Expired Key",
             _readScope, DateTimeOffset.UtcNow.AddDays(-1), userId, fakeTime);
 
-        _apiKeyRepository.GetByHashAsync(Arg.Any<string>(), Guid.Empty, Arg.Any<CancellationToken>())
+        _apiKeyRepository.GetByHashAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(expiredKey);
 
         RedisApiKeyService service = CreateService();

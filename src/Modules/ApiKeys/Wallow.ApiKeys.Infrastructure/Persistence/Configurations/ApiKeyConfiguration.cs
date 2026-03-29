@@ -60,5 +60,6 @@ public sealed class ApiKeyConfiguration : IEntityTypeConfiguration<ApiKey>
 
         builder.HasIndex(e => e.TenantId);
         builder.HasIndex(e => e.ServiceAccountId);
+        builder.HasIndex(e => e.HashedKey);
     }
 }

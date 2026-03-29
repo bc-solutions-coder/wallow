@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Domain.ValueObjects;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
 
@@ -142,7 +143,7 @@ public sealed partial class ScimService(IScimConfigurationRepository scimReposit
             return false;
         }
 
-        string hashedToken = HashToken(token);
+        string hashedToken = TokenHash.Compute(token);
         byte[] expectedBytes = Encoding.UTF8.GetBytes(config.BearerToken);
         byte[] actualBytes = Encoding.UTF8.GetBytes(hashedToken);
         return CryptographicOperations.FixedTimeEquals(expectedBytes, actualBytes);
@@ -166,12 +167,6 @@ public sealed partial class ScimService(IScimConfigurationRepository scimReposit
         return "/scim/v2";
     }
 
-    private static string HashToken(string token)
-    {
-        byte[] bytes = Encoding.UTF8.GetBytes(token);
-        byte[] hash = SHA256.HashData(bytes);
-        return Convert.ToBase64String(hash);
-    }
 }
 
 internal sealed record ScimUserRepresentation

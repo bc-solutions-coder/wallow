@@ -1,5 +1,6 @@
 using Wallow.Announcements.Application.Announcements.DTOs;
 using Wallow.Announcements.Application.Announcements.Interfaces;
+using Wallow.Announcements.Application.Announcements.Mappings;
 using Wallow.Announcements.Domain.Announcements.Entities;
 using Wallow.Announcements.Domain.Announcements.Enums;
 using Wallow.Announcements.Domain.Announcements.Identity;
@@ -46,7 +47,7 @@ public sealed class AnnouncementTargetingService(
             .Where(a => !a.IsDismissible || !dismissedIds.Contains(a.Id))
             .OrderByDescending(a => a.IsPinned)
             .ThenByDescending(a => a.CreatedAt)
-            .Select(MapToDto)
+            .Select(a => a.ToDto())
             .ToList();
     }
 
@@ -54,9 +55,9 @@ public sealed class AnnouncementTargetingService(
         Announcement announcement,
         CancellationToken ct = default)
     {
-        // For now, return empty list - the Notifications module will handle
-        // broadcast-style delivery based on target criteria in the integration event.
-        // A full implementation would query tenant/user data to resolve specific recipients.
+        // TODO: Resolve actual recipient user IDs by querying Identity module via Wolverine request/response
+        // (e.g. GetUsersByTenantQuery, GetUsersByRoleQuery) based on announcement.Target and announcement.TargetValue.
+        // Tracked placeholder — currently returns empty list; Notifications module handles broadcast delivery instead.
         IReadOnlyList<Guid> emptyList = [];
         return Task.FromResult(emptyList);
     }
@@ -120,23 +121,4 @@ public sealed class AnnouncementTargetingService(
             r.Equals(announcement.TargetValue, StringComparison.OrdinalIgnoreCase));
     }
 
-    private static AnnouncementDto MapToDto(Announcement announcement)
-    {
-        return new AnnouncementDto(
-            announcement.Id.Value,
-            announcement.Title,
-            announcement.Content,
-            announcement.Type,
-            announcement.Target,
-            announcement.TargetValue,
-            announcement.PublishAt,
-            announcement.ExpiresAt,
-            announcement.IsPinned,
-            announcement.IsDismissible,
-            announcement.ActionUrl,
-            announcement.ActionLabel,
-            announcement.ImageUrl,
-            announcement.Status,
-            announcement.CreatedAt);
-    }
 }

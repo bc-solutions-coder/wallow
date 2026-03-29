@@ -13,6 +13,5 @@ public interface IInvoiceRepository
     Task<bool> ExistsByInvoiceNumberAsync(string invoiceNumber, CancellationToken cancellationToken = default);
     void Add(Invoice invoice);
     void Update(Invoice invoice);
-    void Remove(Invoice invoice);
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }

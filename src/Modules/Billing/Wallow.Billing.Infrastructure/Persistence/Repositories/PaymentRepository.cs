@@ -23,14 +23,6 @@ public sealed class PaymentRepository(BillingDbContext context) : IPaymentReposi
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyList<Payment>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
-    {
-        return await context.Payments
-            .Where(p => p.UserId == userId)
-            .OrderByDescending(p => p.CreatedAt)
-            .ToListAsync(cancellationToken);
-    }
-
     public async Task<IReadOnlyList<Payment>> GetAllAsync(int skip = 0, int take = 50, CancellationToken cancellationToken = default)
     {
         return await context.Payments

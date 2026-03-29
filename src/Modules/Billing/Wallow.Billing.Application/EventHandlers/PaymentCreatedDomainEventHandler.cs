@@ -13,6 +13,7 @@ public sealed partial class PaymentCreatedDomainEventHandler
         IMessageBus bus,
         ITenantContext tenantContext,
         IUserQueryService userQueryService,
+        TimeProvider timeProvider,
         ILogger<PaymentCreatedDomainEventHandler> logger,
         CancellationToken cancellationToken)
     {
@@ -29,8 +30,8 @@ public sealed partial class PaymentCreatedDomainEventHandler
             UserEmail = userEmail,
             Amount = domainEvent.Amount,
             Currency = domainEvent.Currency,
-            PaymentMethod = string.Empty,
-            PaidAt = DateTime.UtcNow
+            PaymentMethod = domainEvent.PaymentMethod,
+            PaidAt = timeProvider.GetUtcNow().UtcDateTime
         });
 
         LogPublishedPaymentReceived(logger, domainEvent.PaymentId);

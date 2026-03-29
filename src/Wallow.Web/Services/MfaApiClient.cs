@@ -1,4 +1,3 @@
-using System.Net.Http.Headers;
 using Wallow.Web.Models;
 
 namespace Wallow.Web.Services;
@@ -8,6 +7,17 @@ public sealed class MfaApiClient(
     TokenProvider tokenProvider) : IMfaApiClient
 {
     private const string MfaBasePath = "api/v1/identity/mfa";
+
+    private HttpClient CreateAuthenticatedClient()
+    {
+        HttpClient client = httpClientFactory.CreateClient("WallowApi");
+        if (!string.IsNullOrEmpty(tokenProvider.AccessToken))
+        {
+            client.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", tokenProvider.AccessToken);
+        }
+        return client;
+    }
 
     public async Task<MfaStatusResponse?> GetMfaStatusAsync(CancellationToken ct = default)
     {
@@ -68,18 +78,6 @@ public sealed class MfaApiClient(
         }
 
         return null;
-    }
-
-    private HttpClient CreateAuthenticatedClient()
-    {
-        HttpClient client = httpClientFactory.CreateClient("WallowApi");
-
-        if (!string.IsNullOrEmpty(tokenProvider.AccessToken))
-        {
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenProvider.AccessToken);
-        }
-
-        return client;
     }
 
     private sealed record DisableResult(bool Succeeded);

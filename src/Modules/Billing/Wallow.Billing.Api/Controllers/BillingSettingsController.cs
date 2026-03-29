@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Wallow.Shared.Api.Extensions;
+using Wallow.Shared.Api.Settings;
 using Wallow.Shared.Kernel.Identity.Authorization;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Shared.Kernel.Results;
@@ -182,5 +183,3 @@ public class BillingSettingsController(
         };
     }
 }
-
-public sealed record SettingUpdateRequest(string Key, string Value);

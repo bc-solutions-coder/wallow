@@ -20,7 +20,8 @@ public static class InquiryMappings
             Message: inquiry.Message,
             Status: inquiry.Status.ToString(),
             SubmitterIpAddress: inquiry.SubmitterIpAddress,
-            CreatedAt: inquiry.CreatedAt);
+            CreatedAt: inquiry.CreatedAt,
+            UpdatedAt: inquiry.UpdatedAt);
     }
 
     public static InquiryCommentDto ToCommentDto(this InquiryComment comment)

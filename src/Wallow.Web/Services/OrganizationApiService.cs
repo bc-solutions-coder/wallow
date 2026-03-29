@@ -1,4 +1,3 @@
-using System.Net.Http.Headers;
 using Wallow.Web.Models;
 
 namespace Wallow.Web.Services;
@@ -9,6 +8,17 @@ public sealed class OrganizationApiService(
 {
     private const string OrganizationsPath = "api/v1/identity/organizations";
     private const string ClientsPath = "api/v1/identity/clients";
+
+    private HttpClient CreateAuthenticatedClient()
+    {
+        HttpClient client = httpClientFactory.CreateClient("WallowApi");
+        if (!string.IsNullOrEmpty(tokenProvider.AccessToken))
+        {
+            client.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", tokenProvider.AccessToken);
+        }
+        return client;
+    }
 
     public async Task<List<OrganizationModel>> GetOrganizationsAsync(CancellationToken ct = default)
     {
@@ -63,17 +73,5 @@ public sealed class OrganizationApiService(
         }
 
         return [];
-    }
-
-    private HttpClient CreateAuthenticatedClient()
-    {
-        HttpClient client = httpClientFactory.CreateClient("WallowApi");
-
-        if (!string.IsNullOrEmpty(tokenProvider.AccessToken))
-        {
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenProvider.AccessToken);
-        }
-
-        return client;
     }
 }

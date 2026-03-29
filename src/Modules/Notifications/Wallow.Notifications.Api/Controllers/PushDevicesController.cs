@@ -96,7 +96,7 @@ public class PushDevicesController(
         }
 
         Result<IReadOnlyList<DeviceRegistrationDto>> result = await bus.InvokeAsync<Result<IReadOnlyList<DeviceRegistrationDto>>>(
-            new GetUserDevicesQuery(userId.Value, tenantContext.TenantId.Value),
+            new GetUserDevicesQuery(userId.Value),
             cancellationToken);
 
         return result.Map(devices => devices.Select(ToResponse).ToList()).ToActionResult();

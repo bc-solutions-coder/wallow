@@ -10,12 +10,10 @@ public sealed class PushProviderFactory(
     IHttpClientFactory httpClientFactory,
     ILoggerFactory loggerFactory) : IPushProviderFactory
 {
-    public IPushProvider GetProvider(PushPlatform platform)
+    public async Task<IPushProvider> GetProviderAsync(PushPlatform platform)
     {
-        Domain.Channels.Push.Entities.TenantPushConfiguration? config = configurationRepository
-            .GetByPlatformAsync(platform)
-            .GetAwaiter()
-            .GetResult();
+        Domain.Channels.Push.Entities.TenantPushConfiguration? config = await configurationRepository
+            .GetByPlatformAsync(platform);
 
         if (config is { IsEnabled: true })
         {

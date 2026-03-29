@@ -72,14 +72,14 @@ public sealed partial class RedisApiKeyService(
                 UserId = userId,
                 TenantId = tenantId,
                 Scopes = scopeList,
-                CreatedAt = DateTimeOffset.UtcNow,
+                CreatedAt = timeProvider.GetUtcNow(),
                 ExpiresAt = expiresAt,
                 LastUsedAt = null
             };
 
             string json = JsonSerializer.Serialize(metadata);
 
-            TimeSpan? ttl = expiresAt.HasValue ? expiresAt.Value - DateTimeOffset.UtcNow : null;
+            TimeSpan? ttl = expiresAt.HasValue ? expiresAt.Value - timeProvider.GetUtcNow() : null;
 
             // Store by hash for validation lookups
             await db.StringSetAsync(
@@ -148,7 +148,7 @@ public sealed partial class RedisApiKeyService(
 
             // Cache miss -- fall back to PostgreSQL
             // We don't have tenantId in this path, so search across all tenants by hash
-            ApiKey? domainKey = await apiKeyRepository.GetByHashAsync(keyHash, Guid.Empty, ct);
+            ApiKey? domainKey = await apiKeyRepository.GetByHashAsync(keyHash, ct);
             if (domainKey is null || domainKey.IsRevoked)
             {
                 return new ApiKeyValidationResult(
@@ -161,7 +161,7 @@ public sealed partial class RedisApiKeyService(
             }
 
             // Check expiration
-            if (domainKey.ExpiresAt < DateTimeOffset.UtcNow)
+            if (domainKey.ExpiresAt < timeProvider.GetUtcNow())
             {
                 return new ApiKeyValidationResult(
                     IsValid: false,
@@ -188,7 +188,7 @@ public sealed partial class RedisApiKeyService(
             };
 
             string cacheJson = JsonSerializer.Serialize(cacheData);
-            TimeSpan? ttl = domainKey.ExpiresAt.HasValue ? domainKey.ExpiresAt.Value - DateTimeOffset.UtcNow : null;
+            TimeSpan? ttl = domainKey.ExpiresAt.HasValue ? domainKey.ExpiresAt.Value - timeProvider.GetUtcNow() : null;
 
             await db.StringSetAsync($"{KeyPrefix}{keyHash}", cacheJson, ttl, keepTtl: false, When.Always, CommandFlags.None);
 
@@ -277,7 +277,7 @@ public sealed partial class RedisApiKeyService(
             ApiKey? domainKey = await apiKeyRepository.GetByHashAsync(data.KeyHash, data.TenantId, ct);
             if (domainKey is not null)
             {
-                await apiKeyRepository.RevokeAsync(domainKey.Id, data.TenantId, ct);
+                await apiKeyRepository.RevokeAsync(domainKey.Id, data.TenantId, userId, ct);
             }
 
             // Then delete from Valkey
@@ -310,7 +310,7 @@ public sealed partial class RedisApiKeyService(
         }
 
         // Check expiration
-        if (data.ExpiresAt < DateTimeOffset.UtcNow)
+        if (data.ExpiresAt < timeProvider.GetUtcNow())
         {
             return new ApiKeyValidationResult(
                 IsValid: false,
@@ -337,11 +337,11 @@ public sealed partial class RedisApiKeyService(
     {
         try
         {
-            data.LastUsedAt = DateTimeOffset.UtcNow;
+            data.LastUsedAt = timeProvider.GetUtcNow();
             string json = JsonSerializer.Serialize(data);
 
             TimeSpan? expiry = data.ExpiresAt.HasValue
-                ? data.ExpiresAt.Value - DateTimeOffset.UtcNow
+                ? data.ExpiresAt.Value - timeProvider.GetUtcNow()
                 : null;
 
             await db.StringSetAsync($"{KeyPrefix}{keyHash}", json, expiry, keepTtl: false, When.Exists, CommandFlags.None);

@@ -1,3 +1,4 @@
+using JetBrains.Annotations;
 using Wallow.Announcements.Domain.Changelogs.Enums;
 using Wallow.Announcements.Domain.Changelogs.Identity;
 using Wallow.Shared.Kernel.Domain;
@@ -38,6 +39,7 @@ public sealed class ChangelogEntry : AggregateRoot<ChangelogEntryId>
         return new ChangelogEntry(version, title, content, releasedAt, timeProvider);
     }
 
+    [UsedImplicitly]
     public void Update(string version, string title, string content, DateTime releasedAt, TimeProvider timeProvider)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(version);
@@ -57,6 +59,7 @@ public sealed class ChangelogEntry : AggregateRoot<ChangelogEntryId>
         SetUpdated(timeProvider.GetUtcNow());
     }
 
+    [UsedImplicitly]
     public void Unpublish(TimeProvider timeProvider)
     {
         IsPublished = false;

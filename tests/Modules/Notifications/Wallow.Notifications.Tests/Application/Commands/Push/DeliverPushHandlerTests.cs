@@ -43,7 +43,7 @@ public class DeliverPushHandlerTests
 
         await _handler.Handle(command, CancellationToken.None);
 
-        _pushProviderFactory.DidNotReceive().GetProvider(Arg.Any<PushPlatform>());
+        await _pushProviderFactory.DidNotReceive().GetProviderAsync(Arg.Any<PushPlatform>());
     }
 
     [Fact]
@@ -61,7 +61,7 @@ public class DeliverPushHandlerTests
         provider.SendAsync(Arg.Any<PushMessage>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(new PushDeliveryResult(true, null));
 
-        _pushProviderFactory.GetProvider(PushPlatform.Fcm).Returns(provider);
+        _pushProviderFactory.GetProviderAsync(PushPlatform.Fcm).Returns(provider);
 
         DeliverPushCommand command = new(pushMessage.Id, DeviceRegistrationId.New(), "device-token", PushPlatform.Fcm);
 
@@ -87,7 +87,7 @@ public class DeliverPushHandlerTests
         provider.SendAsync(Arg.Any<PushMessage>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(new PushDeliveryResult(false, "Token expired"));
 
-        _pushProviderFactory.GetProvider(PushPlatform.Apns).Returns(provider);
+        _pushProviderFactory.GetProviderAsync(PushPlatform.Apns).Returns(provider);
 
         DeliverPushCommand command = new(pushMessage.Id, DeviceRegistrationId.New(), "device-token", PushPlatform.Apns);
 
@@ -112,7 +112,7 @@ public class DeliverPushHandlerTests
         provider.SendAsync(Arg.Any<PushMessage>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns<Task<PushDeliveryResult>>(Task.FromException<PushDeliveryResult>(new InvalidOperationException("Network failure")));
 
-        _pushProviderFactory.GetProvider(PushPlatform.Fcm).Returns(provider);
+        _pushProviderFactory.GetProviderAsync(PushPlatform.Fcm).Returns(provider);
 
         DeliverPushCommand command = new(pushMessage.Id, DeviceRegistrationId.New(), "device-token", PushPlatform.Fcm);
 

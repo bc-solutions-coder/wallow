@@ -1,3 +1,4 @@
+using JetBrains.Annotations;
 using Wallow.Billing.Domain.Enums;
 using Wallow.Billing.Domain.Events;
 using Wallow.Billing.Domain.Exceptions;
@@ -109,6 +110,7 @@ public sealed class Subscription : AggregateRoot<SubscriptionId>, ITenantScoped,
         return subscription;
     }
 
+    [UsedImplicitly]
     public void Renew(DateTime newPeriodEnd, Guid updatedByUserId, TimeProvider timeProvider)
     {
         if (Status != SubscriptionStatus.Active)
@@ -123,6 +125,7 @@ public sealed class Subscription : AggregateRoot<SubscriptionId>, ITenantScoped,
         SetUpdated(timeProvider.GetUtcNow(), updatedByUserId);
     }
 
+    [UsedImplicitly]
     public void MarkPastDue(Guid updatedByUserId, TimeProvider timeProvider)
     {
         if (Status != SubscriptionStatus.Active)
@@ -155,6 +158,7 @@ public sealed class Subscription : AggregateRoot<SubscriptionId>, ITenantScoped,
             CancelledAt.Value));
     }
 
+    [UsedImplicitly]
     public void Expire(Guid updatedByUserId, TimeProvider timeProvider)
     {
         if (Status is not (SubscriptionStatus.Active or SubscriptionStatus.PastDue))

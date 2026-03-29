@@ -76,13 +76,10 @@ public partial class ClientBrandingController(
             return ValidationProblem(ModelState);
         }
 
-        if (!string.IsNullOrEmpty(request.ThemeJson))
+        if (!string.IsNullOrEmpty(request.ThemeJson) && !IsValidThemeJson(request.ThemeJson))
         {
-            if (!IsValidThemeJson(request.ThemeJson))
-            {
-                ModelState.AddModelError(nameof(request.ThemeJson), "Invalid theme JSON format or color values.");
-                return ValidationProblem(ModelState);
-            }
+            ModelState.AddModelError(nameof(request.ThemeJson), "Invalid theme JSON format or color values.");
+            return ValidationProblem(ModelState);
         }
 
         string? logoStorageKey = null;
@@ -125,13 +122,14 @@ public partial class ClientBrandingController(
             repository.Add(branding);
         }
 
-        await repository.SaveChangesAsync(ct);
-
+        // Upload logo to storage BEFORE saving DB to avoid persisting a non-existent storage key
         if (logo is not null && logoStorageKey is not null)
         {
             await using Stream stream = logo.OpenReadStream();
             await storageProvider.UploadAsync(stream, logoStorageKey, logo.ContentType, ct);
         }
+
+        await repository.SaveChangesAsync(ct);
 
         brandingService.InvalidateCache(clientId);
 

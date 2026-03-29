@@ -80,6 +80,9 @@ public sealed class AuthFlowTests : E2ETestBase
         await loginPage.NavigateAsync();
         await loginPage.ClickForgotPasswordAsync();
 
+        // Wait for Blazor circuit before interacting with the form
+        await WaitForBlazorReadyAsync(Page);
+
         // Fill in the forgot password form using data-testid
         await Page.Locator("[data-testid='forgot-password-email']").FillAsync(user.Email);
         await Page.Locator("[data-testid='forgot-password-submit']").ClickAsync();
@@ -92,6 +95,7 @@ public sealed class AuthFlowTests : E2ETestBase
         // Visit the reset link and set a new password
         await Page.GotoAsync(resetLink);
         await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        await WaitForBlazorReadyAsync(Page);
 
         string newPassword = "NewP@ssw0rd!Strong34";
         ILocator passwordField = Page.GetByTestId("reset-password-new-password");

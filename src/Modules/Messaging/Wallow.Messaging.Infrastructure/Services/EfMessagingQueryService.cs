@@ -54,7 +54,8 @@ public sealed class EfMessagingQueryService(IReadDbContext<MessagingDbContext> r
             .Where(m => m.ConversationId == convId)
             .Where(m => _dbContext.Participants
                 .Any(p => p.ConversationId == m.ConversationId
-                       && p.UserId == userId));
+                       && p.UserId == userId
+                       && p.IsActive));
 
         if (cursorMessageId.HasValue)
         {
@@ -99,59 +100,69 @@ public sealed class EfMessagingQueryService(IReadDbContext<MessagingDbContext> r
             .Select(p => p.ConversationId)
             .ToListAsync(cancellationToken);
 
-        List<Conversation> conversations = await _dbContext.Conversations
-            .Include(c => c.Participants)
-            .Include(c => c.Messages)
+        var projections = await _dbContext.Conversations
             .Where(c => conversationIds.Contains(c.Id))
             .OrderByDescending(c => c.UpdatedAt ?? c.CreatedAt)
             .Skip(offset)
             .Take(pageSize)
+            .Select(c => new
+            {
+                c.Id,
+                c.IsGroup,
+                c.CreatedAt,
+                c.UpdatedAt,
+                Participants = _dbContext.Participants
+                    .Where(p => p.ConversationId == c.Id)
+                    .Select(p => new
+                    {
+                        p.UserId,
+                        p.JoinedAt,
+                        p.LastReadAt,
+                        p.IsActive
+                    })
+                    .ToList(),
+                LastMessage = _dbContext.Messages
+                    .Where(m => m.ConversationId == c.Id)
+                    .OrderByDescending(m => m.SentAt)
+                    .Select(m => new
+                    {
+                        m.Id,
+                        m.ConversationId,
+                        m.SenderId,
+                        m.Body,
+                        m.SentAt,
+                        m.Status
+                    })
+                    .FirstOrDefault(),
+                UnreadCount = _dbContext.Participants
+                    .Where(p => p.ConversationId == c.Id && p.UserId == userId)
+                    .Select(p => _dbContext.Messages
+                        .Count(m => m.ConversationId == c.Id
+                                 && m.SenderId != userId
+                                 && m.SentAt > (p.LastReadAt ?? p.JoinedAt)))
+                    .FirstOrDefault()
+            })
             .ToListAsync(cancellationToken);
 
-        List<ConversationDto> result = conversations.Select(c =>
-        {
-            Message? lastMessage = c.Messages
-                .OrderByDescending(m => m.SentAt)
-                .FirstOrDefault();
-
-            Participant? userParticipant = c.Participants
-                .FirstOrDefault(p => p.UserId == userId);
-
-            int unreadCount = userParticipant is not null
-                ? c.Messages.Count(m => m.SenderId != userId
-                    && m.SentAt > (userParticipant.LastReadAt ?? userParticipant.JoinedAt))
-                : 0;
-
-            MessageDto? lastMessageDto = lastMessage is not null
+        List<ConversationDto> result = projections.Select(c => new ConversationDto(
+            c.Id.Value,
+            c.IsGroup ? "Group" : "Direct",
+            c.Participants.Select(p => new ParticipantDto(
+                p.UserId,
+                p.JoinedAt.UtcDateTime,
+                p.LastReadAt?.UtcDateTime,
+                p.IsActive)).ToList(),
+            c.LastMessage is not null
                 ? new MessageDto(
-                    lastMessage.Id.Value,
-                    lastMessage.ConversationId.Value,
-                    lastMessage.SenderId,
-                    lastMessage.Body,
-                    lastMessage.SentAt.UtcDateTime,
-                    lastMessage.Status.ToString())
-                : null;
-
-            string conversationType = c.IsGroup ? "Group" : "Direct";
-
-            List<ParticipantDto> participants = c.Participants
-                .Select(p => new ParticipantDto(
-                    p.UserId,
-                    p.JoinedAt.UtcDateTime,
-                    p.LastReadAt.HasValue ? p.LastReadAt.Value.UtcDateTime : null,
-                    p.IsActive))
-                .ToList();
-
-            DateTime lastActivityAt = c.UpdatedAt ?? c.CreatedAt;
-
-            return new ConversationDto(
-                c.Id.Value,
-                conversationType,
-                participants,
-                lastMessageDto,
-                unreadCount,
-                lastActivityAt);
-        }).ToList();
+                    c.LastMessage.Id.Value,
+                    c.LastMessage.ConversationId.Value,
+                    c.LastMessage.SenderId,
+                    c.LastMessage.Body,
+                    c.LastMessage.SentAt.UtcDateTime,
+                    c.LastMessage.Status.ToString())
+                : null,
+            c.UnreadCount,
+            c.UpdatedAt ?? c.CreatedAt)).ToList();
 
         return result;
     }

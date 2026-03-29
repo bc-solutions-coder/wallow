@@ -2,7 +2,6 @@ using System.Text.Json;
 using BlazorBlueprint.Components;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Polly;
-using Wallow.Auth;
 using Wallow.Auth.Configuration;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
@@ -85,7 +84,7 @@ builder.Services.AddHealthChecks()
         sp =>
         {
             IHttpClientFactory httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
-            return new ApiHealthCheck(httpClientFactory, "AuthApi");
+            return new Wallow.Shared.Api.ApiHealthCheck(httpClientFactory, "AuthApi");
         },
         failureStatus: HealthStatus.Unhealthy,
         tags: ["ready"]));

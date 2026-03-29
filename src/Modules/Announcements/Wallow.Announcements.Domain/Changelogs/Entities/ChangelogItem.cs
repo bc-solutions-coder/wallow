@@ -1,3 +1,4 @@
+using JetBrains.Annotations;
 using Wallow.Announcements.Domain.Changelogs.Enums;
 using Wallow.Announcements.Domain.Changelogs.Identity;
 using Wallow.Shared.Kernel.Domain;
@@ -27,6 +28,7 @@ public sealed class ChangelogItem : Entity<ChangelogItemId>
         return new ChangelogItem(entryId, description, type);
     }
 
+    [UsedImplicitly]
     public void Update(string description, ChangeType type)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(description);

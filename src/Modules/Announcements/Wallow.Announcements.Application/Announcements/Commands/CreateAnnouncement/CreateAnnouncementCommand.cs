@@ -1,5 +1,6 @@
 using Wallow.Announcements.Application.Announcements.DTOs;
 using Wallow.Announcements.Application.Announcements.Interfaces;
+using Wallow.Announcements.Application.Announcements.Mappings;
 using Wallow.Announcements.Domain.Announcements.Entities;
 using Wallow.Announcements.Domain.Announcements.Enums;
 using Wallow.Shared.Kernel.MultiTenancy;
@@ -46,11 +47,6 @@ public sealed class CreateAnnouncementHandler(
 
         await repository.AddAsync(announcement, ct);
 
-        return Result.Success(MapToDto(announcement));
+        return Result.Success(announcement.ToDto());
     }
-
-    private static AnnouncementDto MapToDto(Announcement a) => new(
-        a.Id.Value, a.Title, a.Content, a.Type, a.Target, a.TargetValue,
-        a.PublishAt, a.ExpiresAt, a.IsPinned, a.IsDismissible,
-        a.ActionUrl, a.ActionLabel, a.ImageUrl, a.Status, a.CreatedAt);
 }

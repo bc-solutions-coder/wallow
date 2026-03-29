@@ -164,7 +164,10 @@ public static partial class NotificationsModuleExtensions
                 services.AddScoped<IEmailProvider, SmtpEmailProvider>();
                 break;
             default:
-                Console.WriteLine($"Warning: Unrecognized email provider '{provider}'. Defaulting to Smtp.");
+                ILoggerFactory loggerFactory = services.BuildServiceProvider()
+                    .GetService<ILoggerFactory>() ?? Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance;
+                ILogger logger = loggerFactory.CreateLogger("Wallow.Notifications.EmailProvider");
+                LogUnrecognizedEmailProvider(logger, provider);
                 services.AddScoped<IEmailProvider, SmtpEmailProvider>();
                 break;
         }
@@ -198,4 +201,7 @@ public static partial class NotificationsModuleExtensions
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Notifications module startup failed. Ensure PostgreSQL is running.")]
     private static partial void LogStartupFailed(ILogger logger, Exception ex);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Unrecognized email provider '{Provider}'. Defaulting to Smtp")]
+    private static partial void LogUnrecognizedEmailProvider(ILogger logger, string provider);
 }

@@ -34,19 +34,19 @@ public sealed class PushProviderFactoryTests : IDisposable
     }
 
     [Fact]
-    public void GetProvider_WhenConfigIsNull_ReturnsLogPushProvider()
+    public async Task GetProviderAsync_WhenConfigIsNull_ReturnsLogPushProvider()
     {
         _configRepository
             .GetByPlatformAsync(PushPlatform.Fcm, Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<TenantPushConfiguration?>(null));
 
-        IPushProvider result = _sut.GetProvider(PushPlatform.Fcm);
+        IPushProvider result = await _sut.GetProviderAsync(PushPlatform.Fcm);
 
         result.Should().BeOfType<LogPushProvider>();
     }
 
     [Fact]
-    public void GetProvider_WhenConfigIsDisabled_ReturnsLogPushProvider()
+    public async Task GetProviderAsync_WhenConfigIsDisabled_ReturnsLogPushProvider()
     {
         TenantPushConfiguration config = TenantPushConfiguration.Create(
             TenantId.New(), PushPlatform.Fcm, "encrypted", TimeProvider.System);
@@ -56,13 +56,13 @@ public sealed class PushProviderFactoryTests : IDisposable
             .GetByPlatformAsync(PushPlatform.Fcm, Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<TenantPushConfiguration?>(config));
 
-        IPushProvider result = _sut.GetProvider(PushPlatform.Fcm);
+        IPushProvider result = await _sut.GetProviderAsync(PushPlatform.Fcm);
 
         result.Should().BeOfType<LogPushProvider>();
     }
 
     [Fact]
-    public void GetProvider_WhenFcmEnabled_ReturnsFcmPushProvider()
+    public async Task GetProviderAsync_WhenFcmEnabled_ReturnsFcmPushProvider()
     {
         TenantPushConfiguration config = TenantPushConfiguration.Create(
             TenantId.New(), PushPlatform.Fcm, "encrypted", TimeProvider.System);
@@ -71,13 +71,13 @@ public sealed class PushProviderFactoryTests : IDisposable
             .GetByPlatformAsync(PushPlatform.Fcm, Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<TenantPushConfiguration?>(config));
 
-        IPushProvider result = _sut.GetProvider(PushPlatform.Fcm);
+        IPushProvider result = await _sut.GetProviderAsync(PushPlatform.Fcm);
 
         result.Should().BeOfType<FcmPushProvider>();
     }
 
     [Fact]
-    public void GetProvider_WhenApnsEnabled_ReturnsApnsPushProvider()
+    public async Task GetProviderAsync_WhenApnsEnabled_ReturnsApnsPushProvider()
     {
         TenantPushConfiguration config = TenantPushConfiguration.Create(
             TenantId.New(), PushPlatform.Apns, "encrypted", TimeProvider.System);
@@ -86,13 +86,13 @@ public sealed class PushProviderFactoryTests : IDisposable
             .GetByPlatformAsync(PushPlatform.Apns, Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<TenantPushConfiguration?>(config));
 
-        IPushProvider result = _sut.GetProvider(PushPlatform.Apns);
+        IPushProvider result = await _sut.GetProviderAsync(PushPlatform.Apns);
 
         result.Should().BeOfType<ApnsPushProvider>();
     }
 
     [Fact]
-    public void GetProvider_WhenWebPushEnabled_ReturnsWebPushPushProvider()
+    public async Task GetProviderAsync_WhenWebPushEnabled_ReturnsWebPushPushProvider()
     {
         TenantPushConfiguration config = TenantPushConfiguration.Create(
             TenantId.New(), PushPlatform.WebPush, "encrypted", TimeProvider.System);
@@ -101,13 +101,13 @@ public sealed class PushProviderFactoryTests : IDisposable
             .GetByPlatformAsync(PushPlatform.WebPush, Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<TenantPushConfiguration?>(config));
 
-        IPushProvider result = _sut.GetProvider(PushPlatform.WebPush);
+        IPushProvider result = await _sut.GetProviderAsync(PushPlatform.WebPush);
 
         result.Should().BeOfType<WebPushPushProvider>();
     }
 
     [Fact]
-    public void GetProvider_WhenEnabled_DecryptsCredentials()
+    public async Task GetProviderAsync_WhenEnabled_DecryptsCredentials()
     {
         TenantPushConfiguration config = TenantPushConfiguration.Create(
             TenantId.New(), PushPlatform.Fcm, "encrypted-blob", TimeProvider.System);
@@ -116,13 +116,13 @@ public sealed class PushProviderFactoryTests : IDisposable
             .GetByPlatformAsync(PushPlatform.Fcm, Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<TenantPushConfiguration?>(config));
 
-        _sut.GetProvider(PushPlatform.Fcm);
+        await _sut.GetProviderAsync(PushPlatform.Fcm);
 
         _encryptor.Received(1).Decrypt("encrypted-blob");
     }
 
     [Fact]
-    public void GetProvider_WhenEnabledWithUnknownPlatform_ReturnsLogPushProvider()
+    public async Task GetProviderAsync_WhenEnabledWithUnknownPlatform_ReturnsLogPushProvider()
     {
         PushPlatform unknownPlatform = (PushPlatform)999;
         TenantPushConfiguration config = TenantPushConfiguration.Create(
@@ -132,13 +132,13 @@ public sealed class PushProviderFactoryTests : IDisposable
             .GetByPlatformAsync(unknownPlatform, Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<TenantPushConfiguration?>(config));
 
-        IPushProvider result = _sut.GetProvider(unknownPlatform);
+        IPushProvider result = await _sut.GetProviderAsync(unknownPlatform);
 
         result.Should().BeOfType<LogPushProvider>();
     }
 
     [Fact]
-    public void GetProvider_WhenEnabled_CreatesNamedHttpClient()
+    public async Task GetProviderAsync_WhenEnabled_CreatesNamedHttpClient()
     {
         TenantPushConfiguration config = TenantPushConfiguration.Create(
             TenantId.New(), PushPlatform.Apns, "encrypted", TimeProvider.System);
@@ -147,7 +147,7 @@ public sealed class PushProviderFactoryTests : IDisposable
             .GetByPlatformAsync(PushPlatform.Apns, Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<TenantPushConfiguration?>(config));
 
-        _sut.GetProvider(PushPlatform.Apns);
+        await _sut.GetProviderAsync(PushPlatform.Apns);
 
         _httpClientFactory.Received(1).CreateClient("Push_Apns");
     }

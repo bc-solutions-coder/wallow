@@ -43,7 +43,7 @@ public class ConversationsController(IMessageBus bus, IHtmlSanitizationService s
         Guid? userId = currentUserService.GetCurrentUserId();
         if (userId is null)
         {
-            return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
+            return Problem(statusCode: 401, title: "Unauthorized", detail: "Authentication is required");
         }
 
         bool isDirect = request.ParticipantIds.Count == 1;
@@ -78,7 +78,7 @@ public class ConversationsController(IMessageBus bus, IHtmlSanitizationService s
         Guid? userId = currentUserService.GetCurrentUserId();
         if (userId is null)
         {
-            return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
+            return Problem(statusCode: 401, title: "Unauthorized", detail: "Authentication is required");
         }
 
         Result<IReadOnlyList<ConversationDto>> result = await bus.InvokeAsync<Result<IReadOnlyList<ConversationDto>>>(
@@ -103,7 +103,7 @@ public class ConversationsController(IMessageBus bus, IHtmlSanitizationService s
         Guid? userId = currentUserService.GetCurrentUserId();
         if (userId is null)
         {
-            return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
+            return Problem(statusCode: 401, title: "Unauthorized", detail: "Authentication is required");
         }
 
         bool isParticipant = await messagingQueryService.IsParticipantAsync(id, userId.Value, cancellationToken);
@@ -139,7 +139,7 @@ public class ConversationsController(IMessageBus bus, IHtmlSanitizationService s
         Guid? userId = currentUserService.GetCurrentUserId();
         if (userId is null)
         {
-            return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
+            return Problem(statusCode: 401, title: "Unauthorized", detail: "Authentication is required");
         }
 
         bool isParticipant = await messagingQueryService.IsParticipantAsync(id, userId.Value, cancellationToken);
@@ -166,7 +166,7 @@ public class ConversationsController(IMessageBus bus, IHtmlSanitizationService s
         Guid? userId = currentUserService.GetCurrentUserId();
         if (userId is null)
         {
-            return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
+            return Problem(statusCode: 401, title: "Unauthorized", detail: "Authentication is required");
         }
 
         Result result = await bus.InvokeAsync<Result>(
@@ -184,7 +184,7 @@ public class ConversationsController(IMessageBus bus, IHtmlSanitizationService s
         Guid? userId = currentUserService.GetCurrentUserId();
         if (userId is null)
         {
-            return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
+            return Problem(statusCode: 401, title: "Unauthorized", detail: "Authentication is required");
         }
 
         Result<int> result = await bus.InvokeAsync<Result<int>>(

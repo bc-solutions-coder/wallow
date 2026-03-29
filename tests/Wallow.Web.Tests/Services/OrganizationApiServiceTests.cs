@@ -11,7 +11,6 @@ public sealed class OrganizationApiServiceTests : IDisposable
     private const string BaseUrl = "http://localhost:5000";
     private const string OrganizationsPath = "api/v1/identity/organizations";
     private const string ClientsPath = "api/v1/identity/clients";
-    private const string TestToken = "test-bearer-token";
 
     private readonly MockHttpMessageHandler _mockHttp = new();
     private readonly OrganizationApiService _sut;
@@ -24,8 +23,7 @@ public sealed class OrganizationApiServiceTests : IDisposable
         IHttpClientFactory factory = Substitute.For<IHttpClientFactory>();
         factory.CreateClient("WallowApi").Returns(httpClient);
 
-        IHttpContextAccessor httpContextAccessor = Substitute.For<IHttpContextAccessor>();
-        TokenProvider tokenProvider = new(httpContextAccessor) { AccessToken = TestToken };
+        TokenProvider tokenProvider = new(Substitute.For<IHttpContextAccessor>()) { AccessToken = "test-token" };
 
         _sut = new OrganizationApiService(factory, tokenProvider);
     }

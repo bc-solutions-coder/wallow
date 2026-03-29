@@ -80,12 +80,16 @@ public class InvoiceCreatedDomainEventHandlerTests
 {
     private readonly IInvoiceRepository _repository;
     private readonly IMessageBus _bus;
+    private readonly IUserQueryService _userQueryService;
     private readonly ILogger<InvoiceCreatedDomainEventHandler> _logger;
 
     public InvoiceCreatedDomainEventHandlerTests()
     {
         _repository = Substitute.For<IInvoiceRepository>();
         _bus = Substitute.For<IMessageBus>();
+        _userQueryService = Substitute.For<IUserQueryService>();
+        _userQueryService.GetUserEmailAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns("test@example.com");
         _logger = Substitute.For<ILogger<InvoiceCreatedDomainEventHandler>>();
     }
 
@@ -105,7 +109,7 @@ public class InvoiceCreatedDomainEventHandlerTests
 
         // Act
         await InvoiceCreatedDomainEventHandler.HandleAsync(
-            domainEvent, _repository, _bus, _logger, CancellationToken.None);
+            domainEvent, _repository, _bus, _userQueryService, TimeProvider.System, _logger, CancellationToken.None);
 
         // Assert
         await _bus.Received(1).PublishAsync(Arg.Is<InvoiceCreatedEvent>(e =>
@@ -128,7 +132,7 @@ public class InvoiceCreatedDomainEventHandlerTests
 
         // Act
         await InvoiceCreatedDomainEventHandler.HandleAsync(
-            domainEvent, _repository, _bus, _logger, CancellationToken.None);
+            domainEvent, _repository, _bus, _userQueryService, TimeProvider.System, _logger, CancellationToken.None);
 
         // Assert
         await _bus.Received(1).PublishAsync(Arg.Is<InvoiceCreatedEvent>(e =>
@@ -157,7 +161,7 @@ public class InvoiceCreatedDomainEventHandlerTests
 
         // Act
         await InvoiceCreatedDomainEventHandler.HandleAsync(
-            domainEvent, _repository, _bus, _logger, CancellationToken.None);
+            domainEvent, _repository, _bus, _userQueryService, TimeProvider.System, _logger, CancellationToken.None);
 
         // Assert
         await _bus.Received(1).PublishAsync(Arg.Is<InvoiceCreatedEvent>(e =>

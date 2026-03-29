@@ -127,21 +127,6 @@ public class InvoiceRepositoryTests(PostgresContainerFixture fixture) : DbContex
     }
 
     [Fact]
-    public async Task Remove_DeletesInvoice()
-    {
-        InvoiceRepository repository = CreateRepository();
-        Invoice invoice = Invoice.Create(TestUserId, "INV-REPO-010", "USD", TestUserId, TimeProvider.System);
-        repository.Add(invoice);
-        await repository.SaveChangesAsync();
-
-        repository.Remove(invoice);
-        await repository.SaveChangesAsync();
-
-        Invoice? result = await repository.GetByIdAsync(invoice.Id);
-        result.Should().BeNull();
-    }
-
-    [Fact]
     public async Task GetByIdAsync_WhenNotExists_ReturnsNull()
     {
         InvoiceRepository repository = CreateRepository();

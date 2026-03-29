@@ -26,7 +26,7 @@ public class InquiryStatusChangedDomainEventHandlerTests
             InquiryStatus.New.ToString(),
             InquiryStatus.Reviewed.ToString());
 
-        await InquiryStatusChangedDomainEventHandler.HandleAsync(domainEvent, repository, bus, CancellationToken.None);
+        await InquiryStatusChangedDomainEventHandler.HandleAsync(domainEvent, repository, bus, TimeProvider.System, CancellationToken.None);
 
         await bus.Received(1).PublishAsync(Arg.Is<InquiryStatusChangedEvent>(e =>
             e.InquiryId == domainEvent.InquiryId &&
@@ -50,7 +50,7 @@ public class InquiryStatusChangedDomainEventHandlerTests
             InquiryStatus.New.ToString(),
             InquiryStatus.Reviewed.ToString());
 
-        await InquiryStatusChangedDomainEventHandler.HandleAsync(domainEvent, repository, bus, CancellationToken.None);
+        await InquiryStatusChangedDomainEventHandler.HandleAsync(domainEvent, repository, bus, TimeProvider.System, CancellationToken.None);
 
         await repository.Received(1).GetByIdAsync(
             Arg.Is<InquiryId>(id => id.Value == inquiryId.Value),
@@ -71,7 +71,7 @@ public class InquiryStatusChangedDomainEventHandlerTests
             InquiryStatus.New.ToString(),
             InquiryStatus.Reviewed.ToString());
 
-        await InquiryStatusChangedDomainEventHandler.HandleAsync(domainEvent, repository, bus, CancellationToken.None);
+        await InquiryStatusChangedDomainEventHandler.HandleAsync(domainEvent, repository, bus, TimeProvider.System, CancellationToken.None);
 
         await bus.Received(1).PublishAsync(Arg.Is<InquiryStatusChangedEvent>(e =>
             e.InquiryId == inquiryId &&

@@ -123,8 +123,7 @@ public partial class InquiriesController(IMessageBus bus, ITenantContext tenantC
             return result.Map(ToInquiryResponse).ToActionResult();
         }
 
-        bool hasReadPermission = User.Claims
-            .Any(c => c.Type == "permission" && c.Value == PermissionType.InquiriesRead);
+        bool hasReadPermission = User.GetPermissions().Contains(PermissionType.InquiriesRead);
 
         if (!hasReadPermission)
         {
@@ -140,6 +139,7 @@ public partial class InquiriesController(IMessageBus bus, ITenantContext tenantC
     }
 
     [HttpPatch("{id:guid}/status")]
+    [HasPermission(PermissionType.InquiriesWrite)]
     [ProducesResponseType(typeof(InquiryResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
@@ -198,8 +198,7 @@ public partial class InquiriesController(IMessageBus bus, ITenantContext tenantC
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetComments(Guid id, CancellationToken cancellationToken)
     {
-        bool hasReadPermission = User.Claims
-            .Any(c => c.Type == "permission" && c.Value == PermissionType.InquiriesRead);
+        bool hasReadPermission = User.GetPermissions().Contains(PermissionType.InquiriesRead);
 
         if (!hasReadPermission)
         {
@@ -259,7 +258,7 @@ public partial class InquiriesController(IMessageBus bus, ITenantContext tenantC
         dto.Message,
         dto.Status,
         dto.CreatedAt.UtcDateTime,
-        dto.CreatedAt.UtcDateTime);
+        dto.UpdatedAt ?? dto.CreatedAt.UtcDateTime);
 
     private static InquiryCommentResponse ToInquiryCommentResponse(InquiryCommentDto dto) => new(
         dto.Id,

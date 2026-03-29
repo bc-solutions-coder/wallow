@@ -18,19 +18,3 @@ public class StronglyTypedIdConverter<TId> : ValueConverter<TId, Guid>
     {
     }
 }
-
-/// <summary>
-/// Extension methods for configuring strongly-typed IDs in EF Core.
-/// </summary>
-public static class StronglyTypedIdExtensions
-{
-    /// <summary>
-    /// Creates a new ID if the value is empty, otherwise returns the existing value.
-    /// Useful for ensuring entities always have a valid ID.
-    /// </summary>
-    public static TId EnsureId<TId>(this TId id)
-        where TId : struct, IStronglyTypedId<TId>
-    {
-        return id.Value == Guid.Empty ? TId.New() : id;
-    }
-}

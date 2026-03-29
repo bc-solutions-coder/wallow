@@ -17,7 +17,7 @@ internal sealed partial class RedisPresenceService(
 
     private IDatabase Db => redis.GetDatabase();
 
-    public async Task TrackConnectionAsync(Guid tenantId, string userId, string connectionId, CancellationToken ct = default)
+    public Task TrackConnectionAsync(Guid tenantId, string userId, string connectionId, CancellationToken ct = default)
     {
         IDatabase db = Db;
         IBatch batch = db.CreateBatch();
@@ -34,9 +34,10 @@ internal sealed partial class RedisPresenceService(
         _ = batch.StringSetAsync(ConnectionTenantPrefix + connectionId, tenantId.ToString(), _connectionTtl);
 
         batch.Execute();
-        await Task.CompletedTask;
 
         LogTrackedConnection(connectionId, userId);
+
+        return Task.CompletedTask;
     }
 
     public async Task RemoveConnectionAsync(string connectionId, CancellationToken ct = default)

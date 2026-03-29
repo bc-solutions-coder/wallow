@@ -25,6 +25,7 @@ public sealed partial class ValkeyMeteringService(
     IMeterDefinitionRepository meterRepository,
     IMessageBus messageBus,
     ISubscriptionQueryService subscriptionQueryService,
+    TimeProvider timeProvider,
     ILogger<ValkeyMeteringService> logger) : IMeteringService
 {
     private static readonly TimeSpan _keyExpiration = TimeSpan.FromDays(90);
@@ -170,9 +171,9 @@ public sealed partial class ValkeyMeteringService(
             FlushedAt: r.FlushedAt)).ToList();
     }
 
-    private static string GetCurrentPeriodKey(QuotaPeriod period)
+    private string GetCurrentPeriodKey(QuotaPeriod period)
     {
-        DateTime now = DateTime.UtcNow;
+        DateTime now = timeProvider.GetUtcNow().UtcDateTime;
         return period switch
         {
             QuotaPeriod.Hourly => now.ToString("yyyy-MM-dd-HH"),

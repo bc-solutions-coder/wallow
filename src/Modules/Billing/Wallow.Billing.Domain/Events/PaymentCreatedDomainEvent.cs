@@ -7,4 +7,5 @@ public sealed record PaymentCreatedDomainEvent(
     Guid InvoiceId,
     decimal Amount,
     string Currency,
+    string PaymentMethod,
     Guid UserId) : DomainEvent;

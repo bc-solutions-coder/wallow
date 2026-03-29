@@ -4,5 +4,5 @@ namespace Wallow.Notifications.Application.Channels.Push.Interfaces;
 
 public interface IPushProviderFactory
 {
-    IPushProvider GetProvider(PushPlatform platform);
+    Task<IPushProvider> GetProviderAsync(PushPlatform platform);
 }

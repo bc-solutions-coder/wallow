@@ -42,6 +42,7 @@ public class PaymentCreatedDomainEventHandlerTests
             invoiceId,
             500.00m,
             "USD",
+            "CreditCard",
             userId);
 
         await PaymentCreatedDomainEventHandler.HandleAsync(
@@ -49,6 +50,7 @@ public class PaymentCreatedDomainEventHandlerTests
             _messageBus,
             _tenantContext,
             _userQueryService,
+            TimeProvider.System,
             _logger,
             CancellationToken.None);
 
@@ -69,6 +71,7 @@ public class PaymentCreatedDomainEventHandlerTests
             Guid.NewGuid(),
             100m,
             "USD",
+            "BankTransfer",
             Guid.NewGuid());
 
         using CancellationTokenSource cts = new();
@@ -78,6 +81,7 @@ public class PaymentCreatedDomainEventHandlerTests
             _messageBus,
             _tenantContext,
             _userQueryService,
+            TimeProvider.System,
             _logger,
             cts.Token);
 
@@ -93,6 +97,7 @@ public class PaymentCreatedDomainEventHandlerTests
             Guid.NewGuid(),
             100m,
             "USD",
+            "CreditCard",
             Guid.NewGuid());
 
         await PaymentCreatedDomainEventHandler.HandleAsync(
@@ -100,6 +105,7 @@ public class PaymentCreatedDomainEventHandlerTests
             _messageBus,
             _tenantContext,
             _userQueryService,
+            TimeProvider.System,
             _logger,
             CancellationToken.None);
 
@@ -120,6 +126,7 @@ public class PaymentCreatedDomainEventHandlerTests
             Guid.NewGuid(),
             100m,
             "USD",
+            "CreditCard",
             Guid.NewGuid());
 
         await PaymentCreatedDomainEventHandler.HandleAsync(
@@ -127,6 +134,7 @@ public class PaymentCreatedDomainEventHandlerTests
             _messageBus,
             _tenantContext,
             _userQueryService,
+            TimeProvider.System,
             _logger,
             CancellationToken.None);
 

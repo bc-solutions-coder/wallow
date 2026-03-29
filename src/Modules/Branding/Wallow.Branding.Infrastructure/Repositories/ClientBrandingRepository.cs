@@ -10,6 +10,7 @@ public sealed class ClientBrandingRepository(BrandingDbContext context) : IClien
     public Task<ClientBranding?> GetByClientIdAsync(string clientId, CancellationToken ct = default)
     {
         return context.ClientBrandings
+            .AsTracking()
             .FirstOrDefaultAsync(b => b.ClientId == clientId, ct);
     }
 

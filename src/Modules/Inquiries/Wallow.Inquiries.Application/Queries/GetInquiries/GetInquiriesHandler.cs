@@ -12,13 +12,11 @@ public sealed class GetInquiriesHandler(IInquiryRepository inquiryRepository)
         GetInquiriesQuery query,
         CancellationToken cancellationToken)
     {
-        IReadOnlyList<Inquiry> inquiries = await inquiryRepository.GetAllAsync(cancellationToken);
+        IReadOnlyList<Inquiry> inquiries = query.Status is not null
+            ? await inquiryRepository.GetByStatusAsync(query.Status.Value, cancellationToken)
+            : await inquiryRepository.GetAllAsync(cancellationToken);
 
-        IEnumerable<Inquiry> filtered = query.Status is not null
-            ? inquiries.Where(i => i.Status == query.Status.Value)
-            : inquiries;
-
-        List<InquiryDto> dtos = filtered.Select(i => i.ToDto()).ToList();
+        List<InquiryDto> dtos = inquiries.Select(i => i.ToDto()).ToList();
         return Result.Success<IReadOnlyList<InquiryDto>>(dtos);
     }
 }

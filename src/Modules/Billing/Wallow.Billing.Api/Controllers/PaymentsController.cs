@@ -97,7 +97,7 @@ public class PaymentsController(IMessageBus bus, ICurrentUserService currentUser
         Guid? currentUserId = currentUserService.GetCurrentUserId();
         if (currentUserId is null)
         {
-            return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
+            return Problem(statusCode: 401, title: "Unauthorized", detail: "Authentication is required");
         }
 
         ProcessPaymentCommand command = new(

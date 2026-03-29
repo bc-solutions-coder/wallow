@@ -1,3 +1,4 @@
+using JetBrains.Annotations;
 using Wallow.Messaging.Domain.Conversations.Identity;
 using Wallow.Shared.Kernel.Domain;
 
@@ -36,6 +37,7 @@ public sealed class Participant : Entity<ParticipantId>
         LastReadAt = timeProvider.GetUtcNow();
     }
 
+    [UsedImplicitly]
     public void Leave()
     {
         IsActive = false;

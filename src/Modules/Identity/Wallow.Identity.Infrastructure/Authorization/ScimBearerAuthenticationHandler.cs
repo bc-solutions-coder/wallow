@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
+using Wallow.Identity.Domain.ValueObjects;
 using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Shared.Kernel.MultiTenancy;
 
@@ -68,7 +69,7 @@ public sealed partial class ScimBearerAuthenticationHandler
             return AuthenticateResult.Fail("Invalid or expired SCIM token");
         }
 
-        string hashedToken = HashToken(token);
+        string hashedToken = TokenHash.Compute(token);
         byte[] expectedBytes = Encoding.UTF8.GetBytes(config.BearerToken);
         byte[] actualBytes = Encoding.UTF8.GetBytes(hashedToken);
 
@@ -94,13 +95,6 @@ public sealed partial class ScimBearerAuthenticationHandler
         AuthenticationTicket ticket = new(principal, "ScimBearer");
 
         return AuthenticateResult.Success(ticket);
-    }
-
-    private static string HashToken(string token)
-    {
-        byte[] bytes = Encoding.UTF8.GetBytes(token);
-        byte[] hash = SHA256.HashData(bytes);
-        return Convert.ToBase64String(hash);
     }
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Invalid SCIM token attempt from {RemoteIp}")]

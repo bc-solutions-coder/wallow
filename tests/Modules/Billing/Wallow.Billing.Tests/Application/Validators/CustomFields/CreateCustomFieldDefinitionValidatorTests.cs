@@ -59,12 +59,12 @@ public class CreateCustomFieldDefinitionValidatorTests
     public void Should_Have_Error_When_FieldKey_Exceeds_MaxLength()
     {
         CreateCustomFieldDefinitionCommand command = new(
-            "Invoice", new string('a', 101), "PO Number", CustomFieldType.Text);
+            "Invoice", new string('a', 51), "PO Number", CustomFieldType.Text);
 
         TestValidationResult<CreateCustomFieldDefinitionCommand> result = _validator.TestValidate(command);
 
         result.ShouldHaveValidationErrorFor(x => x.FieldKey)
-            .WithErrorMessage("Field key must not exceed 100 characters");
+            .WithErrorMessage("Field key must not exceed 50 characters");
     }
 
     [Theory]
@@ -78,7 +78,7 @@ public class CreateCustomFieldDefinitionValidatorTests
         TestValidationResult<CreateCustomFieldDefinitionCommand> result = _validator.TestValidate(command);
 
         result.ShouldHaveValidationErrorFor(x => x.FieldKey)
-            .WithErrorMessage("Field key must contain only alphanumeric characters and underscores");
+            .WithErrorMessage("Field key must start with a lowercase letter and contain only lowercase alphanumeric characters and underscores");
     }
 
     [Fact]

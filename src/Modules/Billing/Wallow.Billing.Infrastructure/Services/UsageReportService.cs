@@ -34,8 +34,8 @@ public sealed class UsageReportService(BillingDbContext dbContext) : IUsageRepor
                 g.Key.DisplayName,
                 (long)g.Sum(x => x.Value),
                 g.Key.Unit,
-                0m, // BillableAmount - no pricing integration yet
-                "USD")) // Currency - hardcoded for now
+                0m, // TODO: Calculate BillableAmount by looking up per-meter pricing from a pricing/rate-card table. Tracked placeholder.
+                "USD")) // TODO: Derive currency from tenant billing settings instead of hardcoding.
             .OrderBy(r => r.Date)
             .ThenBy(r => r.Metric)
             .ToListAsync(ct);

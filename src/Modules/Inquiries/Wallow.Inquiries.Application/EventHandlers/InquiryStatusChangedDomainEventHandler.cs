@@ -12,6 +12,7 @@ public static class InquiryStatusChangedDomainEventHandler
         InquiryStatusChangedDomainEvent domainEvent,
         IInquiryRepository repository,
         IMessageBus bus,
+        TimeProvider timeProvider,
         CancellationToken ct)
     {
         Inquiry? inquiry = await repository.GetByIdAsync(
@@ -22,7 +23,7 @@ public static class InquiryStatusChangedDomainEventHandler
             InquiryId = domainEvent.InquiryId,
             OldStatus = domainEvent.OldStatus,
             NewStatus = domainEvent.NewStatus,
-            ChangedAt = inquiry?.UpdatedAt ?? DateTime.UtcNow,
+            ChangedAt = inquiry?.UpdatedAt ?? timeProvider.GetUtcNow().UtcDateTime,
             SubmitterEmail = inquiry?.Email ?? string.Empty
         });
     }

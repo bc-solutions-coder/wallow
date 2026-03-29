@@ -96,7 +96,7 @@ public class SubscriptionsController(IMessageBus bus, ICurrentUserService curren
         Guid? currentUserId = currentUserService.GetCurrentUserId();
         if (currentUserId is null)
         {
-            return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
+            return Problem(statusCode: 401, title: "Unauthorized", detail: "Authentication is required");
         }
 
         CreateSubscriptionCommand command = new(
@@ -131,7 +131,7 @@ public class SubscriptionsController(IMessageBus bus, ICurrentUserService curren
         Guid? currentUserId = currentUserService.GetCurrentUserId();
         if (currentUserId is null)
         {
-            return Problem(statusCode: 401, title: "Unauthorized", detail: "Tenant context is required");
+            return Problem(statusCode: 401, title: "Unauthorized", detail: "Authentication is required");
         }
 
         CancelSubscriptionCommand command = new(id, currentUserId.Value);

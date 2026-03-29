@@ -25,7 +25,7 @@ public sealed partial class DeliverPushHandler(
 
         try
         {
-            IPushProvider provider = pushProviderFactory.GetProvider(command.Platform);
+            IPushProvider provider = await pushProviderFactory.GetProviderAsync(command.Platform);
 
             PushDeliveryResult result = await provider.SendAsync(
                 pushMessage, command.Token, cancellationToken);

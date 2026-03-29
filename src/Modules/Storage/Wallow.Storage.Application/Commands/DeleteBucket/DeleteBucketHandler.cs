@@ -38,10 +38,12 @@ public sealed class DeleteBucketHandler(
             foreach (StoredFile file in files)
             {
                 await storageProvider.DeleteAsync(file.StorageKey, cancellationToken);
+                file.MarkAsDeleted();
                 fileRepository.Remove(file);
             }
         }
 
+        bucket.Delete();
         bucketRepository.Remove(bucket);
         await bucketRepository.SaveChangesAsync(cancellationToken);
 

@@ -24,7 +24,8 @@ public sealed class ClientBranding : Entity<ClientBrandingId>, ITenantScoped
         string displayName,
         string? tagline,
         string? logoStorageKey,
-        string? themeJson)
+        string? themeJson,
+        TimeProvider timeProvider)
     {
         Id = ClientBrandingId.New();
         ClientId = clientId;
@@ -32,7 +33,7 @@ public sealed class ClientBranding : Entity<ClientBrandingId>, ITenantScoped
         Tagline = tagline;
         LogoStorageKey = logoStorageKey;
         ThemeJson = themeJson;
-        CreatedAt = DateTime.UtcNow;
+        CreatedAt = timeProvider.GetUtcNow().UtcDateTime;
     }
 
     public static ClientBranding Create(
@@ -40,7 +41,8 @@ public sealed class ClientBranding : Entity<ClientBrandingId>, ITenantScoped
         string displayName,
         string? tagline = null,
         string? logoStorageKey = null,
-        string? themeJson = null)
+        string? themeJson = null,
+        TimeProvider? timeProvider = null)
     {
         if (string.IsNullOrWhiteSpace(clientId))
         {
@@ -56,14 +58,15 @@ public sealed class ClientBranding : Entity<ClientBrandingId>, ITenantScoped
                 "Display name cannot be empty");
         }
 
-        return new ClientBranding(clientId, displayName, tagline, logoStorageKey, themeJson);
+        return new ClientBranding(clientId, displayName, tagline, logoStorageKey, themeJson, timeProvider ?? TimeProvider.System);
     }
 
     public void Update(
         string displayName,
         string? tagline,
         string? logoStorageKey,
-        string? themeJson)
+        string? themeJson,
+        TimeProvider? timeProvider = null)
     {
         if (string.IsNullOrWhiteSpace(displayName))
         {
@@ -76,12 +79,12 @@ public sealed class ClientBranding : Entity<ClientBrandingId>, ITenantScoped
         Tagline = tagline;
         LogoStorageKey = logoStorageKey;
         ThemeJson = themeJson;
-        UpdatedAt = DateTime.UtcNow;
+        UpdatedAt = (timeProvider ?? TimeProvider.System).GetUtcNow().UtcDateTime;
     }
 
-    public void ClearLogo()
+    public void ClearLogo(TimeProvider? timeProvider = null)
     {
         LogoStorageKey = null;
-        UpdatedAt = DateTime.UtcNow;
+        UpdatedAt = (timeProvider ?? TimeProvider.System).GetUtcNow().UtcDateTime;
     }
 }

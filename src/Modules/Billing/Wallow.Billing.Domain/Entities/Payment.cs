@@ -1,3 +1,4 @@
+using JetBrains.Annotations;
 using Wallow.Billing.Domain.Enums;
 using Wallow.Billing.Domain.Events;
 using Wallow.Billing.Domain.Exceptions;
@@ -79,6 +80,7 @@ public sealed class Payment : AggregateRoot<PaymentId>, ITenantScoped, IHasCusto
             invoiceId.Value,
             amount.Amount,
             amount.Currency,
+            method.ToString(),
             userId));
 
         return payment;
@@ -117,6 +119,7 @@ public sealed class Payment : AggregateRoot<PaymentId>, ITenantScoped, IHasCusto
             UserId));
     }
 
+    [UsedImplicitly]
     public void Refund(Guid updatedByUserId, TimeProvider timeProvider)
     {
         if (Status != PaymentStatus.Completed)

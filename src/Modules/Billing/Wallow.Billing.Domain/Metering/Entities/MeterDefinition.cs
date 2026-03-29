@@ -1,3 +1,4 @@
+using JetBrains.Annotations;
 using Wallow.Billing.Domain.Metering.Enums;
 using Wallow.Billing.Domain.Metering.Identity;
 using Wallow.Shared.Kernel.Domain;
@@ -50,7 +51,8 @@ public sealed class MeterDefinition : AuditableEntity<MeterDefinitionId>
         MeterAggregation aggregation,
         bool isBillable,
         string? valkeyKeyPattern,
-        Guid createdByUserId)
+        Guid createdByUserId,
+        TimeProvider timeProvider)
     {
         Id = MeterDefinitionId.New();
         Code = code;
@@ -59,7 +61,7 @@ public sealed class MeterDefinition : AuditableEntity<MeterDefinitionId>
         Aggregation = aggregation;
         IsBillable = isBillable;
         ValkeyKeyPattern = valkeyKeyPattern;
-        SetCreated(DateTimeOffset.UtcNow, createdByUserId);
+        SetCreated(timeProvider.GetUtcNow(), createdByUserId);
     }
 
     public static MeterDefinition Create(
@@ -69,7 +71,8 @@ public sealed class MeterDefinition : AuditableEntity<MeterDefinitionId>
         MeterAggregation aggregation,
         bool isBillable,
         string? valkeyKeyPattern = null,
-        Guid? createdByUserId = null)
+        Guid? createdByUserId = null,
+        TimeProvider? timeProvider = null)
     {
         if (string.IsNullOrWhiteSpace(code))
         {
@@ -99,16 +102,19 @@ public sealed class MeterDefinition : AuditableEntity<MeterDefinitionId>
             aggregation,
             isBillable,
             valkeyKeyPattern,
-            createdByUserId ?? Guid.Empty);
+            createdByUserId ?? Guid.Empty,
+            timeProvider ?? TimeProvider.System);
     }
 
+    [UsedImplicitly]
     public void Update(
         string displayName,
         string unit,
         MeterAggregation aggregation,
         bool isBillable,
         string? valkeyKeyPattern,
-        Guid updatedByUserId)
+        Guid updatedByUserId,
+        TimeProvider? timeProvider = null)
     {
         if (string.IsNullOrWhiteSpace(displayName))
         {
@@ -129,6 +135,6 @@ public sealed class MeterDefinition : AuditableEntity<MeterDefinitionId>
         Aggregation = aggregation;
         IsBillable = isBillable;
         ValkeyKeyPattern = valkeyKeyPattern;
-        SetUpdated(DateTimeOffset.UtcNow, updatedByUserId);
+        SetUpdated((timeProvider ?? TimeProvider.System).GetUtcNow(), updatedByUserId);
     }
 }

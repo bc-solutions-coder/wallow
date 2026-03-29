@@ -7,7 +7,8 @@ namespace Wallow.Billing.Infrastructure.Services;
 
 public sealed class MeteringQueryService(
     IUsageRecordRepository usageRecordRepository,
-    IQuotaDefinitionRepository quotaDefinitionRepository) : IMeteringQueryService
+    IQuotaDefinitionRepository quotaDefinitionRepository,
+    TimeProvider timeProvider) : IMeteringQueryService
 {
 
     public async Task<QuotaStatus?> CheckQuotaAsync(Guid tenantId, string meterCode, CancellationToken ct = default)
@@ -44,9 +45,9 @@ public sealed class MeteringQueryService(
             isExceeded);
     }
 
-    private static (DateTime Start, DateTime End) GetCurrentPeriodBounds(QuotaPeriod period)
+    private (DateTime Start, DateTime End) GetCurrentPeriodBounds(QuotaPeriod period)
     {
-        DateTime now = DateTime.UtcNow;
+        DateTime now = timeProvider.GetUtcNow().UtcDateTime;
 
         return period switch
         {

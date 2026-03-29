@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using JetBrains.Annotations;
 using Wallow.Billing.Domain.CustomFields.Events;
 using Wallow.Billing.Domain.CustomFields.Exceptions;
 using Wallow.Billing.Domain.CustomFields.Identity;
@@ -165,6 +166,18 @@ public sealed partial class CustomFieldDefinition : AggregateRoot<CustomFieldDef
             : JsonSerializer.Deserialize<List<CustomFieldOption>>(OptionsJson, _jsonOptions) ?? [];
     }
 
+    [UsedImplicitly]
+    public void Activate(Guid activatedBy, TimeProvider timeProvider)
+    {
+        if (IsActive)
+        {
+            throw new CustomFieldException("Field is already active");
+        }
+
+        IsActive = true;
+        SetUpdated(timeProvider.GetUtcNow(), activatedBy);
+    }
+
     public void Deactivate(Guid deactivatedBy, TimeProvider timeProvider)
     {
         if (!IsActive)
@@ -175,17 +188,6 @@ public sealed partial class CustomFieldDefinition : AggregateRoot<CustomFieldDef
         IsActive = false;
         SetUpdated(timeProvider.GetUtcNow(), deactivatedBy);
         RaiseDomainEvent(new CustomFieldDefinitionDeactivatedEvent(Id.Value, TenantId.Value, EntityType, FieldKey));
-    }
-
-    public void Activate(Guid activatedBy, TimeProvider timeProvider)
-    {
-        if (IsActive)
-        {
-            throw new CustomFieldException("Field is already active");
-        }
-
-        IsActive = true;
-        SetUpdated(timeProvider.GetUtcNow(), activatedBy);
     }
 
     private static void ValidateEntityType(string entityType)

@@ -1,3 +1,4 @@
+using JetBrains.Annotations;
 using Wallow.Notifications.Domain.Channels.Email.Identity;
 using Wallow.Notifications.Domain.Enums;
 using Wallow.Shared.Kernel.Domain;
@@ -50,9 +51,11 @@ public sealed class EmailPreference : AggregateRoot<EmailPreferenceId>, ITenantS
         SetUpdated(timeProvider.GetUtcNow());
     }
 
+    [UsedImplicitly]
     public void Toggle(TimeProvider timeProvider)
     {
         IsEnabled = !IsEnabled;
         SetUpdated(timeProvider.GetUtcNow());
     }
+
 }

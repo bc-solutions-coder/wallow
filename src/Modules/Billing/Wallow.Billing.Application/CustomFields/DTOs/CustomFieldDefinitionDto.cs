@@ -18,5 +18,3 @@ public sealed record CustomFieldDefinitionDto
     public required DateTimeOffset CreatedAt { get; init; }
     public required DateTimeOffset? UpdatedAt { get; init; }
 }
-
-public sealed record EntityTypeDto(string EntityType, string Module, string Description);

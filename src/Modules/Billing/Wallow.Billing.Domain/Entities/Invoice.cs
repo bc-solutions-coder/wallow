@@ -1,3 +1,4 @@
+using JetBrains.Annotations;
 using Wallow.Billing.Domain.Enums;
 using Wallow.Billing.Domain.Events;
 using Wallow.Billing.Domain.Exceptions;
@@ -110,24 +111,6 @@ public sealed class Invoice : AggregateRoot<InvoiceId>, ITenantScoped, IHasCusto
         SetUpdated(timeProvider.GetUtcNow(), updatedByUserId);
     }
 
-    public void RemoveLineItem(InvoiceLineItemId lineItemId, Guid updatedByUserId, TimeProvider timeProvider)
-    {
-        if (Status != InvoiceStatus.Draft)
-        {
-            throw new InvalidInvoiceException("Can only remove line items from draft invoices");
-        }
-
-        InvoiceLineItem? item = _lineItems.FirstOrDefault(li => li.Id == lineItemId);
-        if (item is null)
-        {
-            throw new BusinessRuleException("Billing.LineItemNotFound", "Line item not found on this invoice");
-        }
-
-        _lineItems.Remove(item);
-        RecalculateTotal();
-        SetUpdated(timeProvider.GetUtcNow(), updatedByUserId);
-    }
-
     public void Issue(Guid issuedByUserId, TimeProvider timeProvider)
     {
         if (Status != InvoiceStatus.Draft)
@@ -158,6 +141,7 @@ public sealed class Invoice : AggregateRoot<InvoiceId>, ITenantScoped, IHasCusto
         RaiseDomainEvent(new InvoicePaidDomainEvent(Id.Value, paymentId, PaidAt.Value));
     }
 
+    [UsedImplicitly]
     public void MarkAsOverdue(Guid updatedByUserId, TimeProvider timeProvider)
     {
         if (Status != InvoiceStatus.Issued)
@@ -168,7 +152,27 @@ public sealed class Invoice : AggregateRoot<InvoiceId>, ITenantScoped, IHasCusto
         Status = InvoiceStatus.Overdue;
         SetUpdated(timeProvider.GetUtcNow(), updatedByUserId);
 
-        RaiseDomainEvent(new InvoiceOverdueDomainEvent(Id.Value, UserId, DueDate ?? timeProvider.GetUtcNow().UtcDateTime));
+        RaiseDomainEvent(new InvoiceOverdueDomainEvent(
+            Id.Value, UserId, DueDate ?? timeProvider.GetUtcNow().UtcDateTime));
+    }
+
+    [UsedImplicitly]
+    public void RemoveLineItem(InvoiceLineItemId lineItemId, Guid updatedByUserId, TimeProvider timeProvider)
+    {
+        if (Status != InvoiceStatus.Draft)
+        {
+            throw new InvalidInvoiceException("Can only remove line items from draft invoices");
+        }
+
+        InvoiceLineItem? lineItem = _lineItems.FirstOrDefault(li => li.Id == lineItemId);
+        if (lineItem is null)
+        {
+            throw new BusinessRuleException("Billing.LineItemNotFound", "Line item not found");
+        }
+
+        _lineItems.Remove(lineItem);
+        RecalculateTotal();
+        SetUpdated(timeProvider.GetUtcNow(), updatedByUserId);
     }
 
     public void Cancel(Guid cancelledByUserId, TimeProvider timeProvider)

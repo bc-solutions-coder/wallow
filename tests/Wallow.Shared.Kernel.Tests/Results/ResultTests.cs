@@ -27,32 +27,6 @@ public class ResultTests
     }
 
     [Fact]
-    public void Create_WhenConditionTrue_ReturnsSuccess()
-    {
-        Result result = Result.Create(true, Error.NullValue);
-
-        result.IsSuccess.Should().BeTrue();
-    }
-
-    [Fact]
-    public void Create_WhenConditionFalse_ReturnsFailure()
-    {
-        Result result = Result.Create(false, Error.NullValue);
-
-        result.IsFailure.Should().BeTrue();
-        result.Error.Should().Be(Error.NullValue);
-    }
-
-    [Fact]
-    public void Create_WhenConditionTrue_HasNoError()
-    {
-        Result result = Result.Create(true, Error.NullValue);
-
-        result.IsSuccess.Should().BeTrue();
-        result.Error.Should().Be(Error.None);
-    }
-
-    [Fact]
     public void Constructor_SuccessWithNonNoneError_ThrowsInvalidOperationException()
     {
         Error error = new("Test.Error", "Should not be on success");

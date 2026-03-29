@@ -12,9 +12,9 @@ public sealed class CreateCustomFieldDefinitionValidator : AbstractValidator<Cre
 
         RuleFor(x => x.FieldKey)
             .NotEmpty().WithMessage("Field key is required")
-            .MaximumLength(100).WithMessage("Field key must not exceed 100 characters")
-            .Matches("^[a-zA-Z0-9_]+$")
-            .WithMessage("Field key must contain only alphanumeric characters and underscores");
+            .MaximumLength(50).WithMessage("Field key must not exceed 50 characters")
+            .Matches("^[a-z][a-z0-9_]*$")
+            .WithMessage("Field key must start with a lowercase letter and contain only lowercase alphanumeric characters and underscores");
 
         RuleFor(x => x.DisplayName)
             .NotEmpty().WithMessage("Display name is required")

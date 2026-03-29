@@ -24,6 +24,7 @@ public sealed class DeleteFileHandler(
 
         await storageProvider.DeleteAsync(file.StorageKey, cancellationToken);
 
+        file.MarkAsDeleted();
         fileRepository.Remove(file);
         await fileRepository.SaveChangesAsync(cancellationToken);
 

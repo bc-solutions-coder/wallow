@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using Wallow.Identity.Domain.Identity;
+using Wallow.Identity.Domain.ValueObjects;
 using Wallow.Shared.Kernel.Domain;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
@@ -51,7 +52,7 @@ public sealed class ScimConfiguration : AggregateRoot<ScimConfigurationId>, ITen
 
         ScimConfiguration config = new(
             tenantId,
-            HashToken(token),
+            TokenHash.Compute(token),
             prefix,
             expiresAt,
             createdByUserId,
@@ -65,7 +66,7 @@ public sealed class ScimConfiguration : AggregateRoot<ScimConfigurationId>, ITen
         (string token, string prefix) = GenerateTokenAndPrefix();
         string plainTextToken = token;
 
-        BearerToken = HashToken(token);
+        BearerToken = TokenHash.Compute(token);
         TokenPrefix = prefix;
         TokenExpiresAt = timeProvider.GetUtcNow().UtcDateTime.AddYears(1);
         SetUpdated(timeProvider.GetUtcNow(), updatedByUserId);
@@ -133,10 +134,4 @@ public sealed class ScimConfiguration : AggregateRoot<ScimConfigurationId>, ITen
         return (token, prefix);
     }
 
-    private static string HashToken(string token)
-    {
-        byte[] bytes = System.Text.Encoding.UTF8.GetBytes(token);
-        byte[] hash = SHA256.HashData(bytes);
-        return Convert.ToBase64String(hash);
-    }
 }

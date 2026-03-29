@@ -130,11 +130,11 @@ public class PaymentEventHandlerTests
         Guid userId = Guid.NewGuid();
 
         PaymentCreatedDomainEvent domainEvent = new(
-            paymentId, invoiceId, 250.00m, "EUR", userId);
+            paymentId, invoiceId, 250.00m, "EUR", "CreditCard", userId);
 
         // Act
         await PaymentCreatedDomainEventHandler.HandleAsync(
-            domainEvent, _messageBus, _tenantContext, _userQueryService, _paymentReceivedLogger, CancellationToken.None);
+            domainEvent, _messageBus, _tenantContext, _userQueryService, TimeProvider.System, _paymentReceivedLogger, CancellationToken.None);
 
         // Assert
         await _messageBus.Received(1).PublishAsync(Arg.Is<PaymentReceivedEvent>(e =>
@@ -147,20 +147,20 @@ public class PaymentEventHandlerTests
     }
 
     [Fact]
-    public async Task PaymentReceived_SetsUserEmailFromQueryService_AndEmptyPaymentMethod()
+    public async Task PaymentReceived_SetsUserEmailFromQueryService_AndPaymentMethod()
     {
         // Arrange
         PaymentCreatedDomainEvent domainEvent = new(
-            Guid.NewGuid(), Guid.NewGuid(), 100m, "USD", Guid.NewGuid());
+            Guid.NewGuid(), Guid.NewGuid(), 100m, "USD", "BankTransfer", Guid.NewGuid());
 
         // Act
         await PaymentCreatedDomainEventHandler.HandleAsync(
-            domainEvent, _messageBus, _tenantContext, _userQueryService, _paymentReceivedLogger, CancellationToken.None);
+            domainEvent, _messageBus, _tenantContext, _userQueryService, TimeProvider.System, _paymentReceivedLogger, CancellationToken.None);
 
         // Assert
         await _messageBus.Received(1).PublishAsync(Arg.Is<PaymentReceivedEvent>(e =>
             e.UserEmail == "test@example.com" &&
-            e.PaymentMethod == string.Empty));
+            e.PaymentMethod == "BankTransfer"));
     }
 
     [Fact]
@@ -168,13 +168,13 @@ public class PaymentEventHandlerTests
     {
         // Arrange
         PaymentCreatedDomainEvent domainEvent = new(
-            Guid.NewGuid(), Guid.NewGuid(), 75m, "GBP", Guid.NewGuid());
+            Guid.NewGuid(), Guid.NewGuid(), 75m, "GBP", "PayPal", Guid.NewGuid());
 
         // Act
         await PaymentCreatedDomainEventHandler.HandleAsync(
-            domainEvent, _messageBus, _tenantContext, _userQueryService, _paymentReceivedLogger, CancellationToken.None);
+            domainEvent, _messageBus, _tenantContext, _userQueryService, TimeProvider.System, _paymentReceivedLogger, CancellationToken.None);
         await PaymentCreatedDomainEventHandler.HandleAsync(
-            domainEvent, _messageBus, _tenantContext, _userQueryService, _paymentReceivedLogger, CancellationToken.None);
+            domainEvent, _messageBus, _tenantContext, _userQueryService, TimeProvider.System, _paymentReceivedLogger, CancellationToken.None);
 
         // Assert - handler is stateless, duplicate calls publish again
         await _messageBus.Received(2).PublishAsync(Arg.Any<PaymentReceivedEvent>());

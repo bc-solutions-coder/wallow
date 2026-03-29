@@ -413,8 +413,9 @@ public sealed partial class OrganizationService(
 
     public Task<string> UploadBrandingLogoAsync(Guid organizationId, Stream logoStream, string fileName, string contentType, Guid actorId, CancellationToken ct = default)
     {
-        // Logo upload will be wired to the Storage module via integration events in a future iteration.
-        // For now, return a placeholder path based on org ID.
+        // TODO: Wire to Storage module via Wolverine integration event (e.g. UploadFileCommand).
+        // Should publish a file upload request to the Storage module and return the resulting URL.
+        // Tracked placeholder — currently returns a deterministic path without persisting the file.
         string logoPath = $"/storage/organizations/{organizationId}/branding/logo/{fileName}";
         return Task.FromResult(logoPath);
     }
