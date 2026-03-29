@@ -13,7 +13,7 @@ Fork it. Add your domain modules. Deploy.
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Tests](https://img.shields.io/badge/tests-6%2C078_passing-brightgreen?logo=checkmarx&logoColor=white)](#testing)
 [![Coverage](https://img.shields.io/badge/coverage-97.7%25_lines_·_89.5%25_branches-brightgreen?logo=codecov&logoColor=white)](#testing)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-Apache_2.0-green.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)](docker/)
 
 </div>
@@ -179,4 +179,4 @@ Configuration loads in order: `appsettings.json` → `appsettings.{Environment}.
 
 ## License
 
-[MIT](LICENSE)
+[Apache 2.0](LICENSE)
