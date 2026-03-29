@@ -49,7 +49,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Pull, retag, and push with semver
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Retag multi-arch manifests with semver
         env:
           VERSION: ${{ steps.version.outputs.semver }}
         run: |
@@ -58,15 +61,10 @@ jobs:
           for suffix in "" "-auth" "-web"; do
             image="${IMAGE_BASE}${suffix}"
 
-            echo "Pulling ${image}:latest..."
-            docker pull "${image}:latest"
-
-            echo "Tagging with version ${VERSION}..."
-            docker tag "${image}:latest" "${image}:${VERSION}"
-            docker tag "${image}:latest" "${image}:${MAJOR_MINOR}"
-
-            docker push "${image}:${VERSION}"
-            docker push "${image}:${MAJOR_MINOR}"
+            docker buildx imagetools create \
+              --tag "${image}:${VERSION}" \
+              --tag "${image}:${MAJOR_MINOR}" \
+              "${image}:latest"
 
             echo "Pushed ${image}:${VERSION} and ${image}:${MAJOR_MINOR}"
           done

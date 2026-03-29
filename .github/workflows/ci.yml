@@ -221,19 +221,46 @@ jobs:
 
       - name: Publish .NET container images
         run: |
+          # amd64 images (--no-build reuses the Release build from the build job)
           dotnet publish src/Wallow.Api/Wallow.Api.csproj \
             -c Release --no-build /t:PublishContainer \
-            -p:ContainerImageTag=test \
+            -p:ContainerImageTag=test-amd64 \
             -p:BuildMigrationBundles=true
           dotnet publish src/Wallow.Auth/Wallow.Auth.csproj \
             -c Release --no-build /t:PublishContainer \
-            -p:ContainerImageTag=test
+            -p:ContainerImageTag=test-amd64
           dotnet publish src/Wallow.Web/Wallow.Web.csproj \
             -c Release --no-build /t:PublishContainer \
-            -p:ContainerImageTag=test
+            -p:ContainerImageTag=test-amd64
+
+          # arm64 images (API must rebuild to cross-compile migration bundles;
+          # Auth and Web are pure IL so --no-build still works)
+          dotnet publish src/Wallow.Api/Wallow.Api.csproj \
+            -c Release /t:PublishContainer \
+            -p:ContainerImageTag=test-arm64 \
+            -p:ContainerRuntimeIdentifier=linux-arm64 \
+            -p:BuildMigrationBundles=true
+          dotnet publish src/Wallow.Auth/Wallow.Auth.csproj \
+            -c Release --no-build /t:PublishContainer \
+            -p:ContainerImageTag=test-arm64 \
+            -p:ContainerRuntimeIdentifier=linux-arm64
+          dotnet publish src/Wallow.Web/Wallow.Web.csproj \
+            -c Release --no-build /t:PublishContainer \
+            -p:ContainerImageTag=test-arm64 \
+            -p:ContainerRuntimeIdentifier=linux-arm64
+
+          # Alias amd64 images as :test so E2E tests (running on x64 runner) work unchanged
+          docker tag wallow-api:test-amd64 wallow-api:test
+          docker tag wallow-auth:test-amd64 wallow-auth:test
+          docker tag wallow-web:test-amd64 wallow-web:test
 
       - name: Save app images to cache
-        run: docker save wallow-api:test wallow-auth:test wallow-web:test | gzip > /tmp/wallow-app-images.tar.gz
+        run: |
+          docker save \
+            wallow-api:test wallow-api:test-amd64 wallow-api:test-arm64 \
+            wallow-auth:test wallow-auth:test-amd64 wallow-auth:test-arm64 \
+            wallow-web:test wallow-web:test-amd64 wallow-web:test-arm64 \
+            | gzip > /tmp/wallow-app-images.tar.gz
 
       - name: Cache app images
         uses: actions/cache/save@v5
@@ -409,27 +436,54 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Tag and push images to GHCR
         env:
           IMAGE_BASE: ghcr.io/${{ github.repository }}
           SHA_TAG: ${{ github.sha }}
         run: |
           SHORT_SHA="${SHA_TAG:0:7}"
-          declare -A IMAGE_MAP=(
-            ["wallow-api:test"]="${IMAGE_BASE}"
-            ["wallow-auth:test"]="${IMAGE_BASE}-auth"
-            ["wallow-web:test"]="${IMAGE_BASE}-web"
-            ["wallow-garage:test"]="${IMAGE_BASE}-garage"
-            ["wallow-postgres-replica:latest"]="${IMAGE_BASE}-postgres-replica"
+
+          # App images — push arch-specific tags then create multi-arch manifests
+          declare -A APP_IMAGE_MAP=(
+            ["wallow-api"]="${IMAGE_BASE}"
+            ["wallow-auth"]="${IMAGE_BASE}-auth"
+            ["wallow-web"]="${IMAGE_BASE}-web"
           )
-          for local_tag in "${!IMAGE_MAP[@]}"; do
-            remote="${IMAGE_MAP[$local_tag]}"
-            docker tag "$local_tag" "${remote}:latest"
-            docker tag "$local_tag" "${remote}:${SHORT_SHA}"
-            docker push "${remote}:latest"
-            docker push "${remote}:${SHORT_SHA}"
-            echo "Pushed ${remote}:latest and ${remote}:${SHORT_SHA}"
+          for local_name in "${!APP_IMAGE_MAP[@]}"; do
+            remote="${APP_IMAGE_MAP[$local_name]}"
+
+            # Push arch-specific images
+            for arch in amd64 arm64; do
+              docker tag "${local_name}:test-${arch}" "${remote}:${SHORT_SHA}-${arch}"
+              docker push "${remote}:${SHORT_SHA}-${arch}"
+            done
+
+            # Create and push multi-arch manifests for :latest and :sha
+            for tag in latest "${SHORT_SHA}"; do
+              docker manifest create "${remote}:${tag}" \
+                "${remote}:${SHORT_SHA}-amd64" \
+                "${remote}:${SHORT_SHA}-arm64"
+              docker manifest push "${remote}:${tag}"
+            done
+
+            echo "Pushed multi-arch ${remote}:latest and ${remote}:${SHORT_SHA}"
           done
+
+          # Infra images — single-arch, push as-is
+          docker tag wallow-garage:test "${IMAGE_BASE}-garage:latest"
+          docker tag wallow-garage:test "${IMAGE_BASE}-garage:${SHORT_SHA}"
+          docker push "${IMAGE_BASE}-garage:latest"
+          docker push "${IMAGE_BASE}-garage:${SHORT_SHA}"
+          echo "Pushed ${IMAGE_BASE}-garage:latest and ${IMAGE_BASE}-garage:${SHORT_SHA}"
+
+          docker tag wallow-postgres-replica:latest "${IMAGE_BASE}-postgres-replica:latest"
+          docker tag wallow-postgres-replica:latest "${IMAGE_BASE}-postgres-replica:${SHORT_SHA}"
+          docker push "${IMAGE_BASE}-postgres-replica:latest"
+          docker push "${IMAGE_BASE}-postgres-replica:${SHORT_SHA}"
+          echo "Pushed ${IMAGE_BASE}-postgres-replica:latest and ${IMAGE_BASE}-postgres-replica:${SHORT_SHA}"
 
   merge-coverage:
     needs: [unit-tests, integration-tests]
