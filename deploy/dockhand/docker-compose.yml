@@ -2,13 +2,59 @@
 # Wallow Production Stack — wallow.dev
 # =============================================================================
 # Pangolin handles TLS + routing externally. Containers expose HTTP only.
-# This directory is self-contained — all config files are local (no ../.. paths).
+# Fully self-contained — only this file + .env needed for deployment.
 #
 # Usage:
 #   docker compose up -d
 #   docker compose logs -f
 #   docker compose pull && docker compose up -d   # upgrade to latest images
 # =============================================================================
+
+# ---------------------------------------------------------------------------
+# Inline configs — eliminates need for any files on the host besides .env
+# ---------------------------------------------------------------------------
+configs:
+  pg-hba:
+    content: |
+      # TYPE  DATABASE  USER  ADDRESS  METHOD
+      local   all       all            trust
+      host    all       all   all      scram-sha-256
+      host    replication all all      scram-sha-256
+
+  garage-toml:
+    content: |
+      metadata_dir = "/var/lib/garage/meta"
+      data_dir = "/var/lib/garage/data"
+      db_engine = "sqlite"
+      replication_factor = 1
+      rpc_bind_addr = "[::]:3901"
+      [s3_api]
+      s3_region = "us-east-1"
+      api_bind_addr = "[::]:3900"
+      root_domain = ".s3.garage.localhost"
+      [s3_web]
+      bind_addr = "[::]:3902"
+      root_domain = ".web.garage.localhost"
+      [admin]
+      api_bind_addr = "[::]:3903"
+
+  alloy-config:
+    content: |
+      otelcol.receiver.otlp "default" {
+        grpc { endpoint = "0.0.0.0:4317" }
+        http { endpoint = "0.0.0.0:4318" }
+        output {
+          metrics = [otelcol.exporter.otlp.backend.input]
+          logs    = [otelcol.exporter.otlp.backend.input]
+          traces  = [otelcol.exporter.otlp.backend.input]
+        }
+      }
+      otelcol.exporter.otlp "backend" {
+        client {
+          endpoint = "grafana-lgtm:4317"
+          tls { insecure = true }
+        }
+      }
 
 services:
   # ============================================
@@ -22,13 +68,16 @@ services:
       -c wal_level=replica
       -c max_wal_senders=4
       -c hot_standby=on
+      -c hba_file=/etc/postgresql/pg_hba.conf
+    configs:
+      - source: pg-hba
+        target: /etc/postgresql/pg_hba.conf
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init-db.sql:/docker-entrypoint-initdb.d/01-init-db.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
@@ -53,8 +102,23 @@ services:
   postgres-replica:
     image: postgres:18-alpine
     container_name: ${COMPOSE_PROJECT_NAME}-postgres-replica
-    user: postgres
-    entrypoint: ["/bin/sh", "/init-replica.sh"]
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        PGDATA="/var/lib/postgresql/data"
+        chown postgres:postgres "$$PGDATA"
+        if [ -z "$$(ls -A "$$PGDATA" 2>/dev/null)" ]; then
+          echo "Replica: No data found. Running pg_basebackup from primary..."
+          until gosu postgres pg_isready -h postgres -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -q; do
+            echo "Replica: Waiting for primary to be ready..."
+            sleep 2
+          done
+          gosu postgres pg_basebackup -h postgres -U "$$POSTGRES_USER" -D "$$PGDATA" -Fp -Xs -R -v
+          chmod 0700 "$$PGDATA"
+          echo "Replica: Base backup complete. Starting in standby mode."
+        fi
+        exec gosu postgres postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -62,7 +126,6 @@ services:
       PGPASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_replica_data:/var/lib/postgresql/data
-      - ./init-replica.sh:/init-replica.sh:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -118,30 +181,17 @@ services:
   # OBJECT STORAGE (GarageHQ — S3-compatible)
   # ============================================
   garage:
-    build:
-      context: ./garage
-      dockerfile: Dockerfile
-    image: wallow-garage:v2.2.0
+    image: dxflrs/garage:v2.2.0
     container_name: ${COMPOSE_PROJECT_NAME}-garage
-    entrypoint: ["/bin/sh", "/etc/garage/init-garage.sh"]
+    configs:
+      - source: garage-toml
+        target: /etc/garage.toml
     volumes:
       - garage_meta:/var/lib/garage/meta
       - garage_data:/var/lib/garage/data
-      - ./garage/garage.toml:/etc/garage/garage.toml:ro
-      - ./garage/init-garage.sh:/etc/garage/init-garage.sh:ro
     environment:
-      GARAGE_CONFIG_FILE: /etc/garage/garage.toml
-      GARAGE_KEY_NAME: ${GARAGE_KEY_NAME}
-      GARAGE_ACCESS_KEY: ${GARAGE_ACCESS_KEY}
-      GARAGE_SECRET_KEY: ${GARAGE_SECRET_KEY}
-      GARAGE_BUCKET: ${GARAGE_BUCKET}
       GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET}
       GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN}
-    healthcheck:
-      test: ["CMD", "garage", "status"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
     restart: unless-stopped
     networks:
       - wallow
@@ -157,14 +207,110 @@ services:
         max-size: "50m"
         max-file: "5"
 
+  # GarageHQ init — sets up layout, key, and bucket via admin API (runs once)
+  garage-init:
+    image: alpine:3.21
+    container_name: ${COMPOSE_PROJECT_NAME}-garage-init
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        apk add --no-cache curl jq >/dev/null 2>&1
+        GARAGE_URL="http://garage:3903"
+        AUTH="Authorization: Bearer $$GARAGE_ADMIN_TOKEN"
+
+        # Helper: POST JSON to Garage admin API
+        garage_post() {
+          curl -s -X POST -H "$$AUTH" -H "Content-Type: application/json" "$$GARAGE_URL$$1" -d "$$2"
+        }
+
+        echo "Waiting for Garage..."
+        for i in $$(seq 1 60); do
+          if curl -sf -H "$$AUTH" "$$GARAGE_URL/v2/GetClusterStatus" >/dev/null 2>&1; then
+            echo "Garage is ready."
+            break
+          fi
+          if [ "$$i" = "60" ]; then echo "ERROR: Garage not ready after 60s"; exit 1; fi
+          sleep 1
+        done
+
+        STATUS=$$(curl -sf -H "$$AUTH" "$$GARAGE_URL/v2/GetClusterStatus")
+        echo "Cluster status: $$STATUS"
+        NODE_ID=$$(echo "$$STATUS" | jq -r '.nodes[0].id')
+        echo "Node ID: $$NODE_ID"
+        if [ -z "$$NODE_ID" ] || [ "$$NODE_ID" = "null" ]; then echo "ERROR: Could not extract node ID"; exit 1; fi
+
+        if echo "$$STATUS" | jq -e '.nodes[0].role' | grep -qv 'null'; then
+          echo "Layout already configured, skipping."
+        else
+          echo "Applying initial layout..."
+          LAYOUT_BODY=$$(printf '[{"id":"%s","zone":"dc1","capacity":1073741824,"tags":[]}]' "$$NODE_ID")
+          echo "Layout payload: $$LAYOUT_BODY"
+          LAYOUT_RESP=$$(garage_post "/v2/UpdateClusterLayout" "$$LAYOUT_BODY")
+          echo "Layout update response: $$LAYOUT_RESP"
+          LAYOUT_VER=$$(echo "$$STATUS" | jq -r '.layoutVersion')
+          NEXT_VER=$$(( $${LAYOUT_VER:-0} + 1 ))
+          APPLY_BODY=$$(printf '{"version":%d}' "$$NEXT_VER")
+          APPLY_RESP=$$(garage_post "/v2/ApplyClusterLayout" "$$APPLY_BODY")
+          echo "Layout apply response: $$APPLY_RESP"
+        fi
+
+        echo "Importing access key '$$GARAGE_KEY_NAME' (with retry for layout propagation)..."
+        KEY_BODY=$$(printf '{"accessKeyId":"%s","secretAccessKey":"%s","name":"%s"}' "$$GARAGE_ACCESS_KEY" "$$GARAGE_SECRET_KEY" "$$GARAGE_KEY_NAME")
+        for i in $$(seq 1 30); do
+          KEY_RESP=$$(garage_post "/v2/ImportKey" "$$KEY_BODY")
+          if ! echo "$$KEY_RESP" | grep -q "Layout not ready"; then
+            break
+          fi
+          echo "Layout not ready yet, retrying in 2s... ($$i/30)"
+          sleep 2
+        done
+        echo "Key response: $$KEY_RESP"
+        if echo "$$KEY_RESP" | grep -q '"code"'; then
+          echo "WARNING: Key import may have failed"
+        fi
+
+        echo "Creating bucket '$$GARAGE_BUCKET'..."
+        BUCKET_BODY=$$(printf '{"globalAlias":"%s"}' "$$GARAGE_BUCKET")
+        BUCKET_RESP=$$(garage_post "/v2/CreateBucket" "$$BUCKET_BODY")
+        echo "Bucket response: $$BUCKET_RESP"
+        BUCKET_ID=$$(echo "$$BUCKET_RESP" | jq -r '.id // empty')
+        if [ -n "$$BUCKET_ID" ]; then
+          echo "Bucket created: $$BUCKET_ID"
+          ALLOW_BODY=$$(printf '{"bucketId":"%s","accessKeyId":"%s","permissions":{"read":true,"write":true,"owner":true}}' "$$BUCKET_ID" "$$GARAGE_ACCESS_KEY")
+          ALLOW_RESP=$$(garage_post "/v2/AllowBucketKey" "$$ALLOW_BODY")
+          echo "Allow response: $$ALLOW_RESP"
+        else
+          echo "Bucket '$$GARAGE_BUCKET' may already exist or creation failed."
+        fi
+        echo "GarageHQ initialization complete."
+    environment:
+      GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN}
+      GARAGE_KEY_NAME: ${GARAGE_KEY_NAME}
+      GARAGE_ACCESS_KEY: ${GARAGE_ACCESS_KEY}
+      GARAGE_SECRET_KEY: ${GARAGE_SECRET_KEY}
+      GARAGE_BUCKET: ${GARAGE_BUCKET}
+    depends_on:
+      garage:
+        condition: service_started
+    restart: "no"
+    networks:
+      - wallow
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   # ============================================
-  # OBSERVABILITY (optional — enable with: docker compose --profile observability up -d)
+  # OBSERVABILITY (optional — docker compose --profile observability up -d)
   # ============================================
   alloy:
     image: grafana/alloy:latest
     container_name: ${COMPOSE_PROJECT_NAME}-alloy
-    volumes:
-      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+    configs:
+      - source: alloy-config
+        target: /etc/alloy/config.alloy
     networks:
       - wallow
     restart: unless-stopped
@@ -200,6 +346,43 @@ services:
         max-file: "5"
 
   # ============================================
+  # OPENIDDICT CERTIFICATE INIT (runs once)
+  # ============================================
+  cert-init:
+    image: alpine:3.21
+    container_name: ${COMPOSE_PROJECT_NAME}-cert-init
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        if [ -f /certs/signing.pfx ] && [ -f /certs/encryption.pfx ]; then
+          echo "Certificates already exist, skipping."
+          exit 0
+        fi
+        apk add --no-cache openssl >/dev/null 2>&1
+        echo "Generating OpenIddict signing certificate..."
+        openssl req -x509 -nodes -newkey rsa:2048 -keyout /tmp/signing.key -out /tmp/signing.crt -days 3650 -subj "/CN=wallow-signing" 2>/dev/null
+        openssl pkcs12 -export -out /certs/signing.pfx -inkey /tmp/signing.key -in /tmp/signing.crt -password "pass:$$OPENIDDICT_SIGNING_CERT_PASSWORD" 2>/dev/null
+        echo "Generating OpenIddict encryption certificate..."
+        openssl req -x509 -nodes -newkey rsa:2048 -keyout /tmp/encryption.key -out /tmp/encryption.crt -days 3650 -subj "/CN=wallow-encryption" 2>/dev/null
+        openssl pkcs12 -export -out /certs/encryption.pfx -inkey /tmp/encryption.key -in /tmp/encryption.crt -password "pass:$$OPENIDDICT_ENCRYPTION_CERT_PASSWORD" 2>/dev/null
+        rm -f /tmp/*.key /tmp/*.crt
+        chmod 644 /certs/signing.pfx /certs/encryption.pfx
+        echo "Certificates generated."
+    environment:
+      OPENIDDICT_SIGNING_CERT_PASSWORD: ${OPENIDDICT_SIGNING_CERT_PASSWORD}
+      OPENIDDICT_ENCRYPTION_CERT_PASSWORD: ${OPENIDDICT_ENCRYPTION_CERT_PASSWORD}
+    volumes:
+      - certs:/certs
+    restart: "no"
+    networks:
+      - wallow
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ============================================
   # DATABASE MIGRATIONS (runs once, then exits)
   # ============================================
   wallow-migrations:
@@ -231,6 +414,9 @@ services:
       - no-new-privileges:true
     tmpfs:
       - /tmp
+      - /app/App_Data
+    volumes:
+      - certs:/certs:ro
     ports:
       - "${API_PORT:-8080}:8080"
     env_file: .env
@@ -266,6 +452,11 @@ services:
       AuthUrl: https://auth.wallow.dev
       # Cookie domain for cross-subdomain auth
       Authentication__CookieDomain: .wallow.dev
+      # OpenIddict signing & encryption certificates
+      OpenIddict__SigningCertPath: /certs/signing.pfx
+      OpenIddict__SigningCertPassword: ${OPENIDDICT_SIGNING_CERT_PASSWORD}
+      OpenIddict__EncryptionCertPath: /certs/encryption.pfx
+      OpenIddict__EncryptionCertPassword: ${OPENIDDICT_ENCRYPTION_CERT_PASSWORD}
       # CORS
       Cors__AllowedOrigins__0: https://wallow.dev
       Cors__AllowedOrigins__1: https://auth.wallow.dev
@@ -274,8 +465,10 @@ services:
         condition: service_completed_successfully
       valkey:
         condition: service_healthy
-      garage:
-        condition: service_healthy
+      garage-init:
+        condition: service_completed_successfully
+      cert-init:
+        condition: service_completed_successfully
       postgres-replica:
         condition: service_healthy
     healthcheck:
@@ -394,6 +587,7 @@ volumes:
   valkey_data:
   garage_meta:
   garage_data:
+  certs:
 
 networks:
   wallow:

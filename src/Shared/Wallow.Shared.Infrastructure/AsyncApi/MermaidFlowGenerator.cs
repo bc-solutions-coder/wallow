@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace Wallow.Shared.Infrastructure.Workflows.AsyncApi;
+namespace Wallow.Shared.Infrastructure.AsyncApi;
 
 public static class MermaidFlowGenerator
 {

@@ -101,7 +101,7 @@ Wallow is a modular monolith. Each module is an autonomous bounded context that 
 **Shared libraries:**
 - `Wallow.Shared.Contracts` -- Cross-module integration events and DTOs
 - `Wallow.Shared.Kernel` -- Base classes, multi-tenancy primitives, shared abstractions
-- `Wallow.Shared.Infrastructure` -- Cross-cutting infrastructure (auditing, background jobs, workflows)
+- `Wallow.Shared.Infrastructure` -- Cross-cutting infrastructure (auditing, background jobs)
 
 ---
 
@@ -120,12 +120,6 @@ An EF Core `SaveChangesInterceptor` that automatically captures all entity chang
 A thin `IJobScheduler` abstraction (defined in `Shared.Kernel/BackgroundJobs/`) over Hangfire for fire-and-forget and recurring jobs. Modules inject `IJobScheduler` to enqueue work without depending on Hangfire directly.
 
 **Registration:** `services.AddWallowBackgroundJobs()` registers `HangfireJobScheduler` as the `IJobScheduler` implementation.
-
-### Workflows (`Shared.Infrastructure.Workflows/`)
-
-Elsa 3 workflow engine integration for long-running, multi-step business processes. Elsa stores workflow definitions and runtime state in PostgreSQL via EF Core. Modules define custom workflow activities by extending `WorkflowActivityBase`, which adds module-scoped logging and execution context. Activities are auto-discovered from all `Wallow.*` assemblies at startup.
-
-**Registration:** `services.AddWallowWorkflows(configuration)` registers Elsa with PostgreSQL persistence, scheduling, HTTP activities, and email integration.
 
 ---
 
@@ -153,7 +147,7 @@ src/
     Wallow.Shared.Infrastructure.Core/           # Auditing, caching, messaging middleware
     Wallow.Shared.Infrastructure.Plugins/        # Plugin loading and lifecycle
     Wallow.Shared.Infrastructure.BackgroundJobs/ # IJobScheduler / Hangfire
-    Wallow.Shared.Infrastructure.Workflows/      # Elsa 3 workflow engine
+
 
 tests/
   Wallow.Api.Tests/

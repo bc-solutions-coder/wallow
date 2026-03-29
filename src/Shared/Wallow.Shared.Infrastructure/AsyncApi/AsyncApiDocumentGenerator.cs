@@ -1,7 +1,7 @@
 using System.Reflection;
 using System.Text.Json.Nodes;
 
-namespace Wallow.Shared.Infrastructure.Workflows.AsyncApi;
+namespace Wallow.Shared.Infrastructure.AsyncApi;
 
 public sealed class AsyncApiDocumentGenerator(EventFlowInfo[] flows)
 {

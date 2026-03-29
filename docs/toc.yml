@@ -28,8 +28,6 @@
       href: architecture/file-storage.md
     - name: Realtime
       href: architecture/realtime.md
-    - name: Workflows
-      href: architecture/workflows.md
 - name: Development
   items:
     - name: API Development

@@ -1,4 +1,4 @@
-using Wallow.Shared.Infrastructure.Workflows.AsyncApi;
+using Wallow.Shared.Infrastructure.AsyncApi;
 
 namespace Wallow.Shared.Infrastructure.Tests.AsyncApi;
 

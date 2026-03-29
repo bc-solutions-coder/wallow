@@ -1,7 +1,7 @@
 using System.Reflection;
 using System.Text.Json.Nodes;
 
-namespace Wallow.Shared.Infrastructure.Workflows.AsyncApi;
+namespace Wallow.Shared.Infrastructure.AsyncApi;
 
 /// <summary>
 /// Converts C# types to JSON Schema objects for AsyncAPI message payloads.

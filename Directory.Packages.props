@@ -19,9 +19,6 @@
     <PackageVersion Include="Asp.Versioning.Mvc" Version="8.1.1" />
     <PackageVersion Include="Asp.Versioning.Mvc.ApiExplorer" Version="8.1.1" />
     <PackageVersion Include="Audit.EntityFramework.Core" Version="32.0.0" />
-    <PackageVersion Include="Elsa.Workflows.Core" Version="3.6.0" />
-    <PackageVersion Include="Elsa.Workflows.Management" Version="3.6.0" />
-    <PackageVersion Include="Elsa.Workflows.Runtime" Version="3.6.0" />
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="$(AspNetCoreVersion)" />
     <PackageVersion Include="MimeKit" Version="4.15.1" />
     <PackageVersion Include="Scalar.AspNetCore" Version="2.13.11" />
@@ -130,17 +127,7 @@
          HTML Processing
          ====================================== -->
     <PackageVersion Include="HtmlSanitizer" Version="9.0.892" />
-    <!-- ======================================
-         Workflow Engine (Elsa)
-         ====================================== -->
-    <PackageVersion Include="Elsa" Version="3.6.0" />
-    <PackageVersion Include="Elsa.Persistence.EFCore.PostgreSql" Version="3.6.0" />
     <PackageVersion Include="Humanizer.Core" Version="3.0.10" />
-    <PackageVersion Include="Elsa.Identity" Version="3.6.0" />
-    <PackageVersion Include="Elsa.Workflows.Api" Version="3.6.0" />
-    <PackageVersion Include="Elsa.Scheduling" Version="3.6.0" />
-    <PackageVersion Include="Elsa.Email" Version="3.6.0" />
-    <PackageVersion Include="Elsa.Http" Version="3.6.0" />
     <!-- ======================================
          Reverse Proxy (YARP)
          ====================================== -->

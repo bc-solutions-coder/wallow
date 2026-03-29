@@ -1,6 +1,6 @@
 using System.Text.Json.Nodes;
 using Wallow.Shared.Contracts.Identity.Events;
-using Wallow.Shared.Infrastructure.Workflows.AsyncApi;
+using Wallow.Shared.Infrastructure.AsyncApi;
 
 namespace Wallow.Shared.Infrastructure.Tests.AsyncApi;
 
