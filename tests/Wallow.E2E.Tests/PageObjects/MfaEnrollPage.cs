@@ -81,8 +81,21 @@ public sealed class MfaEnrollPage
         await _page.Locator("[data-testid='mfa-enroll-code']").FillAsync(code);
     }
 
-    public async Task SubmitAsync()
+    public async Task SubmitAsync(bool throwOnError = true)
     {
+        // Before clicking, wait for any stale error from a previous attempt to
+        // be cleared by Blazor's re-render. Without this, the race below can
+        // immediately resolve on the still-visible error from the prior submit.
+        ILocator errorLocator = _page.Locator("[data-testid='mfa-enroll-error']");
+        try
+        {
+            await errorLocator.WaitForAsync(new() { State = WaitForSelectorState.Hidden, Timeout = 2_000 });
+        }
+        catch (TimeoutException)
+        {
+            // No stale error present or it didn't clear — safe to proceed.
+        }
+
         await _page.Locator("[data-testid='mfa-enroll-submit']").ClickAsync();
         await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
 
@@ -91,16 +104,24 @@ public sealed class MfaEnrollPage
         // enrollment and generate backup codes can be slow, and the Blazor
         // SignalR circuit must then push the DOM diff to the browser.
         ILocator backupCodesLocator = _page.Locator("[data-testid='mfa-enroll-backup-codes']");
-        ILocator errorLocator = _page.Locator("[data-testid='mfa-enroll-error']");
         ILocator either = backupCodesLocator.Or(errorLocator);
 
         await either.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = 45_000 });
 
-        if (await errorLocator.IsVisibleAsync())
+        if (await errorLocator.IsVisibleAsync() && throwOnError)
         {
             string message = await errorLocator.InnerTextAsync();
             throw new InvalidOperationException($"MFA enrollment failed: {message}");
         }
+    }
+
+    public async Task CancelAsync()
+    {
+        ILocator cancelLink = _page.Locator("[data-testid='mfa-enroll-cancel']");
+        await cancelLink.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = 10_000 });
+        await cancelLink.ClickAsync();
+        await _page.WaitForURLAsync(url => !url.Contains("/mfa/enroll"), new() { Timeout = 15_000 });
+        await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
     }
 
     public async Task WaitForBackupCodesAsync()
