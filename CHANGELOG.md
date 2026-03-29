@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/bc-solutions-coder/wallow/compare/v1.0.0...v1.0.1) (2026-03-29)
+
+
+### Bug Fixes
+
+* **auth:** prevent open-redirect via ReturnUrl in Blazor pages ([#13](https://github.com/bc-solutions-coder/wallow/issues/13)) ([2515600](https://github.com/bc-solutions-coder/wallow/commit/25156003867c2df17e0d1599630c4d399c2bd671))
+
 ## [1.0.0](https://github.com/bc-solutions-coder/wallow/compare/v0.2.0...v1.0.0) (2026-03-29)
 
 
