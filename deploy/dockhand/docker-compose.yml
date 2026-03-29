@@ -2,6 +2,7 @@
 # Wallow Production Stack — wallow.dev
 # =============================================================================
 # Pangolin handles TLS + routing externally. Containers expose HTTP only.
+# This directory is self-contained — all config files are local (no ../.. paths).
 #
 # Usage:
 #   docker compose up -d
@@ -27,6 +28,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/01-init-db.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
@@ -60,7 +62,7 @@ services:
       PGPASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_replica_data:/var/lib/postgresql/data
-      - ../../docker/init-replica.sh:/init-replica.sh:ro
+      - ./init-replica.sh:/init-replica.sh:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -116,20 +118,25 @@ services:
   # OBJECT STORAGE (GarageHQ — S3-compatible)
   # ============================================
   garage:
-    image: dxflrs/garage:v2.2.0
+    build:
+      context: ./garage
+      dockerfile: Dockerfile
+    image: wallow-garage:v2.2.0
     container_name: ${COMPOSE_PROJECT_NAME}-garage
     entrypoint: ["/bin/sh", "/etc/garage/init-garage.sh"]
     volumes:
       - garage_meta:/var/lib/garage/meta
       - garage_data:/var/lib/garage/data
-      - ../../docker/garage/garage.toml:/etc/garage/garage.toml:ro
-      - ../../docker/garage/init-garage.sh:/etc/garage/init-garage.sh:ro
+      - ./garage/garage.toml:/etc/garage/garage.toml:ro
+      - ./garage/init-garage.sh:/etc/garage/init-garage.sh:ro
     environment:
       GARAGE_CONFIG_FILE: /etc/garage/garage.toml
       GARAGE_KEY_NAME: ${GARAGE_KEY_NAME}
       GARAGE_ACCESS_KEY: ${GARAGE_ACCESS_KEY}
       GARAGE_SECRET_KEY: ${GARAGE_SECRET_KEY}
       GARAGE_BUCKET: ${GARAGE_BUCKET}
+      GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET}
+      GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN}
     healthcheck:
       test: ["CMD", "garage", "status"]
       interval: 10s
@@ -157,7 +164,7 @@ services:
     image: grafana/alloy:latest
     container_name: ${COMPOSE_PROJECT_NAME}-alloy
     volumes:
-      - ../../docker/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
     networks:
       - wallow
     restart: unless-stopped
