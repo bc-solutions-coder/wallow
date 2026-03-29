@@ -14,3 +14,13 @@ All commit messages MUST follow [Conventional Commits](https://www.conventionalc
 - Description must be lowercase, imperative mood, no period at end
 - First line must be under 72 characters
 - Use module name as scope when relevant: `feat(billing): add invoice export`
+
+## Pre-Commit
+
+**Before every commit**, run `dotnet format` on the solution to ensure consistent code style:
+
+```bash
+dotnet format Wallow.slnx
+```
+
+Stage any formatting changes before committing. Never commit unformatted code.
