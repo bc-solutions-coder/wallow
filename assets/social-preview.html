@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1280">
+<title>Wallow Social Preview</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    width: 1280px;
+    height: 640px;
+    background: oklch(0.16 0.02 50);
+    color: oklch(0.88 0.02 55);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    overflow: hidden;
+  }
+
+  .icon {
+    width: 120px;
+    height: 120px;
+  }
+
+  .title {
+    font-size: 72px;
+    font-weight: 800;
+    letter-spacing: -2px;
+    color: oklch(0.88 0.02 55);
+    line-height: 1;
+  }
+
+  .tagline {
+    font-size: 24px;
+    font-weight: 400;
+    color: oklch(0.62 0.13 45);
+    letter-spacing: 0.5px;
+  }
+
+  .pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 12px;
+    max-width: 900px;
+  }
+
+  .pill {
+    background: oklch(0.22 0.02 50);
+    color: oklch(0.78 0.02 55);
+    border: 1px solid oklch(0.30 0.02 50);
+    padding: 8px 18px;
+    border-radius: 999px;
+    font-size: 15px;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+  <img class="icon" src="piggy-icon.svg" alt="Wallow">
+  <div class="title">Wallow</div>
+  <div class="tagline">A modular monolith starter platform</div>
+  <div class="pills">
+    <span class="pill">.NET 10</span>
+    <span class="pill">Blazor</span>
+    <span class="pill">PostgreSQL</span>
+    <span class="pill">Wolverine</span>
+    <span class="pill">CQRS</span>
+    <span class="pill">DDD</span>
+    <span class="pill">Multi-Tenancy</span>
+  </div>
+</body>
+</html>

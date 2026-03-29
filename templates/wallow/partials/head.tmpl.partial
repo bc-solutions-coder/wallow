@@ -1,0 +1,25 @@
+{{!Copyright (c) Wallow. All rights reserved. Licensed under the MIT license.}}
+
+{{#_description}}
+<meta name="description" content="{{_description}}">
+{{/_description}}
+
+{{#_description}}
+<meta property="og:description" content="{{_description}}">
+{{/_description}}
+<meta property="og:title" content="{{title}}{{#_appTitle}} | {{_appTitle}}{{/_appTitle}}">
+{{#_ogImage}}
+<meta property="og:image" content="{{_ogImage}}">
+{{/_ogImage}}
+{{#_ogType}}
+<meta property="og:type" content="{{_ogType}}">
+{{/_ogType}}
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{title}}{{#_appTitle}} | {{_appTitle}}{{/_appTitle}}">
+{{#_description}}
+<meta name="twitter:description" content="{{_description}}">
+{{/_description}}
+{{#_ogImage}}
+<meta name="twitter:image" content="{{_ogImage}}">
+{{/_ogImage}}
