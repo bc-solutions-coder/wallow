@@ -20,6 +20,13 @@ Fork it. Add your domain modules. Deploy.
 
 ---
 
+## Why Wallow?
+
+- **Multi-tenancy from day one** -- tenant isolation, per-tenant config, and data partitioning built into the architecture so you ship product features, not plumbing
+- **Fork-first architecture** -- merge drivers preserve your branding, config, and customizations when pulling upstream improvements
+- **Production-ready infrastructure** -- observability, background jobs, file storage, email, caching, and CI/CD preconfigured and tested
+- **Comprehensive test coverage** -- 6,000+ tests at 97%+ coverage across unit, integration, architecture, and E2E layers
+
 ## What is Wallow?
 
 Wallow provides the cross-cutting infrastructure every SaaS product needs out of the box -- identity, billing, notifications, messaging, file storage, and multi-tenant data isolation. You write the business logic.

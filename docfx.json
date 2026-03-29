@@ -38,7 +38,10 @@
     "globalMetadata": {
       "_appTitle": "Wallow",
       "_appFooter": "Wallow Platform",
-      "_enableSearch": true
+      "_enableSearch": true,
+      "_description": "Wallow is a .NET 10 modular monolith starter platform with multi-tenancy, Clean Architecture, DDD, CQRS, and Wolverine messaging.",
+      "_ogImage": "https://raw.githubusercontent.com/bc-solutions-coder/wallow/main/assets/social-preview.png",
+      "_ogType": "website"
     },
     "template": ["default", "modern", "templates/wallow"],
     "dest": ".docfx/_site"
