@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.0.2](https://github.com/bc-solutions-coder/wallow/compare/v1.0.1...v1.0.2) (2026-03-29)
+
+
+### Bug Fixes
+
+* align codeql config with merged resolution ([88b1a84](https://github.com/bc-solutions-coder/wallow/commit/88b1a849b57db26085d272fa9bfc620b93553b20))
+* **deploy:** make dockhand stack self-contained and fix container failures ([c76e738](https://github.com/bc-solutions-coder/wallow/commit/c76e7386172a3afa9ccfe446e12e959440f3251e))
+* **kernel:** add missing xml doc on ForbiddenAccessException ([ae3540c](https://github.com/bc-solutions-coder/wallow/commit/ae3540ced13fdf94140607afe66611881ffb8035))
+
 ## [1.0.1](https://github.com/bc-solutions-coder/wallow/compare/v1.0.0...v1.0.1) (2026-03-29)
 
 
