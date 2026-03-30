@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.3.0](https://github.com/bc-solutions-coder/wallow/compare/v1.2.3...v1.3.0) (2026-03-30)
+
+
+### Features
+
+* **auth:** replace custom tailwind MSBuild targets with Tailwind.Hosting packages ([1fccef8](https://github.com/bc-solutions-coder/wallow/commit/1fccef8da7d10faa851efe8204fbb110d58ecc2e))
+* replace Dockerfiles with SDK-native container publishing ([05d39a1](https://github.com/bc-solutions-coder/wallow/commit/05d39a115abd18b378456173913f74f49ba6c8cc))
+* **web:** replace custom tailwind MSBuild targets with Tailwind.Hosting packages ([075bd32](https://github.com/bc-solutions-coder/wallow/commit/075bd32ec91436d04d04ec3264497af7a94a0355))
+
+
+### Bug Fixes
+
+* **auth:** raise auth rate limit and forward client IP for correct partitioning ([163ce07](https://github.com/bc-solutions-coder/wallow/commit/163ce075c1aa49180cc54ac513670a870d3fe65c))
+* **ci:** add --no-build to arm64 API publish to prevent MSB3030 ([75b4a22](https://github.com/bc-solutions-coder/wallow/commit/75b4a22d6b76e828cbf116c6c909f136423d56f4))
+* **ci:** use framework-dependent migration bundles on Linux to avoid cross-compile failure ([22607dc](https://github.com/bc-solutions-coder/wallow/commit/22607dc521c272555cba97cfe0167dbe0e3f0d81))
+* clean inkscape metadata from SVG to fix GitHub rendering ([403ffad](https://github.com/bc-solutions-coder/wallow/commit/403ffade752a048d636bae1489a31815225112de))
+* migration bundle cross-compilation on macOS ARM64 ([79755e8](https://github.com/bc-solutions-coder/wallow/commit/79755e8bc9a49f2cc6e6dcceea8924e556def96b))
+* remove double-hyphens from XML comment in csproj ([d422f63](https://github.com/bc-solutions-coder/wallow/commit/d422f63da3f810c92de237b39f0a56b336927f1d))
+* **web:** resolve OIDC correlation failure and broken sign-out link ([9083fe4](https://github.com/bc-solutions-coder/wallow/commit/9083fe4b00135b93e44ce0c18f8c883769040bdf))
+
 ## [1.2.3](https://github.com/bc-solutions-coder/wallow/compare/v1.2.2...v1.2.3) (2026-03-30)
 
 
