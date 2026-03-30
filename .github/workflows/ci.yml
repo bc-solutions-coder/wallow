@@ -241,11 +241,8 @@ jobs:
             -c Release --no-build /t:PublishContainer \
             -p:ContainerImageTag=test-amd64
 
-          # arm64: restore runtime-specific packages needed for cross-compiling migration bundles
-          dotnet restore src/Wallow.Api/Wallow.Api.csproj -r linux-arm64
-
           # arm64 images (IL is arch-agnostic; ContainerRuntimeIdentifier picks the base image;
-          # migration bundle cross-compilation is handled inside the MSBuild target)
+          # migration bundles use --no-build on Linux so no cross-compilation needed)
           dotnet publish src/Wallow.Api/Wallow.Api.csproj \
             -c Release --no-build /t:PublishContainer \
             -p:ContainerImageTag=test-arm64 \

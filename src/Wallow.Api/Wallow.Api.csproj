@@ -125,12 +125,11 @@
   <Target Name="BuildMigrationBundles" AfterTargets="Publish" BeforeTargets="PublishContainer" Condition="'$(BuildMigrationBundles)' == 'true'">
     <PropertyGroup>
       <BundleDir>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/$(PublishDir)/bundles'))</BundleDir>
-      <!-- Native builds (Linux host with matching arch) skip rebuild for speed;
-           cross-compilation (macOS, or different arch) must rebuild for the target runtime -->
-      <_IsNativeBuild Condition="'$(MigrationBundleRid)' == 'linux-x64' and $([MSBuild]::IsOSPlatform('Linux')) and '$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'X64'">true</_IsNativeBuild>
-      <_IsNativeBuild Condition="'$(MigrationBundleRid)' == 'linux-arm64' and $([MSBuild]::IsOSPlatform('Linux')) and '$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'Arm64'">true</_IsNativeBuild>
-      <BundleArgs Condition="'$(_IsNativeBuild)' == 'true'">--configuration $(Configuration) --force --no-build</BundleArgs>
-      <BundleArgs Condition="'$(_IsNativeBuild)' != 'true'">--configuration $(Configuration) --force --target-runtime $(MigrationBundleRid)</BundleArgs>
+      <!-- Linux hosts (CI or native): use existing build output with --no-build.
+           IL is arch-agnostic, so framework-dependent bundles run on any arch with the .NET runtime.
+           Non-Linux hosts (macOS): must cross-compile with --target-runtime to produce Linux binaries. -->
+      <BundleArgs Condition="$([MSBuild]::IsOSPlatform('Linux'))">--configuration $(Configuration) --force --no-build</BundleArgs>
+      <BundleArgs Condition="!$([MSBuild]::IsOSPlatform('Linux'))">--configuration $(Configuration) --force --target-runtime $(MigrationBundleRid)</BundleArgs>
     </PropertyGroup>
     <Message Importance="high" Text="Building EF Core migration bundles for $(MigrationBundleRid)..." />
     <MakeDir Directories="$(BundleDir)" />
