@@ -2,8 +2,8 @@ namespace Wallow.Api.Extensions;
 
 public static class RateLimitDefaults
 {
-    public const int AuthPermitLimit = 3;
-    public const int AuthWindowMinutes = 10;
+    public const int AuthPermitLimit = 30;
+    public const int AuthWindowMinutes = 1;
     public const int UploadPermitLimit = 10;
     public const int UploadWindowHours = 1;
     public const int ScimPermitLimit = 30;

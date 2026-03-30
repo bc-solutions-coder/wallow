@@ -27,6 +27,16 @@ public sealed class CookieForwardingHandler(
             cookieJar.SeedFromBrowserCookies(browserCookie);
         }
 
+        // Forward X-Forwarded-For so the API rate-limits by real client IP, not Docker network IP
+        if (httpContext is not null)
+        {
+            string? clientIp = httpContext.Connection.RemoteIpAddress?.ToString();
+            if (!string.IsNullOrEmpty(clientIp))
+            {
+                request.Headers.TryAddWithoutValidation("X-Forwarded-For", clientIp);
+            }
+        }
+
         // Forward all cookies from the jar (browser + API response cookies merged)
         string? allCookies = cookieJar.GetCookieHeader();
         if (!string.IsNullOrEmpty(allCookies))

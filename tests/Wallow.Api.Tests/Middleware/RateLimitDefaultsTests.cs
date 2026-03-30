@@ -7,13 +7,13 @@ public sealed class RateLimitDefaultsTests
     [Fact]
     public void AuthPermitLimit_HasExpectedValue()
     {
-        RateLimitDefaults.AuthPermitLimit.Should().Be(3);
+        RateLimitDefaults.AuthPermitLimit.Should().Be(30);
     }
 
     [Fact]
     public void AuthWindowMinutes_HasExpectedValue()
     {
-        RateLimitDefaults.AuthWindowMinutes.Should().Be(10);
+        RateLimitDefaults.AuthWindowMinutes.Should().Be(1);
     }
 
     [Fact]
