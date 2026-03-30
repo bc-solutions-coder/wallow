@@ -3,8 +3,10 @@ using BlazorBlueprint.Components;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using StackExchange.Redis;
 using Wallow.Web;
 using Wallow.Web.Configuration;
 using Wallow.Web.Middleware;
@@ -34,6 +36,17 @@ if (File.Exists(brandingPath))
 }
 
 builder.Services.AddSingleton(branding);
+
+// DataProtection — persist keys to Valkey so antiforgery tokens survive restarts.
+// Application name and Redis key must match the API (IdentityInfrastructureExtensions.cs:187-189).
+string? redisConnection = builder.Configuration.GetConnectionString("Redis");
+if (!string.IsNullOrEmpty(redisConnection))
+{
+    IConnectionMultiplexer redis = await ConnectionMultiplexer.ConnectAsync(redisConnection);
+    builder.Services.AddDataProtection()
+        .SetApplicationName("Wallow")
+        .PersistKeysToStackExchangeRedis(redis, "DataProtection-Keys");
+}
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents()
