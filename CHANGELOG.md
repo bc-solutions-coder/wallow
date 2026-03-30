@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.2.2](https://github.com/bc-solutions-coder/wallow/compare/v1.2.1...v1.2.2) (2026-03-30)
+
+
+### Bug Fixes
+
+* auto-download Tailwind binary and compile CSS during publish ([6daa5c6](https://github.com/bc-solutions-coder/wallow/commit/6daa5c6d84a14a88e3d3580c919873d8cf67a207))
+* **ci:** add no-build to arm64 publish to prevent stale bin directory errors ([2e00e99](https://github.com/bc-solutions-coder/wallow/commit/2e00e9999c6fd51b737c2f6439a15ed76e184c50))
+* **ci:** restore arm64 runtime packages before cross-compiling migration bundles ([d13fee1](https://github.com/bc-solutions-coder/wallow/commit/d13fee1b6d164fdff8a5ef5400349f519967b289))
+* remove invalid XML comment containing double hyphens in csproj ([5787bef](https://github.com/bc-solutions-coder/wallow/commit/5787bef465389805e30e0324e590cb4656e3fe5a))
+* set tmpfs uid/gid to match container app user (1654) ([7ac4b5c](https://github.com/bc-solutions-coder/wallow/commit/7ac4b5cfc596844265d51ecf3ee31e950a520432))
+* use --no-build for native-arch migration bundles, --target-runtime for cross-compilation ([3513eb9](https://github.com/bc-solutions-coder/wallow/commit/3513eb9019ac8bd48fe77807e22bd25e068c34d5))
+* use mode=1777 for tmpfs instead of hardcoded uid ([394dd4c](https://github.com/bc-solutions-coder/wallow/commit/394dd4cf035c8f56e2a3df330ee185878fde995c))
+
 ## [1.2.1](https://github.com/bc-solutions-coder/wallow/compare/v1.2.0...v1.2.1) (2026-03-30)
 
 
