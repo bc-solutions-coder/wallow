@@ -283,6 +283,58 @@ services:
       PreRegisteredClients__Clients__0__Scopes__3: roles
       PreRegisteredClients__Clients__0__Scopes__4: offline_access
       PreRegisteredClients__Clients__0__SeedMembers__0: ${ADMIN_EMAIL}
+      # Pre-registered OIDC client: bcordes.dev
+      PreRegisteredClients__Clients__1__ClientId: ${BCORDES_CLIENT_ID:-bcordes-client}
+      PreRegisteredClients__Clients__1__DisplayName: Bcordes.dev
+      PreRegisteredClients__Clients__1__Secret: ${BCORDES_CLIENT_SECRET}
+      PreRegisteredClients__Clients__1__TenantName: ${BCORDES_TENANT_NAME:-Bcordes}
+      PreRegisteredClients__Clients__1__SeedMembers__0: ${BCORDES_ADMIN_EMAIL:-bryan.cordes@bcordes.dev}
+      PreRegisteredClients__Clients__1__RedirectUris__0: ${BCORDES_PUBLIC_URL:-https://bcordes.dev}/auth/callback
+      PreRegisteredClients__Clients__1__PostLogoutRedirectUris__0: ${BCORDES_PUBLIC_URL:-https://bcordes.dev}/
+      PreRegisteredClients__Clients__1__Scopes__0: openid
+      PreRegisteredClients__Clients__1__Scopes__1: email
+      PreRegisteredClients__Clients__1__Scopes__2: profile
+      PreRegisteredClients__Clients__1__Scopes__3: roles
+      PreRegisteredClients__Clients__1__Scopes__4: offline_access
+      PreRegisteredClients__Clients__1__Scopes__5: users.read
+      PreRegisteredClients__Clients__1__Scopes__6: users.write
+      PreRegisteredClients__Clients__1__Scopes__7: users.manage
+      PreRegisteredClients__Clients__1__Scopes__8: organizations.read
+      PreRegisteredClients__Clients__1__Scopes__9: organizations.write
+      PreRegisteredClients__Clients__1__Scopes__10: organizations.manage
+      PreRegisteredClients__Clients__1__Scopes__11: storage.read
+      PreRegisteredClients__Clients__1__Scopes__12: storage.write
+      PreRegisteredClients__Clients__1__Scopes__13: notifications.read
+      PreRegisteredClients__Clients__1__Scopes__14: notifications.write
+      PreRegisteredClients__Clients__1__Scopes__15: billing.read
+      PreRegisteredClients__Clients__1__Scopes__16: billing.manage
+      PreRegisteredClients__Clients__1__Scopes__17: invoices.read
+      PreRegisteredClients__Clients__1__Scopes__18: invoices.write
+      PreRegisteredClients__Clients__1__Scopes__19: payments.read
+      PreRegisteredClients__Clients__1__Scopes__20: payments.write
+      PreRegisteredClients__Clients__1__Scopes__21: subscriptions.read
+      PreRegisteredClients__Clients__1__Scopes__22: subscriptions.write
+      PreRegisteredClients__Clients__1__Scopes__23: roles.read
+      PreRegisteredClients__Clients__1__Scopes__24: roles.write
+      PreRegisteredClients__Clients__1__Scopes__25: roles.manage
+      PreRegisteredClients__Clients__1__Scopes__26: apikeys.read
+      PreRegisteredClients__Clients__1__Scopes__27: apikeys.write
+      PreRegisteredClients__Clients__1__Scopes__28: apikeys.manage
+      PreRegisteredClients__Clients__1__Scopes__29: sso.read
+      PreRegisteredClients__Clients__1__Scopes__30: sso.manage
+      PreRegisteredClients__Clients__1__Scopes__31: scim.manage
+      PreRegisteredClients__Clients__1__Scopes__32: messaging.access
+      PreRegisteredClients__Clients__1__Scopes__33: announcements.read
+      PreRegisteredClients__Clients__1__Scopes__34: announcements.manage
+      PreRegisteredClients__Clients__1__Scopes__35: changelog.manage
+      PreRegisteredClients__Clients__1__Scopes__36: configuration.read
+      PreRegisteredClients__Clients__1__Scopes__37: configuration.manage
+      PreRegisteredClients__Clients__1__Scopes__38: inquiries.read
+      PreRegisteredClients__Clients__1__Scopes__39: inquiries.write
+      PreRegisteredClients__Clients__1__Scopes__40: serviceaccounts.read
+      PreRegisteredClients__Clients__1__Scopes__41: serviceaccounts.write
+      PreRegisteredClients__Clients__1__Scopes__42: serviceaccounts.manage
+      PreRegisteredClients__Clients__1__Scopes__43: webhooks.manage
     depends_on:
       postgres:
         condition: service_healthy
@@ -293,7 +345,7 @@ services:
       garage:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health/live || exit 1"]
+      test: ["CMD-SHELL", "grep -q ':1F90' /proc/net/tcp /proc/net/tcp6 2>/dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -339,7 +391,7 @@ services:
       valkey:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1"]
+      test: ["CMD-SHELL", "grep -q ':1F90' /proc/net/tcp /proc/net/tcp6 2>/dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -390,7 +442,7 @@ services:
       valkey:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1"]
+      test: ["CMD-SHELL", "grep -q ':1F90' /proc/net/tcp /proc/net/tcp6 2>/dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
