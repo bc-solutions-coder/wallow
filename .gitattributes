@@ -1,13 +1,6 @@
 
-# Use bd merge for beads JSONL files
-.beads/issues.jsonl merge=beads
-
 # Fork-owned files — keep fork version on upstream merge
 appsettings*.json merge=ours
 branding.json merge=ours
 docker/.env merge=ours
 docker/.env.example merge=ours
-CLAUDE.md merge=ours
-.claude/** merge=ours
-.beads/** merge=ours
-.serena/** merge=ours

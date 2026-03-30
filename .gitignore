@@ -13,6 +13,8 @@ out/
 .claude/
 .beads/
 .serena/
+CLAUDE.md
+**/CLAUDE.md
 *.user
 *.suo
 *.userprefs
