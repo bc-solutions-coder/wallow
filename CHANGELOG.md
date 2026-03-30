@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.2.3](https://github.com/bc-solutions-coder/wallow/compare/v1.2.2...v1.2.3) (2026-03-30)
+
+
+### Bug Fixes
+
+* **auth,web:** add forwarded headers middleware for reverse proxy support ([a199bca](https://github.com/bc-solutions-coder/wallow/commit/a199bca38f9a49cb622f8f7c6df173d0953002d7))
+* **auth,web:** persist DataProtection keys to Valkey ([4408198](https://github.com/bc-solutions-coder/wallow/commit/44081981e9192c9abaf11e0ed37135c5745b135c))
+* **ci:** build infra images (garage, postgres-replica) as multi-arch ([8025a49](https://github.com/bc-solutions-coder/wallow/commit/8025a4970c92ec0412563721392e95749abc54cc))
+* wire Valkey connection to Auth and Web containers ([bdc78db](https://github.com/bc-solutions-coder/wallow/commit/bdc78db306752d29482a64324d76b123d774ad08))
+
 ## [1.2.2](https://github.com/bc-solutions-coder/wallow/compare/v1.2.1...v1.2.2) (2026-03-30)
 
 
