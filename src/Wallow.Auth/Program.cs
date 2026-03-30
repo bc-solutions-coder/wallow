@@ -93,6 +93,15 @@ WebApplication app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
 {
+    ForwardedHeadersOptions forwardedHeadersOptions = new()
+    {
+        ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedFor
+            | Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto,
+    };
+    forwardedHeadersOptions.KnownIPNetworks.Clear();
+    forwardedHeadersOptions.KnownProxies.Clear();
+    app.UseForwardedHeaders(forwardedHeadersOptions);
+
     app.UseHsts();
 }
 
