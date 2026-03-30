@@ -332,8 +332,11 @@ services:
       ApiBaseUrl: http://wallow-api:8080
       ServiceUrls__ApiUrl: http://wallow-api:8080
       ServiceUrls__WebUrl: ${WEB_PUBLIC_URL:-https://wallow.dev}
+      ConnectionStrings__Redis: "valkey:6379,password=${VALKEY_PASSWORD},abortConnect=false"
     depends_on:
       wallow-api:
+        condition: service_healthy
+      valkey:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1"]
@@ -380,8 +383,11 @@ services:
       Oidc__Authority: ${API_PUBLIC_URL:-https://api.wallow.dev}
       Oidc__ClientId: ${OIDC_CLIENT_ID}
       Oidc__ClientSecret: ${OIDC_CLIENT_SECRET}
+      ConnectionStrings__Redis: "valkey:6379,password=${VALKEY_PASSWORD},abortConnect=false"
     depends_on:
       wallow-api:
+        condition: service_healthy
+      valkey:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1"]

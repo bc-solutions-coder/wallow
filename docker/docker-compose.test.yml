@@ -131,8 +131,10 @@ services:
       # ApiBaseUrl is used for BOTH server-to-server calls and browser redirects
       # (ticket exchange after login). Must be reachable from both contexts.
       ApiBaseUrl: "http://host.docker.internal:5050"
+      ConnectionStrings__Redis: "valkey:6379,password=WallowTestValkey123!,abortConnect=false"
     depends_on:
       - wallow-api
+      - valkey
     networks:
       - wallow-test
 
@@ -154,8 +156,10 @@ services:
       Oidc__MetadataAddress: "http://host.docker.internal:5050/.well-known/openid-configuration"
       Oidc__ClientId: wallow-web-client
       Oidc__ClientSecret: wallow-web-secret
+      ConnectionStrings__Redis: "valkey:6379,password=WallowTestValkey123!,abortConnect=false"
     depends_on:
       - wallow-api
+      - valkey
     networks:
       - wallow-test
 
