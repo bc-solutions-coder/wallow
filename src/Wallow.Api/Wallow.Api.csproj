@@ -125,9 +125,9 @@
   <Target Name="BuildMigrationBundles" AfterTargets="Publish" BeforeTargets="PublishContainer" Condition="'$(BuildMigrationBundles)' == 'true'">
     <PropertyGroup>
       <BundleDir>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/$(PublishDir)/bundles'))</BundleDir>
-      <!-- Linux hosts (CI or native): use existing build output with --no-build.
+      <!-- Linux hosts (CI or native): reuse existing build output (no rebuild needed).
            IL is arch-agnostic, so framework-dependent bundles run on any arch with the .NET runtime.
-           Non-Linux hosts (macOS): must cross-compile with --target-runtime to produce Linux binaries. -->
+           Non-Linux hosts (macOS): must cross-compile with a target runtime to produce Linux binaries. -->
       <BundleArgs Condition="$([MSBuild]::IsOSPlatform('Linux'))">--configuration $(Configuration) --force --no-build</BundleArgs>
       <BundleArgs Condition="!$([MSBuild]::IsOSPlatform('Linux'))">--configuration $(Configuration) --force --target-runtime $(MigrationBundleRid)</BundleArgs>
     </PropertyGroup>
