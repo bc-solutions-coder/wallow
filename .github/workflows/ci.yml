@@ -44,6 +44,8 @@ jobs:
           path: |
             **/bin/Release
             **/obj
+            src/Wallow.Auth/wwwroot/css/app.css
+            src/Wallow.Web/wwwroot/css/app.css
           key: build-${{ runner.os }}-${{ github.sha }}
 
   unit-tests:
@@ -72,6 +74,8 @@ jobs:
           path: |
             **/bin/Release
             **/obj
+            src/Wallow.Auth/wwwroot/css/app.css
+            src/Wallow.Web/wwwroot/css/app.css
           key: build-${{ runner.os }}-${{ github.sha }}
           fail-on-cache-miss: true
 
@@ -145,6 +149,8 @@ jobs:
           path: |
             **/bin/Release
             **/obj
+            src/Wallow.Auth/wwwroot/css/app.css
+            src/Wallow.Web/wwwroot/css/app.css
           key: build-${{ runner.os }}-${{ github.sha }}
           fail-on-cache-miss: true
 
@@ -213,6 +219,8 @@ jobs:
           path: |
             **/bin/Release
             **/obj
+            src/Wallow.Auth/wwwroot/css/app.css
+            src/Wallow.Web/wwwroot/css/app.css
           key: build-${{ runner.os }}-${{ github.sha }}
           fail-on-cache-miss: true
 
@@ -300,6 +308,8 @@ jobs:
           path: |
             **/bin/Release
             **/obj
+            src/Wallow.Auth/wwwroot/css/app.css
+            src/Wallow.Web/wwwroot/css/app.css
           key: build-${{ runner.os }}-${{ github.sha }}
           fail-on-cache-miss: true
 
