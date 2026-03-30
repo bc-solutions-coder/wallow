@@ -9,7 +9,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     permissions:
       contents: read
 
@@ -44,8 +43,6 @@ jobs:
           path: |
             **/bin/Release
             **/obj
-            src/Wallow.Auth/wwwroot/css/app.css
-            src/Wallow.Web/wwwroot/css/app.css
           key: build-${{ runner.os }}-${{ github.sha }}
 
   unit-tests:
@@ -74,8 +71,6 @@ jobs:
           path: |
             **/bin/Release
             **/obj
-            src/Wallow.Auth/wwwroot/css/app.css
-            src/Wallow.Web/wwwroot/css/app.css
           key: build-${{ runner.os }}-${{ github.sha }}
           fail-on-cache-miss: true
 
@@ -149,8 +144,6 @@ jobs:
           path: |
             **/bin/Release
             **/obj
-            src/Wallow.Auth/wwwroot/css/app.css
-            src/Wallow.Web/wwwroot/css/app.css
           key: build-${{ runner.os }}-${{ github.sha }}
           fail-on-cache-miss: true
 
@@ -169,29 +162,7 @@ jobs:
           if-no-files-found: error
           retention-days: 5
 
-  docker-images-infra:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Build infra images
-        run: |
-          docker compose -f docker/docker-compose.test.yml build garage
-          docker build -t wallow-postgres-replica:latest docker/images/postgres-replica
-
-      - name: Save infra images to cache
-        run: docker save wallow-garage:test wallow-postgres-replica:latest | gzip > /tmp/wallow-infra-images.tar.gz
-
-      - name: Cache infra images
-        uses: actions/cache/save@v5
-        with:
-          path: /tmp/wallow-infra-images.tar.gz
-          key: infra-images-${{ runner.os }}-${{ github.sha }}
-
-  docker-images-app:
+  docker-images:
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -219,30 +190,30 @@ jobs:
           path: |
             **/bin/Release
             **/obj
-            src/Wallow.Auth/wwwroot/css/app.css
-            src/Wallow.Web/wwwroot/css/app.css
           key: build-${{ runner.os }}-${{ github.sha }}
           fail-on-cache-miss: true
 
       - name: Restore .NET tools
         run: dotnet tool restore
 
-      - name: Publish .NET container images
+      - name: Publish app container images
         run: |
-          # amd64 images (--no-build reuses the Release build from the build job)
+          # x64 images for E2E testing on ubuntu runner
           dotnet publish src/Wallow.Api/Wallow.Api.csproj \
             -c Release --no-build /t:PublishContainer \
-            -p:ContainerImageTag=test-amd64 \
+            -p:ContainerImageTag=test \
+            -p:ContainerRuntimeIdentifier=linux-x64 \
             -p:BuildMigrationBundles=true
           dotnet publish src/Wallow.Auth/Wallow.Auth.csproj \
             -c Release --no-build /t:PublishContainer \
-            -p:ContainerImageTag=test-amd64
+            -p:ContainerImageTag=test \
+            -p:ContainerRuntimeIdentifier=linux-x64
           dotnet publish src/Wallow.Web/Wallow.Web.csproj \
             -c Release --no-build /t:PublishContainer \
-            -p:ContainerImageTag=test-amd64
+            -p:ContainerImageTag=test \
+            -p:ContainerRuntimeIdentifier=linux-x64
 
-          # arm64 images (IL is arch-agnostic; ContainerRuntimeIdentifier picks the base image;
-          # migration bundles use --no-build on Linux so no cross-compilation needed)
+          # arm64 images for multi-arch push
           dotnet publish src/Wallow.Api/Wallow.Api.csproj \
             -c Release --no-build /t:PublishContainer \
             -p:ContainerImageTag=test-arm64 \
@@ -257,29 +228,29 @@ jobs:
             -p:ContainerImageTag=test-arm64 \
             -p:ContainerRuntimeIdentifier=linux-arm64
 
-          # Alias amd64 images as :test so E2E tests (running on x64 runner) work unchanged
-          docker tag wallow-api:test-amd64 wallow-api:test
-          docker tag wallow-auth:test-amd64 wallow-auth:test
-          docker tag wallow-web:test-amd64 wallow-web:test
+      - name: Build infra images
+        run: |
+          docker compose -f docker/docker-compose.test.yml build garage
+          docker build -t wallow-postgres-replica:latest docker/images/postgres-replica
 
-      - name: Save app images to cache
+      - name: Save all images to cache
         run: |
           docker save \
-            wallow-api:test wallow-api:test-amd64 wallow-api:test-arm64 \
-            wallow-auth:test wallow-auth:test-amd64 wallow-auth:test-arm64 \
-            wallow-web:test wallow-web:test-amd64 wallow-web:test-arm64 \
-            | gzip > /tmp/wallow-app-images.tar.gz
+            wallow-api:test wallow-api:test-arm64 \
+            wallow-auth:test wallow-auth:test-arm64 \
+            wallow-web:test wallow-web:test-arm64 \
+            wallow-garage:test wallow-postgres-replica:latest \
+            | gzip > /tmp/wallow-images.tar.gz
 
-      - name: Cache app images
+      - name: Cache images
         uses: actions/cache/save@v5
         with:
-          path: /tmp/wallow-app-images.tar.gz
-          key: app-images-${{ runner.os }}-${{ github.sha }}
+          path: /tmp/wallow-images.tar.gz
+          key: images-${{ runner.os }}-${{ github.sha }}
 
   e2e:
-    needs: [build, docker-images-infra, docker-images-app]
+    needs: [build, docker-images]
     runs-on: ubuntu-latest
-
     permissions:
       contents: read
 
@@ -305,44 +276,30 @@ jobs:
           path: |
             **/bin/Release
             **/obj
-            src/Wallow.Auth/wwwroot/css/app.css
-            src/Wallow.Web/wwwroot/css/app.css
           key: build-${{ runner.os }}-${{ github.sha }}
           fail-on-cache-miss: true
 
-      - name: Restore infra images
+      - name: Restore images
         uses: actions/cache/restore@v5
         with:
-          path: /tmp/wallow-infra-images.tar.gz
-          key: infra-images-${{ runner.os }}-${{ github.sha }}
-          fail-on-cache-miss: true
-
-      - name: Restore app images
-        uses: actions/cache/restore@v5
-        with:
-          path: /tmp/wallow-app-images.tar.gz
-          key: app-images-${{ runner.os }}-${{ github.sha }}
+          path: /tmp/wallow-images.tar.gz
+          key: images-${{ runner.os }}-${{ github.sha }}
           fail-on-cache-miss: true
 
       - name: Load container images
-        run: |
-          docker load < /tmp/wallow-infra-images.tar.gz
-          docker load < /tmp/wallow-app-images.tar.gz
+        run: docker load < /tmp/wallow-images.tar.gz
 
       - name: Configure host.docker.internal for OIDC
         run: echo "127.0.0.1 host.docker.internal" | sudo tee -a /etc/hosts
 
-      # Start containers BEFORE Playwright install so they boot in parallel
       - name: Start test environment
         run: docker compose -f docker/docker-compose.test.yml up -d
 
-      # Playwright install (~60s) overlaps with container startup (~60-90s)
       - name: Build E2E tests and install Playwright
         run: |
           dotnet build tests/Wallow.E2E.Tests -c Release --no-restore
           pwsh tests/Wallow.E2E.Tests/bin/Release/net10.0/playwright.ps1 install --with-deps chromium
 
-      # By now containers should be ready (booted during Playwright install)
       - name: Wait for services to be healthy
         run: |
           echo "Waiting for wallow-api..."
@@ -407,97 +364,6 @@ jobs:
       - name: Tear down test environment
         if: always()
         run: docker compose -f docker/docker-compose.test.yml down -v
-
-  # Push images to GHCR after ALL tests pass — only on main branch
-  push-images:
-    needs: [unit-tests, integration-tests, e2e]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Restore app images
-        uses: actions/cache/restore@v5
-        with:
-          path: /tmp/wallow-app-images.tar.gz
-          key: app-images-${{ runner.os }}-${{ github.sha }}
-          fail-on-cache-miss: true
-
-      - name: Restore infra images
-        uses: actions/cache/restore@v5
-        with:
-          path: /tmp/wallow-infra-images.tar.gz
-          key: infra-images-${{ runner.os }}-${{ github.sha }}
-          fail-on-cache-miss: true
-
-      - name: Load container images
-        run: |
-          docker load < /tmp/wallow-app-images.tar.gz
-          docker load < /tmp/wallow-infra-images.tar.gz
-
-      - name: Log in to Container Registry
-        uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set up QEMU for multi-arch builds
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Tag and push images to GHCR
-        env:
-          IMAGE_BASE: ghcr.io/${{ github.repository }}
-          SHA_TAG: ${{ github.sha }}
-        run: |
-          SHORT_SHA="${SHA_TAG:0:7}"
-
-          # App images — push arch-specific tags then create multi-arch manifests
-          declare -A APP_IMAGE_MAP=(
-            ["wallow-api"]="${IMAGE_BASE}"
-            ["wallow-auth"]="${IMAGE_BASE}-auth"
-            ["wallow-web"]="${IMAGE_BASE}-web"
-          )
-          for local_name in "${!APP_IMAGE_MAP[@]}"; do
-            remote="${APP_IMAGE_MAP[$local_name]}"
-
-            # Push arch-specific images
-            for arch in amd64 arm64; do
-              docker tag "${local_name}:test-${arch}" "${remote}:${SHORT_SHA}-${arch}"
-              docker push "${remote}:${SHORT_SHA}-${arch}"
-            done
-
-            # Create and push multi-arch manifests for :latest and :sha
-            for tag in latest "${SHORT_SHA}"; do
-              docker manifest create "${remote}:${tag}" \
-                "${remote}:${SHORT_SHA}-amd64" \
-                "${remote}:${SHORT_SHA}-arm64"
-              docker manifest push "${remote}:${tag}"
-            done
-
-            echo "Pushed multi-arch ${remote}:latest and ${remote}:${SHORT_SHA}"
-          done
-
-          # Infra images — multi-arch build + push directly via buildx
-          # (cached images are amd64-only for E2E; rebuild here for both arches)
-          docker buildx build --platform linux/amd64,linux/arm64 \
-            --tag "${IMAGE_BASE}-garage:latest" \
-            --tag "${IMAGE_BASE}-garage:${SHORT_SHA}" \
-            --push docker/images/garage
-
-          docker buildx build --platform linux/amd64,linux/arm64 \
-            --tag "${IMAGE_BASE}-postgres-replica:latest" \
-            --tag "${IMAGE_BASE}-postgres-replica:${SHORT_SHA}" \
-            --push docker/images/postgres-replica
-
-          echo "Pushed multi-arch infra images (garage, postgres-replica)"
 
   merge-coverage:
     needs: [unit-tests, integration-tests]
@@ -568,3 +434,83 @@ jobs:
           name: coverage-report
           path: ./coverage/merged
           retention-days: 30
+
+  push-images:
+    needs: [merge-coverage, e2e]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Restore images
+        uses: actions/cache/restore@v5
+        with:
+          path: /tmp/wallow-images.tar.gz
+          key: images-${{ runner.os }}-${{ github.sha }}
+          fail-on-cache-miss: true
+
+      - name: Load container images
+        run: docker load < /tmp/wallow-images.tar.gz
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up QEMU for multi-arch builds
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Tag and push images to GHCR
+        env:
+          IMAGE_BASE: ghcr.io/${{ github.repository }}
+          SHA_TAG: ${{ github.sha }}
+        run: |
+          SHORT_SHA="${SHA_TAG:0:7}"
+
+          # App images: push arch-specific tags then create multi-arch manifests
+          declare -A APP_IMAGE_MAP=(
+            ["wallow-api"]="${IMAGE_BASE}"
+            ["wallow-auth"]="${IMAGE_BASE}-auth"
+            ["wallow-web"]="${IMAGE_BASE}-web"
+          )
+          for local_name in "${!APP_IMAGE_MAP[@]}"; do
+            remote="${APP_IMAGE_MAP[$local_name]}"
+
+            # Push x64 (tagged :test) and arm64 (tagged :test-arm64)
+            docker tag "${local_name}:test" "${remote}:${SHORT_SHA}-amd64"
+            docker push "${remote}:${SHORT_SHA}-amd64"
+            docker tag "${local_name}:test-arm64" "${remote}:${SHORT_SHA}-arm64"
+            docker push "${remote}:${SHORT_SHA}-arm64"
+
+            # Create and push multi-arch manifests
+            for tag in latest "${SHORT_SHA}"; do
+              docker manifest create "${remote}:${tag}" \
+                "${remote}:${SHORT_SHA}-amd64" \
+                "${remote}:${SHORT_SHA}-arm64"
+              docker manifest push "${remote}:${tag}"
+            done
+
+            echo "Pushed multi-arch ${remote}:latest and ${remote}:${SHORT_SHA}"
+          done
+
+          # Infra images: multi-arch build + push via buildx
+          docker buildx build --platform linux/amd64,linux/arm64 \
+            --tag "${IMAGE_BASE}-garage:latest" \
+            --tag "${IMAGE_BASE}-garage:${SHORT_SHA}" \
+            --push docker/images/garage
+
+          docker buildx build --platform linux/amd64,linux/arm64 \
+            --tag "${IMAGE_BASE}-postgres-replica:latest" \
+            --tag "${IMAGE_BASE}-postgres-replica:${SHORT_SHA}" \
+            --push docker/images/postgres-replica
+
+          echo "Pushed multi-arch infra images (garage, postgres-replica)"

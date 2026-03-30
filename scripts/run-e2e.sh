@@ -77,24 +77,34 @@ if [[ "$SKIP_BUILD" == "false" ]]; then
     echo "=== Building solution ==="
     dotnet build "$REPO_ROOT/Wallow.slnx" -c Release
 
+    # Detect host arch for single-arch local publish (faster than multi-arch)
+    ARCH=$(uname -m)
+    case "$ARCH" in
+        arm64|aarch64) RID="linux-arm64" ;;
+        *)             RID="linux-x64" ;;
+    esac
+
     echo ""
-    echo "=== Publishing container images ==="
+    echo "=== Publishing container images (${RID}) ==="
 
     echo "  Publishing wallow-api:test (with migration bundles)..."
     dotnet publish "$REPO_ROOT/src/Wallow.Api/Wallow.Api.csproj" \
         -c Release --no-build /t:PublishContainer \
         -p:ContainerImageTag=test \
+        -p:ContainerRuntimeIdentifier="$RID" \
         -p:BuildMigrationBundles=true
 
     echo "  Publishing wallow-auth:test..."
     dotnet publish "$REPO_ROOT/src/Wallow.Auth/Wallow.Auth.csproj" \
         -c Release --no-build /t:PublishContainer \
-        -p:ContainerImageTag=test
+        -p:ContainerImageTag=test \
+        -p:ContainerRuntimeIdentifier="$RID"
 
     echo "  Publishing wallow-web:test..."
     dotnet publish "$REPO_ROOT/src/Wallow.Web/Wallow.Web.csproj" \
         -c Release --no-build /t:PublishContainer \
-        -p:ContainerImageTag=test
+        -p:ContainerImageTag=test \
+        -p:ContainerRuntimeIdentifier="$RID"
 
     echo ""
     echo "=== Building infrastructure images ==="
