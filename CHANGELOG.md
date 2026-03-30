@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.2.2](https://github.com/bc-solutions-coder/wallow/compare/v1.2.1...v1.2.2) (2026-03-30)
+
+
+### Bug Fixes
+
+* add forwarded headers middleware for reverse proxy HTTPS support ([2fc1f9d](https://github.com/bc-solutions-coder/wallow/commit/2fc1f9dc051905fd6754b722e7e9e5ac39d70c9e))
+* auto-download Tailwind binary and compile CSS during publish ([a640999](https://github.com/bc-solutions-coder/wallow/commit/a640999dde7b1a6a9169332fa73751d5558ff0b5))
+* bust GitHub image cache for readme logo ([cc18c0f](https://github.com/bc-solutions-coder/wallow/commit/cc18c0ffd9ddf64d93424e3b6d49a2bfef19939b))
+* **ci:** add no-build to arm64 publish to prevent stale bin directory errors ([02bbe40](https://github.com/bc-solutions-coder/wallow/commit/02bbe4064a29ca568911ed826a4f90daa7aee16e))
+* **ci:** include Tailwind-compiled CSS in build cache ([5b850c3](https://github.com/bc-solutions-coder/wallow/commit/5b850c32c3285cc4ffc1dc49162a38dfce81c064))
+* **ci:** restore arm64 runtime packages before cross-compiling migration bundles ([0b0769c](https://github.com/bc-solutions-coder/wallow/commit/0b0769cba2e92d5301d6299405a92c71515e58d8))
+* remove invalid XML comment containing double hyphens in csproj ([4f61dc9](https://github.com/bc-solutions-coder/wallow/commit/4f61dc9ba7f94e79139b6def38c2591c6865aee7))
+* set tmpfs uid/gid to match container app user (1654) ([7a4e406](https://github.com/bc-solutions-coder/wallow/commit/7a4e406a342c63c55d2fe772373aa0be145c578c))
+* update release-please last-release-sha to v1.2.1 after history filter ([1c2323d](https://github.com/bc-solutions-coder/wallow/commit/1c2323d6b3b522796a49ed8bc23511374c7e08d7))
+* use --no-build for native-arch migration bundles, --target-runtime for cross-compilation ([7819fd4](https://github.com/bc-solutions-coder/wallow/commit/7819fd4e8385038975882d35f85baabf26fed33f))
+* use mode=1777 for tmpfs instead of hardcoded uid ([ea0ffec](https://github.com/bc-solutions-coder/wallow/commit/ea0ffecc60e08cb1dcb81087696ddb6af37439c3))
+
 ## [1.2.1](https://github.com/bc-solutions-coder/wallow/compare/v1.2.0...v1.2.1) (2026-03-30)
 
 
