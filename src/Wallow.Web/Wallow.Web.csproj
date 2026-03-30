@@ -4,6 +4,13 @@
   <PropertyGroup>
     <ContainerRepository>wallow-web</ContainerRepository>
     <ContainerBaseImage>mcr.microsoft.com/dotnet/aspnet:10.0</ContainerBaseImage>
+    <ContainerRuntimeIdentifiers>linux-x64;linux-arm64</ContainerRuntimeIdentifiers>
+  </PropertyGroup>
+
+  <!-- Tailwind.Hosting.Build configuration: override defaults to match project layout -->
+  <PropertyGroup>
+    <TailwindInputCssFile>Styles/app.css</TailwindInputCssFile>
+    <TailwindOutputCssFile>wwwroot/css/app.css</TailwindOutputCssFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -13,6 +20,8 @@
     <PackageReference Include="Microsoft.AspNetCore.DataProtection.StackExchangeRedis" />
     <PackageReference Include="Microsoft.Extensions.Http.Resilience" />
     <PackageReference Include="StackExchange.Redis" />
+    <PackageReference Include="Tailwind.Hosting" />
+    <PackageReference Include="Tailwind.Hosting.Build" />
   </ItemGroup>
 
   <ItemGroup>
@@ -23,25 +32,5 @@
   <ItemGroup>
     <Content Include="..\..\branding.json" CopyToPublishDirectory="PreserveNewest" Link="branding.json" />
   </ItemGroup>
-
-  <!-- Tailwind CSS: auto-downloads the correct platform binary if missing, then compiles.
-       Runs before both Build (local dev) and Publish (CI container builds with no-build). -->
-  <PropertyGroup>
-    <TailwindVersion>v4.1.4</TailwindVersion>
-    <_TailwindBin>$(MSBuildProjectDirectory)/tailwindcss</_TailwindBin>
-  </PropertyGroup>
-  <Target Name="TailwindDownload" BeforeTargets="TailwindBuild" Condition="!Exists('$(_TailwindBin)')">
-    <PropertyGroup>
-      <_TailwindPlatform Condition="$([MSBuild]::IsOSPlatform('OSX')) and '$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'Arm64'">macos-arm64</_TailwindPlatform>
-      <_TailwindPlatform Condition="$([MSBuild]::IsOSPlatform('OSX')) and '$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'X64'">macos-x64</_TailwindPlatform>
-      <_TailwindPlatform Condition="$([MSBuild]::IsOSPlatform('Linux')) and '$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'X64'">linux-x64</_TailwindPlatform>
-      <_TailwindPlatform Condition="$([MSBuild]::IsOSPlatform('Linux')) and '$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'Arm64'">linux-arm64</_TailwindPlatform>
-    </PropertyGroup>
-    <Exec Command="curl -sLo tailwindcss https://github.com/tailwindlabs/tailwindcss/releases/download/$(TailwindVersion)/tailwindcss-$(_TailwindPlatform) &amp;&amp; chmod +x tailwindcss" WorkingDirectory="$(MSBuildProjectDirectory)" />
-  </Target>
-  <Target Name="TailwindBuild" BeforeTargets="Build;Publish" Condition="Exists('$(MSBuildProjectDirectory)/Styles/app.css')">
-    <Exec Command="./tailwindcss -i Styles/app.css -o wwwroot/css/app.css --minify" WorkingDirectory="$(MSBuildProjectDirectory)" />
-  </Target>
-
 
 </Project>
