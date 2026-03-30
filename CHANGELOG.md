@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/bc-solutions-coder/wallow/compare/v1.2.0...v1.2.1) (2026-03-30)
+
+
+### Bug Fixes
+
+* set DOTNET_BUNDLE_EXTRACT_BASE_DIR for migration bundles in read-only containers ([369a798](https://github.com/bc-solutions-coder/wallow/commit/369a798908aaf56e169c2110648d05b261b5cec5))
+
 ## [1.2.0](https://github.com/bc-solutions-coder/wallow/compare/v1.1.0...v1.2.0) (2026-03-29)
 
 
