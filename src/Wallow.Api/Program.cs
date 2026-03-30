@@ -409,6 +409,24 @@ try
 
     // Middleware pipeline (order matters!)
 
+    // Forwarded headers — must run before any middleware that inspects the request scheme.
+    // Cloudflare (and other reverse proxies) terminate TLS and forward HTTP with
+    // X-Forwarded-For / X-Forwarded-Proto headers. Without this, OpenIddict sees HTTP
+    // and rejects requests with "This server only accepts HTTPS requests" (ID2083).
+    if (!app.Environment.IsDevelopment())
+    {
+        ForwardedHeadersOptions forwardedHeadersOptions = new()
+        {
+            ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedFor
+                | Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto,
+        };
+        // Clear defaults so headers are accepted from any proxy in the chain.
+        // Safe because Kestrel is not directly exposed to the internet.
+        forwardedHeadersOptions.KnownIPNetworks.Clear();
+        forwardedHeadersOptions.KnownProxies.Clear();
+        app.UseForwardedHeaders(forwardedHeadersOptions);
+    }
+
     // Exception handling
     app.UseExceptionHandler("/error");
     app.UseSerilogRequestLogging(options =>
