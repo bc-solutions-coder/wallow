@@ -125,8 +125,8 @@
   <Target Name="BuildMigrationBundles" AfterTargets="Publish" BeforeTargets="PublishContainer" Condition="'$(BuildMigrationBundles)' == 'true'">
     <PropertyGroup>
       <BundleDir>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/$(PublishDir)/bundles'))</BundleDir>
-      <!-- Native builds (host arch matches target) use --no-build for speed;
-           cross-compilation (e.g. arm64 bundles on x64 CI) must rebuild with --target-runtime -->
+      <!-- Native builds (host arch matches target) skip rebuild for speed;
+           cross-compilation (e.g. arm64 bundles on x64 CI) must rebuild for the target runtime -->
       <_IsNativeBuild Condition="'$(MigrationBundleRid)' == 'linux-x64' and '$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'X64'">true</_IsNativeBuild>
       <_IsNativeBuild Condition="'$(MigrationBundleRid)' == 'linux-arm64' and '$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'Arm64'">true</_IsNativeBuild>
       <BundleArgs Condition="'$(_IsNativeBuild)' == 'true'">--configuration $(Configuration) --force --no-build</BundleArgs>
