@@ -380,8 +380,9 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:8080
-      # Internal API URL (container-to-container)
-      ApiBaseUrl: http://wallow-api:8080
+      # Public URL for browser redirects (exchange-ticket, external-login, etc.)
+      ApiBaseUrl: ${API_PUBLIC_URL:-https://api.wallow.dev}
+      # Internal URL for server-to-server calls (container-to-container)
       ServiceUrls__ApiUrl: http://wallow-api:8080
       ServiceUrls__WebUrl: ${WEB_PUBLIC_URL:-https://wallow.dev}
       ConnectionStrings__Redis: "valkey:6379,password=${VALKEY_PASSWORD},abortConnect=false"

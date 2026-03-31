@@ -128,9 +128,10 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
-      # ApiBaseUrl is used for BOTH server-to-server calls and browser redirects
-      # (ticket exchange after login). Must be reachable from both contexts.
-      ApiBaseUrl: "http://host.docker.internal:5050"
+      # Public URL for browser redirects (ticket exchange after login)
+      ApiBaseUrl: "http://localhost:5050"
+      # Internal URL for server-to-server calls (container-to-container)
+      ServiceUrls__ApiUrl: "http://wallow-api:8080"
       ConnectionStrings__Redis: "valkey:6379,password=WallowTestValkey123!,abortConnect=false"
     depends_on:
       - wallow-api

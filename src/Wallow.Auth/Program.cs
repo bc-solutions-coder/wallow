@@ -58,8 +58,11 @@ builder.Services.AddRazorComponents()
 
 builder.Services.AddBlazorBlueprintComponents();
 
-string apiBaseUrl = builder.Configuration["ApiBaseUrl"]
-    ?? throw new InvalidOperationException("ApiBaseUrl must be configured");
+string apiPublicUrl = builder.Configuration["ApiBaseUrl"]
+    ?? throw new InvalidOperationException("ApiBaseUrl must be configured (public URL for browser redirects)");
+
+// Server-to-server URL: prefer ServiceUrls:ApiUrl (internal Docker DNS), fall back to public URL
+string apiInternalUrl = builder.Configuration["ServiceUrls:ApiUrl"] ?? apiPublicUrl;
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<Wallow.Auth.Services.CookieRelayStore>();
@@ -68,7 +71,7 @@ builder.Services.AddTransient<Wallow.Auth.Services.CookieForwardingHandler>();
 
 builder.Services.AddHttpClient("AuthApi", client =>
 {
-    client.BaseAddress = new Uri(apiBaseUrl);
+    client.BaseAddress = new Uri(apiInternalUrl);
 })
 .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
 {
