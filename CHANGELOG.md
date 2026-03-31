@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.1](https://github.com/bc-solutions-coder/wallow/compare/v1.4.0...v1.4.1) (2026-03-31)
+
+
+### Bug Fixes
+
+* **docker:** add PathBase env vars and route prefix convention for path-based routing ([34e4c6a](https://github.com/bc-solutions-coder/wallow/commit/34e4c6a182e65ef0e0ab69f05da34f8aa1491675))
+
 ## [1.4.0](https://github.com/bc-solutions-coder/wallow/compare/v1.3.0...v1.4.0) (2026-03-31)
 
 
