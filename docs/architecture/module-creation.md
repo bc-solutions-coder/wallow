@@ -425,7 +425,7 @@ The migration runs automatically on startup via `Initialize{Module}ModuleAsync()
 
 ## Step 10: Add Tests
 
-Create a test project at `tests/Modules/{Module}/Wallow.{Module}.Tests/`. Use NSubstitute for mocking and FluentAssertions for assertions.
+Create a test project at `tests/Modules/{Module}/Wallow.{Module}.Tests/`. Use NSubstitute for mocking and AwesomeAssertions for assertions.
 
 Run tests with:
 

@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using NSubstitute.Core;
 using Wallow.Billing.Application.Metering.Commands.IncrementMeter;
 using Wallow.Billing.Application.Metering.Services;
+using Wallow.Tests.Common.Helpers;
 
 namespace Wallow.Billing.Tests.Application.Metering;
 
@@ -77,5 +78,28 @@ public class IncrementMeterHandlerTests
         await _handler.Handle(command);
 
         await _meteringService.Received(1).IncrementAsync("api.calls", 1, null);
+    }
+
+    [Fact]
+    public async Task Handle_WhenServiceThrows_LogsWarningContainingMeterCode()
+    {
+        _meteringService.IncrementAsync(Arg.Any<string>(), Arg.Any<decimal>(), null)
+            .Returns(Task.FromException(new InvalidOperationException("Redis down")));
+
+        IncrementMeterCommand command = new("storage.quota");
+
+        await _handler.Handle(command);
+
+        _logger.ShouldHaveLoggedMessage("storage.quota");
+    }
+
+    [Fact]
+    public async Task Handle_WithCustomValue_CallsServiceWithCorrectValue()
+    {
+        IncrementMeterCommand command = new("api.calls", 7);
+
+        await _handler.Handle(command);
+
+        await _meteringService.Received(1).IncrementAsync("api.calls", 7, null);
     }
 }

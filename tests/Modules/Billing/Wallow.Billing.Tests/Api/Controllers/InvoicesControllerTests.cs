@@ -533,6 +533,69 @@ public class InvoicesControllerTests
         objectResult.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
     }
 
+    [Fact]
+    public async Task Create_WithAdminRoleAndExplicitUserId_UsesRequestUserId()
+    {
+        Guid explicitUserId = Guid.NewGuid();
+        CreateInvoiceRequest request = new("INV-001", "USD", null, explicitUserId);
+        InvoiceDto dto = CreateInvoiceDto("INV-001");
+        _bus.InvokeAsync<Result<InvoiceDto>>(Arg.Any<CreateInvoiceCommand>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(dto));
+
+        ClaimsPrincipal adminUser = new(new ClaimsIdentity(new[]
+        {
+            new Claim(ClaimTypes.NameIdentifier, _userId.ToString()),
+            new Claim(ClaimTypes.Role, "admin")
+        }, "TestAuth"));
+        _controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext { User = adminUser }
+        };
+
+        await _controller.Create(request, CancellationToken.None);
+
+        await _bus.Received(1).InvokeAsync<Result<InvoiceDto>>(
+            Arg.Is<CreateInvoiceCommand>(c => c.UserId == explicitUserId),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AddLineItem_WithNoUserClaims_ReturnsUnauthorized()
+    {
+        _currentUserService.GetCurrentUserId().Returns((Guid?)null);
+        Guid invoiceId = Guid.NewGuid();
+        AddLineItemRequest request = new("Service", 100.00m, 1);
+
+        IActionResult result = await _controller.AddLineItem(invoiceId, request, CancellationToken.None);
+
+        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        objectResult.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
+    }
+
+    [Fact]
+    public async Task Issue_WithNoUserClaims_ReturnsUnauthorized()
+    {
+        _currentUserService.GetCurrentUserId().Returns((Guid?)null);
+        Guid invoiceId = Guid.NewGuid();
+
+        IActionResult result = await _controller.Issue(invoiceId, CancellationToken.None);
+
+        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        objectResult.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
+    }
+
+    [Fact]
+    public async Task Cancel_WithNoUserClaims_ReturnsUnauthorized()
+    {
+        _currentUserService.GetCurrentUserId().Returns((Guid?)null);
+        Guid invoiceId = Guid.NewGuid();
+
+        IActionResult result = await _controller.Cancel(invoiceId, CancellationToken.None);
+
+        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        objectResult.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
+    }
+
     #endregion
 
     #region Response Mapping

@@ -6,8 +6,10 @@ using Wallow.Billing.Api.Controllers;
 using Wallow.Billing.Application.Commands.CancelSubscription;
 using Wallow.Billing.Application.Commands.CreateSubscription;
 using Wallow.Billing.Application.DTOs;
+using Wallow.Billing.Application.Queries.GetAllSubscriptions;
 using Wallow.Billing.Application.Queries.GetSubscriptionById;
 using Wallow.Billing.Application.Queries.GetSubscriptionsByUserId;
+using Wallow.Shared.Kernel.Pagination;
 using Wallow.Shared.Kernel.Results;
 using Wallow.Shared.Kernel.Services;
 using Wolverine;
@@ -37,6 +39,67 @@ public class SubscriptionsControllerTests
             HttpContext = new DefaultHttpContext { User = user }
         };
     }
+
+    #region GetAll
+
+    [Fact]
+    public async Task GetAll_WhenSuccess_ReturnsOkWithSubscriptionResponses()
+    {
+        List<SubscriptionDto> subscriptions = [CreateSubscriptionDto(), CreateSubscriptionDto()];
+        PagedResult<SubscriptionDto> paged = new(subscriptions, 2, 1, 50);
+        _bus.InvokeAsync<Result<PagedResult<SubscriptionDto>>>(Arg.Any<GetAllSubscriptionsQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(paged));
+
+        IActionResult result = await _controller.GetAll(cancellationToken: CancellationToken.None);
+
+        OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        PagedResult<SubscriptionResponse> responses = ok.Value.Should().BeOfType<PagedResult<SubscriptionResponse>>().Subject;
+        responses.Items.Should().HaveCount(2);
+        responses.TotalCount.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task GetAll_WhenEmpty_ReturnsOkWithEmptyList()
+    {
+        PagedResult<SubscriptionDto> paged = new([], 0, 1, 50);
+        _bus.InvokeAsync<Result<PagedResult<SubscriptionDto>>>(Arg.Any<GetAllSubscriptionsQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(paged));
+
+        IActionResult result = await _controller.GetAll(cancellationToken: CancellationToken.None);
+
+        OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        PagedResult<SubscriptionResponse> responses = ok.Value.Should().BeOfType<PagedResult<SubscriptionResponse>>().Subject;
+        responses.Items.Should().BeEmpty();
+        responses.TotalCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task GetAll_WhenFailure_ReturnsErrorResult()
+    {
+        _bus.InvokeAsync<Result<PagedResult<SubscriptionDto>>>(Arg.Any<GetAllSubscriptionsQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Failure<PagedResult<SubscriptionDto>>(Error.Unauthorized()));
+
+        IActionResult result = await _controller.GetAll(cancellationToken: CancellationToken.None);
+
+        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        objectResult.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
+    }
+
+    [Fact]
+    public async Task GetAll_ForwardsSkipAndTakeToQuery()
+    {
+        PagedResult<SubscriptionDto> paged = new([], 0, 1, 10);
+        _bus.InvokeAsync<Result<PagedResult<SubscriptionDto>>>(Arg.Any<GetAllSubscriptionsQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(paged));
+
+        await _controller.GetAll(skip: 50, take: 10, cancellationToken: CancellationToken.None);
+
+        await _bus.Received(1).InvokeAsync<Result<PagedResult<SubscriptionDto>>>(
+            Arg.Is<GetAllSubscriptionsQuery>(q => q.Skip == 50 && q.Take == 10),
+            Arg.Any<CancellationToken>());
+    }
+
+    #endregion
 
     #region GetById
 

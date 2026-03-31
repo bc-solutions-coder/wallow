@@ -5,8 +5,10 @@ using Wallow.Billing.Api.Contracts.Payments;
 using Wallow.Billing.Api.Controllers;
 using Wallow.Billing.Application.Commands.ProcessPayment;
 using Wallow.Billing.Application.DTOs;
+using Wallow.Billing.Application.Queries.GetAllPayments;
 using Wallow.Billing.Application.Queries.GetPaymentById;
 using Wallow.Billing.Application.Queries.GetPaymentsByInvoiceId;
+using Wallow.Shared.Kernel.Pagination;
 using Wallow.Shared.Kernel.Results;
 using Wallow.Shared.Kernel.Services;
 using Wolverine;
@@ -36,6 +38,67 @@ public class PaymentsControllerTests
             HttpContext = new DefaultHttpContext { User = user }
         };
     }
+
+    #region GetAll
+
+    [Fact]
+    public async Task GetAll_WhenSuccess_ReturnsOkWithPaymentResponses()
+    {
+        List<PaymentDto> payments = [CreatePaymentDto(), CreatePaymentDto()];
+        PagedResult<PaymentDto> paged = new(payments, 2, 1, 50);
+        _bus.InvokeAsync<Result<PagedResult<PaymentDto>>>(Arg.Any<GetAllPaymentsQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(paged));
+
+        IActionResult result = await _controller.GetAll(cancellationToken: CancellationToken.None);
+
+        OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        PagedResult<PaymentResponse> responses = ok.Value.Should().BeOfType<PagedResult<PaymentResponse>>().Subject;
+        responses.Items.Should().HaveCount(2);
+        responses.TotalCount.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task GetAll_WhenEmpty_ReturnsOkWithEmptyList()
+    {
+        PagedResult<PaymentDto> paged = new([], 0, 1, 50);
+        _bus.InvokeAsync<Result<PagedResult<PaymentDto>>>(Arg.Any<GetAllPaymentsQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(paged));
+
+        IActionResult result = await _controller.GetAll(cancellationToken: CancellationToken.None);
+
+        OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        PagedResult<PaymentResponse> responses = ok.Value.Should().BeOfType<PagedResult<PaymentResponse>>().Subject;
+        responses.Items.Should().BeEmpty();
+        responses.TotalCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task GetAll_WhenFailure_ReturnsErrorResult()
+    {
+        _bus.InvokeAsync<Result<PagedResult<PaymentDto>>>(Arg.Any<GetAllPaymentsQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Failure<PagedResult<PaymentDto>>(Error.Unauthorized()));
+
+        IActionResult result = await _controller.GetAll(cancellationToken: CancellationToken.None);
+
+        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        objectResult.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
+    }
+
+    [Fact]
+    public async Task GetAll_ForwardsSkipAndTakeToQuery()
+    {
+        PagedResult<PaymentDto> paged = new([], 0, 1, 25);
+        _bus.InvokeAsync<Result<PagedResult<PaymentDto>>>(Arg.Any<GetAllPaymentsQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(paged));
+
+        await _controller.GetAll(skip: 10, take: 25, cancellationToken: CancellationToken.None);
+
+        await _bus.Received(1).InvokeAsync<Result<PagedResult<PaymentDto>>>(
+            Arg.Is<GetAllPaymentsQuery>(q => q.Skip == 10 && q.Take == 25),
+            Arg.Any<CancellationToken>());
+    }
+
+    #endregion
 
     #region GetById
 

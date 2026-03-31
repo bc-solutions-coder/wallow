@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Time.Testing;
 using NSubstitute.Core;
 using Wallow.Billing.Application.EventHandlers;
 using Wallow.Billing.Domain.Events;
@@ -115,6 +116,92 @@ public class PaymentCreatedDomainEventHandlerTests
             .Where(c => LogMessageContains(c, paymentId.ToString()))
             .ToList();
         calls.Should().HaveCountGreaterThanOrEqualTo(1, "expected at least one Information log call containing the payment ID");
+    }
+
+    [Fact]
+    public async Task HandleAsync_PopulatesTenantIdFromTenantContext()
+    {
+        Guid expectedTenantId = Guid.NewGuid();
+        _tenantContext.TenantId.Returns(TenantId.Create(expectedTenantId));
+
+        PaymentCreatedDomainEvent domainEvent = new(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            250m,
+            "EUR",
+            "CreditCard",
+            Guid.NewGuid());
+
+        await PaymentCreatedDomainEventHandler.HandleAsync(
+            domainEvent,
+            _messageBus,
+            _tenantContext,
+            _userQueryService,
+            TimeProvider.System,
+            _logger,
+            CancellationToken.None);
+
+        await _messageBus.Received(1).PublishAsync(
+            Arg.Is<PaymentReceivedEvent>(e => e.TenantId == expectedTenantId));
+    }
+
+    [Fact]
+    public async Task HandleAsync_PopulatesPaidAtFromTimeProvider()
+    {
+        DateTimeOffset fixedTime = new(2025, 7, 15, 10, 30, 0, TimeSpan.Zero);
+        FakeTimeProvider fakeTimeProvider = new(fixedTime);
+
+        PaymentCreatedDomainEvent domainEvent = new(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            100m,
+            "USD",
+            "BankTransfer",
+            Guid.NewGuid());
+
+        await PaymentCreatedDomainEventHandler.HandleAsync(
+            domainEvent,
+            _messageBus,
+            _tenantContext,
+            _userQueryService,
+            fakeTimeProvider,
+            _logger,
+            CancellationToken.None);
+
+        await _messageBus.Received(1).PublishAsync(
+            Arg.Is<PaymentReceivedEvent>(e => e.PaidAt == fixedTime.UtcDateTime));
+    }
+
+    [Fact]
+    public async Task HandleAsync_PopulatesPaymentMethodAndUserEmail()
+    {
+        string expectedEmail = "billing@company.com";
+        Guid userId = Guid.NewGuid();
+
+        _userQueryService.GetUserEmailAsync(userId, Arg.Any<CancellationToken>())
+            .Returns(expectedEmail);
+
+        PaymentCreatedDomainEvent domainEvent = new(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            999.99m,
+            "GBP",
+            "PayPal",
+            userId);
+
+        await PaymentCreatedDomainEventHandler.HandleAsync(
+            domainEvent,
+            _messageBus,
+            _tenantContext,
+            _userQueryService,
+            TimeProvider.System,
+            _logger,
+            CancellationToken.None);
+
+        await _messageBus.Received(1).PublishAsync(
+            Arg.Is<PaymentReceivedEvent>(e =>
+                e.PaymentMethod == "PayPal" &&
+                e.UserEmail == expectedEmail));
     }
 
     [Fact]

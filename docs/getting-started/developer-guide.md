@@ -655,7 +655,7 @@ Validation runs automatically before handlers via Wolverine's FluentValidation m
 
 ### Test Infrastructure
 
-Wallow uses **xUnit** as the test framework, **FluentAssertions** for readable assertions, and **Testcontainers** for integration tests that need real infrastructure (PostgreSQL, Valkey).
+Wallow uses **xUnit** as the test framework, **AwesomeAssertions** for readable assertions, and **Testcontainers** for integration tests that need real infrastructure (PostgreSQL, Valkey).
 
 Shared test utilities live in `tests/Wallow.Tests.Common/`, including:
 - `WallowApiFactory` -- `WebApplicationFactory` configured with Testcontainers
@@ -726,7 +726,7 @@ public class InvoicesControllerTests : IClassFixture<WallowApiFactory>
 | Identity / Auth | ASP.NET Core Identity + OpenIddict |
 | Caching | Valkey (Redis-compatible) |
 | Object Storage | GarageHQ (S3-compatible) |
-| Testing | xUnit, Testcontainers, FluentAssertions |
+| Testing | xUnit, Testcontainers, AwesomeAssertions |
 
 ---
 

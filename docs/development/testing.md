@@ -44,7 +44,7 @@ Additional test projects: `Wallow.Shared.Kernel.Tests`, `Wallow.Shared.Infrastru
 | Package | Purpose |
 |---------|---------|
 | xUnit | Test framework |
-| FluentAssertions | Fluent assertions |
+| AwesomeAssertions | Fluent assertions |
 | NSubstitute | Mocking |
 | Testcontainers | Docker-based integration testing |
 | NetArchTest | Architecture rule validation |
