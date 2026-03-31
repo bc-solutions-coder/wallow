@@ -100,6 +100,9 @@ services:
       Storage__S3__Region: us-east-1
       # Auth URL for link generation (browser-accessible from host)
       AuthUrl: "http://localhost:5051"
+      ServiceUrls__AuthUrl: "http://localhost:5051"
+      # API URL for link generation (browser-accessible from host, e.g. magic link emails)
+      ServiceUrls__ApiUrl: "http://localhost:5050"
       # Override wallow-web-client redirect URIs for test ports (5053 instead of 5003)
       PreRegisteredClients__Clients__1__RedirectUris__0: "http://localhost:5053/signin-oidc"
       PreRegisteredClients__Clients__1__PostLogoutRedirectUris__0: "http://localhost:5053/signout-callback-oidc"

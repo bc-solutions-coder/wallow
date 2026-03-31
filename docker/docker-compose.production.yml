@@ -2,7 +2,11 @@
 # Wallow Production Stack
 # =============================================================================
 # Fully self-contained — runs locally or on a server with the same command.
-# Pangolin handles TLS + routing externally. Containers expose HTTP only.
+# Reverse proxy handles TLS + path-based routing externally:
+#   wallow.dev/api  -> wallow-api:8080   (strip /api prefix)
+#   wallow.dev/auth -> wallow-auth:8080  (strip /auth prefix)
+#   wallow.dev      -> wallow-web:8080
+# Containers expose HTTP only.
 #
 # Usage:
 #   cd docker
@@ -255,14 +259,13 @@ services:
       Storage__S3__UsePathStyle: "true"
       Storage__S3__Region: ${GARAGE_REGION:-us-east-1}
       # Service URLs (public-facing, what browsers see)
-      ServiceUrls__AuthUrl: ${AUTH_PUBLIC_URL:-https://auth.wallow.dev}
+      ServiceUrls__AuthUrl: ${AUTH_PUBLIC_URL:-https://wallow.dev/auth}
       ServiceUrls__WebUrl: ${WEB_PUBLIC_URL:-https://wallow.dev}
-      OpenIddict__Issuer: ${API_PUBLIC_URL:-https://api.wallow.dev}
-      AuthUrl: ${AUTH_PUBLIC_URL:-https://auth.wallow.dev}
-      Authentication__CookieDomain: ${COOKIE_DOMAIN:-.wallow.dev}
-      # CORS
+      OpenIddict__Issuer: ${API_PUBLIC_URL:-https://wallow.dev/api}
+      AuthUrl: ${AUTH_PUBLIC_URL:-https://wallow.dev/auth}
+      Authentication__CookieDomain: ${COOKIE_DOMAIN:-wallow.dev}
+      # CORS (single origin — all services share wallow.dev)
       Cors__AllowedOrigins__0: ${WEB_PUBLIC_URL:-https://wallow.dev}
-      Cors__AllowedOrigins__1: ${AUTH_PUBLIC_URL:-https://auth.wallow.dev}
       # Identity / JWT
       Identity__SigningKey: ${IDENTITY_SIGNING_KEY}
       # Admin bootstrap (applied on first startup, no-op after)
@@ -381,7 +384,7 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:8080
       # Public URL for browser redirects (exchange-ticket, external-login, etc.)
-      ApiBaseUrl: ${API_PUBLIC_URL:-https://api.wallow.dev}
+      ApiBaseUrl: ${API_PUBLIC_URL:-https://wallow.dev/api}
       # Internal URL for server-to-server calls (container-to-container)
       ServiceUrls__ApiUrl: http://wallow-api:8080
       ServiceUrls__WebUrl: ${WEB_PUBLIC_URL:-https://wallow.dev}
@@ -431,9 +434,9 @@ services:
       ServiceUrls__ApiUrl: http://wallow-api:8080
       ServiceUrls__AuthUrl: http://wallow-auth:8080
       # Public-facing auth URL (for browser redirects)
-      ServiceUrls__AuthPublicUrl: ${AUTH_PUBLIC_URL:-https://auth.wallow.dev}
+      ServiceUrls__AuthPublicUrl: ${AUTH_PUBLIC_URL:-https://wallow.dev/auth}
       # OIDC config
-      Oidc__Authority: ${API_PUBLIC_URL:-https://api.wallow.dev}
+      Oidc__Authority: ${API_PUBLIC_URL:-https://wallow.dev/api}
       Oidc__ClientId: ${OIDC_CLIENT_ID}
       Oidc__ClientSecret: ${OIDC_CLIENT_SECRET}
       ConnectionStrings__Redis: "valkey:6379,password=${VALKEY_PASSWORD},abortConnect=false"
