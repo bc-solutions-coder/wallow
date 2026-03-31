@@ -1,4 +1,5 @@
 using Microsoft.Playwright;
+using Wallow.E2E.Tests.Infrastructure;
 
 namespace Wallow.E2E.Tests.PageObjects;
 
@@ -17,23 +18,9 @@ public sealed class AppRegistrationPage
     {
         await _page.GotoAsync($"{_baseUrl}/dashboard/apps/register");
         await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
-        await WaitForBlazorCircuitAsync(_page);
+        await E2ETestBase.WaitForBlazorReadyAsync(_page);
         await _page.Locator("[data-testid='register-app-display-name']")
             .WaitForAsync(new() { Timeout = 10_000 });
-    }
-
-    internal static async Task WaitForBlazorCircuitAsync(IPage page, int timeoutMs = 30_000)
-    {
-        // Wait for Blazor circuit to be fully connected.
-        // Check for data-blazor-ready (set by BlazorReadyIndicator component)
-        // or fall back to checking the Blazor global object.
-        await page.WaitForFunctionAsync(
-            "() => document.body.getAttribute('data-blazor-ready') === 'true' || (typeof Blazor !== 'undefined')",
-            null,
-            new() { Timeout = timeoutMs, PollingInterval = 200 });
-        // Blazor circuit needs time after JS loads to establish SignalR connection
-        // and replace SSR content with interactive components.
-        await Task.Delay(2000);
     }
 
     public async Task<bool> IsLoadedAsync()
@@ -89,6 +76,54 @@ public sealed class AppRegistrationPage
         string clientId = await clientIdLocator.InnerTextAsync();
 
         return new AppRegistrationResult(true, clientId.Trim(), null, null);
+    }
+
+    public async Task FillBrandingAsync(string companyName, string? tagline)
+    {
+        await _page.Locator("[data-testid='register-app-branding-display-name']").FillAsync(companyName);
+
+        if (tagline is not null)
+        {
+            await _page.Locator("[data-testid='register-app-branding-tagline']").FillAsync(tagline);
+        }
+    }
+
+    public async Task UploadLogoAsync(string filePath)
+    {
+        await _page.Locator("[data-testid='register-app-logo-input']").SetInputFilesAsync(filePath);
+    }
+
+    public async Task ToggleScopeAsync(string scope)
+    {
+        string testId = $"register-app-scope-{scope.Replace('.', '-')}";
+        await _page.Locator($"[data-testid='{testId}']").ClickAsync();
+    }
+
+    public async Task<bool> IsScopeSelectedAsync(string scope)
+    {
+        string testId = $"register-app-scope-{scope.Replace('.', '-')}";
+        ILocator locator = _page.Locator($"[data-testid='{testId}']");
+        string? ariaPressed = await locator.GetAttributeAsync("aria-pressed");
+        if (ariaPressed is not null)
+        {
+            return ariaPressed == "true";
+        }
+
+        string? ariaChecked = await locator.GetAttributeAsync("aria-checked");
+        if (ariaChecked is not null)
+        {
+            return ariaChecked == "true";
+        }
+
+        // Fall back to checking for a selected/active CSS class
+        string? classAttr = await locator.GetAttributeAsync("class");
+        return classAttr is not null && (classAttr.Contains("selected") || classAttr.Contains("active"));
+    }
+
+    public async Task<string> GetClientSecretAsync()
+    {
+        string text = await _page.Locator("[data-testid='register-app-client-secret']").InnerTextAsync();
+        return text.Trim();
     }
 }
 

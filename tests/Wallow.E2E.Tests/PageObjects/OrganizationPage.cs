@@ -1,4 +1,5 @@
 using Microsoft.Playwright;
+using Wallow.E2E.Tests.Infrastructure;
 
 namespace Wallow.E2E.Tests.PageObjects;
 
@@ -17,7 +18,7 @@ public sealed class OrganizationPage
     {
         await _page.GotoAsync($"{_baseUrl}/dashboard/organizations");
         await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
-        await AppRegistrationPage.WaitForBlazorCircuitAsync(_page);
+        await E2ETestBase.WaitForBlazorReadyAsync(_page);
         await _page.Locator("[data-testid='organizations-heading']")
             .WaitForAsync(new() { Timeout = 10_000 });
     }
@@ -65,6 +66,11 @@ public sealed class OrganizationPage
     public async Task ClickCreateOrganizationAsync()
     {
         await _page.Locator("[data-testid='organizations-create-link']").ClickAsync();
+    }
+
+    public async Task ClickOrganizationRowAsync(string orgName)
+    {
+        await _page.Locator($"[data-testid='organizations-row-link']:has-text('{orgName}')").ClickAsync();
     }
 }
 

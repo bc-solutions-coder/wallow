@@ -75,6 +75,34 @@ public sealed class RegisterPage
         return errorMessages;
     }
 
+    public async Task<string> GetErrorMessageAsync(int timeoutMs = 3_000)
+    {
+        ILocator error = _page.Locator("[data-testid='register-error']");
+        try
+        {
+            await error.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = timeoutMs });
+            return await error.InnerTextAsync();
+        }
+        catch (TimeoutException)
+        {
+            return string.Empty;
+        }
+    }
+
+    public async Task<bool> IsErrorVisibleAsync(int timeoutMs = 3_000)
+    {
+        ILocator error = _page.Locator("[data-testid='register-error']");
+        try
+        {
+            await error.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = timeoutMs });
+            return true;
+        }
+        catch (TimeoutException)
+        {
+            return false;
+        }
+    }
+
     public async Task<bool> IsLoadedAsync()
     {
         try

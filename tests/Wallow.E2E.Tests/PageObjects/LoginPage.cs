@@ -46,16 +46,32 @@ public sealed class LoginPage
         await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
     }
 
-    public async Task<string?> GetErrorMessageAsync()
+    public async Task<string?> GetErrorMessageAsync(int timeoutMs = 3_000)
     {
         ILocator error = _page.Locator("[data-testid='login-error']");
-        bool isVisible = await error.IsVisibleAsync();
-        if (!isVisible)
+        try
+        {
+            await error.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = timeoutMs });
+            return await error.InnerTextAsync();
+        }
+        catch (TimeoutException)
         {
             return null;
         }
+    }
 
-        return await error.InnerTextAsync();
+    public async Task<bool> IsErrorVisibleAsync(int timeoutMs = 3_000)
+    {
+        ILocator error = _page.Locator("[data-testid='login-error']");
+        try
+        {
+            await error.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = timeoutMs });
+            return true;
+        }
+        catch (TimeoutException)
+        {
+            return false;
+        }
     }
 
     public async Task<bool> IsLoadedAsync()
@@ -80,6 +96,85 @@ public sealed class LoginPage
     public async Task ClickRegisterLinkAsync()
     {
         await _page.Locator("[data-testid='login-register-link']").ClickAsync();
+        await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+    }
+
+    // Magic link tab methods
+
+    public async Task SwitchToMagicLinkTabAsync()
+    {
+        await _page.Locator("[data-testid='login-tab-magic-link']").ClickAsync();
+        await _page.Locator("[data-testid='login-magic-link-email']")
+            .WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = 5_000 });
+    }
+
+    public async Task FillMagicLinkEmailAsync(string email)
+    {
+        await _page.Locator("[data-testid='login-magic-link-email']").FillAsync(email);
+    }
+
+    public async Task SubmitMagicLinkAsync()
+    {
+        await _page.Locator("[data-testid='login-magic-link-submit']").ClickAsync();
+        await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+    }
+
+    public async Task<bool> IsMagicLinkSentVisibleAsync(int timeoutMs = 5_000)
+    {
+        ILocator sent = _page.Locator("[data-testid='login-magic-link-sent']");
+        try
+        {
+            await sent.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = timeoutMs });
+            return true;
+        }
+        catch (TimeoutException)
+        {
+            return false;
+        }
+    }
+
+    // OTP tab methods
+
+    public async Task SwitchToOtpTabAsync()
+    {
+        await _page.Locator("[data-testid='login-tab-otp']").ClickAsync();
+        await _page.Locator("[data-testid='login-otp-email']")
+            .WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = 5_000 });
+    }
+
+    public async Task FillOtpEmailAsync(string email)
+    {
+        await _page.Locator("[data-testid='login-otp-email']").FillAsync(email);
+    }
+
+    public async Task SubmitOtpRequestAsync()
+    {
+        await _page.Locator("[data-testid='login-otp-send-submit']").ClickAsync();
+        await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+    }
+
+    public async Task<bool> IsOtpCodeFormVisibleAsync(int timeoutMs = 5_000)
+    {
+        ILocator codeField = _page.Locator("[data-testid='login-otp-code'], [data-testid='login-otp-sent']");
+        try
+        {
+            await codeField.First.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = timeoutMs });
+            return true;
+        }
+        catch (TimeoutException)
+        {
+            return false;
+        }
+    }
+
+    public async Task FillOtpCodeAsync(string code)
+    {
+        await _page.Locator("[data-testid='login-otp-code']").FillAsync(code);
+    }
+
+    public async Task SubmitOtpVerifyAsync()
+    {
+        await _page.Locator("[data-testid='login-otp-verify-submit']").ClickAsync();
         await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
     }
 }

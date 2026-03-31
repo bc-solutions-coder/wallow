@@ -58,26 +58,13 @@ public abstract class E2ETestBase : IClassFixture<DockerComposeFixture>, IClassF
         _testFailed = true;
     }
 
-    internal static async Task WaitForBlazorReadyAsync(IPage page, int timeoutMs = 15_000)
+    internal static async Task WaitForBlazorReadyAsync(IPage page, int timeoutMs = 30_000)
     {
-        // First try the fast path: BlazorReadyIndicator component
-        try
-        {
-            await page.WaitForSelectorAsync(
-                "[data-blazor-ready='true']",
-                new PageWaitForSelectorOptions { Timeout = timeoutMs });
-            return;
-        }
-        catch (TimeoutException)
-        {
-            // Fallback: poll for Blazor global object
-        }
-
         await page.WaitForFunctionAsync(
-            "() => typeof Blazor !== 'undefined'",
+            "() => document.querySelector('[data-blazor-ready=\"true\"]') !== null",
             null,
-            new PageWaitForFunctionOptions { Timeout = timeoutMs });
-        // Give the circuit a moment to fully initialize after Blazor is loaded
+            new PageWaitForFunctionOptions { Timeout = timeoutMs, PollingInterval = 250 });
+        // Give the circuit a moment to fully initialize after ready signal
         await Task.Delay(500);
     }
 

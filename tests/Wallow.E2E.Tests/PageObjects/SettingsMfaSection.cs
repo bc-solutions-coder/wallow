@@ -75,6 +75,33 @@ public sealed class SettingsMfaSection
             new LocatorWaitForOptions { Timeout = 10_000 });
     }
 
+    public async Task<string?> GetErrorMessageAsync()
+    {
+        ILocator error = _page.GetByTestId("settings-mfa-error");
+        bool isVisible = await error.IsVisibleAsync();
+        if (!isVisible)
+        {
+            return null;
+        }
+
+        return await error.InnerTextAsync();
+    }
+
+    public async Task<string> SubmitPasswordAndExpectErrorAsync(string password)
+    {
+        await _page.GetByTestId("settings-mfa-confirm-password").FillAsync(password);
+        await _page.GetByTestId("settings-mfa-confirm-submit").ClickAsync();
+
+        ILocator error = _page.GetByTestId("settings-mfa-error");
+        await error.WaitForAsync(new LocatorWaitForOptions
+        {
+            State = WaitForSelectorState.Visible,
+            Timeout = 15_000
+        });
+
+        return await error.InnerTextAsync();
+    }
+
     public async Task WaitForMfaStatusAsync(string expectedText, int timeoutMs = 10_000)
     {
         await Assertions.Expect(_page.GetByTestId("settings-mfa-status"))

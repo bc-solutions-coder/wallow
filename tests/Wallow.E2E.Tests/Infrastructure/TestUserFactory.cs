@@ -20,6 +20,30 @@ public static class TestUserFactory
         return new TestUser(email, TestPassword);
     }
 
+    public static async Task<UnverifiedTestUser> CreateUnverifiedAsync(string apiBaseUrl, string mailpitBaseUrl)
+    {
+        string email = $"e2e-{Guid.NewGuid():N}@test.local";
+
+        await RegisterUserAsync(apiBaseUrl, email);
+
+        string verificationLink = await MailpitHelper.SearchForLinkAsync(
+            mailpitBaseUrl, email, "verify", MaxMailRetries, (int)_mailPollInterval.TotalSeconds);
+
+        if (string.IsNullOrEmpty(verificationLink))
+        {
+            verificationLink = await MailpitHelper.SearchForLinkAsync(
+                mailpitBaseUrl, email, "confirm", maxRetries: 3, pollIntervalSeconds: 1);
+        }
+
+        if (string.IsNullOrEmpty(verificationLink))
+        {
+            throw new InvalidOperationException(
+                $"Failed to retrieve verification email for {email} after {MaxMailRetries} attempts.");
+        }
+
+        return new UnverifiedTestUser(email, TestPassword, verificationLink);
+    }
+
     public static async Task<MfaTestUser> CreateWithMfaAsync(string apiBaseUrl, string mailpitBaseUrl)
     {
         TestUser user = await CreateAsync(apiBaseUrl, mailpitBaseUrl);
@@ -58,6 +82,35 @@ public static class TestUserFactory
         return new MfaTestUser(user.Email, user.Password, secret, backupCodes);
     }
 
+    public static async Task<OrgAdminTestUser> CreateOrgAdminAsync(string apiBaseUrl, string mailpitBaseUrl)
+    {
+        TestUser user = await CreateAsync(apiBaseUrl, mailpitBaseUrl);
+        using HttpClient httpClient = CreateCookieClient();
+
+        await LoginAndExchangeTicketAsync(httpClient, apiBaseUrl, user.Email, user.Password);
+
+        // Create an isolated org so this test's org settings don't pollute the shared "Wallow" org
+        HttpResponseMessage isolateResponse = await httpClient.PostAsJsonAsync(
+            $"{apiBaseUrl}/api/v1/identity/test/isolated-org",
+            new { requireMfa = false, gracePeriodDays = 0 });
+        isolateResponse.EnsureSuccessStatusCode();
+
+        JsonElement isolateResult = await isolateResponse.Content.ReadFromJsonAsync<JsonElement>();
+        Guid orgId = isolateResult.GetProperty("orgId").GetGuid();
+
+        // Allow cache/projection propagation before the test navigates to the OIDC flow
+        await Task.Delay(500);
+
+        // Re-login with a fresh client to get a cookie carrying the org_id claim
+        (HttpClient freshClient, HttpClientHandler freshHandler) = CreateCookieClientWithHandler();
+        using (freshClient)
+        {
+            await LoginAndExchangeTicketAsync(freshClient, apiBaseUrl, user.Email, user.Password);
+            string authCookie = freshHandler.CookieContainer.GetCookieHeader(new Uri(apiBaseUrl));
+            return new OrgAdminTestUser(user.Email, user.Password, orgId, authCookie);
+        }
+    }
+
     public static Task<MfaTestUser> CreateInMfaRequiredOrgAsync(string apiBaseUrl, string mailpitBaseUrl)
         => CreateInMfaRequiredOrgAsync(apiBaseUrl, mailpitBaseUrl, gracePeriodDays: 0);
 
@@ -83,6 +136,12 @@ public static class TestUserFactory
 
     private static HttpClient CreateCookieClient()
     {
+        (HttpClient client, _) = CreateCookieClientWithHandler();
+        return client;
+    }
+
+    private static (HttpClient Client, HttpClientHandler Handler) CreateCookieClientWithHandler()
+    {
 #pragma warning disable CA2000 // Handler is disposed by HttpClient via disposeHandler: true
         HttpClientHandler handler = new()
         {
@@ -91,7 +150,8 @@ public static class TestUserFactory
             CheckCertificateRevocationList = true
         };
 #pragma warning restore CA2000
-        return new HttpClient(handler, disposeHandler: true) { Timeout = TimeSpan.FromSeconds(30) };
+        HttpClient client = new(handler, disposeHandler: true) { Timeout = TimeSpan.FromSeconds(30) };
+        return (client, handler);
     }
 
     /// <summary>
