@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.4.0](https://github.com/bc-solutions-coder/wallow/compare/v1.3.0...v1.4.0) (2026-03-31)
+
+
+### Features
+
+* **e2e:** add comprehensive auth E2E tests ([fb53ac4](https://github.com/bc-solutions-coder/wallow/commit/fb53ac44cf1f45e878860dda8bacc2ab8aff6c27))
+* **identity:** add PathBase support, OAuth consent page, and BFF documentation ([4419a4a](https://github.com/bc-solutions-coder/wallow/commit/4419a4afaeba8d2ce0740bb41c09427e23a92004))
+
+
+### Bug Fixes
+
+* **auth:** split ApiBaseUrl into public and internal URLs ([995055e](https://github.com/bc-solutions-coder/wallow/commit/995055ebaa93d6dcc753e7de9a2de62268571870))
+* **web:** move data-testid into InputFile AdditionalAttributes dictionary ([fec641e](https://github.com/bc-solutions-coder/wallow/commit/fec641eeb5c8cd63d1d307fe058d4761608e80d9))
+
 ## [1.3.0](https://github.com/bc-solutions-coder/wallow/compare/v1.2.3...v1.3.0) (2026-03-30)
 
 
