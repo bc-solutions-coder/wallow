@@ -58,7 +58,7 @@ jobs:
         run: |
           MAJOR_MINOR="${VERSION%.*}"
 
-          for suffix in "" "-auth" "-web" "-garage" "-postgres-replica"; do
+          for suffix in "" "-auth" "-web" "-migrations" "-garage" "-postgres-replica"; do
             image="${IMAGE_BASE}${suffix}"
 
             docker buildx imagetools create \
