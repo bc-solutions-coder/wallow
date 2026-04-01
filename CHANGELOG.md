@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.0.0](https://github.com/bc-solutions-coder/wallow/compare/v1.4.1...v2.0.0) (2026-04-01)
+
+
+### ⚠ BREAKING CHANGES
+
+* billing, metering, invoices, payments, and subscription management APIs and event contracts have been removed from the platform
+
+### Features
+
+* remove billing module to tighten initial release scope ([09d176c](https://github.com/bc-solutions-coder/wallow/commit/09d176cc7ce9c7bf4f044699f17ae633ada4be6b))
+
+
+### Bug Fixes
+
+* **identity:** return 401 instead of redirecting to /Account/Login ([2eb5f95](https://github.com/bc-solutions-coder/wallow/commit/2eb5f95f6c1807e641cd9c9d8b8544c33590fd5f))
+
 ## [1.4.1](https://github.com/bc-solutions-coder/wallow/compare/v1.4.0...v1.4.1) (2026-03-31)
 
 
