@@ -7,7 +7,6 @@ using NSubstitute;
 using StackExchange.Redis;
 using Wallow.Announcements.Infrastructure.Persistence;
 using Wallow.Identity.Infrastructure.Persistence;
-using Wallow.Messaging.Infrastructure.Persistence;
 using Wallow.Notifications.Infrastructure.Persistence;
 using Wallow.Storage.Infrastructure.Persistence;
 
@@ -24,7 +23,6 @@ public class ModuleToggleTests
             {
                 ["FeatureManagement:Modules.Identity"] = "false",
                 ["FeatureManagement:Modules.Notifications"] = "true",
-                ["FeatureManagement:Modules.Messaging"] = "true",
                 ["FeatureManagement:Modules.Announcements"] = "true",
                 ["FeatureManagement:Modules.Storage"] = "true",
                 ["FeatureManagement:Modules.Inquiries"] = "true",
@@ -52,7 +50,6 @@ public class ModuleToggleTests
             {
                 ["FeatureManagement:Modules.Identity"] = "true",
                 ["FeatureManagement:Modules.Notifications"] = "true",
-                ["FeatureManagement:Modules.Messaging"] = "true",
                 ["FeatureManagement:Modules.Announcements"] = "true",
                 ["FeatureManagement:Modules.Storage"] = "true",
                 ["FeatureManagement:Modules.Inquiries"] = "true",
@@ -66,8 +63,6 @@ public class ModuleToggleTests
             "Identity module should be registered by default");
         services.Should().Contain(sd => sd.ServiceType == typeof(NotificationsDbContext),
             "Notifications module should be registered by default");
-        services.Should().Contain(sd => sd.ServiceType == typeof(MessagingDbContext),
-            "Messaging module should be registered by default");
         services.Should().Contain(sd => sd.ServiceType == typeof(AnnouncementsDbContext),
             "Announcements module should be registered by default");
         services.Should().Contain(sd => sd.ServiceType == typeof(StorageDbContext),

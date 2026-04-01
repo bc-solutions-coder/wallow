@@ -33,7 +33,7 @@ public sealed class SseEndpointTests
 
         await SseEndpoint.HandleSseConnection(
             httpContext,
-            "notifications,messaging",
+            "notifications",
             _connectionManager,
             _tenantContext,
             _lifetime,
@@ -60,7 +60,7 @@ public sealed class SseEndpointTests
 
         await SseEndpoint.HandleSseConnection(
             httpContext,
-            "notifications,messaging",
+            "notifications",
             _connectionManager,
             _tenantContext,
             _lifetime,
@@ -71,7 +71,7 @@ public sealed class SseEndpointTests
             Arg.Any<string>(),
             _testUserId,
             _testTenantGuid,
-            Arg.Is<HashSet<string>>(m => m.Contains("notifications") && m.Contains("messaging") && m.Count == 2),
+            Arg.Is<HashSet<string>>(m => m.Contains("notifications") && m.Count == 1),
             Arg.Any<HashSet<string>>(),
             Arg.Any<HashSet<string>>());
     }

@@ -99,8 +99,6 @@ public sealed partial class ApiScopeSeeder(ILogger<ApiScopeSeeder> logger)
             "Access to upload and modify files");
 
         // Communications scopes
-        yield return ApiScope.Create("messaging.access", "Access Messaging", "Communications",
-            "Access to messaging features");
         yield return ApiScope.Create("announcements.read", "Read Announcements", "Communications",
             "Access to read announcements", isDefault: true);
         yield return ApiScope.Create("announcements.manage", "Manage Announcements", "Communications",

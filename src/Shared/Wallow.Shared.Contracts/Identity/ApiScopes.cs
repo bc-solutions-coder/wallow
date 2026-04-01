@@ -34,7 +34,6 @@ public static class ApiScopes
         "storage.write",
 
         // Communications
-        "messaging.access",
         "announcements.read",
         "announcements.manage",
         "changelog.manage",

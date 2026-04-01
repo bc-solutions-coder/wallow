@@ -5,7 +5,6 @@ using Wallow.ApiKeys.Infrastructure.Extensions;
 using Wallow.Branding.Infrastructure.Extensions;
 using Wallow.Identity.Infrastructure.Extensions;
 using Wallow.Inquiries.Infrastructure.Extensions;
-using Wallow.Messaging.Infrastructure.Extensions;
 using Wallow.Notifications.Infrastructure.Extensions;
 using Wallow.Shared.Infrastructure.Plugins;
 using Wallow.Storage.Infrastructure.Extensions;
@@ -45,11 +44,6 @@ internal static class WallowModules
         if (featureManager.IsEnabledAsync("Modules.Notifications").GetAwaiter().GetResult())
         {
             services.AddNotificationsModule(configuration);
-        }
-
-        if (featureManager.IsEnabledAsync("Modules.Messaging").GetAwaiter().GetResult())
-        {
-            services.AddMessagingModule(configuration);
         }
 
         if (featureManager.IsEnabledAsync("Modules.Announcements").GetAwaiter().GetResult())
@@ -104,11 +98,6 @@ internal static class WallowModules
         if (await featureManager.IsEnabledAsync("Modules.Notifications"))
         {
             await app.InitializeNotificationsModuleAsync();
-        }
-
-        if (await featureManager.IsEnabledAsync("Modules.Messaging"))
-        {
-            await app.InitializeMessagingModuleAsync();
         }
 
         if (await featureManager.IsEnabledAsync("Modules.Announcements"))

@@ -2,7 +2,6 @@ using Wallow.Shared.Contracts.Announcements.Events;
 using Wallow.Shared.Contracts.Delivery.Events;
 using Wallow.Shared.Contracts.Identity.Events;
 using Wallow.Shared.Contracts.Inquiries.Events;
-using Wallow.Shared.Contracts.Messaging.Events;
 using Wallow.Shared.Contracts.Notifications.Events;
 using Wallow.Shared.Contracts.Storage;
 using Wallow.Shared.Contracts.Storage.Commands;
@@ -171,48 +170,6 @@ public class ContractEventsTests
 
         evt.OldRole.Should().Be("Viewer");
         evt.NewRole.Should().Be("Admin");
-    }
-
-    // ── Messaging events ─────────────────────────────────────────────────
-
-    [Fact]
-    public void ConversationCreatedIntegrationEvent_WithAllProperties_HasCorrectValues()
-    {
-        Guid conversationId = Guid.NewGuid();
-        List<Guid> participants = [Guid.NewGuid(), Guid.NewGuid()];
-
-        ConversationCreatedIntegrationEvent evt = new()
-        {
-            ConversationId = conversationId,
-            ParticipantIds = participants,
-            CreatedAt = DateTimeOffset.UtcNow,
-            TenantId = Guid.NewGuid()
-        };
-
-        evt.ConversationId.Should().Be(conversationId);
-        evt.ParticipantIds.Should().HaveCount(2);
-    }
-
-    [Fact]
-    public void MessageSentIntegrationEvent_WithAllProperties_HasCorrectValues()
-    {
-        Guid messageId = Guid.NewGuid();
-        Guid senderId = Guid.NewGuid();
-
-        MessageSentIntegrationEvent evt = new()
-        {
-            ConversationId = Guid.NewGuid(),
-            MessageId = messageId,
-            SenderId = senderId,
-            Content = "Hello!",
-            SentAt = DateTimeOffset.UtcNow,
-            TenantId = Guid.NewGuid(),
-            ParticipantIds = [senderId]
-        };
-
-        evt.MessageId.Should().Be(messageId);
-        evt.SenderId.Should().Be(senderId);
-        evt.Content.Should().Be("Hello!");
     }
 
     // ── Notifications events ─────────────────────────────────────────────

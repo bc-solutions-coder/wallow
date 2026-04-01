@@ -20,8 +20,6 @@
       href: architecture/authentication.md
     - name: Authorization
       href: architecture/authorization.md
-    - name: Messaging
-      href: architecture/messaging.md
     - name: Background Jobs
       href: architecture/background-jobs.md
     - name: Caching

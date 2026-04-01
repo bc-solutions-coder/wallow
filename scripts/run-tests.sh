@@ -21,8 +21,7 @@ resolve_filter() {
         identity)       echo "$REPO_ROOT/tests/Modules/Identity/Wallow.Identity.Tests" ;;
         storage)        echo "$REPO_ROOT/tests/Modules/Storage/Wallow.Storage.Tests" ;;
         notifications)  echo "$REPO_ROOT/tests/Modules/Notifications/Wallow.Notifications.Tests" ;;
-        messaging)      echo "$REPO_ROOT/tests/Modules/Messaging/Wallow.Messaging.Tests" ;;
-        announcements)  echo "$REPO_ROOT/tests/Modules/Announcements/Wallow.Announcements.Tests" ;;
+announcements)  echo "$REPO_ROOT/tests/Modules/Announcements/Wallow.Announcements.Tests" ;;
         inquiries)      echo "$REPO_ROOT/tests/Modules/Inquiries/Wallow.Inquiries.Tests" ;;
         branding)       echo "$REPO_ROOT/tests/Modules/Branding/Wallow.Branding.Tests" ;;
         apikeys)        echo "$REPO_ROOT/tests/Modules/ApiKeys/Wallow.ApiKeys.Tests" ;;
