@@ -544,25 +544,21 @@ jobs:
             docker tag "${local_name}:test-arm64" "${remote}:${SHORT_SHA}-arm64"
             docker push "${remote}:${SHORT_SHA}-arm64"
 
-            # Create and push multi-arch manifests
-            for tag in latest "${SHORT_SHA}"; do
-              docker manifest create "${remote}:${tag}" \
-                "${remote}:${SHORT_SHA}-amd64" \
-                "${remote}:${SHORT_SHA}-arm64"
-              docker manifest push "${remote}:${tag}"
-            done
+            # Create and push multi-arch manifest (sha only; latest is set by publish.yml on release)
+            docker manifest create "${remote}:${SHORT_SHA}" \
+              "${remote}:${SHORT_SHA}-amd64" \
+              "${remote}:${SHORT_SHA}-arm64"
+            docker manifest push "${remote}:${SHORT_SHA}"
 
-            echo "Pushed multi-arch ${remote}:latest and ${remote}:${SHORT_SHA}"
+            echo "Pushed multi-arch ${remote}:${SHORT_SHA}"
           done
 
-          # Infra images: multi-arch build + push via buildx
+          # Infra images: multi-arch build + push via buildx (sha only; latest is set by publish.yml on release)
           docker buildx build --platform linux/amd64,linux/arm64 \
-            --tag "${IMAGE_BASE}-garage:latest" \
             --tag "${IMAGE_BASE}-garage:${SHORT_SHA}" \
             --push docker/images/garage
 
           docker buildx build --platform linux/amd64,linux/arm64 \
-            --tag "${IMAGE_BASE}-postgres-replica:latest" \
             --tag "${IMAGE_BASE}-postgres-replica:${SHORT_SHA}" \
             --push docker/images/postgres-replica
 

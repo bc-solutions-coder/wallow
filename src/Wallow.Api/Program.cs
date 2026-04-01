@@ -55,7 +55,11 @@ Log.Logger = new LoggerConfiguration()
 
 try
 {
-    Log.Information("Starting Wallow API");
+    string appVersion = Assembly.GetExecutingAssembly()
+        .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+        ?? "unknown";
+
+    Log.Information("Starting Wallow API v{Version}", appVersion);
 
     WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -555,7 +559,7 @@ try
         app.MapGet("/", () => Results.Ok(new
         {
             Name = "Wallow API",
-            Version = "1.0.0",
+            Version = appVersion,
             Health = "/health"
         })).ExcludeFromDescription().AllowAnonymous();
     }
@@ -735,7 +739,7 @@ try
     lifetime.ApplicationStarted.Register(() =>
     {
         string urls = string.Join(", ", app.Urls);
-        Log.Information("Wallow API is now listening on {Urls}", urls);
+        Log.Information("Wallow API v{Version} is now listening on {Urls}", appVersion, urls);
     });
 
     await app.StartAsync();

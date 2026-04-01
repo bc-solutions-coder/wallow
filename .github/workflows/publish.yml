@@ -4,8 +4,8 @@
 # or manually via workflow_dispatch.
 #
 # The CI pipeline (ci.yml) already built, tested, and pushed images
-# with :latest and :sha tags. This workflow pulls those images and
-# retags them with semver versions, then scans for vulnerabilities.
+# with :sha tags. This workflow retags those images with semver versions
+# and :latest, then scans for vulnerabilities.
 
 name: Publish
 
@@ -16,6 +16,9 @@ on:
     inputs:
       version:
         description: 'Version to publish (e.g. 1.2.3)'
+        required: false
+      sha:
+        description: 'Git SHA of the CI-built image to retag (short or full)'
         required: false
 
 env:
@@ -30,16 +33,24 @@ jobs:
       packages: write
 
     steps:
-      - name: Extract version from tag
-        id: version
+      - name: Extract version and SHA
+        id: meta
         env:
           INPUT_VERSION: ${{ inputs.version }}
+          INPUT_SHA: ${{ inputs.sha }}
           REF_NAME: ${{ github.ref_name }}
+          FULL_SHA: ${{ github.sha }}
         run: |
           if [ -n "$INPUT_VERSION" ]; then
             echo "semver=$INPUT_VERSION" >> "$GITHUB_OUTPUT"
           else
             echo "semver=${REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          fi
+
+          if [ -n "$INPUT_SHA" ]; then
+            echo "short_sha=${INPUT_SHA:0:7}" >> "$GITHUB_OUTPUT"
+          else
+            echo "short_sha=${FULL_SHA:0:7}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Log in to Container Registry
@@ -52,28 +63,29 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Retag multi-arch manifests with semver
+      - name: Retag multi-arch manifests with semver and latest
         env:
-          VERSION: ${{ steps.version.outputs.semver }}
+          VERSION: ${{ steps.meta.outputs.semver }}
+          SHORT_SHA: ${{ steps.meta.outputs.short_sha }}
         run: |
           MAJOR_MINOR="${VERSION%.*}"
 
-          for suffix in "" "-auth" "-web" "-garage" "-postgres-replica"; do
+          for suffix in "" "-auth" "-web" "-migrations" "-garage" "-postgres-replica"; do
             image="${IMAGE_BASE}${suffix}"
 
             docker buildx imagetools create \
               --tag "${image}:${VERSION}" \
               --tag "${image}:${MAJOR_MINOR}" \
-              "${image}:latest"
+              --tag "${image}:latest" \
+              "${image}:${SHORT_SHA}"
 
-            echo "Pushed ${image}:${VERSION} and ${image}:${MAJOR_MINOR}"
+            echo "Pushed ${image}:${VERSION}, ${image}:${MAJOR_MINOR}, and ${image}:latest"
           done
 
       - name: Scan API image for vulnerabilities
         uses: aquasecurity/trivy-action@0.35.0
         with:
-          image-ref: ${{ env.IMAGE_BASE }}:${{ steps.version.outputs.semver }}
+          image-ref: ${{ env.IMAGE_BASE }}:${{ steps.meta.outputs.semver }}
           format: table
           exit-code: '1'
           severity: CRITICAL,HIGH
-
