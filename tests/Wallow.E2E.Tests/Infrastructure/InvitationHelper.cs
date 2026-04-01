@@ -14,7 +14,7 @@ internal static class InvitationHelper
         httpClient.DefaultRequestHeaders.Add("Cookie", authCookie);
 
         HttpResponseMessage response = await httpClient.PostAsJsonAsync(
-            $"{apiBaseUrl}/api/v1/identity/invitations",
+            $"{apiBaseUrl}/v1/identity/invitations",
             new { email = inviteeEmail });
 
         response.EnsureSuccessStatusCode();

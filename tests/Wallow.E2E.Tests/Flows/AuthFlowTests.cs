@@ -178,7 +178,7 @@ public sealed class AuthFlowTests : E2ETestBase
 
         using HttpClient httpClient = new() { Timeout = TimeSpan.FromSeconds(30) };
         HttpResponseMessage response = await httpClient.PostAsJsonAsync(
-            $"{Docker.ApiBaseUrl}/api/v1/identity/auth/register",
+            $"{Docker.ApiBaseUrl}/v1/identity/auth/register",
             new { email, password, confirmPassword = password, clientId = "wallow-web-client" });
         response.EnsureSuccessStatusCode();
 
