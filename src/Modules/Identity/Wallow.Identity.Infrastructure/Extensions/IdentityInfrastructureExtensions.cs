@@ -163,6 +163,15 @@ public static class IdentityInfrastructureExtensions
             options.Cookie.SecurePolicy = environment.IsDevelopment()
                 ? Microsoft.AspNetCore.Http.CookieSecurePolicy.SameAsRequest
                 : Microsoft.AspNetCore.Http.CookieSecurePolicy.Always;
+
+            // The API has no login page — return 401 instead of redirecting to /Account/Login.
+            // OpenIddict controllers (e.g. AuthorizationController) handle their own redirects
+            // to the Auth app via [AllowAnonymous] + manual User.Identity checks.
+            options.Events.OnRedirectToLogin = context =>
+            {
+                context.Response.StatusCode = 401;
+                return Task.CompletedTask;
+            };
         });
 
         services.AddIdentityAuthorization(configuration);
