@@ -5,9 +5,30 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+    types: [opened, synchronize, reopened]
 
 jobs:
+  check-skip:
+    runs-on: ubuntu-latest
+    outputs:
+      should_skip: ${{ steps.check.outputs.should_skip }}
+    steps:
+      - name: Check if release-please commit
+        id: check
+        env:
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          if [[ "$COMMIT_MSG" == chore\(main\):\ release* ]] || [[ "$PR_TITLE" == chore\(main\):\ release* ]]; then
+            echo "should_skip=true" >> "$GITHUB_OUTPUT"
+            echo "Skipping CI for release-please commit"
+          else
+            echo "should_skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
   build:
+    needs: check-skip
+    if: needs.check-skip.outputs.should_skip != 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
