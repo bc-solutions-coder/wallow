@@ -1,5 +1,52 @@
 # Changelog
 
+## [3.0.0](https://github.com/bc-solutions-coder/wallow/compare/v2.0.0...v3.0.0) (2026-04-01)
+
+
+### ⚠ BREAKING CHANGES
+
+* remove api/ route prefix from controllers, let UsePathBase handle it
+* integrate .NET Aspire for dev orchestration, service defaults, and migration extraction
+* remove messaging module to tighten initial release scope
+
+### Features
+
+* integrate .NET Aspire for dev orchestration, service defaults, and migration extraction ([56e3327](https://github.com/bc-solutions-coder/wallow/commit/56e3327bc677593ffca9790c3dbbac56162df4b9))
+* remove messaging module to tighten initial release scope ([40e2206](https://github.com/bc-solutions-coder/wallow/commit/40e2206ab22dfd9a04d2ff5898236a41bb5b8dac))
+
+
+### Bug Fixes
+
+* **ci:** add missing -migrations image to publish workflow ([0db1ef7](https://github.com/bc-solutions-coder/wallow/commit/0db1ef7e6559101034d2536db7d00c261f07e598))
+* **ci:** only push :latest docker tag on release, not every CI run ([7647459](https://github.com/bc-solutions-coder/wallow/commit/76474592013311e4231e931b4170f7be7b3af9bb))
+* **docker:** add OTEL wiring, OIDC metadata, and VERSION to production stack ([ced47bd](https://github.com/bc-solutions-coder/wallow/commit/ced47bd6985ff539b6b611d2d4107fb902fae22e))
+* **docs:** update Dockerfile theme stage for docfx/ template path ([0d282df](https://github.com/bc-solutions-coder/wallow/commit/0d282df3d522686f7ad068486cdf0e5c13c45c11))
+* **docs:** update template and filter paths after docfx/ directory move ([86bab3c](https://github.com/bc-solutions-coder/wallow/commit/86bab3cc5aade6fea95e777f969feb6d99340c11))
+* update E2E tests, docker compose, and middleware for api route prefix removal ([00fb8e7](https://github.com/bc-solutions-coder/wallow/commit/00fb8e75e928ac7bb9016b1a7d3bc27f7d0bbd36))
+* **web:** allow HTTP metadata endpoint for container-to-container OIDC discovery ([bdc85fc](https://github.com/bc-solutions-coder/wallow/commit/bdc85fc1ac4a14a40bcee1d31d4385ea5c0995a3))
+
+
+### Performance Improvements
+
+* **ci:** add incremental build cache and graph build for faster CI ([edd4440](https://github.com/bc-solutions-coder/wallow/commit/edd444073a6540cb26ddd2f0ad811d556fa37117))
+* **ci:** add NuGet cache and graph build to CodeQL workflow ([57b91f8](https://github.com/bc-solutions-coder/wallow/commit/57b91f8482947d133e3dd1954b7dc278c03ebc54))
+* **ci:** remove CodeQL PR trigger, runs on main push and weekly ([8292bf5](https://github.com/bc-solutions-coder/wallow/commit/8292bf5dcf50a6b3f0282724403355c8dff95cbb))
+* **ci:** run CodeQL on PRs and weekly schedule, not on main push ([7e73b3f](https://github.com/bc-solutions-coder/wallow/commit/7e73b3f7dadf121ff050027913a91e0deab61b2d))
+* **ci:** skip CI for release-please commits ([2f38b66](https://github.com/bc-solutions-coder/wallow/commit/2f38b6604b6a38bd24d8f4de5763e174a1e7619a))
+* **ci:** skip CI on release-please PR branches ([49a50a1](https://github.com/bc-solutions-coder/wallow/commit/49a50a10850a9e59e6a4f3bb0c74f8b5ca95d5b8))
+* **ci:** skip CodeQL on release-please PR branches ([c1be299](https://github.com/bc-solutions-coder/wallow/commit/c1be299b3bb916d89a4f081097d3ee900f981759))
+* **ci:** split CI and deploy, eliminate redundant workflow runs ([094ed0c](https://github.com/bc-solutions-coder/wallow/commit/094ed0ce514284f883431cd8b9057b2bd98f166c))
+
+
+### Reverts
+
+* **ci:** restore :latest tag push from CI pipeline ([dd652a5](https://github.com/bc-solutions-coder/wallow/commit/dd652a51d4aabb1569b5bf00bd88a6d6d345ef1d))
+
+
+### Code Refactoring
+
+* remove api/ route prefix from controllers, let UsePathBase handle it ([fcb224e](https://github.com/bc-solutions-coder/wallow/commit/fcb224e0c8bcb5135a3f19b7e1156e9fd3bbc55f))
+
 ## [2.0.0](https://github.com/bc-solutions-coder/wallow/compare/v1.4.1...v2.0.0) (2026-04-01)
 
 
