@@ -13,7 +13,6 @@ public class ModuleEnricherTests
     [InlineData("Wallow.Billing.Application.Handlers", "Billing")]
     [InlineData("Wallow.Identity.Infrastructure.Services", "Identity")]
     [InlineData("Wallow.Notifications.Domain.Events", "Notifications")]
-    [InlineData("Wallow.Messaging.Application.Handlers", "Messaging")]
     [InlineData("Wallow.Announcements.Infrastructure.Services", "Announcements")]
     [InlineData("Wallow.Api", "Api")]
     public void Enrich_WithWallowSourceContext_ExtractsModuleName(string sourceContext, string expectedModule)

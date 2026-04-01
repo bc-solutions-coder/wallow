@@ -38,7 +38,7 @@ public sealed class ApiScopeSeederGapTests : IDisposable
         await _seeder.SeedAsync(_dbContext);
 
         int count = await _dbContext.ApiScopes.IgnoreQueryFilters().CountAsync();
-        count.Should().Be(31);
+        count.Should().Be(30);
     }
 
     [Fact]
@@ -55,7 +55,7 @@ public sealed class ApiScopeSeederGapTests : IDisposable
         await _seeder.SeedAsync(_dbContext);
 
         int totalCount = await _dbContext.ApiScopes.IgnoreQueryFilters().CountAsync();
-        totalCount.Should().Be(31);
+        totalCount.Should().Be(30);
 
         // Verify no duplicate of the pre-seeded scope
         int usersReadCount = await _dbContext.ApiScopes
@@ -79,7 +79,7 @@ public sealed class ApiScopeSeederGapTests : IDisposable
         await _seeder.SeedAsync(_dbContext);
 
         int totalCount = await _dbContext.ApiScopes.IgnoreQueryFilters().CountAsync();
-        totalCount.Should().Be(31);
+        totalCount.Should().Be(30);
     }
 
     [Fact]
@@ -113,7 +113,6 @@ public sealed class ApiScopeSeederGapTests : IDisposable
             "serviceaccounts.manage",
             "storage.read",
             "storage.write",
-            "messaging.access",
             "announcements.read",
             "announcements.manage",
             "changelog.manage",
@@ -182,7 +181,7 @@ public sealed class ApiScopeSeederGapTests : IDisposable
         await _seeder.SeedAsync(_dbContext, cts.Token);
 
         int count = await _dbContext.ApiScopes.IgnoreQueryFilters().CountAsync();
-        count.Should().Be(31);
+        count.Should().Be(30);
     }
 
     [Fact]

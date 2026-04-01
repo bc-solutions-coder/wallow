@@ -36,11 +36,6 @@
     <ProjectReference Include="..\..\src\Modules\Notifications\Wallow.Notifications.Infrastructure\Wallow.Notifications.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Modules\Notifications\Wallow.Notifications.Api\Wallow.Notifications.Api.csproj" />
 
-    <ProjectReference Include="..\..\src\Modules\Messaging\Wallow.Messaging.Domain\Wallow.Messaging.Domain.csproj" />
-    <ProjectReference Include="..\..\src\Modules\Messaging\Wallow.Messaging.Application\Wallow.Messaging.Application.csproj" />
-    <ProjectReference Include="..\..\src\Modules\Messaging\Wallow.Messaging.Infrastructure\Wallow.Messaging.Infrastructure.csproj" />
-    <ProjectReference Include="..\..\src\Modules\Messaging\Wallow.Messaging.Api\Wallow.Messaging.Api.csproj" />
-
     <ProjectReference Include="..\..\src\Modules\Announcements\Wallow.Announcements.Domain\Wallow.Announcements.Domain.csproj" />
     <ProjectReference Include="..\..\src\Modules\Announcements\Wallow.Announcements.Application\Wallow.Announcements.Application.csproj" />
     <ProjectReference Include="..\..\src\Modules\Announcements\Wallow.Announcements.Infrastructure\Wallow.Announcements.Infrastructure.csproj" />

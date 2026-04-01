@@ -155,14 +155,6 @@ public class ScopePermissionMapperTests
     // Communications
 
     [Fact]
-    public void MapScopeToPermission_MessagingAccess_ReturnsMessagingAccess()
-    {
-        string? result = ScopePermissionMapper.MapScopeToPermission("messaging.access");
-
-        result.Should().Be(PermissionType.MessagingAccess);
-    }
-
-    [Fact]
     public void MapScopeToPermission_AnnouncementsRead_ReturnsAnnouncementRead()
     {
         string? result = ScopePermissionMapper.MapScopeToPermission("announcements.read");

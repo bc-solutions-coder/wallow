@@ -40,12 +40,6 @@
     <Project Path="src/Modules/Inquiries/Wallow.Inquiries.Domain/Wallow.Inquiries.Domain.csproj" />
     <Project Path="src/Modules/Inquiries/Wallow.Inquiries.Infrastructure/Wallow.Inquiries.Infrastructure.csproj" />
   </Folder>
-  <Folder Name="/src/Modules/Messaging/">
-    <Project Path="src/Modules/Messaging/Wallow.Messaging.Api/Wallow.Messaging.Api.csproj" />
-    <Project Path="src/Modules/Messaging/Wallow.Messaging.Application/Wallow.Messaging.Application.csproj" />
-    <Project Path="src/Modules/Messaging/Wallow.Messaging.Domain/Wallow.Messaging.Domain.csproj" />
-    <Project Path="src/Modules/Messaging/Wallow.Messaging.Infrastructure/Wallow.Messaging.Infrastructure.csproj" />
-  </Folder>
   <Folder Name="/src/Modules/Notifications/">
     <Project Path="src/Modules/Notifications/Wallow.Notifications.Api/Wallow.Notifications.Api.csproj" />
     <Project Path="src/Modules/Notifications/Wallow.Notifications.Application/Wallow.Notifications.Application.csproj" />
@@ -99,9 +93,6 @@
   </Folder>
   <Folder Name="/tests/Modules/Inquiries/">
     <Project Path="tests/Modules/Inquiries/Wallow.Inquiries.Tests/Wallow.Inquiries.Tests.csproj" />
-  </Folder>
-  <Folder Name="/tests/Modules/Messaging/">
-    <Project Path="tests/Modules/Messaging/Wallow.Messaging.Tests/Wallow.Messaging.Tests.csproj" />
   </Folder>
   <Folder Name="/tests/Modules/Notifications/">
     <Project Path="tests/Modules/Notifications/Wallow.Notifications.Tests/Wallow.Notifications.Tests.csproj" />

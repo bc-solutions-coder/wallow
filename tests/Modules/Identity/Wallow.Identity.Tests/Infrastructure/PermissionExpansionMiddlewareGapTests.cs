@@ -181,7 +181,6 @@ public class PermissionExpansionMiddlewareGapTests
     [InlineData("scim.manage", PermissionType.ScimManage)]
     [InlineData("storage.read", PermissionType.StorageRead)]
     [InlineData("storage.write", PermissionType.StorageWrite)]
-    [InlineData("messaging.access", PermissionType.MessagingAccess)]
     [InlineData("announcements.read", PermissionType.AnnouncementRead)]
     [InlineData("announcements.manage", PermissionType.AnnouncementManage)]
     [InlineData("changelog.manage", PermissionType.ChangelogManage)]

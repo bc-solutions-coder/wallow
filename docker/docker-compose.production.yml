@@ -320,18 +320,17 @@ services:
       PreRegisteredClients__Clients__1__Scopes__21: sso.read
       PreRegisteredClients__Clients__1__Scopes__22: sso.manage
       PreRegisteredClients__Clients__1__Scopes__23: scim.manage
-      PreRegisteredClients__Clients__1__Scopes__24: messaging.access
-      PreRegisteredClients__Clients__1__Scopes__25: announcements.read
-      PreRegisteredClients__Clients__1__Scopes__26: announcements.manage
-      PreRegisteredClients__Clients__1__Scopes__27: changelog.manage
-      PreRegisteredClients__Clients__1__Scopes__28: configuration.read
-      PreRegisteredClients__Clients__1__Scopes__29: configuration.manage
-      PreRegisteredClients__Clients__1__Scopes__30: inquiries.read
-      PreRegisteredClients__Clients__1__Scopes__31: inquiries.write
-      PreRegisteredClients__Clients__1__Scopes__32: serviceaccounts.read
-      PreRegisteredClients__Clients__1__Scopes__33: serviceaccounts.write
-      PreRegisteredClients__Clients__1__Scopes__34: serviceaccounts.manage
-      PreRegisteredClients__Clients__1__Scopes__35: webhooks.manage
+      PreRegisteredClients__Clients__1__Scopes__24: announcements.read
+      PreRegisteredClients__Clients__1__Scopes__25: announcements.manage
+      PreRegisteredClients__Clients__1__Scopes__26: changelog.manage
+      PreRegisteredClients__Clients__1__Scopes__27: configuration.read
+      PreRegisteredClients__Clients__1__Scopes__28: configuration.manage
+      PreRegisteredClients__Clients__1__Scopes__29: inquiries.read
+      PreRegisteredClients__Clients__1__Scopes__30: inquiries.write
+      PreRegisteredClients__Clients__1__Scopes__31: serviceaccounts.read
+      PreRegisteredClients__Clients__1__Scopes__32: serviceaccounts.write
+      PreRegisteredClients__Clients__1__Scopes__33: serviceaccounts.manage
+      PreRegisteredClients__Clients__1__Scopes__34: webhooks.manage
     depends_on:
       postgres:
         condition: service_healthy
