@@ -242,6 +242,26 @@ app.UseAntiforgery();
 
 app.MapDefaultEndpoints();
 
+app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    ResponseWriter = async (context, report) =>
+    {
+        context.Response.ContentType = "application/json";
+        object response = new
+        {
+            status = report.Status.ToString(),
+            checks = report.Entries.Select(e => new
+            {
+                name = e.Key,
+                status = e.Value.Status.ToString(),
+                description = e.Value.Description,
+                error = e.Value.Exception?.Message
+            })
+        };
+        await context.Response.WriteAsJsonAsync(response);
+    }
+});
+
 app.MapGet("/authentication/login", (string? returnUrl) =>
 {
     // Only allow local/relative URLs to prevent open redirect attacks

@@ -59,7 +59,7 @@ public static class TestUserFactory
 
         // Begin TOTP enrollment
         HttpResponseMessage enrollResponse = await httpClient.PostAsync(
-            $"{apiBaseUrl}/api/v1/identity/mfa/enroll/totp", null);
+            $"{apiBaseUrl}/v1/identity/mfa/enroll/totp", null);
         enrollResponse.EnsureSuccessStatusCode();
 
         JsonElement enrollResult = await enrollResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -69,7 +69,7 @@ public static class TestUserFactory
         // Confirm enrollment with a valid TOTP code
         string code = await TotpHelper.GenerateFreshCodeAsync(secret);
         HttpResponseMessage confirmResponse = await httpClient.PostAsJsonAsync(
-            $"{apiBaseUrl}/api/v1/identity/mfa/enroll/confirm",
+            $"{apiBaseUrl}/v1/identity/mfa/enroll/confirm",
             new { secret, code });
         confirmResponse.EnsureSuccessStatusCode();
 
@@ -91,7 +91,7 @@ public static class TestUserFactory
 
         // Create an isolated org so this test's org settings don't pollute the shared "Wallow" org
         HttpResponseMessage isolateResponse = await httpClient.PostAsJsonAsync(
-            $"{apiBaseUrl}/api/v1/identity/test/isolated-org",
+            $"{apiBaseUrl}/v1/identity/test/isolated-org",
             new { requireMfa = false, gracePeriodDays = 0 });
         isolateResponse.EnsureSuccessStatusCode();
 
@@ -124,7 +124,7 @@ public static class TestUserFactory
 
         // Create an isolated org so MFA settings don't pollute the shared "Wallow" org
         HttpResponseMessage isolateResponse = await httpClient.PostAsJsonAsync(
-            $"{apiBaseUrl}/api/v1/identity/test/isolated-org",
+            $"{apiBaseUrl}/v1/identity/test/isolated-org",
             new { requireMfa = true, gracePeriodDays });
         isolateResponse.EnsureSuccessStatusCode();
 
@@ -163,7 +163,7 @@ public static class TestUserFactory
         HttpClient httpClient, string apiBaseUrl, string email, string password)
     {
         HttpResponseMessage loginResponse = await httpClient.PostAsJsonAsync(
-            $"{apiBaseUrl}/api/v1/identity/auth/login",
+            $"{apiBaseUrl}/v1/identity/auth/login",
             new { email, password, rememberMe = false });
         loginResponse.EnsureSuccessStatusCode();
 
@@ -191,7 +191,7 @@ public static class TestUserFactory
 
         // Exchange the ticket for an auth cookie
         HttpResponseMessage exchangeResponse = await httpClient.GetAsync(
-            $"{apiBaseUrl}/api/v1/identity/auth/exchange-ticket?ticket={Uri.EscapeDataString(signInTicket)}");
+            $"{apiBaseUrl}/v1/identity/auth/exchange-ticket?ticket={Uri.EscapeDataString(signInTicket)}");
         exchangeResponse.EnsureSuccessStatusCode();
         return true;
     }
@@ -209,7 +209,7 @@ public static class TestUserFactory
         };
 
         HttpResponseMessage response = await httpClient.PostAsJsonAsync(
-            $"{apiBaseUrl}/api/v1/identity/auth/register", payload);
+            $"{apiBaseUrl}/v1/identity/auth/register", payload);
 
         response.EnsureSuccessStatusCode();
     }

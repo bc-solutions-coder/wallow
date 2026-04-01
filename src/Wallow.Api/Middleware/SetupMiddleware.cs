@@ -5,7 +5,7 @@ namespace Wallow.Api.Middleware;
 
 internal sealed class SetupMiddleware
 {
-    private const string SetupPath = "/api/v1/identity/setup";
+    private const string SetupPath = "/v1/identity/setup";
     private readonly RequestDelegate _next;
 
     public SetupMiddleware(RequestDelegate next)
@@ -28,7 +28,7 @@ internal sealed class SetupMiddleware
             context.Response.ContentType = "application/json";
             await JsonSerializer.SerializeAsync(
                 context.Response.Body,
-                new { message = "Initial setup is required. Please complete setup at the /api/v1/identity/setup endpoint." },
+                new { message = "Initial setup is required. Please complete setup at the /v1/identity/setup endpoint." },
                 cancellationToken: context.RequestAborted);
             return;
         }

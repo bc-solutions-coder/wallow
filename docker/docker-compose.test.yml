@@ -150,6 +150,8 @@ services:
       ApiBaseUrl: "http://localhost:5050"
       # Internal URL for server-to-server calls (container-to-container)
       ServiceUrls__ApiUrl: "http://wallow-api:8080"
+      # .NET Aspire service discovery resolution for container-to-container communication
+      services__wallow-api__http__0: "http://wallow-api:8080"
       ConnectionStrings__Redis: "valkey:6379,password=WallowTestValkey123!,abortConnect=false"
     depends_on:
       - wallow-api
@@ -169,6 +171,8 @@ services:
       ServiceUrls__ApiUrl: "http://wallow-api:8080"
       ServiceUrls__AuthUrl: "http://wallow-auth:8080"
       ServiceUrls__AuthPublicUrl: "http://localhost:5051"
+      # .NET Aspire service discovery resolution for container-to-container communication
+      services__wallow-api__http__0: "http://wallow-api:8080"
       # Authority = browser-facing URL (must match API's OpenIddict issuer for same-site cookies)
       # MetadataAddress = container-reachable URL for OIDC discovery (host.docker.internal)
       Oidc__Authority: "http://localhost:5050"

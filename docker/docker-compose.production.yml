@@ -415,6 +415,8 @@ services:
       ServiceUrls__ApiUrl: http://wallow-api:8080
       ServiceUrls__WebUrl: ${WEB_PUBLIC_URL:-https://wallow.dev}
       ConnectionStrings__Redis: "valkey:6379,password=${VALKEY_PASSWORD},abortConnect=false"
+      # .NET Aspire service discovery resolution for container-to-container communication
+      services__wallow-api__http__0: "http://wallow-api:8080"
       # OpenTelemetry
       OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4317
       OTEL_SERVICE_NAME: wallow-auth
@@ -471,6 +473,8 @@ services:
       Oidc__MetadataAddress: http://wallow-api:8080/.well-known/openid-configuration
       Oidc__ClientId: ${OIDC_CLIENT_ID}
       Oidc__ClientSecret: ${OIDC_CLIENT_SECRET}
+      # .NET Aspire service discovery resolution for container-to-container communication
+      services__wallow-api__http__0: "http://wallow-api:8080"
       ConnectionStrings__Redis: "valkey:6379,password=${VALKEY_PASSWORD},abortConnect=false"
       # OpenTelemetry
       OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4317

@@ -82,7 +82,7 @@ public sealed class AltAuthFlowTests : E2ETestBase
     {
         // Navigate to the API magic link verify endpoint with a garbage token
         string invalidUrl =
-            $"{Docker.ApiBaseUrl}/api/v1/identity/auth/passwordless/magic-link/verify?token=invalid-token-{Guid.NewGuid():N}";
+            $"{Docker.ApiBaseUrl}/v1/identity/auth/passwordless/magic-link/verify?token=invalid-token-{Guid.NewGuid():N}";
 
         IResponse? response = await Page.GotoAsync(invalidUrl);
         await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
