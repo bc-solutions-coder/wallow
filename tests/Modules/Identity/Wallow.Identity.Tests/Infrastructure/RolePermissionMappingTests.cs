@@ -25,7 +25,7 @@ public class RolePermissionMappingTests
 
         result.Should().Contain(PermissionType.OrganizationsRead);
         result.Should().NotContain(PermissionType.UsersRead);
-        result.Should().NotContain(PermissionType.BillingRead);
+        result.Should().NotContain(PermissionType.AdminAccess);
     }
 
     [Fact]
@@ -36,7 +36,6 @@ public class RolePermissionMappingTests
         List<string> result = RolePermissionMapping.GetPermissions(roles).ToList();
 
         result.Should().Contain(PermissionType.UsersRead);
-        result.Should().Contain(PermissionType.BillingRead);
         result.Should().Contain(PermissionType.OrganizationsRead);
         result.Should().Contain(PermissionType.OrganizationsManageMembers);
         result.Should().Contain(PermissionType.ApiKeysCreate);
@@ -64,7 +63,6 @@ public class RolePermissionMappingTests
 
         result.Should().Contain(PermissionType.OrganizationsRead);
         result.Should().Contain(PermissionType.UsersRead);
-        result.Should().Contain(PermissionType.BillingRead);
         result.Should().OnlyHaveUniqueItems();
     }
 

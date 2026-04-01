@@ -20,16 +20,6 @@ public static class PermissionType
     public const string RolesUpdate = "RolesUpdate";
     public const string RolesDelete = "RolesDelete";
 
-    // Billing
-    public const string BillingRead = "BillingRead";
-    public const string BillingManage = "BillingManage";
-    public const string InvoicesRead = "InvoicesRead";
-    public const string InvoicesWrite = "InvoicesWrite";
-    public const string PaymentsRead = "PaymentsRead";
-    public const string PaymentsWrite = "PaymentsWrite";
-    public const string SubscriptionsRead = "SubscriptionsRead";
-    public const string SubscriptionsWrite = "SubscriptionsWrite";
-
     // Organizations
     public const string OrganizationsRead = "OrganizationsRead";
     public const string OrganizationsCreate = "OrganizationsCreate";

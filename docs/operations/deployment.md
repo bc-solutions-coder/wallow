@@ -87,7 +87,7 @@ The compose file orchestrates startup order via `depends_on` health checks:
 | Step | What Happens | Triggered By |
 |------|-------------|--------------|
 | 1. Infrastructure | Postgres, Postgres replica, Valkey, and GarageHQ start and become healthy | `docker compose up -d` |
-| 2. Database migrations | `wallow-migrations` init container applies EF Core bundles for all 10 schemas, then exits | Every deployment (idempotent) |
+| 2. Database migrations | `wallow-migrations` init container applies EF Core bundles for all module schemas, then exits | Every deployment (idempotent) |
 | 3. API starts | Wallow API starts after migrations succeed | `depends_on` |
 | 4. Default roles | Creates `admin`, `manager`, `user` roles | Always (idempotent) |
 | 5. Admin account | Creates the initial admin user with email confirmed and `admin` role | `AdminBootstrap__*` env vars |
@@ -178,7 +178,7 @@ This is fully idempotent.
 | Category | Scopes |
 |----------|--------|
 | Standard | `openid`, `email`, `profile`, `roles`, `offline_access` |
-| Billing | `billing.read`, `billing.manage`, `invoices.read`, `invoices.write`, `payments.read`, `payments.write`, `subscriptions.read`, `subscriptions.write` |
+| Inquiries | `inquiries.read`, `inquiries.write` |
 | Identity | `users.read`, `users.write`, `users.manage`, `roles.read`, `roles.write`, `roles.manage`, `organizations.read`, `organizations.write`, `organizations.manage` |
 | Storage | `storage.read`, `storage.write` |
 | Communications | `messaging.access`, `announcements.read`, `announcements.manage`, `changelog.manage`, `notifications.read`, `notifications.write` |
@@ -210,11 +210,11 @@ API keys don't expire and don't require token refresh — ideal for M2M integrat
 curl -X POST https://api.yourdomain.com/api/auth/keys \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"name": "My Backend", "scopes": ["billing.read"]}'
+  -d '{"name": "My Backend", "scopes": ["inquiries.read"]}'
 
 # Use the API key
 curl -H "X-Api-Key: sk_live_..." \
-  https://api.yourdomain.com/api/billing/invoices
+  https://api.yourdomain.com/api/inquiries/submissions
 ```
 
 ### OAuth2 Authorization Code Flow (SPAs / Mobile)
@@ -246,7 +246,7 @@ curl -X POST https://api.yourdomain.com/connect/token \
   -d "grant_type=client_credentials" \
   -d "client_id=sa-my-backend" \
   -d "client_secret=<your-secret>" \
-  -d "scope=billing.read billing.manage"
+  -d "scope=inquiries.read inquiries.write"
 ```
 
 ### SignalR Real-Time Updates

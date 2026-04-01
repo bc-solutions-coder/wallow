@@ -6,7 +6,6 @@ namespace Wallow.Shared.Kernel.Plugins;
 /// </summary>
 public static class PluginPermission
 {
-    public const string BillingRead = "billing:read";
     public const string NotificationsSend = "notifications:send";
     public const string StorageRead = "storage:read";
     public const string StorageWrite = "storage:write";

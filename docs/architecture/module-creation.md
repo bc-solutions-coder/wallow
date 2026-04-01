@@ -9,12 +9,12 @@ Step-by-step guide for adding a new module to Wallow.
 Before creating a new module:
 
 - Understand Clean Architecture layers (Domain, Application, Infrastructure, Api)
-- Review the [Billing module](https://github.com/bc-solutions-coder/wallow/tree/main/src/Modules/Billing) as the reference implementation
+- Review the [Inquiries module](https://github.com/bc-solutions-coder/wallow/tree/main/src/Modules/Inquiries) as a reference implementation
 - Decide on your module name (PascalCase, singular noun)
 - Identify primary entities and their relationships
 - Determine if the module needs database persistence (EF Core) or is stateless
 
-> **Current modules:** Identity, Billing, Branding, Storage, Notifications, Messaging, Announcements, Inquiries, ApiKeys. New modules should complement these existing capabilities.
+> **Current modules:** Identity, Branding, Storage, Notifications, Messaging, Announcements, Inquiries, ApiKeys. New modules should complement these existing capabilities.
 
 ---
 
@@ -293,7 +293,7 @@ Each module owns its own PostgreSQL schema (lowercase module name). The DbContex
 - Apply entity configurations from the assembly
 - Apply tenant query filters for all `ITenantScoped` entities
 
-The tenant query filter pattern uses expression trees to dynamically add `WHERE tenant_id = @currentTenantId` to all queries. See `BillingDbContext` for the canonical implementation.
+The tenant query filter pattern uses expression trees to dynamically add `WHERE tenant_id = @currentTenantId` to all queries. See `InquiriesDbContext` for a reference implementation.
 
 ### Entity Configuration
 
@@ -311,7 +311,7 @@ Repositories implement the Application layer interfaces using the module's DbCon
 
 ### Design-Time Factory
 
-Required for `dotnet ef migrations` to work. Create `{Module}DbContextFactory` implementing `IDesignTimeDbContextFactory<{Module}DbContext>` with a placeholder connection string and a `DesignTimeTenantContext` mock. See `BillingDbContextFactory` for reference.
+Required for `dotnet ef migrations` to work. Create `{Module}DbContextFactory` implementing `IDesignTimeDbContextFactory<{Module}DbContext>` with a placeholder connection string and a `DesignTimeTenantContext` mock. See `InquiriesDbContextFactory` for reference.
 
 ### Infrastructure Extensions
 
@@ -527,4 +527,4 @@ These cross-cutting capabilities in the Shared layer are available to all module
 
 ---
 
-*Reference implementation: [Billing module](https://github.com/bc-solutions-coder/wallow/tree/main/src/Modules/Billing). Current modules: Identity, Billing, Branding, Storage, Notifications, Messaging, Announcements, Inquiries, ApiKeys.*
+*Reference implementation: [Inquiries module](https://github.com/bc-solutions-coder/wallow/tree/main/src/Modules/Inquiries). Current modules: Identity, Branding, Storage, Notifications, Messaging, Announcements, Inquiries, ApiKeys.*

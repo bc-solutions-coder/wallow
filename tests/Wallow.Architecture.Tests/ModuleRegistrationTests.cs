@@ -36,7 +36,7 @@ public class ModuleRegistrationTests
     {
         string[] modulesWithDbContext =
         [
-            "Billing", "Notifications", "Messaging", "Announcements",
+            "Notifications", "Messaging", "Announcements",
             "Identity", "Storage"
         ];
 
@@ -63,7 +63,6 @@ public class ModuleRegistrationTests
     }
 
     [Theory]
-    [InlineData("Billing")]
     [InlineData("Notifications")]
     [InlineData("Messaging")]
     [InlineData("Announcements")]
@@ -97,7 +96,6 @@ public class ModuleRegistrationTests
     }
 
     [Theory]
-    [InlineData("Billing")]
     [InlineData("Notifications")]
     [InlineData("Messaging")]
     [InlineData("Announcements")]

@@ -1,5 +1,4 @@
 using Wallow.Shared.Contracts;
-using Wallow.Shared.Contracts.Billing.Events;
 using Wallow.Shared.Contracts.Identity;
 using Wallow.Shared.Contracts.Identity.Events;
 using Wallow.Shared.Contracts.Realtime;
@@ -35,36 +34,6 @@ public class IntegrationEventTests
         ConcreteIntegrationEvent evt = new();
 
         evt.Should().BeAssignableTo<IIntegrationEvent>();
-    }
-
-    [Fact]
-    public void InvoiceCreatedEvent_WithAllProperties_HasCorrectValues()
-    {
-        Guid invoiceId = Guid.NewGuid();
-        Guid tenantId = Guid.NewGuid();
-        Guid userId = Guid.NewGuid();
-        DateTime dueDate = DateTime.UtcNow.AddDays(30);
-
-        InvoiceCreatedEvent evt = new()
-        {
-            InvoiceId = invoiceId,
-            TenantId = tenantId,
-            UserId = userId,
-            UserEmail = "user@example.com",
-            InvoiceNumber = "INV-001",
-            Amount = 99.99m,
-            Currency = "USD",
-            DueDate = dueDate
-        };
-
-        evt.InvoiceId.Should().Be(invoiceId);
-        evt.TenantId.Should().Be(tenantId);
-        evt.UserId.Should().Be(userId);
-        evt.UserEmail.Should().Be("user@example.com");
-        evt.InvoiceNumber.Should().Be("INV-001");
-        evt.Amount.Should().Be(99.99m);
-        evt.Currency.Should().Be("USD");
-        evt.DueDate.Should().Be(dueDate);
     }
 
     [Fact]

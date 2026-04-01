@@ -17,7 +17,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Modules\Billing\Wallow.Billing.Infrastructure\Wallow.Billing.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Modules\Notifications\Wallow.Notifications.Infrastructure\Wallow.Notifications.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Modules\Identity\Wallow.Identity.Infrastructure\Wallow.Identity.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Modules\Storage\Wallow.Storage.Infrastructure\Wallow.Storage.Infrastructure.csproj" />

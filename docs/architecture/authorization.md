@@ -38,7 +38,7 @@ Permissions are defined as string constants in:
 src/Shared/Wallow.Shared.Kernel/Identity/Authorization/PermissionType.cs
 ```
 
-**Naming convention**: `{Domain}{Action}` — e.g., `BillingRead`, `InvoicesWrite`, `WebhooksManage`.
+**Naming convention**: `{Domain}{Action}` — e.g., `InquiriesRead`, `InquiriesWrite`, `WebhooksManage`.
 
 ### Step 2: Map Permission to Roles
 
@@ -58,17 +58,17 @@ Add the `[HasPermission]` attribute:
 using Wallow.Shared.Kernel.Identity.Authorization;
 
 [ApiController]
-[Route("api/billing/invoices")]
+[Route("api/inquiries/submissions")]
 [Authorize]
-public class InvoicesController : ControllerBase
+public class SubmissionsController : ControllerBase
 {
     [HttpGet]
-    [HasPermission(PermissionType.InvoicesRead)]
+    [HasPermission(PermissionType.InquiriesRead)]
     public async Task<IActionResult> GetAll() { /* ... */ }
 
     [HttpPost]
-    [HasPermission(PermissionType.InvoicesWrite)]
-    public async Task<IActionResult> Create(CreateInvoiceRequest request) { /* ... */ }
+    [HasPermission(PermissionType.InquiriesWrite)]
+    public async Task<IActionResult> Create(CreateSubmissionRequest request) { /* ... */ }
 }
 ```
 
@@ -106,7 +106,7 @@ Scope-to-permission mapping is defined in:
 src/Shared/Wallow.Shared.Kernel/Identity/Authorization/ScopePermissionMapper.cs
 ```
 
-**Scope naming convention**: `{domain}.{action}` — e.g., `invoices.read`, `billing.manage`.
+**Scope naming convention**: `{domain}.{action}` — e.g., `inquiries.read`, `inquiries.write`.
 
 For regular user tokens, the middleware first expands roles to permissions, then supplements with any granted OAuth2 scopes (covering cases where role claims are absent from the token).
 
@@ -128,10 +128,10 @@ For regular user tokens, the middleware first expands roles to permissions, then
 | Role | Description |
 |------|-------------|
 | `admin` | All permissions (explicitly listed) |
-| `manager` | User read, billing read, organization management, API keys, SSO read, configuration, inquiries read |
+| `manager` | User read, organization management, API keys, SSO read, configuration, inquiries read |
 | `user` | Organization read, messaging, notifications, announcements read, storage, API key read/create, inquiries write |
 
-> **Note:** `PermissionType` is a static class with string constants (not a numeric enum). Permissions are grouped by domain area. The current active modules are: Identity, Billing, Storage, Notifications, Messaging, Announcements, and Inquiries.
+> **Note:** `PermissionType` is a static class with string constants (not a numeric enum). Permissions are grouped by domain area. The current active modules are: Identity, Storage, Notifications, Messaging, Announcements, and Inquiries.
 
 ---
 
@@ -165,7 +165,7 @@ Users with the `admin` role or operator service accounts (client ID prefixed wit
 ```bash
 curl -H "Authorization: Bearer $TOKEN" \
      -H "X-Tenant-Id: 550e8400-e29b-41d4-a716-446655440000" \
-     http://localhost:5000/api/billing/invoices
+     http://localhost:5000/api/inquiries/submissions
 ```
 
 This allows admins and operator service accounts to view data across tenants for support scenarios. Developer application clients (`app-` prefix) cannot use this override.

@@ -14,8 +14,8 @@ namespace Wallow.ApiKeys.Tests.Api.Controllers;
 
 public class ApiKeysControllerTests
 {
-    private static readonly string[] _billingReadScope = ["invoices.read"];
-    private static readonly string[] _twoScopes = ["invoices.read", "payments.write"];
+    private static readonly string[] _storageReadScope = ["storage.read"];
+    private static readonly string[] _twoScopes = ["storage.read", "inquiries.write"];
     private readonly IApiKeyService _apiKeyService;
     private readonly ITenantContext _tenantContext;
     private readonly Wallow.Shared.Kernel.Services.ICurrentUserService _currentUserService;
@@ -41,8 +41,8 @@ public class ApiKeysControllerTests
         ClaimsPrincipal user = new(new ClaimsIdentity(new[]
         {
             new Claim(ClaimTypes.NameIdentifier, _userId.ToString()),
-            new Claim("permission", PermissionType.InvoicesRead),
-            new Claim("permission", PermissionType.PaymentsWrite)
+            new Claim("permission", PermissionType.StorageRead),
+            new Claim("permission", PermissionType.StorageWrite)
         }, "TestAuth"));
         _controller.ControllerContext = new ControllerContext
         {
@@ -56,7 +56,7 @@ public class ApiKeysControllerTests
     public async Task CreateApiKey_WithValidRequest_ReturnsCreated()
     {
         DateTimeOffset expiresAt = DateTimeOffset.UtcNow.AddDays(30);
-        CreateApiKeyRequest request = new("Production Key", _billingReadScope, expiresAt);
+        CreateApiKeyRequest request = new("Production Key", _storageReadScope, expiresAt);
         ApiKeyCreateResult createResult = new(true, "key-id-1", "fnd_full-api-key", "fnd_full", null);
         _apiKeyService.CreateApiKeyAsync(
             "Production Key", _userId, _tenantId,
@@ -156,7 +156,7 @@ public class ApiKeysControllerTests
         List<ApiKeyMetadata> keys =
         [
             new ApiKeyMetadata("key-1", "Prod Key", "fnd_prod", _userId, _tenantId,
-                _billingReadScope, now, now.AddDays(30), now.AddHours(-1))
+                _storageReadScope, now, now.AddDays(30), now.AddHours(-1))
         ];
         _apiKeyService.ListApiKeysAsync(_userId, _tenantId, Arg.Any<CancellationToken>())
             .Returns(keys);

@@ -49,15 +49,15 @@ public sealed class EmailPreferenceRepositoryTests : RepositoryTestBase
     public async Task GetByUserAndTypeAsync_ReturnsMatchingPreference()
     {
         Guid userId = Guid.NewGuid();
-        EmailPreference preference = CreatePreference(userId: userId, notificationType: NotificationType.BillingInvoice);
+        EmailPreference preference = CreatePreference(userId: userId, notificationType: NotificationType.Mention);
 
         await AddWithTenantAsync(preference);
 
-        EmailPreference? result = await _repository.GetByUserAndTypeAsync(userId, NotificationType.BillingInvoice);
+        EmailPreference? result = await _repository.GetByUserAndTypeAsync(userId, NotificationType.Mention);
 
         result.Should().NotBeNull();
         result!.UserId.Should().Be(userId);
-        result.NotificationType.Should().Be(NotificationType.BillingInvoice);
+        result.NotificationType.Should().Be(NotificationType.Mention);
     }
 
     [Fact]
@@ -73,7 +73,7 @@ public sealed class EmailPreferenceRepositoryTests : RepositoryTestBase
     {
         Guid userId = Guid.NewGuid();
         EmailPreference pref1 = CreatePreference(userId: userId, notificationType: NotificationType.SystemAlert);
-        EmailPreference pref2 = CreatePreference(userId: userId, notificationType: NotificationType.BillingInvoice);
+        EmailPreference pref2 = CreatePreference(userId: userId, notificationType: NotificationType.Mention);
         EmailPreference otherPref = CreatePreference(userId: Guid.NewGuid(), notificationType: NotificationType.Mention);
 
         await AddWithTenantAsync(pref1);

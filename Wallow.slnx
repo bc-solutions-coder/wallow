@@ -22,12 +22,6 @@
     <Project Path="src/Modules/Announcements/Wallow.Announcements.Domain/Wallow.Announcements.Domain.csproj" />
     <Project Path="src/Modules/Announcements/Wallow.Announcements.Infrastructure/Wallow.Announcements.Infrastructure.csproj" />
   </Folder>
-  <Folder Name="/src/Modules/Billing/">
-    <Project Path="src/Modules/Billing/Wallow.Billing.Api/Wallow.Billing.Api.csproj" />
-    <Project Path="src/Modules/Billing/Wallow.Billing.Application/Wallow.Billing.Application.csproj" />
-    <Project Path="src/Modules/Billing/Wallow.Billing.Domain/Wallow.Billing.Domain.csproj" />
-    <Project Path="src/Modules/Billing/Wallow.Billing.Infrastructure/Wallow.Billing.Infrastructure.csproj" />
-  </Folder>
   <Folder Name="/src/Modules/Branding/">
     <Project Path="src/Modules/Branding/Wallow.Branding.Api/Wallow.Branding.Api.csproj" />
     <Project Path="src/Modules/Branding/Wallow.Branding.Application/Wallow.Branding.Application.csproj" />
@@ -95,9 +89,6 @@
   </Folder>
   <Folder Name="/tests/Modules/Announcements/">
     <Project Path="tests/Modules/Announcements/Wallow.Announcements.Tests/Wallow.Announcements.Tests.csproj" />
-  </Folder>
-  <Folder Name="/tests/Modules/Billing/">
-    <Project Path="tests/Modules/Billing/Wallow.Billing.Tests/Wallow.Billing.Tests.csproj" />
   </Folder>
   <Folder Name="/tests/Modules/Branding/">
     <Project Path="tests/Modules/Branding/Wallow.Branding.Tests/Wallow.Branding.Tests.csproj" />

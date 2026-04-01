@@ -8,7 +8,7 @@ Wallow uses **EF Core Migrations** for all modules. Each module owns its own Pos
 
 ### Key Principles
 
-1. **One schema per module** - Each module uses a separate PostgreSQL schema (e.g., `billing`, `identity`, `notifications`)
+1. **One schema per module** - Each module uses a separate PostgreSQL schema (e.g., `inquiries`, `identity`, `notifications`)
 2. **Isolated migration history** - Each EF Core schema has its own `__EFMigrationsHistory` table
 3. **Auto-migration at startup** - Migrations run automatically when the API starts
 4. **Multi-tenancy support** - Migrations use a `DesignTimeTenantContext` mock for design-time operations
@@ -36,23 +36,23 @@ Module Infrastructure Layer
 Each module's DbContext sets its schema in `OnModelCreating`:
 
 ```csharp
-public sealed class BillingDbContext : DbContext
+public sealed class InquiriesDbContext : DbContext
 {
     private readonly ITenantContext _tenantContext;
 
-    public DbSet<Invoice> Invoices => Set<Invoice>();
+    public DbSet<Submission> Submissions => Set<Submission>();
     // ... other DbSets
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         // Set the schema for all tables in this module
-        modelBuilder.HasDefaultSchema("billing");
+        modelBuilder.HasDefaultSchema("inquiries");
 
         // Apply all entity configurations from this assembly
-        modelBuilder.ApplyConfigurationsFromAssembly(typeof(BillingDbContext).Assembly);
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(InquiriesDbContext).Assembly);
 
         // Add tenant query filters
-        modelBuilder.Entity<Invoice>()
+        modelBuilder.Entity<Submission>()
             .HasQueryFilter(e => e.TenantId == _tenantContext.TenantId);
     }
 }
@@ -63,12 +63,12 @@ public sealed class BillingDbContext : DbContext
 In `InfrastructureExtensions.cs`, each module registers its DbContext with a **schema-specific migration history table**:
 
 ```csharp
-services.AddDbContext<BillingDbContext>((sp, options) =>
+services.AddDbContext<InquiriesDbContext>((sp, options) =>
 {
     options.UseNpgsql(connectionString, npgsql =>
     {
         // CRITICAL: Each module has its own migration history table in its schema
-        npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "billing");
+        npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "inquiries");
     });
     options.AddInterceptors(sp.GetRequiredService<TenantSaveChangesInterceptor>());
 });
@@ -79,12 +79,12 @@ services.AddDbContext<BillingDbContext>((sp, options) =>
 In `{Module}ModuleExtensions.cs`, migrations run automatically:
 
 ```csharp
-public static async Task<WebApplication> UseBillingModuleAsync(this WebApplication app)
+public static async Task<WebApplication> UseInquiriesModuleAsync(this WebApplication app)
 {
     try
     {
         using var scope = app.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<BillingDbContext>();
+        var db = scope.ServiceProvider.GetRequiredService<InquiriesDbContext>();
 
         // Apply any pending migrations
         await db.Database.MigrateAsync();
@@ -92,8 +92,8 @@ public static async Task<WebApplication> UseBillingModuleAsync(this WebApplicati
     catch (Exception ex)
     {
         var logger = app.Services.GetRequiredService<ILoggerFactory>()
-            .CreateLogger("BillingModule");
-        logger.LogWarning(ex, "Billing module startup failed.");
+            .CreateLogger("InquiriesModule");
+        logger.LogWarning(ex, "Inquiries module startup failed.");
     }
     return app;
 }
@@ -104,11 +104,11 @@ public static async Task<WebApplication> UseBillingModuleAsync(this WebApplicati
 For `dotnet ef` CLI commands to work, each module needs a **design-time factory**:
 
 ```csharp
-public class BillingDbContextFactory : IDesignTimeDbContextFactory<BillingDbContext>
+public class InquiriesDbContextFactory : IDesignTimeDbContextFactory<InquiriesDbContext>
 {
-    public BillingDbContext CreateDbContext(string[] args)
+    public InquiriesDbContext CreateDbContext(string[] args)
     {
-        var optionsBuilder = new DbContextOptionsBuilder<BillingDbContext>();
+        var optionsBuilder = new DbContextOptionsBuilder<InquiriesDbContext>();
 
         // Hardcoded connection for design-time
         optionsBuilder.UseNpgsql(
@@ -117,7 +117,7 @@ public class BillingDbContextFactory : IDesignTimeDbContextFactory<BillingDbCont
         // Mock tenant context (required by DbContext constructor)
         var mockTenantContext = new DesignTimeTenantContext();
 
-        return new BillingDbContext(optionsBuilder.Options, mockTenantContext);
+        return new InquiriesDbContext(optionsBuilder.Options, mockTenantContext);
     }
 }
 ```
@@ -152,17 +152,17 @@ dotnet ef migrations add {MigrationName} \
 ### Example
 
 ```bash
-# Add initial migration for Billing module
+# Add initial migration for Inquiries module
 dotnet ef migrations add InitialCreate \
-    --project src/Modules/Billing/Wallow.Billing.Infrastructure \
+    --project src/Modules/Inquiries/Wallow.Inquiries.Infrastructure \
     --startup-project src/Wallow.Api \
-    --context BillingDbContext
+    --context InquiriesDbContext
 
 # Add a new migration for schema changes
-dotnet ef migrations add AddPaymentRefundField \
-    --project src/Modules/Billing/Wallow.Billing.Infrastructure \
+dotnet ef migrations add AddSubmissionStatusField \
+    --project src/Modules/Inquiries/Wallow.Inquiries.Infrastructure \
     --startup-project src/Wallow.Api \
-    --context BillingDbContext
+    --context InquiriesDbContext
 ```
 
 ## Module Status Reference
@@ -172,7 +172,6 @@ dotnet ef migrations add AddPaymentRefundField \
 | Module | Schema | Has Migrations | Has Factory |
 |--------|--------|----------------|-------------|
 | Identity | `identity` | Yes | Yes |
-| Billing | `billing` | Yes | Yes |
 | Storage | `storage` | Yes | Yes |
 | Notifications | `notifications` | Yes | Yes |
 | Messaging | `messaging` | Yes | Yes |
@@ -220,7 +219,7 @@ In production and staging, migrations are **not** applied by the application at 
 The `Dockerfile` has a `migrations-runner` build target that:
 
 1. Installs `dotnet-ef` tools in the SDK image
-2. Generates an EF Core migration bundle for each of the 10 DbContexts
+2. Generates an EF Core migration bundle for each module DbContext
 3. Packages them with a runner script into a lightweight runtime image
 
 The `wallow-migrations` service in docker-compose runs this image as an init container. App services depend on it with `condition: service_completed_successfully`.

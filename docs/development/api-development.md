@@ -35,12 +35,12 @@ HTTP Response (JSON or ProblemDetails)
 ```csharp
 [ApiController]
 [ApiVersion(1)]
-[Route("api/v{version:apiVersion}/billing/invoices")]
+[Route("api/v{version:apiVersion}/inquiries/submissions")]
 [Authorize]
-[Tags("Invoices")]
+[Tags("Submissions")]
 [Produces("application/json")]
 [Consumes("application/json")]
-public class InvoicesController(IMessageBus bus, ICurrentUserService currentUserService) : ControllerBase
+public class SubmissionsController(IMessageBus bus, ICurrentUserService currentUserService) : ControllerBase
 {
     // ... endpoints
 }
@@ -72,9 +72,9 @@ POST   /api/v1/{module}/{resources}/{id}/action  Custom action
 ```
 
 Examples from the codebase:
-- `GET /api/v1/billing/invoices` - List invoices
-- `GET /api/v1/billing/invoices/{id}` - Get invoice by ID
-- `POST /api/v1/billing/invoices/{id}/issue` - Issue an invoice
+- `GET /api/v1/inquiries/submissions` - List submissions
+- `GET /api/v1/inquiries/submissions/{id}` - Get submission by ID
+- `POST /api/v1/inquiries/submissions/{id}/close` - Close a submission
 - `GET /api/v1/notifications/notifications` - Get user notifications
 
 ### Injecting Dependencies
@@ -86,7 +86,7 @@ Controllers use primary constructors and inject:
 
 ```csharp
 // Standard pattern: primary constructor with Wolverine + user service
-public class InvoicesController(IMessageBus bus, ICurrentUserService currentUserService) : ControllerBase
+public class SubmissionsController(IMessageBus bus, ICurrentUserService currentUserService) : ControllerBase
 {
     // ...
 }
@@ -108,23 +108,23 @@ Document all possible response types for OpenAPI:
 
 ```csharp
 /// <summary>
-/// Create a new invoice.
+/// Create a new submission.
 /// </summary>
 [HttpPost]
-[ProducesResponseType(typeof(InvoiceDto), StatusCodes.Status201Created)]
+[ProducesResponseType(typeof(SubmissionDto), StatusCodes.Status201Created)]
 [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
 public async Task<IActionResult> Create(
-    [FromBody] CreateInvoiceRequest request,
+    [FromBody] CreateSubmissionRequest request,
     CancellationToken ct)
 {
     // ...
 }
 
 /// <summary>
-/// Get a specific invoice by ID.
+/// Get a specific submission by ID.
 /// </summary>
 [HttpGet("{id:guid}")]
-[ProducesResponseType(typeof(InvoiceDto), StatusCodes.Status200OK)]
+[ProducesResponseType(typeof(SubmissionDto), StatusCodes.Status200OK)]
 [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
 public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
 {
@@ -151,12 +151,12 @@ src/Modules/{Module}/Wallow.{Module}.Api/
 Some modules organize by feature:
 ```
 Contracts/
-├── Invoices/
-│   ├── CreateInvoiceRequest.cs
-│   ├── AddLineItemRequest.cs
-│   └── InvoiceResponse.cs
-└── Payments/
-    └── ProcessPaymentRequest.cs
+├── Submissions/
+│   ├── CreateSubmissionRequest.cs
+│   ├── UpdateSubmissionRequest.cs
+│   └── SubmissionResponse.cs
+└── Forms/
+    └── CreateFormRequest.cs
 ```
 
 ### Request Records
@@ -164,12 +164,12 @@ Contracts/
 Use `record` types for immutable request contracts:
 
 ```csharp
-namespace Wallow.Billing.Api.Contracts.Invoices;
+namespace Wallow.Inquiries.Api.Contracts.Submissions;
 
-public sealed record CreateInvoiceRequest(
-    string InvoiceNumber,
-    string Currency,
-    DateTime? DueDate);
+public sealed record CreateSubmissionRequest(
+    string Subject,
+    string Body,
+    string? ContactEmail);
 ```
 
 ### Response Records
@@ -201,18 +201,15 @@ When they match, return DTOs directly. When they differ (naming, structure, or a
 
 ```csharp
 // In controller - map DTO to response
-private static InvoiceResponse ToInvoiceResponse(InvoiceDto dto) => new(
+private static SubmissionResponse ToSubmissionResponse(SubmissionDto dto) => new(
     dto.Id,
     dto.UserId,
-    dto.InvoiceNumber,
+    dto.Subject,
+    dto.Body,
     dto.Status,
-    dto.TotalAmount,
-    dto.Currency,
-    dto.DueDate,
-    dto.PaidAt,
+    dto.ContactEmail,
     dto.CreatedAt,
-    dto.UpdatedAt,
-    dto.LineItems.Select(ToLineItemResponse).ToList());
+    dto.UpdatedAt);
 ```
 
 ## Commands and Queries
@@ -222,15 +219,14 @@ private static InvoiceResponse ToInvoiceResponse(InvoiceDto dto) => new(
 Commands are immutable records in the Application layer:
 
 ```csharp
-// src/Modules/Billing/Wallow.Billing.Application/Commands/CreateInvoice/CreateInvoiceCommand.cs
-namespace Wallow.Billing.Application.Commands.CreateInvoice;
+// src/Modules/Inquiries/Wallow.Inquiries.Application/Commands/CreateSubmission/CreateSubmissionCommand.cs
+namespace Wallow.Inquiries.Application.Commands.CreateSubmission;
 
-public sealed record CreateInvoiceCommand(
+public sealed record CreateSubmissionCommand(
     Guid UserId,
-    string InvoiceNumber,
-    string Currency,
-    DateTime? DueDate,
-    Dictionary<string, object>? CustomFields = null);
+    string Subject,
+    string Body,
+    string? ContactEmail = null);
 ```
 
 ### Handler Structure
@@ -238,45 +234,33 @@ public sealed record CreateInvoiceCommand(
 Handlers use primary constructor injection and return `Result<T>`:
 
 ```csharp
-// src/Modules/Billing/Wallow.Billing.Application/Commands/CreateInvoice/CreateInvoiceHandler.cs
-namespace Wallow.Billing.Application.Commands.CreateInvoice;
+// src/Modules/Inquiries/Wallow.Inquiries.Application/Commands/CreateSubmission/CreateSubmissionHandler.cs
+namespace Wallow.Inquiries.Application.Commands.CreateSubmission;
 
-public sealed class CreateInvoiceHandler(
-    IInvoiceRepository invoiceRepository,
+public sealed class CreateSubmissionHandler(
+    ISubmissionRepository submissionRepository,
     IMessageBus messageBus)
 {
-    public async Task<Result<InvoiceDto>> Handle(
-        CreateInvoiceCommand command,
+    public async Task<Result<SubmissionDto>> Handle(
+        CreateSubmissionCommand command,
         CancellationToken cancellationToken)
     {
-        // Validation/business rules
-        var exists = await invoiceRepository.ExistsByInvoiceNumberAsync(
-            command.InvoiceNumber, cancellationToken);
-
-        if (exists)
-        {
-            return Result.Failure<InvoiceDto>(
-                Error.Conflict($"Invoice '{command.InvoiceNumber}' already exists"));
-        }
-
         // Create aggregate
-        var invoice = Invoice.Create(
+        var submission = Submission.Create(
             command.UserId,
-            command.InvoiceNumber,
-            command.Currency,
-            command.UserId,
-            command.DueDate,
-            command.CustomFields);
+            command.Subject,
+            command.Body,
+            command.ContactEmail);
 
         // Persist
-        invoiceRepository.Add(invoice);
-        await invoiceRepository.SaveChangesAsync(cancellationToken);
+        submissionRepository.Add(submission);
+        await submissionRepository.SaveChangesAsync(cancellationToken);
 
         // Publish events
         await messageBus.PublishAsync(new AuditEntryRequestedEvent { ... });
 
         // Return DTO
-        return Result.Success(invoice.ToDto());
+        return Result.Success(submission.ToDto());
     }
 }
 ```
@@ -286,24 +270,24 @@ public sealed class CreateInvoiceHandler(
 ```csharp
 [HttpPost]
 public async Task<IActionResult> Create(
-    [FromBody] CreateInvoiceRequest request,
+    [FromBody] CreateSubmissionRequest request,
     CancellationToken cancellationToken)
 {
     Guid? userId = currentUserService.GetCurrentUserId();
 
     // 1. Map request to command
-    var command = new CreateInvoiceCommand(
+    var command = new CreateSubmissionCommand(
         userId!.Value,
-        request.InvoiceNumber,
-        request.Currency,
-        request.DueDate);
+        request.Subject,
+        request.Body,
+        request.ContactEmail);
 
     // 2. Send to handler via Wolverine
-    var result = await bus.InvokeAsync<Result<InvoiceDto>>(command, cancellationToken);
+    var result = await bus.InvokeAsync<Result<SubmissionDto>>(command, cancellationToken);
 
     // 3. Map result to HTTP response
-    return result.Map(ToInvoiceResponse)
-        .ToCreatedResult($"/api/billing/invoices/{result.Value?.Id}");
+    return result.Map(ToSubmissionResponse)
+        .ToCreatedResult($"/api/inquiries/submissions/{result.Value?.Id}");
 }
 ```
 
@@ -356,17 +340,17 @@ public sealed record Error(string Code, string Message)
 
 ```csharp
 // Success with value
-return Result.Success(invoice.ToDto());
+return Result.Success(submission.ToDto());
 
 // Failure with error
-return Result.Failure<InvoiceDto>(
-    Error.NotFound("Invoice", invoiceId));
+return Result.Failure<SubmissionDto>(
+    Error.NotFound("Submission", submissionId));
 
-return Result.Failure<InvoiceDto>(
-    Error.Validation("Currency must be a 3-letter ISO code"));
+return Result.Failure<SubmissionDto>(
+    Error.Validation("Subject must not be empty"));
 
-return Result.Failure<InvoiceDto>(
-    Error.Conflict($"Invoice '{number}' already exists"));
+return Result.Failure<SubmissionDto>(
+    Error.Conflict($"Submission '{subject}' already exists"));
 ```
 
 ### Result Extensions
@@ -431,15 +415,15 @@ public static class ResultExtensions
 
 ```csharp
 // Transform DTO to response before converting to action result
-var result = await bus.InvokeAsync<Result<InvoiceDto>>(command, cancellationToken);
+var result = await bus.InvokeAsync<Result<SubmissionDto>>(command, cancellationToken);
 
-return result.Map(ToInvoiceResponse)
-    .ToCreatedResult($"/api/billing/invoices/{result.Value?.Id}");
+return result.Map(ToSubmissionResponse)
+    .ToCreatedResult($"/api/inquiries/submissions/{result.Value?.Id}");
 
 // Chain multiple transformations
 return result
-    .Map(invoices => invoices.Select(ToInvoiceResponse).ToList())
-    .Map(responses => (IReadOnlyList<InvoiceResponse>)responses)
+    .Map(submissions => submissions.Select(ToSubmissionResponse).ToList())
+    .Map(responses => (IReadOnlyList<SubmissionResponse>)responses)
     .ToActionResult();
 ```
 
@@ -460,10 +444,10 @@ builder.Host.UseWolverine(opts =>
 Each module registers its validators:
 
 ```csharp
-// src/Modules/Billing/Wallow.Billing.Application/Extensions/ApplicationExtensions.cs
+// src/Modules/Inquiries/Wallow.Inquiries.Application/Extensions/ApplicationExtensions.cs
 public static class ApplicationExtensions
 {
-    public static IServiceCollection AddBillingApplication(this IServiceCollection services)
+    public static IServiceCollection AddInquiriesApplication(this IServiceCollection services)
     {
         services.AddValidatorsFromAssembly(typeof(ApplicationExtensions).Assembly);
         return services;
@@ -476,12 +460,12 @@ public static class ApplicationExtensions
 Validators live alongside their commands:
 
 ```
-src/Modules/Billing/Wallow.Billing.Application/
+src/Modules/Inquiries/Wallow.Inquiries.Application/
 └── Commands/
-    └── CreateInvoice/
-        ├── CreateInvoiceCommand.cs
-        ├── CreateInvoiceHandler.cs
-        └── CreateInvoiceValidator.cs
+    └── CreateSubmission/
+        ├── CreateSubmissionCommand.cs
+        ├── CreateSubmissionHandler.cs
+        └── CreateSubmissionValidator.cs
 ```
 
 ### Writing Validators
@@ -489,22 +473,22 @@ src/Modules/Billing/Wallow.Billing.Application/
 ```csharp
 using FluentValidation;
 
-namespace Wallow.Billing.Application.Commands.CreateInvoice;
+namespace Wallow.Inquiries.Application.Commands.CreateSubmission;
 
-public sealed class CreateInvoiceValidator : AbstractValidator<CreateInvoiceCommand>
+public sealed class CreateSubmissionValidator : AbstractValidator<CreateSubmissionCommand>
 {
-    public CreateInvoiceValidator()
+    public CreateSubmissionValidator()
     {
         RuleFor(x => x.UserId)
             .NotEmpty().WithMessage("User ID is required");
 
-        RuleFor(x => x.InvoiceNumber)
-            .NotEmpty().WithMessage("Invoice number is required")
-            .MaximumLength(50).WithMessage("Invoice number must not exceed 50 characters");
+        RuleFor(x => x.Subject)
+            .NotEmpty().WithMessage("Subject is required")
+            .MaximumLength(200).WithMessage("Subject must not exceed 200 characters");
 
-        RuleFor(x => x.Currency)
-            .NotEmpty().WithMessage("Currency is required")
-            .Length(3).WithMessage("Currency must be a 3-letter ISO code");
+        RuleFor(x => x.Body)
+            .NotEmpty().WithMessage("Body is required")
+            .MaximumLength(5000).WithMessage("Body must not exceed 5000 characters");
     }
 }
 ```
@@ -519,8 +503,8 @@ When validation fails, Wolverine returns a `400 Bad Request` with validation err
     "title": "Bad Request",
     "status": 400,
     "errors": {
-        "InvoiceNumber": ["Invoice number is required"],
-        "Currency": ["Currency must be a 3-letter ISO code"]
+        "Subject": ["Subject is required"],
+        "Body": ["Body is required"]
     }
 }
 ```
@@ -550,10 +534,10 @@ All error responses use Problem Details:
     "type": "https://tools.ietf.org/html/rfc7231#section-6.5.4",
     "title": "Resource Not Found",
     "status": 404,
-    "detail": "Invoice with ID '123' was not found",
+    "detail": "Submission with ID '123' was not found",
     "instance": "/errors/00-abc123",
     "traceId": "00-abc123",
-    "code": "Invoice.NotFound"
+    "code": "Submission.NotFound"
 }
 ```
 
@@ -610,9 +594,8 @@ public static class PermissionType
 {
     public const string UsersRead = "UsersRead";
     public const string UsersCreate = "UsersCreate";
-    public const string BillingRead = "BillingRead";
-    public const string InvoicesRead = "InvoicesRead";
-    public const string InvoicesWrite = "InvoicesWrite";
+    public const string InquiriesRead = "InquiriesRead";
+    public const string InquiriesWrite = "InquiriesWrite";
     public const string AdminAccess = "AdminAccess";
     // ... more permissions
 }
@@ -668,43 +651,43 @@ For multi-tenant operations, inject `ITenantContext` via the primary constructor
    - Invoke via `bus.InvokeAsync`
    - Map result to response
 
-### Example: Adding "Archive Invoice" Endpoint
+### Example: Adding "Close Submission" Endpoint
 
 **1. No request contract needed** (ID comes from route)
 
 **2. Command:**
 ```csharp
-// src/Modules/Billing/Wallow.Billing.Application/Commands/ArchiveInvoice/ArchiveInvoiceCommand.cs
-namespace Wallow.Billing.Application.Commands.ArchiveInvoice;
+// src/Modules/Inquiries/Wallow.Inquiries.Application/Commands/CloseSubmission/CloseSubmissionCommand.cs
+namespace Wallow.Inquiries.Application.Commands.CloseSubmission;
 
-public sealed record ArchiveInvoiceCommand(Guid InvoiceId, Guid ArchivedBy);
+public sealed record CloseSubmissionCommand(Guid SubmissionId, Guid ClosedBy);
 ```
 
 **3. Validator:**
 ```csharp
-// src/Modules/Billing/Wallow.Billing.Application/Commands/ArchiveInvoice/ArchiveInvoiceValidator.cs
-public sealed class ArchiveInvoiceValidator : AbstractValidator<ArchiveInvoiceCommand>
+// src/Modules/Inquiries/Wallow.Inquiries.Application/Commands/CloseSubmission/CloseSubmissionValidator.cs
+public sealed class CloseSubmissionValidator : AbstractValidator<CloseSubmissionCommand>
 {
-    public ArchiveInvoiceValidator()
+    public CloseSubmissionValidator()
     {
-        RuleFor(x => x.InvoiceId).NotEmpty();
-        RuleFor(x => x.ArchivedBy).NotEmpty();
+        RuleFor(x => x.SubmissionId).NotEmpty();
+        RuleFor(x => x.ClosedBy).NotEmpty();
     }
 }
 ```
 
 **4. Handler:**
 ```csharp
-// src/Modules/Billing/Wallow.Billing.Application/Commands/ArchiveInvoice/ArchiveInvoiceHandler.cs
-public sealed class ArchiveInvoiceHandler(IInvoiceRepository repo)
+// src/Modules/Inquiries/Wallow.Inquiries.Application/Commands/CloseSubmission/CloseSubmissionHandler.cs
+public sealed class CloseSubmissionHandler(ISubmissionRepository repo)
 {
-    public async Task<Result> Handle(ArchiveInvoiceCommand command, CancellationToken ct)
+    public async Task<Result> Handle(CloseSubmissionCommand command, CancellationToken ct)
     {
-        var invoice = await repo.GetByIdAsync(command.InvoiceId, ct);
-        if (invoice is null)
-            return Result.Failure(Error.NotFound("Invoice", command.InvoiceId));
+        var submission = await repo.GetByIdAsync(command.SubmissionId, ct);
+        if (submission is null)
+            return Result.Failure(Error.NotFound("Submission", command.SubmissionId));
 
-        invoice.Archive(command.ArchivedBy);
+        submission.Close(command.ClosedBy);
         await repo.SaveChangesAsync(ct);
 
         return Result.Success();
@@ -715,15 +698,15 @@ public sealed class ArchiveInvoiceHandler(IInvoiceRepository repo)
 **5. Controller endpoint:**
 ```csharp
 /// <summary>
-/// Archive an invoice.
+/// Close a submission.
 /// </summary>
-[HttpPost("{id:guid}/archive")]
+[HttpPost("{id:guid}/close")]
 [ProducesResponseType(StatusCodes.Status204NoContent)]
 [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
 [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
-public async Task<IActionResult> Archive(Guid id, CancellationToken ct)
+public async Task<IActionResult> Close(Guid id, CancellationToken ct)
 {
-    var command = new ArchiveInvoiceCommand(id, currentUserService.GetCurrentUserId()!.Value);
+    var command = new CloseSubmissionCommand(id, currentUserService.GetCurrentUserId()!.Value);
     var result = await bus.InvokeAsync<Result>(command, ct);
 
     if (result.IsSuccess)
@@ -786,14 +769,14 @@ public async Task<IActionResult> Upload(
 
 ```csharp
 [HttpGet]
-[ProducesResponseType(typeof(PagedResult<InvoiceResponse>), StatusCodes.Status200OK)]
+[ProducesResponseType(typeof(PagedResult<SubmissionResponse>), StatusCodes.Status200OK)]
 public async Task<IActionResult> GetAll(
     [FromQuery] int skip = 0,
     [FromQuery] int take = 50,
     CancellationToken ct = default)
 {
-    Result<PagedResult<InvoiceDto>> result = await bus.InvokeAsync<Result<PagedResult<InvoiceDto>>>(
-        new GetAllInvoicesQuery(skip, take), ct);
+    Result<PagedResult<SubmissionDto>> result = await bus.InvokeAsync<Result<PagedResult<SubmissionDto>>>(
+        new GetAllSubmissionsQuery(skip, take), ct);
 
     return result.ToActionResult();
 }
@@ -802,15 +785,15 @@ public async Task<IActionResult> GetAll(
 ### Nested Resources
 
 ```csharp
-// GET /api/v1/billing/invoices/{id}/line-items
-[HttpGet("{id:guid}/line-items")]
-[ProducesResponseType(typeof(IReadOnlyList<InvoiceLineItemDto>), StatusCodes.Status200OK)]
-public async Task<IActionResult> GetLineItems(
+// GET /api/v1/inquiries/submissions/{id}/comments
+[HttpGet("{id:guid}/comments")]
+[ProducesResponseType(typeof(IReadOnlyList<SubmissionCommentDto>), StatusCodes.Status200OK)]
+public async Task<IActionResult> GetComments(
     Guid id,
     CancellationToken ct = default)
 {
-    var query = new GetInvoiceLineItemsQuery(id);
-    var result = await bus.InvokeAsync<Result<IReadOnlyList<InvoiceLineItemDto>>>(query, ct);
+    var query = new GetSubmissionCommentsQuery(id);
+    var result = await bus.InvokeAsync<Result<IReadOnlyList<SubmissionCommentDto>>>(query, ct);
     return result.ToActionResult();
 }
 ```
@@ -820,15 +803,15 @@ public async Task<IActionResult> GetLineItems(
 For operations that don't fit REST:
 
 ```csharp
-// POST /api/v1/billing/invoices/{id}/issue
-[HttpPost("{id:guid}/issue")]
-[ProducesResponseType(typeof(InvoiceResponse), StatusCodes.Status200OK)]
+// POST /api/v1/inquiries/submissions/{id}/close
+[HttpPost("{id:guid}/close")]
+[ProducesResponseType(typeof(SubmissionResponse), StatusCodes.Status200OK)]
 [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-public async Task<IActionResult> Issue(Guid id, CancellationToken ct)
+public async Task<IActionResult> Close(Guid id, CancellationToken ct)
 {
-    var command = new IssueInvoiceCommand(id, currentUserService.GetCurrentUserId()!.Value);
-    var result = await bus.InvokeAsync<Result<InvoiceDto>>(command, ct);
-    return result.Map(ToInvoiceResponse).ToActionResult();
+    var command = new CloseSubmissionCommand(id, currentUserService.GetCurrentUserId()!.Value);
+    var result = await bus.InvokeAsync<Result<SubmissionDto>>(command, ct);
+    return result.Map(ToSubmissionResponse).ToActionResult();
 }
 ```
 
@@ -855,22 +838,22 @@ public async Task<IActionResult> Download(Guid id, CancellationToken ct)
 See `docs/development/testing.md` for comprehensive testing patterns. Quick overview:
 
 ```csharp
-public class InvoicesControllerTests : WallowIntegrationTestBase
+public class SubmissionsControllerTests : WallowIntegrationTestBase
 {
     [Fact]
     public async Task Create_ReturnsCreated_WithValidRequest()
     {
         // Arrange
-        var request = new CreateInvoiceRequest("INV-001", "USD", DateTime.UtcNow.AddDays(30));
+        var request = new CreateSubmissionRequest("Help with account", "I cannot log in.", null);
 
         // Act
-        var response = await Client.PostAsJsonAsync("/api/billing/invoices", request);
+        var response = await Client.PostAsJsonAsync("/api/inquiries/submissions", request);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
-        var invoice = await response.Content.ReadFromJsonAsync<InvoiceResponse>();
-        invoice.Should().NotBeNull();
-        invoice!.InvoiceNumber.Should().Be("INV-001");
+        var submission = await response.Content.ReadFromJsonAsync<SubmissionResponse>();
+        submission.Should().NotBeNull();
+        submission!.Subject.Should().Be("Help with account");
     }
 }
 ```

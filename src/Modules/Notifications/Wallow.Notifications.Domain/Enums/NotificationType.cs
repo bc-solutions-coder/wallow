@@ -6,7 +6,7 @@ public enum NotificationType
     TaskCompleted = 1,
     TaskComment = 2,
     SystemAlert = 3,
-    BillingInvoice = 4,
+    // 4 was BillingInvoice (removed)
     Mention = 5,
     Announcement = 6,
     SystemNotification = 7,

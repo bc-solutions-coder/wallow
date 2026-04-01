@@ -85,7 +85,6 @@
   <ItemGroup>
     <!-- Module Api projects -->
     <ProjectReference Include="..\Modules\Branding\Wallow.Branding.Api\Wallow.Branding.Api.csproj" />
-    <ProjectReference Include="..\Modules\Billing\Wallow.Billing.Api\Wallow.Billing.Api.csproj" />
     <ProjectReference Include="..\Modules\Notifications\Wallow.Notifications.Api\Wallow.Notifications.Api.csproj" />
     <ProjectReference Include="..\Modules\Messaging\Wallow.Messaging.Api\Wallow.Messaging.Api.csproj" />
     <ProjectReference Include="..\Modules\Announcements\Wallow.Announcements.Api\Wallow.Announcements.Api.csproj" />
@@ -96,7 +95,6 @@
 
     <!-- Module Infrastructure projects -->
     <ProjectReference Include="..\Modules\Branding\Wallow.Branding.Infrastructure\Wallow.Branding.Infrastructure.csproj" />
-    <ProjectReference Include="..\Modules\Billing\Wallow.Billing.Infrastructure\Wallow.Billing.Infrastructure.csproj" />
     <ProjectReference Include="..\Modules\Notifications\Wallow.Notifications.Infrastructure\Wallow.Notifications.Infrastructure.csproj" />
     <ProjectReference Include="..\Modules\Messaging\Wallow.Messaging.Infrastructure\Wallow.Messaging.Infrastructure.csproj" />
     <ProjectReference Include="..\Modules\Announcements\Wallow.Announcements.Infrastructure\Wallow.Announcements.Infrastructure.csproj" />
@@ -135,7 +133,6 @@
     <Message Importance="high" Text="Building EF Core migration bundles for $(MigrationBundleRid)..." />
     <MakeDir Directories="$(BundleDir)" />
     <Exec Command="dotnet ef migrations bundle --project src/Modules/Identity/Wallow.Identity.Infrastructure/Wallow.Identity.Infrastructure.csproj --startup-project src/Wallow.Api/Wallow.Api.csproj --context IdentityDbContext --output $(BundleDir)/efbundle-identity $(BundleArgs)" WorkingDirectory="$(RepoRoot)" />
-    <Exec Command="dotnet ef migrations bundle --project src/Modules/Billing/Wallow.Billing.Infrastructure/Wallow.Billing.Infrastructure.csproj --startup-project src/Wallow.Api/Wallow.Api.csproj --context BillingDbContext --output $(BundleDir)/efbundle-billing $(BundleArgs)" WorkingDirectory="$(RepoRoot)" />
     <Exec Command="dotnet ef migrations bundle --project src/Modules/Storage/Wallow.Storage.Infrastructure/Wallow.Storage.Infrastructure.csproj --startup-project src/Wallow.Api/Wallow.Api.csproj --context StorageDbContext --output $(BundleDir)/efbundle-storage $(BundleArgs)" WorkingDirectory="$(RepoRoot)" />
     <Exec Command="dotnet ef migrations bundle --project src/Modules/Notifications/Wallow.Notifications.Infrastructure/Wallow.Notifications.Infrastructure.csproj --startup-project src/Wallow.Api/Wallow.Api.csproj --context NotificationsDbContext --output $(BundleDir)/efbundle-notifications $(BundleArgs)" WorkingDirectory="$(RepoRoot)" />
     <Exec Command="dotnet ef migrations bundle --project src/Modules/Messaging/Wallow.Messaging.Infrastructure/Wallow.Messaging.Infrastructure.csproj --startup-project src/Wallow.Api/Wallow.Api.csproj --context MessagingDbContext --output $(BundleDir)/efbundle-messaging $(BundleArgs)" WorkingDirectory="$(RepoRoot)" />

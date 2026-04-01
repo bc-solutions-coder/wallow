@@ -38,15 +38,15 @@ public sealed class ApiScopeSeederGapTests : IDisposable
         await _seeder.SeedAsync(_dbContext);
 
         int count = await _dbContext.ApiScopes.IgnoreQueryFilters().CountAsync();
-        count.Should().Be(39);
+        count.Should().Be(31);
     }
 
     [Fact]
     public async Task SeedAsync_WhenSomeScopesExist_OnlySeedsMissingOnes()
     {
         // Pre-seed just one scope
-        ApiScope existingScope = ApiScope.Create("invoices.read", "Read Invoices", "Billing",
-            "Access to read invoices and invoice data", isDefault: true);
+        ApiScope existingScope = ApiScope.Create("users.read", "Read Users", "Identity",
+            "Access to read user profiles and data", isDefault: true);
         _dbContext.ApiScopes.Add(existingScope);
         await _dbContext.SaveChangesAsync();
         int preCount = await _dbContext.ApiScopes.IgnoreQueryFilters().CountAsync();
@@ -55,31 +55,31 @@ public sealed class ApiScopeSeederGapTests : IDisposable
         await _seeder.SeedAsync(_dbContext);
 
         int totalCount = await _dbContext.ApiScopes.IgnoreQueryFilters().CountAsync();
-        totalCount.Should().Be(39);
+        totalCount.Should().Be(31);
 
         // Verify no duplicate of the pre-seeded scope
-        int invoiceReadCount = await _dbContext.ApiScopes
+        int usersReadCount = await _dbContext.ApiScopes
             .IgnoreQueryFilters()
-            .CountAsync(s => s.Code == "invoices.read");
-        invoiceReadCount.Should().Be(1);
+            .CountAsync(s => s.Code == "users.read");
+        usersReadCount.Should().Be(1);
     }
 
     [Fact]
     public async Task SeedAsync_WhenMultipleScopesExist_OnlySeedsRemaining()
     {
         // Pre-seed three scopes from different categories
-        _dbContext.ApiScopes.Add(ApiScope.Create("invoices.read", "Read Invoices", "Billing",
-            "Access to read invoices and invoice data", isDefault: true));
+        _dbContext.ApiScopes.Add(ApiScope.Create("storage.read", "Read Storage", "Storage",
+            "Access to read files and storage data", isDefault: true));
         _dbContext.ApiScopes.Add(ApiScope.Create("users.read", "Read Users", "Identity",
             "Access to read user profiles and data", isDefault: true));
-        _dbContext.ApiScopes.Add(ApiScope.Create("notifications.read", "Read Notifications", "Notifications",
+        _dbContext.ApiScopes.Add(ApiScope.Create("notifications.read", "Read Notifications", "Communications",
             "Access to read notifications"));
         await _dbContext.SaveChangesAsync();
 
         await _seeder.SeedAsync(_dbContext);
 
         int totalCount = await _dbContext.ApiScopes.IgnoreQueryFilters().CountAsync();
-        totalCount.Should().Be(39);
+        totalCount.Should().Be(31);
     }
 
     [Fact]
@@ -93,14 +93,6 @@ public sealed class ApiScopeSeederGapTests : IDisposable
             .ToListAsync();
 
         codes.Should().BeEquivalentTo([
-            "billing.read",
-            "billing.manage",
-            "invoices.read",
-            "invoices.write",
-            "payments.read",
-            "payments.write",
-            "subscriptions.read",
-            "subscriptions.write",
             "users.read",
             "users.write",
             "users.manage",
@@ -146,7 +138,7 @@ public sealed class ApiScopeSeederGapTests : IDisposable
             .Distinct()
             .ToListAsync();
 
-        categories.Should().BeEquivalentTo(["Billing", "Identity", "Storage", "Communications", "Configuration", "Inquiries", "Platform"]);
+        categories.Should().BeEquivalentTo(["Identity", "Storage", "Communications", "Configuration", "Inquiries", "Platform"]);
     }
 
     [Fact]
@@ -160,7 +152,6 @@ public sealed class ApiScopeSeederGapTests : IDisposable
             .ToListAsync();
 
         nonDefaultScopes.Should().NotBeEmpty();
-        nonDefaultScopes.Select(s => s.Code).Should().Contain("invoices.write");
         nonDefaultScopes.Select(s => s.Code).Should().Contain("webhooks.manage");
     }
 
@@ -191,7 +182,7 @@ public sealed class ApiScopeSeederGapTests : IDisposable
         await _seeder.SeedAsync(_dbContext, cts.Token);
 
         int count = await _dbContext.ApiScopes.IgnoreQueryFilters().CountAsync();
-        count.Should().Be(39);
+        count.Should().Be(31);
     }
 
     [Fact]

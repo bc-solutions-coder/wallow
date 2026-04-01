@@ -18,14 +18,6 @@ public static class RolePermissionMapping
             PermissionType.RolesCreate,
             PermissionType.RolesUpdate,
             PermissionType.RolesDelete,
-            PermissionType.BillingRead,
-            PermissionType.BillingManage,
-            PermissionType.InvoicesRead,
-            PermissionType.InvoicesWrite,
-            PermissionType.PaymentsRead,
-            PermissionType.PaymentsWrite,
-            PermissionType.SubscriptionsRead,
-            PermissionType.SubscriptionsWrite,
             PermissionType.OrganizationsRead,
             PermissionType.OrganizationsCreate,
             PermissionType.OrganizationsUpdate,
@@ -64,7 +56,6 @@ public static class RolePermissionMapping
         ["manager"] =
         [
             PermissionType.UsersRead,
-            PermissionType.BillingRead,
             PermissionType.OrganizationsRead,
             PermissionType.OrganizationsManageMembers,
             PermissionType.ApiKeysRead,

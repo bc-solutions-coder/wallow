@@ -9,10 +9,10 @@ public class EmailPreferenceTests
     public void Create_WithValidData_SetsPropertiesCorrectly()
     {
         Guid userId = Guid.NewGuid();
-        EmailPreference preference = EmailPreference.Create(userId, NotificationType.BillingInvoice, true);
+        EmailPreference preference = EmailPreference.Create(userId, NotificationType.SystemAlert, true);
 
         preference.UserId.Should().Be(userId);
-        preference.NotificationType.Should().Be(NotificationType.BillingInvoice);
+        preference.NotificationType.Should().Be(NotificationType.SystemAlert);
         preference.IsEnabled.Should().BeTrue();
     }
 
@@ -37,7 +37,7 @@ public class EmailPreferenceTests
     [Fact]
     public void Disable_SetsIsEnabledFalse()
     {
-        EmailPreference preference = EmailPreference.Create(Guid.NewGuid(), NotificationType.BillingInvoice, true);
+        EmailPreference preference = EmailPreference.Create(Guid.NewGuid(), NotificationType.SystemAlert, true);
 
         preference.Disable(TimeProvider.System);
 

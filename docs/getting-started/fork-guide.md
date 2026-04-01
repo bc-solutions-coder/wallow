@@ -225,7 +225,6 @@ Modules are controlled by the `FeatureManagement` section in `appsettings.json`.
 ```json
 {
   "FeatureManagement": {
-    "Modules.Billing": true,
     "Modules.Branding": true,
     "Modules.Storage": true,
     "Modules.Notifications": true,
@@ -243,7 +242,7 @@ To disable a module, set its value to `false`:
 ```json
 {
   "FeatureManagement": {
-    "Modules.Billing": false
+    "Modules.Announcements": false
   }
 }
 ```
@@ -259,8 +258,8 @@ Each module reads its own configuration section from `appsettings.json`. See the
 Use `appsettings.{Environment}.json` or environment variables to configure modules per deployment target:
 
 ```bash
-# Disable billing in development
-FeatureManagement__Modules.Billing=false
+# Disable announcements in development
+FeatureManagement__Modules.Announcements=false
 
 # Configure SMTP for production
 Smtp__Host=smtp.example.com

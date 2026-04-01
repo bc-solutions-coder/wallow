@@ -92,18 +92,6 @@ public sealed partial class SimpleEmailTemplateService(
                 </tr>
                 """),
 
-            "billinginvoice" => WrapInLayout(
-                "New Invoice",
-                """
-                <tr>
-                    <td style="padding: 30px 40px; font-family: Arial, Helvetica, sans-serif; font-size: 16px; line-height: 1.6; color: #333333;">
-                        <p style="margin: 0 0 16px;">Invoice #{{InvoiceNumber}} is ready for review.</p>
-                        <p style="margin: 0 0 16px;">Amount: {{Amount}}</p>
-                        <p style="margin: 0 0 16px;">Due Date: {{DueDate}}</p>
-                    </td>
-                </tr>
-                """),
-
             "systemnotification" => WrapInLayout(
                 "System Notification",
                 """

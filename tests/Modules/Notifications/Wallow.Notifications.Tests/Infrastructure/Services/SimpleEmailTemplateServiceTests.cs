@@ -51,18 +51,6 @@ public class SimpleEmailTemplateServiceTests
     }
 
     [Fact]
-    public async Task RenderAsync_BillingInvoiceTemplate_ReplacesInvoiceData()
-    {
-        object model = new { InvoiceNumber = "INV-001", Amount = "$100.00", DueDate = "2026-04-01" };
-
-        string result = await _service.RenderAsync("billinginvoice", model);
-
-        result.Should().Contain("INV-001");
-        result.Should().Contain("$100.00");
-        result.Should().Contain("2026-04-01");
-    }
-
-    [Fact]
     public async Task RenderAsync_SystemNotificationTemplate_ReplacesMessage()
     {
         object model = new { Message = "Server maintenance at 3am" };

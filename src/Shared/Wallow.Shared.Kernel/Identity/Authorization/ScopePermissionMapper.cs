@@ -6,16 +6,6 @@ public static class ScopePermissionMapper
     {
         return scope switch
         {
-            // Billing
-            "billing.read" => PermissionType.BillingRead,
-            "billing.manage" => PermissionType.BillingManage,
-            "invoices.read" => PermissionType.InvoicesRead,
-            "invoices.write" => PermissionType.InvoicesWrite,
-            "payments.read" => PermissionType.PaymentsRead,
-            "payments.write" => PermissionType.PaymentsWrite,
-            "subscriptions.read" => PermissionType.SubscriptionsRead,
-            "subscriptions.write" => PermissionType.SubscriptionsWrite,
-
             // Identity - Users
             "users.read" => PermissionType.UsersRead,
             "users.write" => PermissionType.UsersUpdate,

@@ -67,21 +67,11 @@ public class CustomFieldRegistryTests
     }
 
     [Fact]
-    public void IsSupported_PreRegisteredInvoice_ReturnsTrue()
+    public void IsSupported_PreRegisteredInvoice_ReturnsFalse()
     {
         bool isSupported = CustomFieldRegistry.IsSupported("Invoice");
 
-        isSupported.Should().BeTrue();
-    }
-
-    [Fact]
-    public void GetSupportedEntityTypes_ContainsPreRegisteredTypes()
-    {
-        IReadOnlyList<EntityTypeInfo> types = CustomFieldRegistry.GetSupportedEntityTypes();
-
-        types.Should().Contain(t => t.EntityType == "Invoice");
-        types.Should().Contain(t => t.EntityType == "Payment");
-        types.Should().Contain(t => t.EntityType == "Subscription");
+        isSupported.Should().BeFalse();
     }
 }
 

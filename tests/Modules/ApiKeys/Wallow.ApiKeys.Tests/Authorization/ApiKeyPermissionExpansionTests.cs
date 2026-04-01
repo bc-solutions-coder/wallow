@@ -14,7 +14,7 @@ public class ApiKeyPermissionExpansionTests
         Claim[] claims = new[]
         {
             new Claim("auth_method", "api_key"),
-            new Claim("scope", "invoices.read invoices.write")
+            new Claim("scope", "storage.read storage.write")
         };
 
         ClaimsIdentity identity = new(claims, "ApiKey");
@@ -28,8 +28,8 @@ public class ApiKeyPermissionExpansionTests
         await middleware.InvokeAsync(context);
 
         List<string> permissions = context.User.FindAll("permission").Select(c => c.Value).ToList();
-        permissions.Should().Contain(PermissionType.InvoicesRead);
-        permissions.Should().Contain(PermissionType.InvoicesWrite);
+        permissions.Should().Contain(PermissionType.StorageRead);
+        permissions.Should().Contain(PermissionType.StorageWrite);
     }
 
     [Fact]
@@ -38,7 +38,7 @@ public class ApiKeyPermissionExpansionTests
         Claim[] claims = new[]
         {
             new Claim("auth_method", "api_key"),
-            new Claim("scope", "unknown.scope invoices.read bogus.permission")
+            new Claim("scope", "unknown.scope storage.read bogus.permission")
         };
 
         ClaimsIdentity identity = new(claims, "ApiKey");
@@ -53,7 +53,7 @@ public class ApiKeyPermissionExpansionTests
 
         List<string> permissions = context.User.FindAll("permission").Select(c => c.Value).ToList();
         permissions.Should().ContainSingle();
-        permissions.Should().Contain(PermissionType.InvoicesRead);
+        permissions.Should().Contain(PermissionType.StorageRead);
     }
 
     [Fact]
@@ -62,7 +62,7 @@ public class ApiKeyPermissionExpansionTests
         Claim[] claims = new[]
         {
             new Claim("auth_method", "api_key"),
-            new Claim("scope", "invoices.read payments.write users.read notifications.write webhooks.manage")
+            new Claim("scope", "storage.read inquiries.write users.read notifications.write webhooks.manage")
         };
 
         ClaimsIdentity identity = new(claims, "ApiKey");
@@ -77,8 +77,8 @@ public class ApiKeyPermissionExpansionTests
 
         List<string> permissions = context.User.FindAll("permission").Select(c => c.Value).ToList();
         permissions.Should().HaveCount(5);
-        permissions.Should().Contain(PermissionType.InvoicesRead);
-        permissions.Should().Contain(PermissionType.PaymentsWrite);
+        permissions.Should().Contain(PermissionType.StorageRead);
+        permissions.Should().Contain(PermissionType.InquiriesWrite);
         permissions.Should().Contain(PermissionType.UsersRead);
         permissions.Should().Contain(PermissionType.NotificationsWrite);
         permissions.Should().Contain(PermissionType.WebhooksManage);
@@ -87,18 +87,10 @@ public class ApiKeyPermissionExpansionTests
     [Fact]
     public void ValidScopes_ContainsExpectedCount()
     {
-        ApiScopes.ValidScopes.Should().HaveCount(39);
+        ApiScopes.ValidScopes.Should().HaveCount(31);
     }
 
     [Theory]
-    [InlineData("billing.read")]
-    [InlineData("billing.manage")]
-    [InlineData("invoices.read")]
-    [InlineData("invoices.write")]
-    [InlineData("payments.read")]
-    [InlineData("payments.write")]
-    [InlineData("subscriptions.read")]
-    [InlineData("subscriptions.write")]
     [InlineData("users.read")]
     [InlineData("users.write")]
     [InlineData("users.manage")]
@@ -136,14 +128,6 @@ public class ApiKeyPermissionExpansionTests
     }
 
     [Theory]
-    [InlineData("billing.read", PermissionType.BillingRead)]
-    [InlineData("billing.manage", PermissionType.BillingManage)]
-    [InlineData("invoices.read", PermissionType.InvoicesRead)]
-    [InlineData("invoices.write", PermissionType.InvoicesWrite)]
-    [InlineData("payments.read", PermissionType.PaymentsRead)]
-    [InlineData("payments.write", PermissionType.PaymentsWrite)]
-    [InlineData("subscriptions.read", PermissionType.SubscriptionsRead)]
-    [InlineData("subscriptions.write", PermissionType.SubscriptionsWrite)]
     [InlineData("users.read", PermissionType.UsersRead)]
     [InlineData("users.write", PermissionType.UsersUpdate)]
     [InlineData("users.manage", PermissionType.UsersDelete)]

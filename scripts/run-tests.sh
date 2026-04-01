@@ -3,7 +3,6 @@
 # Usage:
 #   ./scripts/run-tests.sh                    # Run all tests
 #   ./scripts/run-tests.sh identity           # Run Identity module tests only
-#   ./scripts/run-tests.sh billing            # Run Billing module tests only
 #   ./scripts/run-tests.sh <project-path>     # Run a specific test project
 
 set -euo pipefail
@@ -20,7 +19,6 @@ resolve_filter() {
     lower=$(echo "$filter" | tr '[:upper:]' '[:lower:]')
     case "$lower" in
         identity)       echo "$REPO_ROOT/tests/Modules/Identity/Wallow.Identity.Tests" ;;
-        billing)        echo "$REPO_ROOT/tests/Modules/Billing/Wallow.Billing.Tests" ;;
         storage)        echo "$REPO_ROOT/tests/Modules/Storage/Wallow.Storage.Tests" ;;
         notifications)  echo "$REPO_ROOT/tests/Modules/Notifications/Wallow.Notifications.Tests" ;;
         messaging)      echo "$REPO_ROOT/tests/Modules/Messaging/Wallow.Messaging.Tests" ;;

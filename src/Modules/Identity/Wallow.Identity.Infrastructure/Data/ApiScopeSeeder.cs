@@ -44,24 +44,6 @@ public sealed partial class ApiScopeSeeder(ILogger<ApiScopeSeeder> logger)
 
     private static IEnumerable<ApiScope> GetDefaultScopes()
     {
-        // Billing scopes (read-only is default for most integrations)
-        yield return ApiScope.Create("billing.read", "Read Billing", "Billing",
-            "Access to read billing data", isDefault: true);
-        yield return ApiScope.Create("billing.manage", "Manage Billing", "Billing",
-            "Access to manage billing settings and configuration");
-        yield return ApiScope.Create("invoices.read", "Read Invoices", "Billing",
-            "Access to read invoices and invoice data", isDefault: true);
-        yield return ApiScope.Create("invoices.write", "Create/Update Invoices", "Billing",
-            "Access to create and update invoices");
-        yield return ApiScope.Create("payments.read", "Read Payments", "Billing",
-            "Access to read payment records", isDefault: true);
-        yield return ApiScope.Create("payments.write", "Process Payments", "Billing",
-            "Access to process and record payments");
-        yield return ApiScope.Create("subscriptions.read", "Read Subscriptions", "Billing",
-            "Access to read subscription data", isDefault: true);
-        yield return ApiScope.Create("subscriptions.write", "Manage Subscriptions", "Billing",
-            "Access to create, update, and cancel subscriptions");
-
         // Identity - Users (read-only is default)
         yield return ApiScope.Create("users.read", "Read Users", "Identity",
             "Access to read user profiles and data", isDefault: true);

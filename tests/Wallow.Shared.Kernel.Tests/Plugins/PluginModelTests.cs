@@ -10,7 +10,7 @@ public class PluginManifestTests
     public void Constructor_WithValidData_SetsAllProperties()
     {
         List<PluginDependency> deps = [new PluginDependency("dep-1", ">=1.0.0")];
-        List<string> perms = [PluginPermission.BillingRead];
+        List<string> perms = [PluginPermission.StorageRead];
         List<string> services = ["IMyService"];
 
         PluginManifest manifest = new(
@@ -25,7 +25,7 @@ public class PluginManifestTests
         manifest.MinWallowVersion.Should().Be("1.0.0");
         manifest.EntryAssembly.Should().Be("MyPlugin.dll");
         manifest.Dependencies.Should().ContainSingle().Which.Id.Should().Be("dep-1");
-        manifest.RequiredPermissions.Should().ContainSingle().Which.Should().Be(PluginPermission.BillingRead);
+        manifest.RequiredPermissions.Should().ContainSingle().Which.Should().Be(PluginPermission.StorageRead);
         manifest.ExportedServices.Should().ContainSingle().Which.Should().Be("IMyService");
     }
 
@@ -151,7 +151,6 @@ public class PluginLifecycleStateTests
 public class PluginPermissionTests
 {
     [Theory]
-    [InlineData(PluginPermission.BillingRead, "billing:read")]
     [InlineData(PluginPermission.NotificationsSend, "notifications:send")]
     [InlineData(PluginPermission.StorageRead, "storage:read")]
     [InlineData(PluginPermission.StorageWrite, "storage:write")]
@@ -166,7 +165,6 @@ public class PluginPermissionTests
     {
         string[] allPermissions =
         [
-            PluginPermission.BillingRead,
             PluginPermission.NotificationsSend,
             PluginPermission.StorageRead,
             PluginPermission.StorageWrite,

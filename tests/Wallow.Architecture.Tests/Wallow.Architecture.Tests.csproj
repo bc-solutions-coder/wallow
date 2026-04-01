@@ -31,11 +31,6 @@
     <ProjectReference Include="..\..\src\Modules\Identity\Wallow.Identity.Infrastructure\Wallow.Identity.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Modules\Identity\Wallow.Identity.Api\Wallow.Identity.Api.csproj" />
 
-    <ProjectReference Include="..\..\src\Modules\Billing\Wallow.Billing.Domain\Wallow.Billing.Domain.csproj" />
-    <ProjectReference Include="..\..\src\Modules\Billing\Wallow.Billing.Application\Wallow.Billing.Application.csproj" />
-    <ProjectReference Include="..\..\src\Modules\Billing\Wallow.Billing.Infrastructure\Wallow.Billing.Infrastructure.csproj" />
-    <ProjectReference Include="..\..\src\Modules\Billing\Wallow.Billing.Api\Wallow.Billing.Api.csproj" />
-
     <ProjectReference Include="..\..\src\Modules\Notifications\Wallow.Notifications.Domain\Wallow.Notifications.Domain.csproj" />
     <ProjectReference Include="..\..\src\Modules\Notifications\Wallow.Notifications.Application\Wallow.Notifications.Application.csproj" />
     <ProjectReference Include="..\..\src\Modules\Notifications\Wallow.Notifications.Infrastructure\Wallow.Notifications.Infrastructure.csproj" />

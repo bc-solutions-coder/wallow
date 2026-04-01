@@ -13,7 +13,7 @@ public class PermissionExpansionMiddlewareGapTests
         Claim[] claims =
         [
             new("auth_method", "api_key"),
-            new("scope", "invoices.read users.read")
+            new("scope", "storage.read users.read")
         ];
 
         ClaimsIdentity identity = new(claims, "ApiKey");
@@ -27,7 +27,7 @@ public class PermissionExpansionMiddlewareGapTests
         await middleware.InvokeAsync(context);
 
         List<string> permissions = context.User.FindAll("permission").Select(c => c.Value).ToList();
-        permissions.Should().Contain(PermissionType.InvoicesRead);
+        permissions.Should().Contain(PermissionType.StorageRead);
         permissions.Should().Contain(PermissionType.UsersRead);
     }
 
@@ -166,12 +166,6 @@ public class PermissionExpansionMiddlewareGapTests
     }
 
     [Theory]
-    [InlineData("billing.read", PermissionType.BillingRead)]
-    [InlineData("billing.manage", PermissionType.BillingManage)]
-    [InlineData("payments.read", PermissionType.PaymentsRead)]
-    [InlineData("payments.write", PermissionType.PaymentsWrite)]
-    [InlineData("subscriptions.read", PermissionType.SubscriptionsRead)]
-    [InlineData("subscriptions.write", PermissionType.SubscriptionsWrite)]
     [InlineData("users.manage", PermissionType.UsersDelete)]
     [InlineData("roles.read", PermissionType.RolesRead)]
     [InlineData("roles.write", PermissionType.RolesUpdate)]

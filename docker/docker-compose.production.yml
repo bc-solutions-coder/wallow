@@ -311,35 +311,27 @@ services:
       PreRegisteredClients__Clients__1__Scopes__12: storage.write
       PreRegisteredClients__Clients__1__Scopes__13: notifications.read
       PreRegisteredClients__Clients__1__Scopes__14: notifications.write
-      PreRegisteredClients__Clients__1__Scopes__15: billing.read
-      PreRegisteredClients__Clients__1__Scopes__16: billing.manage
-      PreRegisteredClients__Clients__1__Scopes__17: invoices.read
-      PreRegisteredClients__Clients__1__Scopes__18: invoices.write
-      PreRegisteredClients__Clients__1__Scopes__19: payments.read
-      PreRegisteredClients__Clients__1__Scopes__20: payments.write
-      PreRegisteredClients__Clients__1__Scopes__21: subscriptions.read
-      PreRegisteredClients__Clients__1__Scopes__22: subscriptions.write
-      PreRegisteredClients__Clients__1__Scopes__23: roles.read
-      PreRegisteredClients__Clients__1__Scopes__24: roles.write
-      PreRegisteredClients__Clients__1__Scopes__25: roles.manage
-      PreRegisteredClients__Clients__1__Scopes__26: apikeys.read
-      PreRegisteredClients__Clients__1__Scopes__27: apikeys.write
-      PreRegisteredClients__Clients__1__Scopes__28: apikeys.manage
-      PreRegisteredClients__Clients__1__Scopes__29: sso.read
-      PreRegisteredClients__Clients__1__Scopes__30: sso.manage
-      PreRegisteredClients__Clients__1__Scopes__31: scim.manage
-      PreRegisteredClients__Clients__1__Scopes__32: messaging.access
-      PreRegisteredClients__Clients__1__Scopes__33: announcements.read
-      PreRegisteredClients__Clients__1__Scopes__34: announcements.manage
-      PreRegisteredClients__Clients__1__Scopes__35: changelog.manage
-      PreRegisteredClients__Clients__1__Scopes__36: configuration.read
-      PreRegisteredClients__Clients__1__Scopes__37: configuration.manage
-      PreRegisteredClients__Clients__1__Scopes__38: inquiries.read
-      PreRegisteredClients__Clients__1__Scopes__39: inquiries.write
-      PreRegisteredClients__Clients__1__Scopes__40: serviceaccounts.read
-      PreRegisteredClients__Clients__1__Scopes__41: serviceaccounts.write
-      PreRegisteredClients__Clients__1__Scopes__42: serviceaccounts.manage
-      PreRegisteredClients__Clients__1__Scopes__43: webhooks.manage
+      PreRegisteredClients__Clients__1__Scopes__15: roles.read
+      PreRegisteredClients__Clients__1__Scopes__16: roles.write
+      PreRegisteredClients__Clients__1__Scopes__17: roles.manage
+      PreRegisteredClients__Clients__1__Scopes__18: apikeys.read
+      PreRegisteredClients__Clients__1__Scopes__19: apikeys.write
+      PreRegisteredClients__Clients__1__Scopes__20: apikeys.manage
+      PreRegisteredClients__Clients__1__Scopes__21: sso.read
+      PreRegisteredClients__Clients__1__Scopes__22: sso.manage
+      PreRegisteredClients__Clients__1__Scopes__23: scim.manage
+      PreRegisteredClients__Clients__1__Scopes__24: messaging.access
+      PreRegisteredClients__Clients__1__Scopes__25: announcements.read
+      PreRegisteredClients__Clients__1__Scopes__26: announcements.manage
+      PreRegisteredClients__Clients__1__Scopes__27: changelog.manage
+      PreRegisteredClients__Clients__1__Scopes__28: configuration.read
+      PreRegisteredClients__Clients__1__Scopes__29: configuration.manage
+      PreRegisteredClients__Clients__1__Scopes__30: inquiries.read
+      PreRegisteredClients__Clients__1__Scopes__31: inquiries.write
+      PreRegisteredClients__Clients__1__Scopes__32: serviceaccounts.read
+      PreRegisteredClients__Clients__1__Scopes__33: serviceaccounts.write
+      PreRegisteredClients__Clients__1__Scopes__34: serviceaccounts.manage
+      PreRegisteredClients__Clients__1__Scopes__35: webhooks.manage
     depends_on:
       postgres:
         condition: service_healthy

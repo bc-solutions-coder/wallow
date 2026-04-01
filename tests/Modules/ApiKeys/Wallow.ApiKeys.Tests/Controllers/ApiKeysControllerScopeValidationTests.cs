@@ -35,12 +35,12 @@ public class ApiKeysControllerScopeValidationTests
         ClaimsPrincipal user = new(new ClaimsIdentity(new[]
         {
             new Claim(ClaimTypes.NameIdentifier, _userId.ToString()),
-            new Claim("permission", PermissionType.InvoicesRead),
-            new Claim("permission", PermissionType.InvoicesWrite),
-            new Claim("permission", PermissionType.PaymentsRead),
-            new Claim("permission", PermissionType.PaymentsWrite),
-            new Claim("permission", PermissionType.SubscriptionsRead),
-            new Claim("permission", PermissionType.SubscriptionsWrite),
+            new Claim("permission", PermissionType.StorageRead),
+            new Claim("permission", PermissionType.StorageWrite),
+            new Claim("permission", PermissionType.InquiriesRead),
+            new Claim("permission", PermissionType.InquiriesWrite),
+            new Claim("permission", PermissionType.AnnouncementRead),
+            new Claim("permission", PermissionType.AnnouncementManage),
             new Claim("permission", PermissionType.UsersRead),
             new Claim("permission", PermissionType.UsersUpdate),
             new Claim("permission", PermissionType.NotificationRead),
@@ -76,7 +76,7 @@ public class ApiKeysControllerScopeValidationTests
     [Fact]
     public async Task CreateApiKey_WithMixOfValidAndInvalidScopes_ReturnsBadRequest()
     {
-        string[] scopes = ["invoices.read", "bad.scope"];
+        string[] scopes = ["storage.read", "bad.scope"];
         CreateApiKeyRequest request = new("Test Key", scopes);
 
         IActionResult result = await _controller.CreateApiKey(request, CancellationToken.None);
@@ -84,7 +84,7 @@ public class ApiKeysControllerScopeValidationTests
         BadRequestObjectResult badRequest = result.Should().BeOfType<BadRequestObjectResult>().Subject;
         ProblemDetails problem = badRequest.Value.Should().BeOfType<ProblemDetails>().Subject;
         problem.Detail.Should().Contain("bad.scope");
-        problem.Detail.Should().NotContain("invoices.read");
+        problem.Detail.Should().NotContain("storage.read");
     }
 
     [Fact]
@@ -92,9 +92,8 @@ public class ApiKeysControllerScopeValidationTests
     {
         string[] allValid =
         [
-            "invoices.read", "invoices.write",
-            "payments.read", "payments.write",
-            "subscriptions.read", "subscriptions.write",
+            "storage.read", "storage.write",
+            "inquiries.read", "inquiries.write",
             "users.read", "users.write",
             "notifications.read", "notifications.write",
             "webhooks.manage"
@@ -139,14 +138,14 @@ public class ApiKeysControllerScopeValidationTests
             HttpContext = new DefaultHttpContext { User = user }
         };
 
-        CreateApiKeyRequest request = new("Test Key", ["billing.manage"]);
+        CreateApiKeyRequest request = new("Test Key", ["sso.manage"]);
 
         IActionResult result = await _controller.CreateApiKey(request, CancellationToken.None);
 
         ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(403);
         ProblemDetails problem = objectResult.Value.Should().BeOfType<ProblemDetails>().Subject;
-        problem.Detail.Should().Contain("billing.manage");
+        problem.Detail.Should().Contain("sso.manage");
     }
 
     [Fact]
@@ -155,7 +154,7 @@ public class ApiKeysControllerScopeValidationTests
         ClaimsPrincipal user = new(new ClaimsIdentity(new[]
         {
             new Claim(ClaimTypes.NameIdentifier, _userId.ToString()),
-            new Claim("permission", PermissionType.BillingManage),
+            new Claim("permission", PermissionType.ConfigurationManage),
             new Claim("permission", PermissionType.StorageRead)
         }, "TestAuth"));
         _controller.ControllerContext = new ControllerContext
@@ -163,7 +162,7 @@ public class ApiKeysControllerScopeValidationTests
             HttpContext = new DefaultHttpContext { User = user }
         };
 
-        CreateApiKeyRequest request = new("Test Key", ["billing.manage", "storage.read"]);
+        CreateApiKeyRequest request = new("Test Key", ["configuration.manage", "storage.read"]);
 
         IActionResult result = await _controller.CreateApiKey(request, CancellationToken.None);
 

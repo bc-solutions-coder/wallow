@@ -1,12 +1,8 @@
 using Wallow.Shared.Contracts.Announcements.Events;
-using Wallow.Shared.Contracts.Billing;
-using Wallow.Shared.Contracts.Billing.Events;
 using Wallow.Shared.Contracts.Delivery.Events;
 using Wallow.Shared.Contracts.Identity.Events;
 using Wallow.Shared.Contracts.Inquiries.Events;
 using Wallow.Shared.Contracts.Messaging.Events;
-using Wallow.Shared.Contracts.Metering;
-using Wallow.Shared.Contracts.Metering.Events;
 using Wallow.Shared.Contracts.Notifications.Events;
 using Wallow.Shared.Contracts.Storage;
 using Wallow.Shared.Contracts.Storage.Commands;
@@ -15,139 +11,6 @@ namespace Wallow.Shared.Infrastructure.Tests.Contracts;
 
 public class ContractEventsTests
 {
-    // ── Billing events ───────────────────────────────────────────────────
-
-    [Fact]
-    public void InvoiceOverdueEvent_WithAllProperties_HasCorrectValues()
-    {
-        Guid invoiceId = Guid.NewGuid();
-        Guid tenantId = Guid.NewGuid();
-        DateTime dueDate = DateTime.UtcNow.AddDays(-5);
-
-        InvoiceOverdueEvent evt = new()
-        {
-            InvoiceId = invoiceId,
-            TenantId = tenantId,
-            UserId = Guid.NewGuid(),
-            UserEmail = "overdue@example.com",
-            InvoiceNumber = "INV-002",
-            Amount = 150m,
-            Currency = "EUR",
-            DueDate = dueDate
-        };
-
-        evt.InvoiceId.Should().Be(invoiceId);
-        evt.TenantId.Should().Be(tenantId);
-        evt.UserEmail.Should().Be("overdue@example.com");
-        evt.Amount.Should().Be(150m);
-        evt.Currency.Should().Be("EUR");
-    }
-
-    [Fact]
-    public void InvoicePaidEvent_WithAllProperties_HasCorrectValues()
-    {
-        Guid invoiceId = Guid.NewGuid();
-        Guid paymentId = Guid.NewGuid();
-
-        InvoicePaidEvent evt = new()
-        {
-            InvoiceId = invoiceId,
-            TenantId = Guid.NewGuid(),
-            PaymentId = paymentId,
-            UserId = Guid.NewGuid(),
-            UserEmail = "paid@example.com",
-            InvoiceNumber = "INV-003",
-            Amount = 200m,
-            Currency = "GBP",
-            PaidAt = DateTime.UtcNow
-        };
-
-        evt.InvoiceId.Should().Be(invoiceId);
-        evt.PaymentId.Should().Be(paymentId);
-        evt.Currency.Should().Be("GBP");
-        evt.PaidAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
-    }
-
-    [Fact]
-    public void PaymentReceivedEvent_WithAllProperties_HasCorrectValues()
-    {
-        Guid paymentId = Guid.NewGuid();
-
-        PaymentReceivedEvent evt = new()
-        {
-            PaymentId = paymentId,
-            TenantId = Guid.NewGuid(),
-            InvoiceId = Guid.NewGuid(),
-            UserId = Guid.NewGuid(),
-            UserEmail = "user@example.com",
-            Amount = 300m,
-            Currency = "USD",
-            PaymentMethod = "card",
-            PaidAt = DateTime.UtcNow
-        };
-
-        evt.PaymentId.Should().Be(paymentId);
-        evt.Amount.Should().Be(300m);
-        evt.PaymentMethod.Should().Be("card");
-    }
-
-    // ── Billing report rows ──────────────────────────────────────────────
-
-    [Fact]
-    public void InvoiceReportRow_Constructor_SetsAllProperties()
-    {
-        DateTime issueDate = DateTime.UtcNow;
-        DateTime dueDate = issueDate.AddDays(30);
-
-        InvoiceReportRow row = new("INV-001", "ACME Corp", 500m, "USD", "Paid", issueDate, dueDate);
-
-        row.InvoiceNumber.Should().Be("INV-001");
-        row.CustomerName.Should().Be("ACME Corp");
-        row.Amount.Should().Be(500m);
-        row.Currency.Should().Be("USD");
-        row.Status.Should().Be("Paid");
-        row.IssueDate.Should().Be(issueDate);
-        row.DueDate.Should().Be(dueDate);
-    }
-
-    [Fact]
-    public void InvoiceReportRow_DueDate_CanBeNull()
-    {
-        InvoiceReportRow row = new("INV-002", "Customer", 100m, "USD", "Draft", DateTime.UtcNow, null);
-
-        row.DueDate.Should().BeNull();
-    }
-
-    [Fact]
-    public void RevenueReportRow_Constructor_SetsAllProperties()
-    {
-        RevenueReportRow row = new("2026-01", 10000m, 9000m, 500m, "USD", 100, 90);
-
-        row.Period.Should().Be("2026-01");
-        row.GrossRevenue.Should().Be(10000m);
-        row.NetRevenue.Should().Be(9000m);
-        row.Refunds.Should().Be(500m);
-        row.Currency.Should().Be("USD");
-        row.InvoiceCount.Should().Be(100);
-        row.PaymentCount.Should().Be(90);
-    }
-
-    [Fact]
-    public void PaymentReportRow_Constructor_SetsAllProperties()
-    {
-        Guid paymentId = Guid.NewGuid();
-        DateTime paymentDate = DateTime.UtcNow;
-
-        PaymentReportRow row = new(paymentId, "INV-001", 250m, "USD", "card", "Completed", paymentDate);
-
-        row.PaymentId.Should().Be(paymentId);
-        row.InvoiceNumber.Should().Be("INV-001");
-        row.Amount.Should().Be(250m);
-        row.Method.Should().Be("card");
-        row.Status.Should().Be("Completed");
-        row.PaymentDate.Should().Be(paymentDate);
-    }
-
     // ── Delivery events ──────────────────────────────────────────────────
 
     [Fact]
@@ -308,62 +171,6 @@ public class ContractEventsTests
 
         evt.OldRole.Should().Be("Viewer");
         evt.NewRole.Should().Be("Admin");
-    }
-
-    // ── Metering events ──────────────────────────────────────────────────
-
-    [Fact]
-    public void QuotaThresholdReachedEvent_WithAllProperties_HasCorrectValues()
-    {
-        QuotaThresholdReachedEvent evt = new()
-        {
-            TenantId = Guid.NewGuid(),
-            MeterCode = "api-calls",
-            MeterDisplayName = "API Calls",
-            CurrentUsage = 8000m,
-            Limit = 10000m,
-            PercentUsed = 80,
-            Period = "2026-01"
-        };
-
-        evt.MeterCode.Should().Be("api-calls");
-        evt.PercentUsed.Should().Be(80);
-        evt.CurrentUsage.Should().Be(8000m);
-    }
-
-    [Fact]
-    public void UsageFlushedEvent_WithAllProperties_HasCorrectValues()
-    {
-        DateTime flushedAt = DateTime.UtcNow;
-
-        UsageFlushedEvent evt = new()
-        {
-            FlushedAt = flushedAt,
-            RecordCount = 500
-        };
-
-        evt.FlushedAt.Should().Be(flushedAt);
-        evt.RecordCount.Should().Be(500);
-    }
-
-    [Fact]
-    public void QuotaStatus_Constructor_SetsAllProperties()
-    {
-        QuotaStatus status = new("api-calls", 8000, 10000, 80m, false);
-
-        status.MeterCode.Should().Be("api-calls");
-        status.Used.Should().Be(8000);
-        status.Limit.Should().Be(10000);
-        status.PercentUsed.Should().Be(80m);
-        status.IsExceeded.Should().BeFalse();
-    }
-
-    [Fact]
-    public void QuotaStatus_WhenExceeded_IsExceededIsTrue()
-    {
-        QuotaStatus status = new("api-calls", 10001, 10000, 100.01m, true);
-
-        status.IsExceeded.Should().BeTrue();
     }
 
     // ── Messaging events ─────────────────────────────────────────────────
@@ -590,20 +397,4 @@ public class ContractEventsTests
         result.UploadedAt.Should().Be(uploadedAt);
     }
 
-    // ── Metering usage rows ──────────────────────────────────────────────
-
-    [Fact]
-    public void UsageReportRow_Constructor_SetsAllProperties()
-    {
-        DateTime date = DateTime.UtcNow.Date;
-
-        UsageReportRow row = new(date, "api-calls", 1000L, "requests", 5.00m, "USD");
-
-        row.Date.Should().Be(date);
-        row.Metric.Should().Be("api-calls");
-        row.Quantity.Should().Be(1000L);
-        row.Unit.Should().Be("requests");
-        row.BillableAmount.Should().Be(5.00m);
-        row.Currency.Should().Be("USD");
-    }
 }

@@ -38,7 +38,7 @@ public class PermissionExpansionMiddlewareTests
         Claim[] claims = new[]
         {
             new Claim("azp", "sa-tenant123-test"),
-            new Claim("scope", "invoices.read invoices.write")
+            new Claim("scope", "storage.read storage.write")
         };
 
         ClaimsIdentity identity = new(claims, "Bearer");
@@ -54,8 +54,8 @@ public class PermissionExpansionMiddlewareTests
 
         // Assert
         List<string> permissions = context.User.FindAll("permission").Select(c => c.Value).ToList();
-        permissions.Should().Contain(PermissionType.InvoicesRead);
-        permissions.Should().Contain(PermissionType.InvoicesWrite);
+        permissions.Should().Contain(PermissionType.StorageRead);
+        permissions.Should().Contain(PermissionType.StorageWrite);
     }
 
     [Fact]
@@ -65,8 +65,8 @@ public class PermissionExpansionMiddlewareTests
         Claim[] claims = new[]
         {
             new Claim("azp", "sa-test"),
-            new Claim("scope", "invoices.read"),
-            new Claim("scope", "payments.write")
+            new Claim("scope", "storage.read"),
+            new Claim("scope", "inquiries.write")
         };
 
         ClaimsIdentity identity = new(claims, "Bearer");
@@ -82,8 +82,8 @@ public class PermissionExpansionMiddlewareTests
 
         // Assert
         List<string> permissions = context.User.FindAll("permission").Select(c => c.Value).ToList();
-        permissions.Should().Contain(PermissionType.InvoicesRead);
-        permissions.Should().Contain(PermissionType.PaymentsWrite);
+        permissions.Should().Contain(PermissionType.StorageRead);
+        permissions.Should().Contain(PermissionType.InquiriesWrite);
     }
 
     [Fact]
@@ -93,7 +93,7 @@ public class PermissionExpansionMiddlewareTests
         Claim[] claims = new[]
         {
             new Claim("azp", "sa-test"),
-            new Claim("scope", "unknown.scope invoices.read invalid.scope")
+            new Claim("scope", "unknown.scope storage.read invalid.scope")
         };
 
         ClaimsIdentity identity = new(claims, "Bearer");
@@ -110,17 +110,17 @@ public class PermissionExpansionMiddlewareTests
         // Assert
         List<string> permissions = context.User.FindAll("permission").Select(c => c.Value).ToList();
         permissions.Should().ContainSingle();
-        permissions.Should().Contain(PermissionType.InvoicesRead);
+        permissions.Should().Contain(PermissionType.StorageRead);
     }
 
     [Fact]
-    public async Task InvokeAsync_WithServiceAccount_MapsAllBillingScopes()
+    public async Task InvokeAsync_WithServiceAccount_MapsAllCommunicationScopes()
     {
         // Arrange
         Claim[] claims = new[]
         {
             new Claim("azp", "sa-test"),
-            new Claim("scope", "invoices.read invoices.write payments.read payments.write subscriptions.read subscriptions.write")
+            new Claim("scope", "messaging.access announcements.read announcements.manage changelog.manage notifications.read notifications.write")
         };
 
         ClaimsIdentity identity = new(claims, "Bearer");
@@ -136,12 +136,12 @@ public class PermissionExpansionMiddlewareTests
 
         // Assert
         List<string> permissions = context.User.FindAll("permission").Select(c => c.Value).ToList();
-        permissions.Should().Contain(PermissionType.InvoicesRead);
-        permissions.Should().Contain(PermissionType.InvoicesWrite);
-        permissions.Should().Contain(PermissionType.PaymentsRead);
-        permissions.Should().Contain(PermissionType.PaymentsWrite);
-        permissions.Should().Contain(PermissionType.SubscriptionsRead);
-        permissions.Should().Contain(PermissionType.SubscriptionsWrite);
+        permissions.Should().Contain(PermissionType.MessagingAccess);
+        permissions.Should().Contain(PermissionType.AnnouncementRead);
+        permissions.Should().Contain(PermissionType.AnnouncementManage);
+        permissions.Should().Contain(PermissionType.ChangelogManage);
+        permissions.Should().Contain(PermissionType.NotificationRead);
+        permissions.Should().Contain(PermissionType.NotificationsWrite);
     }
 
     [Fact]

@@ -38,7 +38,6 @@ public class AsyncApiIntegrationTests
 
         List<string> modules = flows.Select(f => f.SourceModule).Distinct().ToList();
         modules.Should().Contain("Identity");
-        modules.Should().Contain("Billing");
         modules.Count.Should().BeGreaterThanOrEqualTo(2);
     }
 
@@ -96,7 +95,6 @@ public class AsyncApiIntegrationTests
 
         mermaid.Should().StartWith("flowchart LR");
         mermaid.Should().Contain("Identity");
-        mermaid.Should().Contain("Billing");
         mermaid.Should().Contain("Message Bus");
     }
 

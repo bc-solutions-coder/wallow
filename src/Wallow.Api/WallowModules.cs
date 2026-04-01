@@ -2,7 +2,6 @@
 using Microsoft.FeatureManagement;
 using Wallow.Announcements.Infrastructure.Extensions;
 using Wallow.ApiKeys.Infrastructure.Extensions;
-using Wallow.Billing.Infrastructure.Extensions;
 using Wallow.Branding.Infrastructure.Extensions;
 using Wallow.Identity.Infrastructure.Extensions;
 using Wallow.Inquiries.Infrastructure.Extensions;
@@ -37,11 +36,6 @@ internal static class WallowModules
         // ============================================================================
         // Identity is a required platform dependency — always registered, not behind a feature flag
         services.AddIdentityModule(configuration, environment);
-
-        if (featureManager.IsEnabledAsync("Modules.Billing").GetAwaiter().GetResult())
-        {
-            services.AddBillingModule(configuration);
-        }
 
         if (featureManager.IsEnabledAsync("Modules.Branding").GetAwaiter().GetResult())
         {
@@ -101,11 +95,6 @@ internal static class WallowModules
         // ============================================================================
         // Identity is a required platform dependency — always initialized
         await app.InitializeIdentityModuleAsync();
-
-        if (await featureManager.IsEnabledAsync("Modules.Billing"))
-        {
-            await app.InitializeBillingModuleAsync();
-        }
 
         if (await featureManager.IsEnabledAsync("Modules.Branding"))
         {

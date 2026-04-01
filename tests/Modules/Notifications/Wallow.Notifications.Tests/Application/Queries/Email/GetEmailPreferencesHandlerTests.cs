@@ -21,7 +21,7 @@ public class GetEmailPreferencesHandlerTests
     public async Task Handle_ReturnsAllPreferencesForUser()
     {
         Guid userId = Guid.NewGuid();
-        EmailPreference pref1 = EmailPreference.Create(userId, NotificationType.BillingInvoice, true);
+        EmailPreference pref1 = EmailPreference.Create(userId, NotificationType.SystemAlert, true);
         EmailPreference pref2 = EmailPreference.Create(userId, NotificationType.TaskAssigned, false);
 
         _preferenceRepository

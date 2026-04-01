@@ -16,7 +16,7 @@ if [ -z "${CONNECTION_STRING:-}" ]; then
 fi
 
 MODULES=(
-    identity billing storage notifications messaging
+    identity storage notifications messaging
     announcements apikeys branding inquiries audit authaudit
 )
 

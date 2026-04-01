@@ -43,13 +43,13 @@ The API starts on `http://localhost:5000`. Interactive API documentation is avai
 ./scripts/run-tests.sh
 
 # Specific module
-./scripts/run-tests.sh billing
+./scripts/run-tests.sh identity
 
 # Specific test project
-./scripts/run-tests.sh tests/Modules/Billing/Wallow.Billing.Tests
+./scripts/run-tests.sh tests/Modules/Inquiries/Wallow.Inquiries.Tests
 ```
 
-The script outputs structured per-assembly pass/fail counts and lists individual failed test names. Supported shorthands: `identity`, `billing`, `storage`, `notifications`, `messaging`, `announcements`, `inquiries`, `branding`, `apikeys`, `auth`, `api`, `arch`, `shared`, `kernel`, `integration`.
+The script outputs structured per-assembly pass/fail counts and lists individual failed test names. Supported shorthands: `identity`, `storage`, `notifications`, `messaging`, `announcements`, `inquiries`, `branding`, `apikeys`, `auth`, `api`, `arch`, `shared`, `kernel`, `integration`.
 
 Integration tests require Docker. Testcontainers spins up ephemeral Postgres and Valkey containers automatically.
 
@@ -96,7 +96,7 @@ cd docker && docker compose down -v && docker compose up -d
 
 Wallow is a modular monolith. Each module is an autonomous bounded context that follows Clean Architecture internally and communicates with other modules exclusively through integration events over Wolverine. Modules never reference each other directly.
 
-**Modules:** Identity, Billing, Branding, Storage, Notifications, Messaging, Announcements, Inquiries, ApiKeys
+**Modules:** Identity, Branding, Storage, Notifications, Messaging, Announcements, Inquiries, ApiKeys
 
 **Shared libraries:**
 - `Wallow.Shared.Contracts` -- Cross-module integration events and DTOs
@@ -134,7 +134,7 @@ src/
       Wallow.Identity.Application/
       Wallow.Identity.Infrastructure/
       Wallow.Identity.Api/
-    Billing/                          # Same four-layer pattern
+    Inquiries/                        # Same four-layer pattern
     Storage/
     Notifications/
     Messaging/
@@ -394,11 +394,11 @@ Create test projects under `tests/Modules/Tickets/`:
 Wolverine automatically discovers handlers in all `Wallow.*` assemblies. No manual registration needed. Just create handlers following Wolverine conventions:
 
 ```csharp
-public static class CreateInvoiceHandler
+public static class CreateSubmissionHandler
 {
-    public static async Task<Result<InvoiceDto>> HandleAsync(
-        CreateInvoiceCommand command,
-        IInvoiceRepository repository,
+    public static async Task<Result<SubmissionDto>> HandleAsync(
+        CreateSubmissionCommand command,
+        ISubmissionRepository repository,
         CancellationToken ct)
     {
         // Implementation
@@ -413,7 +413,7 @@ Wolverine uses in-memory transport for all module-to-module messaging. Messages 
 ### Module Type Examples
 
 #### Standard Module (with EF Core persistence)
-See the Billing module: `src/Modules/Billing/Wallow.Billing.Infrastructure/Extensions/BillingModuleExtensions.cs`
+See the Inquiries module: `src/Modules/Inquiries/Wallow.Inquiries.Infrastructure/Extensions/InquiriesModuleExtensions.cs`
 
 #### Stateless Module (no persistence)
 ```csharp
@@ -440,10 +440,10 @@ Modules communicate through integration events published over Wolverine (in-memo
 
 ### Defining an Event
 
-In `src/Shared/Wallow.Shared.Contracts/Billing/Events/`:
+In `src/Shared/Wallow.Shared.Contracts/Inquiries/Events/`:
 
 ```csharp
-public record InvoicePaidEvent(Guid InvoiceId, Guid CustomerId, DateTime OccurredAt);
+public record SubmissionCreatedEvent(Guid SubmissionId, Guid UserId, DateTime OccurredAt);
 ```
 
 Events are facts. Name them in past tense. They are not commands.
@@ -453,7 +453,7 @@ Events are facts. Name them in past tense. They are not commands.
 From any handler:
 
 ```csharp
-await bus.PublishAsync(new InvoicePaidEvent(invoice.Id, invoice.CustomerId, DateTime.UtcNow));
+await bus.PublishAsync(new SubmissionCreatedEvent(submission.Id, submission.UserId, DateTime.UtcNow));
 ```
 
 ### Consuming
@@ -461,10 +461,10 @@ await bus.PublishAsync(new InvoicePaidEvent(invoice.Id, invoice.CustomerId, Date
 In the consuming module's Infrastructure layer, create a handler. Wolverine discovers it by convention:
 
 ```csharp
-public static class InvoicePaidEventHandler
+public static class SubmissionCreatedEventHandler
 {
     public static async Task HandleAsync(
-        InvoicePaidEvent @event,
+        SubmissionCreatedEvent @event,
         IEmailService emailService,
         CancellationToken ct)
     {
@@ -481,18 +481,18 @@ Wolverine acts as the CQRS mediator. No marker interfaces required.
 
 ### Command (Write)
 
-`Application/Commands/CreateInvoice/CreateInvoiceCommand.cs`:
+`Application/Commands/CreateSubmission/CreateSubmissionCommand.cs`:
 ```csharp
-public record CreateInvoiceCommand(Guid CustomerId, List<LineItemDto> Items);
+public record CreateSubmissionCommand(Guid UserId, string Subject, string Body);
 ```
 
-`Application/Commands/CreateInvoice/CreateInvoiceHandler.cs`:
+`Application/Commands/CreateSubmission/CreateSubmissionHandler.cs`:
 ```csharp
-public static class CreateInvoiceHandler
+public static class CreateSubmissionHandler
 {
-    public static async Task<Result<InvoiceDto>> HandleAsync(
-        CreateInvoiceCommand command,
-        IInvoiceRepository repository,
+    public static async Task<Result<SubmissionDto>> HandleAsync(
+        CreateSubmissionCommand command,
+        ISubmissionRepository repository,
         CancellationToken ct)
     {
         // ...
@@ -509,12 +509,12 @@ Same pattern in `Application/Queries/`. For complex reads, use Dapper directly i
 FluentValidation validators are auto-discovered by Wolverine middleware:
 
 ```csharp
-public class CreateInvoiceCommandValidator : AbstractValidator<CreateInvoiceCommand>
+public class CreateSubmissionCommandValidator : AbstractValidator<CreateSubmissionCommand>
 {
-    public CreateInvoiceCommandValidator()
+    public CreateSubmissionCommandValidator()
     {
-        RuleFor(x => x.CustomerId).NotEmpty();
-        RuleFor(x => x.Items).NotEmpty();
+        RuleFor(x => x.UserId).NotEmpty();
+        RuleFor(x => x.Subject).NotEmpty();
     }
 }
 ```
@@ -523,10 +523,10 @@ public class CreateInvoiceCommandValidator : AbstractValidator<CreateInvoiceComm
 
 ```csharp
 [HttpPost]
-public async Task<IActionResult> CreateInvoice([FromBody] CreateInvoiceRequest request)
+public async Task<IActionResult> CreateSubmission([FromBody] CreateSubmissionRequest request)
 {
-    var result = await _bus.InvokeAsync<Result<InvoiceDto>>(
-        new CreateInvoiceCommand(request.CustomerId, request.Items));
+    var result = await _bus.InvokeAsync<Result<SubmissionDto>>(
+        new CreateSubmissionCommand(request.UserId, request.Subject, request.Body));
     return result.ToActionResult();
 }
 ```
@@ -557,7 +557,7 @@ public interface ITenantScoped
 Each DbContext applies EF Core global query filters on tenant-scoped entities:
 
 ```csharp
-modelBuilder.Entity<Invoice>()
+modelBuilder.Entity<Submission>()
     .HasQueryFilter(e => e.TenantId == _tenantContext.TenantId);
 ```
 
@@ -612,23 +612,23 @@ Migrations also run automatically at startup via `Initialize{Module}ModuleAsync(
 
 | Item | Convention | Example |
 |------|------------|---------|
-| Projects | `Wallow.{Module}.{Layer}` | `Wallow.Billing.Domain` |
-| Commands | Verb + Noun + Command | `CreateInvoiceCommand` |
-| Queries | Get + Noun + Query | `GetInvoiceByIdQuery` |
-| Handlers | Command/Query name + Handler | `CreateInvoiceHandler` |
-| Events | Noun + PastTense + Event | `InvoicePaidEvent` |
-| DTOs | Noun + Dto | `InvoiceDto` |
-| Requests | Verb + Noun + Request | `CreateInvoiceRequest` |
-| Responses | Noun + Response | `InvoiceResponse` |
-| DB Schemas | snake_case module name | `billing`, `identity` |
+| Projects | `Wallow.{Module}.{Layer}` | `Wallow.Inquiries.Domain` |
+| Commands | Verb + Noun + Command | `CreateSubmissionCommand` |
+| Queries | Get + Noun + Query | `GetSubmissionByIdQuery` |
+| Handlers | Command/Query name + Handler | `CreateSubmissionHandler` |
+| Events | Noun + PastTense + Event | `SubmissionCreatedEvent` |
+| DTOs | Noun + Dto | `SubmissionDto` |
+| Requests | Verb + Noun + Request | `CreateSubmissionRequest` |
+| Responses | Noun + Response | `SubmissionResponse` |
+| DB Schemas | snake_case module name | `inquiries`, `identity` |
 
 One class per file. File name matches class name. Commands and queries get their own folder:
 
 ```
 Commands/
-  CreateInvoice/
-    CreateInvoiceCommand.cs
-    CreateInvoiceHandler.cs
+  CreateSubmission/
+    CreateSubmissionCommand.cs
+    CreateSubmissionHandler.cs
 ```
 
 ---
@@ -668,14 +668,14 @@ Test handlers in isolation. Mock repositories and services:
 
 ```csharp
 [Fact]
-public async Task Should_create_invoice()
+public async Task Should_create_submission()
 {
     // Arrange
-    var repo = Substitute.For<IInvoiceRepository>();
-    var command = new CreateInvoiceCommand(tenantId, customerId, items);
+    var repo = Substitute.For<ISubmissionRepository>();
+    var command = new CreateSubmissionCommand(userId, "Help needed", "I cannot log in.");
 
     // Act
-    var result = await CreateInvoiceHandler.HandleAsync(command, repo, CancellationToken.None);
+    var result = await CreateSubmissionHandler.HandleAsync(command, repo, CancellationToken.None);
 
     // Assert
     result.IsSuccess.Should().BeTrue();
@@ -688,19 +688,19 @@ public async Task Should_create_invoice()
 Use `WallowApiFactory` with Testcontainers:
 
 ```csharp
-public class InvoicesControllerTests : IClassFixture<WallowApiFactory>
+public class SubmissionsControllerTests : IClassFixture<WallowApiFactory>
 {
     private readonly HttpClient _client;
 
-    public InvoicesControllerTests(WallowApiFactory factory)
+    public SubmissionsControllerTests(WallowApiFactory factory)
     {
         _client = factory.CreateClient();
     }
 
     [Fact]
-    public async Task CreateInvoice_returns_201()
+    public async Task CreateSubmission_returns_201()
     {
-        var response = await _client.PostAsJsonAsync("/api/invoices", request);
+        var response = await _client.PostAsJsonAsync("/api/inquiries/submissions", request);
         response.StatusCode.Should().Be(HttpStatusCode.Created);
     }
 }

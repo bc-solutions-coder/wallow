@@ -29,15 +29,9 @@ Shared test infrastructure for Wallow integration tests.
 - **WallowIntegrationTestBase** (`Bases/WallowIntegrationTestBase.cs`): Base class for integration tests using `WallowApiFactory`.
 - **DbContextIntegrationTestBase** (`Bases/DbContextIntegrationTestBase.cs`): Base class for tests that work directly with a `DbContext`.
 
-### Builders
-
-- **InvoiceBuilder** (`Builders/InvoiceBuilder.cs`): Fluent builder for invoice entities.
-
 ### Fakes
 
 - **FakeUserManagementService**: No-op replacement for `IUserManagementService`
-- **FakeInvoiceQueryService**: Returns empty/zero results for `IInvoiceQueryService`
-- **FakeMeteringQueryService**: Returns null quotas for `IMeteringQueryService`
 - **FakeUserQueryService**: Returns zero counts for `IUserQueryService`
 - **NoOpHybridCache**: No-op replacement for `HybridCache`
 

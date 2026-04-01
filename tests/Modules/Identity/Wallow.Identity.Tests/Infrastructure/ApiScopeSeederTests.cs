@@ -38,8 +38,8 @@ public sealed class ApiScopeSeederTests : IDisposable
 
         List<ApiScope> scopes = await _dbContext.ApiScopes.IgnoreQueryFilters().ToListAsync();
         scopes.Should().NotBeEmpty();
-        scopes.Select(s => s.Code).Should().Contain("invoices.read");
         scopes.Select(s => s.Code).Should().Contain("users.read");
+        scopes.Select(s => s.Code).Should().Contain("storage.read");
     }
 
     [Fact]
@@ -82,8 +82,8 @@ public sealed class ApiScopeSeederTests : IDisposable
         await seeder.SeedAsync(_dbContext);
 
         List<ApiScope> scopes = await _dbContext.ApiScopes.IgnoreQueryFilters().ToListAsync();
-        scopes.Select(s => s.Category).Distinct().Should().Contain("Billing");
         scopes.Select(s => s.Category).Distinct().Should().Contain("Identity");
+        scopes.Select(s => s.Category).Distinct().Should().Contain("Storage");
     }
 
     [Fact]
@@ -100,6 +100,6 @@ public sealed class ApiScopeSeederTests : IDisposable
             .ToListAsync();
 
         defaultScopes.Should().NotBeEmpty();
-        defaultScopes.Select(s => s.Code).Should().Contain("invoices.read");
+        defaultScopes.Select(s => s.Code).Should().Contain("users.read");
     }
 }

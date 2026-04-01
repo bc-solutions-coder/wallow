@@ -6,7 +6,6 @@ using Microsoft.Extensions.Hosting.Internal;
 using NSubstitute;
 using StackExchange.Redis;
 using Wallow.Announcements.Infrastructure.Persistence;
-using Wallow.Billing.Infrastructure.Persistence;
 using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Messaging.Infrastructure.Persistence;
 using Wallow.Notifications.Infrastructure.Persistence;
@@ -24,7 +23,6 @@ public class ModuleToggleTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["FeatureManagement:Modules.Identity"] = "false",
-                ["FeatureManagement:Modules.Billing"] = "false",
                 ["FeatureManagement:Modules.Notifications"] = "true",
                 ["FeatureManagement:Modules.Messaging"] = "true",
                 ["FeatureManagement:Modules.Announcements"] = "true",
@@ -43,12 +41,6 @@ public class ModuleToggleTests
         hasIdentityDbContext.Should().BeTrue(
             "Identity module is a required platform dependency and should always be registered");
 
-        // Optional modules respect their feature flags
-        bool hasBillingDbContext = services.Any(
-            sd => sd.ServiceType == typeof(BillingDbContext));
-
-        hasBillingDbContext.Should().BeFalse(
-            "Billing module is disabled and should not register any services");
     }
 
     [Fact]
@@ -59,7 +51,6 @@ public class ModuleToggleTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["FeatureManagement:Modules.Identity"] = "true",
-                ["FeatureManagement:Modules.Billing"] = "true",
                 ["FeatureManagement:Modules.Notifications"] = "true",
                 ["FeatureManagement:Modules.Messaging"] = "true",
                 ["FeatureManagement:Modules.Announcements"] = "true",
@@ -73,8 +64,6 @@ public class ModuleToggleTests
 
         services.Should().Contain(sd => sd.ServiceType == typeof(IdentityDbContext),
             "Identity module should be registered by default");
-        services.Should().Contain(sd => sd.ServiceType == typeof(BillingDbContext),
-            "Billing module should be registered by default");
         services.Should().Contain(sd => sd.ServiceType == typeof(NotificationsDbContext),
             "Notifications module should be registered by default");
         services.Should().Contain(sd => sd.ServiceType == typeof(MessagingDbContext),

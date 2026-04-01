@@ -23,10 +23,10 @@ public class UpdateEmailPreferencesHandlerTests
     public async Task Handle_WhenPreferenceDoesNotExist_CreatesNewPreference()
     {
         Guid userId = Guid.NewGuid();
-        UpdateEmailPreferencesCommand command = new(userId, NotificationType.BillingInvoice, IsEnabled: true);
+        UpdateEmailPreferencesCommand command = new(userId, NotificationType.SystemAlert, IsEnabled: true);
 
         _preferenceRepository
-            .GetByUserAndTypeAsync(userId, NotificationType.BillingInvoice, Arg.Any<CancellationToken>())
+            .GetByUserAndTypeAsync(userId, NotificationType.SystemAlert, Arg.Any<CancellationToken>())
             .Returns((EmailPreference?)null);
 
         Result<EmailPreferenceDto> result = await _handler.Handle(command, CancellationToken.None);
@@ -41,11 +41,11 @@ public class UpdateEmailPreferencesHandlerTests
     public async Task Handle_WhenPreferenceExists_EnablesExistingPreference()
     {
         Guid userId = Guid.NewGuid();
-        EmailPreference existing = EmailPreference.Create(userId, NotificationType.BillingInvoice, false);
-        UpdateEmailPreferencesCommand command = new(userId, NotificationType.BillingInvoice, IsEnabled: true);
+        EmailPreference existing = EmailPreference.Create(userId, NotificationType.SystemAlert, false);
+        UpdateEmailPreferencesCommand command = new(userId, NotificationType.SystemAlert, IsEnabled: true);
 
         _preferenceRepository
-            .GetByUserAndTypeAsync(userId, NotificationType.BillingInvoice, Arg.Any<CancellationToken>())
+            .GetByUserAndTypeAsync(userId, NotificationType.SystemAlert, Arg.Any<CancellationToken>())
             .Returns(existing);
 
         Result<EmailPreferenceDto> result = await _handler.Handle(command, CancellationToken.None);

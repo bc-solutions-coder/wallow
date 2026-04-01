@@ -7,9 +7,6 @@ public static class CustomFieldRegistry
 {
     private static readonly Dictionary<string, EntityTypeInfo> _entityTypes = new()
     {
-        ["Invoice"] = new("Invoice", "Billing", "Invoices and billing documents"),
-        ["Payment"] = new("Payment", "Billing", "Payment records"),
-        ["Subscription"] = new("Subscription", "Billing", "Subscription plans"),
     };
 
     /// <summary>

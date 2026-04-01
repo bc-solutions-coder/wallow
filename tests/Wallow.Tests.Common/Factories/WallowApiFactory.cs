@@ -13,9 +13,7 @@ using Testcontainers.PostgreSql;
 using Testcontainers.Redis;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Shared.Contracts.ApiKeys;
-using Wallow.Shared.Contracts.Billing;
 using Wallow.Shared.Contracts.Identity;
-using Wallow.Shared.Contracts.Metering;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Tests.Common.Fakes;
@@ -227,9 +225,7 @@ public class WallowApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 
             // Replace real query services that depend on external systems (raw DB, etc.)
             // with fakes so integration tests don't require those systems to be fully initialised.
-            services.AddSingleton<IInvoiceQueryService, FakeInvoiceQueryService>();
             services.AddSingleton<IUserQueryService, FakeUserQueryService>();
-            services.AddSingleton<IMeteringQueryService, FakeMeteringQueryService>();
         });
     }
 

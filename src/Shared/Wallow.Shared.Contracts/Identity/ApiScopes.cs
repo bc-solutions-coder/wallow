@@ -4,16 +4,6 @@ public static class ApiScopes
 {
     public static readonly IReadOnlySet<string> ValidScopes = new HashSet<string>
     {
-        // Billing
-        "billing.read",
-        "billing.manage",
-        "invoices.read",
-        "invoices.write",
-        "payments.read",
-        "payments.write",
-        "subscriptions.read",
-        "subscriptions.write",
-
         // Identity - Users
         "users.read",
         "users.write",

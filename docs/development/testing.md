@@ -16,7 +16,7 @@ Always use the test script, never bare `dotnet test`:
 ./scripts/run-tests.sh
 
 # Run a specific module
-./scripts/run-tests.sh billing
+./scripts/run-tests.sh identity
 
 # Run E2E tests
 ./scripts/run-tests.sh e2e
@@ -24,7 +24,7 @@ Always use the test script, never bare `dotnet test`:
 
 ### Module Shorthands
 
-`identity`, `billing`, `storage`, `notifications`, `messaging`, `announcements`, `inquiries`, `branding`, `apikeys`, `auth`, `auth-components`, `web`, `web-components`, `e2e`, `api`, `arch`, `shared`, `kernel`, `integration`
+`identity`, `storage`, `notifications`, `messaging`, `announcements`, `inquiries`, `branding`, `apikeys`, `auth`, `auth-components`, `web`, `web-components`, `e2e`, `api`, `arch`, `shared`, `kernel`, `integration`
 
 The script outputs structured per-assembly pass/fail counts and lists individual failed test names.
 

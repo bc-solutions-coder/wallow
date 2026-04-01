@@ -15,7 +15,6 @@ public class MultiTenancyArchitectureTests
 {
     private static readonly string[] _tenantAwareModules =
     [
-        "Billing",
         "Branding",
         "Notifications",
         "Messaging",
