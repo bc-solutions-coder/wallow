@@ -2,15 +2,13 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Npgsql;
 using Wallow.Shared.Infrastructure.Core.Extensions;
 using Wallow.Shared.Kernel.Auditing;
 
 namespace Wallow.Shared.Infrastructure.Core.Auditing;
 
-public static partial class AuthAuditingExtensions
+public static class AuthAuditingExtensions
 {
     public static IServiceCollection AddAuthAuditing(
         this IServiceCollection services, IConfiguration configuration)
@@ -47,25 +45,10 @@ public static partial class AuthAuditingExtensions
         return services;
     }
 
-    public static async Task InitializeAuthAuditingAsync(this WebApplication app)
+#pragma warning disable IDE0060, RCS1175 // Extension method kept for API consistency with other modules
+    public static Task InitializeAuthAuditingAsync(this WebApplication app)
     {
-        if (app.Environment.IsDevelopment())
-        {
-            try
-            {
-                await using AsyncServiceScope scope = app.Services.CreateAsyncScope();
-                AuthAuditDbContext db = scope.ServiceProvider.GetRequiredService<AuthAuditDbContext>();
-                await db.Database.MigrateAsync();
-            }
-            catch (Exception ex)
-            {
-                ILogger logger = app.Services.GetRequiredService<ILoggerFactory>()
-                    .CreateLogger("AuthAuditing");
-                LogMigrationFailed(logger, ex);
-            }
-        }
+        return Task.CompletedTask;
     }
-
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Auth audit database migration failed. Ensure PostgreSQL is running.")]
-    private static partial void LogMigrationFailed(ILogger logger, Exception ex);
+#pragma warning restore IDE0060, RCS1175
 }

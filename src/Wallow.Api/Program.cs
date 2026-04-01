@@ -33,6 +33,7 @@ using Wallow.Identity.Infrastructure.MultiTenancy;
 using Wallow.Identity.Infrastructure.Options;
 using Wallow.Identity.Infrastructure.Services;
 using Wallow.Notifications.Infrastructure.Jobs;
+using Wallow.ServiceDefaults;
 using Wallow.Shared.Contracts.Realtime;
 using Wallow.Shared.Infrastructure.BackgroundJobs;
 using Wallow.Shared.Infrastructure.Core.Auditing;
@@ -57,6 +58,8 @@ try
     Log.Information("Starting Wallow API");
 
     WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+
+    builder.AddServiceDefaults();
 
     // Ensure the host doesn't hang indefinitely during shutdown
     builder.Services.Configure<HostOptions>(options =>
@@ -335,7 +338,6 @@ try
     builder.Services.AddHtmlSanitization();
     builder.Services.AddCurrentUserService();
     builder.Services.AddApiServices(builder.Configuration, builder.Environment);
-    builder.Services.AddObservability(builder.Configuration, builder.Environment);
     builder.Services.AddHangfireServices(builder.Configuration);
     builder.Services.AddWallowBackgroundJobs();
     builder.Services.AddScoped<SystemHeartbeatJob>();
@@ -359,7 +361,7 @@ try
     // Explicit module initialization via WallowModules.cs
     // ============================================================================
     await Wallow.Api.WallowModules.InitializeWallowModulesAsync(app);
-    await app.InitializeAuditingAsync();
+    await app.InitializeAppAuditingAsync();
     await app.InitializeAuthAuditingAsync();
 
     // Seed default roles, sync pre-registered OAuth2 clients, and bootstrap admin if configured
@@ -529,6 +531,8 @@ try
     {
         app.UseCors();
     }
+
+    app.MapDefaultEndpoints();
 
     // Health checks
     app.MapHealthChecks("/health", new HealthCheckOptions

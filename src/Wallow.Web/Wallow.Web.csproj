@@ -27,6 +27,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Shared\Wallow.Shared.Api\Wallow.Shared.Api.csproj" />
     <ProjectReference Include="..\Shared\Wallow.Shared.Kernel\Wallow.Shared.Kernel.csproj" />
+    <ProjectReference Include="..\Wallow.ServiceDefaults\Wallow.ServiceDefaults.csproj" />
   </ItemGroup>
 
   <ItemGroup>

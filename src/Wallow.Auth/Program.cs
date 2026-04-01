@@ -2,11 +2,13 @@ using System.Text.Json;
 using BlazorBlueprint.Components;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Polly;
 using StackExchange.Redis;
 using Wallow.Auth.Configuration;
+using Wallow.ServiceDefaults;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+
+builder.AddServiceDefaults();
 
 // Load branding configuration
 BrandingOptions branding = new();
@@ -61,8 +63,8 @@ builder.Services.AddBlazorBlueprintComponents();
 string apiPublicUrl = builder.Configuration["ApiBaseUrl"]
     ?? throw new InvalidOperationException("ApiBaseUrl must be configured (public URL for browser redirects)");
 
-// Server-to-server URL: prefer ServiceUrls:ApiUrl (internal Docker DNS), fall back to public URL
-string apiInternalUrl = builder.Configuration["ServiceUrls:ApiUrl"] ?? apiPublicUrl;
+// Server-to-server URL: use service discovery when available, fall back to configured URL
+string apiInternalUrl = builder.Configuration["ServiceUrls:ApiUrl"] ?? "https+http://wallow-api";
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<Wallow.Auth.Services.CookieRelayStore>();
@@ -79,17 +81,7 @@ builder.Services.AddHttpClient("AuthApi", client =>
     // to relay partial auth cookies (MFA flow) between API calls within the same Blazor circuit
     UseCookies = false
 })
-.AddHttpMessageHandler<Wallow.Auth.Services.CookieForwardingHandler>()
-.AddStandardResilienceHandler(options =>
-{
-    options.Retry.MaxRetryAttempts = 5;
-    options.Retry.Delay = TimeSpan.FromSeconds(1);
-    options.Retry.BackoffType = DelayBackoffType.Exponential;
-    options.Retry.UseJitter = true;
-    options.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(60);
-    options.AttemptTimeout.Timeout = TimeSpan.FromSeconds(10);
-    options.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(30);
-});
+.AddHttpMessageHandler<Wallow.Auth.Services.CookieForwardingHandler>();
 
 builder.Services.AddScoped<Wallow.Auth.Services.IAuthApiClient, Wallow.Auth.Services.AuthApiClient>();
 builder.Services.AddScoped<Wallow.Auth.Services.IClientBrandingClient, Wallow.Auth.Services.ClientBrandingApiClient>();
@@ -132,6 +124,8 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseMiddleware<Wallow.Auth.Services.CookieRelayMiddleware>();
 app.UseAntiforgery();
+
+app.MapDefaultEndpoints();
 
 app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
 {

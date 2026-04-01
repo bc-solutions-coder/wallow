@@ -1,8 +1,6 @@
-using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Testcontainers.PostgreSql;
 using Wallow.Shared.Infrastructure.Core.Auditing;
 
 namespace Wallow.Shared.Infrastructure.Tests.Auditing;
@@ -185,75 +183,5 @@ public class AuditingExtensionsTests
 
         dbContext.Database.ProviderName.Should().NotBeNullOrEmpty();
         dbContext.Model.GetDefaultSchema().Should().Be("audit");
-    }
-}
-
-[Trait("Category", "Integration")]
-public class AuditingExtensionsIntegrationTests : IAsyncLifetime
-{
-    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:18-alpine")
-        .WithCleanUp(true)
-        .Build();
-
-    public async Task InitializeAsync()
-    {
-        await _postgres.StartAsync();
-    }
-
-    public async Task DisposeAsync()
-    {
-        await _postgres.DisposeAsync();
-    }
-
-    [Fact]
-    public async Task InitializeAuditingAsync_RunsMigrationsSuccessfully()
-    {
-        WebApplicationBuilder builder = WebApplication.CreateBuilder();
-        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
-        {
-            ["ConnectionStrings:DefaultConnection"] = _postgres.GetConnectionString()
-        });
-        builder.Services.AddWallowAuditing(builder.Configuration);
-        WebApplication app = builder.Build();
-
-        Func<Task> act = () => app.InitializeAuditingAsync();
-
-        await act.Should().NotThrowAsync();
-    }
-
-    [Fact]
-    public async Task InitializeAuditingAsync_CreatesAuditSchema()
-    {
-        WebApplicationBuilder builder = WebApplication.CreateBuilder();
-        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
-        {
-            ["ConnectionStrings:DefaultConnection"] = _postgres.GetConnectionString()
-        });
-        builder.Services.AddWallowAuditing(builder.Configuration);
-        WebApplication app = builder.Build();
-
-        await app.InitializeAuditingAsync();
-
-        await using AsyncServiceScope scope = app.Services.CreateAsyncScope();
-        AuditDbContext db = scope.ServiceProvider.GetRequiredService<AuditDbContext>();
-        bool canConnect = await db.Database.CanConnectAsync();
-        canConnect.Should().BeTrue();
-    }
-
-    [Fact]
-    public async Task InitializeAuditingAsync_MigrationsAreIdempotent()
-    {
-        WebApplicationBuilder builder = WebApplication.CreateBuilder();
-        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
-        {
-            ["ConnectionStrings:DefaultConnection"] = _postgres.GetConnectionString()
-        });
-        builder.Services.AddWallowAuditing(builder.Configuration);
-        WebApplication app = builder.Build();
-
-        await app.InitializeAuditingAsync();
-        Func<Task> act = () => app.InitializeAuditingAsync();
-
-        await act.Should().NotThrowAsync();
     }
 }

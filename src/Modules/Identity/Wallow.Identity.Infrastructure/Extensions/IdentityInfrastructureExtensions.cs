@@ -126,7 +126,6 @@ public static class IdentityInfrastructureExtensions
 
                 options.RegisterScopes(
                     "openid", "profile", "email", "roles", "offline_access",
-                    "billing.read", "billing.manage",
                     "invoices.read", "invoices.write",
                     "payments.read", "payments.write",
                     "subscriptions.read", "subscriptions.write",

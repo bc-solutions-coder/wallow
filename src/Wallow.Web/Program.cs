@@ -7,12 +7,15 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using StackExchange.Redis;
+using Wallow.ServiceDefaults;
 using Wallow.Web;
 using Wallow.Web.Configuration;
 using Wallow.Web.Middleware;
 using Wallow.Web.Services;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+
+builder.AddServiceDefaults();
 
 // Load branding configuration
 BrandingOptions branding = new();
@@ -165,22 +168,9 @@ builder.Services.AddAuthentication(options =>
         };
     });
 
-string apiBaseUrl = builder.Configuration["ServiceUrls:ApiUrl"]
-    ?? throw new InvalidOperationException("ServiceUrls:ApiUrl must be configured");
-
 builder.Services.AddHttpClient("WallowApi", client =>
 {
-    client.BaseAddress = new Uri(apiBaseUrl);
-})
-.AddStandardResilienceHandler(options =>
-{
-    options.Retry.MaxRetryAttempts = 5;
-    options.Retry.Delay = TimeSpan.FromSeconds(1);
-    options.Retry.BackoffType = Polly.DelayBackoffType.Exponential;
-    options.Retry.UseJitter = true;
-    options.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(60);
-    options.AttemptTimeout.Timeout = TimeSpan.FromSeconds(10);
-    options.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(30);
+    client.BaseAddress = new Uri("https+http://wallow-api");
 });
 
 builder.Services.AddHttpContextAccessor();
@@ -250,25 +240,7 @@ app.UseAuthorization();
 app.UseMiddleware<TokenCaptureMiddleware>();
 app.UseAntiforgery();
 
-app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
-{
-    ResponseWriter = async (context, report) =>
-    {
-        context.Response.ContentType = "application/json";
-        object response = new
-        {
-            status = report.Status.ToString(),
-            checks = report.Entries.Select(e => new
-            {
-                name = e.Key,
-                status = e.Value.Status.ToString(),
-                description = e.Value.Description,
-                error = e.Value.Exception?.Message
-            })
-        };
-        await context.Response.WriteAsJsonAsync(response);
-    }
-});
+app.MapDefaultEndpoints();
 
 app.MapGet("/authentication/login", (string? returnUrl) =>
 {

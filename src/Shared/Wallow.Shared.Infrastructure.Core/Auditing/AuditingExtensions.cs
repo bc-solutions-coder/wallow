@@ -2,14 +2,12 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Npgsql;
 using Wallow.Shared.Infrastructure.Core.Extensions;
 
 namespace Wallow.Shared.Infrastructure.Core.Auditing;
 
-public static partial class AuditingExtensions
+public static class AuditingExtensions
 {
     public static IServiceCollection AddWallowAuditing(
         this IServiceCollection services, IConfiguration configuration)
@@ -47,25 +45,10 @@ public static partial class AuditingExtensions
         return services;
     }
 
-    public static async Task InitializeAuditingAsync(this WebApplication app)
+#pragma warning disable IDE0060, RCS1175 // Extension method kept for API consistency with other modules
+    public static Task InitializeAppAuditingAsync(this WebApplication app)
     {
-        if (app.Environment.IsDevelopment())
-        {
-            try
-            {
-                await using AsyncServiceScope scope = app.Services.CreateAsyncScope();
-                AuditDbContext db = scope.ServiceProvider.GetRequiredService<AuditDbContext>();
-                await db.Database.MigrateAsync();
-            }
-            catch (Exception ex)
-            {
-                ILogger logger = app.Services.GetRequiredService<ILoggerFactory>()
-                    .CreateLogger("Auditing");
-                LogMigrationFailed(logger, ex);
-            }
-        }
+        return Task.CompletedTask;
     }
-
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Audit database migration failed. Ensure PostgreSQL is running.")]
-    private static partial void LogMigrationFailed(ILogger logger, Exception ex);
+#pragma warning restore IDE0060, RCS1175
 }

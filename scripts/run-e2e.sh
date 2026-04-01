@@ -87,12 +87,11 @@ if [[ "$SKIP_BUILD" == "false" ]]; then
     echo ""
     echo "=== Publishing container images (${RID}) ==="
 
-    echo "  Publishing wallow-api:test (with migration bundles)..."
+    echo "  Publishing wallow-api:test..."
     dotnet publish "$REPO_ROOT/src/Wallow.Api/Wallow.Api.csproj" \
         -c Release --no-build /t:PublishContainer \
         -p:ContainerImageTag=test \
-        -p:ContainerRuntimeIdentifier="$RID" \
-        -p:BuildMigrationBundles=true
+        -p:ContainerRuntimeIdentifier="$RID"
 
     echo "  Publishing wallow-auth:test..."
     dotnet publish "$REPO_ROOT/src/Wallow.Auth/Wallow.Auth.csproj" \
@@ -102,6 +101,12 @@ if [[ "$SKIP_BUILD" == "false" ]]; then
 
     echo "  Publishing wallow-web:test..."
     dotnet publish "$REPO_ROOT/src/Wallow.Web/Wallow.Web.csproj" \
+        -c Release --no-build /t:PublishContainer \
+        -p:ContainerImageTag=test \
+        -p:ContainerRuntimeIdentifier="$RID"
+
+    echo "  Publishing wallow-migrations:test..."
+    dotnet publish "$REPO_ROOT/src/Wallow.MigrationService/Wallow.MigrationService.csproj" \
         -c Release --no-build /t:PublishContainer \
         -p:ContainerImageTag=test \
         -p:ContainerRuntimeIdentifier="$RID"
@@ -123,7 +128,36 @@ echo "=== Starting test stack ==="
 $COMPOSE_CMD up -d
 
 # ============================================
-# Step 3: Wait for services to be healthy
+# Step 3: Wait for migrations to complete
+# ============================================
+echo ""
+echo "=== Waiting for migrations to complete ==="
+MIGRATION_TIMEOUT=120
+MIGRATION_ELAPSED=0
+while [ $MIGRATION_ELAPSED -lt $MIGRATION_TIMEOUT ]; do
+    STATUS=$($COMPOSE_CMD ps -a wallow-migrations --format '{{.State}}' 2>/dev/null)
+    if [ "$STATUS" = "exited" ]; then
+        EXIT_CODE=$($COMPOSE_CMD ps -a wallow-migrations --format '{{.ExitCode}}' 2>/dev/null)
+        if [ "$EXIT_CODE" = "0" ]; then
+            echo "  Migrations completed successfully (${MIGRATION_ELAPSED}s)"
+            break
+        else
+            echo "  ERROR: Migration service failed with exit code $EXIT_CODE"
+            $COMPOSE_CMD logs wallow-migrations
+            exit 1
+        fi
+    fi
+    sleep 2
+    MIGRATION_ELAPSED=$((MIGRATION_ELAPSED + 2))
+done
+if [ $MIGRATION_ELAPSED -ge $MIGRATION_TIMEOUT ]; then
+    echo "  ERROR: Timeout waiting for migrations after ${MIGRATION_TIMEOUT}s"
+    $COMPOSE_CMD logs wallow-migrations
+    exit 1
+fi
+
+# ============================================
+# Step 4: Wait for services to be healthy
 # ============================================
 echo ""
 echo "=== Waiting for services ==="
@@ -154,7 +188,7 @@ wait_for_health "http://localhost:5053/health" "Web"
 echo "=== All services healthy ==="
 
 # ============================================
-# Step 4: Run E2E tests
+# Step 5: Run E2E tests
 # ============================================
 echo ""
 echo "=== Running E2E tests ==="

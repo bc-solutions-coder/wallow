@@ -213,6 +213,26 @@ services:
         max-file: "5"
 
   # ============================================
+  # WALLOW MIGRATIONS
+  # ============================================
+  wallow-migrations:
+    image: ghcr.io/bc-solutions-coder/wallow-migrations:${VERSION:-latest}
+    container_name: ${COMPOSE_PROJECT_NAME:-wallow}-migrations
+    restart: on-failure
+    environment:
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - wallow
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ============================================
   # WALLOW API
   # ============================================
   wallow-api:
@@ -332,6 +352,8 @@ services:
       PreRegisteredClients__Clients__1__Scopes__33: serviceaccounts.manage
       PreRegisteredClients__Clients__1__Scopes__34: webhooks.manage
     depends_on:
+      wallow-migrations:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       postgres-replica:

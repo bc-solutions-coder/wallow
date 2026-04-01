@@ -17,7 +17,7 @@
     <PackageReference Include="BlazorBlueprint.Components" />
     <PackageReference Include="BlazorBlueprint.Icons.Lucide" />
     <PackageReference Include="Microsoft.AspNetCore.DataProtection.StackExchangeRedis" />
-    <PackageReference Include="Microsoft.Extensions.Http.Resilience" />
+
     <PackageReference Include="StackExchange.Redis" />
     <PackageReference Include="Tailwind.Hosting" />
     <PackageReference Include="Tailwind.Hosting.Build" />
@@ -25,6 +25,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Shared\Wallow.Shared.Api\Wallow.Shared.Api.csproj" />
+    <ProjectReference Include="..\Wallow.ServiceDefaults\Wallow.ServiceDefaults.csproj" />
   </ItemGroup>
 
   <ItemGroup>
