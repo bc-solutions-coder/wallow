@@ -10,6 +10,7 @@ out/
 # IDE
 .idea/
 .vs/
+.run/
 .claude/
 .beads/
 .serena/
@@ -66,6 +67,9 @@ docker/.env.production
 *.db
 .superpowers/
 
+# Duplicate root manifest (real one is .config/dotnet-tools.json)
+/dotnet-tools.json
+
 # Tailwind CLI standalone binary
 src/Wallow.Auth/tailwindcss
 src/Wallow.Web/tailwindcss
@@ -73,7 +77,6 @@ src/Wallow.Web/tailwindcss
 # Generated CSS
 src/Wallow.Auth/wwwroot/css/app.css
 src/Wallow.Web/wwwroot/css/app.css
-.superpowers/
 
 # DocFX generated output
 .docfx/

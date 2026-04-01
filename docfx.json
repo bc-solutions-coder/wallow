@@ -16,7 +16,7 @@
         }
       ],
       "dest": ".docfx/api",
-      "filter": "filterConfig.yml"
+      "filter": "docfx/filterConfig.yml"
     }
   ],
   "build": {
@@ -25,6 +25,10 @@
         "files": ["**/*.md", "toc.yml"],
         "src": "docs",
         "dest": "."
+      },
+      {
+        "files": ["toc.yml"],
+        "src": "docfx"
       },
       {
         "files": [".docfx/api/**.yml", ".docfx/api/index.md"]
@@ -43,7 +47,7 @@
       "_ogImage": "https://raw.githubusercontent.com/bc-solutions-coder/wallow/main/assets/social-preview.png",
       "_ogType": "website"
     },
-    "template": ["default", "modern", "templates/wallow"],
+    "template": ["default", "modern", "docfx/templates/wallow"],
     "dest": ".docfx/_site"
   }
 }

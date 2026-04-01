@@ -87,7 +87,7 @@ jobs:
 
       - name: Generate theme CSS
         run: |
-          mkdir -p templates/wallow/public
+          mkdir -p docfx/templates/wallow/public
           node scripts/generate-docs-theme.mjs
 
       - name: Restore tools and build docs
