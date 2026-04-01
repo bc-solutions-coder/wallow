@@ -3,8 +3,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Npgsql;
 using Wallow.Announcements.Application.Announcements.Interfaces;
 using Wallow.Announcements.Application.Announcements.Services;
@@ -16,7 +14,7 @@ using Wallow.Shared.Kernel.MultiTenancy;
 
 namespace Wallow.Announcements.Infrastructure.Extensions;
 
-public static partial class AnnouncementsModuleExtensions
+public static class AnnouncementsModuleExtensions
 {
     public static IServiceCollection AddAnnouncementsModule(
         this IServiceCollection services,
@@ -64,32 +62,9 @@ public static partial class AnnouncementsModuleExtensions
         return services;
     }
 
-    public static async Task<WebApplication> InitializeAnnouncementsModuleAsync(
+    public static Task<WebApplication> InitializeAnnouncementsModuleAsync(
         this WebApplication app)
     {
-        ILogger logger = app.Services.GetRequiredService<ILoggerFactory>()
-            .CreateLogger("AnnouncementsModule");
-        try
-        {
-            await using AsyncServiceScope scope = app.Services.CreateAsyncScope();
-            AnnouncementsDbContext db = scope.ServiceProvider.GetRequiredService<AnnouncementsDbContext>();
-            if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))
-            {
-                await db.Database.MigrateAsync();
-                LogMigrationsApplied(logger);
-            }
-        }
-        catch (Exception ex)
-        {
-            LogStartupFailed(logger, ex);
-        }
-
-        return app;
+        return Task.FromResult(app);
     }
-
-    [LoggerMessage(Level = LogLevel.Information, Message = "Announcements module database migrations applied")]
-    private static partial void LogMigrationsApplied(ILogger logger);
-
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Announcements module startup failed. Ensure PostgreSQL is running.")]
-    private static partial void LogStartupFailed(ILogger logger, Exception ex);
 }

@@ -1,46 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-# Self-contained bundles need a writable dir to extract embedded files.
-# /tmp is a tmpfs mount in read-only containers.
-export DOTNET_BUNDLE_EXTRACT_BASE_DIR="${DOTNET_BUNDLE_EXTRACT_BASE_DIR:-/tmp/dotnet-bundle}"
-
-BUNDLE_DIR="${BUNDLE_DIR:-/app/bundles}"
-
 # -------------------------------------------------------
-# 1. Run EF Core migrations
-# -------------------------------------------------------
-if [ -z "${CONNECTION_STRING:-}" ]; then
-    echo "ERROR: CONNECTION_STRING environment variable is not set."
-    exit 1
-fi
-
-MODULES=(
-    identity storage notifications
-    announcements apikeys branding inquiries audit authaudit
-)
-
-for module in "${MODULES[@]}"; do
-    bundle="${BUNDLE_DIR}/efbundle-${module}"
-    echo "Applying migrations for ${module}..."
-
-    if [ ! -f "${bundle}" ]; then
-        echo "ERROR: Bundle not found: ${bundle}"
-        exit 1
-    fi
-
-    if "${bundle}" --connection "${CONNECTION_STRING}"; then
-        echo "Migrations for ${module} succeeded."
-    else
-        echo "ERROR: Migrations for ${module} failed."
-        exit 1
-    fi
-done
-
-echo "All migrations applied successfully."
-
-# -------------------------------------------------------
-# 2. Generate OpenIddict certificates if missing
+# 1. Generate OpenIddict certificates if missing
 # -------------------------------------------------------
 SIGNING_CERT_PATH="${OPENIDDICT_SIGNING_CERT_PATH:-${OpenIddict__SigningCertPath:-/app/certs/signing.pfx}}"
 SIGNING_CERT_PASSWORD="${OPENIDDICT_SIGNING_CERT_PASSWORD:-${OpenIddict__SigningCertPassword:-changeit}}"
@@ -71,7 +33,7 @@ else
 fi
 
 # -------------------------------------------------------
-# 3. Start the API
+# 2. Start the API
 # -------------------------------------------------------
 echo "Starting Wallow API..."
 exec dotnet Wallow.Api.dll

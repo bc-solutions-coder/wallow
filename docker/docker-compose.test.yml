@@ -73,6 +73,19 @@ services:
       - wallow-test
 
   # ============================================
+  # MIGRATIONS
+  # ============================================
+  wallow-migrations:
+    image: wallow-migrations:test
+    environment:
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=wallow_test;Username=wallow_test;Password=wallow_test"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - wallow-test
+
+  # ============================================
   # APPLICATION SERVICES
   # ============================================
   wallow-api:
@@ -113,6 +126,8 @@ services:
       - /app/App_Data
       - /app/certs
     depends_on:
+      wallow-migrations:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       valkey:

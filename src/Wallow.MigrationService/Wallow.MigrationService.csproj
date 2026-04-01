@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <RootNamespace>Wallow.MigrationService</RootNamespace>
+    <ContainerRepository>wallow-migrations</ContainerRepository>
+    <ContainerBaseImage>mcr.microsoft.com/dotnet/aspnet:10.0</ContainerBaseImage>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Wallow.ServiceDefaults\Wallow.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\Shared\Wallow.Shared.Infrastructure.Core\Wallow.Shared.Infrastructure.Core.csproj" />
+    <ProjectReference Include="..\Modules\Identity\Wallow.Identity.Infrastructure\Wallow.Identity.Infrastructure.csproj" />
+    <ProjectReference Include="..\Modules\Branding\Wallow.Branding.Infrastructure\Wallow.Branding.Infrastructure.csproj" />
+    <ProjectReference Include="..\Modules\Notifications\Wallow.Notifications.Infrastructure\Wallow.Notifications.Infrastructure.csproj" />
+    <ProjectReference Include="..\Modules\Announcements\Wallow.Announcements.Infrastructure\Wallow.Announcements.Infrastructure.csproj" />
+    <ProjectReference Include="..\Modules\Storage\Wallow.Storage.Infrastructure\Wallow.Storage.Infrastructure.csproj" />
+    <ProjectReference Include="..\Modules\ApiKeys\Wallow.ApiKeys.Infrastructure\Wallow.ApiKeys.Infrastructure.csproj" />
+    <ProjectReference Include="..\Modules\Inquiries\Wallow.Inquiries.Infrastructure\Wallow.Inquiries.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

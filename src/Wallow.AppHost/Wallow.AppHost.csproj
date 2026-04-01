@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <Sdk Name="Aspire.AppHost.Sdk" Version="9.2.1" />
+
+  <PropertyGroup>
+    <IsAspireHost>true</IsAspireHost>
+    <IsPublishable>false</IsPublishable>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Wallow.AppHost</RootNamespace>
+    <!-- Transitive KubernetesClient vulnerability from Aspire.Hosting; not exploitable in dev orchestrator -->
+    <NoWarn>$(NoWarn);NU1902;NU1903;NU1904</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.AppHost" />
+    <PackageReference Include="Aspire.Hosting.PostgreSQL" />
+    <PackageReference Include="Aspire.Hosting.Redis" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Wallow.Api\Wallow.Api.csproj" />
+    <ProjectReference Include="..\Wallow.Auth\Wallow.Auth.csproj" />
+    <ProjectReference Include="..\Wallow.Web\Wallow.Web.csproj" />
+    <ProjectReference Include="..\Wallow.MigrationService\Wallow.MigrationService.csproj" />
+  </ItemGroup>
+
+</Project>

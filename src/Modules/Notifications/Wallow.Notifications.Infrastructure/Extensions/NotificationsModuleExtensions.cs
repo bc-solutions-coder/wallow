@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Npgsql;
 using Polly;
@@ -173,34 +172,11 @@ public static partial class NotificationsModuleExtensions
         }
     }
 
-    public static async Task<WebApplication> InitializeNotificationsModuleAsync(
+    public static Task<WebApplication> InitializeNotificationsModuleAsync(
         this WebApplication app)
     {
-        ILogger logger = app.Services.GetRequiredService<ILoggerFactory>()
-            .CreateLogger("NotificationsModule");
-        try
-        {
-            await using AsyncServiceScope scope = app.Services.CreateAsyncScope();
-            NotificationsDbContext db = scope.ServiceProvider.GetRequiredService<NotificationsDbContext>();
-            if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))
-            {
-                await db.Database.MigrateAsync();
-                LogMigrationsApplied(logger);
-            }
-        }
-        catch (Exception ex)
-        {
-            LogStartupFailed(logger, ex);
-        }
-
-        return app;
+        return Task.FromResult(app);
     }
-
-    [LoggerMessage(Level = LogLevel.Information, Message = "Notifications module database migrations applied")]
-    private static partial void LogMigrationsApplied(ILogger logger);
-
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Notifications module startup failed. Ensure PostgreSQL is running.")]
-    private static partial void LogStartupFailed(ILogger logger, Exception ex);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Unrecognized email provider '{Provider}'. Defaulting to Smtp")]
     private static partial void LogUnrecognizedEmailProvider(ILogger logger, string provider);

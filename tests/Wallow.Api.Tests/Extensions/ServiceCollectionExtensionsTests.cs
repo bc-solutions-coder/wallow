@@ -15,7 +15,6 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
-using OpenTelemetry.Trace;
 using Wallow.Api.Extensions;
 using Wallow.Api.Middleware;
 
@@ -130,97 +129,6 @@ public class ServiceCollectionExtensionsTests
         ServiceDescriptor? descriptor = services.FirstOrDefault(d =>
             d.ServiceType == typeof(IConfigureOptions<RateLimiterOptions>));
         descriptor.Should().NotBeNull();
-    }
-
-    [Fact]
-    public void AddObservability_InDevelopment_RegistersOpenTelemetry()
-    {
-        ServiceCollection services = new();
-        IConfiguration config = BuildConfiguration(new Dictionary<string, string?>
-        {
-            ["OpenTelemetry:ServiceName"] = "TestService",
-            ["OpenTelemetry:OtlpGrpcEndpoint"] = "http://localhost:4317",
-        });
-        IHostEnvironment env = Substitute.For<IHostEnvironment>();
-        env.EnvironmentName.Returns("Development");
-
-        services.AddLogging();
-        services.AddObservability(config, env);
-
-        ServiceProvider provider = services.BuildServiceProvider();
-        TracerProvider? tracerProvider = provider.GetService<TracerProvider>();
-        tracerProvider.Should().NotBeNull();
-    }
-
-    [Fact]
-    public void AddObservability_InProduction_WithoutEndpoint_Throws()
-    {
-        ServiceCollection services = new();
-        IConfiguration config = BuildConfiguration(new Dictionary<string, string?>
-        {
-            ["OpenTelemetry:ServiceName"] = "TestService",
-        });
-        IHostEnvironment env = Substitute.For<IHostEnvironment>();
-        env.EnvironmentName.Returns("Production");
-
-        Action act = () => services.AddObservability(config, env);
-
-        act.Should().Throw<InvalidOperationException>()
-            .WithMessage("*OtlpGrpcEndpoint*must be configured*");
-    }
-
-    [Fact]
-    public void AddObservability_InDevelopment_WithoutEndpoint_UsesDefaultEndpoint()
-    {
-        ServiceCollection services = new();
-        IConfiguration config = BuildConfiguration(new Dictionary<string, string?>
-        {
-            ["OpenTelemetry:ServiceName"] = "TestService",
-        });
-        IHostEnvironment env = Substitute.For<IHostEnvironment>();
-        env.EnvironmentName.Returns("Development");
-
-        services.AddLogging();
-        services.AddObservability(config, env);
-
-        ServiceProvider provider = services.BuildServiceProvider();
-        TracerProvider? tracerProvider = provider.GetService<TracerProvider>();
-        tracerProvider.Should().NotBeNull();
-    }
-
-    [Fact]
-    public void AddObservability_WithDefaultServiceName_UsesWallow()
-    {
-        ServiceCollection services = new();
-        IConfiguration config = BuildConfiguration(new Dictionary<string, string?>
-        {
-            ["OpenTelemetry:OtlpGrpcEndpoint"] = "http://localhost:4317",
-        });
-        IHostEnvironment env = Substitute.For<IHostEnvironment>();
-        env.EnvironmentName.Returns("Development");
-
-        services.AddLogging();
-
-        Action act = () => services.AddObservability(config, env);
-
-        act.Should().NotThrow();
-    }
-
-    [Fact]
-    public void AddObservability_ReturnsSameServiceCollection()
-    {
-        ServiceCollection services = new();
-        IConfiguration config = BuildConfiguration(new Dictionary<string, string?>
-        {
-            ["OpenTelemetry:OtlpGrpcEndpoint"] = "http://localhost:4317",
-        });
-        IHostEnvironment env = Substitute.For<IHostEnvironment>();
-        env.EnvironmentName.Returns("Development");
-
-        services.AddLogging();
-        IServiceCollection result = services.AddObservability(config, env);
-
-        result.Should().BeSameAs(services);
     }
 
     [Fact]

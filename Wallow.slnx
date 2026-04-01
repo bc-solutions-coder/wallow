@@ -6,7 +6,10 @@
   </Configurations>
   <Folder Name="/src/">
     <Project Path="src/Wallow.Api/Wallow.Api.csproj" />
+    <Project Path="src/Wallow.AppHost/Wallow.AppHost.csproj" />
     <Project Path="src/Wallow.Auth/Wallow.Auth.csproj" />
+    <Project Path="src/Wallow.MigrationService/Wallow.MigrationService.csproj" />
+    <Project Path="src/Wallow.ServiceDefaults/Wallow.ServiceDefaults.csproj" />
     <Project Path="src/Wallow.Web/Wallow.Web.csproj" />
   </Folder>
   <Folder Name="/src/Modules/" />

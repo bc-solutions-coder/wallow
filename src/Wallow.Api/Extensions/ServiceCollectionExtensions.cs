@@ -6,11 +6,7 @@ using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.OpenApi;
-using OpenTelemetry.Metrics;
-using OpenTelemetry.Resources;
-using OpenTelemetry.Trace;
 using RedisRateLimiting;
-using Serilog;
 using StackExchange.Redis;
 using Wallow.Api.HealthChecks;
 using Wallow.Api.Middleware;
@@ -228,102 +224,6 @@ internal static partial class ServiceCollectionExtensions
         }
 
         return httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
-    }
-
-    public static IServiceCollection AddObservability(
-        this IServiceCollection services,
-        IConfiguration configuration,
-        IHostEnvironment environment)
-    {
-        string serviceName = configuration["OpenTelemetry:ServiceName"] ?? "Wallow";
-        string? otlpGrpcEndpoint = configuration["OpenTelemetry:OtlpGrpcEndpoint"];
-
-        if (!environment.IsDevelopment() && string.IsNullOrEmpty(otlpGrpcEndpoint))
-        {
-            throw new InvalidOperationException(
-                "OpenTelemetry:OtlpGrpcEndpoint must be configured in non-Development environments. " +
-                "Set the 'OpenTelemetry:OtlpGrpcEndpoint' configuration value.");
-        }
-
-        Log.Information("OpenTelemetry OTLP endpoint: {OtlpEndpoint}", otlpGrpcEndpoint);
-
-        services.AddOpenTelemetry()
-            .ConfigureResource(resource => resource
-                .AddService(
-                    serviceName: serviceName,
-                    serviceNamespace: configuration["Logging:NamespacePrefix"] ?? "Wallow",
-                    serviceVersion: typeof(ServiceCollectionExtensions).Assembly
-                        .GetName().Version?.ToString() ?? "1.0.0")
-                .AddAttributes(
-                [
-                    new KeyValuePair<string, object>("deployment.environment", environment.EnvironmentName),
-                    new KeyValuePair<string, object>("service.instance.id", Environment.MachineName)
-                ]))
-            .WithTracing(tracing =>
-            {
-                double samplingRatio = configuration.GetValue<double?>("Observability:TraceSamplingRatio")
-                    ?? (environment.IsDevelopment() ? 1.0 : 0.1);
-
-                tracing
-                    .SetSampler(new ParentBasedSampler(new TraceIdRatioBasedSampler(samplingRatio)))
-                    .AddAspNetCoreInstrumentation(options =>
-                    {
-                        options.Filter = FilterTelemetryRequest;
-                    })
-                    .AddEntityFrameworkCoreInstrumentation()
-                    .AddHttpClientInstrumentation(options =>
-                    {
-                        string s3Endpoint = (configuration["Storage:S3:Endpoint"] ?? "").TrimEnd('/');
-
-                        options.EnrichWithHttpRequestMessage = (activity, message) =>
-                        {
-                            string requestUrl = message.RequestUri?.GetLeftPart(UriPartial.Authority) ?? "";
-
-                            if (!string.IsNullOrEmpty(s3Endpoint) &&
-                                requestUrl.Equals(new Uri(s3Endpoint).GetLeftPart(UriPartial.Authority), StringComparison.OrdinalIgnoreCase))
-                            {
-                                activity.SetTag("http.provider", "s3");
-                            }
-                        };
-                    })
-                    .AddRedisInstrumentation()
-                    .AddSource("Wolverine")
-                    .AddSource("Wallow")
-                    .AddSource("Wallow.*");
-
-                if (!string.IsNullOrEmpty(otlpGrpcEndpoint))
-                {
-                    tracing.AddOtlpExporter(options =>
-                    {
-                        options.Endpoint = new Uri(otlpGrpcEndpoint);
-                    });
-                }
-            })
-            .WithMetrics(metrics =>
-            {
-                metrics
-                    .SetExemplarFilter(ExemplarFilterType.TraceBased)
-                    .AddAspNetCoreInstrumentation()
-                    .AddProcessInstrumentation()
-                    .AddRuntimeInstrumentation()
-                    .AddHttpClientInstrumentation()
-                    .AddMeter("Wolverine")
-                    .AddMeter("Wallow")
-                    .AddMeter("Wallow.*")
-                    .AddMeter("Microsoft.AspNetCore.Authentication")
-                    .AddMeter("Microsoft.AspNetCore.Authorization")
-                    .AddMeter("Microsoft.Extensions.Http.Resilience");
-
-                if (!string.IsNullOrEmpty(otlpGrpcEndpoint))
-                {
-                    metrics.AddOtlpExporter(options =>
-                    {
-                        options.Endpoint = new Uri(otlpGrpcEndpoint);
-                    });
-                }
-            });
-
-        return services;
     }
 
     internal static Task TransformDocumentInfo(OpenApiDocument document, string appName)
