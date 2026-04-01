@@ -28,11 +28,21 @@ jobs:
           restore-keys: |
             nuget-${{ runner.os }}-
 
+      - name: Restore previous build output
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            **/bin/Release
+            **/obj
+          key: build-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            build-${{ runner.os }}-
+
       - name: Restore dependencies
         run: dotnet restore
 
       - name: Build
-        run: dotnet build --no-restore --configuration Release
+        run: dotnet build --no-restore --configuration Release --graph
 
       - name: Check code formatting
         run: dotnet format Wallow.slnx --verify-no-changes --no-restore
