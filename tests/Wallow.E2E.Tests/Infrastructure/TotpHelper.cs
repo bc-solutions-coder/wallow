@@ -19,7 +19,7 @@ public static class TotpHelper
     /// Generates a TOTP code that is guaranteed to have at least <paramref name="minRemainingSeconds"/>
     /// of validity remaining. If the current window is about to expire, waits for the next window.
     /// </summary>
-    public static async Task<string> GenerateFreshCodeAsync(string base32Secret, int minRemainingSeconds = 5)
+    public static async Task<string> GenerateFreshCodeAsync(string base32Secret, int minRemainingSeconds = 10)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(base32Secret);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(minRemainingSeconds);
