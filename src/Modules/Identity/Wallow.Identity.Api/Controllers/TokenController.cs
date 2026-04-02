@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Logging;
 using OpenIddict.Abstractions;
 using OpenIddict.Server.AspNetCore;
 using Wallow.Identity.Domain.Entities;
@@ -20,7 +21,9 @@ namespace Wallow.Identity.Api.Controllers;
 [AllowAnonymous]
 [EnableRateLimiting("auth")]
 [IgnoreAntiforgeryToken]
-public sealed class TokenController(UserManager<WallowUser> userManager) : Controller
+public sealed partial class TokenController(
+    UserManager<WallowUser> userManager,
+    ILogger<TokenController> logger) : Controller
 {
     // OAuth token endpoint — antiforgery tokens are not applicable for machine-to-machine OAuth flows
 #pragma warning disable CA5391
@@ -30,6 +33,8 @@ public sealed class TokenController(UserManager<WallowUser> userManager) : Contr
     {
         OpenIddictRequest request = HttpContext.GetOpenIddictServerRequest()
             ?? throw new InvalidOperationException("The OpenID Connect request cannot be retrieved.");
+
+        LogTokenRequest(request.GrantType, request.ClientId);
 
         if (request.IsAuthorizationCodeGrantType() || request.IsRefreshTokenGrantType())
         {
@@ -41,6 +46,7 @@ public sealed class TokenController(UserManager<WallowUser> userManager) : Contr
             return await HandleClientCredentialsAsync();
         }
 
+        LogUnsupportedGrantType(request.GrantType);
         return Forbid(
             authenticationSchemes: OpenIddictServerAspNetCoreDefaults.AuthenticationScheme,
             properties: new AuthenticationProperties(new Dictionary<string, string?>
@@ -59,10 +65,12 @@ public sealed class TokenController(UserManager<WallowUser> userManager) : Contr
             ?? throw new InvalidOperationException("The authenticated principal cannot be retrieved.");
 
         string? subject = principal.GetClaim(Claims.Subject);
+        LogTokenCodeExchange(subject);
         WallowUser? user = await userManager.FindByIdAsync(subject!);
 
         if (user is null)
         {
+            LogTokenUserNotFound(subject);
             return Forbid(
                 authenticationSchemes: OpenIddictServerAspNetCoreDefaults.AuthenticationScheme,
                 properties: new AuthenticationProperties(new Dictionary<string, string?>
@@ -110,6 +118,8 @@ public sealed class TokenController(UserManager<WallowUser> userManager) : Contr
         ClaimsPrincipal claimsPrincipal = new(identity);
         claimsPrincipal.SetScopes(principal.GetScopes());
 
+        string tokenScopes = string.Join(" ", principal.GetScopes());
+        LogTokenIssued(subject, tokenScopes);
         return SignIn(claimsPrincipal,
             OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
     }
@@ -149,6 +159,21 @@ public sealed class TokenController(UserManager<WallowUser> userManager) : Contr
         return SignIn(claimsPrincipal,
             OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "OIDC token request: grant_type={GrantType}, client_id={ClientId}")]
+    private partial void LogTokenRequest(string? grantType, string? clientId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "OIDC token unsupported grant type: {GrantType}")]
+    private partial void LogUnsupportedGrantType(string? grantType);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "OIDC token code/refresh exchange for subject={Subject}")]
+    private partial void LogTokenCodeExchange(string? subject);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "OIDC token user not found for subject={Subject}")]
+    private partial void LogTokenUserNotFound(string? subject);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "OIDC token issued for subject={Subject}, scopes={Scopes}")]
+    private partial void LogTokenIssued(string? subject, string scopes);
 
     private static ImmutableArray<string> GetDestinations(Claim claim)
     {

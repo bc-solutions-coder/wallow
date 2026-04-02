@@ -50,7 +50,8 @@ public sealed class AuthorizationControllerTests : IDisposable
             _applicationManager,
             _authorizationManager,
             _clientTenantResolver,
-            _organizationService);
+            _organizationService,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<AuthorizationController>.Instance);
     }
 
     public void Dispose()

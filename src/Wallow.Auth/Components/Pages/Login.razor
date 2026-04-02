@@ -8,6 +8,7 @@
 @using Wallow.Auth.Helpers
 @inject BrandingOptions Branding
 @using Wallow.Auth.Components.Shared
+@inject ILogger<Login> Logger
 
 <PageTitle>Sign In — @Branding.AppName</PageTitle>
 
@@ -247,10 +248,13 @@
 
     protected override async Task OnInitializedAsync()
     {
+        Logger.LogInformation("OIDC Login page initialized: returnUrl={ReturnUrl}, clientId={ClientId}, error={Error}", ReturnUrl, ClientId, Error);
+
         _externalProviders = await AuthClient.GetExternalProvidersAsync();
 
         if (!string.IsNullOrEmpty(MagicLinkToken))
         {
+            Logger.LogInformation("OIDC Login: magic link token present, verifying");
             await HandleVerifyMagicLink();
         }
 
@@ -317,6 +321,8 @@
         _errorMessage = null;
         _isSubmitting = true;
 
+        Logger.LogInformation("OIDC Login: password login attempt for {Email}, returnUrl={ReturnUrl}", _email, ReturnUrl);
+
         try
         {
             if (string.IsNullOrWhiteSpace(_email) || string.IsNullOrWhiteSpace(_password))
@@ -327,6 +333,8 @@
 
             LoginRequest request = new(_email, _password, _rememberMe);
             AuthResponse result = await AuthClient.LoginAsync(request);
+            Logger.LogInformation("OIDC Login: API response succeeded={Succeeded}, mfaRequired={MfaRequired}, mfaEnrollmentRequired={MfaEnrollmentRequired}, hasTicket={HasTicket}, error={Error}",
+                result.Succeeded, result.MfaRequired, result.MfaEnrollmentRequired, !string.IsNullOrEmpty(result.SignInTicket), result.Error);
 
             if (result.MfaRequired || result.MfaEnrollmentRequired)
             {
@@ -493,9 +501,13 @@
 
     private void HandleSuccessfulAuth(AuthResponse result)
     {
+        Logger.LogInformation("OIDC Login HandleSuccessfulAuth: mfaRequired={MfaRequired}, mfaEnrollmentRequired={MfaEnrollmentRequired}, hasTicket={HasTicket}, returnUrl={ReturnUrl}",
+            result.MfaRequired, result.MfaEnrollmentRequired, !string.IsNullOrEmpty(result.SignInTicket), ReturnUrl);
+
         if (result.MfaRequired)
         {
             string challengeUrl = BuildMfaRedirectUrl("/mfa/challenge");
+            Logger.LogInformation("OIDC Login: MFA required, redirecting to {Url}", challengeUrl);
             Navigation.NavigateTo(challengeUrl, forceLoad: true);
             return;
         }
@@ -507,11 +519,13 @@
             if (!withinGracePeriod)
             {
                 string enrollUrl = BuildMfaRedirectUrl("/mfa/enroll");
+                Logger.LogInformation("OIDC Login: MFA enrollment required (grace expired), redirecting to {Url}", enrollUrl);
                 Navigation.NavigateTo(enrollUrl, forceLoad: true);
                 return;
             }
 
             // Within grace period — show the banner but allow login to proceed
+            Logger.LogInformation("OIDC Login: MFA enrollment required but within grace period, continuing login");
             _showMfaEnrollmentBanner = true;
             _mfaGraceDeadline = result.MfaGraceDeadline?.DateTime;
         }
@@ -520,6 +534,7 @@
         {
             if (!ReturnUrlValidator.IsSafe(ReturnUrl))
             {
+                Logger.LogWarning("OIDC Login: returnUrl failed safety check: {ReturnUrl}", ReturnUrl);
                 Navigation.NavigateTo("/error?reason=invalid_redirect_uri", forceLoad: true);
                 return;
             }
@@ -531,14 +546,18 @@
                 string exchangeUrl = $"{ApiBaseUrl}/v1/identity/auth/exchange-ticket" +
                     $"?ticket={Uri.EscapeDataString(result.SignInTicket)}" +
                     $"&returnUrl={Uri.EscapeDataString(ReturnUrl)}";
+                Logger.LogInformation("OIDC Login: exchanging ticket via {ExchangeUrl}", exchangeUrl);
                 Navigation.NavigateTo(exchangeUrl, forceLoad: true);
                 return;
             }
 
-            Navigation.NavigateTo(BuildApiReturnUrl(ReturnUrl), forceLoad: true);
+            string apiReturnUrl = BuildApiReturnUrl(ReturnUrl);
+            Logger.LogInformation("OIDC Login: no ticket, redirecting to API returnUrl={Url}", apiReturnUrl);
+            Navigation.NavigateTo(apiReturnUrl, forceLoad: true);
         }
         else
         {
+            Logger.LogInformation("OIDC Login: no returnUrl, showing signed-in state");
             _signedIn = true;
         }
     }

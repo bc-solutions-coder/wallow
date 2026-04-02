@@ -67,11 +67,13 @@ public sealed partial class AccountController(
     [AllowAnonymous]
     public async Task<IActionResult> Login([FromBody] AccountLoginRequest request, CancellationToken ct)
     {
+        LogLoginAttempt(request.Email);
         string? ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
 
         WallowUser? user = await signInManager.UserManager.FindByEmailAsync(request.Email);
         if (user is null)
         {
+            LogLoginUserNotFound(request.Email);
             await messageBus.PublishAsync(new UserLoginFailedEvent
             {
                 UserId = Guid.Empty,
@@ -87,9 +89,12 @@ public sealed partial class AccountController(
 
         if (result.Succeeded)
         {
+            LogLoginPasswordValid(user.Email!);
+
             // User has MFA enabled and is not exempt — issue partial cookie, require MFA verification
             if (user.MfaEnabled && !await mfaExemptionChecker.IsExemptAsync(user, ct))
             {
+                LogLoginMfaRequired(user.Email!);
                 await mfaPartialAuthService.IssuePartialCookieAsync(
                     new MfaPartialAuthPayload(user.Id.ToString(), user.Email!, "password", request.RememberMe, timeProvider.GetUtcNow()),
                     ct);
@@ -102,6 +107,7 @@ public sealed partial class AccountController(
             {
                 if (orgPolicy.IsInGracePeriod)
                 {
+                    LogLoginMfaGracePeriod(user.Email!);
                     // Grace period active — issue ticket so browser can exchange it for a cookie, but flag enrollment needed
                     await messageBus.PublishAsync(new UserLoginSucceededEvent
                     {
@@ -113,6 +119,7 @@ public sealed partial class AccountController(
                     return Ok(new { succeeded = true, mfaEnrollmentRequired = true, mfaGraceDeadline = user.MfaGraceDeadline, signInTicket = graceTicket });
                 }
 
+                LogLoginMfaEnrollmentRequired(user.Email!);
                 // Grace expired — block full sign-in, issue partial cookie
                 await mfaPartialAuthService.IssuePartialCookieAsync(
                     new MfaPartialAuthPayload(user.Id.ToString(), user.Email!, "password", request.RememberMe, timeProvider.GetUtcNow()),
@@ -128,6 +135,7 @@ public sealed partial class AccountController(
                 IpAddress = ipAddress
             });
             string ticket = CreateSignInTicket(user.Email!, request.RememberMe);
+            LogLoginSucceededWithTicket(user.Email!);
             return Ok(new { succeeded = true, signInTicket = ticket });
         }
 
@@ -550,34 +558,44 @@ public sealed partial class AccountController(
     [AllowAnonymous]
     public async Task<IActionResult> ExchangeTicket([FromQuery] string ticket, [FromQuery] string? returnUrl)
     {
+        LogExchangeTicketRequest(returnUrl);
+
         SignInTicketPayload? payload = ValidateSignInTicket(ticket);
         if (payload is null)
         {
+            LogExchangeTicketInvalid();
             return BadRequest(new { succeeded = false, error = "invalid_or_expired_ticket" });
         }
+
+        LogExchangeTicketValidated(payload.Email, payload.Jti);
 
         // Replay prevention: each ticket can only be exchanged once
         IDatabase redisDb = redis.GetDatabase();
         bool wasSet = await redisDb.StringSetAsync($"ticket:used:{payload.Jti}", "1", TimeSpan.FromSeconds(90), false, When.NotExists);
         if (!wasSet)
         {
+            LogExchangeTicketAlreadyUsed(payload.Jti);
             return Unauthorized(new { succeeded = false, error = "ticket_already_used" });
         }
 
         WallowUser? user = await signInManager.UserManager.FindByEmailAsync(payload.Email);
         if (user is null)
         {
+            LogExchangeTicketUserNotFound(payload.Email);
             return BadRequest(new { succeeded = false, error = "invalid_or_expired_ticket" });
         }
 
         await signInManager.SignInAsync(user, isPersistent: payload.RememberMe);
+        LogExchangeTicketSignedIn(payload.Email, user.Id);
 
         if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
         {
+            LogExchangeTicketRedirecting(returnUrl);
             return Redirect(returnUrl);
         }
 
         string authUrl = GetRequiredAuthUrl();
+        LogExchangeTicketNoReturnUrl(authUrl);
         return Redirect(authUrl);
     }
 
@@ -1004,4 +1022,49 @@ public sealed partial class AccountController(
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to assign default role to user {Email}: {Errors}")]
     private partial void LogRoleAssignmentFailed(string email, string errors);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "OIDC login attempt for {Email}")]
+    private partial void LogLoginAttempt(string email);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "OIDC login user not found: {Email}")]
+    private partial void LogLoginUserNotFound(string email);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "OIDC login password valid for {Email}")]
+    private partial void LogLoginPasswordValid(string email);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "OIDC login MFA required for {Email}")]
+    private partial void LogLoginMfaRequired(string email);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "OIDC login MFA grace period active for {Email}")]
+    private partial void LogLoginMfaGracePeriod(string email);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "OIDC login MFA enrollment required (grace expired) for {Email}")]
+    private partial void LogLoginMfaEnrollmentRequired(string email);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "OIDC login succeeded, ticket issued for {Email}")]
+    private partial void LogLoginSucceededWithTicket(string email);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "OIDC exchange-ticket request: returnUrl={ReturnUrl}")]
+    private partial void LogExchangeTicketRequest(string? returnUrl);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "OIDC exchange-ticket: ticket validation failed (invalid or expired)")]
+    private partial void LogExchangeTicketInvalid();
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "OIDC exchange-ticket validated: email={Email}, jti={Jti}")]
+    private partial void LogExchangeTicketValidated(string email, Guid jti);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "OIDC exchange-ticket already used: jti={Jti}")]
+    private partial void LogExchangeTicketAlreadyUsed(Guid jti);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "OIDC exchange-ticket user not found: {Email}")]
+    private partial void LogExchangeTicketUserNotFound(string email);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "OIDC exchange-ticket signed in: email={Email}, userId={UserId}")]
+    private partial void LogExchangeTicketSignedIn(string email, Guid userId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "OIDC exchange-ticket redirecting to returnUrl={ReturnUrl}")]
+    private partial void LogExchangeTicketRedirecting(string returnUrl);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "OIDC exchange-ticket no valid returnUrl, redirecting to authUrl={AuthUrl}")]
+    private partial void LogExchangeTicketNoReturnUrl(string authUrl);
 }

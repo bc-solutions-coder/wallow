@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using OpenIddict.Abstractions;
 using OpenIddict.Server.AspNetCore;
 using Wallow.Identity.Application.DTOs;
@@ -20,13 +21,14 @@ namespace Wallow.Identity.Api.Controllers;
 [Route("connect/authorize")]
 [AllowAnonymous]
 [IgnoreAntiforgeryToken]
-public sealed class AuthorizationController(
+public sealed partial class AuthorizationController(
     UserManager<WallowUser> userManager,
     IConfiguration configuration,
     IOpenIddictApplicationManager applicationManager,
     IOpenIddictAuthorizationManager authorizationManager,
     IClientTenantResolver clientTenantResolver,
-    IOrganizationService organizationService) : Controller
+    IOrganizationService organizationService,
+    ILogger<AuthorizationController> logger) : Controller
 {
     private const string FirstPartyClientPrefix = "wallow-";
 
@@ -36,25 +38,36 @@ public sealed class AuthorizationController(
         OpenIddictRequest request = HttpContext.GetOpenIddictServerRequest()
             ?? throw new InvalidOperationException("The OpenID Connect request cannot be retrieved.");
 
+        LogAuthorizeRequest(request.ClientId, request.RedirectUri, request.ResponseType, request.Scope);
+
         if (User.Identity is not { IsAuthenticated: true })
         {
             string authUrl = GetRequiredAuthUrl();
             string returnUrl = Request.PathBase + Request.Path + Request.QueryString;
+
+            int cookieCount = Request.Cookies.Count;
+            string pathBase = Request.PathBase;
+            LogUserNotAuthenticated(returnUrl, pathBase, cookieCount);
 
             // Reject non-local URLs to prevent open-redirect attacks.
             // Note: Uri.TryCreate with UriKind.Absolute treats Unix paths (starting with /)
             // as absolute file:// URIs on macOS/Linux, so we use Url.IsLocalUrl instead.
             if (!Url.IsLocalUrl(returnUrl))
             {
+                LogInvalidReturnUrl(returnUrl);
                 return Redirect($"{authUrl}/error?reason=invalid_redirect_uri");
             }
 
-            return Redirect($"{authUrl}/login?returnUrl={Uri.EscapeDataString(returnUrl)}" +
-                $"&client_id={Uri.EscapeDataString(request.ClientId ?? string.Empty)}");
+            string loginRedirect = $"{authUrl}/login?returnUrl={Uri.EscapeDataString(returnUrl)}" +
+                $"&client_id={Uri.EscapeDataString(request.ClientId ?? string.Empty)}";
+            LogRedirectingToLogin(loginRedirect);
+            return Redirect(loginRedirect);
         }
 
         string userId = userManager.GetUserId(User)
             ?? throw new InvalidOperationException("The user identifier cannot be retrieved.");
+
+        LogUserAuthenticated(userId, User.Identity.AuthenticationType);
 
         WallowUser user = await userManager.FindByIdAsync(userId)
             ?? throw new InvalidOperationException("The user details cannot be retrieved.");
@@ -65,6 +78,8 @@ public sealed class AuthorizationController(
         string? clientId = await applicationManager.GetClientIdAsync(application);
         bool isFirstParty = clientId?.StartsWith(FirstPartyClientPrefix, StringComparison.OrdinalIgnoreCase) is true;
         bool hasValidAuthorization = false;
+
+        LogApplicationResolved(clientId, isFirstParty);
 
         if (!isFirstParty)
         {
@@ -136,6 +151,7 @@ public sealed class AuthorizationController(
                 // The consent UI will POST back to accept/deny.
                 string authUrl = GetRequiredAuthUrl();
                 string returnUrl = Request.PathBase + Request.Path + Request.QueryString;
+                LogRedirectingToConsent(clientId, returnUrl);
                 return Redirect($"{authUrl}/consent?returnUrl={Uri.EscapeDataString(returnUrl)}" +
                     $"&client_id={Uri.EscapeDataString(clientId ?? string.Empty)}");
             }
@@ -153,6 +169,7 @@ public sealed class AuthorizationController(
         {
             IReadOnlyList<OrganizationDto> userOrgs = await organizationService.GetUserOrganizationsAsync(Guid.Parse(userId));
             bool isMember = userOrgs.Any(o => o.Id == tenantInfo.TenantId);
+            LogTenantMembershipCheck(userId, tenantInfo.TenantId, isMember);
             if (!isMember)
             {
                 string authUrl = GetRequiredAuthUrl();
@@ -161,6 +178,9 @@ public sealed class AuthorizationController(
         }
 
         ClaimsIdentity identity = await BuildClaimsIdentityAsync(user, userId, request, tenantInfo);
+
+        string allScopes = string.Join(" ", request.GetScopes());
+        LogIssuingAuthorizationCode(userId, clientId, allScopes);
 
         if (!isFirstParty && !hasValidAuthorization)
         {
@@ -255,6 +275,33 @@ public sealed class AuthorizationController(
     [HttpPost]
     public Task<IActionResult> AuthorizePost() => Authorize();
 #pragma warning restore CA5391
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "OIDC authorize request: client_id={ClientId}, redirect_uri={RedirectUri}, response_type={ResponseType}, scope={Scope}")]
+    private partial void LogAuthorizeRequest(string? clientId, string? redirectUri, string? responseType, string? scope);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "OIDC user not authenticated. returnUrl={ReturnUrl}, pathBase={PathBase}, cookieCount={CookieCount}")]
+    private partial void LogUserNotAuthenticated(string returnUrl, string? pathBase, int cookieCount);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "OIDC rejected non-local returnUrl: {ReturnUrl}")]
+    private partial void LogInvalidReturnUrl(string returnUrl);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "OIDC redirecting unauthenticated user to login: {LoginUrl}")]
+    private partial void LogRedirectingToLogin(string loginUrl);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "OIDC user authenticated: userId={UserId}, authType={AuthenticationType}")]
+    private partial void LogUserAuthenticated(string userId, string? authenticationType);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "OIDC application resolved: clientId={ClientId}, isFirstParty={IsFirstParty}")]
+    private partial void LogApplicationResolved(string? clientId, bool isFirstParty);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "OIDC redirecting to consent: clientId={ClientId}, returnUrl={ReturnUrl}")]
+    private partial void LogRedirectingToConsent(string? clientId, string returnUrl);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "OIDC tenant membership check: userId={UserId}, tenantId={TenantId}, isMember={IsMember}")]
+    private partial void LogTenantMembershipCheck(string userId, Guid tenantId, bool isMember);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "OIDC issuing authorization code: userId={UserId}, clientId={ClientId}, scopes={Scopes}")]
+    private partial void LogIssuingAuthorizationCode(string userId, string? clientId, string scopes);
 
     private static ImmutableArray<string> GetDestinations(Claim claim)
     {
