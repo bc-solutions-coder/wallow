@@ -9,7 +9,7 @@
     <!-- .NET Version-Coupled Packages -->
     <!-- These should match the .NET version (e.g., 10.0.x for .NET 10) -->
     <MicrosoftExtensionsVersion>10.0.5</MicrosoftExtensionsVersion>
-    <EfCoreVersion>10.0.4</EfCoreVersion>
+    <EfCoreVersion>10.0.5</EfCoreVersion>
     <AspNetCoreVersion>10.0.2</AspNetCoreVersion>
   </PropertyGroup>
   <ItemGroup>
@@ -54,10 +54,10 @@
     <!-- ======================================
          CQRS & Messaging (Wolverine)
          ====================================== -->
-    <PackageVersion Include="WolverineFx" Version="5.24.0" />
-    <PackageVersion Include="WolverineFx.FluentValidation" Version="5.24.0" />
-    <PackageVersion Include="WolverineFx.EntityFrameworkCore" Version="5.24.0" />
-    <PackageVersion Include="WolverineFx.Postgresql" Version="5.24.0" />
+    <PackageVersion Include="WolverineFx" Version="5.27.0" />
+    <PackageVersion Include="WolverineFx.FluentValidation" Version="5.27.0" />
+    <PackageVersion Include="WolverineFx.EntityFrameworkCore" Version="5.27.0" />
+    <PackageVersion Include="WolverineFx.Postgresql" Version="5.27.0" />
     <PackageVersion Include="FluentValidation" Version="12.1.1" />
     <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
     <!-- ======================================
@@ -112,7 +112,7 @@
     <!-- ======================================
          Cloud Storage (AWS S3)
          ====================================== -->
-    <PackageVersion Include="AWSSDK.S3" Version="4.0.18.7" />
+    <PackageVersion Include="AWSSDK.S3" Version="4.0.20.2" />
     <!-- ======================================
          Microsoft.Extensions.*
          ====================================== -->
@@ -151,7 +151,7 @@
     <PackageVersion Include="xunit" Version="2.9.3" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
     <PackageVersion Include="Bogus" Version="35.6.5" />
-    <PackageVersion Include="bunit" Version="2.6.2" />
+    <PackageVersion Include="bunit" Version="2.7.2" />
     <PackageVersion Include="AwesomeAssertions" Version="9.4.0" />
     <PackageVersion Include="NSubstitute" Version="5.3.0" />
     <PackageVersion Include="Testcontainers" Version="4.11.0" />
@@ -177,7 +177,7 @@
     <!-- ======================================
          Blazor UI Components (BlazorBlueprint)
          ====================================== -->
-    <PackageVersion Include="BlazorBlueprint.Components" Version="3.9.2" />
+    <PackageVersion Include="BlazorBlueprint.Components" Version="3.9.3" />
     <PackageVersion Include="BlazorBlueprint.Icons.Lucide" Version="2.0.0" />
     <!-- ======================================
          Tailwind CSS (NuGet-based integration)
