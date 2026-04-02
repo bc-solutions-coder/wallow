@@ -163,6 +163,12 @@ public static class IdentityInfrastructureExtensions
                 ? Microsoft.AspNetCore.Http.CookieSecurePolicy.SameAsRequest
                 : Microsoft.AspNetCore.Http.CookieSecurePolicy.Always;
 
+            // Explicitly set cookie path to "/" so the auth cookie is sent regardless of
+            // PathBase. Without this, ASP.NET Core defaults to Request.PathBase (e.g. "/api"),
+            // which causes login loops when the authorize endpoint is reached via a URL that
+            // doesn't include the PathBase prefix (e.g. /connect/authorize vs /api/connect/authorize).
+            options.Cookie.Path = "/";
+
             // The API has no login page — return 401 instead of redirecting to /Account/Login.
             // OpenIddict controllers (e.g. AuthorizationController) handle their own redirects
             // to the Auth app via [AllowAnonymous] + manual User.Identity checks.

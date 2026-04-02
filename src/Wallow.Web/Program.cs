@@ -118,14 +118,23 @@ builder.Services.AddAuthentication(options =>
             options.MetadataAddress = metadataAddress;
             string authority = options.Authority!.TrimEnd('/');
 
+            // The authority URL may include a path prefix (e.g. "https://wallow.dev/api").
+            // Discovery endpoints from the internal MetadataAddress lack this prefix
+            // (e.g. "http://wallow-api:8080/connect/authorize"). The rewrite must prepend
+            // the authority's path so browser redirects hit the correct reverse-proxy route.
+            string authorityPath = new UriBuilder(authority).Path.TrimEnd('/');
+
             options.Events.OnRedirectToIdentityProvider = context =>
             {
-                // Rewrite authorization_endpoint from discovery to use the browser-facing authority
                 UriBuilder uri = new(context.ProtocolMessage.IssuerAddress);
                 UriBuilder authorityUri = new(authority);
                 uri.Scheme = authorityUri.Scheme;
                 uri.Host = authorityUri.Host;
                 uri.Port = authorityUri.Port;
+                if (!string.IsNullOrEmpty(authorityPath) && !uri.Path.StartsWith(authorityPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    uri.Path = authorityPath + uri.Path;
+                }
                 context.ProtocolMessage.IssuerAddress = uri.ToString();
                 return Task.CompletedTask;
             };
@@ -139,6 +148,10 @@ builder.Services.AddAuthentication(options =>
                     uri.Scheme = authorityUri.Scheme;
                     uri.Host = authorityUri.Host;
                     uri.Port = authorityUri.Port;
+                    if (!string.IsNullOrEmpty(authorityPath) && !uri.Path.StartsWith(authorityPath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        uri.Path = authorityPath + uri.Path;
+                    }
                     context.ProtocolMessage.IssuerAddress = uri.ToString();
                 }
                 return Task.CompletedTask;
