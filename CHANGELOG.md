@@ -1,5 +1,21 @@
 # Changelog
 
+## [3.1.0](https://github.com/bc-solutions-coder/wallow/compare/v3.0.2...v3.1.0) (2026-04-02)
+
+
+### Features
+
+* **identity:** add OIDC diagnostic logging across entire auth flow ([540522c](https://github.com/bc-solutions-coder/wallow/commit/540522c24ae9af554e5abca160950afad148fee7))
+* **identity:** add OIDC diagnostic logging across entire auth flow ([45746e2](https://github.com/bc-solutions-coder/wallow/commit/45746e262428f8e4c6f9ca60a4c790fcf0ceef88))
+
+
+### Bug Fixes
+
+* **auth:** use BbButton component for consent approve/deny buttons ([b802f8e](https://github.com/bc-solutions-coder/wallow/commit/b802f8e34d33d08fb7d6ec526e40c0403b82d6d9))
+* **docker:** add cert volume init for non-root API container ([77039ed](https://github.com/bc-solutions-coder/wallow/commit/77039ed1349064c9003f2730a13b0d1c2feff376))
+* **identity:** resolve login loop from cookie path and OIDC redirect mismatch ([e7af177](https://github.com/bc-solutions-coder/wallow/commit/e7af177bed8129255910c933d41486a5f7a41041))
+* **identity:** resolve production login loop from ephemeral certs and DP keys ([9fcb26c](https://github.com/bc-solutions-coder/wallow/commit/9fcb26c65dd66071d2b6050aed0b9bce98f222d0))
+
 ## [3.0.2](https://github.com/bc-solutions-coder/wallow/compare/v3.0.1...v3.0.2) (2026-04-02)
 
 
