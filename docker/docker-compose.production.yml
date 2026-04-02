@@ -108,7 +108,7 @@ services:
   valkey:
     image: valkey/valkey:8.1-alpine
     container_name: ${COMPOSE_PROJECT_NAME:-wallow}-valkey
-    command: valkey-server --appendonly yes --requirepass ${VALKEY_PASSWORD} --maxmemory 256mb --maxmemory-policy allkeys-lru
+    command: valkey-server --appendonly yes --requirepass ${VALKEY_PASSWORD} --maxmemory 256mb --maxmemory-policy volatile-lru
     volumes:
       - valkey_data:/data
     healthcheck:
@@ -250,7 +250,8 @@ services:
     tmpfs:
       - /tmp:mode=1777
       - /app/App_Data:mode=1777
-      - /app/certs:mode=1777
+    volumes:
+      - api_certs:/app/certs
     ports:
       - "${API_PORT:-8080}:8080"
     environment:
@@ -509,6 +510,7 @@ volumes:
   valkey_data:
   garage_meta:
   garage_data:
+  api_certs:
 
 networks:
   wallow:

@@ -40,10 +40,14 @@ builder.Services.AddSingleton(branding);
 
 // DataProtection — persist keys to Valkey so antiforgery tokens survive restarts.
 // Application name and Redis key must match the API (IdentityInfrastructureExtensions.cs:187-189).
+// Uses abortConnect=true so startup fails fast if Redis is unreachable (prevents silent fallback
+// to ephemeral keys, which causes login loops when correlation cookies can't be decrypted).
 string? redisConnection = builder.Configuration.GetConnectionString("Redis");
 if (!string.IsNullOrEmpty(redisConnection))
 {
-    IConnectionMultiplexer redis = await ConnectionMultiplexer.ConnectAsync(redisConnection);
+    ConfigurationOptions redisOptions = ConfigurationOptions.Parse(redisConnection);
+    redisOptions.AbortOnConnectFail = true;
+    IConnectionMultiplexer redis = await ConnectionMultiplexer.ConnectAsync(redisOptions);
     builder.Services.AddDataProtection()
         .SetApplicationName("Wallow")
         .PersistKeysToStackExchangeRedis(redis, "DataProtection-Keys");
