@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.0.2](https://github.com/bc-solutions-coder/wallow/compare/v3.0.1...v3.0.2) (2026-04-02)
+
+
+### Bug Fixes
+
+* **identity:** disable OpenIddict transport security for container-to-container HTTP ([d8f0240](https://github.com/bc-solutions-coder/wallow/commit/d8f024027d9e45f3e18704b1262537b33e516828))
+* **web:** add X-Forwarded-Proto to OIDC backchannel for container-to-container calls ([82e57a9](https://github.com/bc-solutions-coder/wallow/commit/82e57a90813fa09ecdc9e57902763646efb77822))
+
 ## [3.0.1](https://github.com/bc-solutions-coder/wallow/compare/v3.0.0...v3.0.1) (2026-04-02)
 
 
