@@ -11,7 +11,6 @@ using StackExchange.Redis;
 using Wallow.Api.HealthChecks;
 using Wallow.Api.Middleware;
 using Wallow.Shared.Infrastructure.Core.Resilience;
-using Wallow.Shared.Kernel.Configuration;
 using Wallow.Shared.Kernel.Extensions;
 using Wallow.Storage.Domain.Enums;
 using Wallow.Storage.Infrastructure.Configuration;
@@ -22,8 +21,7 @@ internal static partial class ServiceCollectionExtensions
 {
     public static IServiceCollection AddApiServices(
         this IServiceCollection services,
-        IConfiguration configuration,
-        IHostEnvironment environment)
+        IConfiguration configuration)
     {
         // Problem Details
         services.AddProblemDetails(options =>
@@ -48,39 +46,6 @@ internal static partial class ServiceCollectionExtensions
                 TransformOperationSecurity(operation, context));
             options.AddOperationTransformer((operation, context, _) =>
                 TransformOperationModuleTag(operation, context));
-        });
-
-        // CORS
-        string[] allowedOrigins = configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
-        ServiceUrlsOptions serviceUrls = configuration.GetSection(ServiceUrlsOptions.SectionName).Get<ServiceUrlsOptions>()
-            ?? new ServiceUrlsOptions();
-
-        if (!environment.IsDevelopment() && allowedOrigins.Length == 0)
-        {
-            throw new InvalidOperationException(
-                "Cors:AllowedOrigins must be configured with at least one origin in non-Development environments.");
-        }
-
-        services.AddCors(options =>
-        {
-            options.AddDefaultPolicy(policy =>
-            {
-                policy
-                    .WithOrigins(allowedOrigins)
-                    .WithMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
-                    .AllowAnyHeader()
-                    .AllowCredentials();
-            });
-
-            // Named policy for development (explicit origins for SignalR)
-            options.AddPolicy("Development", policy =>
-            {
-                policy
-                    .WithOrigins(serviceUrls.ApiUrl, serviceUrls.AuthUrl, serviceUrls.WebUrl)
-                    .WithMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
-                    .AllowAnyHeader()
-                    .AllowCredentials();
-            });
         });
 
         // Health checks - connection strings resolved lazily via factories

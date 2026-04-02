@@ -21,7 +21,6 @@ namespace Wallow.Identity.Api.Controllers;
 [Tags("Client Registration")]
 [Produces("application/json")]
 [Consumes("application/json")]
-[IgnoreAntiforgeryToken]
 public class ClientRegistrationController(
     IOpenIddictApplicationManager applicationManager,
     IApiScopeRepository apiScopeRepository,

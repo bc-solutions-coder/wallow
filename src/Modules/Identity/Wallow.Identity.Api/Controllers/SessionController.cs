@@ -11,7 +11,6 @@ namespace Wallow.Identity.Api.Controllers;
 [ApiController]
 [Authorize]
 [ApiVersion(1)]
-[IgnoreAntiforgeryToken]
 [Route("v{version:apiVersion}/identity/sessions")]
 public sealed class SessionController(ISessionService sessionService) : ControllerBase
 {

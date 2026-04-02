@@ -21,7 +21,6 @@ namespace Wallow.ApiKeys.Api.Controllers;
 [ApiVersion(1)]
 [Route("v{version:apiVersion}/identity/auth/keys")]
 [Authorize]
-[IgnoreAntiforgeryToken]
 public sealed class ApiKeysController(IApiKeyService apiKeyService, IScopeSubsetValidator scopeSubsetValidator, ITenantContext tenantContext, ICurrentUserService currentUserService, IConfiguration configuration) : ControllerBase
 {
 

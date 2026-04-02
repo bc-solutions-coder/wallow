@@ -20,7 +20,6 @@ namespace Wallow.Identity.Api.Controllers;
 [Controller]
 [Route("connect/authorize")]
 [AllowAnonymous]
-[IgnoreAntiforgeryToken]
 public sealed partial class AuthorizationController(
     UserManager<WallowUser> userManager,
     IConfiguration configuration,
@@ -270,7 +269,6 @@ public sealed partial class AuthorizationController(
             "AuthUrl must be configured in appsettings.json. " +
             "Example: \"AuthUrl\": \"https://auth.yourdomain.com\"");
 
-    // OAuth authorization endpoint — antiforgery tokens are not applicable for OAuth flows
 #pragma warning disable CA5391
     [HttpPost]
     public Task<IActionResult> AuthorizePost() => Authorize();

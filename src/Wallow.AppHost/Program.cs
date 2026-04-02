@@ -5,14 +5,12 @@ string garageConfigDir = Path.GetFullPath(Path.Combine(builder.AppHostDirectory,
 
 // Infrastructure
 IResourceBuilder<PostgresDatabaseResource> postgres = builder.AddPostgres("postgres")
-    .WithLifetime(ContainerLifetime.Persistent)
     .AddDatabase("wallow");
 IResourceBuilder<RedisResource> valkey = builder.AddRedis("valkey");
 
 // S3-compatible object storage (built from docker/garage/Dockerfile: Alpine + garage binary + init script)
 // Credentials must match appsettings.Development.json so the API can authenticate
 IResourceBuilder<ContainerResource> garage = builder.AddDockerfile("garage", garageConfigDir)
-    .WithLifetime(ContainerLifetime.Persistent)
     .WithHttpEndpoint(targetPort: 3900, name: "s3")
     .WithEnvironment("GARAGE_KEY_NAME", "wallow-dev")
     .WithEnvironment("GARAGE_ACCESS_KEY", "GKac08a4bd9e083da18a8619d6")
@@ -52,6 +50,8 @@ builder.AddProject<Projects.Wallow_Auth>("wallow-auth")
     .WaitFor(valkey);
 
 builder.AddProject<Projects.Wallow_Web>("wallow-web")
-    .WaitFor(api);
+    .WithReference(valkey, connectionName: "Redis")
+    .WaitFor(api)
+    .WaitFor(valkey);
 
 await builder.Build().RunAsync();

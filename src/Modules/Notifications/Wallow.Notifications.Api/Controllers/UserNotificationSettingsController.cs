@@ -22,7 +22,6 @@ namespace Wallow.Notifications.Api.Controllers;
 [Tags("Notification Settings")]
 [Produces("application/json")]
 [Consumes("application/json")]
-[IgnoreAntiforgeryToken]
 public class UserNotificationSettingsController(IMessageBus bus, ICurrentUserService currentUserService) : ControllerBase
 {
     [HttpGet]

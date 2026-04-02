@@ -2,7 +2,6 @@ using System.Reflection;
 using Asp.Versioning;
 using Hangfire;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.StackExchangeRedis;
 using Microsoft.Extensions.Caching.Distributed;
@@ -312,11 +311,7 @@ try
 
     // Core services
     builder.Services.AddHttpContextAccessor();
-    builder.Services.AddAntiforgery();
-    builder.Services.AddControllersWithViews(options =>
-    {
-        options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute());
-    });
+    builder.Services.AddControllersWithViews();
     builder.Services.AddApiVersioning(opts =>
     {
         opts.DefaultApiVersion = new ApiVersion(1);
@@ -332,7 +327,7 @@ try
     builder.Services.AddSharedKernel();
     builder.Services.AddHtmlSanitization();
     builder.Services.AddCurrentUserService();
-    builder.Services.AddApiServices(builder.Configuration, builder.Environment);
+    builder.Services.AddApiServices(builder.Configuration);
     builder.Services.AddHangfireServices(builder.Configuration);
     builder.Services.AddWallowBackgroundJobs();
     builder.Services.AddScoped<SystemHeartbeatJob>();
@@ -517,16 +512,6 @@ try
         }).AllowAnonymous();
     }
 
-    // CORS
-    if (app.Environment.IsDevelopment())
-    {
-        app.UseCors("Development");
-    }
-    else
-    {
-        app.UseCors();
-    }
-
     app.MapDefaultEndpoints();
 
     // Health checks
@@ -602,9 +587,6 @@ try
     // Session management (revoke tokens for invalidated sessions, track activity)
     app.UseSessionRevocation();
     app.UseSessionActivity();
-
-    // Antiforgery token validation for MVC form posts (paired with AutoValidateAntiforgeryTokenAttribute)
-    app.UseAntiforgery();
 
     // Module tagging (tags HTTP requests with wallow.module for observability)
     app.UseMiddleware<ModuleTaggingMiddleware>();

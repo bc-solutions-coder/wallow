@@ -15,7 +15,6 @@ namespace Wallow.Identity.Api.Controllers;
 [Tags("Test Support")]
 [Produces("application/json")]
 [Consumes("application/json")]
-[IgnoreAntiforgeryToken]
 public sealed class TestSupportController(
     ITestSupportService testSupportService,
     IHostEnvironment environment) : ControllerBase

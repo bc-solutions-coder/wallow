@@ -307,8 +307,6 @@ services:
       OpenIddict__Issuer: ${API_PUBLIC_URL:-https://wallow.dev/api}
       AuthUrl: ${AUTH_PUBLIC_URL:-https://wallow.dev/auth}
       Authentication__CookieDomain: ${COOKIE_DOMAIN:-wallow.dev}
-      # CORS (single origin — all services share wallow.dev)
-      Cors__AllowedOrigins__0: ${WEB_PUBLIC_URL:-https://wallow.dev}
       # OpenTelemetry (active only when --profile observability is used;
       # Alloy listens on the Docker network, no port mapping needed)
       OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4317

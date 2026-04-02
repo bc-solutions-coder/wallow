@@ -19,7 +19,6 @@ namespace Wallow.Branding.Api.Controllers;
 [Route("v{version:apiVersion}/identity/apps/{clientId}/branding")]
 [Tags("Client Branding")]
 [Produces("application/json")]
-[IgnoreAntiforgeryToken]
 public partial class ClientBrandingController(
     IClientBrandingRepository repository,
     IClientBrandingService brandingService,

@@ -17,7 +17,6 @@ namespace Wallow.Identity.Api.Controllers;
 [Tags("Roles")]
 [Produces("application/json")]
 [Consumes("application/json")]
-[IgnoreAntiforgeryToken]
 public class RolesController(RoleManager<WallowRole> roleManager, IRolePermissionLookup rolePermissionLookup) : ControllerBase
 {
 

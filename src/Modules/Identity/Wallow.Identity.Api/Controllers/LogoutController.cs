@@ -51,7 +51,7 @@ public sealed partial class LogoutController(
             "AuthUrl must be configured in appsettings.json. " +
             "Example: \"AuthUrl\": \"https://auth.yourdomain.com\"");
 
-    [HttpPost, ValidateAntiForgeryToken]
+    [HttpPost]
     public async Task<IActionResult> LogoutPost()
     {
         LogLogoutPostRequest();

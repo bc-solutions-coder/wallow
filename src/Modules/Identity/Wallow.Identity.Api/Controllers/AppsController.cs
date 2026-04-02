@@ -20,7 +20,6 @@ namespace Wallow.Identity.Api.Controllers;
 [Tags("Apps")]
 [Produces("application/json")]
 [Consumes("application/json")]
-[IgnoreAntiforgeryToken]
 public class AppsController(IDeveloperAppService developerAppService) : ControllerBase
 {
     [HttpPost("register")]

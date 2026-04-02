@@ -52,6 +52,13 @@ if (!string.IsNullOrEmpty(redisConnection))
         .SetApplicationName("Wallow")
         .PersistKeysToStackExchangeRedis(redis, "DataProtection-Keys");
 }
+else if (builder.Environment.IsDevelopment())
+{
+    DirectoryInfo keysDir = new(Path.Combine(builder.Environment.ContentRootPath, "..", "..", ".keys"));
+    builder.Services.AddDataProtection()
+        .SetApplicationName("Wallow")
+        .PersistKeysToFileSystem(keysDir);
+}
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents()

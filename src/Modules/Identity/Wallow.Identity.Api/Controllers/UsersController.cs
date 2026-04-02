@@ -21,7 +21,6 @@ namespace Wallow.Identity.Api.Controllers;
 [Tags("Users")]
 [Produces("application/json")]
 [Consumes("application/json")]
-[IgnoreAntiforgeryToken]
 public class UsersController(IUserManagementService userManagement, IOrganizationService organizationService, IUserQueryService userQueryService, ITenantContext tenantContext) : ControllerBase
 {
 

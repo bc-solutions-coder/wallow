@@ -1,6 +1,5 @@
 using System.Reflection;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -12,7 +11,6 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
 using Wallow.Api.Extensions;
@@ -30,8 +28,7 @@ public class ServiceCollectionExtensionsTests
     }
 
     private static ServiceCollection CreateServicesWithApiDefaults(
-        Dictionary<string, string?>? configOverrides = null,
-        string environmentName = "Development")
+        Dictionary<string, string?>? configOverrides = null)
     {
         ServiceCollection services = new();
         Dictionary<string, string?> defaults = new Dictionary<string, string?>
@@ -49,10 +46,8 @@ public class ServiceCollectionExtensionsTests
         }
 
         IConfiguration config = BuildConfiguration(defaults);
-        IHostEnvironment env = Substitute.For<IHostEnvironment>();
-        env.EnvironmentName.Returns(environmentName);
         services.AddLogging();
-        services.AddApiServices(config, env);
+        services.AddApiServices(config);
         return services;
     }
 
@@ -75,37 +70,6 @@ public class ServiceCollectionExtensionsTests
         ServiceDescriptor? descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IExceptionHandler));
         descriptor.Should().NotBeNull();
         descriptor.ImplementationType.Should().Be<GlobalExceptionHandler>();
-    }
-
-    [Fact]
-    public void AddApiServices_RegistersCorsService()
-    {
-        ServiceCollection services = CreateServicesWithApiDefaults(new Dictionary<string, string?>
-        {
-            ["Cors:AllowedOrigins:0"] = "https://app.wallow.dev",
-        });
-
-        ServiceProvider provider = services.BuildServiceProvider();
-        ICorsService? corsService =
-            provider.GetService<ICorsService>();
-        corsService.Should().NotBeNull();
-    }
-
-    [Fact]
-    public void AddApiServices_InProduction_WithEmptyAllowedOrigins_Throws()
-    {
-        Action act = () => CreateServicesWithApiDefaults(environmentName: "Production");
-
-        act.Should().Throw<InvalidOperationException>()
-            .WithMessage("*AllowedOrigins*must be configured*");
-    }
-
-    [Fact]
-    public void AddApiServices_InDevelopment_WithEmptyAllowedOrigins_DoesNotThrow()
-    {
-        Action act = () => CreateServicesWithApiDefaults(environmentName: "Development");
-
-        act.Should().NotThrow();
     }
 
     [Fact]

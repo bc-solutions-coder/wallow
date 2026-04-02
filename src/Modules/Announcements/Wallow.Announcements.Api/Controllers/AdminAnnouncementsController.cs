@@ -23,7 +23,6 @@ namespace Wallow.Announcements.Api.Controllers;
 [HasPermission(PermissionType.AnnouncementManage)]
 [Tags("Admin - Announcements")]
 [Produces("application/json")]
-[IgnoreAntiforgeryToken]
 public class AdminAnnouncementsController(IMessageBus bus, IHtmlSanitizationService sanitizer) : ControllerBase
 {
 

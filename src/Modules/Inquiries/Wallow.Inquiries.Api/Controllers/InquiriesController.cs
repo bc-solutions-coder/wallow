@@ -30,7 +30,6 @@ namespace Wallow.Inquiries.Api.Controllers;
 [Tags("Inquiries")]
 [Produces("application/json")]
 [Consumes("application/json")]
-[IgnoreAntiforgeryToken]
 public partial class InquiriesController(IMessageBus bus, ITenantContext tenantContext, ILogger<InquiriesController> logger) : ControllerBase
 {
 

@@ -19,7 +19,6 @@ namespace Wallow.Identity.Api.Controllers;
 [ApiVersion(1)]
 [Route("v{version:apiVersion}/identity/mfa")]
 [Authorize]
-[IgnoreAntiforgeryToken]
 public sealed partial class MfaController(
     IMfaService mfaService,
     IMfaPartialAuthService mfaPartialAuthService,

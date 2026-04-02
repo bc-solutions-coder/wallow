@@ -18,7 +18,6 @@ namespace Wallow.Identity.Api.Controllers;
 [Tags("Invitations")]
 [Produces("application/json")]
 [Consumes("application/json")]
-[IgnoreAntiforgeryToken]
 public class InvitationsController(
     IInvitationService invitationService,
     IInvitationRepository invitationRepository,
