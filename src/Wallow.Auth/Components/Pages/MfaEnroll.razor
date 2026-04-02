@@ -13,6 +13,7 @@
 @using Wallow.Auth.Services
 @using Microsoft.JSInterop
 @inject BrandingOptions Branding
+@inject ILogger<MfaEnroll> Logger
 @implements IDisposable
 
 <PageTitle>Set Up MFA — @Branding.AppName</PageTitle>
@@ -140,6 +141,7 @@
     // (via CookieForwardingHandler) so subsequent enrollment API calls authenticate.
     protected override async Task OnInitializedAsync()
     {
+        Logger.LogInformation("OIDC MfaEnroll: page initialized, ReturnUrl={ReturnUrl}", ReturnUrl);
         _persistingSubscription = ApplicationState.RegisterOnPersisting(PersistEnrollmentState);
 
         // Seed the circuit-scoped cookie jar from the browser's cookies during prerender.
@@ -220,9 +222,11 @@
             {
                 _secret = result.Secret;
                 _qrUri = result.QrUri;
+                Logger.LogInformation("OIDC MfaEnroll: TOTP secret retrieved successfully");
             }
             else
             {
+                Logger.LogWarning("OIDC MfaEnroll: enrollment failed, no response from API");
                 _errorMessage = "Failed to start MFA enrollment. Please try again.";
             }
         }
@@ -253,10 +257,12 @@
 
             if (result.Succeeded)
             {
+                Logger.LogInformation("OIDC MfaEnroll: enrollment confirmed successfully");
                 _backupCodes = result.BackupCodes ?? Array.Empty<string>();
             }
             else
             {
+                Logger.LogWarning("OIDC MfaEnroll: confirmation failed with error {Error}", result.Error);
                 _errorMessage = result.Error switch
                 {
                     "invalid_code" => "Invalid verification code. Please try again.",

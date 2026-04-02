@@ -1,6 +1,7 @@
 using Bunit;
 using Bunit.TestDoubles;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Wallow.Auth.Components.Pages;
 using Wallow.Auth.Services;
 
@@ -9,6 +10,7 @@ namespace Wallow.Auth.Component.Tests.Pages;
 public sealed class ConsentTests : BunitContext
 {
     private readonly IAuthApiClient _authClient;
+    private readonly FakeLogger<Consent> _logger;
 
     public ConsentTests()
     {
@@ -16,7 +18,9 @@ public sealed class ConsentTests : BunitContext
         ComponentFactories.Add(new StubComponentFactory());
 
         _authClient = Substitute.For<IAuthApiClient>();
+        _logger = new FakeLogger<Consent>();
         Services.AddSingleton(_authClient);
+        Services.AddSingleton<ILogger<Consent>>(_logger);
     }
 
     private void NavigateToConsent(string? returnUrl = null, string? clientId = null)
@@ -29,7 +33,7 @@ public sealed class ConsentTests : BunitContext
         }
         if (clientId is not null)
         {
-            queryParams.Add($"ClientId={Uri.EscapeDataString(clientId)}");
+            queryParams.Add($"client_id={Uri.EscapeDataString(clientId)}");
         }
         string query = queryParams.Count > 0 ? "?" + string.Join("&", queryParams) : "";
         navMan.NavigateTo($"/consent{query}");
@@ -242,5 +246,74 @@ public sealed class ConsentTests : BunitContext
         uri.Should().Contain("/callback?state=xyz&consent_denied=true");
         int questionMarkCount = uri.Count(c => c == '?');
         questionMarkCount.Should().Be(1);
+    }
+
+    [Fact]
+    public void OnInitialized_WithClientId_LogsPageInitialization()
+    {
+        _authClient.GetConsentInfoAsync(Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(new ConsentInfo("my-app", "My Application", null, new List<ConsentScopeInfo> { new("openid", "Identity") }));
+
+        NavigateToConsent(returnUrl: "/callback", clientId: "my-app");
+
+        Render<Consent>();
+
+        _logger.LogEntries.Should().ContainSingle(e =>
+            e.LogLevel == LogLevel.Information &&
+            e.FormattedMessage.Contains("OIDC Consent:") &&
+            e.FormattedMessage.Contains("initialized"));
+    }
+
+    [Fact]
+    public void OnInitialized_WithoutClientId_LogsWarning()
+    {
+        Render<Consent>();
+
+        _logger.LogEntries.Should().Contain(e =>
+            e.LogLevel == LogLevel.Warning &&
+            e.FormattedMessage.Contains("OIDC Consent:") &&
+            e.FormattedMessage.Contains("no client"));
+    }
+
+    [Fact]
+    public async Task Approve_LogsConsentGranted()
+    {
+        ConsentInfo consentInfo = new("my-app", "My Application", null,
+            new List<ConsentScopeInfo> { new("openid", "Identity") });
+        _authClient.GetConsentInfoAsync(Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(consentInfo);
+
+        NavigateToConsent(returnUrl: "/callback", clientId: "my-app");
+
+        IRenderedComponent<Consent> cut = Render<Consent>();
+
+        AngleSharp.Dom.IElement approveButton = cut.Find("[data-testid='consent-approve']");
+        await approveButton.ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+
+        _logger.LogEntries.Should().Contain(e =>
+            e.LogLevel == LogLevel.Information &&
+            e.FormattedMessage.Contains("OIDC Consent:") &&
+            e.FormattedMessage.Contains("approved"));
+    }
+
+    [Fact]
+    public async Task Deny_LogsConsentDenied()
+    {
+        ConsentInfo consentInfo = new("my-app", "My Application", null,
+            new List<ConsentScopeInfo> { new("openid", "Identity") });
+        _authClient.GetConsentInfoAsync(Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(consentInfo);
+
+        NavigateToConsent(returnUrl: "/callback", clientId: "my-app");
+
+        IRenderedComponent<Consent> cut = Render<Consent>();
+
+        AngleSharp.Dom.IElement denyButton = cut.Find("[data-testid='consent-deny']");
+        await denyButton.ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+
+        _logger.LogEntries.Should().Contain(e =>
+            e.LogLevel == LogLevel.Information &&
+            e.FormattedMessage.Contains("OIDC Consent:") &&
+            e.FormattedMessage.Contains("denied"));
     }
 }

@@ -3,6 +3,7 @@
 
 @inject IAuthApiClient AuthClient
 @inject NavigationManager Navigation
+@inject ILogger<Consent> Logger
 
 <PageTitle>Consent</PageTitle>
 
@@ -33,25 +34,32 @@ else
     [SupplyParameterFromQuery]
     public string? ReturnUrl { get; set; }
 
-    [SupplyParameterFromQuery]
+    [SupplyParameterFromQuery(Name = "client_id")]
     public string? ClientId { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
         if (ClientId is not null)
         {
+            Logger.LogInformation("OIDC Consent: page initialized for ClientId={ClientId}", ClientId);
             _consentInfo = await AuthClient.GetConsentInfoAsync(ClientId, Array.Empty<string>());
+        }
+        else
+        {
+            Logger.LogWarning("OIDC Consent: no client ID provided");
         }
     }
 
     private void Approve()
     {
+        Logger.LogInformation("OIDC Consent: user approved consent for ClientId={ClientId}", ClientId);
         string url = AppendToReturnUrl("consent_granted=true");
         Navigation.NavigateTo(url, forceLoad: true);
     }
 
     private void Deny()
     {
+        Logger.LogInformation("OIDC Consent: user denied consent for ClientId={ClientId}", ClientId);
         string url = AppendToReturnUrl("consent_denied=true");
         Navigation.NavigateTo(url, forceLoad: true);
     }

@@ -34,4 +34,8 @@
     <Content Include="..\..\branding.json" CopyToPublishDirectory="PreserveNewest" Link="branding.json" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Wallow.Web.Tests" />
+  </ItemGroup>
+
 </Project>

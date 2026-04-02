@@ -3,6 +3,7 @@
 @inject Wallow.Auth.Services.IAuthApiClient AuthApiClient
 @using Wallow.Auth.Configuration
 @inject BrandingOptions Branding
+@inject ILogger<Logout> Logger
 
 <PageTitle>Sign Out — @Branding.AppName</PageTitle>
 
@@ -79,9 +80,13 @@
 
     protected override async Task OnInitializedAsync()
     {
+        Logger.LogDebug("OIDC Logout: page initializing, signedOut={SignedOut}", SignedOut);
+
         if (SignedOut == "true" && !string.IsNullOrEmpty(PostLogoutRedirectUri))
         {
+            Logger.LogDebug("OIDC Logout: validating post-logout redirect URI");
             _isRedirectUriValid = await AuthApiClient.ValidateRedirectUriAsync(PostLogoutRedirectUri);
+            Logger.LogDebug("OIDC Logout: redirect URI validation result={IsValid}", _isRedirectUriValid);
         }
     }
 }

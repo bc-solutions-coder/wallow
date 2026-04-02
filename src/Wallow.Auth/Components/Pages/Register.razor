@@ -7,6 +7,7 @@
 @inject IConfiguration Configuration
 @using Wallow.Auth.Configuration
 @inject BrandingOptions Branding
+@inject ILogger<Register> Logger
 
 <PageTitle>Create Account — @Branding.AppName</PageTitle>
 
@@ -212,6 +213,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        Logger.LogDebug("OIDC Register: page initializing");
         _externalProviders = await AuthClient.GetExternalProvidersAsync();
 
         if (!string.IsNullOrEmpty(ClientId))
@@ -337,10 +339,12 @@
 
             string? loginMethod = _isPasswordless ? "passwordless" : null;
             RegisterRequest request = new(_email, _password, _confirmPassword, ClientId, loginMethod, ReturnUrl);
+            Logger.LogDebug("OIDC Register: submitting registration for {Email}", _email);
             AuthResponse result = await AuthClient.RegisterAsync(request);
 
             if (result.Succeeded)
             {
+                Logger.LogInformation("OIDC Register: registration succeeded for {Email}", _email);
                 _suggestedOrgName = await AuthClient.GetMatchingOrganizationByDomainAsync(_email);
 
                 if (_suggestedOrgName is not null)
@@ -349,11 +353,13 @@
                 }
                 else
                 {
+                    Logger.LogDebug("OIDC Register: redirecting to verify email");
                     Navigation.NavigateTo(VerifyEmailUrl);
                 }
             }
             else
             {
+                Logger.LogWarning("OIDC Register: registration failed for {Email} with error {Error}", _email, result.Error);
                 _errorMessage = result.Error switch
                 {
                     "email_taken" => "An account with this email already exists.",

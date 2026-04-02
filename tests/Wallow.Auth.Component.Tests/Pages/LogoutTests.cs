@@ -2,23 +2,28 @@ using Bunit;
 using Bunit.TestDoubles;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Wallow.Auth.Components.Pages;
 using Wallow.Auth.Configuration;
 using Wallow.Auth.Services;
+using Wallow.Tests.Common.Helpers;
 
 namespace Wallow.Auth.Component.Tests.Pages;
 
 public sealed class LogoutTests : BunitContext
 {
     private readonly IAuthApiClient _authClient;
+    private readonly ILogger<Logout> _logger;
 
     public LogoutTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
         ComponentFactories.Add(new StubComponentFactory());
         _authClient = Substitute.For<IAuthApiClient>();
+        _logger = Substitute.For<ILogger<Logout>>();
         Services.AddSingleton(_authClient);
         Services.AddSingleton(new BrandingOptions { AppName = "TestApp" });
+        Services.AddSingleton(_logger);
 
         Dictionary<string, string?> configValues = new()
         {
@@ -123,5 +128,36 @@ public sealed class LogoutTests : BunitContext
         IRenderedComponent<Logout> cut = Render<Logout>();
 
         cut.Find("a[href='/login']").TextContent.Should().Contain("Back to sign in");
+    }
+
+    [Fact]
+    public void Init_LogsPageInitialized()
+    {
+        Render<Logout>();
+
+        _logger.ShouldHaveLoggedMessage("OIDC Logout:");
+    }
+
+    [Fact]
+    public void SignedOut_LogsSignedOutState()
+    {
+        NavigateWithParams(signedOut: "true");
+
+        Render<Logout>();
+
+        _logger.ShouldHaveLoggedMessage("OIDC Logout:");
+    }
+
+    [Fact]
+    public void SignedOut_WithRedirectUri_LogsRedirectValidation()
+    {
+        _authClient.ValidateRedirectUriAsync("https://app.example.com", Arg.Any<CancellationToken>())
+            .Returns(true);
+
+        NavigateWithParams(signedOut: "true", postLogoutRedirectUri: "https://app.example.com");
+
+        Render<Logout>();
+
+        _logger.ShouldHaveLoggedMessage("OIDC Logout:");
     }
 }

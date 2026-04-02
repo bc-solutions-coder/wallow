@@ -1,23 +1,28 @@
 using Bunit;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Wallow.Auth.Components.Pages;
 using Wallow.Auth.Configuration;
 using Wallow.Auth.Models;
 using Wallow.Auth.Services;
+using Wallow.Tests.Common.Helpers;
 
 namespace Wallow.Auth.Component.Tests.Pages;
 
 public sealed class ForgotPasswordTests : BunitContext
 {
     private readonly IAuthApiClient _authApi;
+    private readonly ILogger<ForgotPassword> _logger;
 
     public ForgotPasswordTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
         ComponentFactories.Add(new StubComponentFactory());
         _authApi = Substitute.For<IAuthApiClient>();
+        _logger = Substitute.For<ILogger<ForgotPassword>>();
         Services.AddSingleton(_authApi);
         Services.AddSingleton(new BrandingOptions { AppName = "TestApp" });
+        Services.AddSingleton(_logger);
     }
 
     [Fact]
@@ -68,5 +73,30 @@ public sealed class ForgotPasswordTests : BunitContext
 
         await _authApi.DidNotReceive().ForgotPasswordAsync(
             Arg.Any<ForgotPasswordRequest>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public void Init_LogsPageInitialized()
+    {
+        Render<ForgotPassword>();
+
+        _logger.ShouldHaveLoggedMessage("OIDC ForgotPassword:");
+    }
+
+    [Fact]
+    public async Task Submit_WithValidEmail_LogsSubmission()
+    {
+        _authApi.ForgotPasswordAsync(Arg.Any<ForgotPasswordRequest>(), Arg.Any<CancellationToken>())
+            .Returns(new AuthResponse(true));
+
+        IRenderedComponent<ForgotPassword> cut = Render<ForgotPassword>();
+
+        await cut.Find("#forgot-email").InputAsync(new Microsoft.AspNetCore.Components.ChangeEventArgs { Value = "test@example.com" });
+
+        AngleSharp.Dom.IElement button = cut.FindAll("button")
+            .First(b => b.TextContent.Contains("Send reset link"));
+        await button.ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+
+        _logger.ShouldHaveLoggedMessage("OIDC ForgotPassword:");
     }
 }

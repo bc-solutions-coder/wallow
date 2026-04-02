@@ -5,6 +5,7 @@
 @inject IConfiguration Configuration
 @using Wallow.Auth.Configuration
 @inject BrandingOptions Branding
+@inject ILogger<AcceptTerms> Logger
 
 <PageTitle>Accept Terms — @Branding.AppName</PageTitle>
 
@@ -88,6 +89,16 @@
     private bool _termsAccepted;
     private bool _privacyAccepted;
 
+    protected override void OnInitialized()
+    {
+        Logger.LogInformation("OIDC AcceptTerms: page initialized, Email={Email}, ReturnUrl={ReturnUrl}", Email, ReturnUrl);
+
+        if (!string.IsNullOrEmpty(Error))
+        {
+            Logger.LogWarning("OIDC AcceptTerms: page loaded with error={Error}", Error);
+        }
+    }
+
     private string ApiBaseUrl => Configuration["ApiBaseUrl"] ?? "http://localhost:5001";
 
     private void HandleAcceptTerms()
@@ -96,6 +107,8 @@
         {
             return;
         }
+
+        Logger.LogInformation("OIDC AcceptTerms: terms accepted, redirecting to complete registration");
 
         string encodedReturnUrl = Uri.EscapeDataString(ReturnUrl ?? "/");
         string completeUrl = $"{ApiBaseUrl}/v1/identity/auth/complete-external-registration?acceptedTerms=true&returnUrl={encodedReturnUrl}";

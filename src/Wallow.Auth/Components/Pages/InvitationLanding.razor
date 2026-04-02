@@ -7,6 +7,7 @@
 @inject AuthenticationStateProvider AuthStateProvider
 @using Wallow.Auth.Configuration
 @inject BrandingOptions Branding
+@inject ILogger<InvitationLanding> Logger
 
 <PageTitle>Invitation — @Branding.AppName</PageTitle>
 
@@ -116,10 +117,13 @@
     {
         if (string.IsNullOrWhiteSpace(Token))
         {
+            Logger.LogWarning("OIDC InvitationLanding: no token provided");
             _errorMessage = "No invitation token provided.";
             _isLoading = false;
             return;
         }
+
+        Logger.LogInformation("OIDC InvitationLanding: page initialized with token");
 
         try
         {
@@ -137,6 +141,7 @@
 
             if (_invitation is null)
             {
+                Logger.LogWarning("OIDC InvitationLanding: invitation is invalid or not found");
                 _errorMessage = "This invitation is not valid or has already been used.";
             }
             else if (_invitation.Status is "Expired" || _invitation.ExpiresAt < DateTimeOffset.UtcNow)
@@ -170,6 +175,7 @@
 
             if (success)
             {
+                Logger.LogInformation("OIDC InvitationLanding: invitation accepted successfully");
                 Navigation.NavigateTo("/", forceLoad: true);
             }
             else

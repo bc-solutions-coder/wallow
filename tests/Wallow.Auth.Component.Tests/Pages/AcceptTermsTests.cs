@@ -2,6 +2,7 @@ using Bunit;
 using Bunit.TestDoubles;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Wallow.Auth.Components.Pages;
 using Wallow.Auth.Configuration;
 
@@ -9,11 +10,15 @@ namespace Wallow.Auth.Component.Tests.Pages;
 
 public sealed class AcceptTermsTests : BunitContext
 {
+    private readonly FakeLogger<AcceptTerms> _logger;
+
     public AcceptTermsTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
         ComponentFactories.Add(new StubComponentFactory());
+        _logger = new FakeLogger<AcceptTerms>();
         Services.AddSingleton(new BrandingOptions { AppName = "TestApp" });
+        Services.AddSingleton<ILogger<AcceptTerms>>(_logger);
 
         Dictionary<string, string?> configValues = new()
         {
@@ -117,5 +122,52 @@ public sealed class AcceptTermsTests : BunitContext
         IRenderedComponent<AcceptTerms> cut = Render<AcceptTerms>();
 
         cut.Find("a[href='/login']").TextContent.Should().Contain("Back to sign in");
+    }
+
+    [Fact]
+    public void OnInitialized_LogsPageInitialization()
+    {
+        NavigateWithParams(returnUrl: "/callback", email: "test@example.com");
+
+        Render<AcceptTerms>();
+
+        _logger.LogEntries.Should().ContainSingle(e =>
+            e.LogLevel == LogLevel.Information &&
+            e.FormattedMessage.Contains("OIDC AcceptTerms:") &&
+            e.FormattedMessage.Contains("initialized"));
+    }
+
+    [Fact]
+    public void OnInitialized_WithError_LogsWarning()
+    {
+        NavigateWithParams(error: "terms_required");
+
+        Render<AcceptTerms>();
+
+        _logger.LogEntries.Should().Contain(e =>
+            e.LogLevel == LogLevel.Warning &&
+            e.FormattedMessage.Contains("OIDC AcceptTerms:") &&
+            e.FormattedMessage.Contains("error"));
+    }
+
+    [Fact]
+    public async Task AcceptTerms_LogsAcceptAndRedirect()
+    {
+        NavigateWithParams(returnUrl: "/dashboard");
+
+        IRenderedComponent<AcceptTerms> cut = Render<AcceptTerms>();
+
+        IReadOnlyList<AngleSharp.Dom.IElement> checkboxes = cut.FindAll("input[type='checkbox']");
+        await checkboxes[0].ChangeAsync(new Microsoft.AspNetCore.Components.ChangeEventArgs { Value = true });
+        await checkboxes[1].ChangeAsync(new Microsoft.AspNetCore.Components.ChangeEventArgs { Value = true });
+
+        AngleSharp.Dom.IElement button = cut.FindAll("button")
+            .First(b => b.TextContent.Contains("Create Account"));
+        await button.ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+
+        _logger.LogEntries.Should().Contain(e =>
+            e.LogLevel == LogLevel.Information &&
+            e.FormattedMessage.Contains("OIDC AcceptTerms:") &&
+            e.FormattedMessage.Contains("accepted"));
     }
 }

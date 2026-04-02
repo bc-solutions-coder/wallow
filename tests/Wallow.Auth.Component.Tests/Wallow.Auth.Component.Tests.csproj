@@ -25,6 +25,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Wallow.Auth\Wallow.Auth.csproj" />
+    <ProjectReference Include="..\Wallow.Tests.Common\Wallow.Tests.Common.csproj" />
   </ItemGroup>
 
 </Project>

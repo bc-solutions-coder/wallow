@@ -7,6 +7,7 @@
 @using Wallow.Auth.Configuration
 @using Wallow.Auth.Helpers
 @inject BrandingOptions Branding
+@inject ILogger<MfaChallenge> Logger
 
 <PageTitle>MFA Verification — @Branding.AppName</PageTitle>
 
@@ -111,6 +112,11 @@
     private bool _verified;
     private bool _useBackupCode;
 
+    protected override void OnInitialized()
+    {
+        Logger.LogInformation("OIDC MfaChallenge: page initialized, ReturnUrl={ReturnUrl}", ReturnUrl);
+    }
+
     private void ToggleBackupCode()
     {
         _useBackupCode = !_useBackupCode;
@@ -139,6 +145,14 @@
 
             if (result.Succeeded)
             {
+                if (_useBackupCode)
+                {
+                    Logger.LogInformation("OIDC MfaChallenge: backup code verified successfully");
+                }
+                else
+                {
+                    Logger.LogInformation("OIDC MfaChallenge: code verified successfully");
+                }
                 _verified = true;
                 string? safeReturnUrl = ReturnUrlValidator.IsSafe(ReturnUrl) ? ReturnUrl : null;
 
@@ -157,6 +171,7 @@
             }
             else
             {
+                Logger.LogWarning("OIDC MfaChallenge: verification failed with error {Error}", result.Error);
                 _errorMessage = result.Error switch
                 {
                     "invalid_code" => _useBackupCode

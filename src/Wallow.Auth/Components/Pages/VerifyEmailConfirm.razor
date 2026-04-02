@@ -4,6 +4,7 @@
 @using Wallow.Auth.Configuration
 @using Wallow.Auth.Helpers
 @inject BrandingOptions Branding
+@inject ILogger<VerifyEmailConfirm> Logger
 
 <PageTitle>Verify Email — @Branding.AppName</PageTitle>
 
@@ -74,8 +75,11 @@
 
     protected override async Task OnInitializedAsync()
     {
+        Logger.LogDebug("OIDC VerifyEmailConfirm: page initializing with email={Email}", Email);
+
         if (string.IsNullOrEmpty(Token) || string.IsNullOrEmpty(Email))
         {
+            Logger.LogWarning("OIDC VerifyEmailConfirm: missing required parameters");
             _loading = false;
             _error = "Invalid verification link. Missing required parameters.";
             return;
@@ -83,11 +87,17 @@
 
         try
         {
+            Logger.LogDebug("OIDC VerifyEmailConfirm: verifying email for {Email}", Email);
             AuthResponse result = await AuthApi.VerifyEmailAsync(Email, Token);
 
             _succeeded = result.Succeeded;
-            if (!result.Succeeded)
+            if (result.Succeeded)
             {
+                Logger.LogInformation("OIDC VerifyEmailConfirm: email verification succeeded for {Email}", Email);
+            }
+            else
+            {
+                Logger.LogWarning("OIDC VerifyEmailConfirm: email verification failed for {Email} with error {Error}", Email, result.Error);
                 _error = result.Error switch
                 {
                     "invalid_token" => "The verification link is invalid or has expired.",

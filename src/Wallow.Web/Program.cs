@@ -193,6 +193,32 @@ builder.Services.AddAuthentication(options =>
             OidcLogMessages.RemoteFailure(logger, context.Failure);
             return Task.CompletedTask;
         };
+        options.Events.OnAuthorizationCodeReceived = context =>
+        {
+            ILogger logger = context.HttpContext.RequestServices
+                .GetRequiredService<ILoggerFactory>()
+                .CreateLogger("Wallow.Web.OidcAuth");
+            OidcLogMessages.OnAuthorizationCodeReceived(logger, context.Scheme.Name);
+            return Task.CompletedTask;
+        };
+        options.Events.OnTokenValidated = context =>
+        {
+            ILogger logger = context.HttpContext.RequestServices
+                .GetRequiredService<ILoggerFactory>()
+                .CreateLogger("Wallow.Web.OidcAuth");
+            string subject = context.Principal?.FindFirst("sub")?.Value ?? "unknown";
+            string issuer = context.Options.Authority ?? "unknown";
+            OidcLogMessages.OnTokenValidated(logger, subject, issuer);
+            return Task.CompletedTask;
+        };
+        options.Events.OnTokenResponseReceived = context =>
+        {
+            ILogger logger = context.HttpContext.RequestServices
+                .GetRequiredService<ILoggerFactory>()
+                .CreateLogger("Wallow.Web.OidcAuth");
+            OidcLogMessages.OnTokenResponseReceived(logger, context.Scheme.Name);
+            return Task.CompletedTask;
+        };
     });
 
 builder.Services.AddHttpClient("WallowApi", client =>

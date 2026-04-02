@@ -3,10 +3,12 @@ using Bunit.TestDoubles;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Wallow.Auth.Components.Pages;
 using Wallow.Auth.Configuration;
 using Wallow.Auth.Models;
 using Wallow.Auth.Services;
+using Wallow.Tests.Common.Helpers;
 
 namespace Wallow.Auth.Component.Tests.Pages;
 
@@ -14,6 +16,7 @@ public sealed class RegisterTests : BunitContext
 {
     private readonly IAuthApiClient _authClient;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly ILogger<Register> _logger;
 
     public RegisterTests()
     {
@@ -24,11 +27,13 @@ public sealed class RegisterTests : BunitContext
             .Returns(new List<string>());
 
         _httpClientFactory = Substitute.For<IHttpClientFactory>();
+        _logger = Substitute.For<ILogger<Register>>();
 
         Services.AddSingleton(_authClient);
         Services.AddSingleton(_httpClientFactory);
         Services.AddSingleton(new BrandingOptions());
         Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        Services.AddSingleton(_logger);
     }
 
     [Fact]
@@ -214,5 +219,57 @@ public sealed class RegisterTests : BunitContext
         await cut.Find("form").SubmitAsync();
 
         cut.Markup.Should().Contain("Please enter a password.");
+    }
+
+    [Fact]
+    public void Init_LogsPageInitialized()
+    {
+        Render<Register>();
+
+        _logger.ShouldHaveLoggedMessage("OIDC Register:");
+    }
+
+    [Fact]
+    public async Task Submit_WithValidData_LogsSuccessfulRegistration()
+    {
+        _authClient.RegisterAsync(Arg.Any<RegisterRequest>(), Arg.Any<CancellationToken>())
+            .Returns(new AuthResponse(Succeeded: true));
+        _authClient.GetMatchingOrganizationByDomainAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns((string?)null);
+
+        IRenderedComponent<Register> cut = Render<Register>();
+
+        await cut.Find("input[placeholder='name@example.com']").InputAsync(new ChangeEventArgs { Value = "user@test.com" });
+        await cut.Find("input[placeholder='Create a password']").InputAsync(new ChangeEventArgs { Value = "P@ssword1" });
+        await cut.Find("input[placeholder='Confirm your password']").InputAsync(new ChangeEventArgs { Value = "P@ssword1" });
+
+        IReadOnlyList<AngleSharp.Dom.IElement> checkboxes = cut.FindAll("input[type='checkbox']");
+        await checkboxes[1].ChangeAsync(new ChangeEventArgs { Value = true });
+        await checkboxes[2].ChangeAsync(new ChangeEventArgs { Value = true });
+
+        await cut.Find("form").SubmitAsync();
+
+        _logger.ShouldHaveLoggedMessage("OIDC Register:");
+    }
+
+    [Fact]
+    public async Task Submit_WithEmailTaken_LogsFailure()
+    {
+        _authClient.RegisterAsync(Arg.Any<RegisterRequest>(), Arg.Any<CancellationToken>())
+            .Returns(new AuthResponse(Succeeded: false, Error: "email_taken"));
+
+        IRenderedComponent<Register> cut = Render<Register>();
+
+        await cut.Find("input[placeholder='name@example.com']").InputAsync(new ChangeEventArgs { Value = "user@test.com" });
+        await cut.Find("input[placeholder='Create a password']").InputAsync(new ChangeEventArgs { Value = "P@ssword1" });
+        await cut.Find("input[placeholder='Confirm your password']").InputAsync(new ChangeEventArgs { Value = "P@ssword1" });
+
+        IReadOnlyList<AngleSharp.Dom.IElement> checkboxes = cut.FindAll("input[type='checkbox']");
+        await checkboxes[1].ChangeAsync(new ChangeEventArgs { Value = true });
+        await checkboxes[2].ChangeAsync(new ChangeEventArgs { Value = true });
+
+        await cut.Find("form").SubmitAsync();
+
+        _logger.ShouldHaveLoggedMessage("OIDC Register:");
     }
 }
