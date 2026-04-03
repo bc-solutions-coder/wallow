@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.2.0](https://github.com/bc-solutions-coder/wallow/compare/v3.1.0...v3.2.0) (2026-04-03)
+
+
+### Features
+
+* extract seeding into dedicated SeederService container ([8a46601](https://github.com/bc-solutions-coder/wallow/commit/8a46601e8b28c1896e84ec49f699248066d7ca0f))
+* **seeder:** add SeederService for automated tenant and user provisioning ([36a74b4](https://github.com/bc-solutions-coder/wallow/commit/36a74b44d0bf75e08bc18b1387775c7fab3b4bd8))
+
 ## [3.1.0](https://github.com/bc-solutions-coder/wallow/compare/v3.0.2...v3.1.0) (2026-04-02)
 
 
