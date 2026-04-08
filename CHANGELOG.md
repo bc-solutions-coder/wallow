@@ -1,5 +1,20 @@
 # Changelog
 
+## [3.2.0](https://github.com/bc-solutions-coder/wallow/compare/v3.1.0...v3.2.0) (2026-04-08)
+
+
+### Features
+
+* extract seeding into dedicated SeederService container ([8a46601](https://github.com/bc-solutions-coder/wallow/commit/8a46601e8b28c1896e84ec49f699248066d7ca0f))
+* **seeder:** add SeederService for automated tenant and user provisioning ([36a74b4](https://github.com/bc-solutions-coder/wallow/commit/36a74b44d0bf75e08bc18b1387775c7fab3b4bd8))
+
+
+### Bug Fixes
+
+* **ci:** add wallow-seeder image to E2E pipeline ([4b79245](https://github.com/bc-solutions-coder/wallow/commit/4b792459768a05952cb5b3545047e8478027d3a2))
+* **e2e:** use NetworkIdle wait for login page in logout test ([5470b60](https://github.com/bc-solutions-coder/wallow/commit/5470b60391986a439db6fbfc4eec799f8f1284b4))
+* **seeder,e2e:** env var precedence and test reliability in containers ([4b19c59](https://github.com/bc-solutions-coder/wallow/commit/4b19c5909bf721eca062b64a7a2b3cc82ca3c531))
+
 ## [3.1.0](https://github.com/bc-solutions-coder/wallow/compare/v3.0.2...v3.1.0) (2026-04-02)
 
 
