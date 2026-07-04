@@ -63,6 +63,29 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
+      - name: Wait for source images to be published
+        env:
+          SHORT_SHA: ${{ steps.version.outputs.short_sha }}
+        run: |
+          # The deploy workflow builds and pushes the :sha images for this same
+          # commit. The tag push (this workflow) and the branch push (deploy)
+          # start concurrently, so the :sha images may not exist yet when this
+          # job begins. Poll until every image is available before promoting.
+          suffixes=("" "-auth" "-web" "-migrations" "-seeder" "-garage" "-postgres-replica")
+          deadline=$(( $(date +%s) + 1800 ))  # 30 minutes
+          for suffix in "${suffixes[@]}"; do
+            image="${IMAGE_BASE}${suffix}:${SHORT_SHA}"
+            until docker buildx imagetools inspect "$image" >/dev/null 2>&1; do
+              if [ "$(date +%s)" -ge "$deadline" ]; then
+                echo "::error::Timed out waiting for ${image}. Check that the deploy workflow for this commit succeeded."
+                exit 1
+              fi
+              echo "Waiting for ${image} ..."
+              sleep 20
+            done
+            echo "Found ${image}"
+          done
+
       - name: Promote images to :latest and semver tags
         env:
           VERSION: ${{ steps.version.outputs.semver }}
