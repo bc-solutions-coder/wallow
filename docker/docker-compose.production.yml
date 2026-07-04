@@ -252,7 +252,9 @@ services:
     volumes:
       # Self-contained production seed. Fully replaces the image-bundled seed.json
       # (see SEED_FILE_PATH) so dev/localhost client definitions never leak in.
-      - ./seed.production.json:/app/seed.production.json:ro
+      # Host path is configurable so servers can store the (gitignored) seed file
+      # outside the compose directory. Defaults to ./seed.production.json for local runs.
+      - ${SEED_FILE_HOST_PATH:-./seed.production.json}:/app/seed.production.json:ro
     environment:
       ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
       # Load the production seed override instead of the bundled seed.json.
