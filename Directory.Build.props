@@ -33,6 +33,10 @@
   <PropertyGroup>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591;DAP005;NU1608</NoWarn> <!-- Missing XML comments; Dapper AOT not used; Humanizer 2.x locale satellites vs 3.x core -->
+    <!-- NuGet audit advisories (NU1901-NU1904) stay visible as warnings but must not
+         fail the build; newly disclosed transitive CVEs would otherwise break every
+         deploy. Track and patch vulnerable packages separately in Directory.Packages.props. -->
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1901;NU1902;NU1903;NU1904</WarningsNotAsErrors>
     <!-- Prevent recursive bin/obj nesting when content files are copied to output -->
     <DefaultItemExcludes>$(DefaultItemExcludes);**/bin/**;**/obj/**</DefaultItemExcludes>
   </PropertyGroup>
