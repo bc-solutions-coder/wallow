@@ -47,6 +47,9 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
+      # postgres:18+ moved the default data dir to /var/lib/postgresql/<major>/docker.
+      # Pin the pre-18 path so the existing volume layout keeps working.
+      PGDATA: /var/lib/postgresql/data
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -79,6 +82,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       PGPASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_PRIMARY_HOST: postgres
+      # Match the primary and the replica entrypoint's data dir (pre-18 path).
+      PGDATA: /var/lib/postgresql/data
     volumes:
       - postgres_replica_data:/var/lib/postgresql/data
     depends_on:
