@@ -244,26 +244,28 @@ services:
     image: ghcr.io/bc-solutions-coder/wallow-seeder:${VERSION:-latest}
     container_name: ${COMPOSE_PROJECT_NAME:-wallow}-seeder
     restart: on-failure
+    volumes:
+      # Self-contained production seed. Fully replaces the image-bundled seed.json
+      # (see SEED_FILE_PATH) so dev/localhost client definitions never leak in.
+      - ./seed.production.json:/app/seed.production.json:ro
     environment:
       ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
-      # Admin bootstrap (override seed.json defaults for production)
+      # Load the production seed override instead of the bundled seed.json.
+      SEED_FILE_PATH: /app/seed.production.json
+      # Admin bootstrap — email + password sourced from .env.production.
       Admin__Email: ${ADMIN_EMAIL}
       Admin__Password: ${ADMIN_PASSWORD}
       Admin__FirstName: ${ADMIN_FIRST_NAME:-Admin}
       Admin__LastName: ${ADMIN_LAST_NAME:-User}
-      # OIDC client: Wallow Web (override seed.json defaults for production URLs)
-      Clients__0__ClientId: ${OIDC_CLIENT_ID}
-      Clients__0__DisplayName: Wallow Web
+      # Client secrets injected by index over seed.production.json (which is
+      # deliberately secret-less). Index order is load-bearing and MUST match the
+      # "clients" array in seed.production.json:
+      #   0 = wallow-web-client   (dashboard at wallow.dev)
+      #   1 = bcordes-client      (bcordes.dev SPA login)
+      #   2 = sa-bcordes-bff      (bcordes.dev BFF service account)
       Clients__0__Secret: ${OIDC_CLIENT_SECRET}
-      Clients__0__TenantName: Default
-      Clients__0__RedirectUris__0: ${WEB_PUBLIC_URL:-https://wallow.dev}/signin-oidc
-      Clients__0__PostLogoutRedirectUris__0: ${WEB_PUBLIC_URL:-https://wallow.dev}/signout-callback-oidc
-      Clients__0__Scopes__0: openid
-      Clients__0__Scopes__1: email
-      Clients__0__Scopes__2: profile
-      Clients__0__Scopes__3: roles
-      Clients__0__Scopes__4: offline_access
-      Clients__0__SeedMembers__0: ${ADMIN_EMAIL}
+      Clients__1__Secret: ${BCORDES_CLIENT_SECRET}
+      Clients__2__Secret: ${BCORDES_BFF_SECRET}
     depends_on:
       wallow-migrations:
         condition: service_completed_successfully
