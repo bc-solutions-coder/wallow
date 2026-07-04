@@ -1,5 +1,24 @@
 # Changelog
 
+## [3.2.0](https://github.com/bc-solutions-coder/wallow/compare/v3.1.0...v3.2.0) (2026-07-04)
+
+
+### Features
+
+* **docker:** seed bcordes.dev OIDC and BFF clients in production ([a6492b8](https://github.com/bc-solutions-coder/wallow/commit/a6492b8564f5aadb70d828a03b0326c510a69565))
+* extract seeding into dedicated SeederService container ([8a46601](https://github.com/bc-solutions-coder/wallow/commit/8a46601e8b28c1896e84ec49f699248066d7ca0f))
+* **seeder:** add SeederService for automated tenant and user provisioning ([36a74b4](https://github.com/bc-solutions-coder/wallow/commit/36a74b44d0bf75e08bc18b1387775c7fab3b4bd8))
+
+
+### Bug Fixes
+
+* **build:** disable static web asset compression on container publish ([1aa1893](https://github.com/bc-solutions-coder/wallow/commit/1aa1893315dbe00bf93b678474070807d0de07ce))
+* **build:** keep NuGet audit CVEs as warnings, not build errors ([d1dc0d9](https://github.com/bc-solutions-coder/wallow/commit/d1dc0d9bf16dac8ecd0287cb560732d681add8d2))
+* **ci:** add wallow-seeder image to E2E pipeline ([4b79245](https://github.com/bc-solutions-coder/wallow/commit/4b792459768a05952cb5b3545047e8478027d3a2))
+* **ci:** build and publish wallow-seeder container image ([5a10e57](https://github.com/bc-solutions-coder/wallow/commit/5a10e578deacee657127c5362c1418828cfc2048))
+* **e2e:** use NetworkIdle wait for login page in logout test ([5470b60](https://github.com/bc-solutions-coder/wallow/commit/5470b60391986a439db6fbfc4eec799f8f1284b4))
+* **seeder,e2e:** env var precedence and test reliability in containers ([4b19c59](https://github.com/bc-solutions-coder/wallow/commit/4b19c5909bf721eca062b64a7a2b3cc82ca3c531))
+
 ## [3.1.0](https://github.com/bc-solutions-coder/wallow/compare/v3.0.2...v3.1.0) (2026-04-02)
 
 
