@@ -7,6 +7,17 @@
     <ContainerRuntimeIdentifiers>linux-x64;linux-arm64</ContainerRuntimeIdentifiers>
   </PropertyGroup>
 
+  <!--
+    RID-specific container publish (dotnet publish with the no-build flag plus
+    /t:PublishContainer and ContainerRuntimeIdentifier) cannot regenerate publish-time
+    compressed static web assets on top of a RID-agnostic cached build, which breaks the
+    static web assets compression target. Disable precompression only on the container
+    publish path; normal build, dev, and framework-dependent publish keep it enabled.
+  -->
+  <PropertyGroup Condition="'$(ContainerRuntimeIdentifier)' != ''">
+    <CompressionEnabled>false</CompressionEnabled>
+  </PropertyGroup>
+
   <!-- Tailwind.Hosting.Build configuration: override defaults to match project layout -->
   <PropertyGroup>
     <TailwindInputCssFile>Styles/app.css</TailwindInputCssFile>
