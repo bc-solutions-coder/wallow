@@ -31,6 +31,13 @@ public sealed partial class AuthorizationController(
 {
     private const string FirstPartyClientPrefix = "wallow-";
 
+    // Clients explicitly listed here skip the consent screen, just like wallow-* clients.
+    // Read once at construction time; overridable via Identity__FirstPartyClients__0=... env vars.
+    private readonly HashSet<string> _firstPartyClientIds =
+        new(
+            configuration.GetSection("Identity:FirstPartyClients").Get<string[]>() ?? [],
+            StringComparer.OrdinalIgnoreCase);
+
     [HttpGet]
     public async Task<IActionResult> Authorize()
     {
@@ -75,7 +82,10 @@ public sealed partial class AuthorizationController(
             ?? throw new InvalidOperationException("The application details cannot be retrieved.");
 
         string? clientId = await applicationManager.GetClientIdAsync(application);
-        bool isFirstParty = clientId?.StartsWith(FirstPartyClientPrefix, StringComparison.OrdinalIgnoreCase) is true;
+        bool isFirstParty =
+            clientId is not null &&
+            (clientId.StartsWith(FirstPartyClientPrefix, StringComparison.OrdinalIgnoreCase)
+             || _firstPartyClientIds.Contains(clientId));
         bool hasValidAuthorization = false;
 
         LogApplicationResolved(clientId, isFirstParty);

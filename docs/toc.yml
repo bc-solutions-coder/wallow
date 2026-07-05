@@ -72,6 +72,8 @@
       href: integrations/asyncapi.md
     - name: BFF Pattern
       href: integrations/bff-pattern.md
+    - name: TypeScript SDK
+      href: integrations/typescript-sdk.md
 - name: API Reference
   items:
     - name: Service Accounts

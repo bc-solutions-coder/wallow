@@ -15,6 +15,12 @@ public sealed class DockerComposeFixture : IAsyncLifetime
     public string MailpitBaseUrl { get; } = Environment.GetEnvironmentVariable("E2E_MAILPIT_URL") ?? "http://localhost:8035";
 
     /// <summary>
+    /// Base URL of the @bc-solutions-coder/sdk BFF reference example (packages/typescript-sdk/examples/tanstack-min),
+    /// served by the <c>bff-example</c> service in docker-compose.test.yml.
+    /// </summary>
+    public string BffBaseUrl { get; } = Environment.GetEnvironmentVariable("E2E_BFF_URL") ?? "http://localhost:3000";
+
+    /// <summary>
     /// When true, containers are managed externally (CI) — skip docker compose up/down.
     /// Set by the E2E_EXTERNAL_SERVICES environment variable or auto-detected when services are already healthy.
     /// </summary>
@@ -37,6 +43,7 @@ public sealed class DockerComposeFixture : IAsyncLifetime
         await WaitForHealthAsync(httpClient, $"{ApiBaseUrl}/health/ready", "API");
         await WaitForHealthAsync(httpClient, $"{AuthBaseUrl}/health", "Auth");
         await WaitForHealthAsync(httpClient, $"{WebBaseUrl}/health", "Web");
+        await WaitForHealthAsync(httpClient, $"{BffBaseUrl}/health", "BFF example");
     }
 
     public async Task DisposeAsync()

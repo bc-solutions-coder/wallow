@@ -136,6 +136,10 @@ services:
       ServiceUrls__ApiUrl: "http://localhost:5050"
       # Fix OIDC issuer so browser-facing tokens match the authority clients expect (localhost)
       OpenIddict__Issuer: "http://localhost:5050"
+      # Treat the seeded BFF client as first-party so the OIDC flow skips the
+      # interactive consent screen (appsettings already lists bcordes-dev-client
+      # at index 0; this appends the tanstack-min example's client at index 1).
+      Identity__FirstPartyClients__1: "bcordes-bff"
     tmpfs:
       - /tmp
       - /app/App_Data
@@ -198,6 +202,51 @@ services:
     depends_on:
       - wallow-api
       - valkey
+    networks:
+      - wallow-test
+
+  # ============================================
+  # BFF REFERENCE EXAMPLE (@bc-solutions-coder/sdk tanstack-min)
+  # ============================================
+  # Node process that hosts the SDK BFF tunnel for the BffFlowTests E2E flow.
+  # Build context is the repo root so the Dockerfile can build the @bc-solutions-coder/sdk
+  # workspace dependency alongside the example.
+  #
+  # OIDC issuer vs discovery-metadata split (mirrors wallow-web):
+  #   - OIDC_ISSUER = http://localhost:5050 is the browser-facing issuer origin
+  #     (matches the API's OpenIddict issuer), used to build authorize/end-session
+  #     redirect URLs the browser follows.
+  #   - OIDC_METADATA_URL = http://host.docker.internal:5050/... is the
+  #     server-reachable discovery URL. The SDK fetches discovery from it and
+  #     rewrites the backchannel token_endpoint to that origin, so container-side
+  #     code exchange and silent refresh reach the API published on the host.
+  bff-example:
+    image: wallow-bff-example:test
+    build:
+      context: ..
+      dockerfile: packages/typescript-sdk/examples/tanstack-min/Dockerfile
+    ports:
+      - "3000:3000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      PORT: "3000"
+      # Browser-facing issuer (must match API OpenIddict issuer for redirects)
+      OIDC_ISSUER: "http://localhost:5050"
+      # Server-reachable discovery URL (container -> host-published API).
+      # The SDK uses this metadata's token_endpoint for the backchannel and pins
+      # the browser-facing authorize/end-session endpoints to OIDC_ISSUER.
+      OIDC_METADATA_URL: "http://host.docker.internal:5050/.well-known/openid-configuration"
+      OIDC_CLIENT_ID: bcordes-bff
+      OIDC_CLIENT_SECRET: bcordes-bff-secret
+      OIDC_REDIRECT_URI: "http://localhost:3000/bff/callback"
+      OIDC_POST_LOGOUT_REDIRECT_URI: "http://localhost:3000/"
+      # Downstream API for the /api proxy (container-to-container)
+      BFF_API_BASE_URL: "http://wallow-api:8080"
+      COOKIE_PASSWORD: "e2e-bff-cookie-seal-password-min-32-chars"
+    depends_on:
+      - wallow-api
+      - wallow-auth
     networks:
       - wallow-test
 

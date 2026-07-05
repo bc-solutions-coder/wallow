@@ -46,7 +46,6 @@ coverage-results/
 
 # NuGet
 *.nupkg
-packages/
 
 # Docker
 docker-compose.override.yml
@@ -102,3 +101,6 @@ bundles/
 
 # Beads / Dolt files (added by bd init)
 .beads/proxieddb/
+
+# Node / npm (SDK workspace + examples)
+node_modules/

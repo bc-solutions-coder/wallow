@@ -1,5 +1,6 @@
 using Bunit;
 using Bunit.TestDoubles;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Wallow.Auth.Components.Pages;
@@ -9,6 +10,8 @@ namespace Wallow.Auth.Component.Tests.Pages;
 
 public sealed class ConsentTests : BunitContext
 {
+    private const string TestApiBaseUrl = "https://api.test.local";
+
     private readonly IAuthApiClient _authClient;
     private readonly FakeLogger<Consent> _logger;
 
@@ -21,6 +24,9 @@ public sealed class ConsentTests : BunitContext
         _logger = new FakeLogger<Consent>();
         Services.AddSingleton(_authClient);
         Services.AddSingleton<ILogger<Consent>>(_logger);
+        Services.AddSingleton<IConfiguration>(new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["ApiBaseUrl"] = TestApiBaseUrl })
+            .Build());
     }
 
     private void NavigateToConsent(string? returnUrl = null, string? clientId = null)
@@ -315,5 +321,53 @@ public sealed class ConsentTests : BunitContext
             e.LogLevel == LogLevel.Information &&
             e.FormattedMessage.Contains("OIDC Consent:") &&
             e.FormattedMessage.Contains("denied"));
+    }
+
+    [Fact]
+    public async Task ClickApprove_WithLeadingSlashReturnUrl_NavigatesToAbsoluteApiUrl()
+    {
+        // The returnUrl is a relative path (as issued by /connect/authorize on the API).
+        // Consent.razor must prepend ApiBaseUrl so the browser is sent to the API origin,
+        // not the Auth app origin (which does not host /connect/authorize).
+        ConsentInfo consentInfo = new("my-app", "My Application", null,
+            new List<ConsentScopeInfo> { new("openid", "Identity") });
+        _authClient.GetConsentInfoAsync(Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(consentInfo);
+
+        NavigateToConsent(returnUrl: "/connect/authorize?response_type=code&client_id=my-app", clientId: "my-app");
+
+        IRenderedComponent<Consent> cut = Render<Consent>();
+
+        AngleSharp.Dom.IElement approveButton = cut.Find("[data-testid='consent-approve']");
+        await approveButton.ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+
+        BunitNavigationManager navMan = Services.GetRequiredService<BunitNavigationManager>();
+        navMan.Uri.Should().StartWith(TestApiBaseUrl);
+        navMan.Uri.Should().Contain("/connect/authorize");
+        navMan.Uri.Should().Contain("consent_granted=true");
+    }
+
+    [Fact]
+    public async Task ClickDeny_WithLeadingSlashReturnUrl_NavigatesToAbsoluteApiUrl()
+    {
+        // The returnUrl is a relative path (as issued by /connect/authorize on the API).
+        // Consent.razor must prepend ApiBaseUrl so the browser is sent to the API origin,
+        // not the Auth app origin (which does not host /connect/authorize).
+        ConsentInfo consentInfo = new("my-app", "My Application", null,
+            new List<ConsentScopeInfo> { new("openid", "Identity") });
+        _authClient.GetConsentInfoAsync(Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(consentInfo);
+
+        NavigateToConsent(returnUrl: "/connect/authorize?response_type=code&client_id=my-app", clientId: "my-app");
+
+        IRenderedComponent<Consent> cut = Render<Consent>();
+
+        AngleSharp.Dom.IElement denyButton = cut.Find("[data-testid='consent-deny']");
+        await denyButton.ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+
+        BunitNavigationManager navMan = Services.GetRequiredService<BunitNavigationManager>();
+        navMan.Uri.Should().StartWith(TestApiBaseUrl);
+        navMan.Uri.Should().Contain("/connect/authorize");
+        navMan.Uri.Should().Contain("consent_denied=true");
     }
 }
