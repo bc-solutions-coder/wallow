@@ -1,5 +1,5 @@
 @page "/register"
-@rendermode InteractiveServer
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 
 @inject IAuthApiClient AuthClient
 @inject IHttpClientFactory HttpClientFactory
@@ -214,12 +214,22 @@
     protected override async Task OnInitializedAsync()
     {
         Logger.LogDebug("OIDC Register: page initializing");
-        _externalProviders = await AuthClient.GetExternalProvidersAsync();
+
+        // These two calls have no data dependency on each other, so run them concurrently
+        // to collapse two sequential API round-trips into one latency unit.
+        Task<List<string>> externalProvidersTask = AuthClient.GetExternalProvidersAsync();
 
         if (!string.IsNullOrEmpty(ClientId))
         {
-            await ResolveOrgNameAsync();
+            Task orgNameTask = ResolveOrgNameAsync();
+            await Task.WhenAll(externalProvidersTask, orgNameTask);
         }
+        else
+        {
+            await externalProvidersTask;
+        }
+
+        _externalProviders = externalProvidersTask.Result;
     }
 
     private async Task ResolveOrgNameAsync()
