@@ -11,6 +11,7 @@ export interface DiscoveryDoc {
   authorization_endpoint: string;
   token_endpoint: string;
   end_session_endpoint?: string;
+  userinfo_endpoint?: string;
 }
 
 /** Token endpoint response for authorization-code and refresh grants. */
@@ -39,27 +40,69 @@ export interface ExchangeCodeParams {
 const discoveryCache: Map<string, DiscoveryDoc> = new Map();
 
 /**
+ * Rewrite the origin (protocol + host) of an absolute URL, preserving its path
+ * and query. Used to pin the browser-facing endpoints to the public issuer
+ * origin when discovery is fetched from a server-reachable internal host.
+ */
+function rewriteOrigin(endpoint: string, targetOrigin: string): string {
+  const url: URL = new URL(endpoint);
+  const target: URL = new URL(targetOrigin);
+  url.protocol = target.protocol;
+  url.host = target.host;
+  return url.toString();
+}
+
+/**
  * Fetch and cache the issuer's discovery document.
  *
- * @param config BFF configuration providing the issuer URL.
+ * When {@link BffConfig.metadataUrl} is set, discovery is fetched from that
+ * server-reachable URL. The backchannel `token_endpoint` is used exactly as the
+ * metadata advertises it (reachable from the server), while the browser-facing
+ * `authorization_endpoint` and `end_session_endpoint` are pinned to the public
+ * {@link BffConfig.issuer} origin so the user agent can follow the redirects.
+ *
+ * This handles OpenID providers (such as OpenIddict) that derive their endpoint
+ * URIs from the incoming request host rather than the configured issuer: when
+ * discovery is fetched from the internal host, every advertised endpoint points
+ * at that internal host, so the interactive endpoints must be re-pinned to the
+ * public origin.
+ *
+ * @param config BFF configuration providing the issuer and optional metadata URL.
  */
 export async function discover(config: BffConfig): Promise<DiscoveryDoc> {
-  const cached: DiscoveryDoc | undefined = discoveryCache.get(config.issuer);
+  const metadataUrl: string =
+    config.metadataUrl ?? `${config.issuer}/.well-known/openid-configuration`;
+
+  const cached: DiscoveryDoc | undefined = discoveryCache.get(metadataUrl);
   if (cached !== undefined) {
     return cached;
   }
 
-  const response: Response = await fetch(
-    `${config.issuer}/.well-known/openid-configuration`,
-  );
+  const response: Response = await fetch(metadataUrl);
   if (!response.ok) {
     throw new Error(
-      `OIDC discovery failed with status ${response.status} for ${config.issuer}`,
+      `OIDC discovery failed with status ${response.status} for ${metadataUrl}`,
     );
   }
 
-  const doc: DiscoveryDoc = (await response.json()) as DiscoveryDoc;
-  discoveryCache.set(config.issuer, doc);
+  const raw: DiscoveryDoc = (await response.json()) as DiscoveryDoc;
+  let doc: DiscoveryDoc = raw;
+  if (config.metadataUrl !== undefined) {
+    const issuerOrigin: string = new URL(config.issuer).origin;
+    doc = {
+      ...raw,
+      authorization_endpoint: rewriteOrigin(
+        raw.authorization_endpoint,
+        issuerOrigin,
+      ),
+      end_session_endpoint:
+        raw.end_session_endpoint !== undefined
+          ? rewriteOrigin(raw.end_session_endpoint, issuerOrigin)
+          : raw.end_session_endpoint,
+    };
+  }
+
+  discoveryCache.set(metadataUrl, doc);
   return doc;
 }
 
@@ -143,4 +186,40 @@ export async function refreshTokens(
     refresh_token: refreshToken,
   });
   return postToken(config, doc, body);
+}
+
+/**
+ * Fetch the resolved identity claims from the issuer's userinfo endpoint.
+ *
+ * This is a backchannel call made with the confidential BFF's access token, so
+ * the endpoint is used exactly as the metadata advertises it (server-reachable,
+ * not rewritten to the browser-facing origin). Providers such as OpenIddict may
+ * only emit standard identity claims (`email`, `name`, ...) to userinfo rather
+ * than the id_token, so the BFF resolves the user identity from here.
+ *
+ * @param doc Discovery document providing the userinfo endpoint.
+ * @param accessToken Bearer access token authorizing the userinfo request.
+ * @returns The parsed claims object, or `null` when no userinfo endpoint is
+ *          advertised or the request fails.
+ */
+export async function fetchUserInfo(
+  doc: DiscoveryDoc,
+  accessToken: string,
+): Promise<Record<string, unknown> | null> {
+  if (doc.userinfo_endpoint === undefined || doc.userinfo_endpoint === "") {
+    return null;
+  }
+
+  const response: Response = await fetch(doc.userinfo_endpoint, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      accept: "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  return (await response.json()) as Record<string, unknown>;
 }

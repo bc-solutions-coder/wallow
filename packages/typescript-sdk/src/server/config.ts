@@ -24,6 +24,17 @@ export interface BffConfig {
   cookieName: string;
   /** Password used to seal/unseal the session and transaction cookies. */
   cookiePassword: string;
+  /**
+   * Optional server-side discovery/metadata URL, used when the OP is reachable
+   * from the browser and the server under different hostnames (split-horizon
+   * DNS, reverse proxies, container networks). When set, the server fetches the
+   * OpenID configuration from this URL and uses its `token_endpoint` for the
+   * backchannel, while the browser-facing `authorization_endpoint` and
+   * `end_session_endpoint` are pinned to the public {@link issuer} origin so the
+   * user agent can follow those redirects. Defaults to
+   * `${issuer}/.well-known/openid-configuration`.
+   */
+  metadataUrl?: string;
 }
 
 /**
@@ -31,8 +42,8 @@ export interface BffConfig {
  *
  * Required keys (throws when missing): `OIDC_ISSUER`, `OIDC_CLIENT_ID`,
  * `OIDC_CLIENT_SECRET`, `OIDC_REDIRECT_URI`, `OIDC_POST_LOGOUT_REDIRECT_URI`,
- * `BFF_API_BASE_URL`, `COOKIE_PASSWORD`. `OIDC_SCOPES` (space-separated) and
- * `COOKIE_NAME` are optional with defaults.
+ * `BFF_API_BASE_URL`, `COOKIE_PASSWORD`. `OIDC_SCOPES` (space-separated),
+ * `COOKIE_NAME`, and `OIDC_METADATA_URL` are optional with defaults.
  *
  * @param env Environment source. Defaults to `process.env`.
  */
@@ -63,5 +74,9 @@ export function loadBffConfigFromEnv(
     apiBaseUrl: require("BFF_API_BASE_URL"),
     cookieName: env.COOKIE_NAME ?? "wallow_bff",
     cookiePassword: require("COOKIE_PASSWORD"),
+    metadataUrl:
+      env.OIDC_METADATA_URL !== undefined && env.OIDC_METADATA_URL !== ""
+        ? env.OIDC_METADATA_URL
+        : undefined,
   };
 }

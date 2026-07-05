@@ -102,7 +102,7 @@
     {
       "clientId": "bcordes-bff",
       "displayName": "BCOrdes BFF",
-      "tenantName": "Dev",
+      "tenantName": "Wallow",
       "secret": "bcordes-bff-secret",
       "redirectUris": [
         "http://localhost:3000/bff/callback"
