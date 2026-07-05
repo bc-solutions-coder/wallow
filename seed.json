@@ -98,6 +98,23 @@
         "inquiries.read", "inquiries.write",
         "notifications.read", "notifications.write"
       ]
+    },
+    {
+      "clientId": "bcordes-bff",
+      "displayName": "BCOrdes BFF",
+      "tenantName": "Dev",
+      "secret": "bcordes-bff-secret",
+      "redirectUris": [
+        "http://localhost:3000/bff/callback"
+      ],
+      "postLogoutRedirectUris": [
+        "http://localhost:3000/"
+      ],
+      "scopes": [
+        "openid", "email", "profile", "roles", "offline_access",
+        "inquiries.read", "inquiries.write",
+        "notifications.read", "notifications.write"
+      ]
     }
   ]
 }

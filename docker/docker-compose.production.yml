@@ -278,9 +278,11 @@ services:
       #   0 = wallow-web-client   (dashboard at wallow.dev)
       #   1 = bcordes-client      (bcordes.dev SPA login)
       #   2 = sa-bcordes-bff      (bcordes.dev BFF service account)
+      #   3 = bcordes-bff         (bcordes.dev BFF auth-code client)
       Clients__0__Secret: ${OIDC_CLIENT_SECRET}
       Clients__1__Secret: ${BCORDES_CLIENT_SECRET}
       Clients__2__Secret: ${BCORDES_BFF_SECRET}
+      Clients__3__Secret: ${BCORDES_BFF_AUTHCODE_SECRET}
     depends_on:
       wallow-migrations:
         condition: service_completed_successfully
