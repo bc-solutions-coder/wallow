@@ -1,0 +1,55 @@
+# SDK Publish - publishes @wallow/sdk to GitHub Packages on release
+#
+# Triggered when a GitHub Release is published. Builds, tests, and publishes
+# the TypeScript SDK to the GitHub Packages npm registry.
+#
+# SCOPE MISMATCH NOTE:
+#   The package is named "@wallow/sdk" (see packages/typescript-sdk/package.json)
+#   but the GitHub repository owner is "bc-solutions-coder". GitHub Packages
+#   requires the npm scope to match the repository owner/org, so a publish under
+#   the "@wallow" scope will be rejected at runtime. Before enabling this
+#   workflow for real releases, either:
+#     (a) rename the package to "@bc-solutions-coder/sdk", or
+#     (b) create a "wallow" GitHub org that owns this repo.
+#   The registry itself is configured via publishConfig in package.json.
+
+name: SDK Publish
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/typescript-sdk
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://npm.pkg.github.com'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Publish to GitHub Packages
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
