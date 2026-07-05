@@ -20,17 +20,27 @@ import { webCrypto } from "./webcrypto";
  * index signature.
  */
 export interface BffSession {
+  /** Stable identifier for this session, used for server-side lookups. */
+  sessionId: string;
   accessToken: string;
   refreshToken?: string;
   idToken?: string;
-  /** Access-token expiry as epoch milliseconds. */
+  /** Access-token expiry as epoch milliseconds (NOT Unix seconds). */
   expiresAt: number;
   user: {
     sub: string;
     email?: string;
     name?: string;
+    roles?: string[];
+    permissions?: string[];
+    tenantId?: string;
+    tenantName?: string;
     [claim: string]: unknown;
   };
+  /** Monotonic session version, bumped on token refresh / rotation. */
+  version: number;
+  /** Synchronizer CSRF token for double-submit validation. */
+  csrfToken?: string;
 }
 
 /**

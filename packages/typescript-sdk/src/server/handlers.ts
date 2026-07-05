@@ -271,11 +271,13 @@ export function createBffHandlers(config: BffConfig): BffHandlers {
         }
 
         const session: BffSession = {
+          sessionId: crypto.randomUUID(),
           accessToken: tokens.access_token,
           refreshToken: tokens.refresh_token,
           idToken: tokens.id_token,
           expiresAt: Date.now() + tokens.expires_in * 1000,
           user,
+          version: 1,
         };
         await writeSession(event, config, session);
 

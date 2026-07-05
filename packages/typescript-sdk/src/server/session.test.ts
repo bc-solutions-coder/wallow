@@ -10,6 +10,7 @@ const PASSWORD: string = "a-very-long-cookie-password-of-at-least-32-chars";
 
 function makeSession(): BffSession {
   return {
+    sessionId: "sess-fixture-000",
     accessToken: "access-token-abc-123",
     refreshToken: "refresh-token-def-456",
     idToken: "id-token-ghi-789",
@@ -20,6 +21,7 @@ function makeSession(): BffSession {
       name: "Test User",
       org_id: "org-999",
     },
+    version: 1,
   };
 }
 
@@ -72,5 +74,34 @@ describe("sealSession / unsealSession", () => {
     );
 
     expect(result).toBeNull();
+  });
+
+  it("round-trips the sessionId, version, and csrfToken fields", async () => {
+    const session: BffSession = {
+      sessionId: "sess-abc-123",
+      accessToken: "access-token-abc-123",
+      refreshToken: "refresh-token-def-456",
+      idToken: "id-token-ghi-789",
+      expiresAt: 1_700_000_000_000,
+      user: {
+        sub: "user-123",
+        email: "user@example.com",
+        name: "Test User",
+        roles: ["admin"],
+        permissions: ["read"],
+        tenantId: "tenant-42",
+        tenantName: "Acme",
+      },
+      version: 1,
+      csrfToken: "csrf-token-xyz-789",
+    };
+
+    const sealed: string = await sealSession(session, PASSWORD);
+    const result: BffSession | null = await unsealSession(sealed, PASSWORD);
+
+    expect(result).toEqual(session);
+    expect(result?.sessionId).toBe("sess-abc-123");
+    expect(result?.version).toBe(1);
+    expect(result?.csrfToken).toBe("csrf-token-xyz-789");
   });
 });

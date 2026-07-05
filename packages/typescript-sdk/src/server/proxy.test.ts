@@ -44,11 +44,13 @@ function makeDoc(issuer: string): DiscoveryDoc {
 
 function makeSession(overrides: Partial<BffSession> = {}): BffSession {
   return {
+    sessionId: "sess-fixture-000",
     accessToken: "access-token-abc",
     refreshToken: "refresh-token-def",
     idToken: "header.payload.signature",
     expiresAt: Date.now() + 3_600_000,
     user: { sub: "user-123", email: "user@example.com", name: "Test User" },
+    version: 1,
     ...overrides,
   };
 }
