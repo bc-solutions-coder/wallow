@@ -1,10 +1,23 @@
-import { createApp, toWebHandler, type App } from "h3";
+import {
+  createApp,
+  defineEventHandler,
+  toWebHandler,
+  type App,
+  type H3Event,
+} from "h3";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { BffConfig } from "./config";
-import { createBffHandlers, type BffHandlers } from "./handlers";
+import {
+  createBffHandlers,
+  readSession,
+  writeSession,
+  type BffHandlers,
+} from "./handlers";
 import type { DiscoveryDoc } from "./oidc";
 import { sealSession, type BffSession } from "./session";
+import { CookieSessionStore } from "./store/cookie";
+import type { SessionStore } from "./store/types";
 import { sealTx, type LoginTx } from "./txstate";
 
 afterEach(() => {
@@ -241,5 +254,59 @@ describe("logout handler", () => {
     );
     expect(url.searchParams.get("id_token_hint")).toBe(session.idToken);
     expect(res.headers.get("set-cookie") ?? "").toContain("wallow_bff=");
+  });
+});
+
+/**
+ * Rebuild a request `cookie` header from a response's `Set-Cookie` list, keeping
+ * only cookies that carry a non-empty value (i.e. dropping the expired chunk
+ * cookies that `writeSession` emits to clear a previously larger session).
+ */
+function cookieHeaderFrom(res: Response): string {
+  return res.headers
+    .getSetCookie()
+    .map((cookie: string): string => cookie.split(";", 1)[0] ?? "")
+    .filter((pair: string): boolean => {
+      const eq: number = pair.indexOf("=");
+      return eq > 0 && pair.slice(eq + 1) !== "";
+    })
+    .join("; ");
+}
+
+describe("readSession/writeSession store threading", () => {
+  it("round-trips a session through an injected CookieSessionStore", async () => {
+    const config: BffConfig = makeConfig("https://store-roundtrip.example.com");
+    const store: SessionStore = new CookieSessionStore({
+      password: config.cookiePassword,
+    });
+    const session: BffSession = makeSession();
+
+    const app: App = createApp();
+    app.use(
+      "/write",
+      defineEventHandler(async (event: H3Event): Promise<void> => {
+        await writeSession(event, config, store, session);
+      }),
+    );
+    app.use(
+      "/read",
+      defineEventHandler(
+        async (event: H3Event): Promise<BffSession | null> =>
+          readSession(event, config, store),
+      ),
+    );
+    const handle: (request: Request) => Promise<Response> = toWebHandler(app);
+
+    const writeRes: Response = await handle(
+      new Request("http://localhost/write"),
+    );
+    const readRes: Response = await handle(
+      new Request("http://localhost/read", {
+        headers: { cookie: cookieHeaderFrom(writeRes) },
+      }),
+    );
+
+    const restored: BffSession = (await readRes.json()) as BffSession;
+    expect(restored).toEqual(session);
   });
 });

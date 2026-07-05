@@ -33,7 +33,9 @@ import {
   type DiscoveryDoc,
   type TokenResponse,
 } from "./oidc";
-import { sealSession, unsealSession, type BffSession } from "./session";
+import { type BffSession } from "./session";
+import { CookieSessionStore } from "./store/cookie";
+import type { SessionStore } from "./store/types";
 import { sealTx, unsealTx, type LoginTx } from "./txstate";
 
 /** The four BFF route handlers returned by {@link createBffHandlers}. */
@@ -87,26 +89,23 @@ function chunkCookieName(cookieName: string, index: number): string {
 }
 
 /**
- * Read and unseal the current session from the BFF session cookie.
+ * Reassemble the opaque session reference from its chunk cookies.
  *
- * Reassembles the sealed value from its chunk cookies (`name`, `name.1`,
- * `name.2`, ...) before unsealing, so sessions larger than a single cookie are
- * restored transparently.
+ * Concatenates the chunk cookies (`name`, `name.1`, `name.2`, ...) into the
+ * single reference string that was written across them, so references larger
+ * than a single cookie are restored transparently.
  *
  * @param event The incoming h3 request event.
- * @param config BFF configuration providing the cookie name and password.
- * @returns The decoded session, or `null` when no valid session cookie exists.
+ * @param config BFF configuration providing the cookie name.
+ * @returns The assembled reference, or `null` when no session cookie exists.
  */
-export async function readSession(
-  event: H3Event,
-  config: BffConfig,
-): Promise<BffSession | null> {
+function readSessionRef(event: H3Event, config: BffConfig): string | null {
   const first: string | undefined = getCookie(event, config.cookieName);
   if (first === undefined || first === "") {
     return null;
   }
 
-  let sealed: string = first;
+  let ref: string = first;
   for (let index: number = 1; ; index += 1) {
     const part: string | undefined = getCookie(
       event,
@@ -115,40 +114,68 @@ export async function readSession(
     if (part === undefined || part === "") {
       break;
     }
-    sealed += part;
+    ref += part;
   }
 
-  return unsealSession(sealed, config.cookiePassword);
+  return ref;
 }
 
 /**
- * Seal a session and write it to the BFF session cookie(s).
+ * Read the current session by resolving the cookie's opaque reference through
+ * the injected {@link SessionStore}.
  *
- * The sealed value is split across as many chunk cookies as needed to stay
- * under the per-cookie size limit, and any stale higher-index chunks from a
- * previously larger session are cleared.
+ * Reassembles the reference from its chunk cookies (`name`, `name.1`,
+ * `name.2`, ...) before handing it to the store, so references larger than a
+ * single cookie are restored transparently.
+ *
+ * @param event The incoming h3 request event.
+ * @param config BFF configuration providing the cookie name.
+ * @param store The session store that resolves the reference into a session.
+ * @returns The decoded session, or `null` when no valid session cookie exists.
+ */
+export async function readSession(
+  event: H3Event,
+  config: BffConfig,
+  store: SessionStore,
+): Promise<BffSession | null> {
+  const ref: string | null = readSessionRef(event, config);
+  if (ref === null) {
+    return null;
+  }
+  return store.read(ref);
+}
+
+/**
+ * Persist a session through the injected {@link SessionStore} and write the
+ * returned opaque reference to the BFF session cookie(s).
+ *
+ * The reference is split across as many chunk cookies as needed to stay under
+ * the per-cookie size limit, and any stale higher-index chunks from a
+ * previously larger reference are cleared.
  *
  * @param event The h3 request event to attach the cookie to.
- * @param config BFF configuration providing the cookie name and password.
- * @param session The session to seal and persist.
+ * @param config BFF configuration providing the cookie name.
+ * @param store The session store that persists the session and returns its ref.
+ * @param session The session to persist.
  */
 export async function writeSession(
   event: H3Event,
   config: BffConfig,
+  store: SessionStore,
   session: BffSession,
 ): Promise<void> {
-  const sealed: string = await sealSession(session, config.cookiePassword);
+  const ref: string = await store.write(session);
 
   const chunkCount: number = Math.max(
     1,
-    Math.ceil(sealed.length / MAX_COOKIE_VALUE_LENGTH),
+    Math.ceil(ref.length / MAX_COOKIE_VALUE_LENGTH),
   );
   for (let index: number = 0; index < chunkCount; index += 1) {
     const start: number = index * MAX_COOKIE_VALUE_LENGTH;
     setCookie(
       event,
       chunkCookieName(config.cookieName, index),
-      sealed.slice(start, start + MAX_COOKIE_VALUE_LENGTH),
+      ref.slice(start, start + MAX_COOKIE_VALUE_LENGTH),
       baseCookieOpts(),
     );
   }
@@ -187,6 +214,11 @@ function clearSession(event: H3Event, config: BffConfig): void {
  * @returns `{ login, callback, user, logout }` h3 event handlers.
  */
 export function createBffHandlers(config: BffConfig): BffHandlers {
+  // Default cookie-only store; full store threading arrives in a later task.
+  const store: SessionStore = new CookieSessionStore({
+    password: config.cookiePassword,
+  });
+
   return {
     login: defineEventHandler(async (event: H3Event): Promise<void> => {
       const query: Record<string, unknown> = getQuery(event);
@@ -279,7 +311,7 @@ export function createBffHandlers(config: BffConfig): BffHandlers {
           user,
           version: 1,
         };
-        await writeSession(event, config, session);
+        await writeSession(event, config, store, session);
 
         return sendRedirect(event, tx.returnTo, 302);
       },
@@ -287,7 +319,11 @@ export function createBffHandlers(config: BffConfig): BffHandlers {
 
     user: defineEventHandler(
       async (event: H3Event): Promise<BffSession["user"] | null> => {
-        const session: BffSession | null = await readSession(event, config);
+        const session: BffSession | null = await readSession(
+          event,
+          config,
+          store,
+        );
         if (session === null) {
           setResponseStatus(event, 401);
           return null;
@@ -297,7 +333,11 @@ export function createBffHandlers(config: BffConfig): BffHandlers {
     ),
 
     logout: defineEventHandler(async (event: H3Event): Promise<void> => {
-      const session: BffSession | null = await readSession(event, config);
+      const session: BffSession | null = await readSession(
+        event,
+        config,
+        store,
+      );
       clearSession(event, config);
 
       const doc: DiscoveryDoc = await discover(config);

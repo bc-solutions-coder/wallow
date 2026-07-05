@@ -28,6 +28,8 @@ import {
 } from "./oidc";
 import type { BffSession } from "./session";
 import { readSession, writeSession } from "./handlers";
+import { CookieSessionStore } from "./store/cookie";
+import type { SessionStore } from "./store/types";
 
 /** How long before real expiry a token is treated as expired (ms). */
 export const EXPIRY_SKEW_MS = 30_000;
@@ -88,8 +90,13 @@ export async function ensureFreshSession(
  * @returns An h3 event handler that proxies to `config.apiBaseUrl`.
  */
 export function createApiProxy(config: BffConfig): EventHandler {
+  // Default cookie-only store; full store threading arrives in a later task.
+  const store: SessionStore = new CookieSessionStore({
+    password: config.cookiePassword,
+  });
+
   return defineEventHandler(async (event: H3Event): Promise<unknown> => {
-    const session: BffSession | null = await readSession(event, config);
+    const session: BffSession | null = await readSession(event, config, store);
     if (session === null) {
       setResponseStatus(event, 401);
       return null;
@@ -106,7 +113,7 @@ export function createApiProxy(config: BffConfig): EventHandler {
     }
 
     if (result.refreshed) {
-      await writeSession(event, config, result.session);
+      await writeSession(event, config, store, result.session);
     }
 
     // Strip the `/api` prefix and re-root at the downstream API base URL.
