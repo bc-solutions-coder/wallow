@@ -28,6 +28,10 @@ import { sealTx, type LoginTx } from "./txstate";
  * without live network I/O. The token/userinfo grant helpers remain native-fetch
  * and keep using the per-test `fetch` stubs.
  */
+const { authorizationCodeGrantMock } = vi.hoisted(() => ({
+  authorizationCodeGrantMock: vi.fn(),
+}));
+
 vi.mock("openid-client", () => ({
   discovery: vi.fn((server: URL) => {
     const origin: string = new URL(server).origin;
@@ -41,11 +45,33 @@ vi.mock("openid-client", () => ({
     });
   }),
   allowInsecureRequests: vi.fn(),
+  // Mirrors openid-client's buildAuthorizationUrl: reads the authorization
+  // endpoint from the resolved Configuration's serverMetadata() and appends the
+  // supplied query params, returning a URL.
+  buildAuthorizationUrl: vi.fn(
+    (
+      configuration: { serverMetadata: () => Record<string, unknown> },
+      params: Record<string, string>,
+    ): URL => {
+      const endpoint: string = configuration.serverMetadata()
+        .authorization_endpoint as string;
+      const url: URL = new URL(endpoint);
+      for (const [key, value] of Object.entries(params)) {
+        url.searchParams.set(key, value);
+      }
+      return url;
+    },
+  ),
+  // Code exchange is delegated to openid-client so the callback gains id_token
+  // signature/iss/aud/exp validation plus state + nonce checks. Configured
+  // per-test via authorizationCodeGrantMock.mockResolvedValue(...).
+  authorizationCodeGrant: authorizationCodeGrantMock,
 }));
 
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+  vi.clearAllMocks();
 });
 
 /**
@@ -169,9 +195,8 @@ describe("callback handler", () => {
     expect(res.status).toBe(400);
   });
 
-  it("exchanges the code and 302s to returnTo on a valid callback", async () => {
+  it("exchanges the code via openid-client and 302s to returnTo on a valid callback", async () => {
     const config: BffConfig = makeConfig("https://cb-ok.example.com");
-    const doc: DiscoveryDoc = makeDoc(config.issuer);
     const tx: LoginTx = {
       state: "st-1",
       nonce: "no-1",
@@ -180,29 +205,18 @@ describe("callback handler", () => {
     };
     const sealed: string = await sealTx(tx, config.cookiePassword);
 
+    // The exchange is delegated to openid-client's authorizationCodeGrant, not
+    // a hand-rolled token POST — so no token-endpoint fetch is expected.
+    authorizationCodeGrantMock.mockResolvedValue({
+      access_token: "at",
+      refresh_token: "rt",
+      id_token: makeIdToken({ sub: "user-123", email: "u@e.com" }),
+      expires_in: 3600,
+      token_type: "Bearer",
+    });
     vi.stubGlobal(
       "fetch",
-      vi.fn((input: unknown) => {
-        const requestUrl: string = String(input);
-        if (requestUrl.includes(".well-known")) {
-          return Promise.resolve({
-            ok: true,
-            status: 200,
-            json: async (): Promise<DiscoveryDoc> => doc,
-          });
-        }
-        return Promise.resolve({
-          ok: true,
-          status: 200,
-          json: async () => ({
-            access_token: "at",
-            refresh_token: "rt",
-            id_token: makeIdToken({ sub: "user-123", email: "u@e.com" }),
-            expires_in: 3600,
-            token_type: "Bearer",
-          }),
-        });
-      }),
+      vi.fn().mockRejectedValue(new Error("unexpected token-endpoint fetch")),
     );
     const handle = makeHandle(createBffHandlers(config));
 
@@ -215,6 +229,21 @@ describe("callback handler", () => {
     expect(res.status).toBe(302);
     expect(res.headers.get("location")).toBe("/welcome");
     expect(res.headers.get("set-cookie") ?? "").toContain("wallow_bff=");
+
+    // The callback delegates to openid-client, passing the full callback URL
+    // (for code/state extraction) and the tx-bound state/nonce/PKCE checks.
+    expect(authorizationCodeGrantMock).toHaveBeenCalledTimes(1);
+    const [, currentUrl, checks] = authorizationCodeGrantMock.mock.calls[0] as [
+      unknown,
+      URL,
+      { expectedState: string; expectedNonce: string; pkceCodeVerifier: string },
+    ];
+    expect(currentUrl).toBeInstanceOf(URL);
+    expect(String(currentUrl)).toContain("code=code-123");
+    expect(String(currentUrl)).toContain("state=st-1");
+    expect(checks.expectedState).toBe("st-1");
+    expect(checks.expectedNonce).toBe("no-1");
+    expect(checks.pkceCodeVerifier).toBe("ver-1");
   });
 });
 

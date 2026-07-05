@@ -14,6 +14,7 @@ import {
   deleteCookie,
   getCookie,
   getQuery,
+  getRequestURL,
   parseCookies,
   sendRedirect,
   setCookie,
@@ -286,6 +287,9 @@ export function createBffHandlers(
         const tokens: TokenResponse = await exchangeCode(config, doc, {
           code,
           codeVerifier: tx.verifier,
+          currentUrl: getRequestURL(event),
+          state: tx.state,
+          nonce: tx.nonce,
         });
 
         // Base identity from the id_token (carries `sub` and any issuer-specific

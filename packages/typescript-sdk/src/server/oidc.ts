@@ -10,6 +10,8 @@
  */
 import {
   allowInsecureRequests,
+  authorizationCodeGrant,
+  buildAuthorizationUrl,
   discovery,
   type Configuration,
   type ServerMetadata,
@@ -52,6 +54,16 @@ export interface AuthorizeParams {
 export interface ExchangeCodeParams {
   code: string;
   codeVerifier: string;
+  /**
+   * Full callback request URL (carrying `code` and `state`). openid-client's
+   * {@link authorizationCodeGrant} extracts and validates the authorization
+   * response from this URL. Populated by the callback handler.
+   */
+  currentUrl?: URL;
+  /** Expected `state` value carried in the login transaction. */
+  state?: string;
+  /** Expected `nonce` value carried in the login transaction. */
+  nonce?: string;
 }
 
 /** Module-level cache of discovery documents keyed on issuer URL. */
@@ -143,21 +155,27 @@ export async function discover(config: BffConfig): Promise<DiscoveryDoc> {
 
 /**
  * Build the authorization request URL including PKCE, state, nonce, and scopes.
+ *
+ * Delegates to openid-client's {@link buildAuthorizationUrl} using the resolved
+ * {@link Configuration} carried on the discovery {@link DiscoveryDoc}, so the
+ * authorization request is constructed and encoded by openid-client rather than
+ * hand-rolled. PKCE uses S256.
  */
 export function buildAuthorizeUrl(
   config: BffConfig,
   doc: DiscoveryDoc,
   params: AuthorizeParams,
 ): string {
-  const url: URL = new URL(doc.authorization_endpoint);
-  url.searchParams.set("response_type", "code");
-  url.searchParams.set("client_id", config.clientId);
-  url.searchParams.set("redirect_uri", config.redirectUri);
-  url.searchParams.set("scope", config.scopes.join(" "));
-  url.searchParams.set("state", params.state);
-  url.searchParams.set("code_challenge", params.codeChallenge);
-  url.searchParams.set("code_challenge_method", "S256");
-  url.searchParams.set("nonce", params.nonce);
+  const url: URL = buildAuthorizationUrl(doc.configuration!, {
+    response_type: "code",
+    client_id: config.clientId,
+    redirect_uri: config.redirectUri,
+    scope: config.scopes.join(" "),
+    state: params.state,
+    code_challenge: params.codeChallenge,
+    code_challenge_method: "S256",
+    nonce: params.nonce,
+  });
   return url.toString();
 }
 
@@ -193,19 +211,39 @@ async function postToken(
 
 /**
  * Exchange an authorization code (plus PKCE verifier) for tokens.
+ *
+ * Delegates to openid-client's {@link authorizationCodeGrant} using the resolved
+ * {@link Configuration} carried on the discovery {@link DiscoveryDoc}. Passing
+ * the full callback URL along with the expected `state`, expected `nonce`, and
+ * PKCE verifier lets openid-client validate the authorization response and the
+ * id_token (signature, `iss`/`aud`/`exp`, and nonce) — protections the prior
+ * native-fetch token POST lacked. The `config` parameter is retained for
+ * signature parity with the other grant helpers.
  */
 export async function exchangeCode(
   config: BffConfig,
   doc: DiscoveryDoc,
   params: ExchangeCodeParams,
 ): Promise<TokenResponse> {
-  const body: URLSearchParams = new URLSearchParams({
-    grant_type: "authorization_code",
-    code: params.code,
-    code_verifier: params.codeVerifier,
-    redirect_uri: config.redirectUri,
-  });
-  return postToken(config, doc, body);
+  void config;
+  const tokens: Awaited<ReturnType<typeof authorizationCodeGrant>> =
+    await authorizationCodeGrant(
+    doc.configuration!,
+    params.currentUrl!,
+    {
+      expectedState: params.state,
+      expectedNonce: params.nonce,
+      pkceCodeVerifier: params.codeVerifier,
+    },
+  );
+
+  return {
+    access_token: tokens.access_token,
+    refresh_token: tokens.refresh_token,
+    id_token: tokens.id_token,
+    expires_in: tokens.expires_in ?? 0,
+    token_type: tokens.token_type,
+  };
 }
 
 /**
