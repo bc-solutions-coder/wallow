@@ -15,7 +15,7 @@ public sealed class DockerComposeFixture : IAsyncLifetime
     public string MailpitBaseUrl { get; } = Environment.GetEnvironmentVariable("E2E_MAILPIT_URL") ?? "http://localhost:8035";
 
     /// <summary>
-    /// Base URL of the @wallow/sdk BFF reference example (packages/typescript-sdk/examples/tanstack-min),
+    /// Base URL of the @bc-solutions-coder/sdk BFF reference example (packages/typescript-sdk/examples/tanstack-min),
     /// served by the <c>bff-example</c> service in docker-compose.test.yml.
     /// </summary>
     public string BffBaseUrl { get; } = Environment.GetEnvironmentVariable("E2E_BFF_URL") ?? "http://localhost:3000";

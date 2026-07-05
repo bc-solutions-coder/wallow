@@ -7,7 +7,7 @@ using Xunit.Abstractions;
 namespace Wallow.E2E.Tests.Flows;
 
 /// <summary>
-/// Drives the @wallow/sdk BFF reference example (packages/typescript-sdk/examples/tanstack-min)
+/// Drives the @bc-solutions-coder/sdk BFF reference example (packages/typescript-sdk/examples/tanstack-min)
 /// through the full same-origin OIDC tunnel: anonymous -> login -> authenticated /api call with
 /// silent refresh -> logout -> anonymous again. All browser state is exercised through the
 /// example's `data-testid` DOM contract; credentials are entered on the real Wallow.Auth page.
