@@ -21,6 +21,29 @@ vi.mock("./oidc", async (importOriginal) => {
   };
 });
 
+/**
+ * Hermetic mock of openid-client: the real `discover()` (used by the proxy
+ * integration tests that fall back to `actual.discover`) resolves endpoints via
+ * openid-client's `discovery()` rather than the native `fetch`. The stub
+ * reconstructs the same endpoint shape as {@link makeDoc} from the requested
+ * metadata URL's origin. The refresh grant remains native-fetch and keeps using
+ * the per-test `fetch` stubs.
+ */
+vi.mock("openid-client", () => ({
+  discovery: vi.fn((server: URL) => {
+    const origin: string = new URL(server).origin;
+    return Promise.resolve({
+      serverMetadata: (): Record<string, unknown> => ({
+        issuer: origin,
+        authorization_endpoint: `${origin}/connect/authorize`,
+        token_endpoint: `${origin}/connect/token`,
+        end_session_endpoint: `${origin}/connect/logout`,
+      }),
+    });
+  }),
+  allowInsecureRequests: vi.fn(),
+}));
+
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();

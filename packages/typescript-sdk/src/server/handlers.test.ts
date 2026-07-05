@@ -20,6 +20,29 @@ import { CookieSessionStore } from "./store/cookie";
 import type { SessionStore } from "./store/types";
 import { sealTx, type LoginTx } from "./txstate";
 
+/**
+ * Hermetic mock of openid-client: `discover()` now resolves endpoints through
+ * openid-client's `discovery()` rather than the native `fetch`. The stub
+ * reconstructs the same endpoint shape as {@link makeDoc} from the requested
+ * metadata URL's origin, so these integration tests exercise real handler logic
+ * without live network I/O. The token/userinfo grant helpers remain native-fetch
+ * and keep using the per-test `fetch` stubs.
+ */
+vi.mock("openid-client", () => ({
+  discovery: vi.fn((server: URL) => {
+    const origin: string = new URL(server).origin;
+    return Promise.resolve({
+      serverMetadata: (): Record<string, unknown> => ({
+        issuer: origin,
+        authorization_endpoint: `${origin}/connect/authorize`,
+        token_endpoint: `${origin}/connect/token`,
+        end_session_endpoint: `${origin}/connect/logout`,
+      }),
+    });
+  }),
+  allowInsecureRequests: vi.fn(),
+}));
+
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();

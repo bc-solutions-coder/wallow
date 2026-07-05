@@ -1,9 +1,20 @@
 /**
- * Native-fetch OIDC helpers for the BFF: discovery, authorization URL building,
- * authorization-code exchange, and refresh-token rotation.
+ * OIDC helpers for the BFF: discovery (backed by openid-client), authorization
+ * URL building, authorization-code exchange, and refresh-token rotation.
  *
- * No external OIDC client library is used — only the global `fetch`.
+ * Discovery resolves the issuer metadata via openid-client's `discovery()` and
+ * exposes both the advertised endpoint strings (consumed by the still
+ * native-fetch grant helpers below) and the resolved openid-client
+ * `Configuration` handle (for the openid-client-backed call sites migrated in
+ * later tasks).
  */
+import {
+  allowInsecureRequests,
+  discovery,
+  type Configuration,
+  type ServerMetadata,
+} from "openid-client";
+
 import type { BffConfig } from "./config";
 
 /** Subset of the OpenID Connect discovery document the BFF depends on. */
@@ -12,6 +23,13 @@ export interface DiscoveryDoc {
   token_endpoint: string;
   end_session_endpoint?: string;
   userinfo_endpoint?: string;
+  /**
+   * Handle to the resolved openid-client {@link Configuration}. Optional so that
+   * plain endpoint-only doc literals (used by the still native-fetch grant
+   * helpers and their tests) continue to typecheck. Populated by
+   * {@link discover}.
+   */
+  configuration?: Configuration;
 }
 
 /** Token endpoint response for authorization-code and refresh grants. */
@@ -53,19 +71,24 @@ function rewriteOrigin(endpoint: string, targetOrigin: string): string {
 }
 
 /**
- * Fetch and cache the issuer's discovery document.
+ * Resolve and cache the issuer's discovery document via openid-client.
  *
  * When {@link BffConfig.metadataUrl} is set, discovery is fetched from that
- * server-reachable URL. The backchannel `token_endpoint` is used exactly as the
- * metadata advertises it (reachable from the server), while the browser-facing
- * `authorization_endpoint` and `end_session_endpoint` are pinned to the public
- * {@link BffConfig.issuer} origin so the user agent can follow the redirects.
+ * server-reachable URL. The backchannel `token_endpoint` (and `userinfo_endpoint`)
+ * are used exactly as the metadata advertises them (reachable from the server),
+ * while the browser-facing `authorization_endpoint` and `end_session_endpoint`
+ * are pinned to the public {@link BffConfig.issuer} origin so the user agent can
+ * follow the redirects.
  *
  * This handles OpenID providers (such as OpenIddict) that derive their endpoint
  * URIs from the incoming request host rather than the configured issuer: when
  * discovery is fetched from the internal host, every advertised endpoint points
  * at that internal host, so the interactive endpoints must be re-pinned to the
  * public origin.
+ *
+ * Outside production (`NODE_ENV !== "production"`) insecure (plain HTTP)
+ * requests are permitted for both the discovery request and the resolved
+ * {@link Configuration} to support local/dev issuers.
  *
  * @param config BFF configuration providing the issuer and optional metadata URL.
  */
@@ -78,27 +101,39 @@ export async function discover(config: BffConfig): Promise<DiscoveryDoc> {
     return cached;
   }
 
-  const response: Response = await fetch(metadataUrl);
-  if (!response.ok) {
-    throw new Error(
-      `OIDC discovery failed with status ${response.status} for ${metadataUrl}`,
-    );
-  }
+  const allowInsecure: boolean = process.env.NODE_ENV !== "production";
+  const configuration: Configuration = await discovery(
+    new URL(metadataUrl),
+    config.clientId,
+    config.clientSecret,
+    undefined,
+    allowInsecure ? { execute: [allowInsecureRequests] } : undefined,
+  );
 
-  const raw: DiscoveryDoc = (await response.json()) as DiscoveryDoc;
-  let doc: DiscoveryDoc = raw;
+  const metadata: Readonly<ServerMetadata> = configuration.serverMetadata();
+
+  const authorizationEndpoint: string = metadata.authorization_endpoint ?? "";
+  const tokenEndpoint: string = metadata.token_endpoint ?? "";
+  const endSessionEndpoint: string | undefined = metadata.end_session_endpoint;
+  const userinfoEndpoint: string | undefined = metadata.userinfo_endpoint;
+
+  let doc: DiscoveryDoc = {
+    authorization_endpoint: authorizationEndpoint,
+    token_endpoint: tokenEndpoint,
+    end_session_endpoint: endSessionEndpoint,
+    userinfo_endpoint: userinfoEndpoint,
+    configuration,
+  };
+
   if (config.metadataUrl !== undefined) {
     const issuerOrigin: string = new URL(config.issuer).origin;
     doc = {
-      ...raw,
-      authorization_endpoint: rewriteOrigin(
-        raw.authorization_endpoint,
-        issuerOrigin,
-      ),
+      ...doc,
+      authorization_endpoint: rewriteOrigin(authorizationEndpoint, issuerOrigin),
       end_session_endpoint:
-        raw.end_session_endpoint !== undefined
-          ? rewriteOrigin(raw.end_session_endpoint, issuerOrigin)
-          : raw.end_session_endpoint,
+        endSessionEndpoint !== undefined
+          ? rewriteOrigin(endSessionEndpoint, issuerOrigin)
+          : endSessionEndpoint,
     };
   }
 

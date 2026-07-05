@@ -10,9 +10,33 @@ import {
   type TokenResponse,
 } from "./oidc";
 
+/**
+ * Hermetic mock of openid-client v6. `discovery()` performs real network I/O in
+ * production, so it is replaced with a controllable stub whose returned
+ * Configuration exposes `serverMetadata()` — the shape the new
+ * openid-client-backed `discover()` reads endpoints from.
+ */
+const { discoveryMock, allowInsecureRequestsMock, makeConfiguration } =
+  vi.hoisted(() => {
+    const discoveryMock: ReturnType<typeof vi.fn> = vi.fn();
+    const allowInsecureRequestsMock: ReturnType<typeof vi.fn> = vi.fn();
+    const makeConfiguration = (
+      metadata: Record<string, unknown>,
+    ): { serverMetadata: () => Record<string, unknown> } => ({
+      serverMetadata: (): Record<string, unknown> => metadata,
+    });
+    return { discoveryMock, allowInsecureRequestsMock, makeConfiguration };
+  });
+
+vi.mock("openid-client", () => ({
+  discovery: discoveryMock,
+  allowInsecureRequests: allowInsecureRequestsMock,
+}));
+
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+  vi.clearAllMocks();
 });
 
 function makeConfig(overrides: Partial<BffConfig> = {}): BffConfig {
@@ -37,24 +61,142 @@ const doc: DiscoveryDoc = {
 };
 
 describe("discover", () => {
-  it("fetches the issuer's well-known OpenID configuration", async () => {
+  it("resolves endpoints through openid-client discovery and exposes the Configuration handle", async () => {
     // Unique issuer avoids the module-level discovery cache leaking across tests.
     const config: BffConfig = makeConfig({
-      issuer: "https://discover-test.example.com",
+      issuer: "https://discover-basic.example.com",
     });
-    const fetchMock: ReturnType<typeof vi.fn> = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async (): Promise<DiscoveryDoc> => doc,
+    const configuration = makeConfiguration({
+      issuer: "https://discover-basic.example.com",
+      authorization_endpoint:
+        "https://discover-basic.example.com/connect/authorize",
+      token_endpoint: "https://discover-basic.example.com/connect/token",
+      end_session_endpoint:
+        "https://discover-basic.example.com/connect/logout",
+      userinfo_endpoint: "https://discover-basic.example.com/connect/userinfo",
     });
-    vi.stubGlobal("fetch", fetchMock);
+    discoveryMock.mockResolvedValue(configuration);
 
     const result: DiscoveryDoc = await discover(config);
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      "https://discover-test.example.com/.well-known/openid-configuration",
+    // openid-client discovery() is invoked with a URL, the client id, and secret.
+    expect(discoveryMock).toHaveBeenCalledTimes(1);
+    const [url, clientId, clientSecret] = discoveryMock.mock.calls[0] as [
+      URL,
+      string,
+      string,
+    ];
+    expect(url).toBeInstanceOf(URL);
+    expect(url.href).toBe(
+      "https://discover-basic.example.com/.well-known/openid-configuration",
     );
-    expect(result).toEqual(doc);
+    expect(clientId).toBe(config.clientId);
+    expect(clientSecret).toBe(config.clientSecret);
+
+    expect(result.authorization_endpoint).toBe(
+      "https://discover-basic.example.com/connect/authorize",
+    );
+    expect(result.token_endpoint).toBe(
+      "https://discover-basic.example.com/connect/token",
+    );
+    expect(result.end_session_endpoint).toBe(
+      "https://discover-basic.example.com/connect/logout",
+    );
+    expect(result.userinfo_endpoint).toBe(
+      "https://discover-basic.example.com/connect/userinfo",
+    );
+    // The adapter carries a handle to the openid-client Configuration.
+    expect(result.configuration).toBe(configuration);
+  });
+
+  it("caches by metadata URL — a second call does not re-run discovery", async () => {
+    const config: BffConfig = makeConfig({
+      issuer: "https://discover-cache.example.com",
+    });
+    const configuration = makeConfiguration({
+      issuer: "https://discover-cache.example.com",
+      authorization_endpoint:
+        "https://discover-cache.example.com/connect/authorize",
+      token_endpoint: "https://discover-cache.example.com/connect/token",
+      end_session_endpoint:
+        "https://discover-cache.example.com/connect/logout",
+      userinfo_endpoint: "https://discover-cache.example.com/connect/userinfo",
+    });
+    discoveryMock.mockResolvedValue(configuration);
+
+    const first: DiscoveryDoc = await discover(config);
+    const second: DiscoveryDoc = await discover(config);
+
+    expect(discoveryMock).toHaveBeenCalledTimes(1);
+    expect(second).toBe(first);
+  });
+
+  it("re-pins browser-facing endpoints to the public issuer origin when metadataUrl is set", async () => {
+    // Split-horizon: server discovers via an internal host; the metadata
+    // advertises every endpoint on that internal origin.
+    const config: BffConfig = makeConfig({
+      issuer: "https://public.example.com",
+      metadataUrl:
+        "https://internal.svc.local/.well-known/openid-configuration",
+    });
+    const configuration = makeConfiguration({
+      issuer: "https://internal.svc.local",
+      authorization_endpoint:
+        "https://internal.svc.local/connect/authorize",
+      token_endpoint: "https://internal.svc.local/connect/token",
+      end_session_endpoint: "https://internal.svc.local/connect/logout",
+      userinfo_endpoint: "https://internal.svc.local/connect/userinfo",
+    });
+    discoveryMock.mockResolvedValue(configuration);
+
+    const result: DiscoveryDoc = await discover(config);
+
+    // discovery() is called with the configured metadata URL.
+    const [url] = discoveryMock.mock.calls[0] as [URL, string, string];
+    expect(url.href).toBe(
+      "https://internal.svc.local/.well-known/openid-configuration",
+    );
+
+    // Browser-facing endpoints are re-pinned to the public issuer origin.
+    expect(result.authorization_endpoint).toBe(
+      "https://public.example.com/connect/authorize",
+    );
+    expect(result.end_session_endpoint).toBe(
+      "https://public.example.com/connect/logout",
+    );
+    // Backchannel endpoints stay exactly as advertised (server-reachable).
+    expect(result.token_endpoint).toBe(
+      "https://internal.svc.local/connect/token",
+    );
+    expect(result.userinfo_endpoint).toBe(
+      "https://internal.svc.local/connect/userinfo",
+    );
+  });
+
+  it("uses endpoints as advertised when metadataUrl is not set", async () => {
+    const config: BffConfig = makeConfig({
+      issuer: "https://discover-nopin.example.com",
+    });
+    const configuration = makeConfiguration({
+      issuer: "https://discover-nopin.example.com",
+      authorization_endpoint:
+        "https://discover-nopin.example.com/connect/authorize",
+      token_endpoint: "https://discover-nopin.example.com/connect/token",
+      end_session_endpoint:
+        "https://discover-nopin.example.com/connect/logout",
+      userinfo_endpoint:
+        "https://discover-nopin.example.com/connect/userinfo",
+    });
+    discoveryMock.mockResolvedValue(configuration);
+
+    const result: DiscoveryDoc = await discover(config);
+
+    expect(result.authorization_endpoint).toBe(
+      "https://discover-nopin.example.com/connect/authorize",
+    );
+    expect(result.end_session_endpoint).toBe(
+      "https://discover-nopin.example.com/connect/logout",
+    );
   });
 });
 
