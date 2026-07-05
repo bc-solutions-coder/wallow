@@ -87,14 +87,17 @@ export async function ensureFreshSession(
  * Build the `/api` reverse-proxy h3 handler bound to a configuration.
  *
  * @param config Server-side BFF configuration.
+ * @param store Session store used to resolve and persist sessions. Defaults to
+ *   a cookie-only {@link CookieSessionStore}, so single-argument callers keep
+ *   working.
  * @returns An h3 event handler that proxies to `config.apiBaseUrl`.
  */
-export function createApiProxy(config: BffConfig): EventHandler {
-  // Default cookie-only store; full store threading arrives in a later task.
-  const store: SessionStore = new CookieSessionStore({
+export function createApiProxy(
+  config: BffConfig,
+  store: SessionStore = new CookieSessionStore({
     password: config.cookiePassword,
-  });
-
+  }),
+): EventHandler {
   return defineEventHandler(async (event: H3Event): Promise<unknown> => {
     const session: BffSession | null = await readSession(event, config, store);
     if (session === null) {

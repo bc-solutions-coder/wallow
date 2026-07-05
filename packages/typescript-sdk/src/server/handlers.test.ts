@@ -223,7 +223,99 @@ describe("user handler", () => {
   });
 });
 
+/**
+ * A {@link SessionStore} that delegates to a real {@link CookieSessionStore}
+ * (so `read`/`write`/`withRefreshLock` behave normally) but records every `ref`
+ * handed to `destroy`, letting a test assert that logout tears the session down.
+ */
+function makeRecordingStore(password: string): {
+  store: SessionStore;
+  destroyed: string[];
+} {
+  const delegate: CookieSessionStore = new CookieSessionStore({ password });
+  const destroyed: string[] = [];
+  const store: SessionStore = {
+    read: (ref: string): Promise<BffSession | null> => delegate.read(ref),
+    write: (session: BffSession): Promise<string> => delegate.write(session),
+    destroy: async (ref: string): Promise<void> => {
+      destroyed.push(ref);
+      await delegate.destroy(ref);
+    },
+    withRefreshLock: <T>(
+      ref: string,
+      fn: () => Promise<T>,
+    ): Promise<T | undefined> => delegate.withRefreshLock(ref, fn),
+  };
+  return { store, destroyed };
+}
+
+describe("createBffHandlers store injection", () => {
+  it("defaults to a CookieSessionStore when no store is provided (back-compat)", async () => {
+    const config: BffConfig = makeConfig("https://store-default.example.com");
+    const session: BffSession = makeSession();
+    const sealed: string = await sealSession(session, config.cookiePassword);
+    const handle = makeHandle(createBffHandlers(config));
+
+    const res: Response = await handle(
+      new Request("http://localhost/bff/user", {
+        headers: { cookie: `wallow_bff=${sealed}` },
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    const body: string = await res.text();
+    expect(body).toContain(session.user.sub);
+  });
+
+  it("threads an injected store through readSession in the user handler", async () => {
+    const config: BffConfig = makeConfig("https://store-injected.example.com");
+    const { store, destroyed } = makeRecordingStore(config.cookiePassword);
+    const session: BffSession = makeSession();
+    const sealed: string = await sealSession(session, config.cookiePassword);
+    const handle = makeHandle(createBffHandlers(config, store));
+
+    const res: Response = await handle(
+      new Request("http://localhost/bff/user", {
+        headers: { cookie: `wallow_bff=${sealed}` },
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    const body: string = await res.text();
+    expect(body).toContain(session.user.sub);
+    // The user handler only reads; it must not destroy the session.
+    expect(destroyed).toEqual([]);
+  });
+});
+
 describe("logout handler", () => {
+  it("destroys the current session ref in the injected store", async () => {
+    const config: BffConfig = makeConfig("https://logout-destroy.example.com");
+    const doc: DiscoveryDoc = makeDoc(config.issuer);
+    const { store, destroyed } = makeRecordingStore(config.cookiePassword);
+    const session: BffSession = makeSession();
+    // For a single-chunk cookie the sealed value is exactly the store ref.
+    const sealed: string = await sealSession(session, config.cookiePassword);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async (): Promise<DiscoveryDoc> => doc,
+      }),
+    );
+    const handle = makeHandle(createBffHandlers(config, store));
+
+    const res: Response = await handle(
+      new Request("http://localhost/bff/logout", {
+        headers: { cookie: `wallow_bff=${sealed}` },
+      }),
+    );
+
+    expect(res.status).toBe(302);
+    expect(destroyed).toEqual([sealed]);
+  });
+
   it("clears the session cookie and 302s to the end-session endpoint", async () => {
     const config: BffConfig = makeConfig("https://logout-test.example.com");
     const doc: DiscoveryDoc = makeDoc(config.issuer);

@@ -211,14 +211,17 @@ function clearSession(event: H3Event, config: BffConfig): void {
  * Build the four BFF route handlers bound to a given configuration.
  *
  * @param config Server-side BFF configuration.
+ * @param store Session store used to resolve, persist, and revoke sessions.
+ *   Defaults to a cookie-only {@link CookieSessionStore}, so single-argument
+ *   callers keep working.
  * @returns `{ login, callback, user, logout }` h3 event handlers.
  */
-export function createBffHandlers(config: BffConfig): BffHandlers {
-  // Default cookie-only store; full store threading arrives in a later task.
-  const store: SessionStore = new CookieSessionStore({
+export function createBffHandlers(
+  config: BffConfig,
+  store: SessionStore = new CookieSessionStore({
     password: config.cookiePassword,
-  });
-
+  }),
+): BffHandlers {
   return {
     login: defineEventHandler(async (event: H3Event): Promise<void> => {
       const query: Record<string, unknown> = getQuery(event);
@@ -303,13 +306,16 @@ export function createBffHandlers(config: BffConfig): BffHandlers {
         }
 
         const session: BffSession = {
-          sessionId: crypto.randomUUID(),
+          sessionId: randomUrlSafe(24),
           accessToken: tokens.access_token,
           refreshToken: tokens.refresh_token,
           idToken: tokens.id_token,
           expiresAt: Date.now() + tokens.expires_in * 1000,
           user,
           version: 1,
+          // Placeholder CSRF token; full synchronizer-token issuance lands in
+          // Phase 6.
+          csrfToken: randomUrlSafe(24),
         };
         await writeSession(event, config, store, session);
 
@@ -338,6 +344,12 @@ export function createBffHandlers(config: BffConfig): BffHandlers {
         config,
         store,
       );
+      // Revoke the session server-side before clearing the browser cookies so a
+      // store-backed session cannot be replayed after logout.
+      const ref: string | null = readSessionRef(event, config);
+      if (ref !== null) {
+        await store.destroy(ref);
+      }
       clearSession(event, config);
 
       const doc: DiscoveryDoc = await discover(config);
