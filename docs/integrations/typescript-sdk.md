@@ -85,6 +85,34 @@ npm install h3
 
 ---
 
+## Publishing the SDK
+
+The SDK is versioned and released **independently of the platform**. It does not
+piggyback on the release-please `vX.Y.Z` releases (the platform version, e.g.
+`v3.2.1`) — pushing a platform tag or cutting a platform release does **not**
+publish the SDK.
+
+Publish a new SDK version in one of two ways:
+
+- **Push an `sdk-v<version>` tag** — the `sdk-publish` workflow strips the
+  `sdk-v` prefix and publishes that version:
+
+  ```bash
+  git tag sdk-v0.1.0
+  git push origin sdk-v0.1.0
+  ```
+
+- **Run the `sdk-publish` workflow manually** from the Actions tab (or via
+  `gh workflow run sdk-publish.yml -f version=0.1.0`), providing the version
+  (no leading `v`) as the required `version` input.
+
+Either path installs, tests, and builds the SDK, syncs `package.json` to the
+requested version, and publishes to GitHub Packages. The SDK version is chosen
+independently and has no relationship to the platform `vX.Y.Z` release-please
+versions.
+
+---
+
 ## Server setup: mounting the BFF
 
 The BFF is a set of h3 event handlers. In TanStack Start (or any h3-compatible

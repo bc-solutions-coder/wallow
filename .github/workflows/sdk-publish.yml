@@ -1,16 +1,19 @@
-# SDK Publish - publishes @bc-solutions-coder/sdk to GitHub Packages on release or manual dispatch.
+# SDK Publish - publishes @bc-solutions-coder/sdk to GitHub Packages.
+# Decoupled from the platform release-please vX.Y.Z releases: the SDK is
+# published only by pushing an sdk-v* tag or by manual dispatch with a version.
 
 name: SDK Publish
 
 on:
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to publish (e.g. 1.2.3). Leave empty to publish package.json version as-is.'
-        required: false
+        description: 'SDK version to publish (e.g. 0.1.0, no leading v)'
+        required: true
         type: string
+  push:
+    tags:
+      - 'sdk-v*'
 
 permissions:
   contents: read
@@ -43,19 +46,22 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Sync package version from release tag or input
+      - name: Sync package version from sdk-v tag or dispatch input
         run: |
-          VERSION="${{ github.event.release.tag_name }}"
-          VERSION="${VERSION#v}"
-          if [ -z "$VERSION" ]; then
+          if [ "${{ github.event_name }}" = "push" ]; then
+            # Tag push: strip the "sdk-v" prefix (e.g. sdk-v0.1.0 -> 0.1.0).
+            VERSION="${{ github.ref_name }}"
+            VERSION="${VERSION#sdk-v}"
+          else
+            # Manual dispatch: use the provided version verbatim.
             VERSION="${{ inputs.version }}"
           fi
           if [ -z "$VERSION" ]; then
-            echo "No version provided (empty release tag and input); publishing package.json version as-is."
-          else
-            echo "Setting package version to $VERSION"
-            npm version "$VERSION" --no-git-tag-version --allow-same-version
+            echo "::error::No version resolved (empty sdk-v tag suffix and empty dispatch input)." >&2
+            exit 1
           fi
+          echo "Setting package version to $VERSION"
+          npm version "$VERSION" --no-git-tag-version --allow-same-version
 
       - name: Publish to GitHub Packages
         run: npm publish

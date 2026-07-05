@@ -27,11 +27,15 @@ describe("sdk-publish GitHub Actions workflow", () => {
     expect(existsSync(workflowPath)).toBe(true);
   });
 
-  it("triggers on release published", () => {
+  it("triggers on sdk-v* tag pushes only (not platform vX.Y.Z releases)", () => {
     const yaml: string = readWorkflow();
     expect(yaml).toMatch(/on:/);
-    expect(yaml).toMatch(/release:/);
-    expect(yaml).toMatch(/types:\s*\[\s*published\s*\]/);
+    expect(yaml).toMatch(/push:/);
+    expect(yaml).toMatch(/tags:/);
+    expect(yaml).toMatch(/['"]?sdk-v\*['"]?/);
+    // Must NOT be wired to release-please platform releases.
+    expect(yaml).not.toMatch(/release:/);
+    expect(yaml).not.toMatch(/types:\s*\[\s*published\s*\]/);
   });
 
   it("declares least-privilege permissions (contents:read, packages:write)", () => {
@@ -60,18 +64,29 @@ describe("sdk-publish GitHub Actions workflow", () => {
     expect(yaml).toMatch(/scope:\s*['"]?@bc-solutions-coder['"]?/);
   });
 
-  it("supports manual dispatch with an optional version input", () => {
+  it("supports manual dispatch with a required version input", () => {
     const yaml: string = readWorkflow();
     expect(yaml).toMatch(/workflow_dispatch:/);
     expect(yaml).toMatch(/inputs:/);
     expect(yaml).toMatch(/version:/);
+    expect(yaml).toMatch(/required:\s*true/);
   });
 
-  it("syncs the package version before publishing", () => {
+  it("derives the version from the sdk-v tag prefix or dispatch input", () => {
     const yaml: string = readWorkflow();
     expect(yaml).toMatch(/npm version .*--no-git-tag-version/);
-    expect(yaml).toMatch(/github\.event\.release\.tag_name/);
+    // Tag push strips the sdk-v prefix; manual dispatch uses inputs.version.
+    expect(yaml).toMatch(/#sdk-v/);
+    expect(yaml).toMatch(/github\.ref_name/);
     expect(yaml).toMatch(/inputs\.version/);
+    // Legacy release-based derivation must be gone.
+    expect(yaml).not.toMatch(/github\.event\.release\.tag_name/);
+  });
+
+  it("fails the job when no version can be resolved", () => {
+    const yaml: string = readWorkflow();
+    expect(yaml).toMatch(/if \[ -z "\$VERSION" \]/);
+    expect(yaml).toMatch(/exit 1/);
   });
 
   it("installs, builds, and tests before publishing", () => {
