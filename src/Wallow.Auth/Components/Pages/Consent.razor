@@ -4,6 +4,7 @@
 @inject IAuthApiClient AuthClient
 @inject NavigationManager Navigation
 @inject ILogger<Consent> Logger
+@inject IConfiguration Configuration
 
 <PageTitle>Consent</PageTitle>
 
@@ -64,10 +65,17 @@ else
         Navigation.NavigateTo(url, forceLoad: true);
     }
 
+    private string ApiBaseUrl => Configuration["ApiBaseUrl"] ?? "http://localhost:5001";
+
     private string AppendToReturnUrl(string parameter)
     {
         string baseUrl = ReturnUrl ?? "/";
         string separator = baseUrl.Contains('?') ? "&" : "?";
-        return baseUrl + separator + parameter;
+        string withParam = baseUrl + separator + parameter;
+        // The returnUrl is a relative path issued by the API's /connect/authorize endpoint.
+        // NavigationManager.NavigateTo resolves relative URLs against the Auth app origin,
+        // which does not host /connect/authorize. Prepend ApiBaseUrl so the browser is
+        // directed to the correct (API) origin — mirroring Login.razor's BuildApiReturnUrl.
+        return withParam.StartsWith('/') ? $"{ApiBaseUrl}{withParam}" : withParam;
     }
 }
