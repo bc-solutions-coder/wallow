@@ -71,12 +71,18 @@ jobs:
           path: |
             **/bin/Release
             **/obj
-          key: build-${{ runner.os }}-${{ github.sha }}
+          key: build-v2-${{ runner.os }}-${{ github.sha }}
           restore-keys: |
-            build-${{ runner.os }}-
+            build-v2-${{ runner.os }}-
 
       - name: Restore dependencies
         run: dotnet restore
+
+      # Force Tailwind to regenerate on every build. dotnet build is incremental and
+      # keys Tailwind output off Styles/app.css, not the scanned razor files, so a
+      # restored (cross-commit) generated app.css would otherwise ship stale CSS.
+      - name: Clean generated Tailwind CSS
+        run: rm -f src/Wallow.Web/wwwroot/css/app.css src/Wallow.Auth/wwwroot/css/app.css
 
       - name: Build
         run: dotnet build --no-restore --configuration Release --graph
@@ -87,7 +93,7 @@ jobs:
           path: |
             **/bin/Release
             **/obj
-          key: build-${{ runner.os }}-${{ github.sha }}
+          key: build-v2-${{ runner.os }}-${{ github.sha }}
 
   docker-images-app:
     needs: build
@@ -117,7 +123,7 @@ jobs:
           path: |
             **/bin/Release
             **/obj
-          key: build-${{ runner.os }}-${{ github.sha }}
+          key: build-v2-${{ runner.os }}-${{ github.sha }}
           fail-on-cache-miss: true
 
       - name: Publish app container images
