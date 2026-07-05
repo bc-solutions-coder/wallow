@@ -23,7 +23,7 @@ import {
   type H3Event,
 } from "h3";
 
-import { decodeIdTokenClaims } from "./claims";
+import { decodeIdTokenClaims, mapClaims } from "./claims";
 import type { BffConfig } from "./config";
 import { createPkcePair, randomUrlSafe } from "./pkce";
 import {
@@ -311,6 +311,8 @@ export function createBffHandlers(
             sub: typeof info.sub === "string" ? info.sub : user.sub,
           };
         }
+        // Normalize authorization + tenant claims into first-class user fields.
+        user = mapClaims(user);
 
         const session: BffSession = {
           sessionId: randomUrlSafe(24),

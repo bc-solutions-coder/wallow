@@ -66,6 +66,11 @@ vi.mock("openid-client", () => ({
   // signature/iss/aud/exp validation plus state + nonce checks. Configured
   // per-test via authorizationCodeGrantMock.mockResolvedValue(...).
   authorizationCodeGrant: authorizationCodeGrantMock,
+  // Userinfo is delegated to openid-client. The discovery stub above advertises
+  // no userinfo_endpoint, so the wrapper short-circuits and this is never
+  // invoked in these tests — provided for import parity with oidc.ts.
+  fetchUserInfo: vi.fn(),
+  skipSubjectCheck: Symbol("skipSubjectCheck"),
 }));
 
 afterEach(() => {
@@ -244,6 +249,66 @@ describe("callback handler", () => {
     expect(checks.expectedState).toBe("st-1");
     expect(checks.expectedNonce).toBe("no-1");
     expect(checks.pkceCodeVerifier).toBe("ver-1");
+  });
+
+  it("maps role/tenant/scope claims into first-class session.user fields", async () => {
+    const config: BffConfig = makeConfig("https://cb-claims.example.com");
+    const tx: LoginTx = {
+      state: "st-c",
+      nonce: "no-c",
+      verifier: "ver-c",
+      returnTo: "/dashboard",
+    };
+    const sealed: string = await sealTx(tx, config.cookiePassword);
+
+    // The id_token carries authorization + tenant claims in their raw OIDC
+    // shape; the callback must normalize them into first-class user fields.
+    authorizationCodeGrantMock.mockResolvedValue({
+      access_token: "at",
+      refresh_token: "rt",
+      id_token: makeIdToken({
+        sub: "user-9",
+        email: "u@e.com",
+        role: "admin",
+        roles: ["user"],
+        scope: "read write",
+        tenant_id: "tenant-42",
+        tenant_name: "Acme Corp",
+      }),
+      expires_in: 3600,
+      token_type: "Bearer",
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new Error("unexpected token-endpoint fetch")),
+    );
+    const handle = makeHandle(createBffHandlers(config));
+
+    const cbRes: Response = await handle(
+      new Request("http://localhost/bff/callback?code=code-c&state=st-c", {
+        headers: { cookie: `wallow_bff_tx=${sealed}` },
+      }),
+    );
+    expect(cbRes.status).toBe(302);
+
+    // Read the persisted identity back out through the user handler.
+    const userRes: Response = await handle(
+      new Request("http://localhost/bff/user", {
+        headers: { cookie: cookieHeaderFrom(cbRes) },
+      }),
+    );
+    expect(userRes.status).toBe(200);
+    const user: BffSession["user"] = (await userRes.json()) as BffSession["user"];
+
+    expect(user.sub).toBe("user-9");
+    // role (string) + roles (array) merge into a normalized roles array.
+    expect(user.roles).toEqual(expect.arrayContaining(["admin", "user"]));
+    expect(user.roles).toHaveLength(2);
+    // scope (space-delimited string) normalizes into permissions.
+    expect(user.permissions).toEqual(expect.arrayContaining(["read", "write"]));
+    // tenant claims are lifted into first-class fields.
+    expect(user.tenantId).toBe("tenant-42");
+    expect(user.tenantName).toBe("Acme Corp");
   });
 });
 

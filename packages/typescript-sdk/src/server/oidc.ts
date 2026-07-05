@@ -13,7 +13,9 @@ import {
   authorizationCodeGrant,
   buildAuthorizationUrl,
   discovery,
+  fetchUserInfo as oidcFetchUserInfo,
   refreshTokenGrant,
+  skipSubjectCheck,
   type Configuration,
   type ServerMetadata,
 } from "openid-client";
@@ -270,16 +272,10 @@ export async function fetchUserInfo(
     return null;
   }
 
-  const response: Response = await fetch(doc.userinfo_endpoint, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      accept: "application/json",
-    },
-  });
+  // The subject is not yet known at this point in the flow, so skip the
+  // expected-subject check; openid-client still validates the response shape.
+  const claims: Awaited<ReturnType<typeof oidcFetchUserInfo>> =
+    await oidcFetchUserInfo(doc.configuration!, accessToken, skipSubjectCheck);
 
-  if (!response.ok) {
-    return null;
-  }
-
-  return (await response.json()) as Record<string, unknown>;
+  return claims as unknown as Record<string, unknown>;
 }

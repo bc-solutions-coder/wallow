@@ -60,3 +60,84 @@ export function decodeIdTokenClaims(idToken: string): BffSession["user"] {
 
   return user;
 }
+
+/**
+ * Map a merged claims object (id_token payload overlaid with userinfo) into the
+ * first-class {@link BffSession.user} fields.
+ *
+ * Normalizes authorization claims into arrays and lifts tenant claims into
+ * dedicated fields: `role`/`roles` merge into `roles`, `permissions`/`scope`
+ * merge into `permissions`, `tenant_id` becomes `tenantId`, `tenant_name`
+ * becomes `tenantName`. All other claims (including `sub`, `email`, `name`) pass
+ * through via the {@link BffSession.user} index signature.
+ *
+ * @param claims The merged OIDC claims object.
+ * @returns The resolved session user with normalized first-class fields.
+ */
+export function mapClaims(claims: Record<string, unknown>): BffSession["user"] {
+  const rest: Record<string, unknown> = { ...claims };
+  delete rest.role;
+  delete rest.roles;
+  delete rest.permissions;
+  delete rest.scope;
+  delete rest.tenant_id;
+  delete rest.tenant_name;
+
+  const user: BffSession["user"] = {
+    ...rest,
+    sub: typeof claims.sub === "string" ? claims.sub : "",
+  };
+
+  const roles: string[] = dedupe([
+    ...asStringList(claims.role),
+    ...asStringList(claims.roles),
+  ]);
+  if (roles.length > 0) {
+    user.roles = roles;
+  }
+
+  const permissions: string[] = dedupe([
+    ...asStringList(claims.permissions),
+    ...splitScope(claims.scope),
+  ]);
+  if (permissions.length > 0) {
+    user.permissions = permissions;
+  }
+
+  if (typeof claims.tenant_id === "string") {
+    user.tenantId = claims.tenant_id;
+  }
+
+  if (typeof claims.tenant_name === "string") {
+    user.tenantName = claims.tenant_name;
+  }
+
+  return user;
+}
+
+/**
+ * Normalize a claim value that may be a single string or an array of strings
+ * into a string array, discarding non-string entries.
+ */
+function asStringList(value: unknown): string[] {
+  if (typeof value === "string") {
+    return [value];
+  }
+  if (Array.isArray(value)) {
+    return value.filter((entry): entry is string => typeof entry === "string");
+  }
+  return [];
+}
+
+/** Split a space-delimited OAuth `scope` string into individual scopes. */
+function splitScope(value: unknown): string[] {
+  if (typeof value !== "string") {
+    return [];
+  }
+  return value.split(" ").filter((scope: string): boolean => scope.length > 0);
+}
+
+/** Return a new array with duplicate entries removed, preserving order. */
+function dedupe(values: string[]): string[] {
+  return [...new Set(values)];
+}

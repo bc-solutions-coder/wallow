@@ -5,6 +5,7 @@ import {
   buildAuthorizeUrl,
   discover,
   exchangeCode,
+  fetchUserInfo,
   refreshTokens,
   type DiscoveryDoc,
   type TokenResponse,
@@ -22,6 +23,8 @@ const {
   buildAuthorizationUrlMock,
   authorizationCodeGrantMock,
   refreshTokenGrantMock,
+  fetchUserInfoMock,
+  skipSubjectCheckSentinel,
   makeConfiguration,
 } = vi.hoisted(() => {
   const discoveryMock: ReturnType<typeof vi.fn> = vi.fn();
@@ -29,6 +32,10 @@ const {
   const buildAuthorizationUrlMock: ReturnType<typeof vi.fn> = vi.fn();
   const authorizationCodeGrantMock: ReturnType<typeof vi.fn> = vi.fn();
   const refreshTokenGrantMock: ReturnType<typeof vi.fn> = vi.fn();
+  const fetchUserInfoMock: ReturnType<typeof vi.fn> = vi.fn();
+  // Sentinel standing in for openid-client's `skipSubjectCheck` symbol, so the
+  // test can assert the wrapper forwards it when the subject is not yet known.
+  const skipSubjectCheckSentinel: symbol = Symbol("skipSubjectCheck");
   const makeConfiguration = (
     metadata: Record<string, unknown>,
   ): { serverMetadata: () => Record<string, unknown> } => ({
@@ -40,6 +47,8 @@ const {
     buildAuthorizationUrlMock,
     authorizationCodeGrantMock,
     refreshTokenGrantMock,
+    fetchUserInfoMock,
+    skipSubjectCheckSentinel,
     makeConfiguration,
   };
 });
@@ -50,6 +59,8 @@ vi.mock("openid-client", () => ({
   buildAuthorizationUrl: buildAuthorizationUrlMock,
   authorizationCodeGrant: authorizationCodeGrantMock,
   refreshTokenGrant: refreshTokenGrantMock,
+  fetchUserInfo: fetchUserInfoMock,
+  skipSubjectCheck: skipSubjectCheckSentinel,
 }));
 
 afterEach(() => {
@@ -499,5 +510,92 @@ describe("refreshTokens", () => {
     await expect(
       refreshTokens(config, refreshDoc, "expired-refresh"),
     ).rejects.toThrow("invalid_grant");
+  });
+});
+
+describe("fetchUserInfo", () => {
+  /**
+   * Build a DiscoveryDoc carrying a resolved openid-client Configuration handle
+   * and an advertised userinfo endpoint. The Configuration is opaque to
+   * fetchUserInfo — it is passed straight through to openid-client's
+   * fetchUserInfo — so a stub object suffices.
+   */
+  function makeUserInfoDoc(): DiscoveryDoc {
+    const configuration = makeConfiguration({
+      issuer: "https://auth.example.com",
+      userinfo_endpoint: "https://auth.example.com/connect/userinfo",
+    });
+    return {
+      ...doc,
+      userinfo_endpoint: "https://auth.example.com/connect/userinfo",
+      configuration: configuration as unknown as DiscoveryDoc["configuration"],
+    };
+  }
+
+  /**
+   * Reject any native `fetch` so a lingering hand-rolled Bearer request would
+   * fail loudly: after migration the userinfo call must go through
+   * openid-client's {@link fetchUserInfo}, never a native fetch.
+   */
+  function stubFetchAsForbidden(): ReturnType<typeof vi.fn> {
+    const fetchMock: ReturnType<typeof vi.fn> = vi
+      .fn()
+      .mockRejectedValue(new Error("native fetch must not be used"));
+    vi.stubGlobal("fetch", fetchMock);
+    return fetchMock;
+  }
+
+  it("delegates to openid-client fetchUserInfo with the Configuration, access token, and skipSubjectCheck", async () => {
+    const userInfoDoc: DiscoveryDoc = makeUserInfoDoc();
+    const fetchMock: ReturnType<typeof vi.fn> = stubFetchAsForbidden();
+    fetchUserInfoMock.mockResolvedValue({ sub: "user-1", email: "u@e.com" });
+
+    await fetchUserInfo(userInfoDoc, "access-abc");
+
+    expect(fetchUserInfoMock).toHaveBeenCalledTimes(1);
+    const [passedConfig, passedAccessToken, expectedSubject] =
+      fetchUserInfoMock.mock.calls[0] as [unknown, string, unknown];
+    // The opaque Configuration handle carried on the doc is forwarded as-is.
+    expect(passedConfig).toBe(userInfoDoc.configuration);
+    expect(passedAccessToken).toBe("access-abc");
+    // The subject is not yet known at the userinfo call, so the wrapper forwards
+    // openid-client's skipSubjectCheck sentinel rather than an expected subject.
+    expect(expectedSubject).toBe(skipSubjectCheckSentinel);
+    // The native Bearer fetch is gone.
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("returns the claims object resolved by openid-client fetchUserInfo", async () => {
+    const userInfoDoc: DiscoveryDoc = makeUserInfoDoc();
+    stubFetchAsForbidden();
+    const claims: Record<string, unknown> = {
+      sub: "user-1",
+      email: "user@example.com",
+      roles: ["admin"],
+    };
+    fetchUserInfoMock.mockResolvedValue(claims);
+
+    const result: Record<string, unknown> | null = await fetchUserInfo(
+      userInfoDoc,
+      "access-abc",
+    );
+
+    expect(result).toEqual(claims);
+  });
+
+  it("returns null and skips the call when no userinfo endpoint is advertised", async () => {
+    const noUserInfoDoc: DiscoveryDoc = {
+      ...doc,
+      userinfo_endpoint: undefined,
+    };
+    stubFetchAsForbidden();
+
+    const result: Record<string, unknown> | null = await fetchUserInfo(
+      noUserInfoDoc,
+      "access-abc",
+    );
+
+    expect(result).toBeNull();
+    expect(fetchUserInfoMock).not.toHaveBeenCalled();
   });
 });

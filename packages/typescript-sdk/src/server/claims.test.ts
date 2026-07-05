@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { decodeIdTokenClaims } from "./claims";
+import { decodeIdTokenClaims, mapClaims } from "./claims";
 import type { BffSession } from "./session";
 
 /**
@@ -45,5 +45,81 @@ describe("decodeIdTokenClaims", () => {
 
   it("throws on a malformed token", () => {
     expect(() => decodeIdTokenClaims("not-a-jwt")).toThrow();
+  });
+});
+
+describe("mapClaims", () => {
+  it("normalizes a single string `role` claim into a roles array", () => {
+    const user: BffSession["user"] = mapClaims({
+      sub: "user-1",
+      role: "admin",
+    });
+
+    expect(user.roles).toEqual(["admin"]);
+  });
+
+  it("passes a `roles` array claim through into roles", () => {
+    const user: BffSession["user"] = mapClaims({
+      sub: "user-1",
+      roles: ["user", "editor"],
+    });
+
+    expect(user.roles).toEqual(["user", "editor"]);
+  });
+
+  it("merges a string `role` and an array `roles` claim into roles", () => {
+    const user: BffSession["user"] = mapClaims({
+      sub: "user-1",
+      role: "admin",
+      roles: ["user", "editor"],
+    });
+
+    // Both the singular and plural role claims are surfaced in the array.
+    expect(user.roles).toEqual(expect.arrayContaining(["admin", "user", "editor"]));
+    expect(user.roles).toHaveLength(3);
+  });
+
+  it("normalizes a `permissions` array claim into permissions", () => {
+    const user: BffSession["user"] = mapClaims({
+      sub: "user-1",
+      permissions: ["read", "write"],
+    });
+
+    expect(user.permissions).toEqual(["read", "write"]);
+  });
+
+  it("splits a space-delimited `scope` string into permissions", () => {
+    const user: BffSession["user"] = mapClaims({
+      sub: "user-1",
+      scope: "read write delete",
+    });
+
+    expect(user.permissions).toEqual(
+      expect.arrayContaining(["read", "write", "delete"]),
+    );
+    expect(user.permissions).toHaveLength(3);
+  });
+
+  it("lifts tenant_id and tenant_name into first-class fields", () => {
+    const user: BffSession["user"] = mapClaims({
+      sub: "user-1",
+      tenant_id: "tenant-42",
+      tenant_name: "Acme Corp",
+    });
+
+    expect(user.tenantId).toBe("tenant-42");
+    expect(user.tenantName).toBe("Acme Corp");
+  });
+
+  it("preserves sub and passes unknown claims through the index signature", () => {
+    const user: BffSession["user"] = mapClaims({
+      sub: "user-99",
+      email: "user@example.com",
+      custom_claim: "custom-value",
+    });
+
+    expect(user.sub).toBe("user-99");
+    expect(user.email).toBe("user@example.com");
+    expect(user.custom_claim).toBe("custom-value");
   });
 });
