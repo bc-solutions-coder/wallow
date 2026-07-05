@@ -1,5 +1,4 @@
 using System.Text.Json;
-using BlazorBlueprint.Components;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
@@ -70,8 +69,6 @@ builder.Services.AddRazorComponents()
         options.MaxBufferedUnacknowledgedRenderBatches = 10;
         options.DetailedErrors = builder.Environment.IsDevelopment();
     });
-
-builder.Services.AddBlazorBlueprintComponents();
 
 // On non-HTTPS (local dev), downgrade SameSite=None → Unspecified so the browser defaults to
 // Lax instead of rejecting the cookie (browsers require Secure with SameSite=None).

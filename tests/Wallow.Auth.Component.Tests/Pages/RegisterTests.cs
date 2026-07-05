@@ -1,3 +1,4 @@
+using System.Net;
 using Bunit;
 using Bunit.TestDoubles;
 using Microsoft.AspNetCore.Components;
@@ -230,6 +231,33 @@ public sealed class RegisterTests : BunitContext
     }
 
     [Fact]
+    public void Init_WithClientId_ResolvesOrgNameAndExternalProvidersConcurrently()
+    {
+        // Regression: OnInitializedAsync runs GetExternalProvidersAsync and ResolveOrgNameAsync
+        // concurrently via Task.WhenAll. Both must still complete and surface their results.
+        _authClient.GetExternalProvidersAsync(Arg.Any<CancellationToken>())
+            .Returns(["Google"]);
+
+        using StubHttpMessageHandler handler = new(
+            HttpStatusCode.OK,
+            "{\"tenantId\":\"t1\",\"orgName\":\"Acme Corp\"}");
+        using HttpClient httpClient = new(handler, disposeHandler: false)
+        {
+            BaseAddress = new Uri("http://localhost/"),
+        };
+        _httpClientFactory.CreateClient("AuthApi").Returns(httpClient);
+
+        BunitNavigationManager navMan = Services.GetRequiredService<BunitNavigationManager>();
+        navMan.NavigateTo("/register?client_id=abc123");
+
+        IRenderedComponent<Register> cut = Render<Register>();
+
+        cut.Markup.Should().Contain("Acme Corp");
+        cut.Markup.Should().Contain("Google");
+        handler.RequestCount.Should().Be(1);
+    }
+
+    [Fact]
     public async Task Submit_WithValidData_LogsSuccessfulRegistration()
     {
         _authClient.RegisterAsync(Arg.Any<RegisterRequest>(), Arg.Any<CancellationToken>())
@@ -271,5 +299,21 @@ public sealed class RegisterTests : BunitContext
         await cut.Find("form").SubmitAsync();
 
         _logger.ShouldHaveLoggedMessage("OIDC Register:");
+    }
+
+    private sealed class StubHttpMessageHandler(HttpStatusCode statusCode, string json) : HttpMessageHandler
+    {
+        public int RequestCount { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            RequestCount++;
+            HttpResponseMessage response = new(statusCode)
+            {
+                Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json"),
+            };
+            return Task.FromResult(response);
+        }
     }
 }
