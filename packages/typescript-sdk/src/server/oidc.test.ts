@@ -21,12 +21,14 @@ const {
   allowInsecureRequestsMock,
   buildAuthorizationUrlMock,
   authorizationCodeGrantMock,
+  refreshTokenGrantMock,
   makeConfiguration,
 } = vi.hoisted(() => {
   const discoveryMock: ReturnType<typeof vi.fn> = vi.fn();
   const allowInsecureRequestsMock: ReturnType<typeof vi.fn> = vi.fn();
   const buildAuthorizationUrlMock: ReturnType<typeof vi.fn> = vi.fn();
   const authorizationCodeGrantMock: ReturnType<typeof vi.fn> = vi.fn();
+  const refreshTokenGrantMock: ReturnType<typeof vi.fn> = vi.fn();
   const makeConfiguration = (
     metadata: Record<string, unknown>,
   ): { serverMetadata: () => Record<string, unknown> } => ({
@@ -37,6 +39,7 @@ const {
     allowInsecureRequestsMock,
     buildAuthorizationUrlMock,
     authorizationCodeGrantMock,
+    refreshTokenGrantMock,
     makeConfiguration,
   };
 });
@@ -46,6 +49,7 @@ vi.mock("openid-client", () => ({
   allowInsecureRequests: allowInsecureRequestsMock,
   buildAuthorizationUrl: buildAuthorizationUrlMock,
   authorizationCodeGrant: authorizationCodeGrantMock,
+  refreshTokenGrant: refreshTokenGrantMock,
 }));
 
 afterEach(() => {
@@ -401,33 +405,99 @@ describe("exchangeCode", () => {
 });
 
 describe("refreshTokens", () => {
-  it("posts a refresh_token grant to the token endpoint", async () => {
-    const config: BffConfig = makeConfig();
-    const tokens: TokenResponse = {
-      access_token: "at2",
-      expires_in: 3600,
-    };
-    const fetchMock: ReturnType<typeof vi.fn> = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async (): Promise<TokenResponse> => tokens,
+  /**
+   * Build a DiscoveryDoc carrying a resolved openid-client Configuration handle,
+   * as {@link discover} would populate it. The Configuration is opaque to
+   * refreshTokens — it is passed straight through to openid-client's
+   * refreshTokenGrant — so a stub object suffices.
+   */
+  function makeRefreshDoc(): DiscoveryDoc {
+    const configuration = makeConfiguration({
+      issuer: "https://auth.example.com",
+      token_endpoint: doc.token_endpoint,
     });
+    return {
+      ...doc,
+      configuration: configuration as unknown as DiscoveryDoc["configuration"],
+    };
+  }
+
+  /**
+   * Reject any native `fetch` so a lingering token-endpoint POST would fail the
+   * test loudly: after migration the refresh grant must go through
+   * openid-client's {@link refreshTokenGrant}, never a hand-rolled fetch.
+   */
+  function stubFetchAsForbidden(): ReturnType<typeof vi.fn> {
+    const fetchMock: ReturnType<typeof vi.fn> = vi
+      .fn()
+      .mockRejectedValue(new Error("native fetch must not be used"));
     vi.stubGlobal("fetch", fetchMock);
+    return fetchMock;
+  }
+
+  it("delegates to openid-client refreshTokenGrant with the Configuration and refresh token", async () => {
+    const config: BffConfig = makeConfig();
+    const refreshDoc: DiscoveryDoc = makeRefreshDoc();
+    const fetchMock: ReturnType<typeof vi.fn> = stubFetchAsForbidden();
+    refreshTokenGrantMock.mockResolvedValue({
+      access_token: "at2",
+      refresh_token: "rt2",
+      expires_in: 3600,
+      token_type: "Bearer",
+    });
+
+    await refreshTokens(config, refreshDoc, "refresh-123");
+
+    expect(refreshTokenGrantMock).toHaveBeenCalledTimes(1);
+    const [passedConfig, passedRefreshToken] =
+      refreshTokenGrantMock.mock.calls[0] as [unknown, string];
+    // The opaque Configuration handle carried on the doc is forwarded as-is.
+    expect(passedConfig).toBe(refreshDoc.configuration);
+    // The current refresh token is exchanged for a fresh token set.
+    expect(passedRefreshToken).toBe("refresh-123");
+    // The native token-endpoint POST is gone.
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("surfaces the rotated refresh_token and maps to the TokenResponse shape", async () => {
+    const config: BffConfig = makeConfig();
+    const refreshDoc: DiscoveryDoc = makeRefreshDoc();
+    stubFetchAsForbidden();
+    // openid-client returns TokenEndpointResponse & helpers; refreshTokens must
+    // project only the token fields (dropping helper methods like claims()) and
+    // must surface the rotated refresh_token returned by the grant.
+    refreshTokenGrantMock.mockResolvedValue({
+      access_token: "access-rotated",
+      refresh_token: "refresh-rotated",
+      id_token: "id-rotated",
+      expires_in: 1200,
+      token_type: "Bearer",
+      claims: (): Record<string, unknown> => ({ sub: "user-1" }),
+    });
 
     const result: TokenResponse = await refreshTokens(
       config,
-      doc,
-      "refresh-123",
+      refreshDoc,
+      "old-refresh",
     );
 
-    expect(result).toEqual(tokens);
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe(doc.token_endpoint);
-    expect(init.method).toBe("POST");
-    const body: URLSearchParams = new URLSearchParams(init.body as string);
-    expect(body.get("grant_type")).toBe("refresh_token");
-    expect(body.get("refresh_token")).toBe("refresh-123");
-    expect(body.get("client_id")).toBe(config.clientId);
-    expect(body.get("client_secret")).toBe(config.clientSecret);
+    expect(result).toEqual({
+      access_token: "access-rotated",
+      refresh_token: "refresh-rotated",
+      id_token: "id-rotated",
+      expires_in: 1200,
+      token_type: "Bearer",
+    });
+  });
+
+  it("propagates errors thrown by openid-client refreshTokenGrant", async () => {
+    const config: BffConfig = makeConfig();
+    const refreshDoc: DiscoveryDoc = makeRefreshDoc();
+    stubFetchAsForbidden();
+    refreshTokenGrantMock.mockRejectedValue(new Error("invalid_grant"));
+
+    await expect(
+      refreshTokens(config, refreshDoc, "expired-refresh"),
+    ).rejects.toThrow("invalid_grant");
   });
 });

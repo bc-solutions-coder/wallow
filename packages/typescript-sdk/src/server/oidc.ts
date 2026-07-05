@@ -13,6 +13,7 @@ import {
   authorizationCodeGrant,
   buildAuthorizationUrl,
   discovery,
+  refreshTokenGrant,
   type Configuration,
   type ServerMetadata,
 } from "openid-client";
@@ -180,36 +181,6 @@ export function buildAuthorizeUrl(
 }
 
 /**
- * POST a form-encoded body to the token endpoint and return the parsed tokens.
- *
- * Always includes the confidential client credentials. Throws on any non-2xx
- * response.
- */
-async function postToken(
-  config: BffConfig,
-  doc: DiscoveryDoc,
-  body: URLSearchParams,
-): Promise<TokenResponse> {
-  body.set("client_id", config.clientId);
-  body.set("client_secret", config.clientSecret);
-
-  const response: Response = await fetch(doc.token_endpoint, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: body.toString(),
-  });
-
-  if (!response.ok) {
-    const detail: string = await response.text().catch(() => "");
-    throw new Error(
-      `Token request failed with status ${response.status}: ${detail}`,
-    );
-  }
-
-  return (await response.json()) as TokenResponse;
-}
-
-/**
  * Exchange an authorization code (plus PKCE verifier) for tokens.
  *
  * Delegates to openid-client's {@link authorizationCodeGrant} using the resolved
@@ -248,17 +219,33 @@ export async function exchangeCode(
 
 /**
  * Exchange a refresh token for a fresh set of tokens.
+ *
+ * Delegates to openid-client's {@link refreshTokenGrant} using the resolved
+ * {@link Configuration} carried on the discovery {@link DiscoveryDoc}. This
+ * surfaces the provider's rotated `refresh_token` (when refresh-token rotation
+ * is enabled) so the caller can persist the new token, and lets openid-client
+ * validate the refreshed id_token — protections the prior native-fetch token
+ * POST lacked. The `config` parameter is retained for signature parity with the
+ * other grant helpers. Callers invoke this inside
+ * `store.withRefreshLock` so the rotating token is protected against concurrent
+ * refreshes.
  */
 export async function refreshTokens(
   config: BffConfig,
   doc: DiscoveryDoc,
   refreshToken: string,
 ): Promise<TokenResponse> {
-  const body: URLSearchParams = new URLSearchParams({
-    grant_type: "refresh_token",
-    refresh_token: refreshToken,
-  });
-  return postToken(config, doc, body);
+  void config;
+  const tokens: Awaited<ReturnType<typeof refreshTokenGrant>> =
+    await refreshTokenGrant(doc.configuration!, refreshToken);
+
+  return {
+    access_token: tokens.access_token,
+    refresh_token: tokens.refresh_token,
+    id_token: tokens.id_token,
+    expires_in: tokens.expires_in ?? 0,
+    token_type: tokens.token_type,
+  };
 }
 
 /**

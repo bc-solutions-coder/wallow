@@ -26,8 +26,10 @@ vi.mock("./oidc", async (importOriginal) => {
  * integration tests that fall back to `actual.discover`) resolves endpoints via
  * openid-client's `discovery()` rather than the native `fetch`. The stub
  * reconstructs the same endpoint shape as {@link makeDoc} from the requested
- * metadata URL's origin. The refresh grant remains native-fetch and keeps using
- * the per-test `fetch` stubs.
+ * metadata URL's origin. The refresh grant now runs through openid-client's
+ * `refreshTokenGrant`, so the integration test that falls back to
+ * `actual.refreshTokens` gets its rotated token set from the stub below rather
+ * than a native token-endpoint POST.
  */
 vi.mock("openid-client", () => ({
   discovery: vi.fn((server: URL) => {
@@ -42,6 +44,14 @@ vi.mock("openid-client", () => ({
     });
   }),
   allowInsecureRequests: vi.fn(),
+  refreshTokenGrant: vi.fn(() =>
+    Promise.resolve({
+      access_token: "refreshed-access",
+      refresh_token: "rotated-refresh",
+      expires_in: 3600,
+      token_type: "Bearer",
+    }),
+  ),
 }));
 
 afterEach(() => {
