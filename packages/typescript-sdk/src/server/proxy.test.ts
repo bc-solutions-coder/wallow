@@ -2,14 +2,97 @@ import { createApp, toWebHandler, type App } from "h3";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { BffConfig } from "./config";
+import { discover, refreshTokens } from "./oidc";
 import type { DiscoveryDoc, TokenResponse } from "./oidc";
 import { createApiProxy, ensureFreshSession } from "./proxy";
 import { sealSession, type BffSession } from "./session";
+import type { SessionStore } from "./store/types";
+
+// Wrap the real discovery/refresh functions in spies so individual tests can
+// override them (refresh unit tests) while the proxy integration tests fall
+// back to the real fetch-driven implementation. `vi.restoreAllMocks()` in
+// `afterEach` restores each spy to its `vi.fn(actual.*)` implementation.
+vi.mock("./oidc", async (importOriginal) => {
+  const actual: typeof import("./oidc") = await importOriginal();
+  return {
+    ...actual,
+    discover: vi.fn(actual.discover),
+    refreshTokens: vi.fn(actual.refreshTokens),
+  };
+});
 
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
+
+/** Options for {@link makeFakeStore}. */
+interface FakeStoreOptions {
+  /** When true, `withRefreshLock` returns `undefined` (lock held by a peer). */
+  lockHeld?: boolean;
+  /** Invoked immediately before the refresh `fn` runs inside the lock. */
+  onLockEnter?: () => void;
+  /** Invoked immediately after the refresh `fn` settles inside the lock. */
+  onLockExit?: () => void;
+}
+
+/** A recording fake {@link SessionStore} plus the calls it observed. */
+interface FakeStore {
+  store: SessionStore;
+  calls: {
+    read: number;
+    write: BffSession[];
+    destroy: string[];
+    withRefreshLock: number;
+  };
+}
+
+/**
+ * Build an in-memory recording {@link SessionStore}. `stored` is what `read`
+ * resolves to (the session a concurrent request may have already refreshed).
+ */
+function makeFakeStore(
+  stored: BffSession | null,
+  options: FakeStoreOptions = {},
+): FakeStore {
+  const calls: FakeStore["calls"] = {
+    read: 0,
+    write: [],
+    destroy: [],
+    withRefreshLock: 0,
+  };
+  let current: BffSession | null = stored;
+  const store: SessionStore = {
+    async read(): Promise<BffSession | null> {
+      calls.read += 1;
+      return current;
+    },
+    async write(session: BffSession): Promise<string> {
+      calls.write.push(session);
+      current = session;
+      return "fake-ref";
+    },
+    async destroy(ref: string): Promise<void> {
+      calls.destroy.push(ref);
+    },
+    async withRefreshLock<T>(
+      _ref: string,
+      fn: () => Promise<T>,
+    ): Promise<T | undefined> {
+      calls.withRefreshLock += 1;
+      if (options.lockHeld === true) {
+        return undefined;
+      }
+      options.onLockEnter?.();
+      try {
+        return await fn();
+      } finally {
+        options.onLockExit?.();
+      }
+    },
+  };
+  return { store, calls };
+}
 
 /**
  * Build a config. Each test passes a unique issuer so the module-level
@@ -56,30 +139,39 @@ function makeSession(overrides: Partial<BffSession> = {}): BffSession {
 }
 
 describe("ensureFreshSession", () => {
-  it("returns the same session unchanged when the access token is still valid", async () => {
+  it("returns the session unchanged without acquiring the refresh lock when still fresh", async () => {
     const config: BffConfig = makeConfig("https://fresh-valid.example.com");
-    const doc: DiscoveryDoc = makeDoc(config.issuer);
     const session: BffSession = makeSession({
       expiresAt: Date.now() + 3_600_000,
     });
+    const { store, calls }: FakeStore = makeFakeStore(session);
     // Fail loudly if a refresh network call is attempted.
     const fetchMock: ReturnType<typeof vi.fn> = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await ensureFreshSession(config, doc, session);
+    const result: BffSession = await ensureFreshSession(
+      session,
+      config,
+      store,
+      "ref-fresh",
+    );
 
-    expect(result.refreshed).toBe(false);
-    expect(result.session).toEqual(session);
+    expect(result).toEqual(session);
+    // No lock acquired, no write, and refresh never touched.
+    expect(calls.withRefreshLock).toBe(0);
+    expect(calls.write.length).toBe(0);
+    expect(refreshTokens).not.toHaveBeenCalled();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("refreshes the tokens when the access token has expired", async () => {
-    const config: BffConfig = makeConfig("https://fresh-expired.example.com");
+  it("performs the refresh inside store.withRefreshLock, bumps version, and writes the new session", async () => {
+    const config: BffConfig = makeConfig("https://refresh-lock.example.com");
     const doc: DiscoveryDoc = makeDoc(config.issuer);
     const session: BffSession = makeSession({
       accessToken: "old-access",
       refreshToken: "old-refresh",
       expiresAt: Date.now() - 1_000,
+      version: 4,
     });
     const tokens: TokenResponse = {
       access_token: "new-access",
@@ -88,33 +180,114 @@ describe("ensureFreshSession", () => {
       expires_in: 3600,
       token_type: "Bearer",
     };
-    const fetchMock: ReturnType<typeof vi.fn> = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async (): Promise<TokenResponse> => tokens,
+
+    // The refresh must run strictly within the lock's critical section.
+    let insideLock: boolean = false;
+    const { store, calls }: FakeStore = makeFakeStore(session, {
+      onLockEnter: (): void => {
+        insideLock = true;
+      },
+      onLockExit: (): void => {
+        insideLock = false;
+      },
     });
-    vi.stubGlobal("fetch", fetchMock);
+    vi.mocked(discover).mockResolvedValue(doc);
+    vi.mocked(refreshTokens).mockImplementation(
+      async (): Promise<TokenResponse> => {
+        expect(insideLock).toBe(true);
+        return tokens;
+      },
+    );
 
-    const result = await ensureFreshSession(config, doc, session);
+    const result: BffSession = await ensureFreshSession(
+      session,
+      config,
+      store,
+      "ref-1",
+    );
 
-    expect(result.refreshed).toBe(true);
-    expect(result.session.accessToken).toBe("new-access");
-    expect(result.session.refreshToken).toBe("new-refresh");
-    expect(result.session.idToken).toBe("new-id");
-    expect(result.session.expiresAt).toBeGreaterThan(Date.now());
-    // User identity is preserved across refresh.
-    expect(result.session.user).toEqual(session.user);
+    // Refresh was gated by exactly one lock acquisition.
+    expect(calls.withRefreshLock).toBe(1);
+    expect(refreshTokens).toHaveBeenCalledTimes(1);
+    // New tokens applied and identity preserved.
+    expect(result.accessToken).toBe("new-access");
+    expect(result.refreshToken).toBe("new-refresh");
+    expect(result.idToken).toBe("new-id");
+    expect(result.expiresAt).toBeGreaterThan(Date.now());
+    expect(result.user).toEqual(session.user);
+    // Version is bumped on refresh.
+    expect(result.version).toBe(5);
+    // The refreshed session is persisted through the store inside the lock.
+    expect(calls.write.length).toBe(1);
+    expect(calls.write[0].version).toBe(5);
+    expect(calls.write[0].accessToken).toBe("new-access");
+  });
+
+  it("re-reads the session from the store instead of refreshing when the lock is held by a concurrent request", async () => {
+    const config: BffConfig = makeConfig(
+      "https://refresh-contended.example.com",
+    );
+    const session: BffSession = makeSession({
+      accessToken: "stale-access",
+      refreshToken: "old-refresh",
+      expiresAt: Date.now() - 1_000,
+      version: 2,
+    });
+    // The session a concurrent request already refreshed and stored.
+    const refreshedByPeer: BffSession = makeSession({
+      accessToken: "peer-refreshed-access",
+      refreshToken: "peer-refresh",
+      expiresAt: Date.now() + 3_600_000,
+      version: 3,
+    });
+    const { store, calls }: FakeStore = makeFakeStore(refreshedByPeer, {
+      lockHeld: true,
+    });
+    vi.mocked(refreshTokens).mockRejectedValue(
+      new Error("refreshTokens must not run while the lock is held"),
+    );
+
+    const result: BffSession = await ensureFreshSession(
+      session,
+      config,
+      store,
+      "ref-2",
+    );
+
+    // Lock was attempted once and returned undefined; we re-read rather than
+    // refresh a second time.
+    expect(calls.withRefreshLock).toBe(1);
+    expect(calls.read).toBe(1);
+    expect(refreshTokens).not.toHaveBeenCalled();
+    expect(result).toEqual(refreshedByPeer);
+  });
+
+  it("throws when the lock is held but the store no longer has the session", async () => {
+    const config: BffConfig = makeConfig("https://refresh-gone.example.com");
+    const session: BffSession = makeSession({
+      refreshToken: "old-refresh",
+      expiresAt: Date.now() - 1_000,
+    });
+    const { store }: FakeStore = makeFakeStore(null, { lockHeld: true });
+
+    await expect(
+      ensureFreshSession(session, config, store, "ref-3"),
+    ).rejects.toThrow();
   });
 
   it("throws when the access token is expired and there is no refresh token", async () => {
     const config: BffConfig = makeConfig("https://fresh-no-refresh.example.com");
-    const doc: DiscoveryDoc = makeDoc(config.issuer);
     const session: BffSession = makeSession({
       expiresAt: Date.now() - 1_000,
       refreshToken: undefined,
     });
+    const { store, calls }: FakeStore = makeFakeStore(session);
 
-    await expect(ensureFreshSession(config, doc, session)).rejects.toThrow();
+    await expect(
+      ensureFreshSession(session, config, store, "ref-4"),
+    ).rejects.toThrow();
+    // Fails before ever reaching the lock.
+    expect(calls.withRefreshLock).toBe(0);
   });
 });
 

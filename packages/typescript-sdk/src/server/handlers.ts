@@ -99,7 +99,10 @@ function chunkCookieName(cookieName: string, index: number): string {
  * @param config BFF configuration providing the cookie name.
  * @returns The assembled reference, or `null` when no session cookie exists.
  */
-function readSessionRef(event: H3Event, config: BffConfig): string | null {
+export function readSessionRef(
+  event: H3Event,
+  config: BffConfig,
+): string | null {
   const first: string | undefined = getCookie(event, config.cookieName);
   if (first === undefined || first === "") {
     return null;

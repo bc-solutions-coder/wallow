@@ -27,60 +27,80 @@ import {
   type TokenResponse,
 } from "./oidc";
 import type { BffSession } from "./session";
-import { readSession, writeSession } from "./handlers";
+import { readSession, readSessionRef, writeSession } from "./handlers";
 import { CookieSessionStore } from "./store/cookie";
 import type { SessionStore } from "./store/types";
 
 /** How long before real expiry a token is treated as expired (ms). */
 export const EXPIRY_SKEW_MS = 30_000;
 
-/** Result of {@link ensureFreshSession}. */
-export interface EnsureFreshResult {
-  /** The (possibly refreshed) session. */
-  session: BffSession;
-  /** Whether the session was refreshed and should be re-sealed. */
-  refreshed: boolean;
-}
-
 /**
  * Ensure the session's access token is fresh, refreshing it when it is within
  * {@link EXPIRY_SKEW_MS} of expiry.
  *
- * @param config BFF configuration.
- * @param doc The issuer discovery document.
+ * The refresh runs inside {@link SessionStore.withRefreshLock} so concurrent
+ * requests for the same session cannot rotate the refresh token in parallel.
+ * When the lock is already held by a peer request (`withRefreshLock` resolves
+ * to `undefined`), the freshly-refreshed session is re-read from the store
+ * instead of refreshing a second time.
+ *
  * @param session The current session.
- * @returns The (possibly refreshed) session and whether it changed.
- * @throws When the token is expired and no refresh token is available.
+ * @param config BFF configuration.
+ * @param store The session store used to lock, persist, and re-read sessions.
+ * @param ref The opaque store reference for this session.
+ * @returns The (possibly refreshed) session.
+ * @throws When the token is expired and no refresh token is available, or when
+ *   the lock is held but the store no longer has the session.
  */
 export async function ensureFreshSession(
-  config: BffConfig,
-  doc: DiscoveryDoc,
   session: BffSession,
-): Promise<EnsureFreshResult> {
+  config: BffConfig,
+  store: SessionStore,
+  ref: string,
+): Promise<BffSession> {
   if (session.expiresAt - EXPIRY_SKEW_MS > Date.now()) {
-    return { session, refreshed: false };
+    return session;
   }
 
   if (session.refreshToken === undefined || session.refreshToken === "") {
     throw new Error("Session expired and no refresh token is available");
   }
 
-  const tokens: TokenResponse = await refreshTokens(
-    config,
-    doc,
-    session.refreshToken,
+  const refreshToken: string = session.refreshToken;
+
+  const refreshed: BffSession | undefined = await store.withRefreshLock(
+    ref,
+    async (): Promise<BffSession> => {
+      const doc: DiscoveryDoc = await discover(config);
+      const tokens: TokenResponse = await refreshTokens(
+        config,
+        doc,
+        refreshToken,
+      );
+
+      const next: BffSession = {
+        ...session,
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token ?? session.refreshToken,
+        idToken: tokens.id_token ?? session.idToken,
+        expiresAt: Date.now() + tokens.expires_in * 1000,
+        version: session.version + 1,
+      };
+      await store.write(next);
+      return next;
+    },
   );
 
-  return {
-    refreshed: true,
-    session: {
-      ...session,
-      accessToken: tokens.access_token,
-      refreshToken: tokens.refresh_token ?? session.refreshToken,
-      idToken: tokens.id_token ?? session.idToken,
-      expiresAt: Date.now() + tokens.expires_in * 1000,
-    },
-  };
+  if (refreshed !== undefined) {
+    return refreshed;
+  }
+
+  // The lock was held by a concurrent refresh; adopt whatever it stored.
+  const peer: BffSession | null = await store.read(ref);
+  if (peer === null) {
+    throw new Error("Session refresh lock was held but the session is gone");
+  }
+  return peer;
 }
 
 /**
@@ -99,24 +119,32 @@ export function createApiProxy(
   }),
 ): EventHandler {
   return defineEventHandler(async (event: H3Event): Promise<unknown> => {
+    const ref: string | null = readSessionRef(event, config);
+    if (ref === null) {
+      setResponseStatus(event, 401);
+      return null;
+    }
+
     const session: BffSession | null = await readSession(event, config, store);
     if (session === null) {
       setResponseStatus(event, 401);
       return null;
     }
 
-    const doc: DiscoveryDoc = await discover(config);
-
-    let result: EnsureFreshResult;
+    let fresh: BffSession;
     try {
-      result = await ensureFreshSession(config, doc, session);
+      fresh = await ensureFreshSession(session, config, store, ref);
     } catch {
       setResponseStatus(event, 401);
       return null;
     }
 
-    if (result.refreshed) {
-      await writeSession(event, config, store, result.session);
+    // Re-seal the cookie only when the session actually changed.
+    if (
+      fresh.version !== session.version ||
+      fresh.accessToken !== session.accessToken
+    ) {
+      await writeSession(event, config, store, fresh);
     }
 
     // Strip the `/api` prefix and re-root at the downstream API base URL.
@@ -129,10 +157,7 @@ export function createApiProxy(
     const method: string = getMethod(event);
 
     const forwardHeaders: Headers = new Headers();
-    forwardHeaders.set(
-      "authorization",
-      `Bearer ${result.session.accessToken}`,
-    );
+    forwardHeaders.set("authorization", `Bearer ${fresh.accessToken}`);
     if (incoming["content-type"] !== undefined) {
       forwardHeaders.set("content-type", incoming["content-type"]);
     }
