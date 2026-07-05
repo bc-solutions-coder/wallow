@@ -1,5 +1,15 @@
 # Changelog
 
+## [3.2.1](https://github.com/bc-solutions-coder/wallow/compare/v3.2.0...v3.2.1) (2026-07-05)
+
+
+### Bug Fixes
+
+* **ci:** wait for :sha images before promoting on release ([e694fb3](https://github.com/bc-solutions-coder/wallow/commit/e694fb3ca48852b10db42d8bf87c9f4dab7478c4))
+* **docker:** make production seed file host path configurable ([8c26fad](https://github.com/bc-solutions-coder/wallow/commit/8c26fade5de41e9c22077215c9c4eb065f10ccff))
+* **docker:** pin PGDATA to legacy path for postgres 18 ([3d01788](https://github.com/bc-solutions-coder/wallow/commit/3d0178821d2195637d5772dfd5541767a7c213f1))
+* web styling, deploy CSS regeneration, and register nav performance ([#62](https://github.com/bc-solutions-coder/wallow/issues/62)) ([59d9d38](https://github.com/bc-solutions-coder/wallow/commit/59d9d384d6356dfcc2263fe38b0acddfd0a63f31))
+
 ## [3.2.0](https://github.com/bc-solutions-coder/wallow/compare/v3.1.0...v3.2.0) (2026-07-04)
 
 
