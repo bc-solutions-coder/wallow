@@ -1,7 +1,7 @@
 /**
  * Browser entry for the tanstack-min BFF example.
  *
- * Wires the @wallow/sdk browser helpers to the DOM contract in
+ * Wires the @bc-solutions-coder/sdk browser helpers to the DOM contract in
  * public/index.html and reflects auth state into the `data-testid` elements the
  * E2E test drives:
  *   - bff-user-status   ("anonymous" | "authenticated")
@@ -17,7 +17,7 @@ import {
   login,
   logout,
   type WallowUser,
-} from "@wallow/sdk";
+} from "@bc-solutions-coder/sdk";
 
 // Point the generated client at the same-origin `/api` BFF proxy and send the
 // httpOnly session cookie with every request.

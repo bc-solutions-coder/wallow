@@ -1,8 +1,8 @@
 {
-  "name": "@wallow/example-tanstack-min",
+  "name": "@bc-solutions-coder/example-tanstack-min",
   "version": "0.0.0",
   "private": true,
-  "description": "Minimal TanStack Start-style BFF wiring for @wallow/sdk. Drop-in reference example — not published.",
+  "description": "Minimal TanStack Start-style BFF wiring for @bc-solutions-coder/sdk. Drop-in reference example — not published.",
   "type": "module",
   "scripts": {
     "build:client": "esbuild src/app.ts --bundle --format=esm --outfile=public/app.js",
@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@wallow/sdk": "file:../..",
+    "@bc-solutions-coder/sdk": "file:../..",
     "h3": "^1.13.0"
   },
   "devDependencies": {

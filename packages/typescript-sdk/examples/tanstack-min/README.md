@@ -1,6 +1,6 @@
 # tanstack-min — Wallow BFF reference example
 
-A minimal, drop-in example that wires the `@wallow/sdk` **Backend-for-Frontend
+A minimal, drop-in example that wires the `@bc-solutions-coder/sdk` **Backend-for-Frontend
 (BFF)** tunnel into a TanStack Start-style server. It shows the full
 same-origin OIDC flow: browser login → authenticated `/api` call with silent
 token refresh → logout, with tokens held server-side in an httpOnly sealed
@@ -33,7 +33,7 @@ cookie (never exposed to JavaScript).
 ## Environment variables
 
 The SDK reads config via `loadBffConfigFromEnv()`. These are the **actual keys**
-consumed by `@wallow/sdk/server` (`src/server/config.ts`):
+consumed by `@bc-solutions-coder/sdk/server` (`src/server/config.ts`):
 
 | Variable | Required | Default | Purpose |
 | --- | --- | --- | --- |
@@ -64,7 +64,7 @@ consumed by `@wallow/sdk/server` (`src/server/config.ts`):
 
 ```bash
 # from packages/typescript-sdk
-npm install && npm run build   # build @wallow/sdk first
+npm install && npm run build   # build @bc-solutions-coder/sdk first
 
 # from packages/typescript-sdk/examples/tanstack-min
 npm install

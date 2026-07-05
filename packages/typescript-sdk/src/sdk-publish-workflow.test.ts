@@ -52,11 +52,26 @@ describe("sdk-publish GitHub Actions workflow", () => {
     expect(yaml).toMatch(/uses:\s*actions\/checkout@v\d+/);
   });
 
-  it("sets up node with the GitHub Packages registry", () => {
+  it("sets up node with the GitHub Packages registry and repo-owner scope", () => {
     const yaml: string = readWorkflow();
     expect(yaml).toMatch(/uses:\s*actions\/setup-node@v\d+/);
     expect(yaml).toMatch(/node-version:\s*['"]?20['"]?/);
     expect(yaml).toMatch(/registry-url:\s*['"]?https:\/\/npm\.pkg\.github\.com['"]?/);
+    expect(yaml).toMatch(/scope:\s*['"]?@bc-solutions-coder['"]?/);
+  });
+
+  it("supports manual dispatch with an optional version input", () => {
+    const yaml: string = readWorkflow();
+    expect(yaml).toMatch(/workflow_dispatch:/);
+    expect(yaml).toMatch(/inputs:/);
+    expect(yaml).toMatch(/version:/);
+  });
+
+  it("syncs the package version before publishing", () => {
+    const yaml: string = readWorkflow();
+    expect(yaml).toMatch(/npm version .*--no-git-tag-version/);
+    expect(yaml).toMatch(/github\.event\.release\.tag_name/);
+    expect(yaml).toMatch(/inputs\.version/);
   });
 
   it("installs, builds, and tests before publishing", () => {

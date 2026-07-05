@@ -1,7 +1,7 @@
 # TypeScript SDK Integration Guide
 
 This guide explains how to consume Wallow from a TypeScript frontend using the
-[`@wallow/sdk`](../operations/versioning.md) package. The SDK ships a **browser
+[`@bc-solutions-coder/sdk`](../operations/versioning.md) package. The SDK ships a **browser
 client** for calling Wallow APIs from the page, and a **server (BFF) tunnel**
 that runs the OAuth 2.0 Authorization Code flow entirely server-side so that no
 token ever reaches the browser.
@@ -14,12 +14,12 @@ you.
 
 ## Overview
 
-`@wallow/sdk` has two entrypoints:
+`@bc-solutions-coder/sdk` has two entrypoints:
 
 | Import | Runs in | Purpose |
 |--------|---------|---------|
-| `@wallow/sdk` | Browser | `login()`, `logout()`, `getUser()`, and a typed API client configured to call the same-origin `/api` proxy |
-| `@wallow/sdk/server` | Server (Node) | `createBffHandlers()`, `createApiProxy()`, `loadBffConfigFromEnv()` — the [h3](https://h3.unjs.io) route handlers that make up the BFF tunnel |
+| `@bc-solutions-coder/sdk` | Browser | `login()`, `logout()`, `getUser()`, and a typed API client configured to call the same-origin `/api` proxy |
+| `@bc-solutions-coder/sdk/server` | Server (Node) | `createBffHandlers()`, `createApiProxy()`, `loadBffConfigFromEnv()` — the [h3](https://h3.unjs.io) route handlers that make up the BFF tunnel |
 
 The browser never holds an access token. It holds only a sealed, `httpOnly`
 session cookie. The BFF exchanges the authorization code, stores the token set
@@ -29,7 +29,7 @@ it proxies calls to the Wallow API.
 ```mermaid
 sequenceDiagram
     participant Browser
-    participant BFF as Your BFF<br/>(@wallow/sdk/server)
+    participant BFF as Your BFF<br/>(@bc-solutions-coder/sdk/server)
     participant Auth as Wallow Auth
     participant API as Wallow API
 
@@ -52,20 +52,20 @@ sequenceDiagram
 
 ## Installation
 
-`@wallow/sdk` is published to **GitHub Packages** under the repository owner's
+`@bc-solutions-coder/sdk` is published to **GitHub Packages** under the repository owner's
 scope. Because it is not on the public npm registry, configure npm to resolve
-the `@wallow` scope from GitHub Packages and authenticate with a token that has
+the `@bc-solutions-coder` scope from GitHub Packages and authenticate with a token that has
 the `read:packages` permission.
 
 Create a `.npmrc` at your project root:
 
 ```ini
-@wallow:registry=https://npm.pkg.github.com
+@bc-solutions-coder:registry=https://npm.pkg.github.com
 //npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
 ```
 
 > **Scope note:** GitHub Packages resolves scoped packages against the
-> publishing organization. Point the `@wallow` scope at
+> publishing organization. Point the `@bc-solutions-coder` scope at
 > `https://npm.pkg.github.com` and export a `GITHUB_TOKEN` (a personal access
 > token or CI token with `read:packages`). Never commit the token — reference it
 > via an environment variable as shown above.
@@ -73,7 +73,7 @@ Create a `.npmrc` at your project root:
 Then install:
 
 ```bash
-npm install @wallow/sdk
+npm install @bc-solutions-coder/sdk
 ```
 
 The SDK depends on `h3` on the server side; install it alongside the SDK if your
@@ -101,7 +101,7 @@ import {
   createBffHandlers,
   loadBffConfigFromEnv,
   type BffConfig,
-} from "@wallow/sdk/server";
+} from "@bc-solutions-coder/sdk/server";
 
 const config: BffConfig = loadBffConfigFromEnv();
 const bff = createBffHandlers(config);
@@ -166,7 +166,7 @@ any required key is missing or empty):
 Configure the shared client once at startup, then use the three auth helpers.
 
 ```ts
-import { configureWallowClient, getUser, login, logout } from "@wallow/sdk";
+import { configureWallowClient, getUser, login, logout } from "@bc-solutions-coder/sdk";
 
 // Point the typed client at the same-origin BFF proxy and send the cookie.
 configureWallowClient(); // defaults baseUrl to "/api", credentials: "include"
@@ -196,12 +196,12 @@ logout();
 `configureWallowClient()` points the generated Hey API client at the `/api`
 proxy with `credentials: "include"`, so every generated call rides the sealed
 session cookie and is transparently authenticated by the BFF. Import the
-generated operation functions from `@wallow/sdk` and call them directly — no
+generated operation functions from `@bc-solutions-coder/sdk` and call them directly — no
 token handling in the browser:
 
 ```ts
-import { configureWallowClient } from "@wallow/sdk";
-// import { getInquiries } from "@wallow/sdk"; // generated typed operation
+import { configureWallowClient } from "@bc-solutions-coder/sdk";
+// import { getInquiries } from "@bc-solutions-coder/sdk"; // generated typed operation
 
 configureWallowClient();
 
@@ -279,7 +279,7 @@ your BFF on port `3000` locally (or update `seed.json` and re-seed).
 | `invalid_client` on callback | `OIDC_CLIENT_ID`/`OIDC_CLIENT_SECRET` mismatch | Confirm they match the registered (or seeded) confidential client |
 | `redirect_uri` mismatch | `OIDC_REDIRECT_URI` does not match the registered URI | Register `http://localhost:3000/bff/callback` (or your value) and keep them identical |
 | `401` from `/api/**` after login | Session missing or refresh token unavailable | Ensure `offline_access` is in the requested scopes so a refresh token is issued |
-| `npm install` `401 Unauthorized` | GitHub Packages token missing or lacks `read:packages` | Set `GITHUB_TOKEN` and the `@wallow:registry` line in `.npmrc` |
+| `npm install` `401 Unauthorized` | GitHub Packages token missing or lacks `read:packages` | Set `GITHUB_TOKEN` and the `@bc-solutions-coder:registry` line in `.npmrc` |
 
 ---
 

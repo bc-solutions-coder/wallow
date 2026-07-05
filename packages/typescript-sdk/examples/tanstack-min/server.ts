@@ -1,5 +1,5 @@
 /**
- * Minimal BFF host for the @wallow/sdk TanStack Start reference example.
+ * Minimal BFF host for the @bc-solutions-coder/sdk TanStack Start reference example.
  *
  * Mounts the SDK's BFF tunnel handlers under `/bff/*`, the reverse API proxy
  * under `/api/**`, serves the static browser client from `public/`, and exposes
@@ -19,7 +19,7 @@ import {
   createBffHandlers,
   loadBffConfigFromEnv,
   type BffConfig,
-} from "@wallow/sdk/server";
+} from "@bc-solutions-coder/sdk/server";
 import {
   createApp,
   createRouter,
