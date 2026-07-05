@@ -46,7 +46,6 @@ coverage-results/
 
 # NuGet
 *.nupkg
-packages/
 
 # Docker
 docker-compose.override.yml
