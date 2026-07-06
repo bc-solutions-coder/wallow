@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { BffConfig } from "./config";
 import {
   buildAuthorizeUrl,
+  buildLogoutUrl,
   discover,
   exchangeCode,
   fetchUserInfo,
@@ -24,6 +25,7 @@ const {
   authorizationCodeGrantMock,
   refreshTokenGrantMock,
   fetchUserInfoMock,
+  buildEndSessionUrlMock,
   skipSubjectCheckSentinel,
   makeConfiguration,
 } = vi.hoisted(() => {
@@ -33,6 +35,7 @@ const {
   const authorizationCodeGrantMock: ReturnType<typeof vi.fn> = vi.fn();
   const refreshTokenGrantMock: ReturnType<typeof vi.fn> = vi.fn();
   const fetchUserInfoMock: ReturnType<typeof vi.fn> = vi.fn();
+  const buildEndSessionUrlMock: ReturnType<typeof vi.fn> = vi.fn();
   // Sentinel standing in for openid-client's `skipSubjectCheck` symbol, so the
   // test can assert the wrapper forwards it when the subject is not yet known.
   const skipSubjectCheckSentinel: symbol = Symbol("skipSubjectCheck");
@@ -48,6 +51,7 @@ const {
     authorizationCodeGrantMock,
     refreshTokenGrantMock,
     fetchUserInfoMock,
+    buildEndSessionUrlMock,
     skipSubjectCheckSentinel,
     makeConfiguration,
   };
@@ -60,6 +64,7 @@ vi.mock("openid-client", () => ({
   authorizationCodeGrant: authorizationCodeGrantMock,
   refreshTokenGrant: refreshTokenGrantMock,
   fetchUserInfo: fetchUserInfoMock,
+  buildEndSessionUrl: buildEndSessionUrlMock,
   skipSubjectCheck: skipSubjectCheckSentinel,
 }));
 
@@ -597,5 +602,120 @@ describe("fetchUserInfo", () => {
 
     expect(result).toBeNull();
     expect(fetchUserInfoMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("buildLogoutUrl", () => {
+  /**
+   * Build a DiscoveryDoc carrying a resolved openid-client Configuration handle
+   * and an advertised end-session endpoint, as {@link discover} would populate
+   * it. The Configuration is opaque to buildLogoutUrl — it is passed straight
+   * through to openid-client's buildEndSessionUrl — so a stub object suffices.
+   */
+  function makeLogoutDoc(): DiscoveryDoc {
+    const configuration = makeConfiguration({
+      issuer: "https://auth.example.com",
+      end_session_endpoint: doc.end_session_endpoint,
+    });
+    return {
+      ...doc,
+      configuration: configuration as unknown as DiscoveryDoc["configuration"],
+    };
+  }
+
+  it("delegates to openid-client buildEndSessionUrl when an end_session_endpoint is advertised", () => {
+    const config: BffConfig = makeConfig();
+    const logoutDoc: DiscoveryDoc = makeLogoutDoc();
+    const built: URL = new URL(
+      `${doc.end_session_endpoint}?post_logout_redirect_uri=${encodeURIComponent(
+        config.postLogoutRedirectUri,
+      )}`,
+    );
+    buildEndSessionUrlMock.mockReturnValue(built);
+
+    const url: string = buildLogoutUrl(config, logoutDoc, "id-token-hint-abc");
+
+    // Returns the string form of the openid-client-built end-session URL.
+    expect(url).toBe(built.toString());
+
+    // Delegates once, forwarding the resolved Configuration handle from the doc.
+    expect(buildEndSessionUrlMock).toHaveBeenCalledTimes(1);
+    const [passedConfig, params] = buildEndSessionUrlMock.mock.calls[0] as [
+      unknown,
+      Record<string, string>,
+    ];
+    expect(passedConfig).toBe(logoutDoc.configuration);
+    // RP-initiated logout parameters: post-logout redirect and id_token hint.
+    expect(params.post_logout_redirect_uri).toBe(config.postLogoutRedirectUri);
+    expect(params.id_token_hint).toBe("id-token-hint-abc");
+  });
+
+  it("omits id_token_hint when no id token hint is provided", () => {
+    const config: BffConfig = makeConfig();
+    const logoutDoc: DiscoveryDoc = makeLogoutDoc();
+    buildEndSessionUrlMock.mockReturnValue(
+      new URL(doc.end_session_endpoint ?? "https://auth.example.com/connect/logout"),
+    );
+
+    buildLogoutUrl(config, logoutDoc);
+
+    const [, params] = buildEndSessionUrlMock.mock.calls[0] as [
+      unknown,
+      Record<string, string>,
+    ];
+    expect(params.post_logout_redirect_uri).toBe(config.postLogoutRedirectUri);
+    expect("id_token_hint" in params).toBe(false);
+  });
+
+  it("falls back to <issuerOrigin>/connect/logout when no end_session_endpoint is advertised", () => {
+    const config: BffConfig = makeConfig();
+    const noEndSessionDoc: DiscoveryDoc = {
+      authorization_endpoint: doc.authorization_endpoint,
+      token_endpoint: doc.token_endpoint,
+      end_session_endpoint: undefined,
+      configuration: makeConfiguration({
+        issuer: "https://auth.example.com",
+      }) as unknown as DiscoveryDoc["configuration"],
+    };
+
+    const url: string = buildLogoutUrl(
+      config,
+      noEndSessionDoc,
+      "id-token-hint-abc",
+    );
+
+    // No end-session endpoint means openid-client is never consulted.
+    expect(buildEndSessionUrlMock).not.toHaveBeenCalled();
+
+    // The fallback targets <issuerOrigin>/connect/logout (Appendix A) carrying
+    // the same post-logout redirect and id_token hint parameters.
+    const parsed: URL = new URL(url);
+    expect(parsed.origin).toBe(new URL(config.issuer).origin);
+    expect(parsed.pathname).toBe("/connect/logout");
+    expect(parsed.searchParams.get("post_logout_redirect_uri")).toBe(
+      config.postLogoutRedirectUri,
+    );
+    expect(parsed.searchParams.get("id_token_hint")).toBe("id-token-hint-abc");
+  });
+
+  it("omits id_token_hint on the fallback URL when no id token hint is provided", () => {
+    const config: BffConfig = makeConfig();
+    const noEndSessionDoc: DiscoveryDoc = {
+      authorization_endpoint: doc.authorization_endpoint,
+      token_endpoint: doc.token_endpoint,
+      end_session_endpoint: undefined,
+      configuration: makeConfiguration({
+        issuer: "https://auth.example.com",
+      }) as unknown as DiscoveryDoc["configuration"],
+    };
+
+    const url: string = buildLogoutUrl(config, noEndSessionDoc);
+
+    const parsed: URL = new URL(url);
+    expect(parsed.pathname).toBe("/connect/logout");
+    expect(parsed.searchParams.get("post_logout_redirect_uri")).toBe(
+      config.postLogoutRedirectUri,
+    );
+    expect(parsed.searchParams.has("id_token_hint")).toBe(false);
   });
 });

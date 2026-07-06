@@ -28,6 +28,7 @@ import type { BffConfig } from "./config";
 import { createPkcePair, randomUrlSafe } from "./pkce";
 import {
   buildAuthorizeUrl,
+  buildLogoutUrl,
   discover,
   exchangeCode,
   fetchUserInfo,
@@ -362,19 +363,8 @@ export function createBffHandlers(
       clearSession(event, config);
 
       const doc: DiscoveryDoc = await discover(config);
-      if (doc.end_session_endpoint === undefined) {
-        return sendRedirect(event, config.postLogoutRedirectUri, 302);
-      }
-
-      const url: URL = new URL(doc.end_session_endpoint);
-      url.searchParams.set(
-        "post_logout_redirect_uri",
-        config.postLogoutRedirectUri,
-      );
-      if (session?.idToken !== undefined) {
-        url.searchParams.set("id_token_hint", session.idToken);
-      }
-      return sendRedirect(event, url.toString(), 302);
+      const logoutUrl: string = buildLogoutUrl(config, doc, session?.idToken);
+      return sendRedirect(event, logoutUrl, 302);
     }),
   };
 }

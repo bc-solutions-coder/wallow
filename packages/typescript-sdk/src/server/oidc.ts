@@ -12,6 +12,7 @@ import {
   allowInsecureRequests,
   authorizationCodeGrant,
   buildAuthorizationUrl,
+  buildEndSessionUrl,
   discovery,
   fetchUserInfo as oidcFetchUserInfo,
   refreshTokenGrant,
@@ -144,7 +145,10 @@ export async function discover(config: BffConfig): Promise<DiscoveryDoc> {
     const issuerOrigin: string = new URL(config.issuer).origin;
     doc = {
       ...doc,
-      authorization_endpoint: rewriteOrigin(authorizationEndpoint, issuerOrigin),
+      authorization_endpoint: rewriteOrigin(
+        authorizationEndpoint,
+        issuerOrigin,
+      ),
       end_session_endpoint:
         endSessionEndpoint !== undefined
           ? rewriteOrigin(endSessionEndpoint, issuerOrigin)
@@ -200,15 +204,11 @@ export async function exchangeCode(
 ): Promise<TokenResponse> {
   void config;
   const tokens: Awaited<ReturnType<typeof authorizationCodeGrant>> =
-    await authorizationCodeGrant(
-    doc.configuration!,
-    params.currentUrl!,
-    {
+    await authorizationCodeGrant(doc.configuration!, params.currentUrl!, {
       expectedState: params.state,
       expectedNonce: params.nonce,
       pkceCodeVerifier: params.codeVerifier,
-    },
-  );
+    });
 
   return {
     access_token: tokens.access_token,
@@ -278,4 +278,48 @@ export async function fetchUserInfo(
     await oidcFetchUserInfo(doc.configuration!, accessToken, skipSubjectCheck);
 
   return claims as unknown as Record<string, unknown>;
+}
+
+/**
+ * Build the RP-initiated logout (end-session) URL.
+ *
+ * When the issuer advertises an `end_session_endpoint`, delegates to
+ * openid-client's {@link buildEndSessionUrl} using the resolved
+ * {@link Configuration} carried on the discovery {@link DiscoveryDoc}, forwarding
+ * `post_logout_redirect_uri` and an optional `id_token_hint`. When it does not,
+ * falls back to `<issuerOrigin>/connect/logout` (Appendix A) carrying the same
+ * parameters so providers without a discovery-advertised end-session endpoint
+ * (such as OpenIddict) still terminate the upstream session.
+ *
+ * @param config BFF configuration providing the issuer and post-logout redirect.
+ * @param doc Discovery document providing the end-session endpoint (if any) and
+ *   the resolved openid-client {@link Configuration} handle.
+ * @param idTokenHint The current session's id_token, forwarded as `id_token_hint`.
+ * @returns The absolute logout URL as a string.
+ */
+export function buildLogoutUrl(
+  config: BffConfig,
+  doc: DiscoveryDoc,
+  idTokenHint?: string,
+): string {
+  if (doc.end_session_endpoint !== undefined) {
+    const params: Record<string, string> = {
+      post_logout_redirect_uri: config.postLogoutRedirectUri,
+    };
+    if (idTokenHint !== undefined) {
+      params.id_token_hint = idTokenHint;
+    }
+    return buildEndSessionUrl(doc.configuration!, params).toString();
+  }
+
+  const issuerOrigin: string = new URL(config.issuer).origin;
+  const url: URL = new URL("/connect/logout", issuerOrigin);
+  url.searchParams.set(
+    "post_logout_redirect_uri",
+    config.postLogoutRedirectUri,
+  );
+  if (idTokenHint !== undefined) {
+    url.searchParams.set("id_token_hint", idTokenHint);
+  }
+  return url.toString();
 }

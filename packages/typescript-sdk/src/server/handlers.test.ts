@@ -6,6 +6,7 @@ import {
   type H3Event,
 } from "h3";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { discovery, type Configuration } from "openid-client";
 
 import type { BffConfig } from "./config";
 import {
@@ -71,6 +72,23 @@ vi.mock("openid-client", () => ({
   // invoked in these tests — provided for import parity with oidc.ts.
   fetchUserInfo: vi.fn(),
   skipSubjectCheck: Symbol("skipSubjectCheck"),
+  // RP-initiated logout is delegated to openid-client: reads the end-session
+  // endpoint from the resolved Configuration's serverMetadata() and appends the
+  // supplied logout params, returning a URL. Mirrors buildAuthorizationUrl.
+  buildEndSessionUrl: vi.fn(
+    (
+      configuration: { serverMetadata: () => Record<string, unknown> },
+      params: Record<string, string>,
+    ): URL => {
+      const endpoint: string = configuration.serverMetadata()
+        .end_session_endpoint as string;
+      const url: URL = new URL(endpoint);
+      for (const [key, value] of Object.entries(params)) {
+        url.searchParams.set(key, value);
+      }
+      return url;
+    },
+  ),
 }));
 
 afterEach(() => {
@@ -458,6 +476,49 @@ describe("logout handler", () => {
     const location: string = res.headers.get("location") ?? "";
     expect(location.startsWith(doc.end_session_endpoint ?? "")).toBe(true);
     const url: URL = new URL(location);
+    expect(url.searchParams.get("post_logout_redirect_uri")).toBe(
+      config.postLogoutRedirectUri,
+    );
+    expect(url.searchParams.get("id_token_hint")).toBe(session.idToken);
+    expect(res.headers.get("set-cookie") ?? "").toContain("wallow_bff=");
+  });
+
+  it("falls back to <issuerOrigin>/connect/logout when no end_session_endpoint is advertised", async () => {
+    const config: BffConfig = makeConfig("https://logout-fallback.example.com");
+    const session: BffSession = makeSession();
+    const sealed: string = await sealSession(session, config.cookiePassword);
+    // For this issuer, discovery advertises NO end_session_endpoint, forcing the
+    // RP-initiated logout to take the /connect/logout fallback path (Appendix A).
+    vi.mocked(discovery).mockImplementationOnce(
+      (server: URL | string): Promise<Configuration> =>
+        Promise.resolve({
+          serverMetadata: (): Record<string, unknown> => {
+            const origin: string = new URL(server).origin;
+            return {
+              issuer: origin,
+              authorization_endpoint: `${origin}/connect/authorize`,
+              token_endpoint: `${origin}/connect/token`,
+            };
+          },
+        } as unknown as Configuration),
+    );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new Error("unexpected discovery fetch")),
+    );
+    const handle = makeHandle(createBffHandlers(config));
+
+    const res: Response = await handle(
+      new Request("http://localhost/bff/logout", {
+        headers: { cookie: `wallow_bff=${sealed}` },
+      }),
+    );
+
+    expect(res.status).toBe(302);
+    const location: string = res.headers.get("location") ?? "";
+    const url: URL = new URL(location);
+    expect(url.origin).toBe(new URL(config.issuer).origin);
+    expect(url.pathname).toBe("/connect/logout");
     expect(url.searchParams.get("post_logout_redirect_uri")).toBe(
       config.postLogoutRedirectUri,
     );
