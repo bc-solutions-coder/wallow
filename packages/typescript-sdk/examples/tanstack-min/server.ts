@@ -15,10 +15,12 @@ import { dirname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
+  CookieSessionStore,
   createApiProxy,
   createBffHandlers,
   loadBffConfigFromEnv,
   type BffConfig,
+  type SessionStore,
 } from "@bc-solutions-coder/sdk/server";
 import {
   createApp,
@@ -47,8 +49,27 @@ const contentTypes: Record<string, string> = {
 };
 
 const config: BffConfig = loadBffConfigFromEnv();
-const bff: ReturnType<typeof createBffHandlers> = createBffHandlers(config);
-const apiProxy: ReturnType<typeof createApiProxy> = createApiProxy(config);
+
+// Where sessions live. `CookieSessionStore` keeps the whole sealed session in
+// the cookie, so the example needs no Redis/Valkey and scales statelessly. The
+// store is injected explicitly (rather than relying on the default) because it
+// is the one knob you swap in production: pass a `ValkeySessionStore` instead
+// and the session cookie becomes an opaque reference, which buys you
+// server-side revocation and a cross-instance refresh lock. Both handler
+// factories must share the SAME store — the proxy has to resolve the sessions
+// the login callback wrote.
+const store: SessionStore = new CookieSessionStore({
+  password: config.cookiePassword,
+});
+
+const bff: ReturnType<typeof createBffHandlers> = createBffHandlers(
+  config,
+  store,
+);
+const apiProxy: ReturnType<typeof createApiProxy> = createApiProxy(
+  config,
+  store,
+);
 
 const app: App = createApp();
 const router: Router = createRouter();

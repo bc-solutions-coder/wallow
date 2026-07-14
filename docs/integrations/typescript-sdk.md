@@ -182,10 +182,119 @@ any required key is missing or empty):
 | `COOKIE_PASSWORD` | Yes | Secret (32+ chars) used to seal/unseal the session and transaction cookies |
 | `OIDC_SCOPES` | No | Space-separated scopes. Defaults to `openid profile email offline_access` |
 | `COOKIE_NAME` | No | Session cookie name. Defaults to `wallow_bff` |
+| `OIDC_METADATA_URL` | No | Server-side discovery URL, for split-horizon DNS where the issuer is reachable under different hostnames from the browser and the server. The backchannel uses its `token_endpoint`; browser-facing redirects stay pinned to the public `OIDC_ISSUER` origin. Defaults to `${OIDC_ISSUER}/.well-known/openid-configuration` |
+| `SESSION_TTL_SECONDS` | No | Lifetime of the session cookie, written as its `Max-Age`, so a stale browser cookie cannot outlive the session it references. Must be a positive whole number — a malformed value throws at startup rather than silently falling back. Defaults to `86400` (24 hours) |
+| `COOKIE_SECURE` | No | Whether the session, transaction, and CSRF cookies carry the `Secure` flag. Fails secure: only the literal `false` clears it. Set `COOKIE_SECURE=false` for plain-HTTP local development. Defaults to `true` |
 
 > **Confidential values:** `OIDC_CLIENT_SECRET` and `COOKIE_PASSWORD` must never
 > be shipped to the browser or committed to source control. They belong in the
 > server process environment (or a secrets manager) only.
+
+---
+
+## Session stores
+
+Where the token set lives is pluggable. `createBffHandlers(config, store)` and
+`createApiProxy(config, store)` both accept a `SessionStore` as an optional
+second argument — pass the **same instance** to both. Omitting it defaults to a
+cookie-only store built from `COOKIE_PASSWORD`, so single-argument callers keep
+working.
+
+| Store | Where the session lives | Use it when |
+|-------|------------------------|-------------|
+| `CookieSessionStore` | Sealed into the session cookie itself | Simple apps and local development — nothing extra to run |
+| `ValkeySessionStore` | In a Redis-compatible server; the cookie holds only an opaque sealed session id | Production — small cookies, server-side revocation, and a refresh lock that serializes concurrent token refreshes for one session |
+
+```ts
+import {
+  CookieSessionStore,
+  loadBffConfigFromEnv,
+  type BffConfig,
+  type SessionStore,
+} from "@bc-solutions-coder/sdk/server";
+
+const config: BffConfig = loadBffConfigFromEnv();
+const store: SessionStore = new CookieSessionStore({
+  password: config.cookiePassword,
+});
+```
+
+`ValkeySessionStore` takes any client satisfying the `RedisLike` interface
+(`get`, `set` with optional `ex`/`nx` flags, `del`), so the SDK carries no
+concrete Redis dependency — you adapt the client you already run. The `nx` flag
+must reach the server as a real conditional set; that is what makes the refresh
+lock a lock. The package README shows a complete `ioredis` adapter:
+[`packages/typescript-sdk/README.md`](https://github.com/bc-solutions-coder/wallow/blob/main/packages/typescript-sdk/README.md).
+
+---
+
+## CSRF protection
+
+The `/api` proxy **rejects every state-changing request that does not present a
+valid CSRF token**, answering `403` with the code `CSRF_INVALID`. This is the
+first thing to reach for when a `POST`, `PUT`, `PATCH`, or `DELETE` through the
+tunnel comes back as `403`. Safe methods (`GET`, `HEAD`, `OPTIONS`, `TRACE`) are
+not gated.
+
+The SDK uses a synchronizer token with a double-submit companion cookie:
+
+1. On successful login, `/bff/callback` mints a token, stores it inside the
+   sealed session, and writes it to a cookie named `<COOKIE_NAME>-csrf`
+   (default `wallow_bff-csrf`). That cookie is deliberately **not** `HttpOnly`,
+   because browser JavaScript must read it. It carries no credential of its own
+   — the session cookie stays `HttpOnly`, and the token is worthless without it.
+2. `GET /bff/user` returns the same token as `csrfToken` in its JSON body.
+3. The browser echoes it in the `x-csrf-token` header on every state-changing
+   request. The proxy compares it against the session-bound token in constant
+   time before refreshing anything or forwarding anything upstream.
+
+```ts
+import { client, configureBffClient } from "@bc-solutions-coder/sdk";
+
+configureBffClient();
+
+function csrfToken(): string {
+  const match: RegExpMatchArray | null = document.cookie.match(
+    /(?:^|;\s*)wallow_bff-csrf=([^;]*)/,
+  );
+  return match === null ? "" : decodeURIComponent(match[1]);
+}
+
+// Attach the token to every generated operation that mutates state.
+client.interceptors.request.use((request: Request): Request => {
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    request.headers.set("x-csrf-token", csrfToken());
+  }
+  return request;
+});
+```
+
+Server-side the header name is exported as `CSRF_HEADER` and the rejection code
+as `CSRF_INVALID_CODE`, so a BFF host can reuse them rather than hardcode
+strings.
+
+---
+
+## Error handling and resilience
+
+Proxy failures come back as RFC 7807 problem details
+(`content-type: application/problem+json`), so every failure carries a
+machine-readable `code` alongside its status. On the server, `WallowError`
+(`status`, `code`, `title`, `detail`) is the SDK's error type and
+`parseProblemDetails(response, bodyText)` converts an upstream body into one,
+falling back to `UNKNOWN_ERROR_CODE` when the body is not problem details.
+`redact(value)` masks secrets as `REDACTED` for safe logging.
+
+Before forwarding, `ensureFreshSession` proactively refreshes an access token
+already inside the expiry-skew window. Beyond that, the forward itself handles
+the following, each retried at most once:
+
+| Upstream response | What the proxy does |
+|-------------------|---------------------|
+| `401`, or a `3xx` redirecting to the API's login page | Forces a token refresh under the store's refresh lock and replays the request |
+| `429` | Waits for `Retry-After`, bounded by `MAX_RETRY_AFTER_MS` (5s), then replays |
+| No response within `FORWARD_TIMEOUT_MS` (30s) | Returns `503` with code `NETWORK_TIMEOUT` |
+| Transport failure | Returns `503` with code `NETWORK_ERROR` |
 
 ---
 
@@ -301,6 +410,14 @@ your BFF on port `3000` locally (or update `seed.json` and re-seed).
 - **Silent refresh, server-side.** Token refresh happens inside the `/api`
   proxy using the stored refresh token; the browser is never involved and never
   sees rotated tokens.
+- **CSRF-gated mutations.** Because the session rides a cookie, every
+  state-changing request must present a session-bound token in `x-csrf-token`,
+  compared in constant time before anything is forwarded. See
+  [CSRF protection](#csrf-protection).
+- **Bounded cookie lifetime.** The session cookie's `Max-Age` is pinned to
+  `SESSION_TTL_SECONDS`, so a stale browser cookie cannot outlive the session it
+  references, and cookies are `Secure` unless `COOKIE_SECURE=false` is set
+  explicitly for local HTTP.
 
 ---
 
@@ -313,6 +430,8 @@ your BFF on port `3000` locally (or update `seed.json` and re-seed).
 | `invalid_client` on callback | `OIDC_CLIENT_ID`/`OIDC_CLIENT_SECRET` mismatch | Confirm they match the registered (or seeded) confidential client |
 | `redirect_uri` mismatch | `OIDC_REDIRECT_URI` does not match the registered URI | Register `http://localhost:3000/bff/callback` (or your value) and keep them identical |
 | `401` from `/api/**` after login | Session missing or refresh token unavailable | Ensure `offline_access` is in the requested scopes so a refresh token is issued |
+| `403` with code `CSRF_INVALID` on POST/PUT/PATCH/DELETE | The `x-csrf-token` header is missing or stale | Echo the `wallow_bff-csrf` cookie (or `/bff/user`'s `csrfToken`) in the `x-csrf-token` header — see [CSRF protection](#csrf-protection) |
+| Session cookie not set over plain HTTP locally | Cookies carry `Secure` by default | Set `COOKIE_SECURE=false` in local development only |
 | `npm install` `401 Unauthorized` | GitHub Packages token missing or lacks `read:packages` | Set `GITHUB_TOKEN` and the `@bc-solutions-coder:registry` line in `.npmrc` |
 
 ---
