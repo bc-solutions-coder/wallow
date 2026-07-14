@@ -182,6 +182,8 @@ function makeConfig(
     apiBaseUrl: "https://api.example.com",
     cookieName: "wallow_bff",
     cookiePassword: "x".repeat(32),
+    sessionTtlSeconds: 86400,
+    cookieSecure: true,
     ...overrides,
   };
 }

@@ -35,7 +35,21 @@ export interface BffConfig {
    * `${issuer}/.well-known/openid-configuration`.
    */
   metadataUrl?: string;
+  /**
+   * Lifetime of the sealed session cookie in seconds, written as its `Max-Age`.
+   * Read from `SESSION_TTL_SECONDS`. Defaults to `86400` (24 hours).
+   */
+  sessionTtlSeconds: number;
+  /**
+   * Whether the session, transaction, and CSRF cookies carry the `Secure` flag.
+   * Read from `COOKIE_SECURE`; set it to `false` for plain-HTTP local
+   * development. Defaults to `true`.
+   */
+  cookieSecure: boolean;
 }
+
+/** Session cookie lifetime used when `SESSION_TTL_SECONDS` is not set: 24 hours. */
+export const DEFAULT_SESSION_TTL_SECONDS: number = 86400;
 
 /**
  * Build a {@link BffConfig} from environment variables.
@@ -43,7 +57,12 @@ export interface BffConfig {
  * Required keys (throws when missing): `OIDC_ISSUER`, `OIDC_CLIENT_ID`,
  * `OIDC_CLIENT_SECRET`, `OIDC_REDIRECT_URI`, `OIDC_POST_LOGOUT_REDIRECT_URI`,
  * `BFF_API_BASE_URL`, `COOKIE_PASSWORD`. `OIDC_SCOPES` (space-separated),
- * `COOKIE_NAME`, and `OIDC_METADATA_URL` are optional with defaults.
+ * `COOKIE_NAME`, `OIDC_METADATA_URL`, `SESSION_TTL_SECONDS`, and
+ * `COOKIE_SECURE` are optional with defaults.
+ *
+ * A malformed `SESSION_TTL_SECONDS` throws rather than silently falling back to
+ * the default, so a startup misconfiguration fails loudly. `COOKIE_SECURE`
+ * instead fails secure: only the literal `false` clears the flag.
  *
  * @param env Environment source. Defaults to `process.env`.
  */
@@ -64,6 +83,21 @@ export function loadBffConfigFromEnv(
       ? scopesRaw.trim().split(/\s+/)
       : ["openid", "profile", "email", "offline_access"];
 
+  const ttlRaw: string = (env.SESSION_TTL_SECONDS ?? "").trim();
+  let sessionTtlSeconds: number = DEFAULT_SESSION_TTL_SECONDS;
+  if (ttlRaw !== "") {
+    const parsed: number = Number(ttlRaw);
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      throw new Error(
+        `Invalid environment variable SESSION_TTL_SECONDS: expected a positive whole number of seconds, got "${ttlRaw}"`,
+      );
+    }
+    sessionTtlSeconds = parsed;
+  }
+
+  const secureRaw: string = (env.COOKIE_SECURE ?? "").trim().toLowerCase();
+  const cookieSecure: boolean = secureRaw !== "false";
+
   return {
     issuer: require("OIDC_ISSUER"),
     clientId: require("OIDC_CLIENT_ID"),
@@ -78,5 +112,7 @@ export function loadBffConfigFromEnv(
       env.OIDC_METADATA_URL !== undefined && env.OIDC_METADATA_URL !== ""
         ? env.OIDC_METADATA_URL
         : undefined,
+    sessionTtlSeconds,
+    cookieSecure,
   };
 }
