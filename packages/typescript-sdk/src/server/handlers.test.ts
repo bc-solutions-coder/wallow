@@ -569,6 +569,26 @@ function hasAttribute(setCookie: string, attribute: string): boolean {
     );
 }
 
+/**
+ * The value of a `Set-Cookie` attribute (e.g. `Max-Age`), or `undefined` when the
+ * attribute is absent. Attribute names are matched case-insensitively.
+ */
+function attributeValue(setCookie: string, attribute: string): string | undefined {
+  const part: string | undefined = setCookie
+    .split(";")
+    .slice(1)
+    .find(
+      (candidate: string): boolean =>
+        candidate.trim().toLowerCase().split("=", 1)[0] ===
+        attribute.toLowerCase(),
+    );
+  if (part === undefined) {
+    return undefined;
+  }
+  const eq: number = part.indexOf("=");
+  return eq < 0 ? "" : part.slice(eq + 1).trim();
+}
+
 /** The shape the `/bff/user` endpoint returns once it exposes the CSRF token. */
 type BffUserResponse = BffSession["user"] & { csrfToken?: string };
 
@@ -729,6 +749,141 @@ describe("CSRF token issuance", () => {
     const body: string = await res.text();
     expect(body).not.toContain(session.accessToken);
     expect(body).not.toContain(session.refreshToken ?? "refresh-token-def");
+  });
+});
+
+describe("session cookie hardening", () => {
+  it("bounds the session cookie's lifetime with a Max-Age from sessionTtlSeconds", async () => {
+    const config: BffConfig = makeConfig("https://cookie-maxage.example.com", {
+      sessionTtlSeconds: 3600,
+    });
+
+    const { res } = await completeCallback(config);
+
+    const sessionCookie: string | undefined = setCookieFor(res, "wallow_bff");
+    expect(sessionCookie).toBeDefined();
+    // Derived from config, never hardcoded: a different TTL must move this value.
+    expect(attributeValue(sessionCookie ?? "", "Max-Age")).toBe("3600");
+  });
+
+  it("applies the configured Max-Age to every chunk of a chunked session cookie", async () => {
+    const config: BffConfig = makeConfig("https://cookie-chunk-ttl.example.com", {
+      sessionTtlSeconds: 7200,
+    });
+    const store: SessionStore = new CookieSessionStore({
+      password: config.cookiePassword,
+    });
+    // A sealed session this large spans more than one cookie chunk.
+    const session: BffSession = makeSession({ accessToken: "a".repeat(6000) });
+
+    const app: App = createApp();
+    app.use(
+      "/write",
+      defineEventHandler(async (event: H3Event): Promise<void> => {
+        await writeSession(event, config, store, session);
+      }),
+    );
+    const handle: (request: Request) => Promise<Response> = toWebHandler(app);
+
+    const res: Response = await handle(new Request("http://localhost/write"));
+
+    const written: string[] = res.headers
+      .getSetCookie()
+      .filter((cookie: string): boolean => cookieValueOf(cookie) !== "");
+    // Guards the chunking path itself: a single-chunk write would pass the
+    // Max-Age assertion below vacuously.
+    expect(written.length).toBeGreaterThan(1);
+    for (const cookie of written) {
+      expect(attributeValue(cookie, "Max-Age")).toBe("7200");
+    }
+  });
+
+  it("marks the session cookie Secure by default", async () => {
+    const config: BffConfig = makeConfig("https://cookie-secure-on.example.com");
+
+    const { res } = await completeCallback(config);
+
+    const sessionCookie: string | undefined = setCookieFor(res, "wallow_bff");
+    expect(hasAttribute(sessionCookie ?? "", "Secure")).toBe(true);
+    expect(hasAttribute(sessionCookie ?? "", "HttpOnly")).toBe(true);
+  });
+
+  it("omits Secure when cookieSecure is false, without relaxing HttpOnly", async () => {
+    const config: BffConfig = makeConfig("https://cookie-secure-off.example.com", {
+      cookieSecure: false,
+    });
+
+    const { res } = await completeCallback(config);
+
+    const sessionCookie: string | undefined = setCookieFor(res, "wallow_bff");
+    expect(sessionCookie).toBeDefined();
+    // Plain-HTTP local development drops Secure — and nothing else. The session
+    // cookie carries the sealed tokens, so HttpOnly is not negotiable.
+    expect(hasAttribute(sessionCookie ?? "", "Secure")).toBe(false);
+    expect(hasAttribute(sessionCookie ?? "", "HttpOnly")).toBe(true);
+    expect(hasAttribute(sessionCookie ?? "", "SameSite")).toBe(true);
+  });
+
+  it("keeps the CSRF cookie browser-readable while tracking the session cookie's Secure and Max-Age", async () => {
+    const config: BffConfig = makeConfig("https://cookie-csrf-attrs.example.com", {
+      sessionTtlSeconds: 1800,
+      cookieSecure: false,
+    });
+
+    const { res } = await completeCallback(config);
+
+    const csrfCookie: string | undefined = setCookieFor(res, "wallow_bff-csrf");
+    expect(csrfCookie).toBeDefined();
+    // Regression guard on Phase 6: the double-submit token is the ONE cookie the
+    // BFF writes without HttpOnly, and hardening must not flip that.
+    expect(hasAttribute(csrfCookie ?? "", "HttpOnly")).toBe(false);
+    expect(cookieValueOf(csrfCookie ?? "")).not.toBe("");
+    // Secure and Max-Age track the session cookie: the companion token must not
+    // outlive the session it defends, nor demand HTTPS when the session does not.
+    expect(hasAttribute(csrfCookie ?? "", "Secure")).toBe(false);
+    expect(attributeValue(csrfCookie ?? "", "Max-Age")).toBe("1800");
+  });
+
+  it("marks the CSRF cookie Secure when cookieSecure is true", async () => {
+    const config: BffConfig = makeConfig("https://cookie-csrf-secure.example.com", {
+      sessionTtlSeconds: 900,
+    });
+
+    const { res } = await completeCallback(config);
+
+    const csrfCookie: string | undefined = setCookieFor(res, "wallow_bff-csrf");
+    expect(hasAttribute(csrfCookie ?? "", "Secure")).toBe(true);
+    expect(hasAttribute(csrfCookie ?? "", "HttpOnly")).toBe(false);
+    expect(attributeValue(csrfCookie ?? "", "Max-Age")).toBe("900");
+  });
+
+  it("keeps the login transaction cookie short-lived while honouring cookieSecure", async () => {
+    const config: BffConfig = makeConfig("https://cookie-tx.example.com", {
+      sessionTtlSeconds: 86400,
+      cookieSecure: false,
+    });
+    const doc: DiscoveryDoc = makeDoc(config.issuer);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async (): Promise<DiscoveryDoc> => doc,
+      }),
+    );
+    const handle = makeHandle(createBffHandlers(config));
+
+    const res: Response = await handle(
+      new Request("http://localhost/bff/login?returnTo=/dashboard"),
+    );
+
+    const txCookie: string | undefined = setCookieFor(res, "wallow_bff_tx");
+    expect(txCookie).toBeDefined();
+    // The transaction cookie lives for the authorize round-trip only: the
+    // session TTL must not leak into it.
+    expect(attributeValue(txCookie ?? "", "Max-Age")).toBe("600");
+    expect(hasAttribute(txCookie ?? "", "HttpOnly")).toBe(true);
+    expect(hasAttribute(txCookie ?? "", "Secure")).toBe(false);
   });
 });
 

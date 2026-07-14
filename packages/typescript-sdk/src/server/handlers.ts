@@ -65,18 +65,40 @@ function baseCookieOpts(secure: boolean = true): {
 }
 
 /**
- * Attributes for the double-submit CSRF cookie: identical to
- * {@link baseCookieOpts} except that it is deliberately NOT `HttpOnly`, because
- * browser JS must read the token to echo it back in the `x-csrf-token` header.
- * It carries no credential of its own — the session cookie remains `HttpOnly`.
+ * Attributes for the session cookie (and each of its chunks): the base
+ * attributes with `Secure` driven by `COOKIE_SECURE` and a `Max-Age` that
+ * bounds the cookie's lifetime to the configured session TTL, so a stale
+ * browser cookie cannot outlive the session it references.
  */
-function csrfCookieOpts(secure: boolean = true): {
+function sessionCookieOpts(config: BffConfig): {
+  httpOnly: true;
+  sameSite: "lax";
+  secure: boolean;
+  path: "/";
+  maxAge: number;
+} {
+  return {
+    ...baseCookieOpts(config.cookieSecure),
+    maxAge: config.sessionTtlSeconds,
+  };
+}
+
+/**
+ * Attributes for the double-submit CSRF cookie: identical to
+ * {@link sessionCookieOpts} except that it is deliberately NOT `HttpOnly`,
+ * because browser JS must read the token to echo it back in the `x-csrf-token`
+ * header. It carries no credential of its own — the session cookie remains
+ * `HttpOnly`. It shares the session's `Max-Age` so the companion token never
+ * outlives the session it defends.
+ */
+function csrfCookieOpts(config: BffConfig): {
   httpOnly: false;
   sameSite: "lax";
   secure: boolean;
   path: "/";
+  maxAge: number;
 } {
-  return { ...baseCookieOpts(secure), httpOnly: false };
+  return { ...sessionCookieOpts(config), httpOnly: false };
 }
 
 /** Name of the transient login-transaction cookie for a given session cookie. */
@@ -207,7 +229,7 @@ export function writeSessionRef(
       event,
       chunkCookieName(config.cookieName, index),
       ref.slice(start, start + MAX_COOKIE_VALUE_LENGTH),
-      baseCookieOpts(),
+      sessionCookieOpts(config),
     );
   }
 
@@ -215,7 +237,7 @@ export function writeSessionRef(
     deleteCookie(
       event,
       chunkCookieName(config.cookieName, index),
-      baseCookieOpts(),
+      baseCookieOpts(config.cookieSecure),
     );
   }
 }
@@ -249,13 +271,17 @@ export async function writeSession(
  * @param config BFF configuration providing the base cookie name.
  */
 function clearSession(event: H3Event, config: BffConfig): void {
-  deleteCookie(event, config.cookieName, baseCookieOpts());
-  deleteCookie(event, csrfCookieName(config.cookieName), csrfCookieOpts());
+  deleteCookie(event, config.cookieName, baseCookieOpts(config.cookieSecure));
+  deleteCookie(
+    event,
+    csrfCookieName(config.cookieName),
+    csrfCookieOpts(config),
+  );
   const cookies: Record<string, string> = parseCookies(event);
   const chunkPrefix: string = `${config.cookieName}.`;
   for (const name of Object.keys(cookies)) {
     if (name.startsWith(chunkPrefix)) {
-      deleteCookie(event, name, baseCookieOpts());
+      deleteCookie(event, name, baseCookieOpts(config.cookieSecure));
     }
   }
 }
@@ -291,7 +317,7 @@ export function createBffHandlers(
       const tx: LoginTx = { state, nonce, verifier, returnTo };
       const sealed: string = await sealTx(tx, config.cookiePassword);
       setCookie(event, txCookieName(config.cookieName), sealed, {
-        ...baseCookieOpts(),
+        ...baseCookieOpts(config.cookieSecure),
         maxAge: 600,
       });
 
@@ -320,7 +346,7 @@ export function createBffHandlers(
           sealedTx,
           config.cookiePassword,
         );
-        deleteCookie(event, txName, baseCookieOpts());
+        deleteCookie(event, txName, baseCookieOpts(config.cookieSecure));
 
         if (
           tx === null ||
@@ -381,7 +407,7 @@ export function createBffHandlers(
           event,
           csrfCookieName(config.cookieName),
           csrfToken,
-          csrfCookieOpts(),
+          csrfCookieOpts(config),
         );
 
         return sendRedirect(event, tx.returnTo, 302);
