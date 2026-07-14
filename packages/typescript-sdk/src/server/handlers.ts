@@ -151,26 +151,26 @@ export async function readSession(
 }
 
 /**
- * Persist a session through the injected {@link SessionStore} and write the
- * returned opaque reference to the BFF session cookie(s).
+ * Write an opaque session reference to the BFF session cookie(s).
  *
  * The reference is split across as many chunk cookies as needed to stay under
  * the per-cookie size limit, and any stale higher-index chunks from a
  * previously larger reference are cleared.
  *
+ * Use this when the session has already been persisted and its reference is in
+ * hand — the `/api` proxy re-seals the cookie after a reactive refresh has
+ * written the rotated session inside the refresh lock, and must not write it a
+ * second time.
+ *
  * @param event The h3 request event to attach the cookie to.
  * @param config BFF configuration providing the cookie name.
- * @param store The session store that persists the session and returns its ref.
- * @param session The session to persist.
+ * @param ref The opaque store reference to place in the cookie.
  */
-export async function writeSession(
+export function writeSessionRef(
   event: H3Event,
   config: BffConfig,
-  store: SessionStore,
-  session: BffSession,
-): Promise<void> {
-  const ref: string = await store.write(session);
-
+  ref: string,
+): void {
   const chunkCount: number = Math.max(
     1,
     Math.ceil(ref.length / MAX_COOKIE_VALUE_LENGTH),
@@ -192,6 +192,27 @@ export async function writeSession(
       baseCookieOpts(),
     );
   }
+}
+
+/**
+ * Persist a session through the injected {@link SessionStore} and write the
+ * returned opaque reference to the BFF session cookie(s).
+ *
+ * @param event The h3 request event to attach the cookie to.
+ * @param config BFF configuration providing the cookie name.
+ * @param store The session store that persists the session and returns its ref.
+ * @param session The session to persist.
+ * @returns The opaque reference the session was stored under.
+ */
+export async function writeSession(
+  event: H3Event,
+  config: BffConfig,
+  store: SessionStore,
+  session: BffSession,
+): Promise<string> {
+  const ref: string = await store.write(session);
+  writeSessionRef(event, config, ref);
+  return ref;
 }
 
 /**
