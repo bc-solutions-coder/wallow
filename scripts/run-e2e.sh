@@ -121,6 +121,12 @@ if [[ "$SKIP_BUILD" == "false" ]]; then
     echo "=== Building infrastructure images ==="
     $COMPOSE_CMD build garage
 
+    # The BFF reference example is a Node image, not a dotnet publish target. Without an
+    # explicit build here compose reuses whatever wallow-bff-example:test happens to exist,
+    # so BffFlowTests would silently run against a stale copy of the example.
+    echo "=== Building BFF reference example image ==="
+    $COMPOSE_CMD build bff-example
+
     echo "=== All images ready ==="
 else
     echo "=== Skipping build (--no-build) ==="

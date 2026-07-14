@@ -18,7 +18,8 @@
  *   - bff-logout        (button -> logout())
  *   - bff-call-api      (button -> typed GET through /api)
  *   - bff-mutate        (button -> typed POST through /api, carrying the CSRF token)
- *   - bff-api-result    (result of the last /api call)
+ *   - bff-api-result    (result of the last safe /api call)
+ *   - bff-mutate-result (result of the last state-changing /api call)
  */
 import {
   client,
@@ -27,7 +28,7 @@ import {
   getV1IdentityUsersMe,
   login,
   logout,
-  postV1IdentityAuthKeys,
+  postV1IdentityOrganizations,
   type ProblemDetails,
   type WallowUser,
 } from "@bc-solutions-coder/sdk";
@@ -130,23 +131,23 @@ async function callApi(): Promise<void> {
  * CSRF interceptor above exists for: strip the `x-csrf-token` header and the BFF
  * rejects it with 403 `CSRF_INVALID` before the API ever sees it.
  *
- * Creating an API key requires the `ApiKeyManage` permission, so a user without
- * it gets a problem+json 403 from the API — still past the BFF's CSRF gate,
- * which is what this button demonstrates.
+ * Creating an organization is granted to an ordinary signed-in user, so the `201`
+ * it returns means the request cleared the CSRF gate AND reached the API — the
+ * end-to-end proof that the token was sent and accepted.
  */
 async function mutateApi(): Promise<void> {
-  const result: HTMLElement = requireElement("bff-api-result");
+  const result: HTMLElement = requireElement("bff-mutate-result");
   result.textContent = "…";
 
-  const { data, error, response } = await postV1IdentityAuthKeys({
-    body: { name: `tanstack-min demo ${new Date().toISOString()}` },
+  const { data, error, response } = await postV1IdentityOrganizations({
+    body: { name: `tanstack-min demo ${Date.now()}`, domain: null },
   });
-  if (error !== undefined) {
+  if (error !== undefined || data === undefined) {
     renderFailure(result, response, error);
     return;
   }
 
-  result.textContent = `${response.status} created key ${data.keyId}`;
+  result.textContent = `${response.status} created org ${data.organizationId}`;
 }
 
 function wire(): void {

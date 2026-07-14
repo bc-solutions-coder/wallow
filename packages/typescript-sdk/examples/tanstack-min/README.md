@@ -94,6 +94,11 @@ client.interceptors.request.use((request: Request): Request => {
 });
 ```
 
+The **Create org** button exercises this end to end: it `POST`s through `/api`,
+which an ordinary signed-in user is allowed to do, so the `201` it returns means
+the request carried the token *and* cleared the gate. Drop the interceptor and the
+same click comes back `403 CSRF_INVALID` without ever reaching the API.
+
 ## Typed API calls
 
 After `configureBffClient()` the **generated typed operations** are pointed at the
