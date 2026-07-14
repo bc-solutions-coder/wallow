@@ -40,6 +40,12 @@ import { CookieSessionStore } from "./store/cookie";
 import type { SessionStore } from "./store/types";
 import { sealTx, unsealTx, type LoginTx } from "./txstate";
 
+/**
+ * Body of the `/bff/user` response: the session's identity claims plus the CSRF
+ * synchronizer token the browser must echo on state-changing requests.
+ */
+export type BffUserResponse = BffSession["user"] & { csrfToken?: string };
+
 /** The four BFF route handlers returned by {@link createBffHandlers}. */
 export interface BffHandlers {
   login: EventHandler;
@@ -58,9 +64,29 @@ function baseCookieOpts(secure: boolean = true): {
   return { httpOnly: true, sameSite: "lax", secure, path: "/" };
 }
 
+/**
+ * Attributes for the double-submit CSRF cookie: identical to
+ * {@link baseCookieOpts} except that it is deliberately NOT `HttpOnly`, because
+ * browser JS must read the token to echo it back in the `x-csrf-token` header.
+ * It carries no credential of its own — the session cookie remains `HttpOnly`.
+ */
+function csrfCookieOpts(secure: boolean = true): {
+  httpOnly: false;
+  sameSite: "lax";
+  secure: boolean;
+  path: "/";
+} {
+  return { ...baseCookieOpts(secure), httpOnly: false };
+}
+
 /** Name of the transient login-transaction cookie for a given session cookie. */
 function txCookieName(cookieName: string): string {
   return `${cookieName}_tx`;
+}
+
+/** Name of the readable CSRF companion cookie for a given session cookie. */
+function csrfCookieName(cookieName: string): string {
+  return `${cookieName}-csrf`;
 }
 
 /**
@@ -224,6 +250,7 @@ export async function writeSession(
  */
 function clearSession(event: H3Event, config: BffConfig): void {
   deleteCookie(event, config.cookieName, baseCookieOpts());
+  deleteCookie(event, csrfCookieName(config.cookieName), csrfCookieOpts());
   const cookies: Record<string, string> = parseCookies(event);
   const chunkPrefix: string = `${config.cookieName}.`;
   for (const name of Object.keys(cookies)) {
@@ -336,6 +363,7 @@ export function createBffHandlers(
         // Normalize authorization + tenant claims into first-class user fields.
         user = mapClaims(user);
 
+        const csrfToken: string = randomUrlSafe(24);
         const session: BffSession = {
           sessionId: randomUrlSafe(24),
           accessToken: tokens.access_token,
@@ -344,18 +372,24 @@ export function createBffHandlers(
           expiresAt: Date.now() + tokens.expires_in * 1000,
           user,
           version: 1,
-          // Placeholder CSRF token; full synchronizer-token issuance lands in
-          // Phase 6.
-          csrfToken: randomUrlSafe(24),
+          csrfToken,
         };
         await writeSession(event, config, store, session);
+        // Double-submit companion: the same synchronizer token, in the one
+        // cookie the browser is allowed to read.
+        setCookie(
+          event,
+          csrfCookieName(config.cookieName),
+          csrfToken,
+          csrfCookieOpts(),
+        );
 
         return sendRedirect(event, tx.returnTo, 302);
       },
     ),
 
     user: defineEventHandler(
-      async (event: H3Event): Promise<BffSession["user"] | null> => {
+      async (event: H3Event): Promise<BffUserResponse | null> => {
         const session: BffSession | null = await readSession(
           event,
           config,
@@ -365,7 +399,10 @@ export function createBffHandlers(
           setResponseStatus(event, 401);
           return null;
         }
-        return session.user;
+        // The identity claims plus the CSRF token, for SPA clients that read
+        // the token from here rather than from the companion cookie. Session
+        // tokens are never part of this shape.
+        return { ...session.user, csrfToken: session.csrfToken };
       },
     ),
 

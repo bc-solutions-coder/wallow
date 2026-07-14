@@ -7,6 +7,8 @@
  * fresh, strips the `/api` prefix, and forwards the request to the downstream
  * API with a `Bearer` token.
  */
+import { timingSafeEqual } from "node:crypto";
+
 import {
   defineEventHandler,
   getMethod,
@@ -36,6 +38,57 @@ import {
 } from "./handlers";
 import { CookieSessionStore } from "./store/cookie";
 import type { SessionStore } from "./store/types";
+
+/** Header carrying the double-submit CSRF token on state-changing requests. */
+export const CSRF_HEADER: string = "x-csrf-token";
+
+/** Machine-readable code returned when the CSRF check rejects a request. */
+export const CSRF_INVALID_CODE: string = "CSRF_INVALID";
+
+/** The HTTP methods that mutate state and therefore carry a CSRF token. */
+const STATE_CHANGING_METHODS: ReadonlySet<string> = new Set<string>([
+  "POST",
+  "PUT",
+  "PATCH",
+  "DELETE",
+]);
+
+/** Whether `method` mutates state and therefore requires a CSRF token. */
+export function isStateChangingMethod(method: string): boolean {
+  return STATE_CHANGING_METHODS.has(method.toUpperCase());
+}
+
+/**
+ * Whether the token presented by the browser matches the session-bound token.
+ *
+ * The comparison must not leak the position of the first differing byte.
+ */
+export function csrfTokenMatches(
+  expected: string | undefined,
+  presented: string | undefined,
+): boolean {
+  // An absent or empty session token is never satisfiable: without this an
+  // unauthenticated session would accept an empty `x-csrf-token` header.
+  if (
+    expected === undefined ||
+    expected === "" ||
+    presented === undefined ||
+    presented === ""
+  ) {
+    return false;
+  }
+
+  const a: Buffer = Buffer.from(expected, "utf8");
+  const b: Buffer = Buffer.from(presented, "utf8");
+
+  // timingSafeEqual throws on unequal lengths, so the length check comes first.
+  // Token length is not a secret; its bytes are.
+  if (a.length !== b.length) {
+    return false;
+  }
+
+  return timingSafeEqual(a, b);
+}
 
 /** How long before real expiry a token is treated as expired (ms). */
 export const EXPIRY_SKEW_MS = 30_000;
@@ -530,6 +583,26 @@ export function createApiProxy(
     if (session === null) {
       setResponseStatus(event, 401);
       return null;
+    }
+
+    // Gate state-changing requests on the session-bound CSRF token before the
+    // session is refreshed or anything is forwarded: a rejected request must
+    // die here, never reaching the downstream API. `csrfToken` survives a
+    // refresh untouched, so the pre-refresh session is the right thing to
+    // compare against.
+    if (isStateChangingMethod(getMethod(event))) {
+      const presented: string | undefined =
+        getRequestHeaders(event)[CSRF_HEADER];
+      if (!csrfTokenMatches(session.csrfToken, presented)) {
+        return respondToFailure(
+          event,
+          new WallowError({
+            status: 403,
+            code: CSRF_INVALID_CODE,
+            title: "CSRF token mismatch or missing",
+          }),
+        );
+      }
     }
 
     let fresh: BffSession;

@@ -1,3 +1,5 @@
+import { timingSafeEqual } from "node:crypto";
+
 import { createApp, toWebHandler, type App } from "h3";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -7,10 +9,14 @@ import { discover, refreshTokens } from "./oidc";
 import type { DiscoveryDoc, TokenResponse } from "./oidc";
 import {
   createApiProxy,
+  csrfTokenMatches,
+  CSRF_HEADER,
+  CSRF_INVALID_CODE,
   ensureFreshSession,
   forceRefreshSession,
   forwardWithResilience,
   FORWARD_TIMEOUT_MS,
+  isStateChangingMethod,
   MAX_RETRY_AFTER_MS,
   NETWORK_ERROR_CODE,
   NETWORK_TIMEOUT_CODE,
@@ -66,11 +72,29 @@ vi.mock("openid-client", () => ({
   ),
 }));
 
+/**
+ * Spy on Node's constant-time comparison so the CSRF suite can assert the check
+ * never falls back to `===`. Everything else in `node:crypto` is passed through
+ * untouched — session sealing still runs against the real primitives.
+ */
+vi.mock("node:crypto", async (importOriginal) => {
+  const actual: typeof import("node:crypto") = await importOriginal();
+  const spy: typeof actual.timingSafeEqual = vi.fn(actual.timingSafeEqual);
+  return {
+    ...actual,
+    default: { ...actual, timingSafeEqual: spy },
+    timingSafeEqual: spy,
+  };
+});
+
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
+
+/** The CSRF token bound to every session {@link makeSession} builds. */
+const CSRF_FIXTURE_TOKEN: string = "csrf-fixture-token-aaaaaaaaaaaaaaaa";
 
 /** Options for {@link makeFakeStore}. */
 interface FakeStoreOptions {
@@ -180,6 +204,7 @@ function makeSession(overrides: Partial<BffSession> = {}): BffSession {
     expiresAt: Date.now() + 3_600_000,
     user: { sub: "user-123", email: "user@example.com", name: "Test User" },
     version: 1,
+    csrfToken: CSRF_FIXTURE_TOKEN,
     ...overrides,
   };
 }
@@ -1255,6 +1280,7 @@ describe("createApiProxy resilience", () => {
         headers: {
           cookie: `${config.cookieName}=fake-ref`,
           "content-type": "application/json",
+          [CSRF_HEADER]: CSRF_FIXTURE_TOKEN,
         },
         body: '{"slug":"acme"}',
       }),
@@ -1265,5 +1291,269 @@ describe("createApiProxy resilience", () => {
     const body = (await res.json()) as Record<string, unknown>;
     expect(body["title"]).toBe("Conflict");
     expect(body["detail"]).toBe("Tenant slug already taken.");
+  });
+});
+
+/** Stub `fetch` with an upstream that always answers 200, and hand back the spy. */
+function stubUpstreamOk(): ReturnType<typeof vi.fn> {
+  const fetchMock: ReturnType<typeof vi.fn> = vi.fn((): Promise<Response> =>
+    Promise.resolve(
+      new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    ),
+  );
+  vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
+}
+
+/** The problem-details body of a rejected request. */
+async function problemBodyOf(res: Response): Promise<Record<string, unknown>> {
+  return (await res.json()) as Record<string, unknown>;
+}
+
+const UNSAFE_METHODS: readonly string[] = ["POST", "PUT", "PATCH", "DELETE"];
+const SAFE_METHODS: readonly string[] = ["GET", "HEAD", "OPTIONS"];
+/** h3 answers OPTIONS with 405 before the proxy runs, so it is unobservable here. */
+const PROXIED_SAFE_METHODS: readonly string[] = ["GET", "HEAD"];
+
+describe("createApiProxy CSRF", () => {
+  it.each(UNSAFE_METHODS)(
+    "rejects a %s with no CSRF header and never forwards it upstream",
+    async (method: string) => {
+      const config: BffConfig = makeConfig(
+        `https://csrf-missing-${method.toLowerCase()}.example.com`,
+      );
+      const { store }: FakeStore = makeFakeStore(makeSession());
+      const fetchMock: ReturnType<typeof vi.fn> = stubUpstreamOk();
+      const handle = makeHandle(config, store);
+
+      const res: Response = await handle(
+        new Request("http://localhost/api/tenants", {
+          method,
+          headers: {
+            cookie: `${config.cookieName}=fake-ref`,
+            "content-type": "application/json",
+          },
+          body: method === "DELETE" ? undefined : '{"slug":"acme"}',
+        }),
+      );
+
+      expect(res.status).toBe(403);
+      // The forbidden request must die at the BFF, not at the API.
+      expect(fetchMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("answers a missing CSRF token with CSRF_INVALID problem details", async () => {
+    const config: BffConfig = makeConfig("https://csrf-problem.example.com");
+    const { store }: FakeStore = makeFakeStore(makeSession());
+    stubUpstreamOk();
+    const handle = makeHandle(config, store);
+
+    const res: Response = await handle(
+      new Request("http://localhost/api/tenants", {
+        method: "POST",
+        headers: { cookie: `${config.cookieName}=fake-ref` },
+        body: '{"slug":"acme"}',
+      }),
+    );
+
+    expect(res.status).toBe(403);
+    expect(res.headers.get("content-type") ?? "").toContain("problem+json");
+    const body: Record<string, unknown> = await problemBodyOf(res);
+    expect(body["status"]).toBe(403);
+    expect(body["code"]).toBe(CSRF_INVALID_CODE);
+  });
+
+  it("rejects a POST whose CSRF header does not match the session token", async () => {
+    const config: BffConfig = makeConfig("https://csrf-mismatch.example.com");
+    const { store }: FakeStore = makeFakeStore(makeSession());
+    const fetchMock: ReturnType<typeof vi.fn> = stubUpstreamOk();
+    const handle = makeHandle(config, store);
+
+    const res: Response = await handle(
+      new Request("http://localhost/api/tenants", {
+        method: "POST",
+        headers: {
+          cookie: `${config.cookieName}=fake-ref`,
+          [CSRF_HEADER]: "not-the-session-token-bbbbbbbbbbbbbb",
+        },
+        body: '{"slug":"acme"}',
+      }),
+    );
+
+    expect(res.status).toBe(403);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a token minted for a different session", async () => {
+    // The attack the double-submit check exists to stop: the attacker knows a
+    // valid, well-formed CSRF token — just not the victim session's token.
+    const config: BffConfig = makeConfig("https://csrf-crosstalk.example.com");
+    const victim: BffSession = makeSession({
+      sessionId: "sess-victim",
+      csrfToken: "victim-csrf-token-cccccccccccccccc",
+    });
+    const attackerToken: string = "attacker-csrf-token-dddddddddddddd";
+    const { store }: FakeStore = makeFakeStore(victim);
+    const fetchMock: ReturnType<typeof vi.fn> = stubUpstreamOk();
+    const handle = makeHandle(config, store);
+
+    const res: Response = await handle(
+      new Request("http://localhost/api/tenants", {
+        method: "POST",
+        headers: {
+          cookie: `${config.cookieName}=fake-ref`,
+          [CSRF_HEADER]: attackerToken,
+        },
+        body: '{"slug":"acme"}',
+      }),
+    );
+
+    expect(res.status).toBe(403);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects an empty CSRF header even when the session has no token", async () => {
+    // A session with no bound token must never be satisfiable by an empty
+    // header — otherwise "" === undefined-ish becomes a bypass.
+    const config: BffConfig = makeConfig("https://csrf-empty.example.com");
+    const { store }: FakeStore = makeFakeStore(
+      makeSession({ csrfToken: undefined }),
+    );
+    const fetchMock: ReturnType<typeof vi.fn> = stubUpstreamOk();
+    const handle = makeHandle(config, store);
+
+    const res: Response = await handle(
+      new Request("http://localhost/api/tenants", {
+        method: "POST",
+        headers: {
+          cookie: `${config.cookieName}=fake-ref`,
+          [CSRF_HEADER]: "",
+        },
+        body: '{"slug":"acme"}',
+      }),
+    );
+
+    expect(res.status).toBe(403);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it.each(UNSAFE_METHODS)(
+    "forwards a %s that presents the session-bound CSRF token",
+    async (method: string) => {
+      const config: BffConfig = makeConfig(
+        `https://csrf-valid-${method.toLowerCase()}.example.com`,
+      );
+      const { store }: FakeStore = makeFakeStore(makeSession());
+      const fetchMock: ReturnType<typeof vi.fn> = stubUpstreamOk();
+      const handle = makeHandle(config, store);
+
+      const res: Response = await handle(
+        new Request("http://localhost/api/tenants", {
+          method,
+          headers: {
+            cookie: `${config.cookieName}=fake-ref`,
+            "content-type": "application/json",
+            [CSRF_HEADER]: CSRF_FIXTURE_TOKEN,
+          },
+          body: method === "DELETE" ? undefined : '{"slug":"acme"}',
+        }),
+      );
+
+      expect(res.status).toBe(200);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(String(fetchMock.mock.calls[0][0])).toContain(
+        "https://api.example.com/tenants",
+      );
+    },
+  );
+
+  it.each(PROXIED_SAFE_METHODS)(
+    "does not gate a %s on a CSRF token",
+    async (method: string) => {
+      const config: BffConfig = makeConfig(
+        `https://csrf-safe-${method.toLowerCase()}.example.com`,
+      );
+      const { store }: FakeStore = makeFakeStore(makeSession());
+      const fetchMock: ReturnType<typeof vi.fn> = stubUpstreamOk();
+      const handle = makeHandle(config, store);
+
+      const res: Response = await handle(
+        new Request("http://localhost/api/users", {
+          method,
+          headers: { cookie: `${config.cookieName}=fake-ref` },
+        }),
+      );
+
+      expect(res.status).toBe(200);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("compares the tokens with a constant-time primitive, not ===", async () => {
+    const config: BffConfig = makeConfig("https://csrf-timing.example.com");
+    const { store }: FakeStore = makeFakeStore(makeSession());
+    stubUpstreamOk();
+    const handle = makeHandle(config, store);
+
+    await handle(
+      new Request("http://localhost/api/tenants", {
+        method: "POST",
+        headers: {
+          cookie: `${config.cookieName}=fake-ref`,
+          [CSRF_HEADER]: CSRF_FIXTURE_TOKEN,
+        },
+        body: '{"slug":"acme"}',
+      }),
+    );
+
+    expect(vi.mocked(timingSafeEqual)).toHaveBeenCalled();
+  });
+});
+
+describe("isStateChangingMethod", () => {
+  it.each(UNSAFE_METHODS)("treats %s as state-changing", (method: string) => {
+    expect(isStateChangingMethod(method)).toBe(true);
+  });
+
+  it.each(SAFE_METHODS)("treats %s as safe", (method: string) => {
+    expect(isStateChangingMethod(method)).toBe(false);
+  });
+
+  it("is case-insensitive", () => {
+    expect(isStateChangingMethod("post")).toBe(true);
+    expect(isStateChangingMethod("get")).toBe(false);
+  });
+});
+
+describe("csrfTokenMatches", () => {
+  it("accepts the session-bound token", () => {
+    expect(csrfTokenMatches(CSRF_FIXTURE_TOKEN, CSRF_FIXTURE_TOKEN)).toBe(true);
+  });
+
+  it("rejects a same-length token that differs in the last byte", () => {
+    const presented: string = `${CSRF_FIXTURE_TOKEN.slice(0, -1)}z`;
+    expect(csrfTokenMatches(CSRF_FIXTURE_TOKEN, presented)).toBe(false);
+  });
+
+  it("rejects a same-length token that differs in the first byte", () => {
+    const presented: string = `z${CSRF_FIXTURE_TOKEN.slice(1)}`;
+    expect(csrfTokenMatches(CSRF_FIXTURE_TOKEN, presented)).toBe(false);
+  });
+
+  it("rejects a token of a different length without throwing", () => {
+    // Node's timingSafeEqual throws on unequal lengths; the length guard must
+    // come first so a short token is a rejection, not a 500.
+    expect(csrfTokenMatches(CSRF_FIXTURE_TOKEN, "short")).toBe(false);
+  });
+
+  it("rejects when either side is missing or empty", () => {
+    expect(csrfTokenMatches(undefined, CSRF_FIXTURE_TOKEN)).toBe(false);
+    expect(csrfTokenMatches(CSRF_FIXTURE_TOKEN, undefined)).toBe(false);
+    expect(csrfTokenMatches(undefined, undefined)).toBe(false);
+    expect(csrfTokenMatches("", "")).toBe(false);
   });
 });

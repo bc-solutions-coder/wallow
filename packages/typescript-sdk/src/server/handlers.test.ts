@@ -543,6 +543,193 @@ function cookieHeaderFrom(res: Response): string {
     .join("; ");
 }
 
+/** The `Set-Cookie` value for a given cookie name, or `undefined` if absent. */
+function setCookieFor(res: Response, name: string): string | undefined {
+  return res.headers
+    .getSetCookie()
+    .find((cookie: string): boolean => cookie.startsWith(`${name}=`));
+}
+
+/** The value of a cookie from its `Set-Cookie` line (empty string if unset). */
+function cookieValueOf(setCookie: string): string {
+  const pair: string = setCookie.split(";", 1)[0] ?? "";
+  return pair.slice(pair.indexOf("=") + 1);
+}
+
+/** True when the `Set-Cookie` line carries the given attribute (case-insensitive). */
+function hasAttribute(setCookie: string, attribute: string): boolean {
+  return setCookie
+    .split(";")
+    .slice(1)
+    .some(
+      (part: string): boolean =>
+        part.trim().toLowerCase().split("=", 1)[0] === attribute.toLowerCase(),
+    );
+}
+
+/** The shape the `/bff/user` endpoint returns once it exposes the CSRF token. */
+type BffUserResponse = BffSession["user"] & { csrfToken?: string };
+
+/**
+ * Drive a full login callback for a fresh issuer and return the callback
+ * response, from which the session and CSRF cookies can be read.
+ */
+async function completeCallback(
+  config: BffConfig,
+): Promise<{ res: Response; handle: (request: Request) => Promise<Response> }> {
+  const tx: LoginTx = {
+    state: "st-csrf",
+    nonce: "no-csrf",
+    verifier: "ver-csrf",
+    returnTo: "/dashboard",
+  };
+  const sealed: string = await sealTx(tx, config.cookiePassword);
+  authorizationCodeGrantMock.mockResolvedValue({
+    access_token: "at",
+    refresh_token: "rt",
+    id_token: makeIdToken({ sub: "user-csrf", email: "u@e.com" }),
+    expires_in: 3600,
+    token_type: "Bearer",
+  });
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockRejectedValue(new Error("unexpected token-endpoint fetch")),
+  );
+  const handle: (request: Request) => Promise<Response> = makeHandle(
+    createBffHandlers(config),
+  );
+  const res: Response = await handle(
+    new Request("http://localhost/bff/callback?code=code-csrf&state=st-csrf", {
+      headers: { cookie: `wallow_bff_tx=${sealed}` },
+    }),
+  );
+  return { res, handle };
+}
+
+describe("CSRF token issuance", () => {
+  it("sets a companion CSRF cookie the browser can read (not HttpOnly)", async () => {
+    const config: BffConfig = makeConfig("https://csrf-cookie.example.com");
+
+    const { res } = await completeCallback(config);
+
+    expect(res.status).toBe(302);
+    const csrfCookie: string | undefined = setCookieFor(res, "wallow_bff-csrf");
+    expect(csrfCookie).toBeDefined();
+    // The double-submit token must be readable by browser JS, so it is the one
+    // cookie the BFF writes WITHOUT HttpOnly.
+    expect(hasAttribute(csrfCookie ?? "", "HttpOnly")).toBe(false);
+    expect(hasAttribute(csrfCookie ?? "", "Secure")).toBe(true);
+    expect(hasAttribute(csrfCookie ?? "", "SameSite")).toBe(true);
+    expect(cookieValueOf(csrfCookie ?? "")).not.toBe("");
+  });
+
+  it("keeps the session cookie HttpOnly while the CSRF cookie is readable", async () => {
+    const config: BffConfig = makeConfig("https://csrf-httponly.example.com");
+
+    const { res } = await completeCallback(config);
+
+    const sessionCookie: string | undefined = setCookieFor(res, "wallow_bff");
+    expect(sessionCookie).toBeDefined();
+    // Regression guard: exposing the CSRF token must not relax the session
+    // cookie, which still carries the sealed tokens.
+    expect(hasAttribute(sessionCookie ?? "", "HttpOnly")).toBe(true);
+  });
+
+  it("draws the token from the Web Crypto RNG, never Math.random", async () => {
+    const config: BffConfig = makeConfig("https://csrf-rng.example.com");
+    const randomSpy = vi.spyOn(Math, "random");
+    const cryptoSpy = vi.spyOn(globalThis.crypto, "getRandomValues");
+
+    const { res } = await completeCallback(config);
+
+    expect(cryptoSpy).toHaveBeenCalled();
+    expect(randomSpy).not.toHaveBeenCalled();
+
+    // 24 random bytes base64url-encode to 32 characters of [A-Za-z0-9_-].
+    const token: string = cookieValueOf(
+      setCookieFor(res, "wallow_bff-csrf") ?? "",
+    );
+    expect(token).toMatch(/^[A-Za-z0-9_-]{32,}$/);
+  });
+
+  it("issues a distinct token per login", async () => {
+    const first = await completeCallback(
+      makeConfig("https://csrf-unique-1.example.com"),
+    );
+    const second = await completeCallback(
+      makeConfig("https://csrf-unique-2.example.com"),
+    );
+
+    const firstToken: string = cookieValueOf(
+      setCookieFor(first.res, "wallow_bff-csrf") ?? "",
+    );
+    const secondToken: string = cookieValueOf(
+      setCookieFor(second.res, "wallow_bff-csrf") ?? "",
+    );
+
+    expect(firstToken).not.toBe("");
+    expect(firstToken).not.toBe(secondToken);
+  });
+
+  it("returns the same token from /bff/user as the cookie carries (double submit)", async () => {
+    const config: BffConfig = makeConfig("https://csrf-user.example.com");
+
+    const { res, handle } = await completeCallback(config);
+    const cookieToken: string = cookieValueOf(
+      setCookieFor(res, "wallow_bff-csrf") ?? "",
+    );
+
+    const userRes: Response = await handle(
+      new Request("http://localhost/bff/user", {
+        headers: { cookie: cookieHeaderFrom(res) },
+      }),
+    );
+
+    expect(userRes.status).toBe(200);
+    const body: BffUserResponse = (await userRes.json()) as BffUserResponse;
+    // SPA clients that cannot read the cookie (or prefer not to) get the token
+    // from the user endpoint; both must be the session's single token.
+    expect(body.csrfToken).toBe(cookieToken);
+    expect(body.sub).toBe("user-csrf");
+  });
+
+  it("exposes the stored session's csrfToken through /bff/user", async () => {
+    const config: BffConfig = makeConfig("https://csrf-user-stored.example.com");
+    const session: BffSession = makeSession({ csrfToken: "stored-csrf-token" });
+    const sealed: string = await sealSession(session, config.cookiePassword);
+    const handle = makeHandle(createBffHandlers(config));
+
+    const res: Response = await handle(
+      new Request("http://localhost/bff/user", {
+        headers: { cookie: `wallow_bff=${sealed}` },
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    const body: BffUserResponse = (await res.json()) as BffUserResponse;
+    expect(body.csrfToken).toBe("stored-csrf-token");
+    // The identity fields still surface unchanged alongside the token.
+    expect(body.email).toBe(session.user.email);
+  });
+
+  it("never exposes session tokens through /bff/user", async () => {
+    const config: BffConfig = makeConfig("https://csrf-user-leak.example.com");
+    const session: BffSession = makeSession({ csrfToken: "stored-csrf-token" });
+    const sealed: string = await sealSession(session, config.cookiePassword);
+    const handle = makeHandle(createBffHandlers(config));
+
+    const res: Response = await handle(
+      new Request("http://localhost/bff/user", {
+        headers: { cookie: `wallow_bff=${sealed}` },
+      }),
+    );
+
+    const body: string = await res.text();
+    expect(body).not.toContain(session.accessToken);
+    expect(body).not.toContain(session.refreshToken ?? "refresh-token-def");
+  });
+});
+
 describe("readSession/writeSession store threading", () => {
   it("round-trips a session through an injected CookieSessionStore", async () => {
     const config: BffConfig = makeConfig("https://store-roundtrip.example.com");
