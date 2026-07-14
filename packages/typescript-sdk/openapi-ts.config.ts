@@ -7,7 +7,10 @@ export default defineConfig({
     format: "prettier",
   },
   plugins: [
-    "@hey-api/client-fetch",
+    {
+      name: "@hey-api/client-fetch",
+      runtimeConfigPath: "./src/runtime-config.ts",
+    },
     "@hey-api/typescript",
     "@hey-api/sdk",
     "@tanstack/react-query",

@@ -15,7 +15,7 @@ cookie (never exposed to JavaScript).
 | Path | Role |
 | --- | --- |
 | `server.ts` | Host that mounts `createBffHandlers` at `/bff/*`, `createApiProxy` at `/api/**`, serves `public/`, and listens on `PORT` (default `3000`). |
-| `src/app.ts` | Browser entry using `configureWallowClient()`, `login()`, `logout()`, `getUser()`. |
+| `src/app.ts` | Browser entry using `configureBffClient()`, `login()`, `logout()`, `getUser()`. |
 | `public/index.html` | The DOM the E2E test drives (`data-testid` selectors). |
 | `Dockerfile` | Containerizes the example for the E2E stack. |
 

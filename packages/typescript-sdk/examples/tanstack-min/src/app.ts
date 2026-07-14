@@ -12,7 +12,7 @@
  *   - bff-api-result    (status/body of the /api call)
  */
 import {
-  configureWallowClient,
+  configureBffClient,
   getUser,
   login,
   logout,
@@ -21,7 +21,7 @@ import {
 
 // Point the generated client at the same-origin `/api` BFF proxy and send the
 // httpOnly session cookie with every request.
-configureWallowClient();
+configureBffClient();
 
 function requireElement<T extends HTMLElement>(testId: string): T {
   const element: HTMLElement | null = document.querySelector(

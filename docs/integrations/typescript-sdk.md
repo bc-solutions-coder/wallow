@@ -194,10 +194,10 @@ any required key is missing or empty):
 Configure the shared client once at startup, then use the three auth helpers.
 
 ```ts
-import { configureWallowClient, getUser, login, logout } from "@bc-solutions-coder/sdk";
+import { configureBffClient, getUser, login, logout } from "@bc-solutions-coder/sdk";
 
 // Point the typed client at the same-origin BFF proxy and send the cookie.
-configureWallowClient(); // defaults baseUrl to "/api", credentials: "include"
+configureBffClient(); // defaults baseUrl to "/api", credentials: "include"
 
 // Render current auth state.
 const user = await getUser(); // WallowUser | null (null when unauthenticated)
@@ -221,17 +221,17 @@ logout();
 
 ### Calling module endpoints with the typed client
 
-`configureWallowClient()` points the generated Hey API client at the `/api`
+`configureBffClient()` points the generated Hey API client at the `/api`
 proxy with `credentials: "include"`, so every generated call rides the sealed
 session cookie and is transparently authenticated by the BFF. Import the
 generated operation functions from `@bc-solutions-coder/sdk` and call them directly — no
 token handling in the browser:
 
 ```ts
-import { configureWallowClient } from "@bc-solutions-coder/sdk";
+import { configureBffClient } from "@bc-solutions-coder/sdk";
 // import { getInquiries } from "@bc-solutions-coder/sdk"; // generated typed operation
 
-configureWallowClient();
+configureBffClient();
 
 // const { data } = await getInquiries();
 // data is fully typed from the OpenAPI schema; the request went
@@ -239,7 +239,13 @@ configureWallowClient();
 ```
 
 If your app is not served from the same origin as the BFF, pass an explicit
-base URL: `configureWallowClient({ baseUrl: "https://app.example.com/api" })`.
+base URL: `configureBffClient({ baseUrl: "https://app.example.com/api" })`.
+
+> [!NOTE]
+> `configureBffClient` was previously named `configureWallowClient`. The old
+> name is still exported as a deprecated alias to the same function (and
+> `WallowClientOptions` to `BffClientOptions`), so existing code keeps working.
+> It will be removed in a future major release — prefer `configureBffClient`.
 
 ---
 
@@ -287,7 +293,7 @@ your BFF on port `3000` locally (or update `seed.json` and re-seed).
   unreadable by JavaScript. The browser holds an opaque, encrypted blob.
 - **Same-origin by design.** Serve the browser app and the BFF (`/bff/*` and
   `/api/**`) from the same origin. The session cookie is scoped to that origin,
-  and `configureWallowClient()` sends it with `credentials: "include"`.
+  and `configureBffClient()` sends it with `credentials: "include"`.
 - **Confidential client.** Unlike a public SPA using PKCE alone, the BFF is a
   confidential client: it authenticates to the token endpoint with
   `OIDC_CLIENT_SECRET` in addition to PKCE, so a leaked authorization code
@@ -303,7 +309,7 @@ your BFF on port `3000` locally (or update `seed.json` and re-seed).
 | Symptom | Likely cause | Fix |
 |---------|--------------|-----|
 | `Missing required environment variable: ...` on startup | A required env var is unset or empty | Set every required key in the [environment variables](#environment-variables) table |
-| `getUser()` always returns `null` | Session cookie not being sent | Serve the app and BFF on the same origin; confirm `configureWallowClient()` runs before any call |
+| `getUser()` always returns `null` | Session cookie not being sent | Serve the app and BFF on the same origin; confirm `configureBffClient()` runs before any call |
 | `invalid_client` on callback | `OIDC_CLIENT_ID`/`OIDC_CLIENT_SECRET` mismatch | Confirm they match the registered (or seeded) confidential client |
 | `redirect_uri` mismatch | `OIDC_REDIRECT_URI` does not match the registered URI | Register `http://localhost:3000/bff/callback` (or your value) and keep them identical |
 | `401` from `/api/**` after login | Session missing or refresh token unavailable | Ensure `offline_access` is in the requested scopes so a refresh token is issued |
