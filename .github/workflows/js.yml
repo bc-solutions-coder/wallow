@@ -61,6 +61,12 @@ jobs:
       - name: Check formatting
         run: pnpm format:check
 
+      # Workspace members resolve @bc-solutions-coder/sdk through its package.json
+      # `exports` map, which points at dist/. Build the SDK first so dependent
+      # members (apps/tanstack-min) can typecheck against the emitted .d.ts files.
+      - name: Build SDK
+        run: pnpm --filter @bc-solutions-coder/sdk build
+
       - name: Typecheck
         run: pnpm typecheck
 
