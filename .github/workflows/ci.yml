@@ -20,7 +20,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: "10.0.x"
 
       - name: Cache NuGet packages
         uses: actions/cache@v5
@@ -73,7 +73,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: "10.0.x"
 
       - name: Cache NuGet packages
         uses: actions/cache@v5
@@ -91,6 +91,9 @@ jobs:
             **/obj
           key: build-v2-${{ runner.os }}-${{ github.sha }}
           fail-on-cache-miss: true
+
+      - name: Restore dependencies
+        run: dotnet restore api/Wallow.slnx
 
       - name: Run unit tests
         run: dotnet test api/Wallow.slnx --no-build --configuration Release --filter "Category!=Integration&Category!=E2E" --verbosity normal --blame-hang-timeout 60s --collect "XPlat Code Coverage" --settings api/tests/coverage.runsettings --results-directory ./TestResults
@@ -146,7 +149,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: "10.0.x"
 
       - name: Cache NuGet packages
         uses: actions/cache@v5
@@ -164,6 +167,9 @@ jobs:
             **/obj
           key: build-v2-${{ runner.os }}-${{ github.sha }}
           fail-on-cache-miss: true
+
+      - name: Restore dependencies
+        run: dotnet restore api/Wallow.slnx
 
       - name: Run integration tests
         run: dotnet test api/Wallow.slnx --no-build --configuration Release --filter "Category=Integration" --verbosity normal --blame-hang-timeout 5m --collect "XPlat Code Coverage" --settings api/tests/coverage.runsettings --results-directory ./TestResults
@@ -192,7 +198,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: "10.0.x"
 
       - name: Cache NuGet packages
         uses: actions/cache@v5
@@ -210,6 +216,9 @@ jobs:
             **/obj
           key: build-v2-${{ runner.os }}-${{ github.sha }}
           fail-on-cache-miss: true
+
+      - name: Restore dependencies
+        run: dotnet restore api/Wallow.slnx
 
       - name: Publish app container images
         run: |
@@ -316,7 +325,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: "10.0.x"
 
       - name: Cache NuGet packages
         uses: actions/cache@v5
@@ -439,7 +448,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: "10.0.x"
 
       - name: Download unit test coverage
         uses: actions/download-artifact@v8
