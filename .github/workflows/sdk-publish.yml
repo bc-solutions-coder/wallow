@@ -24,27 +24,31 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: packages/typescript-sdk
+        working-directory: packages/sdk
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Enable corepack
+        run: corepack enable
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           registry-url: 'https://npm.pkg.github.com'
           scope: '@bc-solutions-coder'
+          cache: 'pnpm'
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Test
-        run: npm test
+        run: pnpm test
 
       - name: Build
-        run: npm run build
+        run: pnpm build
 
       - name: Sync package version from sdk-v tag or dispatch input
         run: |
@@ -61,9 +65,9 @@ jobs:
             exit 1
           fi
           echo "Setting package version to $VERSION"
-          npm version "$VERSION" --no-git-tag-version --allow-same-version
+          pnpm version "$VERSION" --no-git-tag-version --allow-same-version
 
       - name: Publish to GitHub Packages
-        run: npm publish
+        run: pnpm publish --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

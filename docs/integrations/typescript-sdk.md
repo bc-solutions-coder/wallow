@@ -149,7 +149,7 @@ handler. Each of `bff.login`, `bff.callback`, `bff.user`, `bff.logout`, and
 any server route that accepts an h3 `EventHandler`.
 
 A minimal, framework-agnostic reference host lives in the repository at
-`packages/typescript-sdk/examples/tanstack-min/` — it mounts exactly these
+`apps/tanstack-min/` — it mounts exactly these
 routes on a plain h3 app and serves a static browser bundle.
 
 ### The `/api` proxy and silent refresh
@@ -224,7 +224,7 @@ const store: SessionStore = new CookieSessionStore({
 concrete Redis dependency — you adapt the client you already run. The `nx` flag
 must reach the server as a real conditional set; that is what makes the refresh
 lock a lock. The package README shows a complete `ioredis` adapter:
-[`packages/typescript-sdk/README.md`](https://github.com/bc-solutions-coder/wallow/blob/main/packages/typescript-sdk/README.md).
+[`packages/sdk/README.md`](https://github.com/bc-solutions-coder/wallow/blob/main/packages/sdk/README.md).
 
 ---
 

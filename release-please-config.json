@@ -12,6 +12,13 @@
           "xpath": "//Project/PropertyGroup/Version"
         }
       ]
+    },
+    "packages/sdk": {
+      "release-type": "node",
+      "package-name": "@bc-solutions-coder/sdk",
+      "component": "sdk",
+      "include-component-in-tag": true,
+      "changelog-path": "packages/sdk/CHANGELOG.md"
     }
   }
 }

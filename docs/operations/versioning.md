@@ -91,10 +91,29 @@ feature branch ──PR──► main branch ──release PR──► tag + Git
 
 Configuration lives in two files at the repository root:
 
-- **`release-please-config.json`** — Release type, extra files to version-bump
-- **`.release-please-manifest.json`** — Tracks the current version
+- **`release-please-config.json`** — Per-component release type and extra files to version-bump
+- **`.release-please-manifest.json`** — Tracks the current version of each component
 
-release-please automatically updates `Directory.Build.props` with the new version via the `extra-files` config.
+### Monorepo (manifest) mode
+
+release-please runs in **manifest mode**, versioning multiple components independently:
+
+| Component | Path | Release type | Tag scheme | Published to |
+|-----------|------|-------------|-----------|--------------|
+| .NET backend | `.` | `simple` | `vX.Y.Z` | Docker images |
+| SDK | `packages/sdk` | `node` | `sdk-vX.Y.Z` | GitHub Packages |
+
+Each component gets its own changelog and its own Release PR: a `feat(sdk):` commit bumps only `packages/sdk`, while a commit scoped to the .NET backend bumps only the `.` component. The `.` component keeps its original `vX.Y.Z` tag scheme and behavior unchanged (an empty root component prepends nothing to the tag).
+
+Applications under `apps/*` are **private** and carry no semver — they are deliberately absent from the config and never receive version-bump PRs. They deploy by git SHA / CalVer instead.
+
+release-please automatically updates `Directory.Build.props` with the new .NET version via the `extra-files` config.
+
+### Trade-off: `workspace:*` bumps do not cascade
+
+Manifest mode does **not** auto-cascade a `workspace:*` dependency bump. When a future published package (for example `packages/ui-*`) depends on `packages/sdk` via `workspace:*`, bumping the SDK will **not** automatically bump or release the dependent package.
+
+To release the dependent after an SDK bump lands, bump its scope manually — for example commit `fix(ui-foo): bump sdk dependency` so release-please opens a Release PR for `ui-foo` as well. Apps under `apps/*` are unaffected because they carry no semver and are never released.
 
 ## What Gets Stamped
 
