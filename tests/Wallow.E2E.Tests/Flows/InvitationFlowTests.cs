@@ -34,7 +34,7 @@ public sealed class InvitationFlowTests : E2ETestBase
         Assert.True(isError, "Invitation landing with invalid token should show an error");
     }
 
-    [Fact(Skip = "Pending fix - tracked in beads")]
+    [Fact]
     public async Task InvitationLanding_WithValidToken_UnauthenticatedUser_ShowsSignInPrompt()
     {
         OrgAdminTestUser orgAdmin = await TestUserFactory.CreateOrgAdminAsync(
@@ -60,7 +60,7 @@ public sealed class InvitationFlowTests : E2ETestBase
         Assert.True(signInVisible, "Unauthenticated user should see a sign-in prompt on invitation landing");
     }
 
-    [Fact(Skip = "Pending fix - tracked in beads")]
+    [Fact]
     public async Task InvitationLanding_SignInLink_ContainsReturnUrl()
     {
         OrgAdminTestUser orgAdmin = await TestUserFactory.CreateOrgAdminAsync(
@@ -86,7 +86,7 @@ public sealed class InvitationFlowTests : E2ETestBase
         Assert.Contains("invitation", signInHref!, StringComparison.OrdinalIgnoreCase);
     }
 
-    [Fact(Skip = "Pending fix - tracked in beads")]
+    [Fact]
     public async Task InvitationLanding_CreateAccountLink_ContainsInviteeEmail()
     {
         OrgAdminTestUser orgAdmin = await TestUserFactory.CreateOrgAdminAsync(

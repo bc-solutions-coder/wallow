@@ -13,7 +13,7 @@ public sealed class SettingsFlowTests : AuthenticatedE2ETestBase
     {
     }
 
-    [Fact(Skip = "Pending fix - tracked in beads")]
+    [Fact]
     [Trait("E2EGroup", "Settings")]
     public async Task SettingsPage_ShowsProfileEmail()
     {

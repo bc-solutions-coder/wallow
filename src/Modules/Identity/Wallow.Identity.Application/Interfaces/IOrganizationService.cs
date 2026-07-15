@@ -4,7 +4,10 @@ namespace Wallow.Identity.Application.Interfaces;
 
 public interface IOrganizationService
 {
-    Task<Guid> CreateOrganizationAsync(string name, string? domain = null, string? creatorEmail = null, CancellationToken ct = default);
+    // creatorUserId: the authenticated user creating the organization. When provided, the creator is
+    // added as an admin member and stamped as the audit "created by" user. Leave null for
+    // system-initiated creation (e.g. SCIM sync, pre-registered client provisioning).
+    Task<Guid> CreateOrganizationAsync(string name, string? domain = null, string? creatorEmail = null, Guid? creatorUserId = null, CancellationToken ct = default);
     Task<OrganizationDto?> GetOrganizationByIdAsync(Guid orgId, CancellationToken ct = default);
     Task<IReadOnlyList<OrganizationDto>> GetOrganizationsAsync(string? search = null, int first = 0, int max = 20, CancellationToken ct = default);
     Task AddMemberAsync(Guid orgId, Guid userId, CancellationToken ct = default);

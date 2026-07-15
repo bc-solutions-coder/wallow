@@ -14,7 +14,7 @@ public sealed class AppRegistrationFlowTests : AuthenticatedE2ETestBase
     {
     }
 
-    [Fact(Skip = "Pending fix - tracked in beads")]
+    [Fact]
     public async Task RegisterApp_RequiredFieldsOnly_ShowsClientId()
     {
         AppRegistrationPage appPage = new(Page, Docker.WebBaseUrl);
@@ -32,7 +32,7 @@ public sealed class AppRegistrationFlowTests : AuthenticatedE2ETestBase
         Assert.False(string.IsNullOrEmpty(result.ClientId), "Client ID should be returned");
     }
 
-    [Fact(Skip = "Pending fix - tracked in beads")]
+    [Fact]
     public async Task RegisterApp_WithBranding_CompletesSuccessfully()
     {
         AppRegistrationPage appPage = new(Page, Docker.WebBaseUrl);
@@ -50,7 +50,7 @@ public sealed class AppRegistrationFlowTests : AuthenticatedE2ETestBase
         Assert.True(result.Success, $"App registration should succeed. Error: {result.ErrorMessage}");
     }
 
-    [Fact(Skip = "Pending fix - tracked in beads")]
+    [Fact]
     public async Task RegisterApp_ConfidentialType_ShowsClientSecret()
     {
         AppRegistrationPage appPage = new(Page, Docker.WebBaseUrl);
@@ -73,7 +73,7 @@ public sealed class AppRegistrationFlowTests : AuthenticatedE2ETestBase
         Assert.False(string.IsNullOrEmpty(clientSecret), "Client secret should be returned for confidential apps");
     }
 
-    [Fact(Skip = "Pending fix - tracked in beads")]
+    [Fact]
     public async Task RegisterApp_WithLogo_UploadsSuccessfully()
     {
         AppRegistrationPage appPage = new(Page, Docker.WebBaseUrl);
@@ -93,7 +93,7 @@ public sealed class AppRegistrationFlowTests : AuthenticatedE2ETestBase
         Assert.True(result.Success, $"App registration with logo should succeed. Error: {result.ErrorMessage}");
     }
 
-    [Fact(Skip = "Pending fix - tracked in beads")]
+    [Fact]
     public async Task RegisterApp_TogglingScope_ChangesSelection()
     {
         AppRegistrationPage appPage = new(Page, Docker.WebBaseUrl);
@@ -113,7 +113,7 @@ public sealed class AppRegistrationFlowTests : AuthenticatedE2ETestBase
         Assert.True(result.Success, $"App registration with scopes should succeed. Error: {result.ErrorMessage}");
     }
 
-    [Fact(Skip = "Pending fix - tracked in beads")]
+    [Fact]
     public async Task RegisteredApp_AppearsInAppsList()
     {
         AppRegistrationPage appPage = new(Page, Docker.WebBaseUrl);

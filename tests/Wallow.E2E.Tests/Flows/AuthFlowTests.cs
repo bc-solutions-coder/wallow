@@ -73,7 +73,7 @@ public sealed class AuthFlowTests : E2ETestBase
         Assert.NotNull(welcomeMessage);
     }
 
-    [Fact(Skip = "Blazor circuit timeout on forgot-password page in containers - needs investigation")]
+    [Fact]
     [Trait("E2EGroup", "Auth")]
     public async Task ForgotPasswordFlow_SendsResetEmailViaMailpit()
     {

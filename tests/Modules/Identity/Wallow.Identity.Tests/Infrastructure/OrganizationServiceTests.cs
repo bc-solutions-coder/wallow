@@ -84,6 +84,38 @@ public sealed class OrganizationServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task CreateOrganizationAsync_WithCreatorUserId_AddsCreatorAsAdminMemberAndStampsAuditFields()
+    {
+        Guid creatorUserId = Guid.NewGuid();
+        Organization? capturedOrganization = null;
+        _organizationRepository
+            .When(r => r.Add(Arg.Any<Organization>()))
+            .Do(call => capturedOrganization = call.Arg<Organization>());
+
+        Guid result = await _sut.CreateOrganizationAsync("Test Org", creatorUserId: creatorUserId);
+
+        result.Should().NotBe(Guid.Empty);
+        capturedOrganization.Should().NotBeNull();
+        capturedOrganization!.Members.Should().ContainSingle(m => m.UserId == creatorUserId && m.Role == "admin");
+        capturedOrganization.CreatedBy.Should().Be(creatorUserId);
+    }
+
+    [Fact]
+    public async Task CreateOrganizationAsync_WithoutCreatorUserId_DoesNotAddMemberAndAuditFieldsFallBackToEmpty()
+    {
+        Organization? capturedOrganization = null;
+        _organizationRepository
+            .When(r => r.Add(Arg.Any<Organization>()))
+            .Do(call => capturedOrganization = call.Arg<Organization>());
+
+        await _sut.CreateOrganizationAsync("Test Org");
+
+        capturedOrganization.Should().NotBeNull();
+        capturedOrganization!.Members.Should().BeEmpty();
+        capturedOrganization.CreatedBy.Should().Be(Guid.Empty);
+    }
+
+    [Fact]
     public async Task GetOrganizationByIdAsync_WhenExists_ReturnsDto()
     {
         Guid orgId = Guid.NewGuid();
