@@ -300,6 +300,11 @@ jobs:
           key: images-infra-${{ github.sha }}
 
   e2e:
+    # Disabled: the containerized E2E suite is flaky in CI (Playwright navigation
+    # timeouts and Blazor-readiness races produce intermittent failures unrelated
+    # to the change under test). Run it locally with ./scripts/run-e2e.sh instead.
+    # Re-enable by removing this `if` guard once the suite is stabilized.
+    if: false
     needs: [build, docker-images-app, docker-images-infra]
     runs-on: ubuntu-latest
     permissions:

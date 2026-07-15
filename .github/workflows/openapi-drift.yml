@@ -96,15 +96,30 @@ jobs:
       - name: Build API
         run: dotnet build api/src/Wallow.Api/Wallow.Api.csproj --configuration Release
 
+      # The API only applies EF Core migrations inline in the Testing environment
+      # (see WallowModules.cs); in Development it expects the schema to already
+      # exist. Run the dedicated MigrationService against the fresh Postgres so
+      # the Identity schema (and every other module schema) is present before the
+      # API boots and starts serving requests.
+      - name: Apply database migrations
+        env:
+          ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=wallow_test;Username=wallow;Password=wallow"
+        run: dotnet run --project api/src/Wallow.MigrationService/Wallow.MigrationService.csproj --configuration Release
+
       # /openapi/v1.json is only mapped when the app runs in the Development
       # environment (see api/src/Wallow.Api/Program.cs). Boot the API against the
       # Postgres + Valkey services so the OpenAPI document is servable.
+      #
+      # Redis is read from ConnectionStrings:Redis (config.GetConnectionString("Redis")
+      # in Program.cs), so the override MUST use the ConnectionStrings__ prefix —
+      # a Redis__ConnectionString key is never read and the API would fall back to
+      # the appsettings default password, failing to authenticate against Valkey.
       - name: Start API
         env:
           ASPNETCORE_ENVIRONMENT: Development
           ASPNETCORE_URLS: http://localhost:5001
           ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=wallow_test;Username=wallow;Password=wallow"
-          Redis__ConnectionString: "localhost:6379,password=WallowTestValkey123!,abortConnect=false"
+          ConnectionStrings__Redis: "localhost:6379,password=WallowTestValkey123!,abortConnect=false"
         run: |
           dotnet run --project api/src/Wallow.Api/Wallow.Api.csproj \
             --configuration Release --no-build --no-launch-profile > /tmp/api.log 2>&1 &
