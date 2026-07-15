@@ -28,14 +28,18 @@ import {
   configureBffClient,
   deleteV1IdentityOrganizationsByIdMembersByUserId,
   getUser,
+  getV1IdentityApps,
+  getV1IdentityAppsByClientId,
   getV1IdentityOrganizations,
   getV1IdentityOrganizationsById,
   getV1IdentityOrganizationsByIdMembers,
+  postV1IdentityAppsRegister,
   postV1IdentityOrganizations,
   postV1IdentityOrganizationsByIdArchive,
   postV1IdentityOrganizationsByIdMembers,
   postV1IdentityOrganizationsByIdReactivate,
   type ProblemDetails,
+  type RegisterAppRequest,
   type WallowUser,
 } from "@bc-solutions-coder/sdk";
 
@@ -98,6 +102,22 @@ export interface OrganizationsSlice {
   reactivate: (id: string) => Promise<unknown>;
 }
 
+/**
+ * Apps slice — self-service OAuth client registration (Wallow-8w1h.5.1). Mirrors
+ * the Organizations slice shape. `register` maps a `RegisterAppRequest` body
+ * (`{ clientName, requestedScopes, clientType?, redirectUris? }`) to
+ * `AppRegistrationResponse` (the ONLY place the one-time client secret is
+ * returned). There is no delete/revoke op for self-service apps.
+ */
+export interface AppsSlice {
+  /** List the caller's developer apps (returns `DeveloperAppResponse[]`). */
+  list: () => Promise<unknown>;
+  /** Fetch a single app by client id (returns `DeveloperAppResponse`, no secret). */
+  get: (clientId: string) => Promise<unknown>;
+  /** Register a new app (returns `AppRegistrationResponse` with the one-time secret). */
+  register: (body: RegisterAppRequest) => Promise<unknown>;
+}
+
 /** Current-user slice (delegates to the SDK's `getUser()`). */
 export interface UserSlice {
   me: () => Promise<WallowUser | null>;
@@ -109,6 +129,7 @@ export interface UserSlice {
  */
 export interface WallowSdk {
   organizations: OrganizationsSlice;
+  apps: AppsSlice;
   user: UserSlice;
 }
 
@@ -125,6 +146,11 @@ const sdk: WallowSdk = {
       unwrap(deleteV1IdentityOrganizationsByIdMembersByUserId({ path: { id, userId } })),
     archive: (id: string) => unwrap(postV1IdentityOrganizationsByIdArchive({ path: { id } })),
     reactivate: (id: string) => unwrap(postV1IdentityOrganizationsByIdReactivate({ path: { id } })),
+  },
+  apps: {
+    list: () => unwrap(getV1IdentityApps()),
+    get: (clientId: string) => unwrap(getV1IdentityAppsByClientId({ path: { clientId } })),
+    register: (body: RegisterAppRequest) => unwrap(postV1IdentityAppsRegister({ body })),
   },
   user: {
     me: () => getUser(),

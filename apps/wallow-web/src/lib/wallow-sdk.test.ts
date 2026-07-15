@@ -24,6 +24,9 @@ const mocks = vi.hoisted(() => ({
   deleteV1IdentityOrganizationsByIdMembersByUserId: vi.fn(),
   postV1IdentityOrganizationsByIdArchive: vi.fn(),
   postV1IdentityOrganizationsByIdReactivate: vi.fn(),
+  getV1IdentityApps: vi.fn(),
+  getV1IdentityAppsByClientId: vi.fn(),
+  postV1IdentityAppsRegister: vi.fn(),
   getUser: vi.fn(),
   client: { interceptors: { request: { use: vi.fn() } } },
 }));
@@ -40,6 +43,9 @@ vi.mock("@bc-solutions-coder/sdk", () => ({
     mocks.deleteV1IdentityOrganizationsByIdMembersByUserId,
   postV1IdentityOrganizationsByIdArchive: mocks.postV1IdentityOrganizationsByIdArchive,
   postV1IdentityOrganizationsByIdReactivate: mocks.postV1IdentityOrganizationsByIdReactivate,
+  getV1IdentityApps: mocks.getV1IdentityApps,
+  getV1IdentityAppsByClientId: mocks.getV1IdentityAppsByClientId,
+  postV1IdentityAppsRegister: mocks.postV1IdentityAppsRegister,
   getUser: mocks.getUser,
 }));
 
@@ -183,6 +189,61 @@ describe("getWallowSdk", () => {
       expect(mocks.postV1IdentityOrganizationsByIdReactivate).toHaveBeenCalledWith({
         path: { id: "o1" },
       });
+    });
+  });
+
+  describe("apps slice (Wallow-8w1h.5.1)", () => {
+    it("list() delegates to getV1IdentityApps and returns data", async () => {
+      const apps = [{ clientId: "c1", displayName: "My App" }];
+      mocks.getV1IdentityApps.mockResolvedValue({ data: apps });
+      const getWallowSdk = await freshFacade();
+
+      const result = await getWallowSdk().apps.list();
+
+      expect(mocks.getV1IdentityApps).toHaveBeenCalledTimes(1);
+      expect(result).toBe(apps);
+    });
+
+    it("get(clientId) delegates to getV1IdentityAppsByClientId with the path clientId", async () => {
+      const app = { clientId: "c1", displayName: "My App" };
+      mocks.getV1IdentityAppsByClientId.mockResolvedValue({ data: app });
+      const getWallowSdk = await freshFacade();
+
+      const result = await getWallowSdk().apps.get("c1");
+
+      expect(mocks.getV1IdentityAppsByClientId).toHaveBeenCalledWith({
+        path: { clientId: "c1" },
+      });
+      expect(result).toBe(app);
+    });
+
+    it("register(body) delegates to postV1IdentityAppsRegister with the body", async () => {
+      const registered = {
+        clientId: "c2",
+        clientSecret: "s3cr3t",
+        registrationAccessToken: "rat",
+      };
+      mocks.postV1IdentityAppsRegister.mockResolvedValue({ data: registered });
+      const getWallowSdk = await freshFacade();
+      const body = {
+        clientName: "New App",
+        requestedScopes: ["inquiries.read"],
+        clientType: "public",
+        redirectUris: null,
+      };
+
+      const result = await getWallowSdk().apps.register(body);
+
+      expect(mocks.postV1IdentityAppsRegister).toHaveBeenCalledWith({ body });
+      expect(result).toBe(registered);
+    });
+
+    it("throws the ProblemDetails on { error } instead of returning undefined", async () => {
+      const problem = { status: 403, title: "Forbidden", errorCode: "CSRF_INVALID" };
+      mocks.getV1IdentityApps.mockResolvedValue({ error: problem });
+      const getWallowSdk = await freshFacade();
+
+      await expect(getWallowSdk().apps.list()).rejects.toBe(problem);
     });
   });
 
