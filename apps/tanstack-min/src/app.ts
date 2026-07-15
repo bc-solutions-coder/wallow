@@ -33,14 +33,13 @@ import {
   type WallowUser,
 } from "@bc-solutions-coder/sdk";
 
+import { isSafeMethod } from "./csrf";
+
 // Point the generated client at the same-origin `/api` BFF proxy and send the
 // httpOnly session cookie with every request. Every generated operation below
 // (getV1IdentityUsersMe, postV1IdentityAuthKeys, ...) calls through this one
 // shared client, so this is the only place the transport is configured.
 configureBffClient();
-
-/** HTTP methods the BFF does not gate on CSRF, per RFC 9110 safe methods. */
-const safeMethods: ReadonlySet<string> = new Set(["GET", "HEAD", "OPTIONS"]);
 
 /**
  * The session's CSRF token, learned from `/bff/user`.
@@ -55,7 +54,7 @@ let csrfToken: string | null = null;
 // answers 403 `CSRF_INVALID` and the request never reaches the API — which is
 // exactly what stops a cross-site form post from riding on the session cookie.
 client.interceptors.request.use((request: Request): Request => {
-  if (csrfToken !== null && !safeMethods.has(request.method.toUpperCase())) {
+  if (csrfToken !== null && !isSafeMethod(request.method)) {
     request.headers.set("x-csrf-token", csrfToken);
   }
   return request;
