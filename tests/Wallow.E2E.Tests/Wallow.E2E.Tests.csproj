@@ -13,6 +13,7 @@
     <PackageReference Include="AwesomeAssertions" />
     <PackageReference Include="Microsoft.Playwright" />
     <PackageReference Include="Otp.NET" />
+    <PackageReference Include="StackExchange.Redis" />
   </ItemGroup>
 
   <ItemGroup>
