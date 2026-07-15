@@ -28,6 +28,12 @@ const mocks = vi.hoisted(() => ({
   getV1IdentityAppsByClientId: vi.fn(),
   postV1IdentityAppsRegister: vi.fn(),
   getUser: vi.fn(),
+  getV1IdentityUsersMe: vi.fn(),
+  getV1IdentityMfaStatus: vi.fn(),
+  postV1IdentityMfaEnrollTotp: vi.fn(),
+  postV1IdentityMfaEnrollConfirm: vi.fn(),
+  postV1IdentityMfaDisable: vi.fn(),
+  postV1IdentityMfaBackupCodesRegenerate: vi.fn(),
   client: { interceptors: { request: { use: vi.fn() } } },
 }));
 
@@ -47,6 +53,12 @@ vi.mock("@bc-solutions-coder/sdk", () => ({
   getV1IdentityAppsByClientId: mocks.getV1IdentityAppsByClientId,
   postV1IdentityAppsRegister: mocks.postV1IdentityAppsRegister,
   getUser: mocks.getUser,
+  getV1IdentityUsersMe: mocks.getV1IdentityUsersMe,
+  getV1IdentityMfaStatus: mocks.getV1IdentityMfaStatus,
+  postV1IdentityMfaEnrollTotp: mocks.postV1IdentityMfaEnrollTotp,
+  postV1IdentityMfaEnrollConfirm: mocks.postV1IdentityMfaEnrollConfirm,
+  postV1IdentityMfaDisable: mocks.postV1IdentityMfaDisable,
+  postV1IdentityMfaBackupCodesRegenerate: mocks.postV1IdentityMfaBackupCodesRegenerate,
 }));
 
 /**
@@ -257,6 +269,119 @@ describe("getWallowSdk", () => {
 
       expect(mocks.getUser).toHaveBeenCalledTimes(1);
       expect(result).toBe(user);
+    });
+  });
+
+  /**
+   * Settings slice (Wallow-8w1h.6.1). RECONCILIATION: per the scout's CRITICAL
+   * DIVERGENCE #1, profile is READ-ONLY and sourced from getV1IdentityUsersMe
+   * (CurrentUserResponse), NOT the generic key/value settings endpoints
+   * getV1IdentitySettingsUser/putV1IdentitySettingsUser. No profile mutation
+   * exists, so the facade exposes only getProfile().
+   */
+  describe("settings slice (Wallow-8w1h.6.1)", () => {
+    it("getProfile() delegates to getV1IdentityUsersMe and returns data", async () => {
+      const profile = {
+        id: "u1",
+        email: "a@b.c",
+        firstName: "Ada",
+        lastName: "Lovelace",
+        roles: ["Owner"],
+        permissions: [],
+      };
+      mocks.getV1IdentityUsersMe.mockResolvedValue({ data: profile });
+      const getWallowSdk = await freshFacade();
+
+      const result = await getWallowSdk().settings.getProfile();
+
+      expect(mocks.getV1IdentityUsersMe).toHaveBeenCalledTimes(1);
+      expect(result).toBe(profile);
+    });
+
+    it("throws the ProblemDetails on { error } instead of returning undefined", async () => {
+      const problem = { status: 403, title: "Forbidden", errorCode: "CSRF_INVALID" };
+      mocks.getV1IdentityUsersMe.mockResolvedValue({ error: problem });
+      const getWallowSdk = await freshFacade();
+
+      await expect(getWallowSdk().settings.getProfile()).rejects.toBe(problem);
+    });
+  });
+
+  /**
+   * MFA slice (Wallow-8w1h.6.3). The generated MFA ops resolve `unknown` bodies
+   * (untyped-response gap), so the slice returns `Promise<unknown>` and the
+   * feature narrows via local types. These tests assert delegation + the
+   * SDK-accurate request shapes (confirm sends `{ secret, code }`; disable and
+   * regenerate send `{ password }`), which the terse bead DESIGN omitted.
+   */
+  describe("mfa slice (Wallow-8w1h.6.3)", () => {
+    it("status() delegates to getV1IdentityMfaStatus and returns data", async () => {
+      const status = { enabled: true, method: "totp", backupCodeCount: 8 };
+      mocks.getV1IdentityMfaStatus.mockResolvedValue({ data: status });
+      const getWallowSdk = await freshFacade();
+
+      const result = await getWallowSdk().mfa.status();
+
+      expect(mocks.getV1IdentityMfaStatus).toHaveBeenCalledTimes(1);
+      expect(result).toBe(status);
+    });
+
+    it("enrollTotp() delegates to postV1IdentityMfaEnrollTotp and returns data", async () => {
+      const enroll = { secret: "ABC", qrUri: "otpauth://totp/x" };
+      mocks.postV1IdentityMfaEnrollTotp.mockResolvedValue({ data: enroll });
+      const getWallowSdk = await freshFacade();
+
+      const result = await getWallowSdk().mfa.enrollTotp();
+
+      expect(mocks.postV1IdentityMfaEnrollTotp).toHaveBeenCalledTimes(1);
+      expect(result).toBe(enroll);
+    });
+
+    it("confirmEnroll(secret, code) delegates to postV1IdentityMfaEnrollConfirm with the { secret, code } body", async () => {
+      const confirmed = { succeeded: true, backupCodes: ["a", "b"] };
+      mocks.postV1IdentityMfaEnrollConfirm.mockResolvedValue({ data: confirmed });
+      const getWallowSdk = await freshFacade();
+
+      const result = await getWallowSdk().mfa.confirmEnroll("ABC", "123456");
+
+      expect(mocks.postV1IdentityMfaEnrollConfirm).toHaveBeenCalledWith({
+        body: { secret: "ABC", code: "123456" },
+      });
+      expect(result).toBe(confirmed);
+    });
+
+    it("disable(password) delegates to postV1IdentityMfaDisable with the { password } body", async () => {
+      const disabled = { succeeded: true };
+      mocks.postV1IdentityMfaDisable.mockResolvedValue({ data: disabled });
+      const getWallowSdk = await freshFacade();
+
+      const result = await getWallowSdk().mfa.disable("hunter2");
+
+      expect(mocks.postV1IdentityMfaDisable).toHaveBeenCalledWith({
+        body: { password: "hunter2" },
+      });
+      expect(result).toBe(disabled);
+    });
+
+    it("regenerateBackupCodes(password) delegates to postV1IdentityMfaBackupCodesRegenerate with the { password } body", async () => {
+      const regenerated = { codes: ["x", "y", "z"] };
+      mocks.postV1IdentityMfaBackupCodesRegenerate.mockResolvedValue({ data: regenerated });
+      const getWallowSdk = await freshFacade();
+
+      const result = await getWallowSdk().mfa.regenerateBackupCodes("hunter2");
+
+      expect(mocks.postV1IdentityMfaBackupCodesRegenerate).toHaveBeenCalledWith({
+        body: { password: "hunter2" },
+      });
+      expect(result).toBe(regenerated);
+    });
+
+    it("throws the ProblemDetails on { error } instead of returning undefined", async () => {
+      const problem = { status: 403, title: "Forbidden", errorCode: "CSRF_INVALID" };
+      mocks.getV1IdentityMfaStatus.mockResolvedValue({ error: problem });
+      const getWallowSdk = await freshFacade();
+
+      await expect(getWallowSdk().mfa.status()).rejects.toBe(problem);
     });
   });
 });

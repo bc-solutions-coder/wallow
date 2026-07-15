@@ -5,6 +5,7 @@ import { Route as rootRoute } from "./routes/__root";
 import { Route as appsIndexRoute } from "./routes/dashboard/apps/index";
 import { Route as organizationDetailRoute } from "./routes/dashboard/organizations/$orgId";
 import { Route as organizationsIndexRoute } from "./routes/dashboard/organizations/index";
+import { Route as settingsRoute } from "./routes/dashboard/settings";
 import { Route as indexRoute } from "./routes/index";
 
 /**
@@ -41,11 +42,18 @@ export function createRouter(): AnyRouter {
     getParentRoute: () => rootRoute,
   });
 
+  const settingsWithParent = settingsRoute.update({
+    id: "/dashboard/settings",
+    path: "/dashboard/settings",
+    getParentRoute: () => rootRoute,
+  });
+
   const routeTree = rootRoute.addChildren([
     indexRouteWithParent,
     organizationsIndexWithParent,
     organizationDetailWithParent,
     appsIndexWithParent,
+    settingsWithParent,
   ]);
 
   const queryClient = createQueryClient();

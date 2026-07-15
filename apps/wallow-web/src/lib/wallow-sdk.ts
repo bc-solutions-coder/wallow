@@ -33,7 +33,13 @@ import {
   getV1IdentityOrganizations,
   getV1IdentityOrganizationsById,
   getV1IdentityOrganizationsByIdMembers,
+  getV1IdentityMfaStatus,
+  getV1IdentityUsersMe,
   postV1IdentityAppsRegister,
+  postV1IdentityMfaBackupCodesRegenerate,
+  postV1IdentityMfaDisable,
+  postV1IdentityMfaEnrollConfirm,
+  postV1IdentityMfaEnrollTotp,
   postV1IdentityOrganizations,
   postV1IdentityOrganizationsByIdArchive,
   postV1IdentityOrganizationsByIdMembers,
@@ -124,6 +130,59 @@ export interface UserSlice {
 }
 
 /**
+ * Settings slice (Wallow-8w1h.6.1) — the Settings/Profile feature's data source.
+ *
+ * RECONCILIATION (scout CRITICAL DIVERGENCE #1): the bead DESIGN wrongly mapped
+ * `getV1IdentitySettingsUser`/`putV1IdentitySettingsUser` (GET/PUT
+ * `/v1/identity/settings/user`) to profile get/update. Those are a GENERIC
+ * tenant-scoped key/value settings store (`ResolvedSetting[]` /
+ * `SettingUpdateRequest{key,value}`), NOT a profile endpoint, and the Blazor
+ * oracle (`Settings.razor`) never calls them for profile — it renders
+ * name/email/roles READ-ONLY off the authenticated `ClaimsPrincipal`. The
+ * closest typed read is `getV1IdentityUsersMe()` -> `CurrentUserResponse`
+ * (`{ id, email, firstName, lastName, roles, permissions }`). So this slice is
+ * READ-ONLY: `getProfile()` wraps `getV1IdentityUsersMe()`. There is NO profile
+ * update mutation — no backend endpoint exists to mutate firstName/lastName/
+ * email from this surface, so the bead's "profile mutation" is intentionally
+ * NOT implemented (SDK-accurate over acceptance-literal).
+ */
+export interface SettingsSlice {
+  /** Read the current user's profile (returns `CurrentUserResponse`). Read-only. */
+  getProfile: () => Promise<unknown>;
+}
+
+/**
+ * MFA slice (Wallow-8w1h.6.3) — the Settings-page MFA status card + enroll flow's
+ * data source. Maps the five MFA ops the SPA needs.
+ *
+ * UNTYPED-RESPONSE GAP (scout): the generated MFA ops all resolve `unknown` bodies
+ * (the backend declares no `ProducesResponseType`), so every method here returns
+ * `Promise<unknown>` — exactly like the apps one-time-secret slice. The feature's
+ * local response interfaces (`src/features/mfa/types.ts`:
+ * `MfaStatusResponse`/`MfaEnrollResponse`/`MfaConfirmResponse`/`MfaDisableResponse`/
+ * `MfaRegenerateBackupCodesResponse`, mirroring the C# records) are the narrowing
+ * boundary the components cast to, rather than leaking `any`.
+ *
+ * REQUEST-SHAPE RECONCILIATION (scout, over the bead DESIGN): the generated ops
+ * REQUIRE typed bodies the terse DESIGN omitted — `confirmEnroll` sends
+ * `MfaConfirmRequest{secret,code}` (not just `{code}`), and `disable`/
+ * `regenerateBackupCodes` send `MfaDisableRequest`/`MfaRegenerateBackupCodesRequest`
+ * `{password}` (not no-body). So those methods take those args.
+ */
+export interface MfaSlice {
+  /** Read MFA status (returns `MfaStatusResponse`). */
+  status: () => Promise<unknown>;
+  /** Begin TOTP enrollment; returns `MfaEnrollResponse` (`{ secret, qrUri }`). */
+  enrollTotp: () => Promise<unknown>;
+  /** Confirm enrollment with the TOTP `secret` + user `code`; returns `MfaConfirmResponse`. */
+  confirmEnroll: (secret: string, code: string) => Promise<unknown>;
+  /** Disable MFA (requires the account `password`); returns `MfaDisableResponse`. */
+  disable: (password: string) => Promise<unknown>;
+  /** Regenerate backup codes (requires the account `password`); returns `MfaRegenerateBackupCodesResponse`. */
+  regenerateBackupCodes: (password: string) => Promise<unknown>;
+}
+
+/**
  * The namespaced facade object. Phases 3-6 each APPEND their own slice here
  * (apps, settings, mfa, inquiries) — see the slice-append pattern above.
  */
@@ -131,6 +190,8 @@ export interface WallowSdk {
   organizations: OrganizationsSlice;
   apps: AppsSlice;
   user: UserSlice;
+  settings: SettingsSlice;
+  mfa: MfaSlice;
 }
 
 const sdk: WallowSdk = {
@@ -154,6 +215,18 @@ const sdk: WallowSdk = {
   },
   user: {
     me: () => getUser(),
+  },
+  settings: {
+    getProfile: () => unwrap(getV1IdentityUsersMe()),
+  },
+  mfa: {
+    status: () => unwrap(getV1IdentityMfaStatus()),
+    enrollTotp: () => unwrap(postV1IdentityMfaEnrollTotp()),
+    confirmEnroll: (secret: string, code: string) =>
+      unwrap(postV1IdentityMfaEnrollConfirm({ body: { secret, code } })),
+    disable: (password: string) => unwrap(postV1IdentityMfaDisable({ body: { password } })),
+    regenerateBackupCodes: (password: string) =>
+      unwrap(postV1IdentityMfaBackupCodesRegenerate({ body: { password } })),
   },
 };
 
