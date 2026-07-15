@@ -123,8 +123,35 @@ surfaced NO new diagnostics. (A `--no-incremental` rebuild throws MSB3030 on
 `appsettings.Staging.json` / static-web-assets copy — a known build-system quirk of that flag,
 not an analyzer diagnostic and not caused by this change; the normal clean build is green.)
 
-## Phase 5 — Verify & land 🔄 IN PROGRESS
-Full unit suite already green at Wolverine 6 (4995/4995). Remaining: final `--vulnerable` scan,
-`dotnet format` check, E2E (pre-existing baseline: 65/76, 11 known-flaky failures — see bead
-`e2e-baseline-11-preexisting-failures`), commit plan/impl docs. Ephemeral branch — do NOT push
-unless the user explicitly asks.
+## Phase 5 — Verify & land ✅ COMPLETE (E2E waived, not pushed)
+
+Final gates run against the last code state (all four Phase 3/4 majors applied):
+
+| Gate | Result |
+|---|---|
+| `dotnet build api/Wallow.slnx` (clean) | **0 warnings / 0 errors** |
+| Full unit + integration suite (`run-tests.sh`) | **4995 / 4995 pass** (incl. Testcontainers Redis + Postgres) |
+| `dotnet list package --vulnerable --include-transitive` | **0 vulnerable** across all 61 projects |
+| `dotnet format --verify-no-changes` | **clean** (exit 0) |
+
+**E2E — skipped (user waived).** Also: `./scripts/run-e2e.sh` builds container images from the current working tree,
+which currently holds **unrelated, in-flight JS/SDK changes** (oxfmt/oxlint config, `apps/tanstack-min`,
+many `packages/sdk/**` files). Running E2E now would build/test that half-done concurrent work, not
+this package sweep, and E2E has a known flaky baseline (65/76, 11 pre-existing failures). The
+runtime-critical majors (Redis 3, Wolverine 6) are already exercised by the Testcontainers
+integration tests inside the green 4995. Recommend running E2E in CI or on a clean tree.
+
+**Not pushed** — ephemeral branch, awaiting explicit user go-ahead.
+
+### Commits on `chore/package-updates-security`
+```
+c6e4b91b fix(deps): patch vulnerable direct and transitive packages          (Phase 1)
+88efcccd chore(deps): update packages to latest minor/patch versions         (Phase 2)
+ba964a45 chore(deps): bump coverlet.collector to 10.0.1                      (Phase 3)
+0e814740 chore(deps)!: upgrade StackExchange.Redis to 3.0.17                 (Phase 3)
+16fbde64 chore(deps)!: upgrade Asp.Versioning to 10.0.0                      (Phase 3)
+af1a66c4 chore(deps)!: upgrade WolverineFx to 6.19.0                         (Phase 3)
+49ba877a chore(deps): upgrade NetAnalyzers and Meziantou analyzers           (Phase 4)
+52e9dcf0 docs(plans): record package-update sweep plan and implementation log
+```
+(Two SDK commits `6a8a8031`/`fc70db51` between Phase 2 and 3 are the concurrent JS work, not this sweep.)
