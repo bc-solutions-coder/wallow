@@ -16,7 +16,9 @@
   "paths": {
     "/v1/admin/announcements": {
       "get": {
-        "tags": ["Admin - Announcements"],
+        "tags": [
+          "Admin - Announcements"
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -34,7 +36,9 @@
         }
       },
       "post": {
-        "tags": ["Admin - Announcements"],
+        "tags": [
+          "Admin - Announcements"
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -81,7 +85,9 @@
     },
     "/v1/admin/announcements/{id}": {
       "put": {
-        "tags": ["Admin - Announcements"],
+        "tags": [
+          "Admin - Announcements"
+        ],
         "parameters": [
           {
             "name": "id",
@@ -137,7 +143,9 @@
         }
       },
       "delete": {
-        "tags": ["Admin - Announcements"],
+        "tags": [
+          "Admin - Announcements"
+        ],
         "parameters": [
           {
             "name": "id",
@@ -153,7 +161,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "404": {
@@ -171,7 +179,9 @@
     },
     "/v1/admin/announcements/{id}/publish": {
       "post": {
-        "tags": ["Admin - Announcements"],
+        "tags": [
+          "Admin - Announcements"
+        ],
         "parameters": [
           {
             "name": "id",
@@ -187,7 +197,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "404": {
@@ -205,7 +215,9 @@
     },
     "/v1/admin/changelog": {
       "post": {
-        "tags": ["Admin - Changelog"],
+        "tags": [
+          "Admin - Changelog"
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -252,7 +264,9 @@
     },
     "/v1/admin/changelog/{id}/publish": {
       "post": {
-        "tags": ["Admin - Changelog"],
+        "tags": [
+          "Admin - Changelog"
+        ],
         "parameters": [
           {
             "name": "id",
@@ -268,7 +282,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "404": {
@@ -286,7 +300,9 @@
     },
     "/v1/announcements": {
       "get": {
-        "tags": ["Announcements"],
+        "tags": [
+          "Announcements"
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -316,7 +332,9 @@
     },
     "/v1/announcements/{id}/dismiss": {
       "post": {
-        "tags": ["Announcements"],
+        "tags": [
+          "Announcements"
+        ],
         "parameters": [
           {
             "name": "id",
@@ -332,7 +350,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "404": {
@@ -370,14 +388,19 @@
     },
     "/v1/changelog": {
       "get": {
-        "tags": ["Changelog"],
+        "tags": [
+          "Changelog"
+        ],
         "parameters": [
           {
             "name": "limit",
             "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": ["integer", "string"],
+              "type": [
+                "integer",
+                "string"
+              ],
               "format": "int32",
               "default": 50
             }
@@ -402,7 +425,9 @@
     },
     "/v1/changelog/{changelogVersion}": {
       "get": {
-        "tags": ["Changelog"],
+        "tags": [
+          "Changelog"
+        ],
         "parameters": [
           {
             "name": "changelogVersion",
@@ -439,7 +464,9 @@
     },
     "/v1/changelog/latest": {
       "get": {
-        "tags": ["Changelog"],
+        "tags": [
+          "Changelog"
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -466,7 +493,9 @@
     },
     "/v1/identity/auth/keys": {
       "post": {
-        "tags": ["ApiKeys"],
+        "tags": [
+          "ApiKeys"
+        ],
         "summary": "Create a new API key for the current user.",
         "description": "Creates an API key that can be used for service-to-service authentication.\nThe full API key is only returned once in this response - store it securely!\n\nThe key will be scoped to the current user's tenant.\n\nExample request:\n```json\n{\n  \"name\": \"Production Backend\",\n  \"scopes\": [\"billing:read\", \"billing:write\"],\n  \"expiresAt\": \"2027-01-01T00:00:00Z\"\n}\n```",
         "requestBody": {
@@ -533,7 +562,9 @@
         }
       },
       "get": {
-        "tags": ["ApiKeys"],
+        "tags": [
+          "ApiKeys"
+        ],
         "summary": "List all API keys for the current user.",
         "description": "Returns metadata for all API keys belonging to the authenticated user.\nThe actual key values are not returned - only the prefix for identification.",
         "responses": {
@@ -571,7 +602,9 @@
     },
     "/v1/identity/auth/keys/{keyId}": {
       "delete": {
-        "tags": ["ApiKeys"],
+        "tags": [
+          "ApiKeys"
+        ],
         "summary": "Revoke an API key.",
         "description": "Permanently revokes an API key. This action cannot be undone.\nAny requests using this key will be rejected immediately.",
         "parameters": [
@@ -613,7 +646,9 @@
     },
     "/v1/identity/apps/{clientId}/branding": {
       "get": {
-        "tags": ["Client Branding"],
+        "tags": [
+          "Client Branding"
+        ],
         "parameters": [
           {
             "name": "clientId",
@@ -648,7 +683,9 @@
         }
       },
       "post": {
-        "tags": ["Client Branding"],
+        "tags": [
+          "Client Branding"
+        ],
         "parameters": [
           {
             "name": "clientId",
@@ -727,7 +764,9 @@
         }
       },
       "delete": {
-        "tags": ["Client Branding"],
+        "tags": [
+          "Client Branding"
+        ],
         "parameters": [
           {
             "name": "clientId",
@@ -742,7 +781,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "403": {
@@ -770,7 +809,9 @@
     },
     "/v1/identity/auth/external-providers": {
       "get": {
-        "tags": ["Identity"],
+        "tags": [
+          "Identity"
+        ],
         "responses": {
           "200": {
             "description": "OK"
@@ -780,7 +821,9 @@
     },
     "/v1/identity/auth/login": {
       "post": {
-        "tags": ["Identity"],
+        "tags": [
+          "Identity"
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -810,7 +853,9 @@
     },
     "/v1/identity/auth/mfa/verify": {
       "post": {
-        "tags": ["Identity"],
+        "tags": [
+          "Identity"
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -840,7 +885,9 @@
     },
     "/v1/identity/auth/external-login": {
       "get": {
-        "tags": ["Identity"],
+        "tags": [
+          "Identity"
+        ],
         "parameters": [
           {
             "name": "provider",
@@ -866,7 +913,9 @@
     },
     "/v1/identity/auth/external-login-callback": {
       "get": {
-        "tags": ["Identity"],
+        "tags": [
+          "Identity"
+        ],
         "parameters": [
           {
             "name": "returnUrl",
@@ -885,7 +934,9 @@
     },
     "/v1/identity/auth/complete-external-registration": {
       "get": {
-        "tags": ["Identity"],
+        "tags": [
+          "Identity"
+        ],
         "parameters": [
           {
             "name": "acceptedTerms",
@@ -911,7 +962,9 @@
     },
     "/v1/identity/auth/exchange-ticket": {
       "get": {
-        "tags": ["Identity"],
+        "tags": [
+          "Identity"
+        ],
         "parameters": [
           {
             "name": "ticket",
@@ -937,7 +990,9 @@
     },
     "/v1/identity/auth/redirect-uri/validate": {
       "get": {
-        "tags": ["Identity"],
+        "tags": [
+          "Identity"
+        ],
         "parameters": [
           {
             "name": "uri",
@@ -956,7 +1011,9 @@
     },
     "/v1/identity/auth/sign-out": {
       "post": {
-        "tags": ["Identity"],
+        "tags": [
+          "Identity"
+        ],
         "requestBody": {
           "content": {
             "application/x-www-form-urlencoded": {
@@ -981,7 +1038,9 @@
     },
     "/v1/identity/auth/register": {
       "post": {
-        "tags": ["Identity"],
+        "tags": [
+          "Identity"
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -1011,7 +1070,9 @@
     },
     "/v1/identity/auth/client-tenant/{clientId}": {
       "get": {
-        "tags": ["Identity"],
+        "tags": [
+          "Identity"
+        ],
         "parameters": [
           {
             "name": "clientId",
@@ -1031,7 +1092,9 @@
     },
     "/v1/identity/auth/forgot-password": {
       "post": {
-        "tags": ["Identity"],
+        "tags": [
+          "Identity"
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -1061,7 +1124,9 @@
     },
     "/v1/identity/auth/reset-password": {
       "post": {
-        "tags": ["Identity"],
+        "tags": [
+          "Identity"
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -1091,7 +1156,9 @@
     },
     "/v1/identity/auth/verify-email": {
       "get": {
-        "tags": ["Identity"],
+        "tags": [
+          "Identity"
+        ],
         "parameters": [
           {
             "name": "email",
@@ -1117,7 +1184,9 @@
     },
     "/v1/identity/auth/passwordless/magic-link": {
       "post": {
-        "tags": ["Identity"],
+        "tags": [
+          "Identity"
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -1147,7 +1216,9 @@
     },
     "/v1/identity/auth/passwordless/magic-link/verify": {
       "get": {
-        "tags": ["Identity"],
+        "tags": [
+          "Identity"
+        ],
         "parameters": [
           {
             "name": "token",
@@ -1174,7 +1245,9 @@
     },
     "/v1/identity/auth/passwordless/otp": {
       "post": {
-        "tags": ["Identity"],
+        "tags": [
+          "Identity"
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -1204,7 +1277,9 @@
     },
     "/v1/identity/auth/passwordless/otp/verify": {
       "post": {
-        "tags": ["Identity"],
+        "tags": [
+          "Identity"
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -1234,7 +1309,9 @@
     },
     "/v1/identity/auth/change-email": {
       "post": {
-        "tags": ["Identity"],
+        "tags": [
+          "Identity"
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -1264,7 +1341,9 @@
     },
     "/v1/identity/auth/confirm-email-change": {
       "get": {
-        "tags": ["Identity"],
+        "tags": [
+          "Identity"
+        ],
         "parameters": [
           {
             "name": "token",
@@ -1297,7 +1376,9 @@
     },
     "/v1/identity/apps/register": {
       "post": {
-        "tags": ["Apps"],
+        "tags": [
+          "Apps"
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -1339,7 +1420,9 @@
     },
     "/v1/identity/apps": {
       "get": {
-        "tags": ["Apps"],
+        "tags": [
+          "Apps"
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -1359,7 +1442,9 @@
     },
     "/v1/identity/apps/{clientId}": {
       "get": {
-        "tags": ["Apps"],
+        "tags": [
+          "Apps"
+        ],
         "parameters": [
           {
             "name": "clientId",
@@ -1396,7 +1481,9 @@
     },
     "/v1/identity/apps/consent-info/{clientId}": {
       "get": {
-        "tags": ["Apps"],
+        "tags": [
+          "Apps"
+        ],
         "parameters": [
           {
             "name": "clientId",
@@ -1440,7 +1527,9 @@
     },
     "/v1/identity/register": {
       "post": {
-        "tags": ["Client Registration"],
+        "tags": [
+          "Client Registration"
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -1512,7 +1601,9 @@
     },
     "/v1/identity/clients": {
       "get": {
-        "tags": ["Clients"],
+        "tags": [
+          "Clients"
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -1530,7 +1621,9 @@
         }
       },
       "post": {
-        "tags": ["Clients"],
+        "tags": [
+          "Clients"
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -1582,7 +1675,9 @@
     },
     "/v1/identity/clients/{id}": {
       "get": {
-        "tags": ["Clients"],
+        "tags": [
+          "Clients"
+        ],
         "parameters": [
           {
             "name": "id",
@@ -1617,7 +1712,9 @@
         }
       },
       "put": {
-        "tags": ["Clients"],
+        "tags": [
+          "Clients"
+        ],
         "parameters": [
           {
             "name": "id",
@@ -1667,7 +1764,9 @@
         }
       },
       "delete": {
-        "tags": ["Clients"],
+        "tags": [
+          "Clients"
+        ],
         "parameters": [
           {
             "name": "id",
@@ -1682,7 +1781,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "404": {
@@ -1700,7 +1799,9 @@
     },
     "/v1/identity/clients/by-tenant/{tenantId}": {
       "get": {
-        "tags": ["Clients"],
+        "tags": [
+          "Clients"
+        ],
         "parameters": [
           {
             "name": "tenantId",
@@ -1741,7 +1842,9 @@
     },
     "/v1/identity/clients/{id}/rotate-secret": {
       "post": {
-        "tags": ["Clients"],
+        "tags": [
+          "Clients"
+        ],
         "parameters": [
           {
             "name": "id",
@@ -1778,7 +1881,9 @@
     },
     "/v1/identity/config": {
       "get": {
-        "tags": ["Identity Settings"],
+        "tags": [
+          "Identity Settings"
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -1795,7 +1900,9 @@
     },
     "/v1/identity/settings/tenant": {
       "get": {
-        "tags": ["Identity Settings"],
+        "tags": [
+          "Identity Settings"
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -1813,7 +1920,9 @@
         }
       },
       "put": {
-        "tags": ["Identity Settings"],
+        "tags": [
+          "Identity Settings"
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -1838,7 +1947,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "400": {
@@ -1854,7 +1963,9 @@
         }
       },
       "delete": {
-        "tags": ["Identity Settings"],
+        "tags": [
+          "Identity Settings"
+        ],
         "parameters": [
           {
             "name": "key",
@@ -1868,7 +1979,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "400": {
@@ -1886,7 +1997,9 @@
     },
     "/v1/identity/settings/user": {
       "get": {
-        "tags": ["Identity Settings"],
+        "tags": [
+          "Identity Settings"
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -1904,7 +2017,9 @@
         }
       },
       "put": {
-        "tags": ["Identity Settings"],
+        "tags": [
+          "Identity Settings"
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -1929,7 +2044,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "400": {
@@ -1945,7 +2060,9 @@
         }
       },
       "delete": {
-        "tags": ["Identity Settings"],
+        "tags": [
+          "Identity Settings"
+        ],
         "parameters": [
           {
             "name": "key",
@@ -1959,7 +2076,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "400": {
@@ -1977,7 +2094,9 @@
     },
     "/v1/identity/initial-access-tokens": {
       "post": {
-        "tags": ["InitialAccessTokens"],
+        "tags": [
+          "InitialAccessTokens"
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -2017,7 +2136,9 @@
         }
       },
       "get": {
-        "tags": ["InitialAccessTokens"],
+        "tags": [
+          "InitialAccessTokens"
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -2037,7 +2158,9 @@
     },
     "/v1/identity/initial-access-tokens/{id}": {
       "delete": {
-        "tags": ["InitialAccessTokens"],
+        "tags": [
+          "InitialAccessTokens"
+        ],
         "parameters": [
           {
             "name": "id",
@@ -2052,7 +2175,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "404": {
@@ -2070,7 +2193,9 @@
     },
     "/v1/identity/invitations": {
       "post": {
-        "tags": ["Invitations"],
+        "tags": [
+          "Invitations"
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -2100,14 +2225,19 @@
         }
       },
       "get": {
-        "tags": ["Invitations"],
+        "tags": [
+          "Invitations"
+        ],
         "parameters": [
           {
             "name": "skip",
             "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": ["integer", "string"],
+              "type": [
+                "integer",
+                "string"
+              ],
               "format": "int32",
               "default": 0
             }
@@ -2117,7 +2247,10 @@
             "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": ["integer", "string"],
+              "type": [
+                "integer",
+                "string"
+              ],
               "format": "int32",
               "default": 20
             }
@@ -2142,7 +2275,9 @@
     },
     "/v1/identity/invitations/{id}": {
       "delete": {
-        "tags": ["Invitations"],
+        "tags": [
+          "Invitations"
+        ],
         "parameters": [
           {
             "name": "id",
@@ -2158,7 +2293,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "404": {
@@ -2176,7 +2311,9 @@
     },
     "/v1/identity/invitations/verify/{token}": {
       "get": {
-        "tags": ["Invitations"],
+        "tags": [
+          "Invitations"
+        ],
         "parameters": [
           {
             "name": "token",
@@ -2213,7 +2350,9 @@
     },
     "/v1/identity/invitations/{token}/accept": {
       "post": {
-        "tags": ["Invitations"],
+        "tags": [
+          "Invitations"
+        ],
         "parameters": [
           {
             "name": "token",
@@ -2228,7 +2367,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "404": {
@@ -2246,7 +2385,9 @@
     },
     "/v1/identity/membership-requests": {
       "post": {
-        "tags": ["Membership Requests"],
+        "tags": [
+          "Membership Requests"
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -2266,7 +2407,7 @@
           "201": {
             "description": "Created",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -2274,7 +2415,9 @@
     },
     "/v1/identity/membership-requests/{id}": {
       "get": {
-        "tags": ["Membership Requests"],
+        "tags": [
+          "Membership Requests"
+        ],
         "parameters": [
           {
             "name": "id",
@@ -2290,7 +2433,7 @@
           "200": {
             "description": "OK",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "404": {
@@ -2308,14 +2451,19 @@
     },
     "/v1/identity/membership-requests/pending": {
       "get": {
-        "tags": ["Membership Requests"],
+        "tags": [
+          "Membership Requests"
+        ],
         "parameters": [
           {
             "name": "skip",
             "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": ["integer", "string"],
+              "type": [
+                "integer",
+                "string"
+              ],
               "format": "int32",
               "default": 0
             }
@@ -2325,7 +2473,10 @@
             "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": ["integer", "string"],
+              "type": [
+                "integer",
+                "string"
+              ],
               "format": "int32",
               "default": 20
             }
@@ -2335,7 +2486,7 @@
           "200": {
             "description": "OK",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -2343,7 +2494,9 @@
     },
     "/v1/identity/membership-requests/{id}/approve": {
       "post": {
-        "tags": ["Membership Requests"],
+        "tags": [
+          "Membership Requests"
+        ],
         "parameters": [
           {
             "name": "id",
@@ -2374,7 +2527,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "404": {
@@ -2392,7 +2545,9 @@
     },
     "/v1/identity/membership-requests/{id}/reject": {
       "post": {
-        "tags": ["Membership Requests"],
+        "tags": [
+          "Membership Requests"
+        ],
         "parameters": [
           {
             "name": "id",
@@ -2408,7 +2563,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "404": {
@@ -2426,7 +2581,9 @@
     },
     "/v1/identity/mfa/status": {
       "get": {
-        "tags": ["Identity"],
+        "tags": [
+          "Identity"
+        ],
         "responses": {
           "200": {
             "description": "OK"
@@ -2436,7 +2593,9 @@
     },
     "/v1/identity/mfa/enroll/totp": {
       "post": {
-        "tags": ["Identity"],
+        "tags": [
+          "Identity"
+        ],
         "responses": {
           "200": {
             "description": "OK"
@@ -2446,7 +2605,9 @@
     },
     "/v1/identity/mfa/enroll/confirm": {
       "post": {
-        "tags": ["Identity"],
+        "tags": [
+          "Identity"
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -2476,7 +2637,9 @@
     },
     "/v1/identity/mfa/disable": {
       "post": {
-        "tags": ["Identity"],
+        "tags": [
+          "Identity"
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -2506,7 +2669,9 @@
     },
     "/v1/identity/mfa/backup-codes/regenerate": {
       "post": {
-        "tags": ["Identity"],
+        "tags": [
+          "Identity"
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -2536,7 +2701,9 @@
     },
     "/v1/identity/mfa/admin/{userId}/disable": {
       "post": {
-        "tags": ["Identity"],
+        "tags": [
+          "Identity"
+        ],
         "parameters": [
           {
             "name": "userId",
@@ -2556,7 +2723,9 @@
     },
     "/v1/identity/mfa/admin/{userId}/clear-lockout": {
       "post": {
-        "tags": ["Identity"],
+        "tags": [
+          "Identity"
+        ],
         "parameters": [
           {
             "name": "userId",
@@ -2576,7 +2745,9 @@
     },
     "/v1/identity/mfa/enroll/issue-token": {
       "post": {
-        "tags": ["Identity"],
+        "tags": [
+          "Identity"
+        ],
         "summary": "Issues a short-lived enrollment token for a fully-authenticated user.\nThe Web app calls this (with a bearer token) to get a token it can pass to the\nAuth app's /mfa/enroll page, which exchanges it for an Identity.MfaPartial cookie\nso the enrollment API calls can authenticate the user.",
         "responses": {
           "200": {
@@ -2587,7 +2758,9 @@
     },
     "/v1/identity/mfa/enroll/exchange-token": {
       "post": {
-        "tags": ["Identity"],
+        "tags": [
+          "Identity"
+        ],
         "summary": "Exchanges a short-lived enrollment token for an Identity.MfaPartial cookie.\nCalled during Auth app prerender so the CookieForwardingHandler relays the\npartial cookie to the browser, enabling subsequent enrollment API calls.",
         "parameters": [
           {
@@ -2607,7 +2780,9 @@
     },
     "/v1/identity/organization-domains": {
       "post": {
-        "tags": ["Organization Domains"],
+        "tags": [
+          "Organization Domains"
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -2627,7 +2802,7 @@
           "201": {
             "description": "Created",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -2635,7 +2810,9 @@
     },
     "/v1/identity/organization-domains/{id}": {
       "get": {
-        "tags": ["Organization Domains"],
+        "tags": [
+          "Organization Domains"
+        ],
         "parameters": [
           {
             "name": "id",
@@ -2651,7 +2828,7 @@
           "200": {
             "description": "OK",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "404": {
@@ -2669,7 +2846,9 @@
     },
     "/v1/identity/organization-domains/by-organization/{organizationId}": {
       "get": {
-        "tags": ["Organization Domains"],
+        "tags": [
+          "Organization Domains"
+        ],
         "parameters": [
           {
             "name": "organizationId",
@@ -2685,7 +2864,7 @@
           "200": {
             "description": "OK",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -2693,7 +2872,9 @@
     },
     "/v1/identity/organization-domains/{id}/verify": {
       "post": {
-        "tags": ["Organization Domains"],
+        "tags": [
+          "Organization Domains"
+        ],
         "parameters": [
           {
             "name": "id",
@@ -2724,7 +2905,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "404": {
@@ -2742,7 +2923,9 @@
     },
     "/v1/identity/organization-domains/match": {
       "get": {
-        "tags": ["Organization Domains"],
+        "tags": [
+          "Organization Domains"
+        ],
         "parameters": [
           {
             "name": "email",
@@ -2756,7 +2939,7 @@
           "200": {
             "description": "OK",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "404": {
@@ -2774,7 +2957,9 @@
     },
     "/v1/identity/organizations": {
       "post": {
-        "tags": ["Organizations"],
+        "tags": [
+          "Organizations"
+        ],
         "summary": "Create a new organization.",
         "requestBody": {
           "content": {
@@ -2805,7 +2990,9 @@
         }
       },
       "get": {
-        "tags": ["Organizations"],
+        "tags": [
+          "Organizations"
+        ],
         "summary": "Get all organizations with optional search filtering and pagination.",
         "parameters": [
           {
@@ -2820,7 +3007,10 @@
             "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": ["integer", "string"],
+              "type": [
+                "integer",
+                "string"
+              ],
               "format": "int32",
               "default": 0
             }
@@ -2830,7 +3020,10 @@
             "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": ["integer", "string"],
+              "type": [
+                "integer",
+                "string"
+              ],
               "format": "int32",
               "default": 20
             }
@@ -2855,7 +3048,9 @@
     },
     "/v1/identity/organizations/{id}": {
       "get": {
-        "tags": ["Organizations"],
+        "tags": [
+          "Organizations"
+        ],
         "summary": "Get a specific organization by ID.",
         "parameters": [
           {
@@ -2882,7 +3077,9 @@
         }
       },
       "delete": {
-        "tags": ["Organizations"],
+        "tags": [
+          "Organizations"
+        ],
         "summary": "Permanently delete an organization. Requires name confirmation.",
         "parameters": [
           {
@@ -2914,7 +3111,7 @@
           "200": {
             "description": "OK",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -2922,7 +3119,9 @@
     },
     "/v1/identity/organizations/{id}/members": {
       "get": {
-        "tags": ["Organizations"],
+        "tags": [
+          "Organizations"
+        ],
         "summary": "Get all members of a specific organization.",
         "parameters": [
           {
@@ -2952,7 +3151,9 @@
         }
       },
       "post": {
-        "tags": ["Organizations"],
+        "tags": [
+          "Organizations"
+        ],
         "summary": "Add a user to an organization.",
         "parameters": [
           {
@@ -2984,7 +3185,7 @@
           "200": {
             "description": "OK",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -2992,7 +3193,9 @@
     },
     "/v1/identity/organizations/{id}/members/{userId}": {
       "delete": {
-        "tags": ["Organizations"],
+        "tags": [
+          "Organizations"
+        ],
         "summary": "Remove a user from an organization.",
         "parameters": [
           {
@@ -3018,7 +3221,7 @@
           "200": {
             "description": "OK",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -3026,7 +3229,9 @@
     },
     "/v1/identity/organizations/mine": {
       "get": {
-        "tags": ["Organizations"],
+        "tags": [
+          "Organizations"
+        ],
         "summary": "Get all organizations that the current user belongs to.",
         "responses": {
           "200": {
@@ -3047,7 +3252,9 @@
     },
     "/v1/identity/organizations/{id}/archive": {
       "post": {
-        "tags": ["Organizations"],
+        "tags": [
+          "Organizations"
+        ],
         "summary": "Archive an organization.",
         "parameters": [
           {
@@ -3064,7 +3271,7 @@
           "200": {
             "description": "OK",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -3072,7 +3279,9 @@
     },
     "/v1/identity/organizations/{id}/reactivate": {
       "post": {
-        "tags": ["Organizations"],
+        "tags": [
+          "Organizations"
+        ],
         "summary": "Reactivate an archived organization.",
         "parameters": [
           {
@@ -3089,7 +3298,7 @@
           "200": {
             "description": "OK",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -3097,7 +3306,9 @@
     },
     "/v1/identity/organizations/{id}/branding": {
       "get": {
-        "tags": ["Organizations"],
+        "tags": [
+          "Organizations"
+        ],
         "summary": "Get organization branding.",
         "parameters": [
           {
@@ -3124,7 +3335,9 @@
         }
       },
       "put": {
-        "tags": ["Organizations"],
+        "tags": [
+          "Organizations"
+        ],
         "summary": "Update organization branding.",
         "parameters": [
           {
@@ -3168,7 +3381,9 @@
     },
     "/v1/identity/organizations/{id}/branding/logo": {
       "post": {
-        "tags": ["Organizations"],
+        "tags": [
+          "Organizations"
+        ],
         "summary": "Upload organization branding logo.",
         "parameters": [
           {
@@ -3200,7 +3415,7 @@
           "200": {
             "description": "OK",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -3208,7 +3423,9 @@
     },
     "/v1/identity/organizations/{id}/settings": {
       "get": {
-        "tags": ["Organizations"],
+        "tags": [
+          "Organizations"
+        ],
         "summary": "Get organization settings.",
         "parameters": [
           {
@@ -3235,7 +3452,9 @@
         }
       },
       "put": {
-        "tags": ["Organizations"],
+        "tags": [
+          "Organizations"
+        ],
         "summary": "Update organization settings.",
         "parameters": [
           {
@@ -3267,7 +3486,7 @@
           "200": {
             "description": "OK",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -3275,13 +3494,15 @@
     },
     "/v1/identity/roles": {
       "get": {
-        "tags": ["Roles"],
+        "tags": [
+          "Roles"
+        ],
         "summary": "Get all available roles in the system.",
         "responses": {
           "200": {
             "description": "OK",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -3289,7 +3510,9 @@
     },
     "/v1/identity/roles/{roleName}/permissions": {
       "get": {
-        "tags": ["Roles"],
+        "tags": [
+          "Roles"
+        ],
         "summary": "Get the permissions associated with a specific role.",
         "parameters": [
           {
@@ -3305,7 +3528,7 @@
           "200": {
             "description": "OK",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -3313,7 +3536,9 @@
     },
     "/scim/v2/Users": {
       "get": {
-        "tags": ["SCIM"],
+        "tags": [
+          "SCIM"
+        ],
         "summary": "List users with optional filtering and pagination.",
         "parameters": [
           {
@@ -3328,7 +3553,10 @@
             "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": ["integer", "string"],
+              "type": [
+                "integer",
+                "string"
+              ],
               "format": "int32",
               "default": 1
             }
@@ -3338,7 +3566,10 @@
             "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": ["integer", "string"],
+              "type": [
+                "integer",
+                "string"
+              ],
               "format": "int32",
               "default": 100
             }
@@ -3392,7 +3623,9 @@
         }
       },
       "post": {
-        "tags": ["SCIM"],
+        "tags": [
+          "SCIM"
+        ],
         "summary": "Create a new user (SCIM provisioning).",
         "requestBody": {
           "content": {
@@ -3460,7 +3693,9 @@
     },
     "/scim/v2/Users/{id}": {
       "get": {
-        "tags": ["SCIM"],
+        "tags": [
+          "SCIM"
+        ],
         "summary": "Get a user by ID.",
         "parameters": [
           {
@@ -3506,7 +3741,9 @@
         }
       },
       "put": {
-        "tags": ["SCIM"],
+        "tags": [
+          "SCIM"
+        ],
         "summary": "Replace a user (full update).",
         "parameters": [
           {
@@ -3567,7 +3804,9 @@
         }
       },
       "patch": {
-        "tags": ["SCIM"],
+        "tags": [
+          "SCIM"
+        ],
         "summary": "Partially update a user (SCIM PATCH).",
         "parameters": [
           {
@@ -3628,7 +3867,9 @@
         }
       },
       "delete": {
-        "tags": ["SCIM"],
+        "tags": [
+          "SCIM"
+        ],
         "summary": "Delete a user (deprovisioning).",
         "parameters": [
           {
@@ -3644,8 +3885,8 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/scim+json": {},
-              "application/json": {}
+              "application/scim+json": { },
+              "application/json": { }
             }
           },
           "404": {
@@ -3668,7 +3909,9 @@
     },
     "/scim/v2/Groups": {
       "get": {
-        "tags": ["SCIM"],
+        "tags": [
+          "SCIM"
+        ],
         "summary": "List groups with optional filtering and pagination.",
         "parameters": [
           {
@@ -3683,7 +3926,10 @@
             "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": ["integer", "string"],
+              "type": [
+                "integer",
+                "string"
+              ],
               "format": "int32",
               "default": 1
             }
@@ -3693,7 +3939,10 @@
             "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": ["integer", "string"],
+              "type": [
+                "integer",
+                "string"
+              ],
               "format": "int32",
               "default": 100
             }
@@ -3718,7 +3967,9 @@
         }
       },
       "post": {
-        "tags": ["SCIM"],
+        "tags": [
+          "SCIM"
+        ],
         "summary": "Create a new group.",
         "requestBody": {
           "content": {
@@ -3771,7 +4022,9 @@
     },
     "/scim/v2/Groups/{id}": {
       "get": {
-        "tags": ["SCIM"],
+        "tags": [
+          "SCIM"
+        ],
         "summary": "Get a group by ID.",
         "parameters": [
           {
@@ -3817,7 +4070,9 @@
         }
       },
       "put": {
-        "tags": ["SCIM"],
+        "tags": [
+          "SCIM"
+        ],
         "summary": "Replace a group (full update).",
         "parameters": [
           {
@@ -3878,7 +4133,9 @@
         }
       },
       "delete": {
-        "tags": ["SCIM"],
+        "tags": [
+          "SCIM"
+        ],
         "summary": "Delete a group.",
         "parameters": [
           {
@@ -3894,8 +4151,8 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/scim+json": {},
-              "application/json": {}
+              "application/scim+json": { },
+              "application/json": { }
             }
           },
           "404": {
@@ -3918,7 +4175,9 @@
     },
     "/scim/v2/ServiceProviderConfig": {
       "get": {
-        "tags": ["SCIM"],
+        "tags": [
+          "SCIM"
+        ],
         "summary": "Get SCIM Service Provider configuration.\nDescribes the SCIM capabilities of this server.",
         "responses": {
           "200": {
@@ -3941,7 +4200,9 @@
     },
     "/scim/v2/Schemas": {
       "get": {
-        "tags": ["SCIM"],
+        "tags": [
+          "SCIM"
+        ],
         "summary": "Get SCIM schemas.\nDescribes the structure of User and Group resources.",
         "responses": {
           "200": {
@@ -3964,7 +4225,9 @@
     },
     "/scim/v2/ResourceTypes": {
       "get": {
-        "tags": ["SCIM"],
+        "tags": [
+          "SCIM"
+        ],
         "summary": "Get SCIM resource types.\nDescribes the available resource types (User, Group).",
         "responses": {
           "200": {
@@ -3987,7 +4250,9 @@
     },
     "/v1/identity/scopes": {
       "get": {
-        "tags": ["API Scopes"],
+        "tags": [
+          "API Scopes"
+        ],
         "summary": "List available API scopes with optional category filter.",
         "parameters": [
           {
@@ -4017,7 +4282,9 @@
     },
     "/v1/identity/service-accounts": {
       "get": {
-        "tags": ["Service Accounts"],
+        "tags": [
+          "Service Accounts"
+        ],
         "summary": "List all service accounts for the current tenant.",
         "responses": {
           "200": {
@@ -4036,7 +4303,9 @@
         }
       },
       "post": {
-        "tags": ["Service Accounts"],
+        "tags": [
+          "Service Accounts"
+        ],
         "summary": "Create a new service account.\nReturns the client secret which will NOT be shown again.",
         "requestBody": {
           "content": {
@@ -4079,7 +4348,9 @@
     },
     "/v1/identity/service-accounts/{id}": {
       "get": {
-        "tags": ["Service Accounts"],
+        "tags": [
+          "Service Accounts"
+        ],
         "summary": "Get a specific service account by ID.",
         "parameters": [
           {
@@ -4116,7 +4387,9 @@
         }
       },
       "delete": {
-        "tags": ["Service Accounts"],
+        "tags": [
+          "Service Accounts"
+        ],
         "summary": "Revoke and delete a service account.",
         "parameters": [
           {
@@ -4133,7 +4406,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "404": {
@@ -4151,7 +4424,9 @@
     },
     "/v1/identity/service-accounts/{id}/scopes": {
       "put": {
-        "tags": ["Service Accounts"],
+        "tags": [
+          "Service Accounts"
+        ],
         "summary": "Update the scopes assigned to a service account.",
         "parameters": [
           {
@@ -4183,7 +4458,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "404": {
@@ -4201,7 +4476,9 @@
     },
     "/v1/identity/service-accounts/{id}/rotate-secret": {
       "post": {
-        "tags": ["Service Accounts"],
+        "tags": [
+          "Service Accounts"
+        ],
         "summary": "Rotate the client secret for a service account.\nReturns the new secret which will NOT be shown again.",
         "parameters": [
           {
@@ -4240,7 +4517,9 @@
     },
     "/v1/identity/sessions": {
       "get": {
-        "tags": ["Identity"],
+        "tags": [
+          "Identity"
+        ],
         "responses": {
           "200": {
             "description": "OK"
@@ -4250,7 +4529,9 @@
     },
     "/v1/identity/sessions/{sessionId}": {
       "delete": {
-        "tags": ["Identity"],
+        "tags": [
+          "Identity"
+        ],
         "parameters": [
           {
             "name": "sessionId",
@@ -4271,7 +4552,9 @@
     },
     "/v1/identity/setup/status": {
       "get": {
-        "tags": ["Setup"],
+        "tags": [
+          "Setup"
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -4288,7 +4571,9 @@
     },
     "/v1/identity/setup/admin": {
       "post": {
-        "tags": ["Setup"],
+        "tags": [
+          "Setup"
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -4308,7 +4593,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "409": {
@@ -4326,7 +4611,9 @@
     },
     "/v1/identity/setup/clients": {
       "post": {
-        "tags": ["Setup"],
+        "tags": [
+          "Setup"
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -4368,12 +4655,14 @@
     },
     "/v1/identity/setup/complete": {
       "post": {
-        "tags": ["Setup"],
+        "tags": [
+          "Setup"
+        ],
         "responses": {
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "409": {
@@ -4391,7 +4680,9 @@
     },
     "/v1/identity/sso": {
       "get": {
-        "tags": ["SSO"],
+        "tags": [
+          "SSO"
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -4418,7 +4709,9 @@
     },
     "/v1/identity/sso/oidc": {
       "post": {
-        "tags": ["SSO"],
+        "tags": [
+          "SSO"
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -4460,7 +4753,9 @@
     },
     "/v1/identity/sso/test": {
       "post": {
-        "tags": ["SSO"],
+        "tags": [
+          "SSO"
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -4487,12 +4782,14 @@
     },
     "/v1/identity/sso/activate": {
       "post": {
-        "tags": ["SSO"],
+        "tags": [
+          "SSO"
+        ],
         "responses": {
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "404": {
@@ -4520,12 +4817,14 @@
     },
     "/v1/identity/sso/disable": {
       "post": {
-        "tags": ["SSO"],
+        "tags": [
+          "SSO"
+        ],
         "responses": {
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "404": {
@@ -4543,7 +4842,9 @@
     },
     "/v1/identity/sso/oidc/callback-info": {
       "get": {
-        "tags": ["SSO"],
+        "tags": [
+          "SSO"
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -4560,7 +4861,9 @@
     },
     "/v1/identity/sso/validate": {
       "post": {
-        "tags": ["SSO"],
+        "tags": [
+          "SSO"
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -4587,7 +4890,9 @@
     },
     "/v1/identity/test/isolated-org": {
       "post": {
-        "tags": ["Test Support"],
+        "tags": [
+          "Test Support"
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -4607,7 +4912,7 @@
           "200": {
             "description": "OK",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "404": {
@@ -4625,7 +4930,9 @@
     },
     "/v1/identity/users": {
       "get": {
-        "tags": ["Users"],
+        "tags": [
+          "Users"
+        ],
         "summary": "Get a paginated list of users with optional search filtering.",
         "parameters": [
           {
@@ -4640,7 +4947,10 @@
             "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": ["integer", "string"],
+              "type": [
+                "integer",
+                "string"
+              ],
               "format": "int32",
               "default": 0
             }
@@ -4650,7 +4960,10 @@
             "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": ["integer", "string"],
+              "type": [
+                "integer",
+                "string"
+              ],
               "format": "int32",
               "default": 20
             }
@@ -4670,7 +4983,9 @@
         }
       },
       "post": {
-        "tags": ["Users"],
+        "tags": [
+          "Users"
+        ],
         "summary": "Create a new user account.",
         "requestBody": {
           "content": {
@@ -4691,7 +5006,7 @@
           "200": {
             "description": "OK",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -4699,7 +5014,9 @@
     },
     "/v1/identity/users/{id}": {
       "get": {
-        "tags": ["Users"],
+        "tags": [
+          "Users"
+        ],
         "summary": "Get a specific user by their ID.",
         "parameters": [
           {
@@ -4728,7 +5045,9 @@
     },
     "/v1/identity/users/me": {
       "get": {
-        "tags": ["Users"],
+        "tags": [
+          "Users"
+        ],
         "summary": "Get the currently authenticated user's profile, roles, and permissions.",
         "responses": {
           "200": {
@@ -4746,7 +5065,9 @@
     },
     "/v1/identity/users/{id}/deactivate": {
       "post": {
-        "tags": ["Users"],
+        "tags": [
+          "Users"
+        ],
         "summary": "Deactivate a user account.",
         "parameters": [
           {
@@ -4763,7 +5084,7 @@
           "200": {
             "description": "OK",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -4771,7 +5092,9 @@
     },
     "/v1/identity/users/{id}/activate": {
       "post": {
-        "tags": ["Users"],
+        "tags": [
+          "Users"
+        ],
         "summary": "Activate a previously deactivated user account.",
         "parameters": [
           {
@@ -4788,7 +5111,7 @@
           "200": {
             "description": "OK",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -4796,7 +5119,9 @@
     },
     "/v1/identity/users/{userId}/roles": {
       "post": {
-        "tags": ["Users"],
+        "tags": [
+          "Users"
+        ],
         "summary": "Assign a role to a user.",
         "parameters": [
           {
@@ -4828,7 +5153,7 @@
           "200": {
             "description": "OK",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -4836,7 +5161,9 @@
     },
     "/v1/identity/users/{userId}/roles/{roleName}": {
       "delete": {
-        "tags": ["Users"],
+        "tags": [
+          "Users"
+        ],
         "summary": "Remove a role from a user.",
         "parameters": [
           {
@@ -4861,7 +5188,7 @@
           "200": {
             "description": "OK",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -4869,7 +5196,9 @@
     },
     "/v1/inquiries": {
       "post": {
-        "tags": ["Inquiries"],
+        "tags": [
+          "Inquiries"
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -4909,7 +5238,9 @@
         }
       },
       "get": {
-        "tags": ["Inquiries"],
+        "tags": [
+          "Inquiries"
+        ],
         "parameters": [
           {
             "name": "status",
@@ -4938,7 +5269,9 @@
     },
     "/v1/inquiries/submitted": {
       "get": {
-        "tags": ["Inquiries"],
+        "tags": [
+          "Inquiries"
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -4958,7 +5291,9 @@
     },
     "/v1/inquiries/{id}": {
       "get": {
-        "tags": ["Inquiries"],
+        "tags": [
+          "Inquiries"
+        ],
         "parameters": [
           {
             "name": "id",
@@ -4996,7 +5331,9 @@
     },
     "/v1/inquiries/{id}/status": {
       "patch": {
-        "tags": ["Inquiries"],
+        "tags": [
+          "Inquiries"
+        ],
         "parameters": [
           {
             "name": "id",
@@ -5059,7 +5396,9 @@
     },
     "/v1/inquiries/{id}/comments": {
       "post": {
-        "tags": ["Inquiries"],
+        "tags": [
+          "Inquiries"
+        ],
         "parameters": [
           {
             "name": "id",
@@ -5090,7 +5429,7 @@
           "201": {
             "description": "Created",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "400": {
@@ -5106,7 +5445,9 @@
         }
       },
       "get": {
-        "tags": ["Inquiries"],
+        "tags": [
+          "Inquiries"
+        ],
         "parameters": [
           {
             "name": "id",
@@ -5147,7 +5488,9 @@
     },
     "/v1/notifications": {
       "get": {
-        "tags": ["Notifications"],
+        "tags": [
+          "Notifications"
+        ],
         "summary": "Get the current user's notification history.",
         "parameters": [
           {
@@ -5155,7 +5498,10 @@
             "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": ["integer", "string"],
+              "type": [
+                "integer",
+                "string"
+              ],
               "format": "int32",
               "default": 1
             }
@@ -5165,7 +5511,10 @@
             "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": ["integer", "string"],
+              "type": [
+                "integer",
+                "string"
+              ],
               "format": "int32",
               "default": 20
             }
@@ -5197,7 +5546,9 @@
     },
     "/v1/notifications/unread-count": {
       "get": {
-        "tags": ["Notifications"],
+        "tags": [
+          "Notifications"
+        ],
         "summary": "Get the current user's unread notification count.",
         "responses": {
           "200": {
@@ -5225,7 +5576,9 @@
     },
     "/v1/notifications/{id}/read": {
       "post": {
-        "tags": ["Notifications"],
+        "tags": [
+          "Notifications"
+        ],
         "summary": "Mark a single notification as read.",
         "parameters": [
           {
@@ -5242,7 +5595,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "404": {
@@ -5270,13 +5623,15 @@
     },
     "/v1/notifications/read-all": {
       "post": {
-        "tags": ["Notifications"],
+        "tags": [
+          "Notifications"
+        ],
         "summary": "Mark all notifications as read for the current user.",
         "responses": {
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "401": {
@@ -5294,7 +5649,9 @@
     },
     "/v1/admin/push/config": {
       "get": {
-        "tags": ["Admin - Push Configuration"],
+        "tags": [
+          "Admin - Push Configuration"
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -5309,13 +5666,15 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
       },
       "put": {
-        "tags": ["Admin - Push Configuration"],
+        "tags": [
+          "Admin - Push Configuration"
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -5340,7 +5699,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "400": {
@@ -5358,7 +5717,9 @@
     },
     "/v1/admin/push/config/enabled": {
       "patch": {
-        "tags": ["Admin - Push Configuration"],
+        "tags": [
+          "Admin - Push Configuration"
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -5383,7 +5744,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "404": {
@@ -5401,7 +5762,9 @@
     },
     "/v1/admin/push/config/{platform}": {
       "delete": {
-        "tags": ["Admin - Push Configuration"],
+        "tags": [
+          "Admin - Push Configuration"
+        ],
         "parameters": [
           {
             "name": "platform",
@@ -5416,7 +5779,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -5424,7 +5787,9 @@
     },
     "/v1/push/devices": {
       "post": {
-        "tags": ["Push Devices"],
+        "tags": [
+          "Push Devices"
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -5444,7 +5809,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "401": {
@@ -5460,7 +5825,9 @@
         }
       },
       "get": {
-        "tags": ["Push Devices"],
+        "tags": [
+          "Push Devices"
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -5490,7 +5857,9 @@
     },
     "/v1/push/devices/{id}": {
       "delete": {
-        "tags": ["Push Devices"],
+        "tags": [
+          "Push Devices"
+        ],
         "parameters": [
           {
             "name": "id",
@@ -5506,7 +5875,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "404": {
@@ -5534,7 +5903,9 @@
     },
     "/v1/push/send": {
       "post": {
-        "tags": ["Push Devices"],
+        "tags": [
+          "Push Devices"
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -5554,7 +5925,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "401": {
@@ -5572,7 +5943,9 @@
     },
     "/v1/notification-settings": {
       "get": {
-        "tags": ["Notification Settings"],
+        "tags": [
+          "Notification Settings"
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -5599,7 +5972,9 @@
     },
     "/v1/notification-settings/channel": {
       "put": {
-        "tags": ["Notification Settings"],
+        "tags": [
+          "Notification Settings"
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -5619,7 +5994,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "400": {
@@ -5647,7 +6022,9 @@
     },
     "/v1/notification-settings/type": {
       "put": {
-        "tags": ["Notification Settings"],
+        "tags": [
+          "Notification Settings"
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -5667,7 +6044,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "400": {
@@ -5695,7 +6072,9 @@
     },
     "/v1/storage/buckets": {
       "post": {
-        "tags": ["Storage"],
+        "tags": [
+          "Storage"
+        ],
         "summary": "Create a new storage bucket.",
         "requestBody": {
           "content": {
@@ -5753,7 +6132,9 @@
     },
     "/v1/storage/buckets/{name}": {
       "get": {
-        "tags": ["Storage"],
+        "tags": [
+          "Storage"
+        ],
         "summary": "Get bucket by name.",
         "parameters": [
           {
@@ -5789,7 +6170,9 @@
         }
       },
       "delete": {
-        "tags": ["Storage"],
+        "tags": [
+          "Storage"
+        ],
         "summary": "Delete a bucket.",
         "parameters": [
           {
@@ -5813,7 +6196,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "400": {
@@ -5841,7 +6224,9 @@
     },
     "/v1/storage/upload": {
       "post": {
-        "tags": ["Storage"],
+        "tags": [
+          "Storage"
+        ],
         "summary": "Upload a file.",
         "requestBody": {
           "content": {
@@ -5924,7 +6309,9 @@
     },
     "/v1/storage/files/{id}": {
       "get": {
-        "tags": ["Storage"],
+        "tags": [
+          "Storage"
+        ],
         "summary": "Get file metadata by ID.",
         "parameters": [
           {
@@ -5961,7 +6348,9 @@
         }
       },
       "delete": {
-        "tags": ["Storage"],
+        "tags": [
+          "Storage"
+        ],
         "summary": "Delete a file.",
         "parameters": [
           {
@@ -5978,7 +6367,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "404": {
@@ -5996,7 +6385,9 @@
     },
     "/v1/storage/files/{id}/download": {
       "get": {
-        "tags": ["Storage"],
+        "tags": [
+          "Storage"
+        ],
         "summary": "Download a file (redirects to presigned URL).",
         "parameters": [
           {
@@ -6013,7 +6404,7 @@
           "302": {
             "description": "Found",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "404": {
@@ -6031,7 +6422,9 @@
     },
     "/v1/storage/files": {
       "get": {
-        "tags": ["Storage"],
+        "tags": [
+          "Storage"
+        ],
         "summary": "List files in a bucket.",
         "parameters": [
           {
@@ -6053,7 +6446,10 @@
             "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": ["integer", "string"],
+              "type": [
+                "integer",
+                "string"
+              ],
               "format": "int32",
               "default": 1
             }
@@ -6063,7 +6459,10 @@
             "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": ["integer", "string"],
+              "type": [
+                "integer",
+                "string"
+              ],
               "format": "int32",
               "default": 20
             }
@@ -6095,7 +6494,9 @@
     },
     "/v1/storage/presigned-upload": {
       "post": {
-        "tags": ["Storage"],
+        "tags": [
+          "Storage"
+        ],
         "summary": "Get a presigned URL for direct upload to storage.",
         "requestBody": {
           "content": {
@@ -6153,7 +6554,9 @@
     },
     "/v1/storage/files/{id}/presigned-url": {
       "get": {
-        "tags": ["Storage"],
+        "tags": [
+          "Storage"
+        ],
         "summary": "Get a presigned URL for downloading a file.",
         "parameters": [
           {
@@ -6170,7 +6573,10 @@
             "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": ["integer", "string"],
+              "type": [
+                "integer",
+                "string"
+              ],
               "format": "int32"
             }
           }
@@ -6201,7 +6607,9 @@
     },
     "/v1/storage/config": {
       "get": {
-        "tags": ["Storage Settings"],
+        "tags": [
+          "Storage Settings"
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -6218,7 +6626,9 @@
     },
     "/v1/storage/settings/tenant": {
       "get": {
-        "tags": ["Storage Settings"],
+        "tags": [
+          "Storage Settings"
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -6236,7 +6646,9 @@
         }
       },
       "put": {
-        "tags": ["Storage Settings"],
+        "tags": [
+          "Storage Settings"
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -6261,7 +6673,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "400": {
@@ -6277,7 +6689,9 @@
         }
       },
       "delete": {
-        "tags": ["Storage Settings"],
+        "tags": [
+          "Storage Settings"
+        ],
         "parameters": [
           {
             "name": "key",
@@ -6291,7 +6705,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "400": {
@@ -6309,7 +6723,9 @@
     },
     "/v1/storage/settings/user": {
       "get": {
-        "tags": ["Storage Settings"],
+        "tags": [
+          "Storage Settings"
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -6327,7 +6743,9 @@
         }
       },
       "put": {
-        "tags": ["Storage Settings"],
+        "tags": [
+          "Storage Settings"
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -6352,7 +6770,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "400": {
@@ -6368,7 +6786,9 @@
         }
       },
       "delete": {
-        "tags": ["Storage Settings"],
+        "tags": [
+          "Storage Settings"
+        ],
         "parameters": [
           {
             "name": "key",
@@ -6382,7 +6802,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "400": {
@@ -6400,7 +6820,9 @@
     },
     "/alive": {
       "get": {
-        "tags": ["Wallow.Api"],
+        "tags": [
+          "Wallow.Api"
+        ],
         "responses": {
           "200": {
             "description": "OK"
@@ -6410,7 +6832,9 @@
     },
     "/events": {
       "get": {
-        "tags": ["SseEndpoint"],
+        "tags": [
+          "SseEndpoint"
+        ],
         "parameters": [
           {
             "name": "subscribe",
@@ -6431,7 +6855,9 @@
   "components": {
     "schemas": {
       "AccountForgotPasswordRequest": {
-        "required": ["email"],
+        "required": [
+          "email"
+        ],
         "type": "object",
         "properties": {
           "email": {
@@ -6440,7 +6866,11 @@
         }
       },
       "AccountLoginRequest": {
-        "required": ["email", "password", "rememberMe"],
+        "required": [
+          "email",
+          "password",
+          "rememberMe"
+        ],
         "type": "object",
         "properties": {
           "email": {
@@ -6455,7 +6885,11 @@
         }
       },
       "AccountRegisterRequest": {
-        "required": ["email", "password", "confirmPassword"],
+        "required": [
+          "email",
+          "password",
+          "confirmPassword"
+        ],
         "type": "object",
         "properties": {
           "email": {
@@ -6468,18 +6902,31 @@
             "type": "string"
           },
           "clientId": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "loginMethod": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "returnUrl": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
       "AccountResetPasswordRequest": {
-        "required": ["email", "token", "newPassword"],
+        "required": [
+          "email",
+          "token",
+          "newPassword"
+        ],
         "type": "object",
         "properties": {
           "email": {
@@ -6494,7 +6941,10 @@
         }
       },
       "AddInquiryCommentRequest": {
-        "required": ["content", "isInternal"],
+        "required": [
+          "content",
+          "isInternal"
+        ],
         "type": "object",
         "properties": {
           "content": {
@@ -6506,7 +6956,9 @@
         }
       },
       "AddMemberRequest": {
-        "required": ["userId"],
+        "required": [
+          "userId"
+        ],
         "type": "object",
         "properties": {
           "userId": {
@@ -6550,13 +7002,22 @@
             "type": "boolean"
           },
           "actionUrl": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "actionLabel": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "imageUrl": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "createdAt": {
             "type": "string",
@@ -6572,7 +7033,14 @@
         "type": "integer"
       },
       "ApiKeyCreatedResponse": {
-        "required": ["keyId", "apiKey", "prefix", "name", "scopes", "expiresAt"],
+        "required": [
+          "keyId",
+          "apiKey",
+          "prefix",
+          "name",
+          "scopes",
+          "expiresAt"
+        ],
         "type": "object",
         "properties": {
           "keyId": {
@@ -6594,14 +7062,25 @@
             }
           },
           "expiresAt": {
-            "type": ["null", "string"],
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "date-time"
           }
         },
         "description": "Response when creating a new API key (includes the full key)."
       },
       "ApiKeyResponse": {
-        "required": ["keyId", "name", "prefix", "scopes", "createdAt", "expiresAt", "lastUsedAt"],
+        "required": [
+          "keyId",
+          "name",
+          "prefix",
+          "scopes",
+          "createdAt",
+          "expiresAt",
+          "lastUsedAt"
+        ],
         "type": "object",
         "properties": {
           "keyId": {
@@ -6624,18 +7103,31 @@
             "format": "date-time"
           },
           "expiresAt": {
-            "type": ["null", "string"],
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "date-time"
           },
           "lastUsedAt": {
-            "type": ["null", "string"],
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "date-time"
           }
         },
         "description": "Response containing API key metadata."
       },
       "ApiScopeDto": {
-        "required": ["id", "code", "displayName", "category", "description", "isDefault"],
+        "required": [
+          "id",
+          "code",
+          "displayName",
+          "category",
+          "description",
+          "isDefault"
+        ],
         "type": "object",
         "properties": {
           "id": {
@@ -6651,7 +7143,10 @@
             "type": "string"
           },
           "description": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "isDefault": {
             "type": "boolean"
@@ -6668,7 +7163,11 @@
         }
       },
       "AppRegistrationResponse": {
-        "required": ["clientId", "clientSecret", "registrationAccessToken"],
+        "required": [
+          "clientId",
+          "clientSecret",
+          "registrationAccessToken"
+        ],
         "type": "object",
         "properties": {
           "clientId": {
@@ -6683,7 +7182,9 @@
         }
       },
       "ApproveMembershipRequest": {
-        "required": ["organizationId"],
+        "required": [
+          "organizationId"
+        ],
         "type": "object",
         "properties": {
           "organizationId": {
@@ -6693,7 +7194,9 @@
         }
       },
       "AssignRoleRequest": {
-        "required": ["roleName"],
+        "required": [
+          "roleName"
+        ],
         "type": "object",
         "properties": {
           "roleName": {
@@ -6723,18 +7226,27 @@
             "type": "string"
           },
           "description": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "access": {
             "type": "string"
           },
           "maxFileSizeBytes": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": ["integer", "string"],
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int64"
           },
           "allowedContentTypes": {
-            "type": ["null", "array"],
+            "type": [
+              "null",
+              "array"
+            ],
             "items": {
               "type": "string"
             }
@@ -6759,7 +7271,9 @@
         }
       },
       "ChangeEmailRequest": {
-        "required": ["newEmail"],
+        "required": [
+          "newEmail"
+        ],
         "type": "object",
         "properties": {
           "newEmail": {
@@ -6768,7 +7282,14 @@
         }
       },
       "ChangelogEntryResponse": {
-        "required": ["id", "version", "title", "content", "releasedAt", "items"],
+        "required": [
+          "id",
+          "version",
+          "title",
+          "content",
+          "releasedAt",
+          "items"
+        ],
         "type": "object",
         "properties": {
           "id": {
@@ -6797,7 +7318,11 @@
         }
       },
       "ChangelogItemResponse": {
-        "required": ["id", "description", "type"],
+        "required": [
+          "id",
+          "description",
+          "type"
+        ],
         "type": "object",
         "properties": {
           "id": {
@@ -6841,13 +7366,20 @@
             "format": "date-time"
           },
           "updatedAt": {
-            "type": ["null", "string"],
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "date-time"
           }
         }
       },
       "ChannelSettingResponse": {
-        "required": ["channelType", "isGloballyEnabled", "typePreferences"],
+        "required": [
+          "channelType",
+          "isGloballyEnabled",
+          "typePreferences"
+        ],
         "type": "object",
         "properties": {
           "channelType": {
@@ -6868,7 +7400,13 @@
         "type": "integer"
       },
       "ClientBrandingDto": {
-        "required": ["clientId", "displayName", "tagline", "logoUrl", "themeJson"],
+        "required": [
+          "clientId",
+          "displayName",
+          "tagline",
+          "logoUrl",
+          "themeJson"
+        ],
         "type": "object",
         "properties": {
           "clientId": {
@@ -6878,30 +7416,51 @@
             "type": "string"
           },
           "tagline": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "logoUrl": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "themeJson": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
       "ClientRegistrationResponse": {
-        "required": ["clientId", "clientSecret"],
+        "required": [
+          "clientId",
+          "clientSecret"
+        ],
         "type": "object",
         "properties": {
           "clientId": {
             "type": "string"
           },
           "clientSecret": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
       "ClientResponse": {
-        "required": ["id", "name", "clientId", "redirectUris", "postLogoutRedirectUris"],
+        "required": [
+          "id",
+          "name",
+          "clientId",
+          "redirectUris",
+          "postLogoutRedirectUris"
+        ],
         "type": "object",
         "properties": {
           "id": {
@@ -6914,7 +7473,10 @@
             "type": "string"
           },
           "clientSecret": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "redirectUris": {
             "type": "array",
@@ -6931,7 +7493,12 @@
         }
       },
       "ConfigureOidcSsoRequest": {
-        "required": ["displayName", "issuer", "clientId", "clientSecret"],
+        "required": [
+          "displayName",
+          "issuer",
+          "clientId",
+          "clientSecret"
+        ],
         "type": "object",
         "properties": {
           "displayName": {
@@ -6963,7 +7530,10 @@
             "default": "family_name"
           },
           "groupsAttribute": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "enforceForAllUsers": {
             "type": "boolean",
@@ -6974,7 +7544,10 @@
             "default": true
           },
           "defaultRole": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "syncGroupsAsRoles": {
             "type": "boolean",
@@ -6984,17 +7557,28 @@
         "description": "Request to configure OIDC SSO."
       },
       "ConsentInfoResponse": {
-        "required": ["clientId", "displayName", "logoUrl", "requestedScopes"],
+        "required": [
+          "clientId",
+          "displayName",
+          "logoUrl",
+          "requestedScopes"
+        ],
         "type": "object",
         "properties": {
           "clientId": {
             "type": "string"
           },
           "displayName": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "logoUrl": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "requestedScopes": {
             "type": "array",
@@ -7005,7 +7589,12 @@
         }
       },
       "CreateAdminRequest": {
-        "required": ["email", "password", "firstName", "lastName"],
+        "required": [
+          "email",
+          "password",
+          "firstName",
+          "lastName"
+        ],
         "type": "object",
         "properties": {
           "email": {
@@ -7023,7 +7612,11 @@
         }
       },
       "CreateAnnouncementRequest": {
-        "required": ["title", "content", "type"],
+        "required": [
+          "title",
+          "content",
+          "type"
+        ],
         "type": "object",
         "properties": {
           "title": {
@@ -7039,14 +7632,23 @@
             "$ref": "#/components/schemas/AnnouncementTarget"
           },
           "targetValue": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "publishAt": {
-            "type": ["null", "string"],
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "date-time"
           },
           "expiresAt": {
-            "type": ["null", "string"],
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "date-time"
           },
           "isPinned": {
@@ -7058,45 +7660,67 @@
             "default": true
           },
           "actionUrl": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "actionLabel": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "imageUrl": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
       "CreateApiKeyRequest": {
-        "required": ["name"],
+        "required": [
+          "name"
+        ],
         "type": "object",
         "properties": {
           "name": {
             "type": "string"
           },
           "scopes": {
-            "type": ["null", "array"],
+            "type": [
+              "null",
+              "array"
+            ],
             "items": {
               "type": "string"
             }
           },
           "expiresAt": {
-            "type": ["null", "string"],
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "date-time"
           }
         },
         "description": "Request to create a new API key."
       },
       "CreateBucketRequest": {
-        "required": ["name"],
+        "required": [
+          "name"
+        ],
         "type": "object",
         "properties": {
           "name": {
             "type": "string"
           },
           "description": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "access": {
             "type": "string",
@@ -7104,23 +7728,36 @@
           },
           "maxFileSizeBytes": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": ["integer", "string"],
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int64",
             "default": 0
           },
           "allowedContentTypes": {
-            "type": ["null", "array"],
+            "type": [
+              "null",
+              "array"
+            ],
             "items": {
               "type": "string"
             }
           },
           "retentionDays": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": ["null", "integer", "string"],
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
             "format": "int32"
           },
           "retentionAction": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "versioning": {
             "type": "boolean",
@@ -7129,7 +7766,12 @@
         }
       },
       "CreateChangelogEntryRequest": {
-        "required": ["version", "title", "content", "releasedAt"],
+        "required": [
+          "version",
+          "title",
+          "content",
+          "releasedAt"
+        ],
         "type": "object",
         "properties": {
           "version": {
@@ -7148,7 +7790,11 @@
         }
       },
       "CreateClientRequest": {
-        "required": ["name", "redirectUris", "postLogoutRedirectUris"],
+        "required": [
+          "name",
+          "redirectUris",
+          "postLogoutRedirectUris"
+        ],
         "type": "object",
         "properties": {
           "name": {
@@ -7167,33 +7813,46 @@
             }
           },
           "tenantId": {
-            "type": ["null", "string"],
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "uuid"
           }
         }
       },
       "CreateInitialAccessTokenRequest": {
-        "required": ["displayName"],
+        "required": [
+          "displayName"
+        ],
         "type": "object",
         "properties": {
           "displayName": {
             "type": "string"
           },
           "expiresAt": {
-            "type": ["null", "string"],
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "date-time"
           }
         }
       },
       "CreateInvitationRequest": {
-        "required": ["email"],
+        "required": [
+          "email"
+        ],
         "type": "object",
         "properties": {
           "email": {
             "type": "string"
           },
           "expiresAt": {
-            "type": ["null", "string"],
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "date-time"
           }
         }
@@ -7207,14 +7866,19 @@
           },
           "gracePeriodDays": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": ["integer", "string"],
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int32",
             "default": 0
           }
         }
       },
       "CreateMembershipRequest": {
-        "required": ["emailDomain"],
+        "required": [
+          "emailDomain"
+        ],
         "type": "object",
         "properties": {
           "emailDomain": {
@@ -7223,19 +7887,27 @@
         }
       },
       "CreateOrganizationRequest": {
-        "required": ["name", "domain"],
+        "required": [
+          "name",
+          "domain"
+        ],
         "type": "object",
         "properties": {
           "name": {
             "type": "string"
           },
           "domain": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
       "CreateOrganizationResponse": {
-        "required": ["organizationId"],
+        "required": [
+          "organizationId"
+        ],
         "type": "object",
         "properties": {
           "organizationId": {
@@ -7245,14 +7917,21 @@
         }
       },
       "CreateServiceAccountRequest": {
-        "required": ["name", "description", "scopes"],
+        "required": [
+          "name",
+          "description",
+          "scopes"
+        ],
         "type": "object",
         "properties": {
           "name": {
             "type": "string"
           },
           "description": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "scopes": {
             "type": "array",
@@ -7263,7 +7942,12 @@
         }
       },
       "CreateUserRequest": {
-        "required": ["email", "firstName", "lastName", "password"],
+        "required": [
+          "email",
+          "firstName",
+          "lastName",
+          "password"
+        ],
         "type": "object",
         "properties": {
           "email": {
@@ -7276,7 +7960,10 @@
             "type": "string"
           },
           "password": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -7311,7 +7998,9 @@
         }
       },
       "DeleteOrganizationRequest": {
-        "required": ["confirmName"],
+        "required": [
+          "confirmName"
+        ],
         "type": "object",
         "properties": {
           "confirmName": {
@@ -7320,7 +8009,13 @@
         }
       },
       "DeveloperAppResponse": {
-        "required": ["clientId", "displayName", "clientType", "redirectUris", "createdAt"],
+        "required": [
+          "clientId",
+          "displayName",
+          "clientType",
+          "redirectUris",
+          "createdAt"
+        ],
         "type": "object",
         "properties": {
           "clientId": {
@@ -7339,13 +8034,23 @@
             }
           },
           "createdAt": {
-            "type": ["null", "string"],
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "date-time"
           }
         }
       },
       "DeviceRegistrationResponse": {
-        "required": ["id", "userId", "platform", "token", "isActive", "registeredAt"],
+        "required": [
+          "id",
+          "userId",
+          "platform",
+          "token",
+          "isActive",
+          "registeredAt"
+        ],
         "type": "object",
         "properties": {
           "id": {
@@ -7401,11 +8106,17 @@
           },
           "sizeBytes": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": ["integer", "string"],
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int64"
           },
           "path": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "isPublic": {
             "type": "boolean"
@@ -7425,7 +8136,12 @@
         "format": "binary"
       },
       "InitialAccessTokenCreatedResponse": {
-        "required": ["id", "token", "displayName", "expiresAt"],
+        "required": [
+          "id",
+          "token",
+          "displayName",
+          "expiresAt"
+        ],
         "type": "object",
         "properties": {
           "id": {
@@ -7438,14 +8154,22 @@
             "type": "string"
           },
           "expiresAt": {
-            "type": ["null", "string"],
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "date-time"
           }
         },
         "description": "Returned only once at creation time; includes the raw token value."
       },
       "InitialAccessTokenResponse": {
-        "required": ["id", "displayName", "expiresAt", "isRevoked"],
+        "required": [
+          "id",
+          "displayName",
+          "expiresAt",
+          "isRevoked"
+        ],
         "type": "object",
         "properties": {
           "id": {
@@ -7455,7 +8179,10 @@
             "type": "string"
           },
           "expiresAt": {
-            "type": ["null", "string"],
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "date-time"
           },
           "isRevoked": {
@@ -7533,10 +8260,16 @@
             "type": "string"
           },
           "company": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "submitterId": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "projectType": {
             "type": "string"
@@ -7564,7 +8297,14 @@
         }
       },
       "InvitationResponse": {
-        "required": ["id", "email", "status", "expiresAt", "createdAt", "acceptedByUserId"],
+        "required": [
+          "id",
+          "email",
+          "status",
+          "expiresAt",
+          "createdAt",
+          "acceptedByUserId"
+        ],
         "type": "object",
         "properties": {
           "id": {
@@ -7586,7 +8326,10 @@
             "format": "date-time"
           },
           "acceptedByUserId": {
-            "type": ["null", "string"],
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "uuid"
           }
         }
@@ -7595,7 +8338,10 @@
         "type": "integer"
       },
       "MfaConfirmRequest": {
-        "required": ["secret", "code"],
+        "required": [
+          "secret",
+          "code"
+        ],
         "type": "object",
         "properties": {
           "secret": {
@@ -7607,7 +8353,9 @@
         }
       },
       "MfaDisableRequest": {
-        "required": ["password"],
+        "required": [
+          "password"
+        ],
         "type": "object",
         "properties": {
           "password": {
@@ -7616,7 +8364,9 @@
         }
       },
       "MfaRegenerateBackupCodesRequest": {
-        "required": ["password"],
+        "required": [
+          "password"
+        ],
         "type": "object",
         "properties": {
           "password": {
@@ -7625,7 +8375,9 @@
         }
       },
       "MfaVerifyRequest": {
-        "required": ["code"],
+        "required": [
+          "code"
+        ],
         "type": "object",
         "properties": {
           "code": {
@@ -7673,24 +8425,37 @@
             "type": "boolean"
           },
           "readAt": {
-            "type": ["null", "string"],
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "date-time"
           },
           "actionUrl": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "createdAt": {
             "type": "string",
             "format": "date-time"
           },
           "updatedAt": {
-            "type": ["null", "string"],
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "date-time"
           }
         }
       },
       "OidcCallbackInfo": {
-        "required": ["redirectUri", "postLogoutRedirectUri", "clientId"],
+        "required": [
+          "redirectUri",
+          "postLogoutRedirectUri",
+          "clientId"
+        ],
         "type": "object",
         "properties": {
           "redirectUri": {
@@ -7706,25 +8471,47 @@
         "description": "OIDC callback information for IdP configuration."
       },
       "OrganizationBrandingResponse": {
-        "required": ["displayName", "logoUrl", "primaryColor", "accentColor"],
+        "required": [
+          "displayName",
+          "logoUrl",
+          "primaryColor",
+          "accentColor"
+        ],
         "type": "object",
         "properties": {
           "displayName": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "logoUrl": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "primaryColor": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "accentColor": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
       "OrganizationDto": {
-        "required": ["id", "name", "domain", "memberCount"],
+        "required": [
+          "id",
+          "name",
+          "domain",
+          "memberCount"
+        ],
         "type": "object",
         "properties": {
           "id": {
@@ -7735,11 +8522,17 @@
             "type": "string"
           },
           "domain": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "memberCount": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": ["integer", "string"],
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int32"
           }
         }
@@ -7765,7 +8558,10 @@
           },
           "mfaGracePeriodDays": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": ["integer", "string"],
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int32"
           }
         }
@@ -7790,22 +8586,34 @@
           },
           "totalCount": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": ["integer", "string"],
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int32"
           },
           "pageNumber": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": ["integer", "string"],
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int32"
           },
           "pageSize": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": ["integer", "string"],
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int32"
           },
           "totalPages": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": ["integer", "string"],
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int32"
           },
           "hasPreviousPage": {
@@ -7817,7 +8625,12 @@
         }
       },
       "PagedResultOfFileMetadataResponse": {
-        "required": ["items", "totalCount", "page", "pageSize"],
+        "required": [
+          "items",
+          "totalCount",
+          "page",
+          "pageSize"
+        ],
         "type": "object",
         "properties": {
           "items": {
@@ -7828,22 +8641,34 @@
           },
           "totalCount": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": ["integer", "string"],
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int32"
           },
           "page": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": ["integer", "string"],
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int32"
           },
           "pageSize": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": ["integer", "string"],
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int32"
           },
           "totalPages": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": ["integer", "string"],
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int32"
           },
           "hasNextPage": {
@@ -7855,7 +8680,12 @@
         }
       },
       "PagedResultOfUserDto": {
-        "required": ["items", "totalCount", "page", "pageSize"],
+        "required": [
+          "items",
+          "totalCount",
+          "page",
+          "pageSize"
+        ],
         "type": "object",
         "properties": {
           "items": {
@@ -7866,22 +8696,34 @@
           },
           "totalCount": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": ["integer", "string"],
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int32"
           },
           "page": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": ["integer", "string"],
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int32"
           },
           "pageSize": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": ["integer", "string"],
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int32"
           },
           "totalPages": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": ["integer", "string"],
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int32"
           },
           "hasNextPage": {
@@ -7893,7 +8735,12 @@
         }
       },
       "PresignedUploadRequest": {
-        "required": ["bucketName", "fileName", "contentType", "sizeBytes"],
+        "required": [
+          "bucketName",
+          "fileName",
+          "contentType",
+          "sizeBytes"
+        ],
         "type": "object",
         "properties": {
           "bucketName": {
@@ -7907,21 +8754,35 @@
           },
           "sizeBytes": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": ["integer", "string"],
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int64"
           },
           "path": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "expiryMinutes": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": ["null", "integer", "string"],
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
             "format": "int32"
           }
         }
       },
       "PresignedUploadResponse": {
-        "required": ["fileId", "uploadUrl", "expiresAt"],
+        "required": [
+          "fileId",
+          "uploadUrl",
+          "expiresAt"
+        ],
         "type": "object",
         "properties": {
           "fileId": {
@@ -7938,7 +8799,10 @@
         }
       },
       "PresignedUrlResponse": {
-        "required": ["url", "expiresAt"],
+        "required": [
+          "url",
+          "expiresAt"
+        ],
         "type": "object",
         "properties": {
           "url": {
@@ -7954,21 +8818,37 @@
         "type": "object",
         "properties": {
           "type": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "title": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "status": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": ["null", "integer", "string"],
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
             "format": "int32"
           },
           "detail": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "instance": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -7976,7 +8856,10 @@
         "type": "integer"
       },
       "RegisterAppRequest": {
-        "required": ["clientName", "requestedScopes"],
+        "required": [
+          "clientName",
+          "requestedScopes"
+        ],
         "type": "object",
         "properties": {
           "clientName": {
@@ -7989,10 +8872,16 @@
             }
           },
           "clientType": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "redirectUris": {
-            "type": ["null", "array"],
+            "type": [
+              "null",
+              "array"
+            ],
             "items": {
               "type": "string"
             }
@@ -8000,7 +8889,13 @@
         }
       },
       "RegisterClientRequest": {
-        "required": ["clientId", "clientName", "grantTypes", "scopes", "redirectUris"],
+        "required": [
+          "clientId",
+          "clientName",
+          "grantTypes",
+          "scopes",
+          "redirectUris"
+        ],
         "type": "object",
         "properties": {
           "clientId": {
@@ -8022,19 +8917,28 @@
             }
           },
           "redirectUris": {
-            "type": ["null", "array"],
+            "type": [
+              "null",
+              "array"
+            ],
             "items": {
               "type": "string"
             }
           },
           "tenantId": {
-            "type": ["null", "string"],
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "uuid"
           }
         }
       },
       "RegisterDeviceRequest": {
-        "required": ["platform", "token"],
+        "required": [
+          "platform",
+          "token"
+        ],
         "type": "object",
         "properties": {
           "platform": {
@@ -8046,7 +8950,10 @@
         }
       },
       "RegisterDomainRequest": {
-        "required": ["organizationId", "domain"],
+        "required": [
+          "organizationId",
+          "domain"
+        ],
         "type": "object",
         "properties": {
           "organizationId": {
@@ -8059,7 +8966,10 @@
         }
       },
       "RegisterSetupClientRequest": {
-        "required": ["clientId", "redirectUris"],
+        "required": [
+          "clientId",
+          "redirectUris"
+        ],
         "type": "object",
         "properties": {
           "clientId": {
@@ -8074,7 +8984,10 @@
         }
       },
       "RegisterSetupClientResponse": {
-        "required": ["clientId", "clientSecret"],
+        "required": [
+          "clientId",
+          "clientSecret"
+        ],
         "type": "object",
         "properties": {
           "clientId": {
@@ -8086,7 +8999,14 @@
         }
       },
       "ResolvedSetting": {
-        "required": ["key", "value", "source", "displayName", "description", "defaultValue"],
+        "required": [
+          "key",
+          "value",
+          "source",
+          "displayName",
+          "description",
+          "defaultValue"
+        ],
         "type": "object",
         "properties": {
           "key": {
@@ -8099,18 +9019,29 @@
             "type": "string"
           },
           "displayName": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "description": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "defaultValue": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
       "ResolvedSettingsConfig": {
-        "required": ["settings"],
+        "required": [
+          "settings"
+        ],
         "type": "object",
         "properties": {
           "settings": {
@@ -8122,12 +9053,18 @@
         }
       },
       "RetentionPolicyResponse": {
-        "required": ["days", "action"],
+        "required": [
+          "days",
+          "action"
+        ],
         "type": "object",
         "properties": {
           "days": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": ["integer", "string"],
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int32"
           },
           "action": {
@@ -8145,7 +9082,10 @@
             "type": "string"
           },
           "description": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "primary": {
             "type": "boolean"
@@ -8161,12 +9101,18 @@
           },
           "maxOperations": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": ["integer", "string"],
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int32"
           },
           "maxPayloadSize": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": ["integer", "string"],
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int32"
           }
         },
@@ -8188,7 +9134,10 @@
             "type": "string"
           },
           "type": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "primary": {
             "type": "boolean"
@@ -8206,14 +9155,23 @@
             }
           },
           "scimType": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "detail": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "status": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": ["integer", "string"],
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int32"
           }
         },
@@ -8227,7 +9185,10 @@
           },
           "maxResults": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": ["integer", "string"],
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int32"
           }
         },
@@ -8246,13 +9207,19 @@
             "type": "string"
           },
           "externalId": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "displayName": {
             "type": "string"
           },
           "members": {
-            "type": ["null", "array"],
+            "type": [
+              "null",
+              "array"
+            ],
             "items": {
               "$ref": "#/components/schemas/ScimMember"
             }
@@ -8277,10 +9244,16 @@
             "type": "string"
           },
           "$ref": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "display": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
         "description": "SCIM group reference within a user."
@@ -8289,19 +9262,28 @@
         "type": "object",
         "properties": {
           "schemas": {
-            "type": ["null", "array"],
+            "type": [
+              "null",
+              "array"
+            ],
             "items": {
               "type": "string"
             }
           },
           "externalId": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "displayName": {
             "type": "string"
           },
           "members": {
-            "type": ["null", "array"],
+            "type": [
+              "null",
+              "array"
+            ],
             "items": {
               "$ref": "#/components/schemas/ScimMember"
             }
@@ -8320,17 +9302,26 @@
           },
           "totalResults": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": ["integer", "string"],
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int32"
           },
           "startIndex": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": ["integer", "string"],
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int32"
           },
           "itemsPerPage": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": ["integer", "string"],
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int32"
           },
           "Resources": {
@@ -8353,17 +9344,26 @@
           },
           "totalResults": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": ["integer", "string"],
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int32"
           },
           "startIndex": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": ["integer", "string"],
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int32"
           },
           "itemsPerPage": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": ["integer", "string"],
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int32"
           },
           "Resources": {
@@ -8386,17 +9386,26 @@
           },
           "totalResults": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": ["integer", "string"],
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int32"
           },
           "startIndex": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": ["integer", "string"],
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int32"
           },
           "itemsPerPage": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": ["integer", "string"],
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int32"
           },
           "Resources": {
@@ -8419,17 +9428,26 @@
           },
           "totalResults": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": ["integer", "string"],
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int32"
           },
           "startIndex": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": ["integer", "string"],
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int32"
           },
           "itemsPerPage": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": ["integer", "string"],
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int32"
           },
           "Resources": {
@@ -8448,13 +9466,22 @@
             "type": "string"
           },
           "$ref": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "display": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "type": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
         "description": "SCIM group member reference."
@@ -8466,18 +9493,30 @@
             "type": "string"
           },
           "created": {
-            "type": ["null", "string"],
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "date-time"
           },
           "lastModified": {
-            "type": ["null", "string"],
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "date-time"
           },
           "location": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "version": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
         "description": "SCIM resource metadata."
@@ -8486,16 +9525,28 @@
         "type": "object",
         "properties": {
           "formatted": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "familyName": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "givenName": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "middleName": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
         "description": "SCIM name component."
@@ -8507,9 +9558,12 @@
             "type": "string"
           },
           "path": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
-          "value": {}
+          "value": { }
         },
         "description": "Individual SCIM PATCH operation."
       },
@@ -8547,7 +9601,10 @@
             "type": "string"
           },
           "description": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "endpoint": {
             "type": "string"
@@ -8574,7 +9631,10 @@
             "type": "string"
           },
           "description": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
         "description": "SCIM schema definition."
@@ -8589,7 +9649,10 @@
             }
           },
           "documentationUri": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "patch": {
             "oneOf": [
@@ -8652,7 +9715,10 @@
             ]
           },
           "authenticationSchemes": {
-            "type": ["null", "array"],
+            "type": [
+              "null",
+              "array"
+            ],
             "items": {
               "$ref": "#/components/schemas/ScimAuthenticationScheme"
             }
@@ -8673,7 +9739,10 @@
             "type": "string"
           },
           "externalId": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "userName": {
             "type": "string"
@@ -8689,10 +9758,16 @@
             ]
           },
           "displayName": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "emails": {
-            "type": ["null", "array"],
+            "type": [
+              "null",
+              "array"
+            ],
             "items": {
               "$ref": "#/components/schemas/ScimEmail"
             }
@@ -8701,7 +9776,10 @@
             "type": "boolean"
           },
           "groups": {
-            "type": ["null", "array"],
+            "type": [
+              "null",
+              "array"
+            ],
             "items": {
               "$ref": "#/components/schemas/ScimGroupReference"
             }
@@ -8723,13 +9801,19 @@
         "type": "object",
         "properties": {
           "schemas": {
-            "type": ["null", "array"],
+            "type": [
+              "null",
+              "array"
+            ],
             "items": {
               "type": "string"
             }
           },
           "externalId": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "userName": {
             "type": "string"
@@ -8745,10 +9829,16 @@
             ]
           },
           "displayName": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "emails": {
-            "type": ["null", "array"],
+            "type": [
+              "null",
+              "array"
+            ],
             "items": {
               "$ref": "#/components/schemas/ScimEmail"
             }
@@ -8757,7 +9847,10 @@
             "type": "boolean"
           },
           "groups": {
-            "type": ["null", "array"],
+            "type": [
+              "null",
+              "array"
+            ],
             "items": {
               "$ref": "#/components/schemas/ScimGroupReference"
             }
@@ -8766,19 +9859,28 @@
         "description": "SCIM user creation/update request."
       },
       "ScopeInfo": {
-        "required": ["name", "description"],
+        "required": [
+          "name",
+          "description"
+        ],
         "type": "object",
         "properties": {
           "name": {
             "type": "string"
           },
           "description": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
       "SecretRotatedResponse": {
-        "required": ["newClientSecret", "rotatedAt"],
+        "required": [
+          "newClientSecret",
+          "rotatedAt"
+        ],
         "type": "object",
         "properties": {
           "newClientSecret": {
@@ -8789,27 +9891,40 @@
             "format": "date-time"
           },
           "warning": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
       "SendMagicLinkRequest": {
-        "required": ["email"],
+        "required": [
+          "email"
+        ],
         "type": "object",
         "properties": {
           "email": {
             "type": "string"
           },
           "returnUrl": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "clientId": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
       "SendOtpRequest": {
-        "required": ["email"],
+        "required": [
+          "email"
+        ],
         "type": "object",
         "properties": {
           "email": {
@@ -8818,7 +9933,12 @@
         }
       },
       "SendPushRequest": {
-        "required": ["recipientId", "title", "body", "notificationType"],
+        "required": [
+          "recipientId",
+          "title",
+          "body",
+          "notificationType"
+        ],
         "type": "object",
         "properties": {
           "recipientId": {
@@ -8837,7 +9957,13 @@
         }
       },
       "ServiceAccountCreatedResponse": {
-        "required": ["id", "clientId", "clientSecret", "tokenEndpoint", "scopes"],
+        "required": [
+          "id",
+          "clientId",
+          "clientSecret",
+          "tokenEndpoint",
+          "scopes"
+        ],
         "type": "object",
         "properties": {
           "id": {
@@ -8859,7 +9985,10 @@
             }
           },
           "warning": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -8886,7 +10015,10 @@
             "type": "string"
           },
           "description": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "status": {
             "$ref": "#/components/schemas/ServiceAccountStatus"
@@ -8902,7 +10034,10 @@
             "format": "date-time"
           },
           "lastUsedAt": {
-            "type": ["null", "string"],
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "date-time"
           }
         }
@@ -8920,7 +10055,10 @@
         "type": "integer"
       },
       "SetChannelEnabledRequest": {
-        "required": ["channelType", "isEnabled"],
+        "required": [
+          "channelType",
+          "isEnabled"
+        ],
         "type": "object",
         "properties": {
           "channelType": {
@@ -8932,7 +10070,11 @@
         }
       },
       "SetNotificationTypeEnabledRequest": {
-        "required": ["channelType", "notificationType", "isEnabled"],
+        "required": [
+          "channelType",
+          "notificationType",
+          "isEnabled"
+        ],
         "type": "object",
         "properties": {
           "channelType": {
@@ -8947,7 +10089,10 @@
         }
       },
       "SetTenantPushEnabledRequest": {
-        "required": ["platform", "isEnabled"],
+        "required": [
+          "platform",
+          "isEnabled"
+        ],
         "type": "object",
         "properties": {
           "platform": {
@@ -8959,7 +10104,10 @@
         }
       },
       "SettingUpdateRequest": {
-        "required": ["key", "value"],
+        "required": [
+          "key",
+          "value"
+        ],
         "type": "object",
         "properties": {
           "key": {
@@ -8971,7 +10119,9 @@
         }
       },
       "SetupStatusResponse": {
-        "required": ["setupRequired"],
+        "required": [
+          "setupRequired"
+        ],
         "type": "object",
         "properties": {
           "setupRequired": {
@@ -9012,7 +10162,10 @@
             ]
           },
           "displayName": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "protocol": {
             "oneOf": [
@@ -9028,19 +10181,31 @@
             "$ref": "#/components/schemas/SsoStatus"
           },
           "samlEntityId": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "samlSsoUrl": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "samlConfigured": {
             "type": "boolean"
           },
           "oidcIssuer": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "oidcClientId": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "oidcConfigured": {
             "type": "boolean"
@@ -9052,7 +10217,10 @@
             "type": "boolean"
           },
           "defaultRole": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "syncGroupsAsRoles": {
             "type": "boolean"
@@ -9085,36 +10253,60 @@
         "type": "integer"
       },
       "SsoTestResult": {
-        "required": ["success", "errorMessage"],
+        "required": [
+          "success",
+          "errorMessage"
+        ],
         "type": "object",
         "properties": {
           "success": {
             "type": "boolean"
           },
           "errorMessage": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
         "description": "Result of testing SSO connection."
       },
       "SsoValidationResult": {
-        "required": ["isValid", "errorMessage", "idpEntityId", "idpSsoUrl", "certificateExpiry"],
+        "required": [
+          "isValid",
+          "errorMessage",
+          "idpEntityId",
+          "idpSsoUrl",
+          "certificateExpiry"
+        ],
         "type": "object",
         "properties": {
           "isValid": {
             "type": "boolean"
           },
           "errorMessage": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "idpEntityId": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "idpSsoUrl": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "certificateExpiry": {
-            "type": ["null", "string"],
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "date-time"
           }
         },
@@ -9143,7 +10335,10 @@
             "type": "string"
           },
           "company": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "projectType": {
             "type": "string"
@@ -9160,7 +10355,13 @@
         }
       },
       "TenantPushConfigResponse": {
-        "required": ["id", "tenantId", "platform", "credentials", "isEnabled"],
+        "required": [
+          "id",
+          "tenantId",
+          "platform",
+          "credentials",
+          "isEnabled"
+        ],
         "type": "object",
         "properties": {
           "id": {
@@ -9183,12 +10384,17 @@
         }
       },
       "UnreadCountResponse": {
-        "required": ["count"],
+        "required": [
+          "count"
+        ],
         "type": "object",
         "properties": {
           "count": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": ["integer", "string"],
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int32"
           }
         }
@@ -9223,14 +10429,23 @@
             "$ref": "#/components/schemas/AnnouncementTarget"
           },
           "targetValue": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "publishAt": {
-            "type": ["null", "string"],
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "date-time"
           },
           "expiresAt": {
-            "type": ["null", "string"],
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "date-time"
           },
           "isPinned": {
@@ -9240,18 +10455,31 @@
             "type": "boolean"
           },
           "actionUrl": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "actionLabel": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "imageUrl": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
       "UpdateClientRequest": {
-        "required": ["name", "redirectUris", "postLogoutRedirectUris"],
+        "required": [
+          "name",
+          "redirectUris",
+          "postLogoutRedirectUris"
+        ],
         "type": "object",
         "properties": {
           "name": {
@@ -9272,7 +10500,9 @@
         }
       },
       "UpdateInquiryStatusRequest": {
-        "required": ["newStatus"],
+        "required": [
+          "newStatus"
+        ],
         "type": "object",
         "properties": {
           "newStatus": {
@@ -9281,17 +10511,30 @@
         }
       },
       "UpdateOrganizationBrandingRequest": {
-        "required": ["displayName", "logoUrl", "primaryColor"],
+        "required": [
+          "displayName",
+          "logoUrl",
+          "primaryColor"
+        ],
         "type": "object",
         "properties": {
           "displayName": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "logoUrl": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "primaryColor": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -9305,11 +10548,18 @@
         "type": "object",
         "properties": {
           "requireMfa": {
-            "type": ["null", "boolean"]
+            "type": [
+              "null",
+              "boolean"
+            ]
           },
           "mfaGracePeriodDays": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": ["null", "integer", "string"],
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
             "format": "int32"
           },
           "allowedLoginMethods": {
@@ -9323,12 +10573,17 @@
             ]
           },
           "defaultMemberRole": {
-            "type": ["null", "string"]
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
       "UpdateScopesRequest": {
-        "required": ["scopes"],
+        "required": [
+          "scopes"
+        ],
         "type": "object",
         "properties": {
           "scopes": {
@@ -9340,7 +10595,13 @@
         }
       },
       "UploadResponse": {
-        "required": ["fileId", "fileName", "sizeBytes", "contentType", "uploadedAt"],
+        "required": [
+          "fileId",
+          "fileName",
+          "sizeBytes",
+          "contentType",
+          "uploadedAt"
+        ],
         "type": "object",
         "properties": {
           "fileId": {
@@ -9352,7 +10613,10 @@
           },
           "sizeBytes": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": ["integer", "string"],
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int64"
           },
           "contentType": {
@@ -9365,7 +10629,10 @@
         }
       },
       "UpsertTenantPushConfigRequest": {
-        "required": ["platform", "credentials"],
+        "required": [
+          "platform",
+          "credentials"
+        ],
         "type": "object",
         "properties": {
           "platform": {
@@ -9377,7 +10644,14 @@
         }
       },
       "UserDto": {
-        "required": ["id", "email", "firstName", "lastName", "enabled", "roles"],
+        "required": [
+          "id",
+          "email",
+          "firstName",
+          "lastName",
+          "enabled",
+          "roles"
+        ],
         "type": "object",
         "properties": {
           "id": {
@@ -9405,7 +10679,10 @@
         }
       },
       "UserNotificationSettingsResponse": {
-        "required": ["userId", "channelSettings"],
+        "required": [
+          "userId",
+          "channelSettings"
+        ],
         "type": "object",
         "properties": {
           "userId": {
@@ -9421,7 +10698,9 @@
         }
       },
       "VerifyDomainRequest": {
-        "required": ["verificationToken"],
+        "required": [
+          "verificationToken"
+        ],
         "type": "object",
         "properties": {
           "verificationToken": {
@@ -9430,7 +10709,10 @@
         }
       },
       "VerifyOtpRequest": {
-        "required": ["email", "code"],
+        "required": [
+          "email",
+          "code"
+        ],
         "type": "object",
         "properties": {
           "email": {
@@ -9457,7 +10739,7 @@
   },
   "security": [
     {
-      "Bearer": []
+      "Bearer": [ ]
     }
   ],
   "tags": [
