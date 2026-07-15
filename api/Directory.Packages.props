@@ -169,7 +169,7 @@
     <!-- ======================================
          Code Coverage
          ====================================== -->
-    <PackageVersion Include="coverlet.collector" Version="8.0.1" />
+    <PackageVersion Include="coverlet.collector" Version="10.0.1" />
     <!-- ======================================
          Architecture Testing
          ====================================== -->
