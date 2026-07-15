@@ -1,0 +1,119 @@
+/**
+ * getWallowSdk() facade — the single guarded-singleton entry every feature
+ * (Phases 3-6) extends.
+ *
+ * On first use it configures the BFF client exactly once and wires the CSRF
+ * request interceptor onto the shared `@hey-api` client; thereafter it returns
+ * a namespaced object whose slice methods delegate to the SDK's generated ops
+ * and unwrap `{ data, error }` — returning `data` on success and THROWING the
+ * `error` (RFC 7807 ProblemDetails) so React Query surfaces it, never returning
+ * `undefined`.
+ *
+ * CONVENTION: this file (or `src/lib/sdk/<feature>.ts` slices it re-exports) is
+ * the ONLY place allowed to import generated ops (`getV1Identity...`) from
+ * `@bc-solutions-coder/sdk`. Route/component files import only from their
+ * feature's `api.ts` and `getWallowSdk()`.
+ *
+ * SLICE-APPEND PATTERN (features 4-7 follow this): the `sdk` object is a FLAT
+ * namespaced object. Each later feature APPENDS a top-level key (apps, settings,
+ * mfa, inquiries) — e.g. `apps: { list, get, create, ... }` wrapping its
+ * generated ops via the same `unwrap()` helper. Slices are additive top-level
+ * keys, never nested reshapes, so parallel features touch disjoint keys of one
+ * object. If contention on this file becomes a problem, split a slice into
+ * `src/lib/sdk/<feature>.ts` and re-export it here — the flat top-level key
+ * shape is preserved either way.
+ */
+import {
+  client,
+  configureBffClient,
+  getUser,
+  getV1IdentityOrganizations,
+  getV1IdentityOrganizationsById,
+  postV1IdentityOrganizations,
+  type ProblemDetails,
+  type WallowUser,
+} from "@bc-solutions-coder/sdk";
+
+import { wireCsrfInterceptor } from "./csrf";
+
+/**
+ * Guarded singleton flag. Kept at module scope so the first `getWallowSdk()`
+ * call configures the client + interceptor once and every later call is a
+ * cheap no-op.
+ */
+let configured = false;
+
+/**
+ * Configure the BFF client and wire the CSRF interceptor exactly once. Safe to
+ * call on every `getWallowSdk()` — after the first call it returns immediately.
+ */
+function ensureConfigured(): void {
+  if (configured) {
+    return;
+  }
+  configureBffClient();
+  wireCsrfInterceptor(client);
+  configured = true;
+}
+
+/** The `{ data, error }` envelope every generated op resolves to. */
+interface Envelope<T> {
+  data?: T;
+  error?: unknown;
+}
+
+/**
+ * Await a generated op and unwrap its `{ data, error }` envelope: return `data`
+ * on success, THROW the `error` (as ProblemDetails) on failure. React Query
+ * turns the thrown value into an error state, so slice methods never leak
+ * `undefined`.
+ */
+async function unwrap<T>(p: Promise<Envelope<T>>): Promise<T> {
+  const { data, error } = await p;
+  if (error !== undefined) {
+    throw error as ProblemDetails;
+  }
+  return data as T;
+}
+
+/** Organizations slice — the template every later feature slice copies. */
+export interface OrganizationsSlice {
+  list: () => Promise<unknown>;
+  get: (id: string) => Promise<unknown>;
+  create: (body: { name: string; domain: string | null }) => Promise<unknown>;
+}
+
+/** Current-user slice (delegates to the SDK's `getUser()`). */
+export interface UserSlice {
+  me: () => Promise<WallowUser | null>;
+}
+
+/**
+ * The namespaced facade object. Phases 3-6 each APPEND their own slice here
+ * (apps, settings, mfa, inquiries) — see the slice-append pattern above.
+ */
+export interface WallowSdk {
+  organizations: OrganizationsSlice;
+  user: UserSlice;
+}
+
+const sdk: WallowSdk = {
+  organizations: {
+    list: () => unwrap(getV1IdentityOrganizations()),
+    get: (id: string) => unwrap(getV1IdentityOrganizationsById({ path: { id } })),
+    create: (body: { name: string; domain: string | null }) =>
+      unwrap(postV1IdentityOrganizations({ body })),
+  },
+  user: {
+    me: () => getUser(),
+  },
+};
+
+/**
+ * Return the singleton facade, configuring the BFF client and CSRF interceptor
+ * on first use.
+ */
+export function getWallowSdk(): WallowSdk {
+  ensureConfigured();
+  return sdk;
+}

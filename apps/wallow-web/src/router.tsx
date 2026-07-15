@@ -1,5 +1,6 @@
 import { createRouter as createTanStackRouter, type AnyRouter } from "@tanstack/react-router";
 
+import { createQueryClient } from "./lib/query-client";
 import { Route as rootRoute } from "./routes/__root";
 import { Route as indexRoute } from "./routes/index";
 
@@ -21,5 +22,7 @@ export function createRouter(): AnyRouter {
 
   const routeTree = rootRoute.addChildren([indexRouteWithParent]);
 
-  return createTanStackRouter({ routeTree });
+  const queryClient = createQueryClient();
+
+  return createTanStackRouter({ routeTree, context: { queryClient } });
 }

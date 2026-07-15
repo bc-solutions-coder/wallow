@@ -33,7 +33,7 @@ import {
   type WallowUser,
 } from "@bc-solutions-coder/sdk";
 
-import { isSafeMethod } from "./csrf";
+import { setCsrfToken, wireCsrfInterceptor } from "./lib/csrf";
 
 // Point the generated client at the same-origin `/api` BFF proxy and send the
 // httpOnly session cookie with every request. Every generated operation below
@@ -41,24 +41,12 @@ import { isSafeMethod } from "./csrf";
 // shared client, so this is the only place the transport is configured.
 configureBffClient();
 
-/**
- * The session's CSRF token, learned from `/bff/user`.
- *
- * The BFF mints it at login, seals it inside the session, and hands the browser
- * a copy two ways: in the `/bff/user` body (used here) and in a readable
- * companion cookie. Holding it in memory means it is never in the DOM.
- */
-let csrfToken: string | null = null;
-
 // Echo the CSRF token on every state-changing request. Without this the proxy
 // answers 403 `CSRF_INVALID` and the request never reaches the API — which is
 // exactly what stops a cross-site form post from riding on the session cookie.
-client.interceptors.request.use((request: Request): Request => {
-  if (csrfToken !== null && !isSafeMethod(request.method)) {
-    request.headers.set("x-csrf-token", csrfToken);
-  }
-  return request;
-});
+// The token store and interceptor live in `./lib/csrf`; here we just wire it
+// onto the shared client and keep the store in sync with `/bff/user`.
+wireCsrfInterceptor(client);
 
 function requireElement<T extends HTMLElement>(testId: string): T {
   const element: HTMLElement | null = document.querySelector(`[data-testid="${testId}"]`);
@@ -87,14 +75,14 @@ async function refreshUser(): Promise<void> {
 
   const user: WallowUser | null = await getUser();
   if (user === null) {
-    csrfToken = null;
+    setCsrfToken(null);
     status.textContent = "anonymous";
     emailSpan.textContent = "";
     return;
   }
 
   // `/bff/user` returns the identity claims plus the session's CSRF token.
-  csrfToken = typeof user.csrfToken === "string" ? user.csrfToken : null;
+  setCsrfToken(typeof user.csrfToken === "string" ? user.csrfToken : null);
 
   status.textContent = "authenticated";
   emailSpan.textContent = typeof user.email === "string" ? user.email : (user.sub ?? "");
