@@ -8,9 +8,9 @@
   <PropertyGroup>
     <!-- .NET Version-Coupled Packages -->
     <!-- These should match the .NET version (e.g., 10.0.x for .NET 10) -->
-    <MicrosoftExtensionsVersion>10.0.5</MicrosoftExtensionsVersion>
-    <EfCoreVersion>10.0.5</EfCoreVersion>
-    <AspNetCoreVersion>10.0.2</AspNetCoreVersion>
+    <MicrosoftExtensionsVersion>10.0.10</MicrosoftExtensionsVersion>
+    <EfCoreVersion>10.0.10</EfCoreVersion>
+    <AspNetCoreVersion>10.0.10</AspNetCoreVersion>
   </PropertyGroup>
   <ItemGroup>
     <!-- ======================================
@@ -20,7 +20,7 @@
     <PackageVersion Include="Asp.Versioning.Mvc.ApiExplorer" Version="8.1.1" />
     <PackageVersion Include="Audit.EntityFramework.Core" Version="32.0.0" />
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="$(AspNetCoreVersion)" />
-    <PackageVersion Include="MimeKit" Version="4.15.1" />
+    <PackageVersion Include="MimeKit" Version="4.17.0" />
     <PackageVersion Include="Scalar.AspNetCore" Version="2.13.11" />
     <!-- ======================================
          Health Checks
@@ -36,14 +36,14 @@
     <!-- ======================================
          OpenTelemetry
          ====================================== -->
-    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.15.0" />
-    <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.15.0" />
-    <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.15.1" />
-    <PackageVersion Include="OpenTelemetry.Instrumentation.EntityFrameworkCore" Version="1.15.0-beta.1" />
-    <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.15.0" />
-    <PackageVersion Include="OpenTelemetry.Instrumentation.Process" Version="1.15.0-beta.1" />
-    <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.15.0" />
-    <PackageVersion Include="OpenTelemetry.Instrumentation.StackExchangeRedis" Version="1.15.0-beta.1" />
+    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.16.0" />
+    <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.16.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.16.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.EntityFrameworkCore" Version="1.16.0-beta.1" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.16.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.Process" Version="1.16.0-rc.1" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.16.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.StackExchangeRedis" Version="1.16.0-beta.1" />
     <PackageVersion Include="Serilog.Sinks.OpenTelemetry" Version="4.2.0" />
     <!-- ======================================
          Background Jobs (Hangfire)
@@ -66,7 +66,7 @@
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="$(EfCoreVersion)" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="$(EfCoreVersion)" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="$(EfCoreVersion)" />
-    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.1" />
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
     <!-- ======================================
          Dapper (Micro-ORM)
          ====================================== -->
@@ -108,7 +108,7 @@
     <!-- ======================================
          Email
          ====================================== -->
-    <PackageVersion Include="MailKit" Version="4.15.1" />
+    <PackageVersion Include="MailKit" Version="4.17.0" />
     <!-- ======================================
          Cloud Storage (AWS S3)
          ====================================== -->
@@ -211,5 +211,20 @@
     <PackageVersion Include="Microsoft.CodeAnalysis.VisualBasic.Workspaces" Version="5.0.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.Workspaces.Common" Version="5.0.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" Version="5.0.0" />
+    <!-- ======================================
+         Transitive Security Pins
+         These packages are not referenced directly; they arrive as transitive
+         dependencies that carry known vulnerabilities. CentralPackageTransitivePinningEnabled
+         forces the patched versions below. Each notes the advisory and pulling parent.
+         Revisit when the parent package ships a fix and drop the pin if no longer needed.
+         ====================================== -->
+    <!-- GHSA-hv8m-jj95-wg3x (high): patched in 2.5.301; via SignalR.StackExchangeRedis / StreamJsonRpc -->
+    <PackageVersion Include="MessagePack" Version="2.5.302" />
+    <!-- GHSA-v5pm-xwqc-g5wc (high): patched in 2.7.5; via Microsoft.AspNetCore.OpenApi -->
+    <PackageVersion Include="Microsoft.OpenApi" Version="2.10.0" />
+    <!-- GHSA-5wr9-m6jw-xx44 (critical): patched in 7.0.0; test-only via WireMock.Net -->
+    <PackageVersion Include="Scriban.Signed" Version="7.2.5" />
+    <!-- GHSA-2m69-gcr7-jv3q (high): patched in 2.1.12; test-only via EF Core Sqlite bundle -->
+    <PackageVersion Include="SQLitePCLRaw.lib.e_sqlite3" Version="2.1.12" />
   </ItemGroup>
 </Project>
