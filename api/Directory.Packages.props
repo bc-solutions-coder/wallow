@@ -54,10 +54,10 @@
     <!-- ======================================
          CQRS & Messaging (Wolverine)
          ====================================== -->
-    <PackageVersion Include="WolverineFx" Version="5.27.0" />
-    <PackageVersion Include="WolverineFx.FluentValidation" Version="5.27.0" />
-    <PackageVersion Include="WolverineFx.EntityFrameworkCore" Version="5.27.0" />
-    <PackageVersion Include="WolverineFx.Postgresql" Version="5.27.0" />
+    <PackageVersion Include="WolverineFx" Version="6.19.0" />
+    <PackageVersion Include="WolverineFx.FluentValidation" Version="6.19.0" />
+    <PackageVersion Include="WolverineFx.EntityFrameworkCore" Version="6.19.0" />
+    <PackageVersion Include="WolverineFx.Postgresql" Version="6.19.0" />
     <PackageVersion Include="FluentValidation" Version="12.1.1" />
     <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
     <!-- ======================================
@@ -224,5 +224,8 @@
     <PackageVersion Include="Microsoft.OpenApi" Version="2.10.0" />
     <!-- GHSA-2m69-gcr7-jv3q (high): patched in 2.1.12; test-only via EF Core Sqlite bundle -->
     <PackageVersion Include="SQLitePCLRaw.lib.e_sqlite3" Version="2.1.12" />
+    <!-- GHSA-5crp-9r3c-p9vr (high): patched in 13.0.1; via WolverineFx 6 in non-Hangfire projects.
+         Floor is 13.0.4 (Aspire.Hosting.AppHost / WireMock.Net.OpenApiParser require >= 13.0.4). -->
+    <PackageVersion Include="Newtonsoft.Json" Version="13.0.4" />
   </ItemGroup>
 </Project>
