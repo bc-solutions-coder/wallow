@@ -33,6 +33,13 @@
   "ignorePatterns": ["**/dist/**", "**/generated/**", "packages/sdk/src/generated/**"],
   "overrides": [
     {
+      "files": ["apps/wallow-web/**/*.{ts,tsx}"],
+      "rules": {
+        "unicorn/filename-case": ["error", { "cases": { "kebabCase": true, "pascalCase": true } }],
+        "no-magic-numbers": ["warn", { "ignore": [0, 1] }]
+      }
+    },
+    {
       "files": ["**/*.test.*"],
       "rules": {
         "no-magic-numbers": "off",

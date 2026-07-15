@@ -2,6 +2,8 @@ import { createRouter as createTanStackRouter, type AnyRouter } from "@tanstack/
 
 import { createQueryClient } from "./lib/query-client";
 import { Route as rootRoute } from "./routes/__root";
+import { Route as organizationDetailRoute } from "./routes/dashboard/organizations/$orgId";
+import { Route as organizationsIndexRoute } from "./routes/dashboard/organizations/index";
 import { Route as indexRoute } from "./routes/index";
 
 /**
@@ -20,7 +22,23 @@ export function createRouter(): AnyRouter {
     getParentRoute: () => rootRoute,
   });
 
-  const routeTree = rootRoute.addChildren([indexRouteWithParent]);
+  const organizationsIndexWithParent = organizationsIndexRoute.update({
+    id: "/dashboard/organizations",
+    path: "/dashboard/organizations",
+    getParentRoute: () => rootRoute,
+  });
+
+  const organizationDetailWithParent = organizationDetailRoute.update({
+    id: "/dashboard/organizations/$orgId",
+    path: "/dashboard/organizations/$orgId",
+    getParentRoute: () => rootRoute,
+  });
+
+  const routeTree = rootRoute.addChildren([
+    indexRouteWithParent,
+    organizationsIndexWithParent,
+    organizationDetailWithParent,
+  ]);
 
   const queryClient = createQueryClient();
 

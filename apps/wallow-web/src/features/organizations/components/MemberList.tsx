@@ -1,0 +1,107 @@
+/**
+ * Organization member list + management (Wallow-8w1h.4.4). Drives
+ * `useQuery(organizationsQueries.members(orgId))` and renders the members table
+ * (mirroring the Blazor oracle `organization-detail-members-table` /
+ * `organization-detail-member-row`), a per-row remove button, and an add-member
+ * form backed by `addMemberMutation` / `removeMemberMutation`.
+ *
+ * Testids follow `{page}-{element}` kebab-case: `organization-members-loading`
+ * and `organization-members-empty` (query states), `organization-member-userid`
+ * + `organization-member-add-submit` (add form), `organization-member-remove`
+ * (per-row remove).
+ */
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+
+import { addMemberMutation, organizationsQueries, removeMemberMutation } from "../api";
+import type { OrganizationMember } from "../types";
+
+/** A single member row with a remove action. */
+function MemberRow(props: { member: OrganizationMember; onRemove: (userId: string) => void }) {
+  const { member, onRemove } = props;
+  return (
+    <li data-testid="organization-detail-member-row">
+      <span>{member.email}</span>
+      <button
+        type="button"
+        data-testid="organization-member-remove"
+        onClick={() => {
+          onRemove(member.id);
+        }}
+      >
+        Remove
+      </button>
+    </li>
+  );
+}
+
+export function MemberList(props: { orgId: string }) {
+  const { orgId } = props;
+  const queryClient = useQueryClient();
+  const { data, isPending } = useQuery(organizationsQueries.members(orgId));
+  const addMember = useMutation(addMemberMutation(queryClient, orgId));
+  const removeMember = useMutation(removeMemberMutation(queryClient, orgId));
+  const [userId, setUserId] = useState("");
+
+  return (
+    <section>
+      <form
+        data-testid="organization-member-add-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (userId.trim() === "") {
+            return;
+          }
+          addMember.mutate(
+            { userId },
+            {
+              onSuccess: () => {
+                setUserId("");
+              },
+            },
+          );
+        }}
+      >
+        <input
+          data-testid="organization-member-userid"
+          value={userId}
+          onChange={(e) => {
+            setUserId(e.target.value);
+          }}
+        />
+        <button type="submit" data-testid="organization-member-add-submit">
+          Add member
+        </button>
+      </form>
+
+      {isPending ? (
+        <div data-testid="organization-members-loading">Loading members…</div>
+      ) : (
+        <MemberTable
+          members={(data ?? []) as OrganizationMember[]}
+          onRemove={(id) => {
+            removeMember.mutate(id);
+          }}
+        />
+      )}
+    </section>
+  );
+}
+
+/** The loaded members table: empty state or the row list. */
+function MemberTable(props: { members: OrganizationMember[]; onRemove: (userId: string) => void }) {
+  const { members, onRemove } = props;
+
+  if (members.length === 0) {
+    return <div data-testid="organization-members-empty">No members yet.</div>;
+  }
+
+  return (
+    <ul data-testid="organization-detail-members-table">
+      {members.map((member) => (
+        <MemberRow key={member.id} member={member} onRemove={onRemove} />
+      ))}
+    </ul>
+  );
+}

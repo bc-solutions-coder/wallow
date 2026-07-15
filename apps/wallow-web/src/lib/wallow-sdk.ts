@@ -26,10 +26,15 @@
 import {
   client,
   configureBffClient,
+  deleteV1IdentityOrganizationsByIdMembersByUserId,
   getUser,
   getV1IdentityOrganizations,
   getV1IdentityOrganizationsById,
+  getV1IdentityOrganizationsByIdMembers,
   postV1IdentityOrganizations,
+  postV1IdentityOrganizationsByIdArchive,
+  postV1IdentityOrganizationsByIdMembers,
+  postV1IdentityOrganizationsByIdReactivate,
   type ProblemDetails,
   type WallowUser,
 } from "@bc-solutions-coder/sdk";
@@ -81,6 +86,16 @@ export interface OrganizationsSlice {
   list: () => Promise<unknown>;
   get: (id: string) => Promise<unknown>;
   create: (body: { name: string; domain: string | null }) => Promise<unknown>;
+  /** List an organization's members (returns `UserDto[]`). */
+  members: (id: string) => Promise<unknown>;
+  /** Add a user to an organization (body is `AddMemberRequest` = `{ userId }`). */
+  addMember: (id: string, body: { userId: string }) => Promise<unknown>;
+  /** Remove a user from an organization by user id. */
+  removeMember: (id: string, userId: string) => Promise<unknown>;
+  /** Archive an organization. */
+  archive: (id: string) => Promise<unknown>;
+  /** Reactivate an archived organization. */
+  reactivate: (id: string) => Promise<unknown>;
 }
 
 /** Current-user slice (delegates to the SDK's `getUser()`). */
@@ -103,6 +118,13 @@ const sdk: WallowSdk = {
     get: (id: string) => unwrap(getV1IdentityOrganizationsById({ path: { id } })),
     create: (body: { name: string; domain: string | null }) =>
       unwrap(postV1IdentityOrganizations({ body })),
+    members: (id: string) => unwrap(getV1IdentityOrganizationsByIdMembers({ path: { id } })),
+    addMember: (id: string, body: { userId: string }) =>
+      unwrap(postV1IdentityOrganizationsByIdMembers({ path: { id }, body })),
+    removeMember: (id: string, userId: string) =>
+      unwrap(deleteV1IdentityOrganizationsByIdMembersByUserId({ path: { id, userId } })),
+    archive: (id: string) => unwrap(postV1IdentityOrganizationsByIdArchive({ path: { id } })),
+    reactivate: (id: string) => unwrap(postV1IdentityOrganizationsByIdReactivate({ path: { id } })),
   },
   user: {
     me: () => getUser(),

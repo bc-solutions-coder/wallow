@@ -19,6 +19,11 @@ const mocks = vi.hoisted(() => ({
   getV1IdentityOrganizations: vi.fn(),
   getV1IdentityOrganizationsById: vi.fn(),
   postV1IdentityOrganizations: vi.fn(),
+  getV1IdentityOrganizationsByIdMembers: vi.fn(),
+  postV1IdentityOrganizationsByIdMembers: vi.fn(),
+  deleteV1IdentityOrganizationsByIdMembersByUserId: vi.fn(),
+  postV1IdentityOrganizationsByIdArchive: vi.fn(),
+  postV1IdentityOrganizationsByIdReactivate: vi.fn(),
   getUser: vi.fn(),
   client: { interceptors: { request: { use: vi.fn() } } },
 }));
@@ -29,6 +34,12 @@ vi.mock("@bc-solutions-coder/sdk", () => ({
   getV1IdentityOrganizations: mocks.getV1IdentityOrganizations,
   getV1IdentityOrganizationsById: mocks.getV1IdentityOrganizationsById,
   postV1IdentityOrganizations: mocks.postV1IdentityOrganizations,
+  getV1IdentityOrganizationsByIdMembers: mocks.getV1IdentityOrganizationsByIdMembers,
+  postV1IdentityOrganizationsByIdMembers: mocks.postV1IdentityOrganizationsByIdMembers,
+  deleteV1IdentityOrganizationsByIdMembersByUserId:
+    mocks.deleteV1IdentityOrganizationsByIdMembersByUserId,
+  postV1IdentityOrganizationsByIdArchive: mocks.postV1IdentityOrganizationsByIdArchive,
+  postV1IdentityOrganizationsByIdReactivate: mocks.postV1IdentityOrganizationsByIdReactivate,
   getUser: mocks.getUser,
 }));
 
@@ -110,6 +121,68 @@ describe("getWallowSdk", () => {
       const getWallowSdk = await freshFacade();
 
       await expect(getWallowSdk().organizations.list()).rejects.toBe(problem);
+    });
+  });
+
+  describe("organizations slice — members & lifecycle (Wallow-8w1h.4.4)", () => {
+    it("members(id) delegates to getV1IdentityOrganizationsByIdMembers with the path id", async () => {
+      const members = [{ id: "u1", email: "a@b.c", roles: ["Owner"] }];
+      mocks.getV1IdentityOrganizationsByIdMembers.mockResolvedValue({ data: members });
+      const getWallowSdk = await freshFacade();
+
+      const result = await getWallowSdk().organizations.members("o1");
+
+      expect(mocks.getV1IdentityOrganizationsByIdMembers).toHaveBeenCalledWith({
+        path: { id: "o1" },
+      });
+      expect(result).toBe(members);
+    });
+
+    it("addMember(id, body) delegates to postV1IdentityOrganizationsByIdMembers with path + body", async () => {
+      const added = { id: "u2" };
+      mocks.postV1IdentityOrganizationsByIdMembers.mockResolvedValue({ data: added });
+      const getWallowSdk = await freshFacade();
+
+      const result = await getWallowSdk().organizations.addMember("o1", { userId: "u2" });
+
+      expect(mocks.postV1IdentityOrganizationsByIdMembers).toHaveBeenCalledWith({
+        path: { id: "o1" },
+        body: { userId: "u2" },
+      });
+      expect(result).toBe(added);
+    });
+
+    it("removeMember(id, userId) delegates to deleteV1IdentityOrganizationsByIdMembersByUserId", async () => {
+      mocks.deleteV1IdentityOrganizationsByIdMembersByUserId.mockResolvedValue({ data: undefined });
+      const getWallowSdk = await freshFacade();
+
+      await getWallowSdk().organizations.removeMember("o1", "u2");
+
+      expect(mocks.deleteV1IdentityOrganizationsByIdMembersByUserId).toHaveBeenCalledWith({
+        path: { id: "o1", userId: "u2" },
+      });
+    });
+
+    it("archive(id) delegates to postV1IdentityOrganizationsByIdArchive with the path id", async () => {
+      mocks.postV1IdentityOrganizationsByIdArchive.mockResolvedValue({ data: undefined });
+      const getWallowSdk = await freshFacade();
+
+      await getWallowSdk().organizations.archive("o1");
+
+      expect(mocks.postV1IdentityOrganizationsByIdArchive).toHaveBeenCalledWith({
+        path: { id: "o1" },
+      });
+    });
+
+    it("reactivate(id) delegates to postV1IdentityOrganizationsByIdReactivate with the path id", async () => {
+      mocks.postV1IdentityOrganizationsByIdReactivate.mockResolvedValue({ data: undefined });
+      const getWallowSdk = await freshFacade();
+
+      await getWallowSdk().organizations.reactivate("o1");
+
+      expect(mocks.postV1IdentityOrganizationsByIdReactivate).toHaveBeenCalledWith({
+        path: { id: "o1" },
+      });
     });
   });
 
