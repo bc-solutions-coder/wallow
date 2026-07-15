@@ -4,31 +4,31 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'apps/**'
-      - 'packages/**'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
-      - 'tsconfig.base.json'
-      - '.oxlintrc.json'
-      - '.oxfmtrc.json'
-      - '.nvmrc'
-      - '.npmrc'
-      - '.github/workflows/js.yml'
+      - "apps/**"
+      - "packages/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "tsconfig.base.json"
+      - ".oxlintrc.json"
+      - ".oxfmtrc.json"
+      - ".nvmrc"
+      - ".npmrc"
+      - ".github/workflows/js.yml"
   push:
     branches: [main]
     paths:
-      - 'apps/**'
-      - 'packages/**'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
-      - 'tsconfig.base.json'
-      - '.oxlintrc.json'
-      - '.oxfmtrc.json'
-      - '.nvmrc'
-      - '.npmrc'
-      - '.github/workflows/js.yml'
+      - "apps/**"
+      - "packages/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "tsconfig.base.json"
+      - ".oxlintrc.json"
+      - ".oxfmtrc.json"
+      - ".nvmrc"
+      - ".npmrc"
+      - ".github/workflows/js.yml"
 
 concurrency:
   group: js-${{ github.head_ref || github.ref }}
@@ -49,8 +49,8 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version-file: '.nvmrc'
-          cache: 'pnpm'
+          node-version-file: ".nvmrc"
+          cache: "pnpm"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -63,7 +63,7 @@ jobs:
 
       # Workspace members resolve @bc-solutions-coder/sdk through its package.json
       # `exports` map, which points at dist/. Build the SDK first so dependent
-      # members (apps/tanstack-min) can typecheck against the emitted .d.ts files.
+      # members (apps/wallow-web) can typecheck against the emitted .d.ts files.
       - name: Build SDK
         run: pnpm --filter @bc-solutions-coder/sdk build
 

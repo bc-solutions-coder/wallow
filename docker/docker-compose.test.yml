@@ -138,7 +138,7 @@ services:
       OpenIddict__Issuer: "http://localhost:5050"
       # Treat the seeded BFF client as first-party so the OIDC flow skips the
       # interactive consent screen (appsettings already lists bcordes-dev-client
-      # at index 0; this appends the tanstack-min example's client at index 1).
+      # at index 0; this appends the wallow-web example's client at index 1).
       Identity__FirstPartyClients__1: "bcordes-bff"
     tmpfs:
       - /tmp
@@ -206,7 +206,7 @@ services:
       - wallow-test
 
   # ============================================
-  # BFF REFERENCE EXAMPLE (@bc-solutions-coder/sdk tanstack-min)
+  # BFF REFERENCE EXAMPLE (@bc-solutions-coder/sdk wallow-web)
   # ============================================
   # Node process that hosts the SDK BFF tunnel for the BffFlowTests E2E flow.
   # Build context is the repo root so the Dockerfile can build the @bc-solutions-coder/sdk
@@ -224,7 +224,7 @@ services:
     image: wallow-bff-example:test
     build:
       context: ..
-      dockerfile: apps/tanstack-min/Dockerfile
+      dockerfile: apps/wallow-web/Dockerfile
     ports:
       - "3000:3000"
     extra_hosts:

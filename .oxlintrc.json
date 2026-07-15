@@ -9,6 +9,7 @@
     "style": "warn"
   },
   "rules": {
+    "react/react-in-jsx-scope": "off",
     "no-ternary": "off",
     "capitalized-comments": "off",
     "unicorn/no-null": "off",

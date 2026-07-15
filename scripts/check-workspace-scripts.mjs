@@ -10,7 +10,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
+const repoRoot = join(import.meta.dirname, "..");
 
 function loadScripts(relPath) {
   const abs = join(repoRoot, relPath);
@@ -29,16 +29,11 @@ const ROOT_EXPECTED = {
     "oxfmt --write apps packages package.json pnpm-workspace.yaml tsconfig.base.json .oxlintrc.json .oxfmtrc.json",
   "format:check":
     "oxfmt --check apps packages package.json pnpm-workspace.yaml tsconfig.base.json .oxlintrc.json .oxfmtrc.json",
-  check:
-    "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+  check: "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
 };
 
 // Root backend scripts must be preserved (uncommitted, do NOT clobber).
-const ROOT_PRESERVED = [
-  "backend",
-  "backend:infra",
-  "backend:infra:down",
-];
+const ROOT_PRESERVED = ["backend", "backend:infra", "backend:infra:down"];
 
 // Standard member script keys each workspace member must expose.
 const SDK_REQUIRED = ["build", "test", "test:watch", "typecheck"];
@@ -76,9 +71,9 @@ for (const key of SDK_REQUIRED) {
   assertPresent("packages/sdk", sdkScripts, key);
 }
 
-const appScripts = loadScripts("apps/tanstack-min/package.json");
+const appScripts = loadScripts("apps/wallow-web/package.json");
 for (const key of APP_REQUIRED) {
-  assertPresent("apps/tanstack-min", appScripts, key);
+  assertPresent("apps/wallow-web", appScripts, key);
 }
 
 if (failures.length > 0) {
