@@ -1,0 +1,154 @@
+name: OpenAPI Drift
+
+# Keeps packages/sdk/openapi/v1.json in sync with the live API contract.
+# Boots the API, refreshes the committed snapshot exactly the way a developer
+# would (the SDK's scripts/generate.ts with WALLOW_OPENAPI_URL set), and fails
+# if the committed snapshot has drifted from what the running API now serves.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'api/**'
+      - 'packages/sdk/openapi/**'
+      - 'packages/sdk/openapi-ts.config.ts'
+      - 'packages/sdk/scripts/generate.ts'
+      - '.github/workflows/openapi-drift.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'api/**'
+      - 'packages/sdk/openapi/**'
+      - 'packages/sdk/openapi-ts.config.ts'
+      - 'packages/sdk/scripts/generate.ts'
+      - '.github/workflows/openapi-drift.yml'
+
+concurrency:
+  group: openapi-drift-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: wallow
+          POSTGRES_PASSWORD: wallow
+          POSTGRES_DB: wallow_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Start Valkey with password
+        run: |
+          docker run -d --name valkey -p 6379:6379 valkey/valkey:8-alpine \
+            valkey-server --requirepass WallowTestValkey123! --appendonly yes
+          for i in $(seq 1 10); do
+            if docker exec valkey valkey-cli -a WallowTestValkey123! ping 2>/dev/null | grep -q PONG; then
+              echo "Valkey is ready"
+              break
+            fi
+            if [ "$i" -eq 10 ]; then
+              echo "::error::Valkey did not become healthy in time"
+              docker logs valkey
+              exit 1
+            fi
+            sleep 1
+          done
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v5
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('api/Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+
+      - name: Install JS dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build API
+        run: dotnet build api/src/Wallow.Api/Wallow.Api.csproj --configuration Release
+
+      # /openapi/v1.json is only mapped when the app runs in the Development
+      # environment (see api/src/Wallow.Api/Program.cs). Boot the API against the
+      # Postgres + Valkey services so the OpenAPI document is servable.
+      - name: Start API
+        env:
+          ASPNETCORE_ENVIRONMENT: Development
+          ASPNETCORE_URLS: http://localhost:5001
+          ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=wallow_test;Username=wallow;Password=wallow"
+          Redis__ConnectionString: "localhost:6379,password=WallowTestValkey123!,abortConnect=false"
+        run: |
+          dotnet run --project api/src/Wallow.Api/Wallow.Api.csproj \
+            --configuration Release --no-build --no-launch-profile > /tmp/api.log 2>&1 &
+          echo "API_PID=$!" >> "$GITHUB_ENV"
+
+      - name: Wait for OpenAPI endpoint
+        run: |
+          for i in $(seq 1 40); do
+            if curl -sf http://localhost:5001/openapi/v1.json -o /dev/null; then
+              echo "OpenAPI endpoint is ready"
+              break
+            fi
+            if [ "$i" -eq 40 ]; then
+              echo "::error::API did not expose /openapi/v1.json in time"
+              cat /tmp/api.log
+              exit 1
+            fi
+            sleep 5
+          done
+
+      # Refresh the committed snapshot the same way a developer does: point the
+      # SDK generate script at the live API. scripts/generate.ts writes the raw
+      # spec to packages/sdk/openapi/v1.json and regenerates the typed client.
+      - name: Refresh OpenAPI snapshot from live API
+        env:
+          WALLOW_OPENAPI_URL: http://localhost:5001/openapi/v1.json
+        run: pnpm --filter @bc-solutions-coder/sdk exec tsx scripts/generate.ts
+
+      - name: Fail on OpenAPI snapshot drift
+        run: |
+          if ! git diff --exit-code -- packages/sdk/openapi/v1.json; then
+            echo "::error::packages/sdk/openapi/v1.json is out of date with the live API contract."
+            echo "::error::Refresh it locally and commit the result:"
+            echo "::error::  cd docker && docker compose up -d"
+            echo "::error::  dotnet run --project api/src/Wallow.Api"
+            echo "::error::  WALLOW_OPENAPI_URL=http://localhost:5001/openapi/v1.json pnpm --filter @bc-solutions-coder/sdk exec tsx scripts/generate.ts"
+            echo "::error::  git add packages/sdk/openapi/v1.json && git commit"
+            exit 1
+          fi
+          echo "OpenAPI snapshot is in sync with the live API contract."
+
+      - name: Stop API
+        if: always()
+        run: |
+          if [ -n "${API_PID:-}" ]; then
+            kill "$API_PID" 2>/dev/null || true
+          fi
