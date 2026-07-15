@@ -41,7 +41,7 @@ public class ScimGroupServiceTests
     {
         Guid orgId = Guid.NewGuid();
         Guid memberId = Guid.NewGuid();
-        _organizationService.CreateOrganizationAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
+        _organizationService.CreateOrganizationAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>())
             .Returns(orgId);
         _organizationService.GetOrganizationByIdAsync(orgId, Arg.Any<CancellationToken>())
             .Returns(new OrganizationDto(orgId, "Test Group", null, 0));
@@ -65,7 +65,7 @@ public class ScimGroupServiceTests
     public async Task CreateGroupAsync_WithNoMembers_CreatesOrgOnly()
     {
         Guid orgId = Guid.NewGuid();
-        _organizationService.CreateOrganizationAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
+        _organizationService.CreateOrganizationAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>())
             .Returns(orgId);
         _organizationService.GetOrganizationByIdAsync(orgId, Arg.Any<CancellationToken>())
             .Returns(new OrganizationDto(orgId, "Test Group", null, 0));

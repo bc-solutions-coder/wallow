@@ -13,7 +13,7 @@ public sealed class DashboardFlowTests : AuthenticatedE2ETestBase
     {
     }
 
-    [Fact(Skip = "Pending fix - tracked in beads")]
+    [Fact]
     [Trait("E2EGroup", "AppRegistration")]
     public async Task AppRegistrationFlow_RegistersNewApplication()
     {

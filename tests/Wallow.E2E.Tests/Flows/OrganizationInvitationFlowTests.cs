@@ -19,7 +19,7 @@ public sealed class OrganizationInvitationFlowTests : AuthenticatedE2ETestBase
     {
     }
 
-    [Fact(Skip = "Pending fix - tracked in beads")]
+    [Fact]
     public async Task AuthenticatedUser_AcceptsInvitation_JoinsOrganization()
     {
         // Create an org admin who will send the invitation
@@ -61,7 +61,7 @@ public sealed class OrganizationInvitationFlowTests : AuthenticatedE2ETestBase
         Assert.DoesNotContain("/invitation", Page.Url, StringComparison.OrdinalIgnoreCase);
     }
 
-    [Fact(Skip = "Pending fix - tracked in beads")]
+    [Fact]
     public async Task AuthenticatedUser_DeclinesInvitation_StaysUnenrolled()
     {
         // Create an org admin who will send the invitation

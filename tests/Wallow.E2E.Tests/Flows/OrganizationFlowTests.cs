@@ -28,7 +28,7 @@ public sealed class OrganizationFlowTests : AuthenticatedE2ETestBase
         Assert.True(isEmpty, "New user with no organizations should see empty state");
     }
 
-    [Fact(Skip = "Pending org module rewrite")]
+    [Fact]
     public async Task OrganizationDetail_WithValidOrgId_ShowsMembersAndClients()
     {
         OrgAdminTestUser orgAdmin = await TestUserFactory.CreateOrgAdminAsync(
@@ -61,7 +61,7 @@ public sealed class OrganizationFlowTests : AuthenticatedE2ETestBase
         Assert.True(isNotFound, "Navigating to a non-existent organization should show not-found state");
     }
 
-    [Fact(Skip = "Pending org module rewrite")]
+    [Fact]
     public async Task OrganizationDetail_RegisterClient_ShowsClientId()
     {
         OrgAdminTestUser orgAdmin = await TestUserFactory.CreateOrgAdminAsync(
@@ -87,7 +87,7 @@ public sealed class OrganizationFlowTests : AuthenticatedE2ETestBase
         Assert.False(string.IsNullOrEmpty(clientId), "Client ID should be returned and non-empty");
     }
 
-    [Fact(Skip = "Pending fix - tracked in beads")]
+    [Fact]
     public async Task OrganizationList_ClickRow_NavigatesToDetail()
     {
         OrgAdminTestUser orgAdmin = await TestUserFactory.CreateOrgAdminAsync(

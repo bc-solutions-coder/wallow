@@ -20,6 +20,18 @@
 <body>
     <Routes />
     <script src="_framework/blazor.web.js"></script>
+    <script>
+        // Enhanced navigation patches <body> in place without recreating the layout,
+        // so BlazorReadyIndicator's OnAfterRenderAsync(firstRender) never re-fires and
+        // the data-blazor-ready attribute it set gets stripped by the DOM diff. Restore
+        // it after every enhanced navigation so E2E readiness checks stay reliable.
+        if (!window.__wallowBlazorReadyListenerRegistered) {
+            window.__wallowBlazorReadyListenerRegistered = true;
+            Blazor.addEventListener('enhancedload', () => {
+                document.body.setAttribute('data-blazor-ready', 'true');
+            });
+        }
+    </script>
 </body>
 
 </html>

@@ -14,7 +14,7 @@ public sealed class AltAuthFlowTests : E2ETestBase
     {
     }
 
-    [Fact(Skip = "Magic link URL lacks OIDC returnUrl - needs app-level fix to include returnUrl in email")]
+    [Fact]
     [Trait("E2EGroup", "AltAuth")]
     public async Task MagicLinkLogin_HappyPath_LandsDashboard()
     {

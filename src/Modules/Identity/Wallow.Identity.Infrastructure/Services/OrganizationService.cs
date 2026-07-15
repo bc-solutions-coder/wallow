@@ -19,19 +19,26 @@ public sealed partial class OrganizationService(
     TimeProvider timeProvider,
     ILogger<OrganizationService> logger) : IOrganizationService
 {
-    public async Task<Guid> CreateOrganizationAsync(string name, string? domain = null, string? creatorEmail = null, CancellationToken ct = default)
+    public async Task<Guid> CreateOrganizationAsync(string name, string? domain = null, string? creatorEmail = null, Guid? creatorUserId = null, CancellationToken ct = default)
     {
         LogCreatingOrganization(name);
 
         string slug = GenerateSlug(name);
-        Guid creatorUserId = Guid.Empty; // No authenticated user context available here
+        // System-initiated creation (SCIM sync, pre-registered client provisioning) passes no creator;
+        // audit fields fall back to Guid.Empty and no member is added.
+        Guid createdByUserId = creatorUserId ?? Guid.Empty;
 
         Organization organization = Organization.Create(
             tenantContext.TenantId,
             name,
             slug,
-            creatorUserId,
+            createdByUserId,
             timeProvider);
+
+        if (creatorUserId.HasValue)
+        {
+            organization.AddMember(creatorUserId.Value, "admin", creatorUserId.Value, timeProvider);
+        }
 
         organizationRepository.Add(organization);
         await organizationRepository.SaveChangesAsync(ct);
@@ -42,7 +49,7 @@ public sealed partial class OrganizationService(
             requireMfa: false,
             allowPasswordlessLogin: true,
             mfaGracePeriodDays: 7,
-            creatorUserId,
+            createdByUserId,
             timeProvider);
 
         dbContext.OrganizationSettings.Add(defaultSettings);
@@ -56,6 +63,11 @@ public sealed partial class OrganizationService(
             Domain = domain,
             CreatorEmail = creatorEmail ?? string.Empty
         });
+
+        if (creatorUserId.HasValue)
+        {
+            LogCreatorAddedAsAdmin(creatorUserId.Value, organization.Id.Value);
+        }
 
         LogOrganizationCreated(name, organization.Id.Value);
 
@@ -452,6 +464,9 @@ public sealed partial class OrganizationService
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Organization {Name} created with ID {OrgId}")]
     private partial void LogOrganizationCreated(string name, Guid orgId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Creator {UserId} added as admin member of organization {OrgId}")]
+    private partial void LogCreatorAddedAsAdmin(Guid userId, Guid orgId);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Organization {OrgId} not found")]
     private partial void LogOrganizationNotFound(Guid orgId);

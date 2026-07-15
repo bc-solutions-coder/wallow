@@ -45,7 +45,7 @@ public class OrganizationsControllerTests
     {
         Guid orgId = Guid.NewGuid();
         CreateOrganizationRequest request = new("Acme Corp", "acme.com");
-        _orgService.CreateOrganizationAsync("Acme Corp", "acme.com", "creator@test.com", Arg.Any<CancellationToken>())
+        _orgService.CreateOrganizationAsync("Acme Corp", "acme.com", "creator@test.com", _userId, Arg.Any<CancellationToken>())
             .Returns(orgId);
 
         ActionResult<CreateOrganizationResponse> result = await _controller.Create(request, CancellationToken.None);
@@ -62,12 +62,12 @@ public class OrganizationsControllerTests
     {
         Guid orgId = Guid.NewGuid();
         CreateOrganizationRequest request = new("No Domain Org", null);
-        _orgService.CreateOrganizationAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
+        _orgService.CreateOrganizationAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>())
             .Returns(orgId);
 
         await _controller.Create(request, CancellationToken.None);
 
-        await _orgService.Received(1).CreateOrganizationAsync("No Domain Org", null, "creator@test.com", Arg.Any<CancellationToken>());
+        await _orgService.Received(1).CreateOrganizationAsync("No Domain Org", null, "creator@test.com", _userId, Arg.Any<CancellationToken>());
     }
 
     #endregion

@@ -33,7 +33,8 @@ public class OrganizationsController(IOrganizationService orgService, ITenantCon
         CreateOrganizationRequest request, CancellationToken ct)
     {
         string? creatorEmail = User.GetEmail();
-        Guid orgId = await orgService.CreateOrganizationAsync(request.Name, request.Domain, creatorEmail, ct);
+        Guid creatorUserId = Guid.Parse(User.GetUserId()!);
+        Guid orgId = await orgService.CreateOrganizationAsync(request.Name, request.Domain, creatorEmail, creatorUserId, ct);
         return CreatedAtAction(nameof(GetById), new { id = orgId },
             new CreateOrganizationResponse(orgId));
     }
