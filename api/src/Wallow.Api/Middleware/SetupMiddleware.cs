@@ -22,7 +22,12 @@ internal sealed class SetupMiddleware
             && !context.Request.Path.StartsWithSegments(SetupPath, StringComparison.OrdinalIgnoreCase)
             && !context.Request.Path.StartsWithSegments("/health", StringComparison.OrdinalIgnoreCase)
             && !context.Request.Path.StartsWithSegments("/.well-known", StringComparison.OrdinalIgnoreCase)
-            && !context.Request.Path.StartsWithSegments("/connect", StringComparison.OrdinalIgnoreCase))
+            && !context.Request.Path.StartsWithSegments("/connect", StringComparison.OrdinalIgnoreCase)
+            // OpenAPI contract and Scalar docs are anonymous, development-only metadata
+            // endpoints (not tenant operations) - keep them reachable before setup so
+            // tooling and the CI OpenAPI drift check can read the contract.
+            && !context.Request.Path.StartsWithSegments("/openapi", StringComparison.OrdinalIgnoreCase)
+            && !context.Request.Path.StartsWithSegments("/scalar", StringComparison.OrdinalIgnoreCase))
         {
             context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
             context.Response.ContentType = "application/json";
