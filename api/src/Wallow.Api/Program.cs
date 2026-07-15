@@ -1,6 +1,7 @@
 using System.Reflection;
 using Asp.Versioning;
 using Hangfire;
+using JasperFx.CodeGeneration.Model;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.StackExchangeRedis;
@@ -175,6 +176,21 @@ try
     // which can cause crashes on macOS (exit codes 139/134)
     builder.Host.UseWolverine(opts =>
     {
+        // Wolverine 6 removed the runtime Roslyn compiler from the core package.
+        // We use TypeLoadMode.Dynamic (compile handler/middleware code at runtime),
+        // so the runtime compiler must be registered explicitly. Referencing the
+        // WolverineFx.RuntimeCompilation package alone does not auto-register it here,
+        // so call it directly. See https://wolverinefx.net/guide/codegen.html (GH-2876).
+        opts.UseRuntimeCompilation();
+
+        // Wolverine 6 made ServiceLocationPolicy.NotAllowed the default, which fails
+        // codegen for handlers whose dependencies are registered as opaque scoped
+        // lambda factories (ITenantContext/ITenantContextSetter) or resolve services
+        // via IServiceProvider (ISetupStatusChecker). Restore the pre-6.0 permissive
+        // behavior; AllowedButWarn keeps these working while logging the tech debt so
+        // the registrations can be tightened later. See GH-2876 / codegen guide.
+        opts.ServiceLocationPolicy = ServiceLocationPolicy.AllowedButWarn;
+
         // Discover handlers in all Wallow assemblies
         foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies()
             .Where(a => a.GetName().Name?.StartsWith("Wallow.", StringComparison.Ordinal) == true))
