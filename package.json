@@ -1,0 +1,18 @@
+{
+  "name": "wallow-workspace",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "oxlint apps packages",
+    "format": "oxfmt --write apps packages package.json pnpm-workspace.yaml tsconfig.base.json .oxlintrc.json .oxfmtrc.json",
+    "format:check": "oxfmt --check apps packages package.json pnpm-workspace.yaml tsconfig.base.json .oxlintrc.json .oxfmtrc.json"
+  },
+  "devDependencies": {
+    "oxfmt": "^0.59.0",
+    "oxlint": "^1.74.0"
+  },
+  "packageManager": "pnpm@10.20.0"
+}

@@ -104,3 +104,6 @@ bundles/
 
 # Node / npm (SDK workspace + examples)
 node_modules/
+
+# Playwright MCP debug artifacts (console logs, page snapshots)
+.playwright-mcp/

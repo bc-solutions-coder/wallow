@@ -1,0 +1,25 @@
+{
+  // Shared TypeScript 7 compiler semantics for every pnpm workspace member
+  // (packages/sdk, apps/tanstack-min, and future workspace members).
+  // TS7 (Project Corsa) is a faithful native port of TS6 — same type-checking
+  // algorithms — so this only centralizes the options members already agreed
+  // on, it is not a type-behavior migration.
+  //
+  // Members extend this file and layer on their own emit settings
+  // (declaration/declarationMap/outDir/noEmit), "types", and "include" —
+  // none of those belong here since they differ per member (e.g. packages/sdk
+  // emits declarations, apps only typecheck).
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "resolveJsonModule": true
+  }
+}

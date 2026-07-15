@@ -1,0 +1,12 @@
+{
+  // Inherits the workspace-standard TS7 semantics (target/lib/module/strict/
+  // verbatimModuleSyntax/...) from the repo-root base config; this file only
+  // layers on the app-local knobs: typecheck-only (noEmit), Node types for the
+  // BFF host (server.ts), and the files to include.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": ["server.ts", "src/**/*.ts", "vite.config.ts"]
+}
