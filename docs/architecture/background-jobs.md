@@ -14,13 +14,13 @@ Wallow uses **Hangfire** for scheduled and recurring background jobs, backed by 
 
 ### Service Registration
 
-Hangfire is configured via `AddHangfireServices` in `src/Wallow.Api/Extensions/HangfireExtensions.cs`. It connects to PostgreSQL using the `DefaultConnection` connection string and stores jobs in the `hangfire` schema.
+Hangfire is configured via `AddHangfireServices` in `api/src/Wallow.Api/Extensions/HangfireExtensions.cs`. It connects to PostgreSQL using the `DefaultConnection` connection string and stores jobs in the `hangfire` schema.
 
 The Hangfire server is registered with shutdown/stop timeouts for graceful termination during deployments.
 
 ### Dashboard
 
-The Hangfire dashboard is available at `/hangfire`, protected by `HangfireDashboardAuthFilter` (`src/Wallow.Api/Middleware/HangfireDashboardAuthFilter.cs`). In development, access is open. In production, it requires an authenticated user with the `admin` role.
+The Hangfire dashboard is available at `/hangfire`, protected by `HangfireDashboardAuthFilter` (`api/src/Wallow.Api/Middleware/HangfireDashboardAuthFilter.cs`). In development, access is open. In production, it requires an authenticated user with the `admin` role.
 
 | Environment | URL | Access |
 |-------------|-----|--------|
@@ -29,7 +29,7 @@ The Hangfire dashboard is available at `/hangfire`, protected by `HangfireDashbo
 
 ## IJobScheduler Abstraction
 
-Wallow provides an `IJobScheduler` abstraction in `src/Shared/Wallow.Shared.Kernel/BackgroundJobs/IJobScheduler.cs` for enqueuing and scheduling jobs without depending on Hangfire directly. The Hangfire implementation lives in `src/Shared/Wallow.Shared.Infrastructure.BackgroundJobs/HangfireJobScheduler.cs`.
+Wallow provides an `IJobScheduler` abstraction in `api/src/Shared/Wallow.Shared.Kernel/BackgroundJobs/IJobScheduler.cs` for enqueuing and scheduling jobs without depending on Hangfire directly. The Hangfire implementation lives in `api/src/Shared/Wallow.Shared.Infrastructure.BackgroundJobs/HangfireJobScheduler.cs`.
 
 ## Recurring Jobs
 
@@ -37,10 +37,10 @@ Recurring jobs are registered at startup in `Program.cs` using `IRecurringJobMan
 
 | Job | Schedule | Location |
 |-----|----------|----------|
-| `SystemHeartbeatJob` | Every 5 minutes | `src/Wallow.Api/Jobs/SystemHeartbeatJob.cs` |
-| `RetryFailedEmailsJob` | Every 5 minutes (feature-flagged) | `src/Modules/Notifications/Wallow.Notifications.Infrastructure/Jobs/RetryFailedEmailsJob.cs` |
-| `OpenIddictTokenPruningJob` | Every 4 hours | `src/Modules/Identity/Wallow.Identity.Infrastructure/Jobs/OpenIddictTokenPruningJob.cs` |
-| `ExpiredInvitationPruningJob` | Every hour | `src/Modules/Identity/Wallow.Identity.Infrastructure/Jobs/ExpiredInvitationPruningJob.cs` |
+| `SystemHeartbeatJob` | Every 5 minutes | `api/src/Wallow.Api/Jobs/SystemHeartbeatJob.cs` |
+| `RetryFailedEmailsJob` | Every 5 minutes (feature-flagged) | `api/src/Modules/Notifications/Wallow.Notifications.Infrastructure/Jobs/RetryFailedEmailsJob.cs` |
+| `OpenIddictTokenPruningJob` | Every 4 hours | `api/src/Modules/Identity/Wallow.Identity.Infrastructure/Jobs/OpenIddictTokenPruningJob.cs` |
+| `ExpiredInvitationPruningJob` | Every hour | `api/src/Modules/Identity/Wallow.Identity.Infrastructure/Jobs/ExpiredInvitationPruningJob.cs` |
 
 The `RetryFailedEmailsJob` is conditionally registered behind the `Modules.Notifications` feature flag.
 

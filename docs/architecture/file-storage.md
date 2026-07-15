@@ -29,7 +29,7 @@ Filesystem Cloudflare R2  (Self-hosted)
 
 ## IStorageProvider Interface
 
-The core abstraction is defined in `src/Shared/Wallow.Shared.Contracts/Storage/IStorageProvider.cs`:
+The core abstraction is defined in `api/src/Shared/Wallow.Shared.Contracts/Storage/IStorageProvider.cs`:
 
 - `UploadAsync` — upload content, returns an ETag
 - `DownloadAsync` — download content as a stream
@@ -39,12 +39,12 @@ The core abstraction is defined in `src/Shared/Wallow.Shared.Contracts/Storage/I
 
 ### Implementations
 
-- **`LocalStorageProvider`** (`src/Modules/Storage/Wallow.Storage.Infrastructure/Providers/LocalStorageProvider.cs`) — stores files on the local filesystem. Used in development.
-- **`S3StorageProvider`** (`src/Modules/Storage/Wallow.Storage.Infrastructure/Providers/S3StorageProvider.cs`) — uses any S3-compatible backend. Used in production.
+- **`LocalStorageProvider`** (`api/src/Modules/Storage/Wallow.Storage.Infrastructure/Providers/LocalStorageProvider.cs`) — stores files on the local filesystem. Used in development.
+- **`S3StorageProvider`** (`api/src/Modules/Storage/Wallow.Storage.Infrastructure/Providers/S3StorageProvider.cs`) — uses any S3-compatible backend. Used in production.
 
 ## Configuration
 
-Storage options are defined in `src/Modules/Storage/Wallow.Storage.Infrastructure/Configuration/StorageOptions.cs`.
+Storage options are defined in `api/src/Modules/Storage/Wallow.Storage.Infrastructure/Configuration/StorageOptions.cs`.
 
 ### Provider Selection
 
@@ -102,7 +102,7 @@ To run ClamAV locally, start it with the `clamav` Docker Compose profile:
 cd docker && docker compose --profile clamav up -d
 ```
 
-When ClamAV is enabled, a health check is registered that verifies TCP connectivity to the ClamAV daemon. The scanning logic lives in `src/Modules/Storage/Wallow.Storage.Infrastructure/Scanning/ClamAvFileScanner.cs`, with `NoOpFileScanner` as the fallback at `src/Modules/Storage/Wallow.Storage.Infrastructure/Scanning/NoOpFileScanner.cs`.
+When ClamAV is enabled, a health check is registered that verifies TCP connectivity to the ClamAV daemon. The scanning logic lives in `api/src/Modules/Storage/Wallow.Storage.Infrastructure/Scanning/ClamAvFileScanner.cs`, with `NoOpFileScanner` as the fallback at `api/src/Modules/Storage/Wallow.Storage.Infrastructure/Scanning/NoOpFileScanner.cs`.
 
 ### Size Limits
 
@@ -125,7 +125,7 @@ All storage endpoints are versioned and require authorization. The base path is 
 | GET | `/api/v1/storage/files?bucket=x&path=y` | List files in bucket (paginated) |
 | POST | `/api/v1/storage/presigned-upload` | Get presigned upload URL |
 
-The controller is at `src/Modules/Storage/Wallow.Storage.Api/Controllers/StorageController.cs`.
+The controller is at `api/src/Modules/Storage/Wallow.Storage.Api/Controllers/StorageController.cs`.
 
 ## Upload Patterns
 
@@ -157,11 +157,11 @@ All files are stored with tenant prefixes:
 tenant-{tenantId}/{bucket}/{path}/{fileId}{extension}
 ```
 
-The `StoredFile` entity (`src/Modules/Storage/Wallow.Storage.Domain/Entities/StoredFile.cs`) implements `ITenantScoped`. EF Core applies a `TenantSaveChangesInterceptor` to enforce tenant isolation on all queries.
+The `StoredFile` entity (`api/src/Modules/Storage/Wallow.Storage.Domain/Entities/StoredFile.cs`) implements `ITenantScoped`. EF Core applies a `TenantSaveChangesInterceptor` to enforce tenant isolation on all queries.
 
 ### Bucket Validation
 
-Storage buckets (`src/Modules/Storage/Wallow.Storage.Domain/Entities/StorageBucket.cs`) enforce validation rules including allowed content types (with wildcard support like `image/*`) and maximum file size.
+Storage buckets (`api/src/Modules/Storage/Wallow.Storage.Domain/Entities/StorageBucket.cs`) enforce validation rules including allowed content types (with wildcard support like `image/*`) and maximum file size.
 
 ## Troubleshooting
 

@@ -74,12 +74,12 @@ docker/.env.production
 /dotnet-tools.json
 
 # Tailwind CLI standalone binary
-src/Wallow.Auth/tailwindcss
-src/Wallow.Web/tailwindcss
+api/src/Wallow.Auth/tailwindcss
+api/src/Wallow.Web/tailwindcss
 
 # Generated CSS
-src/Wallow.Auth/wwwroot/css/app.css
-src/Wallow.Web/wwwroot/css/app.css
+api/src/Wallow.Auth/wwwroot/css/app.css
+api/src/Wallow.Web/wwwroot/css/app.css
 
 # DocFX generated output
 .docfx/

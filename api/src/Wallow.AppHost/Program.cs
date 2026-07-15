@@ -1,7 +1,7 @@
 IDistributedApplicationBuilder builder = DistributedApplication.CreateBuilder(args);
 
 // Resolve paths relative to the AppHost project
-string garageConfigDir = Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "..", "..", "docker", "garage"));
+string garageConfigDir = Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "..", "..", "..", "docker", "garage"));
 
 // Infrastructure
 IResourceBuilder<PostgresDatabaseResource> postgres = builder.AddPostgres("postgres")

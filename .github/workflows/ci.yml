@@ -26,7 +26,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/.nuget/packages
-          key: nuget-${{ runner.os }}-${{ hashFiles('Directory.Packages.props', '**/*.csproj') }}
+          key: nuget-${{ runner.os }}-${{ hashFiles('api/Directory.Packages.props', '**/*.csproj') }}
           restore-keys: |
             nuget-${{ runner.os }}-
 
@@ -41,19 +41,19 @@ jobs:
             build-v2-${{ runner.os }}-
 
       - name: Restore dependencies
-        run: dotnet restore
+        run: dotnet restore api/Wallow.slnx
 
       # Force Tailwind to regenerate on every build. dotnet build is incremental and
       # keys Tailwind output off Styles/app.css, not the scanned razor files, so a
       # restored (cross-commit) generated app.css would otherwise ship stale CSS.
       - name: Clean generated Tailwind CSS
-        run: rm -f src/Wallow.Web/wwwroot/css/app.css src/Wallow.Auth/wwwroot/css/app.css
+        run: rm -f api/src/Wallow.Web/wwwroot/css/app.css api/src/Wallow.Auth/wwwroot/css/app.css
 
       - name: Build
-        run: dotnet build --no-restore --configuration Release --graph
+        run: dotnet build api/Wallow.slnx --no-restore --configuration Release --graph
 
       - name: Check code formatting
-        run: dotnet format Wallow.slnx --verify-no-changes --no-restore
+        run: dotnet format api/Wallow.slnx --verify-no-changes --no-restore
 
       - name: Cache build output
         uses: actions/cache/save@v5
@@ -79,7 +79,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/.nuget/packages
-          key: nuget-${{ runner.os }}-${{ hashFiles('Directory.Packages.props', '**/*.csproj') }}
+          key: nuget-${{ runner.os }}-${{ hashFiles('api/Directory.Packages.props', '**/*.csproj') }}
           restore-keys: |
             nuget-${{ runner.os }}-
 
@@ -93,7 +93,7 @@ jobs:
           fail-on-cache-miss: true
 
       - name: Run unit tests
-        run: dotnet test --no-build --configuration Release --filter "Category!=Integration&Category!=E2E" --verbosity normal --blame-hang-timeout 60s --collect "XPlat Code Coverage" --settings tests/coverage.runsettings --results-directory ./TestResults
+        run: dotnet test api/Wallow.slnx --no-build --configuration Release --filter "Category!=Integration&Category!=E2E" --verbosity normal --blame-hang-timeout 60s --collect "XPlat Code Coverage" --settings api/tests/coverage.runsettings --results-directory ./TestResults
 
       - name: Upload unit test coverage
         if: always()
@@ -152,7 +152,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/.nuget/packages
-          key: nuget-${{ runner.os }}-${{ hashFiles('Directory.Packages.props', '**/*.csproj') }}
+          key: nuget-${{ runner.os }}-${{ hashFiles('api/Directory.Packages.props', '**/*.csproj') }}
           restore-keys: |
             nuget-${{ runner.os }}-
 
@@ -166,7 +166,7 @@ jobs:
           fail-on-cache-miss: true
 
       - name: Run integration tests
-        run: dotnet test --no-build --configuration Release --filter "Category=Integration" --verbosity normal --blame-hang-timeout 5m --collect "XPlat Code Coverage" --settings tests/coverage.runsettings --results-directory ./TestResults
+        run: dotnet test api/Wallow.slnx --no-build --configuration Release --filter "Category=Integration" --verbosity normal --blame-hang-timeout 5m --collect "XPlat Code Coverage" --settings api/tests/coverage.runsettings --results-directory ./TestResults
         env:
           ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=wallow_test;Username=wallow;Password=wallow"
           Redis__ConnectionString: "localhost:6379,password=WallowTestValkey123!,abortConnect=false"
@@ -198,7 +198,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/.nuget/packages
-          key: nuget-${{ runner.os }}-${{ hashFiles('Directory.Packages.props', '**/*.csproj') }}
+          key: nuget-${{ runner.os }}-${{ hashFiles('api/Directory.Packages.props', '**/*.csproj') }}
           restore-keys: |
             nuget-${{ runner.os }}-
 
@@ -214,45 +214,45 @@ jobs:
       - name: Publish app container images
         run: |
           # x64 images for E2E testing on ubuntu runner
-          dotnet publish src/Wallow.Api/Wallow.Api.csproj \
+          dotnet publish api/src/Wallow.Api/Wallow.Api.csproj \
             -c Release --no-build /t:PublishContainer \
             -p:ContainerImageTag=test \
             -p:ContainerRuntimeIdentifier=linux-x64
-          dotnet publish src/Wallow.Auth/Wallow.Auth.csproj \
+          dotnet publish api/src/Wallow.Auth/Wallow.Auth.csproj \
             -c Release --no-build /t:PublishContainer \
             -p:ContainerImageTag=test \
             -p:ContainerRuntimeIdentifier=linux-x64
-          dotnet publish src/Wallow.Web/Wallow.Web.csproj \
+          dotnet publish api/src/Wallow.Web/Wallow.Web.csproj \
             -c Release --no-build /t:PublishContainer \
             -p:ContainerImageTag=test \
             -p:ContainerRuntimeIdentifier=linux-x64
-          dotnet publish src/Wallow.MigrationService/Wallow.MigrationService.csproj \
+          dotnet publish api/src/Wallow.MigrationService/Wallow.MigrationService.csproj \
             -c Release --no-build /t:PublishContainer \
             -p:ContainerImageTag=test \
             -p:ContainerRuntimeIdentifier=linux-x64
-          dotnet publish src/Wallow.SeederService/Wallow.SeederService.csproj \
+          dotnet publish api/src/Wallow.SeederService/Wallow.SeederService.csproj \
             -c Release --no-build /t:PublishContainer \
             -p:ContainerImageTag=test \
             -p:ContainerRuntimeIdentifier=linux-x64
 
           # arm64 images for multi-arch push
-          dotnet publish src/Wallow.Api/Wallow.Api.csproj \
+          dotnet publish api/src/Wallow.Api/Wallow.Api.csproj \
             -c Release --no-build /t:PublishContainer \
             -p:ContainerImageTag=test-arm64 \
             -p:ContainerRuntimeIdentifier=linux-arm64
-          dotnet publish src/Wallow.Auth/Wallow.Auth.csproj \
+          dotnet publish api/src/Wallow.Auth/Wallow.Auth.csproj \
             -c Release --no-build /t:PublishContainer \
             -p:ContainerImageTag=test-arm64 \
             -p:ContainerRuntimeIdentifier=linux-arm64
-          dotnet publish src/Wallow.Web/Wallow.Web.csproj \
+          dotnet publish api/src/Wallow.Web/Wallow.Web.csproj \
             -c Release --no-build /t:PublishContainer \
             -p:ContainerImageTag=test-arm64 \
             -p:ContainerRuntimeIdentifier=linux-arm64
-          dotnet publish src/Wallow.MigrationService/Wallow.MigrationService.csproj \
+          dotnet publish api/src/Wallow.MigrationService/Wallow.MigrationService.csproj \
             -c Release --no-build /t:PublishContainer \
             -p:ContainerImageTag=test-arm64 \
             -p:ContainerRuntimeIdentifier=linux-arm64
-          dotnet publish src/Wallow.SeederService/Wallow.SeederService.csproj \
+          dotnet publish api/src/Wallow.SeederService/Wallow.SeederService.csproj \
             -c Release --no-build /t:PublishContainer \
             -p:ContainerImageTag=test-arm64 \
             -p:ContainerRuntimeIdentifier=linux-arm64
@@ -317,7 +317,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/.nuget/packages
-          key: nuget-${{ runner.os }}-${{ hashFiles('Directory.Packages.props', '**/*.csproj') }}
+          key: nuget-${{ runner.os }}-${{ hashFiles('api/Directory.Packages.props', '**/*.csproj') }}
           restore-keys: |
             nuget-${{ runner.os }}-
 
@@ -357,8 +357,8 @@ jobs:
 
       - name: Build E2E tests and install Playwright
         run: |
-          dotnet build tests/Wallow.E2E.Tests -c Release --no-restore
-          pwsh tests/Wallow.E2E.Tests/bin/Release/net10.0/playwright.ps1 install --with-deps chromium
+          dotnet build api/tests/Wallow.E2E.Tests -c Release --no-restore
+          pwsh api/tests/Wallow.E2E.Tests/bin/Release/net10.0/playwright.ps1 install --with-deps chromium
 
       - name: Wait for services to be healthy
         run: |
@@ -405,7 +405,7 @@ jobs:
           done
 
       - name: Run E2E tests
-        run: dotnet test tests/Wallow.E2E.Tests --no-build --configuration Release --settings tests/coverage.runsettings --verbosity normal --blame-hang-timeout 5m
+        run: dotnet test api/tests/Wallow.E2E.Tests --no-build --configuration Release --settings api/tests/coverage.runsettings --verbosity normal --blame-hang-timeout 5m
         env:
           E2E_BASE_URL: "http://localhost:5050"
           E2E_AUTH_URL: "http://localhost:5051"
@@ -418,7 +418,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: e2e-failure-artifacts
-          path: tests/Wallow.E2E.Tests/test-results/
+          path: api/tests/Wallow.E2E.Tests/test-results/
           retention-days: 7
 
       - name: Tear down test environment

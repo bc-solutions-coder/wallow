@@ -53,9 +53,9 @@ Starts PostgreSQL, Valkey, GarageHQ (S3), Mailpit, and Grafana.
 ### 2. Run the apps
 
 ```bash
-dotnet run --project src/Wallow.Api       # API        → http://localhost:5001
-dotnet run --project src/Wallow.Auth      # Auth UI    → http://localhost:5002
-dotnet run --project src/Wallow.Web       # Web UI     → http://localhost:5003
+dotnet run --project api/src/Wallow.Api       # API        → http://localhost:5001
+dotnet run --project api/src/Wallow.Auth      # Auth UI    → http://localhost:5002
+dotnet run --project api/src/Wallow.Web       # Web UI     → http://localhost:5003
 ```
 
 ### 3. Run tests
@@ -72,23 +72,24 @@ dotnet run --project src/Wallow.Web       # Web UI     → http://localhost:5003
 A **modular monolith** where each module is an autonomous bounded context following Clean Architecture. Modules communicate through Wolverine in-memory events via `Shared.Contracts` -- never direct references. Each module owns its own PostgreSQL schema.
 
 ```
-src/
-├── Wallow.Api/                  # Host, middleware, routing
-├── Wallow.Auth/                 # Blazor: login, register, password reset
-├── Wallow.Web/                  # Blazor: dashboard and public pages
-├── Modules/
-│   ├── Identity/                # Auth, users, organizations, RBAC
-│   ├── Billing/                 # Payments, invoices, subscriptions
-│   ├── Storage/                 # File storage (S3-compatible)
-│   ├── Notifications/           # In-app and push notifications
-│   ├── Messaging/               # User-to-user conversations
-│   ├── Announcements/           # System-wide announcements
-│   ├── Inquiries/               # Inquiry and question submission
-│   ├── ApiKeys/                 # API key management
-│   └── Branding/                # Tenant branding configuration
-└── Shared/
-    ├── Contracts/               # Cross-module event definitions
-    └── Kernel/                  # Base classes, shared abstractions
+api/
+└── src/
+    ├── Wallow.Api/                  # Host, middleware, routing
+    ├── Wallow.Auth/                 # Blazor: login, register, password reset
+    ├── Wallow.Web/                  # Blazor: dashboard and public pages
+    ├── Modules/
+    │   ├── Identity/                # Auth, users, organizations, RBAC
+    │   ├── Billing/                 # Payments, invoices, subscriptions
+    │   ├── Storage/                 # File storage (S3-compatible)
+    │   ├── Notifications/           # In-app and push notifications
+    │   ├── Messaging/               # User-to-user conversations
+    │   ├── Announcements/           # System-wide announcements
+    │   ├── Inquiries/               # Inquiry and question submission
+    │   ├── ApiKeys/                 # API key management
+    │   └── Branding/                # Tenant branding configuration
+    └── Shared/
+        ├── Contracts/               # Cross-module event definitions
+        └── Kernel/                  # Base classes, shared abstractions
 ```
 
 Each module follows four layers: **Domain** (no dependencies) → **Application** → **Infrastructure** → **API**.

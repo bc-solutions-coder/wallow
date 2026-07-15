@@ -5,8 +5,8 @@ on:
     branches: [main]
     paths:
       - 'docs/**'
-      - 'src/**/*.cs'
-      - 'branding.json'
+      - 'api/src/**/*.cs'
+      - 'api/branding.json'
       - 'docfx.json'
       - 'docfx/templates/**'
       - 'scripts/generate-docs-theme.mjs'
@@ -15,8 +15,8 @@ on:
     branches: [main]
     paths:
       - 'docs/**'
-      - 'src/**/*.cs'
-      - 'branding.json'
+      - 'api/src/**/*.cs'
+      - 'api/branding.json'
       - 'docfx.json'
       - 'docfx/templates/**'
       - 'scripts/generate-docs-theme.mjs'
@@ -92,11 +92,11 @@ jobs:
       - name: Generate theme CSS
         run: |
           mkdir -p docfx/templates/wallow/public
-          node scripts/generate-docs-theme.mjs
+          node scripts/generate-docs-theme.mjs api/branding.json
 
       - name: Restore tools and build docs
         run: |
-          dotnet restore
+          dotnet restore api/Wallow.slnx
           dotnet tool restore
           dotnet docfx docfx.json
 

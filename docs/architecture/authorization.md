@@ -35,7 +35,7 @@ JWT with role claims
 Permissions are defined as string constants in:
 
 ```
-src/Shared/Wallow.Shared.Kernel/Identity/Authorization/PermissionType.cs
+api/src/Shared/Wallow.Shared.Kernel/Identity/Authorization/PermissionType.cs
 ```
 
 **Naming convention**: `{Domain}{Action}` — e.g., `InquiriesRead`, `InquiriesWrite`, `WebhooksManage`.
@@ -45,7 +45,7 @@ src/Shared/Wallow.Shared.Kernel/Identity/Authorization/PermissionType.cs
 Edit the role-to-permission mapping in:
 
 ```
-src/Modules/Identity/Wallow.Identity.Infrastructure/Authorization/RolePermissionMapping.cs
+api/src/Modules/Identity/Wallow.Identity.Infrastructure/Authorization/RolePermissionMapping.cs
 ```
 
 The mapping uses a `FrozenDictionary<string, string[]>` keyed by role name (case-insensitive). Each role maps to an explicit array of `PermissionType` constants.
@@ -103,7 +103,7 @@ Service accounts (machine-to-machine) and API keys use OAuth2 scopes instead of 
 Scope-to-permission mapping is defined in:
 
 ```
-src/Shared/Wallow.Shared.Kernel/Identity/Authorization/ScopePermissionMapper.cs
+api/src/Shared/Wallow.Shared.Kernel/Identity/Authorization/ScopePermissionMapper.cs
 ```
 
 **Scope naming convention**: `{domain}.{action}` — e.g., `inquiries.read`, `inquiries.write`.

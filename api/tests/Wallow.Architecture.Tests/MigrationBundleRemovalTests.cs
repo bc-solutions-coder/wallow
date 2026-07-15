@@ -5,13 +5,13 @@ namespace Wallow.Architecture.Tests;
 public sealed class MigrationBundleRemovalTests
 {
     private static readonly string _repoRoot = Path.GetFullPath(
-        Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+        Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", ".."));
 
     [Fact]
     public void ApiCsproj_ShouldNotContain_BuildMigrationBundlesTarget()
     {
         // Arrange
-        string csprojPath = Path.Combine(_repoRoot, "src", "Wallow.Api", "Wallow.Api.csproj");
+        string csprojPath = Path.Combine(_repoRoot, "api", "src", "Wallow.Api", "Wallow.Api.csproj");
         XDocument document = XDocument.Load(csprojPath);
         XNamespace ns = document.Root!.GetDefaultNamespace();
 

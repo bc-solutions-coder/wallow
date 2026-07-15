@@ -9,8 +9,8 @@ This guide covers the end-to-end testing infrastructure, patterns, and debugging
 - Playwright browsers:
 
 ```bash
-dotnet build tests/Wallow.E2E.Tests
-pwsh tests/Wallow.E2E.Tests/bin/Debug/net10.0/playwright.ps1 install --with-deps chromium
+dotnet build api/tests/Wallow.E2E.Tests
+pwsh api/tests/Wallow.E2E.Tests/bin/Debug/net10.0/playwright.ps1 install --with-deps chromium
 ```
 
 > PowerShell is required. Install via `brew install powershell` (macOS) or the [Microsoft guide](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-linux) (Linux).
@@ -26,14 +26,14 @@ E2E tests are excluded from the default `./scripts/run-tests.sh` run and must be
 To run a specific test class or method:
 
 ```bash
-dotnet test tests/Wallow.E2E.Tests --settings tests/coverage.runsettings \
+dotnet test api/tests/Wallow.E2E.Tests --settings tests/coverage.runsettings \
   --filter "FullyQualifiedName~AuthFlowTests"
 ```
 
 ## Project Structure
 
 ```
-tests/Wallow.E2E.Tests/
+api/tests/Wallow.E2E.Tests/
 ├── Fixtures/                   # xUnit fixtures for Docker and Playwright lifecycle
 │   ├── DockerComposeFixture.cs
 │   └── PlaywrightFixture.cs
@@ -224,8 +224,8 @@ E2E_TRACING=1 ./scripts/run-tests.sh e2e
 View a trace:
 
 ```bash
-pwsh tests/Wallow.E2E.Tests/bin/Debug/net10.0/playwright.ps1 show-trace \
-  tests/Wallow.E2E.Tests/test-results/failures/AuthFlowTests_20260328_120000/trace.zip
+pwsh api/tests/Wallow.E2E.Tests/bin/Debug/net10.0/playwright.ps1 show-trace \
+  api/tests/Wallow.E2E.Tests/test-results/failures/AuthFlowTests_20260328_120000/trace.zip
 ```
 
 Or use the [Playwright Trace Viewer](https://trace.playwright.dev/) web UI.

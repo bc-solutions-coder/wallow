@@ -138,7 +138,7 @@ public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
 
 Contracts live in the Api layer:
 ```
-src/Modules/{Module}/Wallow.{Module}.Api/
+api/src/Modules/{Module}/Wallow.{Module}.Api/
 ├── Contracts/
 │   ├── Requests/
 │   │   ├── CreateItemRequest.cs
@@ -219,7 +219,7 @@ private static SubmissionResponse ToSubmissionResponse(SubmissionDto dto) => new
 Commands are immutable records in the Application layer:
 
 ```csharp
-// src/Modules/Inquiries/Wallow.Inquiries.Application/Commands/CreateSubmission/CreateSubmissionCommand.cs
+// api/src/Modules/Inquiries/Wallow.Inquiries.Application/Commands/CreateSubmission/CreateSubmissionCommand.cs
 namespace Wallow.Inquiries.Application.Commands.CreateSubmission;
 
 public sealed record CreateSubmissionCommand(
@@ -234,7 +234,7 @@ public sealed record CreateSubmissionCommand(
 Handlers use primary constructor injection and return `Result<T>`:
 
 ```csharp
-// src/Modules/Inquiries/Wallow.Inquiries.Application/Commands/CreateSubmission/CreateSubmissionHandler.cs
+// api/src/Modules/Inquiries/Wallow.Inquiries.Application/Commands/CreateSubmission/CreateSubmissionHandler.cs
 namespace Wallow.Inquiries.Application.Commands.CreateSubmission;
 
 public sealed class CreateSubmissionHandler(
@@ -358,7 +358,7 @@ return Result.Failure<SubmissionDto>(
 `ResultExtensions` in `Wallow.Shared.Api` maps Results to HTTP responses for all modules:
 
 ```csharp
-// src/Shared/Wallow.Shared.Api/Extensions/ResultExtensions.cs
+// api/src/Shared/Wallow.Shared.Api/Extensions/ResultExtensions.cs
 namespace Wallow.Shared.Api.Extensions;
 
 public static class ResultExtensions
@@ -444,7 +444,7 @@ builder.Host.UseWolverine(opts =>
 Each module registers its validators:
 
 ```csharp
-// src/Modules/Inquiries/Wallow.Inquiries.Application/Extensions/ApplicationExtensions.cs
+// api/src/Modules/Inquiries/Wallow.Inquiries.Application/Extensions/ApplicationExtensions.cs
 public static class ApplicationExtensions
 {
     public static IServiceCollection AddInquiriesApplication(this IServiceCollection services)
@@ -460,7 +460,7 @@ public static class ApplicationExtensions
 Validators live alongside their commands:
 
 ```
-src/Modules/Inquiries/Wallow.Inquiries.Application/
+api/src/Modules/Inquiries/Wallow.Inquiries.Application/
 └── Commands/
     └── CreateSubmission/
         ├── CreateSubmissionCommand.cs
@@ -513,7 +513,7 @@ When validation fails, Wolverine returns a `400 Bad Request` with validation err
 
 ### Global Exception Handler
 
-Unexpected exceptions are caught by `GlobalExceptionHandler` (`src/Wallow.Api/Middleware/GlobalExceptionHandler.cs`), which implements `IExceptionHandler`. It logs the error, maps the exception type to an HTTP status code, and returns a Problem Details response.
+Unexpected exceptions are caught by `GlobalExceptionHandler` (`api/src/Wallow.Api/Middleware/GlobalExceptionHandler.cs`), which implements `IExceptionHandler`. It logs the error, maps the exception type to an HTTP status code, and returns a Problem Details response.
 
 ### Exception to Status Code Mapping
 
@@ -625,22 +625,22 @@ For multi-tenant operations, inject `ITenantContext` via the primary constructor
 
 1. **Define the contract** (if needed)
    ```
-   src/Modules/{Module}/Wallow.{Module}.Api/Contracts/{Feature}/{Name}Request.cs
+   api/src/Modules/{Module}/Wallow.{Module}.Api/Contracts/{Feature}/{Name}Request.cs
    ```
 
 2. **Create the command/query**
    ```
-   src/Modules/{Module}/Wallow.{Module}.Application/Commands/{Name}/{Name}Command.cs
+   api/src/Modules/{Module}/Wallow.{Module}.Application/Commands/{Name}/{Name}Command.cs
    ```
 
 3. **Create the validator** (for commands)
    ```
-   src/Modules/{Module}/Wallow.{Module}.Application/Commands/{Name}/{Name}Validator.cs
+   api/src/Modules/{Module}/Wallow.{Module}.Application/Commands/{Name}/{Name}Validator.cs
    ```
 
 4. **Create the handler**
    ```
-   src/Modules/{Module}/Wallow.{Module}.Application/Commands/{Name}/{Name}Handler.cs
+   api/src/Modules/{Module}/Wallow.{Module}.Application/Commands/{Name}/{Name}Handler.cs
    ```
 
 5. **Add the endpoint to controller**
@@ -657,7 +657,7 @@ For multi-tenant operations, inject `ITenantContext` via the primary constructor
 
 **2. Command:**
 ```csharp
-// src/Modules/Inquiries/Wallow.Inquiries.Application/Commands/CloseSubmission/CloseSubmissionCommand.cs
+// api/src/Modules/Inquiries/Wallow.Inquiries.Application/Commands/CloseSubmission/CloseSubmissionCommand.cs
 namespace Wallow.Inquiries.Application.Commands.CloseSubmission;
 
 public sealed record CloseSubmissionCommand(Guid SubmissionId, Guid ClosedBy);
@@ -665,7 +665,7 @@ public sealed record CloseSubmissionCommand(Guid SubmissionId, Guid ClosedBy);
 
 **3. Validator:**
 ```csharp
-// src/Modules/Inquiries/Wallow.Inquiries.Application/Commands/CloseSubmission/CloseSubmissionValidator.cs
+// api/src/Modules/Inquiries/Wallow.Inquiries.Application/Commands/CloseSubmission/CloseSubmissionValidator.cs
 public sealed class CloseSubmissionValidator : AbstractValidator<CloseSubmissionCommand>
 {
     public CloseSubmissionValidator()
@@ -678,7 +678,7 @@ public sealed class CloseSubmissionValidator : AbstractValidator<CloseSubmission
 
 **4. Handler:**
 ```csharp
-// src/Modules/Inquiries/Wallow.Inquiries.Application/Commands/CloseSubmission/CloseSubmissionHandler.cs
+// api/src/Modules/Inquiries/Wallow.Inquiries.Application/Commands/CloseSubmission/CloseSubmissionHandler.cs
 public sealed class CloseSubmissionHandler(ISubmissionRepository repo)
 {
     public async Task<Result> Handle(CloseSubmissionCommand command, CancellationToken ct)

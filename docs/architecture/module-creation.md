@@ -9,7 +9,7 @@ Step-by-step guide for adding a new module to Wallow.
 Before creating a new module:
 
 - Understand Clean Architecture layers (Domain, Application, Infrastructure, Api)
-- Review the [Inquiries module](https://github.com/bc-solutions-coder/wallow/tree/main/src/Modules/Inquiries) as a reference implementation
+- Review the [Inquiries module](https://github.com/bc-solutions-coder/wallow/tree/main/api/src/Modules/Inquiries) as a reference implementation
 - Decide on your module name (PascalCase, singular noun)
 - Identify primary entities and their relationships
 - Determine if the module needs database persistence (EF Core) or is stateless
@@ -41,20 +41,20 @@ Before creating a new module:
 Create 4 class library projects following the naming convention `Wallow.{Module}.{Layer}`:
 
 ```bash
-mkdir -p src/Modules/{Module}
+mkdir -p api/src/Modules/{Module}
 
-dotnet new classlib -n Wallow.{Module}.Domain -o src/Modules/{Module}/Wallow.{Module}.Domain
-dotnet new classlib -n Wallow.{Module}.Application -o src/Modules/{Module}/Wallow.{Module}.Application
-dotnet new classlib -n Wallow.{Module}.Infrastructure -o src/Modules/{Module}/Wallow.{Module}.Infrastructure
-dotnet new classlib -n Wallow.{Module}.Api -o src/Modules/{Module}/Wallow.{Module}.Api
+dotnet new classlib -n Wallow.{Module}.Domain -o api/src/Modules/{Module}/Wallow.{Module}.Domain
+dotnet new classlib -n Wallow.{Module}.Application -o api/src/Modules/{Module}/Wallow.{Module}.Application
+dotnet new classlib -n Wallow.{Module}.Infrastructure -o api/src/Modules/{Module}/Wallow.{Module}.Infrastructure
+dotnet new classlib -n Wallow.{Module}.Api -o api/src/Modules/{Module}/Wallow.{Module}.Api
 
-dotnet sln add src/Modules/{Module}/**/*.csproj
+dotnet sln add api/src/Modules/{Module}/**/*.csproj
 ```
 
 **Directory structure:**
 
 ```
-src/Modules/{Module}/
+api/src/Modules/{Module}/
 ├── Wallow.{Module}.Domain/
 │   ├── Identity/              # Strongly-typed IDs
 │   ├── Entities/              # Domain entities and aggregate roots
@@ -370,7 +370,7 @@ Define sealed records in the `Contracts/` folder. Keep them separate from Applic
 
 ## Step 7: Register in WallowModules.cs
 
-Edit `src/Wallow.Api/WallowModules.cs`:
+Edit `api/src/Wallow.Api/WallowModules.cs`:
 
 1. Add the using statement: `using Wallow.{Module}.Infrastructure.Extensions;`
 
@@ -414,8 +414,8 @@ Add the feature flag to `appsettings.json` under `FeatureManagement`:
 
 ```bash
 dotnet ef migrations add InitialCreate \
-    --project src/Modules/{Module}/Wallow.{Module}.Infrastructure \
-    --startup-project src/Wallow.Api \
+    --project api/src/Modules/{Module}/Wallow.{Module}.Infrastructure \
+    --startup-project api/src/Wallow.Api \
     --context {Module}DbContext
 ```
 
@@ -425,7 +425,7 @@ The migration runs automatically on startup via `Initialize{Module}ModuleAsync()
 
 ## Step 10: Add Tests
 
-Create a test project at `tests/Modules/{Module}/Wallow.{Module}.Tests/`. Use NSubstitute for mocking and AwesomeAssertions for assertions.
+Create a test project at `api/tests/Modules/{Module}/Wallow.{Module}.Tests/`. Use NSubstitute for mocking and AwesomeAssertions for assertions.
 
 Run tests with:
 
@@ -441,10 +441,10 @@ where `{module}` is the lowercase module name.
 
 ### Publishing Integration Events
 
-Define integration events in `src/Shared/Wallow.Shared.Contracts/{Module}/Events/`. Integration events use primitive types (not strongly-typed IDs) so consuming modules have no domain dependencies:
+Define integration events in `api/src/Shared/Wallow.Shared.Contracts/{Module}/Events/`. Integration events use primitive types (not strongly-typed IDs) so consuming modules have no domain dependencies:
 
 ```csharp
-// src/Shared/Wallow.Shared.Contracts/{Module}/Events/{Entity}CreatedEvent.cs
+// api/src/Shared/Wallow.Shared.Contracts/{Module}/Events/{Entity}CreatedEvent.cs
 public sealed record {Entity}CreatedEvent : IntegrationEvent
 {
     public required Guid {Entity}Id { get; init; }
@@ -527,4 +527,4 @@ These cross-cutting capabilities in the Shared layer are available to all module
 
 ---
 
-*Reference implementation: [Inquiries module](https://github.com/bc-solutions-coder/wallow/tree/main/src/Modules/Inquiries). Current modules: Identity, Branding, Storage, Notifications, Messaging, Announcements, Inquiries, ApiKeys.*
+*Reference implementation: [Inquiries module](https://github.com/bc-solutions-coder/wallow/tree/main/api/src/Modules/Inquiries). Current modules: Identity, Branding, Storage, Notifications, Messaging, Announcements, Inquiries, ApiKeys.*

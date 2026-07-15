@@ -44,13 +44,13 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/.nuget/packages
-          key: nuget-${{ runner.os }}-${{ hashFiles('Directory.Packages.props', '**/*.csproj') }}
+          key: nuget-${{ runner.os }}-${{ hashFiles('api/Directory.Packages.props', '**/*.csproj') }}
           restore-keys: |
             nuget-${{ runner.os }}-
 
       - name: Restore dependencies
         if: matrix.language == 'csharp'
-        run: dotnet restore
+        run: dotnet restore api/Wallow.slnx
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
@@ -60,7 +60,7 @@ jobs:
 
       - name: Build
         if: matrix.build-mode == 'manual'
-        run: dotnet build --no-restore --no-incremental --graph
+        run: dotnet build api/Wallow.slnx --no-restore --no-incremental --graph
 
       - name: Perform CodeQL analysis
         uses: github/codeql-action/analyze@v4

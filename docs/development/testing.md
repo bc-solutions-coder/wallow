@@ -32,10 +32,10 @@ The script outputs structured per-assembly pass/fail counts and lists individual
 
 | Tier | Purpose | Infrastructure | Location |
 |------|---------|---------------|----------|
-| **Unit** | Individual components in isolation | None | `tests/Modules/{Module}/Wallow.{Module}.Tests/` |
-| **Integration** | API endpoints with real databases | Docker (auto-managed via Testcontainers) | `tests/Wallow.Api.Tests/`, `tests/Modules/Identity/Wallow.Identity.IntegrationTests/` |
-| **Architecture** | Layer dependencies and module isolation | None (reflection-based) | `tests/Wallow.Architecture.Tests/` |
-| **E2E** | Complete user journeys in the browser | Docker Compose (full stack) | `tests/Wallow.E2E.Tests/` |
+| **Unit** | Individual components in isolation | None | `api/tests/Modules/{Module}/Wallow.{Module}.Tests/` |
+| **Integration** | API endpoints with real databases | Docker (auto-managed via Testcontainers) | `api/tests/Wallow.Api.Tests/`, `api/tests/Modules/Identity/Wallow.Identity.IntegrationTests/` |
+| **Architecture** | Layer dependencies and module isolation | None (reflection-based) | `api/tests/Wallow.Architecture.Tests/` |
+| **E2E** | Complete user journeys in the browser | Docker Compose (full stack) | `api/tests/Wallow.E2E.Tests/` |
 
 Additional test projects: `Wallow.Shared.Kernel.Tests`, `Wallow.Shared.Infrastructure.Tests`, `Wallow.Auth.Component.Tests`, `Wallow.Web.Component.Tests`, `Wallow.Auth.Tests`, `Wallow.Web.Tests`.
 
@@ -54,7 +54,7 @@ Additional test projects: `Wallow.Shared.Kernel.Tests`, `Wallow.Shared.Infrastru
 ## Test Project Structure
 
 ```
-tests/
+api/tests/
 ├── Wallow.Tests.Common/           # Shared test infrastructure
 ├── Wallow.Api.Tests/              # API integration tests
 ├── Wallow.Architecture.Tests/     # Architecture enforcement

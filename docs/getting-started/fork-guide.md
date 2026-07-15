@@ -171,9 +171,9 @@ These components reference `"Wallow"` as a string literal and will **fail silent
 
 | Component | File | What breaks |
 |-----------|------|-------------|
-| **ModuleEnricher** | `src/Wallow.Api/Logging/ModuleEnricher.cs` | Log enrichment stops tagging module names |
+| **ModuleEnricher** | `api/src/Wallow.Api/Logging/ModuleEnricher.cs` | Log enrichment stops tagging module names |
 | **OpenTelemetry ServiceName** | `appsettings*.json` → `OpenTelemetry:ServiceName` | Traces/metrics report wrong service name |
-| **Diagnostics ActivitySource** | `src/Shared/Wallow.Shared.Kernel/Diagnostics.cs` | Custom traces stop appearing (`new ActivitySource("Wallow")`) |
+| **Diagnostics ActivitySource** | `api/src/Shared/Wallow.Shared.Kernel/Diagnostics.cs` | Custom traces stop appearing (`new ActivitySource("Wallow")`) |
 | **SMTP DefaultFromName** | `appsettings.json` → `Smtp:DefaultFromName` | Emails show "Wallow" as sender |
 | **branding.json** | `branding.json` → `appName` | Auth pages show "Wallow" in titles |
 | **Email templates** | Razor templates in `Wallow.Auth` | Email bodies may contain hardcoded product name |
@@ -274,7 +274,7 @@ Smtp__UseSsl=true
 ### 1. Create the module directory structure
 
 ```
-src/Modules/YourModule/
+api/src/Modules/YourModule/
   YourProduct.YourModule.Domain/
   YourProduct.YourModule.Application/
   YourProduct.YourModule.Infrastructure/
@@ -284,7 +284,7 @@ src/Modules/YourModule/
 ### 2. Create the four projects
 
 ```bash
-cd src/Modules/YourModule
+cd api/src/Modules/YourModule
 
 dotnet new classlib -n YourProduct.YourModule.Domain
 dotnet new classlib -n YourProduct.YourModule.Application
@@ -318,7 +318,7 @@ Domain has **no** project references.
 Create integration event records in:
 
 ```
-src/Shared/YourProduct.Shared.Contracts/YourModule/Events/
+api/src/Shared/YourProduct.Shared.Contracts/YourModule/Events/
 ```
 
 Example:
@@ -353,10 +353,10 @@ await app.InitializeYourModuleModuleAsync();
 ### 6. Add to the solution file
 
 ```bash
-dotnet sln YourProduct.slnx add src/Modules/YourModule/YourProduct.YourModule.Domain
-dotnet sln YourProduct.slnx add src/Modules/YourModule/YourProduct.YourModule.Application
-dotnet sln YourProduct.slnx add src/Modules/YourModule/YourProduct.YourModule.Infrastructure
-dotnet sln YourProduct.slnx add src/Modules/YourModule/YourProduct.YourModule.Api
+dotnet sln YourProduct.slnx add api/src/Modules/YourModule/YourProduct.YourModule.Domain
+dotnet sln YourProduct.slnx add api/src/Modules/YourModule/YourProduct.YourModule.Application
+dotnet sln YourProduct.slnx add api/src/Modules/YourModule/YourProduct.YourModule.Infrastructure
+dotnet sln YourProduct.slnx add api/src/Modules/YourModule/YourProduct.YourModule.Api
 ```
 
 ### 7. Handler discovery (automatic)
@@ -514,7 +514,7 @@ public class OrdersController : ControllerBase
 
 ### 2. Add permissions
 
-If your module needs new permissions, add string constants to `PermissionType` in `src/Shared/Wallow.Shared.Kernel/Identity/Authorization/PermissionType.cs` and update the role-to-permission mapping in the Identity module's `RolePermissionMapping.cs`.
+If your module needs new permissions, add string constants to `PermissionType` in `api/src/Shared/Wallow.Shared.Kernel/Identity/Authorization/PermissionType.cs` and update the role-to-permission mapping in the Identity module's `RolePermissionMapping.cs`.
 
 ### 3. Request/Response contracts
 
@@ -536,7 +536,7 @@ DTOs live in the Application layer. Requests and responses live in the Api layer
 Add integration events to `Shared.Contracts` so any module can consume them:
 
 ```
-src/Shared/YourProduct.Shared.Contracts/YourModule/Events/OrderPlacedEvent.cs
+api/src/Shared/YourProduct.Shared.Contracts/YourModule/Events/OrderPlacedEvent.cs
 ```
 
 ```csharp
@@ -598,7 +598,7 @@ Each module manages its own migrations through its Infrastructure project.
 
 ```bash
 dotnet ef migrations add InitialCreate \
-    --project src/Modules/YourModule/YourProduct.YourModule.Infrastructure \
+    --project api/src/Modules/YourModule/YourProduct.YourModule.Infrastructure \
     --startup-project src/YourProduct.Api \
     --context YourModuleDbContext
 ```
@@ -607,7 +607,7 @@ dotnet ef migrations add InitialCreate \
 
 ```bash
 dotnet ef database update \
-    --project src/Modules/YourModule/YourProduct.YourModule.Infrastructure \
+    --project api/src/Modules/YourModule/YourProduct.YourModule.Infrastructure \
     --startup-project src/YourProduct.Api \
     --context YourModuleDbContext
 ```
@@ -715,31 +715,31 @@ Plugins are loaded in an isolated `AssemblyLoadContext`, so they cannot interfer
 Each module uses a single test project with subdirectories for each layer:
 
 ```
-tests/Modules/YourModule/YourProduct.YourModule.Tests/
+api/tests/Modules/YourModule/YourProduct.YourModule.Tests/
   Domain/
   Application/
   Infrastructure/
 ```
 
 ```bash
-mkdir -p tests/Modules/YourModule
-cd tests/Modules/YourModule
+mkdir -p api/tests/Modules/YourModule
+cd api/tests/Modules/YourModule
 dotnet new xunit -n YourProduct.YourModule.Tests
 ```
 
 Add references to the module layers and the shared test infrastructure:
 
 ```bash
-dotnet add reference ../../../src/Modules/YourModule/YourProduct.YourModule.Domain
-dotnet add reference ../../../src/Modules/YourModule/YourProduct.YourModule.Application
-dotnet add reference ../../../src/Modules/YourModule/YourProduct.YourModule.Infrastructure
+dotnet add reference ../../../api/src/Modules/YourModule/YourProduct.YourModule.Domain
+dotnet add reference ../../../api/src/Modules/YourModule/YourProduct.YourModule.Application
+dotnet add reference ../../../api/src/Modules/YourModule/YourProduct.YourModule.Infrastructure
 dotnet add reference ../../YourProduct.Tests.Common/YourProduct.Tests.Common.csproj
 ```
 
 Add the test project to the solution:
 
 ```bash
-dotnet sln YourProduct.slnx add tests/Modules/YourModule/YourProduct.YourModule.Tests
+dotnet sln YourProduct.slnx add api/tests/Modules/YourModule/YourProduct.YourModule.Tests
 ```
 
 ### 2. Unit tests
@@ -793,7 +793,7 @@ Integration tests require Docker. Testcontainers spins up ephemeral Postgres and
 ./scripts/run-tests.sh
 
 # Only your module
-./scripts/run-tests.sh tests/Modules/YourModule/YourProduct.YourModule.Tests
+./scripts/run-tests.sh api/tests/Modules/YourModule/YourProduct.YourModule.Tests
 ```
 
 ---

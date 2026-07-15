@@ -24,7 +24,7 @@ Wallow.Auth (port 5001)  ──► Wallow.Api (port 5000) ◄──  Wallow.Web 
 ## Project Structure
 
 ```
-src/Wallow.Auth/
+api/src/Wallow.Auth/
 ├── Components/
 │   ├── Layout/
 │   │   └── AuthLayout.razor           # Layout for all auth pages
@@ -46,7 +46,7 @@ src/Wallow.Auth/
 ├── wwwroot/
 └── Wallow.Auth.csproj
 
-src/Wallow.Web/
+api/src/Wallow.Web/
 ├── Components/
 │   ├── Layout/
 │   │   ├── DashboardLayout.razor      # Authenticated dashboard layout
@@ -75,13 +75,13 @@ src/Wallow.Web/
 cd docker && docker compose up -d
 
 # Start the API (required by both frontends)
-dotnet run --project src/Wallow.Api
+dotnet run --project api/src/Wallow.Api
 
 # Start Auth app (separate terminal)
-dotnet run --project src/Wallow.Auth
+dotnet run --project api/src/Wallow.Auth
 
 # Start Web app (separate terminal)
-dotnet run --project src/Wallow.Web
+dotnet run --project api/src/Wallow.Web
 ```
 
 ### Default Dev Credentials

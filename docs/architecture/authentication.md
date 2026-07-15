@@ -163,7 +163,7 @@ if (!string.IsNullOrEmpty(result.SignInTicket))
 
 | File | Role |
 |------|------|
-| `src/Modules/Identity/Wallow.Identity.Api/Controllers/AccountController.cs` | `CreateSignInTicket`, `ValidateSignInTicket`, `ExchangeTicket` endpoint |
-| `src/Wallow.Auth/Components/Pages/Login.razor` | Ticket exchange navigation logic |
-| `src/Wallow.Auth/Components/Pages/MfaChallenge.razor` | Ticket exchange after MFA verification |
-| `src/Wallow.Auth/Models/AuthResponse.cs` | `SignInTicket` field on the response DTO |
+| `api/src/Modules/Identity/Wallow.Identity.Api/Controllers/AccountController.cs` | `CreateSignInTicket`, `ValidateSignInTicket`, `ExchangeTicket` endpoint |
+| `api/src/Wallow.Auth/Components/Pages/Login.razor` | Ticket exchange navigation logic |
+| `api/src/Wallow.Auth/Components/Pages/MfaChallenge.razor` | Ticket exchange after MFA verification |
+| `api/src/Wallow.Auth/Models/AuthResponse.cs` | `SignInTicket` field on the response DTO |

@@ -391,7 +391,7 @@ When enabled, all file uploads are scanned synchronously before storage. Infecte
 Create a class in your module's Infrastructure layer:
 
 ```csharp
-// src/Modules/YourModule/Wallow.YourModule.Infrastructure/Configuration/YourModuleOptions.cs
+// api/src/Modules/YourModule/Wallow.YourModule.Infrastructure/Configuration/YourModuleOptions.cs
 namespace Wallow.YourModule.Infrastructure.Configuration;
 
 public sealed class YourModuleOptions
@@ -409,7 +409,7 @@ public sealed class YourModuleOptions
 Bind the configuration section in your module's extension method:
 
 ```csharp
-// src/Modules/YourModule/Wallow.YourModule.Infrastructure/Extensions/YourModuleExtensions.cs
+// api/src/Modules/YourModule/Wallow.YourModule.Infrastructure/Extensions/YourModuleExtensions.cs
 public static IServiceCollection AddYourModuleInfrastructure(
     this IServiceCollection services,
     IConfiguration configuration)
@@ -670,7 +670,7 @@ For sensitive configuration during development, use User Secrets to keep credent
 
 ```bash
 # Initialize user secrets (one-time)
-cd src/Wallow.Api
+cd api/src/Wallow.Api
 dotnet user-secrets init
 
 # Set secrets
@@ -723,10 +723,10 @@ services.AddOptions<YourModuleOptions>()
 
 | Purpose | Location |
 |---------|----------|
-| Options classes | `src/Modules/{Module}/Wallow.{Module}.Infrastructure/Configuration/` |
-| Module registration | `src/Modules/{Module}/Wallow.{Module}.Infrastructure/Extensions/` |
-| Base configuration | `src/Wallow.Api/appsettings.json` |
-| Environment overrides | `src/Wallow.Api/appsettings.{Environment}.json` |
+| Options classes | `api/src/Modules/{Module}/Wallow.{Module}.Infrastructure/Configuration/` |
+| Module registration | `api/src/Modules/{Module}/Wallow.{Module}.Infrastructure/Extensions/` |
+| Base configuration | `api/src/Wallow.Api/appsettings.json` |
+| Environment overrides | `api/src/Wallow.Api/appsettings.{Environment}.json` |
 
 ## Troubleshooting
 

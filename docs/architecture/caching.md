@@ -69,7 +69,7 @@ cd docker && docker compose up -d
 
 ### Registration
 
-In `Program.cs`, the `IConnectionMultiplexer` is registered as a singleton with deferred connection. The distributed cache (`IDistributedCache`) is then layered on top, wrapped with `InstrumentedDistributedCache` (`src/Shared/Wallow.Shared.Infrastructure.Core/Cache/InstrumentedDistributedCache.cs`) for cache hit/miss metrics.
+In `Program.cs`, the `IConnectionMultiplexer` is registered as a singleton with deferred connection. The distributed cache (`IDistributedCache`) is then layered on top, wrapped with `InstrumentedDistributedCache` (`api/src/Shared/Wallow.Shared.Infrastructure.Core/Cache/InstrumentedDistributedCache.cs`) for cache hit/miss metrics.
 
 ## Distributed Caching
 
@@ -130,7 +130,7 @@ When multiple API instances run behind a load balancer, the backplane ensures We
 
 ## Presence Tracking
 
-The `RedisPresenceService` (`src/Wallow.Api/Services/RedisPresenceService.cs`) tracks online users and their current page context. All presence keys are tenant-scoped.
+The `RedisPresenceService` (`api/src/Wallow.Api/Services/RedisPresenceService.cs`) tracks online users and their current page context. All presence keys are tenant-scoped.
 
 ### Key Structure
 
@@ -146,7 +146,7 @@ All presence keys use a 30-minute TTL as a safety net against orphaned entries.
 
 ## API Key Storage
 
-The `RedisApiKeyService` (`src/Modules/ApiKeys/Wallow.ApiKeys.Infrastructure/Services/RedisApiKeyService.cs`) stores service account API keys in Valkey for fast validation. API keys are hashed before storage; the raw key is never persisted.
+The `RedisApiKeyService` (`api/src/Modules/ApiKeys/Wallow.ApiKeys.Infrastructure/Services/RedisApiKeyService.cs`) stores service account API keys in Valkey for fast validation. API keys are hashed before storage; the raw key is never persisted.
 
 ### Key Structure
 

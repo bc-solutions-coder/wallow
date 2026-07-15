@@ -61,7 +61,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/.nuget/packages
-          key: nuget-${{ runner.os }}-${{ hashFiles('Directory.Packages.props', '**/*.csproj') }}
+          key: nuget-${{ runner.os }}-${{ hashFiles('api/Directory.Packages.props', '**/*.csproj') }}
           restore-keys: |
             nuget-${{ runner.os }}-
 
@@ -76,16 +76,16 @@ jobs:
             build-v2-${{ runner.os }}-
 
       - name: Restore dependencies
-        run: dotnet restore
+        run: dotnet restore api/Wallow.slnx
 
       # Force Tailwind to regenerate on every build. dotnet build is incremental and
       # keys Tailwind output off Styles/app.css, not the scanned razor files, so a
       # restored (cross-commit) generated app.css would otherwise ship stale CSS.
       - name: Clean generated Tailwind CSS
-        run: rm -f src/Wallow.Web/wwwroot/css/app.css src/Wallow.Auth/wwwroot/css/app.css
+        run: rm -f api/src/Wallow.Web/wwwroot/css/app.css api/src/Wallow.Auth/wwwroot/css/app.css
 
       - name: Build
-        run: dotnet build --no-restore --configuration Release --graph
+        run: dotnet build api/Wallow.slnx --no-restore --configuration Release --graph
 
       - name: Cache build output
         uses: actions/cache/save@v5
@@ -113,7 +113,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/.nuget/packages
-          key: nuget-${{ runner.os }}-${{ hashFiles('Directory.Packages.props', '**/*.csproj') }}
+          key: nuget-${{ runner.os }}-${{ hashFiles('api/Directory.Packages.props', '**/*.csproj') }}
           restore-keys: |
             nuget-${{ runner.os }}-
 
@@ -128,44 +128,44 @@ jobs:
 
       - name: Publish app container images
         run: |
-          dotnet publish src/Wallow.Api/Wallow.Api.csproj \
+          dotnet publish api/src/Wallow.Api/Wallow.Api.csproj \
             -c Release --no-build /t:PublishContainer \
             -p:ContainerImageTag=test \
             -p:ContainerRuntimeIdentifier=linux-x64
-          dotnet publish src/Wallow.Auth/Wallow.Auth.csproj \
+          dotnet publish api/src/Wallow.Auth/Wallow.Auth.csproj \
             -c Release --no-build /t:PublishContainer \
             -p:ContainerImageTag=test \
             -p:ContainerRuntimeIdentifier=linux-x64
-          dotnet publish src/Wallow.Web/Wallow.Web.csproj \
+          dotnet publish api/src/Wallow.Web/Wallow.Web.csproj \
             -c Release --no-build /t:PublishContainer \
             -p:ContainerImageTag=test \
             -p:ContainerRuntimeIdentifier=linux-x64
-          dotnet publish src/Wallow.MigrationService/Wallow.MigrationService.csproj \
+          dotnet publish api/src/Wallow.MigrationService/Wallow.MigrationService.csproj \
             -c Release --no-build /t:PublishContainer \
             -p:ContainerImageTag=test \
             -p:ContainerRuntimeIdentifier=linux-x64
-          dotnet publish src/Wallow.SeederService/Wallow.SeederService.csproj \
+          dotnet publish api/src/Wallow.SeederService/Wallow.SeederService.csproj \
             -c Release --no-build /t:PublishContainer \
             -p:ContainerImageTag=test \
             -p:ContainerRuntimeIdentifier=linux-x64
 
-          dotnet publish src/Wallow.Api/Wallow.Api.csproj \
+          dotnet publish api/src/Wallow.Api/Wallow.Api.csproj \
             -c Release --no-build /t:PublishContainer \
             -p:ContainerImageTag=test-arm64 \
             -p:ContainerRuntimeIdentifier=linux-arm64
-          dotnet publish src/Wallow.Auth/Wallow.Auth.csproj \
+          dotnet publish api/src/Wallow.Auth/Wallow.Auth.csproj \
             -c Release --no-build /t:PublishContainer \
             -p:ContainerImageTag=test-arm64 \
             -p:ContainerRuntimeIdentifier=linux-arm64
-          dotnet publish src/Wallow.Web/Wallow.Web.csproj \
+          dotnet publish api/src/Wallow.Web/Wallow.Web.csproj \
             -c Release --no-build /t:PublishContainer \
             -p:ContainerImageTag=test-arm64 \
             -p:ContainerRuntimeIdentifier=linux-arm64
-          dotnet publish src/Wallow.MigrationService/Wallow.MigrationService.csproj \
+          dotnet publish api/src/Wallow.MigrationService/Wallow.MigrationService.csproj \
             -c Release --no-build /t:PublishContainer \
             -p:ContainerImageTag=test-arm64 \
             -p:ContainerRuntimeIdentifier=linux-arm64
-          dotnet publish src/Wallow.SeederService/Wallow.SeederService.csproj \
+          dotnet publish api/src/Wallow.SeederService/Wallow.SeederService.csproj \
             -c Release --no-build /t:PublishContainer \
             -p:ContainerImageTag=test-arm64 \
             -p:ContainerRuntimeIdentifier=linux-arm64
