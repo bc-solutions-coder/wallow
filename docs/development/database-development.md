@@ -20,7 +20,7 @@ All modules share a single PostgreSQL instance but use separate schemas for isol
 Each module has its own DbContext with automatic multi-tenancy filtering:
 
 ```csharp
-// src/Modules/Notifications/Wallow.Notifications.Infrastructure/Persistence/NotificationsDbContext.cs
+// api/src/Modules/Notifications/Wallow.Notifications.Infrastructure/Persistence/NotificationsDbContext.cs
 public sealed class NotificationsDbContext : TenantAwareDbContext<NotificationsDbContext>
 {
     // Email
@@ -64,7 +64,7 @@ public sealed class NotificationsDbContext : TenantAwareDbContext<NotificationsD
 Entity configurations are stored separately in the `Persistence/Configurations` folder:
 
 ```csharp
-// src/Modules/Notifications/Wallow.Notifications.Infrastructure/Persistence/Configurations/NotificationConfiguration.cs
+// api/src/Modules/Notifications/Wallow.Notifications.Infrastructure/Persistence/Configurations/NotificationConfiguration.cs
 public sealed class NotificationConfiguration : IEntityTypeConfiguration<Notification>
 {
     public void Configure(EntityTypeBuilder<Notification> builder)
@@ -169,7 +169,7 @@ Repositories abstract data access and follow this structure:
 
 **Interface (Application Layer):**
 ```csharp
-// src/Modules/Notifications/Wallow.Notifications.Application/Channels/InApp/Interfaces/INotificationRepository.cs
+// api/src/Modules/Notifications/Wallow.Notifications.Application/Channels/InApp/Interfaces/INotificationRepository.cs
 public interface INotificationRepository
 {
     void Add(Notification notification);
@@ -184,7 +184,7 @@ public interface INotificationRepository
 
 **Implementation (Infrastructure Layer):**
 ```csharp
-// src/Modules/Notifications/Wallow.Notifications.Infrastructure/Persistence/Repositories/NotificationRepository.cs
+// api/src/Modules/Notifications/Wallow.Notifications.Infrastructure/Persistence/Repositories/NotificationRepository.cs
 public sealed class NotificationRepository(NotificationsDbContext context) : INotificationRepository
 {
     public void Add(Notification notification)
@@ -301,14 +301,14 @@ Create migrations per module:
 ```bash
 # Create a new migration
 dotnet ef migrations add MigrationName \
-    --project src/Modules/Notifications/Wallow.Notifications.Infrastructure \
-    --startup-project src/Wallow.Api \
+    --project api/src/Modules/Notifications/Wallow.Notifications.Infrastructure \
+    --startup-project api/src/Wallow.Api \
     --context NotificationsDbContext
 
 # Apply migrations
 dotnet ef database update \
-    --project src/Modules/Notifications/Wallow.Notifications.Infrastructure \
-    --startup-project src/Wallow.Api \
+    --project api/src/Modules/Notifications/Wallow.Notifications.Infrastructure \
+    --startup-project api/src/Wallow.Api \
     --context NotificationsDbContext
 ```
 
@@ -412,7 +412,7 @@ Integration tests use `WallowApiFactory` which manages PostgreSQL and Valkey con
 ### File Locations
 
 ```
-src/Modules/{Module}/
+api/src/Modules/{Module}/
 ├── Wallow.{Module}.Domain/
 │   ├── Entities/           # Domain entities
 │   └── Enums/              # Domain enumerations
@@ -436,8 +436,8 @@ src/Modules/{Module}/
 
 # Create migration
 dotnet ef migrations add MigrationName \
-    --project src/Modules/{Module}/Wallow.{Module}.Infrastructure \
-    --startup-project src/Wallow.Api \
+    --project api/src/Modules/{Module}/Wallow.{Module}.Infrastructure \
+    --startup-project api/src/Wallow.Api \
     --context {Module}DbContext
 
 # Start database

@@ -1,17 +1,18 @@
 # syntax=docker/dockerfile:1.9-labs
 FROM node:22-alpine AS theme
 WORKDIR /build
-COPY branding.json scripts/generate-docs-theme.mjs ./
+COPY api/branding.json scripts/generate-docs-theme.mjs ./
 RUN node generate-docs-theme.mjs && \
     mv docfx/templates/wallow/public/main.css /main.css
 
 FROM mcr.microsoft.com/dotnet/sdk:10.0-alpine AS build
 WORKDIR /build
-COPY global.json Directory.Build.props Directory.Packages.props Wallow.slnx ./
-COPY --parents src/**/*.csproj ./
-COPY --parents tests/**/*.csproj ./
-RUN dotnet restore Wallow.slnx
-COPY src/ src/
+COPY api/global.json ./
+COPY api/Directory.Build.props api/Directory.Packages.props api/Wallow.slnx api/
+COPY --parents api/src/**/*.csproj ./
+COPY --parents api/tests/**/*.csproj ./
+RUN dotnet restore api/Wallow.slnx
+COPY api/src/ api/src/
 COPY docs/ docs/
 COPY docfx.json ./
 COPY docfx/ docfx/

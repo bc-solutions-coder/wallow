@@ -144,8 +144,8 @@ internal sealed class DesignTimeTenantContext : ITenantContext
 
 ```bash
 dotnet ef migrations add {MigrationName} \
-    --project src/Modules/{Module}/Wallow.{Module}.Infrastructure \
-    --startup-project src/Wallow.Api \
+    --project api/src/Modules/{Module}/Wallow.{Module}.Infrastructure \
+    --startup-project api/src/Wallow.Api \
     --context {Module}DbContext
 ```
 
@@ -154,14 +154,14 @@ dotnet ef migrations add {MigrationName} \
 ```bash
 # Add initial migration for Inquiries module
 dotnet ef migrations add InitialCreate \
-    --project src/Modules/Inquiries/Wallow.Inquiries.Infrastructure \
-    --startup-project src/Wallow.Api \
+    --project api/src/Modules/Inquiries/Wallow.Inquiries.Infrastructure \
+    --startup-project api/src/Wallow.Api \
     --context InquiriesDbContext
 
 # Add a new migration for schema changes
 dotnet ef migrations add AddSubmissionStatusField \
-    --project src/Modules/Inquiries/Wallow.Inquiries.Infrastructure \
-    --startup-project src/Wallow.Api \
+    --project api/src/Modules/Inquiries/Wallow.Inquiries.Infrastructure \
+    --startup-project api/src/Wallow.Api \
     --context InquiriesDbContext
 ```
 

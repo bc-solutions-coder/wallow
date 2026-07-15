@@ -256,7 +256,7 @@ Assign the required roles via the Identity module's user management API.
 
 **Permission not mapped to role:**
 Check `PermissionExpansionMiddleware` and role-to-permission mappings in:
-`src/Modules/Identity/Wallow.Identity.Infrastructure/Authorization/PermissionExpansionMiddleware.cs`
+`api/src/Modules/Identity/Wallow.Identity.Infrastructure/Authorization/PermissionExpansionMiddleware.cs`
 
 **Organization claim missing:**
 Ensure user belongs to an organization via the Identity module's organization management API.
@@ -312,8 +312,8 @@ Microsoft.EntityFrameworkCore.DbUpdateException: An error occurred while saving 
 ```bash
 # Check migration status
 dotnet ef migrations list \
-  --project src/Modules/Identity/Wallow.Identity.Infrastructure \
-  --startup-project src/Wallow.Api \
+  --project api/src/Modules/Identity/Wallow.Identity.Infrastructure \
+  --startup-project api/src/Wallow.Api \
   --context IdentityDbContext
 ```
 
@@ -322,8 +322,8 @@ dotnet ef migrations list \
 **Apply pending migrations:**
 ```bash
 dotnet ef database update \
-  --project src/Modules/Identity/Wallow.Identity.Infrastructure \
-  --startup-project src/Wallow.Api \
+  --project api/src/Modules/Identity/Wallow.Identity.Infrastructure \
+  --startup-project api/src/Wallow.Api \
   --context IdentityDbContext
 ```
 
@@ -332,7 +332,7 @@ dotnet ef database update \
 # Reset database (WARNING: deletes all data)
 cd docker && docker compose down -v
 docker compose up -d postgres
-dotnet run --project src/Wallow.Api
+dotnet run --project api/src/Wallow.Api
 ```
 
 **Conflicting migration:**
@@ -342,8 +342,8 @@ The migration '20260215_AddNewField' has already been applied to the database
 ```bash
 # Remove the conflicting migration
 dotnet ef migrations remove \
-  --project src/Modules/Identity/Wallow.Identity.Infrastructure \
-  --startup-project src/Wallow.Api \
+  --project api/src/Modules/Identity/Wallow.Identity.Infrastructure \
+  --startup-project api/src/Wallow.Api \
   --context IdentityDbContext
 ```
 
@@ -736,13 +736,13 @@ error CS0246: The type or namespace name 'AnnouncementDto' could not be found
 **Check project references:**
 ```bash
 # View project references
-dotnet list src/Modules/Announcements/Wallow.Announcements.Api/Wallow.Announcements.Api.csproj reference
+dotnet list api/src/Modules/Announcements/Wallow.Announcements.Api/Wallow.Announcements.Api.csproj reference
 ```
 
 **Add missing reference:**
 ```bash
-dotnet add src/Modules/Announcements/Wallow.Announcements.Api/Wallow.Announcements.Api.csproj \
-  reference src/Modules/Announcements/Wallow.Announcements.Application/Wallow.Announcements.Application.csproj
+dotnet add api/src/Modules/Announcements/Wallow.Announcements.Api/Wallow.Announcements.Api.csproj \
+  reference api/src/Modules/Announcements/Wallow.Announcements.Application/Wallow.Announcements.Application.csproj
 ```
 
 **Clean and rebuild:**

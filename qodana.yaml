@@ -1,6 +1,6 @@
 version: "1.0"
 linter: jetbrains/qodana-cdnet:latest
 dotnet:
-  solution: Wallow.slnx
-bootstrap: dotnet restore Wallow.slnx
+  solution: api/Wallow.slnx
+bootstrap: dotnet restore api/Wallow.slnx
 failThreshold: 0

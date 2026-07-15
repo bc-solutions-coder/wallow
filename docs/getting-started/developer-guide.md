@@ -31,7 +31,7 @@ Authentication is handled by the embedded OpenIddict server (part of the Identit
 ### 2. Run the API
 
 ```bash
-dotnet run --project src/Wallow.Api
+dotnet run --project api/src/Wallow.Api
 ```
 
 The API starts on `http://localhost:5000`. Interactive API documentation is available at `http://localhost:5000/scalar/v1`.
@@ -46,7 +46,7 @@ The API starts on `http://localhost:5000`. Interactive API documentation is avai
 ./scripts/run-tests.sh identity
 
 # Specific test project
-./scripts/run-tests.sh tests/Modules/Inquiries/Wallow.Inquiries.Tests
+./scripts/run-tests.sh api/tests/Modules/Inquiries/Wallow.Inquiries.Tests
 ```
 
 The script outputs structured per-assembly pass/fail counts and lists individual failed test names. Supported shorthands: `identity`, `storage`, `notifications`, `messaging`, `announcements`, `inquiries`, `branding`, `apikeys`, `auth`, `api`, `arch`, `shared`, `kernel`, `integration`.
@@ -126,7 +126,7 @@ A thin `IJobScheduler` abstraction (defined in `Shared.Kernel/BackgroundJobs/`) 
 ## Project Structure
 
 ```
-src/
+api/src/
   Wallow.Api/                        # Host -- wires all modules together
   Modules/
     Identity/
@@ -149,7 +149,7 @@ src/
     Wallow.Shared.Infrastructure.BackgroundJobs/ # IJobScheduler / Hangfire
 
 
-tests/
+api/tests/
   Wallow.Api.Tests/
   Wallow.Architecture.Tests/
   Wallow.Shared.Kernel.Tests/
@@ -193,13 +193,13 @@ This guide walks through creating a new standard (EF Core) module using extensio
 
 ### Step 1: Create the Projects
 
-Under `src/Modules/{Module}/`, create four class libraries. Example for a "Tickets" module:
+Under `api/src/Modules/{Module}/`, create four class libraries. Example for a "Tickets" module:
 
 ```bash
-dotnet new classlib -o src/Modules/Tickets/Wallow.Tickets.Domain
-dotnet new classlib -o src/Modules/Tickets/Wallow.Tickets.Application
-dotnet new classlib -o src/Modules/Tickets/Wallow.Tickets.Infrastructure
-dotnet new classlib -o src/Modules/Tickets/Wallow.Tickets.Api
+dotnet new classlib -o api/src/Modules/Tickets/Wallow.Tickets.Domain
+dotnet new classlib -o api/src/Modules/Tickets/Wallow.Tickets.Application
+dotnet new classlib -o api/src/Modules/Tickets/Wallow.Tickets.Infrastructure
+dotnet new classlib -o api/src/Modules/Tickets/Wallow.Tickets.Api
 ```
 
 Set project references:
@@ -315,7 +315,7 @@ public static class InfrastructureExtensions
 Create the module extension methods in Infrastructure:
 
 ```csharp
-// src/Modules/Tickets/Wallow.Tickets.Infrastructure/Extensions/TicketsModuleExtensions.cs
+// api/src/Modules/Tickets/Wallow.Tickets.Infrastructure/Extensions/TicketsModuleExtensions.cs
 using Wallow.Tickets.Application.Extensions;
 using Wallow.Tickets.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Builder;
@@ -360,7 +360,7 @@ public static class TicketsModuleExtensions
 
 ### Step 6: Register in WallowModules.cs
 
-Add the module to `src/Wallow.Api/WallowModules.cs`:
+Add the module to `api/src/Wallow.Api/WallowModules.cs`:
 
 ```csharp
 // Add using directive at top
@@ -377,14 +377,14 @@ await app.InitializeTicketsModuleAsync();
 
 ```bash
 dotnet ef migrations add InitialCreate \
-    --project src/Modules/Tickets/Wallow.Tickets.Infrastructure \
-    --startup-project src/Wallow.Api \
+    --project api/src/Modules/Tickets/Wallow.Tickets.Infrastructure \
+    --startup-project api/src/Wallow.Api \
     --context TicketsDbContext
 ```
 
 ### Step 8: Add Tests
 
-Create test projects under `tests/Modules/Tickets/`:
+Create test projects under `api/tests/Modules/Tickets/`:
 - `Tickets.Domain.Tests/` -- Unit tests for domain entities and value objects
 - `Tickets.Application.Tests/` -- Unit tests for handlers and validators
 - `Tickets.Infrastructure.Tests/` -- Unit tests for repositories (optional)
@@ -413,7 +413,7 @@ Wolverine uses in-memory transport for all module-to-module messaging. Messages 
 ### Module Type Examples
 
 #### Standard Module (with EF Core persistence)
-See the Inquiries module: `src/Modules/Inquiries/Wallow.Inquiries.Infrastructure/Extensions/InquiriesModuleExtensions.cs`
+See the Inquiries module: `api/src/Modules/Inquiries/Wallow.Inquiries.Infrastructure/Extensions/InquiriesModuleExtensions.cs`
 
 #### Stateless Module (no persistence)
 ```csharp
@@ -440,7 +440,7 @@ Modules communicate through integration events published over Wolverine (in-memo
 
 ### Defining an Event
 
-In `src/Shared/Wallow.Shared.Contracts/Inquiries/Events/`:
+In `api/src/Shared/Wallow.Shared.Contracts/Inquiries/Events/`:
 
 ```csharp
 public record SubmissionCreatedEvent(Guid SubmissionId, Guid UserId, DateTime OccurredAt);
@@ -587,13 +587,13 @@ Each module owns its own schema. Migrations are per-module.
 
 ```bash
 dotnet ef migrations add MigrationName \
-    --project src/Modules/{Module}/Wallow.{Module}.Infrastructure \
-    --startup-project src/Wallow.Api \
+    --project api/src/Modules/{Module}/Wallow.{Module}.Infrastructure \
+    --startup-project api/src/Wallow.Api \
     --context {Module}DbContext
 
 dotnet ef database update \
-    --project src/Modules/{Module}/Wallow.{Module}.Infrastructure \
-    --startup-project src/Wallow.Api \
+    --project api/src/Modules/{Module}/Wallow.{Module}.Infrastructure \
+    --startup-project api/src/Wallow.Api \
     --context {Module}DbContext
 ```
 
@@ -657,7 +657,7 @@ Validation runs automatically before handlers via Wolverine's FluentValidation m
 
 Wallow uses **xUnit** as the test framework, **AwesomeAssertions** for readable assertions, and **Testcontainers** for integration tests that need real infrastructure (PostgreSQL, Valkey).
 
-Shared test utilities live in `tests/Wallow.Tests.Common/`, including:
+Shared test utilities live in `api/tests/Wallow.Tests.Common/`, including:
 - `WallowApiFactory` -- `WebApplicationFactory` configured with Testcontainers
 - `DatabaseFixture`, `RedisFixture` -- reusable xUnit fixtures
 - `Builders/`, `Fakes/`, `Helpers/` -- test data builders and utilities

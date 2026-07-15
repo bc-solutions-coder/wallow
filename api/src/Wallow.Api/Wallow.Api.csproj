@@ -22,7 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="../../docker/images/api/entrypoint.sh" CopyToPublishDirectory="PreserveNewest" Link="entrypoint.sh" />
+    <Content Include="../../../docker/images/api/entrypoint.sh" CopyToPublishDirectory="PreserveNewest" Link="entrypoint.sh" />
   </ItemGroup>
 
   <ItemGroup>

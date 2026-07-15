@@ -86,7 +86,7 @@ In Development, the `Logging:LogLevel:Default` is set to `Debug` and OpenTelemet
 
 ### Module Enricher
 
-The `ModuleEnricher` (at `src/Wallow.Api/Logging/ModuleEnricher.cs`) automatically tags logs with the module name extracted from the `SourceContext` namespace using the pattern `{NamespacePrefix}.{ModuleName}.*`. The prefix defaults to `"Wallow"` but can be overridden via `Logging:NamespacePrefix` configuration, supporting fork customization.
+The `ModuleEnricher` (at `api/src/Wallow.Api/Logging/ModuleEnricher.cs`) automatically tags logs with the module name extracted from the `SourceContext` namespace using the pattern `{NamespacePrefix}.{ModuleName}.*`. The prefix defaults to `"Wallow"` but can be overridden via `Logging:NamespacePrefix` configuration, supporting fork customization.
 
 This produces log output like:
 ```
@@ -118,7 +118,7 @@ OpenTelemetry provides distributed tracing across HTTP requests, database operat
 
 ### Configuration
 
-Tracing is configured via `AddObservability()` in `src/Wallow.Api/Extensions/ServiceCollectionExtensions.cs`. It reads `OpenTelemetry:ServiceName` and `OpenTelemetry:OtlpGrpcEndpoint` from configuration. In non-Development environments, `OtlpGrpcEndpoint` is required.
+Tracing is configured via `AddObservability()` in `api/src/Wallow.Api/Extensions/ServiceCollectionExtensions.cs`. It reads `OpenTelemetry:ServiceName` and `OpenTelemetry:OtlpGrpcEndpoint` from configuration. In non-Development environments, `OtlpGrpcEndpoint` is required.
 
 Key aspects of the tracing configuration:
 - **Sampling**: Uses `ParentBasedSampler` with `TraceIdRatioBasedSampler`. The ratio defaults to 1.0 (100%) in Development and 0.1 (10%) in production, configurable via `Observability:TraceSamplingRatio`.
@@ -181,7 +181,7 @@ public class NotificationDispatcher
 
 ### Correlating Errors with Traces
 
-The `GlobalExceptionHandler` (at `src/Wallow.Api/Middleware/GlobalExceptionHandler.cs`) includes trace IDs in all error responses. It extracts the trace ID from the current `Activity` or falls back to `HttpContext.TraceIdentifier`, then includes it in the Problem Details response:
+The `GlobalExceptionHandler` (at `api/src/Wallow.Api/Middleware/GlobalExceptionHandler.cs`) includes trace IDs in all error responses. It extracts the trace ID from the current `Activity` or falls back to `HttpContext.TraceIdentifier`, then includes it in the Problem Details response:
 
 
 ```json
@@ -216,7 +216,7 @@ The following metrics are automatically collected:
 
 Wallow provides a shared `Meter` for custom metrics:
 
-The `Diagnostics` class (at `src/Shared/Wallow.Shared.Kernel/Diagnostics.cs`) provides:
+The `Diagnostics` class (at `api/src/Shared/Wallow.Shared.Kernel/Diagnostics.cs`) provides:
 - `Diagnostics.Meter` -- the shared `Meter` instance (name defaults to `"Wallow"`)
 - `Diagnostics.CreateActivitySource(moduleName)` -- creates `"Wallow.{moduleName}"`
 - `Diagnostics.CreateMeter(moduleName)` -- creates a module-scoped meter

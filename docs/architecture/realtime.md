@@ -58,7 +58,7 @@ Authentication is via Bearer token. The `subscribe` query param limits which mod
 
 ### ISseDispatcher
 
-Modules send events through `ISseDispatcher` (in `src/Shared/Wallow.Shared.Contracts/Realtime/ISseDispatcher.cs`):
+Modules send events through `ISseDispatcher` (in `api/src/Shared/Wallow.Shared.Contracts/Realtime/ISseDispatcher.cs`):
 
 ```csharp
 public interface ISseDispatcher
@@ -81,7 +81,7 @@ public interface ISseDispatcher
 
 ### RealtimeEnvelope
 
-`RealtimeEnvelope` (in `src/Shared/Wallow.Shared.Contracts/Realtime/RealtimeEnvelope.cs`) carries the event payload and optional audience-scoping fields:
+`RealtimeEnvelope` (in `api/src/Shared/Wallow.Shared.Contracts/Realtime/RealtimeEnvelope.cs`) carries the event payload and optional audience-scoping fields:
 
 ```csharp
 public sealed record RealtimeEnvelope(
@@ -115,12 +115,12 @@ When an event arrives via Redis pub/sub, each local SSE connection applies these
 
 | Component | Location | Purpose |
 |-----------|----------|---------|
-| `ISseDispatcher` | `src/Shared/Wallow.Shared.Contracts/Realtime/` | Dispatch interface for modules |
-| `RedisSseDispatcher` | `src/Wallow.Api/Services/` | Publishes events to Redis channels |
-| `SseConnectionManager` | `src/Wallow.Api/Services/` | Tracks active connections and filters delivery |
-| `SseConnectionState` | `src/Wallow.Api/Services/` | Per-connection metadata (user, tenant, modules, permissions, roles) |
-| `SseRedisSubscriber` | `src/Wallow.Api/Services/` | Background service that subscribes to Redis and fans out to connections |
-| `SseEndpoint` | `src/Wallow.Api/Endpoints/` | HTTP GET `/events` endpoint |
+| `ISseDispatcher` | `api/src/Shared/Wallow.Shared.Contracts/Realtime/` | Dispatch interface for modules |
+| `RedisSseDispatcher` | `api/src/Wallow.Api/Services/` | Publishes events to Redis channels |
+| `SseConnectionManager` | `api/src/Wallow.Api/Services/` | Tracks active connections and filters delivery |
+| `SseConnectionState` | `api/src/Wallow.Api/Services/` | Per-connection metadata (user, tenant, modules, permissions, roles) |
+| `SseRedisSubscriber` | `api/src/Wallow.Api/Services/` | Background service that subscribes to Redis and fans out to connections |
+| `SseEndpoint` | `api/src/Wallow.Api/Endpoints/` | HTTP GET `/events` endpoint |
 
 ### Redis Channel Naming
 
@@ -141,7 +141,7 @@ SignalR handles bidirectional real-time features. It is not used for notificatio
 
 ### RealtimeHub
 
-Located at `src/Wallow.Api/Hubs/RealtimeHub.cs`, mapped to `/hubs/realtime`.
+Located at `api/src/Wallow.Api/Hubs/RealtimeHub.cs`, mapped to `/hubs/realtime`.
 
 | Hub Method | Purpose | Direction |
 |------------|---------|-----------|
@@ -153,7 +153,7 @@ On connect, the hub automatically joins the user to their tenant group (`tenant:
 
 ### IRealtimeDispatcher
 
-SignalR's dispatch interface (in `src/Shared/Wallow.Shared.Contracts/Realtime/IRealtimeDispatcher.cs`):
+SignalR's dispatch interface (in `api/src/Shared/Wallow.Shared.Contracts/Realtime/IRealtimeDispatcher.cs`):
 
 ```csharp
 public interface IRealtimeDispatcher
@@ -166,7 +166,7 @@ public interface IRealtimeDispatcher
 
 ### Presence Service
 
-`IPresenceService` (in `src/Shared/Wallow.Shared.Contracts/Realtime/IPresenceService.cs`) tracks user presence across server instances using Redis. All operations are tenant-scoped:
+`IPresenceService` (in `api/src/Shared/Wallow.Shared.Contracts/Realtime/IPresenceService.cs`) tracks user presence across server instances using Redis. All operations are tenant-scoped:
 
 ```csharp
 public interface IPresenceService

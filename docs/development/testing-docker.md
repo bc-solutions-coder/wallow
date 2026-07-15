@@ -29,13 +29,13 @@ To start the test environment for manual exploration or repeated test runs:
 
 ```bash
 # Build container images
-dotnet publish src/Wallow.Api/Wallow.Api.csproj -c Release /t:PublishContainer \
+dotnet publish api/src/Wallow.Api/Wallow.Api.csproj -c Release /t:PublishContainer \
   -p:ContainerImageTag=test -p:ContainerRepository=wallow-api
 
-dotnet publish src/Wallow.Auth/Wallow.Auth.csproj -c Release /t:PublishContainer \
+dotnet publish api/src/Wallow.Auth/Wallow.Auth.csproj -c Release /t:PublishContainer \
   -p:ContainerImageTag=test -p:ContainerRepository=wallow-auth
 
-dotnet publish src/Wallow.Web/Wallow.Web.csproj -c Release /t:PublishContainer \
+dotnet publish api/src/Wallow.Web/Wallow.Web.csproj -c Release /t:PublishContainer \
   -p:ContainerImageTag=test -p:ContainerRepository=wallow-web
 
 # Start

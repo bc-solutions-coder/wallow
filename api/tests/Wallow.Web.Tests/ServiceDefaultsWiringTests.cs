@@ -36,7 +36,7 @@ public sealed class ServiceDefaultsWiringTests
         if (!File.Exists(programCsPath))
         {
             string repoRoot = FindRepoRoot(assemblyLocation);
-            programCsPath = Path.Combine(repoRoot, "src", "Wallow.Web", "Program.cs");
+            programCsPath = Path.Combine(repoRoot, "api", "src", "Wallow.Web", "Program.cs");
         }
 
         File.Exists(programCsPath).Should().BeTrue($"Program.cs should exist at {programCsPath}");

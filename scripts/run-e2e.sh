@@ -75,7 +75,7 @@ trap cleanup EXIT
 # ============================================
 if [[ "$SKIP_BUILD" == "false" ]]; then
     echo "=== Building solution ==="
-    dotnet build "$REPO_ROOT/Wallow.slnx" -c Release
+    dotnet build "$REPO_ROOT/api/Wallow.slnx" -c Release
 
     # Detect host arch for single-arch local publish (faster than multi-arch)
     ARCH=$(uname -m)
@@ -88,31 +88,31 @@ if [[ "$SKIP_BUILD" == "false" ]]; then
     echo "=== Publishing container images (${RID}) ==="
 
     echo "  Publishing wallow-api:test..."
-    dotnet publish "$REPO_ROOT/src/Wallow.Api/Wallow.Api.csproj" \
+    dotnet publish "$REPO_ROOT/api/src/Wallow.Api/Wallow.Api.csproj" \
         -c Release --no-build /t:PublishContainer \
         -p:ContainerImageTag=test \
         -p:ContainerRuntimeIdentifier="$RID"
 
     echo "  Publishing wallow-auth:test..."
-    dotnet publish "$REPO_ROOT/src/Wallow.Auth/Wallow.Auth.csproj" \
+    dotnet publish "$REPO_ROOT/api/src/Wallow.Auth/Wallow.Auth.csproj" \
         -c Release --no-build /t:PublishContainer \
         -p:ContainerImageTag=test \
         -p:ContainerRuntimeIdentifier="$RID"
 
     echo "  Publishing wallow-web:test..."
-    dotnet publish "$REPO_ROOT/src/Wallow.Web/Wallow.Web.csproj" \
+    dotnet publish "$REPO_ROOT/api/src/Wallow.Web/Wallow.Web.csproj" \
         -c Release --no-build /t:PublishContainer \
         -p:ContainerImageTag=test \
         -p:ContainerRuntimeIdentifier="$RID"
 
     echo "  Publishing wallow-migrations:test..."
-    dotnet publish "$REPO_ROOT/src/Wallow.MigrationService/Wallow.MigrationService.csproj" \
+    dotnet publish "$REPO_ROOT/api/src/Wallow.MigrationService/Wallow.MigrationService.csproj" \
         -c Release --no-build /t:PublishContainer \
         -p:ContainerImageTag=test \
         -p:ContainerRuntimeIdentifier="$RID"
 
     echo "  Publishing wallow-seeder:test..."
-    dotnet publish "$REPO_ROOT/src/Wallow.SeederService/Wallow.SeederService.csproj" \
+    dotnet publish "$REPO_ROOT/api/src/Wallow.SeederService/Wallow.SeederService.csproj" \
         -c Release --no-build /t:PublishContainer \
         -p:ContainerImageTag=test \
         -p:ContainerRuntimeIdentifier="$RID"
@@ -247,9 +247,9 @@ export E2E_VALKEY="localhost:6389,password=WallowTestValkey123!,abortConnect=fal
 [[ -n "$E2E_TRACING" ]] && export E2E_TRACING
 
 set +e
-dotnet test "$REPO_ROOT/tests/Wallow.E2E.Tests" \
+dotnet test "$REPO_ROOT/api/tests/Wallow.E2E.Tests" \
     --configuration Release --no-build \
-    --settings "$REPO_ROOT/tests/coverage.runsettings" \
+    --settings "$REPO_ROOT/api/tests/coverage.runsettings" \
     --verbosity normal --blame-hang-timeout 5m
 TEST_EXIT=$?
 set -e

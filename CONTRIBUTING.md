@@ -19,7 +19,7 @@ Thank you for your interest in contributing to Wallow! This guide will help you 
    ```
 3. Run the API:
    ```bash
-   dotnet run --project src/Wallow.Api
+   dotnet run --project api/src/Wallow.Api
    ```
 4. Run all tests to verify your setup:
    ```bash

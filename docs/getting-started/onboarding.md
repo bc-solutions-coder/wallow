@@ -25,7 +25,7 @@ cd docker && docker compose up -d
 
 # 3. Run the API (from repo root)
 cd ..
-dotnet run --project src/Wallow.Api
+dotnet run --project api/src/Wallow.Api
 
 # You should see:
 # [12:34:56 INF] [Api] Now listening on: http://localhost:5000
@@ -52,7 +52,7 @@ Wallow is a **modular monolith** -- a single deployable application internally o
 Every module follows Clean Architecture with four layers:
 
 ```
-src/Modules/{Module}/
+api/src/Modules/{Module}/
   Wallow.{Module}.Domain           -- Entities, Value Objects, Domain Events (zero dependencies)
   Wallow.{Module}.Application      -- Commands, Queries, Handlers, DTOs (depends on Domain)
   Wallow.{Module}.Infrastructure   -- EF Core, Dapper, Consumers (implements Application interfaces)
@@ -82,28 +82,28 @@ Work through this list to build a mental map of the codebase.
 
 ### Startup and Infrastructure
 
-- [ ] **Read `src/Wallow.Api/Program.cs`** -- See the middleware pipeline (exception handler, auth, tenant resolution, permission expansion, authorization), Wolverine setup, Hangfire, SignalR, and health checks.
-- [ ] **Read `src/Wallow.Api/WallowModules.cs`** -- See explicit module registration via `IFeatureManager`. Identity is always registered; all other modules are behind feature flags.
+- [ ] **Read `api/src/Wallow.Api/Program.cs`** -- See the middleware pipeline (exception handler, auth, tenant resolution, permission expansion, authorization), Wolverine setup, Hangfire, SignalR, and health checks.
+- [ ] **Read `api/src/Wallow.Api/WallowModules.cs`** -- See explicit module registration via `IFeatureManager`. Identity is always registered; all other modules are behind feature flags.
 
 ### Module Deep Dive: Notifications
 
 Notifications is a strong reference implementation for DDD patterns with multi-channel delivery. Start here.
 
-- [ ] **Domain:** `src/Modules/Notifications/Wallow.Notifications.Domain/Channels/` -- Aggregates per channel (Email, InApp, Push, SMS), Value Objects (`EmailAddress`, `EmailContent`), domain events.
-- [ ] **Application:** `src/Modules/Notifications/Wallow.Notifications.Application/Channels/` -- Commands, queries, and handlers organized by channel, plus integration event handlers in `EventHandlers/`.
-- [ ] **Infrastructure:** `src/Modules/Notifications/Wallow.Notifications.Infrastructure/Persistence/NotificationsDbContext.cs` -- Schema name, multi-tenancy query filters, provider pattern for channel adapters.
-- [ ] **API:** `src/Modules/Notifications/Wallow.Notifications.Api/Controllers/` -- Thin controllers that delegate to Wolverine `IMessageBus`.
+- [ ] **Domain:** `api/src/Modules/Notifications/Wallow.Notifications.Domain/Channels/` -- Aggregates per channel (Email, InApp, Push, SMS), Value Objects (`EmailAddress`, `EmailContent`), domain events.
+- [ ] **Application:** `api/src/Modules/Notifications/Wallow.Notifications.Application/Channels/` -- Commands, queries, and handlers organized by channel, plus integration event handlers in `EventHandlers/`.
+- [ ] **Infrastructure:** `api/src/Modules/Notifications/Wallow.Notifications.Infrastructure/Persistence/NotificationsDbContext.cs` -- Schema name, multi-tenancy query filters, provider pattern for channel adapters.
+- [ ] **API:** `api/src/Modules/Notifications/Wallow.Notifications.Api/Controllers/` -- Thin controllers that delegate to Wolverine `IMessageBus`.
 
 ### Authentication and Multi-Tenancy
 
-- [ ] **`src/Modules/Identity/Wallow.Identity.Infrastructure/MultiTenancy/TenantResolutionMiddleware.cs`** -- How JWT `org_id` claim becomes `ITenantContext.TenantId`.
-- [ ] **`src/Modules/Identity/Wallow.Identity.Infrastructure/Authorization/PermissionExpansionMiddleware.cs`** -- How roles expand to permission claims.
-- [ ] **`src/Shared/Wallow.Shared.Kernel/MultiTenancy/TenantSaveChangesInterceptor.cs`** -- Auto-stamping of `TenantId` on new entities and tampering prevention.
+- [ ] **`api/src/Modules/Identity/Wallow.Identity.Infrastructure/MultiTenancy/TenantResolutionMiddleware.cs`** -- How JWT `org_id` claim becomes `ITenantContext.TenantId`.
+- [ ] **`api/src/Modules/Identity/Wallow.Identity.Infrastructure/Authorization/PermissionExpansionMiddleware.cs`** -- How roles expand to permission claims.
+- [ ] **`api/src/Shared/Wallow.Shared.Kernel/MultiTenancy/TenantSaveChangesInterceptor.cs`** -- Auto-stamping of `TenantId` on new entities and tampering prevention.
 
 ### Integration Events
 
-- [ ] **Browse `src/Shared/Wallow.Shared.Contracts/`** -- Integration events organized by module. These are module-to-module contracts.
-- [ ] **Browse `src/Modules/Notifications/Wallow.Notifications.Application/EventHandlers/`** -- How to consume events from other modules.
+- [ ] **Browse `api/src/Shared/Wallow.Shared.Contracts/`** -- Integration events organized by module. These are module-to-module contracts.
+- [ ] **Browse `api/src/Modules/Notifications/Wallow.Notifications.Application/EventHandlers/`** -- How to consume events from other modules.
 
 ### Run the Tests
 
@@ -159,15 +159,15 @@ For detailed testing patterns and examples, see the [Developer Guide](developer-
 **How do I add a new migration?**
 ```bash
 dotnet ef migrations add MigrationName \
-    --project src/Modules/{Module}/Wallow.{Module}.Infrastructure \
-    --startup-project src/Wallow.Api \
+    --project api/src/Modules/{Module}/Wallow.{Module}.Infrastructure \
+    --startup-project api/src/Wallow.Api \
     --context {Module}DbContext
 ```
 
 **How do I reset my local database?**
 ```bash
 cd docker && docker compose down -v && docker compose up -d
-dotnet run --project src/Wallow.Api  # Re-runs migrations
+dotnet run --project api/src/Wallow.Api  # Re-runs migrations
 ```
 
 **Can I query across modules?** No. Modules are autonomous. If Module A needs data from Module B, Module B publishes an event and Module A stores a local copy (eventual consistency). For rare cases requiring synchronous cross-module reads, `Shared.Contracts` defines query service interfaces implemented in the owning module's Infrastructure layer.

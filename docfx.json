@@ -4,14 +4,14 @@
       "src": [
         {
           "files": [
-            "src/Modules/*/*.Domain/*.csproj",
-            "src/Modules/*/*.Application/*.csproj",
-            "src/Modules/*/*.Api/*.csproj",
-            "src/Shared/**/*.csproj",
-            "src/Wallow.Api/*.csproj"
+            "api/src/Modules/*/*.Domain/*.csproj",
+            "api/src/Modules/*/*.Application/*.csproj",
+            "api/src/Modules/*/*.Api/*.csproj",
+            "api/src/Shared/**/*.csproj",
+            "api/src/Wallow.Api/*.csproj"
           ],
           "exclude": [
-            "src/Modules/*/*.Infrastructure/*.csproj"
+            "api/src/Modules/*/*.Infrastructure/*.csproj"
           ]
         }
       ],

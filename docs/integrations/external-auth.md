@@ -134,8 +134,8 @@ Apple Sign In requires an Apple Developer Program membership ($99/year).
 ### User Secrets (Local Development)
 
 ```bash
-dotnet user-secrets set "Authentication:Google:ClientId" "your-client-id" --project src/Wallow.Api
-dotnet user-secrets set "Authentication:Google:ClientSecret" "your-secret" --project src/Wallow.Api
+dotnet user-secrets set "Authentication:Google:ClientId" "your-client-id" --project api/src/Wallow.Api
+dotnet user-secrets set "Authentication:Google:ClientSecret" "your-secret" --project api/src/Wallow.Api
 ```
 
 ### Environment Variables (Production)
@@ -147,7 +147,7 @@ export Authentication__Google__ClientSecret="your-secret"
 
 ### appsettings.json (Development Only)
 
-Add to `src/Wallow.Api/appsettings.Development.json`. Never commit secrets to source control.
+Add to `api/src/Wallow.Api/appsettings.Development.json`. Never commit secrets to source control.
 
 ## How Provider Visibility Works
 
