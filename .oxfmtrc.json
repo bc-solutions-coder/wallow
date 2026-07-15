@@ -1,3 +1,9 @@
 {
-  "ignorePatterns": []
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "tabWidth": 2,
+  "printWidth": 100,
+  "singleQuote": false,
+  "semi": true,
+  "trailingComma": "all",
+  "ignorePatterns": ["**/dist/**", "**/generated/**", "packages/sdk/src/generated/**"]
 }
