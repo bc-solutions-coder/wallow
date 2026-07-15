@@ -1,4 +1,6 @@
+using System.Text.Json;
 using Microsoft.Playwright;
+using StackExchange.Redis;
 using Wallow.E2E.Tests.Fixtures;
 using Wallow.E2E.Tests.Infrastructure;
 using Wallow.E2E.Tests.PageObjects;
@@ -7,7 +9,7 @@ using Xunit.Abstractions;
 namespace Wallow.E2E.Tests.Flows;
 
 /// <summary>
-/// Drives the @bc-solutions-coder/sdk BFF reference example (packages/typescript-sdk/examples/tanstack-min)
+/// Drives the @bc-solutions-coder/sdk BFF reference example (apps/tanstack-min)
 /// through the full same-origin OIDC tunnel: anonymous -> login -> authenticated /api call with
 /// silent refresh -> logout -> anonymous again. All browser state is exercised through the
 /// example's `data-testid` DOM contract; credentials are entered on the real Wallow.Auth page.
@@ -124,5 +126,103 @@ public sealed class BffFlowTests : E2ETestBase
 
         await Assertions.Expect(Page.GetByTestId("bff-mutate-result"))
             .ToContainTextAsync("201 created org", new() { Timeout = 15_000 });
+    }
+
+    /// <summary>
+    /// Proves the server-side session pattern that the SDK's <c>ValkeySessionStore</c> exists to provide,
+    /// which the cookie store cannot: after login the full session (including the access token) lives in
+    /// Valkey while the cookie carries only an opaque reference, and logout deletes the Valkey record so
+    /// the session is truly revoked server-side — not merely cleared from the browser.
+    /// </summary>
+    [Fact]
+    [Trait("E2EGroup", "Bff")]
+    public async Task BffSession_LivesInValkey_AndLogoutRevokesIt()
+    {
+        TestUser user = await TestUserFactory.CreateAsync(Docker.ApiBaseUrl, Docker.MailpitBaseUrl);
+
+        await LoginToExampleAsync(user);
+
+        await using ConnectionMultiplexer redis = await ConnectionMultiplexer.ConnectAsync(Docker.ValkeyConnectionString);
+        IDatabase db = redis.GetDatabase();
+        IServer server = redis.GetServer(redis.GetEndPoints()[0]);
+
+        // 1. The session — with its access token — is persisted server-side in Valkey, keyed by an
+        //    opaque id. Correlate by the test user's unique email so parallel tests can't collide.
+        StoredSession? stored = await FindSessionByEmailAsync(server, db, user.Email);
+        Assert.True(
+            stored is not null,
+            $"No Valkey session record found for {user.Email} — the session was not persisted server-side.");
+        Assert.False(
+            string.IsNullOrWhiteSpace(stored!.Value.AccessToken),
+            "The stored session carried no access token — tokens are not being held server-side.");
+
+        // 2. The cookie is only an opaque reference: it must leak neither the access token nor the
+        //    user's identity. This is the whole point of the server-side store.
+        string sessionCookieValue = await GetBffSessionCookieValueAsync();
+        Assert.DoesNotContain(stored.Value.AccessToken, sessionCookieValue);
+        Assert.DoesNotContain(user.Email.ToLowerInvariant(), sessionCookieValue.ToLowerInvariant());
+
+        // 3. Logout revokes the session server-side: the Valkey record is deleted, not just the cookie.
+        await Page.GetByTestId("bff-logout").ClickAsync();
+        await Page.WaitForURLAsync(
+            url => url.StartsWith(Docker.BffBaseUrl, StringComparison.OrdinalIgnoreCase),
+            new PageWaitForURLOptions { Timeout = 30_000 });
+        await Assertions.Expect(Page.GetByTestId("bff-user-status"))
+            .ToHaveTextAsync("anonymous", new() { Timeout = 15_000 });
+
+        StoredSession? afterLogout = await FindSessionByEmailAsync(server, db, user.Email);
+        Assert.True(
+            afterLogout is null,
+            "The Valkey session record survived logout — server-side revocation did not occur.");
+    }
+
+    private readonly record struct StoredSession(string Key, string AccessToken);
+
+    /// <summary>
+    /// Scans the BFF session namespace in Valkey for the record belonging to <paramref name="email"/>,
+    /// returning its key and access token, or <c>null</c> when no such record exists.
+    /// </summary>
+    private static async Task<StoredSession?> FindSessionByEmailAsync(IServer server, IDatabase db, string email)
+    {
+        await foreach (RedisKey key in server.KeysAsync(pattern: "wallow:session:*"))
+        {
+            RedisValue value = await db.StringGetAsync(key);
+            if (value.IsNullOrEmpty)
+            {
+                continue;
+            }
+
+            using JsonDocument document = JsonDocument.Parse(value.ToString());
+            JsonElement root = document.RootElement;
+            if (!root.TryGetProperty("user", out JsonElement userElement)
+                || !userElement.TryGetProperty("email", out JsonElement emailElement)
+                || !string.Equals(emailElement.GetString(), email, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            string accessToken = root.TryGetProperty("accessToken", out JsonElement tokenElement)
+                ? tokenElement.GetString() ?? string.Empty
+                : string.Empty;
+            return new StoredSession(key.ToString(), accessToken);
+        }
+
+        return null;
+    }
+
+    /// <summary>Returns the value of the opaque BFF session cookie set on the current browser context.</summary>
+    private async Task<string> GetBffSessionCookieValueAsync()
+    {
+        IReadOnlyList<BrowserContextCookiesResult> cookies = await Context.CookiesAsync();
+        foreach (BrowserContextCookiesResult cookie in cookies)
+        {
+            if (cookie.Name == "wallow_bff")
+            {
+                return cookie.Value;
+            }
+        }
+
+        Assert.Fail("The BFF session cookie 'wallow_bff' was not set after login.");
+        return string.Empty;
     }
 }

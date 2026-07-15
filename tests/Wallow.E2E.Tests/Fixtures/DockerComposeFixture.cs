@@ -15,10 +15,18 @@ public sealed class DockerComposeFixture : IAsyncLifetime
     public string MailpitBaseUrl { get; } = Environment.GetEnvironmentVariable("E2E_MAILPIT_URL") ?? "http://localhost:8035";
 
     /// <summary>
-    /// Base URL of the @bc-solutions-coder/sdk BFF reference example (packages/typescript-sdk/examples/tanstack-min),
+    /// Base URL of the @bc-solutions-coder/sdk BFF reference example (apps/tanstack-min),
     /// served by the <c>bff-example</c> service in docker-compose.test.yml.
     /// </summary>
     public string BffBaseUrl { get; } = Environment.GetEnvironmentVariable("E2E_BFF_URL") ?? "http://localhost:3000";
+
+    /// <summary>
+    /// StackExchange.Redis connection string for the Valkey instance backing the BFF example's
+    /// server-side session store (published by the <c>valkey</c> service on 127.0.0.1:6389).
+    /// Used by <c>BffFlowTests</c> to assert sessions live server-side and are revoked on logout.
+    /// </summary>
+    public string ValkeyConnectionString { get; } =
+        Environment.GetEnvironmentVariable("E2E_VALKEY") ?? "localhost:6389,password=WallowTestValkey123!,abortConnect=false";
 
     /// <summary>
     /// When true, containers are managed externally (CI) — skip docker compose up/down.

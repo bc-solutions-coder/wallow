@@ -240,6 +240,7 @@ export E2E_BASE_URL=http://localhost:5050
 export E2E_AUTH_URL=http://localhost:5051
 export E2E_WEB_URL=http://localhost:5053
 export E2E_MAILPIT_URL=http://localhost:8035
+export E2E_VALKEY="localhost:6389,password=WallowTestValkey123!,abortConnect=false"
 
 [[ -n "$E2E_HEADED" ]] && export E2E_HEADED
 [[ -n "$E2E_VIDEO" ]] && export E2E_VIDEO

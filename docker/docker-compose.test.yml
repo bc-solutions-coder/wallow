@@ -224,7 +224,7 @@ services:
     image: wallow-bff-example:test
     build:
       context: ..
-      dockerfile: packages/typescript-sdk/examples/tanstack-min/Dockerfile
+      dockerfile: apps/tanstack-min/Dockerfile
     ports:
       - "3000:3000"
     extra_hosts:
@@ -244,9 +244,14 @@ services:
       # Downstream API for the /api proxy (container-to-container)
       BFF_API_BASE_URL: "http://wallow-api:8080"
       COOKIE_PASSWORD: "e2e-bff-cookie-seal-password-min-32-chars"
+      # Server-side sessions in Valkey: the cookie becomes an opaque ref and the
+      # tokens live in Valkey, so logout truly revokes. Without this the example
+      # falls back to the stateless cookie store.
+      REDIS_URL: "redis://:WallowTestValkey123!@valkey:6379"
     depends_on:
       - wallow-api
       - wallow-auth
+      - valkey
     networks:
       - wallow-test
 
