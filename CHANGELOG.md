@@ -1,5 +1,57 @@
 # Changelog
 
+## [4.0.0](https://github.com/bc-solutions-coder/wallow/compare/v3.2.1...v4.0.0) (2026-07-15)
+
+
+### ⚠ BREAKING CHANGES
+
+* **deps:** upgrade WolverineFx to 6.19.0
+* **deps:** upgrade Asp.Versioning to 10.0.0
+* **deps:** upgrade StackExchange.Redis to 3.0.17
+* **sdk:** refresh under store.withRefreshLock to protect rotating tokens
+* **sdk:** inject SessionStore into createBffHandlers and destroy session on logout
+* **sdk:** route readSession/writeSession through an injected SessionStore
+* **sdk:** add sessionId, version, csrfToken, and identity fields to BffSession
+
+### Features
+
+* configurable first-party clients and @bc-solutions-coder/sdk TypeScript SDK with BFF tunnel ([#63](https://github.com/bc-solutions-coder/wallow/issues/63)) ([3fa193e](https://github.com/bc-solutions-coder/wallow/commit/3fa193e440c9838e31f34d4b30d59bfb830bb18a))
+* **sdk:** add configureBffClient and fix two-client config disconnect ([1c3577e](https://github.com/bc-solutions-coder/wallow/commit/1c3577e399b7c0b18d248e72618b7d06dc0d4a05))
+* **sdk:** add CookieSessionStore behind SessionStore interface ([0120dc1](https://github.com/bc-solutions-coder/wallow/commit/0120dc146a3e1f9916774fd1629523467a26d00e))
+* **sdk:** add CSRF protection to BFF session and proxy ([d5f3b0b](https://github.com/bc-solutions-coder/wallow/commit/d5f3b0b0f54fd7fa2a985ff5ccd1744a81ee20d2))
+* **sdk:** add RFC 7807 error parsing and resilient BFF proxy forward ([48e41bb](https://github.com/bc-solutions-coder/wallow/commit/48e41bb0993ff5d1bd16de1e8eaf4712ef57c793))
+* **sdk:** add RP-initiated logout with connect/logout fallback ([8c9887e](https://github.com/bc-solutions-coder/wallow/commit/8c9887ee89b1f49d3a0e8e30a70b8aebd1563af5))
+* **sdk:** add session TTL and cookie secure configuration ([a37a46e](https://github.com/bc-solutions-coder/wallow/commit/a37a46e36e1b0fe3e4b4e78fc152985d2dd1e93c))
+* **sdk:** add sessionId, version, csrfToken, and identity fields to BffSession ([7cbd230](https://github.com/bc-solutions-coder/wallow/commit/7cbd23008a41da324f6373ba604db495b838d02e))
+* **sdk:** add SessionStore and RedisLike interfaces ([e61fcb2](https://github.com/bc-solutions-coder/wallow/commit/e61fcb21734e6881bded1b3b91f6704603b25471))
+* **sdk:** add ValkeySessionStore with server-side revocation and refresh lock ([a336973](https://github.com/bc-solutions-coder/wallow/commit/a336973a85e1d3ced72a993c9e900c2d9206259f))
+* **sdk:** adopt openid-client for PKCE authorize URL and code exchange ([9a503bd](https://github.com/bc-solutions-coder/wallow/commit/9a503bd31b63724012e3717e30c04f5e1916155d))
+* **sdk:** back OIDC discovery with openid-client, keep split-horizon pinning ([487989a](https://github.com/bc-solutions-coder/wallow/commit/487989af7990db71ec6abdd3c2f046338b35a711))
+* **sdk:** expose public bff auth exports with example and docs ([22ed143](https://github.com/bc-solutions-coder/wallow/commit/22ed14346e08192d731f9e498a54beda5fa3ab26))
+* **sdk:** harden session cookie with max-age and secure flag ([924246d](https://github.com/bc-solutions-coder/wallow/commit/924246d08ecfa4568d9284cc60106040ac8f916e))
+* **sdk:** inject SessionStore into createBffHandlers and destroy session on logout ([724dfc5](https://github.com/bc-solutions-coder/wallow/commit/724dfc5c515a998cb4b4bf3d16a689d200d4677b))
+* **sdk:** map userinfo claims into BffSession.user fields ([852bad0](https://github.com/bc-solutions-coder/wallow/commit/852bad09a7073dcd67ad9b9dc4aae3372dcf6547))
+* **sdk:** refresh under store.withRefreshLock to protect rotating tokens ([0b4ea50](https://github.com/bc-solutions-coder/wallow/commit/0b4ea50c444a8ae454d1e336f95e8bf5c3e4f160))
+* **sdk:** restructure sdk into pnpm monorepo with redis adapter ([b48cb7c](https://github.com/bc-solutions-coder/wallow/commit/b48cb7c6f5c3e3a746dc7b9f16183e98a76d9b19))
+* **sdk:** rotate refresh tokens via openid-client refresh grant ([e759c56](https://github.com/bc-solutions-coder/wallow/commit/e759c56d06c4f236215f4627077ba9f1c053dea7))
+* **sdk:** route readSession/writeSession through an injected SessionStore ([72c56ce](https://github.com/bc-solutions-coder/wallow/commit/72c56ce94dc574b8cc274c607f1a4ee7c40d23c5))
+* **workspace:** normalize package scripts across root and members ([6b14121](https://github.com/bc-solutions-coder/wallow/commit/6b141218066163d25570fa812def1d1f12985c57))
+
+
+### Bug Fixes
+
+* **api:** restore Wolverine 6 codegen and expose OpenAPI pre-setup ([fac6050](https://github.com/bc-solutions-coder/wallow/commit/fac60500feb3fac970c73e710cd1fa8365913ed0))
+* **deps:** patch vulnerable direct and transitive packages ([f4856bb](https://github.com/bc-solutions-coder/wallow/commit/f4856bb207a7dc0c0196eaa9cc51462032c95336))
+* **docker:** build tanstack-min image with pnpm workspace ([442826b](https://github.com/bc-solutions-coder/wallow/commit/442826bb2000655efd5df007cdc583c8d234a550))
+* **hooks:** point pre-commit format check at api/Wallow.slnx ([9278cb2](https://github.com/bc-solutions-coder/wallow/commit/9278cb20b104c89d9bf9b73b54cb19fb3f94ebce))
+
+
+### Miscellaneous Chores
+
+* **deps:** upgrade Asp.Versioning to 10.0.0 ([6dc0674](https://github.com/bc-solutions-coder/wallow/commit/6dc067450e5e816c308e4db6c2c798a3ff952a57))
+* **deps:** upgrade StackExchange.Redis to 3.0.17 ([55a7948](https://github.com/bc-solutions-coder/wallow/commit/55a7948886d9b3918b4c8b5a4c003506d02f22d5))
+* **deps:** upgrade WolverineFx to 6.19.0 ([1ed121b](https://github.com/bc-solutions-coder/wallow/commit/1ed121b9a9760d19a5ac69ed03c5ec7ec1202fe4))
+
 ## [3.2.1](https://github.com/bc-solutions-coder/wallow/compare/v3.2.0...v3.2.1) (2026-07-05)
 
 
