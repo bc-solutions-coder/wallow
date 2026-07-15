@@ -9,6 +9,7 @@
     "**/dist/**",
     "**/generated/**",
     "packages/sdk/src/generated/**",
-    "packages/sdk/openapi/**"
+    "packages/sdk/openapi/**",
+    "**/CHANGELOG.md"
   ]
 }
