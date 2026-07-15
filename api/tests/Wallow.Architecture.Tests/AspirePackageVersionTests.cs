@@ -92,8 +92,10 @@ public class AspirePackageVersionTests
 
         string? version = entry!.Attribute("Version")?.Value;
 
-        version.Should().Be("10.4.0",
-            "Microsoft.Extensions.Http.Resilience version should remain at 10.4.0");
+        version.Should().Be("10.8.0",
+            "Microsoft.Extensions.Http.Resilience version is pinned in lockstep with the Aspire " +
+            "ServiceDefaults resilience wiring; bump this guard only when the whole resilience " +
+            "family and Aspire.Hosting move together and the suite stays green");
     }
 
     public static TheoryData<string> GetAspirePackageNames()
