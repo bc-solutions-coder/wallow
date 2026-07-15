@@ -16,6 +16,15 @@ import { type BffSession } from "../session";
 import { webCrypto } from "../webcrypto";
 import { type RedisLike, type SessionStore } from "./types";
 
+/** Default session record lifetime when none is supplied: one day. */
+const DEFAULT_TTL_SECONDS = 86_400;
+
+/** Default refresh-lock lifetime when none is supplied (seconds). */
+const DEFAULT_LOCK_TTL_SECONDS = 10;
+
+/** Random-byte count for a generated session id. */
+const SESSION_ID_BYTES = 24;
+
 /**
  * Options for {@link ValkeySessionStore}.
  */
@@ -51,8 +60,8 @@ export class ValkeySessionStore implements SessionStore {
   constructor(options: ValkeySessionStoreOptions) {
     this.client = options.client;
     this.password = options.password;
-    this.ttlSeconds = options.ttlSeconds ?? 86_400;
-    this.lockTtlSeconds = options.lockTtlSeconds ?? 10;
+    this.ttlSeconds = options.ttlSeconds ?? DEFAULT_TTL_SECONDS;
+    this.lockTtlSeconds = options.lockTtlSeconds ?? DEFAULT_LOCK_TTL_SECONDS;
     this.keyPrefix = options.keyPrefix ?? "wallow";
   }
 
@@ -91,7 +100,7 @@ export class ValkeySessionStore implements SessionStore {
   }
 
   async write(session: BffSession): Promise<string> {
-    const id: string = session.sessionId || randomUrlSafe(24);
+    const id: string = session.sessionId || randomUrlSafe(SESSION_ID_BYTES);
     const record: BffSession = { ...session, sessionId: id };
     await this.client.set(this.sessionKey(id), JSON.stringify(record), {
       ex: this.ttlSeconds,

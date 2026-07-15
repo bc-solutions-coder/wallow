@@ -28,9 +28,13 @@ import { type RedisLike } from "./types";
  * this shape works.
  */
 export interface NodeRedisClient {
-  get(key: string): Promise<string | null>;
-  set(key: string, value: string, options?: { EX?: number; NX?: boolean }): Promise<string | null>;
-  del(key: string): Promise<number>;
+  get: (key: string) => Promise<string | null>;
+  set: (
+    key: string,
+    value: string,
+    options?: { EX?: number; NX?: boolean },
+  ) => Promise<string | null>;
+  del: (key: string) => Promise<number>;
 }
 
 /**

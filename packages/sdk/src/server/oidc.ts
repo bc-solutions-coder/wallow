@@ -71,7 +71,10 @@ export interface ExchangeCodeParams {
 }
 
 /** Module-level cache of discovery documents keyed on issuer URL. */
-const discoveryCache: Map<string, DiscoveryDoc> = new Map();
+const discoveryCache = new Map<string, DiscoveryDoc>();
+
+/** Lifetime assumed when the token response omits `expires_in` (seconds). */
+const NO_EXPIRY_SECONDS = 0;
 
 /**
  * Rewrite the origin (protocol + host) of an absolute URL, preserving its path
@@ -214,7 +217,7 @@ export async function exchangeCode(
     access_token: tokens.access_token,
     refresh_token: tokens.refresh_token,
     id_token: tokens.id_token,
-    expires_in: tokens.expires_in ?? 0,
+    expires_in: tokens.expires_in ?? NO_EXPIRY_SECONDS,
     token_type: tokens.token_type,
   };
 }
@@ -247,7 +250,7 @@ export async function refreshTokens(
     access_token: tokens.access_token,
     refresh_token: tokens.refresh_token,
     id_token: tokens.id_token,
-    expires_in: tokens.expires_in ?? 0,
+    expires_in: tokens.expires_in ?? NO_EXPIRY_SECONDS,
     token_type: tokens.token_type,
   };
 }

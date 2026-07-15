@@ -9,6 +9,12 @@
 
 import type { BffSession } from "./session";
 
+/** The fewest dot-separated segments a decodable JWT has: header and payload. */
+const MIN_JWT_SEGMENTS = 2;
+
+/** An empty collection length, for non-emptiness comparisons. */
+const EMPTY = 0;
+
 /**
  * Decode the payload of an OIDC `id_token` into the session user identity.
  *
@@ -23,11 +29,12 @@ import type { BffSession } from "./session";
  */
 export function decodeIdTokenClaims(idToken: string): BffSession["user"] {
   const parts: string[] = idToken.split(".");
-  if (parts.length < 2) {
+  if (parts.length < MIN_JWT_SEGMENTS) {
     throw new Error("Malformed id_token: expected a JWT with a payload segment");
   }
 
-  const decoded: string = Buffer.from(parts[1], "base64url").toString("utf8");
+  const [, encodedPayload]: string[] = parts;
+  const decoded: string = Buffer.from(encodedPayload, "base64url").toString("utf8");
   const payload: unknown = JSON.parse(decoded);
 
   if (
@@ -87,7 +94,7 @@ export function mapClaims(claims: Record<string, unknown>): BffSession["user"] {
   };
 
   const roles: string[] = dedupe([...asStringList(claims.role), ...asStringList(claims.roles)]);
-  if (roles.length > 0) {
+  if (roles.length > EMPTY) {
     user.roles = roles;
   }
 
@@ -95,7 +102,7 @@ export function mapClaims(claims: Record<string, unknown>): BffSession["user"] {
     ...asStringList(claims.permissions),
     ...splitScope(claims.scope),
   ]);
-  if (permissions.length > 0) {
+  if (permissions.length > EMPTY) {
     user.permissions = permissions;
   }
 
@@ -129,7 +136,7 @@ function splitScope(value: unknown): string[] {
   if (typeof value !== "string") {
     return [];
   }
-  return value.split(" ").filter((scope: string): boolean => scope.length > 0);
+  return value.split(" ").filter((scope: string): boolean => scope.length > EMPTY);
 }
 
 /** Return a new array with duplicate entries removed, preserving order. */

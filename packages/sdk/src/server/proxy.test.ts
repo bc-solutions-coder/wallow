@@ -5,8 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { BffConfig } from "./config";
 import { WallowError } from "./errors";
-import { discover, refreshTokens } from "./oidc";
-import type { DiscoveryDoc, TokenResponse } from "./oidc";
+import { discover, refreshTokens, type DiscoveryDoc, type TokenResponse } from "./oidc";
 import {
   createApiProxy,
   csrfTokenMatches,

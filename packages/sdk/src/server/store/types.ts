@@ -20,7 +20,7 @@ export interface RedisLike {
   /**
    * Get the string value at `key`, or `null` when the key does not exist.
    */
-  get(key: string): Promise<string | null>;
+  get: (key: string) => Promise<string | null>;
   /**
    * Set `key` to `value`.
    *
@@ -29,11 +29,11 @@ export interface RedisLike {
    * @returns `"OK"` on success, or `null` when a conditional set (`nx`) was
    *          skipped because the key already exists.
    */
-  set(key: string, value: string, opts?: { ex?: number; nx?: boolean }): Promise<"OK" | null>;
+  set: (key: string, value: string, opts?: { ex?: number; nx?: boolean }) => Promise<"OK" | null>;
   /**
    * Delete `key`, returning the number of keys removed.
    */
-  del(key: string): Promise<number>;
+  del: (key: string) => Promise<number>;
 }
 
 /**
@@ -48,15 +48,15 @@ export interface SessionStore {
    * Resolve a session by its opaque reference, or `null` when it is missing,
    * expired, or invalid.
    */
-  read(ref: string): Promise<BffSession | null>;
+  read: (ref: string) => Promise<BffSession | null>;
   /**
    * Persist a session, returning the opaque reference to store in the cookie.
    */
-  write(session: BffSession): Promise<string>;
+  write: (session: BffSession) => Promise<string>;
   /**
    * Remove the session identified by `ref`.
    */
-  destroy(ref: string): Promise<void>;
+  destroy: (ref: string) => Promise<void>;
   /**
    * Run `fn` while holding a refresh lock for `ref`, serializing concurrent
    * token refreshes for the same session.
@@ -64,5 +64,5 @@ export interface SessionStore {
    * @returns The result of `fn`, or `undefined` when the lock could not be
    *          acquired (another refresh is already in progress).
    */
-  withRefreshLock<T>(ref: string, fn: () => Promise<T>): Promise<T | undefined>;
+  withRefreshLock: <T>(ref: string, fn: () => Promise<T>) => Promise<T | undefined>;
 }

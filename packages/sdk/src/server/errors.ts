@@ -108,14 +108,19 @@ export function redact(value: unknown): unknown {
 const UNKNOWN_ERROR_TITLE: string = "Unknown error";
 
 /** Member names whose values are always credentials, whatever they contain. */
-const SENSITIVE_MEMBERS: readonly string[] = ["authorization", "cookie", "set-cookie", "password"];
+const SENSITIVE_MEMBERS: ReadonlySet<string> = new Set([
+  "authorization",
+  "cookie",
+  "set-cookie",
+  "password",
+]);
 
 /** Member name fragments that mark a value as a credential. */
 const SENSITIVE_MEMBER_FRAGMENTS: readonly string[] = ["token", "secret"];
 
 /** `Bearer <credential>` and bare three-segment JWTs, wherever they appear. */
-const BEARER_PREFIX: RegExp = /^bearer\s+\S/i;
-const JWT_SHAPE: RegExp = /^[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}$/;
+const BEARER_PREFIX: RegExp = /^bearer\s+\S/iu;
+const JWT_SHAPE: RegExp = /^[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}$/u;
 
 function tryParseProblem(bodyText: string): ProblemDetails | undefined {
   if (!bodyText.trim()) {
@@ -145,7 +150,7 @@ function isSensitiveMember(member: string): boolean {
   const normalized: string = member.toLowerCase();
 
   return (
-    SENSITIVE_MEMBERS.includes(normalized) ||
+    SENSITIVE_MEMBERS.has(normalized) ||
     SENSITIVE_MEMBER_FRAGMENTS.some((fragment: string) => normalized.includes(fragment))
   );
 }

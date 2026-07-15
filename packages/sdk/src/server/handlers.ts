@@ -128,6 +128,39 @@ const MAX_COOKIE_VALUE_LENGTH: number = 3800;
  */
 const MAX_CHUNK_CLEAR: number = 16;
 
+/** Index of the first (base-named) session-cookie chunk. */
+const FIRST_CHUNK_INDEX = 0;
+
+/** Index of the first suffixed chunk (`name.1`), where reassembly resumes. */
+const SECOND_CHUNK_INDEX = 1;
+
+/** Step between successive chunk indices. */
+const CHUNK_STEP = 1;
+
+/** The minimum chunk count a written reference always occupies. */
+const SINGLE_CHUNK = 1;
+
+/** The version stamped on a freshly minted session. */
+const INITIAL_SESSION_VERSION = 1;
+
+/** Random-byte count for generated ids and tokens (state, nonce, CSRF, id). */
+const TOKEN_BYTES = 24;
+
+/** Milliseconds in a second, for converting `expires_in` deltas. */
+const MS_PER_SECOND = 1000;
+
+/** Lifetime of the transient login-transaction cookie (seconds). */
+const TX_COOKIE_MAX_AGE_SECONDS = 600;
+
+/** HTTP status for a malformed or replayed callback request. */
+const BAD_REQUEST_STATUS = 400;
+
+/** HTTP status when no valid session backs a `/bff/user` request. */
+const UNAUTHORIZED_STATUS = 401;
+
+/** HTTP status for the redirects the tunnel issues. */
+const FOUND_STATUS = 302;
+
 /**
  * Name of the {@link index}-th session-cookie chunk. Chunk 0 keeps the base
  * cookie name so a single-chunk session is written and read exactly as an
@@ -135,7 +168,7 @@ const MAX_CHUNK_CLEAR: number = 16;
  * cookie directly).
  */
 function chunkCookieName(cookieName: string, index: number): string {
-  return index === 0 ? cookieName : `${cookieName}.${index}`;
+  return index === FIRST_CHUNK_INDEX ? cookieName : `${cookieName}.${index}`;
 }
 
 /**
@@ -156,7 +189,7 @@ export function readSessionRef(event: H3Event, config: BffConfig): string | null
   }
 
   let ref: string = first;
-  for (let index: number = 1; ; index += 1) {
+  for (let index: number = SECOND_CHUNK_INDEX; ; index += CHUNK_STEP) {
     const part: string | undefined = getCookie(event, chunkCookieName(config.cookieName, index));
     if (part === undefined || part === "") {
       break;
@@ -189,7 +222,7 @@ export async function readSession(
   if (ref === null) {
     return null;
   }
-  return store.read(ref);
+  return await store.read(ref);
 }
 
 /**
@@ -209,8 +242,11 @@ export async function readSession(
  * @param ref The opaque store reference to place in the cookie.
  */
 export function writeSessionRef(event: H3Event, config: BffConfig, ref: string): void {
-  const chunkCount: number = Math.max(1, Math.ceil(ref.length / MAX_COOKIE_VALUE_LENGTH));
-  for (let index: number = 0; index < chunkCount; index += 1) {
+  const chunkCount: number = Math.max(
+    SINGLE_CHUNK,
+    Math.ceil(ref.length / MAX_COOKIE_VALUE_LENGTH),
+  );
+  for (let index: number = FIRST_CHUNK_INDEX; index < chunkCount; index += CHUNK_STEP) {
     const start: number = index * MAX_COOKIE_VALUE_LENGTH;
     setCookie(
       event,
@@ -220,7 +256,7 @@ export function writeSessionRef(event: H3Event, config: BffConfig, ref: string):
     );
   }
 
-  for (let index: number = chunkCount; index < MAX_CHUNK_CLEAR; index += 1) {
+  for (let index: number = chunkCount; index < MAX_CHUNK_CLEAR; index += CHUNK_STEP) {
     deleteCookie(
       event,
       chunkCookieName(config.cookieName, index),
@@ -292,14 +328,14 @@ export function createBffHandlers(
 
       const doc: DiscoveryDoc = await discover(config);
       const { verifier, challenge } = await createPkcePair();
-      const state: string = randomUrlSafe(24);
-      const nonce: string = randomUrlSafe(24);
+      const state: string = randomUrlSafe(TOKEN_BYTES);
+      const nonce: string = randomUrlSafe(TOKEN_BYTES);
 
       const tx: LoginTx = { state, nonce, verifier, returnTo };
       const sealed: string = await sealTx(tx, config.cookiePassword);
       setCookie(event, txCookieName(config.cookieName), sealed, {
         ...baseCookieOpts(config.cookieSecure),
-        maxAge: 600,
+        maxAge: TX_COOKIE_MAX_AGE_SECONDS,
       });
 
       const authorizeUrl: string = buildAuthorizeUrl(config, doc, {
@@ -307,7 +343,7 @@ export function createBffHandlers(
         codeChallenge: challenge,
         nonce,
       });
-      return sendRedirect(event, authorizeUrl, 302);
+      return sendRedirect(event, authorizeUrl, FOUND_STATUS);
     }),
 
     callback: defineEventHandler(async (event: H3Event): Promise<void | null> => {
@@ -318,7 +354,7 @@ export function createBffHandlers(
       const txName: string = txCookieName(config.cookieName);
       const sealedTx: string | undefined = getCookie(event, txName);
       if (sealedTx === undefined || sealedTx === "") {
-        setResponseStatus(event, 400);
+        setResponseStatus(event, BAD_REQUEST_STATUS);
         return null;
       }
 
@@ -331,7 +367,7 @@ export function createBffHandlers(
         typeof state !== "string" ||
         state !== tx.state
       ) {
-        setResponseStatus(event, 400);
+        setResponseStatus(event, BAD_REQUEST_STATUS);
         return null;
       }
 
@@ -361,15 +397,15 @@ export function createBffHandlers(
       // Normalize authorization + tenant claims into first-class user fields.
       user = mapClaims(user);
 
-      const csrfToken: string = randomUrlSafe(24);
+      const csrfToken: string = randomUrlSafe(TOKEN_BYTES);
       const session: BffSession = {
-        sessionId: randomUrlSafe(24),
+        sessionId: randomUrlSafe(TOKEN_BYTES),
         accessToken: tokens.access_token,
         refreshToken: tokens.refresh_token,
         idToken: tokens.id_token,
-        expiresAt: Date.now() + tokens.expires_in * 1000,
+        expiresAt: Date.now() + tokens.expires_in * MS_PER_SECOND,
         user,
-        version: 1,
+        version: INITIAL_SESSION_VERSION,
         csrfToken,
       };
       await writeSession(event, config, store, session);
@@ -377,13 +413,13 @@ export function createBffHandlers(
       // cookie the browser is allowed to read.
       setCookie(event, csrfCookieName(config.cookieName), csrfToken, csrfCookieOpts(config));
 
-      return sendRedirect(event, tx.returnTo, 302);
+      return sendRedirect(event, tx.returnTo, FOUND_STATUS);
     }),
 
     user: defineEventHandler(async (event: H3Event): Promise<BffUserResponse | null> => {
       const session: BffSession | null = await readSession(event, config, store);
       if (session === null) {
-        setResponseStatus(event, 401);
+        setResponseStatus(event, UNAUTHORIZED_STATUS);
         return null;
       }
       // The identity claims plus the CSRF token, for SPA clients that read
@@ -404,7 +440,7 @@ export function createBffHandlers(
 
       const doc: DiscoveryDoc = await discover(config);
       const logoutUrl: string = buildLogoutUrl(config, doc, session?.idToken);
-      return sendRedirect(event, logoutUrl, 302);
+      return sendRedirect(event, logoutUrl, FOUND_STATUS);
     }),
   };
 }

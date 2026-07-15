@@ -82,7 +82,34 @@ export const EXPIRY_SKEW_MS = 30_000;
 export const FORWARD_TIMEOUT_MS = 30_000;
 
 /** Upper bound honoured for an upstream `Retry-After` header (ms). */
-export const MAX_RETRY_AFTER_MS = 5_000;
+export const MAX_RETRY_AFTER_MS = 5000;
+
+/** Milliseconds in a second, for converting `expires_in` deltas. */
+const MS_PER_SECOND = 1000;
+
+/** The wait applied when a `Retry-After` is absent or unparseable (ms). */
+const NO_DELAY_MS = 0;
+
+/** The version delta applied to a session on each token rotation. */
+const VERSION_STEP = 1;
+
+/** HTTP status the BFF answers with when the session cannot authenticate. */
+const UNAUTHORIZED_STATUS = 401;
+
+/** HTTP status the BFF answers with when the CSRF check rejects a request. */
+const FORBIDDEN_STATUS = 403;
+
+/** HTTP status raised for a transport failure or timeout forwarding upstream. */
+const NETWORK_FAILURE_STATUS = 503;
+
+/** HTTP status carried by an upstream throttle response. */
+const TOO_MANY_REQUESTS_STATUS = 429;
+
+/** Inclusive lower bound of the HTTP redirect status range. */
+const REDIRECT_STATUS_MIN = 300;
+
+/** Exclusive upper bound of the HTTP redirect status range. */
+const REDIRECT_STATUS_MAX = 400;
 
 /** Code carried by the {@link WallowError} raised for a transport failure. */
 export const NETWORK_ERROR_CODE = "NETWORK_ERROR";
@@ -152,6 +179,7 @@ class UpstreamError extends WallowError {
       title: problem.title,
       detail: problem.detail,
     });
+    this.name = "UpstreamError";
     this.response = response;
     this.bodyText = bodyText;
   }
@@ -224,8 +252,8 @@ async function refreshUnderLock(
         accessToken: tokens.access_token,
         refreshToken: tokens.refresh_token ?? session.refreshToken,
         idToken: tokens.id_token ?? session.idToken,
-        expiresAt: Date.now() + tokens.expires_in * 1000,
-        version: session.version + 1,
+        expiresAt: Date.now() + tokens.expires_in * MS_PER_SECOND,
+        version: session.version + VERSION_STEP,
       };
       const nextRef: string = await store.write(next);
       return { session: next, ref: nextRef };
@@ -283,7 +311,7 @@ async function forceRefreshStored(
   if (!hasRefreshToken(session)) {
     throw new Error("The upstream rejected the access token and no refresh token is available");
   }
-  return refreshUnderLock(session, config, store, ref);
+  return await refreshUnderLock(session, config, store, ref);
 }
 
 /**
@@ -319,38 +347,35 @@ export async function forwardWithResilience(
   ref: string,
 ): Promise<ForwardResult> {
   let current: StoredSession = { session, ref };
-  let retried: boolean = false;
+  let response: Response = await attemptForward(request, current.session);
 
-  for (;;) {
-    const response: Response = await attemptForward(request, current.session);
-
-    if (response.ok) {
-      return { response, session: current.session, ref: current.ref };
-    }
-
-    if (isAuthFailure(response)) {
-      if (retried || !hasRefreshToken(current.session)) {
-        throw await authFailureError(request, response);
-      }
-      retried = true;
-      current = await forceRefreshStored(current.session, config, store, current.ref);
-      continue;
-    }
-
-    // Any other redirect is the API's own business (a 3xx to a resource, a 304):
-    // hand it back untouched rather than treating it as a failure.
-    if (isRedirect(response)) {
-      return { response, session: current.session, ref: current.ref };
-    }
-
-    if (response.status === 429 && !retried) {
-      retried = true;
-      await delay(retryAfterMs(response));
-      continue;
-    }
-
-    throw await upstreamError(request, response);
+  // At most one reactive retry: a rejected token is force-refreshed and the
+  // request replayed; a throttled request waits out its `Retry-After` and
+  // replays. Both classifications retry exactly once, so this is a single
+  // guarded step rather than a loop.
+  if (isAuthFailure(response) && hasRefreshToken(current.session)) {
+    current = await forceRefreshStored(current.session, config, store, current.ref);
+    response = await attemptForward(request, current.session);
+  } else if (response.status === TOO_MANY_REQUESTS_STATUS) {
+    await delay(retryAfterMs(response));
+    response = await attemptForward(request, current.session);
   }
+
+  if (response.ok) {
+    return { response, session: current.session, ref: current.ref };
+  }
+
+  // Any non-auth redirect is the API's own business (a 3xx to a resource, a
+  // 304): hand it back untouched rather than treating it as a failure.
+  if (isRedirect(response) && !isAuthFailure(response)) {
+    return { response, session: current.session, ref: current.ref };
+  }
+
+  if (isAuthFailure(response)) {
+    throw await authFailureError(request, response);
+  }
+
+  throw await upstreamError(request, response);
 }
 
 /**
@@ -379,16 +404,16 @@ async function attemptForward(request: ForwardRequest, session: BffSession): Pro
       redirect: "manual",
       signal: controller.signal,
     });
-  } catch (cause: unknown) {
+  } catch (error: unknown) {
     const timedOut: boolean = controller.signal.aborted;
-    const error: WallowError = new WallowError({
-      status: 503,
+    const fault: WallowError = new WallowError({
+      status: NETWORK_FAILURE_STATUS,
       code: timedOut ? NETWORK_TIMEOUT_CODE : NETWORK_ERROR_CODE,
       title: timedOut ? "The upstream request timed out" : "The upstream request failed",
-      detail: causeDetail(cause),
+      detail: causeDetail(error),
     });
-    logFault(request, error);
-    throw error;
+    logFault(request, fault);
+    throw fault;
   } finally {
     clearTimeout(timeout);
   }
@@ -401,7 +426,7 @@ async function attemptForward(request: ForwardRequest, session: BffSession): Pro
  * following redirects).
  */
 function isAuthFailure(response: Response): boolean {
-  if (response.status === 401) {
+  if (response.status === UNAUTHORIZED_STATUS) {
     return true;
   }
   if (!isRedirect(response)) {
@@ -412,7 +437,7 @@ function isAuthFailure(response: Response): boolean {
 }
 
 function isRedirect(response: Response): boolean {
-  return response.status >= 300 && response.status < 400;
+  return response.status >= REDIRECT_STATUS_MIN && response.status < REDIRECT_STATUS_MAX;
 }
 
 function hasRefreshToken(session: BffSession): boolean {
@@ -428,12 +453,12 @@ function hasRefreshToken(session: BffSession): boolean {
  * no business seeing through the tunnel.
  */
 async function authFailureError(request: ForwardRequest, response: Response): Promise<WallowError> {
-  if (response.status === 401) {
-    return upstreamError(request, response);
+  if (response.status === UNAUTHORIZED_STATUS) {
+    return await upstreamError(request, response);
   }
 
   const error: WallowError = new WallowError({
-    status: 401,
+    status: UNAUTHORIZED_STATUS,
     code: UNAUTHORIZED_CODE,
     title: "Unauthorized",
     detail: "The upstream API redirected the request to its login page.",
@@ -463,20 +488,20 @@ async function upstreamError(request: ForwardRequest, response: Response): Promi
 function retryAfterMs(response: Response): number {
   const header: string | null = response.headers.get("retry-after");
   if (header === null || header.trim() === "") {
-    return 0;
+    return NO_DELAY_MS;
   }
 
   const seconds: number = Number(header);
   if (Number.isFinite(seconds)) {
-    return boundWait(seconds * 1000);
+    return boundWait(seconds * MS_PER_SECOND);
   }
 
   const until: number = Date.parse(header);
-  return Number.isNaN(until) ? 0 : boundWait(until - Date.now());
+  return Number.isNaN(until) ? NO_DELAY_MS : boundWait(until - Date.now());
 }
 
 function boundWait(ms: number): number {
-  return Math.min(Math.max(ms, 0), MAX_RETRY_AFTER_MS);
+  return Math.min(Math.max(ms, NO_DELAY_MS), MAX_RETRY_AFTER_MS);
 }
 
 function delay(ms: number): Promise<void> {
@@ -496,12 +521,13 @@ function causeDetail(cause: unknown): string | undefined {
 
 /** Report a failed forward without spilling the bearer into the log. */
 function logFault(request: ForwardRequest, error: WallowError): void {
+  const headers: Record<string, string> = Object.fromEntries(request.headers.entries());
   console.warn(
     "wallow-bff: forward failed",
     redact({
       target: request.target,
       method: request.method,
-      headers: Object.fromEntries(request.headers.entries()),
+      headers,
       status: error.status,
       code: error.code,
       title: error.title,
@@ -528,13 +554,13 @@ export function createApiProxy(
   return defineEventHandler(async (event: H3Event): Promise<unknown> => {
     const ref: string | null = readSessionRef(event, config);
     if (ref === null) {
-      setResponseStatus(event, 401);
+      setResponseStatus(event, UNAUTHORIZED_STATUS);
       return null;
     }
 
     const session: BffSession | null = await readSession(event, config, store);
     if (session === null) {
-      setResponseStatus(event, 401);
+      setResponseStatus(event, UNAUTHORIZED_STATUS);
       return null;
     }
 
@@ -549,7 +575,7 @@ export function createApiProxy(
         return respondToFailure(
           event,
           new WallowError({
-            status: 403,
+            status: FORBIDDEN_STATUS,
             code: CSRF_INVALID_CODE,
             title: "CSRF token mismatch or missing",
           }),
@@ -562,7 +588,7 @@ export function createApiProxy(
     try {
       fresh = await ensureFreshSession(session, config, store, ref);
     } catch {
-      setResponseStatus(event, 401);
+      setResponseStatus(event, UNAUTHORIZED_STATUS);
       return null;
     }
 
@@ -573,7 +599,7 @@ export function createApiProxy(
 
     // Strip the `/api` prefix and re-root at the downstream API base URL.
     const requestPath: string = getRequestPath(event);
-    const stripped: string = requestPath.replace(/^\/api/, "") || "/";
+    const stripped: string = requestPath.replace(/^\/api/u, "") || "/";
     const target: string = new URL(stripped, config.apiBaseUrl).toString();
 
     const incoming: Record<string, string | undefined> = getRequestHeaders(event);

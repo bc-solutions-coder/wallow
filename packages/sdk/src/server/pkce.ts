@@ -15,13 +15,19 @@ export interface PkcePair {
   challenge: string;
 }
 
+/** Default random-byte count drawn by {@link randomUrlSafe}. */
+const DEFAULT_RANDOM_BYTES = 32;
+
+/** Random-byte count for a PKCE code verifier. */
+const VERIFIER_BYTES = 48;
+
 /**
  * Generate a URL-safe, base64url-encoded random string.
  *
  * @param bytes Number of random bytes to draw. Defaults to 32.
  * @returns A base64url string (no padding) of the random bytes.
  */
-export function randomUrlSafe(bytes: number = 32): string {
+export function randomUrlSafe(bytes: number = DEFAULT_RANDOM_BYTES): string {
   const buffer: Uint8Array<ArrayBuffer> = new Uint8Array(bytes);
   globalThis.crypto.getRandomValues(buffer);
   return base64UrlEncode(buffer);
@@ -47,7 +53,7 @@ export async function sha256Challenge(verifier: string): Promise<string> {
  * @returns A {@link PkcePair} with a 48-byte verifier and its S256 challenge.
  */
 export async function createPkcePair(): Promise<PkcePair> {
-  const verifier: string = randomUrlSafe(48);
+  const verifier: string = randomUrlSafe(VERIFIER_BYTES);
   const challenge: string = await sha256Challenge(verifier);
   return { verifier, challenge };
 }
@@ -58,7 +64,7 @@ export async function createPkcePair(): Promise<PkcePair> {
 function base64UrlEncode(bytes: Uint8Array): string {
   let binary: string = "";
   for (const byte of bytes) {
-    binary += String.fromCharCode(byte);
+    binary += String.fromCodePoint(byte);
   }
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+  return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
 }

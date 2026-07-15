@@ -49,7 +49,10 @@ export interface BffConfig {
 }
 
 /** Session cookie lifetime used when `SESSION_TTL_SECONDS` is not set: 24 hours. */
-export const DEFAULT_SESSION_TTL_SECONDS: number = 86400;
+export const DEFAULT_SESSION_TTL_SECONDS: number = 86_400;
+
+/** The smallest accepted `SESSION_TTL_SECONDS`; the value must be positive. */
+const MIN_SESSION_TTL_SECONDS = 1;
 
 /**
  * Build a {@link BffConfig} from environment variables.
@@ -78,14 +81,14 @@ export function loadBffConfigFromEnv(env: NodeJS.ProcessEnv = process.env): BffC
   const scopesRaw: string | undefined = env.OIDC_SCOPES;
   const scopes: string[] =
     scopesRaw !== undefined && scopesRaw.trim() !== ""
-      ? scopesRaw.trim().split(/\s+/)
+      ? scopesRaw.trim().split(/\s+/u)
       : ["openid", "profile", "email", "offline_access"];
 
   const ttlRaw: string = (env.SESSION_TTL_SECONDS ?? "").trim();
   let sessionTtlSeconds: number = DEFAULT_SESSION_TTL_SECONDS;
   if (ttlRaw !== "") {
     const parsed: number = Number(ttlRaw);
-    if (!Number.isInteger(parsed) || parsed <= 0) {
+    if (!Number.isInteger(parsed) || parsed < MIN_SESSION_TTL_SECONDS) {
       throw new Error(
         `Invalid environment variable SESSION_TTL_SECONDS: expected a positive whole number of seconds, got "${ttlRaw}"`,
       );
