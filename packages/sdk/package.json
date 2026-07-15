@@ -38,11 +38,11 @@
     "openid-client": "^6.1.7"
   },
   "devDependencies": {
-    "@hey-api/openapi-ts": "^0.64.0",
+    "@hey-api/openapi-ts": "^0.97.3",
     "@types/node": "^22.20.0",
     "tsx": "^4.19.0",
     "typescript": "6.0.3",
     "vite": "^8.1.4",
-    "vitest": "^2.1.0"
+    "vitest": "^3.2.6"
   }
 }
