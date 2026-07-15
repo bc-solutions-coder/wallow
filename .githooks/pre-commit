@@ -10,7 +10,7 @@ if [ -z "$STAGED_CS" ]; then
 fi
 
 # Verify formatting on staged .cs files
-echo "$STAGED_CS" | xargs dotnet format --verify-no-changes --verbosity quiet --include 2>/dev/null
+echo "$STAGED_CS" | xargs dotnet format api/Wallow.slnx --verify-no-changes --verbosity quiet --include 2>/dev/null
 
 if [ $? -ne 0 ]; then
     echo ""
