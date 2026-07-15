@@ -1,7 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 
 /**
  * Regenerates the typed API client under `src/generated/`.
@@ -11,8 +10,7 @@ import { fileURLToPath } from "node:url";
  * running API before generating (for example
  * `WALLOW_OPENAPI_URL=http://localhost:5001/openapi/v1.json`).
  */
-const scriptDir: string = dirname(fileURLToPath(import.meta.url));
-const packageRoot: string = resolve(scriptDir, "..");
+const packageRoot: string = resolve(import.meta.dirname, "..");
 const specPath: string = resolve(packageRoot, "openapi/v1.json");
 
 const specUrl: string | undefined = process.env.WALLOW_OPENAPI_URL;

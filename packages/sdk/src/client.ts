@@ -1,6 +1,11 @@
 import { client } from "./generated/client.gen";
 
 /**
+ * The client instance every generated SDK operation calls through.
+ */
+export { client } from "./generated/client.gen";
+
+/**
  * Options for configuring the Wallow browser client against the BFF.
  */
 export interface BffClientOptions {
@@ -11,11 +16,6 @@ export interface BffClientOptions {
 }
 
 export type { BffClientOptions as WallowClientOptions };
-
-/**
- * The client instance every generated SDK operation calls through.
- */
-export { client };
 
 /**
  * Configure the Wallow browser client for same-origin BFF use.

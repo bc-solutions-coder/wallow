@@ -2,6 +2,9 @@
  * Browser auth helpers that talk to the same-origin BFF tunnel.
  */
 
+/** HTTP 401 Unauthorized — the BFF returns this when no session is active. */
+const HTTP_UNAUTHORIZED: number = 401;
+
 /**
  * A user identity resolved from the BFF `/bff/user` endpoint.
  *
@@ -43,7 +46,7 @@ export async function getUser(): Promise<WallowUser | null> {
     credentials: "include",
   });
 
-  if (response.status === 401) {
+  if (response.status === HTTP_UNAUTHORIZED) {
     return null;
   }
 

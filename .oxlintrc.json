@@ -3,10 +3,54 @@
   "plugins": ["typescript", "unicorn", "oxc", "react"],
   "categories": {
     "correctness": "error",
-    "suspicious": "warn"
+    "suspicious": "error",
+    "perf": "error",
+    "pedantic": "warn",
+    "style": "warn"
   },
-  "rules": {},
+  "rules": {
+    "no-ternary": "off",
+    "capitalized-comments": "off",
+    "unicorn/no-null": "off",
+    "typescript/no-inferrable-types": "off",
+    "func-style": "off",
+    "sort-keys": "off",
+    "sort-imports": "off",
+    "prefer-destructuring": "off",
+    "no-negated-condition": "off",
+    "unicorn/no-negated-condition": "off",
+    "id-length": "off",
+    "init-declarations": "off",
+    "max-lines": "off",
+    "max-statements": "off",
+    "max-params": "off",
+    "max-lines-per-function": "off"
+  },
   "env": {
     "builtin": true
-  }
+  },
+  "ignorePatterns": ["**/dist/**", "**/generated/**", "packages/sdk/src/generated/**"],
+  "overrides": [
+    {
+      "files": ["**/*.test.*"],
+      "rules": {
+        "no-magic-numbers": "off",
+        "sort-keys": "off",
+        "require-unicode-regexp": "off",
+        "require-await": "off",
+        "no-shadow": "off",
+        "prefer-named-capture-group": "off",
+        "unicorn/prefer-response-static-json": "off",
+        "unicorn/numeric-separators-style": "off",
+        "unicorn/catch-error-name": "off",
+        "unicorn/prefer-import-meta-properties": "off",
+        "unicorn/no-useless-undefined": "off",
+        "unicorn/consistent-function-scoping": "off",
+        "unicorn/relative-url-style": "off",
+        "typescript/consistent-type-imports": "off",
+        "typescript/consistent-generic-constructors": "off",
+        "typescript/array-type": "off"
+      }
+    }
+  ]
 }

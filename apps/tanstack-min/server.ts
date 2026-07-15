@@ -11,8 +11,7 @@
  */
 import { createServer, type Server } from "node:http";
 import { readFile } from "node:fs/promises";
-import { dirname, join, normalize } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join, normalize } from "node:path";
 
 import {
   CookieSessionStore,
@@ -39,9 +38,17 @@ import {
   type Router,
 } from "h3";
 
-const currentDir: string = dirname(fileURLToPath(import.meta.url));
+const DEFAULT_PORT = "3000";
+
+/** HTTP status returned when a request escapes the static root. */
+const FORBIDDEN_STATUS = 403;
+
+/** HTTP status returned when a static asset does not exist. */
+const NOT_FOUND_STATUS = 404;
+
+const currentDir: string = import.meta.dirname;
 const publicDir: string = join(currentDir, "public");
-const port: number = Number.parseInt(process.env.PORT ?? "3000", 10);
+const port: number = Math.trunc(Number(process.env.PORT ?? DEFAULT_PORT));
 
 const contentTypes: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -132,14 +139,14 @@ app.use(router);
 // Static client fallback: serve `public/` with `index.html` for the root.
 app.use(
   defineEventHandler(async (event: H3Event): Promise<unknown> => {
-    const requestPath: string = getRequestPath(event).split("?")[0];
+    const [requestPath = ""]: string[] = getRequestPath(event).split("?");
     const relative: string =
-      requestPath === "/" || requestPath === "" ? "index.html" : requestPath.replace(/^\/+/, "");
+      requestPath === "/" || requestPath === "" ? "index.html" : requestPath.replace(/^\/+/u, "");
 
     // Contain path traversal within publicDir.
     const resolved: string = normalize(join(publicDir, relative));
     if (!resolved.startsWith(publicDir)) {
-      setResponseStatus(event, 403);
+      setResponseStatus(event, FORBIDDEN_STATUS);
       return "Forbidden";
     }
 
@@ -153,7 +160,7 @@ app.use(
       );
       return contents;
     } catch {
-      setResponseStatus(event, 404);
+      setResponseStatus(event, NOT_FOUND_STATUS);
       return "Not found";
     }
   }),

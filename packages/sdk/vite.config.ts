@@ -46,5 +46,5 @@ export default defineConfig({
 });
 
 function isAbsoluteWindows(id: string): boolean {
-  return /^[a-zA-Z]:[\\/]/.test(id);
+  return /^[a-zA-Z]:[\\/]/u.test(id);
 }

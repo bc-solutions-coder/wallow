@@ -555,7 +555,7 @@ function attributeValue(setCookie: string, attribute: string): string | undefine
     return undefined;
   }
   const eq: number = part.indexOf("=");
-  return eq < 0 ? "" : part.slice(eq + 1).trim();
+  return eq === -1 ? "" : part.slice(eq + 1).trim();
 }
 
 /** The shape the `/bff/user` endpoint returns once it exposes the CSRF token. */
