@@ -40,6 +40,13 @@
       }
     },
     {
+      "files": ["apps/wallow-auth/**/*.{ts,tsx}"],
+      "rules": {
+        "unicorn/filename-case": ["error", { "cases": { "kebabCase": true, "pascalCase": true } }],
+        "no-magic-numbers": ["warn", { "ignore": [0, 1] }]
+      }
+    },
+    {
       "files": ["**/*.test.*"],
       "rules": {
         "no-await-in-loop": "off",
