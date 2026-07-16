@@ -105,9 +105,7 @@ builder.Services.AddAuthentication(options =>
         options.CorrelationCookie.SecurePolicy = CookieSecurePolicy.Always;
         options.NonceCookie.SameSite = SameSiteMode.None;
         options.NonceCookie.SecurePolicy = CookieSecurePolicy.Always;
-        options.Authority = builder.Configuration["Oidc:Authority"]
-            ?? builder.Configuration["ServiceUrls:AuthUrl"]
-            ?? "http://localhost:5001";
+        options.Authority = WebOidcAuthorityResolver.Resolve(builder.Configuration);
         // When MetadataAddress is configured, discovery happens over the internal network (HTTP)
         // while Authority remains HTTPS for browser-facing redirects — safe to skip HTTPS check.
         bool hasInternalMetadata = !string.IsNullOrEmpty(builder.Configuration["Oidc:MetadataAddress"]);

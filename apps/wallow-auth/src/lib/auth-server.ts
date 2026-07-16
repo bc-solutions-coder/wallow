@@ -74,11 +74,32 @@ function resolveApiInternalUrl(config: AuthServerConfig): string {
 }
 
 /**
+ * Set `X-Forwarded-Proto`/`X-Forwarded-Host` for the upstream hop, deriving each
+ * from the inbound request ONLY when the client did not already send it. An
+ * outer TLS-terminating ingress is the only hop that knows the browser's real
+ * scheme, so its header must win — overwriting it with this proxy's own
+ * plain-HTTP leg would downgrade the API's view to `http`.
+ */
+function applyForwardedHeaders(headers: Headers, incoming: URL): void {
+  if (!headers.has("x-forwarded-proto")) {
+    headers.set("x-forwarded-proto", incoming.protocol.replace(":", ""));
+  }
+  if (!headers.has("x-forwarded-host")) {
+    headers.set("x-forwarded-host", incoming.host);
+  }
+}
+
+/**
  * Build the reverse-proxy event handler. It forwards the inbound request's
  * method, path, query, body, and headers (including `Cookie`) to
  * `apiInternalUrl` and returns the upstream `Response` unchanged, so h3 relays
  * the status, body, and ALL `Set-Cookie` headers back to the caller. No session
  * store, no cookie jar, no relay — pure per-request passthrough.
+ *
+ * The one thing it adds is `X-Forwarded-Proto`/`X-Forwarded-Host`: the API's
+ * `UseForwardedHeaders` computes the Identity cookie's `Secure` attribute (and
+ * OpenIddict's HTTPS check, ID2083) from the scheme it sees, and the
+ * wallow-auth -> API leg is plain HTTP even when the browser leg is HTTPS.
  */
 function createProxyHandler(apiInternalUrl: string): EventHandler {
   return defineEventHandler(async (event: H3Event): Promise<Response> => {
@@ -89,6 +110,7 @@ function createProxyHandler(apiInternalUrl: string): EventHandler {
     const headers: Headers = new Headers(request.headers);
     // Strip the inbound Host so fetch derives it from the upstream target.
     headers.delete("host");
+    applyForwardedHeaders(headers, incoming);
 
     const hasBody: boolean = request.method !== "GET" && request.method !== "HEAD";
     const init: RequestInit = {
@@ -104,7 +126,7 @@ function createProxyHandler(apiInternalUrl: string): EventHandler {
 
 /**
  * Build the reverse-proxy server. Wires the h3 dispatch (`/health`, `/v1/**`,
- * `/connect/**`, else 404) and exposes a framework-agnostic
+ * `/connect/**`, `/.well-known/**`, else 404) and exposes a framework-agnostic
  * `handle(request): Promise<Response>` bridge via `toWebHandler`.
  */
 export function createAuthServer(config: AuthServerConfig = {}): AuthServer {
@@ -123,6 +145,9 @@ export function createAuthServer(config: AuthServerConfig = {}): AuthServer {
   // Wildcards forward the full subtree; the upstream path is preserved intact.
   router.use("/v1/**", proxy);
   router.use("/connect/**", proxy);
+  // The whole subtree, not just openid-configuration: the discovery document's
+  // jwks_uri advertises this same origin, so signing keys must resolve too.
+  router.use("/.well-known/**", proxy);
 
   app.use(router);
 

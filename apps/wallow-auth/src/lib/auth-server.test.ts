@@ -30,6 +30,8 @@ interface RecordedRequest {
   cookie: string | undefined;
   contentType: string | undefined;
   body: string;
+  forwardedProto: string | undefined;
+  forwardedHost: string | undefined;
 }
 
 let upstream: Server;
@@ -39,6 +41,15 @@ let auth: AuthServer;
 
 const SET_COOKIE_ACCESS = "wallow_auth=access-token-abc; Path=/; HttpOnly; SameSite=Lax";
 const SET_COOKIE_REFRESH = "wallow_refresh=refresh-token-def; Path=/; HttpOnly; SameSite=Strict";
+
+const DISCOVERY_DOCUMENT = {
+  issuer: "http://localhost",
+  authorization_endpoint: "http://localhost/connect/authorize",
+  token_endpoint: "http://localhost/connect/token",
+  jwks_uri: "http://localhost/.well-known/jwks",
+};
+
+const JWKS_DOCUMENT = { keys: [{ kty: "RSA", kid: "test-key" }] };
 
 function startUpstream(): Promise<Server> {
   const server: Server = createServer((req: IncomingMessage, res: ServerResponse): void => {
@@ -53,6 +64,8 @@ function startUpstream(): Promise<Server> {
         cookie: req.headers.cookie,
         contentType: req.headers["content-type"],
         body: Buffer.concat(chunks).toString("utf8"),
+        forwardedProto: req.headers["x-forwarded-proto"] as string | undefined,
+        forwardedHost: req.headers["x-forwarded-host"] as string | undefined,
       };
 
       const target: string = req.url ?? "";
@@ -68,6 +81,18 @@ function startUpstream(): Promise<Server> {
         res.statusCode = 200;
         res.setHeader("content-type", "text/html");
         res.end("<html>authorize</html>");
+        return;
+      }
+      if (target === "/.well-known/openid-configuration") {
+        res.statusCode = 200;
+        res.setHeader("content-type", "application/json");
+        res.end(JSON.stringify(DISCOVERY_DOCUMENT));
+        return;
+      }
+      if (target === "/.well-known/jwks") {
+        res.statusCode = 200;
+        res.setHeader("content-type", "application/json");
+        res.end(JSON.stringify(JWKS_DOCUMENT));
         return;
       }
       // Default: echo the received Cookie header back so the caller can assert
@@ -111,10 +136,113 @@ describe("auth-server dispatch", () => {
     await expect(res.text()).resolves.toBe("ready");
   });
 
-  it("returns 404 for paths outside /health, /v1, and /connect", async () => {
+  it("returns 404 for paths outside /health, /v1, /connect, and /.well-known", async () => {
     const res: Response = await auth.handle(new Request("http://localhost/dashboard"));
 
     expect(res.status).toBe(404);
+  });
+});
+
+/**
+ * Spec (Wallow-vec7.4.2): once the issuer is this origin (Wallow-vec7.4.1), every OIDC client
+ * whose Authority points here resolves discovery at `${origin}/.well-known/openid-configuration`
+ * and fetches signing keys from the `jwks_uri` that document advertises. The proxy mounted only
+ * `/v1/**` and `/connect/**`, so both 404'd — clients could only work around it with an explicit
+ * out-of-band metadata URL. The subtree wildcard is what makes an Authority pointed at this
+ * origin work without one.
+ */
+describe("auth-server discovery passthrough", () => {
+  it("proxies GET /.well-known/openid-configuration to upstream", async () => {
+    const res: Response = await auth.handle(
+      new Request("http://localhost/.well-known/openid-configuration"),
+    );
+
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual(DISCOVERY_DOCUMENT);
+    expect(lastRequest?.target).toBe("/.well-known/openid-configuration");
+  });
+
+  it("proxies the whole /.well-known subtree, including the jwks endpoint", async () => {
+    const res: Response = await auth.handle(new Request("http://localhost/.well-known/jwks"));
+
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual(JWKS_DOCUMENT);
+    expect(lastRequest?.target).toBe("/.well-known/jwks");
+  });
+});
+
+/**
+ * Spec (Wallow-vec7.4.3): cookie attributes must stay correct now that BOTH top-level
+ * navigation (`/connect/*`, exchange-ticket, logout) and XHR data calls reach the API
+ * through this proxy instead of hitting the API's own origin.
+ *
+ * The attributes themselves are decided upstream, not here: the durable Identity cookie
+ * uses `SecurePolicy.Always` outside Development and OpenIddict rejects plain HTTP with
+ * ID2083 ("This server only accepts HTTPS requests"). Both are computed from the scheme
+ * the API *sees*, and `api/src/Wallow.Api/Program.cs:372-385` derives that scheme from
+ * `X-Forwarded-Proto` (its comment names ID2083 as the exact failure mode).
+ *
+ * The proxy's browser-facing leg is HTTPS in production but its upstream leg is plain
+ * HTTP (`http://wallow-api`), so unless the inbound scheme is forwarded the API sees HTTP
+ * and top-level nav to `/connect/authorize` fails outright. Standard proxy-chaining
+ * semantics apply: an `X-Forwarded-*` header set by an outer trusted proxy (TLS-terminating
+ * ingress) wins, since it alone knows the real browser leg; otherwise this proxy derives
+ * the value from its own inbound request.
+ */
+describe("auth-server forwarded-scheme propagation", () => {
+  it("sends X-Forwarded-Proto derived from the inbound scheme when the client sent none", async () => {
+    const res: Response = await auth.handle(
+      new Request("https://auth.wallow.dev/v1/identity/users/me", {
+        headers: { cookie: "wallow_auth=session-xyz" },
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(lastRequest?.forwardedProto).toBe("https");
+  });
+
+  it("sends X-Forwarded-Host derived from the inbound host when the client sent none", async () => {
+    const res: Response = await auth.handle(
+      new Request("https://auth.wallow.dev/v1/identity/users/me"),
+    );
+
+    expect(res.status).toBe(200);
+    expect(lastRequest?.forwardedHost).toBe("auth.wallow.dev");
+  });
+
+  it("forwards X-Forwarded-Proto on top-level nav to /connect/authorize (the ID2083 path)", async () => {
+    const res: Response = await auth.handle(
+      new Request(
+        "https://auth.wallow.dev/connect/authorize?client_id=wallow-web&response_type=code",
+      ),
+    );
+
+    expect(res.status).toBe(200);
+    expect(lastRequest?.forwardedProto).toBe("https");
+  });
+
+  it("derives X-Forwarded-Proto as http for a plain-HTTP dev origin", async () => {
+    const res: Response = await auth.handle(
+      new Request("http://localhost:3001/v1/identity/users/me"),
+    );
+
+    expect(res.status).toBe(200);
+    expect(lastRequest?.forwardedProto).toBe("http");
+  });
+
+  it("preserves an outer proxy's X-Forwarded-Proto instead of overwriting it with its own leg", async () => {
+    // TLS-terminating ingress -> this proxy over plain HTTP. Only the ingress knows the
+    // browser used HTTPS; overwriting with the inbound scheme would downgrade to http and
+    // resurrect ID2083 behind an ingress.
+    const res: Response = await auth.handle(
+      new Request("http://wallow-auth:3000/connect/authorize", {
+        headers: { "x-forwarded-proto": "https", "x-forwarded-host": "auth.wallow.dev" },
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(lastRequest?.forwardedProto).toBe("https");
+    expect(lastRequest?.forwardedHost).toBe("auth.wallow.dev");
   });
 });
 

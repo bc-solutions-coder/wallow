@@ -65,12 +65,14 @@ public static class IdentityInfrastructureExtensions
                     .SetEndSessionEndpointUris("/connect/logout")
                     .SetUserInfoEndpointUris("/connect/userinfo");
 
-                // Allow explicit issuer override (needed when the API is behind a reverse proxy
-                // or when containers and browsers use different hostnames, e.g. E2E tests)
-                string? issuer = configuration["OpenIddict:Issuer"];
-                if (!string.IsNullOrEmpty(issuer))
+                // The browser reaches /connect/** through the unified auth origin's reverse
+                // proxy, so the advertised issuer must be that public origin rather than the
+                // API's own request origin. OpenIddict:Issuer still overrides it explicitly
+                // (needed when containers and browsers use different hostnames, e.g. E2E tests).
+                Uri? issuer = OpenIddictIssuerResolver.Resolve(configuration);
+                if (issuer is not null)
                 {
-                    options.SetIssuer(new Uri(issuer));
+                    options.SetIssuer(issuer);
                 }
 
                 options.AllowAuthorizationCodeFlow().RequireProofKeyForCodeExchange()
