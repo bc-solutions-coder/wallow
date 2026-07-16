@@ -58,7 +58,8 @@
         "unicorn/relative-url-style": "off",
         "typescript/consistent-type-imports": "off",
         "typescript/consistent-generic-constructors": "off",
-        "typescript/array-type": "off"
+        "typescript/array-type": "off",
+        "react/jsx-props-no-spreading": "off"
       }
     }
   ]

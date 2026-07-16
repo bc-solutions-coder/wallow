@@ -2,11 +2,13 @@ import { createRouter as createTanStackRouter, type AnyRouter } from "@tanstack/
 
 import { createQueryClient } from "./lib/query-client";
 import { Route as rootRoute } from "./routes/__root";
+import { Route as bffDemoRoute } from "./routes/bff-demo";
 import { Route as appsIndexRoute } from "./routes/dashboard/apps/index";
 import { Route as inquiryDetailRoute } from "./routes/dashboard/inquiries/$inquiryId";
 import { Route as inquiriesIndexRoute } from "./routes/dashboard/inquiries/index";
 import { Route as organizationDetailRoute } from "./routes/dashboard/organizations/$orgId";
 import { Route as organizationsIndexRoute } from "./routes/dashboard/organizations/index";
+import { Route as dashboardRoute } from "./routes/dashboard/route";
 import { Route as settingsRoute } from "./routes/dashboard/settings";
 import { Route as indexRoute } from "./routes/index";
 
@@ -26,50 +28,69 @@ export function createRouter(): AnyRouter {
     getParentRoute: () => rootRoute,
   });
 
-  const organizationsIndexWithParent = organizationsIndexRoute.update({
-    id: "/dashboard/organizations",
-    path: "/dashboard/organizations",
+  // The dedicated `/bff-demo` route (Wallow-8w1h.8.2) — the React port of the
+  // BFF smoke surface, bound under the root like the other manual routes.
+  const bffDemoRouteWithParent = bffDemoRoute.update({
+    id: "/bff-demo",
+    path: "/bff-demo",
     getParentRoute: () => rootRoute,
+  });
+
+  // The `/dashboard` layout route (Wallow-8w1h.8.1) — the authenticated shell
+  // that the dashboard verticals reparent under so they render inside its
+  // `<Outlet/>` and share its `beforeLoad` auth gate.
+  const dashboardRouteWithParent = dashboardRoute.update({
+    id: "/dashboard",
+    path: "/dashboard",
+    getParentRoute: () => rootRoute,
+  });
+
+  // Children are reparented under `/dashboard`, so their paths are now RELATIVE
+  // to the layout route. TanStack composes the full id/path from the parent's
+  // id/path + the child's relative segment (parent "/dashboard" + "organizations"
+  // -> id/path "/dashboard/organizations"), so the registered ids/paths are
+  // unchanged from the previous flat tree — only the parent changes.
+  const organizationsIndexWithParent = organizationsIndexRoute.update({
+    path: "organizations",
+    getParentRoute: () => dashboardRouteWithParent,
   });
 
   const organizationDetailWithParent = organizationDetailRoute.update({
-    id: "/dashboard/organizations/$orgId",
-    path: "/dashboard/organizations/$orgId",
-    getParentRoute: () => rootRoute,
+    path: "organizations/$orgId",
+    getParentRoute: () => dashboardRouteWithParent,
   });
 
   const appsIndexWithParent = appsIndexRoute.update({
-    id: "/dashboard/apps",
-    path: "/dashboard/apps",
-    getParentRoute: () => rootRoute,
+    path: "apps",
+    getParentRoute: () => dashboardRouteWithParent,
   });
 
   const settingsWithParent = settingsRoute.update({
-    id: "/dashboard/settings",
-    path: "/dashboard/settings",
-    getParentRoute: () => rootRoute,
+    path: "settings",
+    getParentRoute: () => dashboardRouteWithParent,
   });
 
   const inquiriesIndexWithParent = inquiriesIndexRoute.update({
-    id: "/dashboard/inquiries",
-    path: "/dashboard/inquiries",
-    getParentRoute: () => rootRoute,
+    path: "inquiries",
+    getParentRoute: () => dashboardRouteWithParent,
   });
 
   const inquiryDetailWithParent = inquiryDetailRoute.update({
-    id: "/dashboard/inquiries/$inquiryId",
-    path: "/dashboard/inquiries/$inquiryId",
-    getParentRoute: () => rootRoute,
+    path: "inquiries/$inquiryId",
+    getParentRoute: () => dashboardRouteWithParent,
   });
 
   const routeTree = rootRoute.addChildren([
     indexRouteWithParent,
-    organizationsIndexWithParent,
-    organizationDetailWithParent,
-    appsIndexWithParent,
-    settingsWithParent,
-    inquiriesIndexWithParent,
-    inquiryDetailWithParent,
+    bffDemoRouteWithParent,
+    dashboardRouteWithParent.addChildren([
+      organizationsIndexWithParent,
+      organizationDetailWithParent,
+      appsIndexWithParent,
+      settingsWithParent,
+      inquiriesIndexWithParent,
+      inquiryDetailWithParent,
+    ]),
   ]);
 
   const queryClient = createQueryClient();
