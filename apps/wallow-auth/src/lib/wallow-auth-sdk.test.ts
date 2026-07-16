@@ -43,6 +43,10 @@ const AUTH_METHODS: readonly string[] = [
   "getMatchingOrgByDomain",
   "requestMembership",
   "validateRedirectUri",
+  // The auth-state seam (Wallow-vec7.2.4). `.auth` is the SDK's AuthClient
+  // wholesale, so this rides along with no wiring change — pinned here so the
+  // inventory stays honest and screens can rely on reaching it through `.auth`.
+  "getCurrentUser",
 ];
 
 /** The five non-spec OIDC helpers the SDK exports; `.oidc` must surface them all. */
@@ -83,6 +87,7 @@ const mocks = vi.hoisted(() => {
     "getMatchingOrgByDomain",
     "requestMembership",
     "validateRedirectUri",
+    "getCurrentUser",
   ]) {
     authClient[name] = vi.fn();
   }

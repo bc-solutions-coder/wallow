@@ -15,6 +15,19 @@
  * `apps/wallow-web/src/lib/wallow-sdk.ts`, upgraded from "throw the raw
  * ProblemDetails" to "throw a typed WallowError" per this bead's acceptance.
  *
+ * ONE EXCEPTION — `getCurrentUser` (Wallow-vec7.2.4): the auth-state seam. It
+ * answers "is this browser signed in", so a 401 is not a failure but the ANSWER
+ * "anonymous", and it resolves `null` instead of throwing. Every other status
+ * still throws. See the method for why the softening stops at exactly 401.
+ *
+ * AUTH STATE / HttpOnly: the auth cookie is HttpOnly and stays that way — this
+ * module never reads, parses, or forwards a cookie. `getCurrentUser` issues its
+ * OWN same-origin request (the browser attaches the cookie automatically; the
+ * wallow-auth h3 proxy forwards it verbatim) and observes only the 200/401 of
+ * that response. SameSite=Lax + CORS keep a foreign origin from probing the same
+ * signal. The result is a UI AFFORDANCE ONLY: the API independently enforces
+ * every `[Authorize]` endpoint regardless of what the client believes.
+ *
  * WHY `./server/errors`: {@link WallowError} lives under `src/server/` but that
  * module is dependency free (no node/h3/openid-client imports), so importing
  * the file DIRECTLY — never the `./server` barrel, which does pull node deps —
@@ -37,6 +50,7 @@ import {
   type ClientBrandingDto,
   type ConsentInfoResponse,
   type CreateMembershipRequest,
+  type CurrentUserResponse,
   getV1IdentityAppsByClientIdBranding,
   getV1IdentityAppsConsentInfoByClientId,
   getV1IdentityAuthClientTenantByClientId,
@@ -46,6 +60,7 @@ import {
   getV1IdentityAuthVerifyEmail,
   getV1IdentityInvitationsVerifyByToken,
   getV1IdentityOrganizationDomainsMatch,
+  getV1IdentityUsersMe,
   type MfaConfirmRequest,
   postV1IdentityAuthForgotPassword,
   postV1IdentityAuthLogin,
@@ -147,6 +162,21 @@ export interface AuthClient {
    * open-redirect check with no generated-op backing. Response body is untyped.
    */
   validateRedirectUri: (uri: string) => Promise<unknown>;
+  /**
+   * Resolve the signed-in user, or `null` when the browser is anonymous.
+   *
+   * The auth-state seam for screens that branch on "is this browser signed in"
+   * (wallow-auth has no server session to consult and the auth cookie is
+   * HttpOnly, so this probe is the only way to ask). Call it CLIENT-SIDE: the
+   * browser attaches the same-origin cookie automatically, whereas an SSR loader
+   * would need manual cookie forwarding — and auth state must never be
+   * SSR-cached.
+   *
+   * `null` means anonymous, NOT "the call failed": a 401 resolves, while every
+   * other status throws a `WallowError` as usual. Treat the result as a UI
+   * affordance only — the API enforces authorization independently.
+   */
+  getCurrentUser: () => Promise<CurrentUserResponse | null>;
 }
 
 /**
@@ -208,7 +238,44 @@ export function createAuthClient(options?: AuthClientOptions): AuthClient {
       unwrap(postV1IdentityMembershipRequests({ body })),
     validateRedirectUri: (uri: string) =>
       unwrap(getV1IdentityAuthRedirectUriValidate({ query: { uri } })),
+    getCurrentUser,
   };
+}
+
+/** The status the API returns for an anonymous caller: the answer, not a failure. */
+const ANONYMOUS_STATUS: number = 401;
+
+/**
+ * Probe the current auth state by asking the API who the caller is.
+ *
+ * Deliberately does NOT go through {@link unwrap}: unwrap throws on every
+ * non-2xx, and a 401 here is not a failure — it is the answer "anonymous". Every
+ * OTHER status still throws, so a 500 or a proxy outage can never masquerade as
+ * a signed-out user (which would silently sign out every real user during an
+ * incident). Exactly one status is softened.
+ *
+ * The transport status wins over any status the body claims: a 401 from the auth
+ * layer IS the anonymous answer, whatever a stray body says. When no transport
+ * status is available, the normalized {@link WallowError} status stands in.
+ */
+async function getCurrentUser(): Promise<CurrentUserResponse | null> {
+  const envelope: Envelope<CurrentUserResponse> = await getV1IdentityUsersMe();
+
+  if (envelope.error === undefined) {
+    // A 200 with no body is degenerate (the endpoint always bodies a
+    // CurrentUserResponse). Fall to the LESS-privileged branch rather than
+    // inventing a signed-in user out of nothing.
+    return envelope.data ?? null;
+  }
+
+  const transportStatus: number | undefined = envelope.response?.status;
+  const failure: WallowError = toWallowError(envelope.error, transportStatus);
+
+  if ((transportStatus ?? failure.status) === ANONYMOUS_STATUS) {
+    return null;
+  }
+
+  throw failure;
 }
 
 /**

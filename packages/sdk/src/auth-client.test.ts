@@ -41,6 +41,7 @@ const mocks = vi.hoisted(() => ({
   getV1IdentityOrganizationDomainsMatch: vi.fn(),
   postV1IdentityMembershipRequests: vi.fn(),
   getV1IdentityAuthRedirectUriValidate: vi.fn(),
+  getV1IdentityUsersMe: vi.fn(),
 }));
 
 vi.mock("./generated", () => ({ ...mocks }));
@@ -212,6 +213,15 @@ const METHOD_CASES: readonly MethodCase[] = [
     op: "getV1IdentityAuthRedirectUriValidate",
     invoke: (auth: AuthClient) => auth.validateRedirectUri("https://app.example.com/callback"),
     expectedArg: { query: { uri: "https://app.example.com/callback" } },
+  },
+  {
+    // Rides the shared delegation + non-401-throws rows like any other method.
+    // The 401 => null special case it ALONE carries is pinned separately, in
+    // the "getCurrentUser auth-state probe" describe below.
+    method: "getCurrentUser",
+    op: "getV1IdentityUsersMe",
+    invoke: (auth: AuthClient) => auth.getCurrentUser(),
+    expectedArg: undefined,
   },
 ];
 
@@ -475,6 +485,137 @@ describe("getConsentInfo scope encoding", () => {
     expect(mocks.getV1IdentityAppsConsentInfoByClientId).toHaveBeenCalledWith({
       path: { clientId: "client-1" },
     });
+  });
+});
+
+/**
+ * `getCurrentUser` is the auth-state seam (Wallow-vec7.2.4): the ONE method that
+ * answers "is this browser signed in", by probing `GET /v1/identity/users/me`
+ * through the same-origin passthrough proxy and reading the STATUS of its own
+ * request. It is the sole exception to the facade's throw-on-every-non-2xx
+ * envelope contract, because 401 is not a failure here — it is the ANSWER
+ * "anonymous", an expected steady state for a signed-out visitor.
+ *
+ * The two directions are pinned symmetrically, and the second matters as much as
+ * the first: softening 401 must NOT bleed into softening everything. If a 500 or
+ * a proxy outage resolved `null`, every signed-in user would silently render as
+ * anonymous during an incident — a real bug that a naive `.catch(() => null)`
+ * would ship. So exactly one status resolves; every other status still throws.
+ */
+describe("getCurrentUser auth-state probe", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns the signed-in user on 200", async () => {
+    const user = { id: "u-1", email: "user@example.com", roles: ["Member"] };
+    mocks.getV1IdentityUsersMe.mockResolvedValue({ data: user });
+    const auth: AuthClient = await freshAuthClient();
+
+    await expect(auth.getCurrentUser()).resolves.toBe(user);
+  });
+
+  it("resolves null instead of throwing on the API's bare 401", async () => {
+    // What an anonymous visitor actually gets: OnRedirectToLogin is overridden
+    // to StatusCode=401, so the body is EMPTY — no problem details, no code.
+    mocks.getV1IdentityUsersMe.mockResolvedValue({ error: {}, response: { status: 401 } });
+    const auth: AuthClient = await freshAuthClient();
+
+    await expect(auth.getCurrentUser()).resolves.toBeNull();
+  });
+
+  it("reads 401 from problem details when the envelope carries no response", async () => {
+    mocks.getV1IdentityUsersMe.mockResolvedValue({
+      error: { status: 401, title: "Unauthorized" },
+    });
+    const auth: AuthClient = await freshAuthClient();
+
+    await expect(auth.getCurrentUser()).resolves.toBeNull();
+  });
+
+  it("treats the transport status as authoritative over a conflicting body status", async () => {
+    // A 401 from the auth layer IS the anonymous answer regardless of what a
+    // stray body claims; the auth decision keys on the real HTTP status.
+    mocks.getV1IdentityUsersMe.mockResolvedValue({
+      error: { status: 500 },
+      response: { status: 401 },
+    });
+    const auth: AuthClient = await freshAuthClient();
+
+    await expect(auth.getCurrentUser()).resolves.toBeNull();
+  });
+
+  it.each([403, 500, 502, 503])(
+    "still throws a WallowError on %i — an outage must not read as anonymous",
+    async (status: number) => {
+      mocks.getV1IdentityUsersMe.mockResolvedValue({
+        error: { title: "Failure" },
+        response: { status },
+      });
+      const auth: AuthClient = await freshAuthClient();
+
+      const error = (await auth.getCurrentUser().catch((e: unknown) => e)) as WallowError;
+
+      expect(error).toBeInstanceOf(WallowError);
+      expect(error.status).toBe(status);
+    },
+  );
+
+  it("preserves the problem-details code and title on a thrown failure", async () => {
+    mocks.getV1IdentityUsersMe.mockResolvedValue({
+      error: { status: 403, title: "Forbidden", detail: "Tenant suspended", code: "TENANT_LOCKED" },
+    });
+    const auth: AuthClient = await freshAuthClient();
+
+    const error = (await auth.getCurrentUser().catch((e: unknown) => e)) as WallowError;
+
+    expect(error.status).toBe(403);
+    expect(error.code).toBe("TENANT_LOCKED");
+    expect(error.title).toBe("Forbidden");
+    expect(error.detail).toBe("Tenant suspended");
+  });
+
+  it("throws rather than resolving null when the failure names no status at all", async () => {
+    // Unknown failure => the 500 fallback, NOT the anonymous answer. Only a real
+    // 401 may resolve null; ambiguity must surface.
+    mocks.getV1IdentityUsersMe.mockResolvedValue({ error: "boom" });
+    const auth: AuthClient = await freshAuthClient();
+
+    const error = (await auth.getCurrentUser().catch((e: unknown) => e)) as WallowError;
+
+    expect(error).toBeInstanceOf(WallowError);
+    expect(error.status).toBe(500);
+  });
+
+  it("rejects with the thrown error rather than swallowing an op that itself rejects", async () => {
+    // A network fault rejects the op outright; it must not become "anonymous".
+    mocks.getV1IdentityUsersMe.mockRejectedValue(new TypeError("Failed to fetch"));
+    const auth: AuthClient = await freshAuthClient();
+
+    await expect(auth.getCurrentUser()).rejects.toBeInstanceOf(TypeError);
+  });
+
+  it("probes with no arguments, riding the ambient same-origin cookie", async () => {
+    // The cookie is HttpOnly: the SDK never reads or forwards it by hand, it just
+    // issues its own same-origin request and observes the status. Passing any
+    // credential argument here would mean someone had reached for the cookie.
+    mocks.getV1IdentityUsersMe.mockResolvedValue({ data: { id: "u-1" } });
+    const auth: AuthClient = await freshAuthClient();
+
+    await auth.getCurrentUser();
+
+    expect(mocks.getV1IdentityUsersMe).toHaveBeenCalledWith();
+  });
+
+  it("treats a 200 with no body as anonymous rather than inventing a user", async () => {
+    // Degenerate: the endpoint always bodies a CurrentUserResponse. If that ever
+    // breaks, fall to the LESS-privileged branch — accept is [Authorize]-enforced
+    // server-side either way, so a wrong `null` costs a re-login prompt, while a
+    // wrong user object would render a signed-in UI over nothing.
+    mocks.getV1IdentityUsersMe.mockResolvedValue({ data: undefined });
+    const auth: AuthClient = await freshAuthClient();
+
+    await expect(auth.getCurrentUser()).resolves.toBeNull();
   });
 });
 
