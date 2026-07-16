@@ -4,6 +4,9 @@ import { type ReactNode, useState } from "react";
 import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
 import { type AuthDisposition, authDispositionOf, errorParamMessage } from "../auth-result";
 import type { LoginTab } from "../panel";
+import { ExternalProviders } from "./ExternalProviders";
+import { MagicLinkLoginForm } from "./MagicLinkLoginForm";
+import { OtpLoginForm } from "./OtpLoginForm";
 import { PasswordLoginForm } from "./PasswordLoginForm";
 
 /**
@@ -194,22 +197,43 @@ function TabStrip(props: {
 }
 
 /**
- * The active tab's panel.
+ * The active tab's panel — the oracle's `else if` chain, one panel at a time.
  *
- * `magic-link` and `otp` render NOTHING yet — they are `.3.12` and `.3.13`, and
- * this bead deliberately implements neither. Each is a `<MagicLinkLoginForm … />`
- * / `<OtpLoginForm … />` taking the same `LoginPanelProps` this passes to
- * `PasswordLoginForm`; nothing else here needs to change to host them.
+ * `OtpLoginForm` (Wallow-vec7.3.13) needed no new props to host, exactly as
+ * `.3.11` predicted: `SendOtpRequest` is `{ email }` and `VerifyOtpRequest` is
+ * `{ email, code, rememberMe? }`, so neither `returnUrl` nor `clientId` is cargo
+ * this tab carries — both halves of it are driven entirely by what the user types.
  */
 function TabPanel(props: {
   readonly activeTab: LoginTab;
+  readonly magicLinkToken?: string;
+  readonly returnUrl?: string;
+  readonly clientId?: string;
   readonly onAuthResult: (body: unknown) => void;
   readonly onError: (message: string | null) => void;
 }) {
-  const { activeTab, onAuthResult, onError } = props;
+  const { activeTab, magicLinkToken, returnUrl, clientId, onAuthResult, onError } = props;
 
-  if (activeTab !== "password") {
-    return null;
+  if (activeTab === "magic-link") {
+    // `returnUrl`/`clientId` are cargo for the SEND (`SendMagicLinkRequest` carries
+    // them so the emailed link can resume this OIDC flow) — NOT a destination this
+    // panel navigates to. It never navigates; it reports up. See `../panel`.
+    return (
+      <MagicLinkLoginForm
+        token={magicLinkToken}
+        returnUrl={returnUrl}
+        clientId={clientId}
+        onAuthResult={onAuthResult}
+        onError={onError}
+      />
+    );
+  }
+
+  if (activeTab === "otp") {
+    // Like the magic-link panel, this one never navigates: `otp/verify` hands back
+    // the same `AuthResponse` shape, so it reports the RAW body up and the shell's
+    // one `authDispositionOf` decides. See `../panel`.
+    return <OtpLoginForm onAuthResult={onAuthResult} onError={onError} />;
   }
 
   return <PasswordLoginForm onAuthResult={onAuthResult} onError={onError} />;
@@ -263,11 +287,30 @@ export interface LoginScreenProps {
   readonly clientId?: string;
   /** The oracle's `[SupplyParameterFromQuery] Error` — a failure hand-back. */
   readonly error?: string;
+  /**
+   * The oracle's `[SupplyParameterFromQuery(Name = "magicLinkToken")]`
+   * (Wallow-vec7.3.12). Present ONLY when the user arrived from the link
+   * `MagicLinkRequestedNotificationHandler.cs:21` emailed them; it is redeemed on
+   * load by the magic-link panel.
+   */
+  readonly magicLinkToken?: string;
 }
 
-export function LoginScreen({ returnUrl, clientId, error }: LoginScreenProps): ReactNode {
+export function LoginScreen({
+  returnUrl,
+  clientId,
+  error,
+  magicLinkToken,
+}: LoginScreenProps): ReactNode {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<LoginTab>("password");
+  // The oracle's `HandleVerifyMagicLink` sets `_activeTab = LoginTab.MagicLink`
+  // before it does anything else (Login.razor:405), and `OnInitializedAsync` calls it
+  // whenever the token is non-empty: a user who clicked a link in their inbox must
+  // land on the tab where the outcome will be reported. `""` is not nullish, and
+  // `IsNullOrEmpty` parity means it is not a token.
+  const [activeTab, setActiveTab] = useState<LoginTab>(
+    magicLinkToken === undefined || magicLinkToken === "" ? "password" : "magic-link",
+  );
   // The oracle's `OnInitialized` seeds the banner from the `Error` query param.
   const [errorMessage, setErrorMessage] = useState<string | null>(() => errorParamMessage(error));
   const [signedIn, setSignedIn] = useState(false);
@@ -345,8 +388,26 @@ export function LoginScreen({ returnUrl, clientId, error }: LoginScreenProps): R
         <TabStrip activeTab={activeTab} onSelect={handleSwitchTab} />
       )}
       {signedIn ? null : (
-        <TabPanel activeTab={activeTab} onAuthResult={handleAuthResult} onError={setErrorMessage} />
+        <TabPanel
+          activeTab={activeTab}
+          magicLinkToken={magicLinkToken}
+          returnUrl={returnUrl}
+          clientId={clientId}
+          onAuthResult={handleAuthResult}
+          onError={setErrorMessage}
+        />
       )}
+      {/*
+       * Wallow-vec7.3.14. OUTSIDE the tab chain but INSIDE the `signedIn` gate,
+       * exactly as the oracle places it: "Or continue with" is an alternative to
+       * all three tabs, but offering it under a "you are now signed in" alert
+       * would invite the user to start over. It takes no `clientId` — the
+       * `external-login` endpoint binds no such parameter; client_id rides inside
+       * `returnUrl`. See the no-guard note in that file: this returnUrl is CARGO,
+       * not a destination this screen picks, so `returnUrlIsSafe` is deliberately
+       * not threaded into it.
+       */}
+      {signedIn ? null : <ExternalProviders returnUrl={returnUrl} />}
       <RegisterPrompt href={registerHref(clientId, returnUrl)} />
     </div>
   );

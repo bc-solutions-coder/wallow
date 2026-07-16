@@ -90,8 +90,15 @@ const MFA_ENROLL_PATH = "/mfa/enroll";
 /** The bail target for an unsafe returnUrl, matching the Consent/MfaChallenge ports. */
 const ERROR_HREF = "/error?reason=invalid_redirect_uri";
 
-/** Read a member off an unknown value without asserting its shape. */
-function readMember(value: unknown, name: string): unknown {
+/**
+ * Read a member off an unknown value without asserting its shape.
+ *
+ * Exported (Wallow-vec7.3.12) so each tab's own result module — `./magic-link-result`,
+ * and `./otp-result` when `.3.13` lands — narrows its untyped bodies and rejections
+ * the SAME way rather than each rolling a slightly laxer probe of its own. It is the
+ * only member of this module's private narrowing helpers that is shared.
+ */
+export function readMember(value: unknown, name: string): unknown {
   if (typeof value !== "object" || value === null || !(name in value)) {
     return undefined;
   }

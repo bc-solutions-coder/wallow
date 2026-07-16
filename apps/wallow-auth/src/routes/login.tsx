@@ -36,6 +36,13 @@ interface LoginSearch {
   readonly client_id?: string;
   /** The oracle's `Error` — a failure handed back by a redirect, e.g. from external login. */
   readonly error?: string;
+  /**
+   * The oracle's `magicLinkToken` (Wallow-vec7.3.12) — present only on the link
+   * `MagicLinkRequestedNotificationHandler.cs:21` emails: `{authUrl}/login?
+   * magicLinkToken=…&returnUrl=…&client_id=…`. The magic-link panel redeems it on
+   * load.
+   */
+  readonly magicLinkToken?: string;
 }
 
 /**
@@ -71,24 +78,33 @@ function readScalar(value: unknown): string | undefined {
  * `returnurl-guard-refuse-dont-sanitize`). Handing the raw value to the component,
  * which guards it at the point of navigation, is what makes that possible.
  *
- * `returnUrl` and `client_id` are NOT re-stringified the way `error` is: they are
- * used as a URI and an identifier, not matched against literals, so a value the
- * parser turned into a number was never a usable one.
+ * `returnUrl`, `client_id` and `magicLinkToken` are NOT re-stringified the way
+ * `error` is: they are used as a URI, an identifier and a credential, not matched
+ * against literals, so a value the parser turned into a number was never a usable
+ * one. A real magic-link token cannot BE such a value in any case — it is
+ * `base64(32 bytes) + "." + signature` (PasswordlessService.cs:70-72), so it always
+ * carries base64 padding and never JSON-parses to a scalar.
  */
 function validateSearch(search: Record<string, unknown>): LoginSearch {
   return {
     returnUrl: typeof search.returnUrl === "string" ? search.returnUrl : undefined,
     client_id: typeof search.client_id === "string" ? search.client_id : undefined,
     error: readScalar(search.error),
+    magicLinkToken: typeof search.magicLinkToken === "string" ? search.magicLinkToken : undefined,
   };
 }
 
 function LoginRoute() {
-  const { returnUrl, client_id: clientId, error } = Route.useSearch();
+  const { returnUrl, client_id: clientId, error, magicLinkToken } = Route.useSearch();
 
   return (
     <AuthLayout>
-      <LoginScreen returnUrl={returnUrl} clientId={clientId} error={error} />
+      <LoginScreen
+        returnUrl={returnUrl}
+        clientId={clientId}
+        error={error}
+        magicLinkToken={magicLinkToken}
+      />
     </AuthLayout>
   );
 }
