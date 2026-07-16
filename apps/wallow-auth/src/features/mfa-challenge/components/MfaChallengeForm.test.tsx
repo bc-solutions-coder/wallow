@@ -117,6 +117,7 @@ expect.extend(matchers);
 const mocks = vi.hoisted(() => ({
   verifyMfa: vi.fn(),
   useBackupCode: vi.fn(),
+  validateRedirectUri: vi.fn(),
   isSafeReturnUrl: vi.fn(),
   buildExchangeTicketUrl: vi.fn(),
   navigate: vi.fn(),
@@ -124,7 +125,11 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("../../../lib/wallow-auth-sdk", () => ({
   getWallowAuthSdk: () => ({
-    auth: { verifyMfa: mocks.verifyMfa, useBackupCode: mocks.useBackupCode },
+    auth: {
+      verifyMfa: mocks.verifyMfa,
+      useBackupCode: mocks.useBackupCode,
+      validateRedirectUri: mocks.validateRedirectUri,
+    },
     oidc: {
       isSafeReturnUrl: mocks.isSafeReturnUrl,
       buildExchangeTicketUrl: mocks.buildExchangeTicketUrl,
@@ -142,6 +147,29 @@ const BACKUP_CODE = "abcd-efgh-ijkl";
 const TICKET = "sign-in-ticket-xyz";
 const RETURN_URL = "/connect/authorize?client_id=web";
 
+/**
+ * The returnUrl the EXTERNAL-LOGIN hand-off really sends (Wallow-vec7.3.17).
+ *
+ * `AccountController.ExternalLoginCallback` normalizes returnUrl at L273-277 --
+ * either it passed `redirectUriValidator.IsAllowedAsync`, which requires
+ * `Uri.TryCreate(uri, UriKind.Absolute)` (OpenIddictRedirectUriValidator.cs:24),
+ * or it was replaced by the `authUrl` fallback, absolute by construction -- and
+ * then redirects to `{authUrl}/mfa/challenge?returnUrl={encodedReturn}` (L313,
+ * L335). So this shape, ABSOLUTE and allow-listed, is what 100% of external-login
+ * MFA users arrive with. `isSafeReturnUrl` is false for every one of them, which
+ * is the dead-end this bead fixes.
+ */
+const EXTERNAL_RETURN_URL = "http://localhost:5002/login";
+
+/** An absolute returnUrl from an origin the allow-list has never heard of. */
+const EVIL_RETURN_URL = "https://evil.example.com/steal";
+
+/**
+ * The origins `IsAllowedAsync` would admit: every registered redirect/post-logout
+ * URI, plus `AuthUrl` (OpenIddictRedirectUriValidator.cs:40-65).
+ */
+const ALLOWED_ORIGINS = new Set(["http://localhost:5002", "https://app.example.com"]);
+
 /** The bail target for an unsafe returnUrl, matching the ConsentScreen port. */
 const ERROR_HREF = "/error?reason=invalid_redirect_uri";
 
@@ -157,6 +185,29 @@ function isSafeReturnUrlRule(url: string | null | undefined): boolean {
   }
 
   return url.startsWith("/") && !url.startsWith("//");
+}
+
+/**
+ * The real `IsAllowedAsync` rule (OpenIddictRedirectUriValidator.cs:23-32),
+ * mirrored for the same reason `isSafeReturnUrlRule` is: a mock that returned a
+ * constant would let the evil-origin test pass for the wrong reason.
+ *
+ * Both halves are load-bearing. `Uri.TryCreate(uri, UriKind.Absolute)` is the
+ * parse gate -- `new URL()` throws on `//evil.example.com/steal` exactly as
+ * TryCreate fails it -- and `allowedOrigins.Contains(GetOrigin(parsed))` is the
+ * allow-list. The endpoint answers `Ok(new { allowed = result })`
+ * (AccountController.cs:601-612).
+ */
+function validateRedirectUriRule(uri: string): Promise<{ readonly allowed: boolean }> {
+  let parsed: URL;
+  try {
+    parsed = new URL(uri);
+  } catch {
+    // Not absolute -- `TryCreate(UriKind.Absolute)` fails and the endpoint says no.
+    return Promise.resolve({ allowed: false });
+  }
+
+  return Promise.resolve({ allowed: ALLOWED_ORIGINS.has(parsed.origin) });
 }
 
 /** The real `buildExchangeTicketUrl` shape, mirrored for the same reason. */
@@ -246,6 +297,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.unstubAllGlobals();
   mocks.isSafeReturnUrl.mockImplementation(isSafeReturnUrlRule);
+  mocks.validateRedirectUri.mockImplementation(validateRedirectUriRule);
   mocks.buildExchangeTicketUrl.mockImplementation(buildExchangeTicketUrlRule);
   mocks.verifyMfa.mockResolvedValue({ succeeded: true, signInTicket: TICKET });
   mocks.useBackupCode.mockResolvedValue({ succeeded: true, signInTicket: TICKET });
@@ -592,8 +644,91 @@ describe("MfaChallengeForm — the open-redirect guard", () => {
     expect(mocks.verifyMfa).not.toHaveBeenCalled();
   });
 
-  it("refuses an absolute return url", async () => {
-    renderForm({ returnUrl: "https://evil.example.com/steal" });
+  it("refuses an absolute return url the allow-list does not know", async () => {
+    // Absolute, so `isSafeReturnUrl` cannot answer and the SERVER's allow-list is
+    // asked. `evil.example.com` is not a registered origin -> `{ allowed: false }`
+    // -> refused. Same outcome as before Wallow-vec7.3.17, for a reason that now
+    // discriminates rather than refusing every absolute URL alike.
+    renderForm({ returnUrl: EVIL_RETURN_URL });
+
+    await waitFor(() => {
+      expect(mocks.navigate).toHaveBeenCalledWith(expect.objectContaining({ href: ERROR_HREF }));
+    });
+    expect(screen.queryByTestId("mfa-challenge-code")).toBeNull();
+    expect(mocks.verifyMfa).not.toHaveBeenCalled();
+  });
+
+  it("lets the external-login hand-off through on an allow-listed absolute return url", async () => {
+    // THE REGRESSION TEST FOR Wallow-vec7.3.17. `AccountController.cs:313/335`
+    // sends an ABSOLUTE returnUrl here for every external-login MFA user, and
+    // `isSafeReturnUrl` is false for every absolute URL -- so the mount guard
+    // bounced 100% of them to /error before the code field ever rendered. They
+    // could not sign in at all.
+    //
+    // The API already admitted this exact value through `IsAllowedAsync`
+    // (AccountController.cs:274) before redirecting here, so the allow-list the
+    // screen asks is the same one that let it in: it says yes.
+    const user = userEvent.setup();
+    const location = stubLocation();
+    renderForm({ returnUrl: EXTERNAL_RETURN_URL });
+
+    expect(await screen.findByTestId("mfa-challenge-code")).toBeInTheDocument();
+    await submitCode(user);
+
+    // Anchored on a POSITIVE assertion: the user reaches the exchange, not merely
+    // "was not sent to /error" -- which a screen that renders nothing satisfies.
+    await waitFor(() => {
+      expect(mocks.buildExchangeTicketUrl).toHaveBeenCalledWith("", TICKET, EXTERNAL_RETURN_URL);
+    });
+    expect(location.href).toContain("/v1/identity/auth/exchange-ticket");
+    expect(mocks.navigate).not.toHaveBeenCalledWith(expect.objectContaining({ href: ERROR_HREF }));
+  });
+
+  it("decides a relative return url locally, without asking the server", async () => {
+    // The password path (Login.razor:509 -> BuildMfaRedirectUrl) threads a
+    // RELATIVE returnUrl, and `isSafeReturnUrl` settles it with no network. The
+    // probe is the external-login path's cost alone; spending it on every login
+    // would put an outbound request between the user and their code field.
+    renderForm();
+
+    expect(screen.getByTestId("mfa-challenge-code")).toBeInTheDocument();
+    expect(mocks.validateRedirectUri).not.toHaveBeenCalled();
+    expect(mocks.navigate).not.toHaveBeenCalled();
+  });
+
+  it("refuses an empty-string return url without asking the server", async () => {
+    // `?returnUrl=` is a PRESENT value that fails `IsNullOrWhiteSpace`, so it is
+    // the unsafe case and not the nullish no-redirect one. It is a malformed link,
+    // not a destination to ask about -- the `IsNullOrEmpty` short-circuit the
+    // LogoutScreen port gates its own probe with (LogoutScreen.tsx:219-221).
+    renderForm({ returnUrl: "" });
+
+    await waitFor(() => {
+      expect(mocks.navigate).toHaveBeenCalledWith(expect.objectContaining({ href: ERROR_HREF }));
+    });
+    expect(mocks.validateRedirectUri).not.toHaveBeenCalled();
+  });
+
+  it("does not render the form while the allow-list check is in flight", async () => {
+    // FAIL CLOSED IN FLIGHT. A form rendered optimistically is a form a fast user
+    // can submit -- burning a one-time second factor on a destination we may be
+    // about to refuse, the exact cost the mount-time refusal exists to avoid.
+    mocks.validateRedirectUri.mockReturnValue(new Promise(() => {}));
+    renderForm({ returnUrl: EXTERNAL_RETURN_URL });
+
+    await waitFor(() => {
+      expect(mocks.validateRedirectUri).toHaveBeenCalledWith(EXTERNAL_RETURN_URL);
+    });
+    expect(screen.queryByTestId("mfa-challenge-code")).toBeNull();
+    expect(screen.queryByTestId("mfa-challenge-submit")).toBeNull();
+  });
+
+  it("refuses when the allow-list check is unreachable", async () => {
+    // The C# `!IsSuccessStatusCode -> false` arm arrives as a REJECTION (the
+    // facade's `unwrap()` throws on non-2xx). An unreachable validator must never
+    // become a reason to TRUST a URI.
+    mocks.validateRedirectUri.mockRejectedValue(new Error("network down"));
+    renderForm({ returnUrl: EXTERNAL_RETURN_URL });
 
     await waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalledWith(expect.objectContaining({ href: ERROR_HREF }));
@@ -601,14 +736,21 @@ describe("MfaChallengeForm — the open-redirect guard", () => {
     expect(screen.queryByTestId("mfa-challenge-code")).toBeNull();
   });
 
-  it("refuses an empty-string return url, which is present but not safe", async () => {
-    // `?returnUrl=` is a PRESENT value that fails `IsNullOrWhiteSpace`, so it is
-    // the unsafe case and not the nullish no-redirect one.
-    renderForm({ returnUrl: "" });
+  it("refuses a body that is not literally allowed:true", async () => {
+    // The `{ allowed }` narrowing is STRICT, as the C# `body?.Allowed == true`
+    // collapse is: the STRING "true" is truthy in JS and must NOT pass, or a
+    // screen leaning on truthiness would redirect on `allowed: "false"` too.
+    for (const body of [{ allowed: false }, { allowed: "true" }, {}, "allowed", null]) {
+      mocks.navigate.mockClear();
+      mocks.validateRedirectUri.mockResolvedValue(body);
+      const { unmount } = renderForm({ returnUrl: EXTERNAL_RETURN_URL });
 
-    await waitFor(() => {
-      expect(mocks.navigate).toHaveBeenCalledWith(expect.objectContaining({ href: ERROR_HREF }));
-    });
+      await waitFor(() => {
+        expect(mocks.navigate).toHaveBeenCalledWith(expect.objectContaining({ href: ERROR_HREF }));
+      });
+      expect(screen.queryByTestId("mfa-challenge-code")).toBeNull();
+      unmount();
+    }
   });
 
   it("does not refuse a direct sign-in with no return url at all", async () => {

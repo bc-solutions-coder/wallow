@@ -1,4 +1,4 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { type ReactNode, useEffect, useState } from "react";
 
@@ -105,6 +105,93 @@ const MFA_LOCKED_OUT = "mfa_locked_out";
  * retyping codes that cannot work, re-locking themselves — is worth the extra rule.
  */
 const LOCKED_OUT_STATUS = 423;
+
+/**
+ * The `{ allowed }` narrowing for `auth.validateRedirectUri`, owned at this
+ * boundary exactly as the LogoutScreen port owns its own (LogoutScreen.tsx:102).
+ *
+ * The facade types the call `Promise<unknown>` (auth-client.ts:164) because the
+ * endpoint returns an anonymous `Ok(new { allowed = … })` (AccountController.cs:
+ * 601-612) that the OpenAPI spec declares with no schema. The comparison is
+ * STRICT, mirroring the C# `body?.Allowed == true`: anything that is not literally
+ * `allowed: true` — a missing key, the STRING "true", a non-object body — is NOT
+ * allowed. Leaning on JS truthiness instead would admit `allowed: "false"`.
+ */
+function isRedirectUriAllowed(body: unknown): boolean {
+  if (typeof body !== "object" || body === null || !("allowed" in body)) {
+    return false;
+  }
+
+  return body.allowed === true;
+}
+
+/**
+ * What can be settled about `returnUrl` WITHOUT a network call, and the one case
+ * that cannot be ("ask" — an absolute URL, where only the server's allow-list
+ * knows).
+ */
+type LocalDecision = "accept" | "refuse" | "ask";
+
+/** The mount guard's answer. "pending" is its own state: see `verdictOf`. */
+type ReturnUrlVerdict = "accept" | "refuse" | "pending";
+
+/**
+ * The half of the guard that needs no network (Wallow-vec7.3.17).
+ *
+ * `isRelativeSafe` is `isSafeReturnUrl`'s answer, which proves a value can only
+ * resolve against THIS origin. It is passed in already computed rather than as a
+ * callback, so the SDK facade's method is never called unbound.
+ */
+function localDecisionOf(returnUrl: string | undefined, isRelativeSafe: boolean): LocalDecision {
+  if (returnUrl === undefined) {
+    // The oracle's ordinary direct (non-OIDC) sign-in. No destination to decide;
+    // routing it to /error would break every direct login.
+    return "accept";
+  }
+
+  if (isRelativeSafe) {
+    // The password path (`Login.razor`:509 -> `BuildMfaRedirectUrl` threads the
+    // relative OIDC returnUrl). The common case, decided for free.
+    return "accept";
+  }
+
+  if (returnUrl === "") {
+    // `IsNullOrEmpty` parity: `?returnUrl=` is a PRESENT value that fails
+    // `IsNullOrWhiteSpace`, so it is the unsafe case, not the nullish one. A
+    // malformed link is not a destination worth asking the server about — the
+    // LogoutScreen's `hasRedirectUri` short-circuit (LogoutScreen.tsx:219-221).
+    return "refuse";
+  }
+
+  // Absolute: either the external-login hand-off's allow-listed returnUrl or an
+  // attack, and `isSafeReturnUrl` is false for BOTH. Only the allow-list can tell.
+  return "ask";
+}
+
+/**
+ * FAIL CLOSED, in every direction.
+ *
+ * A rejection (the facade's `unwrap()` throws on non-2xx — the C#
+ * `!IsSuccessStatusCode -> false` arm) leaves `allowed` undefined, and an
+ * unreachable validator must never become a reason to TRUST a URI. In flight it is
+ * undefined too, which is why "pending" is a verdict of its own rather than
+ * collapsing into "accept": the caller renders nothing until the answer lands.
+ */
+function verdictOf(
+  local: LocalDecision,
+  allowListPending: boolean,
+  allowed: boolean | undefined,
+): ReturnUrlVerdict {
+  if (local !== "ask") {
+    return local;
+  }
+
+  if (allowListPending) {
+    return "pending";
+  }
+
+  return allowed === true ? "accept" : "refuse";
+}
 
 /** Read a member off an unknown rejection without asserting its shape. */
 function readMember(cause: unknown, name: string): unknown {
@@ -290,23 +377,50 @@ export function MfaChallengeForm({ returnUrl }: MfaChallengeFormProps): ReactNod
   const [error, setError] = useState<string | null>(null);
   const [verified, setVerified] = useState(false);
 
-  // The guard, evaluated before anything else happens. A NULLISH returnUrl is not
-  // hostile — it is the oracle's ordinary direct-login path — so only a PRESENT
-  // value is checked. An empty string IS present: `IsNullOrWhiteSpace` fails it,
-  // so it is the unsafe case and not the nullish no-redirect one.
-  const returnUrlIsUnsafe: boolean =
-    returnUrl !== undefined && !getWallowAuthSdk().oidc.isSafeReturnUrl(returnUrl);
+  // The guard, evaluated before anything else happens — see `localDecisionOf`.
+  const local: LocalDecision = localDecisionOf(
+    returnUrl,
+    returnUrl !== undefined && getWallowAuthSdk().oidc.isSafeReturnUrl(returnUrl),
+  );
+
+  const validation = useQuery({
+    queryKey: ["mfa-challenge-return-url", returnUrl],
+    queryFn: async (): Promise<boolean> => {
+      if (returnUrl === undefined) {
+        // Unreachable: `enabled` gates this on `local === "ask"`, and a nullish
+        // returnUrl is decided "accept". Present only to narrow the prop to the
+        // `string` the call takes, without a cast.
+        return false;
+      }
+
+      return isRedirectUriAllowed(await getWallowAuthSdk().auth.validateRedirectUri(returnUrl));
+    },
+    // The ONLY case that costs a request: an absolute returnUrl. The password path
+    // and the direct sign-in are already decided, and must not pay for a probe
+    // that would sit between the user and their code field.
+    enabled: local === "ask",
+    // A URI the allow-list refuses will not be on it a second later, and the
+    // refusal arm is already the safe one; retrying only delays the answer.
+    retry: false,
+  });
+
+  const returnUrlVerdict: ReturnUrlVerdict = verdictOf(
+    local,
+    validation.isPending,
+    validation.data,
+  );
 
   // REFUSE, don't sanitize (bd memory `returnurl-guard-refuse-dont-sanitize`);
   // the oracle instead nulls an unsafe returnUrl and shows a bare success,
-  // silently swallowing the open-redirect attempt. Refused on MOUNT, following
-  // the ConsentScreen port and `Login.razor` L533-540: do not make a user burn a
-  // one-time second factor on a destination already decided against.
+  // silently swallowing the open-redirect attempt. Refused as soon as the verdict
+  // lands, following the ConsentScreen port and `Login.razor` L533-540: do not
+  // make a user burn a one-time second factor on a destination already decided
+  // against.
   useEffect(() => {
-    if (returnUrlIsUnsafe) {
+    if (returnUrlVerdict === "refuse") {
       void navigate({ href: ERROR_HREF });
     }
-  }, [returnUrlIsUnsafe, navigate]);
+  }, [returnUrlVerdict, navigate]);
 
   const mutation = useMutation({
     mutationFn: async (attempt: { readonly code: string; readonly useBackupCode: boolean }) => {
@@ -390,9 +504,11 @@ export function MfaChallengeForm({ returnUrl }: MfaChallengeFormProps): ReactNod
     );
   };
 
-  if (returnUrlIsUnsafe) {
-    // The effect above is navigating away; rendering the form would invite the
-    // user to produce a second factor for a destination already refused.
+  if (returnUrlVerdict !== "accept") {
+    // "refuse": the effect above is navigating away. "pending": the allow-list has
+    // not answered yet. Rendering the form in either state would invite the user to
+    // produce a second factor for a destination that is refused or undecided — and
+    // a form retracted late is a form a fast user has already submitted.
     return null;
   }
 
