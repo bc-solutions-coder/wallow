@@ -1,23 +1,60 @@
 import { createFileRoute } from "@tanstack/react-router";
 
+import { AuthLayout } from "../components/auth-layout";
+import { RegisterForm } from "../features/register/components/RegisterForm";
+
 /**
- * Placeholder for the `/register` route, pre-registered by Wallow-vec7.3.16.
- *
- * The route is already bound into the shared `src/router.tsx`, so
- * Wallow-vec7.3.8 (2.9 Register) owns THIS file (plus its own
- * `src/features/register/` siblings) and implements the screen here **without
- * editing the router** — that registration is already done. The path is the
- * contract, taken verbatim from the `@page` directive of the Blazor oracle
+ * The `/register` route (Wallow-vec7.3.8) — the React port of the Blazor oracle
  * `api/src/Wallow.Auth/Components/Pages/Register.razor`.
  *
- * The marker below is deliberately not the screen: the `{page}-{element}`
- * testids from the oracle belong to the owning screen task, which replaces this
- * component wholesale.
+ * The path was pre-registered against a placeholder by Wallow-vec7.3.16 and is
+ * the contract: `src/router.tsx` already binds it, so this task replaced the
+ * placeholder component here and left the router untouched.
+ *
+ * This route owns the query string — the oracle's two `[SupplyParameterFromQuery]`
+ * properties — and passes both down as props, keeping the form a pure function of
+ * its inputs and testable without a router (the seam `ResetPasswordForm`
+ * established and `MfaChallengeForm` followed).
+ *
+ * `AuthLayout` supplies the branded chrome every auth page renders inside. It is
+ * given no `branding` prop, so it falls back to the fork's own — the per-client
+ * (`client_id`) branding overlay is not wired on this screen, and no acceptance
+ * criterion asks for it, though this route is where it would land.
  */
-function RegisterPlaceholder() {
-  return <div data-testid="route-placeholder" data-route="/register" />;
+interface RegisterSearch {
+  /**
+   * The `client_id` query parameter — snake_case ON THE WIRE (the oracle's
+   * `[SupplyParameterFromQuery(Name = "client_id")]`), camelCase in the app.
+   */
+  readonly clientId?: string;
+  /** The `returnUrl` query parameter — `undefined` when the link omits it. */
+  readonly returnUrl?: string;
+}
+
+/**
+ * BOTH params are optional, deliberately: a bare `/register` is the ordinary
+ * direct-signup entry point and must render its form rather than throw a
+ * search-validation error at the user. Anything non-string is treated as absent
+ * for the same reason.
+ */
+function validateSearch(search: Record<string, unknown>): RegisterSearch {
+  return {
+    clientId: typeof search.client_id === "string" ? search.client_id : undefined,
+    returnUrl: typeof search.returnUrl === "string" ? search.returnUrl : undefined,
+  };
+}
+
+function RegisterRoute() {
+  const { clientId, returnUrl } = Route.useSearch();
+
+  return (
+    <AuthLayout>
+      <RegisterForm clientId={clientId} returnUrl={returnUrl} />
+    </AuthLayout>
+  );
 }
 
 export const Route = createFileRoute("/register")({
-  component: RegisterPlaceholder,
+  validateSearch,
+  component: RegisterRoute,
 });
