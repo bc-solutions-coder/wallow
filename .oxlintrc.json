@@ -42,6 +42,7 @@
     {
       "files": ["**/*.test.*"],
       "rules": {
+        "no-await-in-loop": "off",
         "no-magic-numbers": "off",
         "sort-keys": "off",
         "require-unicode-regexp": "off",

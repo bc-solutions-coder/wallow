@@ -34,6 +34,12 @@ const mocks = vi.hoisted(() => ({
   postV1IdentityMfaEnrollConfirm: vi.fn(),
   postV1IdentityMfaDisable: vi.fn(),
   postV1IdentityMfaBackupCodesRegenerate: vi.fn(),
+  getV1InquiriesSubmitted: vi.fn(),
+  postV1Inquiries: vi.fn(),
+  getV1InquiriesById: vi.fn(),
+  getV1InquiriesByIdComments: vi.fn(),
+  postV1InquiriesByIdComments: vi.fn(),
+  patchV1InquiriesByIdStatus: vi.fn(),
   client: { interceptors: { request: { use: vi.fn() } } },
 }));
 
@@ -59,6 +65,12 @@ vi.mock("@bc-solutions-coder/sdk", () => ({
   postV1IdentityMfaEnrollConfirm: mocks.postV1IdentityMfaEnrollConfirm,
   postV1IdentityMfaDisable: mocks.postV1IdentityMfaDisable,
   postV1IdentityMfaBackupCodesRegenerate: mocks.postV1IdentityMfaBackupCodesRegenerate,
+  getV1InquiriesSubmitted: mocks.getV1InquiriesSubmitted,
+  postV1Inquiries: mocks.postV1Inquiries,
+  getV1InquiriesById: mocks.getV1InquiriesById,
+  getV1InquiriesByIdComments: mocks.getV1InquiriesByIdComments,
+  postV1InquiriesByIdComments: mocks.postV1InquiriesByIdComments,
+  patchV1InquiriesByIdStatus: mocks.patchV1InquiriesByIdStatus,
 }));
 
 /**
@@ -382,6 +394,104 @@ describe("getWallowSdk", () => {
       const getWallowSdk = await freshFacade();
 
       await expect(getWallowSdk().mfa.status()).rejects.toBe(problem);
+    });
+  });
+
+  /**
+   * Inquiries slice (Wallow-8w1h.7.1). Asserts delegation + SDK-accurate mapping:
+   * `list()` -> getV1InquiriesSubmitted (the caller's own inquiries, NOT the admin
+   * all-view); `setStatus()` sends `{ newStatus }` (the field is `newStatus`, not
+   * `status` as the bead DESIGN said). The comment-POST 201 body is untyped, so
+   * `addComment()` still delegates but its result is `unknown`.
+   */
+  describe("inquiries slice (Wallow-8w1h.7.1)", () => {
+    it("list() delegates to getV1InquiriesSubmitted and returns data", async () => {
+      const inquiries = [{ id: "i1", name: "Ada", status: "New" }];
+      mocks.getV1InquiriesSubmitted.mockResolvedValue({ data: inquiries });
+      const getWallowSdk = await freshFacade();
+
+      const result = await getWallowSdk().inquiries.list();
+
+      expect(mocks.getV1InquiriesSubmitted).toHaveBeenCalledTimes(1);
+      expect(result).toBe(inquiries);
+    });
+
+    it("create(body) delegates to postV1Inquiries with the body", async () => {
+      const created = { id: "i2", name: "Grace", status: "New" };
+      mocks.postV1Inquiries.mockResolvedValue({ data: created });
+      const getWallowSdk = await freshFacade();
+      const body = {
+        name: "Grace",
+        email: "grace@example.com",
+        phone: "555-0100",
+        company: null,
+        projectType: "web-app",
+        budgetRange: "5k-15k",
+        timeline: "asap",
+        message: "Hello",
+      };
+
+      const result = await getWallowSdk().inquiries.create(body);
+
+      expect(mocks.postV1Inquiries).toHaveBeenCalledWith({ body });
+      expect(result).toBe(created);
+    });
+
+    it("get(id) delegates to getV1InquiriesById with the path id", async () => {
+      const inquiry = { id: "i1", name: "Ada", status: "New" };
+      mocks.getV1InquiriesById.mockResolvedValue({ data: inquiry });
+      const getWallowSdk = await freshFacade();
+
+      const result = await getWallowSdk().inquiries.get("i1");
+
+      expect(mocks.getV1InquiriesById).toHaveBeenCalledWith({ path: { id: "i1" } });
+      expect(result).toBe(inquiry);
+    });
+
+    it("comments(id) delegates to getV1InquiriesByIdComments with the path id", async () => {
+      const comments = [{ id: "c1", inquiryId: "i1", content: "hi", isInternal: false }];
+      mocks.getV1InquiriesByIdComments.mockResolvedValue({ data: comments });
+      const getWallowSdk = await freshFacade();
+
+      const result = await getWallowSdk().inquiries.comments("i1");
+
+      expect(mocks.getV1InquiriesByIdComments).toHaveBeenCalledWith({ path: { id: "i1" } });
+      expect(result).toBe(comments);
+    });
+
+    it("addComment(id, body) delegates to postV1InquiriesByIdComments with path + body", async () => {
+      mocks.postV1InquiriesByIdComments.mockResolvedValue({ data: undefined });
+      const getWallowSdk = await freshFacade();
+      const body = { content: "Following up", isInternal: true };
+
+      await getWallowSdk().inquiries.addComment("i1", body);
+
+      expect(mocks.postV1InquiriesByIdComments).toHaveBeenCalledWith({
+        path: { id: "i1" },
+        body,
+      });
+    });
+
+    it("setStatus(id, newStatus) delegates to patchV1InquiriesByIdStatus with { newStatus } body", async () => {
+      const updated = { id: "i1", name: "Ada", status: "Reviewed" };
+      mocks.patchV1InquiriesByIdStatus.mockResolvedValue({ data: updated });
+      const getWallowSdk = await freshFacade();
+
+      const result = await getWallowSdk().inquiries.setStatus("i1", "Reviewed");
+
+      expect(mocks.patchV1InquiriesByIdStatus).toHaveBeenCalledWith({
+        path: { id: "i1" },
+        body: { newStatus: "Reviewed" },
+      });
+      expect(result).toBe(updated);
+    });
+
+    it("throws the ProblemDetails on { error } instead of returning undefined", async () => {
+      const problem = { status: 404, title: "Not Found", errorCode: "INQUIRY_NOT_FOUND" };
+      mocks.getV1InquiriesById.mockResolvedValue({ error: problem });
+      const getWallowSdk = await freshFacade();
+
+      await expect(getWallowSdk().inquiries.get("missing")).rejects.toBe(problem);
     });
   });
 });

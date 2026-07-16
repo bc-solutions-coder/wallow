@@ -24,6 +24,7 @@
  * shape is preserved either way.
  */
 import {
+  type AddInquiryCommentRequest,
   client,
   configureBffClient,
   deleteV1IdentityOrganizationsByIdMembersByUserId,
@@ -35,6 +36,10 @@ import {
   getV1IdentityOrganizationsByIdMembers,
   getV1IdentityMfaStatus,
   getV1IdentityUsersMe,
+  getV1InquiriesById,
+  getV1InquiriesByIdComments,
+  getV1InquiriesSubmitted,
+  patchV1InquiriesByIdStatus,
   postV1IdentityAppsRegister,
   postV1IdentityMfaBackupCodesRegenerate,
   postV1IdentityMfaDisable,
@@ -44,8 +49,11 @@ import {
   postV1IdentityOrganizationsByIdArchive,
   postV1IdentityOrganizationsByIdMembers,
   postV1IdentityOrganizationsByIdReactivate,
+  postV1Inquiries,
+  postV1InquiriesByIdComments,
   type ProblemDetails,
   type RegisterAppRequest,
+  type SubmitInquiryRequest,
   type WallowUser,
 } from "@bc-solutions-coder/sdk";
 
@@ -183,6 +191,38 @@ export interface MfaSlice {
 }
 
 /**
+ * Inquiries slice (Wallow-8w1h.7.1) — the Inquiries feature's data source.
+ * Mirrors the Organizations slice shape.
+ *
+ * SDK-ACCURATE MAPPING (scout, over the terse bead DESIGN):
+ *  - `list()` wraps `getV1InquiriesSubmitted()` = GET /v1/inquiries/submitted =
+ *    the CALLING user's own inquiries (`InquiryResponse[]`). (The admin all-view
+ *    `getV1Inquiries()` is intentionally NOT used here.)
+ *  - `setStatus()` sends `UpdateInquiryStatusRequest = { newStatus }` — the field
+ *    is `newStatus`, NOT `status` as the bead DESIGN said.
+ *
+ * UNTYPED-RESPONSE GAP (scout, like MFA/apps): `postV1InquiriesByIdComments`
+ * resolves `unknown` on 201 (`PostV1InquiriesByIdCommentsResponses = { 201: unknown }`)
+ * even though its request body (`AddInquiryCommentRequest`) is typed. So
+ * `addComment()` returns `Promise<unknown>`; the add-comment mutation ignores the
+ * body and just invalidates the comments query.
+ */
+export interface InquiriesSlice {
+  /** List the caller's submitted inquiries (returns `InquiryResponse[]`). */
+  list: () => Promise<unknown>;
+  /** Submit a new inquiry (body is `SubmitInquiryRequest`); returns `InquiryResponse`. */
+  create: (body: SubmitInquiryRequest) => Promise<unknown>;
+  /** Fetch a single inquiry by id (returns `InquiryResponse`; 404 typed as `ProblemDetails`). */
+  get: (id: string) => Promise<unknown>;
+  /** List an inquiry's comments (returns `InquiryCommentResponse[]`). */
+  comments: (id: string) => Promise<unknown>;
+  /** Add a comment to an inquiry (body is `AddInquiryCommentRequest`); 201 body is untyped. */
+  addComment: (id: string, body: AddInquiryCommentRequest) => Promise<unknown>;
+  /** Change an inquiry's status (body is `{ newStatus }`); returns `InquiryResponse`. */
+  setStatus: (id: string, newStatus: string) => Promise<unknown>;
+}
+
+/**
  * The namespaced facade object. Phases 3-6 each APPEND their own slice here
  * (apps, settings, mfa, inquiries) — see the slice-append pattern above.
  */
@@ -192,6 +232,7 @@ export interface WallowSdk {
   user: UserSlice;
   settings: SettingsSlice;
   mfa: MfaSlice;
+  inquiries: InquiriesSlice;
 }
 
 const sdk: WallowSdk = {
@@ -227,6 +268,16 @@ const sdk: WallowSdk = {
     disable: (password: string) => unwrap(postV1IdentityMfaDisable({ body: { password } })),
     regenerateBackupCodes: (password: string) =>
       unwrap(postV1IdentityMfaBackupCodesRegenerate({ body: { password } })),
+  },
+  inquiries: {
+    list: () => unwrap(getV1InquiriesSubmitted()),
+    create: (body: SubmitInquiryRequest) => unwrap(postV1Inquiries({ body })),
+    get: (id: string) => unwrap(getV1InquiriesById({ path: { id } })),
+    comments: (id: string) => unwrap(getV1InquiriesByIdComments({ path: { id } })),
+    addComment: (id: string, body: AddInquiryCommentRequest) =>
+      unwrap(postV1InquiriesByIdComments({ path: { id }, body })),
+    setStatus: (id: string, newStatus: string) =>
+      unwrap(patchV1InquiriesByIdStatus({ path: { id }, body: { newStatus } })),
   },
 };
 
