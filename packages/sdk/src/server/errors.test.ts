@@ -104,6 +104,40 @@ describe("parseProblemDetails", () => {
     expect(error.status).toBe(410);
   });
 
+  it("reads the code from the API's bare { succeeded, error } auth body", () => {
+    const body: string = JSON.stringify({ succeeded: false, error: "no_mfa_session" });
+
+    const error: WallowError = parseProblemDetails(problemResponse(401), body);
+
+    expect(error.code).toBe("no_mfa_session");
+    expect(error.status).toBe(401);
+  });
+
+  it("prefers a problem-details code over a co-occurring error member", () => {
+    const body: string = JSON.stringify({
+      title: "Bad Request",
+      status: 400,
+      code: "VALIDATION_FAILED",
+      error: "ignore_me",
+    });
+
+    const error: WallowError = parseProblemDetails(problemResponse(400), body);
+
+    expect(error.code).toBe("VALIDATION_FAILED");
+  });
+
+  it("ignores a non-string error member rather than stringifying it", () => {
+    const body: string = JSON.stringify({
+      title: "Bad Request",
+      status: 400,
+      error: { nested: "oauth-style-object" },
+    });
+
+    const error: WallowError = parseProblemDetails(problemResponse(400), body);
+
+    expect(error.code).toBe(UNKNOWN_ERROR_CODE);
+  });
+
   it("falls back to UNKNOWN when problem details carry no code", () => {
     const body: string = JSON.stringify({
       title: "Internal Server Error",

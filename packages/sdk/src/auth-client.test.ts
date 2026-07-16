@@ -331,6 +331,75 @@ describe("envelope unwrapping", () => {
     expect(error.code).toBe("MFA_REQUIRED");
   });
 
+  it("reads the code from the API's bare { succeeded, error } auth body", async () => {
+    mocks.postV1IdentityAuthLogin.mockResolvedValue({
+      error: { succeeded: false, error: "invalid_credentials" },
+      response: { status: 401 },
+    });
+    const auth: AuthClient = await freshAuthClient();
+
+    const error = (await auth.login(LOGIN_BODY).catch((e: unknown) => e)) as WallowError;
+
+    expect(error.code).toBe("invalid_credentials");
+    expect(error.status).toBe(401);
+  });
+
+  it("distinguishes the two 401 reasons the MFA verify endpoint returns", async () => {
+    const reasons: readonly string[] = ["no_mfa_session", "invalid_code"];
+
+    for (const reason of reasons) {
+      vi.clearAllMocks();
+      mocks.postV1IdentityAuthMfaVerify.mockResolvedValue({
+        error: { succeeded: false, error: reason },
+        response: { status: 401 },
+      });
+      const auth: AuthClient = await freshAuthClient();
+
+      const error = (await auth.verifyMfa("123456").catch((e: unknown) => e)) as WallowError;
+
+      expect(error.code).toBe(reason);
+      expect(error.status).toBe(401);
+    }
+  });
+
+  it("prefers a real problem-details code over a co-occurring error member", async () => {
+    mocks.postV1IdentityAuthLogin.mockResolvedValue({
+      error: { status: 400, title: "Bad Request", code: "VALIDATION_FAILED", error: "ignore_me" },
+    });
+    const auth: AuthClient = await freshAuthClient();
+
+    const error = (await auth.login(LOGIN_BODY).catch((e: unknown) => e)) as WallowError;
+
+    expect(error.code).toBe("VALIDATION_FAILED");
+  });
+
+  it("prefers extensions.code over a co-occurring error member", async () => {
+    mocks.postV1IdentityAuthLogin.mockResolvedValue({
+      error: {
+        status: 400,
+        title: "Bad Request",
+        extensions: { code: "MFA_REQUIRED" },
+        error: "ignore_me",
+      },
+    });
+    const auth: AuthClient = await freshAuthClient();
+
+    const error = (await auth.login(LOGIN_BODY).catch((e: unknown) => e)) as WallowError;
+
+    expect(error.code).toBe("MFA_REQUIRED");
+  });
+
+  it("ignores a non-string error member rather than stringifying it", async () => {
+    mocks.postV1IdentityAuthLogin.mockResolvedValue({
+      error: { status: 400, title: "Bad Request", error: { nested: "oauth-style-object" } },
+    });
+    const auth: AuthClient = await freshAuthClient();
+
+    const error = (await auth.login(LOGIN_BODY).catch((e: unknown) => e)) as WallowError;
+
+    expect(error.code).toBe("UNKNOWN");
+  });
+
   it("falls back to UNKNOWN code and title when the error carries no problem details", async () => {
     mocks.postV1IdentityAuthLogin.mockResolvedValue({ error: {} });
     const auth: AuthClient = await freshAuthClient();

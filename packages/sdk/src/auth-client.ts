@@ -268,7 +268,20 @@ function toWallowError(error: unknown, responseStatus: number | undefined): Wall
   });
 }
 
-/** ASP.NET Core carries the code in `extensions.code`; some setups flatten it. */
+/**
+ * Recover the machine-readable error code from a parsed error body.
+ *
+ * Three placements are probed, most authoritative first:
+ * 1. `extensions.code` — RFC 7807 as ASP.NET Core emits it;
+ * 2. `code` — the same, for serializer setups that flatten extension members;
+ * 3. `error` — the Identity auth endpoints (`/v1/identity/auth/*`) do NOT emit
+ *    problem details at all; they return a bare `{ succeeded: false, error }`
+ *    anonymous object (see AccountController), so the code arrives under
+ *    `error`. Probed last so real problem details always win.
+ *
+ * Non-string members are ignored rather than coerced: OAuth-style bodies can
+ * carry an object under `error`, and a stringified object is not a code.
+ */
 function readCode(problem: Record<string, unknown>): string | undefined {
   const extensions: unknown = problem["extensions"];
   if (isPlainObject(extensions) && typeof extensions["code"] === "string") {
@@ -276,7 +289,12 @@ function readCode(problem: Record<string, unknown>): string | undefined {
   }
 
   const code: unknown = problem["code"];
-  return typeof code === "string" ? code : undefined;
+  if (typeof code === "string") {
+    return code;
+  }
+
+  const error: unknown = problem["error"];
+  return typeof error === "string" ? error : undefined;
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
