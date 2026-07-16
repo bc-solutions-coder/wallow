@@ -15,7 +15,7 @@ the Wallow API.
 For the full narrative guide — protocol diagrams, the seeded local `bcordes-bff`
 client, publishing, troubleshooting — see
 [`docs/integrations/typescript-sdk.md`](../../docs/integrations/typescript-sdk.md).
-A runnable host lives in [`apps/tanstack-min/`](../../apps/tanstack-min).
+A runnable host lives in [`apps/wallow-web/`](../../apps/wallow-web).
 
 ---
 

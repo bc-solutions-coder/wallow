@@ -148,9 +148,9 @@ handler. Each of `bff.login`, `bff.callback`, `bff.user`, `bff.logout`, and
 `apiProxy` is a standard `defineEventHandler` object, so it drops directly into
 any server route that accepts an h3 `EventHandler`.
 
-A minimal, framework-agnostic reference host lives in the repository at
-`apps/tanstack-min/` — it mounts exactly these
-routes on a plain h3 app and serves a static browser bundle.
+A runnable reference host lives in the repository at
+`apps/wallow-web/` — a TanStack Start app that mounts exactly these
+routes (via `src/lib/bff-server.ts`) and consumes the proxy from its dashboard.
 
 ### The `/api` proxy and silent refresh
 

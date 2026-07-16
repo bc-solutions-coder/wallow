@@ -1,25 +1,83 @@
-# tanstack-min — Wallow BFF reference example
+# wallow-web — Wallow TanStack Start frontend
 
-A minimal, drop-in example that wires the `@bc-solutions-coder/sdk` **Backend-for-Frontend
-(BFF)** tunnel into a TanStack Start-style server. It shows the full
-same-origin OIDC flow: browser login → authenticated `/api` call with silent
-token refresh → logout, with tokens held server-side in an httpOnly sealed
-cookie (never exposed to JavaScript).
+`@bc-solutions-coder/wallow-web` is the runnable reference frontend for the
+Wallow platform. It is a **TanStack Start** (React 19) single-page + SSR app that
+consumes the `@bc-solutions-coder/sdk` **Backend-for-Frontend (BFF)** tunnel, so
+the browser runs the full same-origin OIDC flow — login → authenticated `/api`
+calls with silent token refresh → logout — while the OIDC token set stays
+server-side in an httpOnly sealed cookie (or Valkey/Redis), never exposed to
+JavaScript.
 
-> This example is not published. It is exercised by the .NET E2E harness
-> (`tests/Wallow.E2E.Tests/Flows/BffFlowTests.cs`) via
-> `docker/docker-compose.test.yml`, and serves as copy-paste reference wiring.
+It doubles as the copy-paste template teams fork: a dashboard with feature
+verticals (organizations, apps, settings, MFA, inquiries), each following the
+same feature-folder shape, plus a live BFF smoke route.
+
+> This app is not published. It is exercised by the .NET E2E harness
+> (`api/tests/Wallow.E2E.Tests/Flows/BffFlowTests.cs`) via
+> `docker/docker-compose.test.yml`, and serves as reference wiring for forks.
+
+## Commands
+
+Run from the repo root (pnpm workspace) or with `--filter @bc-solutions-coder/wallow-web`.
+Build the SDK first — the app typechecks against its `dist/`.
+
+```bash
+pnpm --filter @bc-solutions-coder/sdk build   # build the SDK the app depends on
+
+pnpm --filter @bc-solutions-coder/wallow-web dev        # SSR dev server + BFF (tsx dev-server.ts)
+pnpm --filter @bc-solutions-coder/wallow-web build      # vite build -> public/ bundle
+pnpm --filter @bc-solutions-coder/wallow-web start      # standalone h3 BFF host (tsx server.ts)
+pnpm --filter @bc-solutions-coder/wallow-web typecheck  # tsc --noEmit
+pnpm --filter @bc-solutions-coder/wallow-web test       # vitest run  (test:watch for watch mode)
+```
+
+- **`dev`** boots a Vite (`middlewareMode`) + Node HTTP server (`dev-server.ts`)
+  that server-renders the matched route and answers `/health`, `/bff/*`, and
+  `/api/**` from the BFF bridge in one process. Plain `pnpm dev` serves SSR even
+  without BFF env — only the BFF/api/health prefixes need the OIDC env below.
+- **`start`** runs the standalone h3 BFF host (`server.ts`) that serves the
+  built `public/` bundle. This is the entry the `Dockerfile` and the E2E stack
+  use.
 
 ## Layout
 
-| Path                | Role                                                                                                                                                                         |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `server.ts`         | Host that mounts `createBffHandlers` at `/bff/*`, `createApiProxy` at `/api/**` (both sharing one `SessionStore`), serves `public/`, and listens on `PORT` (default `3000`). |
-| `src/app.ts`        | Browser entry: `configureBffClient()`, `login()`/`logout()`/`getUser()`, the CSRF request interceptor, and generated typed operations.                                       |
-| `public/index.html` | The DOM the E2E test drives (`data-testid` selectors).                                                                                                                       |
-| `Dockerfile`        | Containerizes the example for the E2E stack.                                                                                                                                 |
+| Path                   | Role                                                                                                                                                         |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `dev-server.ts`        | Dev entry (`pnpm dev`): TanStack Start SSR via Vite middleware, with `/health` + `/bff/*` + `/api/**` dispatched to the BFF bridge. See BFF wiring below.    |
+| `server.ts`            | Prod/E2E entry (`pnpm start`): standalone h3 host mounting the same BFF handlers and serving the static `public/` bundle. Containerized by the `Dockerfile`. |
+| `src/ssr.tsx`          | SSR render entry — turns a request into the server-rendered HTML shell for the matched route.                                                                |
+| `src/router.tsx`       | Manual TanStack route tree (routes are wired explicitly here, not file-based codegen).                                                                       |
+| `src/routes/`          | Route components: public `index`, the `dashboard` layout + feature routes, and the `bff-demo` BFF smoke route.                                               |
+| `src/features/<name>/` | Feature verticals (`organizations`, `apps`, `settings`, `mfa`, `inquiries`): each has `api.ts` (query/mutation layer), `types.ts`, and `components/`.        |
+| `src/lib/`             | Shared plumbing: `wallow-sdk.ts` (typed SDK facade), `bff-server.ts` (BFF bridge), `csrf.ts` (request interceptor), `query-client.ts`.                       |
+| `src/components/`      | Cross-feature UI (`DashboardLayout`, `DashboardNav`).                                                                                                        |
+| `public/`              | Built browser bundle and static assets served by `server.ts`.                                                                                                |
+| `Dockerfile`           | Containerizes the app for the E2E stack; its build context is the **repo root** (needs the whole workspace to resolve `workspace:*`).                        |
 
-## Endpoints
+### Feature folder shape
+
+Each vertical under `src/features/<name>/` follows the same template:
+
+```
+src/features/organizations/
+  api.ts                       # TanStack Query queries + mutations over the SDK facade
+  types.ts                     # feature-local view types
+  components/
+    OrganizationList.tsx       # dashboard list page body
+    OrganizationDetail.tsx     # detail + member management
+    CreateOrganizationForm.tsx # TanStack Form create flow
+```
+
+Routes in `src/routes/dashboard/<name>/` render these components; new routes must
+be registered in `src/router.tsx` (the route tree is manual, not generated).
+
+## BFF wiring
+
+The installed TanStack Start release exposes no file-based server-route creator,
+so the SDK's h3 BFF/proxy handlers are mounted at the **server layer** instead of
+in a `src/routes/**` server route. `src/lib/bff-server.ts` builds the handlers
+once and exposes `handleBffRequest(request)`, a web `Request` → `Response` bridge
+that mounts:
 
 | Route           | Handler                                                                                                                                                  |
 | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -30,43 +88,21 @@ cookie (never exposed to JavaScript).
 | `/bff/logout`   | Clear the session and redirect through end-session.                                                                                                      |
 | `/api/**`       | Reverse proxy to the Wallow API with a `Bearer` token + silent refresh. State-changing methods must carry the `x-csrf-token` header (see [CSRF](#csrf)). |
 
-## Session storage
+`dev-server.ts` dispatches those prefixes to the bridge and lets everything else
+fall through to the router SSR. `server.ts` mounts the same handlers on a plain
+h3 app for the container/E2E path. If a future TanStack release adds a real
+server-route creator, a `$.ts` server route can delegate to `handleBffRequest`
+unchanged.
+
+### Session storage
 
 `createBffHandlers(config, store)` and `createApiProxy(config, store)` both take a
-`SessionStore`. **Pass the same instance to both** — the proxy has to resolve the
-sessions the login callback wrote.
-
-This example injects a `CookieSessionStore`, which keeps the whole sealed session
-inside the cookie: no Redis, no server-side state, scales statelessly. Swap it for
-`ValkeySessionStore` when you need server-side revocation or a cross-instance
-refresh lock; the session cookie then carries only an opaque reference.
-
-```ts
-import {
-  CookieSessionStore,
-  ValkeySessionStore,
-  type RedisLike,
-  type SessionStore,
-} from "@bc-solutions-coder/sdk/server";
-
-const store: SessionStore = new CookieSessionStore({
-  password: config.cookiePassword,
-});
-
-// ...or, backed by Valkey/Redis (`client` is any RedisLike — ioredis, node-redis):
-// const store: SessionStore = new ValkeySessionStore({
-//   client,
-//   password: config.cookiePassword,
-//   ttlSeconds: config.sessionTtlSeconds,
-// });
-
-const bff = createBffHandlers(config, store);
-const apiProxy = createApiProxy(config, store);
-```
-
-Both arguments are optional — omitting `store` defaults to a `CookieSessionStore`
-built from `config.cookiePassword` — but wiring it explicitly is what makes the
-production swap a one-line change.
+`SessionStore`, and **both are given the same instance** — the proxy has to
+resolve the sessions the login callback wrote. When `REDIS_URL` is set the app
+uses a `ValkeySessionStore` (opaque cookie reference, server-side revocation and
+a cross-instance refresh lock); otherwise it falls back to a
+`CookieSessionStore`, which seals the whole session into the cookie and needs no
+external store. Swapping stores is the one production knob.
 
 ## CSRF
 
@@ -81,9 +117,9 @@ two ways: in the `/bff/user` response body, and in a readable (non-`HttpOnly`)
 companion cookie named `${COOKIE_NAME}-csrf`. The session cookie itself stays
 `HttpOnly` — the companion cookie is not a credential on its own.
 
-`src/app.ts` caches the token from `getUser()` and echoes it with a request
-interceptor on the shared client, so every generated operation carries it without
-any per-call code:
+`src/lib/csrf.ts` wires a request interceptor onto the shared SDK client that
+echoes the cached token on every unsafe request, so each generated operation
+carries it without any per-call code:
 
 ```ts
 client.interceptors.request.use((request: Request): Request => {
@@ -94,17 +130,13 @@ client.interceptors.request.use((request: Request): Request => {
 });
 ```
 
-The **Create org** button exercises this end to end: it `POST`s through `/api`,
-which an ordinary signed-in user is allowed to do, so the `201` it returns means
-the request carried the token _and_ cleared the gate. Drop the interceptor and the
-same click comes back `403 CSRF_INVALID` without ever reaching the API.
-
 ## Typed API calls
 
-After `configureBffClient()` the **generated typed operations** are pointed at the
-same-origin `/api` proxy and send the session cookie — use them instead of raw
-`fetch`. They resolve to `{ data, error, response }` and never throw on a non-2xx,
-and the BFF and API both report failures as RFC 7807 problem+json, so `error` is a
+The typed SDK facade lives in `src/lib/wallow-sdk.ts`. After the client is
+configured, the **generated typed operations** are pointed at the same-origin
+`/api` proxy and send the session cookie — use them instead of raw `fetch`. They
+resolve to `{ data, error, response }` and never throw on a non-2xx, and the BFF
+and API both report failures as RFC 7807 problem+json, so `error` is a
 `ProblemDetails`:
 
 ```ts
@@ -134,27 +166,22 @@ consumed by `@bc-solutions-coder/sdk/server` (`src/server/config.ts`):
 | `SESSION_TTL_SECONDS`           | no       | `86400`                                           | Session lifetime. Bounds the session cookie's `Max-Age` (and the Valkey record's TTL), so a stale browser cookie cannot outlive its session.                                                                                                                                                                                                               |
 | `COOKIE_SECURE`                 | no       | `true`                                            | Sets `Secure` on the cookies the BFF writes. Set to `false` **only** for plain-HTTP local development on a non-`localhost` hostname — `localhost` already counts as a secure context, so the default works there.                                                                                                                                          |
 | `OIDC_METADATA_URL`             | no       | `${OIDC_ISSUER}/.well-known/openid-configuration` | Server-reachable discovery URL. Set this when the browser and server reach the OP under different hostnames (reverse proxy, container network, split-horizon DNS). The server fetches discovery here and uses its `token_endpoint` for the backchannel, while the browser-facing authorize/end-session URLs are pinned to the public `OIDC_ISSUER` origin. |
+| `REDIS_URL`                     | no       | —                                                 | When set, sessions persist in Valkey/Redis (`ValkeySessionStore`); otherwise the app seals the session into the cookie (`CookieSessionStore`).                                                                                                                                                                                                             |
 | `PORT`                          | no       | `3000`                                            | Listen port.                                                                                                                                                                                                                                                                                                                                               |
 
 > **Split-horizon note (container networks).** In the E2E stack the browser
-> reaches the OP at `http://localhost:5050` while the example container reaches
+> reaches the OP at `http://localhost:5050` while the app container reaches
 > it at `http://host.docker.internal:5050`. `OIDC_ISSUER` stays on the
 > browser-facing origin and `OIDC_METADATA_URL` points at the container-reachable
 > one — the same pattern `Wallow.Web` uses with `Authority` + `MetadataAddress`.
 
-> Note: an earlier design draft referenced `BFF_ISSUER`, `BFF_CLIENT_ID`,
-> `BFF_REDIRECT_URI`, `BFF_POST_LOGOUT_REDIRECT_URI`, and `BFF_COOKIE_PASSWORD`.
-> The shipped SDK uses the `OIDC_*` / `COOKIE_*` names above — those are
-> authoritative.
-
 ## Run locally
 
 ```bash
-# from packages/sdk
-npm install && npm run build   # build @bc-solutions-coder/sdk first
+# build the SDK first, from the repo root
+pnpm --filter @bc-solutions-coder/sdk build
 
-# from apps/tanstack-min
-npm install
+# from apps/wallow-web
 export OIDC_ISSUER=http://localhost:5001
 export OIDC_CLIENT_ID=bcordes-bff
 export OIDC_CLIENT_SECRET=bcordes-bff-secret
@@ -162,7 +189,7 @@ export OIDC_REDIRECT_URI=http://localhost:3000/bff/callback
 export OIDC_POST_LOGOUT_REDIRECT_URI=http://localhost:3000/
 export BFF_API_BASE_URL=http://localhost:5001
 export COOKIE_PASSWORD=dev-cookie-password-change-me-32chars
-npm run build && npm start   # http://localhost:3000
+pnpm dev   # SSR + BFF on http://localhost:3000
 ```
 
 ## E2E
