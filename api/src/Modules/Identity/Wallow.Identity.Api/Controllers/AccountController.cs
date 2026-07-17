@@ -588,7 +588,12 @@ public sealed partial class AccountController(
         await signInManager.SignInAsync(user, isPersistent: payload.RememberMe);
         LogExchangeTicketSignedIn(payload.Email, user.Id);
 
-        if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
+        // The external-login flow hands /mfa/challenge an ABSOLUTE returnUrl (admitted by
+        // IRedirectUriValidator), and the MFA screen threads it straight back here. Accept a
+        // local URL, or an absolute one the same allow-list already approved. Anything else
+        // falls through to the auth root, so this stays fail-closed against open redirects.
+        if (!string.IsNullOrEmpty(returnUrl)
+            && (Url.IsLocalUrl(returnUrl) || await redirectUriValidator.IsAllowedAsync(returnUrl)))
         {
             LogExchangeTicketRedirecting(returnUrl);
             return Redirect(returnUrl);
