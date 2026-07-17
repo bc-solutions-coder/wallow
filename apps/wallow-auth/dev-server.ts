@@ -40,6 +40,8 @@ import {
 } from "node:http";
 import { Readable } from "node:stream";
 
+import { brandAssetsDir } from "@bc-solutions-coder/styles/assets";
+import tailwindcss from "@tailwindcss/vite";
 import { createServer as createViteServer, type ViteDevServer } from "vite";
 
 import type { AuthServer, AuthServerConfig } from "./src/lib/auth-server";
@@ -67,6 +69,17 @@ const vite: ViteDevServer = await createViteServer({
   configFile: false,
   root: import.meta.dirname,
   appType: "custom",
+  // configFile: false means vite.config.ts is not read, so anything the app's
+  // module graph needs from Vite must be re-declared here. `@vitejs/plugin-react`
+  // stays out (its Fast Refresh preamble breaks whole-document hydration — see
+  // the header), but `@tailwindcss/vite` must be wired in or the `styles.css`
+  // entry `src/client.tsx` imports is served with `@import "tailwindcss"` left
+  // verbatim, and `pnpm dev` renders every screen unstyled.
+  plugins: [tailwindcss()],
+  // publicDir must be set here too or the fork icon 404s under `pnpm dev` (it
+  // would default to a nonexistent ./public). Serves the shared styles package's
+  // assets at the root.
+  publicDir: brandAssetsDir,
   server: { middlewareMode: true },
 });
 

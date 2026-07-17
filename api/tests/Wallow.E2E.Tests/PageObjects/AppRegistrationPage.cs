@@ -18,7 +18,7 @@ public sealed class AppRegistrationPage
     {
         await _page.GotoAsync($"{_baseUrl}/dashboard/apps/register");
         await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
-        await E2ETestBase.WaitForBlazorReadyAsync(_page);
+        await E2ETestBase.WaitForWebReadyAsync(_page);
         await _page.Locator("[data-testid='register-app-display-name']")
             .WaitForAsync(new() { Timeout = 10_000 });
     }

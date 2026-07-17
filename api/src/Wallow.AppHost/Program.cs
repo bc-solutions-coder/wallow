@@ -2,6 +2,8 @@ IDistributedApplicationBuilder builder = DistributedApplication.CreateBuilder(ar
 
 // Resolve paths relative to the AppHost project
 string garageConfigDir = Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "..", "..", "..", "docker", "garage"));
+string wallowAuthDir = Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "..", "..", "..", "apps", "wallow-auth"));
+string wallowWebDir = Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "..", "..", "..", "apps", "wallow-web"));
 
 // Infrastructure
 IResourceBuilder<PostgresDatabaseResource> postgres = builder.AddPostgres("postgres")
@@ -48,13 +50,19 @@ IResourceBuilder<ProjectResource> api = builder.AddProject<Projects.Wallow_Api>(
     .WaitFor(valkey)
     .WaitFor(garage);
 
-// Auth and Web wait for API to be fully ready
-builder.AddProject<Projects.Wallow_Auth>("wallow-auth")
+// Auth and Web wait for API to be fully ready.
+// Auth is the TanStack Start app (apps/wallow-auth), run via its pnpm dev script (tsx dev-server.ts) on port 3002.
+builder.AddJavaScriptApp("wallow-auth", wallowAuthDir, "dev")
+    .WithPnpm()
+    .WithHttpEndpoint(port: 3002, env: "PORT")
     .WithReference(valkey, connectionName: "Redis")
     .WaitFor(api)
     .WaitFor(valkey);
 
-builder.AddProject<Projects.Wallow_Web>("wallow-web")
+// Web is the TanStack Start app (apps/wallow-web), run via its pnpm dev script on port 3000.
+builder.AddJavaScriptApp("wallow-web", wallowWebDir, "dev")
+    .WithPnpm()
+    .WithHttpEndpoint(port: 3000, env: "PORT")
     .WithReference(valkey, connectionName: "Redis")
     .WaitFor(api)
     .WaitFor(valkey);

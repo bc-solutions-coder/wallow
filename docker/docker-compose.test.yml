@@ -94,9 +94,11 @@ services:
     image: wallow-seeder:test
     environment:
       ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=wallow_test;Username=wallow_test;Password=wallow_test"
-      # Override wallow-web-client redirect URIs for test ports
-      Clients__1__RedirectUris__0: "http://localhost:5053/signin-oidc"
-      Clients__1__PostLogoutRedirectUris__0: "http://localhost:5053/signout-callback-oidc"
+      # Override wallow-web-client redirect URIs for the test port. The client is
+      # now a Node BFF (apps/wallow-web), so the callback is /bff/callback, not the
+      # Blazor /signin-oidc middleware path.
+      Clients__1__RedirectUris__0: "http://localhost:5053/bff/callback"
+      Clients__1__PostLogoutRedirectUris__0: "http://localhost:5053/"
     depends_on:
       wallow-migrations:
         condition: service_completed_successfully
@@ -140,6 +142,9 @@ services:
       # interactive consent screen (appsettings already lists bcordes-dev-client
       # at index 0; this appends the wallow-web example's client at index 1).
       Identity__FirstPartyClients__1: "bcordes-bff"
+      # wallow-web is now a BFF too; treat its client as first-party so the OIDC
+      # flow skips the interactive consent screen during the dashboard login.
+      Identity__FirstPartyClients__2: "wallow-web-client"
     tmpfs:
       - /tmp
       - /app/App_Data
@@ -201,30 +206,61 @@ services:
     networks:
       - wallow-test
 
+  # apps/wallow-web (TanStack Start SSR + BFF tunnel), not the legacy Blazor
+  # Wallow.Web image. Build context is the repo root so the Dockerfile can build
+  # the @bc-solutions-coder/sdk workspace dependency alongside the app.
+  #
+  # The image tag is deliberately distinct from the legacy wallow-web:test so a
+  # stale Blazor image can never be silently reused for this service. This tag
+  # (wallow-web-react:test) MUST match the tag ci.yml builds/saves/loads for the
+  # e2e job; otherwise compose rebuilds the image from scratch at runtime instead
+  # of reusing the cached one. run-e2e.sh builds this service via compose so it
+  # inherits this tag automatically.
+  #
+  # This is the same Node BFF host as bff-example, but authenticates as the
+  # seeded wallow-web-client (the canonical dashboard client) rather than the
+  # bcordes-bff reference client. The OIDC issuer/metadata split mirrors
+  # bff-example (browser-facing issuer vs container-reachable discovery URL).
   wallow-web:
-    image: wallow-web:test
+    image: wallow-web-react:test
+    build:
+      context: ..
+      dockerfile: apps/wallow-web/Dockerfile
     ports:
-      - "127.0.0.1:5053:8080"
+      - "127.0.0.1:5053:3000"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      ASPNETCORE_URLS: http://+:8080
-      ServiceUrls__ApiUrl: "http://wallow-api:8080"
-      # wallow-auth now serves on 3002 (Node), not 8080 (Blazor).
-      ServiceUrls__AuthUrl: "http://wallow-auth:3002"
-      ServiceUrls__AuthPublicUrl: "http://localhost:5051"
-      # .NET Aspire service discovery resolution for container-to-container communication
-      services__wallow-api__http__0: "http://wallow-api:8080"
-      # Authority = browser-facing URL (must match API's OpenIddict issuer for same-site cookies)
-      # MetadataAddress = container-reachable URL for OIDC discovery (host.docker.internal)
-      Oidc__Authority: "http://localhost:5050"
-      Oidc__MetadataAddress: "http://host.docker.internal:5050/.well-known/openid-configuration"
-      Oidc__ClientId: wallow-web-client
-      Oidc__ClientSecret: wallow-web-secret
-      ConnectionStrings__Redis: "valkey:6379,password=WallowTestValkey123!,abortConnect=false"
+      PORT: "3000"
+      # Browser-facing issuer (must match API OpenIddict issuer for redirects)
+      OIDC_ISSUER: "http://localhost:5050"
+      # Server-reachable discovery URL (container -> host-published API)
+      OIDC_METADATA_URL: "http://host.docker.internal:5050/.well-known/openid-configuration"
+      OIDC_CLIENT_ID: wallow-web-client
+      OIDC_CLIENT_SECRET: wallow-web-secret
+      OIDC_REDIRECT_URI: "http://localhost:5053/bff/callback"
+      OIDC_POST_LOGOUT_REDIRECT_URI: "http://localhost:5053/"
+      # Downstream API for the /api proxy (container-to-container)
+      BFF_API_BASE_URL: "http://wallow-api:8080"
+      COOKIE_PASSWORD: "e2e-web-cookie-seal-password-min-32-chars"
+      # Server-side sessions in Valkey so logout truly revokes (see bff-example).
+      REDIS_URL: "redis://:WallowTestValkey123!@valkey:6379"
+    # node:24-slim ships no curl/wget, so liveness is probed with node's own fetch.
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3000/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
     depends_on:
       - wallow-api
+      - wallow-auth
       - valkey
     networks:
       - wallow-test

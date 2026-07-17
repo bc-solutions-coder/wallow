@@ -47,7 +47,7 @@ jobs:
       # keys Tailwind output off Styles/app.css, not the scanned razor files, so a
       # restored (cross-commit) generated app.css would otherwise ship stale CSS.
       - name: Clean generated Tailwind CSS
-        run: rm -f api/src/Wallow.Web/wwwroot/css/app.css api/src/Wallow.Auth/wwwroot/css/app.css
+        run: rm -f api/src/Wallow.Auth/wwwroot/css/app.css
 
       - name: Build
         run: dotnet build api/Wallow.slnx --no-restore --configuration Release --graph
@@ -231,10 +231,12 @@ jobs:
             -c Release --no-build /t:PublishContainer \
             -p:ContainerImageTag=test \
             -p:ContainerRuntimeIdentifier=linux-x64
-          dotnet publish api/src/Wallow.Web/Wallow.Web.csproj \
-            -c Release --no-build /t:PublishContainer \
-            -p:ContainerImageTag=test \
-            -p:ContainerRuntimeIdentifier=linux-x64
+          # wallow-web is the React BFF (apps/wallow-web/Dockerfile), not Blazor
+          # Wallow.Web. The build context is the repo root so the Dockerfile can
+          # resolve the @bc-solutions-coder/sdk workspace dependency. Tag matches the
+          # docker-compose.test.yml wallow-web service (wallow-web-react:test) so the
+          # e2e job loads this image instead of rebuilding it.
+          docker build -f apps/wallow-web/Dockerfile -t wallow-web-react:test .
           dotnet publish api/src/Wallow.MigrationService/Wallow.MigrationService.csproj \
             -c Release --no-build /t:PublishContainer \
             -p:ContainerImageTag=test \
@@ -253,10 +255,10 @@ jobs:
             -c Release --no-build /t:PublishContainer \
             -p:ContainerImageTag=test-arm64 \
             -p:ContainerRuntimeIdentifier=linux-arm64
-          dotnet publish api/src/Wallow.Web/Wallow.Web.csproj \
-            -c Release --no-build /t:PublishContainer \
-            -p:ContainerImageTag=test-arm64 \
-            -p:ContainerRuntimeIdentifier=linux-arm64
+          # wallow-web arm64 image via buildx (single-platform --load so the
+          # subsequent docker save can archive it alongside the .NET images).
+          docker buildx build --platform linux/arm64 --load \
+            -f apps/wallow-web/Dockerfile -t wallow-web-react:test-arm64 .
           dotnet publish api/src/Wallow.MigrationService/Wallow.MigrationService.csproj \
             -c Release --no-build /t:PublishContainer \
             -p:ContainerImageTag=test-arm64 \
@@ -271,7 +273,7 @@ jobs:
           docker save \
             wallow-api:test wallow-api:test-arm64 \
             wallow-auth:test wallow-auth:test-arm64 \
-            wallow-web:test wallow-web:test-arm64 \
+            wallow-web-react:test wallow-web-react:test-arm64 \
             wallow-migrations:test wallow-migrations:test-arm64 \
             wallow-seeder:test wallow-seeder:test-arm64 \
             | gzip > /tmp/wallow-images-app.tar.gz

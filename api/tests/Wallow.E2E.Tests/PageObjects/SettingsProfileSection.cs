@@ -18,7 +18,7 @@ public sealed class SettingsProfileSection
     {
         await _page.GotoAsync($"{_baseUrl}/dashboard/settings");
         await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
-        await E2ETestBase.WaitForBlazorReadyAsync(_page);
+        await E2ETestBase.WaitForWebReadyAsync(_page);
         await _page.GetByTestId("settings-heading").WaitForAsync(
             new LocatorWaitForOptions { Timeout = 10_000 });
     }

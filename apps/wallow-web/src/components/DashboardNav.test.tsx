@@ -26,14 +26,14 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 
 /**
- * DashboardNav spec (Wallow-8w1h.8.1). The dashboard shell's nav must link to
- * ALL FOUR verticals unconditionally (a deliberate divergence from the Blazor
- * oracle's admin-gated Organizations link), each carrying a
- * `data-testid="dashboard-nav-<feature>"` testid pointing at its route.
+ * DashboardNav spec (Wallow-8w1h.8.1). The dashboard shell's nav links to the
+ * verticals, each carrying a `data-testid="dashboard-nav-<feature>"` testid
+ * pointing at its route. The Organizations link is admin-gated as of
+ * Wallow-ffpq.3.6 (restoring the Blazor oracle), so it is covered by
+ * `DashboardNav.gate.test.tsx` rather than the unconditional loop here.
  */
 describe("DashboardNav", () => {
   const links: ReadonlyArray<readonly [testid: string, href: string]> = [
-    ["dashboard-nav-organizations", "/dashboard/organizations"],
     ["dashboard-nav-apps", "/dashboard/apps"],
     ["dashboard-nav-settings", "/dashboard/settings"],
     ["dashboard-nav-inquiries", "/dashboard/inquiries"],

@@ -42,7 +42,7 @@ api/src/Wallow.Auth/
 │   ├── BrandingTheme.razor            # CSS variable injection from BrandingOptions
 │   └── App.razor
 ├── Configuration/
-│   └── BrandingOptions.cs             # Canonical branding model
+│   └── BrandingOptions.cs             # Legacy C# copy (retired; see packages/styles)
 ├── wwwroot/
 └── Wallow.Auth.csproj
 
@@ -125,7 +125,7 @@ Place custom icons in the `wwwroot` directory of `Wallow.Auth` (and `Wallow.Web`
 
 ### BrandingOptions
 
-`Wallow.Auth` owns the canonical `BrandingOptions` class; `Wallow.Web` has a local copy. Both read from `branding.json` at the repo root. The class exposes `AppName`, `AppIcon`, `Tagline`, `LandingPage`, and `Theme` properties.
+The canonical branding schema now lives in `packages/styles` (`@bc-solutions-coder/styles`, `src/branding.ts`), which every frontend consumes; the Blazor `BrandingOptions.cs` classes in `Wallow.Auth` and `Wallow.Web` are legacy copies being retired as those apps are removed. All of them read the same underlying `api/branding.json` data at the repo root, exposing `AppName`, `AppIcon`, `Tagline`, `LandingPage`, and `Theme`.
 
 ### Layouts That Use BrandingOptions
 

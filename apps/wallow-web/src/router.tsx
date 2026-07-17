@@ -4,6 +4,7 @@ import { createQueryClient } from "./lib/query-client";
 import { Route as rootRoute } from "./routes/__root";
 import { Route as bffDemoRoute } from "./routes/bff-demo";
 import { Route as appsIndexRoute } from "./routes/dashboard/apps/index";
+import { Route as registerAppRoute } from "./routes/dashboard/apps/register";
 import { Route as inquiryDetailRoute } from "./routes/dashboard/inquiries/$inquiryId";
 import { Route as inquiriesIndexRoute } from "./routes/dashboard/inquiries/index";
 import { Route as organizationDetailRoute } from "./routes/dashboard/organizations/$orgId";
@@ -65,6 +66,11 @@ export function createRouter(): AnyRouter {
     getParentRoute: () => dashboardRouteWithParent,
   });
 
+  const registerAppWithParent = registerAppRoute.update({
+    path: "apps/register",
+    getParentRoute: () => dashboardRouteWithParent,
+  });
+
   const settingsWithParent = settingsRoute.update({
     path: "settings",
     getParentRoute: () => dashboardRouteWithParent,
@@ -87,6 +93,7 @@ export function createRouter(): AnyRouter {
       organizationsIndexWithParent,
       organizationDetailWithParent,
       appsIndexWithParent,
+      registerAppWithParent,
       settingsWithParent,
       inquiriesIndexWithParent,
       inquiryDetailWithParent,

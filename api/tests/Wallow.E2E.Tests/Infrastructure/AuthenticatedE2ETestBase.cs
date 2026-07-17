@@ -23,8 +23,10 @@ public abstract class AuthenticatedE2ETestBase : E2ETestBase
 
         TestUser = await TestUserFactory.CreateAsync(Docker.ApiBaseUrl, Docker.MailpitBaseUrl);
 
-        // Trigger the OIDC login chain via the Web app
-        await Page.GotoAsync($"{Docker.WebBaseUrl}/authentication/login");
+        // Trigger the OIDC login chain via the React wallow-web BFF login entry point.
+        // (/bff/login redirects into the OpenIddict authorization chain; the old Blazor
+        // login route has no React counterpart.)
+        await Page.GotoAsync($"{Docker.WebBaseUrl}/bff/login");
         await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
 
         // Wait for the login form to be visible
@@ -52,7 +54,7 @@ public abstract class AuthenticatedE2ETestBase : E2ETestBase
                 "The shared org likely has requireMfa=true from a prior test. Reset the database or check test isolation.");
         }
 
-        // Each test's page object NavigateAsync waits for Blazor ready on the target page,
-        // so we only need to confirm the OIDC chain completed successfully here.
+        // Each test's page object NavigateAsync waits for React app readiness on the target
+        // page, so we only need to confirm the OIDC chain completed successfully here.
     }
 }

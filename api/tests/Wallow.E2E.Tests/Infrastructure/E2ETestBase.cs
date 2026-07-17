@@ -91,6 +91,28 @@ public abstract class E2ETestBase : IClassFixture<DockerComposeFixture>, IClassF
             new PageWaitForFunctionOptions { Timeout = timeoutMs, PollingInterval = 250 });
     }
 
+    /// <summary>
+    /// Waits for the React dashboard app (apps/wallow-web) to finish hydrating.
+    /// </summary>
+    /// <remarks>
+    /// The React counterpart of <see cref="WaitForBlazorReadyAsync"/> for the wallow-web
+    /// dashboard. ReadyIndicator (apps/wallow-web/src/components/ready-indicator.tsx) stamps
+    /// <c>data-app-ready="true"</c> onto document.body from a useEffect, which runs only after
+    /// the tree is committed and interactive — the same guarantee Blazor's
+    /// <c>data-blazor-ready</c> gave once its SignalR circuit was up.
+    /// <para>
+    /// No settle delay follows the signal: a committed React tree already has its event handlers
+    /// attached, unlike a Blazor circuit whose ready attribute fires before it is fully warm.
+    /// </para>
+    /// </remarks>
+    internal static async Task WaitForWebReadyAsync(IPage page, int timeoutMs = 30_000)
+    {
+        await page.WaitForFunctionAsync(
+            "() => document.querySelector('[data-app-ready=\"true\"]') !== null",
+            null,
+            new PageWaitForFunctionOptions { Timeout = timeoutMs, PollingInterval = 250 });
+    }
+
     private async Task SaveFailureArtifactsAsync()
     {
         string artifactDir = Path.Combine("test-results", "failures", $"{GetType().Name}_{DateTime.UtcNow:yyyyMMdd_HHmmss}");

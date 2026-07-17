@@ -1,4 +1,4 @@
-import { login } from "@bc-solutions-coder/sdk";
+import { login, type WallowUser } from "@bc-solutions-coder/sdk";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { DashboardLayout } from "../../components/DashboardLayout";
@@ -15,13 +15,38 @@ import { getWallowSdk } from "../../lib/wallow-sdk";
  * performs a real browser navigation to the BFF login (`location.href = ...`),
  * NOT a TanStack `redirect()`. The `returnTo` is the path the user was heading
  * to, so they land back on the gated page after authenticating.
+ *
+ * When a user IS present it derives `isAdmin` from the user's roles claim
+ * (Wallow-ffpq.3.6, restoring Blazor `DashboardLayout.razor`'s
+ * `<AuthorizeView Roles="admin">`) and exposes it on the route context so the
+ * shell can gate the Organizations nav link.
  */
+
+/** True when the user's roles claim contains an `admin` role (case-insensitive). */
+function isAdminUser(user: WallowUser): boolean {
+  const raw: unknown = user.roles ?? user.role;
+  let roles: unknown[] = [];
+  if (Array.isArray(raw)) {
+    roles = raw;
+  } else if (typeof raw === "string") {
+    roles = [raw];
+  }
+  return roles.some((role) => String(role).toLowerCase() === "admin");
+}
+
+function DashboardShell() {
+  const { isAdmin } = Route.useRouteContext();
+  return <DashboardLayout isAdmin={isAdmin} />;
+}
+
 export const Route = createFileRoute("/dashboard")({
   beforeLoad: async ({ location }) => {
     const user = await getWallowSdk().user.me();
     if (user === null) {
       login(location.pathname);
+      return { isAdmin: false };
     }
+    return { isAdmin: isAdminUser(user) };
   },
-  component: DashboardLayout,
+  component: DashboardShell,
 });

@@ -93,12 +93,6 @@ if [[ "$SKIP_BUILD" == "false" ]]; then
         -p:ContainerImageTag=test \
         -p:ContainerRuntimeIdentifier="$RID"
 
-    echo "  Publishing wallow-web:test..."
-    dotnet publish "$REPO_ROOT/api/src/Wallow.Web/Wallow.Web.csproj" \
-        -c Release --no-build /t:PublishContainer \
-        -p:ContainerImageTag=test \
-        -p:ContainerRuntimeIdentifier="$RID"
-
     echo "  Publishing wallow-migrations:test..."
     dotnet publish "$REPO_ROOT/api/src/Wallow.MigrationService/Wallow.MigrationService.csproj" \
         -c Release --no-build /t:PublishContainer \
@@ -120,6 +114,14 @@ if [[ "$SKIP_BUILD" == "false" ]]; then
     # so the auth E2E flows would silently run against a stale copy of the app.
     echo "=== Building auth app image ==="
     $COMPOSE_CMD build wallow-auth
+
+    # The web dashboard is now the React BFF (apps/wallow-web), a Node image built from
+    # apps/wallow-web/Dockerfile, not a dotnet publish target. Building via compose tags it
+    # wallow-web-react:test (compose owns the tag). Without an explicit build here compose
+    # reuses whatever wallow-web-react:test happens to exist, so the dashboard E2E flows
+    # would silently run against a stale copy of the app.
+    echo "=== Building web app image ==="
+    $COMPOSE_CMD build wallow-web
 
     # The BFF reference example is a Node image, not a dotnet publish target. Without an
     # explicit build here compose reuses whatever wallow-bff-example:test happens to exist,

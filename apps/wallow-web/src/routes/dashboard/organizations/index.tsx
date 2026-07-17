@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { organizationsQueries } from "../../../features/organizations/api";
+import { CreateOrganizationForm } from "../../../features/organizations/components/CreateOrganizationForm";
 import { OrganizationList } from "../../../features/organizations/components/OrganizationList";
 
 /**
@@ -20,6 +21,7 @@ function OrganizationsIndexPage() {
   return (
     <div data-testid="dashboard-organizations">
       <OrganizationList />
+      <CreateOrganizationForm />
     </div>
   );
 }

@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx dev-server.ts",
-    "build": "vite build",
+    "build": "vite build && vite build --config vite.ssr.config.ts",
     "start": "tsx server.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@bc-solutions-coder/sdk": "workspace:*",
+    "@bc-solutions-coder/styles": "workspace:*",
     "@tanstack/react-form": "^1.33.2",
     "@tanstack/react-query": "^5.101.2",
     "@tanstack/react-router": "^1.170.18",
@@ -24,6 +25,7 @@
     "redis": "^4.7.0"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
     "@tanstack/router-plugin": "^1.168.20",
     "@testing-library/dom": "^10.0.0",
     "@testing-library/jest-dom": "^6.9.1",

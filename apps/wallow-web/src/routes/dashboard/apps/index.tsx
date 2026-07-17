@@ -19,6 +19,9 @@ import { AppList } from "../../../features/apps/components/AppList";
 function AppsIndexPage() {
   return (
     <div data-testid="dashboard-apps">
+      <a data-testid="apps-register-link" href="/dashboard/apps/register">
+        Register New App
+      </a>
       <AppList />
     </div>
   );

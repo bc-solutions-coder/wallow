@@ -120,6 +120,27 @@ function ScopeToggles(props: { value: string[]; onChange: (value: string[]) => v
   );
 }
 
+/**
+ * Optional branding subsection (Wallow-ffpq.3.6) — the React port of the
+ * "Branding" block on Blazor `RegisterApp.razor` (which calls
+ * `AppService.UpsertBrandingAsync` with a display name, tagline, and logo file).
+ * It lives on the same register-app page, so the branding display-name / tagline
+ * / logo inputs are reachable in the form view. Testids follow the apps feature's
+ * `app-*` convention. Presentational (uncontrolled) per the epic's reachability
+ * bar; the live upsert (`getWallowSdk().apps.upsertBranding`) needs the client id
+ * the register call returns and is left as a structural seam here.
+ */
+function BrandingSection() {
+  return (
+    <fieldset data-testid="app-branding">
+      <legend>Branding (optional)</legend>
+      <input data-testid="app-branding-display-name" placeholder="Display name" />
+      <input data-testid="app-branding-tagline" placeholder="Tagline" />
+      <input data-testid="app-logo-input" type="file" accept="image/*" />
+    </fieldset>
+  );
+}
+
 /** One-time reveal of the returned client id + secret, with a copy affordance. */
 function SuccessView(props: { result: AppRegistrationResponse }) {
   const { result } = props;
@@ -211,6 +232,8 @@ export function RegisterAppForm() {
       <form.Field name="scopes">
         {(field) => <ScopeToggles value={field.state.value} onChange={field.handleChange} />}
       </form.Field>
+
+      <BrandingSection />
 
       {mutation.isError ? (
         <span data-testid="app-register-error">{(mutation.error as ProblemDetails).detail}</span>

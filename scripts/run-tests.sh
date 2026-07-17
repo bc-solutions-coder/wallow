@@ -27,8 +27,6 @@ announcements)  echo "$REPO_ROOT/api/tests/Modules/Announcements/Wallow.Announce
         apikeys)        echo "$REPO_ROOT/api/tests/Modules/ApiKeys/Wallow.ApiKeys.Tests" ;;
         auth)            echo "$REPO_ROOT/api/tests/Wallow.Auth.Tests" ;;
         auth-components) echo "$REPO_ROOT/api/tests/Wallow.Auth.Component.Tests" ;;
-        web)             echo "$REPO_ROOT/api/tests/Wallow.Web.Tests" ;;
-        web-components)  echo "$REPO_ROOT/api/tests/Wallow.Web.Component.Tests" ;;
         e2e)
             echo "ERROR: E2E tests must be run via ./scripts/run-e2e.sh (requires live infrastructure)." >&2
             exit 1

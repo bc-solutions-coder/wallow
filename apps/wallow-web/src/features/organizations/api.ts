@@ -34,6 +34,11 @@ export const organizationsQueries = {
       queryKey: ["orgs", id, "members"] as const,
       queryFn: () => getWallowSdk().organizations.members(id),
     }),
+  clients: (id: string) =>
+    queryOptions({
+      queryKey: ["orgs", id, "clients"] as const,
+      queryFn: () => getWallowSdk().organizations.clients(id),
+    }),
 };
 
 /** The create-organization request body (domain is nullable per the API). */
@@ -99,5 +104,28 @@ export const reactivateOrganizationMutation = (queryClient: QueryClient, orgId: 
   mutationFn: (): Promise<unknown> => getWallowSdk().organizations.reactivate(orgId),
   onSuccess: (): void => {
     void queryClient.invalidateQueries({ queryKey: ["orgs"] });
+  },
+});
+
+/**
+ * The register-client request body (Wallow-ffpq.3.6). Mirrors the Blazor
+ * `RegisterClientForm` (display name, client type, newline-split redirect URIs);
+ * the facade maps it onto the API's `CreateClientRequest`.
+ */
+export interface RegisterClientBody {
+  displayName: string;
+  clientType: string;
+  redirectUris: string[];
+}
+
+/**
+ * Register an OAuth client bound to `orgId`; invalidates that org's clients
+ * query on success so the bound-clients table refreshes.
+ */
+export const registerClientMutation = (queryClient: QueryClient, orgId: string) => ({
+  mutationFn: (body: RegisterClientBody): Promise<unknown> =>
+    getWallowSdk().organizations.registerClient(orgId, body),
+  onSuccess: (): void => {
+    void queryClient.invalidateQueries({ queryKey: ["orgs", orgId, "clients"] });
   },
 });

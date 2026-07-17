@@ -17,5 +17,6 @@ import { RouterClient } from "@tanstack/react-router/ssr/client";
 import { hydrateRoot } from "react-dom/client";
 
 import { createRouter } from "./router";
+import "./styles.css";
 
 hydrateRoot(document, <RouterClient router={createRouter()} />);

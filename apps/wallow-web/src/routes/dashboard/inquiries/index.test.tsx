@@ -81,6 +81,19 @@ describe("routes/dashboard/inquiries (route page)", () => {
 
     expect(screen.getByTestId("dashboard-inquiries")).toBeInTheDocument();
   });
+
+  // Wallow-ffpq.3.5 — the orphan CreateInquiryForm mounts INLINE on this index
+  // page, matching Blazor's Inquiries.razor (list + create on the SAME page),
+  // NOT a standalone route.
+  it("mounts the CreateInquiryForm inline (inquiry-create-form)", () => {
+    const client = newClient();
+    client.setQueryData(["inquiries"], []);
+
+    const Page = Route.options.component!;
+    renderWithClient(client, <Page />);
+
+    expect(screen.getByTestId("inquiry-create-form")).toBeInTheDocument();
+  });
 });
 
 describe("routes/dashboard/inquiries (router registration)", () => {

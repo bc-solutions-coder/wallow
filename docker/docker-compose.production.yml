@@ -471,23 +471,25 @@ services:
     ports:
       - "${WEB_PORT:-8082}:8080"
     environment:
-      ASPNETCORE_ENVIRONMENT: Production
-      ASPNETCORE_URLS: http://+:8080
-      # Internal service URLs (container-to-container)
-      ServiceUrls__ApiUrl: http://wallow-api:8080
-      ServiceUrls__AuthUrl: http://wallow-auth:8080
-      # Public-facing auth URL (for browser redirects)
-      ServiceUrls__AuthPublicUrl: ${AUTH_PUBLIC_URL:-https://wallow.dev/auth}
-      # OIDC config
-      # Authority = public URL (must match issuer in tokens for validation)
-      # MetadataAddress = container-to-container URL for OIDC discovery (avoids hairpin through reverse proxy)
-      Oidc__Authority: ${API_PUBLIC_URL:-https://wallow.dev/api}
-      Oidc__MetadataAddress: http://wallow-api:8080/.well-known/openid-configuration
-      Oidc__ClientId: ${OIDC_CLIENT_ID}
-      Oidc__ClientSecret: ${OIDC_CLIENT_SECRET}
-      # .NET Aspire service discovery resolution for container-to-container communication
-      services__wallow-api__http__0: "http://wallow-api:8080"
-      ConnectionStrings__Redis: "valkey:6379,password=${VALKEY_PASSWORD},abortConnect=false"
+      NODE_ENV: production
+      # The Node BFF listens on PORT; keep it at 8080 so the port mapping and the
+      # :1F90 (hex 8080) healthcheck below stay valid.
+      PORT: "8080"
+      # OIDC config for the BFF (apps/wallow-web/server.ts -> loadBffConfigFromEnv)
+      # Issuer = public URL (must match issuer in tokens for browser redirects)
+      OIDC_ISSUER: ${API_PUBLIC_URL:-https://wallow.dev/api}
+      # Metadata = container-to-container discovery URL (avoids hairpin through the proxy)
+      OIDC_METADATA_URL: http://wallow-api:8080/.well-known/openid-configuration
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET}
+      OIDC_REDIRECT_URI: ${WEB_PUBLIC_URL:-https://wallow.dev}/bff/callback
+      OIDC_POST_LOGOUT_REDIRECT_URI: ${WEB_PUBLIC_URL:-https://wallow.dev}/
+      # Downstream API for the /api reverse proxy (container-to-container)
+      BFF_API_BASE_URL: http://wallow-api:8080
+      # Seals/encrypts the BFF session cookie (min 32 chars)
+      COOKIE_PASSWORD: ${BFF_COOKIE_PASSWORD}
+      # Server-side sessions in Valkey so logout truly revokes tokens
+      REDIS_URL: "redis://:${VALKEY_PASSWORD}@valkey:6379"
       # OpenTelemetry
       OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4317
       OTEL_SERVICE_NAME: wallow-web

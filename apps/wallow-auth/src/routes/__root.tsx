@@ -2,8 +2,14 @@ import { type QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createRootRoute, Outlet } from "@tanstack/react-router";
 import { useRef } from "react";
 
+import { FocusOnNavigate } from "../components/focus-on-navigate";
 import { ReadyIndicator } from "../components/ready-indicator";
-import { forkResolvedBranding, renderThemeStyle, type ResolvedBranding } from "../lib/branding";
+import {
+  appIconUrl,
+  forkResolvedBranding,
+  renderThemeStyle,
+  type ResolvedBranding,
+} from "../lib/branding";
 import { createQueryClient } from "../lib/query-client";
 
 /**
@@ -54,10 +60,12 @@ function DocumentShell() {
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>{branding.name}</title>
+        <link rel="icon" href={appIconUrl} />
         <style>{renderThemeStyle(branding)}</style>
         <script type="module" src={clientEntry} />
       </head>
       <body>
+        <FocusOnNavigate />
         <Outlet />
         <ReadyIndicator />
       </body>

@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { inquiriesQueries } from "../../../features/inquiries/api";
+import { CreateInquiryForm } from "../../../features/inquiries/components/CreateInquiryForm";
 import { InquiryList } from "../../../features/inquiries/components/InquiryList";
 
 /**
@@ -20,6 +21,7 @@ function InquiriesIndexPage() {
   return (
     <div data-testid="dashboard-inquiries">
       <InquiryList />
+      <CreateInquiryForm />
     </div>
   );
 }

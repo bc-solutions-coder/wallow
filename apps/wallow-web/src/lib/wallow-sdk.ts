@@ -31,6 +31,7 @@ import {
   getUser,
   getV1IdentityApps,
   getV1IdentityAppsByClientId,
+  getV1IdentityClientsByTenantByTenantId,
   getV1IdentityOrganizations,
   getV1IdentityOrganizationsById,
   getV1IdentityOrganizationsByIdMembers,
@@ -40,7 +41,9 @@ import {
   getV1InquiriesByIdComments,
   getV1InquiriesSubmitted,
   patchV1InquiriesByIdStatus,
+  postV1IdentityAppsByClientIdBranding,
   postV1IdentityAppsRegister,
+  postV1IdentityClients,
   postV1IdentityMfaBackupCodesRegenerate,
   postV1IdentityMfaDisable,
   postV1IdentityMfaEnrollConfirm,
@@ -114,6 +117,13 @@ export interface OrganizationsSlice {
   archive: (id: string) => Promise<unknown>;
   /** Reactivate an archived organization. */
   reactivate: (id: string) => Promise<unknown>;
+  /** List the OAuth clients bound to the org's tenant (returns `ClientResponse[]`). */
+  clients: (id: string) => Promise<unknown>;
+  /** Register an OAuth client bound to the org's tenant (returns `ClientResponse`). */
+  registerClient: (
+    id: string,
+    body: { displayName: string; clientType: string; redirectUris: string[] },
+  ) => Promise<unknown>;
 }
 
 /**
@@ -130,6 +140,15 @@ export interface AppsSlice {
   get: (clientId: string) => Promise<unknown>;
   /** Register a new app (returns `AppRegistrationResponse` with the one-time secret). */
   register: (body: RegisterAppRequest) => Promise<unknown>;
+  /**
+   * Upsert an app's optional branding (display name, tagline, logo file) —
+   * POST `/v1/identity/apps/{clientId}/branding` (multipart). Mirrors Blazor
+   * `AppService.UpsertBrandingAsync` (Wallow-ffpq.3.6).
+   */
+  upsertBranding: (
+    clientId: string,
+    body: { displayName?: string; tagline?: string; logo?: File },
+  ) => Promise<unknown>;
 }
 
 /** Current-user slice (delegates to the SDK's `getUser()`). */
@@ -248,11 +267,34 @@ const sdk: WallowSdk = {
       unwrap(deleteV1IdentityOrganizationsByIdMembersByUserId({ path: { id, userId } })),
     archive: (id: string) => unwrap(postV1IdentityOrganizationsByIdArchive({ path: { id } })),
     reactivate: (id: string) => unwrap(postV1IdentityOrganizationsByIdReactivate({ path: { id } })),
+    clients: (id: string) =>
+      unwrap(getV1IdentityClientsByTenantByTenantId({ path: { tenantId: id } })),
+    registerClient: (id: string, body: { displayName: string; redirectUris: string[] }) =>
+      unwrap(
+        postV1IdentityClients({
+          body: {
+            name: body.displayName,
+            redirectUris: body.redirectUris,
+            postLogoutRedirectUris: [],
+            tenantId: id,
+          },
+        }),
+      ),
   },
   apps: {
     list: () => unwrap(getV1IdentityApps()),
     get: (clientId: string) => unwrap(getV1IdentityAppsByClientId({ path: { clientId } })),
     register: (body: RegisterAppRequest) => unwrap(postV1IdentityAppsRegister({ body })),
+    upsertBranding: (
+      clientId: string,
+      body: { displayName?: string; tagline?: string; logo?: File },
+    ) =>
+      unwrap(
+        postV1IdentityAppsByClientIdBranding({
+          path: { clientId },
+          body: { DisplayName: body.displayName, Tagline: body.tagline, logo: body.logo },
+        }),
+      ),
   },
   user: {
     me: () => getUser(),

@@ -1,0 +1,18 @@
+{
+  // Declaration-only build config, mirroring packages/sdk: `vite build` emits the
+  // JS bundle and this config emits the .d.ts files (see the package `build`
+  // script).
+  //
+  // `include` is narrowed to the single public entry point; tsc transitively
+  // pulls in every real src file it imports, but *.test.ts and root *.config.ts
+  // stay out of the program so no stray declarations leak into dist/.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "rootDir": "src",
+    "outDir": "dist"
+  },
+  "include": ["src/index.ts", "src/assets.ts"],
+  "exclude": ["**/*.test.ts", "**/*.config.ts"]
+}

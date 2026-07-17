@@ -66,6 +66,19 @@ describe("routes/dashboard/organizations (route page)", () => {
 
     expect(screen.getByTestId("dashboard-organizations")).toBeInTheDocument();
   });
+
+  // Wallow-ffpq.3.5 — the orphan CreateOrganizationForm mounts INLINE on this
+  // index page (NOT a separate /dashboard/organizations/create route — Blazor's
+  // link to that path was dead and the bead's AC forbids recreating it).
+  it("mounts the CreateOrganizationForm inline (organization-create-form)", () => {
+    const client = newClient();
+    client.setQueryData(["orgs"], []);
+
+    const Page = Route.options.component!;
+    renderWithClient(client, <Page />);
+
+    expect(screen.getByTestId("organization-create-form")).toBeInTheDocument();
+  });
 });
 
 describe("routes/dashboard/organizations (router registration)", () => {

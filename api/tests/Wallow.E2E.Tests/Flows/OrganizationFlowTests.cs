@@ -55,7 +55,7 @@ public sealed class OrganizationFlowTests : AuthenticatedE2ETestBase
         // Navigate with a random GUID that doesn't correspond to any org
         await Page.GotoAsync($"{Docker.WebBaseUrl}/dashboard/organizations/{Guid.NewGuid()}");
         await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
-        await E2ETestBase.WaitForBlazorReadyAsync(Page);
+        await E2ETestBase.WaitForWebReadyAsync(Page);
 
         bool isNotFound = await detailPage.IsNotFoundAsync();
         Assert.True(isNotFound, "Navigating to a non-existent organization should show not-found state");
@@ -106,7 +106,7 @@ public sealed class OrganizationFlowTests : AuthenticatedE2ETestBase
 
         await orgPage.ClickOrganizationRowAsync(organizations[0].Name);
         await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
-        await E2ETestBase.WaitForBlazorReadyAsync(Page);
+        await E2ETestBase.WaitForWebReadyAsync(Page);
 
         OrganizationDetailPage detailPage = new(Page, Docker.WebBaseUrl);
         bool detailLoaded = await detailPage.IsLoadedAsync();

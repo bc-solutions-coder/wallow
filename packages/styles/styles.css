@@ -1,0 +1,45 @@
+/*
+ * The shared Tailwind v4 entry for every Wallow frontend.
+ *
+ * Tailwind v4 is CSS-first, so this file is the config. It maps Tailwind's
+ * tokens onto plain custom properties and stops there: the palette those
+ * properties resolve to is emitted at render time from api/branding.json (see
+ * ./src/branding.ts), which keeps that JSON the only place a fork edits to
+ * rebrand.
+ *
+ * A consuming app imports this entry and then declares its own source scan,
+ * which this package cannot do on the app's behalf — a scan declared here would
+ * see this package's files, not the app's, and ship a stylesheet that styles
+ * nothing.
+ */
+@import "tailwindcss";
+
+@theme {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+}
+
+@layer base {
+  body {
+    margin: 0;
+    font-family: var(--font-sans);
+  }
+}

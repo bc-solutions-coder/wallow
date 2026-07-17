@@ -8,5 +8,12 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["server.ts", "dev-server.ts", "src/**/*.ts", "vite.config.ts", "vitest.config.ts"]
+  "include": [
+    "server.ts",
+    "dev-server.ts",
+    "src/**/*.ts",
+    "vite.config.ts",
+    "vite.ssr.config.ts",
+    "vitest.config.ts"
+  ]
 }

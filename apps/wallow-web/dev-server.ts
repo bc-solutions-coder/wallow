@@ -39,8 +39,12 @@ import {
 } from "node:http";
 import { Readable } from "node:stream";
 
+import { brandAssetsDir } from "@bc-solutions-coder/styles/assets";
+import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { createServer as createViteServer, type ViteDevServer } from "vite";
+
+import { isBffProxyPath } from "./src/lib/proxy-topology";
 
 const DEFAULT_PORT = "3000";
 const port: number = Math.trunc(Number(process.env.PORT ?? DEFAULT_PORT));
@@ -56,17 +60,21 @@ interface BffModule {
   handleBffRequest: (request: Request) => Promise<Response>;
 }
 
-/** Path prefixes answered by the BFF bridge rather than the router SSR. */
-function isBffRequest(pathname: string): boolean {
-  return pathname === "/health" || pathname.startsWith("/bff/") || pathname.startsWith("/api/");
-}
-
 const vite: ViteDevServer = await createViteServer({
   configFile: false,
   root: import.meta.dirname,
   appType: "custom",
   server: { middlewareMode: true },
-  plugins: [react()],
+  // configFile: false means vite.config.ts is not read, so anything the app's
+  // module graph needs from Vite must be re-declared here. `@tailwindcss/vite`
+  // must be wired in or the `styles.css` entry `src/client.tsx` imports is
+  // served with `@import "tailwindcss"` left verbatim, and `pnpm dev` renders
+  // every screen unstyled (Wallow-ffpq.3.4).
+  plugins: [react(), tailwindcss()],
+  // publicDir must be set here too or the fork icon 404s under `pnpm dev` (it
+  // would default to a nonexistent ./public). Serves the shared styles package's
+  // assets at the root.
+  publicDir: brandAssetsDir,
 });
 
 /** Adapt an incoming Node request into a WHATWG `Request` for the router. */
@@ -115,7 +123,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
   const request: Request = toWebRequest(req);
   const pathname: string = new URL(request.url).pathname;
 
-  if (isBffRequest(pathname)) {
+  if (isBffProxyPath(pathname)) {
     const { handleBffRequest }: BffModule = (await vite.ssrLoadModule(
       "/src/lib/bff-server.ts",
     )) as BffModule;

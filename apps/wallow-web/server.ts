@@ -1,173 +1,160 @@
 /**
- * Minimal BFF host for the @bc-solutions-coder/sdk TanStack Start reference example.
+ * Standalone SSR + BFF host for wallow-web (Wallow-ffpq.3.3).
  *
- * Mounts the SDK's BFF tunnel handlers under `/bff/*`, the reverse API proxy
- * under `/api/**`, serves the static browser client from `public/`, and exposes
- * a `/health` liveness endpoint for the E2E `DockerComposeFixture`.
+ * `pnpm start` runs this (`tsx server.ts`) — the host the Dockerfile/E2E
+ * container runs. It answers three things, in order:
  *
- * The h3 handlers returned by `createBffHandlers`/`createApiProxy` are the same
- * `defineEventHandler` objects a TanStack Start server route would export, so
- * the mounting shape here mirrors the guide in README.md.
+ *  1. `/health`, `/bff/*`, `/api/**` — bridged to the h3 BFF app built by
+ *     `src/lib/bff-server.ts`'s {@link handleBffRequest}, so `/health` returns
+ *     `ok`, the OIDC tunnel is reachable, and `/api/**` is reverse-proxied to
+ *     Wallow.Api with a Bearer token and silent refresh. The prefix set mirrors
+ *     `dev-server.ts`'s `isBffRequest` exactly: no `/_blazor`, and `/api/**` is
+ *     the BFF proxy's OWN mount — it is NOT a second passthrough to Wallow.Api
+ *     (the topology difference from wallow-auth, see Wallow-ffpq.3.8).
+ *  2. Built browser assets out of `dist/client` — at minimum `/client.js`, the
+ *     path the document shell hardcodes (routes/__root.tsx).
+ *  3. Everything else — server-rendered by the router. `render()` resolves 404
+ *     vs 200 vs redirect itself, so this host needs no route table of its own.
+ *
+ * Where `dev-server.ts` drives a live Vite server (middlewareMode +
+ * `ssrLoadModule("/src/ssr.tsx")`) this host consumes the PRE-BUILT output of
+ * `pnpm build`: `dist/server/ssr.js` and `dist/client/`. That is a hard
+ * build-before-run requirement — `dist/` is gitignored and never committed, so
+ * the image must build before it starts.
+ *
+ * The SSR entry is loaded eagerly at boot, on purpose. A lazy load would let
+ * `/health` go green on an image whose render bundle is missing or broken, and
+ * the container would then serve 500s to every route behind a healthy compose
+ * status — the exact failure this host was previously guilty of when it served
+ * only `public/` and the BFF surface.
  */
-import { createServer, type Server } from "node:http";
-import { readFile } from "node:fs/promises";
-import { join, normalize } from "node:path";
+import {
+  createServer as createHttpServer,
+  type IncomingMessage,
+  type Server,
+  type ServerResponse,
+} from "node:http";
+import { join } from "node:path";
+import { Readable } from "node:stream";
 
+import { handleBffRequest } from "./src/lib/bff-server";
+import { isBffProxyPath } from "./src/lib/proxy-topology";
 import {
-  CookieSessionStore,
-  createApiProxy,
-  createBffHandlers,
-  createRedisAdapter,
-  loadBffConfigFromEnv,
-  ValkeySessionStore,
-  type BffConfig,
-  type NodeRedisClient,
-  type SessionStore,
-} from "@bc-solutions-coder/sdk/server";
-import { createClient, type RedisClientType } from "redis";
-import {
-  createApp,
-  createRouter,
-  defineEventHandler,
-  getRequestPath,
-  setResponseHeader,
-  setResponseStatus,
-  toNodeListener,
-  type App,
-  type H3Event,
-  type Router,
-} from "h3";
+  createStaticAssetReader,
+  type StaticAsset,
+  type StaticAssetReader,
+} from "./src/lib/static-assets";
 
 const DEFAULT_PORT = "3000";
-
-/** HTTP status returned when a request escapes the static root. */
-const FORBIDDEN_STATUS = 403;
-
-/** HTTP status returned when a static asset does not exist. */
-const NOT_FOUND_STATUS = 404;
-
-const currentDir: string = import.meta.dirname;
-const publicDir: string = join(currentDir, "public");
 const port: number = Math.trunc(Number(process.env.PORT ?? DEFAULT_PORT));
+const host: string = process.env.HOST ?? "0.0.0.0";
 
-const contentTypes: Record<string, string> = {
-  ".html": "text/html; charset=utf-8",
-  ".js": "text/javascript; charset=utf-8",
-  ".css": "text/css; charset=utf-8",
-  ".map": "application/json; charset=utf-8",
-  ".ico": "image/x-icon",
-  ".json": "application/json; charset=utf-8",
-};
-
-const config: BffConfig = loadBffConfigFromEnv();
-
-// Where sessions live — the one knob you swap in production. When `REDIS_URL`
-// is set the session cookie becomes an opaque reference and the full session
-// (including tokens) is persisted server-side in Valkey/Redis, which buys real
-// server-side revocation and a cross-instance refresh lock. Without it the
-// example falls back to `CookieSessionStore`, which seals the whole session
-// into the cookie and needs no external store. Both handler factories must
-// share the SAME store — the proxy has to resolve the sessions the login
-// callback wrote.
-const redisUrl: string | undefined = process.env.REDIS_URL;
-let store: SessionStore;
-if (redisUrl !== undefined && redisUrl !== "") {
-  const redisClient: RedisClientType = createClient({ url: redisUrl });
-  redisClient.on("error", (error: unknown): void => {
-    // eslint-disable-next-line no-console
-    console.error("redis client error", error);
-  });
-  await redisClient.connect();
-  // node-redis satisfies NodeRedisClient structurally, but its overloaded types
-  // are broader than the port, so bridge through the three methods we use.
-  const client: NodeRedisClient = {
-    get: (key: string): Promise<string | null> => redisClient.get(key),
-    set: (
-      key: string,
-      value: string,
-      options?: { EX?: number; NX?: boolean },
-    ): Promise<string | null> => {
-      if (options === undefined) {
-        return redisClient.set(key, value);
-      }
-      return redisClient.set(key, value, {
-        ...(options.EX !== undefined ? { EX: options.EX } : {}),
-        ...(options.NX === true ? { NX: true } : {}),
-      });
-    },
-    del: (key: string): Promise<number> => redisClient.del(key),
-  };
-  store = new ValkeySessionStore({
-    client: createRedisAdapter(client),
-    password: config.cookiePassword,
-    ttlSeconds: config.sessionTtlSeconds,
-  });
-  // eslint-disable-next-line no-console
-  console.log("BFF sessions: ValkeySessionStore (server-side, REDIS_URL set)");
-} else {
-  store = new CookieSessionStore({ password: config.cookiePassword });
-  // eslint-disable-next-line no-console
-  console.log("BFF sessions: CookieSessionStore (stateless, no REDIS_URL)");
+/** Shape of the built SSR entry (`dist/server/ssr.js`, built from src/ssr.tsx). */
+interface SsrModule {
+  render: (request: Request) => Promise<Response>;
 }
 
-const bff: ReturnType<typeof createBffHandlers> = createBffHandlers(config, store);
-const apiProxy: ReturnType<typeof createApiProxy> = createApiProxy(config, store);
-
-const app: App = createApp();
-const router: Router = createRouter();
-
-// Liveness for the E2E DockerComposeFixture health wait.
-router.get(
-  "/health",
-  defineEventHandler((): { status: string } => ({ status: "ok" })),
+const readStaticAsset: StaticAssetReader = createStaticAssetReader(
+  join(import.meta.dirname, "dist", "client"),
 );
 
-// BFF OIDC tunnel. `/bff/login` and `/bff/logout` issue redirects; `/bff/user`
-// reflects the sealed session; `/bff/callback` completes the code exchange.
-router.use("/bff/login", bff.login);
-router.use("/bff/callback", bff.callback);
-router.get("/bff/user", bff.user);
-router.use("/bff/logout", bff.logout);
+// Imported through a runtime URL rather than a static specifier: `dist/` is a
+// build artefact, absent from a clean checkout, so a literal import would make
+// `tsc --noEmit` (which includes this file) depend on having built first.
+const ssrEntry: string = new URL("dist/server/ssr.js", import.meta.url).href;
+const { render }: SsrModule = (await import(ssrEntry).catch((error: unknown): never => {
+  throw new Error(
+    `wallow-web: cannot load the SSR entry at ${ssrEntry}. Run \`pnpm build\` before \`pnpm start\`.`,
+    { cause: error },
+  );
+})) as SsrModule;
 
-// Reverse proxy: everything under `/api` is forwarded to the downstream API
-// with a Bearer token and silent refresh. The proxy strips the `/api` prefix
-// itself, so the full request path must reach it intact.
-router.use("/api/**", apiProxy);
+/** Adapt an incoming Node request into a WHATWG `Request`. */
+function toWebRequest(req: IncomingMessage): Request {
+  const authority: string = req.headers.host ?? `localhost:${port}`;
+  const url: URL = new URL(req.url ?? "/", `http://${authority}`);
 
-app.use(router);
-
-// Static client fallback: serve `public/` with `index.html` for the root.
-app.use(
-  defineEventHandler(async (event: H3Event): Promise<unknown> => {
-    const [requestPath = ""]: string[] = getRequestPath(event).split("?");
-    const relative: string =
-      requestPath === "/" || requestPath === "" ? "index.html" : requestPath.replace(/^\/+/u, "");
-
-    // Contain path traversal within publicDir.
-    const resolved: string = normalize(join(publicDir, relative));
-    if (!resolved.startsWith(publicDir)) {
-      setResponseStatus(event, FORBIDDEN_STATUS);
-      return "Forbidden";
+  const headers: Headers = new Headers();
+  for (const [key, value] of Object.entries(req.headers)) {
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        headers.append(key, item);
+      }
+    } else if (value !== undefined) {
+      headers.set(key, value);
     }
+  }
 
-    try {
-      const contents: Buffer = await readFile(resolved);
-      const extension: string = resolved.slice(resolved.lastIndexOf("."));
-      setResponseHeader(
-        event,
-        "content-type",
-        contentTypes[extension] ?? "application/octet-stream",
-      );
-      return contents;
-    } catch {
-      setResponseStatus(event, NOT_FOUND_STATUS);
-      return "Not found";
+  const method: string = req.method ?? "GET";
+  const hasBody: boolean = method !== "GET" && method !== "HEAD";
+
+  return new Request(url, {
+    method,
+    headers,
+    ...(hasBody ? { body: Readable.toWeb(req) as ReadableStream<Uint8Array>, duplex: "half" } : {}),
+  });
+}
+
+/** Copy a WHATWG `Response`'s status, headers (incl. multiple `Set-Cookie`),
+ * and body onto the Node response. */
+async function writeWebResponse(res: ServerResponse, response: Response): Promise<void> {
+  res.statusCode = response.status;
+  response.headers.forEach((value: string, key: string): void => {
+    if (key.toLowerCase() !== "set-cookie") {
+      res.setHeader(key, value);
     }
-  }),
-);
+  });
+  for (const cookie of response.headers.getSetCookie()) {
+    res.appendHeader("set-cookie", cookie);
+  }
+  // Written as bytes rather than `await response.text()`: this host now serves
+  // built assets, which are not all UTF-8 (e.g. `.ico`), and decoding them to a
+  // string would corrupt them.
+  if (response.body === null) {
+    res.end();
+    return;
+  }
+  res.end(Buffer.from(await response.arrayBuffer()));
+}
 
-const server: Server = createServer(toNodeListener(app));
-server.listen(port, (): void => {
+/** Write an asset read out of `dist/client` to the response. */
+function writeStaticAsset(res: ServerResponse, asset: StaticAsset): void {
+  res.statusCode = 200;
+  res.setHeader("content-type", asset.contentType);
+  res.end(asset.contents);
+}
+
+async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  const request: Request = toWebRequest(req);
+  const pathname: string = new URL(request.url).pathname;
+
+  if (isBffProxyPath(pathname)) {
+    await writeWebResponse(res, await handleBffRequest(request));
+    return;
+  }
+
+  const asset: StaticAsset | undefined = await readStaticAsset(pathname);
+  if (asset !== undefined) {
+    writeStaticAsset(res, asset);
+    return;
+  }
+
+  // The router owns every remaining path, 404s included.
+  await writeWebResponse(res, await render(request));
+}
+
+const server: Server = createHttpServer((req: IncomingMessage, res: ServerResponse): void => {
+  handleRequest(req, res).catch((error: unknown): void => {
+    // eslint-disable-next-line no-console
+    console.error("server request error", error);
+    if (!res.headersSent) {
+      res.statusCode = 500;
+    }
+    res.end("Internal Server Error");
+  });
+});
+
+server.listen(port, host, (): void => {
   // eslint-disable-next-line no-console
-  console.log(`tanstack-min BFF example listening on http://0.0.0.0:${port}`);
+  console.log(`wallow-web standalone SSR host listening on http://${host}:${port}`);
 });

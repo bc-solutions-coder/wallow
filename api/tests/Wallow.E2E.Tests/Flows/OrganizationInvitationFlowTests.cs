@@ -107,7 +107,7 @@ public sealed class OrganizationInvitationFlowTests : AuthenticatedE2ETestBase
         OrganizationDetailPage detailPage = new(Page, Docker.WebBaseUrl);
         await Page.GotoAsync($"{Docker.WebBaseUrl}/dashboard/organizations/{orgAdmin.OrgId}");
         await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
-        await E2ETestBase.WaitForBlazorReadyAsync(Page);
+        await E2ETestBase.WaitForWebReadyAsync(Page);
 
         bool isNotFound = await detailPage.IsNotFoundAsync();
         Assert.True(isNotFound, "Declined invitee should not have access to the organization");

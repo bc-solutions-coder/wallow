@@ -1,36 +1,194 @@
 {
   "roles": ["admin", "manager", "user"],
   "apiScopes": [
-    { "code": "users.read", "displayName": "Read Users", "category": "Identity", "description": "Access to read user profiles and data", "isDefault": true },
-    { "code": "users.write", "displayName": "Manage Users", "category": "Identity", "description": "Access to create and update users" },
-    { "code": "users.manage", "displayName": "Full User Management", "category": "Identity", "description": "Access to create, update, and delete users" },
-    { "code": "roles.read", "displayName": "Read Roles", "category": "Identity", "description": "Access to read roles and role assignments", "isDefault": true },
-    { "code": "roles.write", "displayName": "Create/Update Roles", "category": "Identity", "description": "Access to create and update roles" },
-    { "code": "roles.manage", "displayName": "Full Role Management", "category": "Identity", "description": "Access to create, update, and delete roles" },
-    { "code": "organizations.read", "displayName": "Read Organizations", "category": "Identity", "description": "Access to read organization data", "isDefault": true },
-    { "code": "organizations.write", "displayName": "Create/Update Organizations", "category": "Identity", "description": "Access to create and update organizations" },
-    { "code": "organizations.manage", "displayName": "Full Organization Management", "category": "Identity", "description": "Access to create, update, and delete organizations" },
-    { "code": "apikeys.read", "displayName": "Read API Keys", "category": "Identity", "description": "Access to read API key metadata", "isDefault": true },
-    { "code": "apikeys.write", "displayName": "Create/Update API Keys", "category": "Identity", "description": "Access to create and update API keys" },
-    { "code": "apikeys.manage", "displayName": "Full API Key Management", "category": "Identity", "description": "Access to create, update, and revoke API keys" },
-    { "code": "sso.read", "displayName": "Read SSO Configuration", "category": "Identity", "description": "Access to read SSO configuration data" },
-    { "code": "sso.manage", "displayName": "Manage SSO Configuration", "category": "Identity", "description": "Access to create, update, and delete SSO configurations" },
-    { "code": "scim.manage", "displayName": "Manage SCIM Provisioning", "category": "Identity", "description": "Access to manage SCIM directory sync configurations" },
-    { "code": "serviceaccounts.read", "displayName": "Read Service Accounts", "category": "Identity", "description": "Access to read service account data", "isDefault": true },
-    { "code": "serviceaccounts.write", "displayName": "Create/Update Service Accounts", "category": "Identity", "description": "Access to create and update service accounts" },
-    { "code": "serviceaccounts.manage", "displayName": "Full Service Account Management", "category": "Identity", "description": "Access to create, update, and delete service accounts" },
-    { "code": "storage.read", "displayName": "Read Storage", "category": "Storage", "description": "Access to read files and storage data", "isDefault": true },
-    { "code": "storage.write", "displayName": "Write Storage", "category": "Storage", "description": "Access to upload and modify files" },
-    { "code": "announcements.read", "displayName": "Read Announcements", "category": "Communications", "description": "Access to read announcements", "isDefault": true },
-    { "code": "announcements.manage", "displayName": "Manage Announcements", "category": "Communications", "description": "Access to create, update, and delete announcements" },
-    { "code": "changelog.manage", "displayName": "Manage Changelog", "category": "Communications", "description": "Access to create, update, and delete changelog entries" },
-    { "code": "notifications.read", "displayName": "Read Notifications", "category": "Communications", "description": "Access to read notifications" },
-    { "code": "notifications.write", "displayName": "Send Notifications", "category": "Communications", "description": "Access to send notifications" },
-    { "code": "configuration.read", "displayName": "Read Configuration", "category": "Configuration", "description": "Access to read configuration data", "isDefault": true },
-    { "code": "configuration.manage", "displayName": "Manage Configuration", "category": "Configuration", "description": "Access to create, update, and delete configuration" },
-    { "code": "inquiries.read", "displayName": "Read Inquiries", "category": "Inquiries", "description": "Access to read inquiries and inquiry data" },
-    { "code": "inquiries.write", "displayName": "Create/Update Inquiries", "category": "Inquiries", "description": "Access to create and update inquiries" },
-    { "code": "webhooks.manage", "displayName": "Manage Webhook Subscriptions", "category": "Platform", "description": "Access to manage webhook subscriptions" }
+    {
+      "code": "users.read",
+      "displayName": "Read Users",
+      "category": "Identity",
+      "description": "Access to read user profiles and data",
+      "isDefault": true
+    },
+    {
+      "code": "users.write",
+      "displayName": "Manage Users",
+      "category": "Identity",
+      "description": "Access to create and update users"
+    },
+    {
+      "code": "users.manage",
+      "displayName": "Full User Management",
+      "category": "Identity",
+      "description": "Access to create, update, and delete users"
+    },
+    {
+      "code": "roles.read",
+      "displayName": "Read Roles",
+      "category": "Identity",
+      "description": "Access to read roles and role assignments",
+      "isDefault": true
+    },
+    {
+      "code": "roles.write",
+      "displayName": "Create/Update Roles",
+      "category": "Identity",
+      "description": "Access to create and update roles"
+    },
+    {
+      "code": "roles.manage",
+      "displayName": "Full Role Management",
+      "category": "Identity",
+      "description": "Access to create, update, and delete roles"
+    },
+    {
+      "code": "organizations.read",
+      "displayName": "Read Organizations",
+      "category": "Identity",
+      "description": "Access to read organization data",
+      "isDefault": true
+    },
+    {
+      "code": "organizations.write",
+      "displayName": "Create/Update Organizations",
+      "category": "Identity",
+      "description": "Access to create and update organizations"
+    },
+    {
+      "code": "organizations.manage",
+      "displayName": "Full Organization Management",
+      "category": "Identity",
+      "description": "Access to create, update, and delete organizations"
+    },
+    {
+      "code": "apikeys.read",
+      "displayName": "Read API Keys",
+      "category": "Identity",
+      "description": "Access to read API key metadata",
+      "isDefault": true
+    },
+    {
+      "code": "apikeys.write",
+      "displayName": "Create/Update API Keys",
+      "category": "Identity",
+      "description": "Access to create and update API keys"
+    },
+    {
+      "code": "apikeys.manage",
+      "displayName": "Full API Key Management",
+      "category": "Identity",
+      "description": "Access to create, update, and revoke API keys"
+    },
+    {
+      "code": "sso.read",
+      "displayName": "Read SSO Configuration",
+      "category": "Identity",
+      "description": "Access to read SSO configuration data"
+    },
+    {
+      "code": "sso.manage",
+      "displayName": "Manage SSO Configuration",
+      "category": "Identity",
+      "description": "Access to create, update, and delete SSO configurations"
+    },
+    {
+      "code": "scim.manage",
+      "displayName": "Manage SCIM Provisioning",
+      "category": "Identity",
+      "description": "Access to manage SCIM directory sync configurations"
+    },
+    {
+      "code": "serviceaccounts.read",
+      "displayName": "Read Service Accounts",
+      "category": "Identity",
+      "description": "Access to read service account data",
+      "isDefault": true
+    },
+    {
+      "code": "serviceaccounts.write",
+      "displayName": "Create/Update Service Accounts",
+      "category": "Identity",
+      "description": "Access to create and update service accounts"
+    },
+    {
+      "code": "serviceaccounts.manage",
+      "displayName": "Full Service Account Management",
+      "category": "Identity",
+      "description": "Access to create, update, and delete service accounts"
+    },
+    {
+      "code": "storage.read",
+      "displayName": "Read Storage",
+      "category": "Storage",
+      "description": "Access to read files and storage data",
+      "isDefault": true
+    },
+    {
+      "code": "storage.write",
+      "displayName": "Write Storage",
+      "category": "Storage",
+      "description": "Access to upload and modify files"
+    },
+    {
+      "code": "announcements.read",
+      "displayName": "Read Announcements",
+      "category": "Communications",
+      "description": "Access to read announcements",
+      "isDefault": true
+    },
+    {
+      "code": "announcements.manage",
+      "displayName": "Manage Announcements",
+      "category": "Communications",
+      "description": "Access to create, update, and delete announcements"
+    },
+    {
+      "code": "changelog.manage",
+      "displayName": "Manage Changelog",
+      "category": "Communications",
+      "description": "Access to create, update, and delete changelog entries"
+    },
+    {
+      "code": "notifications.read",
+      "displayName": "Read Notifications",
+      "category": "Communications",
+      "description": "Access to read notifications"
+    },
+    {
+      "code": "notifications.write",
+      "displayName": "Send Notifications",
+      "category": "Communications",
+      "description": "Access to send notifications"
+    },
+    {
+      "code": "configuration.read",
+      "displayName": "Read Configuration",
+      "category": "Configuration",
+      "description": "Access to read configuration data",
+      "isDefault": true
+    },
+    {
+      "code": "configuration.manage",
+      "displayName": "Manage Configuration",
+      "category": "Configuration",
+      "description": "Access to create, update, and delete configuration"
+    },
+    {
+      "code": "inquiries.read",
+      "displayName": "Read Inquiries",
+      "category": "Inquiries",
+      "description": "Access to read inquiries and inquiry data"
+    },
+    {
+      "code": "inquiries.write",
+      "displayName": "Create/Update Inquiries",
+      "category": "Inquiries",
+      "description": "Access to create and update inquiries"
+    },
+    {
+      "code": "webhooks.manage",
+      "displayName": "Manage Webhook Subscriptions",
+      "category": "Platform",
+      "description": "Access to manage webhook subscriptions"
+    }
   ],
   "admin": {
     "email": "admin@wallow.dev",
@@ -49,27 +207,48 @@
         "http://localhost:3000/callback",
         "http://localhost:3000/auth/callback"
       ],
-      "postLogoutRedirectUris": [
-        "http://localhost:5001/",
-        "http://localhost:3000/"
-      ],
+      "postLogoutRedirectUris": ["http://localhost:5001/", "http://localhost:3000/"],
       "scopes": [
-        "openid", "email", "profile", "roles", "offline_access",
-        "inquiries.read", "inquiries.write",
-        "invoices.read", "invoices.write",
-        "payments.read", "payments.write",
-        "subscriptions.read", "subscriptions.write",
-        "users.read", "users.write", "users.manage",
-        "roles.read", "roles.write", "roles.manage",
-        "organizations.read", "organizations.write", "organizations.manage",
-        "apikeys.read", "apikeys.write", "apikeys.manage",
-        "sso.read", "sso.manage", "scim.manage",
-        "storage.read", "storage.write",
-        "announcements.read", "announcements.manage",
+        "openid",
+        "email",
+        "profile",
+        "roles",
+        "offline_access",
+        "inquiries.read",
+        "inquiries.write",
+        "invoices.read",
+        "invoices.write",
+        "payments.read",
+        "payments.write",
+        "subscriptions.read",
+        "subscriptions.write",
+        "users.read",
+        "users.write",
+        "users.manage",
+        "roles.read",
+        "roles.write",
+        "roles.manage",
+        "organizations.read",
+        "organizations.write",
+        "organizations.manage",
+        "apikeys.read",
+        "apikeys.write",
+        "apikeys.manage",
+        "sso.read",
+        "sso.manage",
+        "scim.manage",
+        "storage.read",
+        "storage.write",
+        "announcements.read",
+        "announcements.manage",
         "changelog.manage",
-        "notifications.read", "notifications.write",
-        "configuration.read", "configuration.manage",
-        "serviceaccounts.read", "serviceaccounts.write", "serviceaccounts.manage",
+        "notifications.read",
+        "notifications.write",
+        "configuration.read",
+        "configuration.manage",
+        "serviceaccounts.read",
+        "serviceaccounts.write",
+        "serviceaccounts.manage",
         "webhooks.manage"
       ]
     },
@@ -79,14 +258,18 @@
       "tenantName": "Wallow",
       "seedMembers": ["admin@wallow.dev"],
       "secret": "wallow-web-secret",
-      "redirectUris": [
-        "http://localhost:5003/signin-oidc"
-      ],
-      "postLogoutRedirectUris": [
-        "http://localhost:5003/signout-callback-oidc"
-      ],
+      "redirectUris": ["http://localhost:3000/bff/callback"],
+      "postLogoutRedirectUris": ["http://localhost:3000/"],
       "scopes": [
-        "openid", "email", "profile", "roles", "offline_access"
+        "openid",
+        "email",
+        "profile",
+        "roles",
+        "offline_access",
+        "inquiries.read",
+        "inquiries.write",
+        "notifications.read",
+        "notifications.write"
       ]
     },
     {
@@ -94,26 +277,25 @@
       "displayName": "BCOrdes BFF Service Account",
       "secret": "bcordes-bff-secret",
       "tenantName": "Dev",
-      "scopes": [
-        "inquiries.read", "inquiries.write",
-        "notifications.read", "notifications.write"
-      ]
+      "scopes": ["inquiries.read", "inquiries.write", "notifications.read", "notifications.write"]
     },
     {
       "clientId": "bcordes-bff",
       "displayName": "BCOrdes BFF",
       "tenantName": "Wallow",
       "secret": "bcordes-bff-secret",
-      "redirectUris": [
-        "http://localhost:3000/bff/callback"
-      ],
-      "postLogoutRedirectUris": [
-        "http://localhost:3000/"
-      ],
+      "redirectUris": ["http://localhost:3000/bff/callback"],
+      "postLogoutRedirectUris": ["http://localhost:3000/"],
       "scopes": [
-        "openid", "email", "profile", "roles", "offline_access",
-        "inquiries.read", "inquiries.write",
-        "notifications.read", "notifications.write"
+        "openid",
+        "email",
+        "profile",
+        "roles",
+        "offline_access",
+        "inquiries.read",
+        "inquiries.write",
+        "notifications.read",
+        "notifications.write"
       ]
     }
   ]

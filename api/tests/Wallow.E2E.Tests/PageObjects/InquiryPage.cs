@@ -18,7 +18,7 @@ public sealed class InquiryPage
     {
         await _page.GotoAsync($"{_baseUrl}/dashboard/inquiries");
         await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
-        await E2ETestBase.WaitForBlazorReadyAsync(_page);
+        await E2ETestBase.WaitForWebReadyAsync(_page);
         await _page.Locator("[data-testid='inquiry-name']")
             .WaitForAsync(new() { Timeout = 10_000 });
     }

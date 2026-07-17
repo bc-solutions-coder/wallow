@@ -65,6 +65,21 @@ describe("routes/dashboard/apps (route page)", () => {
 
     expect(screen.getByTestId("dashboard-apps")).toBeInTheDocument();
   });
+
+  // Wallow-ffpq.3.5 — the apps index links to the register route so
+  // RegisterAppForm is reachable via normal UI navigation (mirrors the Blazor
+  // oracle's `apps-register-link`), not just a directly-typed URL.
+  it("links to the register route (apps-register-link)", () => {
+    const client = newClient();
+    client.setQueryData(["apps"], []);
+
+    const Page = Route.options.component!;
+    renderWithClient(client, <Page />);
+
+    const link = screen.getByTestId("apps-register-link");
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveAttribute("href", "/dashboard/apps/register");
+  });
 });
 
 describe("routes/dashboard/apps (router registration)", () => {

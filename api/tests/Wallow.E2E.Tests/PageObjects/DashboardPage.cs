@@ -56,7 +56,7 @@ public sealed class DashboardPage
     {
         await _page.GotoAsync($"{_baseUrl}/dashboard/apps");
         await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
-        await E2ETestBase.WaitForBlazorReadyAsync(_page);
+        await E2ETestBase.WaitForWebReadyAsync(_page);
         await _page.Locator("[data-testid='apps-heading']").WaitForAsync(new() { Timeout = 10_000 });
     }
 

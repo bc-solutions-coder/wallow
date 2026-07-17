@@ -1,10 +1,15 @@
 import type { ReactNode } from "react";
 
-import { forkBranding, forkResolvedBranding, type ResolvedBranding } from "../lib/branding";
+import {
+  appIconUrl,
+  forkBranding,
+  forkResolvedBranding,
+  type ResolvedBranding,
+} from "../lib/branding";
 
 /** The fork's icon, shown at the size the attribution footer uses. */
 function ForkIcon() {
-  return <img src={forkBranding.appIcon} alt={forkBranding.appName} className="size-8" />;
+  return <img src={appIconUrl} alt={forkBranding.appName} className="size-8" />;
 }
 
 /** "A {fork} App" — the fork's name emphasised within the sentence. */
@@ -72,7 +77,9 @@ function BrandingHeader({ branding }: { readonly branding: ResolvedBranding }) {
   return (
     <div className="text-center mb-8">
       {branding.logoUrl !== null && <BrandingLogo src={branding.logoUrl} alt={branding.name} />}
-      <h1 className="text-2xl font-bold text-foreground">{branding.name}</h1>
+      <h1 data-focus-target tabIndex={-1} className="text-2xl font-bold text-foreground">
+        {branding.name}
+      </h1>
       {branding.tagline !== null && (
         <p className="text-sm text-muted-foreground mt-1">{branding.tagline}</p>
       )}

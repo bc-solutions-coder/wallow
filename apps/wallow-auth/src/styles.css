@@ -1,0 +1,18 @@
+/*
+ * The wallow-auth Tailwind entry.
+ *
+ * It pulls in the shared package's Tailwind entry — which owns `@import
+ * "tailwindcss"` and the `@theme` token map emitted from api/branding.json — so
+ * branding stays in one place, then declares the source scan the package cannot
+ * do on this app's behalf. A package-owned stylesheet can only see its own
+ * files, so without this `@source` the build stays green and every screen ships
+ * bare; the scan covers this app's own tree (this file lives in src/, so `./`
+ * is src/, including src/components where the class names live).
+ *
+ * `src/client.tsx` imports this entry so Vite compiles and emits it into the
+ * browser bundle. Compilation needs the `@tailwindcss/vite` plugin, which is
+ * wired on both Vite passes that serve the app (vite.config.ts for the build,
+ * dev-server.ts for `pnpm dev`).
+ */
+@import "@bc-solutions-coder/styles/styles.css";
+@source "./";

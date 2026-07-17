@@ -18,7 +18,7 @@ public sealed class SettingsMfaSection
     {
         await _page.GotoAsync($"{_baseUrl}/dashboard/settings");
         await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
-        await E2ETestBase.WaitForBlazorReadyAsync(_page);
+        await E2ETestBase.WaitForWebReadyAsync(_page);
         await _page.GetByTestId("settings-mfa-status").WaitForAsync(
             new LocatorWaitForOptions { Timeout = 10_000 });
     }
@@ -44,7 +44,7 @@ public sealed class SettingsMfaSection
     public async Task ClickDisableAsync()
     {
         await _page.GetByTestId("settings-mfa-disable").ClickAsync();
-        // Wait for Blazor to re-render and show the confirmation dialog
+        // Wait for React to re-render and show the confirmation dialog
         await _page.GetByTestId("settings-mfa-confirm-password").WaitForAsync(
             new LocatorWaitForOptions { Timeout = 10_000 });
     }
@@ -52,7 +52,7 @@ public sealed class SettingsMfaSection
     public async Task ClickRegenerateCodesAsync()
     {
         await _page.GetByTestId("settings-mfa-regenerate").ClickAsync();
-        // Wait for Blazor to re-render and show the confirmation dialog
+        // Wait for React to re-render and show the confirmation dialog
         await _page.GetByTestId("settings-mfa-confirm-password").WaitForAsync(
             new LocatorWaitForOptions { Timeout = 10_000 });
     }
@@ -64,12 +64,12 @@ public sealed class SettingsMfaSection
         await confirmSubmit.ClickAsync();
 
         // Wait for the confirm dialog to disappear — this signals the API call completed
-        // and Blazor re-rendered (both disable and regenerate flows hide the confirm dialog on success)
+        // and React re-rendered (both disable and regenerate flows hide the confirm dialog on success)
         await Assertions.Expect(confirmSubmit).ToBeHiddenAsync(new() { Timeout = 15_000 });
 
-        // Allow Blazor to finish any remaining re-render after the status refresh API call
+        // Allow React to finish any remaining re-render after the status refresh API call
         await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
-        await E2ETestBase.WaitForBlazorReadyAsync(_page);
+        await E2ETestBase.WaitForWebReadyAsync(_page);
 
         await _page.GetByTestId("settings-mfa-status").WaitForAsync(
             new LocatorWaitForOptions { Timeout = 10_000 });

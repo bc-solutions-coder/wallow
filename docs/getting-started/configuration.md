@@ -78,7 +78,7 @@ Branding__Theme__Dark__Primary="oklch(0.65 0.15 250)"
 }
 ```
 
-Both `Wallow.Auth` and `Wallow.Web` load `branding.json` at startup and bind it to `BrandingOptions`. The Auth boundary is the canonical owner; the Web boundary has a local copy of the options class. Color tokens are injected as CSS custom properties via the `BrandingTheme.razor` component.
+The canonical branding schema is owned by `packages/styles` (`@bc-solutions-coder/styles`, `src/branding.ts`), the TypeScript source of truth that parses `api/branding.json` for every frontend. The legacy Blazor `Wallow.Auth` and `Wallow.Web` apps also load `branding.json` at startup and bind it to their own `BrandingOptions` copies, but those C# copies are being retired as the Blazor apps are removed. Color tokens are injected as CSS custom properties via the `BrandingTheme.razor` component.
 
 ### Session Limits
 
