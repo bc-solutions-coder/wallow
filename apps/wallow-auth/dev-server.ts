@@ -44,7 +44,7 @@ import { createServer as createViteServer, type ViteDevServer } from "vite";
 
 import type { AuthServer, AuthServerConfig } from "./src/lib/auth-server";
 
-const DEFAULT_PORT = "3000";
+const DEFAULT_PORT = "3002";
 const port: number = Math.trunc(Number(process.env.PORT ?? DEFAULT_PORT));
 const host: string = process.env.HOST ?? "0.0.0.0";
 
