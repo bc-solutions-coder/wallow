@@ -7,7 +7,6 @@
   <Folder Name="/src/">
     <Project Path="src/Wallow.Api/Wallow.Api.csproj" />
     <Project Path="src/Wallow.AppHost/Wallow.AppHost.csproj" />
-    <Project Path="src/Wallow.Auth/Wallow.Auth.csproj" />
     <Project Path="src/Wallow.MigrationService/Wallow.MigrationService.csproj" />
     <Project Path="src/Wallow.SeederService/Wallow.SeederService.csproj" />
     <Project Path="src/Wallow.ServiceDefaults/Wallow.ServiceDefaults.csproj" />
@@ -65,15 +64,11 @@
     <Project Path="src/Shared/Wallow.Shared.Kernel/Wallow.Shared.Kernel.csproj" />
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="tests/Wallow.Auth.Tests/Wallow.Auth.Tests.csproj" />
     <Project Path="tests/Wallow.Api.Tests/Wallow.Api.Tests.csproj" />
     <Project Path="tests/Wallow.Architecture.Tests/Wallow.Architecture.Tests.csproj" />
-    <Project Path="tests/Wallow.E2E.Tests/Wallow.E2E.Tests.csproj" />
-
     <Project Path="tests/Wallow.Shared.Infrastructure.Tests/Wallow.Shared.Infrastructure.Tests.csproj" />
     <Project Path="tests/Wallow.Shared.Kernel.Tests/Wallow.Shared.Kernel.Tests.csproj" />
     <Project Path="tests/Wallow.Tests.Common/Wallow.Tests.Common.csproj" />
-    <Project Path="tests/Wallow.Auth.Component.Tests/Wallow.Auth.Component.Tests.csproj" />
   </Folder>
   <Folder Name="/tests/Benchmarks/">
     <Project Path="tests/Benchmarks/Wallow.Benchmarks.csproj" />

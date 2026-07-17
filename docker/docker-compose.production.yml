@@ -5,14 +5,17 @@
 # Reverse proxy handles TLS + routing externally. Two topologies are supported:
 #
 # Path-based routing (default):
-#   wallow.dev/api/*  -> wallow-api:8080   (forward full path, app uses PathBase=/api)
-#   wallow.dev/auth/* -> wallow-auth:8080  (forward full path, app uses PathBase=/auth)
+#   wallow.dev/api/*  -> wallow-api:8080   (forward full path, app uses PathBase=/api;
+#                                           do NOT strip the /api prefix in the proxy)
+#   wallow.dev/auth/* -> wallow-auth:8080  (Node app, apps/wallow-auth; it has no
+#                                           PathBase support and serves at root, so
+#                                           strip the /auth prefix for this service)
 #   wallow.dev/*      -> wallow-web:8080
-#   Containers expose HTTP only. Do NOT strip path prefixes in the proxy.
+#   Containers expose HTTP only.
 #
-# Subdomain routing (set API_PATH_BASE= and AUTH_PATH_BASE= empty in .env.production):
+# Subdomain routing (set API_PATH_BASE= empty in .env.production):
 #   api.wallow.dev/*  -> wallow-api:8080   (app serves at subdomain root, PathBase empty)
-#   auth.wallow.dev/* -> wallow-auth:8080  (app serves at subdomain root, PathBase empty)
+#   auth.wallow.dev/* -> wallow-auth:8080  (Node app serves at root)
 #   wallow.dev/*      -> wallow-web:8080
 #   Also align API_PUBLIC_URL / AUTH_PUBLIC_URL (and COOKIE_DOMAIN) to the subdomains.
 #
@@ -417,25 +420,16 @@ services:
     ports:
       - "${AUTH_PORT:-8081}:8080"
     environment:
-      ASPNETCORE_ENVIRONMENT: Production
-      ASPNETCORE_URLS: http://+:8080
-      # PathBase for reverse-proxy path-based routing
-      PathBase: ${AUTH_PATH_BASE-/auth}
-      # Public URL for browser redirects (exchange-ticket, external-login, etc.)
-      ApiBaseUrl: ${API_PUBLIC_URL:-https://wallow.dev/api}
-      # Internal URL for server-to-server calls (container-to-container)
-      ServiceUrls__ApiUrl: http://wallow-api:8080
-      ServiceUrls__WebUrl: ${WEB_PUBLIC_URL:-https://wallow.dev}
-      ConnectionStrings__Redis: "valkey:6379,password=${VALKEY_PASSWORD},abortConnect=false"
-      # .NET Aspire service discovery resolution for container-to-container communication
-      services__wallow-api__http__0: "http://wallow-api:8080"
-      # OpenTelemetry
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4317
-      OTEL_SERVICE_NAME: wallow-auth
+      NODE_ENV: production
+      # The Node SSR host (apps/wallow-auth) listens on PORT; keep it at 8080 so
+      # the port mapping and the :1F90 (hex 8080) healthcheck below stay valid.
+      PORT: "8080"
+      # Upstream for the /v1/**, /connect/**, /.well-known/** reverse proxy
+      # (container-to-container). The app is a pure reverse proxy — no session,
+      # no Redis; server.ts reads only PORT, HOST, and WALLOW_API_INTERNAL_URL.
+      WALLOW_API_INTERNAL_URL: http://wallow-api:8080
     depends_on:
       wallow-api:
-        condition: service_healthy
-      valkey:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "grep -q ':1F90' /proc/net/tcp /proc/net/tcp6 2>/dev/null || exit 1"]

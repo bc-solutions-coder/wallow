@@ -177,8 +177,8 @@ services:
     build:
       context: ..
       dockerfile: apps/wallow-auth/Dockerfile
-    # Host port stays 5051 (E2E_AUTH_URL, run-e2e.sh, ci.yml all target it);
-    # the container port is 3002, this app's Node port, not the Blazor 8080.
+    # Host port stays 5051 (the E2E stack's auth URL); the container port is
+    # 3002, this app's Node port, not the Blazor 8080.
     ports:
       - "127.0.0.1:5051:3002"
     extra_hosts:
@@ -212,10 +212,9 @@ services:
   #
   # The image tag is deliberately distinct from the legacy wallow-web:test so a
   # stale Blazor image can never be silently reused for this service. This tag
-  # (wallow-web-react:test) MUST match the tag ci.yml builds/saves/loads for the
-  # e2e job; otherwise compose rebuilds the image from scratch at runtime instead
-  # of reusing the cached one. run-e2e.sh builds this service via compose so it
-  # inherits this tag automatically.
+  # (wallow-web-react:test) MUST match the tag ci.yml builds/saves/loads;
+  # otherwise compose rebuilds the image from scratch at runtime instead of
+  # reusing the cached one.
   #
   # This is the same Node BFF host as bff-example, but authenticates as the
   # seeded wallow-web-client (the canonical dashboard client) rather than the

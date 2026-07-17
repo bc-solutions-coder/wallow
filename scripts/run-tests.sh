@@ -25,12 +25,6 @@ announcements)  echo "$REPO_ROOT/api/tests/Modules/Announcements/Wallow.Announce
         inquiries)      echo "$REPO_ROOT/api/tests/Modules/Inquiries/Wallow.Inquiries.Tests" ;;
         branding)       echo "$REPO_ROOT/api/tests/Modules/Branding/Wallow.Branding.Tests" ;;
         apikeys)        echo "$REPO_ROOT/api/tests/Modules/ApiKeys/Wallow.ApiKeys.Tests" ;;
-        auth)            echo "$REPO_ROOT/api/tests/Wallow.Auth.Tests" ;;
-        auth-components) echo "$REPO_ROOT/api/tests/Wallow.Auth.Component.Tests" ;;
-        e2e)
-            echo "ERROR: E2E tests must be run via ./scripts/run-e2e.sh (requires live infrastructure)." >&2
-            exit 1
-            ;;
         api)             echo "$REPO_ROOT/api/tests/Wallow.Api.Tests" ;;
         arch|architecture) echo "$REPO_ROOT/api/tests/Wallow.Architecture.Tests" ;;
         shared)          echo "$REPO_ROOT/api/tests/Wallow.Shared.Infrastructure.Tests" ;;
@@ -49,8 +43,8 @@ if [[ -n "$PROJECT_PATH" ]]; then
     CMD+=("$PROJECT_PATH")
 fi
 # Exclude E2E and Integration tests from standard runs; they require live infrastructure.
-# E2E tests must use ./scripts/run-e2e.sh; integration tests need Docker services running.
-if [[ "$MODULE_FILTER" != "e2e" && "$MODULE_FILTER" != "integration" ]]; then
+# Integration tests need Docker services running.
+if [[ "$MODULE_FILTER" != "integration" ]]; then
     CMD+=(--filter "Category!=E2E&Category!=Integration")
 fi
 

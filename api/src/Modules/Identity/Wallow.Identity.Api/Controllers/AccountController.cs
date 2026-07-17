@@ -22,7 +22,7 @@ using Wolverine;
 namespace Wallow.Identity.Api.Controllers;
 
 /// <summary>
-/// Cookie-based authentication endpoints for Wallow.Auth (browser-based auth flows).
+/// Cookie-based authentication endpoints for the apps/wallow-auth frontend (browser-based auth flows).
 /// Handles cookie-based browser authentication flows.
 /// </summary>
 [ApiController]

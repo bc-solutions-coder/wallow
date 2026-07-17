@@ -8,11 +8,9 @@ namespace Wallow.Architecture.Tests;
 /// across the solution, build scripts, CI/deploy workflows, and docs must be gone once the
 /// React <c>apps/wallow-web</c> app is the reachable dashboard. Verified by static inspection
 /// of the source tree (never the live stack) so the deletion surface is asserted, not the app.
-/// The AppHost side of the cutover is covered by <see cref="AppHostWebResourceTests"/>; the
-/// dashboard E2E page-object readiness swap by <see cref="E2EWebReadinessSwapTests"/>. This
-/// file adds the physical deletion, the solution/script/CI/docs reference removal, and the two
-/// cleanup items folded into this bead (the stale bff-surface guard and the two residual
-/// Blazor-era readiness calls in the organization E2E flow tests).
+/// The AppHost side of the cutover is covered by <see cref="AppHostWebResourceTests"/>. The
+/// auth-side deletion (Blazor Wallow.Auth plus the whole .NET E2E suite) is pinned by
+/// <see cref="WallowAuthDeletionTests"/>.
 /// </summary>
 public class WallowWebDeletionTests
 {
@@ -30,7 +28,6 @@ public class WallowWebDeletionTests
     private static readonly string _apiClaudeMdPath = Path.Combine(_apiRoot, "CLAUDE.md");
 
     private static readonly string _runTestsScriptPath = Path.Combine(_repoRoot, "scripts", "run-tests.sh");
-    private static readonly string _runE2eScriptPath = Path.Combine(_repoRoot, "scripts", "run-e2e.sh");
     private static readonly string _ciWorkflowPath = Path.Combine(_repoRoot, ".github", "workflows", "ci.yml");
     private static readonly string _deployWorkflowPath = Path.Combine(
         _repoRoot,
@@ -44,20 +41,6 @@ public class WallowWebDeletionTests
         "wallow-web",
         "src",
         "bff-surface.test.ts");
-
-    private static readonly string _organizationFlowTestsPath = Path.Combine(
-        _apiRoot,
-        "tests",
-        "Wallow.E2E.Tests",
-        "Flows",
-        "OrganizationFlowTests.cs");
-
-    private static readonly string _organizationInvitationFlowTestsPath = Path.Combine(
-        _apiRoot,
-        "tests",
-        "Wallow.E2E.Tests",
-        "Flows",
-        "OrganizationInvitationFlowTests.cs");
 
     // ---- Physical deletion of the Blazor projects --------------------------------------
 
@@ -122,17 +105,6 @@ public class WallowWebDeletionTests
             "and must be removed");
     }
 
-    [Fact]
-    public void RunE2eScript_ShouldNotReference_BlazorWebProjectPath()
-    {
-        string source = File.ReadAllText(_runE2eScriptPath);
-
-        source.Should().NotContain(
-            "api/src/Wallow.Web",
-            "run-e2e.sh must not publish or reference the deleted Blazor Wallow.Web project " +
-            "(the dashboard image is now built from apps/wallow-web/Dockerfile)");
-    }
-
     // ---- CI / deploy workflows ---------------------------------------------------------
 
     [Fact]
@@ -194,32 +166,6 @@ public class WallowWebDeletionTests
             "apps/wallow-web/src/bff-surface.test.ts guards the old h3 host in server.ts, whose BFF " +
             "routes moved to src/lib/bff-server.ts (task 3.3); the stale guard must be removed or " +
             "rewritten to read the new host so `pnpm test` is green");
-    }
-
-    // ---- Cleanup folded into this bead: residual Blazor readiness in org E2E flows ------
-
-    [Fact]
-    public void OrganizationFlowTests_ShouldNotCall_BlazorReadiness()
-    {
-        string source = File.ReadAllText(_organizationFlowTestsPath);
-
-        source.Should().NotContain(
-            "WaitForBlazorReadyAsync",
-            "OrganizationFlowTests navigates the React wallow-web dashboard (Docker.WebBaseUrl), which " +
-            "never emits [data-blazor-ready]; its inline readiness waits must swap to the React " +
-            "readiness helper (WaitForWebReadyAsync), like the 7 dashboard page objects did in 3.10");
-    }
-
-    [Fact]
-    public void OrganizationInvitationFlowTests_ShouldNotCall_BlazorReadiness()
-    {
-        string source = File.ReadAllText(_organizationInvitationFlowTestsPath);
-
-        source.Should().NotContain(
-            "WaitForBlazorReadyAsync",
-            "OrganizationInvitationFlowTests navigates the React wallow-web dashboard (Docker.WebBaseUrl), " +
-            "which never emits [data-blazor-ready]; its inline readiness wait must swap to the React " +
-            "readiness helper (WaitForWebReadyAsync), like the 7 dashboard page objects did in 3.10");
     }
 
     private static string FindApiRoot()

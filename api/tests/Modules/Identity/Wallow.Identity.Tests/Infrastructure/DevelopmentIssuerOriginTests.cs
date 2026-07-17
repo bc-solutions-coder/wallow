@@ -34,7 +34,7 @@ public sealed class DevelopmentIssuerOriginTests
         new()
         {
             { 5001, "Wallow.Api serves the API on :5001; the issuer must be the auth origin, not the API's own" },
-            { 5002, "the legacy Blazor Wallow.Auth app owns :5002 and is not the unified wallow-auth origin" },
+            { 5002, "the deleted legacy Blazor Wallow.Auth app owned :5002; nothing serves /connect/* there" },
             { 5003, "the Blazor Wallow.Web dashboard owns :5003" },
             { 5004, "the DocFX docs site owns :5004" },
             { 3000, "apps/wallow-web's dev server owns :3000" },
