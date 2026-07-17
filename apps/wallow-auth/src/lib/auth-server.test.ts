@@ -3,7 +3,7 @@ import { type AddressInfo } from "node:net";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { createAuthServer, type AuthServer } from "./auth-server";
+import { createAuthServer, CLIENT_IP_HEADER, type AuthServer } from "./auth-server";
 
 /**
  * Spec (Wallow-vec7.1.3): prove the reverse proxy forwards Set-Cookie per
@@ -32,6 +32,8 @@ interface RecordedRequest {
   body: string;
   forwardedProto: string | undefined;
   forwardedHost: string | undefined;
+  forwardedFor: string | undefined;
+  clientIpHeader: string | undefined;
 }
 
 let upstream: Server;
@@ -66,6 +68,8 @@ function startUpstream(): Promise<Server> {
         body: Buffer.concat(chunks).toString("utf8"),
         forwardedProto: req.headers["x-forwarded-proto"] as string | undefined,
         forwardedHost: req.headers["x-forwarded-host"] as string | undefined,
+        forwardedFor: req.headers["x-forwarded-for"] as string | undefined,
+        clientIpHeader: req.headers[CLIENT_IP_HEADER] as string | undefined,
       };
 
       const target: string = req.url ?? "";
@@ -292,5 +296,71 @@ describe("auth-server reverse-proxy passthrough", () => {
     expect(received.searchParams.get("client_id")).toBe("wallow-web");
     expect(received.searchParams.get("response_type")).toBe("code");
     expect(received.searchParams.get("scope")).toBe("openid profile");
+  });
+});
+
+/**
+ * Spec (Wallow-tt5j): the API rate-limits per client IP off `X-Forwarded-For`
+ * (`Wallow.Api` Program.cs configures `UseForwardedHeaders` with
+ * `KnownProxies.Clear()`). The Blazor `CookieForwardingHandler` this proxy
+ * replaces forwarded XFF deliberately ("rate-limit by real client IP, not
+ * Docker network IP"); without this the API buckets every request against the
+ * proxy's own IP — a regression at Blazor cutover.
+ *
+ * SEAM: a WHATWG `Request` carries no socket, so the proxy cannot derive the
+ * peer address itself. The Node host (`server.ts` / `dev-server.ts`) stamps the
+ * real `req.socket.remoteAddress` into the internal {@link CLIENT_IP_HEADER}
+ * before calling `handle`; the proxy APPENDS that value to any inbound
+ * `X-Forwarded-For` chain (RFC 7239 semantics — an outer ingress's leftmost
+ * real-client entry survives), then STRIPS the seam header so it never leaks
+ * upstream. This is the seam the bead's DESIGN settles on; the append/strip is
+ * fully expressible through `handle(Request)`, only the socket read is not.
+ */
+describe("auth-server X-Forwarded-For chaining", () => {
+  it("sets X-Forwarded-For to the host-stamped client IP when the client sent none", async () => {
+    const res: Response = await auth.handle(
+      new Request("http://localhost/v1/identity/users/me", {
+        headers: { [CLIENT_IP_HEADER]: "203.0.113.7" },
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(lastRequest?.forwardedFor).toBe("203.0.113.7");
+  });
+
+  it("appends the host-stamped client IP to an inbound X-Forwarded-For rather than overwriting it", async () => {
+    const res: Response = await auth.handle(
+      new Request("http://localhost/v1/identity/users/me", {
+        headers: { "x-forwarded-for": "198.51.100.9", [CLIENT_IP_HEADER]: "203.0.113.7" },
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(lastRequest?.forwardedFor).toBe("198.51.100.9, 203.0.113.7");
+  });
+
+  it("preserves a multi-hop inbound X-Forwarded-For chain, appending this hop's client IP last", async () => {
+    const res: Response = await auth.handle(
+      new Request("http://localhost/v1/identity/users/me", {
+        headers: {
+          "x-forwarded-for": "198.51.100.9, 70.41.3.18",
+          [CLIENT_IP_HEADER]: "203.0.113.7",
+        },
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(lastRequest?.forwardedFor).toBe("198.51.100.9, 70.41.3.18, 203.0.113.7");
+  });
+
+  it("never leaks the internal client-IP seam header upstream", async () => {
+    const res: Response = await auth.handle(
+      new Request("http://localhost/v1/identity/users/me", {
+        headers: { [CLIENT_IP_HEADER]: "203.0.113.7" },
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(lastRequest?.clientIpHeader).toBeUndefined();
   });
 });

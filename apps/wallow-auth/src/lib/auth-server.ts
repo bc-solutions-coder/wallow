@@ -59,6 +59,23 @@ const DEFAULT_API_INTERNAL_URL = "http://wallow-api";
 const HEALTH_BODY = "ready";
 
 /**
+ * Internal request header carrying the immediate peer's socket address
+ * (`req.socket.remoteAddress`), stamped by the Node host — `server.ts` /
+ * `dev-server.ts` in their `toWebRequest` — because the framework-agnostic
+ * `handle(request: Request)` bridge is driven with a WHATWG `Request` that has
+ * no socket. The proxy APPENDS this to any inbound `X-Forwarded-For` chain so
+ * the API rate-limits by the real client IP (RFC 7239 / de-facto XFF), then
+ * STRIPS it before the upstream hop so the seam never leaks past this proxy.
+ *
+ * Trust boundary (Wallow-tt5j): the host always OVERWRITES this header from the
+ * socket, so a client cannot forge THIS hop's entry. Inbound `X-Forwarded-For`
+ * is still trusted and appended-to (matching `Wallow.Api` Program.cs's
+ * `KnownProxies.Clear()` wide-open policy) so an outer TLS-terminating ingress's
+ * real-client entry survives as the leftmost value.
+ */
+export const CLIENT_IP_HEADER = "x-wallow-client-ip";
+
+/**
  * Resolve the upstream API base URL: explicit config wins, then
  * `WALLOW_API_INTERNAL_URL`, then the Aspire default.
  */
@@ -79,6 +96,12 @@ function resolveApiInternalUrl(config: AuthServerConfig): string {
  * outer TLS-terminating ingress is the only hop that knows the browser's real
  * scheme, so its header must win — overwriting it with this proxy's own
  * plain-HTTP leg would downgrade the API's view to `http`.
+ *
+ * `X-Forwarded-For` follows the same append-not-overwrite rule (Wallow-tt5j):
+ * the Node host stamps this hop's real peer address into {@link CLIENT_IP_HEADER}
+ * (a WHATWG `Request` has no socket), which is APPENDED to any inbound XFF chain
+ * so an outer ingress's leftmost real-client entry survives, then STRIPPED so the
+ * internal seam header never reaches the upstream API.
  */
 function applyForwardedHeaders(headers: Headers, incoming: URL): void {
   if (!headers.has("x-forwarded-proto")) {
@@ -87,6 +110,16 @@ function applyForwardedHeaders(headers: Headers, incoming: URL): void {
   if (!headers.has("x-forwarded-host")) {
     headers.set("x-forwarded-host", incoming.host);
   }
+
+  const clientIp: string | null = headers.get(CLIENT_IP_HEADER);
+  if (clientIp !== null && clientIp !== "") {
+    const existing: string | null = headers.get("x-forwarded-for");
+    headers.set(
+      "x-forwarded-for",
+      existing !== null && existing !== "" ? `${existing}, ${clientIp}` : clientIp,
+    );
+  }
+  headers.delete(CLIENT_IP_HEADER);
 }
 
 /**

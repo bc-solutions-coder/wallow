@@ -36,7 +36,8 @@ import {
 import { join } from "node:path";
 import { Readable } from "node:stream";
 
-import { createAuthServer, type AuthServer } from "./src/lib/auth-server";
+import { CLIENT_IP_HEADER, createAuthServer, type AuthServer } from "./src/lib/auth-server";
+import { isProxyRequest } from "./src/lib/proxy-paths";
 import {
   createStaticAssetReader,
   type StaticAsset,
@@ -68,24 +69,6 @@ const { render }: SsrModule = (await import(ssrEntry).catch((error: unknown): ne
   );
 })) as SsrModule;
 
-/**
- * Path prefixes answered by the reverse-proxy bridge rather than router SSR.
- *
- * Mirrors what {@link createAuthServer}'s router actually mounts — including
- * `/.well-known/**`, which `dev-server.ts`'s otherwise-identical helper omits.
- * It cannot be dropped here: until now this host handed EVERY path to the proxy,
- * so discovery and JWKS resolve today, and routing them to SSR instead would
- * 404 the `jwks_uri` this origin advertises.
- */
-function isProxyRequest(pathname: string): boolean {
-  return (
-    pathname === "/health" ||
-    pathname.startsWith("/v1/") ||
-    pathname.startsWith("/connect/") ||
-    pathname.startsWith("/.well-known/")
-  );
-}
-
 /** Adapt an incoming Node request into a WHATWG `Request`. */
 function toWebRequest(req: IncomingMessage): Request {
   const authority: string = req.headers.host ?? `localhost:${port}`;
@@ -101,6 +84,12 @@ function toWebRequest(req: IncomingMessage): Request {
       headers.set(key, value);
     }
   }
+
+  // Stamp the immediate peer's socket address into the internal seam header so
+  // the proxy can append it to X-Forwarded-For (the WHATWG Request it hands the
+  // proxy carries no socket). Always OVERWRITTEN from the socket so this hop's
+  // entry cannot be forged by an inbound header.
+  headers.set(CLIENT_IP_HEADER, req.socket.remoteAddress ?? "");
 
   const method: string = req.method ?? "GET";
   const hasBody: boolean = method !== "GET" && method !== "HEAD";

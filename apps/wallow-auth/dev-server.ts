@@ -4,7 +4,8 @@
  * `pnpm dev` runs this: it boots an HTTP listener that server-renders the
  * router's matched route for each request and returns the SSR HTML shell (or,
  * for `/`, the redirect to `/login`). Requests to the API surface — `/health`,
- * `/v1/**`, and `/connect/**` — are dispatched to the reverse-proxy bridge in
+ * `/v1/**`, `/connect/**`, and `/.well-known/**` (the shared topology in
+ * `src/lib/proxy-paths.ts`) — are dispatched to the reverse-proxy bridge in
  * `src/lib/auth-server.ts` (task 0.3) instead of the router. Everything else is
  * offered to Vite's own middlewares — which serve the browser bundle and its
  * module graph in dev — and falls through to the router SSR when Vite does not
@@ -44,7 +45,8 @@ import { brandAssetsDir } from "@bc-solutions-coder/styles/assets";
 import tailwindcss from "@tailwindcss/vite";
 import { createServer as createViteServer, type ViteDevServer } from "vite";
 
-import type { AuthServer, AuthServerConfig } from "./src/lib/auth-server";
+import { CLIENT_IP_HEADER, type AuthServer, type AuthServerConfig } from "./src/lib/auth-server";
+import { isProxyRequest } from "./src/lib/proxy-paths";
 
 const DEFAULT_PORT = "3002";
 const port: number = Math.trunc(Number(process.env.PORT ?? DEFAULT_PORT));
@@ -58,11 +60,6 @@ interface SsrModule {
 /** Shape of the Vite-loaded proxy bridge (`src/lib/auth-server.ts`). */
 interface AuthServerModule {
   createAuthServer: (config?: AuthServerConfig) => AuthServer;
-}
-
-/** Path prefixes answered by the reverse-proxy bridge rather than router SSR. */
-function isProxyRequest(pathname: string): boolean {
-  return pathname === "/health" || pathname.startsWith("/v1/") || pathname.startsWith("/connect/");
 }
 
 const vite: ViteDevServer = await createViteServer({
@@ -111,6 +108,12 @@ function toWebRequest(req: IncomingMessage): Request {
       headers.set(key, value);
     }
   }
+
+  // Stamp the immediate peer's socket address into the internal seam header so
+  // the proxy can append it to X-Forwarded-For (the WHATWG Request it hands the
+  // proxy carries no socket). Always OVERWRITTEN from the socket so this hop's
+  // entry cannot be forged by an inbound header.
+  headers.set(CLIENT_IP_HEADER, req.socket.remoteAddress ?? "");
 
   const method: string = req.method ?? "GET";
   const hasBody: boolean = method !== "GET" && method !== "HEAD";
