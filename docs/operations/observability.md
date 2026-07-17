@@ -101,10 +101,23 @@ Serilog request logging is configured in `Program.cs` with a custom message temp
 
 ### Writing Effective Log Messages
 
-Wallow uses the `[LoggerMessage]` source generator pattern for all logging. Never call `_logger.LogInformation(...)` directly. See `.claude/rules/LOGGING.md` for the full pattern.
+Wallow uses the `[LoggerMessage]` source generator pattern for all logging. Never call `logger.LogInformation(...)` or the other `ILogger` extension methods directly — they allocate on every call and trigger the CA1848/CA1873 analyzers.
+
+The pattern:
+
+- Mark the class `partial` so the generator can emit the logging implementations.
+- Inject `ILogger<T>` via the primary constructor.
+- Add `using Microsoft.Extensions.Logging;`.
+- Define `private partial void` methods decorated with `[LoggerMessage]` at the bottom of the class.
 
 ```csharp
-// Define as private partial void methods at the bottom of a partial class
+[LoggerMessage(Level = LogLevel.Information, Message = "Something happened for {EntityId} by user {UserId}")]
+private partial void LogSomethingHappened(Guid entityId, string? userId);
+```
+
+Applied to real messages:
+
+```csharp
 [LoggerMessage(Level = LogLevel.Information, Message = "File {FileId} uploaded for tenant {TenantId}")]
 private partial void LogFileUploaded(Guid fileId, Guid tenantId);
 

@@ -95,9 +95,14 @@ dotnet run --project api/src/Wallow.Web
 
 | App | URL |
 |-----|-----|
-| API | http://localhost:5000 |
-| Auth | http://localhost:5001 |
-| Web | http://localhost:5003 |
+| API | http://localhost:5001 |
+| Auth (Blazor) | http://localhost:5002 |
+| Web (Blazor) | http://localhost:5003 |
+| Web (TanStack) | http://localhost:3000 |
+| Auth (TanStack) | http://localhost:3002 |
+
+The TanStack apps read `PORT` from the environment and fall back to the defaults above. Keep any
+new local port clear of those and of Grafana on 3001.
 
 ## Branding Customization
 
