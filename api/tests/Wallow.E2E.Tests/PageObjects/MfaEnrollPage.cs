@@ -22,7 +22,7 @@ public sealed class MfaEnrollPage
 
         await _page.GotoAsync(url);
         await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
-        await E2ETestBase.WaitForBlazorReadyAsync(_page);
+        await E2ETestBase.WaitForAuthReadyAsync(_page);
         // Enrollment auto-starts; wait for either the secret or the fallback button.
         ILocator secret = _page.Locator("[data-testid='mfa-enroll-secret']");
         ILocator beginSetup = _page.Locator("[data-testid='mfa-enroll-begin-setup']");
@@ -34,10 +34,10 @@ public sealed class MfaEnrollPage
         try
         {
             // When redirected from another app (e.g. Web settings), wait for
-            // the URL to land on /mfa/enroll before checking for Blazor elements.
+            // the URL to land on /mfa/enroll before checking for rendered elements.
             await _page.WaitForURLAsync("**/mfa/enroll**", new() { Timeout = 15_000 });
             await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
-            await E2ETestBase.WaitForBlazorReadyAsync(_page);
+            await E2ETestBase.WaitForAuthReadyAsync(_page);
             // Enrollment auto-starts on page load. Wait for either the secret
             // (success) or the begin-setup fallback button (auth cookie missing).
             ILocator secret = _page.Locator("[data-testid='mfa-enroll-secret']");

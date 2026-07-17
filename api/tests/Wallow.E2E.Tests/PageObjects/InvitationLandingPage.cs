@@ -17,7 +17,14 @@ public sealed class InvitationLandingPage
     public async Task NavigateAsync(string token)
     {
         await _page.GotoAsync($"{_authBaseUrl}/invitation?token={Uri.EscapeDataString(token)}");
-        await E2ETestBase.WaitForBlazorReadyAsync(_page);
+        await E2ETestBase.WaitForAuthReadyAsync(_page);
+
+        // Hydration is not readiness on this screen: the route probes the session and
+        // then verifies the token, and both round trips render 'invitation-loading'
+        // (which is in the served markup from first paint). The terminal state —
+        // error, expired, or the actions — only replaces it once both settle.
+        await _page.Locator("[data-testid='invitation-loading']")
+            .WaitForAsync(new() { State = WaitForSelectorState.Hidden, Timeout = 15_000 });
     }
 
     public async Task<bool> IsLoadedAsync()

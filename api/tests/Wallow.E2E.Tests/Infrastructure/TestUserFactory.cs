@@ -15,7 +15,7 @@ public static class TestUserFactory
         string email = $"e2e-{Guid.NewGuid():N}@test.local";
 
         await RegisterUserAsync(apiBaseUrl, email);
-        await VerifyEmailAsync(mailpitBaseUrl, email);
+        await VerifyEmailAsync(apiBaseUrl, mailpitBaseUrl, email);
 
         return new TestUser(email, TestPassword);
     }
@@ -214,7 +214,19 @@ public static class TestUserFactory
         response.EnsureSuccessStatusCode();
     }
 
-    private static async Task VerifyEmailAsync(string mailpitBaseUrl, string email)
+    /// <summary>
+    /// Confirms the account by redeeming the emailed link's token against the API.
+    /// </summary>
+    /// <remarks>
+    /// This deliberately calls the API rather than fetching the emailed link itself. The link
+    /// points at the auth app's <c>/verify-email/confirm</c> screen, which redeems the token from
+    /// the browser after hydration. Fetching that URL over plain HTTP returns 200 for the
+    /// server-rendered shell without ever redeeming anything, so a fetch-and-check-the-status
+    /// helper would report success while leaving the account unverified — every later login then
+    /// fails with 403 <c>email_not_confirmed</c>. Redeeming the token directly is what the screen's
+    /// own client-side call does, and it does not depend on how the screen is rendered.
+    /// </remarks>
+    private static async Task VerifyEmailAsync(string apiBaseUrl, string mailpitBaseUrl, string email)
     {
         // Try "verify" first, fall back to "confirm"
         string verificationLink = await MailpitHelper.SearchForLinkAsync(
@@ -232,9 +244,31 @@ public static class TestUserFactory
                 $"Failed to retrieve verification email for {email} after {MaxMailRetries} attempts.");
         }
 
-        // Visit the verification link to confirm the account
+        string token = ExtractQueryParameter(verificationLink, "token")
+            ?? throw new InvalidOperationException(
+                $"Verification link for {email} carried no token: {verificationLink}");
+
         using HttpClient httpClient = new() { Timeout = TimeSpan.FromSeconds(30) };
-        HttpResponseMessage verifyResponse = await httpClient.GetAsync(verificationLink);
+        string verifyUrl =
+            $"{apiBaseUrl}/v1/identity/auth/verify-email?email={Uri.EscapeDataString(email)}&token={Uri.EscapeDataString(token)}";
+
+        HttpResponseMessage verifyResponse = await httpClient.GetAsync(verifyUrl);
         verifyResponse.EnsureSuccessStatusCode();
+    }
+
+    private static string? ExtractQueryParameter(string url, string name)
+    {
+        string query = new Uri(url).Query;
+
+        foreach (string pair in query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            string[] parts = pair.Split('=', 2);
+            if (parts.Length == 2 && string.Equals(parts[0], name, StringComparison.Ordinal))
+            {
+                return Uri.UnescapeDataString(parts[1]);
+            }
+        }
+
+        return null;
     }
 }

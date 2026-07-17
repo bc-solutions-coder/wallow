@@ -30,13 +30,13 @@ public sealed class VerifyEmailConfirmPage
         string url = $"{_baseUrl}/verify-email/confirm?{string.Join("&", queryParams)}";
 
         await _page.GotoAsync(url);
-        await E2ETestBase.WaitForBlazorReadyAsync(_page);
+        await E2ETestBase.WaitForAuthReadyAsync(_page);
     }
 
     public async Task NavigateToLinkAsync(string verificationLink)
     {
         await _page.GotoAsync(verificationLink);
-        await E2ETestBase.WaitForBlazorReadyAsync(_page);
+        await E2ETestBase.WaitForAuthReadyAsync(_page);
     }
 
     public async Task<bool> IsLoadedAsync()

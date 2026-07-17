@@ -22,7 +22,7 @@ public sealed class MfaChallengePage
 
         await _page.GotoAsync(url);
         await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
-        await E2ETestBase.WaitForBlazorReadyAsync(_page);
+        await E2ETestBase.WaitForAuthReadyAsync(_page);
         await _page.Locator("[data-testid='mfa-challenge-code']")
             .WaitForAsync(new() { Timeout = 10_000 });
     }
@@ -32,7 +32,7 @@ public sealed class MfaChallengePage
         try
         {
             await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
-            await E2ETestBase.WaitForBlazorReadyAsync(_page);
+            await E2ETestBase.WaitForAuthReadyAsync(_page);
             await _page.Locator("[data-testid='mfa-challenge-code']").WaitForAsync(new() { Timeout = 10_000 });
             return true;
         }

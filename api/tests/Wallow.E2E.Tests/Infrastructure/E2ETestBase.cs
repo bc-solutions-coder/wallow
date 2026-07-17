@@ -68,6 +68,29 @@ public abstract class E2ETestBase : IClassFixture<DockerComposeFixture>, IClassF
         await Task.Delay(500);
     }
 
+    /// <summary>
+    /// Waits for the React auth app (apps/wallow-auth) to finish hydrating.
+    /// </summary>
+    /// <remarks>
+    /// The React counterpart of <see cref="WaitForBlazorReadyAsync"/>. ReadyIndicator
+    /// (apps/wallow-auth/src/components/ready-indicator.tsx) stamps
+    /// <c>data-app-ready="true"</c> onto document.body from a useEffect, which runs only
+    /// after the tree is committed and interactive — the same guarantee Blazor's
+    /// <c>data-blazor-ready</c> gave once its SignalR circuit was up.
+    /// <para>
+    /// No settle delay follows the signal: unlike a Blazor circuit, whose ready attribute
+    /// fires before the circuit is fully warm, a committed React tree already has its event
+    /// handlers attached.
+    /// </para>
+    /// </remarks>
+    internal static async Task WaitForAuthReadyAsync(IPage page, int timeoutMs = 30_000)
+    {
+        await page.WaitForFunctionAsync(
+            "() => document.querySelector('[data-app-ready=\"true\"]') !== null",
+            null,
+            new PageWaitForFunctionOptions { Timeout = timeoutMs, PollingInterval = 250 });
+    }
+
     private async Task SaveFailureArtifactsAsync()
     {
         string artifactDir = Path.Combine("test-results", "failures", $"{GetType().Name}_{DateTime.UtcNow:yyyyMMdd_HHmmss}");
