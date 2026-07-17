@@ -57,8 +57,12 @@ public sealed partial class AccountController(
     public async Task<IActionResult> GetExternalProviders()
     {
         IEnumerable<AuthenticationScheme> schemes = await signInManager.GetExternalAuthenticationSchemesAsync();
+        // Return the scheme NAME, not the display name: ExternalLogin resolves the
+        // provider via IAuthenticationSchemeProvider.GetSchemeAsync, which matches on
+        // Name. Returning DisplayName yields links the API rejects as
+        // 'unsupported_provider' whenever a scheme's DisplayName differs from its Name.
         List<string> providers = schemes
-            .Select(s => s.DisplayName ?? s.Name)
+            .Select(s => s.Name)
             .ToList();
         return Ok(providers);
     }
