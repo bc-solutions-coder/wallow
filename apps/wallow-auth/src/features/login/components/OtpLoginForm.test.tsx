@@ -601,7 +601,16 @@ describe("LoginScreen OTP tab: verifying", () => {
     await submitCode(user);
 
     await waitFor(() => {
-      expect(mocks.verifyOtp).toHaveBeenCalledWith({ email: EMAIL, code: CODE });
+      // `rememberMe: false` joins the payload as of Wallow-98st, which gives this tab
+      // its OWN checkbox. It is sent EXPLICITLY rather than omitted: the endpoint's
+      // `rememberMe` is optional (types.gen.ts:1044) and defaults false
+      // (AccountController.cs:895), so omission and `false` are the same session — but
+      // only one of them says on the wire which session the user asked for.
+      expect(mocks.verifyOtp).toHaveBeenCalledWith({
+        email: EMAIL,
+        code: CODE,
+        rememberMe: false,
+      });
     });
   });
 
@@ -874,6 +883,237 @@ describe("LoginScreen OTP tab: tab switching", () => {
 
     expect(await screen.findByTestId("login-otp-email")).toBeInTheDocument();
     expect(screen.queryByTestId("login-otp-code")).toBeNull();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// REMEMBER ME — Wallow-98st, a DELIBERATE divergence from the oracle.
+//
+// `.3.13` shipped this tab with NO `rememberMe` and disclosed why: the oracle
+// passes `_rememberMe` to `VerifyOtpAsync`, but its checkbox is rendered ONLY
+// inside the password tab (Login.razor:87-92) and `SwitchTab` never resets it. So
+// on the oracle's OTP tab the flag is whatever a detour through the password tab
+// happened to leave behind — an INVISIBLE control setting a session lifetime. The
+// only user `.3.13` diverged from was one obeying that invisible control, and it
+// diverged fail-SAFE (a shorter session).
+//
+// This bead does not "restore" the oracle's behaviour — that behaviour is the bug.
+// It gives the tab its own VISIBLE, PANEL-LOCAL checkbox, so the flag on the wire
+// is one the user could see and set. Two claims carry that, and both are pinned
+// below as behaviour rather than as wiring:
+//
+//   1. The OTP box drives the OTP request  (it is real, not decorative).
+//   2. NOTHING ELSE drives the OTP request (the password tab's box does not leak
+//      in, and the OTP box does not leak out). This is the oracle's actual defect,
+//      so it gets a test in BOTH directions.
+//
+// PLACEMENT: the checkbox lives on the CODE form, not the email form. `rememberMe`
+// is consumed by `otp/verify` alone — `SendOtpRequest` is `{ email }` (types.gen.ts
+// :834) and has nowhere to put it. A box on the email form would vanish at the very
+// moment it took effect, which is how you get a control users cannot trust.
+//
+// TESTID: `login-otp-remember-me`, this tab's `login-otp-*` prefix — NOT the
+// password tab's `login-remember-me`. Two controls with two independent states must
+// not share one name, or the leak tests below could not tell them apart.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** The OTP tab's own remember-me box — panel-local, and NOT `login-remember-me`. */
+function otpRememberMe(): HTMLElement {
+  return screen.getByTestId("login-otp-remember-me");
+}
+
+describe("LoginScreen OTP tab: remember me", () => {
+  it("offers an unchecked remember-me box on the code form", async () => {
+    // Unchecked by DEFAULT: a long-lived session is a choice the user makes, never
+    // one a screen makes on their behalf. This is also the value `.3.13` shipped, so
+    // the default is not a behaviour change — only the visibility is.
+    const user = userEvent.setup();
+    renderScreen();
+
+    await reachCodeForm(user);
+
+    expect(otpRememberMe()).toBeInTheDocument();
+    expect(otpRememberMe()).not.toBeChecked();
+  });
+
+  it("does not offer remember-me before a code has been sent", async () => {
+    // The email form's request has nowhere to put the flag, so a box there would be
+    // a control that does nothing where it stands.
+    const user = userEvent.setup();
+    renderScreen();
+
+    await openOtpTab(user);
+
+    await screen.findByTestId("login-otp-email");
+    expect(screen.queryByTestId("login-otp-remember-me")).toBeNull();
+  });
+
+  it("does not answer to the password tab's testid", async () => {
+    // Two independent states may not share one name. If this fails, every leak test
+    // below is querying whichever box the DOM happened to hand back first.
+    const user = userEvent.setup();
+    renderScreen();
+
+    await reachCodeForm(user);
+
+    expect(screen.queryByTestId("login-remember-me")).toBeNull();
+  });
+
+  it("toggles when its label is clicked", async () => {
+    // The `htmlFor`/`id` pairing, asserted through the behaviour it buys rather than
+    // by reading the attributes: a label wired to nothing still renders perfectly.
+    const user = userEvent.setup();
+    renderScreen();
+
+    await reachCodeForm(user);
+    await user.click(screen.getByText("Remember me"));
+
+    expect(otpRememberMe()).toBeChecked();
+  });
+
+  it("sends rememberMe true when the user checks the box", async () => {
+    const user = userEvent.setup();
+    stubLocation();
+    renderScreen();
+
+    await reachCodeForm(user);
+    await user.click(otpRememberMe());
+    await submitCode(user);
+
+    await waitFor(() => {
+      expect(mocks.verifyOtp).toHaveBeenCalledWith({
+        email: EMAIL,
+        code: CODE,
+        rememberMe: true,
+      });
+    });
+  });
+
+  it("sends rememberMe false when the box is checked and then unchecked", async () => {
+    // The box must track the user's LAST answer, not merely record that they once
+    // touched it. A one-way latch would pass the test above and still be broken.
+    const user = userEvent.setup();
+    stubLocation();
+    renderScreen();
+
+    await reachCodeForm(user);
+    await user.click(otpRememberMe());
+    await user.click(otpRememberMe());
+
+    expect(otpRememberMe()).not.toBeChecked();
+
+    await submitCode(user);
+
+    await waitFor(() => {
+      expect(mocks.verifyOtp).toHaveBeenCalledWith({
+        email: EMAIL,
+        code: CODE,
+        rememberMe: false,
+      });
+    });
+  });
+
+  it("does not verify or re-send merely because the box was toggled", async () => {
+    // The box is bound to state, not wired to the form's submit. A checkbox that
+    // spends the user's one-time code on a click is worse than no checkbox.
+    const user = userEvent.setup();
+    stubLocation();
+    renderScreen();
+
+    await reachCodeForm(user);
+    expect(mocks.sendOtp).toHaveBeenCalledTimes(1);
+
+    await user.click(otpRememberMe());
+
+    expect(mocks.verifyOtp).not.toHaveBeenCalled();
+    expect(mocks.sendOtp).toHaveBeenCalledTimes(1);
+  });
+
+  // ── THE ORACLE'S DEFECT, PINNED IN BOTH DIRECTIONS ─────────────────────────
+
+  it("ignores the password tab's remember-me box", async () => {
+    // THE BUG THIS BEAD EXISTS FOR. In the oracle, ticking the password tab's box
+    // and then wandering to the OTP tab silently buys a persistent session from a
+    // control that is no longer on screen. Here the panels' states are disjoint, so
+    // the OTP request answers to the OTP box alone.
+    const user = userEvent.setup();
+    stubLocation();
+    renderScreen();
+
+    // The password tab is the landing tab, and its box is the invisible one.
+    await user.click(await screen.findByTestId("login-remember-me"));
+    expect(screen.getByTestId("login-remember-me")).toBeChecked();
+
+    await reachCodeForm(user);
+    expect(otpRememberMe()).not.toBeChecked();
+
+    await submitCode(user);
+
+    await waitFor(() => {
+      expect(mocks.verifyOtp).toHaveBeenCalledWith({
+        email: EMAIL,
+        code: CODE,
+        rememberMe: false,
+      });
+    });
+  });
+
+  it("does not leak its own box into the password tab", async () => {
+    // The same defect in reverse. Shared state would fail this even if the panels
+    // were merely reading one variable in the shell — which is precisely the shape
+    // this bead is refusing.
+    const user = userEvent.setup();
+    stubLocation();
+    mocks.login.mockResolvedValue({ succeeded: true, email: EMAIL, signInTicket: TICKET });
+    renderScreen();
+
+    await reachCodeForm(user);
+    await user.click(otpRememberMe());
+
+    await user.click(screen.getByTestId("login-tab-password"));
+    await user.type(await screen.findByTestId("login-email"), EMAIL);
+    await user.type(screen.getByTestId("login-password"), "correct-horse");
+
+    expect(screen.getByTestId("login-remember-me")).not.toBeChecked();
+
+    await user.click(screen.getByTestId("login-submit"));
+
+    await waitFor(() => {
+      expect(mocks.login).toHaveBeenCalledWith({
+        email: EMAIL,
+        password: "correct-horse",
+        rememberMe: false,
+      });
+    });
+  });
+
+  it("resets to unchecked when the tab is left and re-entered", async () => {
+    // PANEL-LOCAL is the whole claim. Switching tabs unmounts the panel, so the box
+    // resets for free — the same way `_otpSent` and the code field already do. A user
+    // returning to a fresh-looking form must not be carrying a stale hidden answer:
+    // that is the oracle's defect wearing this bead's clothes.
+    const user = userEvent.setup();
+    stubLocation();
+    renderScreen();
+
+    await reachCodeForm(user);
+    await user.click(otpRememberMe());
+    expect(otpRememberMe()).toBeChecked();
+
+    await user.click(screen.getByTestId("login-tab-password"));
+    await reachCodeForm(user);
+
+    expect(otpRememberMe()).not.toBeChecked();
+
+    await submitCode(user);
+
+    await waitFor(() => {
+      expect(mocks.verifyOtp).toHaveBeenLastCalledWith({
+        email: EMAIL,
+        code: CODE,
+        rememberMe: false,
+      });
+    });
   });
 });
 

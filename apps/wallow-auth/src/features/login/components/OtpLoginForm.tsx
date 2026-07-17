@@ -27,8 +27,10 @@ import type { LoginPanelProps } from "../panel";
  * half-authenticated user lands.
  *
  * Testids come verbatim from the oracle: `login-otp-email`, `login-otp-send-submit`,
- * `login-otp-sent`, `login-otp-code`, `login-otp-verify-submit`. Errors go to the
- * shell's ONE shared `login-error` banner via `onError`.
+ * `login-otp-sent`, `login-otp-code`, `login-otp-verify-submit`. The ONE exception is
+ * `login-otp-remember-me`, which has no oracle counterpart because the oracle never
+ * renders a box on this tab — see `RememberMeField` below (Wallow-98st). Errors go to
+ * the shell's ONE shared `login-error` banner via `onError`.
  *
  * ── THE TWO HALVES OF THIS TAB ───────────────────────────────────────────────
  *
@@ -106,6 +108,48 @@ function CodeField(props: { readonly value: string; readonly onChange: (v: strin
   );
 }
 
+/**
+ * This tab's OWN remember-me box (Wallow-98st) — a deliberate divergence from the
+ * oracle, which passes `_rememberMe` to `VerifyOtpAsync` while rendering the
+ * checkbox only inside the password tab (Login.razor:87-92) and never resetting it
+ * in `SwitchTab`. On the oracle's OTP tab the flag is therefore whatever a detour
+ * through the password tab left behind: an INVISIBLE control setting the user's
+ * session lifetime. `.3.13` dropped it fail-safe; this gives the tab a VISIBLE box
+ * instead, so the flag on the wire is one the user could see and set.
+ *
+ * The testid carries this tab's `login-otp-*` prefix rather than the password tab's
+ * `login-remember-me`: two controls with two independent states must not share one
+ * name, or nothing could tell them apart — least of all a test for the leak.
+ *
+ * It lives on the CODE form, never the email form: `rememberMe` is consumed by
+ * `otp/verify` alone (`SendOtpRequest` is `{ email }` and has nowhere to put it), so
+ * a box on the email form would vanish at the moment it took effect.
+ */
+function RememberMeField(props: {
+  readonly checked: boolean;
+  readonly onChange: (v: boolean) => void;
+}) {
+  const { checked, onChange } = props;
+
+  return (
+    <div className="flex items-center space-x-2">
+      <input
+        id="otpRememberMe"
+        type="checkbox"
+        className="h-4 w-4 rounded border-border"
+        data-testid="login-otp-remember-me"
+        checked={checked}
+        onChange={(e) => {
+          onChange(e.target.checked);
+        }}
+      />
+      <label className="text-sm font-normal text-foreground" htmlFor="otpRememberMe">
+        Remember me
+      </label>
+    </div>
+  );
+}
+
 /** The oracle's send `BbButton`, with its `Loading`/`Disabled="_isSubmitting"`. */
 function SendButton({ pending }: { readonly pending: boolean }) {
   return (
@@ -149,6 +193,13 @@ export function OtpLoginForm({ onAuthResult, onError }: OtpLoginFormProps): Reac
   const [code, setCode] = useState("");
   /** The oracle's `_otpSent`, which flips the email form to the code form. */
   const [sent, setSent] = useState(false);
+  /**
+   * PANEL-LOCAL, and that is the whole point (Wallow-98st). Switching tabs unmounts
+   * this panel, so the box resets for free — exactly as `sent` and `code` already do
+   * — and the password tab's box cannot reach it in either direction. Hoisting this
+   * into the shell to share with the password tab would rebuild the oracle's defect.
+   */
+  const [rememberMe, setRememberMe] = useState(false);
 
   const sendMutation = useMutation({
     // `Promise<unknown>`: the C# endpoint returns an anonymous `Ok(new { … })` with
@@ -159,15 +210,13 @@ export function OtpLoginForm({ onAuthResult, onError }: OtpLoginFormProps): Reac
 
   const verifyMutation = useMutation({
     mutationFn: async (value: string): Promise<unknown> =>
-      // No `rememberMe`, and that is a DISCLOSED DIVERGENCE (see the bead). The
-      // oracle passes `_rememberMe` — but that checkbox is rendered only inside the
-      // PASSWORD tab (Login.razor:87-92), so on the OTP tab it is whatever a visit to
-      // another tab happened to leave behind: a control the user cannot see silently
-      // setting their session lifetime. The endpoint defaults it false
-      // (AccountController.cs:876), which is the only value the oracle can produce for
-      // a user who stayed on this tab. A code mailed to an inbox is not a "trust this
-      // device" signal.
-      await getWallowAuthSdk().auth.verifyOtp({ email, code: value }),
+      // `rememberMe` is sent EXPLICITLY, never omitted. The field is optional and the
+      // endpoint defaults it false (AccountController.cs:895), so `false` and omission
+      // buy the same session — but only one of them states on the wire which session
+      // the user asked for. This also matches `PasswordLoginForm`, which always sends
+      // the flag. The value read here is this panel's own box, never the password
+      // tab's (see `RememberMeField` above).
+      await getWallowAuthSdk().auth.verifyOtp({ email, code: value, rememberMe }),
   });
 
   const handleSend = (): void => {
@@ -241,6 +290,7 @@ export function OtpLoginForm({ onAuthResult, onError }: OtpLoginFormProps): Reac
       >
         <div className="space-y-4" data-testid="login-otp-sent">
           <CodeField value={code} onChange={setCode} />
+          <RememberMeField checked={rememberMe} onChange={setRememberMe} />
           <VerifyButton pending={verifyMutation.isPending} />
         </div>
       </form>
