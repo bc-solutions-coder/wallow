@@ -1,6 +1,6 @@
 {
   "name": "@bc-solutions-coder/sdk",
-  "version": "0.0.0",
+  "version": "0.2.0",
   "description": "Wallow TypeScript browser SDK with BFF tunnel",
   "files": [
     "dist"
