@@ -105,6 +105,29 @@ public sealed partial class DomainAssignmentService(
         return request.Id.Value;
     }
 
+    public async Task<Guid?> RequestMembershipForRegistrationAsync(Guid userId, string email, CancellationToken ct = default)
+    {
+        // The domain is derived from the address the user actually registered with, never from a
+        // caller-supplied string, so an anonymous registration cannot target an arbitrary domain.
+        int atIndex = email.IndexOf('@', StringComparison.Ordinal);
+        if (atIndex < 0)
+        {
+            return null;
+        }
+
+        string emailDomain = email[(atIndex + 1)..].ToLowerInvariant();
+        OrganizationDomain? orgDomain = await domainRepository.GetByDomainAsync(emailDomain, ct);
+
+        // An unverified domain is one anyone could have claimed, so it must not admit requests.
+        if (orgDomain is null || !orgDomain.IsVerified)
+        {
+            LogNoVerifiedDomainForRegistration(emailDomain);
+            return null;
+        }
+
+        return await RequestMembershipAsync(userId, emailDomain, ct);
+    }
+
     public async Task ApproveMembershipRequestAsync(Guid requestId, Guid organizationId, CancellationToken ct = default)
     {
         LogApprovingMembershipRequest(requestId);
@@ -170,6 +193,9 @@ public sealed partial class DomainAssignmentService
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Membership request {RequestId} created")]
     private partial void LogMembershipRequested(Guid requestId);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "No verified organization domain matches {EmailDomain}; skipping registration membership request")]
+    private partial void LogNoVerifiedDomainForRegistration(string emailDomain);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Approving membership request {RequestId}")]
     private partial void LogApprovingMembershipRequest(Guid requestId);

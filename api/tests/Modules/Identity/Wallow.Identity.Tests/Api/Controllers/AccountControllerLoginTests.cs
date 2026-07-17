@@ -66,6 +66,7 @@ public class AccountControllerLoginTests
             messageBus,
             clientTenantResolver,
             organizationService,
+            Substitute.For<IDomainAssignmentService>(),
             passwordlessService,
             _mfaExemptionChecker,
             _mfaService,

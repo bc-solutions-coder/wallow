@@ -60,6 +60,7 @@ public class AccountControllerTicketReplayTests
             Substitute.For<IMessageBus>(),
             Substitute.For<IClientTenantResolver>(),
             Substitute.For<IOrganizationService>(),
+            Substitute.For<IDomainAssignmentService>(),
             Substitute.For<IPasswordlessService>(),
             Substitute.For<IMfaExemptionChecker>(),
             Substitute.For<IMfaService>(),

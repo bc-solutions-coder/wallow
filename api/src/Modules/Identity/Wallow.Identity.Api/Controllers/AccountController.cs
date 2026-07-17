@@ -38,6 +38,7 @@ public sealed partial class AccountController(
     IMessageBus messageBus,
     IClientTenantResolver clientTenantResolver,
     IOrganizationService organizationService,
+    IDomainAssignmentService domainAssignmentService,
     IPasswordlessService passwordlessService,
     IMfaExemptionChecker mfaExemptionChecker,
     IMfaService mfaService,
@@ -701,6 +702,15 @@ public sealed partial class AccountController(
         if (tenantInfo is not null && tenantInfo.TenantId != Guid.Empty)
         {
             await organizationService.AddMemberAsync(tenantInfo.TenantId, user.Id);
+        }
+
+        // Opt-in registration-time membership request. The domain is derived server-side from the
+        // address just registered, so the anonymous caller never names it. A null result means no
+        // verified domain matched, which is an ordinary answer and must not fail registration.
+        if (request.RequestOrgMembership)
+        {
+            await domainAssignmentService.RequestMembershipForRegistrationAsync(
+                user.Id, user.Email!, HttpContext.RequestAborted);
         }
 
         string token = await signInManager.UserManager.GenerateEmailConfirmationTokenAsync(user);

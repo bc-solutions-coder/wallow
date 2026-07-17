@@ -23,9 +23,16 @@ public class MembershipRequestsController(
 {
     [HttpPost]
     [ProducesResponseType(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult> RequestMembership(CreateMembershipRequest request, CancellationToken ct)
     {
-        Guid userId = Guid.Parse(User.GetUserId()!);
+        // Defence in depth: [Authorize] normally rejects such a caller before the action runs, but
+        // the body must still fail cleanly rather than throw on a missing or malformed user id.
+        if (!Guid.TryParse(User.GetUserId(), out Guid userId))
+        {
+            return Unauthorized();
+        }
+
         Guid requestId = await domainAssignmentService.RequestMembershipAsync(userId, request.EmailDomain, ct);
         return CreatedAtAction(nameof(GetById), new { id = requestId }, new { id = requestId });
     }
