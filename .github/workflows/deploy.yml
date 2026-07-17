@@ -78,12 +78,6 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore api/Wallow.slnx
 
-      # Force Tailwind to regenerate on every build. dotnet build is incremental and
-      # keys Tailwind output off Styles/app.css, not the scanned razor files, so a
-      # restored (cross-commit) generated app.css would otherwise ship stale CSS.
-      - name: Clean generated Tailwind CSS
-        run: rm -f api/src/Wallow.Auth/wwwroot/css/app.css
-
       - name: Build
         run: dotnet build api/Wallow.slnx --no-restore --configuration Release --graph
 
@@ -132,10 +126,10 @@ jobs:
             -c Release --no-build /t:PublishContainer \
             -p:ContainerImageTag=test \
             -p:ContainerRuntimeIdentifier=linux-x64
-          dotnet publish api/src/Wallow.Auth/Wallow.Auth.csproj \
-            -c Release --no-build /t:PublishContainer \
-            -p:ContainerImageTag=test \
-            -p:ContainerRuntimeIdentifier=linux-x64
+          # wallow-auth is the React BFF (apps/wallow-auth/Dockerfile), not Blazor
+          # Wallow.Auth. The build context is the repo root so the Dockerfile can
+          # resolve the @bc-solutions-coder/sdk workspace dependency.
+          docker build -f apps/wallow-auth/Dockerfile -t wallow-auth:test .
           # wallow-web is the React BFF (apps/wallow-web/Dockerfile), not Blazor
           # Wallow.Web. The build context is the repo root so the Dockerfile can
           # resolve the @bc-solutions-coder/sdk workspace dependency.
@@ -153,10 +147,10 @@ jobs:
             -c Release --no-build /t:PublishContainer \
             -p:ContainerImageTag=test-arm64 \
             -p:ContainerRuntimeIdentifier=linux-arm64
-          dotnet publish api/src/Wallow.Auth/Wallow.Auth.csproj \
-            -c Release --no-build /t:PublishContainer \
-            -p:ContainerImageTag=test-arm64 \
-            -p:ContainerRuntimeIdentifier=linux-arm64
+          # wallow-auth arm64 image via buildx (single-platform --load so the
+          # subsequent docker save can archive it alongside the .NET images).
+          docker buildx build --platform linux/arm64 --load \
+            -f apps/wallow-auth/Dockerfile -t wallow-auth:test-arm64 .
           # wallow-web arm64 image via buildx (single-platform --load so the
           # subsequent docker save can archive it alongside the .NET images).
           docker buildx build --platform linux/arm64 --load \
