@@ -26,6 +26,18 @@ import { createQueryClient } from "../lib/query-client";
 const clientEntry: string = import.meta.env.DEV ? "/src/client.tsx" : "/client.js";
 
 /**
+ * The compiled stylesheet, or `null` when none should be linked. The production
+ * build extracts the entry CSS imported by `client.tsx` to `/client.css`
+ * (pinned by `assetFileNames` in `vite.config.ts`), and nothing references it
+ * from `client.js` — Vite does not auto-inject entry CSS for a JS entry — so
+ * the shell must link it or every route serves unstyled. In dev the link must
+ * NOT render: Vite injects the CSS through the JS module graph and `/client.css`
+ * does not exist on the dev server. Same build-time `import.meta.env.DEV`
+ * substitution as `clientEntry`, for the same hydration-agreement reason.
+ */
+const stylesheetHref: string | null = import.meta.env.DEV ? null : "/client.css";
+
+/**
  * The SSR document shell for wallow-auth (Wallow-vec7.1.4): a full
  * `<html>/<head>/<body>` wrapping the router `<Outlet/>` that child routes
  * render into.
@@ -61,6 +73,7 @@ function DocumentShell() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>{branding.name}</title>
         <link rel="icon" href={appIconUrl} />
+        {stylesheetHref === null ? null : <link rel="stylesheet" href={stylesheetHref} />}
         <style>{renderThemeStyle(branding)}</style>
         <script type="module" src={clientEntry} />
       </head>

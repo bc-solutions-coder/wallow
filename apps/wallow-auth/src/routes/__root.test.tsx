@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { forkBranding } from "../lib/branding";
 import { render } from "../ssr";
@@ -49,6 +49,15 @@ describe("the wallow-auth document shell", () => {
     expect(head).not.toMatch(new RegExp(`href="(?!/)[^"]*${forkBranding.appIcon}`, "u"));
   });
 
+  it("omits the /client.css stylesheet link in dev, where CSS arrives via the JS module graph", async () => {
+    // In dev, Vite serves `/src/client.tsx` from its module graph and injects
+    // the imported CSS through JS — `/client.css` does not exist on the dev
+    // server, so a link to it would 404. Only the inline theme <style> belongs.
+    const head: string = await renderHead("/login");
+
+    expect(head).not.toContain('rel="stylesheet"');
+  });
+
   it("emits the same brand asset URLs on a nested route as on a top-level one", async () => {
     const [top, nested]: string[] = await Promise.all([
       renderHead("/login"),
@@ -62,5 +71,29 @@ describe("the wallow-auth document shell", () => {
 
     expect(iconRefs(nested ?? "")).toEqual(iconRefs(top ?? ""));
     expect(new Set(iconRefs(nested ?? ""))).toEqual(new Set([rootedAppIcon]));
+  });
+});
+
+describe("the wallow-auth document shell in production", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  it("links the compiled stylesheet at /client.css", async () => {
+    // The production build extracts the entry CSS to the pinned, unhashed name
+    // `client.css` (vite.config.ts `assetFileNames`) — but unlike dev, nothing
+    // injects it: Vite does not auto-reference entry CSS from a JS entry, so
+    // unless the shell links it explicitly, every route serves unstyled. The
+    // vitest env runs with DEV=true, so the prod branch is rendered by stubbing
+    // DEV off and re-importing the SSR graph fresh.
+    vi.stubEnv("DEV", false);
+    vi.resetModules();
+    const { render: renderProd } = await import("../ssr");
+
+    const response: Response = await renderProd(new Request("http://localhost:3002/login"));
+    const html: string = await response.text();
+
+    expect(html).toMatch(/<link[^>]*rel="stylesheet"[^>]*href="\/client\.css"/u);
   });
 });
