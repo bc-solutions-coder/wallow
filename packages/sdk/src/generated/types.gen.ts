@@ -17,6 +17,7 @@ export type AccountRegisterRequest = {
     clientId?: null | string;
     loginMethod?: null | string;
     returnUrl?: null | string;
+    requestOrgMembership?: boolean;
 };
 
 export type AccountResetPasswordRequest = {
@@ -2449,6 +2450,15 @@ export type PostV1IdentityMembershipRequestsData = {
     query?: never;
     url: '/v1/identity/membership-requests';
 };
+
+export type PostV1IdentityMembershipRequestsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ProblemDetails;
+};
+
+export type PostV1IdentityMembershipRequestsError = PostV1IdentityMembershipRequestsErrors[keyof PostV1IdentityMembershipRequestsErrors];
 
 export type PostV1IdentityMembershipRequestsResponses = {
     /**

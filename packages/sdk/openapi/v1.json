@@ -2409,6 +2409,16 @@
             "content": {
               "application/json": { }
             }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           }
         }
       }
@@ -6918,6 +6928,10 @@
               "null",
               "string"
             ]
+          },
+          "requestOrgMembership": {
+            "type": "boolean",
+            "default": false
           }
         }
       },
