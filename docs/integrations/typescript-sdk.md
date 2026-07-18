@@ -377,7 +377,7 @@ Point your BFF at it with a local `.env` (adjust the API/issuer origins to your
 running stack):
 
 ```ini
-OIDC_ISSUER=http://localhost:5002
+OIDC_ISSUER=http://localhost:5001
 OIDC_CLIENT_ID=bcordes-bff
 OIDC_CLIENT_SECRET=bcordes-bff-secret
 OIDC_REDIRECT_URI=http://localhost:3000/bff/callback

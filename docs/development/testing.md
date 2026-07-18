@@ -9,22 +9,28 @@ This guide covers testing practices, patterns, and conventions for the Wallow pl
 
 ## Running Tests
 
-Always use the test script, never bare `dotnet test`:
+Always use the test script for the .NET suites, never bare `dotnet test`:
 
 ```bash
-# Run all tests (excludes E2E)
+# Run all tests (excludes Integration; E2E lives in the React apps)
 ./scripts/run-tests.sh
 
 # Run a specific module
 ./scripts/run-tests.sh identity
-
-# Run E2E tests
-./scripts/run-tests.sh e2e
 ```
+
+E2E tests are browser suites that live with the frontend apps, not in the .NET solution. Run
+them per app, for example:
+
+```bash
+pnpm --filter ./apps/wallow-auth test:e2e
+```
+
+See [E2E Testing](testing-e2e.md) for details.
 
 ### Module Shorthands
 
-`identity`, `storage`, `notifications`, `messaging`, `announcements`, `inquiries`, `branding`, `apikeys`, `auth`, `auth-components`, `web`, `web-components`, `e2e`, `api`, `arch`, `shared`, `kernel`, `integration`
+`identity`, `storage`, `notifications`, `announcements`, `inquiries`, `branding`, `apikeys`, `api`, `arch`, `shared`, `kernel`, `integration`
 
 The script outputs structured per-assembly pass/fail counts and lists individual failed test names.
 
@@ -35,9 +41,10 @@ The script outputs structured per-assembly pass/fail counts and lists individual
 | **Unit** | Individual components in isolation | None | `api/tests/Modules/{Module}/Wallow.{Module}.Tests/` |
 | **Integration** | API endpoints with real databases | Docker (auto-managed via Testcontainers) | `api/tests/Wallow.Api.Tests/`, `api/tests/Modules/Identity/Wallow.Identity.IntegrationTests/` |
 | **Architecture** | Layer dependencies and module isolation | None (reflection-based) | `api/tests/Wallow.Architecture.Tests/` |
-| **E2E** | Complete user journeys in the browser | Docker Compose (full stack) | `api/tests/Wallow.E2E.Tests/` |
+| **E2E** | Complete user journeys in the browser | Running app + API | `apps/wallow-auth/e2e/`, `apps/wallow-web/e2e/` |
 
-Additional test projects: `Wallow.Shared.Kernel.Tests`, `Wallow.Shared.Infrastructure.Tests`, `Wallow.Auth.Component.Tests`, `Wallow.Web.Component.Tests`, `Wallow.Auth.Tests`, `Wallow.Web.Tests`.
+The E2E tier is Playwright (`@playwright/test`) and lives in the React apps, not the .NET
+solution. Additional .NET test projects: `Wallow.Shared.Kernel.Tests`, `Wallow.Shared.Infrastructure.Tests`.
 
 ## Test Frameworks
 
@@ -49,7 +56,8 @@ Additional test projects: `Wallow.Shared.Kernel.Tests`, `Wallow.Shared.Infrastru
 | Testcontainers | Docker-based integration testing |
 | NetArchTest | Architecture rule validation |
 | Bogus | Fake data generation |
-| Microsoft.Playwright | Browser automation (E2E) |
+
+E2E browser automation uses `@playwright/test` in the React apps (see [E2E Testing](testing-e2e.md)).
 
 ## Test Project Structure
 
@@ -58,13 +66,8 @@ api/tests/
 ├── Wallow.Tests.Common/           # Shared test infrastructure
 ├── Wallow.Api.Tests/              # API integration tests
 ├── Wallow.Architecture.Tests/     # Architecture enforcement
-├── Wallow.E2E.Tests/              # End-to-end browser tests
 ├── Wallow.Shared.Kernel.Tests/
 ├── Wallow.Shared.Infrastructure.Tests/
-├── Wallow.Auth.Tests/
-├── Wallow.Auth.Component.Tests/
-├── Wallow.Web.Tests/
-├── Wallow.Web.Component.Tests/
 └── Modules/
     └── {Module}/
         └── Wallow.{Module}.Tests/
@@ -72,6 +75,8 @@ api/tests/
             ├── Application/
             └── Infrastructure/
 ```
+
+Browser E2E suites live with the frontend apps, e.g. `apps/wallow-auth/e2e/`.
 
 ## Naming Convention
 

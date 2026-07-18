@@ -4,7 +4,7 @@ This guide covers the Docker infrastructure used for running tests locally and i
 
 ## Test Compose Stack
 
-E2E tests use `docker/docker-compose.test.yml`, a self-contained compose file separate from the development `docker-compose.yml`. All services use different ports to allow both environments to run simultaneously.
+`docker/docker-compose.test.yml` is a self-contained compose file separate from the development `docker-compose.yml`. It brings up the full stack — API plus both React apps — on ports distinct from the dev environment so both can run simultaneously. It is used for CI integration runs and for exercising the browser suites against containerized apps.
 
 ### Infrastructure Services
 
@@ -20,26 +20,25 @@ E2E tests use `docker/docker-compose.test.yml`, a self-contained compose file se
 | Service | Image | Host Port | Purpose |
 |---------|-------|-----------|---------|
 | `wallow-api` | `wallow-api:test` | 5050 | API server |
-| `wallow-auth` | `wallow-auth:test` | 5051 | Auth Blazor app |
-| `wallow-web` | `wallow-web:test` | 5053 | Web Blazor app |
+| `wallow-auth` | `wallow-auth-react:test` | 5051 | Auth app (TanStack Start; same-origin reverse proxy to the API) |
+| `wallow-web` | `wallow-web-react:test` | 5053 | Web app (TanStack Start dashboard + BFF) |
+
+The two app services build from their own Dockerfiles with the repo root as build context
+(`apps/wallow-auth/Dockerfile`, `apps/wallow-web/Dockerfile`) so the workspace `workspace:*`
+dependencies resolve. No `dotnet publish` of a Blazor app is involved.
 
 ## Starting the Stack Manually
 
 To start the test environment for manual exploration or repeated test runs:
 
 ```bash
-# Build container images
+# Build the API image
 dotnet publish api/src/Wallow.Api/Wallow.Api.csproj -c Release /t:PublishContainer \
   -p:ContainerImageTag=test -p:ContainerRepository=wallow-api
 
-dotnet publish api/src/Wallow.Auth/Wallow.Auth.csproj -c Release /t:PublishContainer \
-  -p:ContainerImageTag=test -p:ContainerRepository=wallow-auth
-
-dotnet publish api/src/Wallow.Web/Wallow.Web.csproj -c Release /t:PublishContainer \
-  -p:ContainerImageTag=test -p:ContainerRepository=wallow-web
-
-# Start
-docker compose -f docker/docker-compose.test.yml up -d
+# Build the app images and start everything (compose builds wallow-auth / wallow-web
+# from their Dockerfiles)
+docker compose -f docker/docker-compose.test.yml up -d --build
 
 # Verify health
 curl http://localhost:5050/health/ready
@@ -47,24 +46,26 @@ curl http://localhost:5051/health
 curl http://localhost:5053/health
 ```
 
-## Automatic Container Management
+## Tearing Down
 
-When running `./scripts/run-tests.sh e2e`, the `DockerComposeFixture` automatically:
+Stop the stack and remove its volumes when you are done:
 
-1. Detects whether services are already running (checks the API health endpoint).
-2. If not running, starts via `docker compose -f docker/docker-compose.test.yml up -d --build`.
-3. Waits for all health checks to pass.
-4. After tests complete, tears down with `docker compose down -v`.
+```bash
+docker compose -f docker/docker-compose.test.yml down -v
+```
 
-Set `E2E_EXTERNAL_SERVICES=true` to skip automatic management (when you started them manually or in CI).
+The browser E2E suites live in the React apps and run through Playwright (`pnpm --filter
+./apps/wallow-auth test:e2e`); see [E2E Testing](testing-e2e.md). They can be pointed at this
+stack by overriding the app's `E2E_BASE_URL` (for example `http://localhost:5051` for the auth
+app).
 
 ## OIDC Configuration
 
 The test compose file configures OIDC so browser-facing URLs use `localhost` while container-to-container communication uses Docker networking:
 
 - **API:** `OpenIddict__Issuer` set to `http://localhost:5050` so tokens match the browser URL.
-- **Auth:** Uses `host.docker.internal:5050` for server-to-server API calls.
-- **Web:** `Oidc__Authority: http://localhost:5050` for browser redirects, `Oidc__MetadataAddress: http://host.docker.internal:5050/.well-known/openid-configuration` for container-to-container OIDC discovery.
+- **Auth:** The `wallow-auth` app is a same-origin reverse proxy; it reads `WALLOW_API_INTERNAL_URL: http://wallow-api:8080` to reach the API container.
+- **Web:** The `wallow-web` BFF uses `OIDC_ISSUER: http://localhost:5050` for browser redirects and `OIDC_METADATA_URL: http://host.docker.internal:5050/.well-known/openid-configuration` for container-to-container OIDC discovery.
 
 On Linux, add the hosts entry:
 

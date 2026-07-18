@@ -1,87 +1,79 @@
 # Frontend Setup Guide
 
-Wallow uses two separate Blazor Server applications for its frontend:
+Wallow's frontend is two separate TanStack Start (React) applications:
 
-- **`Wallow.Auth`** -- Login, register, password reset, email verification, MFA enrollment
-- **`Wallow.Web`** -- Dashboard, settings, public pages
+- **`apps/wallow-auth`** -- Login, register, password reset, email verification, MFA enrollment, consent
+- **`apps/wallow-web`** -- Dashboard, settings, public pages
 
-Both are server-rendered Blazor apps that communicate with `Wallow.Api` for backend operations. They share branding configuration via `branding.json` at the repository root.
+Both are part of the pnpm workspace and talk to `Wallow.Api` (the headless backend) for all
+backend operations. They share branding configuration via `api/branding.json` at the repository
+root, consumed through the `@bc-solutions-coder/styles` package.
+
+`wallow-auth` runs a small [h3](https://h3.unjs.io/) server that same-origin reverse-proxies
+`/v1/**`, `/connect/**`, and `/.well-known/**` to the API, so the OIDC endpoints appear on the
+auth origin without the browser ever crossing origins. `wallow-web` uses the BFF pattern from
+the TypeScript SDK: its server holds the OIDC token set in a session and proxies `/api/**` to
+the API with a bearer token attached.
 
 ## Architecture
 
 ```
-Wallow.Auth (port 5001)  ──► Wallow.Api (port 5000) ◄──  Wallow.Web (port 5003)
-       │                           │                           │
-       ├─ Login, Register          ├─ OpenIddict OIDC          ├─ Dashboard
-       ├─ Password Reset           ├─ REST API                 ├─ Settings
-       ├─ Email Verification       ├─ SignalR Realtime         ├─ Organizations
-       ├─ MFA Enrollment           │                           ├─ Apps
-       └─ Terms / Privacy          │                           └─ Public pages
-                                   ▼
+apps/wallow-auth (port 3002)  ──► Wallow.Api (port 5001) ◄──  apps/wallow-web (port 3000)
+       │                              │                              │
+       ├─ Login, Register             ├─ OpenIddict OIDC             ├─ Dashboard
+       ├─ Password Reset              ├─ REST API (/v1)              ├─ Settings
+       ├─ Email Verification          │                              ├─ Organizations
+       ├─ MFA Enroll / Challenge      │  (h3 proxy fronts            ├─ Apps
+       ├─ Consent                     │   /connect, /.well-known)    └─ Public pages
+       └─ Terms / Privacy             │
+                                      ▼
                             PostgreSQL / Valkey / GarageHQ
 ```
 
 ## Project Structure
 
-```
-api/src/Wallow.Auth/
-├── Components/
-│   ├── Layout/
-│   │   └── AuthLayout.razor           # Layout for all auth pages
-│   ├── Pages/
-│   │   ├── Login.razor
-│   │   ├── Register.razor
-│   │   ├── ForgotPassword.razor
-│   │   ├── ResetPassword.razor
-│   │   ├── VerifyEmail.razor
-│   │   ├── MfaEnroll.razor
-│   │   ├── MfaChallenge.razor
-│   │   └── ...
-│   ├── Shared/
-│   │   └── BlazorReadyIndicator.razor
-│   ├── BrandingTheme.razor            # CSS variable injection from BrandingOptions
-│   └── App.razor
-├── Configuration/
-│   └── BrandingOptions.cs             # Legacy C# copy (retired; see packages/styles)
-├── wwwroot/
-└── Wallow.Auth.csproj
+Both apps follow the standard TanStack Start layout (file-based routing under `src/routes/`,
+components under `src/components/`) plus the h3 server that fronts them:
 
-api/src/Wallow.Web/
-├── Components/
-│   ├── Layout/
-│   │   ├── DashboardLayout.razor      # Authenticated dashboard layout
-│   │   ├── PublicLayout.razor          # Public-facing layout
-│   │   └── MainLayout.razor
-│   ├── Pages/
-│   │   ├── Home.razor
-│   │   └── Dashboard/
-│   │       ├── Settings.razor
-│   │       ├── Organizations.razor
-│   │       ├── Apps.razor
-│   │       ├── Inquiries.razor
-│   │       └── ...
-│   └── Shared/
-│       └── BlazorReadyIndicator.razor
-├── Configuration/
-│   └── BrandingOptions.cs             # Local copy of branding model
-├── wwwroot/
-└── Wallow.Web.csproj
+```
+apps/wallow-auth/
+├── src/
+│   ├── routes/                 # File-based routes (login, register, mfa, consent, ...)
+│   ├── components/
+│   │   └── ready-indicator.tsx # Stamps data-app-ready='true' after hydration
+│   └── ...
+├── dev-server.ts               # Dev h3 host (same-origin proxy to the API)
+├── server.ts                   # Production h3 host
+├── playwright.config.ts        # E2E config (data-testid selectors, port 3002)
+├── e2e/                        # @playwright/test specs
+└── package.json
+
+apps/wallow-web/
+├── src/
+│   ├── routes/                 # Dashboard, settings, public pages
+│   └── components/
+├── dev-server.ts               # Dev h3 host (BFF)
+├── server.ts                   # Production h3 host (BFF)
+└── package.json
 ```
 
 ## Running Locally
 
 ```bash
 # Start infrastructure
-cd docker && docker compose up -d
+pnpm backend:infra
 
-# Start the API (required by both frontends)
-dotnet run --project api/src/Wallow.Api
+# Start the API (required by both frontends) plus the rest of the stack via Aspire
+pnpm backend
 
-# Start Auth app (separate terminal)
-dotnet run --project api/src/Wallow.Auth
+# Build the SDK first (apps typecheck and run against dist/)
+pnpm --filter @bc-solutions-coder/sdk build
 
-# Start Web app (separate terminal)
-dotnet run --project api/src/Wallow.Web
+# Start the Auth app (separate terminal)
+pnpm --filter @bc-solutions-coder/wallow-auth dev
+
+# Start the Web app (separate terminal)
+pnpm --filter @bc-solutions-coder/wallow-web dev
 ```
 
 ### Default Dev Credentials
@@ -96,8 +88,6 @@ dotnet run --project api/src/Wallow.Web
 | App | URL |
 |-----|-----|
 | API | http://localhost:5001 |
-| Auth (Blazor) | http://localhost:5002 |
-| Web (Blazor) | http://localhost:5003 |
 | Web (TanStack) | http://localhost:3000 |
 | Auth (TanStack) | http://localhost:3002 |
 
@@ -106,7 +96,7 @@ new local port clear of those and of Grafana on 3001.
 
 ## Branding Customization
 
-Edit `branding.json` in the repository root to customize identity across both Auth and Web apps:
+Edit `api/branding.json` in the repository root to customize identity across both apps:
 
 ```json
 {
@@ -121,25 +111,18 @@ Edit `branding.json` in the repository root to customize identity across both Au
 }
 ```
 
-Place custom icons in the `wwwroot` directory of `Wallow.Auth` (and `Wallow.Web` if applicable).
+### Branding Ownership
 
-### BrandingOptions
-
-The canonical branding schema now lives in `packages/styles` (`@bc-solutions-coder/styles`, `src/branding.ts`), which every frontend consumes; the Blazor `BrandingOptions.cs` classes in `Wallow.Auth` and `Wallow.Web` are legacy copies being retired as those apps are removed. All of them read the same underlying `api/branding.json` data at the repo root, exposing `AppName`, `AppIcon`, `Tagline`, `LandingPage`, and `Theme`.
-
-### Layouts That Use BrandingOptions
-
-| Layout | Project | What it reads |
-|--------|---------|---------------|
-| `AuthLayout.razor` | `Wallow.Auth` | AppName (page title), AppIcon, Tagline, Theme |
-| `DashboardLayout.razor` | `Wallow.Web` | AppName (sidebar header), AppIcon |
-| `PublicLayout.razor` | `Wallow.Web` | AppName (page title), AppIcon, Tagline |
-
-All layouts inject `IOptions<BrandingOptions>` and read the same configuration.
+The canonical branding schema lives in `packages/styles` (`@bc-solutions-coder/styles`,
+`src/branding.ts`), the TypeScript source of truth that parses `api/branding.json` and emits the
+theme CSS every frontend consumes. It exposes `appName`, `appIcon`, `tagline`, `landingPage`, and
+`theme`.
 
 ### CSS Variable Customization
 
-Theme colors from `BrandingOptions` are rendered as CSS custom properties by the `BrandingTheme.razor` component. The tokens use OKLCH color format and map to standard shadcn/ui variable names:
+Theme colors from `branding.json` are emitted as CSS custom properties by
+`@bc-solutions-coder/styles`. The tokens use OKLCH color format and map to standard shadcn/ui
+variable names:
 
 ```
 --background, --foreground, --card, --card-foreground,
@@ -149,15 +132,13 @@ Theme colors from `BrandingOptions` are rendered as CSS custom properties by the
 --border, --input, --ring, --radius
 ```
 
-To override a single token without changing `branding.json`, use environment variables:
-
-```bash
-Branding__Theme__Dark__Primary="oklch(0.60 0.20 280)"
-```
-
 ## Authentication
 
-Wallow uses OpenIddict as its OIDC provider. `Wallow.Auth` handles the authentication UI (login, register, password reset). `Wallow.Web` authenticates users via OpenID Connect against the API.
+Wallow uses OpenIddict as its OIDC provider, hosted in `Wallow.Api` (wired up in
+`Wallow.Identity.Infrastructure`). `apps/wallow-auth` provides the authentication UI (login,
+register, password reset, consent) and serves the OIDC endpoints on its own origin by
+same-origin proxying them to the API. `apps/wallow-web` authenticates users via OpenID Connect
+through its BFF server.
 
 ### OIDC Endpoints (Wallow.Api)
 
@@ -177,18 +158,21 @@ The API seeds two development clients:
 - PKCE required (S256)
 - Scopes: `openid`, `profile`, `email`, `roles`, `offline_access`, plus module-specific scopes
 
-**wallow-web-client** (confidential, for Wallow.Web):
-- Redirect URI: `http://localhost:5003/signin-oidc`
+**wallow-web-client** (confidential, for `apps/wallow-web`):
+- Redirect URI: `http://localhost:3000/auth/callback`
 - Secret: `wallow-web-secret`
 - Scopes: `openid`, `email`, `profile`, `roles`, `offline_access`
 
-## Blazor Readiness
+## React Readiness
 
-Both apps include a `BlazorReadyIndicator.razor` component that emits `[data-blazor-ready='true']` once the SignalR circuit connects. This is used by E2E tests via `WaitForBlazorReadyAsync(page)`.
+Both apps stamp `[data-app-ready='true']` on the document once React hydration completes (emitted
+by `src/components/ready-indicator.tsx`). E2E tests wait for this marker before interacting with
+the page.
 
 ## CORS
 
-The API CORS configuration is in `appsettings.Development.json`. Add your frontend origin if running on a non-standard port:
+The API CORS configuration is in `appsettings.Development.json`. Add your frontend origin if
+running on a non-standard port:
 
 ```json
 {
@@ -202,10 +186,11 @@ The API CORS configuration is in `appsettings.Development.json`. Add your fronte
 
 Forks customize identity through configuration, not code changes:
 
-1. Edit `branding.json` for name, icon, tagline, and theme colors
+1. Edit `api/branding.json` for name, icon, tagline, and theme colors
 2. Update `appsettings.json` for backend configuration
 3. `.gitattributes` marks `branding.json` and `appsettings*.json` as `merge=ours`, so upstream merges preserve fork config
 
 ## API Documentation
 
-The Wallow API serves its OpenAPI spec via Scalar at `http://localhost:5000/openapi/v1.json`. The Scalar UI is available at `http://localhost:5000/scalar/v1`.
+The Wallow API serves its OpenAPI spec via Scalar at `http://localhost:5001/openapi/v1.json`. The
+Scalar UI is available at `http://localhost:5001/scalar/v1`.

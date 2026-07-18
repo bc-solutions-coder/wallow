@@ -1,21 +1,21 @@
 # Authentication
 
-Wallow uses a **sign-in ticket** pattern to bridge the Blazor Auth app (a SignalR-based Blazor Server app) with the API's cookie authentication system. Because Blazor Server runs over a WebSocket circuit, the API cannot directly set `HttpOnly` cookies on the browser from a JSON response. Instead, the API issues an encrypted, short-lived ticket that the browser exchanges for a real auth cookie via a server-side redirect.
+Wallow uses a **sign-in ticket** pattern to bridge the React auth app (`apps/wallow-auth`) with the API's cookie authentication system. The auth UI verifies credentials through a JSON API call, but landing the user in an authenticated session needs a top-level browser navigation. Instead of trying to set the cookie on that background call, the API issues an encrypted, short-lived ticket that the browser exchanges for a real auth cookie via a full-page GET.
 
 ---
 
 ## Why Tickets Exist
 
-Blazor Server communicates with the API over `HttpClient`. Any `Set-Cookie` headers in an API JSON response are invisible to the browser — they apply to the `HttpClient`'s internal cookie jar on the server, not the user's browser.
+The auth app is a client-side React application. It authenticates by calling the login API over the app's same-origin proxy with `fetch`/XHR, which returns JSON (containing the ticket) — not an auth cookie.
 
-To set a browser cookie, the browser itself must make the request. The sign-in ticket is the mechanism that lets the Blazor app hand off authentication to a direct browser navigation, which then hits the API's `exchange-ticket` endpoint. That endpoint validates the ticket and issues a proper `HttpOnly` auth cookie to the browser.
+Completing sign-in requires two things that a background `fetch` cannot do: set an `HttpOnly` cookie the browser will actually send on subsequent requests, and resume the paused OIDC authorization at `returnUrl`. Both need a real top-level navigation. The sign-in ticket lets the app hand off from its fetch-based login to a direct browser GET on the API's `exchange-ticket` endpoint, which sets the cookie and redirects into `returnUrl`.
 
 ---
 
 ## Ticket Lifecycle
 
 ```
-Wallow.Auth (Blazor)              Wallow.Api (AccountController)
+apps/wallow-auth (React)          Wallow.Api (AccountController)
 ─────────────────────────────     ──────────────────────────────────
 POST /identity/auth/login    ───► Validate credentials
                              ◄─── Return { signInTicket: "<token>" }
@@ -127,22 +127,21 @@ Tickets are **not** issued for:
 
 ---
 
-## Client-Side Exchange (Blazor)
+## Client-Side Exchange (React)
 
-After receiving a successful login response containing a ticket, `Login.razor` checks for a `ReturnUrl` and performs a forced browser navigation to the exchange endpoint:
+After receiving a successful login response containing a ticket, the login screen builds the exchange URL through the SDK and assigns `globalThis.location.href` to it, forcing a full-page navigation:
 
-```csharp
-if (!string.IsNullOrEmpty(result.SignInTicket))
-{
-    string exchangeUrl = $"{ApiBaseUrl}/api/v1/identity/auth/exchange-ticket"
-        + $"?ticket={Uri.EscapeDataString(result.SignInTicket)}"
-        + $"&returnUrl={Uri.EscapeDataString(ReturnUrl)}";
-    Navigation.NavigateTo(exchangeUrl, forceLoad: true);
-    return;
+```ts
+if (result.signInTicket) {
+  globalThis.location.href = getWallowAuthSdk().oidc.buildExchangeTicketUrl(
+    result.signInTicket,
+    returnUrl,
+  );
+  return;
 }
 ```
 
-`forceLoad: true` causes a full browser navigation (not a Blazor client-side route change), which is required so the browser actually sends the GET and receives the `Set-Cookie` response header.
+Assigning `location.href` (rather than a client-side router navigation) is required so the browser actually sends the GET to `exchange-ticket` and receives the `Set-Cookie` response header. Because the endpoint is reached through the auth app's same-origin proxy, the cookie is set on the correct origin. The MFA challenge screen performs the same exchange after a TOTP or backup-code verification.
 
 ---
 
@@ -164,6 +163,6 @@ if (!string.IsNullOrEmpty(result.SignInTicket))
 | File | Role |
 |------|------|
 | `api/src/Modules/Identity/Wallow.Identity.Api/Controllers/AccountController.cs` | `CreateSignInTicket`, `ValidateSignInTicket`, `ExchangeTicket` endpoint |
-| `api/src/Wallow.Auth/Components/Pages/Login.razor` | Ticket exchange navigation logic |
-| `api/src/Wallow.Auth/Components/Pages/MfaChallenge.razor` | Ticket exchange after MFA verification |
-| `api/src/Wallow.Auth/Models/AuthResponse.cs` | `SignInTicket` field on the response DTO |
+| `apps/wallow-auth/src/features/login/components/LoginScreen.tsx` | Ticket exchange navigation logic |
+| `apps/wallow-auth/src/features/mfa-challenge/components/MfaChallengeForm.tsx` | Ticket exchange after MFA verification |
+| `apps/wallow-auth/src/features/login/auth-result.ts` | Parses the `signInTicket` field from the login response |

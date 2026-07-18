@@ -176,7 +176,7 @@ These components reference `"Wallow"` as a string literal and will **fail silent
 | **Diagnostics ActivitySource** | `api/src/Shared/Wallow.Shared.Kernel/Diagnostics.cs` | Custom traces stop appearing (`new ActivitySource("Wallow")`) |
 | **SMTP DefaultFromName** | `appsettings.json` → `Smtp:DefaultFromName` | Emails show "Wallow" as sender |
 | **branding.json** | `branding.json` → `appName` | Auth pages show "Wallow" in titles |
-| **Email templates** | Razor templates in `Wallow.Auth` | Email bodies may contain hardcoded product name |
+| **Email templates** | `SimpleEmailTemplateService` in the Notifications module (`api/src/Modules/Notifications/Wallow.Notifications.Infrastructure/Services/`) | Email bodies may contain hardcoded product name |
 
 After renaming, search for remaining literal references:
 

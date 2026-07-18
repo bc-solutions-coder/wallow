@@ -53,8 +53,8 @@ This page provides an architecture overview, explains what happens on first boot
 | Service | Purpose | Required |
 |---------|---------|----------|
 | **Wallow.Api** | REST API, OIDC provider, SignalR hub, background jobs | Yes |
-| **Wallow.Auth** | Blazor Server login/register/password reset UI | Yes |
-| **Wallow.Web** | Blazor Server dashboard (OIDC client of API) | Yes |
+| **wallow-auth** | TanStack Start login/register/password reset UI; same-origin reverse proxy to the API's OIDC endpoints (`apps/wallow-auth`) | Yes |
+| **wallow-web** | TanStack Start dashboard + BFF (OIDC client of the API) (`apps/wallow-web`) | Yes |
 | **PostgreSQL** | Primary database (one schema per module) | Yes |
 | **PostgreSQL Replica** | Read replica for query scaling | Recommended |
 | **Valkey** | Cache + SignalR backplane (Redis-compatible) | Yes |
@@ -169,7 +169,7 @@ This is fully idempotent.
 
 | Type | Has Secret? | Grant Type | Use Case |
 |------|-------------|------------|----------|
-| **Confidential** (e.g., Wallow.Web) | Yes | Authorization Code + PKCE | Server-side apps with a secure backend |
+| **Confidential** (e.g., the `wallow-web` BFF) | Yes | Authorization Code + PKCE | Server-side apps with a secure backend |
 | **Public** (e.g., mobile app) | No | Authorization Code + PKCE | SPAs, mobile apps, CLI tools |
 | **Service Account** (prefix `sa-`) | Yes | Client Credentials | Backend-to-backend, M2M |
 

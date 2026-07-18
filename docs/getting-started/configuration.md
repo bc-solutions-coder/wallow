@@ -78,7 +78,7 @@ Branding__Theme__Dark__Primary="oklch(0.65 0.15 250)"
 }
 ```
 
-The canonical branding schema is owned by `packages/styles` (`@bc-solutions-coder/styles`, `src/branding.ts`), the TypeScript source of truth that parses `api/branding.json` for every frontend. The legacy Blazor `Wallow.Auth` and `Wallow.Web` apps also load `branding.json` at startup and bind it to their own `BrandingOptions` copies, but those C# copies are being retired as the Blazor apps are removed. Color tokens are injected as CSS custom properties via the `BrandingTheme.razor` component.
+The canonical branding schema is owned by `packages/styles` (`@bc-solutions-coder/styles`, `src/branding.ts`), the TypeScript source of truth that parses `api/branding.json` for every frontend. Color tokens are emitted as CSS custom properties by that package and consumed by both React apps (`apps/wallow-auth`, `apps/wallow-web`).
 
 ### Session Limits
 
@@ -210,11 +210,11 @@ The confirmation URL is constructed using the `AuthUrl` configuration key:
 }
 ```
 
-The `Wallow.Auth` app must serve the `/confirm-email-change` route. This page reads the `token`, `userId`, and `newEmail` query parameters and calls the confirm endpoint on the API to finalize the change.
+The auth app (`apps/wallow-auth`) must serve the email-change confirmation route. This page reads the `token`, `userId`, and `newEmail` query parameters and calls the confirm endpoint on the API to finalize the change.
 
 | Config Key | Required | Description |
 |------------|----------|-------------|
-| `AuthUrl` | Yes | Base URL of the `Wallow.Auth` app. Used to build the confirmation link sent to the user. |
+| `AuthUrl` | Yes | Base URL of the auth app (`apps/wallow-auth`). Used to build the confirmation link sent to the user. |
 
 ---
 

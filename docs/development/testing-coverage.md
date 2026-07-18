@@ -14,7 +14,6 @@ The following are excluded from coverage:
 - Assembly info and generated code (`AssemblyInfo`, `Logging.g.cs`, `LoggerMessage.g.cs`, `RegexGenerator.g.cs`)
 - Design-time and factory classes (`DesignTimeTenantContext`, `*DbContextFactory`)
 - Test assemblies and benchmarks
-- The Auth project (`[Wallow.Auth]*`)
 - Anything decorated with `CompilerGeneratedAttribute` or `ExcludeFromCodeCoverageAttribute`
 
 ## Viewing Coverage Locally

@@ -25,7 +25,7 @@ Single-page applications can use PKCE with the Authorization Code flow, but this
 sequenceDiagram
     participant Browser
     participant BFF as Fork BFF
-    participant Auth as Wallow Auth<br/>(Wallow.Auth)
+    participant Auth as Wallow Auth<br/>(apps/wallow-auth)
     participant API as Wallow API<br/>(Wallow.Api)
 
     Browser->>BFF: GET /protected-page
@@ -96,11 +96,11 @@ GET {WALLOW_AUTH_URL}/connect/authorize
 
 Store both `state` and `code_verifier` in the user's pre-authentication session so they can be validated in step 3.
 
-`WALLOW_AUTH_URL` is the base URL of the `Wallow.Auth` app (e.g., `https://wallow.example.com/auth` when behind a reverse proxy).
+`WALLOW_AUTH_URL` is the base URL of the auth app (`apps/wallow-auth`, e.g., `https://wallow.example.com/auth` when behind a reverse proxy).
 
 ### Step 2 — User Authenticates on Wallow
 
-Wallow.Auth presents the login page. If the user has not previously authorized your application, Wallow also displays a consent screen listing the requested scopes. The user approves or denies access.
+The auth app presents the login page. If the user has not previously authorized your application, Wallow also displays a consent screen listing the requested scopes. The user approves or denies access.
 
 ### Step 3 — Handle the Callback
 
@@ -568,7 +568,7 @@ Add the corresponding `appsettings.json` configuration:
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/connect/authorize` | GET | Start the Authorization Code flow (served by Wallow.Auth) |
+| `/connect/authorize` | GET | Start the Authorization Code flow (served by Wallow.Api; fronted same-origin by the `apps/wallow-auth` proxy) |
 | `/connect/token` | POST | Exchange code for tokens; refresh tokens (served by Wallow.Api) |
 | `/connect/userinfo` | GET | Retrieve claims for the authenticated user (served by Wallow.Api) |
 | `/connect/logout` | GET | End the Wallow session and redirect (served by Wallow.Api) |
