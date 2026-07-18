@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -167,19 +167,15 @@ describe("CI builds the wallow-web image from the Node Dockerfile", () => {
   });
 });
 
-describe("scripts/run-e2e.sh builds the wallow-web Node image", () => {
-  it("builds wallow-web through docker compose, not a Blazor dotnet publish", () => {
-    const script: string = read("scripts/run-e2e.sh");
-    expect(script).toMatch(/\$COMPOSE_CMD build wallow-web\b/u);
-  });
-
-  it("no longer publishes the dead Blazor Wallow.Web image", () => {
-    const script: string = read("scripts/run-e2e.sh");
-    expect(script).not.toMatch(/Wallow\.Web\.csproj/u);
+describe("the .NET-era e2e runner stays deleted", () => {
+  // scripts/run-e2e.sh was removed with the xUnit E2E suite; e2e is now the
+  // per-app Playwright suites (see .claude/rules/E2E.md — do not recreate it).
+  it("scripts/run-e2e.sh does not exist", () => {
+    expect(existsSync(resolve(repoRoot, "scripts/run-e2e.sh"))).toBe(false);
   });
 });
 
-describe("wallow-web e2e image tag is consistent across ci.yml, compose, and run-e2e.sh", () => {
+describe("wallow-web e2e image tag is consistent across ci.yml and compose", () => {
   // The e2e job builds+caches+loads a tag then `docker compose up` reuses it only if the
   // tags match; a mismatch silently rebuilds the image at runtime, defeating the cache.
   it("docker-compose.test.yml wallow-web pins the canonical wallow-web-react:test tag", () => {
@@ -196,10 +192,5 @@ describe("wallow-web e2e image tag is consistent across ci.yml, compose, and run
   it("ci.yml no longer references the dead bare wallow-web:test tag", () => {
     const yaml: string = read(".github/workflows/ci.yml");
     expect(yaml).not.toMatch(/\bwallow-web:test\b/u);
-  });
-
-  it("run-e2e.sh defers to the compose-defined tag (no hardcoded wallow-web:test)", () => {
-    const script: string = read("scripts/run-e2e.sh");
-    expect(script).not.toMatch(/\bwallow-web:test\b/u);
   });
 });

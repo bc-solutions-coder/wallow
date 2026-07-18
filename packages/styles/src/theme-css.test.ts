@@ -5,13 +5,12 @@ import { describe, expect, it } from "vitest";
 import { forkBranding, toCssVars } from "./branding";
 
 /**
- * The package's two halves have to agree, and each half has to agree with what
- * it replaces:
+ * The package's two halves have to agree:
  *
- *  - `styles.css` is the shared Tailwind v4 entry. It replaces the `@theme`
- *    block of `api/src/Wallow.Auth/Styles/app.css`. That file is the oracle
- *    here: the tokens must survive the move exactly, or every Tailwind utility
- *    silently changes meaning.
+ *  - `styles.css` is the shared Tailwind v4 entry, the sole owner of the
+ *    `@theme` block. (It was lifted token-for-token from the deleted Blazor
+ *    `Wallow.Auth` stylesheet — that migration gate lived here until the
+ *    oracle was deleted with the app; the move is pinned in git history.)
  *  - `branding.ts` is the palette. `styles.css` maps Tailwind tokens onto plain
  *    custom properties (`--color-primary: var(--primary)`) but must never
  *    *define* them — `api/branding.json` is the only place a fork edits to
@@ -21,7 +20,6 @@ import { forkBranding, toCssVars } from "./branding";
  * CSS ships as-authored: consumers `@import` it and run their own Tailwind pass.
  */
 const packageRoot: URL = new URL("../", import.meta.url);
-const repoRoot: URL = new URL("../../../", import.meta.url);
 
 function read(url: URL): string {
   return readFileSync(url, "utf8");
@@ -59,19 +57,14 @@ function themedVarNames(tokens: Record<string, string>): readonly string[] {
 }
 
 const sharedCss: string = read(new URL("styles.css", packageRoot));
-const blazorAuthCss: string = read(new URL("api/src/Wallow.Auth/Styles/app.css", repoRoot));
 
 describe("the shared Tailwind entry", () => {
   it("pulls in Tailwind so consumers import the framework from one place", () => {
     expect(sharedCss).toMatch(/@import\s+"tailwindcss";/u);
   });
 
-  it("carries the same @theme tokens as Wallow.Auth's stylesheet it replaces", () => {
-    expect(themeTokens(sharedCss)).toEqual(themeTokens(blazorAuthCss));
-  });
-
-  it("declares those tokens in the order the stylesheet it replaces declared them", () => {
-    expect(Object.keys(themeTokens(sharedCss))).toEqual(Object.keys(themeTokens(blazorAuthCss)));
+  it("has a @theme block for the guard below to pin", () => {
+    expect(Object.keys(themeTokens(sharedCss)).length).toBeGreaterThan(0);
   });
 
   it("leaves @source scanning to the consuming app", () => {
@@ -91,7 +84,7 @@ describe("the shared Tailwind entry", () => {
 });
 
 describe("the branding palette", () => {
-  const themedVars: readonly string[] = themedVarNames(themeTokens(blazorAuthCss));
+  const themedVars: readonly string[] = themedVarNames(themeTokens(sharedCss));
 
   it("is what the @theme tokens indirect through", () => {
     // Guards the guard: if the token block stopped using var(), the two tests
