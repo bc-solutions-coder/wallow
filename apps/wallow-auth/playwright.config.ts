@@ -15,5 +15,10 @@ export default defineConfig({
     command: "pnpm dev",
     port,
     reuseExistingServer: true,
+    env: {
+      // Outside Aspire the proxy's default target (http://wallow-api) does not
+      // resolve; point it at the locally-run API unless the caller overrides.
+      WALLOW_API_INTERNAL_URL: process.env.WALLOW_API_INTERNAL_URL ?? "http://localhost:5001",
+    },
   },
 });
