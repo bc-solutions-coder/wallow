@@ -52,10 +52,26 @@ apps/wallow-web/
 ├── src/
 │   ├── routes/                 # Dashboard, settings, public pages
 │   └── components/
+│       └── ready-indicator.tsx # Stamps data-app-ready='true' after hydration
 ├── dev-server.ts               # Dev h3 host (BFF)
 ├── server.ts                   # Production h3 host (BFF)
+├── playwright.config.ts        # E2E config (data-testid selectors, port 3000)
+├── e2e/                        # @playwright/test specs
 └── package.json
 ```
+
+## Testing
+
+Frontend specs run under **Vitest 4 browser mode**: any component/DOM test executes in real
+headless Chromium via the Vitest `playwright` provider (`@vitest/browser-playwright` +
+`vitest-browser-react`) — **jsdom, happy-dom, and jest are not used**. `pnpm test` is the same
+command as before but now drives a real browser for component specs; each app's `vitest.config.ts`
+splits a `node` project (pure-logic `*.test.ts`) from a `browser` project (`*.test.tsx`).
+
+End-to-end tests are per-app `@playwright/test` suites (`apps/wallow-auth/e2e/`,
+`apps/wallow-web/e2e/`), run with `pnpm --filter ./apps/<app> test:e2e` or the one-command
+`./scripts/e2e.sh` runner. See `.claude/rules/TESTING.md` and `.claude/rules/E2E.md` for the full
+rules.
 
 ## Running Locally
 
