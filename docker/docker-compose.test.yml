@@ -158,6 +158,13 @@ services:
         condition: service_healthy
       garage:
         condition: service_healthy
+      # Passwordless flows deliver magic-link / OTP mail over SMTP to Mailpit, which
+      # the e2e email specs read back over its HTTP API on :8035. Without this edge
+      # `up --wait wallow-api` never starts Mailpit (it is otherwise a leaf), the
+      # API's SMTP send silently fails, and magic-link.spec.ts / otp-login.spec.ts
+      # get ECONNREFUSED on :8035. Mailpit has no healthcheck, so gate on start.
+      mailpit:
+        condition: service_started
     networks:
       - wallow-test
 

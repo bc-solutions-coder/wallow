@@ -2,3 +2,5 @@ node_modules
 dist
 public/app.js
 *.log
+test-results
+playwright-report

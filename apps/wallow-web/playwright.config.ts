@@ -1,13 +1,12 @@
 import { defineConfig, type PlaywrightTestConfig } from "@playwright/test";
 
-const DEFAULT_PORT = 3002;
+const DEFAULT_PORT = 3000;
 const port = Number(process.env.PORT ?? DEFAULT_PORT);
 
-// When E2E_BASE_URL points at an already-running app — the wallow-auth container
-// the compose stack serves on :5051 in CI (scripts/e2e.sh) — Playwright drives
-// that URL directly and must NOT boot a local dev server. Left unset (the local
-// runner's default) it falls back to a `pnpm dev` webServer on `port`, whose h3
-// proxy targets WALLOW_API_INTERNAL_URL.
+// When E2E_BASE_URL points at an already-running app — the wallow-web container
+// a compose stack serves in CI — Playwright drives that URL directly and must
+// NOT boot a local dev server. Left unset (the local default) it falls back to a
+// `pnpm dev` webServer on `port`, whose BFF proxy targets WALLOW_API_INTERNAL_URL.
 const externalBaseURL = process.env.E2E_BASE_URL;
 
 const webServer: PlaywrightTestConfig["webServer"] = externalBaseURL
