@@ -29,7 +29,7 @@ Fork it. Add your domain modules. Deploy.
 
 ## What is Wallow?
 
-Wallow provides the cross-cutting infrastructure every SaaS product needs out of the box -- identity, billing, notifications, messaging, file storage, and multi-tenant data isolation. You write the business logic.
+Wallow provides the cross-cutting infrastructure every SaaS product needs out of the box -- identity, notifications, announcements, file storage, API keys, and multi-tenant data isolation. You write the business logic.
 
 The intended workflow is to **fork this repo and build your product on top**. Shared infrastructure improvements can be pulled from upstream into forks without conflicts.
 
@@ -52,10 +52,19 @@ Starts PostgreSQL, Valkey, GarageHQ (S3), Mailpit, and Grafana.
 
 ### 2. Run the apps
 
+The frontends are React (TanStack Start) apps; the .NET Aspire host orchestrates the
+API, both React apps, migrations, and the seeder together:
+
 ```bash
-dotnet run --project api/src/Wallow.Api       # API        → http://localhost:5001
-dotnet run --project api/src/Wallow.Auth      # Auth UI    → http://localhost:5002
-dotnet run --project api/src/Wallow.Web       # Web UI     → http://localhost:5003
+pnpm backend                              # Aspire AppHost: API + Auth + Web + Migration + Seeder
+```
+
+Or run the pieces individually:
+
+```bash
+dotnet run --project api/src/Wallow.Api                       # API   → http://localhost:5001
+pnpm --filter @bc-solutions-coder/wallow-web dev              # Web   → http://localhost:3000
+pnpm --filter @bc-solutions-coder/wallow-auth dev             # Auth  → http://localhost:3002
 ```
 
 ### 3. Run tests
@@ -74,22 +83,27 @@ A **modular monolith** where each module is an autonomous bounded context follow
 ```
 api/
 └── src/
-    ├── Wallow.Api/                  # Host, middleware, routing
-    ├── Wallow.Auth/                 # Blazor: login, register, password reset
-    ├── Wallow.Web/                  # Blazor: dashboard and public pages
+    ├── Wallow.Api/                  # REST API host: modules, Wolverine, OpenIddict resource server
+    ├── Wallow.AppHost/              # .NET Aspire host orchestrating the API, React apps, and infra
+    ├── Wallow.MigrationService/     # Applies EF migrations for all module DbContexts
+    ├── Wallow.SeederService/        # Seeds roles, scopes, admin, and OIDC clients from seed.json
+    ├── Wallow.ServiceDefaults/      # Aspire defaults: telemetry, health checks, resilience
     ├── Modules/
     │   ├── Identity/                # Auth, users, organizations, RBAC
-    │   ├── Billing/                 # Payments, invoices, subscriptions
     │   ├── Storage/                 # File storage (S3-compatible)
     │   ├── Notifications/           # In-app and push notifications
-    │   ├── Messaging/               # User-to-user conversations
     │   ├── Announcements/           # System-wide announcements
     │   ├── Inquiries/               # Inquiry and question submission
     │   ├── ApiKeys/                 # API key management
     │   └── Branding/                # Tenant branding configuration
     └── Shared/
-        ├── Contracts/               # Cross-module event definitions
-        └── Kernel/                  # Base classes, shared abstractions
+        ├── Contracts/               # Cross-module integration events
+        ├── Kernel/                  # DDD primitives, multi-tenancy, JWT claim helpers
+        └── Infrastructure/          # Cross-cutting plumbing, API middleware, background jobs
+
+apps/                               # React (TanStack Start) frontends (pnpm workspace)
+├── wallow-auth/                     # Auth UI (login, register, MFA)  → http://localhost:3002
+└── wallow-web/                      # Dashboard and public pages       → http://localhost:3000
 ```
 
 Each module follows four layers: **Domain** (no dependencies) → **Application** → **Infrastructure** → **API**.
@@ -162,8 +176,8 @@ Configuration loads in order: `appsettings.json` → `appsettings.{Environment}.
 |---------|-----|
 | API | http://localhost:5001 |
 | API Docs (Scalar) | http://localhost:5001/scalar/v1 |
-| Auth UI | http://localhost:5002 |
-| Web UI | http://localhost:5003 |
+| Web (TanStack) | http://localhost:3000 |
+| Auth (TanStack) | http://localhost:3002 |
 | Docs | http://localhost:5004 |
 | Mailpit | http://localhost:8025 |
 | GarageHQ (S3) | http://localhost:3900 |
