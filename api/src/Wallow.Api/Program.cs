@@ -23,6 +23,7 @@ using Wallow.Api.Logging;
 using Wallow.Api.Middleware;
 using Wallow.Api.Services;
 using Wallow.ApiKeys.Infrastructure.Authorization;
+using Wallow.Identity.Application.Queries.IsSetupRequired;
 using Wallow.Identity.Infrastructure.Authorization;
 using Wallow.Identity.Infrastructure.Jobs;
 using Wallow.Identity.Infrastructure.Middleware;
@@ -37,6 +38,7 @@ using Wallow.Shared.Infrastructure.Core.Messaging;
 using Wallow.Shared.Infrastructure.Core.Middleware;
 using Wallow.Shared.Infrastructure.Core.Services;
 using Wallow.Shared.Kernel.Extensions;
+using Wallow.Shared.Kernel.MultiTenancy;
 using Wolverine;
 using Wolverine.EntityFrameworkCore;
 using Wolverine.FluentValidation;
@@ -183,13 +185,26 @@ try
         // so call it directly. See https://wolverinefx.net/guide/codegen.html (GH-2876).
         opts.UseRuntimeCompilation();
 
-        // Wolverine 6 made ServiceLocationPolicy.NotAllowed the default, which fails
-        // codegen for handlers whose dependencies are registered as opaque scoped
-        // lambda factories (ITenantContext/ITenantContextSetter) or resolve services
-        // via IServiceProvider (ISetupStatusChecker). Restore the pre-6.0 permissive
-        // behavior; AllowedButWarn keeps these working while logging the tech debt so
-        // the registrations can be tightened later. See GH-2876 / codegen guide.
-        opts.ServiceLocationPolicy = ServiceLocationPolicy.AllowedButWarn;
+        // Wolverine 6 defaults ServiceLocationPolicy to NotAllowed: any handler or
+        // middleware dependency the codegen cannot inline-construct throws
+        // InvalidServiceLocationException at codegen time instead of silently falling
+        // back to the container (which logged a "will throw in Wolverine 6.0" warning
+        // under the previous AllowedButWarn stopgap). Keep the strict default so a new
+        // accidental service location fails fast, and explicitly opt in the handful of
+        // dependencies whose registrations genuinely require runtime resolution:
+        //   - ITenantContext / ITenantContextSetter are forwarded to a single
+        //     request-scoped TenantContext via an opaque lambda factory. Service
+        //     location is the correct behavior here: inlining a fresh 'new TenantContext()'
+        //     would hand handlers an empty tenant instead of the instance the HTTP
+        //     tenant-resolution middleware populated for the request.
+        //   - ISetupStatusChecker (behind IsSetupRequiredHandler) depends on ASP.NET
+        //     Identity's UserManager/RoleManager, whose framework factory registrations
+        //     the codegen cannot see through.
+        // See https://wolverinefx.net/guide/codegen.html.
+        opts.ServiceLocationPolicy = ServiceLocationPolicy.NotAllowed;
+        opts.CodeGeneration.AlwaysUseServiceLocationFor<ITenantContext>();
+        opts.CodeGeneration.AlwaysUseServiceLocationFor<ITenantContextSetter>();
+        opts.CodeGeneration.AlwaysUseServiceLocationFor<ISetupStatusChecker>();
 
         // Discover handlers in all Wallow assemblies
         foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies()
