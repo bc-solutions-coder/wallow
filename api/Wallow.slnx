@@ -65,6 +65,7 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Wallow.Api.Tests/Wallow.Api.Tests.csproj" />
+    <Project Path="tests/Wallow.AppHost.Tests/Wallow.AppHost.Tests.csproj" />
     <Project Path="tests/Wallow.Architecture.Tests/Wallow.Architecture.Tests.csproj" />
     <Project Path="tests/Wallow.Shared.Infrastructure.Tests/Wallow.Shared.Infrastructure.Tests.csproj" />
     <Project Path="tests/Wallow.Shared.Kernel.Tests/Wallow.Shared.Kernel.Tests.csproj" />
