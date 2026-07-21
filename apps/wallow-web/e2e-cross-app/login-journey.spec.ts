@@ -25,19 +25,17 @@ import { expect, test } from "@playwright/test";
  *      the browser lands back on the original `returnTo` (`/dashboard/apps`) with
  *      an authenticated wallow-web BFF session.
  *
- * ASSERTING THE AUTHENTICATED STATE — why not `dashboard-apps` directly:
- *   The ideal final signal is the dashboard's own `data-testid="dashboard-apps"`.
- *   It is currently unreachable through the real redirect (a full-page load) for a
- *   reason UNRELATED to this journey: the SDK's `getUser()` fetches the RELATIVE
- *   URL `/bff/user` (packages/sdk/src/auth.ts), which Node's fetch cannot parse
- *   during SSR. The `/dashboard` route's `beforeLoad` calls `getUser()`
- *   server-side, so the authenticated dashboard renders an error boundary
- *   ("Failed to parse URL from /bff/user") instead of hydrating — a pre-existing
- *   wallow-web SSR defect (Wallow-cqoa). Until it lands, we assert the SAME
- *   authenticated-wallow-web-session fact via `/bff-demo`, whose `getUser()` runs
- *   client-side (SSR-safe) and stamps `bff-user-status="authenticated"` +
- *   `bff-user-email`. Swap the two assertions below for `dashboard-apps` once
- *   Wallow-cqoa is fixed.
+ * ASSERTING THE AUTHENTICATED STATE via `dashboard-apps`:
+ *   The final signal is the dashboard's own `data-testid="dashboard-apps"`,
+ *   rendered by the authenticated `/dashboard/apps` route. Reaching it through the
+ *   real redirect (a full-page load) exercises the SSR fix from Wallow-cqoa: the
+ *   `/dashboard` route's `beforeLoad` and the apps loader both run server-side, so
+ *   `getWallowSdk()` now points the BFF client at the request's absolute origin
+ *   and forwards the session cookie during SSR (Node's fetch has no cookie jar and
+ *   cannot parse a relative URL). Before that fix the dashboard rendered an error
+ *   boundary ("Failed to parse URL from /bff/user"); it now hydrates the signed-in
+ *   apps list. This is the strengthened assertion the earlier `/bff-demo`
+ *   `bff-user-status` stand-in was a placeholder for.
  */
 test("cross-app login journey establishes an authenticated wallow-web session", async ({
   page,
@@ -59,15 +57,12 @@ test("cross-app login journey establishes an authenticated wallow-web session", 
   // 4. The OIDC round trip returns to wallow-web on the original `returnTo`.
   await page.waitForURL((url) => url.pathname === "/dashboard/apps", { timeout: 30_000 });
 
-  // 5. Confirm the round trip produced an AUTHENTICATED wallow-web session, read
-  //    from wallow-web's own client-rendered signed-in signal (see header note
-  //    on why this stands in for `dashboard-apps` today).
-  await page.goto("/bff-demo");
+  // 5. Confirm the round trip produced an AUTHENTICATED wallow-web session by
+  //    asserting the authenticated dashboard itself renders: wait for wallow-web
+  //    to hydrate, then for the `/dashboard/apps` route's own signal. Its
+  //    `beforeLoad` auth gate only lets this route render when the SSR `getUser()`
+  //    resolved the signed-in user (Wallow-cqoa), so `dashboard-apps` being
+  //    attached is the direct proof of an authenticated session.
   await expect(page.locator("[data-app-ready='true']")).toBeAttached({ timeout: 20_000 });
-  await expect(page.getByTestId("bff-user-status")).toHaveText("authenticated", {
-    timeout: 15_000,
-  });
-  await expect(page.getByTestId("bff-user-email")).toHaveText(
-    process.env.E2E_USER ?? "admin@wallow.dev",
-  );
+  await expect(page.getByTestId("dashboard-apps")).toBeVisible({ timeout: 15_000 });
 });
