@@ -60,7 +60,8 @@ import {
   type WallowUser,
 } from "@bc-solutions-coder/sdk";
 
-import { wireCsrfInterceptor } from "./csrf";
+import { type CsrfInterceptorClient, wireCsrfInterceptor } from "./csrf";
+import { getSsrRequestContext, type SsrRequestContext } from "./ssr-request-context";
 
 /**
  * Guarded singleton flag. Kept at module scope so the first `getWallowSdk()`
@@ -70,15 +71,49 @@ import { wireCsrfInterceptor } from "./csrf";
 let configured = false;
 
 /**
- * Configure the BFF client and wire the CSRF interceptor exactly once. Safe to
+ * Wire the SSR cookie-forwarding interceptor onto the shared client.
+ *
+ * During SSR the generated `/api/**` client runs on the server, where Node's
+ * `fetch` has no cookie jar, so `credentials: "include"` sends an anonymous
+ * request and every authenticated loader (e.g. `dashboard/apps` ->
+ * `getV1IdentityApps`) 401s. The interceptor reads the in-flight request's
+ * `Cookie` (the `wallow_bff` session) from the SSR request context per request
+ * and stamps it, so the BFF proxy resolves the session and attaches the bearer.
+ * CSRF is intentionally NOT wired for SSR: only safe GET loaders run there, and
+ * the CSRF interceptor stamps nothing on safe methods.
+ */
+function wireSsrCookieInterceptor(target: CsrfInterceptorClient): void {
+  target.interceptors.request.use((request: Request): Request => {
+    const context: SsrRequestContext | undefined = getSsrRequestContext();
+    if (context?.cookie !== undefined) {
+      request.headers.set("cookie", context.cookie);
+    }
+    return request;
+  });
+}
+
+/**
+ * Configure the BFF client and wire the request interceptor exactly once. Safe to
  * call on every `getWallowSdk()` — after the first call it returns immediately.
+ *
+ * During SSR (`import.meta.env.SSR`) the client is pointed at the request's
+ * ABSOLUTE origin (`${origin}/api`) so Node's `fetch` can parse the URL, and the
+ * cookie-forwarding interceptor carries the session; in the browser the
+ * same-origin relative `/api` default and the CSRF interceptor apply. The origin
+ * is stable per host, so configuring it once on the first request is correct.
  */
 function ensureConfigured(): void {
   if (configured) {
     return;
   }
-  configureBffClient();
-  wireCsrfInterceptor(client);
+  if (import.meta.env.SSR) {
+    const context: SsrRequestContext | undefined = getSsrRequestContext();
+    configureBffClient(context ? { baseUrl: `${context.origin}/api` } : {});
+    wireSsrCookieInterceptor(client);
+  } else {
+    configureBffClient();
+    wireCsrfInterceptor(client);
+  }
   configured = true;
 }
 
@@ -297,7 +332,22 @@ const sdk: WallowSdk = {
       ),
   },
   user: {
-    me: () => getUser(),
+    me: () => {
+      // During SSR `getUser()` runs under Node's fetch: pass the request's
+      // absolute origin (so the URL parses) and forward the session cookie (so
+      // the BFF resolves the signed-in user instead of 401ing). In the browser
+      // the relative same-origin request with the ambient cookie is correct.
+      if (import.meta.env.SSR) {
+        const context: SsrRequestContext | undefined = getSsrRequestContext();
+        if (context !== undefined) {
+          return getUser({
+            baseUrl: context.origin,
+            ...(context.cookie !== undefined ? { headers: { cookie: context.cookie } } : {}),
+          });
+        }
+      }
+      return getUser();
+    },
   },
   settings: {
     getProfile: () => unwrap(getV1IdentityUsersMe()),

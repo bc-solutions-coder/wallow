@@ -1,6 +1,19 @@
+import { AsyncLocalStorage } from "node:async_hooks";
+
 import { createRequestHandler, defaultRenderHandler } from "@tanstack/react-router/ssr/server";
 
+import { setSsrRequestContextResolver, type SsrRequestContext } from "./lib/ssr-request-context";
 import { createRouter } from "./router";
+
+/**
+ * Per-request context store (Wallow-cqoa). The router's `beforeLoad`/`loader`
+ * BFF fetches run server-side inside `render()`, so we scope the request origin
+ * and session cookie with an `AsyncLocalStorage` and expose them to
+ * `getWallowSdk()` through the browser-safe resolver seam. The `node:async_hooks`
+ * import stays in this SSR-only entry so it never reaches the browser bundle.
+ */
+const requestContextStore = new AsyncLocalStorage<SsrRequestContext>();
+setSsrRequestContextResolver(() => requestContextStore.getStore());
 
 /**
  * Server-side render entry for the TanStack Start SSR shell (Wallow-8w1h.2.2).
@@ -23,5 +36,11 @@ import { createRouter } from "./router";
  * 1.3). Vite/esbuild strip the types at runtime, so this does not affect boot.
  */
 export function render(request: Request): Promise<Response> {
-  return createRequestHandler({ createRouter, request })(defaultRenderHandler);
+  const context: SsrRequestContext = {
+    origin: new URL(request.url).origin,
+    cookie: request.headers.get("cookie") ?? undefined,
+  };
+  return requestContextStore.run(context, () =>
+    createRequestHandler({ createRouter, request })(defaultRenderHandler),
+  );
 }
