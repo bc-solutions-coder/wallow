@@ -2,7 +2,12 @@ import { useNavigate } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
 
 import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
-import { type AuthDisposition, authDispositionOf, errorParamMessage } from "../auth-result";
+import {
+  type AuthDisposition,
+  authDispositionOf,
+  errorParamMessage,
+  isPasswordResetMessage,
+} from "../auth-result";
 import type { LoginTab } from "../panel";
 import { ExternalProviders } from "./ExternalProviders";
 import { MagicLinkLoginForm } from "./MagicLinkLoginForm";
@@ -111,6 +116,24 @@ function ErrorBanner({ message }: { readonly message: string }) {
       data-testid="login-error"
     >
       <p className="text-sm text-destructive">{message}</p>
+    </div>
+  );
+}
+
+/**
+ * The success acknowledgment shown after a completed password reset
+ * (Wallow-xzha.1.2). `ResetPasswordForm` navigates here with
+ * `?message=password_reset`; unlike `SignedInBanner` this is INFORMATIONAL — the
+ * user still has to sign in — so it sits ABOVE the tab strip and does NOT retire
+ * it. Styled like `SignedInBanner` (border-success), per the DESIGN.
+ */
+function PasswordResetNotice() {
+  return (
+    <div
+      className="rounded-md border border-success bg-success/10 p-3"
+      data-testid="login-password-reset-notice"
+    >
+      <p className="text-sm text-foreground">Your password has been reset. You can now sign in.</p>
     </div>
   );
 }
@@ -294,6 +317,13 @@ export interface LoginScreenProps {
    * load by the magic-link panel.
    */
   readonly magicLinkToken?: string;
+  /**
+   * The `message` query param (Wallow-xzha.1.2). `ResetPasswordForm` navigates to
+   * `/login?message=password_reset` after a successful reset; the screen renders a
+   * one-line success banner acknowledging it when the value is the recognised
+   * `password_reset` token (`isPasswordResetMessage`), and ignores anything else.
+   */
+  readonly message?: string;
 }
 
 export function LoginScreen({
@@ -301,6 +331,7 @@ export function LoginScreen({
   clientId,
   error,
   magicLinkToken,
+  message,
 }: LoginScreenProps): ReactNode {
   const navigate = useNavigate();
   // The oracle's `HandleVerifyMagicLink` sets `_activeTab = LoginTab.MagicLink`
@@ -377,6 +408,7 @@ export function LoginScreen({
   return (
     <div className="rounded-lg border border-border bg-card p-6 space-y-4">
       <CardHeading />
+      {isPasswordResetMessage(message) ? <PasswordResetNotice /> : null}
       {graceDeadline === null ? null : <MfaEnrollmentBanner deadline={graceDeadline} />}
       {errorMessage === null ? null : <ErrorBanner message={errorMessage} />}
       {signedIn ? (

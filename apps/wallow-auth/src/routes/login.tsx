@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { AuthLayout } from "../components/auth-layout";
+import { isPasswordResetMessage, PASSWORD_RESET_MESSAGE } from "../features/login/auth-result";
 import { LoginScreen } from "../features/login/components/LoginScreen";
 
 /**
@@ -43,6 +44,15 @@ interface LoginSearch {
    * load.
    */
   readonly magicLinkToken?: string;
+  /**
+   * The oracle's dead `message` param (Wallow-xzha.1.2). `ResetPasswordForm`
+   * navigates to `/login?message=password_reset` after a completed reset. It is
+   * compared against a literal token, not used as a URI, so `validateSearch`
+   * threads ONLY the recognised `password_reset` value through and drops anything
+   * else — `?message=` is attacker-constructable, so no arbitrary value becomes a
+   * prop.
+   */
+  readonly message?: string;
 }
 
 /**
@@ -91,11 +101,17 @@ function validateSearch(search: Record<string, unknown>): LoginSearch {
     client_id: typeof search.client_id === "string" ? search.client_id : undefined,
     error: readScalar(search.error),
     magicLinkToken: typeof search.magicLinkToken === "string" ? search.magicLinkToken : undefined,
+    // Like `error`, `message` is matched against a literal token, so a scalar the
+    // parser turned into a boolean/number is re-stringified before the known-token
+    // check — and only the recognised value survives, never a raw attacker string.
+    message: isPasswordResetMessage(readScalar(search.message))
+      ? PASSWORD_RESET_MESSAGE
+      : undefined,
   };
 }
 
 function LoginRoute() {
-  const { returnUrl, client_id: clientId, error, magicLinkToken } = Route.useSearch();
+  const { returnUrl, client_id: clientId, error, magicLinkToken, message } = Route.useSearch();
 
   return (
     <AuthLayout>
@@ -104,6 +120,7 @@ function LoginRoute() {
         clientId={clientId}
         error={error}
         magicLinkToken={magicLinkToken}
+        message={message}
       />
     </AuthLayout>
   );

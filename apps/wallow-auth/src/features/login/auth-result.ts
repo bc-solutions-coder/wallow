@@ -379,3 +379,21 @@ export function errorParamMessage(error: string | undefined): string | null {
 
   return ERROR_PARAM_MESSAGES.get(error) ?? GENERIC_MESSAGE;
 }
+
+/**
+ * The one `message` query token the login screen acknowledges (Wallow-xzha.1.2).
+ * `ResetPasswordForm` navigates to `/login?message=password_reset` after a
+ * completed reset; the screen renders a one-line success banner for it.
+ *
+ * Exported so the route's `validateSearch` threads ONLY this literal through and
+ * drops every other value, and the screen gates its banner on the SAME token — the
+ * attacker-safe known-token discipline `errorParamMessage` follows. `?message=` is
+ * a URL anyone can construct, so a bare `===` against the one recognised literal
+ * is the whole allow-list: no arbitrary attacker string ever becomes a prop or
+ * reaches the DOM.
+ */
+export const PASSWORD_RESET_MESSAGE = "password_reset";
+
+export function isPasswordResetMessage(message: string | undefined): boolean {
+  return message === PASSWORD_RESET_MESSAGE;
+}
