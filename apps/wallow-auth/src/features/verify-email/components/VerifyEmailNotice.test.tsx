@@ -1,5 +1,3 @@
-/** @vitest-environment jsdom */
-import * as matchers from "@testing-library/jest-dom/matchers";
 import {
   createMemoryHistory,
   createRootRoute,
@@ -7,13 +5,12 @@ import {
   Outlet,
   RouterProvider,
 } from "@tanstack/react-router";
-import { render, screen } from "@testing-library/react";
+import { page } from "vitest/browser";
+import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Route as verifyEmailRoute } from "../../../routes/verify-email/index";
 import { VerifyEmailNotice } from "./VerifyEmailNotice";
-
-expect.extend(matchers);
 
 /**
  * Component spec for the VerifyEmail "check your inbox" screen (Wallow-vec7.3.3),
@@ -75,49 +72,57 @@ beforeEach(() => {
 });
 
 describe("VerifyEmailNotice", () => {
-  it("tells the user to check their email", () => {
-    render(<VerifyEmailNotice />);
+  it("tells the user to check their email", async () => {
+    await render(<VerifyEmailNotice />);
 
-    expect(screen.getByTestId("verify-email-heading")).toHaveTextContent(/check your email/iu);
-    expect(screen.getByTestId("verify-email-description")).toHaveTextContent(
-      /sent a verification link/iu,
-    );
+    await expect
+      .element(page.getByTestId("verify-email-heading"))
+      .toHaveTextContent(/check your email/iu);
+    await expect
+      .element(page.getByTestId("verify-email-description"))
+      .toHaveTextContent(/sent a verification link/iu);
   });
 
-  it("mentions the spam folder", () => {
+  it("mentions the spam folder", async () => {
     // The oracle's card body — the single most useful sentence on the page, and
     // trivially easy to drop when porting the "static" parts by eye.
-    render(<VerifyEmailNotice />);
+    await render(<VerifyEmailNotice />);
 
+    await expect.element(page.getByTestId("verify-email-heading")).toBeInTheDocument();
     expect(document.body.textContent).toMatch(/spam folder/iu);
   });
 
-  it("links back to sign in", () => {
-    render(<VerifyEmailNotice />);
+  it("links back to sign in", async () => {
+    await render(<VerifyEmailNotice />);
 
-    expect(screen.getByTestId("verify-email-back-link")).toHaveAttribute("href", "/login");
+    await expect
+      .element(page.getByTestId("verify-email-back-link"))
+      .toHaveAttribute("href", "/login");
   });
 
-  it("carries a safe returnUrl through to sign in, URL-encoded", () => {
-    render(<VerifyEmailNotice returnUrl="/apps?a=1&b=2" />);
+  it("carries a safe returnUrl through to sign in, URL-encoded", async () => {
+    await render(<VerifyEmailNotice returnUrl="/apps?a=1&b=2" />);
 
-    expect(screen.getByTestId("verify-email-back-link")).toHaveAttribute(
-      "href",
-      `/login?returnUrl=${encodeURIComponent("/apps?a=1&b=2")}`,
-    );
+    await expect
+      .element(page.getByTestId("verify-email-back-link"))
+      .toHaveAttribute("href", `/login?returnUrl=${encodeURIComponent("/apps?a=1&b=2")}`);
   });
 
-  it("drops an unsafe returnUrl from the back link", () => {
+  it("drops an unsafe returnUrl from the back link", async () => {
     // The deliberate deviation — see this file's header.
-    render(<VerifyEmailNotice returnUrl="https://evil.example" />);
+    await render(<VerifyEmailNotice returnUrl="https://evil.example" />);
 
-    expect(screen.getByTestId("verify-email-back-link")).toHaveAttribute("href", "/login");
+    await expect
+      .element(page.getByTestId("verify-email-back-link"))
+      .toHaveAttribute("href", "/login");
   });
 
-  it("drops a protocol-relative returnUrl from the back link", () => {
-    render(<VerifyEmailNotice returnUrl="//evil.example" />);
+  it("drops a protocol-relative returnUrl from the back link", async () => {
+    await render(<VerifyEmailNotice returnUrl="//evil.example" />);
 
-    expect(screen.getByTestId("verify-email-back-link")).toHaveAttribute("href", "/login");
+    await expect
+      .element(page.getByTestId("verify-email-back-link"))
+      .toHaveAttribute("href", "/login");
   });
 });
 
@@ -150,14 +155,13 @@ describe("/verify-email route", () => {
   it("renders the real screen in place of the pre-registration placeholder", async () => {
     renderRouteAt(`/verify-email?returnUrl=${encodeURIComponent("/apps?a=1&b=2")}`);
 
-    expect(await screen.findByTestId("verify-email-heading")).toBeInTheDocument();
-    expect(screen.queryByTestId("route-placeholder")).toBeNull();
+    await expect.element(page.getByTestId("verify-email-heading")).toBeInTheDocument();
+    expect(page.getByTestId("route-placeholder").query()).toBeNull();
     // Proves the query string threaded through `validateSearch` into the screen:
     // a route that dropped `returnUrl` would render a bare `/login` back-link.
-    expect(screen.getByTestId("verify-email-back-link")).toHaveAttribute(
-      "href",
-      `/login?returnUrl=${encodeURIComponent("/apps?a=1&b=2")}`,
-    );
+    await expect
+      .element(page.getByTestId("verify-email-back-link"))
+      .toHaveAttribute("href", `/login?returnUrl=${encodeURIComponent("/apps?a=1&b=2")}`);
   });
 
   it("reads returnUrl off the query string", () => {

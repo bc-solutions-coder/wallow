@@ -1,5 +1,3 @@
-/** @vitest-environment jsdom */
-import * as matchers from "@testing-library/jest-dom/matchers";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,
@@ -8,18 +6,13 @@ import {
   Outlet,
   RouterProvider,
 } from "@tanstack/react-router";
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { page, userEvent } from "vitest/browser";
+import { render } from "vitest-browser-react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Route as invitationRoute } from "../../../routes/invitation";
 import { InvitationScreen } from "./InvitationScreen";
-
-// No global `expect` (vitest `globals` is off), so register the jest-dom
-// matchers explicitly — the DOM-matcher convention wallow-web's RTL tests
-// established and wallow-auth copies.
-expect.extend(matchers);
 
 /**
  * Component spec for the InvitationLanding screen (Wallow-vec7.3.9), ported from
@@ -219,12 +212,45 @@ function renderScreen(props: { token?: string; isAuthenticated?: boolean } = {})
 }
 
 /**
- * Replace `window.location` with a plain settable object so the screen's full
- * navigation is observable. jsdom refuses `vi.spyOn(window.location, "assign")`
- * ("Cannot redefine property"), but `location` itself is a configurable
- * accessor, so `vi.stubGlobal` swaps it wholesale — and `globalThis === window`
- * under jsdom, so the screen's `globalThis.location.href = …` writes here.
+ * THE NAVIGATION SEAM (vitest.config.ts NAVIGATION SEAM, real-browser variant).
+ *
+ * On a successful accept the screen hands off with a RAW
+ * `globalThis.location.href = "/"` (the oracle's `NavigateTo("/", forceLoad:
+ * true)`) — a full, non-`navigate()` reload, and NOT routed through a URL-builder
+ * this test could assert instead. Under jsdom the old spec swapped `location`
+ * wholesale with `vi.stubGlobal`; in real Chromium `window.location` is
+ * `[Unforgeable]` and cannot be shadowed, and letting the assignment run
+ * navigates the runner's iframe and tears the whole file down.
+ *
+ * So the hand-off is observed at the Navigation API instead: a same-origin
+ * `location.href =` fires a cancelable `navigate` event whose `destination.url`
+ * is exactly the string the screen assigned (resolved to an absolute URL).
+ * Recording it and calling `preventDefault()` pins the destination for the one
+ * test that asserts it AND keeps every other accept-success test from navigating
+ * the iframe. The guard is installed once for the file and its log is reset per
+ * test — equivalent to pinning the assigned `location.href`, since the
+ * destination is deterministic.
  */
+interface NavigateEvent extends Event {
+  readonly destination: { readonly url: string };
+  readonly cancelable: boolean;
+}
+
+const browserNavigation = globalThis as unknown as {
+  navigation: {
+    addEventListener: (type: "navigate", handler: (event: NavigateEvent) => void) => void;
+  };
+};
+
+let recordedNavigations: string[] = [];
+
+browserNavigation.navigation.addEventListener("navigate", (event) => {
+  recordedNavigations.push(event.destination.url);
+  if (event.cancelable) {
+    event.preventDefault();
+  }
+});
+
 /**
  * The `href` of one of the screen's links, PARSED — so the assertions below read
  * the query string the way a browser does (one decode, parameters by name)
@@ -233,19 +259,15 @@ function renderScreen(props: { token?: string; isAuthenticated?: boolean } = {})
  * hrefs are relative, and `URL` needs an origin to resolve one.
  */
 async function linkUrl(testId: string): Promise<URL> {
-  const link: HTMLElement = await screen.findByTestId(testId);
+  const link = page.getByTestId(testId);
+  await expect.element(link).toBeInTheDocument();
 
-  return new URL(link.getAttribute("href") ?? "", "https://auth.example");
-}
-
-function stubLocation(): { href: string } {
-  const location = { href: "" };
-  vi.stubGlobal("location", location);
-  return location;
+  return new URL(link.element().getAttribute("href") ?? "", "https://auth.example");
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
+  recordedNavigations = [];
   mocks.isSafeReturnUrl.mockImplementation(isSafeReturnUrlRule);
   mocks.verifyInvitation.mockResolvedValue(invitation());
   mocks.acceptInvitation.mockResolvedValue(null);
@@ -254,28 +276,24 @@ beforeEach(() => {
   mocks.getCurrentUser.mockResolvedValue(null);
 });
 
-afterEach(() => {
-  vi.unstubAllGlobals();
-});
-
 describe("InvitationScreen — missing token", () => {
   it("refuses a link with no token, without calling the API", async () => {
     renderScreen({ token: undefined });
 
     // The oracle's `IsNullOrWhiteSpace(Token)` guard (InvitationLanding.razor:
     // 118-124): its own message, and it returns BEFORE the verify call.
-    expect(await screen.findByTestId("invitation-error")).toHaveTextContent(
-      /no invitation token provided/iu,
-    );
+    await expect
+      .element(page.getByTestId("invitation-error"))
+      .toHaveTextContent(/no invitation token provided/iu);
     expect(mocks.verifyInvitation).not.toHaveBeenCalled();
   });
 
   it("treats a whitespace-only token as no token", async () => {
     renderScreen({ token: "   " });
 
-    expect(await screen.findByTestId("invitation-error")).toHaveTextContent(
-      /no invitation token provided/iu,
-    );
+    await expect
+      .element(page.getByTestId("invitation-error"))
+      .toHaveTextContent(/no invitation token provided/iu);
     expect(mocks.verifyInvitation).not.toHaveBeenCalled();
   });
 
@@ -283,11 +301,10 @@ describe("InvitationScreen — missing token", () => {
     renderScreen({ token: undefined });
 
     // InvitationLanding.razor:32-34 — the error branch is a dead end without it.
-    await screen.findByTestId("invitation-error");
-    expect(screen.getByRole("link", { name: /back to sign in/iu })).toHaveAttribute(
-      "href",
-      "/login",
-    );
+    await expect.element(page.getByTestId("invitation-error")).toBeInTheDocument();
+    await expect
+      .element(page.getByRole("link", { name: /back to sign in/iu }))
+      .toHaveAttribute("href", "/login");
   });
 });
 
@@ -295,7 +312,7 @@ describe("InvitationScreen — verifying", () => {
   it("verifies the token from the link", async () => {
     renderScreen({ token: TOKEN });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.verifyInvitation).toHaveBeenCalledWith(TOKEN);
     });
   });
@@ -308,13 +325,13 @@ describe("InvitationScreen — verifying", () => {
 
     // Anchored: the loading state must be REPLACED, not merely present — a
     // screen that renders the spinner forever would pass the first assertion.
-    expect(await screen.findByTestId("invitation-loading")).toBeInTheDocument();
-    expect(screen.queryByTestId("invitation-info")).toBeNull();
+    await expect.element(page.getByTestId("invitation-loading")).toBeInTheDocument();
+    expect(page.getByTestId("invitation-info").query()).toBeNull();
 
     pending.resolve(invitation());
 
-    expect(await screen.findByTestId("invitation-info")).toBeInTheDocument();
-    expect(screen.queryByTestId("invitation-loading")).toBeNull();
+    await expect.element(page.getByTestId("invitation-info")).toBeInTheDocument();
+    expect(page.getByTestId("invitation-loading").query()).toBeNull();
   });
 
   it("names the invited address once verified", async () => {
@@ -322,7 +339,7 @@ describe("InvitationScreen — verifying", () => {
 
     // InvitationLanding.razor:41 — the address is the whole point of the info
     // block: it tells the user WHICH identity the invitation is for.
-    expect(await screen.findByTestId("invitation-info")).toHaveTextContent(EMAIL);
+    await expect.element(page.getByTestId("invitation-info")).toHaveTextContent(EMAIL);
   });
 
   it("reports a 404 as an invalid or already-used invitation", async () => {
@@ -330,10 +347,10 @@ describe("InvitationScreen — verifying", () => {
 
     renderScreen();
 
-    expect(await screen.findByTestId("invitation-error")).toHaveTextContent(
-      /not valid or has already been used/iu,
-    );
-    expect(screen.queryByTestId("invitation-info")).toBeNull();
+    await expect
+      .element(page.getByTestId("invitation-error"))
+      .toHaveTextContent(/not valid or has already been used/iu);
+    expect(page.getByTestId("invitation-info").query()).toBeNull();
   });
 
   it("reports a server failure as a transient problem, not a bad invitation", async () => {
@@ -344,9 +361,9 @@ describe("InvitationScreen — verifying", () => {
     // The oracle's `catch` branch. Distinct copy from the 404: telling a user
     // their invitation is spent when the server merely fell over sends them to
     // an administrator for a replacement they do not need.
-    expect(await screen.findByTestId("invitation-error")).toHaveTextContent(
-      /unable to verify this invitation/iu,
-    );
+    await expect
+      .element(page.getByTestId("invitation-error"))
+      .toHaveTextContent(/unable to verify this invitation/iu);
   });
 });
 
@@ -356,8 +373,8 @@ describe("InvitationScreen — expired invitation", () => {
 
     renderScreen({ isAuthenticated: true });
 
-    expect(await screen.findByTestId("invitation-expired")).toHaveTextContent(/has expired/iu);
-    expect(screen.getByTestId("invitation-info")).toBeInTheDocument();
+    await expect.element(page.getByTestId("invitation-expired")).toHaveTextContent(/has expired/iu);
+    await expect.element(page.getByTestId("invitation-info")).toBeInTheDocument();
   });
 
   it("shows the expired notice when expiresAt has passed, whatever the status says", async () => {
@@ -372,7 +389,7 @@ describe("InvitationScreen — expired invitation", () => {
 
     renderScreen({ isAuthenticated: true });
 
-    expect(await screen.findByTestId("invitation-expired")).toBeInTheDocument();
+    await expect.element(page.getByTestId("invitation-expired")).toBeInTheDocument();
   });
 
   it("offers no way to accept an expired invitation, even when signed in", async () => {
@@ -380,11 +397,11 @@ describe("InvitationScreen — expired invitation", () => {
 
     renderScreen({ isAuthenticated: true });
 
-    // Anchored on the expired notice: without it, `queryByTestId(...).toBeNull()`
-    // would pass against a screen that rendered nothing at all.
-    expect(await screen.findByTestId("invitation-expired")).toBeInTheDocument();
-    expect(screen.queryByTestId("invitation-accept")).toBeNull();
-    expect(screen.queryByTestId("invitation-decline")).toBeNull();
+    // Anchored on the expired notice: without it, `getByTestId(...).query()` to
+    // be null would pass against a screen that rendered nothing at all.
+    await expect.element(page.getByTestId("invitation-expired")).toBeInTheDocument();
+    expect(page.getByTestId("invitation-accept").query()).toBeNull();
+    expect(page.getByTestId("invitation-decline").query()).toBeNull();
   });
 
   it("offers no sign-in path for an expired invitation either", async () => {
@@ -394,9 +411,9 @@ describe("InvitationScreen — expired invitation", () => {
 
     // The expiry check precedes the auth branch (InvitationLanding.razor:46-54):
     // signing in to accept a dead invitation is a wasted round trip.
-    expect(await screen.findByTestId("invitation-expired")).toBeInTheDocument();
-    expect(screen.queryByTestId("invitation-create-account")).toBeNull();
-    expect(screen.queryByTestId("invitation-sign-in")).toBeNull();
+    await expect.element(page.getByTestId("invitation-expired")).toBeInTheDocument();
+    expect(page.getByTestId("invitation-create-account").query()).toBeNull();
+    expect(page.getByTestId("invitation-sign-in").query()).toBeNull();
   });
 });
 
@@ -404,12 +421,12 @@ describe("InvitationScreen — authenticated branch", () => {
   it("asks the signed-in user to accept or decline", async () => {
     renderScreen({ isAuthenticated: true });
 
-    expect(await screen.findByTestId("invitation-accept")).toBeInTheDocument();
-    expect(screen.getByTestId("invitation-decline")).toBeInTheDocument();
+    await expect.element(page.getByTestId("invitation-accept")).toBeInTheDocument();
+    await expect.element(page.getByTestId("invitation-decline")).toBeInTheDocument();
     // The account links belong to the OTHER branch; both showing would offer a
     // signed-in user a "create account" they do not need.
-    expect(screen.queryByTestId("invitation-create-account")).toBeNull();
-    expect(screen.queryByTestId("invitation-sign-in")).toBeNull();
+    expect(page.getByTestId("invitation-create-account").query()).toBeNull();
+    expect(page.getByTestId("invitation-sign-in").query()).toBeNull();
   });
 
   it("declining just leaves, without touching the invitation", async () => {
@@ -417,18 +434,17 @@ describe("InvitationScreen — authenticated branch", () => {
 
     // InvitationLanding.razor:75-81 — `Href="/"`, no call. "No thanks" does NOT
     // revoke the invitation; it stays open for a later visit.
-    expect(await screen.findByTestId("invitation-decline")).toHaveAttribute("href", HOME_HREF);
+    await expect.element(page.getByTestId("invitation-decline")).toHaveAttribute("href", HOME_HREF);
     expect(mocks.acceptInvitation).not.toHaveBeenCalled();
   });
 
   it("accepts the invitation with the link's token and lands the user home", async () => {
     const user = userEvent.setup();
-    const location = stubLocation();
 
     renderScreen({ isAuthenticated: true });
-    await user.click(await screen.findByTestId("invitation-accept"));
+    await user.click(page.getByTestId("invitation-accept"));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.acceptInvitation).toHaveBeenCalledWith(TOKEN);
     });
 
@@ -436,37 +452,47 @@ describe("InvitationScreen — authenticated branch", () => {
     // `NavigateTo("/", forceLoad: true)` (InvitationLanding.razor:179). The
     // reload is load-bearing: accepting the invitation changes the user's tenant
     // membership, and a client-side transition would carry the pre-acceptance
-    // session state into the destination.
-    await waitFor(() => {
-      expect(location.href).toBe(HOME_HREF);
+    // session state into the destination. Observed at the Navigation API seam
+    // (see the guard above): the raw `location.href = "/"` resolves to home.
+    await vi.waitFor(() => {
+      expect(recordedNavigations.length).toBeGreaterThan(0);
     });
+    const lastNavigation = recordedNavigations.at(-1);
+    if (lastNavigation === undefined) {
+      throw new Error("expected a recorded navigation");
+    }
+    const target: URL = new URL(lastNavigation);
+    expect(target.pathname).toBe(HOME_HREF);
+    expect(target.search).toBe("");
   });
 
   it("disables accept and makes decline inert while an accept is in flight", async () => {
     const user = userEvent.setup();
     const pending = deferred<unknown>();
     mocks.acceptInvitation.mockReturnValue(pending.promise);
-    stubLocation();
 
     renderScreen({ isAuthenticated: true });
-    await user.click(await screen.findByTestId("invitation-accept"));
+    await user.click(page.getByTestId("invitation-accept"));
 
     // The oracle's `_isSubmitting` guard (InvitationLanding.razor:164,169-171):
     // a second accept is a second POST against a one-shot token.
-    await waitFor(() => {
-      expect(screen.getByTestId("invitation-accept")).toBeDisabled();
-    });
+    await expect.element(page.getByTestId("invitation-accept")).toBeDisabled();
 
-    // Decline is a LINK, and a link cannot carry `disabled`: jest-dom's
-    // `toBeDisabled` only recognises form and custom elements, and `aria-disabled`
-    // alone still navigates on click. Losing the `href` is what actually makes it
-    // inert — and leaving mid-POST would hide the outcome of a request that is
-    // changing the user's tenant membership.
-    const decline: HTMLElement = screen.getByTestId("invitation-decline");
-    expect(decline).not.toHaveAttribute("href");
-    expect(decline).toHaveAttribute("aria-disabled", "true");
+    // Decline is a LINK, and a link cannot carry `disabled`: `toBeDisabled` only
+    // recognises form and custom elements, and `aria-disabled` alone still
+    // navigates on click. Losing the `href` is what actually makes it inert — and
+    // leaving mid-POST would hide the outcome of a request that is changing the
+    // user's tenant membership.
+    const decline = page.getByTestId("invitation-decline");
+    await expect.element(decline).not.toHaveAttribute("href");
+    await expect.element(decline).toHaveAttribute("aria-disabled", "true");
 
     pending.resolve(null);
+    // Let the success hand-off fire and be captured (and cancelled) by the
+    // Navigation guard before the test unwinds, so the iframe never navigates.
+    await vi.waitFor(() => {
+      expect(recordedNavigations.length).toBeGreaterThan(0);
+    });
   });
 
   it("reports a rejected accept as expired or already used, keeping the buttons alive", async () => {
@@ -474,16 +500,16 @@ describe("InvitationScreen — authenticated branch", () => {
     mocks.acceptInvitation.mockRejectedValue(wallowErrorShaped(404));
 
     renderScreen({ isAuthenticated: true });
-    await user.click(await screen.findByTestId("invitation-accept"));
+    await user.click(page.getByTestId("invitation-accept"));
 
-    expect(await screen.findByTestId("invitation-accept-error")).toHaveTextContent(
-      /expired or already been used/iu,
-    );
+    await expect
+      .element(page.getByTestId("invitation-accept-error"))
+      .toHaveTextContent(/expired or already been used/iu);
     // `invitation-accept-error`, NOT `invitation-error`: the invitation verified
     // fine, so the info block and the buttons stay (InvitationLanding.razor:
     // 58-65 renders inside the authenticated branch, above the buttons).
-    expect(screen.getByTestId("invitation-info")).toBeInTheDocument();
-    expect(screen.getByTestId("invitation-accept")).toBeEnabled();
+    await expect.element(page.getByTestId("invitation-info")).toBeInTheDocument();
+    await expect.element(page.getByTestId("invitation-accept")).toBeEnabled();
   });
 
   it("reports a server failure on accept as a retryable error", async () => {
@@ -491,28 +517,29 @@ describe("InvitationScreen — authenticated branch", () => {
     mocks.acceptInvitation.mockRejectedValue(wallowErrorShaped(500));
 
     renderScreen({ isAuthenticated: true });
-    await user.click(await screen.findByTestId("invitation-accept"));
+    await user.click(page.getByTestId("invitation-accept"));
 
-    expect(await screen.findByTestId("invitation-accept-error")).toHaveTextContent(
-      /an error occurred while accepting the invitation/iu,
-    );
+    await expect
+      .element(page.getByTestId("invitation-accept-error"))
+      .toHaveTextContent(/an error occurred while accepting the invitation/iu);
   });
 
   it("clears a previous accept error when the user tries again", async () => {
     const user = userEvent.setup();
     mocks.acceptInvitation.mockRejectedValueOnce(wallowErrorShaped(500));
-    stubLocation();
 
     renderScreen({ isAuthenticated: true });
-    await user.click(await screen.findByTestId("invitation-accept"));
-    await screen.findByTestId("invitation-accept-error");
+    await user.click(page.getByTestId("invitation-accept"));
+    await expect.element(page.getByTestId("invitation-accept-error")).toBeInTheDocument();
 
     // The oracle's `_acceptError = null` on re-entry (InvitationLanding.razor:
-    // 170): a stale failure banner above a succeeded accept is a lie.
-    await user.click(screen.getByTestId("invitation-accept"));
+    // 170): a stale failure banner above a succeeded accept is a lie. The retry
+    // succeeds (default mock), so its home hand-off is absorbed by the Navigation
+    // guard above.
+    await user.click(page.getByTestId("invitation-accept"));
 
-    await waitFor(() => {
-      expect(screen.queryByTestId("invitation-accept-error")).toBeNull();
+    await vi.waitFor(() => {
+      expect(page.getByTestId("invitation-accept-error").query()).toBeNull();
     });
     expect(mocks.acceptInvitation).toHaveBeenCalledTimes(2);
   });
@@ -522,11 +549,11 @@ describe("InvitationScreen — unauthenticated branch", () => {
   it("offers the anonymous visitor an account to create or a session to sign into", async () => {
     renderScreen({ isAuthenticated: false });
 
-    expect(await screen.findByTestId("invitation-create-account")).toBeInTheDocument();
-    expect(screen.getByTestId("invitation-sign-in")).toBeInTheDocument();
+    await expect.element(page.getByTestId("invitation-create-account")).toBeInTheDocument();
+    await expect.element(page.getByTestId("invitation-sign-in")).toBeInTheDocument();
     // Accepting needs a `[Authorize]`d POST (InvitationsController.cs:82-83);
     // offering it to an anonymous visitor buys them a 401.
-    expect(screen.queryByTestId("invitation-accept")).toBeNull();
+    expect(page.getByTestId("invitation-accept").query()).toBeNull();
   });
 
   it("sends the visitor to register with the invited address and a way back", async () => {
@@ -601,14 +628,14 @@ describe("/invitation route", () => {
     // singular — and is not this task's to change.
     renderRouteAt(`/invitation?token=${TOKEN}`);
 
-    expect(await screen.findByTestId("invitation-info")).toBeInTheDocument();
-    expect(screen.queryByTestId("route-placeholder")).toBeNull();
+    await expect.element(page.getByTestId("invitation-info")).toBeInTheDocument();
+    expect(page.getByTestId("route-placeholder").query()).toBeNull();
   });
 
   it("verifies the token it read from the query string", async () => {
     renderRouteAt(`/invitation?token=${TOKEN}`);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.verifyInvitation).toHaveBeenCalledWith(TOKEN);
     });
   });
@@ -617,7 +644,7 @@ describe("/invitation route", () => {
     const rawToken = "a b+c/d";
     renderRouteAt(`/invitation?token=${encodeURIComponent(rawToken)}`);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.verifyInvitation).toHaveBeenCalledWith(rawToken);
     });
   });
@@ -625,9 +652,9 @@ describe("/invitation route", () => {
   it("treats a link with no token as no token", async () => {
     renderRouteAt("/invitation");
 
-    expect(await screen.findByTestId("invitation-error")).toHaveTextContent(
-      /no invitation token provided/iu,
-    );
+    await expect
+      .element(page.getByTestId("invitation-error"))
+      .toHaveTextContent(/no invitation token provided/iu);
     expect(mocks.verifyInvitation).not.toHaveBeenCalled();
   });
 
@@ -639,8 +666,8 @@ describe("/invitation route", () => {
 
     renderRouteAt(`/invitation?token=${TOKEN}`);
 
-    expect(await screen.findByTestId("invitation-accept")).toBeInTheDocument();
-    expect(screen.queryByTestId("invitation-sign-in")).toBeNull();
+    await expect.element(page.getByTestId("invitation-accept")).toBeInTheDocument();
+    expect(page.getByTestId("invitation-sign-in").query()).toBeNull();
   });
 
   it("treats the seam's anonymous answer as anonymous", async () => {
@@ -650,8 +677,8 @@ describe("/invitation route", () => {
 
     renderRouteAt(`/invitation?token=${TOKEN}`);
 
-    expect(await screen.findByTestId("invitation-sign-in")).toBeInTheDocument();
-    expect(screen.queryByTestId("invitation-accept")).toBeNull();
+    await expect.element(page.getByTestId("invitation-sign-in")).toBeInTheDocument();
+    expect(page.getByTestId("invitation-accept").query()).toBeNull();
   });
 
   it("treats a failed auth probe as anonymous rather than crashing the invitation", async () => {
@@ -663,11 +690,11 @@ describe("/invitation route", () => {
 
     renderRouteAt(`/invitation?token=${TOKEN}`);
 
-    expect(await screen.findByTestId("invitation-sign-in")).toBeInTheDocument();
-    expect(screen.queryByTestId("invitation-accept")).toBeNull();
+    await expect.element(page.getByTestId("invitation-sign-in")).toBeInTheDocument();
+    expect(page.getByTestId("invitation-accept").query()).toBeNull();
     // And the invitation itself still verifies — the probe is an affordance, not
     // a gate on the page's content.
-    expect(screen.getByTestId("invitation-info")).toBeInTheDocument();
+    await expect.element(page.getByTestId("invitation-info")).toBeInTheDocument();
   });
 
   it("treats a non-string token as absent rather than verifying a boolean", async () => {
@@ -677,9 +704,9 @@ describe("/invitation route", () => {
     // path segment.
     renderRouteAt("/invitation?token=true");
 
-    expect(await screen.findByTestId("invitation-error")).toHaveTextContent(
-      /no invitation token provided/iu,
-    );
+    await expect
+      .element(page.getByTestId("invitation-error"))
+      .toHaveTextContent(/no invitation token provided/iu);
     expect(mocks.verifyInvitation).not.toHaveBeenCalled();
   });
 });

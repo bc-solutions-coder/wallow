@@ -1,17 +1,10 @@
-/** @vitest-environment jsdom */
-import * as matchers from "@testing-library/jest-dom/matchers";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
+import { page, userEvent } from "vitest/browser";
+import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CreateInquiryForm } from "./CreateInquiryForm";
-
-// No global `expect` (vitest `globals` is off), so register the jest-dom
-// matchers explicitly — the DOM-matcher convention for wallow-web's RTL tests
-// (established by OrganizationList.test.tsx; Phases 4-6 copy it).
-expect.extend(matchers);
 
 /**
  * Component spec for the create-inquiry form (Wallow-8w1h.7.3). Copies the
@@ -75,39 +68,37 @@ function renderWithClient(client: QueryClient, ui: ReactElement) {
   return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
 }
 
-type User = ReturnType<typeof userEvent.setup>;
-
 /**
  * Per-field fill actions keyed by testid, so a test can fill the whole valid
  * form except a single field (`fillAllExcept`) to isolate that field's
  * required-validation behavior. `phone`/`company` are text inputs; the three
  * project selects use `selectOptions`.
  */
-const FIELD_FILLERS: Record<string, (user: User) => Promise<void>> = {
-  "inquiry-name": (user) => user.type(screen.getByTestId("inquiry-name"), FULL_BODY.name),
-  "inquiry-email": (user) => user.type(screen.getByTestId("inquiry-email"), FULL_BODY.email),
-  "inquiry-phone": (user) => user.type(screen.getByTestId("inquiry-phone"), FULL_BODY.phone),
-  "inquiry-company": (user) => user.type(screen.getByTestId("inquiry-company"), FULL_BODY.company),
-  "inquiry-project-type": (user) =>
-    user.selectOptions(screen.getByTestId("inquiry-project-type"), FULL_BODY.projectType),
-  "inquiry-budget-range": (user) =>
-    user.selectOptions(screen.getByTestId("inquiry-budget-range"), FULL_BODY.budgetRange),
-  "inquiry-timeline": (user) =>
-    user.selectOptions(screen.getByTestId("inquiry-timeline"), FULL_BODY.timeline),
-  "inquiry-message": (user) => user.type(screen.getByTestId("inquiry-message"), FULL_BODY.message),
+const FIELD_FILLERS: Record<string, () => Promise<void>> = {
+  "inquiry-name": () => userEvent.type(page.getByTestId("inquiry-name"), FULL_BODY.name),
+  "inquiry-email": () => userEvent.type(page.getByTestId("inquiry-email"), FULL_BODY.email),
+  "inquiry-phone": () => userEvent.type(page.getByTestId("inquiry-phone"), FULL_BODY.phone),
+  "inquiry-company": () => userEvent.type(page.getByTestId("inquiry-company"), FULL_BODY.company),
+  "inquiry-project-type": () =>
+    userEvent.selectOptions(page.getByTestId("inquiry-project-type"), FULL_BODY.projectType),
+  "inquiry-budget-range": () =>
+    userEvent.selectOptions(page.getByTestId("inquiry-budget-range"), FULL_BODY.budgetRange),
+  "inquiry-timeline": () =>
+    userEvent.selectOptions(page.getByTestId("inquiry-timeline"), FULL_BODY.timeline),
+  "inquiry-message": () => userEvent.type(page.getByTestId("inquiry-message"), FULL_BODY.message),
 };
 
-async function fillFullForm(user: User) {
+async function fillFullForm() {
   for (const fill of Object.values(FIELD_FILLERS)) {
-    await fill(user);
+    await fill();
   }
 }
 
 /** Fill every field with a valid value except `skipTestId`, which is left blank. */
-async function fillAllExcept(user: User, skipTestId: string) {
+async function fillAllExcept(skipTestId: string) {
   for (const [testId, fill] of Object.entries(FIELD_FILLERS)) {
     if (testId !== skipTestId) {
-      await fill(user);
+      await fill();
     }
   }
 }
@@ -131,25 +122,26 @@ describe("CreateInquiryForm", () => {
     vi.clearAllMocks();
   });
 
-  it("renders every inquiry field, select, and the submit button", () => {
+  it("renders every inquiry field, select, and the submit button", async () => {
     renderWithClient(newClient(), <CreateInquiryForm />);
 
-    expect(screen.getByTestId("inquiry-name")).toBeInTheDocument();
-    expect(screen.getByTestId("inquiry-email")).toBeInTheDocument();
-    expect(screen.getByTestId("inquiry-phone")).toBeInTheDocument();
-    expect(screen.getByTestId("inquiry-company")).toBeInTheDocument();
-    expect(screen.getByTestId("inquiry-project-type")).toBeInTheDocument();
-    expect(screen.getByTestId("inquiry-budget-range")).toBeInTheDocument();
-    expect(screen.getByTestId("inquiry-timeline")).toBeInTheDocument();
-    expect(screen.getByTestId("inquiry-message")).toBeInTheDocument();
-    expect(screen.getByTestId("inquiry-submit")).toBeInTheDocument();
+    await expect.element(page.getByTestId("inquiry-name")).toBeInTheDocument();
+    await expect.element(page.getByTestId("inquiry-email")).toBeInTheDocument();
+    await expect.element(page.getByTestId("inquiry-phone")).toBeInTheDocument();
+    await expect.element(page.getByTestId("inquiry-company")).toBeInTheDocument();
+    await expect.element(page.getByTestId("inquiry-project-type")).toBeInTheDocument();
+    await expect.element(page.getByTestId("inquiry-budget-range")).toBeInTheDocument();
+    await expect.element(page.getByTestId("inquiry-timeline")).toBeInTheDocument();
+    await expect.element(page.getByTestId("inquiry-message")).toBeInTheDocument();
+    await expect.element(page.getByTestId("inquiry-submit")).toBeInTheDocument();
   });
 
-  it("exposes the Blazor oracle's option values on each select", () => {
+  it("exposes the Blazor oracle's option values on each select", async () => {
     renderWithClient(newClient(), <CreateInquiryForm />);
 
+    await expect.element(page.getByTestId("inquiry-project-type")).toBeInTheDocument();
     const optionValues = (testId: string) =>
-      [...screen.getByTestId(testId).querySelectorAll("option")].map(
+      [...page.getByTestId(testId).element().querySelectorAll("option")].map(
         (o) => (o as HTMLOptionElement).value,
       );
 
@@ -165,46 +157,43 @@ describe("CreateInquiryForm", () => {
   });
 
   it("submits, calling the create facade with the full SubmitInquiryBody", async () => {
-    const user = userEvent.setup();
     mocks.create.mockResolvedValue({ id: "new", ...FULL_BODY, status: "New" });
 
     renderWithClient(newClient(), <CreateInquiryForm />);
 
-    await fillFullForm(user);
-    await user.click(screen.getByTestId("inquiry-submit"));
+    await fillFullForm();
+    await userEvent.click(page.getByTestId("inquiry-submit"));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.create).toHaveBeenCalledTimes(1);
     });
     expect(mocks.create).toHaveBeenCalledWith(FULL_BODY);
   });
 
   it("invalidates the ['inquiries'] list query after a successful submit", async () => {
-    const user = userEvent.setup();
     const client = newClient();
     const invalidateSpy = vi.spyOn(client, "invalidateQueries");
     mocks.create.mockResolvedValue({ id: "new", ...FULL_BODY, status: "New" });
 
     renderWithClient(client, <CreateInquiryForm />);
 
-    await fillFullForm(user);
-    await user.click(screen.getByTestId("inquiry-submit"));
+    await fillFullForm();
+    await userEvent.click(page.getByTestId("inquiry-submit"));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["inquiries"] });
     });
   });
 
   it("shows the success state after a successful submit", async () => {
-    const user = userEvent.setup();
     mocks.create.mockResolvedValue({ id: "new", ...FULL_BODY, status: "New" });
 
     renderWithClient(newClient(), <CreateInquiryForm />);
 
-    await fillFullForm(user);
-    await user.click(screen.getByTestId("inquiry-submit"));
+    await fillFullForm();
+    await userEvent.click(page.getByTestId("inquiry-submit"));
 
-    expect(await screen.findByTestId("inquiry-success")).toBeInTheDocument();
+    await expect.element(page.getByTestId("inquiry-success")).toBeInTheDocument();
   });
 
   it("blocks submit and flags EVERY server-required field when the form is empty", async () => {
@@ -212,24 +201,21 @@ describe("CreateInquiryForm", () => {
     // budgetRange, timeline, and message (all `.NotEmpty()`). Company is the only
     // nullable field. The client must mirror that contract so a user is never
     // told their submission is valid when the server will reject it.
-    const user = userEvent.setup();
-
     renderWithClient(newClient(), <CreateInquiryForm />);
 
-    await user.click(screen.getByTestId("inquiry-submit"));
+    await userEvent.click(page.getByTestId("inquiry-submit"));
 
-    expect(await screen.findByTestId("inquiry-name-error")).toBeInTheDocument();
-    expect(screen.getByTestId("inquiry-email-error")).toBeInTheDocument();
-    expect(screen.getByTestId("inquiry-phone-error")).toBeInTheDocument();
-    expect(screen.getByTestId("inquiry-project-type-error")).toBeInTheDocument();
-    expect(screen.getByTestId("inquiry-budget-range-error")).toBeInTheDocument();
-    expect(screen.getByTestId("inquiry-timeline-error")).toBeInTheDocument();
-    expect(screen.getByTestId("inquiry-message-error")).toBeInTheDocument();
+    await expect.element(page.getByTestId("inquiry-name-error")).toBeInTheDocument();
+    await expect.element(page.getByTestId("inquiry-email-error")).toBeInTheDocument();
+    await expect.element(page.getByTestId("inquiry-phone-error")).toBeInTheDocument();
+    await expect.element(page.getByTestId("inquiry-project-type-error")).toBeInTheDocument();
+    await expect.element(page.getByTestId("inquiry-budget-range-error")).toBeInTheDocument();
+    await expect.element(page.getByTestId("inquiry-timeline-error")).toBeInTheDocument();
+    await expect.element(page.getByTestId("inquiry-message-error")).toBeInTheDocument();
     expect(mocks.create).not.toHaveBeenCalled();
   });
 
   it("surfaces the RFC 7807 ProblemDetails detail when the submit fails", async () => {
-    const user = userEvent.setup();
     mocks.create.mockRejectedValue({
       type: "https://httpstatuses.io/400",
       title: "Bad Request",
@@ -239,11 +225,12 @@ describe("CreateInquiryForm", () => {
 
     renderWithClient(newClient(), <CreateInquiryForm />);
 
-    await fillFullForm(user);
-    await user.click(screen.getByTestId("inquiry-submit"));
+    await fillFullForm();
+    await userEvent.click(page.getByTestId("inquiry-submit"));
 
-    const error = await screen.findByTestId("inquiry-error");
-    expect(error).toHaveTextContent("Failed to submit inquiry. Please try again.");
+    await expect
+      .element(page.getByTestId("inquiry-error"))
+      .toHaveTextContent("Failed to submit inquiry. Please try again.");
   });
 });
 
@@ -255,29 +242,27 @@ describe("CreateInquiryForm — server-required field parity", () => {
   it.each(SERVER_REQUIRED_SELECT_FIELDS)(
     "blocks submit and flags $errorTestId when only that server-required field is blank",
     async ({ skipTestId, errorTestId }) => {
-      const user = userEvent.setup();
       mocks.create.mockResolvedValue({ id: "new", ...FULL_BODY, status: "New" });
 
       renderWithClient(newClient(), <CreateInquiryForm />);
 
-      await fillAllExcept(user, skipTestId);
-      await user.click(screen.getByTestId("inquiry-submit"));
+      await fillAllExcept(skipTestId);
+      await userEvent.click(page.getByTestId("inquiry-submit"));
 
-      expect(await screen.findByTestId(errorTestId)).toBeInTheDocument();
+      await expect.element(page.getByTestId(errorTestId)).toBeInTheDocument();
       expect(mocks.create).not.toHaveBeenCalled();
     },
   );
 
   it("still submits when only company (the sole server-optional field) is blank", async () => {
-    const user = userEvent.setup();
     mocks.create.mockResolvedValue({ id: "new", ...FULL_BODY, company: "", status: "New" });
 
     renderWithClient(newClient(), <CreateInquiryForm />);
 
-    await fillAllExcept(user, "inquiry-company");
-    await user.click(screen.getByTestId("inquiry-submit"));
+    await fillAllExcept("inquiry-company");
+    await userEvent.click(page.getByTestId("inquiry-submit"));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.create).toHaveBeenCalledTimes(1);
     });
     expect(mocks.create).toHaveBeenCalledWith({ ...FULL_BODY, company: "" });

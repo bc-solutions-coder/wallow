@@ -1,5 +1,3 @@
-/** @vitest-environment jsdom */
-import * as matchers from "@testing-library/jest-dom/matchers";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,
@@ -8,15 +6,13 @@ import {
   Outlet,
   RouterProvider,
 } from "@tanstack/react-router";
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
+import { page, userEvent } from "vitest/browser";
+import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Route as loginRoute } from "../../../routes/login";
 import { ExternalProviders } from "./ExternalProviders";
-
-expect.extend(matchers);
 
 /**
  * Component spec for the Login screen's EXTERNAL PROVIDER list
@@ -83,6 +79,15 @@ expect.extend(matchers);
  * (`encodesTheReturnUrlAsASingleQueryValue`): ASP.NET binds a duplicated
  * `[FromQuery]` value as `"a,b"`, so unencoded cargo carrying `&provider=` could
  * change which identity provider the user is challenged against.
+ *
+ * ── NAVIGATION SEAM (Wallow-xzha.3.1) ─────────────────────────────────────────
+ *
+ * Under real Chromium, `globalThis.location` is `[Unforgeable]`, so the old
+ * jsdom `vi.stubGlobal("location", …)` hack cannot shadow it. The component's
+ * `ReturnUrl ?? currentUrl` fallback reads `globalThis.location.href`
+ * (ExternalProviders.tsx:191); the two fallback tests therefore assert against
+ * the LIVE `globalThis.location.href` the runner already sits at — the same value
+ * the component reads — which pins identical intent without touching location.
  */
 
 const mocks = vi.hoisted(() => ({
@@ -120,9 +125,6 @@ const RETURN_URL = "/connect/authorize?client_id=web&scope=openid";
  */
 const ABSOLUTE_RETURN_URL = "https://app.wallow.test/connect/authorize?client_id=web";
 
-/** The current page URL, the oracle's `Navigation.Uri` fallback (absolute). */
-const CURRENT_URL = "http://localhost:5002/login?returnUrl=%2Fconnect%2Fauthorize";
-
 /** The endpoint the oracle's `GetExternalLoginUrl` targets, sans `ApiBaseUrl`. */
 const EXTERNAL_LOGIN_PATH = "/v1/identity/auth/external-login";
 
@@ -158,7 +160,7 @@ const PROVIDERS_QUERY_KEY = ["external-providers"];
  * Wait until the provider query has actually SETTLED.
  *
  * Every "renders nothing" test below needs this, and the obvious alternative is a
- * trap that this spec fell into once already: `await waitFor(() =>
+ * trap that this spec fell into once already: `await vi.waitFor(() =>
  * expect(getExternalProviders).toHaveBeenCalled())` resolves the instant the query
  * function is INVOKED — synchronously, on mount — which is BEFORE the promise
  * resolves and the component re-renders. The DOM assertion then runs against a
@@ -168,7 +170,7 @@ const PROVIDERS_QUERY_KEY = ["external-providers"];
  * the only honest signal that the narrowing has had its chance to run.
  */
 async function settleProviders(client: QueryClient): Promise<void> {
-  await waitFor(() => {
+  await vi.waitFor(() => {
     expect(client.getQueryState(PROVIDERS_QUERY_KEY)?.status).not.toBe("pending");
   });
 }
@@ -188,14 +190,13 @@ function renderProviders(props: { returnUrl?: string } = {}): QueryClient {
   return client;
 }
 
-/** jsdom refuses to redefine `location`; `location` itself is a configurable accessor. */
-function stubLocation(href: string): void {
-  vi.stubGlobal("location", { href });
-}
-
 /** The rendered challenge link for a provider, once the query has settled. */
 async function providerLink(testid: string): Promise<HTMLElement> {
-  return await screen.findByTestId(testid);
+  const locator = page.getByTestId(testid);
+
+  await expect.element(locator).toBeInTheDocument();
+
+  return locator.element() as HTMLElement;
 }
 
 /** The `returnUrl` value the link actually carries, decoded by a real URL parser. */
@@ -214,35 +215,37 @@ function providerParamOf(link: HTMLElement): string | null {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.unstubAllGlobals();
   mocks.isSafeReturnUrl.mockImplementation(isSafeReturnUrlRule);
   mocks.getExternalProviders.mockResolvedValue(PROVIDERS);
   // No signInTicket and no returnUrl is the shell's `signed-in` disposition
   // (`auth-result.ts:285`) — the one state that retires the provider list.
   mocks.login.mockResolvedValue({ succeeded: true });
-  stubLocation(CURRENT_URL);
 });
 
 describe("ExternalProviders — the list", () => {
   it("renders one challenge link per provider the API reports", async () => {
     renderProviders();
 
-    expect(await providerLink("login-external-google")).toBeInTheDocument();
-    expect(screen.getByTestId("login-external-microsoft")).toBeInTheDocument();
+    await expect.element(page.getByTestId("login-external-google")).toBeInTheDocument();
+    await expect.element(page.getByTestId("login-external-microsoft")).toBeInTheDocument();
   });
 
   it("labels each link with the provider's display name", async () => {
     renderProviders();
 
-    expect(await providerLink("login-external-google")).toHaveTextContent("Google");
-    expect(screen.getByTestId("login-external-microsoft")).toHaveTextContent("Microsoft");
+    await expect.element(page.getByTestId("login-external-google")).toHaveTextContent("Google");
+    await expect
+      .element(page.getByTestId("login-external-microsoft"))
+      .toHaveTextContent("Microsoft");
   });
 
   it("renders the oracle's separator copy above the list", async () => {
     renderProviders();
 
-    await providerLink("login-external-google");
-    expect(screen.getByTestId("login-external-providers")).toHaveTextContent("Or continue with");
+    await expect.element(page.getByTestId("login-external-google")).toBeInTheDocument();
+    await expect
+      .element(page.getByTestId("login-external-providers"))
+      .toHaveTextContent("Or continue with");
   });
 
   it("kebab-cases a multi-word provider name into its testid", async () => {
@@ -251,15 +254,15 @@ describe("ExternalProviders — the list", () => {
     mocks.getExternalProviders.mockResolvedValue(["Microsoft Entra ID"]);
     renderProviders();
 
-    expect(await providerLink("login-external-microsoft-entra-id")).toHaveTextContent(
-      "Microsoft Entra ID",
-    );
+    await expect
+      .element(page.getByTestId("login-external-microsoft-entra-id"))
+      .toHaveTextContent("Microsoft Entra ID");
   });
 
   it("asks the API for the provider list exactly once", async () => {
     renderProviders();
 
-    await providerLink("login-external-google");
+    await expect.element(page.getByTestId("login-external-google")).toBeInTheDocument();
     expect(mocks.getExternalProviders).toHaveBeenCalledTimes(1);
   });
 
@@ -270,7 +273,7 @@ describe("ExternalProviders — the list", () => {
     const client: QueryClient = renderProviders();
 
     await settleProviders(client);
-    expect(screen.queryByTestId("login-external-providers")).toBeNull();
+    expect(page.getByTestId("login-external-providers").query()).toBeNull();
   });
 
   it("renders nothing while the provider list is still in flight", async () => {
@@ -282,11 +285,11 @@ describe("ExternalProviders — the list", () => {
     mocks.getExternalProviders.mockReturnValue(new Promise(() => {}));
     const client: QueryClient = renderProviders();
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.getExternalProviders).toHaveBeenCalled();
     });
     expect(client.getQueryState(PROVIDERS_QUERY_KEY)?.status).toBe("pending");
-    expect(screen.queryByTestId("login-external-providers")).toBeNull();
+    expect(page.getByTestId("login-external-providers").query()).toBeNull();
   });
 
   it("renders nothing, and does not throw, when the provider call fails", async () => {
@@ -298,7 +301,7 @@ describe("ExternalProviders — the list", () => {
     const client: QueryClient = renderProviders();
 
     await settleProviders(client);
-    expect(screen.queryByTestId("login-external-providers")).toBeNull();
+    expect(page.getByTestId("login-external-providers").query()).toBeNull();
   });
 
   it("renders nothing when the body is not a list at all", async () => {
@@ -309,7 +312,7 @@ describe("ExternalProviders — the list", () => {
     const client: QueryClient = renderProviders();
 
     await settleProviders(client);
-    expect(screen.queryByTestId("login-external-providers")).toBeNull();
+    expect(page.getByTestId("login-external-providers").query()).toBeNull();
   });
 
   it("refuses a list that is not entirely non-empty strings", async () => {
@@ -320,7 +323,7 @@ describe("ExternalProviders — the list", () => {
     const client: QueryClient = renderProviders();
 
     await settleProviders(client);
-    expect(screen.queryByTestId("login-external-providers")).toBeNull();
+    expect(page.getByTestId("login-external-providers").query()).toBeNull();
   });
 });
 
@@ -343,7 +346,7 @@ describe("ExternalProviders — the challenge URL", () => {
     renderProviders();
 
     expect(providerParamOf(await providerLink("login-external-google"))).toBe("Google");
-    expect(providerParamOf(screen.getByTestId("login-external-microsoft"))).toBe("Microsoft");
+    expect(providerParamOf(await providerLink("login-external-microsoft"))).toBe("Microsoft");
   });
 
   it("carries the returnUrl the OIDC flow handed the screen", async () => {
@@ -403,10 +406,12 @@ describe("ExternalProviders — the challenge URL", () => {
   it("falls back to the current page URL when the link carried no returnUrl", async () => {
     // The oracle's `ReturnUrl ?? currentUrl` (`Navigation.Uri`, L314): a user who
     // reached /login directly and signs in with Google must land back where they
-    // started, not at a dead end.
+    // started, not at a dead end. Under real Chromium the fallback IS
+    // `globalThis.location.href`, which is what the component reads too.
+    const currentUrl: string = globalThis.location.href;
     renderProviders({ returnUrl: undefined });
 
-    expect(returnUrlParamOf(await providerLink("login-external-google"))).toBe(CURRENT_URL);
+    expect(returnUrlParamOf(await providerLink("login-external-google"))).toBe(currentUrl);
   });
 
   it("falls back to the current page URL for an empty returnUrl", async () => {
@@ -415,9 +420,10 @@ describe("ExternalProviders — the challenge URL", () => {
     // rendered on purpose; the fallback that already exists for `undefined` serves
     // the identical user with an identical intent, so `""` takes it too. Disclosed
     // as a deliberate divergence on the bead.
+    const currentUrl: string = globalThis.location.href;
     renderProviders({ returnUrl: "" });
 
-    expect(returnUrlParamOf(await providerLink("login-external-google"))).toBe(CURRENT_URL);
+    expect(returnUrlParamOf(await providerLink("login-external-google"))).toBe(currentUrl);
   });
 
   it("preserves client_id inside the returnUrl rather than as a parameter of its own", async () => {
@@ -465,7 +471,7 @@ describe("/login route — external providers", () => {
   it("renders the provider list on the login screen", async () => {
     renderRouteAt(`/login?returnUrl=${encodeURIComponent(RETURN_URL)}&client_id=web`);
 
-    expect(await providerLink("login-external-google")).toBeInTheDocument();
+    await expect.element(page.getByTestId("login-external-google")).toBeInTheDocument();
   });
 
   it("threads returnUrl out of the query string into the challenge link", async () => {
@@ -480,10 +486,10 @@ describe("/login route — external providers", () => {
     const user = userEvent.setup();
     renderRouteAt("/login");
 
-    await providerLink("login-external-google");
-    await user.click(screen.getByTestId("login-tab-otp"));
+    await expect.element(page.getByTestId("login-external-google")).toBeInTheDocument();
+    await user.click(page.getByTestId("login-tab-otp"));
 
-    expect(screen.getByTestId("login-external-google")).toBeInTheDocument();
+    await expect.element(page.getByTestId("login-external-google")).toBeInTheDocument();
   });
 
   it("retires the provider list once the user is signed in", async () => {
@@ -497,14 +503,14 @@ describe("/login route — external providers", () => {
     const user = userEvent.setup();
     renderRouteAt("/login");
 
-    expect(await providerLink("login-external-google")).toBeInTheDocument();
+    await expect.element(page.getByTestId("login-external-google")).toBeInTheDocument();
 
-    await user.type(await screen.findByTestId("login-email"), "user@example.com");
-    await user.type(screen.getByTestId("login-password"), "Sup3rSecret!");
-    await user.click(screen.getByTestId("login-submit"));
+    await user.type(page.getByTestId("login-email"), "user@example.com");
+    await user.type(page.getByTestId("login-password"), "Sup3rSecret!");
+    await user.click(page.getByTestId("login-submit"));
 
-    expect(await screen.findByTestId("login-signed-in")).toBeInTheDocument();
-    expect(screen.queryByTestId("login-external-google")).toBeNull();
-    expect(screen.queryByTestId("login-external-providers")).toBeNull();
+    await expect.element(page.getByTestId("login-signed-in")).toBeInTheDocument();
+    expect(page.getByTestId("login-external-google").query()).toBeNull();
+    expect(page.getByTestId("login-external-providers").query()).toBeNull();
   });
 });

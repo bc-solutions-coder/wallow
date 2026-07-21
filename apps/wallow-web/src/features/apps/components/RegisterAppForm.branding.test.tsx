@@ -1,14 +1,10 @@
-/** @vitest-environment jsdom */
-import * as matchers from "@testing-library/jest-dom/matchers";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
 import type { ReactElement } from "react";
+import { page } from "vitest/browser";
+import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { RegisterAppForm } from "./RegisterAppForm";
-
-// No global `expect` (vitest `globals` is off) — register jest-dom matchers.
-expect.extend(matchers);
 
 /**
  * App branding/logo-upsert reachability spec (Wallow-ffpq.3.6) — the React port
@@ -56,18 +52,18 @@ describe("RegisterAppForm branding/logo upsert", () => {
     vi.clearAllMocks();
   });
 
-  it("renders an optional branding display-name input in the form view", () => {
+  it("renders an optional branding display-name input in the form view", async () => {
     renderWithClient(newClient(), <RegisterAppForm />);
-    expect(screen.getByTestId("app-branding-display-name")).toBeInTheDocument();
+    await expect.element(page.getByTestId("app-branding-display-name")).toBeInTheDocument();
   });
 
-  it("renders an optional branding tagline input", () => {
+  it("renders an optional branding tagline input", async () => {
     renderWithClient(newClient(), <RegisterAppForm />);
-    expect(screen.getByTestId("app-branding-tagline")).toBeInTheDocument();
+    await expect.element(page.getByTestId("app-branding-tagline")).toBeInTheDocument();
   });
 
-  it("renders a logo file input for the branding upsert", () => {
+  it("renders a logo file input for the branding upsert", async () => {
     renderWithClient(newClient(), <RegisterAppForm />);
-    expect(screen.getByTestId("app-logo-input")).toBeInTheDocument();
+    await expect.element(page.getByTestId("app-logo-input")).toBeInTheDocument();
   });
 });

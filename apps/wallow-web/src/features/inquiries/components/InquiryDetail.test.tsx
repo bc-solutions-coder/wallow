@@ -1,15 +1,10 @@
-/** @vitest-environment jsdom */
-import * as matchers from "@testing-library/jest-dom/matchers";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
+import { page, userEvent } from "vitest/browser";
+import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { InquiryDetail } from "./InquiryDetail";
-
-// No global `expect` (vitest `globals` is off) — register jest-dom matchers.
-expect.extend(matchers);
 
 /**
  * Component spec for the inquiry-detail page body (Wallow-8w1h.7.4). The
@@ -53,8 +48,19 @@ vi.mock("../../../lib/wallow-sdk", () => ({
 }));
 
 function newClient(): QueryClient {
+  // `staleTime: Infinity` keeps seeded cache entries fresh so the component reads
+  // exactly the state each test plants. Without it, staleTime:0 triggers a
+  // background refetch through the (deliberately inert) facade mock, which
+  // resolves `undefined` and flips the query to `isError` — hiding the seeded
+  // not-found/comment content behind the component's error branch. jsdom's sync
+  // render masked this race; a real browser lets the refetch win. Tests that
+  // exercise a real fetch (the error case) seed nothing, so the initial fetch
+  // still fires regardless of staleTime.
   return new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    defaultOptions: {
+      queries: { retry: false, staleTime: Infinity },
+      mutations: { retry: false },
+    },
   });
 }
 
@@ -110,11 +116,12 @@ describe("InquiryDetail — inquiry fields", () => {
 
     renderWithClient(client, <InquiryDetail inquiryId="i1" />);
 
-    const heading = await screen.findByTestId("inquiry-detail-heading");
-    expect(heading).toHaveTextContent("Ada Lovelace");
-    expect(screen.getByTestId("inquiry-detail-back-link")).toBeInTheDocument();
-    expect(screen.getByText("ada@example.com")).toBeInTheDocument();
-    expect(screen.getByTestId("inquiry-detail-status")).toHaveTextContent("New");
+    await expect
+      .element(page.getByTestId("inquiry-detail-heading"))
+      .toHaveTextContent("Ada Lovelace");
+    await expect.element(page.getByTestId("inquiry-detail-back-link")).toBeInTheDocument();
+    await expect.element(page.getByText("ada@example.com")).toBeInTheDocument();
+    await expect.element(page.getByTestId("inquiry-detail-status")).toHaveTextContent("New");
   });
 
   it("renders the not-found state when the inquiry detail is null", async () => {
@@ -124,8 +131,8 @@ describe("InquiryDetail — inquiry fields", () => {
 
     renderWithClient(client, <InquiryDetail inquiryId="i1" />);
 
-    expect(await screen.findByTestId("inquiry-detail-not-found")).toBeInTheDocument();
-    expect(screen.queryByTestId("inquiry-detail-heading")).not.toBeInTheDocument();
+    await expect.element(page.getByTestId("inquiry-detail-not-found")).toBeInTheDocument();
+    await expect.element(page.getByTestId("inquiry-detail-heading")).not.toBeInTheDocument();
   });
 
   it("surfaces the RFC 7807 ProblemDetails detail when the detail query errors", async () => {
@@ -135,8 +142,9 @@ describe("InquiryDetail — inquiry fields", () => {
 
     renderWithClient(client, <InquiryDetail inquiryId="i1" />);
 
-    const error = await screen.findByTestId("inquiry-detail-error");
-    expect(error).toHaveTextContent("Inquiry not found.");
+    await expect
+      .element(page.getByTestId("inquiry-detail-error"))
+      .toHaveTextContent("Inquiry not found.");
   });
 });
 
@@ -146,23 +154,21 @@ describe("InquiryDetail — status change", () => {
   });
 
   it("changes status: selects a new status and delegates to inquiries.setStatus", async () => {
-    const user = userEvent.setup();
     const client = newClient();
     seedLoaded(client);
     mocks.setStatus.mockResolvedValue({ ...inquiry, status: "Reviewed" });
 
     renderWithClient(client, <InquiryDetail inquiryId="i1" />);
 
-    await user.selectOptions(await screen.findByTestId("inquiry-status-select"), "Reviewed");
-    await user.click(screen.getByTestId("inquiry-status-submit"));
+    await userEvent.selectOptions(page.getByTestId("inquiry-status-select"), "Reviewed");
+    await userEvent.click(page.getByTestId("inquiry-status-submit"));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.setStatus).toHaveBeenCalledWith("i1", "Reviewed");
     });
   });
 
   it("invalidates the detail query after a successful status change", async () => {
-    const user = userEvent.setup();
     const client = newClient();
     seedLoaded(client);
     const invalidateSpy = vi.spyOn(client, "invalidateQueries");
@@ -170,10 +176,10 @@ describe("InquiryDetail — status change", () => {
 
     renderWithClient(client, <InquiryDetail inquiryId="i1" />);
 
-    await user.selectOptions(await screen.findByTestId("inquiry-status-select"), "Reviewed");
-    await user.click(screen.getByTestId("inquiry-status-submit"));
+    await userEvent.selectOptions(page.getByTestId("inquiry-status-select"), "Reviewed");
+    await userEvent.click(page.getByTestId("inquiry-status-submit"));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["inquiries", "i1"] });
     });
   });
@@ -185,7 +191,6 @@ describe("InquiryDetail — status change", () => {
     // offers all four statuses unconditionally, so a user viewing a "New"
     // inquiry can pick "Closed" directly and MUST see the rejection surfaced —
     // mirroring the inquiry-comment-error / inquiry-detail-error pattern.
-    const user = userEvent.setup();
     const client = newClient();
     seedLoaded(client);
     mocks.setStatus.mockRejectedValue({
@@ -195,11 +200,12 @@ describe("InquiryDetail — status change", () => {
 
     renderWithClient(client, <InquiryDetail inquiryId="i1" />);
 
-    await user.selectOptions(await screen.findByTestId("inquiry-status-select"), "Closed");
-    await user.click(screen.getByTestId("inquiry-status-submit"));
+    await userEvent.selectOptions(page.getByTestId("inquiry-status-select"), "Closed");
+    await userEvent.click(page.getByTestId("inquiry-status-submit"));
 
-    const error = await screen.findByTestId("inquiry-status-error");
-    expect(error).toHaveTextContent("Cannot transition from New to Closed.");
+    await expect
+      .element(page.getByTestId("inquiry-status-error"))
+      .toHaveTextContent("Cannot transition from New to Closed.");
   });
 });
 
@@ -214,11 +220,11 @@ describe("InquiryDetail — comment thread", () => {
 
     renderWithClient(client, <InquiryDetail inquiryId="i1" />);
 
-    const rows = await screen.findAllByTestId("inquiry-comment-row");
-    expect(rows).toHaveLength(2);
-    expect(screen.getByTestId("inquiry-comments-table")).toBeInTheDocument();
-    expect(screen.getByText("First contact made.")).toBeInTheDocument();
-    expect(screen.getByText("Internal note.")).toBeInTheDocument();
+    await expect.element(page.getByTestId("inquiry-comment-row").first()).toBeInTheDocument();
+    expect(page.getByTestId("inquiry-comment-row").elements()).toHaveLength(2);
+    await expect.element(page.getByTestId("inquiry-comments-table")).toBeInTheDocument();
+    await expect.element(page.getByText("First contact made.")).toBeInTheDocument();
+    await expect.element(page.getByText("Internal note.")).toBeInTheDocument();
   });
 
   it("renders the empty state and no rows when there are no comments", async () => {
@@ -227,8 +233,8 @@ describe("InquiryDetail — comment thread", () => {
 
     renderWithClient(client, <InquiryDetail inquiryId="i1" />);
 
-    expect(await screen.findByTestId("inquiry-comments-empty")).toBeInTheDocument();
-    expect(screen.queryAllByTestId("inquiry-comment-row")).toHaveLength(0);
+    await expect.element(page.getByTestId("inquiry-comments-empty")).toBeInTheDocument();
+    expect(page.getByTestId("inquiry-comment-row").elements()).toHaveLength(0);
   });
 
   it("shows a loading indicator while the comments query is pending", async () => {
@@ -238,7 +244,7 @@ describe("InquiryDetail — comment thread", () => {
 
     renderWithClient(client, <InquiryDetail inquiryId="i1" />);
 
-    expect(await screen.findByTestId("inquiry-comments-loading")).toBeInTheDocument();
+    await expect.element(page.getByTestId("inquiry-comments-loading")).toBeInTheDocument();
   });
 });
 
@@ -248,17 +254,16 @@ describe("InquiryDetail — add comment", () => {
   });
 
   it("adds a public comment: delegates the content to inquiries.addComment", async () => {
-    const user = userEvent.setup();
     const client = newClient();
     seedLoaded(client);
     mocks.addComment.mockResolvedValue(undefined);
 
     renderWithClient(client, <InquiryDetail inquiryId="i1" />);
 
-    await user.type(await screen.findByTestId("inquiry-comment-content"), "Following up");
-    await user.click(screen.getByTestId("inquiry-comment-submit"));
+    await userEvent.type(page.getByTestId("inquiry-comment-content"), "Following up");
+    await userEvent.click(page.getByTestId("inquiry-comment-submit"));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.addComment).toHaveBeenCalledWith("i1", {
         content: "Following up",
         isInternal: false,
@@ -267,18 +272,17 @@ describe("InquiryDetail — add comment", () => {
   });
 
   it("adds an internal comment when the internal checkbox is checked", async () => {
-    const user = userEvent.setup();
     const client = newClient();
     seedLoaded(client);
     mocks.addComment.mockResolvedValue(undefined);
 
     renderWithClient(client, <InquiryDetail inquiryId="i1" />);
 
-    await user.type(await screen.findByTestId("inquiry-comment-content"), "Private note");
-    await user.click(screen.getByTestId("inquiry-comment-internal"));
-    await user.click(screen.getByTestId("inquiry-comment-submit"));
+    await userEvent.type(page.getByTestId("inquiry-comment-content"), "Private note");
+    await userEvent.click(page.getByTestId("inquiry-comment-internal"));
+    await userEvent.click(page.getByTestId("inquiry-comment-submit"));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.addComment).toHaveBeenCalledWith("i1", {
         content: "Private note",
         isInternal: true,
@@ -287,7 +291,6 @@ describe("InquiryDetail — add comment", () => {
   });
 
   it("invalidates the comments query after a successful add", async () => {
-    const user = userEvent.setup();
     const client = newClient();
     seedLoaded(client);
     const invalidateSpy = vi.spyOn(client, "invalidateQueries");
@@ -295,10 +298,10 @@ describe("InquiryDetail — add comment", () => {
 
     renderWithClient(client, <InquiryDetail inquiryId="i1" />);
 
-    await user.type(await screen.findByTestId("inquiry-comment-content"), "Following up");
-    await user.click(screen.getByTestId("inquiry-comment-submit"));
+    await userEvent.type(page.getByTestId("inquiry-comment-content"), "Following up");
+    await userEvent.click(page.getByTestId("inquiry-comment-submit"));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(invalidateSpy).toHaveBeenCalledWith({
         queryKey: ["inquiries", "i1", "comments"],
       });
@@ -306,17 +309,17 @@ describe("InquiryDetail — add comment", () => {
   });
 
   it("surfaces the RFC 7807 ProblemDetails detail when add-comment fails", async () => {
-    const user = userEvent.setup();
     const client = newClient();
     seedLoaded(client);
     mocks.addComment.mockRejectedValue({ status: 400, detail: "Comment must not be empty." });
 
     renderWithClient(client, <InquiryDetail inquiryId="i1" />);
 
-    await user.type(await screen.findByTestId("inquiry-comment-content"), "x");
-    await user.click(screen.getByTestId("inquiry-comment-submit"));
+    await userEvent.type(page.getByTestId("inquiry-comment-content"), "x");
+    await userEvent.click(page.getByTestId("inquiry-comment-submit"));
 
-    const error = await screen.findByTestId("inquiry-comment-error");
-    expect(error).toHaveTextContent("Comment must not be empty.");
+    await expect
+      .element(page.getByTestId("inquiry-comment-error"))
+      .toHaveTextContent("Comment must not be empty.");
   });
 });

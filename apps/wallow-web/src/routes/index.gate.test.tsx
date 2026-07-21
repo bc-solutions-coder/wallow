@@ -1,13 +1,9 @@
-/** @vitest-environment jsdom */
-import * as matchers from "@testing-library/jest-dom/matchers";
-import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
+import { page } from "vitest/browser";
+import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Route } from "./index";
-
-// No global `expect` (vitest `globals` is off); register jest-dom matchers.
-expect.extend(matchers);
 
 /**
  * Public-home reachability spec (Wallow-ffpq.3.6) — the React port of Blazor
@@ -125,9 +121,9 @@ describe("routes/index (public-home gate)", () => {
 });
 
 describe("routes/index (public-home renders PublicLayout)", () => {
-  it("renders the marketing page inside the PublicLayout chrome", () => {
+  it("renders the marketing page inside the PublicLayout chrome", async () => {
     const Home = Route.options.component!;
     render(<Home />);
-    expect(screen.getByTestId("public-layout")).toBeInTheDocument();
+    await expect.element(page.getByTestId("public-layout")).toBeInTheDocument();
   });
 });

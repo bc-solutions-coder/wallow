@@ -1,5 +1,3 @@
-/** @vitest-environment jsdom */
-import * as matchers from "@testing-library/jest-dom/matchers";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,
@@ -8,17 +6,13 @@ import {
   Outlet,
   RouterProvider,
 } from "@tanstack/react-router";
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
+import { page, userEvent } from "vitest/browser";
+import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Route as registerRoute } from "../../../routes/register";
 import { RegisterForm } from "./RegisterForm";
-
-// No global `expect` (vitest `globals` is off), so register the jest-dom
-// matchers explicitly — the convention every wallow-auth RTL test follows.
-expect.extend(matchers);
 
 /**
  * Component spec for the Register screen (Wallow-vec7.3.8), ported from the
@@ -246,7 +240,7 @@ function renderForm(props: Partial<{ clientId?: string; returnUrl?: string }> = 
 /** Wait out the concurrent init so the form is on screen. */
 async function renderReadyForm(props: Partial<{ clientId?: string; returnUrl?: string }> = {}) {
   const result = renderForm(props);
-  await screen.findByTestId("register-email");
+  await expect.element(page.getByTestId("register-email")).toBeInTheDocument();
   return result;
 }
 
@@ -270,21 +264,21 @@ async function fillAndSubmit(
   } = overrides;
 
   if (email !== "") {
-    await user.type(screen.getByTestId("register-email"), email);
+    await user.type(page.getByTestId("register-email"), email);
   }
   if (password !== "") {
-    await user.type(screen.getByTestId("register-password"), password);
+    await user.type(page.getByTestId("register-password"), password);
   }
   if (confirmPassword !== "") {
-    await user.type(screen.getByTestId("register-confirm-password"), confirmPassword);
+    await user.type(page.getByTestId("register-confirm-password"), confirmPassword);
   }
   if (terms) {
-    await user.click(screen.getByTestId("register-terms"));
+    await user.click(page.getByTestId("register-terms"));
   }
   if (privacy) {
-    await user.click(screen.getByTestId("register-privacy"));
+    await user.click(page.getByTestId("register-privacy"));
   }
-  await user.click(screen.getByTestId("register-submit"));
+  await user.click(page.getByTestId("register-submit"));
 }
 
 beforeEach(() => {
@@ -312,14 +306,14 @@ describe("RegisterForm — concurrent init", () => {
 
     renderForm({ clientId: CLIENT_ID });
 
-    expect(await screen.findByTestId("register-loading")).toBeInTheDocument();
-    expect(screen.queryByTestId("register-email")).toBeNull();
+    await expect.element(page.getByTestId("register-loading")).toBeInTheDocument();
+    expect(page.getByTestId("register-email").query()).toBeNull();
 
     release();
 
     // Anchors the negative above: the field really does appear once init lands.
-    expect(await screen.findByTestId("register-email")).toBeInTheDocument();
-    expect(screen.queryByTestId("register-loading")).toBeNull();
+    await expect.element(page.getByTestId("register-email")).toBeInTheDocument();
+    expect(page.getByTestId("register-loading").query()).toBeNull();
   });
 
   it("fires getExternalProviders and getClientTenant CONCURRENTLY, not in sequence", async () => {
@@ -339,13 +333,13 @@ describe("RegisterForm — concurrent init", () => {
 
     renderForm({ clientId: CLIENT_ID });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.getClientTenant).toHaveBeenCalledWith(CLIENT_ID);
     });
     expect(mocks.getExternalProviders).toHaveBeenCalled();
 
     releaseProviders();
-    await screen.findByTestId("register-email");
+    await expect.element(page.getByTestId("register-email")).toBeInTheDocument();
   });
 
   it("skips the client-tenant lookup when no client_id is supplied", async () => {
@@ -355,14 +349,14 @@ describe("RegisterForm — concurrent init", () => {
     expect(mocks.getClientTenant).not.toHaveBeenCalled();
     // Anchor: init genuinely ran, so the negative above is about the gate.
     expect(mocks.getExternalProviders).toHaveBeenCalled();
-    expect(screen.queryByTestId("register-org-name")).toBeNull();
+    expect(page.getByTestId("register-org-name").query()).toBeNull();
   });
 
   it("announces the resolved organisation when a client_id maps to one", async () => {
     // Oracle: "You're registering for @_orgName".
     await renderReadyForm({ clientId: CLIENT_ID });
 
-    expect(await screen.findByTestId("register-org-name")).toHaveTextContent(/acme inc/iu);
+    await expect.element(page.getByTestId("register-org-name")).toHaveTextContent(/acme inc/iu);
   });
 
   it("ignores a failed client-tenant lookup — the org name is informational only", async () => {
@@ -373,9 +367,9 @@ describe("RegisterForm — concurrent init", () => {
     await renderReadyForm({ clientId: CLIENT_ID });
 
     // Anchored: the form is usable and no error banner was raised.
-    expect(screen.getByTestId("register-submit")).toBeInTheDocument();
-    expect(screen.queryByTestId("register-org-name")).toBeNull();
-    expect(screen.queryByTestId("register-error")).toBeNull();
+    await expect.element(page.getByTestId("register-submit")).toBeInTheDocument();
+    expect(page.getByTestId("register-org-name").query()).toBeNull();
+    expect(page.getByTestId("register-error").query()).toBeNull();
   });
 
   it("links external providers same-origin, WITHOUT the oracle's ApiBaseUrl prepend", async () => {
@@ -385,8 +379,9 @@ describe("RegisterForm — concurrent init", () => {
 
     await renderReadyForm();
 
-    const link = await screen.findByTestId("register-external-google");
-    const href: string = link.getAttribute("href") ?? "";
+    const link = page.getByTestId("register-external-google");
+    await expect.element(link).toBeInTheDocument();
+    const href: string = link.element().getAttribute("href") ?? "";
 
     expect(href.startsWith("/v1/identity/auth/external-login")).toBe(true);
     expect(href).toContain("provider=Google");
@@ -398,8 +393,8 @@ describe("RegisterForm — concurrent init", () => {
     // Oracle: `@if (_externalProviders.Count > 0)`.
     await renderReadyForm();
 
-    expect(screen.getByTestId("register-submit")).toBeInTheDocument();
-    expect(screen.queryByTestId("register-external-providers")).toBeNull();
+    await expect.element(page.getByTestId("register-submit")).toBeInTheDocument();
+    expect(page.getByTestId("register-external-providers").query()).toBeNull();
   });
 });
 
@@ -407,20 +402,22 @@ describe("RegisterForm — fields and validation", () => {
   it("renders the oracle's fields, and no error before submit", async () => {
     await renderReadyForm();
 
-    expect(screen.getByTestId("register-email")).toBeInTheDocument();
-    expect(screen.getByTestId("register-password")).toBeInTheDocument();
-    expect(screen.getByTestId("register-confirm-password")).toBeInTheDocument();
-    expect(screen.getByTestId("register-terms")).toBeInTheDocument();
-    expect(screen.getByTestId("register-privacy")).toBeInTheDocument();
-    expect(screen.getByTestId("register-submit")).toBeInTheDocument();
-    expect(screen.queryByTestId("register-error")).toBeNull();
+    await expect.element(page.getByTestId("register-email")).toBeInTheDocument();
+    await expect.element(page.getByTestId("register-password")).toBeInTheDocument();
+    await expect.element(page.getByTestId("register-confirm-password")).toBeInTheDocument();
+    await expect.element(page.getByTestId("register-terms")).toBeInTheDocument();
+    await expect.element(page.getByTestId("register-privacy")).toBeInTheDocument();
+    await expect.element(page.getByTestId("register-submit")).toBeInTheDocument();
+    expect(page.getByTestId("register-error").query()).toBeNull();
   });
 
   it("masks both password fields", async () => {
     await renderReadyForm();
 
-    expect(screen.getByTestId("register-password")).toHaveAttribute("type", "password");
-    expect(screen.getByTestId("register-confirm-password")).toHaveAttribute("type", "password");
+    await expect.element(page.getByTestId("register-password")).toHaveAttribute("type", "password");
+    await expect
+      .element(page.getByTestId("register-confirm-password"))
+      .toHaveAttribute("type", "password");
   });
 
   it("refuses a blank email", async () => {
@@ -430,7 +427,7 @@ describe("RegisterForm — fields and validation", () => {
 
     await fillAndSubmit(user, { email: "" });
 
-    expect(await screen.findByTestId("register-error")).toHaveTextContent(/email/iu);
+    await expect.element(page.getByTestId("register-error")).toHaveTextContent(/email/iu);
     expect(mocks.register).not.toHaveBeenCalled();
   });
 
@@ -441,7 +438,7 @@ describe("RegisterForm — fields and validation", () => {
 
     await fillAndSubmit(user, { password: "", confirmPassword: "" });
 
-    expect(await screen.findByTestId("register-error")).toHaveTextContent(/password/iu);
+    await expect.element(page.getByTestId("register-error")).toHaveTextContent(/password/iu);
     expect(mocks.register).not.toHaveBeenCalled();
   });
 
@@ -455,7 +452,7 @@ describe("RegisterForm — fields and validation", () => {
 
     await fillAndSubmit(user, { password: PASSWORD, confirmPassword: "Different-1!" });
 
-    expect(await screen.findByTestId("register-error")).toHaveTextContent(/do not match/iu);
+    await expect.element(page.getByTestId("register-error")).toHaveTextContent(/do not match/iu);
     expect(mocks.register).not.toHaveBeenCalled();
   });
 
@@ -466,7 +463,9 @@ describe("RegisterForm — fields and validation", () => {
 
     await fillAndSubmit(user, { terms: false });
 
-    expect(await screen.findByTestId("register-error")).toHaveTextContent(/terms of service/iu);
+    await expect
+      .element(page.getByTestId("register-error"))
+      .toHaveTextContent(/terms of service/iu);
     expect(mocks.register).not.toHaveBeenCalled();
   });
 
@@ -477,7 +476,7 @@ describe("RegisterForm — fields and validation", () => {
 
     await fillAndSubmit(user, { privacy: false });
 
-    expect(await screen.findByTestId("register-error")).toHaveTextContent(/privacy policy/iu);
+    await expect.element(page.getByTestId("register-error")).toHaveTextContent(/privacy policy/iu);
     expect(mocks.register).not.toHaveBeenCalled();
   });
 
@@ -486,14 +485,12 @@ describe("RegisterForm — fields and validation", () => {
     // asserted by role + href.
     await renderReadyForm();
 
-    expect(screen.getByRole("link", { name: /terms of service/iu })).toHaveAttribute(
-      "href",
-      "/terms",
-    );
-    expect(screen.getByRole("link", { name: /privacy policy/iu })).toHaveAttribute(
-      "href",
-      "/privacy",
-    );
+    await expect
+      .element(page.getByRole("link", { name: /terms of service/iu }))
+      .toHaveAttribute("href", "/terms");
+    await expect
+      .element(page.getByRole("link", { name: /privacy policy/iu }))
+      .toHaveAttribute("href", "/privacy");
   });
 });
 
@@ -504,13 +501,13 @@ describe("RegisterForm — passwordless toggle", () => {
     await renderReadyForm();
 
     // Anchor: they are on screen first, so the disappearance is real.
-    expect(screen.getByTestId("register-password")).toBeInTheDocument();
+    await expect.element(page.getByTestId("register-password")).toBeInTheDocument();
 
-    await user.click(screen.getByTestId("register-passwordless-toggle"));
+    await user.click(page.getByTestId("register-passwordless-toggle"));
 
-    expect(screen.queryByTestId("register-password")).toBeNull();
-    expect(screen.queryByTestId("register-confirm-password")).toBeNull();
-    expect(screen.getByTestId("register-submit")).toBeInTheDocument();
+    expect(page.getByTestId("register-password").query()).toBeNull();
+    expect(page.getByTestId("register-confirm-password").query()).toBeNull();
+    await expect.element(page.getByTestId("register-submit")).toBeInTheDocument();
   });
 
   it("sends loginMethod 'passwordless' and skips the password guards", async () => {
@@ -519,13 +516,13 @@ describe("RegisterForm — passwordless toggle", () => {
     const user = userEvent.setup();
     await renderReadyForm();
 
-    await user.click(screen.getByTestId("register-passwordless-toggle"));
-    await user.type(screen.getByTestId("register-email"), EMAIL);
-    await user.click(screen.getByTestId("register-terms"));
-    await user.click(screen.getByTestId("register-privacy"));
-    await user.click(screen.getByTestId("register-submit"));
+    await user.click(page.getByTestId("register-passwordless-toggle"));
+    await user.type(page.getByTestId("register-email"), EMAIL);
+    await user.click(page.getByTestId("register-terms"));
+    await user.click(page.getByTestId("register-privacy"));
+    await user.click(page.getByTestId("register-submit"));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.register).toHaveBeenCalledWith(
         expect.objectContaining({ email: EMAIL, loginMethod: "passwordless" }),
       );
@@ -539,7 +536,7 @@ describe("RegisterForm — passwordless toggle", () => {
 
     await fillAndSubmit(user);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.register).toHaveBeenCalled();
     });
     const body: { loginMethod?: string | null } = mocks.register.mock.calls[0][0];
@@ -549,12 +546,9 @@ describe("RegisterForm — passwordless toggle", () => {
 
 describe("RegisterForm — password strength meter", () => {
   /** Type a password and read back the meter's label. */
-  async function strengthOf(
-    user: ReturnType<typeof userEvent.setup>,
-    password: string,
-  ): Promise<HTMLElement> {
-    await user.type(screen.getByTestId("register-password"), password);
-    return screen.findByTestId("register-password-strength");
+  async function strengthOf(user: ReturnType<typeof userEvent.setup>, password: string) {
+    await user.type(page.getByTestId("register-password"), password);
+    return page.getByTestId("register-password-strength");
   }
 
   it("shows no meter until a password is typed", async () => {
@@ -562,8 +556,8 @@ describe("RegisterForm — password strength meter", () => {
     await renderReadyForm();
 
     // Anchored: the field exists, so the meter's absence is about emptiness.
-    expect(screen.getByTestId("register-password")).toHaveValue("");
-    expect(screen.queryByTestId("register-password-strength")).toBeNull();
+    await expect.element(page.getByTestId("register-password")).toHaveValue("");
+    expect(page.getByTestId("register-password-strength").query()).toBeNull();
   });
 
   it("rates a short password Weak", async () => {
@@ -571,7 +565,7 @@ describe("RegisterForm — password strength meter", () => {
     const user = userEvent.setup();
     await renderReadyForm();
 
-    expect(await strengthOf(user, "abc")).toHaveTextContent(/weak/iu);
+    await expect.element(await strengthOf(user, "abc")).toHaveTextContent(/weak/iu);
   });
 
   it("rates an 8-character password Fair", async () => {
@@ -579,7 +573,7 @@ describe("RegisterForm — password strength meter", () => {
     const user = userEvent.setup();
     await renderReadyForm();
 
-    expect(await strengthOf(user, "abcdefgh")).toHaveTextContent(/fair/iu);
+    await expect.element(await strengthOf(user, "abcdefgh")).toHaveTextContent(/fair/iu);
   });
 
   it("rates a long mixed password Strong", async () => {
@@ -588,7 +582,7 @@ describe("RegisterForm — password strength meter", () => {
     const user = userEvent.setup();
     await renderReadyForm();
 
-    expect(await strengthOf(user, "Abcdefgh1234")).toHaveTextContent(/strong/iu);
+    await expect.element(await strengthOf(user, "Abcdefgh1234")).toHaveTextContent(/strong/iu);
   });
 
   it("does not rate a long password Strong on length alone — the mix is required", async () => {
@@ -598,7 +592,7 @@ describe("RegisterForm — password strength meter", () => {
     const user = userEvent.setup();
     await renderReadyForm();
 
-    expect(await strengthOf(user, "abcdefghijkl")).toHaveTextContent(/fair/iu);
+    await expect.element(await strengthOf(user, "abcdefghijkl")).toHaveTextContent(/fair/iu);
   });
 
   it("updates the rating live as the password grows", async () => {
@@ -606,13 +600,15 @@ describe("RegisterForm — password strength meter", () => {
     const user = userEvent.setup();
     await renderReadyForm();
 
-    await user.type(screen.getByTestId("register-password"), "abc");
-    expect(await screen.findByTestId("register-password-strength")).toHaveTextContent(/weak/iu);
+    await user.type(page.getByTestId("register-password"), "abc");
+    await expect
+      .element(page.getByTestId("register-password-strength"))
+      .toHaveTextContent(/weak/iu);
 
-    await user.type(screen.getByTestId("register-password"), "defgh");
-    await waitFor(() => {
-      expect(screen.getByTestId("register-password-strength")).toHaveTextContent(/fair/iu);
-    });
+    await user.type(page.getByTestId("register-password"), "defgh");
+    await expect
+      .element(page.getByTestId("register-password-strength"))
+      .toHaveTextContent(/fair/iu);
   });
 });
 
@@ -625,7 +621,7 @@ describe("RegisterForm — submission", () => {
 
     await fillAndSubmit(user);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.register).toHaveBeenCalledWith(
         expect.objectContaining({
           email: EMAIL,
@@ -653,12 +649,10 @@ describe("RegisterForm — submission", () => {
     await renderReadyForm();
     await fillAndSubmit(user);
 
-    await waitFor(() => {
-      expect(screen.getByTestId("register-submit")).toBeDisabled();
-    });
+    await expect.element(page.getByTestId("register-submit")).toBeDisabled();
 
     release();
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalled();
     });
   });
@@ -676,7 +670,7 @@ describe("RegisterForm — submission", () => {
     await renderReadyForm();
     await fillAndSubmit(user);
 
-    expect(await screen.findByTestId("register-error")).toHaveTextContent(/already exists/iu);
+    await expect.element(page.getByTestId("register-error")).toHaveTextContent(/already exists/iu);
     expect(mocks.navigate).not.toHaveBeenCalled();
   });
 
@@ -691,7 +685,7 @@ describe("RegisterForm — submission", () => {
     await renderReadyForm();
     await fillAndSubmit(user);
 
-    expect(await screen.findByTestId("register-error")).toHaveTextContent(/do not match/iu);
+    await expect.element(page.getByTestId("register-error")).toHaveTextContent(/do not match/iu);
   });
 
   it("does not blame the user's input when the client_id is invalid", async () => {
@@ -707,9 +701,9 @@ describe("RegisterForm — submission", () => {
 
     await fillAndSubmit(user);
 
-    const banner: HTMLElement = await screen.findByTestId("register-error");
-    expect(banner).toHaveTextContent(/link/iu);
-    expect(banner).not.toHaveTextContent(/already exists/iu);
+    const banner = page.getByTestId("register-error");
+    await expect.element(banner).toHaveTextContent(/link/iu);
+    await expect.element(banner).not.toHaveTextContent(/already exists/iu);
   });
 
   it("falls back to a generic message for a weak password, which has NO stable code", async () => {
@@ -722,8 +716,9 @@ describe("RegisterForm — submission", () => {
 
     await renderReadyForm();
     await fillAndSubmit(user, { password: "weak", confirmPassword: "weak" });
-    const banner: HTMLElement = await screen.findByTestId("register-error");
-    const weakMessage: string = banner.textContent ?? "";
+    const banner = page.getByTestId("register-error");
+    await expect.element(banner).toBeInTheDocument();
+    const weakMessage: string = banner.element().textContent ?? "";
 
     expect(weakMessage).not.toBe("");
     expect(weakMessage).toMatch(/try again/iu);
@@ -743,9 +738,10 @@ describe("RegisterForm — submission", () => {
     await renderReadyForm();
     await fillAndSubmit(user, { password: "weak", confirmPassword: "weak" });
 
-    const banner: HTMLElement = await screen.findByTestId("register-error");
-    expect(banner).not.toHaveTextContent(RAW_IDENTITY_SENTENCE);
-    expect(banner).not.toHaveTextContent(/'0'-'9'/u);
+    const banner = page.getByTestId("register-error");
+    await expect.element(banner).toBeInTheDocument();
+    await expect.element(banner).not.toHaveTextContent(RAW_IDENTITY_SENTENCE);
+    await expect.element(banner).not.toHaveTextContent(/'0'-'9'/u);
   });
 
   it("falls back to the generic message for an UNRECOGNISED code on the SAME 400", async () => {
@@ -761,11 +757,11 @@ describe("RegisterForm — submission", () => {
     await renderReadyForm();
     await fillAndSubmit(user);
 
-    const banner: HTMLElement = await screen.findByTestId("register-error");
-    expect(banner).toHaveTextContent(/try again/iu);
-    expect(banner).not.toHaveTextContent(/already exists/iu);
+    const banner = page.getByTestId("register-error");
+    await expect.element(banner).toHaveTextContent(/try again/iu);
+    await expect.element(banner).not.toHaveTextContent(/already exists/iu);
     // ...and it is not leaked, either.
-    expect(banner).not.toHaveTextContent(/some_future_token/u);
+    await expect.element(banner).not.toHaveTextContent(/some_future_token/u);
   });
 
   it("surfaces a generic message when the server errors outright", async () => {
@@ -775,7 +771,7 @@ describe("RegisterForm — submission", () => {
     await renderReadyForm();
     await fillAndSubmit(user);
 
-    expect(await screen.findByTestId("register-error")).toHaveTextContent(/try again/iu);
+    await expect.element(page.getByTestId("register-error")).toHaveTextContent(/try again/iu);
   });
 
   it("falls back to the generic message when the rejection carries no code at all", async () => {
@@ -788,7 +784,7 @@ describe("RegisterForm — submission", () => {
     await renderReadyForm();
     await fillAndSubmit(user);
 
-    expect(await screen.findByTestId("register-error")).toHaveTextContent(/try again/iu);
+    await expect.element(page.getByTestId("register-error")).toHaveTextContent(/try again/iu);
   });
 
   it("clears a stale error banner when a retry succeeds", async () => {
@@ -800,13 +796,11 @@ describe("RegisterForm — submission", () => {
     await renderReadyForm();
     await fillAndSubmit(user);
     // Anchor: the banner is genuinely there before the retry clears it.
-    expect(await screen.findByTestId("register-error")).toBeInTheDocument();
+    await expect.element(page.getByTestId("register-error")).toBeInTheDocument();
 
-    await user.click(screen.getByTestId("register-submit"));
+    await user.click(page.getByTestId("register-submit"));
 
-    await waitFor(() => {
-      expect(screen.queryByTestId("register-error")).toBeNull();
-    });
+    await expect.element(page.getByTestId("register-error")).not.toBeInTheDocument();
   });
 });
 
@@ -841,7 +835,7 @@ describe("RegisterForm — org-domain-match interstitial", () => {
     await renderReadyForm();
     await fillAndSubmit(user);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.getMatchingOrgByDomain).toHaveBeenCalledWith(EMAIL);
     });
     expect(mocks.register).not.toHaveBeenCalled();
@@ -856,7 +850,7 @@ describe("RegisterForm — org-domain-match interstitial", () => {
     await renderReadyForm();
     await fillAndSubmit(user, { terms: false });
 
-    expect(await screen.findByTestId("register-error")).toHaveTextContent(/terms/iu);
+    await expect.element(page.getByTestId("register-error")).toHaveTextContent(/terms/iu);
     expect(mocks.getMatchingOrgByDomain).not.toHaveBeenCalled();
     expect(mocks.register).not.toHaveBeenCalled();
   });
@@ -870,11 +864,11 @@ describe("RegisterForm — org-domain-match interstitial", () => {
     await renderReadyForm();
     await fillAndSubmit(user);
 
-    expect(await screen.findByTestId("register-org-match")).toHaveTextContent(EMAIL_DOMAIN);
-    expect(screen.getByTestId("register-org-match-accept")).toBeInTheDocument();
-    expect(screen.getByTestId("register-org-match-dismiss")).toBeInTheDocument();
+    await expect.element(page.getByTestId("register-org-match")).toHaveTextContent(EMAIL_DOMAIN);
+    await expect.element(page.getByTestId("register-org-match-accept")).toBeInTheDocument();
+    await expect.element(page.getByTestId("register-org-match-dismiss")).toBeInTheDocument();
     // The interstitial REPLACES the form.
-    expect(screen.queryByTestId("register-submit")).toBeNull();
+    expect(page.getByTestId("register-submit").query()).toBeNull();
     expect(mocks.navigate).not.toHaveBeenCalled();
   });
 
@@ -889,9 +883,7 @@ describe("RegisterForm — org-domain-match interstitial", () => {
     await renderReadyForm();
     await fillAndSubmit(user);
 
-    await waitFor(() => {
-      expect(screen.getByTestId("register-submit")).toBeDisabled();
-    });
+    await expect.element(page.getByTestId("register-submit")).toBeDisabled();
     expect(mocks.register).not.toHaveBeenCalled();
   });
 
@@ -904,9 +896,9 @@ describe("RegisterForm — org-domain-match interstitial", () => {
 
     await renderReadyForm();
     await fillAndSubmit(user);
-    await user.click(await screen.findByTestId("register-org-match-accept"));
+    await user.click(page.getByTestId("register-org-match-accept"));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.register).toHaveBeenCalledWith(
         expect.objectContaining({ email: EMAIL, requestOrgMembership: true }),
       );
@@ -921,9 +913,9 @@ describe("RegisterForm — org-domain-match interstitial", () => {
 
     await renderReadyForm({ returnUrl: RETURN_URL });
     await fillAndSubmit(user);
-    await user.click(await screen.findByTestId("register-org-match-accept"));
+    await user.click(page.getByTestId("register-org-match-accept"));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalledWith({
         href: `/verify-email?returnUrl=${encodeURIComponent(RETURN_URL)}`,
       });
@@ -939,15 +931,13 @@ describe("RegisterForm — org-domain-match interstitial", () => {
 
     await renderReadyForm();
     await fillAndSubmit(user);
-    await user.click(await screen.findByTestId("register-org-match-accept"));
+    await user.click(page.getByTestId("register-org-match-accept"));
 
-    await waitFor(() => {
-      expect(screen.getByTestId("register-org-match-accept")).toBeDisabled();
-    });
-    expect(screen.getByTestId("register-org-match-dismiss")).toBeDisabled();
+    await expect.element(page.getByTestId("register-org-match-accept")).toBeDisabled();
+    await expect.element(page.getByTestId("register-org-match-dismiss")).toBeDisabled();
 
     release();
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalled();
     });
   });
@@ -965,11 +955,11 @@ describe("RegisterForm — org-domain-match interstitial", () => {
 
     await renderReadyForm();
     await fillAndSubmit(user);
-    await user.click(await screen.findByTestId("register-org-match-accept"));
+    await user.click(page.getByTestId("register-org-match-accept"));
 
-    expect(await screen.findByTestId("register-error")).toHaveTextContent(/already exists/iu);
-    expect(screen.getByTestId("register-submit")).toBeInTheDocument();
-    expect(screen.queryByTestId("register-org-match")).toBeNull();
+    await expect.element(page.getByTestId("register-error")).toHaveTextContent(/already exists/iu);
+    await expect.element(page.getByTestId("register-submit")).toBeInTheDocument();
+    expect(page.getByTestId("register-org-match").query()).toBeNull();
     expect(mocks.navigate).not.toHaveBeenCalled();
   });
 
@@ -981,9 +971,9 @@ describe("RegisterForm — org-domain-match interstitial", () => {
 
     await renderReadyForm();
     await fillAndSubmit(user);
-    await user.click(await screen.findByTestId("register-org-match-dismiss"));
+    await user.click(page.getByTestId("register-org-match-dismiss"));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.register).toHaveBeenCalledWith(expect.objectContaining({ email: EMAIL }));
     });
     // `not.objectContaining` passes for both false and absent — either is a
@@ -992,7 +982,7 @@ describe("RegisterForm — org-domain-match interstitial", () => {
     expect(mocks.register).toHaveBeenCalledWith(
       expect.not.objectContaining({ requestOrgMembership: true }),
     );
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalledWith({ href: "/verify-email" });
     });
   });
@@ -1007,14 +997,14 @@ describe("RegisterForm — org-domain-match interstitial", () => {
     await renderReadyForm();
     await fillAndSubmit(user);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalledWith({ href: "/verify-email" });
     });
     expect(mocks.register).toHaveBeenCalledWith(
       expect.not.objectContaining({ requestOrgMembership: true }),
     );
-    expect(screen.queryByTestId("register-org-match")).toBeNull();
-    expect(screen.queryByTestId("register-error")).toBeNull();
+    expect(page.getByTestId("register-org-match").query()).toBeNull();
+    expect(page.getByTestId("register-error").query()).toBeNull();
   });
 
   it("never calls the anonymous requestMembership endpoint", async () => {
@@ -1027,9 +1017,9 @@ describe("RegisterForm — org-domain-match interstitial", () => {
 
     await renderReadyForm();
     await fillAndSubmit(user);
-    await user.click(await screen.findByTestId("register-org-match-accept"));
+    await user.click(page.getByTestId("register-org-match-accept"));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.register).toHaveBeenCalled();
     });
     expect(mocks.requestMembership).not.toHaveBeenCalled();
@@ -1042,7 +1032,7 @@ describe("RegisterForm — org-domain-match interstitial", () => {
     await renderReadyForm({ returnUrl: RETURN_URL });
     await fillAndSubmit(user);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalledWith({
         href: `/verify-email?returnUrl=${encodeURIComponent(RETURN_URL)}`,
       });
@@ -1061,7 +1051,7 @@ describe("RegisterForm — open-redirect guard", () => {
     await renderReadyForm({ returnUrl: "//evil.example.com/steal" });
     await fillAndSubmit(user);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalledWith({ href: "/error?reason=invalid_redirect_uri" });
     });
     expect(mocks.navigate).not.toHaveBeenCalledWith({ href: "/verify-email" });
@@ -1073,7 +1063,7 @@ describe("RegisterForm — open-redirect guard", () => {
     await renderReadyForm({ returnUrl: "https://evil.example.com/steal" });
     await fillAndSubmit(user);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalledWith({ href: "/error?reason=invalid_redirect_uri" });
     });
   });
@@ -1086,7 +1076,7 @@ describe("RegisterForm — open-redirect guard", () => {
     await renderReadyForm();
     await fillAndSubmit(user);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalledWith({ href: "/verify-email" });
     });
   });
@@ -1122,8 +1112,8 @@ describe("/register route", () => {
     // this task's job is to replace it. The path is the contract.
     renderRouteAt("/register");
 
-    expect(await screen.findByTestId("register-email")).toBeInTheDocument();
-    expect(screen.queryByTestId("route-placeholder")).toBeNull();
+    await expect.element(page.getByTestId("register-email")).toBeInTheDocument();
+    expect(page.getByTestId("route-placeholder").query()).toBeNull();
   });
 
   it("reads client_id and returnUrl off the query string and threads them into the register call", async () => {
@@ -1132,10 +1122,10 @@ describe("/register route", () => {
     const user = userEvent.setup();
     renderRouteAt(`/register?client_id=${CLIENT_ID}&returnUrl=${encodeURIComponent(RETURN_URL)}`);
 
-    await screen.findByTestId("register-email");
+    await expect.element(page.getByTestId("register-email")).toBeInTheDocument();
     await fillAndSubmit(user);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.register).toHaveBeenCalledWith(
         expect.objectContaining({ clientId: CLIENT_ID, returnUrl: RETURN_URL }),
       );
@@ -1147,7 +1137,7 @@ describe("/register route", () => {
     // error at the user.
     renderRouteAt("/register");
 
-    expect(await screen.findByTestId("register-submit")).toBeInTheDocument();
+    await expect.element(page.getByTestId("register-submit")).toBeInTheDocument();
     expect(mocks.getClientTenant).not.toHaveBeenCalled();
   });
 });

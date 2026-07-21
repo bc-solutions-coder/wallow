@@ -1,13 +1,10 @@
-/** @vitest-environment jsdom */
-import * as matchers from "@testing-library/jest-dom/matchers";
-import { render, screen } from "@testing-library/react";
+import { render } from "vitest-browser-react";
+import { page } from "vitest/browser";
 import type { ReactElement } from "react";
 import { describe, expect, it } from "vitest";
 
 import { Route as privacyRoute } from "../../../routes/privacy";
 import { PrivacyPage } from "./PrivacyPage";
-
-expect.extend(matchers);
 
 /**
  * Component spec for the Privacy Policy screen (Wallow-vec7.3.3), ported from
@@ -41,53 +38,56 @@ const SECTIONS: readonly string[] = [
 ];
 
 describe("PrivacyPage", () => {
-  it("is titled Privacy Policy", () => {
-    render(<PrivacyPage />);
+  it("is titled Privacy Policy", async () => {
+    await render(<PrivacyPage />);
 
-    expect(screen.getByTestId("privacy-heading")).toHaveTextContent("Privacy Policy");
+    await expect.element(page.getByTestId("privacy-heading")).toHaveTextContent("Privacy Policy");
   });
 
-  it("shows the last-updated date", () => {
-    render(<PrivacyPage />);
+  it("shows the last-updated date", async () => {
+    await render(<PrivacyPage />);
 
     expect(document.body.textContent).toMatch(/last updated/iu);
   });
 
-  it("carries all nine sections of the policy", () => {
-    render(<PrivacyPage />);
+  it("carries all nine sections of the policy", async () => {
+    await render(<PrivacyPage />);
 
-    const content: HTMLElement = screen.getByTestId("privacy-content");
+    const content: HTMLElement = page.getByTestId("privacy-content").element() as HTMLElement;
 
     for (const [index, section] of SECTIONS.entries()) {
       expect(content).toHaveTextContent(`${String(index + 1)}. ${section}`);
     }
   });
 
-  it("gives every section a body, not just a heading", () => {
+  it("gives every section a body, not just a heading", async () => {
     // Guards the other half of the copy-paste failure: headings present, prose
     // dropped. Nine headings plus nine paragraphs is a lot of text; a page that
     // came out near-empty would still pass a heading-only check.
-    render(<PrivacyPage />);
+    await render(<PrivacyPage />);
 
-    expect(screen.getByTestId("privacy-content").textContent?.length ?? 0).toBeGreaterThan(1000);
+    const content: HTMLElement = page.getByTestId("privacy-content").element() as HTMLElement;
+    expect(content.textContent?.length ?? 0).toBeGreaterThan(1000);
   });
 
-  it("gives the reader a way back to register", () => {
+  it("gives the reader a way back to register", async () => {
     // Oracle: `Href="/register"` — this page is reached FROM the register form's
     // consent checkboxes, so back means back to register, not to login.
-    render(<PrivacyPage />);
+    await render(<PrivacyPage />);
 
-    expect(screen.getByTestId("privacy-back-button")).toHaveAttribute("href", "/register");
+    await expect
+      .element(page.getByTestId("privacy-back-button"))
+      .toHaveAttribute("href", "/register");
   });
 });
 
 describe("/privacy route", () => {
-  it("renders the real screen in place of the pre-registration placeholder", () => {
+  it("renders the real screen in place of the pre-registration placeholder", async () => {
     const RouteComponent = privacyRoute.options.component as () => ReactElement;
 
-    render(<RouteComponent />);
+    await render(<RouteComponent />);
 
-    expect(screen.queryByTestId("route-placeholder")).toBeNull();
-    expect(screen.getByTestId("privacy-heading")).toBeInTheDocument();
+    expect(page.getByTestId("route-placeholder").query()).toBeNull();
+    await expect.element(page.getByTestId("privacy-heading")).toBeInTheDocument();
   });
 });

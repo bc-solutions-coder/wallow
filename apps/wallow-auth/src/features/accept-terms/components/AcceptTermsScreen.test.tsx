@@ -1,5 +1,3 @@
-/** @vitest-environment jsdom */
-import * as matchers from "@testing-library/jest-dom/matchers";
 import {
   createMemoryHistory,
   createRootRoute,
@@ -7,17 +5,12 @@ import {
   Outlet,
   RouterProvider,
 } from "@tanstack/react-router";
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { page, userEvent } from "vitest/browser";
+import { render } from "vitest-browser-react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Route as acceptTermsRoute } from "../../../routes/accept-terms";
 import { AcceptTermsScreen } from "./AcceptTermsScreen";
-
-// No global `expect` (vitest `globals` is off), so register the jest-dom
-// matchers explicitly — the DOM-matcher convention wallow-web's RTL tests
-// established and wallow-auth copies.
-expect.extend(matchers);
 
 /**
  * Component spec for the AcceptTerms screen (Wallow-vec7.3.10), ported from the
@@ -182,18 +175,51 @@ const EMAIL = "ada@example.com";
 const NAME = "Ada Lovelace";
 
 /**
- * Replace `window.location` with a plain settable object so the screen's full
- * navigation is observable. jsdom refuses `vi.spyOn(window.location, "assign")`
- * ("Cannot redefine property"), but `location` itself is a configurable
- * accessor, so `vi.stubGlobal` swaps it wholesale — and `globalThis === window`
- * under jsdom, so the screen's `globalThis.location.href = …` writes here.
- * Established by Wallow-vec7.3.4 (Consent); bd memory `full-navigation-seam-for-
- * wallow-auth-screens-that`.
+ * NAVIGATION SEAM (Wallow-xzha.3.1). The screen hands off with
+ * `globalThis.location.href = …`. Under jsdom that was observed by swapping
+ * `location` for a plain settable object; in a REAL browser `location` is
+ * `[Unforgeable]`, so `vi.stubGlobal("location", …)` cannot shadow it and the
+ * assignment navigates the Chromium iframe and tears the runner down.
+ *
+ * Instead we listen on the Navigation API `navigate` event the assignment fires,
+ * record `destination.url`, and `preventDefault()` so the navigation is cancelled
+ * and the runner stays put. The recorded array stands in for the old settable
+ * `location.href`: a hand-off appends exactly one absolute URL; a declined submit
+ * appends nothing at all. bd memory `full-navigation-seam-for-wallow-auth-screens-
+ * that`.
  */
-function stubLocation(): { href: string } {
-  const location = { href: "" };
-  vi.stubGlobal("location", location);
-  return location;
+interface NavigateEvent extends Event {
+  readonly destination: { readonly url: string };
+}
+interface NavigationLike {
+  addEventListener: (type: "navigate", handler: (event: NavigateEvent) => void) => void;
+  removeEventListener: (type: "navigate", handler: (event: NavigateEvent) => void) => void;
+}
+const navigationApi: NavigationLike = (globalThis as unknown as { navigation: NavigationLike })
+  .navigation;
+
+/** Listeners registered by `captureHandoff`, torn down in `afterEach`. */
+const navDisposers: Array<() => void> = [];
+
+/** Arm the navigation seam and return the array the hand-off URL lands in. */
+function captureHandoff(): { urls: string[] } {
+  const urls: string[] = [];
+  const handler = (event: NavigateEvent): void => {
+    urls.push(event.destination.url);
+    // Cancel the navigation so assigning `location.href` does not tear the
+    // Chromium runner down; the recorded URL is what we assert on.
+    event.preventDefault();
+  };
+  navigationApi.addEventListener("navigate", handler);
+  navDisposers.push(() => {
+    navigationApi.removeEventListener("navigate", handler);
+  });
+  return { urls };
+}
+
+/** The pathname + query the screen built, recovered from the cancelled navigation. */
+function handoffTarget(urls: string[]): URL {
+  return new URL(urls[0]);
 }
 
 function renderScreen(props: Partial<Parameters<typeof AcceptTermsScreen>[0]> = {}) {
@@ -202,8 +228,8 @@ function renderScreen(props: Partial<Parameters<typeof AcceptTermsScreen>[0]> = 
 
 /** Tick both consent boxes — the only way to arm the submit button. */
 async function acceptBoth(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(screen.getByTestId("accept-terms-checkbox"));
-  await user.click(screen.getByTestId("accept-terms-privacy-checkbox"));
+  await user.click(page.getByTestId("accept-terms-checkbox"));
+  await user.click(page.getByTestId("accept-terms-privacy-checkbox"));
 }
 
 beforeEach(() => {
@@ -212,65 +238,75 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  navDisposers.forEach((dispose) => {
+    dispose();
+  });
+  navDisposers.length = 0;
   vi.unstubAllGlobals();
 });
 
 describe("AcceptTermsScreen", () => {
-  it("renders the gate: heading, both consent checkboxes, and submit", () => {
+  it("renders the gate: heading, both consent checkboxes, and submit", async () => {
     renderScreen();
 
-    expect(screen.getByTestId("accept-terms-heading")).toHaveTextContent(/almost there/iu);
-    expect(screen.getByTestId("accept-terms-checkbox")).toBeInTheDocument();
-    expect(screen.getByTestId("accept-terms-privacy-checkbox")).toBeInTheDocument();
-    expect(screen.getByTestId("accept-terms-submit")).toBeInTheDocument();
-    expect(screen.queryByTestId("accept-terms-error")).toBeNull();
+    await expect
+      .element(page.getByTestId("accept-terms-heading"))
+      .toHaveTextContent(/almost there/iu);
+    await expect.element(page.getByTestId("accept-terms-checkbox")).toBeInTheDocument();
+    await expect.element(page.getByTestId("accept-terms-privacy-checkbox")).toBeInTheDocument();
+    await expect.element(page.getByTestId("accept-terms-submit")).toBeInTheDocument();
+    expect(page.getByTestId("accept-terms-error").query()).toBeNull();
   });
 
-  it("exposes both testids on real checkbox inputs", () => {
+  it("exposes both testids on real checkbox inputs", async () => {
     // Divergence 4: the oracle puts these testids on the wrapping div. A div
     // cannot be clicked to toggle the box it wraps, so the port moves them onto
     // the inputs — which is what every test and E2E `.check()` below relies on.
     renderScreen();
 
-    expect(screen.getByTestId("accept-terms-checkbox")).toHaveAttribute("type", "checkbox");
-    expect(screen.getByTestId("accept-terms-privacy-checkbox")).toHaveAttribute("type", "checkbox");
+    await expect
+      .element(page.getByTestId("accept-terms-checkbox"))
+      .toHaveAttribute("type", "checkbox");
+    await expect
+      .element(page.getByTestId("accept-terms-privacy-checkbox"))
+      .toHaveAttribute("type", "checkbox");
   });
 
-  it("shows who is signing up when the link carries an email and name", () => {
+  it("shows who is signing up when the link carries an email and name", async () => {
     // Oracle: `@if (!string.IsNullOrEmpty(Email))` renders "Signing up as",
     // `@Name`, `@Email`. This is the user's only chance to notice the provider
     // handed over the wrong account before one gets created.
     renderScreen({ email: EMAIL, name: NAME });
 
-    expect(screen.getByText(EMAIL)).toBeInTheDocument();
-    expect(screen.getByText(NAME)).toBeInTheDocument();
+    await expect.element(page.getByText(EMAIL)).toBeInTheDocument();
+    await expect.element(page.getByText(NAME)).toBeInTheDocument();
   });
 
-  it("omits the signing-up-as block when the link carries no email", () => {
+  it("omits the signing-up-as block when the link carries no email", async () => {
     // Oracle: the whole block is gated on Email, so a nameless/emailless link
     // must not render an empty identity card. Anchored on the heading so the
     // negative cannot pass against a screen that renders nothing at all.
     renderScreen({ name: NAME });
 
-    expect(screen.getByTestId("accept-terms-heading")).toBeInTheDocument();
-    expect(screen.queryByText(NAME)).toBeNull();
-    expect(screen.queryByText(/signing up as/iu)).toBeNull();
+    await expect.element(page.getByTestId("accept-terms-heading")).toBeInTheDocument();
+    expect(page.getByText(NAME).query()).toBeNull();
+    expect(page.getByText(/signing up as/iu).query()).toBeNull();
   });
 
-  it("links to the terms and privacy documents that actually exist", () => {
+  it("links to the terms and privacy documents that actually exist", async () => {
     // Divergence 2: the oracle's `/terms-of-service` and `/privacy-policy` are
     // 404s; the real routes are `/terms` and `/privacy`. Consent to a document
     // the user cannot open is not informed consent.
     renderScreen();
 
-    const terms: HTMLElement = screen.getByRole("link", { name: /terms of service/iu });
-    const privacy: HTMLElement = screen.getByRole("link", { name: /privacy policy/iu });
+    const terms = page.getByRole("link", { name: /terms of service/iu });
+    const privacy = page.getByRole("link", { name: /privacy policy/iu });
 
-    expect(terms).toHaveAttribute("href", "/terms");
-    expect(privacy).toHaveAttribute("href", "/privacy");
+    await expect.element(terms).toHaveAttribute("href", "/terms");
+    await expect.element(privacy).toHaveAttribute("href", "/privacy");
     // Oracle: `target="_blank"` — reading the terms must not abandon the sign-up.
-    expect(terms).toHaveAttribute("target", "_blank");
-    expect(privacy).toHaveAttribute("target", "_blank");
+    await expect.element(terms).toHaveAttribute("target", "_blank");
+    await expect.element(privacy).toHaveAttribute("target", "_blank");
   });
 });
 
@@ -281,13 +317,13 @@ describe("AcceptTermsScreen consent gating", () => {
     const user = userEvent.setup();
     renderScreen();
 
-    expect(screen.getByTestId("accept-terms-submit")).toBeDisabled();
+    await expect.element(page.getByTestId("accept-terms-submit")).toBeDisabled();
 
-    await user.click(screen.getByTestId("accept-terms-checkbox"));
-    expect(screen.getByTestId("accept-terms-submit")).toBeDisabled();
+    await user.click(page.getByTestId("accept-terms-checkbox"));
+    await expect.element(page.getByTestId("accept-terms-submit")).toBeDisabled();
 
-    await user.click(screen.getByTestId("accept-terms-privacy-checkbox"));
-    expect(screen.getByTestId("accept-terms-submit")).toBeEnabled();
+    await user.click(page.getByTestId("accept-terms-privacy-checkbox"));
+    await expect.element(page.getByTestId("accept-terms-submit")).toBeEnabled();
   });
 
   it("keeps submit disabled when only privacy is accepted", async () => {
@@ -296,9 +332,9 @@ describe("AcceptTermsScreen consent gating", () => {
     const user = userEvent.setup();
     renderScreen();
 
-    await user.click(screen.getByTestId("accept-terms-privacy-checkbox"));
+    await user.click(page.getByTestId("accept-terms-privacy-checkbox"));
 
-    expect(screen.getByTestId("accept-terms-submit")).toBeDisabled();
+    await expect.element(page.getByTestId("accept-terms-submit")).toBeDisabled();
   });
 
   it("re-disables submit when a consent box is un-ticked", async () => {
@@ -308,11 +344,11 @@ describe("AcceptTermsScreen consent gating", () => {
     renderScreen();
 
     await acceptBoth(user);
-    expect(screen.getByTestId("accept-terms-submit")).toBeEnabled();
+    await expect.element(page.getByTestId("accept-terms-submit")).toBeEnabled();
 
-    await user.click(screen.getByTestId("accept-terms-checkbox"));
+    await user.click(page.getByTestId("accept-terms-checkbox"));
 
-    expect(screen.getByTestId("accept-terms-submit")).toBeDisabled();
+    await expect.element(page.getByTestId("accept-terms-submit")).toBeDisabled();
   });
 
   it("does not complete the registration while the boxes are unchecked", async () => {
@@ -321,13 +357,13 @@ describe("AcceptTermsScreen consent gating", () => {
     // return;`) rather than trusting the disabled attribute — so the click must
     // be inert, not merely unclickable. Anchored on the disabled assertion.
     const user = userEvent.setup();
-    const location = stubLocation();
+    const handoff = captureHandoff();
     renderScreen();
 
-    expect(screen.getByTestId("accept-terms-submit")).toBeDisabled();
-    await user.click(screen.getByTestId("accept-terms-submit"));
+    await expect.element(page.getByTestId("accept-terms-submit")).toBeDisabled();
+    await user.click(page.getByTestId("accept-terms-submit"), { force: true });
 
-    expect(location.href).toBe("");
+    expect(handoff.urls).toEqual([]);
   });
 
   it("never sends acceptedTerms=false", async () => {
@@ -336,14 +372,14 @@ describe("AcceptTermsScreen consent gating", () => {
     // error=terms_required — but this screen must never drive it. Declining means
     // going nowhere; there is no "no thanks" round trip to the API.
     const user = userEvent.setup();
-    const location = stubLocation();
+    const handoff = captureHandoff();
     renderScreen();
 
-    await user.click(screen.getByTestId("accept-terms-checkbox"));
-    await user.click(screen.getByTestId("accept-terms-submit"));
+    await user.click(page.getByTestId("accept-terms-checkbox"));
+    await user.click(page.getByTestId("accept-terms-submit"), { force: true });
 
-    expect(screen.getByTestId("accept-terms-submit")).toBeDisabled();
-    expect(location.href).toBe("");
+    await expect.element(page.getByTestId("accept-terms-submit")).toBeDisabled();
+    expect(handoff.urls).toEqual([]);
   });
 
   it("offers a way out that does not create an account", async () => {
@@ -352,14 +388,13 @@ describe("AcceptTermsScreen consent gating", () => {
     // gives it no testid and the scout's inventory forbids inventing one for an
     // element that shipped without one. Note this is an <a>: `toBeDisabled` can
     // never match it (bd memory `jest-dom-tobedisabled-cannot-match-an-anchor`).
-    const location = stubLocation();
+    const handoff = captureHandoff();
     renderScreen();
 
-    expect(screen.getByRole("link", { name: /back to sign in/iu })).toHaveAttribute(
-      "href",
-      "/login",
-    );
-    expect(location.href).toBe("");
+    await expect
+      .element(page.getByRole("link", { name: /back to sign in/iu }))
+      .toHaveAttribute("href", "/login");
+    expect(handoff.urls).toEqual([]);
     // Walking away leaves the ExternalLoginState cookie to expire on its own
     // (10 min): no user was created, so there is nothing to clean up client-side.
     expect(mocks.authAccess).toEqual([]);
@@ -374,17 +409,19 @@ describe("AcceptTermsScreen accept branch", () => {
     // real top-level navigation for the browser to attach the SameSite=Lax
     // ExternalLoginState cookie step 4 needs.
     const user = userEvent.setup();
-    const location = stubLocation();
+    const handoff = captureHandoff();
     renderScreen();
 
     await acceptBoth(user);
-    await user.click(screen.getByTestId("accept-terms-submit"));
+    await user.click(page.getByTestId("accept-terms-submit"));
 
-    await waitFor(() => {
-      expect(location.href).toBe(
-        `${ENDPOINT}?acceptedTerms=true&returnUrl=${encodeURIComponent(RETURN_URL)}`,
-      );
+    await vi.waitFor(() => {
+      expect(handoff.urls).toHaveLength(1);
     });
+    const target = handoffTarget(handoff.urls);
+    expect(target.pathname + target.search).toBe(
+      `${ENDPOINT}?acceptedTerms=true&returnUrl=${encodeURIComponent(RETURN_URL)}`,
+    );
   });
 
   it("keeps the handoff same-origin, never the oracle's ApiBaseUrl", async () => {
@@ -398,18 +435,20 @@ describe("AcceptTermsScreen accept branch", () => {
     // reintroduce an ApiBaseUrl knob this app lacks: WALLOW_API_INTERNAL_URL is a
     // SERVER-side address the browser cannot resolve at all.
     const user = userEvent.setup();
-    const location = stubLocation();
+    const handoff = captureHandoff();
     renderScreen();
 
     await acceptBoth(user);
-    await user.click(screen.getByTestId("accept-terms-submit"));
+    await user.click(page.getByTestId("accept-terms-submit"));
 
-    await waitFor(() => {
-      expect(location.href).not.toBe("");
+    await vi.waitFor(() => {
+      expect(handoff.urls).toHaveLength(1);
     });
-    expect(location.href.startsWith(ENDPOINT)).toBe(true);
-    expect(location.href).not.toMatch(/^https?:\/\//u);
-    expect(location.href).not.toContain("localhost:5001");
+    const target = handoffTarget(handoff.urls);
+    // Same-origin (this app), never the oracle's cross-origin ApiBaseUrl.
+    expect(target.pathname).toBe(ENDPOINT);
+    expect(target.origin).toBe(globalThis.location.origin);
+    expect(handoff.urls[0]).not.toContain("localhost:5001");
   });
 
   it("threads the flow's real absolute returnUrl through untouched", async () => {
@@ -420,19 +459,21 @@ describe("AcceptTermsScreen accept branch", () => {
     // sign-up dies at /error?reason=invalid_redirect_uri. The API re-validates
     // this value against its allow-list before honouring it (L403-407).
     const user = userEvent.setup();
-    const location = stubLocation();
+    const handoff = captureHandoff();
     renderScreen({ returnUrl: "https://app.example.com/connect/authorize?client_id=web" });
 
     await acceptBoth(user);
-    await user.click(screen.getByTestId("accept-terms-submit"));
+    await user.click(page.getByTestId("accept-terms-submit"));
 
-    await waitFor(() => {
-      expect(location.href).toBe(
-        `${ENDPOINT}?acceptedTerms=true&returnUrl=${encodeURIComponent(
-          "https://app.example.com/connect/authorize?client_id=web",
-        )}`,
-      );
+    await vi.waitFor(() => {
+      expect(handoff.urls).toHaveLength(1);
     });
+    const target = handoffTarget(handoff.urls);
+    expect(target.pathname + target.search).toBe(
+      `${ENDPOINT}?acceptedTerms=true&returnUrl=${encodeURIComponent(
+        "https://app.example.com/connect/authorize?client_id=web",
+      )}`,
+    );
   });
 
   it("falls back to '/' when the link carries no returnUrl", async () => {
@@ -441,15 +482,17 @@ describe("AcceptTermsScreen accept branch", () => {
     // absolute-URI check, so the endpoint substitutes authUrl (L403-407): the
     // fallback means "send me home", and the API decides where home is.
     const user = userEvent.setup();
-    const location = stubLocation();
+    const handoff = captureHandoff();
     renderScreen({ returnUrl: undefined });
 
     await acceptBoth(user);
-    await user.click(screen.getByTestId("accept-terms-submit"));
+    await user.click(page.getByTestId("accept-terms-submit"));
 
-    await waitFor(() => {
-      expect(location.href).toBe(`${ENDPOINT}?acceptedTerms=true&returnUrl=%2F`);
+    await vi.waitFor(() => {
+      expect(handoff.urls).toHaveLength(1);
     });
+    const target = handoffTarget(handoff.urls);
+    expect(target.pathname + target.search).toBe(`${ENDPOINT}?acceptedTerms=true&returnUrl=%2F`);
   });
 
   it("percent-encodes returnUrl so it cannot inject extra query parameters", async () => {
@@ -461,19 +504,20 @@ describe("AcceptTermsScreen accept branch", () => {
     // "true,false", which fails to parse and lands on the !acceptedTerms branch.
     const hostile = "https://app.example.com/cb&acceptedTerms=false";
     const user = userEvent.setup();
-    const location = stubLocation();
+    const handoff = captureHandoff();
     renderScreen({ returnUrl: hostile });
 
     await acceptBoth(user);
-    await user.click(screen.getByTestId("accept-terms-submit"));
+    await user.click(page.getByTestId("accept-terms-submit"));
 
-    await waitFor(() => {
-      expect(location.href).toBe(
-        `${ENDPOINT}?acceptedTerms=true&returnUrl=${encodeURIComponent(hostile)}`,
-      );
+    await vi.waitFor(() => {
+      expect(handoff.urls).toHaveLength(1);
     });
-    expect(location.href).not.toContain("acceptedTerms=false");
-    expect(location.href.match(/acceptedTerms=/gu)).toHaveLength(1);
+    const target = handoffTarget(handoff.urls);
+    const href: string = target.pathname + target.search;
+    expect(href).toBe(`${ENDPOINT}?acceptedTerms=true&returnUrl=${encodeURIComponent(hostile)}`);
+    expect(href).not.toContain("acceptedTerms=false");
+    expect(href.match(/acceptedTerms=/gu)).toHaveLength(1);
   });
 
   it("never reads, rewrites, or relays the ExternalLoginState cookie", async () => {
@@ -493,24 +537,25 @@ describe("AcceptTermsScreen accept branch", () => {
     document.cookie = decoy;
     const fetchSpy = vi.fn();
     const user = userEvent.setup();
-    const location = stubLocation();
+    const handoff = captureHandoff();
     vi.stubGlobal("fetch", fetchSpy);
     renderScreen();
 
     await acceptBoth(user);
-    await user.click(screen.getByTestId("accept-terms-submit"));
+    await user.click(page.getByTestId("accept-terms-submit"));
 
     // Anchor: the flow really ran, so the negatives below are not vacuous.
-    await waitFor(() => {
-      expect(location.href).toBe(
-        `${ENDPOINT}?acceptedTerms=true&returnUrl=${encodeURIComponent(RETURN_URL)}`,
-      );
+    await vi.waitFor(() => {
+      expect(handoff.urls).toHaveLength(1);
     });
+    const target = handoffTarget(handoff.urls);
+    const href: string = target.pathname + target.search;
+    expect(href).toBe(`${ENDPOINT}?acceptedTerms=true&returnUrl=${encodeURIComponent(RETURN_URL)}`);
     // Untampered: still there, unchanged, for the browser to send.
     expect(document.cookie).toContain(decoy);
     // Not relayed: no cookie material in the URL the screen built.
-    expect(location.href).not.toContain("ExternalLoginState");
-    expect(location.href).not.toContain("CfDJ8");
+    expect(href).not.toContain("ExternalLoginState");
+    expect(href).not.toContain("CfDJ8");
     // Not relayed: no request of any kind, and the auth client never touched.
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(mocks.authAccess).toEqual([]);
@@ -525,9 +570,9 @@ describe("AcceptTermsScreen error mapping", () => {
     // L410-413 redirects to /accept-terms?error=terms_required&returnUrl=… .
     renderScreen({ error: "terms_required" });
 
-    expect(await screen.findByTestId("accept-terms-error")).toHaveTextContent(
-      /must accept the terms to continue/iu,
-    );
+    await expect
+      .element(page.getByTestId("accept-terms-error"))
+      .toHaveTextContent(/must accept the terms to continue/iu);
   });
 
   it("explains a session_expired error", async () => {
@@ -536,9 +581,9 @@ describe("AcceptTermsScreen error mapping", () => {
     // /login?error=session_expired instead.
     renderScreen({ error: "session_expired" });
 
-    expect(await screen.findByTestId("accept-terms-error")).toHaveTextContent(
-      /session has expired/iu,
-    );
+    await expect
+      .element(page.getByTestId("accept-terms-error"))
+      .toHaveTextContent(/session has expired/iu);
   });
 
   it("falls back to the generic message for an unrecognised error code", async () => {
@@ -548,10 +593,10 @@ describe("AcceptTermsScreen error mapping", () => {
     // bind`).
     renderScreen({ error: "wat" });
 
-    const error: HTMLElement = await screen.findByTestId("accept-terms-error");
-    expect(error).toHaveTextContent(/an error occurred/iu);
-    expect(error).not.toHaveTextContent(/must accept the terms/iu);
-    expect(error).not.toHaveTextContent(/session has expired/iu);
+    const error = page.getByTestId("accept-terms-error");
+    await expect.element(error).toHaveTextContent(/an error occurred/iu);
+    await expect.element(error).not.toHaveTextContent(/must accept the terms/iu);
+    await expect.element(error).not.toHaveTextContent(/session has expired/iu);
   });
 
   it("does not resolve inherited Object keys as error copy", async () => {
@@ -563,17 +608,17 @@ describe("AcceptTermsScreen error mapping", () => {
     // mapping must not be "simplified" back to an object literal.
     renderScreen({ error: "toString" });
 
-    const error: HTMLElement = await screen.findByTestId("accept-terms-error");
-    expect(error).toHaveTextContent(/an error occurred/iu);
-    expect(error).not.toHaveTextContent(/function|native code|\[object/iu);
+    const error = page.getByTestId("accept-terms-error");
+    await expect.element(error).toHaveTextContent(/an error occurred/iu);
+    await expect.element(error).not.toHaveTextContent(/function|native code|\[object/iu);
   });
 
-  it("renders no error block when the link carries no error", () => {
+  it("renders no error block when the link carries no error", async () => {
     // Anchored on the heading: a screen rendering nothing must not pass this.
     renderScreen();
 
-    expect(screen.getByTestId("accept-terms-heading")).toBeInTheDocument();
-    expect(screen.queryByTestId("accept-terms-error")).toBeNull();
+    await expect.element(page.getByTestId("accept-terms-heading")).toBeInTheDocument();
+    expect(page.getByTestId("accept-terms-error").query()).toBeNull();
   });
 
   it("still lets the user accept after a terms_required bounce-back", async () => {
@@ -581,17 +626,19 @@ describe("AcceptTermsScreen error mapping", () => {
     // not replace the gate. The returnUrl the API validated and echoed back rides
     // through unchanged.
     const user = userEvent.setup();
-    const location = stubLocation();
+    const handoff = captureHandoff();
     renderScreen({ error: "terms_required" });
 
     await acceptBoth(user);
-    await user.click(screen.getByTestId("accept-terms-submit"));
+    await user.click(page.getByTestId("accept-terms-submit"));
 
-    await waitFor(() => {
-      expect(location.href).toBe(
-        `${ENDPOINT}?acceptedTerms=true&returnUrl=${encodeURIComponent(RETURN_URL)}`,
-      );
+    await vi.waitFor(() => {
+      expect(handoff.urls).toHaveLength(1);
     });
+    const target = handoffTarget(handoff.urls);
+    expect(target.pathname + target.search).toBe(
+      `${ENDPOINT}?acceptedTerms=true&returnUrl=${encodeURIComponent(RETURN_URL)}`,
+    );
   });
 });
 
@@ -635,36 +682,38 @@ describe("/accept-terms route", () => {
     // task's to change.
     renderRouteAt(callbackRedirectUrl());
 
-    expect(await screen.findByTestId("accept-terms-heading")).toBeInTheDocument();
-    expect(screen.queryByTestId("route-placeholder")).toBeNull();
+    await expect.element(page.getByTestId("accept-terms-heading")).toBeInTheDocument();
+    expect(page.getByTestId("route-placeholder").query()).toBeNull();
   });
 
   it("threads returnUrl, email and name out of the real callback redirect", async () => {
     const user = userEvent.setup();
-    const location = stubLocation();
+    const handoff = captureHandoff();
     renderRouteAt(callbackRedirectUrl());
 
-    await screen.findByTestId("accept-terms-heading");
-    expect(screen.getByText(EMAIL)).toBeInTheDocument();
-    expect(screen.getByText(NAME)).toBeInTheDocument();
+    await expect.element(page.getByTestId("accept-terms-heading")).toBeInTheDocument();
+    await expect.element(page.getByText(EMAIL)).toBeInTheDocument();
+    await expect.element(page.getByText(NAME)).toBeInTheDocument();
 
     await acceptBoth(user);
-    await user.click(screen.getByTestId("accept-terms-submit"));
+    await user.click(page.getByTestId("accept-terms-submit"));
 
-    await waitFor(() => {
-      expect(location.href).toBe(
-        `${ENDPOINT}?acceptedTerms=true&returnUrl=${encodeURIComponent(RETURN_URL)}`,
-      );
+    await vi.waitFor(() => {
+      expect(handoff.urls).toHaveLength(1);
     });
+    const target = handoffTarget(handoff.urls);
+    expect(target.pathname + target.search).toBe(
+      `${ENDPOINT}?acceptedTerms=true&returnUrl=${encodeURIComponent(RETURN_URL)}`,
+    );
   });
 
   it("threads the error code out of the terms_required bounce-back", async () => {
     // The other redirect that lands here: L412.
     renderRouteAt(`/accept-terms?error=terms_required&returnUrl=${encodeURIComponent(RETURN_URL)}`);
 
-    expect(await screen.findByTestId("accept-terms-error")).toHaveTextContent(
-      /must accept the terms to continue/iu,
-    );
+    await expect
+      .element(page.getByTestId("accept-terms-error"))
+      .toHaveTextContent(/must accept the terms to continue/iu);
   });
 
   it("renders without throwing when the link carries no query at all", async () => {
@@ -675,8 +724,8 @@ describe("/accept-terms route", () => {
     // for this route to explode.)
     renderRouteAt("/accept-terms");
 
-    expect(await screen.findByTestId("accept-terms-heading")).toBeInTheDocument();
-    expect(screen.queryByTestId("accept-terms-error")).toBeNull();
+    await expect.element(page.getByTestId("accept-terms-heading")).toBeInTheDocument();
+    expect(page.getByTestId("accept-terms-error").query()).toBeNull();
   });
 
   it("treats a non-string search param as absent", async () => {
@@ -686,8 +735,8 @@ describe("/accept-terms route", () => {
     // a `string | undefined` prop is how a port ships `.trim is not a function`.
     renderRouteAt(`/accept-terms?email=${encodeURIComponent(EMAIL)}&name=42`);
 
-    expect(await screen.findByTestId("accept-terms-heading")).toBeInTheDocument();
-    expect(screen.getByText(EMAIL)).toBeInTheDocument();
-    expect(screen.queryByText("42")).toBeNull();
+    await expect.element(page.getByTestId("accept-terms-heading")).toBeInTheDocument();
+    await expect.element(page.getByText(EMAIL)).toBeInTheDocument();
+    expect(page.getByText("42").query()).toBeNull();
   });
 });

@@ -1,16 +1,11 @@
-/** @vitest-environment jsdom */
-import * as matchers from "@testing-library/jest-dom/matchers";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
 import type { ReactElement } from "react";
+import { page } from "vitest/browser";
+import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createRouter } from "../../../router";
 import { Route } from "./index";
-
-// No global `expect` (vitest `globals` is off), so register the jest-dom
-// matchers explicitly (same convention as the component tests).
-expect.extend(matchers);
 
 /**
  * Route spec for the dashboard apps list route (Wallow-8w1h.5.2), mirroring
@@ -56,29 +51,29 @@ describe("routes/dashboard/apps (route page)", () => {
     expect(Route.options.loader).toBeDefined();
   });
 
-  it("renders a page root carrying data-testid=dashboard-apps", () => {
+  it("renders a page root carrying data-testid=dashboard-apps", async () => {
     const client = newClient();
     client.setQueryData(["apps"], []);
 
     const Page = Route.options.component!;
     renderWithClient(client, <Page />);
 
-    expect(screen.getByTestId("dashboard-apps")).toBeInTheDocument();
+    await expect.element(page.getByTestId("dashboard-apps")).toBeInTheDocument();
   });
 
   // Wallow-ffpq.3.5 — the apps index links to the register route so
   // RegisterAppForm is reachable via normal UI navigation (mirrors the Blazor
   // oracle's `apps-register-link`), not just a directly-typed URL.
-  it("links to the register route (apps-register-link)", () => {
+  it("links to the register route (apps-register-link)", async () => {
     const client = newClient();
     client.setQueryData(["apps"], []);
 
     const Page = Route.options.component!;
     renderWithClient(client, <Page />);
 
-    const link = screen.getByTestId("apps-register-link");
-    expect(link).toBeInTheDocument();
-    expect(link).toHaveAttribute("href", "/dashboard/apps/register");
+    const link = page.getByTestId("apps-register-link");
+    await expect.element(link).toBeInTheDocument();
+    await expect.element(link).toHaveAttribute("href", "/dashboard/apps/register");
   });
 });
 

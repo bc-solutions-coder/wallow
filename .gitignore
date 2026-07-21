@@ -43,6 +43,9 @@ test-results/
 coverage/
 coverage-report/
 coverage-results/
+playwright-report/
+__screenshots__/
+.vitest-attachments/
 
 # NuGet
 *.nupkg

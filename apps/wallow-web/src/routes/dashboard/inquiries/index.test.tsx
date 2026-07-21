@@ -1,16 +1,11 @@
-/** @vitest-environment jsdom */
-import * as matchers from "@testing-library/jest-dom/matchers";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
 import type { ReactElement } from "react";
+import { page } from "vitest/browser";
+import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createRouter } from "../../../router";
 import { Route } from "./index";
-
-// No global `expect` (vitest `globals` is off), so register the jest-dom
-// matchers explicitly (same convention as the component tests).
-expect.extend(matchers);
 
 /**
  * Route spec for the dashboard inquiries list route (Wallow-8w1h.7.2), mirroring
@@ -72,27 +67,27 @@ describe("routes/dashboard/inquiries (route page)", () => {
     expect(Route.options.loader).toBeDefined();
   });
 
-  it("renders a page root carrying data-testid=dashboard-inquiries", () => {
+  it("renders a page root carrying data-testid=dashboard-inquiries", async () => {
     const client = newClient();
     client.setQueryData(["inquiries"], []);
 
     const Page = Route.options.component!;
     renderWithClient(client, <Page />);
 
-    expect(screen.getByTestId("dashboard-inquiries")).toBeInTheDocument();
+    await expect.element(page.getByTestId("dashboard-inquiries")).toBeInTheDocument();
   });
 
   // Wallow-ffpq.3.5 — the orphan CreateInquiryForm mounts INLINE on this index
   // page, matching Blazor's Inquiries.razor (list + create on the SAME page),
   // NOT a standalone route.
-  it("mounts the CreateInquiryForm inline (inquiry-create-form)", () => {
+  it("mounts the CreateInquiryForm inline (inquiry-create-form)", async () => {
     const client = newClient();
     client.setQueryData(["inquiries"], []);
 
     const Page = Route.options.component!;
     renderWithClient(client, <Page />);
 
-    expect(screen.getByTestId("inquiry-create-form")).toBeInTheDocument();
+    await expect.element(page.getByTestId("inquiry-create-form")).toBeInTheDocument();
   });
 });
 

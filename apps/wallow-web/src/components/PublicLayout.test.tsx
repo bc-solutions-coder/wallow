@@ -1,13 +1,9 @@
-/** @vitest-environment jsdom */
-import * as matchers from "@testing-library/jest-dom/matchers";
-import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
+import { page } from "vitest/browser";
+import { render } from "vitest-browser-react";
 import { describe, expect, it, vi } from "vitest";
 
 import { PublicLayout } from "./PublicLayout";
-
-// No global `expect` (vitest `globals` is off); register jest-dom matchers.
-expect.extend(matchers);
 
 // `PublicLayout`'s nav uses TanStack `Link`s in the green implementation; stub
 // `Link` to a plain anchor (passing `to` through as `href`) so it renders in
@@ -38,39 +34,39 @@ vi.mock("@tanstack/react-router", async (importOriginal) => {
  * `{page}-{element}` kebab-case rule under the `public-` page prefix.
  */
 describe("PublicLayout", () => {
-  it("renders its children (the page body)", () => {
-    render(
+  it("renders its children (the page body)", async () => {
+    await render(
       <PublicLayout>
         <p data-testid="public-body-probe">body</p>
       </PublicLayout>,
     );
-    expect(screen.getByTestId("public-body-probe")).toBeInTheDocument();
+    await expect.element(page.getByTestId("public-body-probe")).toBeInTheDocument();
   });
 
-  it("renders a nav home/logo link back to the landing page", () => {
-    render(<PublicLayout />);
-    expect(screen.getByTestId("public-nav-home")).toHaveAttribute("href", "/");
+  it("renders a nav home/logo link back to the landing page", async () => {
+    await render(<PublicLayout />);
+    await expect.element(page.getByTestId("public-nav-home")).toHaveAttribute("href", "/");
   });
 
-  it("renders the Features/Docs/GitHub nav links", () => {
-    render(<PublicLayout />);
-    expect(screen.getByTestId("public-nav-features")).toBeInTheDocument();
-    expect(screen.getByTestId("public-nav-docs")).toBeInTheDocument();
-    expect(screen.getByTestId("public-nav-github")).toBeInTheDocument();
+  it("renders the Features/Docs/GitHub nav links", async () => {
+    await render(<PublicLayout />);
+    await expect.element(page.getByTestId("public-nav-features")).toBeInTheDocument();
+    await expect.element(page.getByTestId("public-nav-docs")).toBeInTheDocument();
+    await expect.element(page.getByTestId("public-nav-github")).toBeInTheDocument();
   });
 
-  it("renders a Get Started CTA into the BFF login flow", () => {
-    render(<PublicLayout />);
-    const cta = screen.getByTestId("public-nav-get-started");
-    expect(cta).toBeInTheDocument();
-    expect(cta.getAttribute("href") ?? "").toContain("/bff/login");
+  it("renders a Get Started CTA into the BFF login flow", async () => {
+    await render(<PublicLayout />);
+    const cta = page.getByTestId("public-nav-get-started");
+    await expect.element(cta).toBeInTheDocument();
+    expect(cta.element().getAttribute("href") ?? "").toContain("/bff/login");
   });
 
-  it("renders a footer with the MIT license notice and GitHub/Docs links", () => {
-    render(<PublicLayout />);
-    const footer = screen.getByTestId("public-footer");
-    expect(footer).toHaveTextContent(/MIT/iu);
-    expect(screen.getByTestId("public-footer-github")).toBeInTheDocument();
-    expect(screen.getByTestId("public-footer-docs")).toBeInTheDocument();
+  it("renders a footer with the MIT license notice and GitHub/Docs links", async () => {
+    await render(<PublicLayout />);
+    const footer = page.getByTestId("public-footer");
+    await expect.element(footer).toHaveTextContent(/MIT/iu);
+    await expect.element(page.getByTestId("public-footer-github")).toBeInTheDocument();
+    await expect.element(page.getByTestId("public-footer-docs")).toBeInTheDocument();
   });
 });

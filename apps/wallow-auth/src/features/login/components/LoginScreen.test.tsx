@@ -1,5 +1,3 @@
-/** @vitest-environment jsdom */
-import * as matchers from "@testing-library/jest-dom/matchers";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,
@@ -8,18 +6,13 @@ import {
   Outlet,
   RouterProvider,
 } from "@tanstack/react-router";
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
+import { page, userEvent } from "vitest/browser";
+import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Route as loginRoute } from "../../../routes/login";
 import { LoginScreen, type LoginScreenProps } from "./LoginScreen";
-
-// No global `expect` (vitest `globals` is off), so register the jest-dom
-// matchers explicitly — the DOM-matcher convention wallow-auth copies from
-// wallow-web's RTL tests.
-expect.extend(matchers);
 
 /**
  * Component spec for the Login screen's PASSWORD tab and the tab shell that
@@ -136,6 +129,20 @@ expect.extend(matchers);
  * (:62), and only then redirects to `{authUrl}/login?returnUrl=…` (:67). It is
  * relative by construction and pre-validated — disjoint from the ABSOLUTE,
  * allow-listed returnUrls `AccountController.ExternalLoginCallback` sends.
+ *
+ * ── THE BROWSER NAVIGATION SEAM (Wallow-xzha.3.1) ─────────────────────────────
+ *
+ * Migrated off jsdom onto vitest-browser-react. `window.location` is
+ * `[Unforgeable]` in real Chromium, so the old `vi.stubGlobal("location", …)`
+ * helper cannot shadow it and a live `location.href = <url>` would navigate the
+ * runner iframe and tear it down (see vitest.config.ts NAVIGATION SEAM). The
+ * ticket hand-off is therefore observed at the URL-BUILDER seam: every test that
+ * used to assert `location.href` now asserts `buildExchangeTicketUrl` was called
+ * with the exact `(origin, ticket, returnUrl)` — an equivalent, since the builder
+ * is deterministic — and the builder mock returns a non-navigating hash sentinel
+ * so the screen's assignment stays put. "No hand-off happened" (formerly
+ * `location.href === ""`) is asserted as `buildExchangeTicketUrl` NOT called,
+ * since that seam is the only writer of `location.href`.
  */
 
 // Hoisted so the vi.mock factories and the test bodies share the same spies.
@@ -170,6 +177,15 @@ const PASSWORD = "Sup3rSecret!";
 const TICKET = "sign-in-ticket-xyz";
 
 /**
+ * A non-navigating hash sentinel the `buildExchangeTicketUrl` mock returns. The
+ * screen assigns it to `location.href`; a hash-only assignment updates the
+ * runner iframe's fragment WITHOUT reloading, so the browser test survives while
+ * the real (navigable) URL is never emitted. The hand-off is asserted at the
+ * builder's ARGS, not at this string.
+ */
+const EXCHANGE_SENTINEL = "#exchange-ticket-sentinel";
+
+/**
  * The returnUrl `/connect/authorize` really sends (AuthorizationController.cs:53,
  * :67): relative, and already past `Url.IsLocalUrl`. This is the REAL-TRAFFIC
  * pole of the open-redirect guard — if the guard refuses this, every direct
@@ -201,6 +217,15 @@ const EXTERNAL_LOGIN_FAILED_MESSAGE =
 const SESSION_EXPIRED_MESSAGE = "Your session has expired. Please try again.";
 
 /**
+ * The success copy the login screen shows after a completed password reset
+ * (Wallow-xzha.1.2). `ResetPasswordForm` navigates to `/login?message=password_reset`,
+ * and the banner acknowledges the reset worked — the gap this bead closes. The key
+ * phrase is pinned as a regex so the banner reads as an acknowledgment without
+ * over-constraining the exact wording.
+ */
+const PASSWORD_RESET_NOTICE = /your password has been reset/iu;
+
+/**
  * The real `isSafeReturnUrl` rule (packages/sdk/src/auth-oidc.ts), mirrored
  * rather than imported: screens may not import the SDK, so the seam is mocked,
  * and a mock that returned a constant would let the guard tests pass for the
@@ -212,15 +237,6 @@ function isSafeReturnUrlRule(url: string | null | undefined): boolean {
   }
 
   return url.startsWith("/") && !url.startsWith("//");
-}
-
-/** The real `buildExchangeTicketUrl` shape, mirrored for the same reason. */
-function buildExchangeTicketUrlRule(origin: string, ticket: string, returnUrl: string): string {
-  return (
-    `${origin.replace(/\/+$/u, "")}/v1/identity/auth/exchange-ticket` +
-    `?ticket=${encodeURIComponent(ticket)}` +
-    `&returnUrl=${encodeURIComponent(returnUrl)}`
-  );
 }
 
 /**
@@ -279,19 +295,6 @@ function renderScreen(props: Partial<LoginScreenProps> = {}) {
   return renderWithClient(<LoginScreen {...props} returnUrl={returnUrl} />);
 }
 
-/**
- * Replace `window.location` with a plain settable object so the screen's full
- * navigation is observable. jsdom refuses `vi.spyOn(window.location, "assign")`
- * ("Cannot redefine property"), but `location` itself is a configurable
- * accessor, so `vi.stubGlobal` swaps it wholesale — and `globalThis === window`
- * under jsdom, so the screen's `globalThis.location.href = …` writes here.
- */
-function stubLocation(): { href: string } {
-  const location = { href: "" };
-  vi.stubGlobal("location", location);
-  return location;
-}
-
 /** Fill in the password tab and submit it — the oracle's `HandleLogin`. */
 async function submitCredentials(
   user: ReturnType<typeof userEvent.setup>,
@@ -299,19 +302,21 @@ async function submitCredentials(
   password: string = PASSWORD,
 ) {
   if (email !== "") {
-    await user.type(screen.getByTestId("login-email"), email);
+    await user.type(page.getByTestId("login-email"), email);
   }
   if (password !== "") {
-    await user.type(screen.getByTestId("login-password"), password);
+    await user.type(page.getByTestId("login-password"), password);
   }
-  await user.click(screen.getByTestId("login-submit"));
+  await user.click(page.getByTestId("login-submit"));
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.unstubAllGlobals();
   mocks.isSafeReturnUrl.mockImplementation(isSafeReturnUrlRule);
-  mocks.buildExchangeTicketUrl.mockImplementation(buildExchangeTicketUrlRule);
+  // Non-navigating sentinel: the screen assigns the builder's return value to
+  // `location.href`, which would navigate the runner iframe in real Chromium.
+  // Hand-off tests assert the builder's ARGS instead (see BROWSER NAVIGATION SEAM).
+  mocks.buildExchangeTicketUrl.mockReturnValue(EXCHANGE_SENTINEL);
   mocks.login.mockResolvedValue({ succeeded: true, signInTicket: TICKET });
 });
 
@@ -321,40 +326,49 @@ beforeEach(() => {
 
 describe("LoginScreen tab shell", () => {
   it("renders all three tabs with password selected by default", async () => {
-    renderScreen();
+    await renderScreen();
 
-    expect(await screen.findByTestId("login-tab-password")).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
-    expect(screen.getByTestId("login-tab-magic-link")).toHaveAttribute("aria-selected", "false");
-    expect(screen.getByTestId("login-tab-otp")).toHaveAttribute("aria-selected", "false");
-    expect(screen.getByTestId("login-password")).toBeInTheDocument();
+    await expect
+      .element(page.getByTestId("login-tab-password"))
+      .toHaveAttribute("aria-selected", "true");
+    await expect
+      .element(page.getByTestId("login-tab-magic-link"))
+      .toHaveAttribute("aria-selected", "false");
+    await expect
+      .element(page.getByTestId("login-tab-otp"))
+      .toHaveAttribute("aria-selected", "false");
+    await expect.element(page.getByTestId("login-password")).toBeInTheDocument();
   });
 
   it("retires the password panel when another tab is selected", async () => {
     // The magic-link panel itself belongs to .3.12; all this bead owns is that
     // the shell can switch away from password and back.
     const user = userEvent.setup();
-    renderScreen();
+    await renderScreen();
 
-    await user.click(await screen.findByTestId("login-tab-magic-link"));
+    await user.click(page.getByTestId("login-tab-magic-link"));
 
-    expect(screen.queryByTestId("login-password")).toBeNull();
-    expect(screen.queryByTestId("login-submit")).toBeNull();
-    expect(screen.getByTestId("login-tab-magic-link")).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByTestId("login-tab-password")).toHaveAttribute("aria-selected", "false");
+    expect(page.getByTestId("login-password").query()).toBeNull();
+    expect(page.getByTestId("login-submit").query()).toBeNull();
+    await expect
+      .element(page.getByTestId("login-tab-magic-link"))
+      .toHaveAttribute("aria-selected", "true");
+    await expect
+      .element(page.getByTestId("login-tab-password"))
+      .toHaveAttribute("aria-selected", "false");
   });
 
   it("restores the password panel when its tab is selected again", async () => {
     const user = userEvent.setup();
-    renderScreen();
+    await renderScreen();
 
-    await user.click(await screen.findByTestId("login-tab-otp"));
-    await user.click(screen.getByTestId("login-tab-password"));
+    await user.click(page.getByTestId("login-tab-otp"));
+    await user.click(page.getByTestId("login-tab-password"));
 
-    expect(screen.getByTestId("login-password")).toBeInTheDocument();
-    expect(screen.getByTestId("login-tab-password")).toHaveAttribute("aria-selected", "true");
+    await expect.element(page.getByTestId("login-password")).toBeInTheDocument();
+    await expect
+      .element(page.getByTestId("login-tab-password"))
+      .toHaveAttribute("aria-selected", "true");
   });
 
   it("clears the error banner when switching tabs", async () => {
@@ -362,29 +376,74 @@ describe("LoginScreen tab shell", () => {
     // shared by all three tabs, so a password failure must not follow the user
     // into the magic-link tab.
     const user = userEvent.setup();
-    renderScreen();
+    await renderScreen();
 
     await submitCredentials(user, "", "");
-    expect(await screen.findByTestId("login-error")).toBeInTheDocument();
+    await expect.element(page.getByTestId("login-error")).toBeInTheDocument();
 
-    await user.click(screen.getByTestId("login-tab-magic-link"));
+    await user.click(page.getByTestId("login-tab-magic-link"));
 
-    expect(screen.queryByTestId("login-error")).toBeNull();
+    expect(page.getByTestId("login-error").query()).toBeNull();
   });
 
   it("links to the register page, threading client_id and returnUrl as cargo", async () => {
-    renderScreen({ clientId: "web" });
+    await renderScreen({ clientId: "web" });
 
-    expect(await screen.findByTestId("login-register-link")).toHaveAttribute(
-      "href",
-      `/register?client_id=web&returnUrl=${encodeURIComponent(RETURN_URL)}`,
-    );
+    await expect
+      .element(page.getByTestId("login-register-link"))
+      .toHaveAttribute(
+        "href",
+        `/register?client_id=web&returnUrl=${encodeURIComponent(RETURN_URL)}`,
+      );
   });
 
   it("links to a bare register page when there is no client_id or returnUrl", async () => {
-    renderScreen({ returnUrl: undefined });
+    await renderScreen({ returnUrl: undefined });
 
-    expect(await screen.findByTestId("login-register-link")).toHaveAttribute("href", "/register");
+    await expect
+      .element(page.getByTestId("login-register-link"))
+      .toHaveAttribute("href", "/register");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// THE PASSWORD-RESET NOTICE — Wallow-xzha.1.2.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("LoginScreen password-reset notice", () => {
+  it("shows a success banner when arriving with message=password_reset", async () => {
+    // ResetPasswordForm sends the user here after a successful reset. The dead
+    // param must now produce a visible acknowledgment.
+    await renderScreen({ message: "password_reset" });
+
+    await expect
+      .element(page.getByTestId("login-password-reset-notice"))
+      .toHaveTextContent(PASSWORD_RESET_NOTICE);
+  });
+
+  it("keeps the sign-in form usable beneath the notice", async () => {
+    // Unlike the `signed-in` banner, this is an informational acknowledgment: the
+    // user still has to sign in, so the password tab must NOT be retired.
+    await renderScreen({ message: "password_reset" });
+
+    await expect.element(page.getByTestId("login-password-reset-notice")).toBeInTheDocument();
+    await expect.element(page.getByTestId("login-password")).toBeInTheDocument();
+    await expect.element(page.getByTestId("login-submit")).toBeInTheDocument();
+  });
+
+  it("shows no notice when there is no message param", async () => {
+    await renderScreen();
+
+    expect(page.getByTestId("login-password-reset-notice").query()).toBeNull();
+  });
+
+  it("shows no notice for a message value it does not recognise", async () => {
+    // `?message=` is attacker-constructable; only the known token renders a banner,
+    // and no unrecognised value leaks into the DOM.
+    await renderScreen({ message: "wat" });
+
+    await expect.element(page.getByTestId("login-password")).toBeInTheDocument();
+    expect(page.getByTestId("login-password-reset-notice").query()).toBeNull();
   });
 });
 
@@ -394,42 +453,41 @@ describe("LoginScreen tab shell", () => {
 
 describe("LoginScreen password tab", () => {
   it("links to the forgot-password screen", async () => {
-    renderScreen();
+    await renderScreen();
 
-    expect(await screen.findByTestId("login-forgot-password")).toHaveAttribute(
-      "href",
-      "/forgot-password",
-    );
+    await expect
+      .element(page.getByTestId("login-forgot-password"))
+      .toHaveAttribute("href", "/forgot-password");
   });
 
   it("refuses a blank email and password without calling the API", async () => {
     const user = userEvent.setup();
-    renderScreen();
+    await renderScreen();
 
     await submitCredentials(user, "", "");
 
-    expect(await screen.findByTestId("login-error")).toHaveTextContent(BLANK_MESSAGE);
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent(BLANK_MESSAGE);
     expect(mocks.login).not.toHaveBeenCalled();
   });
 
   it("refuses a whitespace-only password without calling the API", async () => {
     // `IsNullOrWhiteSpace`, not `IsNullOrEmpty`: "   " is blank to the oracle.
     const user = userEvent.setup();
-    renderScreen();
+    await renderScreen();
 
     await submitCredentials(user, EMAIL, "   ");
 
-    expect(await screen.findByTestId("login-error")).toHaveTextContent(BLANK_MESSAGE);
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent(BLANK_MESSAGE);
     expect(mocks.login).not.toHaveBeenCalled();
   });
 
   it("submits the typed credentials with rememberMe false by default", async () => {
     const user = userEvent.setup();
-    renderScreen();
+    await renderScreen();
 
     await submitCredentials(user);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.login).toHaveBeenCalledWith({
         email: EMAIL,
         password: PASSWORD,
@@ -440,12 +498,12 @@ describe("LoginScreen password tab", () => {
 
   it("submits rememberMe true once the box is checked", async () => {
     const user = userEvent.setup();
-    renderScreen();
+    await renderScreen();
 
-    await user.click(await screen.findByTestId("login-remember-me"));
+    await user.click(page.getByTestId("login-remember-me"));
     await submitCredentials(user);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.login).toHaveBeenCalledWith({
         email: EMAIL,
         password: PASSWORD,
@@ -461,18 +519,15 @@ describe("LoginScreen password tab", () => {
         release = () => resolve({ succeeded: true, signInTicket: TICKET });
       }),
     );
-    stubLocation();
     const user = userEvent.setup();
-    renderScreen();
+    await renderScreen();
 
     await submitCredentials(user);
 
-    await waitFor(() => {
-      expect(screen.getByTestId("login-submit")).toBeDisabled();
-    });
+    await expect.element(page.getByTestId("login-submit")).toBeDisabled();
 
     release();
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.buildExchangeTicketUrl).toHaveBeenCalled();
     });
   });
@@ -487,17 +542,18 @@ describe("LoginScreen password tab", () => {
         release = () => resolve({ succeeded: true, signInTicket: TICKET });
       }),
     );
-    stubLocation();
     const user = userEvent.setup();
-    renderScreen();
+    await renderScreen();
 
     await submitCredentials(user);
-    expect(await screen.findByTestId("login-error")).toHaveTextContent(INVALID_CREDENTIALS_MESSAGE);
+    await expect
+      .element(page.getByTestId("login-error"))
+      .toHaveTextContent(INVALID_CREDENTIALS_MESSAGE);
 
-    await user.click(screen.getByTestId("login-submit"));
+    await user.click(page.getByTestId("login-submit"));
 
-    await waitFor(() => {
-      expect(screen.queryByTestId("login-error")).toBeNull();
+    await vi.waitFor(() => {
+      expect(page.getByTestId("login-error").query()).toBeNull();
     });
     release();
   });
@@ -511,31 +567,35 @@ describe("LoginScreen password failures", () => {
   it("maps 401 invalid_credentials to the oracle's credentials message", async () => {
     mocks.login.mockRejectedValue(rejection(401, "invalid_credentials"));
     const user = userEvent.setup();
-    renderScreen();
+    await renderScreen();
 
     await submitCredentials(user);
 
-    expect(await screen.findByTestId("login-error")).toHaveTextContent(INVALID_CREDENTIALS_MESSAGE);
+    await expect
+      .element(page.getByTestId("login-error"))
+      .toHaveTextContent(INVALID_CREDENTIALS_MESSAGE);
   });
 
   it("maps 423 locked_out to the oracle's lockout message", async () => {
     mocks.login.mockRejectedValue(rejection(423, "locked_out"));
     const user = userEvent.setup();
-    renderScreen();
+    await renderScreen();
 
     await submitCredentials(user);
 
-    expect(await screen.findByTestId("login-error")).toHaveTextContent(LOCKED_OUT_MESSAGE);
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent(LOCKED_OUT_MESSAGE);
   });
 
   it("maps 403 email_not_confirmed to the oracle's verify-email message", async () => {
     mocks.login.mockRejectedValue(rejection(403, "email_not_confirmed"));
     const user = userEvent.setup();
-    renderScreen();
+    await renderScreen();
 
     await submitCredentials(user);
 
-    expect(await screen.findByTestId("login-error")).toHaveTextContent(EMAIL_NOT_CONFIRMED_MESSAGE);
+    await expect
+      .element(page.getByTestId("login-error"))
+      .toHaveTextContent(EMAIL_NOT_CONFIRMED_MESSAGE);
   });
 
   it("falls back to the status when the token is unrecognised", async () => {
@@ -544,32 +604,32 @@ describe("LoginScreen password failures", () => {
     // user why retyping cannot help.
     mocks.login.mockRejectedValue(rejection(423, "some_new_token"));
     const user = userEvent.setup();
-    renderScreen();
+    await renderScreen();
 
     await submitCredentials(user);
 
-    expect(await screen.findByTestId("login-error")).toHaveTextContent(LOCKED_OUT_MESSAGE);
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent(LOCKED_OUT_MESSAGE);
   });
 
   it("falls back to the generic tail for a status this endpoint never documents", async () => {
     mocks.login.mockRejectedValue(rejection(500, "boom"));
     const user = userEvent.setup();
-    renderScreen();
+    await renderScreen();
 
     await submitCredentials(user);
 
-    expect(await screen.findByTestId("login-error")).toHaveTextContent(GENERIC_MESSAGE);
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent(GENERIC_MESSAGE);
   });
 
   it("never renders the raw machine token", async () => {
     // The oracle's `_ => result.Error` tail leaks it; that leak is not ported.
     mocks.login.mockRejectedValue(rejection(500, "some_new_token"));
     const user = userEvent.setup();
-    renderScreen();
+    await renderScreen();
 
     await submitCredentials(user);
 
-    expect(await screen.findByTestId("login-error")).not.toHaveTextContent("some_new_token");
+    await expect.element(page.getByTestId("login-error")).not.toHaveTextContent("some_new_token");
   });
 
   it("tells the user the server is unreachable when the request never lands", async () => {
@@ -578,11 +638,11 @@ describe("LoginScreen password failures", () => {
     // instructions. A network rejection carries neither code nor status.
     mocks.login.mockRejectedValue(networkRejection());
     const user = userEvent.setup();
-    renderScreen();
+    await renderScreen();
 
     await submitCredentials(user);
 
-    expect(await screen.findByTestId("login-error")).toHaveTextContent(UNREACHABLE_MESSAGE);
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent(UNREACHABLE_MESSAGE);
   });
 
   it("fails closed when the 200 body is not a shape this screen understands", async () => {
@@ -590,13 +650,12 @@ describe("LoginScreen password failures", () => {
     // body with no `succeeded`/`mfaRequired`/`mfaEnrollmentRequired` must not be
     // mistaken for success, and must not navigate anywhere.
     mocks.login.mockResolvedValue("not an object at all");
-    stubLocation();
     const user = userEvent.setup();
-    renderScreen();
+    await renderScreen();
 
     await submitCredentials(user);
 
-    expect(await screen.findByTestId("login-error")).toHaveTextContent(GENERIC_MESSAGE);
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent(GENERIC_MESSAGE);
     expect(mocks.navigate).not.toHaveBeenCalled();
     expect(mocks.buildExchangeTicketUrl).not.toHaveBeenCalled();
   });
@@ -605,13 +664,12 @@ describe("LoginScreen password failures", () => {
     // C# compares `result.Succeeded` as a bool; JS truthiness would let the
     // non-empty string "false" through. Reproduce the strict comparison.
     mocks.login.mockResolvedValue({ succeeded: "false", signInTicket: TICKET });
-    stubLocation();
     const user = userEvent.setup();
-    renderScreen();
+    await renderScreen();
 
     await submitCredentials(user);
 
-    expect(await screen.findByTestId("login-error")).toHaveTextContent(GENERIC_MESSAGE);
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent(GENERIC_MESSAGE);
     expect(mocks.buildExchangeTicketUrl).not.toHaveBeenCalled();
   });
 });
@@ -626,30 +684,31 @@ describe("LoginScreen mfaRequired branch", () => {
   });
 
   it("hands off to /mfa/challenge with the returnUrl as query cargo", async () => {
-    const location = stubLocation();
     const user = userEvent.setup();
-    renderScreen();
+    await renderScreen();
 
     await submitCredentials(user);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalledWith({
         href: `/mfa/challenge?returnUrl=${encodeURIComponent(RETURN_URL)}`,
       });
     });
     // An in-app route reached through the client router, NOT a full page load:
     // the partial-auth cookie is already in the jar (the h3 proxy forwards
-    // Set-Cookie verbatim), so there is nothing a reload would buy.
-    expect(location.href).toBe("");
+    // Set-Cookie verbatim), so there is nothing a reload would buy. The
+    // ticket-exchange seam is the only writer of `location.href`, so its absence
+    // is the browser-true equivalent of the old `location.href === ""`.
+    expect(mocks.buildExchangeTicketUrl).not.toHaveBeenCalled();
   });
 
   it("hands off to a bare /mfa/challenge when there is no returnUrl", async () => {
     const user = userEvent.setup();
-    renderScreen({ returnUrl: undefined });
+    await renderScreen({ returnUrl: undefined });
 
     await submitCredentials(user);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalledWith({ href: "/mfa/challenge" });
     });
   });
@@ -659,19 +718,18 @@ describe("LoginScreen mfaRequired branch", () => {
     // path and `returnUrl` is inert cargo the destination re-guards on arrival,
     // so the guard is DEFERRED here. Wiring `isSafeReturnUrl` in would refuse
     // 100% of external-login traffic — a total outage, not a security feature.
-    const location = stubLocation();
     const user = userEvent.setup();
-    renderScreen({ returnUrl: "http://localhost:5002/login" });
+    await renderScreen({ returnUrl: "http://localhost:5002/login" });
 
     await submitCredentials(user);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalledWith({
         href: `/mfa/challenge?returnUrl=${encodeURIComponent("http://localhost:5002/login")}`,
       });
     });
     expect(mocks.navigate).not.toHaveBeenCalledWith({ href: ERROR_HREF });
-    expect(location.href).toBe("");
+    expect(mocks.buildExchangeTicketUrl).not.toHaveBeenCalled();
   });
 
   it("encodes the returnUrl so it cannot smuggle a second query key", async () => {
@@ -681,11 +739,11 @@ describe("LoginScreen mfaRequired branch", () => {
     // silently takes the wrong branch.
     const user = userEvent.setup();
     const smuggler = "/connect/authorize?client_id=web&cookieRelay=attacker";
-    renderScreen({ returnUrl: smuggler });
+    await renderScreen({ returnUrl: smuggler });
 
     await submitCredentials(user);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalledWith({
         href: `/mfa/challenge?returnUrl=${encodeURIComponent(smuggler)}`,
       });
@@ -703,11 +761,11 @@ describe("LoginScreen mfaEnrollmentRequired branch", () => {
     // no deadline is sent at all.
     mocks.login.mockResolvedValue({ succeeded: false, mfaEnrollmentRequired: true });
     const user = userEvent.setup();
-    renderScreen();
+    await renderScreen();
 
     await submitCredentials(user);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalledWith({
         href: `/mfa/enroll?returnUrl=${encodeURIComponent(RETURN_URL)}`,
       });
@@ -726,11 +784,11 @@ describe("LoginScreen mfaEnrollmentRequired branch", () => {
       signInTicket: TICKET,
     });
     const user = userEvent.setup();
-    renderScreen();
+    await renderScreen();
 
     await submitCredentials(user);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalledWith({
         href: `/mfa/enroll?returnUrl=${encodeURIComponent(RETURN_URL)}`,
       });
@@ -744,17 +802,15 @@ describe("LoginScreen mfaEnrollmentRequired branch", () => {
       mfaGraceDeadline: deadlineInDays(-1),
       signInTicket: TICKET,
     });
-    const location = stubLocation();
     const user = userEvent.setup();
-    renderScreen();
+    await renderScreen();
 
     await submitCredentials(user);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalled();
     });
     expect(mocks.buildExchangeTicketUrl).not.toHaveBeenCalled();
-    expect(location.href).toBe("");
   });
 });
 
@@ -778,28 +834,27 @@ describe("LoginScreen MFA grace period", () => {
     // The only configuration in which the oracle's banner is ever SEEN: with a
     // returnUrl the screen navigates away before it can be read (next test).
     mocks.login.mockResolvedValue(graceResult());
-    const location = stubLocation();
     const user = userEvent.setup();
-    renderScreen({ returnUrl: undefined });
+    await renderScreen({ returnUrl: undefined });
 
     await submitCredentials(user);
 
-    expect(await screen.findByTestId("login-mfa-enrollment-banner")).toBeInTheDocument();
-    expect(screen.getByTestId("login-signed-in")).toBeInTheDocument();
+    await expect.element(page.getByTestId("login-mfa-enrollment-banner")).toBeInTheDocument();
+    await expect.element(page.getByTestId("login-signed-in")).toBeInTheDocument();
     expect(mocks.navigate).not.toHaveBeenCalled();
-    expect(location.href).toBe("");
+    expect(mocks.buildExchangeTicketUrl).not.toHaveBeenCalled();
   });
 
   it("names the grace deadline in the banner", async () => {
     mocks.login.mockResolvedValue(graceResult());
     const user = userEvent.setup();
-    renderScreen({ returnUrl: undefined });
+    await renderScreen({ returnUrl: undefined });
 
     await submitCredentials(user);
 
-    const banner: HTMLElement = await screen.findByTestId("login-mfa-enrollment-banner");
-    expect(banner).toHaveTextContent(/two-factor authentication/iu);
-    expect(banner).toHaveTextContent(
+    const banner = page.getByTestId("login-mfa-enrollment-banner");
+    await expect.element(banner).toHaveTextContent(/two-factor authentication/iu);
+    await expect.element(banner).toHaveTextContent(
       new Date(GRACE_DEADLINE).toLocaleDateString("en-US", {
         month: "long",
         day: "numeric",
@@ -811,40 +866,40 @@ describe("LoginScreen MFA grace period", () => {
   it("offers a route to enrollment from the banner", async () => {
     mocks.login.mockResolvedValue(graceResult());
     const user = userEvent.setup();
-    renderScreen({ returnUrl: undefined });
+    await renderScreen({ returnUrl: undefined });
 
     await submitCredentials(user);
 
-    const banner: HTMLElement = await screen.findByTestId("login-mfa-enrollment-banner");
-    expect(banner.querySelector('a[href="/mfa/enroll"]')).not.toBeNull();
+    const banner = page.getByTestId("login-mfa-enrollment-banner");
+    await expect.element(banner).toBeInTheDocument();
+    expect(banner.element().querySelector('a[href="/mfa/enroll"]')).not.toBeNull();
   });
 
   it("retires the tabs once the user is signed in", async () => {
     // The oracle renders the whole tab block inside `else` of `if (_signedIn)`.
     mocks.login.mockResolvedValue(graceResult());
     const user = userEvent.setup();
-    renderScreen({ returnUrl: undefined });
+    await renderScreen({ returnUrl: undefined });
 
-    await screen.findByTestId("login-tab-password");
+    await expect.element(page.getByTestId("login-tab-password")).toBeInTheDocument();
     await submitCredentials(user);
 
-    await screen.findByTestId("login-signed-in");
-    expect(screen.queryByTestId("login-tab-password")).toBeNull();
-    expect(screen.queryByTestId("login-password")).toBeNull();
+    await expect.element(page.getByTestId("login-signed-in")).toBeInTheDocument();
+    expect(page.getByTestId("login-tab-password").query()).toBeNull();
+    expect(page.getByTestId("login-password").query()).toBeNull();
   });
 
   it("still exchanges the ticket during the grace period when a returnUrl is present", async () => {
     // Grace does NOT short-circuit the hand-off: the oracle sets the banner and
     // falls THROUGH to the returnUrl block, so the user keeps signing in.
     mocks.login.mockResolvedValue(graceResult());
-    const location = stubLocation();
     const user = userEvent.setup();
-    renderScreen();
+    await renderScreen();
 
     await submitCredentials(user);
 
-    await waitFor(() => {
-      expect(location.href).toBe(buildExchangeTicketUrlRule("", TICKET, RETURN_URL));
+    await vi.waitFor(() => {
+      expect(mocks.buildExchangeTicketUrl).toHaveBeenCalledWith("", TICKET, RETURN_URL);
     });
     expect(mocks.navigate).not.toHaveBeenCalledWith({
       href: `/mfa/enroll?returnUrl=${encodeURIComponent(RETURN_URL)}`,
@@ -860,18 +915,16 @@ describe("LoginScreen sign-in ticket exchange", () => {
   it("passes the real returnUrl the authorize endpoint sends", async () => {
     // POLE 1 — REAL TRAFFIC MUST PASS. AuthorizationController.cs:53 builds this
     // shape and :62 has already rejected it unless `Url.IsLocalUrl`. A guard
-    // that refused this would dead-end every direct sign-in.
-    const location = stubLocation();
+    // that refused this would dead-end every direct sign-in. Observed at the
+    // builder seam: the assigned `location.href` is [Unforgeable] in a browser,
+    // and the builder's args are the deterministic pre-image of that string.
     const user = userEvent.setup();
-    renderScreen();
+    await renderScreen();
 
     await submitCredentials(user);
 
-    await waitFor(() => {
-      expect(location.href).toBe(
-        `/v1/identity/auth/exchange-ticket?ticket=${TICKET}` +
-          `&returnUrl=${encodeURIComponent(RETURN_URL)}`,
-      );
+    await vi.waitFor(() => {
+      expect(mocks.buildExchangeTicketUrl).toHaveBeenCalledWith("", TICKET, RETURN_URL);
     });
     expect(mocks.navigate).not.toHaveBeenCalledWith({ href: ERROR_HREF });
   });
@@ -879,61 +932,54 @@ describe("LoginScreen sign-in ticket exchange", () => {
   it("exchanges the ticket at THIS origin, not at an absolute API origin", async () => {
     // SAME ORIGIN, NOT ApiBaseUrl. The h3 proxy mounts /v1/** at the root, so a
     // cross-origin exchange would drop the SameSite cookie the endpoint sets —
-    // which is the entire purpose of the ticket.
-    const location = stubLocation();
+    // which is the entire purpose of the ticket. The `""` origin arg IS the
+    // same-origin assertion: a relative exchange, never `localhost:5001`.
     const user = userEvent.setup();
-    renderScreen();
+    await renderScreen();
 
     await submitCredentials(user);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.buildExchangeTicketUrl).toHaveBeenCalledWith("", TICKET, RETURN_URL);
     });
-    expect(location.href.startsWith("/")).toBe(true);
-    expect(location.href).not.toContain("localhost:5001");
   });
 
   it("refuses an absolute returnUrl before exchanging the ticket", async () => {
     // POLE 2 — THE ATTACK MUST BE REFUSED. Here the CLIENT picks the
     // destination, so the guard belongs on this path.
-    const location = stubLocation();
     const user = userEvent.setup();
-    renderScreen({ returnUrl: EVIL_RETURN_URL });
+    await renderScreen({ returnUrl: EVIL_RETURN_URL });
 
     await submitCredentials(user);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalledWith({ href: ERROR_HREF });
     });
-    expect(location.href).toBe("");
     expect(mocks.buildExchangeTicketUrl).not.toHaveBeenCalled();
   });
 
   it("refuses a protocol-relative returnUrl", async () => {
     // `//evil.example.com` is the classic bypass of a naive `startsWith("/")`.
-    const location = stubLocation();
     const user = userEvent.setup();
-    renderScreen({ returnUrl: "//evil.example.com/steal" });
+    await renderScreen({ returnUrl: "//evil.example.com/steal" });
 
     await submitCredentials(user);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalledWith({ href: ERROR_HREF });
     });
-    expect(location.href).toBe("");
+    expect(mocks.buildExchangeTicketUrl).not.toHaveBeenCalled();
   });
 
   it("shows the signed-in state when there is no returnUrl", async () => {
     // The oracle's `else` arm: nowhere to send the user, so say so rather than
     // inventing a destination.
-    const location = stubLocation();
     const user = userEvent.setup();
-    renderScreen({ returnUrl: undefined });
+    await renderScreen({ returnUrl: undefined });
 
     await submitCredentials(user);
 
-    expect(await screen.findByTestId("login-signed-in")).toBeInTheDocument();
-    expect(location.href).toBe("");
+    await expect.element(page.getByTestId("login-signed-in")).toBeInTheDocument();
     expect(mocks.navigate).not.toHaveBeenCalled();
     expect(mocks.buildExchangeTicketUrl).not.toHaveBeenCalled();
   });
@@ -943,31 +989,29 @@ describe("LoginScreen sign-in ticket exchange", () => {
     // `isSafeReturnUrl`, so a screen that guarded before checking emptiness
     // would send a perfectly ordinary user to /error. The oracle checks
     // emptiness FIRST; order is load-bearing.
-    const location = stubLocation();
     const user = userEvent.setup();
-    renderScreen({ returnUrl: "" });
+    await renderScreen({ returnUrl: "" });
 
     await submitCredentials(user);
 
-    expect(await screen.findByTestId("login-signed-in")).toBeInTheDocument();
+    await expect.element(page.getByTestId("login-signed-in")).toBeInTheDocument();
     expect(mocks.navigate).not.toHaveBeenCalledWith({ href: ERROR_HREF });
-    expect(location.href).toBe("");
+    expect(mocks.buildExchangeTicketUrl).not.toHaveBeenCalled();
   });
 
   it("does not leave the sign-in button spinning after it refuses", async () => {
     // A refused login is terminal, but the form is still on screen; leaving it
     // disabled would strand the user with no way to retype the returnUrl-less
     // half of their journey.
-    stubLocation();
     const user = userEvent.setup();
-    renderScreen({ returnUrl: EVIL_RETURN_URL });
+    await renderScreen({ returnUrl: EVIL_RETURN_URL });
 
     await submitCredentials(user);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalledWith({ href: ERROR_HREF });
     });
-    expect(screen.getByTestId("login-submit")).toBeEnabled();
+    await expect.element(page.getByTestId("login-submit")).toBeEnabled();
   });
 });
 
@@ -1002,62 +1046,64 @@ function renderRouteAt(url: string) {
 
 describe("/login route", () => {
   it("renders the real screen in place of the pre-registration placeholder", async () => {
-    renderRouteAt("/login");
+    await renderRouteAt("/login");
 
-    expect(await screen.findByTestId("login-password")).toBeInTheDocument();
-    expect(screen.queryByTestId("route-placeholder")).toBeNull();
+    await expect.element(page.getByTestId("login-password")).toBeInTheDocument();
+    expect(page.getByTestId("route-placeholder").query()).toBeNull();
   });
 
   it("renders without throwing when the link carries no query at all", async () => {
     // `/` redirects here with no query; every search param must be optional
     // rather than throwing a validation error at the user.
-    renderRouteAt("/login");
+    await renderRouteAt("/login");
 
-    expect(await screen.findByTestId("login-submit")).toBeInTheDocument();
-    expect(screen.queryByTestId("login-error")).toBeNull();
+    await expect.element(page.getByTestId("login-submit")).toBeInTheDocument();
+    expect(page.getByTestId("login-error").query()).toBeNull();
   });
 
   it("threads returnUrl out of the query string into the ticket exchange", async () => {
-    const location = stubLocation();
     const user = userEvent.setup();
-    renderRouteAt(`/login?returnUrl=${encodeURIComponent(RETURN_URL)}&client_id=web`);
+    await renderRouteAt(`/login?returnUrl=${encodeURIComponent(RETURN_URL)}&client_id=web`);
 
-    await screen.findByTestId("login-email");
+    await expect.element(page.getByTestId("login-email")).toBeInTheDocument();
     await submitCredentials(user);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.buildExchangeTicketUrl).toHaveBeenCalledWith("", TICKET, RETURN_URL);
     });
-    expect(location.href).toContain(encodeURIComponent(RETURN_URL));
   });
 
   it("threads client_id out of the query string into the register link", async () => {
-    renderRouteAt(`/login?returnUrl=${encodeURIComponent(RETURN_URL)}&client_id=web`);
+    await renderRouteAt(`/login?returnUrl=${encodeURIComponent(RETURN_URL)}&client_id=web`);
 
-    expect(await screen.findByTestId("login-register-link")).toHaveAttribute(
-      "href",
-      `/register?client_id=web&returnUrl=${encodeURIComponent(RETURN_URL)}`,
-    );
+    await expect
+      .element(page.getByTestId("login-register-link"))
+      .toHaveAttribute(
+        "href",
+        `/register?client_id=web&returnUrl=${encodeURIComponent(RETURN_URL)}`,
+      );
   });
 
   it("surfaces external_login_failed from the error query param", async () => {
-    renderRouteAt("/login?error=external_login_failed");
+    await renderRouteAt("/login?error=external_login_failed");
 
-    expect(await screen.findByTestId("login-error")).toHaveTextContent(
-      EXTERNAL_LOGIN_FAILED_MESSAGE,
-    );
+    await expect
+      .element(page.getByTestId("login-error"))
+      .toHaveTextContent(EXTERNAL_LOGIN_FAILED_MESSAGE);
   });
 
   it("surfaces session_expired from the error query param", async () => {
-    renderRouteAt("/login?error=session_expired");
+    await renderRouteAt("/login?error=session_expired");
 
-    expect(await screen.findByTestId("login-error")).toHaveTextContent(SESSION_EXPIRED_MESSAGE);
+    await expect
+      .element(page.getByTestId("login-error"))
+      .toHaveTextContent(SESSION_EXPIRED_MESSAGE);
   });
 
   it("falls back to generic copy for an unrecognised error param", async () => {
-    renderRouteAt("/login?error=wat");
+    await renderRouteAt("/login?error=wat");
 
-    expect(await screen.findByTestId("login-error")).toHaveTextContent(GENERIC_MESSAGE);
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent(GENERIC_MESSAGE);
   });
 
   it("does not resolve inherited Object keys from the error param", async () => {
@@ -1067,15 +1113,15 @@ describe("/login route", () => {
     // `ReadonlyMap` + `.get()` sees just the keys explicitly put in it. The
     // benign `?error=wat` above survives a Record, so this is the test that
     // binds the Map: do not "simplify" it back to an object literal.
-    renderRouteAt("/login?error=toString");
+    await renderRouteAt("/login?error=toString");
 
-    expect(await screen.findByTestId("login-error")).toHaveTextContent(GENERIC_MESSAGE);
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent(GENERIC_MESSAGE);
   });
 
   it("does not resolve the constructor key from the error param", async () => {
-    renderRouteAt("/login?error=constructor");
+    await renderRouteAt("/login?error=constructor");
 
-    expect(await screen.findByTestId("login-error")).toHaveTextContent(GENERIC_MESSAGE);
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent(GENERIC_MESSAGE);
   });
 
   it("survives an error param that the search parser turns into a boolean", async () => {
@@ -1085,16 +1131,34 @@ describe("/login route", () => {
     // to undefined, silently swallowing an error hand-back. `error` is compared
     // against literals, so re-stringify the scalar (bd memory
     // `tanstack-router-default-search-parser-json-parses-values`).
-    renderRouteAt("/login?error=true");
+    await renderRouteAt("/login?error=true");
 
-    expect(await screen.findByTestId("login-error")).toHaveTextContent(GENERIC_MESSAGE);
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent(GENERIC_MESSAGE);
   });
 
   it("ignores a non-scalar error param rather than throwing", async () => {
     // Arrays/objects reach the same false answer without a validation error --
     // a junk link must still render a usable login form.
-    renderRouteAt("/login?error=%5B1%2C2%5D");
+    await renderRouteAt("/login?error=%5B1%2C2%5D");
 
-    expect(await screen.findByTestId("login-submit")).toBeInTheDocument();
+    await expect.element(page.getByTestId("login-submit")).toBeInTheDocument();
+  });
+
+  it("surfaces the password-reset notice from the message query param", async () => {
+    // The end-to-end assertion the bead asks for: the `message` param
+    // ResetPasswordForm sends must survive `validateSearch` and reach the banner,
+    // not be silently dropped.
+    await renderRouteAt("/login?message=password_reset");
+
+    await expect
+      .element(page.getByTestId("login-password-reset-notice"))
+      .toHaveTextContent(PASSWORD_RESET_NOTICE);
+  });
+
+  it("shows no notice for an unrecognised message param", async () => {
+    await renderRouteAt("/login?message=wat");
+
+    await expect.element(page.getByTestId("login-submit")).toBeInTheDocument();
+    expect(page.getByTestId("login-password-reset-notice").query()).toBeNull();
   });
 });

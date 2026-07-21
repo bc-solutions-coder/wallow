@@ -1,7 +1,9 @@
-// @vitest-environment jsdom
+import { createRouter as createTanStackRouter } from "@tanstack/react-router";
+import { createRequestHandler, defaultRenderHandler } from "@tanstack/react-router/ssr/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { forkBranding } from "../lib/branding";
+import { createQueryClient } from "../lib/query-client";
 import { render } from "../ssr";
 
 /**
@@ -77,7 +79,6 @@ describe("the wallow-auth document shell", () => {
 describe("the wallow-auth document shell in production", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
-    vi.resetModules();
   });
 
   it("links the compiled stylesheet at /client.css", async () => {
@@ -85,13 +86,28 @@ describe("the wallow-auth document shell in production", () => {
     // `client.css` (vite.config.ts `assetFileNames`) — but unlike dev, nothing
     // injects it: Vite does not auto-reference entry CSS from a JS entry, so
     // unless the shell links it explicitly, every route serves unstyled. The
-    // vitest env runs with DEV=true, so the prod branch is rendered by stubbing
-    // DEV off and re-importing the SSR graph fresh.
+    // vitest env runs with DEV=true, so the prod branch needs the shell module
+    // re-evaluated under DEV=false. In the browser project `vi.resetModules()` is
+    // a no-op (modules evaluate once and are never re-run), so the fresh prod
+    // eval is obtained by stubbing DEV off and cache-busting the `__root` import
+    // with a unique query — the one mechanism that mints a new module instance.
+    // The static SSR `render` above is bound to the already-cached dev `__root`,
+    // so we mirror its wiring (`createRequestHandler` + `defaultRenderHandler`)
+    // around a router whose root route is the freshly evaluated prod shell.
     vi.stubEnv("DEV", false);
-    vi.resetModules();
-    const { render: renderProd } = await import("../ssr");
+    // oxlint-disable-next-line no-inline-comments -- Vite's @vite-ignore magic comment must stay inline in the import
+    const prodRoot = await import(/* @vite-ignore */ `./__root?prod=${Date.now()}`);
+    const createRouter = () =>
+      createTanStackRouter({
+        routeTree: prodRoot.Route,
+        context: { queryClient: createQueryClient() },
+        defaultNotFoundComponent: () => null,
+      });
 
-    const response: Response = await renderProd(new Request("http://localhost:3002/login"));
+    const response: Response = await createRequestHandler({
+      createRouter,
+      request: new Request("http://localhost:3002/login"),
+    })(defaultRenderHandler);
     const html: string = await response.text();
 
     expect(html).toMatch(/<link[^>]*rel="stylesheet"[^>]*href="\/client\.css"/u);

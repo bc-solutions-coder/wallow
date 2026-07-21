@@ -1,14 +1,10 @@
-/** @vitest-environment jsdom */
-import * as matchers from "@testing-library/jest-dom/matchers";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
 import type { ReactElement } from "react";
+import { page } from "vitest/browser";
+import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { OrganizationDetail } from "./OrganizationDetail";
-
-// No global `expect` (vitest `globals` is off) — register jest-dom matchers.
-expect.extend(matchers);
 
 /**
  * Org-detail bound-clients + register-client reachability spec
@@ -79,8 +75,8 @@ describe("OrganizationDetail bound clients + register-client", () => {
 
     renderWithClient(client, <OrganizationDetail orgId="o1" />);
 
-    await screen.findByTestId("organization-detail-heading");
-    expect(screen.getByTestId("organization-detail-clients-table")).toBeInTheDocument();
+    await expect.element(page.getByTestId("organization-detail-heading")).toBeInTheDocument();
+    await expect.element(page.getByTestId("organization-detail-clients-table")).toBeInTheDocument();
   });
 
   it("renders the register-client form fields reachable from the org detail page", async () => {
@@ -89,10 +85,18 @@ describe("OrganizationDetail bound clients + register-client", () => {
 
     renderWithClient(client, <OrganizationDetail orgId="o1" />);
 
-    await screen.findByTestId("organization-detail-heading");
-    expect(screen.getByTestId("organization-detail-register-display-name")).toBeInTheDocument();
-    expect(screen.getByTestId("organization-detail-register-client-type")).toBeInTheDocument();
-    expect(screen.getByTestId("organization-detail-register-redirect-uris")).toBeInTheDocument();
-    expect(screen.getByTestId("organization-detail-register-submit")).toBeInTheDocument();
+    await expect.element(page.getByTestId("organization-detail-heading")).toBeInTheDocument();
+    await expect
+      .element(page.getByTestId("organization-detail-register-display-name"))
+      .toBeInTheDocument();
+    await expect
+      .element(page.getByTestId("organization-detail-register-client-type"))
+      .toBeInTheDocument();
+    await expect
+      .element(page.getByTestId("organization-detail-register-redirect-uris"))
+      .toBeInTheDocument();
+    await expect
+      .element(page.getByTestId("organization-detail-register-submit"))
+      .toBeInTheDocument();
   });
 });

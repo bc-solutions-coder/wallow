@@ -1,5 +1,3 @@
-/** @vitest-environment jsdom */
-import * as matchers from "@testing-library/jest-dom/matchers";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,
@@ -8,17 +6,13 @@ import {
   Outlet,
   RouterProvider,
 } from "@tanstack/react-router";
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
+import { page, userEvent } from "vitest/browser";
+import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Route as loginRoute } from "../../../routes/login";
 import { LoginScreen, type LoginScreenProps } from "./LoginScreen";
-
-// No global `expect` (vitest `globals` is off) — register the jest-dom matchers
-// explicitly, as `LoginScreen.test.tsx` and the sibling ports do.
-expect.extend(matchers);
 
 /**
  * Component spec for the Login screen's OTP tab (Wallow-vec7.3.13 / 2.8c), ported
@@ -88,6 +82,18 @@ expect.extend(matchers);
  * SEND is the other way round and DOES key on the token, following `.3.12`: its
  * copy is a rate-limit-specific divergence, so it must not be handed to some future
  * unrelated 400.
+ *
+ * ── NAVIGATION SEAM (browser migration, Wallow-xzha.3.x) ─────────────────────
+ *
+ * These specs run in real Chromium via `vitest-browser-react`, where
+ * `window.location` is `[Unforgeable]`: the old jsdom `vi.stubGlobal("location", …)`
+ * hack cannot shadow it, and assigning `location.href` would navigate the runner's
+ * iframe and tear the run down (see vitest.config.ts NAVIGATION SEAM). The screen's
+ * `location.href = buildExchangeTicketUrl(origin, ticket, returnUrl)` hand-off is
+ * therefore pinned by asserting the URL-builder seam was called with the exact
+ * origin + ticket + returnUrl — the builder is deterministic, so that is equivalent
+ * to pinning the assigned string — and the builder mock returns a bare-fragment
+ * sentinel so the assignment stays put and never navigates.
  */
 
 // Hoisted so the vi.mock factories and the test bodies share the same spies.
@@ -176,6 +182,15 @@ const GENERIC_MESSAGE = "An error occurred. Please try again.";
 const UNREACHABLE_MESSAGE = "Unable to reach the server. Please try again later.";
 
 /**
+ * A non-navigating sentinel for the ticket-exchange URL. `window.location` is
+ * `[Unforgeable]` in real Chromium, so the screen's `location.href = builder(...)`
+ * hand-off is pinned by asserting the builder's ARGS (see header); the builder is
+ * mocked to a bare fragment so the assignment updates only the hash and never tears
+ * down the runner.
+ */
+const EXCHANGE_TICKET_SENTINEL = "#otp-exchange-ticket-sentinel";
+
+/**
  * The real `isSafeReturnUrl` rule (packages/sdk/src/auth-oidc.ts:49-56), mirrored
  * rather than imported: screens may not import the SDK, so the seam is mocked —
  * and a mock returning a CONSTANT would let the guard tests pass for the wrong
@@ -187,15 +202,6 @@ function isSafeReturnUrlRule(url: string | null | undefined): boolean {
   }
 
   return url.startsWith("/") && !url.startsWith("//");
-}
-
-/** The real `buildExchangeTicketUrl` shape, mirrored for the same reason. */
-function buildExchangeTicketUrlRule(origin: string, ticket: string, returnUrl: string): string {
-  return (
-    `${origin.replace(/\/+$/u, "")}/v1/identity/auth/exchange-ticket` +
-    `?ticket=${encodeURIComponent(ticket)}` +
-    `&returnUrl=${encodeURIComponent(returnUrl)}`
-  );
 }
 
 /**
@@ -256,52 +262,38 @@ function renderScreen(props: Partial<LoginScreenProps> = {}) {
   return renderWithClient(<LoginScreen {...props} returnUrl={returnUrl} />);
 }
 
-/**
- * Replace `window.location` with a plain settable object so the screen's full
- * navigation is observable. jsdom refuses `vi.spyOn(window.location, "assign")`,
- * but `location` is a configurable accessor, so `vi.stubGlobal` swaps it
- * wholesale — and `globalThis === window` under jsdom, so the screen's
- * `globalThis.location.href = …` writes here.
- */
-function stubLocation(): { href: string } {
-  const location = { href: "" };
-  vi.stubGlobal("location", location);
-  return location;
-}
-
 /** Open the OTP tab — the oracle's `SwitchTab(LoginTab.Otp)`. */
 async function openOtpTab(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(await screen.findByTestId("login-tab-otp"));
+  await user.click(page.getByTestId("login-tab-otp"));
 }
 
 /** Fill in the OTP email field and submit it — the oracle's `HandleSendOtp`. */
 async function submitEmail(user: ReturnType<typeof userEvent.setup>, email: string = EMAIL) {
   if (email !== "") {
-    await user.type(screen.getByTestId("login-otp-email"), email);
+    await user.type(page.getByTestId("login-otp-email"), email);
   }
-  await user.click(screen.getByTestId("login-otp-send-submit"));
+  await user.click(page.getByTestId("login-otp-send-submit"));
 }
 
 /** Fill in the code field and submit it — the oracle's `HandleVerifyOtp`. */
 async function submitCode(user: ReturnType<typeof userEvent.setup>, code: string = CODE) {
   if (code !== "") {
-    await user.type(await screen.findByTestId("login-otp-code"), code);
+    await user.type(page.getByTestId("login-otp-code"), code);
   }
-  await user.click(screen.getByTestId("login-otp-verify-submit"));
+  await user.click(page.getByTestId("login-otp-verify-submit"));
 }
 
 /** Get to the code form the way a real user does: open the tab and send a code. */
 async function reachCodeForm(user: ReturnType<typeof userEvent.setup>) {
   await openOtpTab(user);
   await submitEmail(user);
-  await screen.findByTestId("login-otp-code");
+  await expect.element(page.getByTestId("login-otp-code")).toBeInTheDocument();
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.unstubAllGlobals();
   mocks.isSafeReturnUrl.mockImplementation(isSafeReturnUrlRule);
-  mocks.buildExchangeTicketUrl.mockImplementation(buildExchangeTicketUrlRule);
+  mocks.buildExchangeTicketUrl.mockReturnValue(EXCHANGE_TICKET_SENTINEL);
   mocks.sendOtp.mockResolvedValue({ succeeded: true });
   mocks.verifyOtp.mockResolvedValue({
     succeeded: true,
@@ -321,11 +313,11 @@ describe("LoginScreen OTP tab: sending", () => {
 
     await openOtpTab(user);
 
-    expect(await screen.findByTestId("login-otp-email")).toBeInTheDocument();
-    expect(screen.getByTestId("login-otp-send-submit")).toBeInTheDocument();
+    await expect.element(page.getByTestId("login-otp-email")).toBeInTheDocument();
+    await expect.element(page.getByTestId("login-otp-send-submit")).toBeInTheDocument();
     // The oracle's tabs are an `else if` chain: one panel at a time.
-    expect(screen.queryByTestId("login-password")).toBeNull();
-    expect(screen.queryByTestId("login-magic-link-email")).toBeNull();
+    expect(page.getByTestId("login-password").query()).toBeNull();
+    expect(page.getByTestId("login-magic-link-email").query()).toBeNull();
   });
 
   it("starts on the email form, not the code form", async () => {
@@ -337,9 +329,9 @@ describe("LoginScreen OTP tab: sending", () => {
 
     await openOtpTab(user);
 
-    await screen.findByTestId("login-otp-email");
-    expect(screen.queryByTestId("login-otp-code")).toBeNull();
-    expect(screen.queryByTestId("login-otp-sent")).toBeNull();
+    await expect.element(page.getByTestId("login-otp-email")).toBeInTheDocument();
+    expect(page.getByTestId("login-otp-code").query()).toBeNull();
+    expect(page.getByTestId("login-otp-sent").query()).toBeNull();
   });
 
   it("does not send anything merely because the tab was opened", async () => {
@@ -348,7 +340,7 @@ describe("LoginScreen OTP tab: sending", () => {
 
     await openOtpTab(user);
 
-    await screen.findByTestId("login-otp-send-submit");
+    await expect.element(page.getByTestId("login-otp-send-submit")).toBeInTheDocument();
     expect(mocks.sendOtp).not.toHaveBeenCalled();
   });
 
@@ -361,7 +353,7 @@ describe("LoginScreen OTP tab: sending", () => {
     await openOtpTab(user);
     await submitEmail(user, "");
 
-    expect(await screen.findByTestId("login-error")).toHaveTextContent(BLANK_EMAIL_MESSAGE);
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent(BLANK_EMAIL_MESSAGE);
     expect(mocks.sendOtp).not.toHaveBeenCalled();
   });
 
@@ -373,7 +365,7 @@ describe("LoginScreen OTP tab: sending", () => {
     await openOtpTab(user);
     await submitEmail(user, "   ");
 
-    expect(await screen.findByTestId("login-error")).toHaveTextContent(BLANK_EMAIL_MESSAGE);
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent(BLANK_EMAIL_MESSAGE);
     expect(mocks.sendOtp).not.toHaveBeenCalled();
   });
 
@@ -387,7 +379,7 @@ describe("LoginScreen OTP tab: sending", () => {
     await openOtpTab(user);
     await submitEmail(user);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.sendOtp).toHaveBeenCalledWith({ email: EMAIL });
     });
   });
@@ -401,10 +393,10 @@ describe("LoginScreen OTP tab: sending", () => {
     await openOtpTab(user);
     await submitEmail(user);
 
-    expect(await screen.findByTestId("login-otp-sent")).toBeInTheDocument();
-    expect(screen.getByTestId("login-otp-code")).toBeInTheDocument();
-    expect(screen.getByTestId("login-otp-verify-submit")).toBeInTheDocument();
-    expect(screen.queryByTestId("login-otp-email")).toBeNull();
+    await expect.element(page.getByTestId("login-otp-sent")).toBeInTheDocument();
+    await expect.element(page.getByTestId("login-otp-code")).toBeInTheDocument();
+    await expect.element(page.getByTestId("login-otp-verify-submit")).toBeInTheDocument();
+    expect(page.getByTestId("login-otp-email").query()).toBeNull();
   });
 
   it("shows the code form for an address with no account, revealing nothing", async () => {
@@ -421,8 +413,8 @@ describe("LoginScreen OTP tab: sending", () => {
     await openOtpTab(user);
     await submitEmail(user, "nobody@example.com");
 
-    expect(await screen.findByTestId("login-otp-sent")).toBeInTheDocument();
-    expect(screen.queryByTestId("login-error")).toBeNull();
+    await expect.element(page.getByTestId("login-otp-sent")).toBeInTheDocument();
+    expect(page.getByTestId("login-error").query()).toBeNull();
   });
 
   it("sends one code for a double-clicked send button", async () => {
@@ -436,13 +428,17 @@ describe("LoginScreen OTP tab: sending", () => {
     renderScreen();
 
     await openOtpTab(user);
-    await user.type(screen.getByTestId("login-otp-email"), EMAIL);
+    await user.type(page.getByTestId("login-otp-email"), EMAIL);
 
-    await user.click(screen.getByTestId("login-otp-send-submit"));
-    await user.click(screen.getByTestId("login-otp-send-submit"));
+    // `force` on the second click: after the first submit the button is disabled
+    // in-flight, and Playwright would otherwise wait for it to re-enable. Skipping
+    // the actionability wait reproduces the impatient double-click; the OUTCOME
+    // (one send) is what this test binds.
+    await user.click(page.getByTestId("login-otp-send-submit"));
+    await user.click(page.getByTestId("login-otp-send-submit"), { force: true });
 
     pending.resolve({ succeeded: true });
-    await screen.findByTestId("login-otp-sent");
+    await expect.element(page.getByTestId("login-otp-sent")).toBeInTheDocument();
     expect(mocks.sendOtp).toHaveBeenCalledTimes(1);
   });
 
@@ -454,12 +450,12 @@ describe("LoginScreen OTP tab: sending", () => {
 
     await openOtpTab(user);
     await submitEmail(user, "");
-    expect(await screen.findByTestId("login-error")).toHaveTextContent(BLANK_EMAIL_MESSAGE);
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent(BLANK_EMAIL_MESSAGE);
 
     await submitEmail(user);
 
-    await waitFor(() => {
-      expect(screen.queryByTestId("login-error")).toBeNull();
+    await vi.waitFor(() => {
+      expect(page.getByTestId("login-error").query()).toBeNull();
     });
   });
 });
@@ -475,7 +471,7 @@ describe("LoginScreen OTP tab: send failures", () => {
     await openOtpTab(user);
     await submitEmail(user);
 
-    expect(await screen.findByTestId("login-error")).toHaveTextContent(RATE_LIMITED_MESSAGE);
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent(RATE_LIMITED_MESSAGE);
   });
 
   it("keeps the email form up after a send failure so the address can be fixed", async () => {
@@ -486,9 +482,9 @@ describe("LoginScreen OTP tab: send failures", () => {
     await openOtpTab(user);
     await submitEmail(user);
 
-    await screen.findByTestId("login-error");
-    expect(screen.getByTestId("login-otp-email")).toBeInTheDocument();
-    expect(screen.queryByTestId("login-otp-code")).toBeNull();
+    await expect.element(page.getByTestId("login-error")).toBeInTheDocument();
+    await expect.element(page.getByTestId("login-otp-email")).toBeInTheDocument();
+    expect(page.getByTestId("login-otp-code").query()).toBeNull();
   });
 
   it("distinguishes a dead network from a server that said no", async () => {
@@ -502,7 +498,7 @@ describe("LoginScreen OTP tab: send failures", () => {
     await openOtpTab(user);
     await submitEmail(user);
 
-    expect(await screen.findByTestId("login-error")).toHaveTextContent(UNREACHABLE_MESSAGE);
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent(UNREACHABLE_MESSAGE);
   });
 
   it("falls back to the generic tail for a failure it has never heard of", async () => {
@@ -513,7 +509,7 @@ describe("LoginScreen OTP tab: send failures", () => {
     await openOtpTab(user);
     await submitEmail(user);
 
-    expect(await screen.findByTestId("login-error")).toHaveTextContent(GENERIC_MESSAGE);
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent(GENERIC_MESSAGE);
   });
 
   it("never renders the raw server sentence on a send failure", async () => {
@@ -521,12 +517,12 @@ describe("LoginScreen OTP tab: send failures", () => {
     // sentence is still a machine token: matched against, never shown.
     const user = userEvent.setup();
     mocks.sendOtp.mockRejectedValue(rejection(400, RATE_LIMITED_TOKEN));
-    const { container } = renderScreen();
+    const { container } = await renderScreen();
 
     await openOtpTab(user);
     await submitEmail(user);
 
-    await screen.findByTestId("login-error");
+    await expect.element(page.getByTestId("login-error")).toBeInTheDocument();
     expect(container.textContent).not.toContain(RATE_LIMITED_TOKEN);
   });
 
@@ -539,8 +535,8 @@ describe("LoginScreen OTP tab: send failures", () => {
     await openOtpTab(user);
     await submitEmail(user);
 
-    expect(await screen.findByTestId("login-error")).toHaveTextContent(GENERIC_MESSAGE);
-    expect(screen.queryByTestId("login-otp-code")).toBeNull();
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent(GENERIC_MESSAGE);
+    expect(page.getByTestId("login-otp-code").query()).toBeNull();
   });
 
   it('does not accept the STRING "false" as success', async () => {
@@ -554,8 +550,8 @@ describe("LoginScreen OTP tab: send failures", () => {
     await openOtpTab(user);
     await submitEmail(user);
 
-    expect(await screen.findByTestId("login-error")).toHaveTextContent(GENERIC_MESSAGE);
-    expect(screen.queryByTestId("login-otp-code")).toBeNull();
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent(GENERIC_MESSAGE);
+    expect(page.getByTestId("login-otp-code").query()).toBeNull();
   });
 });
 
@@ -572,7 +568,7 @@ describe("LoginScreen OTP tab: verifying", () => {
     await reachCodeForm(user);
     await submitCode(user, "");
 
-    expect(await screen.findByTestId("login-error")).toHaveTextContent(BLANK_CODE_MESSAGE);
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent(BLANK_CODE_MESSAGE);
     expect(mocks.verifyOtp).not.toHaveBeenCalled();
   });
 
@@ -583,7 +579,7 @@ describe("LoginScreen OTP tab: verifying", () => {
     await reachCodeForm(user);
     await submitCode(user, "   ");
 
-    expect(await screen.findByTestId("login-error")).toHaveTextContent(BLANK_CODE_MESSAGE);
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent(BLANK_CODE_MESSAGE);
     expect(mocks.verifyOtp).not.toHaveBeenCalled();
   });
 
@@ -594,13 +590,12 @@ describe("LoginScreen OTP tab: verifying", () => {
     // re-reading a field the user can no longer see would be the one way to get it
     // wrong.
     const user = userEvent.setup();
-    stubLocation();
     renderScreen();
 
     await reachCodeForm(user);
     await submitCode(user);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       // `rememberMe: false` joins the payload as of Wallow-98st, which gives this tab
       // its OWN checkbox. It is sent EXPLICITLY rather than omitted: the endpoint's
       // `rememberMe` is optional (types.gen.ts:1044) and defaults false
@@ -616,7 +611,6 @@ describe("LoginScreen OTP tab: verifying", () => {
 
   it("does not re-send a code when the code form is submitted", async () => {
     const user = userEvent.setup();
-    stubLocation();
     renderScreen();
 
     await reachCodeForm(user);
@@ -624,7 +618,7 @@ describe("LoginScreen OTP tab: verifying", () => {
 
     await submitCode(user);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.verifyOtp).toHaveBeenCalledTimes(1);
     });
     expect(mocks.sendOtp).toHaveBeenCalledTimes(1);
@@ -644,17 +638,19 @@ describe("LoginScreen OTP tab: verifying", () => {
     const user = userEvent.setup();
     const pending = deferred<unknown>();
     mocks.verifyOtp.mockReturnValue(pending.promise);
-    stubLocation();
     renderScreen();
 
     await reachCodeForm(user);
-    await user.type(screen.getByTestId("login-otp-code"), CODE);
+    await user.type(page.getByTestId("login-otp-code"), CODE);
 
-    await user.click(screen.getByTestId("login-otp-verify-submit"));
-    await user.click(screen.getByTestId("login-otp-verify-submit"));
+    // `force` on the second click: the button is disabled in-flight after the first
+    // submit, so Playwright would wait for it to re-enable. This reproduces the
+    // impatient double-click and binds the OUTCOME (one redemption), not the disable.
+    await user.click(page.getByTestId("login-otp-verify-submit"));
+    await user.click(page.getByTestId("login-otp-verify-submit"), { force: true });
 
     pending.resolve({ succeeded: true, email: EMAIL, signInTicket: TICKET });
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.buildExchangeTicketUrl).toHaveBeenCalled();
     });
     // ONE redemption, for two clicks.
@@ -664,17 +660,16 @@ describe("LoginScreen OTP tab: verifying", () => {
   it("clears a stale error banner when the code is resubmitted", async () => {
     // The oracle's `_errorMessage = null` at the top of `HandleVerifyOtp`.
     const user = userEvent.setup();
-    stubLocation();
     renderScreen();
 
     await reachCodeForm(user);
     await submitCode(user, "");
-    expect(await screen.findByTestId("login-error")).toHaveTextContent(BLANK_CODE_MESSAGE);
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent(BLANK_CODE_MESSAGE);
 
     await submitCode(user);
 
-    await waitFor(() => {
-      expect(screen.queryByTestId("login-error")).toBeNull();
+    await vi.waitFor(() => {
+      expect(page.getByTestId("login-error").query()).toBeNull();
     });
   });
 });
@@ -685,34 +680,32 @@ describe("LoginScreen OTP tab: verify success hands off to the shell", () => {
     // `RETURN_URL` is the relative value `/connect/authorize` really mints. Nothing
     // here is hostile: if this fails, the tab is an OUTAGE.
     const user = userEvent.setup();
-    const location = stubLocation();
     renderScreen();
 
     await reachCodeForm(user);
     await submitCode(user);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       // Origin "" — SAME-ORIGIN. The h3 proxy mounts `/v1/**` at this origin's root,
       // and the oracle's `ApiBaseUrl` prepend would send the browser cross-origin and
       // DROP the SameSite cookie the exchange just set (bd memory
-      // `wallow-auth-screens-must-pass-origin-same-origin`).
+      // `wallow-auth-screens-must-pass-origin-same-origin`). Asserting the builder's
+      // exact args pins the assigned URL: the builder is deterministic, and origin ""
+      // proves same-origin (no `localhost:5001`) with the OIDC returnUrl carried through.
       expect(mocks.buildExchangeTicketUrl).toHaveBeenCalledWith("", TICKET, RETURN_URL);
     });
-    expect(location.href).toContain(encodeURIComponent(RETURN_URL));
-    expect(location.href).not.toContain("localhost:5001");
   });
 
   it("reports being signed in when there is no returnUrl to go back to", async () => {
     // The oracle's trailing `else`: nowhere to send the user, so say so rather than
     // invent a destination.
     const user = userEvent.setup();
-    stubLocation();
     renderScreen({ returnUrl: undefined });
 
     await reachCodeForm(user);
     await submitCode(user);
 
-    expect(await screen.findByTestId("login-signed-in")).toBeInTheDocument();
+    await expect.element(page.getByTestId("login-signed-in")).toBeInTheDocument();
     expect(mocks.buildExchangeTicketUrl).not.toHaveBeenCalled();
   });
 
@@ -722,13 +715,12 @@ describe("LoginScreen OTP tab: verify success hands off to the shell", () => {
     // panel never navigates. REFUSE, don't sanitize (bd memory
     // `returnurl-guard-refuse-dont-sanitize`).
     const user = userEvent.setup();
-    stubLocation();
     renderScreen({ returnUrl: EVIL_RETURN_URL });
 
     await reachCodeForm(user);
     await submitCode(user);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalledWith({ href: ERROR_HREF });
     });
     expect(mocks.buildExchangeTicketUrl).not.toHaveBeenCalled();
@@ -746,7 +738,7 @@ describe("LoginScreen OTP tab: verify success hands off to the shell", () => {
     await reachCodeForm(user);
     await submitCode(user);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalledWith({
         href: `/mfa/challenge?returnUrl=${encodeURIComponent(RETURN_URL)}`,
       });
@@ -763,7 +755,7 @@ describe("LoginScreen OTP tab: verify failures", () => {
     await reachCodeForm(user);
     await submitCode(user);
 
-    expect(await screen.findByTestId("login-error")).toHaveTextContent(INVALID_CODE_MESSAGE);
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent(INVALID_CODE_MESSAGE);
   });
 
   it("maps an expired code onto the same copy", async () => {
@@ -776,7 +768,7 @@ describe("LoginScreen OTP tab: verify failures", () => {
     await reachCodeForm(user);
     await submitCode(user);
 
-    expect(await screen.findByTestId("login-error")).toHaveTextContent(INVALID_CODE_MESSAGE);
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent(INVALID_CODE_MESSAGE);
   });
 
   it("reads an unrecognised token on a 401 as a bad code, not a generic error", async () => {
@@ -791,7 +783,7 @@ describe("LoginScreen OTP tab: verify failures", () => {
     await reachCodeForm(user);
     await submitCode(user);
 
-    expect(await screen.findByTestId("login-error")).toHaveTextContent(INVALID_CODE_MESSAGE);
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent(INVALID_CODE_MESSAGE);
   });
 
   it("keeps the code form up after a bad code so it can be retyped", async () => {
@@ -802,8 +794,8 @@ describe("LoginScreen OTP tab: verify failures", () => {
     await reachCodeForm(user);
     await submitCode(user);
 
-    await screen.findByTestId("login-error");
-    expect(screen.getByTestId("login-otp-code")).toBeInTheDocument();
+    await expect.element(page.getByTestId("login-error")).toBeInTheDocument();
+    await expect.element(page.getByTestId("login-otp-code")).toBeInTheDocument();
   });
 
   it("distinguishes a dead network from a rejected code", async () => {
@@ -814,7 +806,7 @@ describe("LoginScreen OTP tab: verify failures", () => {
     await reachCodeForm(user);
     await submitCode(user);
 
-    expect(await screen.findByTestId("login-error")).toHaveTextContent(UNREACHABLE_MESSAGE);
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent(UNREACHABLE_MESSAGE);
   });
 
   it("falls back to the generic tail for a non-401 failure", async () => {
@@ -827,22 +819,22 @@ describe("LoginScreen OTP tab: verify failures", () => {
     await reachCodeForm(user);
     await submitCode(user);
 
-    expect(await screen.findByTestId("login-error")).toHaveTextContent(GENERIC_MESSAGE);
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent(GENERIC_MESSAGE);
   });
 
   it("never renders the raw server sentence, nor the code itself", async () => {
     const user = userEvent.setup();
     mocks.verifyOtp.mockRejectedValue(rejection(401, INVALID_CODE_TOKEN));
-    const { container } = renderScreen();
+    const { container } = await renderScreen();
 
     await reachCodeForm(user);
     await submitCode(user);
 
-    await screen.findByTestId("login-error");
+    await expect.element(page.getByTestId("login-error")).toBeInTheDocument();
     expect(container.textContent).not.toContain(INVALID_CODE_TOKEN);
     expect(container.textContent).not.toContain(CODE_EXPIRED_TOKEN);
     // The banner must not echo the credential back as prose.
-    expect(screen.getByTestId("login-error").textContent).not.toContain(CODE);
+    expect(page.getByTestId("login-error").element().textContent).not.toContain(CODE);
   });
 });
 
@@ -859,14 +851,14 @@ describe("LoginScreen OTP tab: tab switching", () => {
     mocks.sendMagicLink.mockRejectedValue(rejection(400, RATE_LIMITED_TOKEN));
     renderScreen();
 
-    await user.click(await screen.findByTestId("login-tab-magic-link"));
-    await user.type(screen.getByTestId("login-magic-link-email"), EMAIL);
-    await user.click(screen.getByTestId("login-magic-link-submit"));
-    await screen.findByTestId("login-error");
+    await user.click(page.getByTestId("login-tab-magic-link"));
+    await user.type(page.getByTestId("login-magic-link-email"), EMAIL);
+    await user.click(page.getByTestId("login-magic-link-submit"));
+    await expect.element(page.getByTestId("login-error")).toBeInTheDocument();
 
     await openOtpTab(user);
 
-    expect(screen.queryByTestId("login-error")).toBeNull();
+    expect(page.getByTestId("login-error").query()).toBeNull();
   });
 
   it("returns to the email form when the tab is left and re-entered", async () => {
@@ -878,11 +870,11 @@ describe("LoginScreen OTP tab: tab switching", () => {
 
     await reachCodeForm(user);
 
-    await user.click(screen.getByTestId("login-tab-password"));
+    await user.click(page.getByTestId("login-tab-password"));
     await openOtpTab(user);
 
-    expect(await screen.findByTestId("login-otp-email")).toBeInTheDocument();
-    expect(screen.queryByTestId("login-otp-code")).toBeNull();
+    await expect.element(page.getByTestId("login-otp-email")).toBeInTheDocument();
+    expect(page.getByTestId("login-otp-code").query()).toBeNull();
   });
 });
 
@@ -918,8 +910,8 @@ describe("LoginScreen OTP tab: tab switching", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** The OTP tab's own remember-me box — panel-local, and NOT `login-remember-me`. */
-function otpRememberMe(): HTMLElement {
-  return screen.getByTestId("login-otp-remember-me");
+function otpRememberMe() {
+  return page.getByTestId("login-otp-remember-me");
 }
 
 describe("LoginScreen OTP tab: remember me", () => {
@@ -932,8 +924,8 @@ describe("LoginScreen OTP tab: remember me", () => {
 
     await reachCodeForm(user);
 
-    expect(otpRememberMe()).toBeInTheDocument();
-    expect(otpRememberMe()).not.toBeChecked();
+    await expect.element(otpRememberMe()).toBeInTheDocument();
+    await expect.element(otpRememberMe()).not.toBeChecked();
   });
 
   it("does not offer remember-me before a code has been sent", async () => {
@@ -944,8 +936,8 @@ describe("LoginScreen OTP tab: remember me", () => {
 
     await openOtpTab(user);
 
-    await screen.findByTestId("login-otp-email");
-    expect(screen.queryByTestId("login-otp-remember-me")).toBeNull();
+    await expect.element(page.getByTestId("login-otp-email")).toBeInTheDocument();
+    expect(page.getByTestId("login-otp-remember-me").query()).toBeNull();
   });
 
   it("does not answer to the password tab's testid", async () => {
@@ -956,7 +948,7 @@ describe("LoginScreen OTP tab: remember me", () => {
 
     await reachCodeForm(user);
 
-    expect(screen.queryByTestId("login-remember-me")).toBeNull();
+    expect(page.getByTestId("login-remember-me").query()).toBeNull();
   });
 
   it("toggles when its label is clicked", async () => {
@@ -966,21 +958,20 @@ describe("LoginScreen OTP tab: remember me", () => {
     renderScreen();
 
     await reachCodeForm(user);
-    await user.click(screen.getByText("Remember me"));
+    await user.click(page.getByText("Remember me"));
 
-    expect(otpRememberMe()).toBeChecked();
+    await expect.element(otpRememberMe()).toBeChecked();
   });
 
   it("sends rememberMe true when the user checks the box", async () => {
     const user = userEvent.setup();
-    stubLocation();
     renderScreen();
 
     await reachCodeForm(user);
     await user.click(otpRememberMe());
     await submitCode(user);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.verifyOtp).toHaveBeenCalledWith({
         email: EMAIL,
         code: CODE,
@@ -993,18 +984,17 @@ describe("LoginScreen OTP tab: remember me", () => {
     // The box must track the user's LAST answer, not merely record that they once
     // touched it. A one-way latch would pass the test above and still be broken.
     const user = userEvent.setup();
-    stubLocation();
     renderScreen();
 
     await reachCodeForm(user);
     await user.click(otpRememberMe());
     await user.click(otpRememberMe());
 
-    expect(otpRememberMe()).not.toBeChecked();
+    await expect.element(otpRememberMe()).not.toBeChecked();
 
     await submitCode(user);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.verifyOtp).toHaveBeenCalledWith({
         email: EMAIL,
         code: CODE,
@@ -1017,7 +1007,6 @@ describe("LoginScreen OTP tab: remember me", () => {
     // The box is bound to state, not wired to the form's submit. A checkbox that
     // spends the user's one-time code on a click is worse than no checkbox.
     const user = userEvent.setup();
-    stubLocation();
     renderScreen();
 
     await reachCodeForm(user);
@@ -1037,19 +1026,18 @@ describe("LoginScreen OTP tab: remember me", () => {
     // control that is no longer on screen. Here the panels' states are disjoint, so
     // the OTP request answers to the OTP box alone.
     const user = userEvent.setup();
-    stubLocation();
     renderScreen();
 
     // The password tab is the landing tab, and its box is the invisible one.
-    await user.click(await screen.findByTestId("login-remember-me"));
-    expect(screen.getByTestId("login-remember-me")).toBeChecked();
+    await user.click(page.getByTestId("login-remember-me"));
+    await expect.element(page.getByTestId("login-remember-me")).toBeChecked();
 
     await reachCodeForm(user);
-    expect(otpRememberMe()).not.toBeChecked();
+    await expect.element(otpRememberMe()).not.toBeChecked();
 
     await submitCode(user);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.verifyOtp).toHaveBeenCalledWith({
         email: EMAIL,
         code: CODE,
@@ -1063,22 +1051,21 @@ describe("LoginScreen OTP tab: remember me", () => {
     // were merely reading one variable in the shell — which is precisely the shape
     // this bead is refusing.
     const user = userEvent.setup();
-    stubLocation();
     mocks.login.mockResolvedValue({ succeeded: true, email: EMAIL, signInTicket: TICKET });
     renderScreen();
 
     await reachCodeForm(user);
     await user.click(otpRememberMe());
 
-    await user.click(screen.getByTestId("login-tab-password"));
-    await user.type(await screen.findByTestId("login-email"), EMAIL);
-    await user.type(screen.getByTestId("login-password"), "correct-horse");
+    await user.click(page.getByTestId("login-tab-password"));
+    await user.type(page.getByTestId("login-email"), EMAIL);
+    await user.type(page.getByTestId("login-password"), "correct-horse");
 
-    expect(screen.getByTestId("login-remember-me")).not.toBeChecked();
+    await expect.element(page.getByTestId("login-remember-me")).not.toBeChecked();
 
-    await user.click(screen.getByTestId("login-submit"));
+    await user.click(page.getByTestId("login-submit"));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.login).toHaveBeenCalledWith({
         email: EMAIL,
         password: "correct-horse",
@@ -1093,21 +1080,20 @@ describe("LoginScreen OTP tab: remember me", () => {
     // returning to a fresh-looking form must not be carrying a stale hidden answer:
     // that is the oracle's defect wearing this bead's clothes.
     const user = userEvent.setup();
-    stubLocation();
     renderScreen();
 
     await reachCodeForm(user);
     await user.click(otpRememberMe());
-    expect(otpRememberMe()).toBeChecked();
+    await expect.element(otpRememberMe()).toBeChecked();
 
-    await user.click(screen.getByTestId("login-tab-password"));
+    await user.click(page.getByTestId("login-tab-password"));
     await reachCodeForm(user);
 
-    expect(otpRememberMe()).not.toBeChecked();
+    await expect.element(otpRememberMe()).not.toBeChecked();
 
     await submitCode(user);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.verifyOtp).toHaveBeenLastCalledWith({
         email: EMAIL,
         code: CODE,
@@ -1151,22 +1137,22 @@ describe("/login route: OTP", () => {
     // flow they started. Nothing here is a hostile input: if this fails, the tab is
     // an outage — and a suite that only tested guards would call that a pass.
     const user = userEvent.setup();
-    const location = stubLocation();
     renderRouteAt(`/login?returnUrl=${encodeURIComponent(RETURN_URL)}&client_id=${CLIENT_ID}`);
 
     await reachCodeForm(user);
     await submitCode(user);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
+      // The builder's exact args pin the assigned ticket-exchange URL: origin ""
+      // (same-origin) with the OIDC returnUrl carried all the way through the route.
       expect(mocks.buildExchangeTicketUrl).toHaveBeenCalledWith("", TICKET, RETURN_URL);
     });
-    expect(location.href).toContain(encodeURIComponent(RETURN_URL));
   });
 
   it("sends nothing on load for a bare /login", async () => {
     renderRouteAt("/login");
 
-    expect(await screen.findByTestId("login-password")).toBeInTheDocument();
+    await expect.element(page.getByTestId("login-password")).toBeInTheDocument();
     expect(mocks.sendOtp).not.toHaveBeenCalled();
     expect(mocks.verifyOtp).not.toHaveBeenCalled();
   });

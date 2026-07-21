@@ -1,5 +1,3 @@
-/** @vitest-environment jsdom */
-import * as matchers from "@testing-library/jest-dom/matchers";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,
@@ -8,18 +6,13 @@ import {
   Outlet,
   RouterProvider,
 } from "@tanstack/react-router";
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
+import { page, userEvent } from "vitest/browser";
+import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Route as resetPasswordRoute } from "../../../routes/reset-password";
 import { ResetPasswordForm } from "./ResetPasswordForm";
-
-// No global `expect` (vitest `globals` is off), so register the jest-dom
-// matchers explicitly — the DOM-matcher convention wallow-web's RTL tests
-// established and wallow-auth copies.
-expect.extend(matchers);
 
 /**
  * Component spec for the ResetPassword screen (Wallow-vec7.3.2), ported from the
@@ -138,12 +131,12 @@ async function submitPasswords(
   confirmPassword: string = newPassword,
 ) {
   if (newPassword !== "") {
-    await user.type(screen.getByTestId("reset-password-new-password"), newPassword);
+    await user.type(page.getByTestId("reset-password-new-password"), newPassword);
   }
   if (confirmPassword !== "") {
-    await user.type(screen.getByTestId("reset-password-confirm"), confirmPassword);
+    await user.type(page.getByTestId("reset-password-confirm"), confirmPassword);
   }
-  await user.click(screen.getByTestId("reset-password-submit"));
+  await user.click(page.getByTestId("reset-password-submit"));
 }
 
 beforeEach(() => {
@@ -152,34 +145,37 @@ beforeEach(() => {
 });
 
 describe("ResetPasswordForm", () => {
-  it("renders the oracle's fields, and no error before submit", () => {
+  it("renders the oracle's fields, and no error before submit", async () => {
     renderForm();
 
-    expect(screen.getByTestId("reset-password-new-password")).toBeInTheDocument();
-    expect(screen.getByTestId("reset-password-confirm")).toBeInTheDocument();
-    expect(screen.getByTestId("reset-password-submit")).toBeInTheDocument();
-    expect(screen.queryByTestId("reset-password-error")).toBeNull();
+    await expect.element(page.getByTestId("reset-password-new-password")).toBeInTheDocument();
+    await expect.element(page.getByTestId("reset-password-confirm")).toBeInTheDocument();
+    await expect.element(page.getByTestId("reset-password-submit")).toBeInTheDocument();
+    expect(page.getByTestId("reset-password-error").query()).toBeNull();
   });
 
-  it("masks both password fields", () => {
+  it("masks both password fields", async () => {
     // Oracle: both inputs are `type="password"`. A reset form that echoed the
     // new password in plain text would be a real regression, so it is pinned.
     renderForm();
 
-    expect(screen.getByTestId("reset-password-new-password")).toHaveAttribute("type", "password");
-    expect(screen.getByTestId("reset-password-confirm")).toHaveAttribute("type", "password");
+    await expect
+      .element(page.getByTestId("reset-password-new-password"))
+      .toHaveAttribute("type", "password");
+    await expect
+      .element(page.getByTestId("reset-password-confirm"))
+      .toHaveAttribute("type", "password");
   });
 
-  it("links back to sign in", () => {
+  it("links back to sign in", async () => {
     // The oracle's card footer. It has no testid in the Blazor original and the
     // scout's inventory forbids inventing one for an element that shipped
     // without one, so this asserts the link by role + href instead.
     renderForm();
 
-    expect(screen.getByRole("link", { name: /back to sign in/iu })).toHaveAttribute(
-      "href",
-      "/login",
-    );
+    await expect
+      .element(page.getByRole("link", { name: /back to sign in/iu }))
+      .toHaveAttribute("href", "/login");
   });
 
   it("sends the query's email and token with the typed password", async () => {
@@ -190,7 +186,7 @@ describe("ResetPasswordForm", () => {
 
     await submitPasswords(user);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.resetPassword).toHaveBeenCalledWith({
         email: EMAIL,
         token: TOKEN,
@@ -209,7 +205,7 @@ describe("ResetPasswordForm", () => {
 
     await submitPasswords(user);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalledWith({ href: "/login?message=password_reset" });
     });
   });
@@ -222,9 +218,9 @@ describe("ResetPasswordForm", () => {
 
     await submitPasswords(user, PASSWORD, "something-else");
 
-    expect(await screen.findByTestId("reset-password-error")).toHaveTextContent(
-      /passwords do not match/iu,
-    );
+    await expect
+      .element(page.getByTestId("reset-password-error"))
+      .toHaveTextContent(/passwords do not match/iu);
     expect(mocks.resetPassword).not.toHaveBeenCalled();
     expect(mocks.navigate).not.toHaveBeenCalled();
   });
@@ -236,9 +232,9 @@ describe("ResetPasswordForm", () => {
 
     await submitPasswords(user);
 
-    expect(await screen.findByTestId("reset-password-error")).toHaveTextContent(
-      /invalid reset link/iu,
-    );
+    await expect
+      .element(page.getByTestId("reset-password-error"))
+      .toHaveTextContent(/invalid reset link/iu);
     expect(mocks.resetPassword).not.toHaveBeenCalled();
   });
 
@@ -248,9 +244,9 @@ describe("ResetPasswordForm", () => {
 
     await submitPasswords(user);
 
-    expect(await screen.findByTestId("reset-password-error")).toHaveTextContent(
-      /invalid reset link/iu,
-    );
+    await expect
+      .element(page.getByTestId("reset-password-error"))
+      .toHaveTextContent(/invalid reset link/iu);
     expect(mocks.resetPassword).not.toHaveBeenCalled();
   });
 
@@ -261,9 +257,9 @@ describe("ResetPasswordForm", () => {
 
     await submitPasswords(user);
 
-    expect(await screen.findByTestId("reset-password-error")).toHaveTextContent(
-      /invalid reset link/iu,
-    );
+    await expect
+      .element(page.getByTestId("reset-password-error"))
+      .toHaveTextContent(/invalid reset link/iu);
     expect(mocks.resetPassword).not.toHaveBeenCalled();
   });
 
@@ -277,10 +273,10 @@ describe("ResetPasswordForm", () => {
     const user = userEvent.setup();
     renderForm();
 
-    await user.click(screen.getByTestId("reset-password-submit"));
+    await user.click(page.getByTestId("reset-password-submit"));
 
     expect(mocks.resetPassword).not.toHaveBeenCalled();
-    expect(screen.getByTestId("reset-password-new-password-error")).toBeInTheDocument();
+    await expect.element(page.getByTestId("reset-password-new-password-error")).toBeInTheDocument();
   });
 
   it("explains an expired or invalid reset link when the endpoint rejects it", async () => {
@@ -293,9 +289,9 @@ describe("ResetPasswordForm", () => {
 
     await submitPasswords(user);
 
-    const error: HTMLElement = await screen.findByTestId("reset-password-error");
-    expect(error).toHaveTextContent(/invalid or has expired/iu);
-    expect(error).toHaveTextContent(/request a new one/iu);
+    const error = page.getByTestId("reset-password-error");
+    await expect.element(error).toHaveTextContent(/invalid or has expired/iu);
+    await expect.element(error).toHaveTextContent(/request a new one/iu);
     expect(mocks.navigate).not.toHaveBeenCalled();
   });
 
@@ -308,9 +304,9 @@ describe("ResetPasswordForm", () => {
 
     await submitPasswords(user);
 
-    const error: HTMLElement = await screen.findByTestId("reset-password-error");
-    expect(error).toHaveTextContent(/failed to reset password/iu);
-    expect(error).not.toHaveTextContent(/expired/iu);
+    const error = page.getByTestId("reset-password-error");
+    await expect.element(error).toHaveTextContent(/failed to reset password/iu);
+    await expect.element(error).not.toHaveTextContent(/expired/iu);
   });
 
   it("shows the generic message when the request fails without a status", async () => {
@@ -322,9 +318,9 @@ describe("ResetPasswordForm", () => {
 
     await submitPasswords(user);
 
-    expect(await screen.findByTestId("reset-password-error")).toHaveTextContent(
-      /failed to reset password/iu,
-    );
+    await expect
+      .element(page.getByTestId("reset-password-error"))
+      .toHaveTextContent(/failed to reset password/iu);
   });
 
   it("never leaks the raw rejection into the page", async () => {
@@ -336,8 +332,8 @@ describe("ResetPasswordForm", () => {
 
     await submitPasswords(user);
 
-    await screen.findByTestId("reset-password-error");
-    expect(screen.queryByText(/unknown error/iu)).toBeNull();
+    await expect.element(page.getByTestId("reset-password-error")).toBeInTheDocument();
+    expect(page.getByText(/unknown error/iu).query()).toBeNull();
   });
 
   it("clears a previous error when the next attempt succeeds", async () => {
@@ -348,14 +344,14 @@ describe("ResetPasswordForm", () => {
     renderForm();
 
     await submitPasswords(user);
-    await screen.findByTestId("reset-password-error");
+    await expect.element(page.getByTestId("reset-password-error")).toBeInTheDocument();
 
-    await user.click(screen.getByTestId("reset-password-submit"));
+    await user.click(page.getByTestId("reset-password-submit"));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalledWith({ href: "/login?message=password_reset" });
     });
-    expect(screen.queryByTestId("reset-password-error")).toBeNull();
+    expect(page.getByTestId("reset-password-error").query()).toBeNull();
   });
 
   it("disables submit while the request is in flight", async () => {
@@ -371,13 +367,13 @@ describe("ResetPasswordForm", () => {
 
     await submitPasswords(user);
 
-    await waitFor(() => {
-      expect(screen.getByTestId("reset-password-submit")).toBeDisabled();
-    });
-    expect(screen.getByTestId("reset-password-submit")).toHaveTextContent(/resetting/iu);
+    await expect.element(page.getByTestId("reset-password-submit")).toBeDisabled();
+    await expect
+      .element(page.getByTestId("reset-password-submit"))
+      .toHaveTextContent(/resetting/iu);
 
     release();
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalled();
     });
   });
@@ -414,18 +410,18 @@ describe("/reset-password route", () => {
     // task's to change.
     renderRouteAt(`/reset-password?email=${encodeURIComponent(EMAIL)}&token=${TOKEN}`);
 
-    expect(await screen.findByTestId("reset-password-new-password")).toBeInTheDocument();
-    expect(screen.queryByTestId("route-placeholder")).toBeNull();
+    await expect.element(page.getByTestId("reset-password-new-password")).toBeInTheDocument();
+    expect(page.getByTestId("route-placeholder").query()).toBeNull();
   });
 
   it("threads the email and token out of the query string into the reset call", async () => {
     const user = userEvent.setup();
     renderRouteAt(`/reset-password?email=${encodeURIComponent(EMAIL)}&token=${TOKEN}`);
 
-    await screen.findByTestId("reset-password-new-password");
+    await expect.element(page.getByTestId("reset-password-new-password")).toBeInTheDocument();
     await submitPasswords(user);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.resetPassword).toHaveBeenCalledWith({
         email: EMAIL,
         token: TOKEN,
@@ -440,12 +436,12 @@ describe("/reset-password route", () => {
     const user = userEvent.setup();
     renderRouteAt("/reset-password");
 
-    await screen.findByTestId("reset-password-new-password");
+    await expect.element(page.getByTestId("reset-password-new-password")).toBeInTheDocument();
     await submitPasswords(user);
 
-    expect(await screen.findByTestId("reset-password-error")).toHaveTextContent(
-      /invalid reset link/iu,
-    );
+    await expect
+      .element(page.getByTestId("reset-password-error"))
+      .toHaveTextContent(/invalid reset link/iu);
     expect(mocks.resetPassword).not.toHaveBeenCalled();
   });
 });

@@ -1,16 +1,10 @@
-/** @vitest-environment jsdom */
-import * as matchers from "@testing-library/jest-dom/matchers";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
+import { page, userEvent } from "vitest/browser";
+import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MemberList } from "./MemberList";
-
-// No global `expect` (vitest `globals` is off), so register the jest-dom
-// matchers explicitly — the DOM-matcher convention for wallow-web's RTL tests.
-expect.extend(matchers);
 
 /**
  * Component spec for the org-detail member list + management (Wallow-8w1h.4.4).
@@ -84,11 +78,10 @@ describe("MemberList", () => {
 
     renderWithClient(client, <MemberList orgId="o1" />);
 
-    const rows = await screen.findAllByTestId("organization-detail-member-row");
-    expect(rows).toHaveLength(2);
-    expect(screen.getByTestId("organization-detail-members-table")).toBeInTheDocument();
-    expect(screen.getByText("ada@acme.io")).toBeInTheDocument();
-    expect(screen.getByText("bob@acme.io")).toBeInTheDocument();
+    await expect.element(page.getByTestId("organization-detail-members-table")).toBeInTheDocument();
+    expect(page.getByTestId("organization-detail-member-row").elements()).toHaveLength(2);
+    await expect.element(page.getByText("ada@acme.io")).toBeInTheDocument();
+    await expect.element(page.getByText("bob@acme.io")).toBeInTheDocument();
   });
 
   it("renders the empty state and no rows when there are no members", async () => {
@@ -97,37 +90,35 @@ describe("MemberList", () => {
 
     renderWithClient(client, <MemberList orgId="o1" />);
 
-    expect(await screen.findByTestId("organization-members-empty")).toBeInTheDocument();
-    expect(screen.queryAllByTestId("organization-detail-member-row")).toHaveLength(0);
+    await expect.element(page.getByTestId("organization-members-empty")).toBeInTheDocument();
+    expect(page.getByTestId("organization-detail-member-row").elements()).toHaveLength(0);
   });
 
-  it("shows a loading indicator while the members query is pending", () => {
+  it("shows a loading indicator while the members query is pending", async () => {
     const client = newClient();
     mocks.members.mockReturnValue(new Promise<never>(() => {}));
 
     renderWithClient(client, <MemberList orgId="o1" />);
 
-    expect(screen.getByTestId("organization-members-loading")).toBeInTheDocument();
+    await expect.element(page.getByTestId("organization-members-loading")).toBeInTheDocument();
   });
 
   it("adds a member: submits the userId to organizations.addMember for the org", async () => {
-    const user = userEvent.setup();
     const client = newClient();
     client.setQueryData(["orgs", "o1", "members"], twoMembers);
     mocks.addMember.mockResolvedValue({ id: "u9" });
 
     renderWithClient(client, <MemberList orgId="o1" />);
 
-    await user.type(await screen.findByTestId("organization-member-userid"), "u9");
-    await user.click(screen.getByTestId("organization-member-add-submit"));
+    await userEvent.type(page.getByTestId("organization-member-userid"), "u9");
+    await userEvent.click(page.getByTestId("organization-member-add-submit"));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.addMember).toHaveBeenCalledWith("o1", { userId: "u9" });
     });
   });
 
   it("invalidates the members query after a successful add", async () => {
-    const user = userEvent.setup();
     const client = newClient();
     client.setQueryData(["orgs", "o1", "members"], twoMembers);
     const invalidateSpy = vi.spyOn(client, "invalidateQueries");
@@ -135,26 +126,26 @@ describe("MemberList", () => {
 
     renderWithClient(client, <MemberList orgId="o1" />);
 
-    await user.type(await screen.findByTestId("organization-member-userid"), "u9");
-    await user.click(screen.getByTestId("organization-member-add-submit"));
+    await userEvent.type(page.getByTestId("organization-member-userid"), "u9");
+    await userEvent.click(page.getByTestId("organization-member-add-submit"));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["orgs", "o1", "members"] });
     });
   });
 
   it("removes a member: calls organizations.removeMember with the org and user id", async () => {
-    const user = userEvent.setup();
     const client = newClient();
     client.setQueryData(["orgs", "o1", "members"], twoMembers);
     mocks.removeMember.mockResolvedValue(undefined);
 
     renderWithClient(client, <MemberList orgId="o1" />);
 
-    const removeButtons = await screen.findAllByTestId("organization-member-remove");
-    await user.click(removeButtons[0]);
+    const removeButtons = page.getByTestId("organization-member-remove");
+    await expect.element(removeButtons.first()).toBeInTheDocument();
+    await userEvent.click(removeButtons.first());
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.removeMember).toHaveBeenCalledWith("o1", "u1");
     });
   });

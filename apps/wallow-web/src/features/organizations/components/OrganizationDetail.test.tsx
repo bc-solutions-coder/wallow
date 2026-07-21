@@ -1,15 +1,10 @@
-/** @vitest-environment jsdom */
-import * as matchers from "@testing-library/jest-dom/matchers";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
+import { page, userEvent } from "vitest/browser";
+import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { OrganizationDetail } from "./OrganizationDetail";
-
-// No global `expect` (vitest `globals` is off) — register jest-dom matchers.
-expect.extend(matchers);
 
 /**
  * Component spec for the org-detail page body (Wallow-8w1h.4.4). The
@@ -74,9 +69,8 @@ describe("OrganizationDetail", () => {
 
     renderWithClient(client, <OrganizationDetail orgId="o1" />);
 
-    const heading = await screen.findByTestId("organization-detail-heading");
-    expect(heading).toHaveTextContent("Acme");
-    expect(screen.getByTestId("organization-detail-back-link")).toBeInTheDocument();
+    await expect.element(page.getByTestId("organization-detail-heading")).toHaveTextContent("Acme");
+    await expect.element(page.getByTestId("organization-detail-back-link")).toBeInTheDocument();
   });
 
   it("renders the not-found state when the org is missing", async () => {
@@ -85,8 +79,8 @@ describe("OrganizationDetail", () => {
 
     renderWithClient(client, <OrganizationDetail orgId="o1" />);
 
-    expect(await screen.findByTestId("organization-detail-not-found")).toBeInTheDocument();
-    expect(screen.queryByTestId("organization-detail-heading")).not.toBeInTheDocument();
+    await expect.element(page.getByTestId("organization-detail-not-found")).toBeInTheDocument();
+    await expect.element(page.getByTestId("organization-detail-heading")).not.toBeInTheDocument();
   });
 
   it("mounts the member list (members table) for the org", async () => {
@@ -108,35 +102,33 @@ describe("OrganizationDetail", () => {
 
     renderWithClient(client, <OrganizationDetail orgId="o1" />);
 
-    expect(await screen.findByTestId("organization-detail-members-table")).toBeInTheDocument();
+    await expect.element(page.getByTestId("organization-detail-members-table")).toBeInTheDocument();
   });
 
   it("archives the org: calls organizations.archive with the org id", async () => {
-    const user = userEvent.setup();
     const client = newClient();
     seedActiveOrg(client);
     mocks.archive.mockResolvedValue(undefined);
 
     renderWithClient(client, <OrganizationDetail orgId="o1" />);
 
-    await user.click(await screen.findByTestId("organization-detail-archive"));
+    await userEvent.click(page.getByTestId("organization-detail-archive"));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.archive).toHaveBeenCalledWith("o1");
     });
   });
 
   it("reactivates the org: calls organizations.reactivate with the org id", async () => {
-    const user = userEvent.setup();
     const client = newClient();
     seedActiveOrg(client);
     mocks.reactivate.mockResolvedValue(undefined);
 
     renderWithClient(client, <OrganizationDetail orgId="o1" />);
 
-    await user.click(await screen.findByTestId("organization-detail-reactivate"));
+    await userEvent.click(page.getByTestId("organization-detail-reactivate"));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.reactivate).toHaveBeenCalledWith("o1");
     });
   });

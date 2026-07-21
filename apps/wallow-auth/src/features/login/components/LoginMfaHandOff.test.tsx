@@ -1,5 +1,3 @@
-/** @vitest-environment jsdom */
-import * as matchers from "@testing-library/jest-dom/matchers";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,
@@ -8,14 +6,12 @@ import {
   Outlet,
   RouterProvider,
 } from "@tanstack/react-router";
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
+import { page, userEvent } from "vitest/browser";
+import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Route as loginRoute } from "../../../routes/login";
-
-expect.extend(matchers);
 
 /**
  * ROUTE-LEVEL spec for the MFA hand-off (Wallow-vec7.3.15 / 2.8e).
@@ -162,14 +158,16 @@ function isSafeReturnUrlRule(url: string | null | undefined): boolean {
   return url.startsWith("/") && !url.startsWith("//");
 }
 
-/** The real `buildExchangeTicketUrl` shape, mirrored for the same reason. */
-function buildExchangeTicketUrlRule(origin: string, ticket: string, returnUrl: string): string {
-  return (
-    `${origin.replace(/\/+$/u, "")}/v1/identity/auth/exchange-ticket` +
-    `?ticket=${encodeURIComponent(ticket)}` +
-    `&returnUrl=${encodeURIComponent(returnUrl)}`
-  );
-}
+/**
+ * The exchange-ticket hand-off assigns `globalThis.location.href =
+ * buildExchangeTicketUrl(…)`. In real Chromium `location` is `[Unforgeable]`, so
+ * the jsdom `vi.stubGlobal("location", …)` seam is gone (vitest.config NAVIGATION
+ * SEAM note): assigning a real URL would navigate the runner iframe and tear the
+ * test down. The builder mock therefore returns this non-navigating FRAGMENT
+ * sentinel — assigning it only sets the hash — and the exchange-ticket path is
+ * pinned by asserting the builder's args instead of a captured `location.href`.
+ */
+const EXCHANGE_TICKET_SENTINEL = "#exchange-ticket-sentinel";
 
 function newClient(): QueryClient {
   return new QueryClient({
@@ -212,15 +210,15 @@ function loginUrlWithReturnUrl(returnUrl: string): string {
 
 /** Fill in the password tab and submit it — the oracle's `HandleLogin`. */
 async function submitCredentials(user: ReturnType<typeof userEvent.setup>) {
-  await screen.findByTestId("login-email");
-  await user.type(screen.getByTestId("login-email"), EMAIL);
-  await user.type(screen.getByTestId("login-password"), PASSWORD);
-  await user.click(screen.getByTestId("login-submit"));
+  await expect.element(page.getByTestId("login-email")).toBeInTheDocument();
+  await user.type(page.getByTestId("login-email"), EMAIL);
+  await user.type(page.getByTestId("login-password"), PASSWORD);
+  await user.click(page.getByTestId("login-submit"));
 }
 
 /** The single `navigate({ href })` the hand-off performs. */
 async function handOffHref(): Promise<string> {
-  await waitFor(() => {
+  await vi.waitFor(() => {
     expect(mocks.navigate).toHaveBeenCalledTimes(1);
   });
 
@@ -236,21 +234,12 @@ function partsOf(href: string): { path: string; params: URLSearchParams } {
   return { path: path ?? "", params: new URLSearchParams(query) };
 }
 
-/**
- * Replace `window.location` with a plain settable object, so a hand-off that
- * performed a FULL navigation instead of a client-router one is observable.
- */
-function stubLocation(): { href: string } {
-  const location = { href: "" };
-  vi.stubGlobal("location", location);
-  return location;
-}
-
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.unstubAllGlobals();
   mocks.isSafeReturnUrl.mockImplementation(isSafeReturnUrlRule);
-  mocks.buildExchangeTicketUrl.mockImplementation(buildExchangeTicketUrlRule);
+  // Non-navigating sentinel: assigning it to `location.href` only sets the hash,
+  // so the exchange-ticket path stays put in real Chromium. See the note above.
+  mocks.buildExchangeTicketUrl.mockReturnValue(EXCHANGE_TICKET_SENTINEL);
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -343,15 +332,16 @@ describe("/login MFA hand-off — mfaRequired", () => {
     // The partial-auth cookie is first-party through the proxy, so there is
     // nothing to relay across an origin and no reason to drop the SPA. A
     // regression to `location.href = …` would still "work" in a browser, which
-    // is exactly why it needs pinning here.
-    const location = stubLocation();
+    // is exactly why it needs pinning here. The ONLY seam this component uses to
+    // drop the SPA is the exchange-ticket builder feeding `location.href`; an MFA
+    // hand-off that stayed a client-router `navigate()` never touches it.
     const user = userEvent.setup();
     renderRouteAt(loginUrlWithReturnUrl(RETURN_URL));
 
     await submitCredentials(user);
 
     await handOffHref();
-    expect(location.href).toBe("");
+    expect(mocks.buildExchangeTicketUrl).not.toHaveBeenCalled();
   });
 });
 
@@ -399,14 +389,20 @@ describe("/login MFA hand-off — mfaEnrollmentRequired", () => {
       mfaGraceDeadline: deadline,
       signInTicket: "sign-in-ticket-xyz",
     });
-    const location = stubLocation();
     const user = userEvent.setup();
     renderRouteAt(loginUrlWithReturnUrl(RETURN_URL));
 
     await submitCredentials(user);
 
-    await waitFor(() => {
-      expect(location.href).toContain("/v1/identity/auth/exchange-ticket");
+    // The exchange-ticket seam is the builder feeding `location.href`; asserting
+    // its exact (origin, ticket, returnUrl) args pins the continue-to-sign-in
+    // path deterministically without capturing the [Unforgeable] `location`.
+    await vi.waitFor(() => {
+      expect(mocks.buildExchangeTicketUrl).toHaveBeenCalledWith(
+        "",
+        "sign-in-ticket-xyz",
+        RETURN_URL,
+      );
     });
     expect(mocks.navigate).not.toHaveBeenCalled();
   });

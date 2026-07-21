@@ -1,13 +1,9 @@
-/** @vitest-environment jsdom */
-import * as matchers from "@testing-library/jest-dom/matchers";
-import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
+import { page } from "vitest/browser";
+import { render } from "vitest-browser-react";
 import { describe, expect, it, vi } from "vitest";
 
 import { DashboardLayout } from "./DashboardLayout";
-
-// No global `expect` (vitest `globals` is off); register jest-dom matchers.
-expect.extend(matchers);
 
 // `DashboardLayout` composes `DashboardNav` (TanStack `Link`s) and a router
 // `<Outlet/>`. Both require live router context, so stub them: `Link` becomes a
@@ -33,21 +29,21 @@ vi.mock("@tanstack/react-router", () => ({
  *   - a router `<Outlet/>` (the mount point for the reparented child routes).
  */
 describe("DashboardLayout", () => {
-  it("renders a shell root carrying data-testid=dashboard-welcome", () => {
-    render(<DashboardLayout />);
-    expect(screen.getByTestId("dashboard-welcome")).toBeInTheDocument();
+  it("renders a shell root carrying data-testid=dashboard-welcome", async () => {
+    await render(<DashboardLayout />);
+    await expect.element(page.getByTestId("dashboard-welcome")).toBeInTheDocument();
   });
 
-  it("renders the dashboard nav (all four vertical links)", () => {
-    render(<DashboardLayout />);
-    expect(screen.getByTestId("dashboard-nav-organizations")).toBeInTheDocument();
-    expect(screen.getByTestId("dashboard-nav-apps")).toBeInTheDocument();
-    expect(screen.getByTestId("dashboard-nav-settings")).toBeInTheDocument();
-    expect(screen.getByTestId("dashboard-nav-inquiries")).toBeInTheDocument();
+  it("renders the dashboard nav (all four vertical links)", async () => {
+    await render(<DashboardLayout />);
+    await expect.element(page.getByTestId("dashboard-nav-organizations")).toBeInTheDocument();
+    await expect.element(page.getByTestId("dashboard-nav-apps")).toBeInTheDocument();
+    await expect.element(page.getByTestId("dashboard-nav-settings")).toBeInTheDocument();
+    await expect.element(page.getByTestId("dashboard-nav-inquiries")).toBeInTheDocument();
   });
 
-  it("renders an Outlet for child routes", () => {
-    render(<DashboardLayout />);
-    expect(screen.getByTestId("dashboard-outlet-stub")).toBeInTheDocument();
+  it("renders an Outlet for child routes", async () => {
+    await render(<DashboardLayout />);
+    await expect.element(page.getByTestId("dashboard-outlet-stub")).toBeInTheDocument();
   });
 });

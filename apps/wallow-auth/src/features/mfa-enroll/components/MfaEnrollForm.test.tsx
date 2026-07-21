@@ -1,5 +1,3 @@
-/** @vitest-environment jsdom */
-import * as matchers from "@testing-library/jest-dom/matchers";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,
@@ -8,18 +6,13 @@ import {
   Outlet,
   RouterProvider,
 } from "@tanstack/react-router";
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { page, userEvent } from "vitest/browser";
+import { render } from "vitest-browser-react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Route as mfaEnrollRoute } from "../../../routes/mfa/enroll";
 import { MfaEnrollForm } from "./MfaEnrollForm";
-
-// No global `expect` (vitest `globals` is off), so register the jest-dom
-// matchers explicitly — the DOM-matcher convention wallow-web's RTL tests
-// established and wallow-auth copies.
-expect.extend(matchers);
 
 /**
  * Component spec for the MfaEnroll screen (Wallow-vec7.3.7), ported from the
@@ -215,16 +208,63 @@ function noSessionRejection(): Error & { status: number; code: string } {
 }
 
 /**
- * Replace `window.location` with a plain settable object so the screen's full
- * navigation is observable. jsdom refuses `vi.spyOn(window.location, "assign")`
- * ("Cannot redefine property"), but `location` itself is a configurable
- * accessor, so `vi.stubGlobal` swaps it wholesale — and `globalThis === window`
- * under jsdom, so the screen's `globalThis.location.href = …` writes here.
+ * NAVIGATION SEAM (Wallow-xzha.3.1). The screen hands off with a bare
+ * `globalThis.location.href = returnUrl ?? "/"` — no URL-builder to mock — and in
+ * a real browser `window.location` is `[Unforgeable]`: `vi.stubGlobal("location",
+ * …)` cannot shadow it and redefining `location`/`location.href` throws ("Cannot
+ * redefine property"). So the assignment is observed at the ONLY seam Chromium
+ * leaves open: the Navigation API. The `navigate` event fires with the full
+ * destination URL and is `cancelable`, so `preventDefault()` captures the target
+ * without letting the iframe navigate (which would tear the runner down). The
+ * jsdom stub held the raw relative string; here `destination.url` is absolute, so
+ * `relative()` (`pathname + search`) reconstructs the this-origin form the old
+ * assertion compared against — intent identical, no weakening.
  */
-function stubLocation(): { href: string } {
-  const location = { href: "" };
-  vi.stubGlobal("location", location);
-  return location;
+interface NavigateEventLike {
+  readonly destination: { readonly url: string };
+  readonly cancelable: boolean;
+  preventDefault: () => void;
+}
+
+interface NavigationLike {
+  addEventListener: (type: "navigate", listener: (event: NavigateEventLike) => void) => void;
+  removeEventListener: (type: "navigate", listener: (event: NavigateEventLike) => void) => void;
+}
+
+interface NavCapture {
+  /** The full URL of the intercepted navigation, or null if none has fired. */
+  absolute: () => string | null;
+  /** `pathname + search` of that URL — the this-origin-relative form. */
+  relative: () => string | null;
+}
+
+const navDisposers: Array<() => void> = [];
+
+function interceptNavigation(): NavCapture {
+  let target: string | null = null;
+  const nav = (globalThis as unknown as { navigation: NavigationLike }).navigation;
+  const listener = (event: NavigateEventLike): void => {
+    if (!event.cancelable) {
+      return;
+    }
+    target = event.destination.url;
+    event.preventDefault();
+  };
+  nav.addEventListener("navigate", listener);
+  navDisposers.push(() => {
+    nav.removeEventListener("navigate", listener);
+  });
+
+  return {
+    absolute: () => target,
+    relative: () => {
+      if (target === null) {
+        return null;
+      }
+      const parsed = new URL(target);
+      return parsed.pathname + parsed.search;
+    },
+  };
 }
 
 function newClient(): QueryClient {
@@ -243,20 +283,26 @@ function renderForm(props: { returnUrl?: string; enrollToken?: string } = {}) {
 
 /** Wait for enrollment to land, i.e. for the confirm form to exist. */
 async function waitForSecret(): Promise<void> {
-  await screen.findByTestId("mfa-enroll-secret");
+  await expect.element(page.getByTestId("mfa-enroll-secret")).toBeInTheDocument();
 }
 
 /** Type the verification code and submit — the oracle's `HandleConfirm`. */
 async function submitCode(user: ReturnType<typeof userEvent.setup>, code: string = CODE) {
   if (code !== "") {
-    await user.type(screen.getByTestId("mfa-enroll-code"), code);
+    await user.type(page.getByTestId("mfa-enroll-code"), code);
   }
-  await user.click(screen.getByTestId("mfa-enroll-submit"));
+  await user.click(page.getByTestId("mfa-enroll-submit"));
 }
+
+afterEach(() => {
+  for (const dispose of navDisposers) {
+    dispose();
+  }
+  navDisposers.length = 0;
+});
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.unstubAllGlobals();
   mocks.calls.length = 0;
   mocks.isSafeReturnUrl.mockImplementation(isSafeReturnUrlRule);
   mocks.enrollTotp.mockImplementation(() => {
@@ -278,7 +324,7 @@ describe("MfaEnrollForm — starting enrollment", () => {
     // cookie rides the request itself now. The relay is gone.
     renderForm();
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.enrollTotp).toHaveBeenCalledTimes(1);
     });
     expect(mocks.enrollTotp).toHaveBeenCalledWith();
@@ -293,7 +339,7 @@ describe("MfaEnrollForm — starting enrollment", () => {
     // spec has no opinion about.
     renderForm();
 
-    expect(await screen.findByTestId("mfa-enroll-qr")).toHaveAttribute("data-qr-uri", QR_URI);
+    await expect.element(page.getByTestId("mfa-enroll-qr")).toHaveAttribute("data-qr-uri", QR_URI);
   });
 
   it("shows the secret for manual entry when the camera is not an option", async () => {
@@ -301,16 +347,16 @@ describe("MfaEnrollForm — starting enrollment", () => {
     // the same device as their authenticator.
     renderForm();
 
-    expect(await screen.findByTestId("mfa-enroll-secret")).toHaveTextContent(SECRET);
+    await expect.element(page.getByTestId("mfa-enroll-secret")).toHaveTextContent(SECRET);
   });
 
   it("shows the verification-code form once the secret arrives, with no error", async () => {
     renderForm();
     await waitForSecret();
 
-    expect(screen.getByTestId("mfa-enroll-code")).toBeInTheDocument();
-    expect(screen.getByTestId("mfa-enroll-submit")).toBeInTheDocument();
-    expect(screen.queryByTestId("mfa-enroll-error")).toBeNull();
+    await expect.element(page.getByTestId("mfa-enroll-code")).toBeInTheDocument();
+    await expect.element(page.getByTestId("mfa-enroll-submit")).toBeInTheDocument();
+    expect(page.getByTestId("mfa-enroll-error").query()).toBeNull();
   });
 
   it("still shows the secret and the form when the response carries no qr uri", async () => {
@@ -324,8 +370,8 @@ describe("MfaEnrollForm — starting enrollment", () => {
     renderForm();
     await waitForSecret();
 
-    expect(screen.getByTestId("mfa-enroll-code")).toBeInTheDocument();
-    expect(screen.queryByTestId("mfa-enroll-qr")).toBeNull();
+    await expect.element(page.getByTestId("mfa-enroll-code")).toBeInTheDocument();
+    expect(page.getByTestId("mfa-enroll-qr").query()).toBeNull();
   });
 
   it("withholds the code form until the secret is in hand", async () => {
@@ -341,11 +387,11 @@ describe("MfaEnrollForm — starting enrollment", () => {
     );
     renderForm();
 
-    expect(screen.queryByTestId("mfa-enroll-code")).toBeNull();
-    expect(screen.queryByTestId("mfa-enroll-secret")).toBeNull();
+    expect(page.getByTestId("mfa-enroll-code").query()).toBeNull();
+    expect(page.getByTestId("mfa-enroll-secret").query()).toBeNull();
 
     release();
-    expect(await screen.findByTestId("mfa-enroll-code")).toBeInTheDocument();
+    await expect.element(page.getByTestId("mfa-enroll-code")).toBeInTheDocument();
   });
 
   it("shows no backup codes before the code is confirmed", async () => {
@@ -354,8 +400,8 @@ describe("MfaEnrollForm — starting enrollment", () => {
     renderForm();
     await waitForSecret();
 
-    expect(screen.getByTestId("mfa-enroll-submit")).toBeInTheDocument();
-    expect(screen.queryByTestId("mfa-enroll-backup-codes")).toBeNull();
+    await expect.element(page.getByTestId("mfa-enroll-submit")).toBeInTheDocument();
+    expect(page.getByTestId("mfa-enroll-backup-codes").query()).toBeNull();
   });
 
   it("offers a way out of enrollment", async () => {
@@ -364,7 +410,7 @@ describe("MfaEnrollForm — starting enrollment", () => {
     renderForm();
     await waitForSecret();
 
-    expect(screen.getByTestId("mfa-enroll-cancel")).toHaveAttribute("href", "/");
+    await expect.element(page.getByTestId("mfa-enroll-cancel")).toHaveAttribute("href", "/");
   });
 });
 
@@ -379,7 +425,7 @@ describe("MfaEnrollForm — the enrollment-token path", () => {
     // the shared `calls` log.
     renderForm({ enrollToken: ENROLL_TOKEN });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.enrollTotp).toHaveBeenCalled();
     });
     expect(mocks.calls).toEqual(["exchangeEnrollmentToken", "enrollTotp"]);
@@ -390,7 +436,7 @@ describe("MfaEnrollForm — the enrollment-token path", () => {
     // (`_enrollmentTokenLifetime`); any mangling fails `Unprotect`.
     renderForm({ enrollToken: ENROLL_TOKEN });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.exchangeEnrollmentToken).toHaveBeenCalledWith(ENROLL_TOKEN);
     });
   });
@@ -400,7 +446,7 @@ describe("MfaEnrollForm — the enrollment-token path", () => {
     // cookie. Anchored on the enrollment that MUST still happen.
     renderForm();
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.enrollTotp).toHaveBeenCalledTimes(1);
     });
     expect(mocks.exchangeEnrollmentToken).not.toHaveBeenCalled();
@@ -412,7 +458,7 @@ describe("MfaEnrollForm — the enrollment-token path", () => {
     mocks.exchangeEnrollmentToken.mockRejectedValue(rejectionWithStatus(400));
     renderForm({ enrollToken: ENROLL_TOKEN });
 
-    expect(await screen.findByTestId("mfa-enroll-error")).toBeInTheDocument();
+    await expect.element(page.getByTestId("mfa-enroll-error")).toBeInTheDocument();
     expect(mocks.enrollTotp).not.toHaveBeenCalled();
   });
 });
@@ -423,7 +469,7 @@ describe("MfaEnrollForm — when enrollment cannot start", () => {
     mocks.enrollTotp.mockRejectedValue(rejectionWithStatus(500));
     renderForm();
 
-    expect(await screen.findByTestId("mfa-enroll-error")).toHaveTextContent(/try again/iu);
+    await expect.element(page.getByTestId("mfa-enroll-error")).toHaveTextContent(/try again/iu);
   });
 
   it("says the session is gone rather than telling the user to retry", async () => {
@@ -433,7 +479,7 @@ describe("MfaEnrollForm — when enrollment cannot start", () => {
     mocks.enrollTotp.mockRejectedValue(noSessionRejection());
     renderForm();
 
-    expect(await screen.findByTestId("mfa-enroll-error")).toHaveTextContent(/sign in/iu);
+    await expect.element(page.getByTestId("mfa-enroll-error")).toHaveTextContent(/sign in/iu);
   });
 
   it("offers begin-setup as the way back", async () => {
@@ -443,7 +489,7 @@ describe("MfaEnrollForm — when enrollment cannot start", () => {
     mocks.enrollTotp.mockRejectedValue(rejectionWithStatus(500));
     renderForm();
 
-    expect(await screen.findByTestId("mfa-enroll-begin-setup")).toBeInTheDocument();
+    await expect.element(page.getByTestId("mfa-enroll-begin-setup")).toBeInTheDocument();
   });
 
   it("retries enrollment on begin-setup, clearing the standing error", async () => {
@@ -453,11 +499,12 @@ describe("MfaEnrollForm — when enrollment cannot start", () => {
     const user = userEvent.setup();
     renderForm();
 
-    await user.click(await screen.findByTestId("mfa-enroll-begin-setup"));
+    await expect.element(page.getByTestId("mfa-enroll-begin-setup")).toBeInTheDocument();
+    await user.click(page.getByTestId("mfa-enroll-begin-setup"));
 
     await waitForSecret();
     expect(mocks.enrollTotp).toHaveBeenCalledTimes(2);
-    expect(screen.queryByTestId("mfa-enroll-error")).toBeNull();
+    expect(page.getByTestId("mfa-enroll-error").query()).toBeNull();
   });
 });
 
@@ -470,9 +517,9 @@ describe("MfaEnrollForm — confirming the code", () => {
 
     await submitCode(user, "");
 
-    expect(await screen.findByTestId("mfa-enroll-error")).toHaveTextContent(
-      /enter the verification code/iu,
-    );
+    await expect
+      .element(page.getByTestId("mfa-enroll-error"))
+      .toHaveTextContent(/enter the verification code/iu);
     expect(mocks.confirmEnrollment).not.toHaveBeenCalled();
   });
 
@@ -484,9 +531,9 @@ describe("MfaEnrollForm — confirming the code", () => {
 
     await submitCode(user, "   ");
 
-    expect(await screen.findByTestId("mfa-enroll-error")).toHaveTextContent(
-      /enter the verification code/iu,
-    );
+    await expect
+      .element(page.getByTestId("mfa-enroll-error"))
+      .toHaveTextContent(/enter the verification code/iu);
     expect(mocks.confirmEnrollment).not.toHaveBeenCalled();
   });
 
@@ -503,7 +550,7 @@ describe("MfaEnrollForm — confirming the code", () => {
 
     await submitCode(user);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.confirmEnrollment).toHaveBeenCalledWith({ secret: SECRET, code: CODE });
     });
   });
@@ -523,12 +570,10 @@ describe("MfaEnrollForm — confirming the code", () => {
 
     await submitCode(user);
 
-    await waitFor(() => {
-      expect(screen.getByTestId("mfa-enroll-submit")).toBeDisabled();
-    });
+    await expect.element(page.getByTestId("mfa-enroll-submit")).toBeDisabled();
 
     release();
-    await screen.findByTestId("mfa-enroll-backup-codes");
+    await expect.element(page.getByTestId("mfa-enroll-backup-codes")).toBeInTheDocument();
   });
 });
 
@@ -542,7 +587,7 @@ describe("MfaEnrollForm — a confirmed code", () => {
 
     await submitCode(user);
 
-    expect(await screen.findByTestId("mfa-enroll-backup-codes")).toBeInTheDocument();
+    await expect.element(page.getByTestId("mfa-enroll-backup-codes")).toBeInTheDocument();
   });
 
   it("shows every code the API returned", async () => {
@@ -554,9 +599,9 @@ describe("MfaEnrollForm — a confirmed code", () => {
 
     await submitCode(user);
 
-    const panel: HTMLElement = await screen.findByTestId("mfa-enroll-backup-codes");
+    const panel = page.getByTestId("mfa-enroll-backup-codes");
     for (const backupCode of BACKUP_CODES) {
-      expect(panel).toHaveTextContent(backupCode);
+      await expect.element(panel).toHaveTextContent(backupCode);
     }
   });
 
@@ -570,9 +615,9 @@ describe("MfaEnrollForm — a confirmed code", () => {
 
     await submitCode(user);
 
-    await screen.findByTestId("mfa-enroll-backup-codes");
-    expect(screen.queryByTestId("mfa-enroll-code")).toBeNull();
-    expect(screen.queryByTestId("mfa-enroll-submit")).toBeNull();
+    await expect.element(page.getByTestId("mfa-enroll-backup-codes")).toBeInTheDocument();
+    expect(page.getByTestId("mfa-enroll-code").query()).toBeNull();
+    expect(page.getByTestId("mfa-enroll-submit").query()).toBeNull();
   });
 
   it("shows the success state even when the API returns no codes", async () => {
@@ -586,8 +631,8 @@ describe("MfaEnrollForm — a confirmed code", () => {
 
     await submitCode(user);
 
-    expect(await screen.findByTestId("mfa-enroll-backup-codes")).toBeInTheDocument();
-    expect(screen.queryByTestId("mfa-enroll-error")).toBeNull();
+    await expect.element(page.getByTestId("mfa-enroll-backup-codes")).toBeInTheDocument();
+    expect(page.getByTestId("mfa-enroll-error").query()).toBeNull();
   });
 
   it("hands off to the return url on THIS origin, not an API origin", async () => {
@@ -597,15 +642,21 @@ describe("MfaEnrollForm — a confirmed code", () => {
     // cross-origin would drop the cookie `enroll/confirm` just upgraded to full
     // auth — the exact round-trip in this bead's acceptance.
     const user = userEvent.setup();
-    const location = stubLocation();
+    const nav = interceptNavigation();
     renderForm({ returnUrl: RETURN_URL });
     await waitForSecret();
 
     await submitCode(user);
-    await user.click(await screen.findByTestId("mfa-enroll-done"));
+    await expect.element(page.getByTestId("mfa-enroll-done")).toBeInTheDocument();
+    await user.click(page.getByTestId("mfa-enroll-done"));
 
-    expect(location.href).toBe(RETURN_URL);
-    expect(location.href).not.toMatch(/^https?:\/\//u);
+    await vi.waitFor(() => {
+      expect(nav.absolute()).not.toBeNull();
+    });
+    // The this-origin-relative target the jsdom stub used to hold verbatim.
+    expect(nav.relative()).toBe(RETURN_URL);
+    // No API origin prepended: the hand-off stays on THIS origin.
+    expect(new URL(nav.absolute() as string).origin).toBe(globalThis.location.origin);
   });
 
   it("sends a user who arrived without a return url home", async () => {
@@ -614,14 +665,18 @@ describe("MfaEnrollForm — a confirmed code", () => {
     // `returnurl-guard-refuse-dont-sanitize` — only a PRESENT-but-unsafe value is
     // refused).
     const user = userEvent.setup();
-    const location = stubLocation();
+    const nav = interceptNavigation();
     renderForm();
     await waitForSecret();
 
     await submitCode(user);
-    await user.click(await screen.findByTestId("mfa-enroll-done"));
+    await expect.element(page.getByTestId("mfa-enroll-done")).toBeInTheDocument();
+    await user.click(page.getByTestId("mfa-enroll-done"));
 
-    expect(location.href).toBe("/");
+    await vi.waitFor(() => {
+      expect(nav.absolute()).not.toBeNull();
+    });
+    expect(nav.relative()).toBe("/");
   });
 });
 
@@ -636,9 +691,9 @@ describe("MfaEnrollForm — a rejected code", () => {
 
     await submitCode(user);
 
-    expect(await screen.findByTestId("mfa-enroll-error")).toHaveTextContent(
-      /invalid verification code/iu,
-    );
+    await expect
+      .element(page.getByTestId("mfa-enroll-error"))
+      .toHaveTextContent(/invalid verification code/iu);
   });
 
   it("says the session is gone on a 401 rather than blaming the code", async () => {
@@ -651,7 +706,7 @@ describe("MfaEnrollForm — a rejected code", () => {
 
     await submitCode(user);
 
-    expect(await screen.findByTestId("mfa-enroll-error")).toHaveTextContent(/sign in/iu);
+    await expect.element(page.getByTestId("mfa-enroll-error")).toHaveTextContent(/sign in/iu);
   });
 
   it("falls back to the generic message on an unrecognised status", async () => {
@@ -663,10 +718,10 @@ describe("MfaEnrollForm — a rejected code", () => {
 
     await submitCode(user);
 
-    expect(await screen.findByTestId("mfa-enroll-error")).toHaveTextContent(/try again/iu);
-    expect(screen.getByTestId("mfa-enroll-error")).not.toHaveTextContent(
-      /invalid verification code/iu,
-    );
+    await expect.element(page.getByTestId("mfa-enroll-error")).toHaveTextContent(/try again/iu);
+    await expect
+      .element(page.getByTestId("mfa-enroll-error"))
+      .not.toHaveTextContent(/invalid verification code/iu);
   });
 
   it("falls back to the generic message when the failure names no status", async () => {
@@ -679,7 +734,7 @@ describe("MfaEnrollForm — a rejected code", () => {
 
     await submitCode(user);
 
-    expect(await screen.findByTestId("mfa-enroll-error")).toHaveTextContent(/try again/iu);
+    await expect.element(page.getByTestId("mfa-enroll-error")).toHaveTextContent(/try again/iu);
   });
 
   it("never leaks a raw rejection or a machine reason token into the page", async () => {
@@ -692,9 +747,12 @@ describe("MfaEnrollForm — a rejected code", () => {
 
     await submitCode(user);
 
-    const error: HTMLElement = await screen.findByTestId("mfa-enroll-error");
-    expect(error).not.toHaveTextContent(/invalid_code|no_auth_session|update_failed/u);
-    expect(error).not.toHaveTextContent(/UNKNOWN|Unknown error/u);
+    const error = page.getByTestId("mfa-enroll-error");
+    await expect.element(error).toBeInTheDocument();
+    await expect
+      .element(error)
+      .not.toHaveTextContent(/invalid_code|no_auth_session|update_failed/u);
+    await expect.element(error).not.toHaveTextContent(/UNKNOWN|Unknown error/u);
   });
 
   it("leaves the form up so the user can retype the code", async () => {
@@ -707,10 +765,10 @@ describe("MfaEnrollForm — a rejected code", () => {
 
     await submitCode(user);
 
-    await screen.findByTestId("mfa-enroll-error");
-    expect(screen.getByTestId("mfa-enroll-code")).toBeInTheDocument();
-    expect(screen.getByTestId("mfa-enroll-submit")).toBeEnabled();
-    expect(screen.queryByTestId("mfa-enroll-backup-codes")).toBeNull();
+    await expect.element(page.getByTestId("mfa-enroll-error")).toBeInTheDocument();
+    await expect.element(page.getByTestId("mfa-enroll-code")).toBeInTheDocument();
+    await expect.element(page.getByTestId("mfa-enroll-submit")).toBeEnabled();
+    expect(page.getByTestId("mfa-enroll-backup-codes").query()).toBeNull();
   });
 
   it("keeps the same secret across a retry", async () => {
@@ -722,10 +780,10 @@ describe("MfaEnrollForm — a rejected code", () => {
     await waitForSecret();
 
     await submitCode(user);
-    await screen.findByTestId("mfa-enroll-error");
+    await expect.element(page.getByTestId("mfa-enroll-error")).toBeInTheDocument();
     await submitCode(user);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.confirmEnrollment).toHaveBeenCalledTimes(2);
     });
     expect(mocks.confirmEnrollment).toHaveBeenLastCalledWith({ secret: SECRET, code: CODE });
@@ -740,11 +798,11 @@ describe("MfaEnrollForm — a rejected code", () => {
     await waitForSecret();
 
     await submitCode(user);
-    await screen.findByTestId("mfa-enroll-error");
+    await expect.element(page.getByTestId("mfa-enroll-error")).toBeInTheDocument();
     await submitCode(user);
 
-    await screen.findByTestId("mfa-enroll-backup-codes");
-    expect(screen.queryByTestId("mfa-enroll-error")).toBeNull();
+    await expect.element(page.getByTestId("mfa-enroll-backup-codes")).toBeInTheDocument();
+    expect(page.getByTestId("mfa-enroll-error").query()).toBeNull();
   });
 });
 
@@ -771,9 +829,9 @@ describe("MfaEnrollForm — the reason token the API sends", () => {
 
     await submitCode(user);
 
-    expect(await screen.findByTestId("mfa-enroll-error")).toHaveTextContent(
-      /invalid verification code/iu,
-    );
+    await expect
+      .element(page.getByTestId("mfa-enroll-error"))
+      .toHaveTextContent(/invalid verification code/iu);
   });
 
   it("does NOT blame the code when the write failed rather than the code", async () => {
@@ -787,9 +845,9 @@ describe("MfaEnrollForm — the reason token the API sends", () => {
 
     await submitCode(user);
 
-    const error: HTMLElement = await screen.findByTestId("mfa-enroll-error");
-    expect(error).toHaveTextContent(/try again/iu);
-    expect(error).not.toHaveTextContent(/invalid verification code/iu);
+    const error = page.getByTestId("mfa-enroll-error");
+    await expect.element(error).toHaveTextContent(/try again/iu);
+    await expect.element(error).not.toHaveTextContent(/invalid verification code/iu);
   });
 
   it("does NOT blame the code when the user vanished mid-flow", async () => {
@@ -801,9 +859,9 @@ describe("MfaEnrollForm — the reason token the API sends", () => {
 
     await submitCode(user);
 
-    const error: HTMLElement = await screen.findByTestId("mfa-enroll-error");
-    expect(error).toHaveTextContent(/try again/iu);
-    expect(error).not.toHaveTextContent(/invalid verification code/iu);
+    const error = page.getByTestId("mfa-enroll-error");
+    await expect.element(error).toHaveTextContent(/try again/iu);
+    await expect.element(error).not.toHaveTextContent(/invalid verification code/iu);
   });
 
   it("names the session on no_auth_session even when no status rides along", async () => {
@@ -818,7 +876,7 @@ describe("MfaEnrollForm — the reason token the API sends", () => {
 
     await submitCode(user);
 
-    expect(await screen.findByTestId("mfa-enroll-error")).toHaveTextContent(/sign in/iu);
+    await expect.element(page.getByTestId("mfa-enroll-error")).toHaveTextContent(/sign in/iu);
   });
 
   it("names the expired LINK, not the session, when the token exchange is refused", async () => {
@@ -829,7 +887,7 @@ describe("MfaEnrollForm — the reason token the API sends", () => {
     );
     renderForm({ enrollToken: ENROLL_TOKEN });
 
-    expect(await screen.findByTestId("mfa-enroll-error")).toHaveTextContent(/expired/iu);
+    await expect.element(page.getByTestId("mfa-enroll-error")).toHaveTextContent(/expired/iu);
     expect(mocks.enrollTotp).not.toHaveBeenCalled();
   });
 
@@ -843,9 +901,13 @@ describe("MfaEnrollForm — the reason token the API sends", () => {
 
     await submitCode(user);
 
-    expect(await screen.findByTestId("mfa-enroll-error")).not.toHaveTextContent(
-      /invalid_code|no_auth_session|update_failed|user_not_found|invalid_or_expired_token/u,
-    );
+    const error = page.getByTestId("mfa-enroll-error");
+    await expect.element(error).toBeInTheDocument();
+    await expect
+      .element(error)
+      .not.toHaveTextContent(
+        /invalid_code|no_auth_session|update_failed|user_not_found|invalid_or_expired_token/u,
+      );
   });
 });
 
@@ -858,7 +920,7 @@ describe("MfaEnrollForm — the open-redirect guard", () => {
     // factor for a destination already decided against.
     renderForm({ returnUrl: "//evil.example.com/steal" });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalledWith({ href: ERROR_HREF });
     });
     expect(mocks.enrollTotp).not.toHaveBeenCalled();
@@ -867,7 +929,7 @@ describe("MfaEnrollForm — the open-redirect guard", () => {
   it("refuses an absolute return url", async () => {
     renderForm({ returnUrl: "https://evil.example.com/steal" });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalledWith({ href: ERROR_HREF });
     });
     expect(mocks.enrollTotp).not.toHaveBeenCalled();
@@ -878,7 +940,7 @@ describe("MfaEnrollForm — the open-redirect guard", () => {
     // only a NULLISH value earns the "/" fallback.
     renderForm({ returnUrl: "" });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalledWith({ href: ERROR_HREF });
     });
     expect(mocks.enrollTotp).not.toHaveBeenCalled();
@@ -888,7 +950,7 @@ describe("MfaEnrollForm — the open-redirect guard", () => {
     // A direct/non-OIDC enrollment is legitimate and must proceed.
     renderForm();
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.enrollTotp).toHaveBeenCalled();
     });
     expect(mocks.navigate).not.toHaveBeenCalledWith({ href: ERROR_HREF });
@@ -958,27 +1020,31 @@ describe("/mfa/enroll route", () => {
     // task's to change.
     renderRouteAt("/mfa/enroll");
 
-    expect(await screen.findByTestId("mfa-enroll-secret")).toBeInTheDocument();
-    expect(screen.queryByTestId("route-placeholder")).toBeNull();
+    await expect.element(page.getByTestId("mfa-enroll-secret")).toBeInTheDocument();
+    expect(page.getByTestId("route-placeholder").query()).toBeNull();
   });
 
   it("threads the returnUrl from the query string into the hand-off", async () => {
     const user = userEvent.setup();
-    const location = stubLocation();
+    const nav = interceptNavigation();
     renderRouteAt(`/mfa/enroll?returnUrl=${encodeURIComponent(RETURN_URL)}`);
     await waitForSecret();
 
     await submitCode(user);
-    await user.click(await screen.findByTestId("mfa-enroll-done"));
+    await expect.element(page.getByTestId("mfa-enroll-done")).toBeInTheDocument();
+    await user.click(page.getByTestId("mfa-enroll-done"));
 
-    expect(location.href).toBe(RETURN_URL);
+    await vi.waitFor(() => {
+      expect(nav.absolute()).not.toBeNull();
+    });
+    expect(nav.relative()).toBe(RETURN_URL);
   });
 
   it("threads the enrollToken from the query string into the exchange", async () => {
     // The settings-triggered flow: the Web app links here with `?enrollToken=…`.
     renderRouteAt(`/mfa/enroll?enrollToken=${ENROLL_TOKEN}`);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.exchangeEnrollmentToken).toHaveBeenCalledWith(ENROLL_TOKEN);
     });
   });
@@ -988,7 +1054,7 @@ describe("/mfa/enroll route", () => {
     // `validateSearch` must not throw at them.
     renderRouteAt("/mfa/enroll");
 
-    expect(await screen.findByTestId("mfa-enroll-code")).toBeInTheDocument();
+    await expect.element(page.getByTestId("mfa-enroll-code")).toBeInTheDocument();
     expect(mocks.exchangeEnrollmentToken).not.toHaveBeenCalled();
   });
 });

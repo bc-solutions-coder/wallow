@@ -1,17 +1,10 @@
-/** @vitest-environment jsdom */
-import * as matchers from "@testing-library/jest-dom/matchers";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
+import { page, userEvent } from "vitest/browser";
+import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { RegisterAppForm } from "./RegisterAppForm";
-
-// No global `expect` (vitest `globals` is off), so register the jest-dom
-// matchers explicitly — the DOM-matcher convention for wallow-web's RTL tests
-// (established by OrganizationList.test.tsx; copied across features).
-expect.extend(matchers);
 
 /**
  * Component spec for the register-app form (Wallow-8w1h.5.3). Copies the
@@ -84,38 +77,37 @@ describe("RegisterAppForm", () => {
     vi.clearAllMocks();
   });
 
-  it("renders the display-name, client-type, redirect-uris, scope, and submit controls", () => {
+  it("renders the display-name, client-type, redirect-uris, scope, and submit controls", async () => {
     renderWithClient(newClient(), <RegisterAppForm />);
 
-    expect(screen.getByTestId("app-display-name")).toBeInTheDocument();
-    expect(screen.getByTestId("app-client-type")).toBeInTheDocument();
-    expect(screen.getByTestId("app-redirect-uris")).toBeInTheDocument();
-    expect(screen.getByTestId("app-scope-inquiries-read")).toBeInTheDocument();
-    expect(screen.getByTestId("app-scope-announcements-read")).toBeInTheDocument();
-    expect(screen.getByTestId("app-register-submit")).toBeInTheDocument();
+    await expect.element(page.getByTestId("app-display-name")).toBeInTheDocument();
+    await expect.element(page.getByTestId("app-client-type")).toBeInTheDocument();
+    await expect.element(page.getByTestId("app-redirect-uris")).toBeInTheDocument();
+    await expect.element(page.getByTestId("app-scope-inquiries-read")).toBeInTheDocument();
+    await expect.element(page.getByTestId("app-scope-announcements-read")).toBeInTheDocument();
+    await expect.element(page.getByTestId("app-register-submit")).toBeInTheDocument();
   });
 
-  it("does NOT reveal the client secret or client id before a successful registration", () => {
+  it("does NOT reveal the client secret or client id before a successful registration", async () => {
     renderWithClient(newClient(), <RegisterAppForm />);
 
-    expect(screen.queryByTestId("app-client-secret")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("app-client-id")).not.toBeInTheDocument();
+    await expect.element(page.getByTestId("app-client-secret")).not.toBeInTheDocument();
+    await expect.element(page.getByTestId("app-client-id")).not.toBeInTheDocument();
   });
 
   it("submits, calling register with the remapped body (clientName, default scope, public, parsed URIs)", async () => {
-    const user = userEvent.setup();
     mocks.register.mockResolvedValue(OK_RESPONSE);
 
     renderWithClient(newClient(), <RegisterAppForm />);
 
-    await user.type(screen.getByTestId("app-display-name"), "My App");
-    await user.type(
-      screen.getByTestId("app-redirect-uris"),
+    await userEvent.type(page.getByTestId("app-display-name"), "My App");
+    await userEvent.type(
+      page.getByTestId("app-redirect-uris"),
       "https://a.com/cb{enter}https://b.com/cb",
     );
-    await user.click(screen.getByTestId("app-register-submit"));
+    await userEvent.click(page.getByTestId("app-register-submit"));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.register).toHaveBeenCalledTimes(1);
     });
     expect(mocks.register).toHaveBeenCalledWith({
@@ -127,16 +119,15 @@ describe("RegisterAppForm", () => {
   });
 
   it("adds a toggled-on scope to the submitted requestedScopes", async () => {
-    const user = userEvent.setup();
     mocks.register.mockResolvedValue(OK_RESPONSE);
 
     renderWithClient(newClient(), <RegisterAppForm />);
 
-    await user.type(screen.getByTestId("app-display-name"), "My App");
-    await user.click(screen.getByTestId("app-scope-announcements-read"));
-    await user.click(screen.getByTestId("app-register-submit"));
+    await userEvent.type(page.getByTestId("app-display-name"), "My App");
+    await userEvent.click(page.getByTestId("app-scope-announcements-read"));
+    await userEvent.click(page.getByTestId("app-register-submit"));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.register).toHaveBeenCalledTimes(1);
     });
     const body = mocks.register.mock.calls[0]![0] as { requestedScopes: string[] };
@@ -147,16 +138,15 @@ describe("RegisterAppForm", () => {
   });
 
   it("removes a default scope when its toggle is clicked off", async () => {
-    const user = userEvent.setup();
     mocks.register.mockResolvedValue(OK_RESPONSE);
 
     renderWithClient(newClient(), <RegisterAppForm />);
 
-    await user.type(screen.getByTestId("app-display-name"), "My App");
-    await user.click(screen.getByTestId("app-scope-inquiries-read"));
-    await user.click(screen.getByTestId("app-register-submit"));
+    await userEvent.type(page.getByTestId("app-display-name"), "My App");
+    await userEvent.click(page.getByTestId("app-scope-inquiries-read"));
+    await userEvent.click(page.getByTestId("app-register-submit"));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.register).toHaveBeenCalledTimes(1);
     });
     const body = mocks.register.mock.calls[0]![0] as { requestedScopes: string[] };
@@ -164,21 +154,18 @@ describe("RegisterAppForm", () => {
   });
 
   it("reveals the one-time client secret and client id after a successful registration", async () => {
-    const user = userEvent.setup();
     mocks.register.mockResolvedValue(OK_RESPONSE);
 
     renderWithClient(newClient(), <RegisterAppForm />);
 
-    await user.type(screen.getByTestId("app-display-name"), "My App");
-    await user.click(screen.getByTestId("app-register-submit"));
+    await userEvent.type(page.getByTestId("app-display-name"), "My App");
+    await userEvent.click(page.getByTestId("app-register-submit"));
 
-    const secret = await screen.findByTestId("app-client-secret");
-    expect(secret).toHaveTextContent("secret-xyz");
-    expect(screen.getByTestId("app-client-id")).toHaveTextContent("client-abc");
+    await expect.element(page.getByTestId("app-client-secret")).toHaveTextContent("secret-xyz");
+    await expect.element(page.getByTestId("app-client-id")).toHaveTextContent("client-abc");
   });
 
   it("copies the revealed client secret to the clipboard", async () => {
-    const user = userEvent.setup();
     mocks.register.mockResolvedValue(OK_RESPONSE);
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", {
@@ -188,44 +175,40 @@ describe("RegisterAppForm", () => {
 
     renderWithClient(newClient(), <RegisterAppForm />);
 
-    await user.type(screen.getByTestId("app-display-name"), "My App");
-    await user.click(screen.getByTestId("app-register-submit"));
+    await userEvent.type(page.getByTestId("app-display-name"), "My App");
+    await userEvent.click(page.getByTestId("app-register-submit"));
 
-    await screen.findByTestId("app-client-secret");
-    await user.click(screen.getByTestId("app-client-secret-copy"));
+    await expect.element(page.getByTestId("app-client-secret")).toBeInTheDocument();
+    await userEvent.click(page.getByTestId("app-client-secret-copy"));
 
     expect(writeText).toHaveBeenCalledWith("secret-xyz");
   });
 
   it("invalidates the ['apps'] list query after a successful registration", async () => {
-    const user = userEvent.setup();
     const client = newClient();
     const invalidateSpy = vi.spyOn(client, "invalidateQueries");
     mocks.register.mockResolvedValue(OK_RESPONSE);
 
     renderWithClient(client, <RegisterAppForm />);
 
-    await user.type(screen.getByTestId("app-display-name"), "My App");
-    await user.click(screen.getByTestId("app-register-submit"));
+    await userEvent.type(page.getByTestId("app-display-name"), "My App");
+    await userEvent.click(page.getByTestId("app-register-submit"));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["apps"] });
     });
   });
 
   it("blocks submit and shows a required error when the display name is empty", async () => {
-    const user = userEvent.setup();
-
     renderWithClient(newClient(), <RegisterAppForm />);
 
-    await user.click(screen.getByTestId("app-register-submit"));
+    await userEvent.click(page.getByTestId("app-register-submit"));
 
-    expect(await screen.findByTestId("app-display-name-error")).toBeInTheDocument();
+    await expect.element(page.getByTestId("app-display-name-error")).toBeInTheDocument();
     expect(mocks.register).not.toHaveBeenCalled();
   });
 
   it("surfaces the ProblemDetails detail when registration fails", async () => {
-    const user = userEvent.setup();
     mocks.register.mockRejectedValue({
       type: "https://httpstatuses.io/400",
       title: "Bad Request",
@@ -235,10 +218,11 @@ describe("RegisterAppForm", () => {
 
     renderWithClient(newClient(), <RegisterAppForm />);
 
-    await user.type(screen.getByTestId("app-display-name"), "My App");
-    await user.click(screen.getByTestId("app-register-submit"));
+    await userEvent.type(page.getByTestId("app-display-name"), "My App");
+    await userEvent.click(page.getByTestId("app-register-submit"));
 
-    const error = await screen.findByTestId("app-register-error");
-    expect(error).toHaveTextContent("That redirect URI is not allowed.");
+    await expect
+      .element(page.getByTestId("app-register-error"))
+      .toHaveTextContent("That redirect URI is not allowed.");
   });
 });

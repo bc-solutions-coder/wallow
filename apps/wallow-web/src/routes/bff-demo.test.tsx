@@ -1,17 +1,11 @@
-/** @vitest-environment jsdom */
-import * as matchers from "@testing-library/jest-dom/matchers";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
+import { page, userEvent } from "vitest/browser";
+import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createRouter } from "../router";
 import { Route } from "./bff-demo";
-
-// No global `expect` (vitest `globals` is off), so register the jest-dom
-// matchers explicitly (the DOM-matcher convention across wallow-web RTL tests).
-expect.extend(matchers);
 
 /**
  * Route spec for the dedicated BFF smoke/demo route (Wallow-8w1h.8.2).
@@ -113,11 +107,11 @@ describe("routes/bff-demo (BFF smoke surface)", () => {
     expect(Route.options.component).toBeDefined();
   });
 
-  it("renders the full bff-* testid contract the E2E BffFlowTests drives", () => {
+  it("renders the full bff-* testid contract the E2E BffFlowTests drives", async () => {
     const Page = Route.options.component!;
     renderDemo(<Page />);
     for (const testId of ALL_TESTIDS) {
-      expect(screen.getByTestId(testId)).toBeInTheDocument();
+      await expect.element(page.getByTestId(testId)).toBeInTheDocument();
     }
   });
 
@@ -125,9 +119,7 @@ describe("routes/bff-demo (BFF smoke surface)", () => {
     sdkMocks.getUser.mockResolvedValue(null);
     const Page = Route.options.component!;
     renderDemo(<Page />);
-    await waitFor(() => {
-      expect(screen.getByTestId("bff-user-status")).toHaveTextContent("anonymous");
-    });
+    await expect.element(page.getByTestId("bff-user-status")).toHaveTextContent("anonymous");
   });
 
   it("paints 'authenticated' + email and arms the CSRF token for a signed-in user", async () => {
@@ -139,52 +131,44 @@ describe("routes/bff-demo (BFF smoke surface)", () => {
     const Page = Route.options.component!;
     renderDemo(<Page />);
 
-    await waitFor(() => {
-      expect(screen.getByTestId("bff-user-status")).toHaveTextContent("authenticated");
-    });
-    expect(screen.getByTestId("bff-user-email")).toHaveTextContent("user@test.local");
+    await expect.element(page.getByTestId("bff-user-status")).toHaveTextContent("authenticated");
+    await expect.element(page.getByTestId("bff-user-email")).toHaveTextContent("user@test.local");
     expect(csrfMocks.setCsrfToken).toHaveBeenCalledWith("csrf-abc");
   });
 
   it('clicking bff-login triggers login("/")', async () => {
-    const user = userEvent.setup();
     const Page = Route.options.component!;
     renderDemo(<Page />);
 
-    await user.click(screen.getByTestId("bff-login"));
+    await userEvent.click(page.getByTestId("bff-login"));
     expect(sdkMocks.login).toHaveBeenCalledWith("/");
   });
 
   it("clicking bff-logout triggers logout()", async () => {
-    const user = userEvent.setup();
     const Page = Route.options.component!;
     renderDemo(<Page />);
 
-    await user.click(screen.getByTestId("bff-logout"));
+    await userEvent.click(page.getByTestId("bff-logout"));
     expect(sdkMocks.logout).toHaveBeenCalled();
   });
 
   it("clicking bff-call-api renders the 200 status in bff-api-result", async () => {
-    const user = userEvent.setup();
     const Page = Route.options.component!;
     renderDemo(<Page />);
 
-    await user.click(screen.getByTestId("bff-call-api"));
-    await waitFor(() => {
-      expect(screen.getByTestId("bff-api-result")).toHaveTextContent("200");
-    });
+    await userEvent.click(page.getByTestId("bff-call-api"));
+    await expect.element(page.getByTestId("bff-api-result")).toHaveTextContent("200");
     expect(sdkMocks.getV1IdentityUsersMe).toHaveBeenCalled();
   });
 
   it("clicking bff-mutate posts an org and renders '201 created org' in bff-mutate-result", async () => {
-    const user = userEvent.setup();
     const Page = Route.options.component!;
     renderDemo(<Page />);
 
-    await user.click(screen.getByTestId("bff-mutate"));
-    await waitFor(() => {
-      expect(screen.getByTestId("bff-mutate-result")).toHaveTextContent("201 created org");
-    });
+    await userEvent.click(page.getByTestId("bff-mutate"));
+    await expect
+      .element(page.getByTestId("bff-mutate-result"))
+      .toHaveTextContent("201 created org");
     expect(sdkMocks.postV1IdentityOrganizations).toHaveBeenCalled();
   });
 });

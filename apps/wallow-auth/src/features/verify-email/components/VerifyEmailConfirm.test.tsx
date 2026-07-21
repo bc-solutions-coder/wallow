@@ -1,5 +1,3 @@
-/** @vitest-environment jsdom */
-import * as matchers from "@testing-library/jest-dom/matchers";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,
@@ -8,17 +6,13 @@ import {
   Outlet,
   RouterProvider,
 } from "@tanstack/react-router";
-import { render, screen } from "@testing-library/react";
 import type { ReactElement } from "react";
+import { page } from "vitest/browser";
+import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Route as verifyEmailConfirmRoute } from "../../../routes/verify-email/confirm";
 import { VerifyEmailConfirm } from "./VerifyEmailConfirm";
-
-// No global `expect` (vitest `globals` is off), so register the jest-dom
-// matchers explicitly — the DOM-matcher convention wallow-web's RTL tests
-// established and wallow-auth copies.
-expect.extend(matchers);
 
 /**
  * Component spec for the VerifyEmailConfirm screen (Wallow-vec7.3.3), ported
@@ -142,16 +136,16 @@ function wallowErrorShaped(status: number) {
 }
 
 /** Assert exactly one of the three mutually-exclusive states is on screen. */
-function expectOnlyState(state: "loading" | "success" | "error") {
+async function expectOnlyState(state: "loading" | "success" | "error") {
   const states = ["loading", "success", "error"] as const;
 
   for (const candidate of states) {
     const testid = `verify-email-confirm-${candidate}`;
 
     if (candidate === state) {
-      expect(screen.getByTestId(testid)).toBeInTheDocument();
+      await expect.element(page.getByTestId(testid)).toBeInTheDocument();
     } else {
-      expect(screen.queryByTestId(testid)).toBeNull();
+      expect(page.getByTestId(testid).query()).toBeNull();
     }
   }
 }
@@ -163,30 +157,32 @@ beforeEach(() => {
 });
 
 describe("VerifyEmailConfirm — loading state", () => {
-  it("shows only the spinner while the request is in flight", () => {
+  it("shows only the spinner while the request is in flight", async () => {
     // Oracle: `_loading = true` is the field initialiser, so the very first
     // paint is the spinner — a never-resolving request pins it there.
     mocks.verifyEmail.mockReturnValue(new Promise(() => {}));
 
-    renderWithClient(<VerifyEmailConfirm email={EMAIL} token={TOKEN} />);
+    await renderWithClient(<VerifyEmailConfirm email={EMAIL} token={TOKEN} />);
 
-    expectOnlyState("loading");
+    await expectOnlyState("loading");
   });
 
-  it("verifies the email with the token from the link", () => {
+  it("verifies the email with the token from the link", async () => {
     mocks.verifyEmail.mockReturnValue(new Promise(() => {}));
 
-    renderWithClient(<VerifyEmailConfirm email={EMAIL} token={TOKEN} />);
+    await renderWithClient(<VerifyEmailConfirm email={EMAIL} token={TOKEN} />);
 
-    expect(mocks.verifyEmail).toHaveBeenCalledWith({ email: EMAIL, token: TOKEN });
+    await vi.waitFor(() => {
+      expect(mocks.verifyEmail).toHaveBeenCalledWith({ email: EMAIL, token: TOKEN });
+    });
   });
 
   it("fires the verification exactly once", async () => {
     // The request is a side effect of mounting, not of rendering: a screen that
     // re-fired on every render would burn the single-use token.
-    renderWithClient(<VerifyEmailConfirm email={EMAIL} token={TOKEN} />);
+    await renderWithClient(<VerifyEmailConfirm email={EMAIL} token={TOKEN} />);
 
-    await screen.findByTestId("verify-email-confirm-success");
+    await expect.element(page.getByTestId("verify-email-confirm-success")).toBeInTheDocument();
 
     expect(mocks.verifyEmail).toHaveBeenCalledTimes(1);
   });
@@ -194,67 +190,71 @@ describe("VerifyEmailConfirm — loading state", () => {
 
 describe("VerifyEmailConfirm — success state", () => {
   it("replaces the spinner with the confirmation once the email is verified", async () => {
-    renderWithClient(<VerifyEmailConfirm email={EMAIL} token={TOKEN} />);
+    await renderWithClient(<VerifyEmailConfirm email={EMAIL} token={TOKEN} />);
 
-    await screen.findByTestId("verify-email-confirm-success");
+    await expect.element(page.getByTestId("verify-email-confirm-success")).toBeInTheDocument();
 
-    expectOnlyState("success");
+    await expectOnlyState("success");
   });
 
   it("tells the user they can now sign in", async () => {
-    renderWithClient(<VerifyEmailConfirm email={EMAIL} token={TOKEN} />);
+    await renderWithClient(<VerifyEmailConfirm email={EMAIL} token={TOKEN} />);
 
-    const success: HTMLElement = await screen.findByTestId("verify-email-confirm-success");
+    const success = page.getByTestId("verify-email-confirm-success");
 
-    expect(success).toHaveTextContent(/email verified/iu);
-    expect(success).toHaveTextContent(/you can now sign in/iu);
+    await expect.element(success).toHaveTextContent(/email verified/iu);
+    await expect.element(success).toHaveTextContent(/you can now sign in/iu);
   });
 
   it("offers Continue to a safe returnUrl", async () => {
-    renderWithClient(<VerifyEmailConfirm email={EMAIL} token={TOKEN} returnUrl="/dashboard" />);
+    await renderWithClient(
+      <VerifyEmailConfirm email={EMAIL} token={TOKEN} returnUrl="/dashboard" />,
+    );
 
-    await screen.findByTestId("verify-email-confirm-success");
+    await expect.element(page.getByTestId("verify-email-confirm-success")).toBeInTheDocument();
 
     // Asserted by role rather than by DOM nesting: the oracle wraps the button
     // in the testid'd div, but whether the port puts the testid on the anchor or
     // on a wrapper is the implementer's call — that it is a link to the
     // returnUrl is the contract.
-    expect(screen.getByTestId("verify-email-confirm-continue")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /continue/iu })).toHaveAttribute("href", "/dashboard");
+    await expect.element(page.getByTestId("verify-email-confirm-continue")).toBeInTheDocument();
+    await expect
+      .element(page.getByRole("link", { name: /continue/iu }))
+      .toHaveAttribute("href", "/dashboard");
   });
 
   it("omits Continue when the link carries no returnUrl", async () => {
     // Oracle: the Continue block is gated on `IsSafe(ReturnUrl)`, and a nullish
     // returnUrl is not safe — there is nowhere to continue TO.
-    renderWithClient(<VerifyEmailConfirm email={EMAIL} token={TOKEN} />);
+    await renderWithClient(<VerifyEmailConfirm email={EMAIL} token={TOKEN} />);
 
-    await screen.findByTestId("verify-email-confirm-success");
+    await expect.element(page.getByTestId("verify-email-confirm-success")).toBeInTheDocument();
 
-    expect(screen.queryByTestId("verify-email-confirm-continue")).toBeNull();
+    expect(page.getByTestId("verify-email-confirm-continue").query()).toBeNull();
   });
 
   it("omits Continue when the returnUrl is an off-origin absolute URL", async () => {
     // The open-redirect criterion. `IsSafe` rejects it, so the button that would
     // have carried the user to evil.com is simply not rendered.
-    renderWithClient(
+    await renderWithClient(
       <VerifyEmailConfirm email={EMAIL} token={TOKEN} returnUrl="https://evil.example/steal" />,
     );
 
-    await screen.findByTestId("verify-email-confirm-success");
+    await expect.element(page.getByTestId("verify-email-confirm-success")).toBeInTheDocument();
 
-    expect(screen.queryByTestId("verify-email-confirm-continue")).toBeNull();
+    expect(page.getByTestId("verify-email-confirm-continue").query()).toBeNull();
   });
 
   it("omits Continue when the returnUrl is protocol-relative", async () => {
     // `//evil.example` is the guard's whole reason to exist: it looks relative
     // and resolves off-origin.
-    renderWithClient(
+    await renderWithClient(
       <VerifyEmailConfirm email={EMAIL} token={TOKEN} returnUrl="//evil.example/steal" />,
     );
 
-    await screen.findByTestId("verify-email-confirm-success");
+    await expect.element(page.getByTestId("verify-email-confirm-success")).toBeInTheDocument();
 
-    expect(screen.queryByTestId("verify-email-confirm-continue")).toBeNull();
+    expect(page.getByTestId("verify-email-confirm-continue").query()).toBeNull();
   });
 });
 
@@ -264,22 +264,22 @@ describe("VerifyEmailConfirm — error state", () => {
     // the error-branch finding in this file's header.
     mocks.verifyEmail.mockRejectedValue(wallowErrorShaped(400));
 
-    renderWithClient(<VerifyEmailConfirm email={EMAIL} token={TOKEN} />);
+    await renderWithClient(<VerifyEmailConfirm email={EMAIL} token={TOKEN} />);
 
-    const error: HTMLElement = await screen.findByTestId("verify-email-confirm-error");
+    const error = page.getByTestId("verify-email-confirm-error");
 
-    expect(error).toHaveTextContent(/verification failed/iu);
-    expect(error).toHaveTextContent(/invalid or has expired/iu);
+    await expect.element(error).toHaveTextContent(/verification failed/iu);
+    await expect.element(error).toHaveTextContent(/invalid or has expired/iu);
   });
 
   it("shows only the error surface once verification fails", async () => {
     mocks.verifyEmail.mockRejectedValue(wallowErrorShaped(400));
 
-    renderWithClient(<VerifyEmailConfirm email={EMAIL} token={TOKEN} />);
+    await renderWithClient(<VerifyEmailConfirm email={EMAIL} token={TOKEN} />);
 
-    await screen.findByTestId("verify-email-confirm-error");
+    await expect.element(page.getByTestId("verify-email-confirm-error")).toBeInTheDocument();
 
-    expectOnlyState("error");
+    await expectOnlyState("error");
   });
 
   it("shows the generic message when the request fails for any other reason", async () => {
@@ -287,12 +287,12 @@ describe("VerifyEmailConfirm — error state", () => {
     // their link expired when it did not.
     mocks.verifyEmail.mockRejectedValue(wallowErrorShaped(500));
 
-    renderWithClient(<VerifyEmailConfirm email={EMAIL} token={TOKEN} />);
+    await renderWithClient(<VerifyEmailConfirm email={EMAIL} token={TOKEN} />);
 
-    const error: HTMLElement = await screen.findByTestId("verify-email-confirm-error");
+    const error = page.getByTestId("verify-email-confirm-error");
 
-    expect(error).toHaveTextContent(/an error occurred/iu);
-    expect(error).not.toHaveTextContent(/expired/iu);
+    await expect.element(error).toHaveTextContent(/an error occurred/iu);
+    await expect.element(error).not.toHaveTextContent(/expired/iu);
   });
 
   it("survives a rejection that is not WallowError-shaped at all", async () => {
@@ -301,11 +301,11 @@ describe("VerifyEmailConfirm — error state", () => {
     // throwing inside the error branch.
     mocks.verifyEmail.mockRejectedValue(new Error("network down"));
 
-    renderWithClient(<VerifyEmailConfirm email={EMAIL} token={TOKEN} />);
+    await renderWithClient(<VerifyEmailConfirm email={EMAIL} token={TOKEN} />);
 
-    const error: HTMLElement = await screen.findByTestId("verify-email-confirm-error");
+    const error = page.getByTestId("verify-email-confirm-error");
 
-    expect(error).toHaveTextContent(/an error occurred/iu);
+    await expect.element(error).toHaveTextContent(/an error occurred/iu);
   });
 
   it("never leaks the raw rejection into the page", async () => {
@@ -313,9 +313,9 @@ describe("VerifyEmailConfirm — error state", () => {
     // user-facing copy. The oracle shows curated messages only.
     mocks.verifyEmail.mockRejectedValue(wallowErrorShaped(400));
 
-    renderWithClient(<VerifyEmailConfirm email={EMAIL} token={TOKEN} />);
+    await renderWithClient(<VerifyEmailConfirm email={EMAIL} token={TOKEN} />);
 
-    await screen.findByTestId("verify-email-confirm-error");
+    await expect.element(page.getByTestId("verify-email-confirm-error")).toBeInTheDocument();
 
     expect(document.body.textContent).not.toMatch(/unknown error|UNKNOWN/u);
   });
@@ -327,29 +327,29 @@ describe("VerifyEmailConfirm — missing parameters", () => {
     // error message, no request. Pinning `not.toHaveBeenCalled` is the point:
     // a screen that "helpfully" sent `token: undefined` would 400 and blame the
     // user's link for the screen's own bug.
-    renderWithClient(<VerifyEmailConfirm email={EMAIL} />);
+    await renderWithClient(<VerifyEmailConfirm email={EMAIL} />);
 
-    const error: HTMLElement = await screen.findByTestId("verify-email-confirm-error");
+    const error = page.getByTestId("verify-email-confirm-error");
 
-    expect(error).toHaveTextContent(/missing required parameters/iu);
+    await expect.element(error).toHaveTextContent(/missing required parameters/iu);
     expect(mocks.verifyEmail).not.toHaveBeenCalled();
   });
 
   it("refuses a link with no email without calling the endpoint", async () => {
-    renderWithClient(<VerifyEmailConfirm token={TOKEN} />);
+    await renderWithClient(<VerifyEmailConfirm token={TOKEN} />);
 
-    const error: HTMLElement = await screen.findByTestId("verify-email-confirm-error");
+    const error = page.getByTestId("verify-email-confirm-error");
 
-    expect(error).toHaveTextContent(/missing required parameters/iu);
+    await expect.element(error).toHaveTextContent(/missing required parameters/iu);
     expect(mocks.verifyEmail).not.toHaveBeenCalled();
   });
 
   it("treats an empty-string parameter as missing", async () => {
     // Oracle: `string.IsNullOrEmpty(Token)` — `?token=&email=x` is a malformed
     // link, not a token to try.
-    renderWithClient(<VerifyEmailConfirm email={EMAIL} token="" />);
+    await renderWithClient(<VerifyEmailConfirm email={EMAIL} token="" />);
 
-    await screen.findByTestId("verify-email-confirm-error");
+    await expect.element(page.getByTestId("verify-email-confirm-error")).toBeInTheDocument();
 
     expect(mocks.verifyEmail).not.toHaveBeenCalled();
   });
@@ -357,24 +357,23 @@ describe("VerifyEmailConfirm — missing parameters", () => {
   it("never shows the spinner when the link is malformed", async () => {
     // The missing-parameter path short-circuits: there is no request to wait on,
     // so the user must not be told we are "verifying your email".
-    renderWithClient(<VerifyEmailConfirm email={EMAIL} />);
+    await renderWithClient(<VerifyEmailConfirm email={EMAIL} />);
 
-    await screen.findByTestId("verify-email-confirm-error");
+    await expect.element(page.getByTestId("verify-email-confirm-error")).toBeInTheDocument();
 
-    expectOnlyState("error");
+    await expectOnlyState("error");
   });
 });
 
 describe("VerifyEmailConfirm — sign-in link", () => {
   it("links to sign in from the success state", async () => {
-    renderWithClient(<VerifyEmailConfirm email={EMAIL} token={TOKEN} />);
+    await renderWithClient(<VerifyEmailConfirm email={EMAIL} token={TOKEN} />);
 
-    await screen.findByTestId("verify-email-confirm-success");
+    await expect.element(page.getByTestId("verify-email-confirm-success")).toBeInTheDocument();
 
-    expect(screen.getByTestId("verify-email-confirm-signin-link")).toHaveAttribute(
-      "href",
-      "/login",
-    );
+    await expect
+      .element(page.getByTestId("verify-email-confirm-signin-link"))
+      .toHaveAttribute("href", "/login");
   });
 
   it("links to sign in from the error state too", async () => {
@@ -382,28 +381,28 @@ describe("VerifyEmailConfirm — sign-in link", () => {
     // the error state, so it must survive the failure branch.
     mocks.verifyEmail.mockRejectedValue(wallowErrorShaped(400));
 
-    renderWithClient(<VerifyEmailConfirm email={EMAIL} token={TOKEN} />);
+    await renderWithClient(<VerifyEmailConfirm email={EMAIL} token={TOKEN} />);
 
-    await screen.findByTestId("verify-email-confirm-error");
+    await expect.element(page.getByTestId("verify-email-confirm-error")).toBeInTheDocument();
 
-    expect(screen.getByTestId("verify-email-confirm-signin-link")).toHaveAttribute(
-      "href",
-      "/login",
-    );
+    await expect
+      .element(page.getByTestId("verify-email-confirm-signin-link"))
+      .toHaveAttribute("href", "/login");
   });
 
   it("carries a safe returnUrl through to sign in, URL-encoded", async () => {
     // Oracle: `$"/login?returnUrl={Uri.EscapeDataString(ReturnUrl!)}"`. The
     // encoding matters — an unencoded `&` would forge extra query parameters on
     // the login page.
-    renderWithClient(<VerifyEmailConfirm email={EMAIL} token={TOKEN} returnUrl="/apps?a=1&b=2" />);
-
-    await screen.findByTestId("verify-email-confirm-success");
-
-    expect(screen.getByTestId("verify-email-confirm-signin-link")).toHaveAttribute(
-      "href",
-      `/login?returnUrl=${encodeURIComponent("/apps?a=1&b=2")}`,
+    await renderWithClient(
+      <VerifyEmailConfirm email={EMAIL} token={TOKEN} returnUrl="/apps?a=1&b=2" />,
     );
+
+    await expect.element(page.getByTestId("verify-email-confirm-success")).toBeInTheDocument();
+
+    await expect
+      .element(page.getByTestId("verify-email-confirm-signin-link"))
+      .toHaveAttribute("href", `/login?returnUrl=${encodeURIComponent("/apps?a=1&b=2")}`);
   });
 
   it("drops an unsafe returnUrl from the sign-in link", async () => {
@@ -411,16 +410,15 @@ describe("VerifyEmailConfirm — sign-in link", () => {
     // is NOT the sanitize-vs-refuse case from bd memory `returnurl-guard-refuse-
     // dont-sanitize`: nothing navigates anywhere here, the screen just declines
     // to forward a hostile value into the next screen's query string.
-    renderWithClient(
+    await renderWithClient(
       <VerifyEmailConfirm email={EMAIL} token={TOKEN} returnUrl="https://evil.example" />,
     );
 
-    await screen.findByTestId("verify-email-confirm-success");
+    await expect.element(page.getByTestId("verify-email-confirm-success")).toBeInTheDocument();
 
-    expect(screen.getByTestId("verify-email-confirm-signin-link")).toHaveAttribute(
-      "href",
-      "/login",
-    );
+    await expect
+      .element(page.getByTestId("verify-email-confirm-signin-link"))
+      .toHaveAttribute("href", "/login");
   });
 });
 
@@ -460,19 +458,21 @@ describe("/verify-email/confirm route", () => {
     // not this task's to change (router.tsx is off-limits).
     mocks.verifyEmail.mockResolvedValue(null);
 
-    renderRouteAt(
+    await renderRouteAt(
       `/verify-email/confirm?email=${encodeURIComponent(EMAIL)}&token=${TOKEN}` +
         `&returnUrl=${encodeURIComponent("/apps")}`,
     );
 
-    expect(await screen.findByTestId("verify-email-confirm-success")).toBeInTheDocument();
-    expect(screen.queryByTestId("route-placeholder")).toBeNull();
+    await expect.element(page.getByTestId("verify-email-confirm-success")).toBeInTheDocument();
+    expect(page.getByTestId("route-placeholder").query()).toBeNull();
     // The query string must actually reach the screen, not merely be parsed:
     // email+token thread as far as the request, and returnUrl as far as the
     // Continue link. A route that dropped any of them fails here rather than
     // rendering a green screen off an empty search.
     expect(mocks.verifyEmail).toHaveBeenCalledWith({ email: EMAIL, token: TOKEN });
-    expect(screen.getByTestId("verify-email-confirm-continue")).toHaveAttribute("href", "/apps");
+    await expect
+      .element(page.getByTestId("verify-email-confirm-continue"))
+      .toHaveAttribute("href", "/apps");
   });
 
   it("reads token, email, and returnUrl off the query string", () => {

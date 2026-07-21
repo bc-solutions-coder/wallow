@@ -1,5 +1,3 @@
-/** @vitest-environment jsdom */
-import * as matchers from "@testing-library/jest-dom/matchers";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,
@@ -8,17 +6,13 @@ import {
   Outlet,
   RouterProvider,
 } from "@tanstack/react-router";
-import { render, screen, waitFor } from "@testing-library/react";
 import type { ReactElement } from "react";
+import { page } from "vitest/browser";
+import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Route as logoutRoute } from "../../../routes/logout";
 import { LogoutScreen } from "./LogoutScreen";
-
-// No global `expect` (vitest `globals` is off), so register the jest-dom
-// matchers explicitly — the DOM-matcher convention wallow-web's RTL tests
-// established and wallow-auth copies.
-expect.extend(matchers);
 
 /**
  * Component spec for the Logout screen (Wallow-vec7.3.5), ported from the Blazor
@@ -192,34 +186,36 @@ beforeEach(() => {
 });
 
 describe("LogoutScreen — the confirm step", () => {
-  it("heads the card 'Sign out'", () => {
-    renderWithClient(<LogoutScreen />);
+  it("heads the card 'Sign out'", async () => {
+    await renderWithClient(<LogoutScreen />);
 
     // The oracle's `else` arm of `@if (SignedOut == "true")`. Same testid as the
     // landing, different text — that shared testid is why the TEXT is the
     // assertion that tells the two phases apart.
-    expect(screen.getByTestId("logout-confirm-heading")).toHaveTextContent("Sign out");
+    await expect.element(page.getByTestId("logout-confirm-heading")).toHaveTextContent("Sign out");
   });
 
-  it("asks for confirmation before signing the user out", () => {
-    renderWithClient(<LogoutScreen />);
+  it("asks for confirmation before signing the user out", async () => {
+    await renderWithClient(<LogoutScreen />);
 
     // The oracle's prompt. A sign-out that fires on navigation rather than on a
     // click is a CSRF sink: `<img src="/logout">` would end the session.
-    expect(screen.getByText("Are you sure you want to sign out?")).toBeInTheDocument();
+    await expect.element(page.getByText("Are you sure you want to sign out?")).toBeInTheDocument();
   });
 
-  it("points the sign-out button at this origin's /connect/logout", () => {
-    renderWithClient(<LogoutScreen />);
+  it("points the sign-out button at this origin's /connect/logout", async () => {
+    await renderWithClient(<LogoutScreen />);
 
     // THE ORIGIN TRAP. See the header note: the h3 proxy serves /connect/** at
     // the root, so the handoff must stay same-origin or the SameSite auth cookie
     // never reaches the endpoint that needs it to know whose session to end.
-    expect(screen.getByTestId("logout-confirm-button")).toHaveAttribute("href", "/connect/logout");
+    await expect
+      .element(page.getByTestId("logout-confirm-button"))
+      .toHaveAttribute("href", "/connect/logout");
   });
 
-  it("builds that URL against the empty origin, not a configured API base URL", () => {
-    renderWithClient(<LogoutScreen />);
+  it("builds that URL against the empty origin, not a configured API base URL", async () => {
+    await renderWithClient(<LogoutScreen />);
 
     // Asserted on the ARGUMENT as well as the result, so that porting the
     // oracle's `$"{ApiBaseUrl}/connect/logout"` fails loudly here rather than
@@ -228,73 +224,79 @@ describe("LogoutScreen — the confirm step", () => {
     expect(mocks.buildConnectLogoutUrl.mock.calls[0]?.[0]).toBe("");
   });
 
-  it("carries post_logout_redirect_uri through to the logout URL", () => {
-    renderWithClient(<LogoutScreen postLogoutRedirectUri={REDIRECT_URI} />);
+  it("carries post_logout_redirect_uri through to the logout URL", async () => {
+    await renderWithClient(<LogoutScreen postLogoutRedirectUri={REDIRECT_URI} />);
 
     // The oracle's `if (!IsNullOrEmpty(PostLogoutRedirectUri))` arm. OpenIddict
     // needs this on the END-SESSION request to know where to send the browser
     // back to; dropping it here strands the user on the landing page.
     expect(mocks.buildConnectLogoutUrl.mock.calls[0]?.[1]).toBe(REDIRECT_URI);
-    expect(screen.getByTestId("logout-confirm-button")).toHaveAttribute(
-      "href",
-      `/connect/logout?post_logout_redirect_uri=${encodeURIComponent(REDIRECT_URI)}`,
-    );
+    await expect
+      .element(page.getByTestId("logout-confirm-button"))
+      .toHaveAttribute(
+        "href",
+        `/connect/logout?post_logout_redirect_uri=${encodeURIComponent(REDIRECT_URI)}`,
+      );
   });
 
-  it("omits the parameter entirely when no redirect URI was supplied", () => {
-    renderWithClient(<LogoutScreen />);
+  it("omits the parameter entirely when no redirect URI was supplied", async () => {
+    await renderWithClient(<LogoutScreen />);
 
-    expect(screen.getByTestId("logout-confirm-button")).toHaveAttribute("href", "/connect/logout");
+    await expect
+      .element(page.getByTestId("logout-confirm-button"))
+      .toHaveAttribute("href", "/connect/logout");
   });
 
-  it("treats an empty post_logout_redirect_uri as absent", () => {
-    renderWithClient(<LogoutScreen postLogoutRedirectUri="" />);
+  it("treats an empty post_logout_redirect_uri as absent", async () => {
+    await renderWithClient(<LogoutScreen postLogoutRedirectUri="" />);
 
     // `IsNullOrEmpty` parity: `?post_logout_redirect_uri=` is a malformed link,
     // not a request to return to the empty string.
-    expect(screen.getByTestId("logout-confirm-button")).toHaveAttribute("href", "/connect/logout");
+    await expect
+      .element(page.getByTestId("logout-confirm-button"))
+      .toHaveAttribute("href", "/connect/logout");
   });
 
-  it("does not validate the redirect URI on the confirm step", () => {
-    renderWithClient(<LogoutScreen postLogoutRedirectUri={REDIRECT_URI} />);
+  it("does not validate the redirect URI on the confirm step", async () => {
+    await renderWithClient(<LogoutScreen postLogoutRedirectUri={REDIRECT_URI} />);
 
     // The oracle validates ONLY under `SignedOut == "true"`. Validating here
     // would be wasted — the API re-validates the parameter on the end-session
     // request itself — and would leak a probe on every render of the prompt.
     // Anchored on the prompt actually rendering, so this cannot pass by the
     // screen simply not being the confirm step.
-    expect(screen.getByTestId("logout-confirm-button")).toBeInTheDocument();
+    await expect.element(page.getByTestId("logout-confirm-button")).toBeInTheDocument();
     expect(mocks.validateRedirectUri).not.toHaveBeenCalled();
   });
 
-  it("does not apply the relative-path returnUrl guard to an absolute URI", () => {
-    renderWithClient(<LogoutScreen postLogoutRedirectUri={REDIRECT_URI} />);
+  it("does not apply the relative-path returnUrl guard to an absolute URI", async () => {
+    await renderWithClient(<LogoutScreen postLogoutRedirectUri={REDIRECT_URI} />);
 
     // See the header note: `isSafeReturnUrl` demands a single leading '/', so
     // applying it to a post-logout URI would reject every legitimate relying
     // party. The server-side allow-list is the defence on this screen.
     expect(mocks.isSafeReturnUrl).not.toHaveBeenCalled();
-    expect(screen.getByTestId("logout-confirm-button")).toBeInTheDocument();
+    await expect.element(page.getByTestId("logout-confirm-button")).toBeInTheDocument();
   });
 
-  it("does not render the signed-out copy", () => {
-    renderWithClient(<LogoutScreen postLogoutRedirectUri={REDIRECT_URI} />);
+  it("does not render the signed-out copy", async () => {
+    await renderWithClient(<LogoutScreen postLogoutRedirectUri={REDIRECT_URI} />);
 
     // Anchored on the confirm step being present: the two arms are mutually
     // exclusive in the oracle's `@if/else`, and telling a user who has NOT signed
     // out that they have is the failure this pins.
-    expect(screen.getByTestId("logout-confirm-heading")).toHaveTextContent("Sign out");
-    expect(screen.queryByText("You have been successfully signed out.")).toBeNull();
-    expect(screen.queryByTestId("logout-return-link")).toBeNull();
+    await expect.element(page.getByTestId("logout-confirm-heading")).toHaveTextContent("Sign out");
+    expect(page.getByText("You have been successfully signed out.").query()).toBeNull();
+    expect(page.getByTestId("logout-return-link").query()).toBeNull();
   });
 
-  it("renders the sign-out control as a link, not a button", () => {
-    renderWithClient(<LogoutScreen />);
+  it("renders the sign-out control as a link, not a button", async () => {
+    await renderWithClient(<LogoutScreen />);
 
     // The oracle's `<a href="@LogoutUrl">`. This has to be a real navigation:
     // /connect/logout is served by the h3 proxy and is not in the client-side
     // route tree, so a router-driven control would 404 in-app.
-    expect(screen.getByTestId("logout-confirm-button").tagName).toBe("A");
+    expect(page.getByTestId("logout-confirm-button").element().tagName).toBe("A");
   });
 });
 
@@ -306,78 +308,90 @@ describe("LogoutScreen — signed_out is an exact string match", () => {
     ["1", "a truthy-looking 1"],
     ["", "an empty value"],
     ["yes", "an unrelated value"],
-  ])("shows the confirm step for signed_out=%s (%s)", (signedOut: string) => {
-    renderWithClient(<LogoutScreen signedOut={signedOut} />);
+  ])("shows the confirm step for signed_out=%s (%s)", async (signedOut: string) => {
+    await renderWithClient(<LogoutScreen signedOut={signedOut} />);
 
     // The oracle compares `SignedOut == "true"` — an ordinal string equality, not
     // a boolean parse. This matters in the safe direction: anything else falls to
     // the CONFIRM step, so a mangled link asks again rather than telling a
     // still-signed-in user they are signed out.
-    expect(screen.getByTestId("logout-confirm-heading")).toHaveTextContent("Sign out");
-    expect(screen.getByTestId("logout-confirm-button")).toBeInTheDocument();
+    await expect.element(page.getByTestId("logout-confirm-heading")).toHaveTextContent("Sign out");
+    await expect.element(page.getByTestId("logout-confirm-button")).toBeInTheDocument();
   });
 
-  it("shows the confirm step when signed_out is absent", () => {
-    renderWithClient(<LogoutScreen />);
+  it("shows the confirm step when signed_out is absent", async () => {
+    await renderWithClient(<LogoutScreen />);
 
-    expect(screen.getByTestId("logout-confirm-heading")).toHaveTextContent("Sign out");
+    await expect.element(page.getByTestId("logout-confirm-heading")).toHaveTextContent("Sign out");
   });
 
-  it("shows the landing only for exactly 'true'", () => {
-    renderWithClient(<LogoutScreen signedOut="true" />);
+  it("shows the landing only for exactly 'true'", async () => {
+    await renderWithClient(<LogoutScreen signedOut="true" />);
 
-    expect(screen.getByTestId("logout-confirm-heading")).toHaveTextContent("Signed out");
-    expect(screen.queryByTestId("logout-confirm-button")).toBeNull();
+    await expect
+      .element(page.getByTestId("logout-confirm-heading"))
+      .toHaveTextContent("Signed out");
+    expect(page.getByTestId("logout-confirm-button").query()).toBeNull();
   });
 });
 
 describe("LogoutScreen — the signed-out landing", () => {
-  it("heads the card 'Signed out'", () => {
-    renderWithClient(<LogoutScreen signedOut="true" />);
+  it("heads the card 'Signed out'", async () => {
+    await renderWithClient(<LogoutScreen signedOut="true" />);
 
-    expect(screen.getByTestId("logout-confirm-heading")).toHaveTextContent("Signed out");
+    await expect
+      .element(page.getByTestId("logout-confirm-heading"))
+      .toHaveTextContent("Signed out");
   });
 
-  it("confirms the sign-out succeeded", () => {
-    renderWithClient(<LogoutScreen signedOut="true" />);
+  it("confirms the sign-out succeeded", async () => {
+    await renderWithClient(<LogoutScreen signedOut="true" />);
 
-    expect(screen.getByText("You have been successfully signed out.")).toBeInTheDocument();
+    await expect
+      .element(page.getByText("You have been successfully signed out."))
+      .toBeInTheDocument();
   });
 
-  it("does not offer to sign the user out again", () => {
-    renderWithClient(<LogoutScreen signedOut="true" postLogoutRedirectUri={REDIRECT_URI} />);
+  it("does not offer to sign the user out again", async () => {
+    await renderWithClient(<LogoutScreen signedOut="true" postLogoutRedirectUri={REDIRECT_URI} />);
 
     // The session is already gone; the oracle's `@if/else` makes these two arms
     // mutually exclusive, and a second sign-out control here would be a dead end.
     // Anchored on the landing actually rendering.
-    expect(screen.getByTestId("logout-confirm-heading")).toHaveTextContent("Signed out");
-    expect(screen.queryByTestId("logout-confirm-button")).toBeNull();
-    expect(screen.queryByText("Are you sure you want to sign out?")).toBeNull();
+    await expect
+      .element(page.getByTestId("logout-confirm-heading"))
+      .toHaveTextContent("Signed out");
+    expect(page.getByTestId("logout-confirm-button").query()).toBeNull();
+    expect(page.getByText("Are you sure you want to sign out?").query()).toBeNull();
   });
 
   it("validates the post-logout redirect URI against the server", async () => {
-    renderWithClient(<LogoutScreen signedOut="true" postLogoutRedirectUri={REDIRECT_URI} />);
+    await renderWithClient(<LogoutScreen signedOut="true" postLogoutRedirectUri={REDIRECT_URI} />);
 
     // The oracle's `await AuthApiClient.ValidateRedirectUriAsync(PostLogoutRedirectUri)`.
     // This is the acceptance criterion's "redirect-uri validation branch".
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.validateRedirectUri).toHaveBeenCalledWith(REDIRECT_URI);
     });
   });
 
   it("offers a link back to the application once the URI is allowed", async () => {
-    renderWithClient(<LogoutScreen signedOut="true" postLogoutRedirectUri={REDIRECT_URI} />);
+    await renderWithClient(<LogoutScreen signedOut="true" postLogoutRedirectUri={REDIRECT_URI} />);
 
     // The oracle's `@if (_isRedirectUriValid)` block. Note the href is the RAW
     // post-logout URI, not the /connect/logout URL — this is the return trip.
-    expect(await screen.findByTestId("logout-return-link")).toHaveAttribute("href", REDIRECT_URI);
-    expect(screen.getByTestId("logout-return-link")).toHaveTextContent("Return to application");
+    await expect
+      .element(page.getByTestId("logout-return-link"))
+      .toHaveAttribute("href", REDIRECT_URI);
+    await expect
+      .element(page.getByTestId("logout-return-link"))
+      .toHaveTextContent("Return to application");
   });
 
   it("does not link to a URI the server refused", async () => {
     mocks.validateRedirectUri.mockResolvedValue(allowedBody(false));
 
-    renderWithClient(
+    await renderWithClient(
       <LogoutScreen signedOut="true" postLogoutRedirectUri="https://evil.test/collect" />,
     );
 
@@ -386,16 +400,16 @@ describe("LogoutScreen — the signed-out landing", () => {
     // URL, with no proof a sign-out ever happened. `_isRedirectUriValid` starting
     // FALSE and only the server being able to flip it is what keeps this page
     // from laundering a Wallow-branded link to an arbitrary origin.
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.validateRedirectUri).toHaveBeenCalled();
     });
-    expect(screen.queryByTestId("logout-return-link")).toBeNull();
+    expect(page.getByTestId("logout-return-link").query()).toBeNull();
   });
 
-  it("never puts an unvalidated URI in the DOM, even briefly", () => {
+  it("never puts an unvalidated URI in the DOM, even briefly", async () => {
     mocks.validateRedirectUri.mockReturnValue(new Promise(() => {}));
 
-    const { container } = renderWithClient(
+    const { container } = await renderWithClient(
       <LogoutScreen signedOut="true" postLogoutRedirectUri="https://evil.test/collect" />,
     );
 
@@ -403,38 +417,48 @@ describe("LogoutScreen — the signed-out landing", () => {
     // optimistically and retracted on the answer is a link a fast user can click
     // — the whole point of the check is that it gates FIRST. Anchored on the
     // landing having rendered, so an empty screen cannot satisfy this.
-    expect(screen.getByTestId("logout-confirm-heading")).toHaveTextContent("Signed out");
-    expect(screen.queryByTestId("logout-return-link")).toBeNull();
+    await expect
+      .element(page.getByTestId("logout-confirm-heading"))
+      .toHaveTextContent("Signed out");
+    expect(page.getByTestId("logout-return-link").query()).toBeNull();
     expect(container.innerHTML).not.toContain("evil.test");
   });
 
-  it("still confirms the sign-out while the validation is in flight", () => {
+  it("still confirms the sign-out while the validation is in flight", async () => {
     mocks.validateRedirectUri.mockReturnValue(new Promise(() => {}));
 
-    renderWithClient(<LogoutScreen signedOut="true" postLogoutRedirectUri={REDIRECT_URI} />);
+    await renderWithClient(<LogoutScreen signedOut="true" postLogoutRedirectUri={REDIRECT_URI} />);
 
     // The oracle renders the heading and copy unconditionally and only the LINK
     // behind `_isRedirectUriValid` — the user is told the sign-out worked without
     // waiting on a check that has nothing to do with it.
-    expect(screen.getByTestId("logout-confirm-heading")).toHaveTextContent("Signed out");
-    expect(screen.getByText("You have been successfully signed out.")).toBeInTheDocument();
+    await expect
+      .element(page.getByTestId("logout-confirm-heading"))
+      .toHaveTextContent("Signed out");
+    await expect
+      .element(page.getByText("You have been successfully signed out."))
+      .toBeInTheDocument();
   });
 
   it("skips validation entirely when no redirect URI was supplied", async () => {
-    renderWithClient(<LogoutScreen signedOut="true" />);
+    await renderWithClient(<LogoutScreen signedOut="true" />);
 
     // The oracle's `&& !string.IsNullOrEmpty(PostLogoutRedirectUri)`.
-    expect(await screen.findByTestId("logout-confirm-heading")).toHaveTextContent("Signed out");
+    await expect
+      .element(page.getByTestId("logout-confirm-heading"))
+      .toHaveTextContent("Signed out");
     expect(mocks.validateRedirectUri).not.toHaveBeenCalled();
-    expect(screen.queryByTestId("logout-return-link")).toBeNull();
+    expect(page.getByTestId("logout-return-link").query()).toBeNull();
   });
 
   it("skips validation when the redirect URI is empty", async () => {
-    renderWithClient(<LogoutScreen signedOut="true" postLogoutRedirectUri="" />);
+    await renderWithClient(<LogoutScreen signedOut="true" postLogoutRedirectUri="" />);
 
     // `IsNullOrEmpty` parity again — an empty URI is a malformed link, not a
     // destination to ask the server about.
-    expect(await screen.findByTestId("logout-confirm-heading")).toHaveTextContent("Signed out");
+    await expect
+      .element(page.getByTestId("logout-confirm-heading"))
+      .toHaveTextContent("Signed out");
     expect(mocks.validateRedirectUri).not.toHaveBeenCalled();
   });
 });
@@ -443,9 +467,9 @@ describe("LogoutScreen — the validation response is untyped and must fail clos
   it("links when the body is exactly { allowed: true }", async () => {
     mocks.validateRedirectUri.mockResolvedValue(allowedBody(true));
 
-    renderWithClient(<LogoutScreen signedOut="true" postLogoutRedirectUri={REDIRECT_URI} />);
+    await renderWithClient(<LogoutScreen signedOut="true" postLogoutRedirectUri={REDIRECT_URI} />);
 
-    expect(await screen.findByTestId("logout-return-link")).toBeInTheDocument();
+    await expect.element(page.getByTestId("logout-return-link")).toBeInTheDocument();
   });
 
   it.each([
@@ -461,17 +485,17 @@ describe("LogoutScreen — the validation response is untyped and must fail clos
   ])("refuses to link when the body is %j (%s)", async (body: unknown) => {
     mocks.validateRedirectUri.mockResolvedValue(body);
 
-    renderWithClient(<LogoutScreen signedOut="true" postLogoutRedirectUri={REDIRECT_URI} />);
+    await renderWithClient(<LogoutScreen signedOut="true" postLogoutRedirectUri={REDIRECT_URI} />);
 
     // `body?.Allowed == true` is a STRICT comparison in the oracle, and the
     // facade hands this screen an `unknown` (the spec declares the 200 with no
     // schema), so the narrowing is the screen's own. Every shape that is not
     // literally `allowed: true` is NOT allowed — a screen that leaned on JS
     // truthiness would link on `allowed: "false"`, which is a string and truthy.
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.validateRedirectUri).toHaveBeenCalled();
     });
-    expect(screen.queryByTestId("logout-return-link")).toBeNull();
+    expect(page.getByTestId("logout-return-link").query()).toBeNull();
   });
 
   it.each([
@@ -482,32 +506,34 @@ describe("LogoutScreen — the validation response is untyped and must fail clos
   ])("refuses to link when validation rejects with %i (%s)", async (status: number) => {
     mocks.validateRedirectUri.mockRejectedValue(wallowErrorShaped(status));
 
-    renderWithClient(<LogoutScreen signedOut="true" postLogoutRedirectUri={REDIRECT_URI} />);
+    await renderWithClient(<LogoutScreen signedOut="true" postLogoutRedirectUri={REDIRECT_URI} />);
 
     // The C# `!IsSuccessStatusCode → false` arm, which arrives through this seam
     // as a REJECTION because `unwrap()` throws on non-2xx. FAILING CLOSED is the
     // whole point: an unreachable validator must not become a reason to trust the
     // attacker's URI.
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.validateRedirectUri).toHaveBeenCalled();
     });
-    expect(screen.queryByTestId("logout-return-link")).toBeNull();
+    expect(page.getByTestId("logout-return-link").query()).toBeNull();
   });
 
   it("surfaces no error state when validation fails", async () => {
     mocks.validateRedirectUri.mockRejectedValue(wallowErrorShaped(500));
 
-    renderWithClient(<LogoutScreen signedOut="true" postLogoutRedirectUri={REDIRECT_URI} />);
+    await renderWithClient(<LogoutScreen signedOut="true" postLogoutRedirectUri={REDIRECT_URI} />);
 
     // The oracle has NO error state on this screen — the scout's inventory has no
     // `logout-error` testid because there is no element to give one to. A failed
     // validation is not the user's problem: they ARE signed out, which is what
     // they came for. Only the convenience link is lost.
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.validateRedirectUri).toHaveBeenCalled();
     });
-    expect(screen.queryByTestId("logout-error")).toBeNull();
-    expect(screen.getByText("You have been successfully signed out.")).toBeInTheDocument();
+    expect(page.getByTestId("logout-error").query()).toBeNull();
+    await expect
+      .element(page.getByText("You have been successfully signed out."))
+      .toBeInTheDocument();
   });
 });
 
@@ -515,12 +541,12 @@ describe("LogoutScreen — the footer", () => {
   it.each([
     ["the confirm step", undefined],
     ["the signed-out landing", "true"],
-  ])("links back to sign in from %s", (_phase: string, signedOut: string | undefined) => {
-    renderWithClient(<LogoutScreen signedOut={signedOut} />);
+  ])("links back to sign in from %s", async (_phase: string, signedOut: string | undefined) => {
+    await renderWithClient(<LogoutScreen signedOut={signedOut} />);
 
     // The oracle's `BbCardFooter` renders on BOTH arms, outside the @if.
-    expect(screen.getByTestId("logout-back-link")).toHaveAttribute("href", "/login");
-    expect(screen.getByTestId("logout-back-link")).toHaveTextContent("Back to sign in");
+    await expect.element(page.getByTestId("logout-back-link")).toHaveAttribute("href", "/login");
+    await expect.element(page.getByTestId("logout-back-link")).toHaveTextContent("Back to sign in");
   });
 });
 
@@ -543,20 +569,20 @@ describe("LogoutScreen — the footer", () => {
  *     `error-back-link` the Error page already established.
  */
 describe("LogoutScreen — testids", () => {
-  it("exposes the oracle's testids on the confirm step", () => {
-    renderWithClient(<LogoutScreen postLogoutRedirectUri={REDIRECT_URI} />);
+  it("exposes the oracle's testids on the confirm step", async () => {
+    await renderWithClient(<LogoutScreen postLogoutRedirectUri={REDIRECT_URI} />);
 
-    expect(screen.getByTestId("logout-confirm-heading")).toBeInTheDocument();
-    expect(screen.getByTestId("logout-confirm-button")).toBeInTheDocument();
-    expect(screen.getByTestId("logout-back-link")).toBeInTheDocument();
+    await expect.element(page.getByTestId("logout-confirm-heading")).toBeInTheDocument();
+    await expect.element(page.getByTestId("logout-confirm-button")).toBeInTheDocument();
+    await expect.element(page.getByTestId("logout-back-link")).toBeInTheDocument();
   });
 
   it("exposes the oracle's testids on the signed-out landing", async () => {
-    renderWithClient(<LogoutScreen signedOut="true" postLogoutRedirectUri={REDIRECT_URI} />);
+    await renderWithClient(<LogoutScreen signedOut="true" postLogoutRedirectUri={REDIRECT_URI} />);
 
-    expect(screen.getByTestId("logout-confirm-heading")).toBeInTheDocument();
-    expect(await screen.findByTestId("logout-return-link")).toBeInTheDocument();
-    expect(screen.getByTestId("logout-back-link")).toBeInTheDocument();
+    await expect.element(page.getByTestId("logout-confirm-heading")).toBeInTheDocument();
+    await expect.element(page.getByTestId("logout-return-link")).toBeInTheDocument();
+    await expect.element(page.getByTestId("logout-back-link")).toBeInTheDocument();
   });
 });
 
@@ -584,30 +610,34 @@ describe("/logout route", () => {
     // Wallow-vec7.3.16 registered this path against a placeholder component;
     // this task's job is to replace it. The path itself is the contract and is
     // NOT this task's to change (router.tsx is off-limits).
-    renderRouteAt("/logout");
+    await renderRouteAt("/logout");
 
-    expect(await screen.findByTestId("logout-confirm-heading")).toBeInTheDocument();
-    expect(screen.queryByTestId("route-placeholder")).toBeNull();
+    await expect.element(page.getByTestId("logout-confirm-heading")).toBeInTheDocument();
+    expect(page.getByTestId("route-placeholder").query()).toBeNull();
   });
 
   it("threads post_logout_redirect_uri from the query string into the logout URL", async () => {
-    renderRouteAt(`/logout?post_logout_redirect_uri=${encodeURIComponent(REDIRECT_URI)}`);
+    await renderRouteAt(`/logout?post_logout_redirect_uri=${encodeURIComponent(REDIRECT_URI)}`);
 
     // Must actually REACH the screen, not merely parse: a route that dropped it
     // would build a bare /connect/logout and strand the user after sign-out.
-    expect(await screen.findByTestId("logout-confirm-button")).toHaveAttribute(
-      "href",
-      `/connect/logout?post_logout_redirect_uri=${encodeURIComponent(REDIRECT_URI)}`,
-    );
+    await expect
+      .element(page.getByTestId("logout-confirm-button"))
+      .toHaveAttribute(
+        "href",
+        `/connect/logout?post_logout_redirect_uri=${encodeURIComponent(REDIRECT_URI)}`,
+      );
   });
 
   it("threads signed_out from the query string into the phase choice", async () => {
-    renderRouteAt(
+    await renderRouteAt(
       `/logout?signed_out=true&post_logout_redirect_uri=${encodeURIComponent(REDIRECT_URI)}`,
     );
 
-    expect(await screen.findByTestId("logout-confirm-heading")).toHaveTextContent("Signed out");
-    await waitFor(() => {
+    await expect
+      .element(page.getByTestId("logout-confirm-heading"))
+      .toHaveTextContent("Signed out");
+    await vi.waitFor(() => {
       expect(mocks.validateRedirectUri).toHaveBeenCalledWith(REDIRECT_URI);
     });
   });

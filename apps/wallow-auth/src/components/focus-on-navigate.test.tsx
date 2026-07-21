@@ -1,5 +1,3 @@
-// @vitest-environment jsdom
-import * as matchers from "@testing-library/jest-dom/matchers";
 import {
   createMemoryHistory,
   createRootRoute,
@@ -9,15 +7,11 @@ import {
   RouterProvider,
   type AnyRouter,
 } from "@tanstack/react-router";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { page } from "vitest/browser";
+import { render } from "vitest-browser-react";
 import { describe, expect, it } from "vitest";
 
 import { FocusOnNavigate, MAIN_HEADING_SELECTOR } from "./focus-on-navigate";
-
-// No global `expect` (vitest `globals` is off), so register the jest-dom
-// matchers explicitly — the `toHaveFocus`/`toHaveAttribute` convention
-// wallow-auth copies from wallow-web's RTL tests.
-expect.extend(matchers);
 
 /**
  * The React port of Blazor's `<FocusOnNavigate Selector="h1" />`
@@ -65,14 +59,12 @@ async function renderAt(initialPath: string, initialTestId: string): Promise<Any
   const router = buildRouter(initialPath);
   render(<RouterProvider router={router} />);
   // Wait for the initial route to resolve and paint before we drive navigation.
-  await screen.findByTestId(initialTestId);
+  await expect.element(page.getByTestId(initialTestId)).toBeInTheDocument();
   return router;
 }
 
 async function navigateTo(router: AnyRouter, path: string): Promise<void> {
-  await act(async () => {
-    await router.navigate({ to: path });
-  });
+  await router.navigate({ to: path });
 }
 
 describe("FocusOnNavigate", () => {
@@ -87,10 +79,7 @@ describe("FocusOnNavigate", () => {
 
     await navigateTo(router, "/register");
 
-    const heading: HTMLElement = await screen.findByTestId("register-heading");
-    await waitFor(() => {
-      expect(heading).toHaveFocus();
-    });
+    await expect.element(page.getByTestId("register-heading")).toHaveFocus();
   });
 
   it("makes the heading programmatically focusable without adding it to the tab order", async () => {
@@ -103,26 +92,18 @@ describe("FocusOnNavigate", () => {
 
     await navigateTo(router, "/register");
 
-    const heading: HTMLElement = await screen.findByTestId("register-heading");
-    await waitFor(() => {
-      expect(heading).toHaveFocus();
-    });
-    expect(heading).toHaveAttribute("tabindex", "-1");
+    await expect.element(page.getByTestId("register-heading")).toHaveFocus();
+    await expect.element(page.getByTestId("register-heading")).toHaveAttribute("tabindex", "-1");
   });
 
   it("re-targets the new heading on each navigation, not a stale one", async () => {
     const router = await renderAt("/login", "login-heading");
 
     await navigateTo(router, "/register");
-    await waitFor(() => {
-      expect(screen.getByTestId("register-heading")).toHaveFocus();
-    });
+    await expect.element(page.getByTestId("register-heading")).toHaveFocus();
 
     await navigateTo(router, "/login");
-    const loginHeading: HTMLElement = await screen.findByTestId("login-heading");
-    await waitFor(() => {
-      expect(loginHeading).toHaveFocus();
-    });
+    await expect.element(page.getByTestId("login-heading")).toHaveFocus();
   });
 
   it("does not steal focus on the initial page load", async () => {
@@ -132,10 +113,8 @@ describe("FocusOnNavigate", () => {
     // stays on the body rather than being yanked to the heading.
     await renderAt("/login", "login-heading");
 
-    await waitFor(() => {
-      expect(screen.getByTestId("login-heading")).toBeInTheDocument();
-    });
-    expect(screen.getByTestId("login-heading")).not.toHaveFocus();
-    expect(document.body).toHaveFocus();
+    await expect.element(page.getByTestId("login-heading")).toBeInTheDocument();
+    await expect.element(page.getByTestId("login-heading")).not.toHaveFocus();
+    expect(document.activeElement).toBe(document.body);
   });
 });

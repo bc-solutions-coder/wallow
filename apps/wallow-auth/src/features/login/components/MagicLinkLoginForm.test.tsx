@@ -1,5 +1,3 @@
-/** @vitest-environment jsdom */
-import * as matchers from "@testing-library/jest-dom/matchers";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,
@@ -8,17 +6,13 @@ import {
   Outlet,
   RouterProvider,
 } from "@tanstack/react-router";
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
+import { page, userEvent } from "vitest/browser";
+import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Route as loginRoute } from "../../../routes/login";
 import { LoginScreen, type LoginScreenProps } from "./LoginScreen";
-
-// No global `expect` (vitest `globals` is off) — register the jest-dom matchers
-// explicitly, as `LoginScreen.test.tsx` and the sibling ports do.
-expect.extend(matchers);
 
 /**
  * Component spec for the Login screen's MAGIC-LINK tab (Wallow-vec7.3.12 / 2.8b),
@@ -97,6 +91,16 @@ expect.extend(matchers);
  * A server-authored English sentence is still a machine token: it is matched
  * against and never shown. `neverRendersTheRawServerSentence` (send and verify)
  * pins that the oracle's `_ => result.Error`-style leak is not ported.
+ *
+ * ── NAVIGATION SEAM (Wallow-xzha.3.1 browser migration) ──────────────────────
+ *
+ * `window.location` is `[Unforgeable]` in real Chromium, so the jsdom-only
+ * `vi.stubGlobal("location", …)` hack is gone. The screen hands off with
+ * `globalThis.location.href = buildExchangeTicketUrl(origin, ticket, returnUrl)`,
+ * so the ticket-exchange tests assert the `buildExchangeTicketUrl` SEAM was called
+ * with the exact origin + ticket + returnUrl (deterministic, so equivalent to
+ * pinning the assigned string), and the builder mock returns a fragment-only
+ * sentinel so the assignment never navigates the Chromium runner.
  */
 
 // Hoisted so the vi.mock factories and the test bodies share the same spies.
@@ -133,6 +137,15 @@ vi.mock("@tanstack/react-router", async (importOriginal) => ({
 const EMAIL = "user@example.com";
 const CLIENT_ID = "web";
 const TICKET = "sign-in-ticket-xyz";
+
+/**
+ * The fragment-only sentinel the `buildExchangeTicketUrl` mock returns. Assigning
+ * a bare `#…` to `location.href` sets the hash WITHOUT navigating, so the screen's
+ * `globalThis.location.href = …` hand-off stays put and never tears down the
+ * Chromium runner. The exchange tests assert the builder's ARGUMENTS, not this
+ * value, so a constant return is safe here.
+ */
+const EXCHANGE_TICKET_SENTINEL = "#exchange-ticket-sentinel";
 
 /**
  * A token shaped like the one the service really mints:
@@ -202,15 +215,6 @@ function isSafeReturnUrlRule(url: string | null | undefined): boolean {
   return url.startsWith("/") && !url.startsWith("//");
 }
 
-/** The real `buildExchangeTicketUrl` shape, mirrored for the same reason. */
-function buildExchangeTicketUrlRule(origin: string, ticket: string, returnUrl: string): string {
-  return (
-    `${origin.replace(/\/+$/u, "")}/v1/identity/auth/exchange-ticket` +
-    `?ticket=${encodeURIComponent(ticket)}` +
-    `&returnUrl=${encodeURIComponent(returnUrl)}`
-  );
-}
-
 /**
  * What the facade really throws for this endpoint's failures. `title` stays
  * "Unknown error": these endpoints emit no problem details, so no human-readable
@@ -260,37 +264,23 @@ function renderScreen(props: Partial<LoginScreenProps> = {}) {
   return renderWithClient(<LoginScreen {...props} returnUrl={returnUrl} />);
 }
 
-/**
- * Replace `window.location` with a plain settable object so the screen's full
- * navigation is observable. jsdom refuses `vi.spyOn(window.location, "assign")`,
- * but `location` is a configurable accessor, so `vi.stubGlobal` swaps it
- * wholesale — and `globalThis === window` under jsdom, so the screen's
- * `globalThis.location.href = …` writes here.
- */
-function stubLocation(): { href: string } {
-  const location = { href: "" };
-  vi.stubGlobal("location", location);
-  return location;
-}
-
 /** Open the magic-link tab — the oracle's `SwitchTab(LoginTab.MagicLink)`. */
 async function openMagicLinkTab(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(await screen.findByTestId("login-tab-magic-link"));
+  await user.click(page.getByTestId("login-tab-magic-link"));
 }
 
 /** Fill in the magic-link tab and submit it — the oracle's `HandleSendMagicLink`. */
 async function submitEmail(user: ReturnType<typeof userEvent.setup>, email: string = EMAIL) {
   if (email !== "") {
-    await user.type(screen.getByTestId("login-magic-link-email"), email);
+    await user.type(page.getByTestId("login-magic-link-email"), email);
   }
-  await user.click(screen.getByTestId("login-magic-link-submit"));
+  await user.click(page.getByTestId("login-magic-link-submit"));
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.unstubAllGlobals();
   mocks.isSafeReturnUrl.mockImplementation(isSafeReturnUrlRule);
-  mocks.buildExchangeTicketUrl.mockImplementation(buildExchangeTicketUrlRule);
+  mocks.buildExchangeTicketUrl.mockReturnValue(EXCHANGE_TICKET_SENTINEL);
   mocks.sendMagicLink.mockResolvedValue({ succeeded: true });
   mocks.verifyMagicLink.mockResolvedValue({
     succeeded: true,
@@ -306,23 +296,23 @@ beforeEach(() => {
 describe("LoginScreen magic-link tab: sending", () => {
   it("shows the email field and send button in place of the password panel", async () => {
     const user = userEvent.setup();
-    renderScreen();
+    await renderScreen();
 
     await openMagicLinkTab(user);
 
-    expect(await screen.findByTestId("login-magic-link-email")).toBeInTheDocument();
-    expect(screen.getByTestId("login-magic-link-submit")).toBeInTheDocument();
+    await expect.element(page.getByTestId("login-magic-link-email")).toBeInTheDocument();
+    await expect.element(page.getByTestId("login-magic-link-submit")).toBeInTheDocument();
     // The oracle's tabs are an `else if` chain: one panel at a time.
-    expect(screen.queryByTestId("login-password")).toBeNull();
+    expect(page.getByTestId("login-password").query()).toBeNull();
   });
 
   it("does not send anything merely because the tab was opened", async () => {
     const user = userEvent.setup();
-    renderScreen();
+    await renderScreen();
 
     await openMagicLinkTab(user);
 
-    await screen.findByTestId("login-magic-link-submit");
+    await expect.element(page.getByTestId("login-magic-link-submit")).toBeInTheDocument();
     expect(mocks.sendMagicLink).not.toHaveBeenCalled();
   });
 
@@ -330,24 +320,24 @@ describe("LoginScreen magic-link tab: sending", () => {
     // The oracle's `IsNullOrWhiteSpace(_email)` guard: a blank send cannot succeed
     // and would spend one of the address's rate-limit allowance.
     const user = userEvent.setup();
-    renderScreen();
+    await renderScreen();
 
     await openMagicLinkTab(user);
     await submitEmail(user, "");
 
-    expect(await screen.findByTestId("login-error")).toHaveTextContent(BLANK_EMAIL_MESSAGE);
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent(BLANK_EMAIL_MESSAGE);
     expect(mocks.sendMagicLink).not.toHaveBeenCalled();
   });
 
   it("refuses a whitespace-only email without calling the API", async () => {
     // WHITEspace, not just empty — `IsNullOrWhiteSpace`, so "   " is blank.
     const user = userEvent.setup();
-    renderScreen();
+    await renderScreen();
 
     await openMagicLinkTab(user);
     await submitEmail(user, "   ");
 
-    expect(await screen.findByTestId("login-error")).toHaveTextContent(BLANK_EMAIL_MESSAGE);
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent(BLANK_EMAIL_MESSAGE);
     expect(mocks.sendMagicLink).not.toHaveBeenCalled();
   });
 
@@ -356,12 +346,12 @@ describe("LoginScreen magic-link tab: sending", () => {
     // along so `MagicLinkRequestedNotificationHandler.cs:21-31` can put them back
     // on the EMAILED link and land the user in the same OIDC flow they left.
     const user = userEvent.setup();
-    renderScreen({ clientId: CLIENT_ID });
+    await renderScreen({ clientId: CLIENT_ID });
 
     await openMagicLinkTab(user);
     await submitEmail(user);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.sendMagicLink).toHaveBeenCalledWith({
         email: EMAIL,
         returnUrl: RETURN_URL,
@@ -372,12 +362,12 @@ describe("LoginScreen magic-link tab: sending", () => {
 
   it("sends without cargo when the link carries no returnUrl or client_id", async () => {
     const user = userEvent.setup();
-    renderScreen({ returnUrl: undefined });
+    await renderScreen({ returnUrl: undefined });
 
     await openMagicLinkTab(user);
     await submitEmail(user);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.sendMagicLink).toHaveBeenCalledWith({
         email: EMAIL,
         returnUrl: undefined,
@@ -391,13 +381,13 @@ describe("LoginScreen magic-link tab: sending", () => {
     // the user's inbox, and a form still on screen invites a second send that the
     // rate limiter will refuse.
     const user = userEvent.setup();
-    renderScreen();
+    await renderScreen();
 
     await openMagicLinkTab(user);
     await submitEmail(user);
 
-    expect(await screen.findByTestId("login-magic-link-sent")).toHaveTextContent(SENT_MESSAGE);
-    expect(screen.queryByTestId("login-magic-link-submit")).toBeNull();
+    await expect.element(page.getByTestId("login-magic-link-sent")).toHaveTextContent(SENT_MESSAGE);
+    expect(page.getByTestId("login-magic-link-submit").query()).toBeNull();
   });
 
   it("does not name the address in the confirmation", async () => {
@@ -407,12 +397,12 @@ describe("LoginScreen magic-link tab: sending", () => {
     // the confirmation is the one artefact both backend outcomes share and it stays
     // a constant (bd memory `anti-enumeration-pattern-for-endpoints-that-must-not`).
     const user = userEvent.setup();
-    renderScreen();
+    await renderScreen();
 
     await openMagicLinkTab(user);
     await submitEmail(user);
 
-    expect(await screen.findByTestId("login-magic-link-sent")).not.toHaveTextContent(EMAIL);
+    await expect.element(page.getByTestId("login-magic-link-sent")).not.toHaveTextContent(EMAIL);
   });
 
   it("disables the send button while the request is in flight", async () => {
@@ -424,49 +414,47 @@ describe("LoginScreen magic-link tab: sending", () => {
       }),
     );
     const user = userEvent.setup();
-    renderScreen();
+    await renderScreen();
 
     await openMagicLinkTab(user);
     await submitEmail(user);
 
-    await waitFor(() => {
-      expect(screen.getByTestId("login-magic-link-submit")).toBeDisabled();
-    });
+    await expect.element(page.getByTestId("login-magic-link-submit")).toBeDisabled();
 
     release({ succeeded: true });
-    expect(await screen.findByTestId("login-magic-link-sent")).toBeInTheDocument();
+    await expect.element(page.getByTestId("login-magic-link-sent")).toBeInTheDocument();
   });
 
   it("clears a previous error before retrying", async () => {
     // The oracle's `_errorMessage = null` at the top of `HandleSendMagicLink`: a
     // stale banner hanging over an in-flight retry is a lie.
     const user = userEvent.setup();
-    renderScreen();
+    await renderScreen();
 
     await openMagicLinkTab(user);
     await submitEmail(user, "");
-    expect(await screen.findByTestId("login-error")).toHaveTextContent(BLANK_EMAIL_MESSAGE);
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent(BLANK_EMAIL_MESSAGE);
 
     await submitEmail(user);
 
-    expect(await screen.findByTestId("login-magic-link-sent")).toBeInTheDocument();
-    expect(screen.queryByTestId("login-error")).toBeNull();
+    await expect.element(page.getByTestId("login-magic-link-sent")).toBeInTheDocument();
+    expect(page.getByTestId("login-error").query()).toBeNull();
   });
 
   it("clears the sent confirmation when the user leaves the tab and returns", async () => {
     // The oracle's `SwitchTab` resets `_magicLinkSent`, so the tab is usable again.
     const user = userEvent.setup();
-    renderScreen();
+    await renderScreen();
 
     await openMagicLinkTab(user);
     await submitEmail(user);
-    await screen.findByTestId("login-magic-link-sent");
+    await expect.element(page.getByTestId("login-magic-link-sent")).toBeInTheDocument();
 
-    await user.click(screen.getByTestId("login-tab-password"));
+    await user.click(page.getByTestId("login-tab-password"));
     await openMagicLinkTab(user);
 
-    expect(await screen.findByTestId("login-magic-link-submit")).toBeInTheDocument();
-    expect(screen.queryByTestId("login-magic-link-sent")).toBeNull();
+    await expect.element(page.getByTestId("login-magic-link-submit")).toBeInTheDocument();
+    expect(page.getByTestId("login-magic-link-sent").query()).toBeNull();
   });
 
   it("fails closed when the send response is not a shape this screen understands", async () => {
@@ -475,13 +463,13 @@ describe("LoginScreen magic-link tab: sending", () => {
     // its own boundary and a body it cannot read is NOT a sent link.
     mocks.sendMagicLink.mockResolvedValue({});
     const user = userEvent.setup();
-    renderScreen();
+    await renderScreen();
 
     await openMagicLinkTab(user);
     await submitEmail(user);
 
-    expect(await screen.findByTestId("login-error")).toHaveTextContent(GENERIC_MESSAGE);
-    expect(screen.queryByTestId("login-magic-link-sent")).toBeNull();
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent(GENERIC_MESSAGE);
+    expect(page.getByTestId("login-magic-link-sent").query()).toBeNull();
   });
 
   it("does not accept a stringly-typed succeeded flag", async () => {
@@ -489,13 +477,13 @@ describe("LoginScreen magic-link tab: sending", () => {
     // STRING "false". Strict `=== true` is the only place that can be rejected.
     mocks.sendMagicLink.mockResolvedValue({ succeeded: "false" });
     const user = userEvent.setup();
-    renderScreen();
+    await renderScreen();
 
     await openMagicLinkTab(user);
     await submitEmail(user);
 
-    expect(await screen.findByTestId("login-error")).toHaveTextContent(GENERIC_MESSAGE);
-    expect(screen.queryByTestId("login-magic-link-sent")).toBeNull();
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent(GENERIC_MESSAGE);
+    expect(page.getByTestId("login-magic-link-sent").query()).toBeNull();
   });
 });
 
@@ -503,13 +491,13 @@ describe("LoginScreen magic-link tab: send failures", () => {
   it("tells a rate-limited user to wait rather than to try again", async () => {
     mocks.sendMagicLink.mockRejectedValue(rejection(400, RATE_LIMITED_TOKEN));
     const user = userEvent.setup();
-    renderScreen();
+    await renderScreen();
 
     await openMagicLinkTab(user);
     await submitEmail(user);
 
-    expect(await screen.findByTestId("login-error")).toHaveTextContent(RATE_LIMITED_MESSAGE);
-    expect(screen.queryByTestId("login-magic-link-sent")).toBeNull();
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent(RATE_LIMITED_MESSAGE);
+    expect(page.getByTestId("login-magic-link-sent").query()).toBeNull();
   });
 
   it("never renders the raw server sentence on a failed send", async () => {
@@ -518,24 +506,25 @@ describe("LoginScreen magic-link tab: send failures", () => {
     // family of tails is what this port refuses to reproduce.
     mocks.sendMagicLink.mockRejectedValue(rejection(400, RATE_LIMITED_TOKEN));
     const user = userEvent.setup();
-    renderScreen();
+    await renderScreen();
 
     await openMagicLinkTab(user);
     await submitEmail(user);
 
-    const banner: HTMLElement = await screen.findByTestId("login-error");
-    expect(banner).not.toHaveTextContent("Rate limit exceeded");
+    await expect
+      .element(page.getByTestId("login-error"))
+      .not.toHaveTextContent("Rate limit exceeded");
   });
 
   it("falls back to the generic tail for a send failure it has never heard of", async () => {
     mocks.sendMagicLink.mockRejectedValue(rejection(400, "some_new_token"));
     const user = userEvent.setup();
-    renderScreen();
+    await renderScreen();
 
     await openMagicLinkTab(user);
     await submitEmail(user);
 
-    expect(await screen.findByTestId("login-error")).toHaveTextContent(GENERIC_MESSAGE);
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent(GENERIC_MESSAGE);
   });
 
   it("tells the user the server is unreachable when the send never lands", async () => {
@@ -545,24 +534,24 @@ describe("LoginScreen magic-link tab: send failures", () => {
     // address that was fine.
     mocks.sendMagicLink.mockRejectedValue(networkRejection());
     const user = userEvent.setup();
-    renderScreen();
+    await renderScreen();
 
     await openMagicLinkTab(user);
     await submitEmail(user);
 
-    expect(await screen.findByTestId("login-error")).toHaveTextContent(UNREACHABLE_MESSAGE);
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent(UNREACHABLE_MESSAGE);
   });
 
   it("leaves the form up after a failed send so the user can retry", async () => {
     mocks.sendMagicLink.mockRejectedValue(networkRejection());
     const user = userEvent.setup();
-    renderScreen();
+    await renderScreen();
 
     await openMagicLinkTab(user);
     await submitEmail(user);
 
-    await screen.findByTestId("login-error");
-    expect(screen.getByTestId("login-magic-link-submit")).toBeEnabled();
+    await expect.element(page.getByTestId("login-error")).toBeInTheDocument();
+    await expect.element(page.getByTestId("login-magic-link-submit")).toBeEnabled();
   });
 });
 
@@ -575,46 +564,43 @@ describe("LoginScreen magic-link auto-verify", () => {
     // The oracle's `HandleVerifyMagicLink` sets `_activeTab = LoginTab.MagicLink`
     // before it does anything else: the user clicked a link in their inbox and must
     // land where the outcome will be reported.
-    stubLocation();
-    renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
+    await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
 
-    expect(await screen.findByTestId("login-tab-magic-link")).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
-    expect(screen.getByTestId("login-tab-password")).toHaveAttribute("aria-selected", "false");
+    await expect
+      .element(page.getByTestId("login-tab-magic-link"))
+      .toHaveAttribute("aria-selected", "true");
+    await expect
+      .element(page.getByTestId("login-tab-password"))
+      .toHaveAttribute("aria-selected", "false");
   });
 
   it("verifies the token on load without the user clicking anything", async () => {
-    stubLocation();
-    renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
+    await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.verifyMagicLink).toHaveBeenCalledWith({ token: MAGIC_LINK_TOKEN });
     });
   });
 
   it("opens on the password tab and verifies nothing when there is no token", async () => {
     // The guard against an implementation that is always in the magic-link tab.
-    renderScreen({ magicLinkToken: undefined });
+    await renderScreen({ magicLinkToken: undefined });
 
-    expect(await screen.findByTestId("login-tab-password")).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
-    expect(screen.getByTestId("login-password")).toBeInTheDocument();
+    await expect
+      .element(page.getByTestId("login-tab-password"))
+      .toHaveAttribute("aria-selected", "true");
+    await expect.element(page.getByTestId("login-password")).toBeInTheDocument();
     expect(mocks.verifyMagicLink).not.toHaveBeenCalled();
   });
 
   it("treats an empty token as no token", async () => {
     // `IsNullOrEmpty(MagicLinkToken)` parity: `""` is not nullish, and verifying it
     // would spend a request to be told the format is invalid.
-    renderScreen({ magicLinkToken: "" });
+    await renderScreen({ magicLinkToken: "" });
 
-    expect(await screen.findByTestId("login-tab-password")).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
+    await expect
+      .element(page.getByTestId("login-tab-password"))
+      .toHaveAttribute("aria-selected", "true");
     expect(mocks.verifyMagicLink).not.toHaveBeenCalled();
   });
 
@@ -627,9 +613,9 @@ describe("LoginScreen magic-link auto-verify", () => {
     // `exactly-once-server-mutations-in-react-need-a-ref-not-just-deps`; React
     // StrictMode double-invokes effects in dev for the same reason).
     mocks.verifyMagicLink.mockRejectedValue(rejection(401, EXPIRED_TOKEN));
-    renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
+    await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
 
-    await screen.findByTestId("login-error");
+    await expect.element(page.getByTestId("login-error")).toBeInTheDocument();
     // Give a runaway effect the chance to fire again before counting.
     await new Promise((resolve) => {
       setTimeout(resolve, 50);
@@ -651,23 +637,25 @@ describe("LoginScreen magic-link auto-verify", () => {
     // and an absolute origin would send the browser cross-origin and DROP the
     // SameSite auth cookie the exchange endpoint just set — which is the entire
     // point of the ticket (bd memory `wallow-auth-screens-must-pass-origin-same-origin`).
-    const location = stubLocation();
-    renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN, clientId: CLIENT_ID });
+    //
+    // Browser seam: `location.href` is unforgeable in Chromium, so instead of
+    // pinning the assigned string we pin the deterministic `buildExchangeTicketUrl`
+    // builder's arguments — the empty origin `""` is exactly the "same-origin, no
+    // localhost:5001" claim the old `location.href` assertions made.
+    await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN, clientId: CLIENT_ID });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.buildExchangeTicketUrl).toHaveBeenCalledWith("", TICKET, RETURN_URL);
     });
-    expect(location.href).toBe(buildExchangeTicketUrlRule("", TICKET, RETURN_URL));
-    expect(location.href).not.toContain("localhost:5001");
     expect(mocks.navigate).not.toHaveBeenCalledWith({ href: ERROR_HREF });
   });
 
   it("signs the user in when the emailed link carried no returnUrl", async () => {
     // A magic link requested from a bare `/login` has no OIDC flow to resume, so
     // there is nowhere to send the user — say so rather than invent a destination.
-    renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN, returnUrl: undefined });
+    await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN, returnUrl: undefined });
 
-    expect(await screen.findByTestId("login-signed-in")).toBeInTheDocument();
+    await expect.element(page.getByTestId("login-signed-in")).toBeInTheDocument();
     expect(mocks.buildExchangeTicketUrl).not.toHaveBeenCalled();
   });
 
@@ -675,10 +663,9 @@ describe("LoginScreen magic-link auto-verify", () => {
     // The CLIENT picks this destination (`location.href` built from returnUrl), so
     // the guard belongs here — and it is the SHELL's, reached by handing the raw
     // body up. REFUSE, don't sanitize.
-    stubLocation();
-    renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN, returnUrl: EVIL_RETURN_URL });
+    await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN, returnUrl: EVIL_RETURN_URL });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalledWith({ href: ERROR_HREF });
     });
     expect(mocks.buildExchangeTicketUrl).not.toHaveBeenCalled();
@@ -692,10 +679,9 @@ describe("LoginScreen magic-link auto-verify", () => {
     // which is what stops three panels from disagreeing about where a
     // half-authenticated user lands.
     mocks.verifyMagicLink.mockResolvedValue({ succeeded: false, mfaRequired: true });
-    stubLocation();
-    renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
+    await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalledWith({
         href: `/mfa/challenge?returnUrl=${encodeURIComponent(RETURN_URL)}`,
       });
@@ -706,9 +692,9 @@ describe("LoginScreen magic-link auto-verify", () => {
 describe("LoginScreen magic-link verify failures", () => {
   it("maps a spent token to the oracle's expired copy", async () => {
     mocks.verifyMagicLink.mockRejectedValue(rejection(401, EXPIRED_TOKEN));
-    renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
+    await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
 
-    expect(await screen.findByTestId("login-error")).toHaveTextContent(EXPIRED_MESSAGE);
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent(EXPIRED_MESSAGE);
   });
 
   it("maps a bad signature to the expired copy too", async () => {
@@ -718,9 +704,9 @@ describe("LoginScreen magic-link verify failures", () => {
     // meant is mapped in its place (bd memory `blazor-oracle-dead-branch-pattern-
     // check-the-wire-before-porting`).
     mocks.verifyMagicLink.mockRejectedValue(rejection(401, INVALID_TOKEN));
-    renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
+    await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
 
-    expect(await screen.findByTestId("login-error")).toHaveTextContent(EXPIRED_MESSAGE);
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent(EXPIRED_MESSAGE);
   });
 
   it("does not promise a new link will help when the token is malformed", async () => {
@@ -732,61 +718,61 @@ describe("LoginScreen magic-link verify failures", () => {
     // THIS one — which is the whole reason it exists (bd memory `code-keyed-error-
     // mapping-needs-an-unrecognised-code-test-to-bind`). Do not "simplify" it away.
     mocks.verifyMagicLink.mockRejectedValue(rejection(401, INVALID_TOKEN_FORMAT_TOKEN));
-    renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
+    await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
 
-    expect(await screen.findByTestId("login-error")).toHaveTextContent(VERIFY_FAILED_MESSAGE);
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent(VERIFY_FAILED_MESSAGE);
   });
 
   it("falls back to the verify tail for a token on the same status it has never heard of", async () => {
     mocks.verifyMagicLink.mockRejectedValue(rejection(401, "some_new_token"));
-    renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
+    await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
 
-    expect(await screen.findByTestId("login-error")).toHaveTextContent(VERIFY_FAILED_MESSAGE);
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent(VERIFY_FAILED_MESSAGE);
   });
 
   it("never renders the raw server sentence on a failed verify", async () => {
     mocks.verifyMagicLink.mockRejectedValue(rejection(401, EXPIRED_TOKEN));
-    renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
+    await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
 
-    const banner: HTMLElement = await screen.findByTestId("login-error");
-    expect(banner).not.toHaveTextContent("Token expired or already used");
+    await expect
+      .element(page.getByTestId("login-error"))
+      .not.toHaveTextContent("Token expired or already used");
   });
 
   it("never renders the token itself", async () => {
     // The token is a live credential until it is redeemed. It is in the URL, but
     // that is not a reason to paint it into the page.
     mocks.verifyMagicLink.mockRejectedValue(rejection(401, EXPIRED_TOKEN));
-    const { container } = renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
+    const { container } = await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
 
-    await screen.findByTestId("login-error");
+    await expect.element(page.getByTestId("login-error")).toBeInTheDocument();
     expect(container.textContent).not.toContain(MAGIC_LINK_TOKEN);
   });
 
   it("tells the user the server is unreachable when the verify never lands", async () => {
     mocks.verifyMagicLink.mockRejectedValue(networkRejection());
-    renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
+    await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
 
-    expect(await screen.findByTestId("login-error")).toHaveTextContent(UNREACHABLE_MESSAGE);
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent(UNREACHABLE_MESSAGE);
   });
 
   it("offers the send form again after a failed verify", async () => {
     // "Please request a new one" is only advice if the user can act on it.
     mocks.verifyMagicLink.mockRejectedValue(rejection(401, EXPIRED_TOKEN));
-    renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
+    await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
 
-    await screen.findByTestId("login-error");
-    expect(screen.getByTestId("login-magic-link-email")).toBeInTheDocument();
-    expect(screen.getByTestId("login-magic-link-submit")).toBeEnabled();
+    await expect.element(page.getByTestId("login-error")).toBeInTheDocument();
+    await expect.element(page.getByTestId("login-magic-link-email")).toBeInTheDocument();
+    await expect.element(page.getByTestId("login-magic-link-submit")).toBeEnabled();
   });
 
   it("does not exchange a ticket when the verify fails", async () => {
-    stubLocation();
     mocks.verifyMagicLink.mockRejectedValue(rejection(401, EXPIRED_TOKEN));
-    renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
+    await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
 
-    await screen.findByTestId("login-error");
+    await expect.element(page.getByTestId("login-error")).toBeInTheDocument();
     expect(mocks.buildExchangeTicketUrl).not.toHaveBeenCalled();
-    expect(screen.queryByTestId("login-signed-in")).toBeNull();
+    expect(page.getByTestId("login-signed-in").query()).toBeNull();
   });
 });
 
@@ -828,10 +814,9 @@ function emailedLink(token: string, returnUrl: string, clientId: string): string
 
 describe("/login route: magic link", () => {
   it("threads magicLinkToken out of the query string into the verify call", async () => {
-    stubLocation();
-    renderRouteAt(emailedLink(MAGIC_LINK_TOKEN, RETURN_URL, CLIENT_ID));
+    await renderRouteAt(emailedLink(MAGIC_LINK_TOKEN, RETURN_URL, CLIENT_ID));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.verifyMagicLink).toHaveBeenCalledWith({ token: MAGIC_LINK_TOKEN });
     });
   });
@@ -840,30 +825,32 @@ describe("/login route: magic link", () => {
     // ── THE WHOLE FEATURE, THROUGH THE REAL ROUTE. ──
     // A user clicks the link in their inbox and lands back in the OIDC flow they
     // started. Nothing here is a hostile input: if this fails, the tab is an outage.
-    const location = stubLocation();
-    renderRouteAt(emailedLink(MAGIC_LINK_TOKEN, RETURN_URL, CLIENT_ID));
+    // Browser seam: the deterministic builder's `returnUrl` argument stands in for
+    // the old `location.href` contains-returnUrl assertion.
+    await renderRouteAt(emailedLink(MAGIC_LINK_TOKEN, RETURN_URL, CLIENT_ID));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.buildExchangeTicketUrl).toHaveBeenCalledWith("", TICKET, RETURN_URL);
     });
-    expect(location.href).toContain(encodeURIComponent(RETURN_URL));
   });
 
   it("renders the password tab for a bare /login and verifies nothing", async () => {
-    renderRouteAt("/login");
+    await renderRouteAt("/login");
 
-    expect(await screen.findByTestId("login-password")).toBeInTheDocument();
+    await expect.element(page.getByTestId("login-password")).toBeInTheDocument();
     expect(mocks.verifyMagicLink).not.toHaveBeenCalled();
   });
 
   it("threads returnUrl and client_id from the query string into a send", async () => {
     const user = userEvent.setup();
-    renderRouteAt(`/login?returnUrl=${encodeURIComponent(RETURN_URL)}&client_id=${CLIENT_ID}`);
+    await renderRouteAt(
+      `/login?returnUrl=${encodeURIComponent(RETURN_URL)}&client_id=${CLIENT_ID}`,
+    );
 
     await openMagicLinkTab(user);
     await submitEmail(user);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.sendMagicLink).toHaveBeenCalledWith({
         email: EMAIL,
         returnUrl: RETURN_URL,
@@ -880,9 +867,9 @@ describe("/login route: magic link", () => {
     // by the server, not matched against literals, and a real token always carries
     // base64 padding (`=`) so it can never be parsed into a scalar. A junk link
     // must still render a usable form rather than throw a validation error.
-    renderRouteAt("/login?magicLinkToken=123");
+    await renderRouteAt("/login?magicLinkToken=123");
 
-    expect(await screen.findByTestId("login-password")).toBeInTheDocument();
+    await expect.element(page.getByTestId("login-password")).toBeInTheDocument();
     expect(mocks.verifyMagicLink).not.toHaveBeenCalled();
   });
 });

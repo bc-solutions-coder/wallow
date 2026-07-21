@@ -1,14 +1,9 @@
-/** @vitest-environment jsdom */
-import * as matchers from "@testing-library/jest-dom/matchers";
-import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
+import { page, userEvent } from "vitest/browser";
+import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DashboardNav } from "./DashboardNav";
-
-// No global `expect` (vitest `globals` is off); register jest-dom matchers.
-expect.extend(matchers);
 
 const logoutMock = vi.hoisted(() => vi.fn());
 
@@ -43,21 +38,21 @@ describe("DashboardNav admin gate", () => {
     vi.clearAllMocks();
   });
 
-  it("shows the Organizations link for an admin", () => {
-    render(<DashboardNav isAdmin />);
-    expect(screen.getByTestId("dashboard-nav-organizations")).toBeInTheDocument();
+  it("shows the Organizations link for an admin", async () => {
+    await render(<DashboardNav isAdmin />);
+    await expect.element(page.getByTestId("dashboard-nav-organizations")).toBeInTheDocument();
   });
 
-  it("hides the Organizations link for a non-admin", () => {
-    render(<DashboardNav isAdmin={false} />);
-    expect(screen.queryByTestId("dashboard-nav-organizations")).not.toBeInTheDocument();
+  it("hides the Organizations link for a non-admin", async () => {
+    await render(<DashboardNav isAdmin={false} />);
+    await expect.element(page.getByTestId("dashboard-nav-organizations")).not.toBeInTheDocument();
   });
 
-  it("keeps the non-gated links visible for a non-admin", () => {
-    render(<DashboardNav isAdmin={false} />);
-    expect(screen.getByTestId("dashboard-nav-apps")).toBeInTheDocument();
-    expect(screen.getByTestId("dashboard-nav-settings")).toBeInTheDocument();
-    expect(screen.getByTestId("dashboard-nav-inquiries")).toBeInTheDocument();
+  it("keeps the non-gated links visible for a non-admin", async () => {
+    await render(<DashboardNav isAdmin={false} />);
+    await expect.element(page.getByTestId("dashboard-nav-apps")).toBeInTheDocument();
+    await expect.element(page.getByTestId("dashboard-nav-settings")).toBeInTheDocument();
+    await expect.element(page.getByTestId("dashboard-nav-inquiries")).toBeInTheDocument();
   });
 });
 
@@ -66,16 +61,15 @@ describe("DashboardNav logout", () => {
     vi.clearAllMocks();
   });
 
-  it("renders a logout link", () => {
-    render(<DashboardNav />);
-    expect(screen.getByTestId("dashboard-logout-link")).toBeInTheDocument();
+  it("renders a logout link", async () => {
+    await render(<DashboardNav />);
+    await expect.element(page.getByTestId("dashboard-logout-link")).toBeInTheDocument();
   });
 
   it("calls the BFF logout when the logout link is activated", async () => {
-    const user = userEvent.setup();
-    render(<DashboardNav />);
+    await render(<DashboardNav />);
 
-    await user.click(screen.getByTestId("dashboard-logout-link"));
+    await userEvent.click(page.getByTestId("dashboard-logout-link"));
 
     expect(logoutMock).toHaveBeenCalled();
   });

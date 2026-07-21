@@ -1,16 +1,10 @@
-/** @vitest-environment jsdom */
-import * as matchers from "@testing-library/jest-dom/matchers";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
 import type { ReactElement } from "react";
+import { page } from "vitest/browser";
+import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { OrganizationList } from "./OrganizationList";
-
-// No global `expect` (vitest `globals` is off), so register the jest-dom
-// matchers explicitly. This is the DOM-matcher convention for wallow-web's RTL
-// tests (Phases 4-6 copy it).
-expect.extend(matchers);
 
 /**
  * Component spec for the CANONICAL list-page (Wallow-8w1h.4.2). The
@@ -18,11 +12,11 @@ expect.extend(matchers);
  * states are driven by seeding the `['orgs']` cache with `setQueryData`, and the
  * loading state by leaving the query to hit a never-resolving facade call.
  *
- * These are the FIRST React Testing Library tests in wallow-web, so this file
- * establishes the jsdom pragma + `@testing-library/jest-dom` import convention
- * (no global setupFiles is wired). Testids follow `{page}-{element}` kebab-case;
- * per-row testid is `organization-item` (the bead spec overrides the Blazor
- * oracle's `organizations-row`).
+ * Runs under the browser-mode project (real Chromium via `vitest-browser-react`;
+ * Wallow-xzha.3.2), so there is no jsdom pragma and no `@testing-library/*`.
+ * Testids follow `{page}-{element}` kebab-case; per-row testid is
+ * `organization-item` (the bead spec overrides the Blazor oracle's
+ * `organizations-row`).
  */
 
 // Hoisted so the vi.mock factory and the test bodies share the same spies.
@@ -65,10 +59,12 @@ describe("OrganizationList", () => {
 
     renderWithClient(client, <OrganizationList />);
 
-    const items = await screen.findAllByTestId("organization-item");
-    expect(items).toHaveLength(2);
-    expect(screen.getByText("Acme")).toBeInTheDocument();
-    expect(screen.getByText("Globex")).toBeInTheDocument();
+    await expect.element(page.getByTestId("organization-item").first()).toBeInTheDocument();
+    expect(page.getByTestId("organization-item").elements()).toHaveLength(2);
+    // Exact match: `getByText` is substring-by-default in the browser provider,
+    // so "Globex" would otherwise also match the "globex.io" domain cell.
+    await expect.element(page.getByText("Acme", { exact: true })).toBeInTheDocument();
+    await expect.element(page.getByText("Globex", { exact: true })).toBeInTheDocument();
   });
 
   it("renders the empty state and no rows when the org list is empty", async () => {
@@ -77,11 +73,11 @@ describe("OrganizationList", () => {
 
     renderWithClient(client, <OrganizationList />);
 
-    expect(await screen.findByTestId("organizations-empty-state")).toBeInTheDocument();
-    expect(screen.queryAllByTestId("organization-item")).toHaveLength(0);
+    await expect.element(page.getByTestId("organizations-empty-state")).toBeInTheDocument();
+    expect(page.getByTestId("organization-item").elements()).toHaveLength(0);
   });
 
-  it("renders a loading indicator while the list query is pending", () => {
+  it("renders a loading indicator while the list query is pending", async () => {
     const client = newClient();
     // No cached data -> the query fires; the facade never resolves, so the
     // component stays in its loading state.
@@ -89,7 +85,7 @@ describe("OrganizationList", () => {
 
     renderWithClient(client, <OrganizationList />);
 
-    expect(screen.getByTestId("organizations-loading")).toBeInTheDocument();
-    expect(screen.queryAllByTestId("organization-item")).toHaveLength(0);
+    await expect.element(page.getByTestId("organizations-loading")).toBeInTheDocument();
+    expect(page.getByTestId("organization-item").elements()).toHaveLength(0);
   });
 });

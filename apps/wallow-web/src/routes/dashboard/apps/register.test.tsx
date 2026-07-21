@@ -1,16 +1,11 @@
-/** @vitest-environment jsdom */
-import * as matchers from "@testing-library/jest-dom/matchers";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
 import type { ReactElement } from "react";
+import { page } from "vitest/browser";
+import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createRouter } from "../../../router";
 import { Route } from "./register";
-
-// No global `expect` (vitest `globals` is off), so register the jest-dom
-// matchers explicitly (same convention as the component tests).
-expect.extend(matchers);
 
 /**
  * Route spec for the register-app route (Wallow-ffpq.3.5) — the intended mount
@@ -60,22 +55,22 @@ describe("routes/dashboard/apps/register (route page)", () => {
     expect(Route.options.component).toBeDefined();
   });
 
-  it("renders a page root carrying data-testid=dashboard-apps-register", () => {
+  it("renders a page root carrying data-testid=dashboard-apps-register", async () => {
     const client = newClient();
 
     const Page = Route.options.component!;
     renderWithClient(client, <Page />);
 
-    expect(screen.getByTestId("dashboard-apps-register")).toBeInTheDocument();
+    await expect.element(page.getByTestId("dashboard-apps-register")).toBeInTheDocument();
   });
 
-  it("mounts the RegisterAppForm (app-register-form)", () => {
+  it("mounts the RegisterAppForm (app-register-form)", async () => {
     const client = newClient();
 
     const Page = Route.options.component!;
     renderWithClient(client, <Page />);
 
-    expect(screen.getByTestId("app-register-form")).toBeInTheDocument();
+    await expect.element(page.getByTestId("app-register-form")).toBeInTheDocument();
   });
 });
 

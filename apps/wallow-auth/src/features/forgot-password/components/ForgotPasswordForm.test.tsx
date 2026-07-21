@@ -1,18 +1,11 @@
-/** @vitest-environment jsdom */
-import * as matchers from "@testing-library/jest-dom/matchers";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
+import { page, userEvent } from "vitest/browser";
+import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Route as forgotPasswordRoute } from "../../../routes/forgot-password";
 import { ForgotPasswordForm } from "./ForgotPasswordForm";
-
-// No global `expect` (vitest `globals` is off), so register the jest-dom
-// matchers explicitly — the DOM-matcher convention wallow-web's RTL tests
-// established and wallow-auth copies.
-expect.extend(matchers);
 
 /**
  * Component spec for the ForgotPassword screen (Wallow-vec7.3.1), ported from
@@ -73,8 +66,8 @@ function renderWithClient(ui: ReactElement) {
 
 /** Fill the email field and press submit — the whole happy interaction. */
 async function submitEmail(user: ReturnType<typeof userEvent.setup>, email: string = EMAIL) {
-  await user.type(screen.getByTestId("forgot-password-email"), email);
-  await user.click(screen.getByTestId("forgot-password-submit"));
+  await user.type(page.getByTestId("forgot-password-email"), email);
+  await user.click(page.getByTestId("forgot-password-submit"));
 }
 
 /**
@@ -84,7 +77,7 @@ async function submitEmail(user: ReturnType<typeof userEvent.setup>, email: stri
  * screen in this app would introduce.
  */
 function expectNoErrorSurface() {
-  expect(screen.queryByTestId("forgot-password-error")).toBeNull();
+  expect(page.getByTestId("forgot-password-error").query()).toBeNull();
 }
 
 beforeEach(() => {
@@ -93,61 +86,60 @@ beforeEach(() => {
 });
 
 describe("ForgotPasswordForm", () => {
-  it("renders the oracle's form fields, and no success message before submit", () => {
-    renderWithClient(<ForgotPasswordForm />);
+  it("renders the oracle's form fields, and no success message before submit", async () => {
+    await renderWithClient(<ForgotPasswordForm />);
 
-    expect(screen.getByTestId("forgot-password-email")).toBeInTheDocument();
-    expect(screen.getByTestId("forgot-password-submit")).toBeInTheDocument();
-    expect(screen.queryByTestId("forgot-password-success")).toBeNull();
+    await expect.element(page.getByTestId("forgot-password-email")).toBeInTheDocument();
+    await expect.element(page.getByTestId("forgot-password-submit")).toBeInTheDocument();
+    expect(page.getByTestId("forgot-password-success").query()).toBeNull();
   });
 
-  it("links back to sign in", () => {
+  it("links back to sign in", async () => {
     // The oracle's card footer. It has no testid in the Blazor original and the
     // scout's inventory forbids inventing one for an element that shipped
     // without it, so this asserts the link by role + href instead.
-    renderWithClient(<ForgotPasswordForm />);
+    await renderWithClient(<ForgotPasswordForm />);
 
-    expect(screen.getByRole("link", { name: /back to sign in/iu })).toHaveAttribute(
-      "href",
-      "/login",
-    );
+    await expect
+      .element(page.getByRole("link", { name: /back to sign in/iu }))
+      .toHaveAttribute("href", "/login");
   });
 
   it("sends the typed email to the forgot-password endpoint", async () => {
     const user = userEvent.setup();
-    renderWithClient(<ForgotPasswordForm />);
+    await renderWithClient(<ForgotPasswordForm />);
 
     await submitEmail(user);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.forgotPassword).toHaveBeenCalledWith({ email: EMAIL });
     });
   });
 
   it("replaces the form with the confirmation once the request is sent", async () => {
     const user = userEvent.setup();
-    renderWithClient(<ForgotPasswordForm />);
+    await renderWithClient(<ForgotPasswordForm />);
 
     await submitEmail(user);
 
     // The oracle swaps the whole card content on `_submitted` — the form goes
     // away, so the user cannot re-submit into the same success state.
-    expect(await screen.findByTestId("forgot-password-success")).toBeInTheDocument();
-    expect(screen.queryByTestId("forgot-password-email")).toBeNull();
-    expect(screen.queryByTestId("forgot-password-submit")).toBeNull();
+    await expect.element(page.getByTestId("forgot-password-success")).toBeInTheDocument();
+    expect(page.getByTestId("forgot-password-email").query()).toBeNull();
+    expect(page.getByTestId("forgot-password-submit").query()).toBeNull();
   });
 
   it("words the confirmation so it does not confirm the account exists", async () => {
     const user = userEvent.setup();
-    renderWithClient(<ForgotPasswordForm />);
+    await renderWithClient(<ForgotPasswordForm />);
 
     await submitEmail(user);
 
     // The oracle's copy, verbatim in substance: conditional ("if an account
     // exists"), never "we sent you a link".
-    const success: HTMLElement = await screen.findByTestId("forgot-password-success");
-    expect(success).toHaveTextContent(/check your email/iu);
-    expect(success).toHaveTextContent(/if an account exists/iu);
+    const success = page.getByTestId("forgot-password-success");
+    await expect.element(success).toHaveTextContent(/check your email/iu);
+    await expect.element(success).toHaveTextContent(/if an account exists/iu);
   });
 
   it("shows the same confirmation when the backend rejects the request", async () => {
@@ -155,11 +147,11 @@ describe("ForgotPasswordForm", () => {
     // the user sees the identical screen either way.
     mocks.forgotPassword.mockRejectedValue(new Error("user_not_found"));
     const user = userEvent.setup();
-    renderWithClient(<ForgotPasswordForm />);
+    await renderWithClient(<ForgotPasswordForm />);
 
     await submitEmail(user, "nobody@example.com");
 
-    expect(await screen.findByTestId("forgot-password-success")).toBeInTheDocument();
+    await expect.element(page.getByTestId("forgot-password-success")).toBeInTheDocument();
     expectNoErrorSurface();
   });
 
@@ -168,12 +160,12 @@ describe("ForgotPasswordForm", () => {
     // this pins that the reason string itself never reaches the DOM.
     mocks.forgotPassword.mockRejectedValue(new Error("user_not_found"));
     const user = userEvent.setup();
-    renderWithClient(<ForgotPasswordForm />);
+    await renderWithClient(<ForgotPasswordForm />);
 
     await submitEmail(user, "nobody@example.com");
 
-    await screen.findByTestId("forgot-password-success");
-    expect(screen.queryByText(/user_not_found/iu)).toBeNull();
+    await expect.element(page.getByTestId("forgot-password-success")).toBeInTheDocument();
+    expect(page.getByText(/user_not_found/iu).query()).toBeNull();
     expect(document.body.textContent).not.toMatch(/not found|does not exist|no account/iu);
   });
 
@@ -182,16 +174,16 @@ describe("ForgotPasswordForm", () => {
     // indistinguishable to a caller diffing the rendered page.
     const user = userEvent.setup();
 
-    const accepted = renderWithClient(<ForgotPasswordForm />);
+    const accepted = await renderWithClient(<ForgotPasswordForm />);
     await submitEmail(user);
-    await screen.findByTestId("forgot-password-success");
+    await expect.element(page.getByTestId("forgot-password-success")).toBeInTheDocument();
     const acceptedHtml: string = accepted.container.innerHTML;
-    accepted.unmount();
+    await accepted.unmount();
 
     mocks.forgotPassword.mockRejectedValue(new Error("user_not_found"));
-    const rejected = renderWithClient(<ForgotPasswordForm />);
+    const rejected = await renderWithClient(<ForgotPasswordForm />);
     await submitEmail(user, "nobody@example.com");
-    await screen.findByTestId("forgot-password-success");
+    await expect.element(page.getByTestId("forgot-password-success")).toBeInTheDocument();
 
     expect(rejected.container.innerHTML).toBe(acceptedHtml);
   });
@@ -200,25 +192,25 @@ describe("ForgotPasswordForm", () => {
     // Oracle: `if (string.IsNullOrWhiteSpace(_email)) return;` — a blank submit
     // is a no-op that never reaches the network and never claims success.
     const user = userEvent.setup();
-    renderWithClient(<ForgotPasswordForm />);
+    await renderWithClient(<ForgotPasswordForm />);
 
-    await user.click(screen.getByTestId("forgot-password-submit"));
+    await user.click(page.getByTestId("forgot-password-submit"));
 
     expect(mocks.forgotPassword).not.toHaveBeenCalled();
-    expect(screen.queryByTestId("forgot-password-success")).toBeNull();
-    expect(screen.getByTestId("forgot-password-email-error")).toBeInTheDocument();
+    expect(page.getByTestId("forgot-password-success").query()).toBeNull();
+    await expect.element(page.getByTestId("forgot-password-email-error")).toBeInTheDocument();
   });
 
   it("treats a whitespace-only email as blank", async () => {
     // `IsNullOrWhiteSpace`, not `IsNullOrEmpty` — "   " must not be submitted.
     const user = userEvent.setup();
-    renderWithClient(<ForgotPasswordForm />);
+    await renderWithClient(<ForgotPasswordForm />);
 
-    await user.type(screen.getByTestId("forgot-password-email"), "   ");
-    await user.click(screen.getByTestId("forgot-password-submit"));
+    await user.type(page.getByTestId("forgot-password-email"), "   ");
+    await user.click(page.getByTestId("forgot-password-submit"));
 
     expect(mocks.forgotPassword).not.toHaveBeenCalled();
-    expect(screen.getByTestId("forgot-password-email-error")).toBeInTheDocument();
+    await expect.element(page.getByTestId("forgot-password-email-error")).toBeInTheDocument();
   });
 
   it("disables submit while the request is in flight", async () => {
@@ -230,29 +222,27 @@ describe("ForgotPasswordForm", () => {
       }),
     );
     const user = userEvent.setup();
-    renderWithClient(<ForgotPasswordForm />);
+    await renderWithClient(<ForgotPasswordForm />);
 
     await submitEmail(user);
 
-    await waitFor(() => {
-      expect(screen.getByTestId("forgot-password-submit")).toBeDisabled();
-    });
+    await expect.element(page.getByTestId("forgot-password-submit")).toBeDisabled();
 
     release();
-    expect(await screen.findByTestId("forgot-password-success")).toBeInTheDocument();
+    await expect.element(page.getByTestId("forgot-password-success")).toBeInTheDocument();
   });
 });
 
 describe("/forgot-password route", () => {
-  it("renders the real screen in place of the pre-registration placeholder", () => {
+  it("renders the real screen in place of the pre-registration placeholder", async () => {
     // Wallow-vec7.3.16 registered this path against a placeholder component;
     // this task's job is to replace it. The path itself is the contract and is
     // not this task's to change (router.tsx is off-limits).
     const RouteComponent = forgotPasswordRoute.options.component as () => ReactElement;
 
-    renderWithClient(<RouteComponent />);
+    await renderWithClient(<RouteComponent />);
 
-    expect(screen.getByTestId("forgot-password-email")).toBeInTheDocument();
-    expect(screen.queryByTestId("route-placeholder")).toBeNull();
+    await expect.element(page.getByTestId("forgot-password-email")).toBeInTheDocument();
+    expect(page.getByTestId("route-placeholder").query()).toBeNull();
   });
 });

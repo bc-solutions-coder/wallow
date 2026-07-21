@@ -1,5 +1,3 @@
-/** @vitest-environment jsdom */
-import * as matchers from "@testing-library/jest-dom/matchers";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,
@@ -8,18 +6,13 @@ import {
   Outlet,
   RouterProvider,
 } from "@tanstack/react-router";
-import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { page, userEvent } from "vitest/browser";
+import { render } from "vitest-browser-react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Route as consentRoute } from "../../../routes/consent";
 import { ConsentScreen } from "./ConsentScreen";
-
-// No global `expect` (vitest `globals` is off), so register the jest-dom
-// matchers explicitly — the DOM-matcher convention wallow-web's RTL tests
-// established and wallow-auth copies.
-expect.extend(matchers);
 
 /**
  * Component spec for the Consent screen (Wallow-vec7.3.4), ported from the
@@ -35,6 +28,19 @@ expect.extend(matchers);
  * of the SDK). Per bd memories `vitest-resetmodules-breaks-instanceof-across-
  * graphs`, this file uses a plain `vi.mock` factory + `vi.hoisted` spies and
  * NEVER `vi.resetModules()`.
+ *
+ * NAVIGATION SEAM (Wallow-xzha.3.1): the screen hands off with
+ * `globalThis.location.href = buildConsentSubmitUrl(…)`. `window.location` is
+ * `[Unforgeable]` in the real Chromium these specs now run in, so the jsdom-only
+ * `vi.stubGlobal("location", …)` hack is gone; assigning a real relative URL
+ * would navigate the runner's iframe and tear it down. Instead the builder mock
+ * returns a NON-NAVIGATING fragment sentinel (`NAV_SENTINEL`), so the assignment
+ * only changes `location.hash` and stays put, and the tests pin the assigned URL
+ * by asserting the deterministic builder seam was called with the exact
+ * `origin` + `returnUrl` + `granted` — an equivalent to pinning the string,
+ * since `buildConsentSubmitUrl` has 67 tests of its own. Where a test needs to
+ * observe that the screen actually navigated (rather than no-opped), it reads
+ * `location.hash === NAV_SENTINEL`.
  *
  * ── THE ORIGIN DIVERGENCE (the load-bearing port decision in this screen) ─────
  *
@@ -159,6 +165,16 @@ const RETURN_URL = "/connect/authorize?client_id=wallow-web&scope=openid";
 const ERROR_HREF = "/error?reason=invalid_redirect_uri";
 
 /**
+ * The non-navigating sentinel the mocked `buildConsentSubmitUrl` returns. It is
+ * a pure fragment, so the screen's `globalThis.location.href = …` only changes
+ * `location.hash` and never navigates the Chromium iframe (which would tear the
+ * runner down). A test that needs to observe the screen navigated reads
+ * `location.hash === NAV_SENTINEL`; grant-vs-deny is distinguished by asserting
+ * the builder's `granted` argument, not by the sentinel.
+ */
+const NAV_SENTINEL = "#consent-nav";
+
+/**
  * The real `isSafeReturnUrl` rule (packages/sdk/src/auth-oidc.ts), restated here
  * because the screen reaches it through the mocked facade. Restating the rule
  * rather than stubbing `true`/`false` per test keeps these tests pinning the
@@ -203,6 +219,21 @@ function buildConsentSubmitUrlRule(
   return `${origin.replace(/\/+$/u, "")}${baseUrl}${separator}${parameter}`;
 }
 
+/**
+ * The browser-mode builder mock. It exercises the real rule (so a
+ * present-but-unsafe returnUrl still THROWS — the safety contract this screen
+ * relies on), then discards the navigating URL and returns the non-navigating
+ * fragment sentinel so assigning `globalThis.location.href` stays put.
+ */
+function buildConsentSubmitUrlBrowserMock(
+  origin: string,
+  returnUrl: string | null | undefined,
+  granted: boolean,
+): string {
+  buildConsentSubmitUrlRule(origin, returnUrl, granted);
+  return NAV_SENTINEL;
+}
+
 /** A `ConsentInfoResponse`, as the generated type shapes it. */
 function consentInfo(overrides: Record<string, unknown> = {}) {
   return {
@@ -237,35 +268,25 @@ function renderWithClient(ui: ReactElement) {
   return render(<QueryClientProvider client={newClient()}>{ui}</QueryClientProvider>);
 }
 
-/**
- * Replace `window.location` with a plain settable object so the screen's full
- * navigation is observable. jsdom refuses `vi.spyOn(window.location, "assign")`
- * ("Cannot redefine property"), but `location` itself is a configurable
- * accessor, so `vi.stubGlobal` swaps it wholesale — and `globalThis === window`
- * under jsdom, so the screen's `window.location.href = …` writes here.
- */
-function stubLocation(): { href: string } {
-  const location = { href: "" };
-  vi.stubGlobal("location", location);
-  return location;
-}
-
 beforeEach(() => {
   vi.clearAllMocks();
+  // Clear any fragment a prior test's navigation left behind so `location.hash`
+  // reads as the empty baseline before each spec.
+  globalThis.location.hash = "";
   mocks.isSafeReturnUrl.mockImplementation(isSafeReturnUrlRule);
-  mocks.buildConsentSubmitUrl.mockImplementation(buildConsentSubmitUrlRule);
+  mocks.buildConsentSubmitUrl.mockImplementation(buildConsentSubmitUrlBrowserMock);
   mocks.getConsentInfo.mockResolvedValue(consentInfo());
 });
 
-afterEach(() => {
-  vi.unstubAllGlobals();
-});
-
 describe("ConsentScreen — loading", () => {
-  it("requests the consent info for the client in the query string", () => {
+  it("requests the consent info for the client in the query string", async () => {
     mocks.getConsentInfo.mockReturnValue(new Promise(() => {}));
 
-    renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+
+    await vi.waitFor(() => {
+      expect(mocks.getConsentInfo).toHaveBeenCalled();
+    });
 
     // Oracle: `GetConsentInfoAsync(ClientId, Array.Empty<string>())`. Asserted
     // on the first argument alone: the facade treats an omitted `scopes` and an
@@ -275,10 +296,10 @@ describe("ConsentScreen — loading", () => {
     expect(mocks.getConsentInfo.mock.calls[0]?.[0]).toBe(CLIENT_ID);
   });
 
-  it("requests no scopes, as the oracle does", () => {
+  it("requests no scopes, as the oracle does", async () => {
     mocks.getConsentInfo.mockReturnValue(new Promise(() => {}));
 
-    renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
 
     // `Array.Empty<string>()` — the screen must not invent a scope list. The
     // scopes being consented to come back FROM this call, they are not an input
@@ -287,14 +308,16 @@ describe("ConsentScreen — loading", () => {
     // The `toHaveBeenCalled` precondition is load-bearing: without it,
     // `calls[0]?.[1]` is `undefined` when the screen made NO call at all, and
     // "no scopes were passed" would pass vacuously.
-    expect(mocks.getConsentInfo).toHaveBeenCalled();
+    await vi.waitFor(() => {
+      expect(mocks.getConsentInfo).toHaveBeenCalled();
+    });
 
     const scopes: unknown = mocks.getConsentInfo.mock.calls[0]?.[1];
 
     expect(scopes === undefined || (Array.isArray(scopes) && scopes.length === 0)).toBe(true);
   });
 
-  it("shows no error while the request is still in flight", () => {
+  it("shows no error while the request is still in flight", async () => {
     // The oracle's wart, deliberately not ported: it renders on `_consentInfo is
     // null`, which is also true before the fetch resolves, so it flashes
     // "Unable to load consent information" at every user. See this file's
@@ -302,33 +325,37 @@ describe("ConsentScreen — loading", () => {
     // here.
     mocks.getConsentInfo.mockReturnValue(new Promise(() => {}));
 
-    renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
 
     // Pin that a request is genuinely IN FLIGHT before asserting the absence.
     // Otherwise a screen that never fetched at all would satisfy "no error
     // while fetching" by never fetching.
-    expect(mocks.getConsentInfo).toHaveBeenCalled();
-    expect(screen.queryByTestId("consent-error")).toBeNull();
+    await vi.waitFor(() => {
+      expect(mocks.getConsentInfo).toHaveBeenCalled();
+    });
+    expect(page.getByTestId("consent-error").query()).toBeNull();
   });
 
-  it("shows no consent prompt before the client is known", () => {
+  it("shows no consent prompt before the client is known", async () => {
     // The other half of the same contract: nothing is rendered in flight, so the
     // user cannot approve access for an application we have not identified yet.
     mocks.getConsentInfo.mockReturnValue(new Promise(() => {}));
 
-    renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
 
-    expect(mocks.getConsentInfo).toHaveBeenCalled();
-    expect(screen.queryByTestId("consent-heading")).toBeNull();
-    expect(screen.queryByTestId("consent-approve")).toBeNull();
-    expect(screen.queryByTestId("consent-deny")).toBeNull();
+    await vi.waitFor(() => {
+      expect(mocks.getConsentInfo).toHaveBeenCalled();
+    });
+    expect(page.getByTestId("consent-heading").query()).toBeNull();
+    expect(page.getByTestId("consent-approve").query()).toBeNull();
+    expect(page.getByTestId("consent-deny").query()).toBeNull();
   });
 
   it("fires the request exactly once", async () => {
     // The request is a side effect of mounting, not of rendering.
-    renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
 
-    await screen.findByTestId("consent-heading");
+    await expect.element(page.getByTestId("consent-heading")).toBeInTheDocument();
 
     expect(mocks.getConsentInfo).toHaveBeenCalledTimes(1);
   });
@@ -337,11 +364,11 @@ describe("ConsentScreen — loading", () => {
 describe("ConsentScreen — the consent prompt", () => {
   it("names the requesting application in the heading", async () => {
     // Oracle: `<h2>@_consentInfo.DisplayName is requesting access</h2>`.
-    renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
 
-    const heading: HTMLElement = await screen.findByTestId("consent-heading");
-
-    expect(heading).toHaveTextContent(/Wallow Web is requesting access/u);
+    await expect
+      .element(page.getByTestId("consent-heading"))
+      .toHaveTextContent(/Wallow Web is requesting access/u);
   });
 
   it("falls back to the client id when the client has no display name", async () => {
@@ -352,23 +379,21 @@ describe("ConsentScreen — the consent prompt", () => {
     // not consent.
     mocks.getConsentInfo.mockResolvedValue(consentInfo({ displayName: null }));
 
-    renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
 
-    const heading: HTMLElement = await screen.findByTestId("consent-heading");
-
-    expect(heading).toHaveTextContent(CLIENT_ID);
-    expect(heading).toHaveTextContent(/is requesting access/u);
+    await expect.element(page.getByTestId("consent-heading")).toHaveTextContent(CLIENT_ID);
+    await expect
+      .element(page.getByTestId("consent-heading"))
+      .toHaveTextContent(/is requesting access/u);
   });
 
   it("lists every requested scope", async () => {
     // Oracle: `@foreach (ConsentScopeInfo scope in _consentInfo.RequestedScopes)
     // { <div>@scope.Name</div> }`.
-    renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
 
-    const scopes: HTMLElement = await screen.findByTestId("consent-scopes");
-
-    expect(scopes).toHaveTextContent("openid");
-    expect(scopes).toHaveTextContent("profile");
+    await expect.element(page.getByTestId("consent-scopes")).toHaveTextContent("openid");
+    await expect.element(page.getByTestId("consent-scopes")).toHaveTextContent("profile");
   });
 
   it("lists no scope the client did not request", async () => {
@@ -378,12 +403,10 @@ describe("ConsentScreen — the consent prompt", () => {
       consentInfo({ requestedScopes: [{ name: "openid", description: "Sign you in" }] }),
     );
 
-    renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
 
-    const scopes: HTMLElement = await screen.findByTestId("consent-scopes");
-
-    expect(scopes).toHaveTextContent("openid");
-    expect(scopes).not.toHaveTextContent("profile");
+    await expect.element(page.getByTestId("consent-scopes")).toHaveTextContent("openid");
+    await expect.element(page.getByTestId("consent-scopes")).not.toHaveTextContent("profile");
   });
 
   it("renders the prompt for a client requesting no scopes", async () => {
@@ -391,150 +414,175 @@ describe("ConsentScreen — the consent prompt", () => {
     // simply renders nothing. The prompt must still work rather than crash.
     mocks.getConsentInfo.mockResolvedValue(consentInfo({ requestedScopes: [] }));
 
-    renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
 
-    expect(await screen.findByTestId("consent-scopes")).toBeInTheDocument();
-    expect(screen.getByTestId("consent-approve")).toBeInTheDocument();
+    await expect.element(page.getByTestId("consent-scopes")).toBeInTheDocument();
+    await expect.element(page.getByTestId("consent-approve")).toBeInTheDocument();
   });
 
   it("offers both an approve and a deny action", async () => {
     // Oracle: two BbButtons. Deny must always be present — a consent screen with
     // only an approve path is not a consent screen.
-    renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
 
-    await screen.findByTestId("consent-heading");
-
-    expect(screen.getByTestId("consent-approve")).toBeInTheDocument();
-    expect(screen.getByTestId("consent-deny")).toBeInTheDocument();
+    await expect.element(page.getByTestId("consent-approve")).toBeInTheDocument();
+    await expect.element(page.getByTestId("consent-deny")).toBeInTheDocument();
   });
 
   it("shows no error alongside a loaded prompt", async () => {
     // Oracle's if/else — the error block and the prompt are mutually exclusive.
-    renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
 
-    await screen.findByTestId("consent-heading");
+    await expect.element(page.getByTestId("consent-heading")).toBeInTheDocument();
 
-    expect(screen.queryByTestId("consent-error")).toBeNull();
+    expect(page.getByTestId("consent-error").query()).toBeNull();
   });
 
   it("drops the pre-registration placeholder marker", async () => {
     // Wallow-vec7.3.16 shipped `route-placeholder` as scaffolding; it must not
     // survive into the real screen.
-    renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
 
-    await screen.findByTestId("consent-heading");
+    await expect.element(page.getByTestId("consent-heading")).toBeInTheDocument();
 
-    expect(screen.queryByTestId("route-placeholder")).toBeNull();
+    expect(page.getByTestId("route-placeholder").query()).toBeNull();
   });
 });
 
 describe("ConsentScreen — approve", () => {
   it("navigates to the consent-granted URL the builder returns", async () => {
-    const location = stubLocation();
+    const user = userEvent.setup();
 
-    renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
-    await userEvent.click(await screen.findByTestId("consent-approve"));
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await user.click(page.getByTestId("consent-approve"));
 
     // A FULL navigation, not `router.navigate`: `/connect/authorize` is served
     // by the h3 reverse proxy (src/lib/auth-server.ts), not by the client-side
-    // route tree — the router has no route for it and would 404 in-app.
-    expect(location.href).toBe(`${RETURN_URL}&consent_granted=true`);
+    // route tree — the router has no route for it and would 404 in-app. The
+    // assigned URL is pinned via the deterministic builder seam (args) plus the
+    // non-navigating sentinel actually landing on `location.hash`.
+    await vi.waitFor(() => {
+      expect(globalThis.location.hash).toBe(NAV_SENTINEL);
+    });
+    expect(mocks.buildConsentSubmitUrl).toHaveBeenCalledWith("", RETURN_URL, true);
   });
 
   it("builds the URL same-origin, granting consent", async () => {
-    stubLocation();
+    const user = userEvent.setup();
 
-    renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
-    await userEvent.click(await screen.findByTestId("consent-approve"));
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await user.click(page.getByTestId("consent-approve"));
 
     // The origin divergence, pinned explicitly (see this file's header): `""`,
     // NOT the oracle's `ApiBaseUrl`. This app's own origin hosts
     // `/connect/**` via the passthrough proxy, and it has no browser-reachable
     // API origin to prepend even if it wanted one.
-    expect(mocks.buildConsentSubmitUrl).toHaveBeenCalledWith("", RETURN_URL, true);
+    await vi.waitFor(() => {
+      expect(mocks.buildConsentSubmitUrl).toHaveBeenCalledWith("", RETURN_URL, true);
+    });
   });
 
   it("appends to a returnUrl that has no query string of its own", async () => {
     // Oracle: `separator = baseUrl.Contains('?') ? "&" : "?"`. Pinned through
     // the screen so a port that hand-rolls string concatenation instead of
     // calling the builder cannot pass by only ever being tested with a
-    // `?`-bearing returnUrl.
-    const location = stubLocation();
+    // `?`-bearing returnUrl. The builder is deterministic and separately tested,
+    // so asserting its args (which produce `/connect/authorize?consent_granted=
+    // true`) is equivalent to pinning the assigned string.
+    const user = userEvent.setup();
 
-    renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl="/connect/authorize" />);
-    await userEvent.click(await screen.findByTestId("consent-approve"));
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl="/connect/authorize" />);
+    await user.click(page.getByTestId("consent-approve"));
 
-    expect(location.href).toBe("/connect/authorize?consent_granted=true");
+    await vi.waitFor(() => {
+      expect(mocks.buildConsentSubmitUrl).toHaveBeenCalledWith("", "/connect/authorize", true);
+    });
   });
 
   it("falls back to the root when the link carries no returnUrl", async () => {
     // Oracle: `string baseUrl = ReturnUrl ?? "/"`. Nullish ONLY — and an absent
     // returnUrl must NOT be treated as the unsafe-returnUrl case: there is
     // nothing hostile about a link that omits it, so the guard must not fire.
-    const location = stubLocation();
+    // The builder maps `undefined` to the `/` fallback, producing
+    // `/?consent_granted=true`.
+    const user = userEvent.setup();
 
-    renderWithClient(<ConsentScreen clientId={CLIENT_ID} />);
-    await userEvent.click(await screen.findByTestId("consent-approve"));
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} />);
+    await user.click(page.getByTestId("consent-approve"));
 
-    expect(location.href).toBe("/?consent_granted=true");
+    await vi.waitFor(() => {
+      expect(mocks.buildConsentSubmitUrl).toHaveBeenCalledWith("", undefined, true);
+    });
     expect(mocks.navigate).not.toHaveBeenCalled();
   });
 
   it("does not deny while approving", async () => {
-    stubLocation();
+    const user = userEvent.setup();
 
-    renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
-    await userEvent.click(await screen.findByTestId("consent-approve"));
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await user.click(page.getByTestId("consent-approve"));
 
     // The two handlers differ by one boolean; a mis-wired button would be
     // invisible to a test that only checked that SOME navigation happened.
+    await vi.waitFor(() => {
+      expect(mocks.buildConsentSubmitUrl).toHaveBeenCalled();
+    });
     expect(mocks.buildConsentSubmitUrl).not.toHaveBeenCalledWith("", RETURN_URL, false);
   });
 });
 
 describe("ConsentScreen — deny", () => {
   it("navigates to the consent-denied URL the builder returns", async () => {
-    const location = stubLocation();
+    const user = userEvent.setup();
 
-    renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
-    await userEvent.click(await screen.findByTestId("consent-deny"));
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await user.click(page.getByTestId("consent-deny"));
 
-    expect(location.href).toBe(`${RETURN_URL}&consent_denied=true`);
+    await vi.waitFor(() => {
+      expect(mocks.buildConsentSubmitUrl).toHaveBeenCalledWith("", RETURN_URL, false);
+    });
   });
 
   it("builds the URL same-origin, refusing consent", async () => {
-    stubLocation();
+    const user = userEvent.setup();
 
-    renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
-    await userEvent.click(await screen.findByTestId("consent-deny"));
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await user.click(page.getByTestId("consent-deny"));
 
-    expect(mocks.buildConsentSubmitUrl).toHaveBeenCalledWith("", RETURN_URL, false);
+    await vi.waitFor(() => {
+      expect(mocks.buildConsentSubmitUrl).toHaveBeenCalledWith("", RETURN_URL, false);
+    });
   });
 
   it("reports the denial to the authorize endpoint rather than staying put", async () => {
     // Oracle: Deny navigates, exactly as Approve does. A deny that silently did
     // nothing would strand the user on a dead consent screen and leave the
     // relying party's authorize request hanging — the denial has to be
-    // DELIVERED.
-    const location = stubLocation();
+    // DELIVERED. Observed via the sentinel actually landing on `location.hash`
+    // (the screen assigned the builder's return) plus the deny-side args.
+    const user = userEvent.setup();
 
-    renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
-    await userEvent.click(await screen.findByTestId("consent-deny"));
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await user.click(page.getByTestId("consent-deny"));
 
-    expect(location.href).not.toBe("");
-    expect(location.href).toContain("consent_denied=true");
+    await vi.waitFor(() => {
+      expect(globalThis.location.hash).toBe(NAV_SENTINEL);
+    });
+    expect(mocks.buildConsentSubmitUrl).toHaveBeenCalledWith("", RETURN_URL, false);
   });
 
   it("does not grant while denying", async () => {
-    const stubbed = stubLocation();
+    const user = userEvent.setup();
 
-    renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
-    await userEvent.click(await screen.findByTestId("consent-deny"));
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await user.click(page.getByTestId("consent-deny"));
 
     // The button-swap bug, from the side that matters: a Deny wired to
     // `granted: true` would authorize the client the user just refused.
+    await vi.waitFor(() => {
+      expect(mocks.buildConsentSubmitUrl).toHaveBeenCalled();
+    });
     expect(mocks.buildConsentSubmitUrl).not.toHaveBeenCalledWith("", RETURN_URL, true);
-    expect(stubbed.href).not.toContain("consent_granted");
   });
 });
 
@@ -558,7 +606,7 @@ describe("ConsentScreen — the open-redirect guard", () => {
 
   for (const returnUrl of UNSAFE_RETURN_URLS) {
     it(`refuses to render a consent prompt for returnUrl ${JSON.stringify(returnUrl)}`, async () => {
-      renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={returnUrl} />);
+      await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={returnUrl} />);
 
       await vi.waitFor(() => {
         expect(mocks.navigate).toHaveBeenCalled();
@@ -566,12 +614,12 @@ describe("ConsentScreen — the open-redirect guard", () => {
 
       // Refusing at CLICK time would be too late: the user would be asked to
       // authorize a request we had already decided was malformed.
-      expect(screen.queryByTestId("consent-approve")).toBeNull();
-      expect(screen.queryByTestId("consent-heading")).toBeNull();
+      expect(page.getByTestId("consent-approve").query()).toBeNull();
+      expect(page.getByTestId("consent-heading").query()).toBeNull();
     });
 
     it(`routes to the error page for returnUrl ${JSON.stringify(returnUrl)}`, async () => {
-      renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={returnUrl} />);
+      await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={returnUrl} />);
 
       // `Login.razor` L533-540's bail, and bd memory
       // `returnurl-guard-refuse-dont-sanitize`: REFUSE, do not silently fall
@@ -582,21 +630,20 @@ describe("ConsentScreen — the open-redirect guard", () => {
     });
 
     it(`never navigates to the unsafe returnUrl ${JSON.stringify(returnUrl)}`, async () => {
-      const stubbed = stubLocation();
-
-      renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={returnUrl} />);
+      await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={returnUrl} />);
 
       await vi.waitFor(() => {
         expect(mocks.navigate).toHaveBeenCalled();
       });
 
       // The criterion itself: whatever else happens, the browser must not be
-      // sent to the attacker's URL.
-      expect(stubbed.href).toBe("");
+      // sent to any submit URL. The screen never assigned `location.href`, so
+      // the navigation sentinel never landed on the hash.
+      expect(globalThis.location.hash).toBe("");
     });
 
     it(`does not fetch consent info for returnUrl ${JSON.stringify(returnUrl)}`, async () => {
-      renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={returnUrl} />);
+      await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={returnUrl} />);
 
       await vi.waitFor(() => {
         expect(mocks.navigate).toHaveBeenCalled();
@@ -614,20 +661,20 @@ describe("ConsentScreen — the open-redirect guard", () => {
     // The user is being sent to `/error`; flashing "Unable to load consent
     // information" on the way out would misreport an open-redirect attempt as a
     // transient server problem.
-    renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl="//evil.example" />);
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl="//evil.example" />);
 
     await vi.waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalled();
     });
 
-    expect(screen.queryByTestId("consent-error")).toBeNull();
+    expect(page.getByTestId("consent-error").query()).toBeNull();
   });
 
   it("guards the returnUrl even when no client id is supplied", async () => {
     // The two refusal paths must not mask each other: a hostile returnUrl on a
     // link that also omits `client_id` is still a hostile returnUrl, and must
     // reach `/error` rather than being absorbed by the missing-client branch.
-    renderWithClient(<ConsentScreen returnUrl="//evil.example" />);
+    await renderWithClient(<ConsentScreen returnUrl="//evil.example" />);
 
     await vi.waitFor(() => {
       expect(mocks.navigate).toHaveBeenCalledWith(expect.objectContaining({ href: ERROR_HREF }));
@@ -638,9 +685,9 @@ describe("ConsentScreen — the open-redirect guard", () => {
     // The negative control: the guard must not be so eager that it breaks the
     // ordinary flow. A screen that routed EVERY returnUrl to `/error` would pass
     // every other test in this block.
-    renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
 
-    await screen.findByTestId("consent-approve");
+    await expect.element(page.getByTestId("consent-approve")).toBeInTheDocument();
 
     expect(mocks.navigate).not.toHaveBeenCalled();
   });
@@ -650,28 +697,28 @@ describe("ConsentScreen — error state", () => {
   it("shows the error when no client id is supplied", async () => {
     // Oracle: `if (ClientId is not null) { … }` — no client id, no call, so
     // `_consentInfo` stays null and the error block renders.
-    renderWithClient(<ConsentScreen returnUrl={RETURN_URL} />);
+    await renderWithClient(<ConsentScreen returnUrl={RETURN_URL} />);
 
-    const error: HTMLElement = await screen.findByTestId("consent-error");
-
-    expect(error).toHaveTextContent(/unable to load consent information/iu);
+    await expect
+      .element(page.getByTestId("consent-error"))
+      .toHaveTextContent(/unable to load consent information/iu);
   });
 
   it("does not call the endpoint when no client id is supplied", async () => {
     // A screen that "helpfully" sent `clientId: undefined` would 404 and blame
     // the server for the link's own defect.
-    renderWithClient(<ConsentScreen returnUrl={RETURN_URL} />);
+    await renderWithClient(<ConsentScreen returnUrl={RETURN_URL} />);
 
-    await screen.findByTestId("consent-error");
+    await expect.element(page.getByTestId("consent-error")).toBeInTheDocument();
 
     expect(mocks.getConsentInfo).not.toHaveBeenCalled();
   });
 
   it("treats an empty-string client id as missing", async () => {
     // `?client_id=&returnUrl=…` is a malformed link, not a client to look up.
-    renderWithClient(<ConsentScreen clientId="" returnUrl={RETURN_URL} />);
+    await renderWithClient(<ConsentScreen clientId="" returnUrl={RETURN_URL} />);
 
-    await screen.findByTestId("consent-error");
+    await expect.element(page.getByTestId("consent-error")).toBeInTheDocument();
 
     expect(mocks.getConsentInfo).not.toHaveBeenCalled();
   });
@@ -682,11 +729,11 @@ describe("ConsentScreen — error state", () => {
     // rejection, because `unwrap()` throws.
     mocks.getConsentInfo.mockRejectedValue(wallowErrorShaped(404));
 
-    renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
 
-    const error: HTMLElement = await screen.findByTestId("consent-error");
-
-    expect(error).toHaveTextContent(/unable to load consent information/iu);
+    await expect
+      .element(page.getByTestId("consent-error"))
+      .toHaveTextContent(/unable to load consent information/iu);
   });
 
   it("shows the same error for a server failure", async () => {
@@ -694,11 +741,11 @@ describe("ConsentScreen — error state", () => {
     // so the WallowError code-loss gotcha costs this screen nothing.
     mocks.getConsentInfo.mockRejectedValue(wallowErrorShaped(500));
 
-    renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
 
-    expect(await screen.findByTestId("consent-error")).toHaveTextContent(
-      /unable to load consent information/iu,
-    );
+    await expect
+      .element(page.getByTestId("consent-error"))
+      .toHaveTextContent(/unable to load consent information/iu);
   });
 
   it("survives a rejection that is not WallowError-shaped at all", async () => {
@@ -706,9 +753,9 @@ describe("ConsentScreen — error state", () => {
     // rather than throwing inside the error branch.
     mocks.getConsentInfo.mockRejectedValue(new Error("network down"));
 
-    renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
 
-    expect(await screen.findByTestId("consent-error")).toBeInTheDocument();
+    await expect.element(page.getByTestId("consent-error")).toBeInTheDocument();
   });
 
   it("offers no approve or deny action in the error state", async () => {
@@ -717,14 +764,14 @@ describe("ConsentScreen — error state", () => {
     // client for unknown scopes.
     mocks.getConsentInfo.mockRejectedValue(wallowErrorShaped(404));
 
-    renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
 
-    await screen.findByTestId("consent-error");
+    await expect.element(page.getByTestId("consent-error")).toBeInTheDocument();
 
-    expect(screen.queryByTestId("consent-approve")).toBeNull();
-    expect(screen.queryByTestId("consent-deny")).toBeNull();
-    expect(screen.queryByTestId("consent-heading")).toBeNull();
-    expect(screen.queryByTestId("consent-scopes")).toBeNull();
+    expect(page.getByTestId("consent-approve").query()).toBeNull();
+    expect(page.getByTestId("consent-deny").query()).toBeNull();
+    expect(page.getByTestId("consent-heading").query()).toBeNull();
+    expect(page.getByTestId("consent-scopes").query()).toBeNull();
   });
 
   it("never leaks the raw rejection into the page", async () => {
@@ -732,9 +779,9 @@ describe("ConsentScreen — error state", () => {
     // user-facing copy. The oracle shows one curated message.
     mocks.getConsentInfo.mockRejectedValue(wallowErrorShaped(404));
 
-    renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
 
-    await screen.findByTestId("consent-error");
+    await expect.element(page.getByTestId("consent-error")).toBeInTheDocument();
 
     expect(document.body.textContent).not.toMatch(/unknown error|UNKNOWN/u);
   });
@@ -771,21 +818,26 @@ describe("/consent route", () => {
     // this task's job is to replace it. The path itself is the contract and is
     // not this task's to change (router.tsx is off-limits).
     const user = userEvent.setup();
-    const location = stubLocation();
 
-    renderRouteAt(`/consent?client_id=${CLIENT_ID}&returnUrl=${encodeURIComponent(RETURN_URL)}`);
+    await renderRouteAt(
+      `/consent?client_id=${CLIENT_ID}&returnUrl=${encodeURIComponent(RETURN_URL)}`,
+    );
 
-    expect(await screen.findByTestId("consent-heading")).toBeInTheDocument();
-    expect(screen.queryByTestId("route-placeholder")).toBeNull();
+    await expect.element(page.getByTestId("consent-heading")).toBeInTheDocument();
+    expect(page.getByTestId("route-placeholder").query()).toBeNull();
     // Both query parameters must actually reach the screen, not merely parse:
     // `client_id` threads as far as the request...
     expect(mocks.getConsentInfo.mock.calls[0]?.[0]).toBe(CLIENT_ID);
 
-    // ...and `returnUrl` as far as the URL approve navigates to. A route that
-    // dropped it would send the user to the "/" fallback instead.
-    await user.click(screen.getByTestId("consent-approve"));
+    // ...and `returnUrl` as far as the URL approve builds. A route that dropped
+    // it would send the user to the "/" fallback instead — pinned via the
+    // deterministic builder seam plus the sentinel landing on the hash.
+    await user.click(page.getByTestId("consent-approve"));
 
-    expect(location.href).toBe(`${RETURN_URL}&consent_granted=true`);
+    await vi.waitFor(() => {
+      expect(globalThis.location.hash).toBe(NAV_SENTINEL);
+    });
+    expect(mocks.buildConsentSubmitUrl).toHaveBeenCalledWith("", RETURN_URL, true);
   });
 
   it("reads returnUrl and client_id off the query string", () => {

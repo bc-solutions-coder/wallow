@@ -1,16 +1,10 @@
-/** @vitest-environment jsdom */
-import * as matchers from "@testing-library/jest-dom/matchers";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
 import type { ReactElement } from "react";
+import { page } from "vitest/browser";
+import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { InquiryList } from "./InquiryList";
-
-// No global `expect` (vitest `globals` is off), so register the jest-dom
-// matchers explicitly (the wallow-web RTL convention, copied from
-// OrganizationList.test.tsx).
-expect.extend(matchers);
 
 /**
  * Component spec for the inquiries list page (Wallow-8w1h.7.2), mirroring
@@ -95,10 +89,10 @@ describe("InquiryList", () => {
 
     renderWithClient(client, <InquiryList />);
 
-    const items = await screen.findAllByTestId("inquiry-item");
-    expect(items).toHaveLength(2);
-    expect(screen.getByText("Ada Lovelace")).toBeInTheDocument();
-    expect(screen.getByText("Grace Hopper")).toBeInTheDocument();
+    await expect.element(page.getByTestId("inquiry-item").first()).toBeInTheDocument();
+    expect(page.getByTestId("inquiry-item").elements()).toHaveLength(2);
+    await expect.element(page.getByText("Ada Lovelace")).toBeInTheDocument();
+    await expect.element(page.getByText("Grace Hopper")).toBeInTheDocument();
   });
 
   it("shows the status for each inquiry", async () => {
@@ -129,7 +123,8 @@ describe("InquiryList", () => {
 
     renderWithClient(client, <InquiryList />);
 
-    const statuses = await screen.findAllByTestId("inquiry-item-status");
+    await expect.element(page.getByTestId("inquiry-item-status").first()).toBeInTheDocument();
+    const statuses = page.getByTestId("inquiry-item-status").elements();
     expect(statuses).toHaveLength(2);
     expect(statuses.map((el) => el.textContent)).toEqual(["New", "Contacted"]);
   });
@@ -140,11 +135,11 @@ describe("InquiryList", () => {
 
     renderWithClient(client, <InquiryList />);
 
-    expect(await screen.findByTestId("inquiries-empty-state")).toBeInTheDocument();
-    expect(screen.queryAllByTestId("inquiry-item")).toHaveLength(0);
+    await expect.element(page.getByTestId("inquiries-empty-state")).toBeInTheDocument();
+    expect(page.getByTestId("inquiry-item").elements()).toHaveLength(0);
   });
 
-  it("renders a loading indicator while the list query is pending", () => {
+  it("renders a loading indicator while the list query is pending", async () => {
     const client = newClient();
     // No cached data -> the query fires; the facade never resolves, so the
     // component stays in its loading state.
@@ -152,7 +147,7 @@ describe("InquiryList", () => {
 
     renderWithClient(client, <InquiryList />);
 
-    expect(screen.getByTestId("inquiries-loading")).toBeInTheDocument();
-    expect(screen.queryAllByTestId("inquiry-item")).toHaveLength(0);
+    await expect.element(page.getByTestId("inquiries-loading")).toBeInTheDocument();
+    expect(page.getByTestId("inquiry-item").elements()).toHaveLength(0);
   });
 });

@@ -1,6 +1,5 @@
-// @vitest-environment jsdom
-import { render } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { render } from "vitest-browser-react";
+import { describe, expect, it, vi } from "vitest";
 
 import { READY_ATTRIBUTE, READY_TEST_ID, ReadyIndicator } from "./ready-indicator";
 
@@ -14,15 +13,17 @@ import { READY_ATTRIBUTE, READY_TEST_ID, ReadyIndicator } from "./ready-indicato
 const readySelector = `[${READY_ATTRIBUTE}="true"]`;
 
 describe("ReadyIndicator", () => {
-  it("marks the document ready once mounted", () => {
-    render(<ReadyIndicator />);
+  it("marks the document ready once mounted", async () => {
+    await render(<ReadyIndicator />);
 
-    expect(document.body.matches(readySelector)).toBe(true);
+    await vi.waitFor(() => {
+      expect(document.body.matches(readySelector)).toBe(true);
+    });
     expect(document.body.matches(`[data-testid="${READY_TEST_ID}"]`)).toBe(true);
   });
 
-  it("renders no markup of its own", () => {
-    const { container } = render(<ReadyIndicator />);
+  it("renders no markup of its own", async () => {
+    const { container } = await render(<ReadyIndicator />);
 
     expect(container.innerHTML).toBe("");
   });
@@ -39,11 +40,13 @@ describe("ReadyIndicator", () => {
     expect(document.body.matches(`[${READY_ATTRIBUTE}]`)).toBe(false);
   });
 
-  it("clears the signal when the app unmounts", () => {
-    const { unmount } = render(<ReadyIndicator />);
-    expect(document.body.matches(readySelector)).toBe(true);
+  it("clears the signal when the app unmounts", async () => {
+    const { unmount } = await render(<ReadyIndicator />);
+    await vi.waitFor(() => {
+      expect(document.body.matches(readySelector)).toBe(true);
+    });
 
-    unmount();
+    await unmount();
 
     expect(document.body.matches(`[${READY_ATTRIBUTE}]`)).toBe(false);
     expect(document.body.matches("[data-testid]")).toBe(false);

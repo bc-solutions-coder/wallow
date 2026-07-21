@@ -1,13 +1,10 @@
-/** @vitest-environment jsdom */
-import * as matchers from "@testing-library/jest-dom/matchers";
-import { render, screen } from "@testing-library/react";
 import type { ReactElement } from "react";
+import { page } from "vitest/browser";
+import { render } from "vitest-browser-react";
 import { describe, expect, it } from "vitest";
 
 import { Route as termsRoute } from "../../../routes/terms";
 import { TermsPage } from "./TermsPage";
-
-expect.extend(matchers);
 
 /**
  * Component spec for the Terms of Service screen (Wallow-vec7.3.3), ported from
@@ -39,38 +36,44 @@ const SECTIONS: readonly string[] = [
 ];
 
 describe("TermsPage", () => {
-  it("is titled Terms of Service", () => {
+  it("is titled Terms of Service", async () => {
     render(<TermsPage />);
 
-    expect(screen.getByTestId("terms-heading")).toHaveTextContent("Terms of Service");
+    await expect.element(page.getByTestId("terms-heading")).toHaveTextContent("Terms of Service");
   });
 
-  it("shows the last-updated date", () => {
+  it("shows the last-updated date", async () => {
     render(<TermsPage />);
 
+    await expect.element(page.getByTestId("terms-content")).toBeInTheDocument();
     expect(document.body.textContent).toMatch(/last updated/iu);
   });
 
-  it("carries all nine sections of the terms", () => {
+  it("carries all nine sections of the terms", async () => {
     render(<TermsPage />);
 
-    const content: HTMLElement = screen.getByTestId("terms-content");
+    const content = page.getByTestId("terms-content");
 
     for (const [index, section] of SECTIONS.entries()) {
-      expect(content).toHaveTextContent(`${String(index + 1)}. ${section}`);
+      await expect.element(content).toHaveTextContent(`${String(index + 1)}. ${section}`);
     }
   });
 
-  it("gives every section a body, not just a heading", () => {
+  it("gives every section a body, not just a heading", async () => {
     render(<TermsPage />);
 
-    expect(screen.getByTestId("terms-content").textContent?.length ?? 0).toBeGreaterThan(1000);
+    await expect.element(page.getByTestId("terms-content")).toBeInTheDocument();
+    expect(page.getByTestId("terms-content").element().textContent?.length ?? 0).toBeGreaterThan(
+      1000,
+    );
   });
 
-  it("gives the reader a way back to register", () => {
+  it("gives the reader a way back to register", async () => {
     render(<TermsPage />);
 
-    expect(screen.getByTestId("terms-back-button")).toHaveAttribute("href", "/register");
+    await expect
+      .element(page.getByTestId("terms-back-button"))
+      .toHaveAttribute("href", "/register");
   });
 
   it("is the document, not the acceptance gate", () => {
@@ -79,18 +82,18 @@ describe("TermsPage", () => {
     // (Wallow-vec7.3.10).
     render(<TermsPage />);
 
-    expect(screen.queryByRole("checkbox")).toBeNull();
-    expect(screen.queryByTestId("accept-terms-submit")).toBeNull();
+    expect(page.getByRole("checkbox").query()).toBeNull();
+    expect(page.getByTestId("accept-terms-submit").query()).toBeNull();
   });
 });
 
 describe("/terms route", () => {
-  it("renders the real screen in place of the pre-registration placeholder", () => {
+  it("renders the real screen in place of the pre-registration placeholder", async () => {
     const RouteComponent = termsRoute.options.component as () => ReactElement;
 
     render(<RouteComponent />);
 
-    expect(screen.queryByTestId("route-placeholder")).toBeNull();
-    expect(screen.getByTestId("terms-heading")).toBeInTheDocument();
+    expect(page.getByTestId("route-placeholder").query()).toBeNull();
+    await expect.element(page.getByTestId("terms-heading")).toBeInTheDocument();
   });
 });

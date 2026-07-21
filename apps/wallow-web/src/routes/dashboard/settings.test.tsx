@@ -1,16 +1,11 @@
-/** @vitest-environment jsdom */
-import * as matchers from "@testing-library/jest-dom/matchers";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, within } from "@testing-library/react";
 import type { ReactElement } from "react";
+import { page } from "vitest/browser";
+import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createRouter } from "../../router";
 import { Route } from "./settings";
-
-// No global `expect` (vitest `globals` is off), so register the jest-dom
-// matchers explicitly (same convention as the component + route tests).
-expect.extend(matchers);
 
 /**
  * Route spec for the dashboard settings route (Wallow-8w1h.6.5), mirroring
@@ -89,28 +84,32 @@ describe("routes/dashboard/settings (route page)", () => {
     expect(Route.options.loader).toBeDefined();
   });
 
-  it("renders a page root carrying data-testid=dashboard-settings", () => {
+  it("renders a page root carrying data-testid=dashboard-settings", async () => {
     const Page = Route.options.component!;
     renderWithClient(seededClient(), <Page />);
 
-    expect(screen.getByTestId("dashboard-settings")).toBeInTheDocument();
+    await expect.element(page.getByTestId("dashboard-settings")).toBeInTheDocument();
   });
 
-  it("composes the profile section inside the dashboard-settings root", () => {
+  it("composes the profile section inside the dashboard-settings root", async () => {
     const Page = Route.options.component!;
     renderWithClient(seededClient(), <Page />);
 
-    const root = screen.getByTestId("dashboard-settings");
-    expect(within(root).getByTestId("settings-profile-name")).toHaveTextContent("Ada Lovelace");
-    expect(within(root).getByTestId("settings-profile-email")).toHaveTextContent("ada@lovelace.io");
+    const root = page.getByTestId("dashboard-settings");
+    await expect
+      .element(root.getByTestId("settings-profile-name"))
+      .toHaveTextContent("Ada Lovelace");
+    await expect
+      .element(root.getByTestId("settings-profile-email"))
+      .toHaveTextContent("ada@lovelace.io");
   });
 
-  it("composes the mfa status card inside the dashboard-settings root", () => {
+  it("composes the mfa status card inside the dashboard-settings root", async () => {
     const Page = Route.options.component!;
     renderWithClient(seededClient(), <Page />);
 
-    const root = screen.getByTestId("dashboard-settings");
-    expect(within(root).getByTestId("settings-mfa-status")).toHaveTextContent("Disabled");
+    const root = page.getByTestId("dashboard-settings");
+    await expect.element(root.getByTestId("settings-mfa-status")).toHaveTextContent("Disabled");
   });
 });
 

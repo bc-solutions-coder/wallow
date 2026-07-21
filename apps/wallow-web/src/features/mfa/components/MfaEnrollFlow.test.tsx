@@ -1,16 +1,10 @@
-/** @vitest-environment jsdom */
-import * as matchers from "@testing-library/jest-dom/matchers";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
+import { page, userEvent } from "vitest/browser";
+import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MfaEnrollFlow } from "./MfaEnrollFlow";
-
-// No global `expect` (vitest `globals` is off), so register the jest-dom
-// matchers explicitly — the DOM-matcher convention for wallow-web's RTL tests.
-expect.extend(matchers);
 
 /**
  * Component spec for the MFA enroll flow (Wallow-8w1h.6.4). Mirrors the Blazor
@@ -76,10 +70,10 @@ function renderWithClient(client: QueryClient, ui: ReactElement) {
 }
 
 /** Drive the flow from the initial setup CTA to the revealed secret. */
-async function beginEnrollment(user: ReturnType<typeof userEvent.setup>) {
+async function beginEnrollment() {
   mocks.enrollTotp.mockResolvedValue(ENROLL_RESPONSE);
-  await user.click(screen.getByTestId("mfa-enroll-begin-setup"));
-  await screen.findByTestId("mfa-enroll-secret");
+  await userEvent.click(page.getByTestId("mfa-enroll-begin-setup"));
+  await expect.element(page.getByTestId("mfa-enroll-secret")).toBeInTheDocument();
 }
 
 describe("MfaEnrollFlow", () => {
@@ -87,109 +81,105 @@ describe("MfaEnrollFlow", () => {
     vi.clearAllMocks();
   });
 
-  it("renders the begin-setup CTA and the always-visible cancel affordance initially", () => {
+  it("renders the begin-setup CTA and the always-visible cancel affordance initially", async () => {
     renderWithClient(newClient(), <MfaEnrollFlow />);
 
-    expect(screen.getByTestId("mfa-enroll-begin-setup")).toBeInTheDocument();
-    expect(screen.getByTestId("mfa-enroll-cancel")).toBeInTheDocument();
+    await expect.element(page.getByTestId("mfa-enroll-begin-setup")).toBeInTheDocument();
+    await expect.element(page.getByTestId("mfa-enroll-cancel")).toBeInTheDocument();
   });
 
-  it("does NOT show the secret, QR, code input, or backup codes before setup begins", () => {
+  it("does NOT show the secret, QR, code input, or backup codes before setup begins", async () => {
     renderWithClient(newClient(), <MfaEnrollFlow />);
 
-    expect(screen.queryByTestId("mfa-enroll-secret")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("mfa-enroll-qr")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("mfa-enroll-code")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("mfa-enroll-submit")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("mfa-enroll-backup-codes")).not.toBeInTheDocument();
+    await expect.element(page.getByTestId("mfa-enroll-secret")).not.toBeInTheDocument();
+    await expect.element(page.getByTestId("mfa-enroll-qr")).not.toBeInTheDocument();
+    await expect.element(page.getByTestId("mfa-enroll-code")).not.toBeInTheDocument();
+    await expect.element(page.getByTestId("mfa-enroll-submit")).not.toBeInTheDocument();
+    await expect.element(page.getByTestId("mfa-enroll-backup-codes")).not.toBeInTheDocument();
   });
 
   it("clicking begin-setup calls enrollTotp and reveals the secret, QR, code input, and submit", async () => {
-    const user = userEvent.setup();
     renderWithClient(newClient(), <MfaEnrollFlow />);
 
-    await beginEnrollment(user);
+    await beginEnrollment();
 
     expect(mocks.enrollTotp).toHaveBeenCalledTimes(1);
-    expect(screen.getByTestId("mfa-enroll-secret")).toHaveTextContent("JBSWY3DPEHPK3PXP");
-    expect(screen.getByTestId("mfa-enroll-qr")).toBeInTheDocument();
-    expect(screen.getByTestId("mfa-enroll-code")).toBeInTheDocument();
-    expect(screen.getByTestId("mfa-enroll-submit")).toBeInTheDocument();
+    await expect
+      .element(page.getByTestId("mfa-enroll-secret"))
+      .toHaveTextContent("JBSWY3DPEHPK3PXP");
+    await expect.element(page.getByTestId("mfa-enroll-qr")).toBeInTheDocument();
+    await expect.element(page.getByTestId("mfa-enroll-code")).toBeInTheDocument();
+    await expect.element(page.getByTestId("mfa-enroll-submit")).toBeInTheDocument();
     // The begin-setup CTA is replaced by the verify step.
-    expect(screen.queryByTestId("mfa-enroll-begin-setup")).not.toBeInTheDocument();
+    await expect.element(page.getByTestId("mfa-enroll-begin-setup")).not.toBeInTheDocument();
   });
 
   it("submitting the code calls confirmEnroll with the enrolled secret and the entered code", async () => {
-    const user = userEvent.setup();
     mocks.confirmEnroll.mockResolvedValue(CONFIRM_SUCCESS);
     renderWithClient(newClient(), <MfaEnrollFlow />);
 
-    await beginEnrollment(user);
-    await user.type(screen.getByTestId("mfa-enroll-code"), "123456");
-    await user.click(screen.getByTestId("mfa-enroll-submit"));
+    await beginEnrollment();
+    await userEvent.type(page.getByTestId("mfa-enroll-code"), "123456");
+    await userEvent.click(page.getByTestId("mfa-enroll-submit"));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mocks.confirmEnroll).toHaveBeenCalledTimes(1);
     });
     expect(mocks.confirmEnroll).toHaveBeenCalledWith("JBSWY3DPEHPK3PXP", "123456");
   });
 
   it("reveals the one-time backup codes (one child per code) after a successful confirm", async () => {
-    const user = userEvent.setup();
     mocks.confirmEnroll.mockResolvedValue(CONFIRM_SUCCESS);
     renderWithClient(newClient(), <MfaEnrollFlow />);
 
-    await beginEnrollment(user);
-    await user.type(screen.getByTestId("mfa-enroll-code"), "123456");
-    await user.click(screen.getByTestId("mfa-enroll-submit"));
+    await beginEnrollment();
+    await userEvent.type(page.getByTestId("mfa-enroll-code"), "123456");
+    await userEvent.click(page.getByTestId("mfa-enroll-submit"));
 
-    const codes = await screen.findByTestId("mfa-enroll-backup-codes");
-    expect(codes).toHaveTextContent("aaaa-1111");
-    expect(codes).toHaveTextContent("bbbb-2222");
-    expect(codes).toHaveTextContent("cccc-3333");
+    const codes = page.getByTestId("mfa-enroll-backup-codes");
+    await expect.element(codes).toHaveTextContent("aaaa-1111");
+    await expect.element(codes).toHaveTextContent("bbbb-2222");
+    await expect.element(codes).toHaveTextContent("cccc-3333");
     // The secret + code input are gone once codes are shown (one-time reveal).
-    expect(screen.queryByTestId("mfa-enroll-secret")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("mfa-enroll-code")).not.toBeInTheDocument();
+    await expect.element(page.getByTestId("mfa-enroll-secret")).not.toBeInTheDocument();
+    await expect.element(page.getByTestId("mfa-enroll-code")).not.toBeInTheDocument();
   });
 
   it("invalidates ['mfa', 'status'] after a successful confirm so the card flips to Enabled", async () => {
-    const user = userEvent.setup();
     const client = newClient();
     const invalidateSpy = vi.spyOn(client, "invalidateQueries");
     mocks.confirmEnroll.mockResolvedValue(CONFIRM_SUCCESS);
     renderWithClient(client, <MfaEnrollFlow />);
 
-    await beginEnrollment(user);
-    await user.type(screen.getByTestId("mfa-enroll-code"), "123456");
-    await user.click(screen.getByTestId("mfa-enroll-submit"));
+    await beginEnrollment();
+    await userEvent.type(page.getByTestId("mfa-enroll-code"), "123456");
+    await userEvent.click(page.getByTestId("mfa-enroll-submit"));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["mfa", "status"] });
     });
   });
 
   it("fires onDone when the Done action is clicked after the backup codes are shown", async () => {
-    const user = userEvent.setup();
     const onDone = vi.fn();
     mocks.confirmEnroll.mockResolvedValue(CONFIRM_SUCCESS);
     renderWithClient(newClient(), <MfaEnrollFlow onDone={onDone} />);
 
-    await beginEnrollment(user);
-    await user.type(screen.getByTestId("mfa-enroll-code"), "123456");
-    await user.click(screen.getByTestId("mfa-enroll-submit"));
+    await beginEnrollment();
+    await userEvent.type(page.getByTestId("mfa-enroll-code"), "123456");
+    await userEvent.click(page.getByTestId("mfa-enroll-submit"));
 
-    await screen.findByTestId("mfa-enroll-backup-codes");
-    await user.click(screen.getByTestId("mfa-enroll-done"));
+    await expect.element(page.getByTestId("mfa-enroll-backup-codes")).toBeInTheDocument();
+    await userEvent.click(page.getByTestId("mfa-enroll-done"));
 
     expect(onDone).toHaveBeenCalledTimes(1);
   });
 
   it("fires onCancel when the cancel affordance is clicked", async () => {
-    const user = userEvent.setup();
     const onCancel = vi.fn();
     renderWithClient(newClient(), <MfaEnrollFlow onCancel={onCancel} />);
 
-    await user.click(screen.getByTestId("mfa-enroll-cancel"));
+    await userEvent.click(page.getByTestId("mfa-enroll-cancel"));
 
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
@@ -202,67 +192,67 @@ describe("MfaEnrollFlow", () => {
   // `.detail`. The error surface must map that `error` code to a meaningful
   // message instead of always falling back to the generic step text.
   it("surfaces the mapped error message in mfa-enroll-error when enrollTotp rejects with the real { succeeded:false, error } body", async () => {
-    const user = userEvent.setup();
     // The real thrown shape from EnrollTotp's Unauthorized branch.
     mocks.enrollTotp.mockRejectedValue({ succeeded: false, error: "no_auth_session" });
     renderWithClient(newClient(), <MfaEnrollFlow />);
 
-    await user.click(screen.getByTestId("mfa-enroll-begin-setup"));
+    await userEvent.click(page.getByTestId("mfa-enroll-begin-setup"));
 
-    const error = await screen.findByTestId("mfa-enroll-error");
+    const error = page.getByTestId("mfa-enroll-error");
     // The specific reason the backend supplied must reach the user — not the
     // generic "Unable to start MFA enrollment." fallback.
-    expect(error).toHaveTextContent("Your session has expired. Please sign in again.");
-    expect(error).not.toHaveTextContent("Unable to start MFA enrollment.");
+    await expect
+      .element(error)
+      .toHaveTextContent("Your session has expired. Please sign in again.");
+    await expect.element(error).not.toHaveTextContent("Unable to start MFA enrollment.");
     // No secret is revealed on a failed enroll.
-    expect(screen.queryByTestId("mfa-enroll-secret")).not.toBeInTheDocument();
+    await expect.element(page.getByTestId("mfa-enroll-secret")).not.toBeInTheDocument();
   });
 
   it("surfaces the mapped error message in mfa-enroll-error when confirm rejects with the real { succeeded:false, error } body", async () => {
-    const user = userEvent.setup();
     // The real thrown shape from ConfirmEnrollment's Unauthorized branch (a 401
     // that unwrap() throws — NOT a resolved { succeeded:false } payload).
     mocks.confirmEnroll.mockRejectedValue({ succeeded: false, error: "no_auth_session" });
     renderWithClient(newClient(), <MfaEnrollFlow />);
 
-    await beginEnrollment(user);
-    await user.type(screen.getByTestId("mfa-enroll-code"), "000000");
-    await user.click(screen.getByTestId("mfa-enroll-submit"));
+    await beginEnrollment();
+    await userEvent.type(page.getByTestId("mfa-enroll-code"), "000000");
+    await userEvent.click(page.getByTestId("mfa-enroll-submit"));
 
-    const error = await screen.findByTestId("mfa-enroll-error");
-    expect(error).toHaveTextContent("Your session has expired. Please sign in again.");
+    const error = page.getByTestId("mfa-enroll-error");
+    await expect
+      .element(error)
+      .toHaveTextContent("Your session has expired. Please sign in again.");
     // Not the generic confirm fallback ("That verification code is not valid.").
-    expect(error).not.toHaveTextContent("That verification code is not valid.");
-    expect(screen.queryByTestId("mfa-enroll-backup-codes")).not.toBeInTheDocument();
+    await expect.element(error).not.toHaveTextContent("That verification code is not valid.");
+    await expect.element(page.getByTestId("mfa-enroll-backup-codes")).not.toBeInTheDocument();
   });
 
   it("maps a rejected confirm invalid_code to the verification-code message", async () => {
-    const user = userEvent.setup();
     // invalid_code is a 400 BadRequest in production, so it arrives via onError
     // (thrown), not as a resolved { succeeded:false } payload.
     mocks.confirmEnroll.mockRejectedValue({ succeeded: false, error: "invalid_code" });
     renderWithClient(newClient(), <MfaEnrollFlow />);
 
-    await beginEnrollment(user);
-    await user.type(screen.getByTestId("mfa-enroll-code"), "000000");
-    await user.click(screen.getByTestId("mfa-enroll-submit"));
+    await beginEnrollment();
+    await userEvent.type(page.getByTestId("mfa-enroll-code"), "000000");
+    await userEvent.click(page.getByTestId("mfa-enroll-submit"));
 
-    const error = await screen.findByTestId("mfa-enroll-error");
-    expect(error).toHaveTextContent("That verification code is not valid.");
-    expect(screen.queryByTestId("mfa-enroll-backup-codes")).not.toBeInTheDocument();
+    const error = page.getByTestId("mfa-enroll-error");
+    await expect.element(error).toHaveTextContent("That verification code is not valid.");
+    await expect.element(page.getByTestId("mfa-enroll-backup-codes")).not.toBeInTheDocument();
   });
 
   it("shows an error and does NOT reveal backup codes when confirm returns { succeeded: false }", async () => {
-    const user = userEvent.setup();
     // The HTTP call resolves, but the enrollment was rejected (e.g. wrong code).
     mocks.confirmEnroll.mockResolvedValue({ succeeded: false, error: "invalid_code" });
     renderWithClient(newClient(), <MfaEnrollFlow />);
 
-    await beginEnrollment(user);
-    await user.type(screen.getByTestId("mfa-enroll-code"), "999999");
-    await user.click(screen.getByTestId("mfa-enroll-submit"));
+    await beginEnrollment();
+    await userEvent.type(page.getByTestId("mfa-enroll-code"), "999999");
+    await userEvent.click(page.getByTestId("mfa-enroll-submit"));
 
-    expect(await screen.findByTestId("mfa-enroll-error")).toBeInTheDocument();
-    expect(screen.queryByTestId("mfa-enroll-backup-codes")).not.toBeInTheDocument();
+    await expect.element(page.getByTestId("mfa-enroll-error")).toBeInTheDocument();
+    await expect.element(page.getByTestId("mfa-enroll-backup-codes")).not.toBeInTheDocument();
   });
 });

@@ -1,9 +1,14 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { type AddressInfo } from "node:net";
 
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import { createAuthServer, CLIENT_IP_HEADER, type AuthServer } from "./auth-server";
+import {
+  createAuthServer,
+  resolveApiInternalUrl,
+  CLIENT_IP_HEADER,
+  type AuthServer,
+} from "./auth-server";
 
 /**
  * Spec (Wallow-vec7.1.3): prove the reverse proxy forwards Set-Cookie per
@@ -362,5 +367,63 @@ describe("auth-server X-Forwarded-For chaining", () => {
 
     expect(res.status).toBe(200);
     expect(lastRequest?.clientIpHeader).toBeUndefined();
+  });
+});
+
+/**
+ * Spec (Wallow-vpnt): outside Aspire, a bare `pnpm --filter ./apps/wallow-auth dev`
+ * against a locally-run API (`dotnet run` on :5001) must resolve a working upstream
+ * by default. The previous fallback (`http://wallow-api`) only resolves under Aspire
+ * service discovery or Docker networking, so standalone dev 500'd every proxied call
+ * with `getaddrinfo ENOTFOUND wallow-api`.
+ *
+ * Every managed context sets `WALLOW_API_INTERNAL_URL` explicitly — Aspire wiring and
+ * both Docker compose stacks (`docker-compose.production.yml`, `docker-compose.test.yml`) —
+ * and the Playwright config injects `http://localhost:5001`. The bare default is reached
+ * ONLY by standalone dev, so it must point at the local API host, not the container name.
+ *
+ * Precedence is unchanged: explicit `apiInternalUrl` config wins, then the
+ * `WALLOW_API_INTERNAL_URL` env var, then the standalone-dev localhost default.
+ */
+describe("auth-server API target resolution", () => {
+  const ENV_KEY = "WALLOW_API_INTERNAL_URL";
+  let savedEnv: string | undefined;
+
+  beforeEach((): void => {
+    savedEnv = process.env[ENV_KEY];
+  });
+
+  afterEach((): void => {
+    if (savedEnv === undefined) {
+      delete process.env[ENV_KEY];
+    } else {
+      process.env[ENV_KEY] = savedEnv;
+    }
+  });
+
+  it("falls back to the local API host (:5001) when no env var or config is set outside Aspire", () => {
+    delete process.env[ENV_KEY];
+
+    expect(resolveApiInternalUrl({})).toBe("http://localhost:5001");
+  });
+
+  it("treats an empty WALLOW_API_INTERNAL_URL as unset and uses the local default", () => {
+    process.env[ENV_KEY] = "";
+
+    expect(resolveApiInternalUrl({})).toBe("http://localhost:5001");
+  });
+
+  it("uses WALLOW_API_INTERNAL_URL when set, so Aspire and Docker still control the target", () => {
+    process.env[ENV_KEY] = "http://wallow-api:8080";
+
+    expect(resolveApiInternalUrl({})).toBe("http://wallow-api:8080");
+  });
+
+  it("lets an explicit apiInternalUrl config win over the env var and the default", () => {
+    process.env[ENV_KEY] = "http://wallow-api:8080";
+
+    expect(resolveApiInternalUrl({ apiInternalUrl: "http://127.0.0.1:5555" })).toBe(
+      "http://127.0.0.1:5555",
+    );
   });
 });

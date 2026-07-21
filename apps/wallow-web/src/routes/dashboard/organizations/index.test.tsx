@@ -1,16 +1,11 @@
-/** @vitest-environment jsdom */
-import * as matchers from "@testing-library/jest-dom/matchers";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
 import type { ReactElement } from "react";
+import { page } from "vitest/browser";
+import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createRouter } from "../../../router";
 import { Route } from "./index";
-
-// No global `expect` (vitest `globals` is off), so register the jest-dom
-// matchers explicitly (same convention as the component tests).
-expect.extend(matchers);
 
 /**
  * Route spec for the CANONICAL dashboard list route (Wallow-8w1h.4.2). Covers
@@ -57,27 +52,27 @@ describe("routes/dashboard/organizations (route page)", () => {
     expect(Route.options.loader).toBeDefined();
   });
 
-  it("renders a page root carrying data-testid=dashboard-organizations", () => {
+  it("renders a page root carrying data-testid=dashboard-organizations", async () => {
     const client = newClient();
     client.setQueryData(["orgs"], []);
 
     const Page = Route.options.component!;
     renderWithClient(client, <Page />);
 
-    expect(screen.getByTestId("dashboard-organizations")).toBeInTheDocument();
+    await expect.element(page.getByTestId("dashboard-organizations")).toBeInTheDocument();
   });
 
   // Wallow-ffpq.3.5 — the orphan CreateOrganizationForm mounts INLINE on this
   // index page (NOT a separate /dashboard/organizations/create route — Blazor's
   // link to that path was dead and the bead's AC forbids recreating it).
-  it("mounts the CreateOrganizationForm inline (organization-create-form)", () => {
+  it("mounts the CreateOrganizationForm inline (organization-create-form)", async () => {
     const client = newClient();
     client.setQueryData(["orgs"], []);
 
     const Page = Route.options.component!;
     renderWithClient(client, <Page />);
 
-    expect(screen.getByTestId("organization-create-form")).toBeInTheDocument();
+    await expect.element(page.getByTestId("organization-create-form")).toBeInTheDocument();
   });
 });
 

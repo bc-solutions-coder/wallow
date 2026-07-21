@@ -1,12 +1,7 @@
-/** @vitest-environment jsdom */
-import * as matchers from "@testing-library/jest-dom/matchers";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createRouter } from "../../../router";
 import { Route } from "./$inquiryId";
-
-// No global `expect` (vitest `globals` is off) — register jest-dom matchers.
-expect.extend(matchers);
 
 /**
  * Route spec for the inquiry-detail route (Wallow-8w1h.7.4). Mirrors the

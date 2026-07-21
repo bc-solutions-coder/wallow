@@ -1,14 +1,10 @@
-/** @vitest-environment jsdom */
-import * as matchers from "@testing-library/jest-dom/matchers";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
 import type { ReactElement } from "react";
+import { page } from "vitest/browser";
+import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ProfileSection } from "./ProfileSection";
-
-// No global `expect` (vitest `globals` is off) — register jest-dom matchers.
-expect.extend(matchers);
 
 /**
  * Component spec for the read-only settings profile section (Wallow-8w1h.6.2).
@@ -70,9 +66,12 @@ describe("ProfileSection", () => {
 
     renderWithClient(client, <ProfileSection />);
 
-    const name = await screen.findByTestId("settings-profile-name");
-    expect(name).toHaveTextContent("Ada Lovelace");
-    expect(screen.getByTestId("settings-profile-email")).toHaveTextContent("ada@lovelace.io");
+    await expect
+      .element(page.getByTestId("settings-profile-name"))
+      .toHaveTextContent("Ada Lovelace");
+    await expect
+      .element(page.getByTestId("settings-profile-email"))
+      .toHaveTextContent("ada@lovelace.io");
   });
 
   it("renders one role element per role inside the roles container", async () => {
@@ -81,12 +80,12 @@ describe("ProfileSection", () => {
 
     renderWithClient(client, <ProfileSection />);
 
-    expect(await screen.findByTestId("settings-profile-roles")).toBeInTheDocument();
-    const roleEls = screen.getAllByTestId("settings-profile-role");
+    await expect.element(page.getByTestId("settings-profile-roles")).toBeInTheDocument();
+    const roleEls = page.getByTestId("settings-profile-role").elements();
     expect(roleEls).toHaveLength(2);
     expect(roleEls[0]).toHaveTextContent("Owner");
     expect(roleEls[1]).toHaveTextContent("Admin");
-    expect(screen.queryByTestId("settings-profile-no-roles")).not.toBeInTheDocument();
+    await expect.element(page.getByTestId("settings-profile-no-roles")).not.toBeInTheDocument();
   });
 
   it("renders the no-roles state when the profile has no roles", async () => {
@@ -95,8 +94,8 @@ describe("ProfileSection", () => {
 
     renderWithClient(client, <ProfileSection />);
 
-    expect(await screen.findByTestId("settings-profile-no-roles")).toBeInTheDocument();
-    expect(screen.queryByTestId("settings-profile-roles")).not.toBeInTheDocument();
+    await expect.element(page.getByTestId("settings-profile-no-roles")).toBeInTheDocument();
+    await expect.element(page.getByTestId("settings-profile-roles")).not.toBeInTheDocument();
   });
 
   it("renders 'Not set' when name and email are missing", async () => {
@@ -112,18 +111,17 @@ describe("ProfileSection", () => {
 
     renderWithClient(client, <ProfileSection />);
 
-    const name = await screen.findByTestId("settings-profile-name");
-    expect(name).toHaveTextContent("Not set");
-    expect(screen.getByTestId("settings-profile-email")).toHaveTextContent("Not set");
+    await expect.element(page.getByTestId("settings-profile-name")).toHaveTextContent("Not set");
+    await expect.element(page.getByTestId("settings-profile-email")).toHaveTextContent("Not set");
   });
 
-  it("renders the loading state while the profile query is pending", () => {
+  it("renders the loading state while the profile query is pending", async () => {
     const client = newClient();
     // Never-resolving facade call keeps the query in the pending state.
     mocks.getProfile.mockReturnValue(new Promise(() => {}));
 
     renderWithClient(client, <ProfileSection />);
 
-    expect(screen.getByTestId("settings-profile-loading")).toBeInTheDocument();
+    await expect.element(page.getByTestId("settings-profile-loading")).toBeInTheDocument();
   });
 });

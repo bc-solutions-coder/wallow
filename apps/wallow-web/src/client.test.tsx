@@ -1,4 +1,3 @@
-/** @vitest-environment jsdom */
 import { describe, expect, it, vi } from "vitest";
 
 /**
@@ -16,6 +15,11 @@ const hydrateRoot = vi.fn();
 
 vi.mock("react-dom/client", () => ({ hydrateRoot }));
 vi.mock("./router", () => ({ createRouter: (): object => ({}) }));
+// The entry pulls in the global stylesheet purely for its bundling side effect
+// (`@import "tailwindcss"`), which the browser test server has no Tailwind plugin
+// to resolve. Stub it out — like `./router` above, it is irrelevant to the one
+// thing under test: that importing the entry calls `hydrateRoot(document, …)`.
+vi.mock("./styles.css", () => ({}));
 
 describe("the wallow-web browser entry", () => {
   it("hydrates the whole document exactly once on load", async () => {
