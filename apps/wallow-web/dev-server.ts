@@ -41,7 +41,6 @@ import { Readable } from "node:stream";
 
 import { brandAssetsDir } from "@bc-solutions-coder/styles/assets";
 import tailwindcss from "@tailwindcss/vite";
-import react from "@vitejs/plugin-react";
 import { createServer as createViteServer, type ViteDevServer } from "vite";
 
 import { isBffProxyPath } from "./src/lib/proxy-topology";
@@ -66,11 +65,17 @@ const vite: ViteDevServer = await createViteServer({
   appType: "custom",
   server: { middlewareMode: true },
   // configFile: false means vite.config.ts is not read, so anything the app's
-  // module graph needs from Vite must be re-declared here. `@tailwindcss/vite`
-  // must be wired in or the `styles.css` entry `src/client.tsx` imports is
-  // served with `@import "tailwindcss"` left verbatim, and `pnpm dev` renders
-  // every screen unstyled (Wallow-ffpq.3.4).
-  plugins: [react(), tailwindcss()],
+  // module graph needs from Vite must be re-declared here. `@vitejs/plugin-react`
+  // stays out (mirroring wallow-auth): its only dev addition is React Fast
+  // Refresh, whose preamble Vite injects at `head-prepend` via
+  // `transformIndexHtml`. This app hydrates the WHOLE document — the root route
+  // renders `<html>`/`<head>` itself (routes/__root.tsx) — so anything prepended
+  // to `<head>` shifts the nodes React hydrates against, mismatching hydration
+  // and taking the readiness signal down with it. Vite's built-in esbuild still
+  // transforms the JSX. `@tailwindcss/vite` must be wired in or the `styles.css`
+  // entry `src/client.tsx` imports is served with `@import "tailwindcss"` left
+  // verbatim, and `pnpm dev` renders every screen unstyled (Wallow-ffpq.3.4).
+  plugins: [tailwindcss()],
   // publicDir must be set here too or the fork icon 404s under `pnpm dev` (it
   // would default to a nonexistent ./public). Serves the shared styles package's
   // assets at the root.
@@ -119,31 +124,52 @@ async function writeWebResponse(res: ServerResponse, response: Response): Promis
   res.end(body);
 }
 
-async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
-  const request: Request = toWebRequest(req);
-  const pathname: string = new URL(request.url).pathname;
+/** Answer a BFF-surface request from the same-origin proxy bridge. */
+async function handleBff(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  const { handleBffRequest }: BffModule = (await vite.ssrLoadModule(
+    "/src/lib/bff-server.ts",
+  )) as BffModule;
+  await writeWebResponse(res, await handleBffRequest(toWebRequest(req)));
+}
 
-  if (isBffProxyPath(pathname)) {
-    const { handleBffRequest }: BffModule = (await vite.ssrLoadModule(
-      "/src/lib/bff-server.ts",
-    )) as BffModule;
-    await writeWebResponse(res, await handleBffRequest(request));
-    return;
-  }
-
+/** Server-render the router's matched route for this request. */
+async function handleSsr(req: IncomingMessage, res: ServerResponse): Promise<void> {
   const { render }: SsrModule = (await vite.ssrLoadModule("/src/ssr.tsx")) as SsrModule;
-  await writeWebResponse(res, await render(request));
+  await writeWebResponse(res, await render(toWebRequest(req)));
+}
+
+function onError(res: ServerResponse, error: unknown): void {
+  vite.ssrFixStacktrace(error as Error);
+  // eslint-disable-next-line no-console
+  console.error("dev-server render error", error);
+  if (!res.headersSent) {
+    res.statusCode = 500;
+  }
+  res.end("Internal Server Error");
 }
 
 const server: Server = createHttpServer((req: IncomingMessage, res: ServerResponse): void => {
-  handleRequest(req, res).catch((error: unknown): void => {
-    vite.ssrFixStacktrace(error as Error);
-    // eslint-disable-next-line no-console
-    console.error("dev-server render error", error);
-    if (!res.headersSent) {
-      res.statusCode = 500;
-    }
-    res.end("Internal Server Error");
+  const authority: string = req.headers.host ?? `localhost:${port}`;
+  const pathname: string = new URL(req.url ?? "/", `http://${authority}`).pathname;
+
+  if (isBffProxyPath(pathname)) {
+    handleBff(req, res).catch((error: unknown): void => {
+      onError(res, error);
+    });
+    return;
+  }
+
+  // Everything else is offered to Vite's middlewares first, then falls through to
+  // router SSR. This is what serves the browser bundle in dev: the shell asks for
+  // `/src/client.tsx` and Vite transforms and serves it — along with its
+  // dependency graph, source maps, and HMR client — out of the same module graph
+  // the SSR render uses, so both sides share one React copy. Vite calls `next()`
+  // for anything it does not own, which is every real route. Without this the
+  // client bundle 404s and no route ever hydrates.
+  vite.middlewares(req, res, (): void => {
+    handleSsr(req, res).catch((error: unknown): void => {
+      onError(res, error);
+    });
   });
 });
 
