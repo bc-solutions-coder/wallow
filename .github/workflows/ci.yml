@@ -306,6 +306,73 @@ jobs:
           path: /tmp/wallow-images-infra.tar.gz
           key: images-infra-${{ github.sha }}
 
+  e2e-tests:
+    needs: [docker-images-app, docker-images-infra]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Restore app images
+        uses: actions/cache/restore@v5
+        with:
+          path: /tmp/wallow-images-app.tar.gz
+          key: images-app-${{ github.sha }}
+          fail-on-cache-miss: true
+
+      - name: Restore infra images
+        uses: actions/cache/restore@v5
+        with:
+          path: /tmp/wallow-images-infra.tar.gz
+          key: images-infra-${{ github.sha }}
+          fail-on-cache-miss: true
+
+      # docker-images-app / docker-images-infra already built and cached the
+      # wallow-api / wallow-auth-react / migration / seeder / garage :test images,
+      # so the e2e job loads them instead of rebuilding (E2E_SKIP_IMAGE_BUILD=1).
+      - name: Load Docker images
+        run: |
+          gunzip -c /tmp/wallow-images-app.tar.gz | docker load
+          gunzip -c /tmp/wallow-images-infra.tar.gz | docker load
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # ubuntu-latest runners have no Playwright browser cache; install Chromium
+      # (and its OS deps) before running the suite.
+      - name: Install Playwright browser
+        run: pnpm --filter ./apps/wallow-auth exec playwright install --with-deps chromium
+
+      # Serve the app from the prebuilt wallow-auth container on :5051 and drive it
+      # directly (E2E_BASE_URL) — no local dev server. The runner brings up the
+      # compose stack, waits for the API + seeded admin, runs the suite, tears down.
+      - name: Run wallow-auth E2E suite
+        env:
+          E2E_SKIP_IMAGE_BUILD: "1"
+          E2E_UP_SERVICE: wallow-auth
+          E2E_BASE_URL: http://localhost:5051
+        run: ./scripts/e2e.sh
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report-wallow-auth
+          path: apps/wallow-auth/playwright-report
+          if-no-files-found: ignore
+          retention-days: 5
+
   merge-coverage:
     needs: [unit-tests, integration-tests]
     if: always() && (needs.unit-tests.result == 'success' || needs.integration-tests.result == 'success')

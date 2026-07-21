@@ -70,6 +70,12 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      # Vitest browser-mode specs drive a real Chromium via the Playwright
+      # provider. ubuntu-latest runners have no Playwright browser cache, so
+      # install the browser (and its OS deps) before the Test step.
+      - name: Install Playwright browser
+        run: pnpm exec playwright install --with-deps chromium
+
       - name: Test
         run: pnpm test
 
