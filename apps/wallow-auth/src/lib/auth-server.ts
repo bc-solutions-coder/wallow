@@ -38,7 +38,7 @@ export interface AuthServerConfig {
   /**
    * Internal base URL of Wallow.Api that `/v1/**` and `/connect/**` are
    * reverse-proxied to. When omitted, it is resolved from
-   * `WALLOW_API_INTERNAL_URL` (Aspire default `http://wallow-api`).
+   * `WALLOW_API_INTERNAL_URL` (standalone-dev default `http://localhost:5001`).
    */
   apiInternalUrl?: string;
 }
@@ -52,8 +52,16 @@ export interface AuthServer {
   handle: (request: Request) => Promise<Response>;
 }
 
-/** Aspire service-discovery default for the API when no env/config is set. */
-const DEFAULT_API_INTERNAL_URL = "http://wallow-api";
+/**
+ * Standalone-dev default for the API when no env/config is set. Points at the
+ * local API host (`dotnet run` on :5001) so a bare `pnpm --filter
+ * ./apps/wallow-auth dev` outside Aspire resolves a working upstream. Every
+ * managed context (Aspire, both Docker compose stacks, the Playwright config)
+ * sets `WALLOW_API_INTERNAL_URL` explicitly, so this constant is reached ONLY
+ * by standalone dev — where `http://wallow-api` would fail with
+ * `getaddrinfo ENOTFOUND wallow-api` (Wallow-vpnt).
+ */
+const DEFAULT_API_INTERNAL_URL = "http://localhost:5001";
 
 /** Liveness body returned by `GET /health`. */
 const HEALTH_BODY = "ready";
@@ -77,9 +85,9 @@ export const CLIENT_IP_HEADER = "x-wallow-client-ip";
 
 /**
  * Resolve the upstream API base URL: explicit config wins, then
- * `WALLOW_API_INTERNAL_URL`, then the Aspire default.
+ * `WALLOW_API_INTERNAL_URL`, then the standalone-dev localhost default.
  */
-function resolveApiInternalUrl(config: AuthServerConfig): string {
+export function resolveApiInternalUrl(config: AuthServerConfig): string {
   if (config.apiInternalUrl !== undefined && config.apiInternalUrl !== "") {
     return config.apiInternalUrl;
   }
