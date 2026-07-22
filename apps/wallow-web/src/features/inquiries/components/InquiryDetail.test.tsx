@@ -14,7 +14,7 @@ import { InquiryDetail } from "./InquiryDetail";
  * through the api.ts mutation factories to the mocked facade slice.
  *
  * Testids follow `{page}-{element}` kebab-case. Per the scout's CRITICAL 7.4
- * reconciliation there is NO Blazor/C# `InquiryPage` oracle for the
+ * reconciliation there is NO C# `InquiryPage` oracle for the
  * detail/comments/status flow (the page object only covers the public submit
  * form: inquiry-name/email/phone/company/project-type/budget-range/timeline/
  * message/submit/success/error), so these testids are invented following the

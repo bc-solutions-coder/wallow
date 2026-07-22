@@ -4,8 +4,7 @@ import { AuthLayout } from "../components/auth-layout";
 import { AcceptTermsScreen } from "../features/accept-terms/components/AcceptTermsScreen";
 
 /**
- * The `/accept-terms` route (Wallow-vec7.3.10) — the React port of the Blazor
- * oracle `api/src/Wallow.Auth/Components/Pages/AcceptTerms.razor`.
+ * The `/accept-terms` route (Wallow-vec7.3.10).
  *
  * The path was pre-registered against a placeholder by Wallow-vec7.3.16 and is
  * the contract: `src/router.tsx` already binds it, so this task replaced the

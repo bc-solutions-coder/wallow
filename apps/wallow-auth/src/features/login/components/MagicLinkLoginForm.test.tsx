@@ -15,10 +15,7 @@ import { Route as loginRoute } from "../../../routes/login";
 import { LoginScreen, type LoginScreenProps } from "./LoginScreen";
 
 /**
- * Component spec for the Login screen's MAGIC-LINK tab (Wallow-vec7.3.12 / 2.8b),
- * ported from the Blazor oracle `api/src/Wallow.Auth/Components/Pages/Login.razor`
- * (:105-137 the panel, :255-259 the auto-verify, :368-400 `HandleSendMagicLink`,
- * :402-430 `HandleVerifyMagicLink`).
+ * Component spec for the Login screen's MAGIC-LINK tab (Wallow-vec7.3.12 / 2.8b).
  *
  * This bead adds a PANEL and ONE `TabPanel` branch to the shell Wallow-vec7.3.11
  * established. It does not re-derive the branch table: on a verify response the
@@ -32,7 +29,7 @@ import { LoginScreen, type LoginScreenProps } from "./LoginScreen";
  * deliberately says nothing about this panel's content beyond "selecting the tab
  * retires the password panel".
  *
- * ── THE WIRE, VERIFIED IN THE CONTROLLER (not in the Blazor client's DTO) ─────
+ * ── THE WIRE, VERIFIED IN THE CONTROLLER (not in a client DTO) ───────────────
  *
  * `AccountController` (api/.../Identity/Wallow.Identity.Api/Controllers/AccountController.cs):
  *
@@ -65,8 +62,7 @@ import { LoginScreen, type LoginScreenProps } from "./LoginScreen";
  * 2. THE TOKENS ARE ENGLISH SENTENCES, and one of the oracle's literals is DEAD.
  *    `HandleVerifyMagicLink` switches on `"invalid_token" or "Token expired or
  *    already used."`, but `ValidateMagicLinkAsync` NEVER returns `"invalid_token"` —
- *    its live spelling is `"Invalid token."` (PasswordlessService.cs:105). Per bd
- *    memory `blazor-oracle-dead-branch-pattern-check-the-wire-before-porting`, the
+ *    its live spelling is `"Invalid token."` (PasswordlessService.cs:105). The
  *    dead literal is not ported and the LIVE one the author plainly meant is mapped
  *    in its place. `invalidTokenGetsTheExpiredCopy` pins that decision.
  *
@@ -701,8 +697,7 @@ describe("LoginScreen magic-link verify failures", () => {
     // The oracle names `"invalid_token"`, which the service NEVER returns: its live
     // spelling is `"Invalid token."` (PasswordlessService.cs:100-106, a failed HMAC
     // comparison). The dead literal is not ported; the live one the author plainly
-    // meant is mapped in its place (bd memory `blazor-oracle-dead-branch-pattern-
-    // check-the-wire-before-porting`).
+    // meant is mapped in its place.
     mocks.verifyMagicLink.mockRejectedValue(rejection(401, INVALID_TOKEN));
     await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
 

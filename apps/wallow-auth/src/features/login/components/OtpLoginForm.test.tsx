@@ -15,9 +15,7 @@ import { Route as loginRoute } from "../../../routes/login";
 import { LoginScreen, type LoginScreenProps } from "./LoginScreen";
 
 /**
- * Component spec for the Login screen's OTP tab (Wallow-vec7.3.13 / 2.8c), ported
- * from the Blazor oracle `api/src/Wallow.Auth/Components/Pages/Login.razor`
- * (:139-186 the panel, :430-462 `HandleSendOtp`, :464-500 `HandleVerifyOtp`).
+ * Component spec for the Login screen's OTP tab (Wallow-vec7.3.13 / 2.8c).
  *
  * This bead adds a PANEL and ONE `TabPanel` branch to the shell Wallow-vec7.3.11
  * established, exactly as `.3.12` did for magic-link. It does not re-derive the
@@ -33,7 +31,7 @@ import { LoginScreen, type LoginScreenProps } from "./LoginScreen";
  * magic-link, the OTP tab has NO query parameter — both halves are driven entirely
  * by what the user types.
  *
- * ── THE WIRE, VERIFIED IN THE CONTROLLER (not in the Blazor client's DTO) ─────
+ * ── THE WIRE, VERIFIED IN THE CONTROLLER (not in a client DTO) ───────────────
  *
  * `AccountController` (api/.../Identity/Wallow.Identity.Api/Controllers/AccountController.cs):
  *
@@ -61,8 +59,7 @@ import { LoginScreen, type LoginScreenProps } from "./LoginScreen";
  *
  * The oracle's `"invalid_code"` literal is DEAD: `ValidateOtpAsync` never returns
  * it. Its live spellings are `"Code expired or not found."` and `"Invalid code."`.
- * Per bd memory `blazor-oracle-dead-branch-pattern-check-the-wire-before-porting`
- * the dead literal is not ported and the oracle's COPY — which already reads
+ * The dead literal is not ported and the oracle's COPY — which already reads
  * "Invalid or expired code", covering both — is kept.
  *
  * ── WHY THERE IS NO CODE MAP ON VERIFY (and .3.12 has one) ───────────────────

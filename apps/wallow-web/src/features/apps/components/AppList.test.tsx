@@ -13,9 +13,9 @@ import { AppList } from "./AppList";
  * cache with `setQueryData`, and the loading state by leaving the query to hit a
  * never-resolving facade call.
  *
- * Testids follow `{page}-{element}` kebab-case per the apps oracle: per-row
- * `app-item` (diverges intentionally from Blazor's `apps-row`), empty state
- * `apps-empty-state` (matches Blazor), loading `apps-loading`.
+ * Testids follow `{page}-{element}` kebab-case: per-row
+ * `app-item` (deliberately `app-item`, not `apps-row`), empty state
+ * `apps-empty-state`, loading `apps-loading`.
  */
 
 // Hoisted so the vi.mock factory and the test bodies share the same spies.

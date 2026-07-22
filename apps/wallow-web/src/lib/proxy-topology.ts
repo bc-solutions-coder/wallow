@@ -12,9 +12,9 @@
  * (`auth-server.ts`, which passes `/v1/**`, `/connect/**`, `/.well-known/**`
  * verbatim through to Wallow.Api):
  *
- *   - The `/_blazor` SignalR WebSocket-upgrade path disappears entirely. There
- *     is no Blazor circuit in the React app, so it is never a proxy path — it is
- *     not routed anywhere and must fall through like any other unknown path.
+ *   - There is no WebSocket-upgrade circuit in the React app, so legacy upgrade
+ *     paths are never a proxy path — they are not routed anywhere and must fall
+ *     through like any other unknown path.
  *   - `/api/**` is answered by the BFF's OWN handler (`bff-server.ts`'s
  *     `createApiProxy`, which attaches a Bearer token server-side and does
  *     silent refresh), NOT reverse-proxied verbatim to Wallow.Api. Naively
@@ -24,7 +24,7 @@
 /**
  * Whether a request path is answered by the BFF bridge (`handleBffRequest`)
  * rather than the router SSR. The BFF bridge owns `/health`, `/bff/*`, and
- * `/api/**` — and nothing else. `/_blazor` is intentionally absent.
+ * `/api/**` — and nothing else. Legacy WebSocket-upgrade paths are intentionally absent.
  */
 export function isBffProxyPath(pathname: string): boolean {
   return pathname === "/health" || pathname.startsWith("/bff/") || pathname.startsWith("/api/");

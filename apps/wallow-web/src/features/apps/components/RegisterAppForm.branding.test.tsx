@@ -7,14 +7,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { RegisterAppForm } from "./RegisterAppForm";
 
 /**
- * App branding/logo-upsert reachability spec (Wallow-ffpq.3.6) — the React port
- * of the optional "Branding" section on Blazor `RegisterApp.razor` (which calls
- * `AppService.UpsertBrandingAsync` with a display name, tagline, and logo file).
+ * App branding/logo-upsert reachability spec (Wallow-ffpq.3.6) — the optional
+ * "Branding" section that upserts a display name, tagline, and logo file for the
+ * app.
  * The branding section lives on the same register-app page, so once
  * `RegisterAppForm` is mounted (at `/dashboard/apps/register`, Wallow-ffpq.3.5)
  * the branding display-name / tagline / logo inputs must be reachable in the
- * form view. Testids follow the component's own `app-*` convention (the React
- * port already renamed the Blazor `register-app-*` testids to `app-*`).
+ * form view. Testids follow the component's own `app-*` convention (the
+ * `register-app-*` testids were renamed to `app-*`).
  *
  * The `getWallowSdk()` facade is mocked as in `RegisterAppForm.test.tsx`.
  */

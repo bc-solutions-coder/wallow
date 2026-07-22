@@ -2,9 +2,7 @@
  * Settings profile section (Wallow-8w1h.6.2) — read-only profile card.
  *
  * Drives `useQuery(settingsQueries.profile())` and renders the current user's
- * name/email/roles, mirroring the Blazor oracle
- * `api/src/Wallow.Web/Components/Pages/Dashboard/Settings.razor` (which reads
- * name/email/roles off the authenticated principal, display-only, no mutation).
+ * name/email/roles off the authenticated principal, display-only, no mutation.
  * Testids mirror the C# page object `SettingsProfileSection`:
  *   settings-profile-name, settings-profile-email,
  *   settings-profile-roles (container) + settings-profile-role (per role) OR

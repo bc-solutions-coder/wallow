@@ -15,8 +15,7 @@ import { Route as consentRoute } from "../../../routes/consent";
 import { ConsentScreen } from "./ConsentScreen";
 
 /**
- * Component spec for the Consent screen (Wallow-vec7.3.4), ported from the
- * Blazor oracle `api/src/Wallow.Auth/Components/Pages/Consent.razor`.
+ * Component spec for the Consent screen (Wallow-vec7.3.4).
  *
  * Testids come verbatim from the oracle (scout inventory on Wallow-vec7.3):
  * `consent-error`, `consent-heading`, `consent-scopes`, `consent-approve`,
@@ -107,8 +106,8 @@ import { ConsentScreen } from "./ConsentScreen";
  * ── THE MISSING LOADING STATE (an oracle wart, deliberately not ported) ───────
  *
  * The oracle renders on `_consentInfo is null` alone, and `_consentInfo` is null
- * *while the request is still in flight*. So the Blazor screen flashes "Unable
- * to load consent information" at every user before its own fetch resolves. The
+ * *while the request is still in flight* — which would flash "Unable to load
+ * consent information" at every user before its own fetch resolves. The
  * scout's testid inventory has no loading testid because the oracle has no
  * loading state to give one to.
  *

@@ -12,7 +12,7 @@
  * two beads editing the same function bodies, and it IMPORTS the shared copy
  * rather than restating it.
  *
- * ── THE WIRE, READ FROM THE CONTROLLER (not from the Blazor client's DTO) ─────
+ * ── THE WIRE, READ FROM THE CONTROLLER (not from a client DTO) ───────────────
  *
  * `AccountController` (api/.../Identity/Wallow.Identity.Api/Controllers/AccountController.cs):
  *
@@ -79,8 +79,7 @@ const RATE_LIMITED_TOKEN = "Rate limit exceeded. Please try again later.";
  *
  * `"invalid_token"`, which the ORACLE names here, is DEAD: `ValidateMagicLinkAsync`
  * never returns it. Its live spelling is `"Invalid token."` (PasswordlessService.cs:105
- * — a failed HMAC comparison, i.e. a tampered or truncated link). Per bd memory
- * `blazor-oracle-dead-branch-pattern-check-the-wire-before-porting` the dead literal
+ * — a failed HMAC comparison, i.e. a tampered or truncated link). The dead literal
  * is not ported and the live one the author plainly meant is mapped in its place.
  *
  * `"Invalid token format."` (:95) is deliberately NOT in this set: it rides the same

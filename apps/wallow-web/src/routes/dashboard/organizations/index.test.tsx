@@ -63,8 +63,8 @@ describe("routes/dashboard/organizations (route page)", () => {
   });
 
   // Wallow-ffpq.3.5 — the orphan CreateOrganizationForm mounts INLINE on this
-  // index page (NOT a separate /dashboard/organizations/create route — Blazor's
-  // link to that path was dead and the bead's AC forbids recreating it).
+  // index page (NOT a separate /dashboard/organizations/create route — no such
+  // route exists and the bead's AC forbids recreating it).
   it("mounts the CreateOrganizationForm inline (organization-create-form)", async () => {
     const client = newClient();
     client.setQueryData(["orgs"], []);

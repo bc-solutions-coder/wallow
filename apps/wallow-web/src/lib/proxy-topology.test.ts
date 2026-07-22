@@ -7,9 +7,9 @@ import { isBffProxyPath } from "./proxy-topology";
  * wallow-auth's proxy. This pins the two acceptance criteria as a table over the
  * single-source-of-truth predicate both hosts (server.ts, dev-server.ts) consume:
  *
- *   1. NO `/_blazor` route at all — the SignalR WebSocket-upgrade path disappears
- *      entirely with the Blazor circuit, so it is never a BFF/proxy path and
- *      falls through like any other unknown path.
+ *   1. Legacy WebSocket-upgrade paths are NOT BFF/proxy paths — there is no such
+ *      circuit in the React app, so they fall through like any other unknown
+ *      path.
  *   2. `/api/**` IS a BFF-owned path (answered by `bff-server.ts`'s bearer-token-
  *      attaching `createApiProxy`), NOT reverse-proxied verbatim to Wallow.Api.
  *      The bearer-attach behavior itself is pinned in `bff-server.test.ts`; this
@@ -43,8 +43,8 @@ describe("wallow-web reverse-proxy topology", () => {
     );
   });
 
-  describe("has no /_blazor route (topology change: the SignalR circuit is gone)", () => {
-    it.each([["/_blazor"], ["/_blazor/negotiate"], ["/_blazor/initializers"]])(
+  describe("has no legacy WebSocket-upgrade route (topology change)", () => {
+    it.each([["/_legacy-ws"], ["/_legacy-ws/negotiate"], ["/_legacy-ws/initializers"]])(
       "does not route %s to the BFF bridge — it is not a proxy path at all",
       (pathname) => {
         expect(isBffProxyPath(pathname)).toBe(false);

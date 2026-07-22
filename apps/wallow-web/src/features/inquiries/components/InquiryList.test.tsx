@@ -15,7 +15,7 @@ import { InquiryList } from "./InquiryList";
  *
  * DIVERGENCE reconciliation (see bead 7.2 note): task 7 said to "copy the C# E2E
  * InquiryPage page object's testids", but InquiryPage.cs only carries the public
- * SUBMIT-FORM testids — there is NO Blazor admin list UI or list-row testid to
+ * SUBMIT-FORM testids — there is NO admin list UI or list-row testid to
  * mirror. So this list follows the Organizations `{page}-{element}` convention
  * per the bead's own acceptance: page root `dashboard-inquiries`, per-row
  * `inquiry-item`, plus `inquiry-item-status` for the acceptance's "showing status

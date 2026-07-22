@@ -8,8 +8,7 @@ import { MfaSettingsSection } from "./MfaSettingsSection";
 
 /**
  * Component spec for the MFA settings status card (Wallow-8w1h.6.4). Mirrors the
- * Blazor oracle `api/src/Wallow.Web/Components/Shared/MfaSettingsSection.razor`
- * and the C# E2E page object `SettingsMfaSection`:
+ * C# E2E page object `SettingsMfaSection`:
  *
  *   - `settings-mfa-status` ("Enabled"/"Disabled")
  *   - DISABLED: `settings-mfa-enable` -> enters the inline enroll flow
@@ -213,10 +212,10 @@ describe("MfaSettingsSection", () => {
 
   // REGENERATED-CODES REVEAL (Wallow-8w1h.6.6): the whole point of regenerating
   // is that the OLD codes are invalidated and the user MUST save the NEW ones.
-  // The Blazor oracle (MfaSettingsSection.razor) reveals `_regeneratedCodes` in a
-  // "New Backup Codes (save these somewhere safe)" panel after a successful
-  // regenerate. The resolved `{ codes: string[] }` payload must be surfaced once
-  // under `settings-mfa-regenerated-codes`, not silently discarded.
+  // The regenerated codes must be revealed in a "New Backup Codes (save these
+  // somewhere safe)" panel after a successful regenerate. The resolved
+  // `{ codes: string[] }` payload must be surfaced once under
+  // `settings-mfa-regenerated-codes`, not silently discarded.
   it("reveals the regenerated backup codes under settings-mfa-regenerated-codes after a successful regenerate", async () => {
     // Keep status Enabled across the post-success invalidation refetch.
     mocks.status.mockResolvedValue(ENABLED_STATUS);

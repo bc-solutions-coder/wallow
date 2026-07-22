@@ -4,10 +4,9 @@ import { getWallowAuthSdk } from "../../lib/wallow-auth-sdk";
  * Build the "go to sign in" link both verify-email screens end on, forwarding
  * `returnUrl` into the login page only when the open-redirect guard accepts it.
  *
- * Shared by `VerifyEmailConfirm` and `VerifyEmailNotice` deliberately: the two
- * Blazor oracles compute this same link with two DIFFERENT guards, and that
- * difference is the bug this port closes (see below). One helper is the only way
- * to keep the sibling screens honest about it.
+ * Shared by `VerifyEmailConfirm` and `VerifyEmailNotice` deliberately: both
+ * sibling screens must compute this same sign-in link with the same guard, and a
+ * single helper is the only way to keep them honest about it.
  *
  * ── A DELIBERATE DEVIATION FROM THE ORACLE (hardening) ───────────────────────
  *

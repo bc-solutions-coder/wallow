@@ -5,7 +5,7 @@
  *
  * RECONCILIATION (scout CRITICAL DIVERGENCE #1): profile is READ-ONLY. The
  * bead DESIGN's `updateProfileMutation` maps to a generic key/value settings
- * PUT that the Blazor oracle never uses for profile; there is NO backend
+ * PUT that is not a profile endpoint; there is NO backend
  * endpoint to mutate firstName/lastName/email from this surface. So this layer
  * exposes ONLY a `profile()` query (delegating to `settings.getProfile()`,
  * which wraps `getV1IdentityUsersMe` -> `CurrentUserResponse`) and NO mutation.

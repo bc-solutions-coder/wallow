@@ -55,9 +55,8 @@ const stylesheetHref: string | null = import.meta.env.DEV ? null : "/client.css"
  *    default colour scheme as a class so `.dark`/`.light` resolve with no
  *    client JS.
  *  - **Ready signal**: `<ReadyIndicator/>` sits at the root so *every* auth page
- *    emits it once hydrated. Blazor's equivalent lives in `AuthLayout.razor`
- *    because every auth page renders through that layout — the root route is
- *    this app's version of "every auth page".
+ *    emits it once hydrated. The root route is this app's version of "every
+ *    auth page" — the single shell every screen renders through.
  *
  * The per-client (`client_id`) branding overlay is resolved by the route that
  * renders `AuthLayout`; this shell shows the fork's, which is also the fallback

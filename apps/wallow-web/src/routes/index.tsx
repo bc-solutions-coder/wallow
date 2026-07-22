@@ -6,15 +6,15 @@ import { forkBranding } from "../lib/branding";
 import { getWallowSdk } from "../lib/wallow-sdk";
 
 /**
- * The public home page (Wallow-8w1h.2.2 / Wallow-ffpq.3.6) — the React port of
- * Blazor `Home.razor` (`@page "/"`, `@layout PublicLayout`, `[AllowAnonymous]`).
+ * The public home page (Wallow-8w1h.2.2 / Wallow-ffpq.3.6) — the anonymous
+ * marketing landing at `/`.
  *
- * The `beforeLoad` gate mirrors `Home.razor`'s `OnInitializedAsync`:
- *   - an AUTHENTICATED visitor is redirected to the dashboard (Blazor:
- *     `NavigateTo("/dashboard/apps")`) via a TanStack `redirect`,
+ * The `beforeLoad` gate:
+ *   - an AUTHENTICATED visitor is redirected to the dashboard
+ *     (`/dashboard/apps`) via a TanStack `redirect`,
  *   - an unauthenticated visitor is shown the marketing page only when
- *     `forkBranding.landingPage.enabled` (Blazor: `Branding.LandingPage.Enabled`),
- *   - otherwise they are sent to the BFF login (Blazor's forced OIDC challenge),
+ *     `forkBranding.landingPage.enabled`,
+ *   - otherwise they are sent to the BFF login (a forced OIDC challenge),
  *     landing back on the dashboard afterwards.
  *
  * The component still server-renders an `<h1 data-testid="home-heading">` (the

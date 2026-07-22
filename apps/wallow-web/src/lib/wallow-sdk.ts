@@ -123,8 +123,7 @@ export interface AppsSlice {
   register: (body: RegisterAppRequest) => Promise<unknown>;
   /**
    * Upsert an app's optional branding (display name, tagline, logo file) —
-   * POST `/v1/identity/apps/{clientId}/branding` (multipart). Mirrors Blazor
-   * `AppService.UpsertBrandingAsync` (Wallow-ffpq.3.6).
+   * POST `/v1/identity/apps/{clientId}/branding` (multipart) (Wallow-ffpq.3.6).
    */
   upsertBranding: (
     clientId: string,
@@ -144,9 +143,9 @@ export interface UserSlice {
  * `getV1IdentitySettingsUser`/`putV1IdentitySettingsUser` (GET/PUT
  * `/v1/identity/settings/user`) to profile get/update. Those are a GENERIC
  * tenant-scoped key/value settings store (`ResolvedSetting[]` /
- * `SettingUpdateRequest{key,value}`), NOT a profile endpoint, and the Blazor
- * oracle (`Settings.razor`) never calls them for profile — it renders
- * name/email/roles READ-ONLY off the authenticated `ClaimsPrincipal`. The
+ * `SettingUpdateRequest{key,value}`), NOT a profile endpoint. Profile is
+ * rendered READ-ONLY from name/email/roles off the authenticated
+ * `ClaimsPrincipal`. The
  * closest typed read is `getV1IdentityUsersMe()` -> `CurrentUserResponse`
  * (`{ id, email, firstName, lastName, roles, permissions }`). So this slice is
  * READ-ONLY: `getProfile()` wraps `getV1IdentityUsersMe()`. There is NO profile

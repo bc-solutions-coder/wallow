@@ -6,8 +6,7 @@ import { type ReactNode, useState } from "react";
 import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
 
 /**
- * ForgotPassword screen (Wallow-vec7.3.1) — port of the Blazor oracle
- * `api/src/Wallow.Auth/Components/Pages/ForgotPassword.razor`.
+ * ForgotPassword screen (Wallow-vec7.3.1).
  *
  * ANTI-ENUMERATION IS THE WHOLE POINT OF THIS SCREEN, and it is why this file
  * deliberately breaks two app-wide conventions. Read this before "fixing" it:
@@ -21,11 +20,9 @@ import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
  *     absence is asserted by the spec. Do not copy an error block in from a
  *     sibling screen.
  *
- * This also diverges from the oracle, intentionally: the Blazor original lets
- * `ForgotPasswordAsync` throw out of `HandleSubmit`, leaving `_submitted=false`
- * — so its error path shows *nothing*, silently. The bead's acceptance criterion
- * ("success message shown regardless of backend outcome") beats the oracle here;
- * this is the anti-enumeration fix, not a porting mistake.
+ * This behaviour is deliberate: the acceptance criterion ("success message shown
+ * regardless of backend outcome") is the anti-enumeration fix, not a porting
+ * mistake.
  *
  * Testids come verbatim from the oracle (scout inventory on Wallow-vec7.3):
  * `forgot-password-email`, `forgot-password-submit`, `forgot-password-success`.

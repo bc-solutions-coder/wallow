@@ -6,13 +6,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Route } from "./index";
 
 /**
- * Public-home reachability spec (Wallow-ffpq.3.6) — the React port of Blazor
- * `Home.razor`'s `OnInitializedAsync`:
- *   - an AUTHENTICATED visitor is redirected to the dashboard (Blazor:
- *     NavigateTo("/dashboard/apps")),
+ * Public-home reachability spec (Wallow-ffpq.3.6) — the home gate:
+ *   - an AUTHENTICATED visitor is redirected to the dashboard
+ *     (`/dashboard/apps`),
  *   - an unauthenticated visitor is shown the marketing page only when
- *     `Branding.LandingPage.Enabled`,
- *   - otherwise they are sent to the BFF login (Blazor's OIDC challenge).
+ *     the landing-page flag is enabled,
+ *   - otherwise they are sent to the BFF login (an OIDC challenge).
  *
  * The gate runs in the route's `beforeLoad`, reading the user through the mocked
  * `getWallowSdk().user.me()` facade (like `routes/dashboard/route.test.tsx`) and

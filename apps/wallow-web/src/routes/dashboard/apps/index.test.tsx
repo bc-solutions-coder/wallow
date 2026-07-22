@@ -62,8 +62,8 @@ describe("routes/dashboard/apps (route page)", () => {
   });
 
   // Wallow-ffpq.3.5 — the apps index links to the register route so
-  // RegisterAppForm is reachable via normal UI navigation (mirrors the Blazor
-  // oracle's `apps-register-link`), not just a directly-typed URL.
+  // RegisterAppForm is reachable via normal UI navigation (the
+  // `apps-register-link`), not just a directly-typed URL.
   it("links to the register route (apps-register-link)", async () => {
     const client = newClient();
     client.setQueryData(["apps"], []);

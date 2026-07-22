@@ -15,8 +15,7 @@ import { Route as mfaChallengeRoute } from "../../../routes/mfa/challenge";
 import { MfaChallengeForm, type MfaChallengeFormProps } from "./MfaChallengeForm";
 
 /**
- * Component spec for the MfaChallenge screen (Wallow-vec7.3.6), ported from the
- * Blazor oracle `api/src/Wallow.Auth/Components/Pages/MfaChallenge.razor`.
+ * Component spec for the MfaChallenge screen (Wallow-vec7.3.6).
  *
  * Testids come verbatim from the oracle (scout inventory on Wallow-vec7.3):
  * `mfa-challenge-error`, `mfa-challenge-success`, `mfa-challenge-backup-code`,
@@ -52,7 +51,7 @@ import { MfaChallengeForm, type MfaChallengeFormProps } from "./MfaChallengeForm
  *  1. `"expired_challenge"` IS DEAD CODE. This endpoint never emits that string —
  *     the expired-cookie case is `no_mfa_session`. A branch keyed on a token the
  *     API cannot send is not a behaviour worth carrying across.
- *  2. The `_` tail renders `result.Error` RAW, so a real Blazor user can be shown
+ *  2. The API's error tail renders `result.Error` RAW, so a user can be shown
  *     the literal "no_mfa_session" or "mfa_locked_out". The oracle shows machine
  *     tokens to humans; pinned against by "never leaks a raw reason token".
  *
@@ -339,9 +338,9 @@ describe("MfaChallengeForm", () => {
   });
 
   it("links back to sign in", async () => {
-    // The oracle's card footer. It has no testid in the Blazor original and the
-    // scout's inventory forbids inventing one for an element that shipped
-    // without one, so this asserts the link by role + href instead.
+    // The card footer. It has no testid and the scout's inventory forbids
+    // inventing one for an element that shipped without one, so this asserts the
+    // link by role + href instead.
     await renderForm();
 
     await expect
@@ -901,8 +900,8 @@ describe("MfaChallengeForm — a rejected code", () => {
   });
 
   it("never leaks the raw rejection or a machine reason token into the page", async () => {
-    // The seam hands the screen `title: "Unknown error"`, and the oracle's `_`
-    // branch printed the API's own `error` string — so a real Blazor user could
+    // The seam hands the screen `title: "Unknown error"`, and the API's error
+    // branch prints the API's own `error` string — so a user could
     // be shown "no_mfa_session". Neither is a message for a human.
     //
     // Sharper now than when `code` was always "UNKNOWN": Wallow-vec7.7 puts the

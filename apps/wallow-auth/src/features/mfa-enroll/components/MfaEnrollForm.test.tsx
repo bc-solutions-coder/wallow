@@ -15,8 +15,7 @@ import { Route as mfaEnrollRoute } from "../../../routes/mfa/enroll";
 import { MfaEnrollForm } from "./MfaEnrollForm";
 
 /**
- * Component spec for the MfaEnroll screen (Wallow-vec7.3.7), ported from the
- * Blazor oracle `api/src/Wallow.Auth/Components/Pages/MfaEnroll.razor`.
+ * Component spec for the MfaEnroll screen (Wallow-vec7.3.7).
  *
  * Testids come verbatim from the oracle (scout inventory on Wallow-vec7.3):
  * `mfa-enroll-error`, `mfa-enroll-backup-codes`, `mfa-enroll-qr`,
@@ -738,8 +737,8 @@ describe("MfaEnrollForm — a rejected code", () => {
   });
 
   it("never leaks a raw rejection or a machine reason token into the page", async () => {
-    // The oracle prints `result.Error` raw through its `_` tail, so a real Blazor
-    // user can be shown the literal "update_failed". That wart is not ported.
+    // The API's error tail can print `result.Error` raw, exposing the literal
+    // "update_failed". That wart is not ported.
     mocks.confirmEnrollment.mockRejectedValue(rejectionWithStatus(400));
     const user = userEvent.setup();
     renderForm();

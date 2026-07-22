@@ -9,13 +9,11 @@ import {
 import { getWallowAuthSdk } from "../lib/wallow-auth-sdk";
 
 /**
- * The `/invitation` route (Wallow-vec7.3.9) — the React port of the Blazor oracle
- * `api/src/Wallow.Auth/Components/Pages/InvitationLanding.razor`.
+ * The `/invitation` route (Wallow-vec7.3.9).
  *
  * The path was pre-registered against a placeholder by Wallow-vec7.3.16 and is
- * the contract — `/invitation`, singular, verbatim from the oracle's `@page` —
- * so this task replaced the placeholder component here and left `src/router.tsx`
- * untouched.
+ * the contract — `/invitation`, singular — so this task replaced the placeholder
+ * component here and left `src/router.tsx` untouched.
  *
  * This route owns the two inputs the screen is a pure function of: the query
  * string (the oracle's single `[SupplyParameterFromQuery] Token`) and the auth
@@ -23,8 +21,7 @@ import { getWallowAuthSdk } from "../lib/wallow-auth-sdk";
  *
  * ── THE AUTH-STATE PROBE ─────────────────────────────────────────────────────
  *
- * The oracle gets auth state for free — Blazor Server holds the cookie principal
- * server-side (InvitationLanding.razor:7,130). This app has no server session and
+ * This app has no server session and
  * the auth cookie is HttpOnly, so the answer comes from the SDK's `getCurrentUser`
  * seam (Wallow-vec7.2.4): a same-origin `GET /v1/identity/users/me` through the
  * h3 passthrough proxy, whose 200-vs-401 IS the answer. JS never reads the

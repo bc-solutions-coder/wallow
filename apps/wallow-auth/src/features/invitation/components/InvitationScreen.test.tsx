@@ -15,8 +15,7 @@ import { Route as invitationRoute } from "../../../routes/invitation";
 import { InvitationScreen } from "./InvitationScreen";
 
 /**
- * Component spec for the InvitationLanding screen (Wallow-vec7.3.9), ported from
- * the Blazor oracle `api/src/Wallow.Auth/Components/Pages/InvitationLanding.razor`.
+ * Component spec for the InvitationLanding screen (Wallow-vec7.3.9).
  *
  * Testids come verbatim from the oracle (scout inventory on Wallow-vec7.3):
  * `invitation-loading`, `invitation-error`, `invitation-info`,
@@ -31,9 +30,8 @@ import { InvitationScreen } from "./InvitationScreen";
  *
  * ── THE AUTH-STATE SEAM (the gap this file's red phase left open) ────────────
  *
- * This is the ONLY oracle in the phase that injects `AuthenticationStateProvider`
- * (InvitationLanding.razor:7,130) — Blazor Server holds the auth cookie's
- * principal server-side and hands it to the component for free. apps/wallow-auth
+ * This screen depends on auth state that a server session would hold for free.
+ * apps/wallow-auth
  * has no equivalent: its h3 server is a PASSTHROUGH REVERSE PROXY with no
  * session store (`src/lib/auth-server.ts`) and the auth cookie is HttpOnly.
  *
@@ -93,9 +91,9 @@ import { InvitationScreen } from "./InvitationScreen";
  * `GetRegisterUrl()` (InvitationLanding.razor:196-201) builds
  * `/register?email=…&returnUrl=…`, but `Register.razor` declares only
  * `client_id` and `returnUrl` as `[SupplyParameterFromQuery]` (Register.razor:
- * 179-183) — it never reads `email`. The parameter is dead in the Blazor
- * original, and the ported `/register` route (Wallow-vec7.3.8) likewise reads
- * only `client_id`/`returnUrl`. It is ported anyway — it is the oracle's link
+ * 179-183) — it never reads `email`. The `/register` route (Wallow-vec7.3.8)
+ * likewise reads
+ * only `client_id`/`returnUrl`. The `email` param is kept anyway — it is the link
  * contract, it costs nothing, and a Register that prefills the invited address
  * is a plausible follow-up — but it is pinned below as INERT so no one reads
  * these tests as proof the address prefills. It does not.

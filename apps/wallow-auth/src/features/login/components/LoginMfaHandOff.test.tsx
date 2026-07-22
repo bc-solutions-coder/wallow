@@ -86,8 +86,7 @@ import { Route as loginRoute } from "../../../routes/login";
  *
  * ── NO cookieRelay ───────────────────────────────────────────────────────────
  *
- * The Blazor oracle's `BuildMfaRedirectUrl` (Login.razor:509) threads a
- * `cookieRelay` param because Blazor's hand-off crossed an origin. Ours does
+ * A cross-origin hand-off would need a `cookieRelay` param. Ours does
  * not: the partial-auth cookie is first-party through the proxy, so the hand-off
  * is a client-router `navigate()`. `carriesNoRelaySpecificQueryParam` pins the
  * absence by enumerating the query KEYS rather than grepping for the string

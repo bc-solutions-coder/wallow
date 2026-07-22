@@ -12,7 +12,7 @@ import { OrganizationDetail } from "./OrganizationDetail";
  * detail state is driven by the `['orgs', id]` cache and archive/reactivate
  * delegate through the api.ts mutation factories to the mocked facade slice.
  *
- * Testids mirror the Blazor oracle: `organization-detail-back-link`,
+ * Testids: `organization-detail-back-link`,
  * `organization-detail-heading`, `organization-detail-not-found`, plus the new
  * lifecycle actions `organization-detail-archive` / `organization-detail-
  * reactivate`. It also mounts `MemberList`, surfacing

@@ -5,8 +5,7 @@ import { describe, expect, it, vi } from "vitest";
  * The document shell's a11y focus-management contract (Wallow-0q2s.9.1). Mirror
  * of wallow-auth's shell, which mounts `<FocusOnNavigate/>` at the root so
  * *every* route moves keyboard/screen-reader focus to the destination screen's
- * `<h1>` after each client-side navigation (the React port of Blazor's
- * `<FocusOnNavigate RouteData=... Selector="h1"/>`). The current wallow-web
+ * `<h1>` after each client-side navigation. The current wallow-web
  * shell mounts no such component, so assistive tech never announces the new
  * screen on navigation — this spec pins that gap.
  *

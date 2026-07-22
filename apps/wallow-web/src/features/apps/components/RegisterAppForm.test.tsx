@@ -12,7 +12,7 @@ import { RegisterAppForm } from "./RegisterAppForm";
  * Form) + `useMutation(registerAppMutation(queryClient))` — and adds the
  * behaviors unique to app registration:
  *
- *   - Blazor field remap (RegisterApp.razor / AppRegistrationService.cs):
+ *   - Field remap (API request contract):
  *     DisplayName -> clientName, Scopes -> requestedScopes; clientType defaults
  *     to "public"; redirect URIs are a newline-separated textarea split on `\n`
  *     with empty lines dropped.

@@ -78,8 +78,7 @@ describe("routes/dashboard/inquiries (route page)", () => {
   });
 
   // Wallow-ffpq.3.5 — the orphan CreateInquiryForm mounts INLINE on this index
-  // page, matching Blazor's Inquiries.razor (list + create on the SAME page),
-  // NOT a standalone route.
+  // page (list + create on the SAME page), NOT a standalone route.
   it("mounts the CreateInquiryForm inline (inquiry-create-form)", async () => {
     const client = newClient();
     client.setQueryData(["inquiries"], []);

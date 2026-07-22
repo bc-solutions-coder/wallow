@@ -38,10 +38,8 @@ import { Route as verifyEmailRoute } from "./routes/verify-email/index";
  * placeholder component there. Registering a screen route is no longer part of
  * any screen task.
  *
- * The paths below are the migration's external contract: they are copied
- * verbatim from the `@page` directives of the Blazor oracles in
- * `api/src/Wallow.Auth/Components/Pages/`, so any URL that worked against the
- * Blazor auth app lands on the same screen here. They are not free to change.
+ * The paths below are the app's external contract — the stable auth URLs any
+ * client links to — so they are not free to change.
  *
  * Every route is a flat child of the root: the auth app has no layout route,
  * because `AuthLayout` is applied by each screen rather than through the tree.

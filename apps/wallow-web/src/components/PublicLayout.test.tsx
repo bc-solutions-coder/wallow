@@ -26,8 +26,7 @@ vi.mock("@tanstack/react-router", async (importOriginal) => {
 });
 
 /**
- * PublicLayout spec (Wallow-ffpq.3.6) — the React port of Blazor
- * `PublicLayout.razor`. The public chrome must render a navbar (home/logo link
+ * PublicLayout spec (Wallow-ffpq.3.6). The public chrome must render a navbar (home/logo link
  * to "/", Features/Docs/GitHub links, a "Get Started" CTA into the BFF login)
  * and a footer ("MIT Licensed", GitHub + Docs links) around its children, so
  * the marketing page is reachable and navigable. Testids follow the repo's

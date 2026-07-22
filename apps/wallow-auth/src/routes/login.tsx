@@ -5,8 +5,7 @@ import { isPasswordResetMessage, PASSWORD_RESET_MESSAGE } from "../features/logi
 import { LoginScreen } from "../features/login/components/LoginScreen";
 
 /**
- * The `/login` route (Wallow-vec7.3.11 / 2.8a) — the React port of the Blazor
- * oracle `api/src/Wallow.Auth/Components/Pages/Login.razor`.
+ * The `/login` route (Wallow-vec7.3.11 / 2.8a).
  *
  * The path was pre-registered against a placeholder by Wallow-vec7.3.16 and is
  * the contract: `src/router.tsx` already binds it, so this task replaced the

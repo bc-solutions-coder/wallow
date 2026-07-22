@@ -4,8 +4,7 @@ import { AuthLayout } from "../components/auth-layout";
 import { ErrorPage } from "../features/error/components/ErrorPage";
 
 /**
- * The `/error` route (Wallow-vec7.3.3) — the React port of the Blazor oracle
- * `api/src/Wallow.Auth/Components/Pages/Error.razor`.
+ * The `/error` route (Wallow-vec7.3.3).
  *
  * The path was pre-registered against a placeholder by Wallow-vec7.3.16 and is
  * the contract: `src/router.tsx` already binds it, so this task replaced the

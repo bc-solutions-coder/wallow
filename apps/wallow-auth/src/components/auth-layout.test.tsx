@@ -77,8 +77,8 @@ describe("AuthLayout", () => {
     // api/branding.json names the icon by bare filename (`piggy-icon.svg`), and
     // rendering that value verbatim is what made the icon 404 on every nested
     // route: the browser resolved it against the page, asking /mfa/challenge for
-    // /mfa/piggy-icon.svg. Blazor normalised the path against the app base;
-    // React does not, so the layout must render the rooted URL.
+    // /mfa/piggy-icon.svg. React does not normalise the path against the app
+    // base, so the layout must render the rooted URL.
     //
     // On a fork-branded page the icon appears twice — as the heading logo and in
     // the footer attribution — and both are the same bug.

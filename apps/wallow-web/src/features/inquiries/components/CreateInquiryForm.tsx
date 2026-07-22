@@ -7,8 +7,7 @@
  * and surfaces the server's RFC 7807 ProblemDetails `detail` when the submit
  * fails.
  *
- * Testids mirror the C# E2E `InquiryPage` page object + Blazor oracle
- * (`api/src/Wallow.Web/Components/Pages/Dashboard/Inquiries.razor`) verbatim:
+ * Testids mirror the C# E2E `InquiryPage` page object verbatim:
  * `inquiry-name`, `inquiry-email`, `inquiry-phone`, `inquiry-company`,
  * `inquiry-project-type`, `inquiry-budget-range`, `inquiry-timeline` (selects),
  * `inquiry-message` (textarea), `inquiry-submit` (button), `inquiry-success` /
@@ -35,7 +34,7 @@ interface SelectOption {
   label: string;
 }
 
-/** Blazor oracle option lists — cosmetic parity only, not a server-side enum. */
+/** Cosmetic option lists — display-only, not a server-side enum. */
 const PROJECT_TYPE_OPTIONS: readonly SelectOption[] = [
   { value: "web-app", label: "Web Application" },
   { value: "mobile-app", label: "Mobile Application" },
@@ -92,7 +91,7 @@ function TextField(props: {
   );
 }
 
-/** Presentational select with the Blazor oracle's placeholder + option list. */
+/** Presentational select with the placeholder + option list. */
 function SelectField(props: {
   testId: string;
   value: string;

@@ -17,8 +17,7 @@ import { getWallowSdk } from "../../lib/wallow-sdk";
  * to, so they land back on the gated page after authenticating.
  *
  * When a user IS present it derives `isAdmin` from the user's roles claim
- * (Wallow-ffpq.3.6, restoring Blazor `DashboardLayout.razor`'s
- * `<AuthorizeView Roles="admin">`) and exposes it on the route context so the
+ * (Wallow-ffpq.3.6) and exposes it on the route context so the
  * shell can gate the Organizations nav link.
  */
 

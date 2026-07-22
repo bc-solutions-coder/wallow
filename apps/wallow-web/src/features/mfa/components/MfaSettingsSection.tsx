@@ -1,7 +1,6 @@
 /**
  * MFA settings status card (Wallow-8w1h.6.4) — the status + actions card that
- * lives alongside the profile section on the settings route, mirroring the
- * Blazor oracle `api/src/Wallow.Web/Components/Shared/MfaSettingsSection.razor`.
+ * lives alongside the profile section on the settings route.
  *
  * Drives `useQuery(mfaQueries.status())` and renders:
  *   - `settings-mfa-status` — "Enabled"/"Disabled" text.
@@ -102,7 +101,7 @@ function ConfirmPanel(props: {
 
 /**
  * One-time reveal of freshly regenerated backup codes (one child per code),
- * mirroring the Blazor oracle's "New Backup Codes" panel. Shown after a
+ * shown in a "New Backup Codes" panel. Shown after a
  * successful regenerate because the old codes are now invalidated.
  */
 function RegeneratedCodes(props: { codes: string[] }) {

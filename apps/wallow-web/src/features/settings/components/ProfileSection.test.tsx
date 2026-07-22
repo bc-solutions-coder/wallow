@@ -17,8 +17,8 @@ import { ProfileSection } from "./ProfileSection";
  * Profile is READ-ONLY (scout CRITICAL DIVERGENCE #1): data comes from
  * `settings.getProfile()` -> `getV1IdentityUsersMe` ->
  * `CurrentUserResponse{ id, email, firstName, lastName, roles, permissions }`,
- * and there is NO edit/save affordance — the Blazor oracle renders name/email/
- * roles off the authenticated principal with no mutation. Testids mirror the
+ * and there is NO edit/save affordance — the profile is display-only, rendered
+ * from name/email/roles off the authenticated principal with no mutation. Testids mirror the
  * C# page object `SettingsProfileSection`:
  *   settings-profile-name, settings-profile-email,
  *   settings-profile-roles (container) + settings-profile-role (per role) OR

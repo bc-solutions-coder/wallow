@@ -108,9 +108,9 @@ export const reactivateOrganizationMutation = (queryClient: QueryClient, orgId: 
 });
 
 /**
- * The register-client request body (Wallow-ffpq.3.6). Mirrors the Blazor
- * `RegisterClientForm` (display name, client type, newline-split redirect URIs);
- * the facade maps it onto the API's `CreateClientRequest`.
+ * The register-client request body (Wallow-ffpq.3.6): display name, client type,
+ * and newline-split redirect URIs; the facade maps it onto the API's
+ * `CreateClientRequest`.
  */
 export interface RegisterClientBody {
   displayName: string;

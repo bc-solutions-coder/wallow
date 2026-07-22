@@ -16,8 +16,7 @@ import { LoginScreen, type LoginScreenProps } from "./LoginScreen";
 
 /**
  * Component spec for the Login screen's PASSWORD tab and the tab shell that
- * hosts it (Wallow-vec7.3.11 / 2.8a), ported from the Blazor oracle
- * `api/src/Wallow.Auth/Components/Pages/Login.razor`.
+ * hosts it (Wallow-vec7.3.11 / 2.8a).
  *
  * This is the HEAD of a five-bead chain over one file: `.3.12` (magic-link),
  * `.3.13` (OTP), `.3.14` (external providers) and `.3.15` (MFA hand-off) all

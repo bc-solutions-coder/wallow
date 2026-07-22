@@ -1,8 +1,7 @@
 import type { ReactNode } from "react";
 
 /**
- * The Privacy Policy screen (Wallow-vec7.3.3), ported from the Blazor oracle
- * `api/src/Wallow.Auth/Components/Pages/Privacy.razor`.
+ * The Privacy Policy screen (Wallow-vec7.3.3).
  *
  * A static document: no query parameters, no SDK calls, no state.
  *

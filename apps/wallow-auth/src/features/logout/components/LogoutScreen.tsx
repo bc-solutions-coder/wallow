@@ -5,8 +5,7 @@ import type { ReactNode } from "react";
 import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
 
 /**
- * The Logout screen (Wallow-vec7.3.5), ported from the Blazor oracle
- * `api/src/Wallow.Auth/Components/Pages/Logout.razor`.
+ * The Logout screen (Wallow-vec7.3.5).
  *
  * ONE ROUTE, TWO PHASES. The oracle drives both off `signed_out` on a single
  * `@page "/logout"`: the CONFIRM step asks "are you sure" and hands off to

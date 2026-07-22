@@ -15,9 +15,7 @@ import { Route as verifyEmailConfirmRoute } from "../../../routes/verify-email/c
 import { VerifyEmailConfirm } from "./VerifyEmailConfirm";
 
 /**
- * Component spec for the VerifyEmailConfirm screen (Wallow-vec7.3.3), ported
- * from the Blazor oracle
- * `api/src/Wallow.Auth/Components/Pages/VerifyEmailConfirm.razor`.
+ * Component spec for the VerifyEmailConfirm screen (Wallow-vec7.3.3).
  *
  * Testids come verbatim from the oracle (scout inventory on Wallow-vec7.3):
  * `verify-email-confirm-loading`, `verify-email-confirm-success`,
@@ -68,10 +66,9 @@ import { VerifyEmailConfirm } from "./VerifyEmailConfirm";
  *     400           -> "The verification link is invalid or has expired."   (oracle's invalid_token arm)
  *     anything else -> "An error occurred while verifying your email..."     (oracle's catch arm)
  *
- * Non-400 rejections land on the oracle's `catch` message rather than its
- * unreachable `_` arm — that is what the Blazor original does for a 500 too (its
- * `AuthApiClient.VerifyEmailAsync` parses the error body, which throws on a
- * non-JSON 500 body and falls into `catch`).
+ * Non-400 rejections land on the generic `catch` message rather than the
+ * unreachable `_` arm — a 500 with a non-JSON body throws during error parsing
+ * and falls into `catch` too.
  *
  * The screen must narrow on `status` STRUCTURALLY (`error.status === 400`)
  * rather than with `instanceof WallowError`: `WallowError` is exported from the

@@ -15,8 +15,7 @@ import { Route as resetPasswordRoute } from "../../../routes/reset-password";
 import { ResetPasswordForm } from "./ResetPasswordForm";
 
 /**
- * Component spec for the ResetPassword screen (Wallow-vec7.3.2), ported from the
- * Blazor oracle `api/src/Wallow.Auth/Components/Pages/ResetPassword.razor`.
+ * Component spec for the ResetPassword screen (Wallow-vec7.3.2).
  *
  * Testids come verbatim from the oracle (scout inventory on Wallow-vec7.3):
  * `reset-password-error`, `reset-password-new-password`, `reset-password-confirm`,
@@ -38,9 +37,8 @@ import { ResetPasswordForm } from "./ResetPasswordForm";
  * That switch CANNOT be ported as written. `AccountController.ResetPassword`
  * (api/.../Controllers/AccountController.cs:771-794) returns its failures as
  * **`BadRequest(new { succeeded = false, error = "invalid_token" })`** — a 400
- * whose body is a bare anon object, NOT RFC 7807 problem details. Blazor's
- * `AuthApiClient` reads that 400 body back into an `AuthResponse` and keeps the
- * string; the TS seam does not. `unwrap()` THROWS on any non-2xx, and
+ * whose body is a bare anon object, NOT RFC 7807 problem details. The error
+ * string does not survive the TS seam: `unwrap()` THROWS on any non-2xx, and
  * `toWallowError()` (packages/sdk/src/auth-client.ts:257-280) builds its `code`
  * from `extensions.code` ?? `code` only — it never reads a top-level `error`
  * field. So `{ succeeded: false, error: "invalid_token" }` arrives as
@@ -168,9 +166,9 @@ describe("ResetPasswordForm", () => {
   });
 
   it("links back to sign in", async () => {
-    // The oracle's card footer. It has no testid in the Blazor original and the
-    // scout's inventory forbids inventing one for an element that shipped
-    // without one, so this asserts the link by role + href instead.
+    // The card footer. It has no testid and the scout's inventory forbids
+    // inventing one for an element that shipped without one, so this asserts the
+    // link by role + href instead.
     renderForm();
 
     await expect
@@ -264,9 +262,9 @@ describe("ResetPasswordForm", () => {
   });
 
   it("requires a new password before calling the endpoint", async () => {
-    // DELIBERATE DEVIATION FROM THE ORACLE, flagged on the bead. Blazor compares
-    // "" to "" , finds them equal, and POSTs an empty password; the server then
-    // fails `ResetPasswordAsync` and returns 400 invalid_token — so the user is
+    // DELIBERATE local required-field check, flagged on the bead. Without it, an
+    // empty password would POST, the server fails `ResetPasswordAsync` and
+    // returns 400 invalid_token — so the user is
     // told their *link* expired when in fact they typed nothing. That message is
     // actively misleading. A required check keeps the empty case local and
     // matches the field-error convention the sibling ForgotPassword port set.

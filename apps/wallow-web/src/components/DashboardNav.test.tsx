@@ -25,7 +25,7 @@ vi.mock("@tanstack/react-router", () => ({
  * DashboardNav spec (Wallow-8w1h.8.1). The dashboard shell's nav links to the
  * verticals, each carrying a `data-testid="dashboard-nav-<feature>"` testid
  * pointing at its route. The Organizations link is admin-gated as of
- * Wallow-ffpq.3.6 (restoring the Blazor oracle), so it is covered by
+ * Wallow-ffpq.3.6, so it is covered by
  * `DashboardNav.gate.test.tsx` rather than the unconditional loop here.
  */
 describe("DashboardNav", () => {

@@ -4,8 +4,7 @@ import { AuthLayout } from "../components/auth-layout";
 import { TermsPage } from "../features/terms/components/TermsPage";
 
 /**
- * The `/terms` route (Wallow-vec7.3.3) — the React port of the Blazor oracle
- * `api/src/Wallow.Auth/Components/Pages/Terms.razor`.
+ * The `/terms` route (Wallow-vec7.3.3).
  *
  * Not to be confused with `/accept-terms` (the ToS gate, owned by
  * Wallow-vec7.3.10) — this is the static terms document that gate links to.

@@ -13,8 +13,7 @@ import { Route as acceptTermsRoute } from "../../../routes/accept-terms";
 import { AcceptTermsScreen } from "./AcceptTermsScreen";
 
 /**
- * Component spec for the AcceptTerms screen (Wallow-vec7.3.10), ported from the
- * Blazor oracle `api/src/Wallow.Auth/Components/Pages/AcceptTerms.razor`.
+ * Component spec for the AcceptTerms screen (Wallow-vec7.3.10).
  *
  * This is the ToS/Privacy GATE in the external-login (social sign-up) flow — not
  * the static terms document, which is the separate `/terms` route
@@ -92,12 +91,8 @@ import { AcceptTermsScreen } from "./AcceptTermsScreen";
  *
  * ── DIVERGENCE 2: THE ORACLE'S ToS/PRIVACY LINKS ARE BROKEN (fixed on port) ───
  *
- * The oracle links to `/terms-of-service` and `/privacy-policy` (AcceptTerms.
- * razor:48,56). Neither route exists: the pages are `@page "/terms"` (Terms.
- * razor:1) and `@page "/privacy"` (Privacy.razor:1). Both links 404 in Blazor
- * today. On a screen whose entire purpose is to obtain informed consent to those
- * two documents, shipping 404s is not parity worth keeping — the port links to
- * the real routes, which Wallow-vec7.3.16 has already registered.
+ * The consent links point at the real `/terms` and `/privacy` routes (registered
+ * by Wallow-vec7.3.16) — the two documents this gate obtains informed consent to.
  *
  * ── DIVERGENCE 3: `session_expired` IS NOT WIRE-REACHABLE HERE ───────────────
  *

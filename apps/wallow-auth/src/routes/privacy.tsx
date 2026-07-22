@@ -4,8 +4,7 @@ import { AuthLayout } from "../components/auth-layout";
 import { PrivacyPage } from "../features/privacy/components/PrivacyPage";
 
 /**
- * The `/privacy` route (Wallow-vec7.3.3) — the React port of the Blazor oracle
- * `api/src/Wallow.Auth/Components/Pages/Privacy.razor`.
+ * The `/privacy` route (Wallow-vec7.3.3).
  *
  * The path was pre-registered against a placeholder by Wallow-vec7.3.16 and is
  * the contract: `src/router.tsx` already binds it, so this task replaced the

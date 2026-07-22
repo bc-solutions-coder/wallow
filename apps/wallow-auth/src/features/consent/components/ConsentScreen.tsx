@@ -6,8 +6,7 @@ import { useEffect, type ReactNode } from "react";
 import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
 
 /**
- * The Consent screen (Wallow-vec7.3.4), ported from the Blazor oracle
- * `api/src/Wallow.Auth/Components/Pages/Consent.razor`.
+ * The Consent screen (Wallow-vec7.3.4).
  *
  * `clientId` and `returnUrl` arrive as props rather than being read from the
  * router inside the component: the route owns the query string (the oracle's two
@@ -69,7 +68,7 @@ import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
  * ── THE MISSING LOADING STATE (an oracle wart, deliberately not ported) ───────
  *
  * The oracle renders its error block on `_consentInfo is null`, which is ALSO
- * true while its own request is in flight — so the Blazor screen flashes "Unable
+ * true while its own request is in flight — which would flash "Unable
  * to load consent information" at every user before the fetch resolves. This
  * port renders NOTHING in flight: no error, no prompt. That fixes the flash
  * without inventing a testid the oracle has no element for, and keeps

@@ -15,7 +15,7 @@ import { OrganizationList } from "./OrganizationList";
  * Runs under the browser-mode project (real Chromium via `vitest-browser-react`;
  * Wallow-xzha.3.2), so there is no jsdom pragma and no `@testing-library/*`.
  * Testids follow `{page}-{element}` kebab-case; per-row testid is
- * `organization-item` (the bead spec overrides the Blazor oracle's
+ * `organization-item` (the bead spec deliberately uses `organization-item`, not
  * `organizations-row`).
  */
 

@@ -11,7 +11,7 @@
  * switch. It sits beside `./magic-link-result` rather than inside it, and IMPORTS
  * the shared copy rather than restating it.
  *
- * ── THE WIRE, READ FROM THE CONTROLLER (not from the Blazor client's DTO) ─────
+ * ── THE WIRE, READ FROM THE CONTROLLER (not from a client DTO) ───────────────
  *
  * `AccountController` (api/.../Identity/Wallow.Identity.Api/Controllers/AccountController.cs):
  *
@@ -69,8 +69,7 @@ export const OTP_RATE_LIMITED_MESSAGE =
  * The oracle's `HandleVerifyOtp` switch copy (Login.razor:484).
  *
  * The COPY is ported; the oracle's `"invalid_code"` KEY is not, because it is DEAD
- * — `ValidateOtpAsync` never returns it (bd memory
- * `blazor-oracle-dead-branch-pattern-check-the-wire-before-porting`). The copy
+ * — `ValidateOtpAsync` never returns it. The copy
  * survives the dead key because it already covers both live tokens: "Invalid OR
  * EXPIRED code" is precisely the union of `"Invalid code."` and `"Code expired or
  * not found."`.

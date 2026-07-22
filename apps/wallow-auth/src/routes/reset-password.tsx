@@ -4,8 +4,7 @@ import { AuthLayout } from "../components/auth-layout";
 import { ResetPasswordForm } from "../features/reset-password/components/ResetPasswordForm";
 
 /**
- * The `/reset-password` route (Wallow-vec7.3.2) — the React port of the Blazor
- * oracle `api/src/Wallow.Auth/Components/Pages/ResetPassword.razor`.
+ * The `/reset-password` route (Wallow-vec7.3.2).
  *
  * The path was pre-registered against a placeholder by Wallow-vec7.3.16 and is
  * the contract: `src/router.tsx` already binds it, so this task replaced the

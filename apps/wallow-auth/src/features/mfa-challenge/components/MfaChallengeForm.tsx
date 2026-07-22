@@ -6,8 +6,7 @@ import { type ReactNode, useEffect, useState } from "react";
 import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
 
 /**
- * The MfaChallenge screen (Wallow-vec7.3.6), ported from the Blazor oracle
- * `api/src/Wallow.Auth/Components/Pages/MfaChallenge.razor`.
+ * The MfaChallenge screen (Wallow-vec7.3.6).
  *
  * `returnUrl` arrives as a prop rather than being read from the router inside
  * the component: the route owns the query string (the oracle's single
@@ -44,8 +43,8 @@ import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
  *     that string. The expired-cookie case is `no_mfa_session`, which the oracle
  *     drops into its `_` tail. `SESSION_EXPIRED_MESSAGE` says what that dead
  *     branch was reaching for, keyed on the token the API actually sends.
- *   - Its `_` tail renders `result.Error` RAW, so a Blazor user can be shown the
- *     literal "no_mfa_session". `code` is a machine token and is never rendered
+ *   - The API's error tail can render `result.Error` RAW, exposing the literal
+ *     "no_mfa_session". `code` is a machine token and is never rendered
  *     here: it is matched against KNOWN values, and anything else — including a
  *     401 carrying an unrecognised code — falls to the generic message rather
  *     than guessing.

@@ -14,8 +14,7 @@ import { type ReactNode, useState } from "react";
 import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
 
 /**
- * The Register screen (Wallow-vec7.3.8), ported from the Blazor oracle
- * `api/src/Wallow.Auth/Components/Pages/Register.razor`.
+ * The Register screen (Wallow-vec7.3.8).
  *
  * `clientId` and `returnUrl` arrive as props rather than being read from the
  * router inside the component: the route owns the query string (the oracle's two
@@ -62,7 +61,7 @@ import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
  *   - Its `"password_too_weak"` branch is DEAD CODE — the controller never emits
  *     that string. That case arrives as the raw sentence, and lands on the
  *     generic tail here.
- *   - Its `_` tail renders `result.Error` RAW, so a Blazor user really can be
+ *   - The API's error tail renders `result.Error` RAW, so a user really can be
  *     shown Identity's own prose ("Passwords must have at least one digit
  *     ('0'-'9')."). `code` is a machine member here: it is matched against KNOWN
  *     tokens and NEVER rendered. Anything unrecognised — including a 400 carrying
@@ -77,16 +76,12 @@ import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
  *
  * `OrganizationDomainsController.Match` (.../OrganizationDomainsController.cs:67-88)
  * answers `Ok({ organizationId, domain })` on a VERIFIED match and a bare 404
- * otherwise. Blazor's `AuthApiClient.GetMatchingOrganizationByDomainAsync`
- * (api/src/Wallow.Auth/Services/AuthApiClient.cs:124-146) deserialises that into
- * `record OrganizationDomainMatchResponse(string? OrgName)` and returns
- * `body?.OrgName` — a field the endpoint NEVER sends. `OrgName` is therefore
- * always null, `_suggestedOrgName` is always null, and the oracle's interstitial
- * is UNREACHABLE in production: dead code behind a live-looking branch.
+ * otherwise — it does NOT send the org's display name, only the id and the
+ * matched `domain`.
  *
- * This port keys the suggestion on `domain`, the field actually on the wire, so
- * the branch this bead's acceptance mandates genuinely renders. That is a
- * DELIBERATE, disclosed divergence — a faithful port would ship the dead code.
+ * This screen keys the suggestion on `domain`, the field actually on the wire, so
+ * the interstitial this bead's acceptance mandates genuinely renders. That is a
+ * DELIBERATE, disclosed divergence.
  * Its cost is that the interstitial names the DOMAIN ("example.com") rather than
  * the org's display name, which the endpoint does not expose; recovering the name
  * would need an API change, out of this bead's scope.

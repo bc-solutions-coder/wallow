@@ -7,8 +7,7 @@ import { type ReactNode, useState } from "react";
 import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
 
 /**
- * The ResetPassword screen (Wallow-vec7.3.2), ported from the Blazor oracle
- * `api/src/Wallow.Auth/Components/Pages/ResetPassword.razor`.
+ * The ResetPassword screen (Wallow-vec7.3.2).
  *
  * `email` and `token` arrive as props rather than being read from the router
  * inside the component: the route owns the query string (the oracle's two
@@ -33,9 +32,8 @@ import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
  * That string does not survive the TS seam. `AccountController.ResetPassword`
  * (api/.../Controllers/AccountController.cs:771-794) returns its failures as
  * `BadRequest(new { succeeded = false, error = "invalid_token" })` — a 400 whose
- * body is a bare anon object, NOT RFC 7807 problem details. Blazor's
- * `AuthApiClient` reads that body back into an `AuthResponse` and keeps the
- * string; `unwrap()` THROWS on any non-2xx, and `toWallowError()`
+ * body is a bare anon object, NOT RFC 7807 problem details. `unwrap()` THROWS on
+ * any non-2xx, and `toWallowError()`
  * (packages/sdk/src/auth-client.ts:257-280) builds its `code` from
  * `extensions.code` ?? `code` only — it never reads a top-level `error`. So the
  * screen receives `WallowError{ code: "UNKNOWN", title: "Unknown error" }` and
@@ -165,10 +163,10 @@ function ResetPasswordFields(props: {
       <form.Field
         name="newPassword"
         validators={{
-          // DELIBERATE DEVIATION FROM THE ORACLE, flagged on the bead. Blazor
-          // compares "" to "", finds them equal, and POSTs an empty password;
-          // the server then fails and returns 400 invalid_token — so a user who
-          // typed nothing is told their *link* expired. That is actively
+          // DELIBERATE local required-field check, flagged on the bead. Without
+          // it, an empty password would POST and the server return 400
+          // invalid_token — so a user who typed nothing is told their *link*
+          // expired. That is actively
           // misleading. This keeps the empty case local, and matches the
           // `{page}-{element}-error` convention the sibling ForgotPassword port
           // set. No confirm-side validator: an empty confirmation against a

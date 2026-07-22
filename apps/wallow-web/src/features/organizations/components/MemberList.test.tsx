@@ -14,7 +14,7 @@ import { MemberList } from "./MemberList";
  * (api.ts factories) to the mocked facade slice.
  *
  * Testids: `organization-detail-members-table` + `organization-detail-member-row`
- * (Blazor oracle), `organization-members-empty`/`organization-members-loading`
+ * (table), `organization-members-empty`/`organization-members-loading`
  * (states), `organization-member-userid` + `organization-member-add-submit`
  * (add form), `organization-member-remove` (per-row remove) — all
  * `{page}-{element}` kebab-case.

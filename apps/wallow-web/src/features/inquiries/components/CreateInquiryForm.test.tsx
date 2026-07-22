@@ -136,7 +136,7 @@ describe("CreateInquiryForm", () => {
     await expect.element(page.getByTestId("inquiry-submit")).toBeInTheDocument();
   });
 
-  it("exposes the Blazor oracle's option values on each select", async () => {
+  it("exposes the expected option values on each select", async () => {
     renderWithClient(newClient(), <CreateInquiryForm />);
 
     await expect.element(page.getByTestId("inquiry-project-type")).toBeInTheDocument();

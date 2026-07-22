@@ -1,7 +1,7 @@
 /**
  * Organization member list + management (Wallow-8w1h.4.4). Drives
  * `useQuery(organizationsQueries.members(orgId))` and renders the members table
- * (mirroring the Blazor oracle `organization-detail-members-table` /
+ * (rendering `organization-detail-members-table` /
  * `organization-detail-member-row`), a per-row remove button, and an add-member
  * form backed by `addMemberMutation` / `removeMemberMutation`.
  *

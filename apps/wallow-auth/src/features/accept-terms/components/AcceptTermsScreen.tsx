@@ -2,8 +2,7 @@ import { Button, Card, ErrorBanner } from "@bc-solutions-coder/ui";
 import { useId, useState, type ReactNode } from "react";
 
 /**
- * The AcceptTerms screen (Wallow-vec7.3.10), ported from the Blazor oracle
- * `api/src/Wallow.Auth/Components/Pages/AcceptTerms.razor`.
+ * The AcceptTerms screen (Wallow-vec7.3.10).
  *
  * This is the ToS/Privacy GATE in the external-login (social sign-up) flow — not
  * the static terms document, which is the separate `/terms` route
@@ -172,13 +171,9 @@ function ConsentCheckbox(props: {
 }
 
 /**
- * The oracle's two-box consent group. The document links are DIVERGENCE 2: the
- * oracle points at `/terms-of-service` and `/privacy-policy` (L48, L56), and
- * neither route exists — the pages are `@page "/terms"` (Terms.razor:1) and
- * `@page "/privacy"` (Privacy.razor:1), so both links 404 in Blazor today. On a
- * screen whose entire purpose is informed consent to those two documents, 404s
- * are not parity worth keeping: the port links to the real routes, which
- * Wallow-vec7.3.16 has already registered.
+ * The two-box consent group. The document links point at the real `/terms` and
+ * `/privacy` routes (registered by Wallow-vec7.3.16) — the two documents this
+ * screen gates informed consent to.
  */
 function ConsentBoxes(props: {
   readonly termsAccepted: boolean;

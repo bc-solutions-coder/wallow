@@ -6,8 +6,7 @@ import { forkBranding } from "../../../lib/branding";
 import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
 
 /**
- * The InvitationLanding screen (Wallow-vec7.3.9), ported from the Blazor oracle
- * `api/src/Wallow.Auth/Components/Pages/InvitationLanding.razor`.
+ * The InvitationLanding screen (Wallow-vec7.3.9).
  *
  * `token` and `isAuthenticated` arrive as props rather than being read inside the
  * component: the route owns the query string (the oracle's single
@@ -198,8 +197,8 @@ function selfReturnUrl(token: string): string {
 
 /** The oracle's `GetRegisterUrl()` (InvitationLanding.razor:196-201). */
 function registerHref(email: string, token: string): string {
-  // `email` is INERT: `/register` reads only `client_id` and `returnUrl`, in the
-  // Blazor original (Register.razor:179-183) and in the port (Wallow-vec7.3.8).
+  // `email` is INERT: `/register` reads only `client_id` and `returnUrl`
+  // (Wallow-vec7.3.8).
   // Kept because it is the oracle's link contract and a `/register` that prefills
   // the invited address is a plausible follow-up — not because it prefills today.
   return `/register?email=${encodeURIComponent(email)}&returnUrl=${encodeURIComponent(selfReturnUrl(token))}`;

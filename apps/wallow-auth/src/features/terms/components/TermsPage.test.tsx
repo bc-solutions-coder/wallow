@@ -7,8 +7,7 @@ import { Route as termsRoute } from "../../../routes/terms";
 import { TermsPage } from "./TermsPage";
 
 /**
- * Component spec for the Terms of Service screen (Wallow-vec7.3.3), ported from
- * the Blazor oracle `api/src/Wallow.Auth/Components/Pages/Terms.razor`.
+ * Component spec for the Terms of Service screen (Wallow-vec7.3.3).
  *
  * Testids come verbatim from the oracle (scout inventory on Wallow-vec7.3):
  * `terms-heading`, `terms-content`, `terms-back-button`.

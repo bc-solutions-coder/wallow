@@ -4,8 +4,7 @@ import { AuthLayout } from "../../components/auth-layout";
 import { MfaEnrollForm } from "../../features/mfa-enroll/components/MfaEnrollForm";
 
 /**
- * The `/mfa/enroll` route (Wallow-vec7.3.7) — the React port of the Blazor
- * oracle `api/src/Wallow.Auth/Components/Pages/MfaEnroll.razor`.
+ * The `/mfa/enroll` route (Wallow-vec7.3.7).
  *
  * The path was pre-registered against a placeholder by Wallow-vec7.3.16 and is
  * the contract: `src/router.tsx` already binds it, so this task replaced the

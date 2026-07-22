@@ -15,8 +15,7 @@ import { Route as logoutRoute } from "../../../routes/logout";
 import { LogoutScreen } from "./LogoutScreen";
 
 /**
- * Component spec for the Logout screen (Wallow-vec7.3.5), ported from the Blazor
- * oracle `api/src/Wallow.Auth/Components/Pages/Logout.razor`.
+ * Component spec for the Logout screen (Wallow-vec7.3.5).
  *
  * ONE ROUTE, TWO PHASES. `/logout` is not two screens: the oracle drives both
  * off the `signed_out` query parameter on a single `@page "/logout"`. The

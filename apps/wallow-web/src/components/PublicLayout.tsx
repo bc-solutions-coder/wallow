@@ -3,8 +3,7 @@ import type { ReactNode } from "react";
 import { appIconUrl, forkBranding } from "../lib/branding";
 
 /**
- * PublicLayout (Wallow-ffpq.3.6) — the React port of Blazor
- * `Components/Layout/PublicLayout.razor`: the chrome wrapped around the public
+ * PublicLayout (Wallow-ffpq.3.6) — the chrome wrapped around the public
  * marketing page. It renders a top navbar (logo/app-name linking "/",
  * Features/Docs/GitHub links, and a "Get Started" CTA into the BFF login) and a
  * footer ("MIT Licensed", GitHub + Docs links) around its `children`.
@@ -17,7 +16,7 @@ import { appIconUrl, forkBranding } from "../lib/branding";
  */
 
 // GitHub/Docs targets: prefer the fork's configured repository, else the
-// upstream default (mirrors the Blazor oracle's hardcoded links).
+// upstream default.
 const repositoryUrl: string = forkBranding.repositoryUrl ?? "https://github.com/wallowapp/wallow";
 const docsUrl = `${repositoryUrl}/tree/main/docs`;
 

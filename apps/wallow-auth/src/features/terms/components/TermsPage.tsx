@@ -1,8 +1,7 @@
 import type { ReactNode } from "react";
 
 /**
- * The Terms of Service screen (Wallow-vec7.3.3), ported from the Blazor oracle
- * `api/src/Wallow.Auth/Components/Pages/Terms.razor`.
+ * The Terms of Service screen (Wallow-vec7.3.3).
  *
  * A static document — NOT the ToS gate at `/accept-terms`, which is a different
  * screen owned by Wallow-vec7.3.10. This page renders prose and a way back: it

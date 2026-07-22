@@ -4,9 +4,7 @@ import type { ReactNode } from "react";
 import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
 
 /**
- * The Login screen's external-provider list (Wallow-vec7.3.14 / 2.8d), ported
- * from the Blazor oracle `api/src/Wallow.Auth/Components/Pages/Login.razor` —
- * the `_externalProviders` block (L189-209) and `GetExternalLoginUrl` (L312-317).
+ * The Login screen's external-provider list (Wallow-vec7.3.14 / 2.8d).
  *
  * NOT a login panel. It implements no `LoginPanelProps`, owns no mutation and
  * reports nothing up: there is no auth RESULT to report, because the browser
@@ -15,8 +13,7 @@ import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
  * also where the oracle puts it — outside the tab `else if` chain (so it offers
  * itself alongside all three tabs) but inside the `else` of `if (_signedIn)`.
  *
- * Testids are INVENTED per the scout's mandate: the oracle tags nothing here
- * (bd memory `wallow-auth-blazor-oracle-testid-gaps-api-src`).
+ * Testids are INVENTED per the scout's mandate: the oracle tags nothing here.
  *
  * ── THE ORIGIN DIVERGENCE (inherited from Wallow-vec7.3.4/.3.6/.3.11) ─────────
  *

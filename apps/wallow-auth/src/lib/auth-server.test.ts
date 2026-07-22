@@ -12,7 +12,7 @@ import {
 
 /**
  * Spec (Wallow-vec7.1.3): prove the reverse proxy forwards Set-Cookie per
- * request with no relay, replacing the Blazor cookie-relay subsystem. A real
+ * request with no relay — a stateless cookie passthrough. A real
  * fake upstream HTTP server stands in for Wallow.Api; `createAuthServer` is
  * pointed at it and driven through its framework-agnostic `handle(request)`
  * bridge. Assertions pin the exact passthrough behaviors the bead's acceptance
@@ -307,10 +307,9 @@ describe("auth-server reverse-proxy passthrough", () => {
 /**
  * Spec (Wallow-tt5j): the API rate-limits per client IP off `X-Forwarded-For`
  * (`Wallow.Api` Program.cs configures `UseForwardedHeaders` with
- * `KnownProxies.Clear()`). The Blazor `CookieForwardingHandler` this proxy
- * replaces forwarded XFF deliberately ("rate-limit by real client IP, not
- * Docker network IP"); without this the API buckets every request against the
- * proxy's own IP — a regression at Blazor cutover.
+ * `KnownProxies.Clear()`). This proxy must forward XFF deliberately ("rate-limit
+ * by real client IP, not Docker network IP"); without this the API buckets every
+ * request against the proxy's own IP.
  *
  * SEAM: a WHATWG `Request` carries no socket, so the proxy cannot derive the
  * peer address itself. The Node host (`server.ts` / `dev-server.ts`) stamps the

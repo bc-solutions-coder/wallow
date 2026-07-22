@@ -8,11 +8,10 @@ import { OrganizationDetail } from "./OrganizationDetail";
 
 /**
  * Org-detail bound-clients + register-client reachability spec
- * (Wallow-ffpq.3.6) — the React port of Blazor `OrganizationDetail.razor`'s
- * OAuth-client section. Once an org loads, the detail page must surface the
+ * (Wallow-ffpq.3.6). Once an org loads, the detail page must surface the
  * org's bound clients (`organization-detail-clients-table`) and a
  * register-client form (display-name / client-type / redirect-uris / submit),
- * reachable straight from the org detail page. Testids mirror the Blazor oracle.
+ * reachable straight from the org detail page.
  *
  * The `getWallowSdk()` facade is mocked (like `OrganizationDetail.test.tsx`);
  * the `clients` / `registerClient` slice methods are stubbed so the green

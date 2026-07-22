@@ -3,9 +3,7 @@ import { describe, expect, it } from "vitest";
 import { Route as indexRoute } from "./index";
 
 /**
- * Characterization spec for the Home route (`/`), ported from the Blazor oracle
- * `api/src/Wallow.Auth/Components/Pages/Home.razor` — a six-line
- * `NavigationManager.NavigateTo("login", forceLoad: true)` redirect.
+ * Characterization spec for the Home route (`/`) — a redirect to `/login`.
  *
  * ── WHY THIS FILE EXISTS AND WHY IT IS ALREADY GREEN ─────────────────────────
  *

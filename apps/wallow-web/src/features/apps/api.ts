@@ -34,7 +34,7 @@ export const appsQueries = {
 
 /**
  * The register-app request body (mirrors the API `RegisterAppRequest`). Note the
- * Blazor field remap: DisplayName -> clientName, Scopes -> requestedScopes.
+ * field remap: DisplayName -> clientName, Scopes -> requestedScopes.
  */
 export interface RegisterAppBody {
   clientName: string;

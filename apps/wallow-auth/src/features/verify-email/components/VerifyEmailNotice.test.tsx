@@ -13,9 +13,7 @@ import { Route as verifyEmailRoute } from "../../../routes/verify-email/index";
 import { VerifyEmailNotice } from "./VerifyEmailNotice";
 
 /**
- * Component spec for the VerifyEmail "check your inbox" screen (Wallow-vec7.3.3),
- * ported from the Blazor oracle
- * `api/src/Wallow.Auth/Components/Pages/VerifyEmail.razor`.
+ * Component spec for the VerifyEmail "check your inbox" screen (Wallow-vec7.3.3).
  *
  * Testids come verbatim from the oracle (scout inventory on Wallow-vec7.3):
  * `verify-email-heading`, `verify-email-description`, `verify-email-back-link`.

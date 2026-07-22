@@ -4,8 +4,7 @@ import { AuthLayout } from "../components/auth-layout";
 import { ForgotPasswordForm } from "../features/forgot-password/components/ForgotPasswordForm";
 
 /**
- * The `/forgot-password` route (Wallow-vec7.3.1) — the React port of the Blazor
- * oracle `api/src/Wallow.Auth/Components/Pages/ForgotPassword.razor`.
+ * The `/forgot-password` route (Wallow-vec7.3.1).
  *
  * The path was pre-registered against a placeholder by Wallow-vec7.3.16 and is
  * the contract: `src/router.tsx` already binds it, so this task replaced the

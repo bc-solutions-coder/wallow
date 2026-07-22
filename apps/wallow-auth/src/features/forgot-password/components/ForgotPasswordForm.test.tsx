@@ -8,8 +8,7 @@ import { Route as forgotPasswordRoute } from "../../../routes/forgot-password";
 import { ForgotPasswordForm } from "./ForgotPasswordForm";
 
 /**
- * Component spec for the ForgotPassword screen (Wallow-vec7.3.1), ported from
- * the Blazor oracle `api/src/Wallow.Auth/Components/Pages/ForgotPassword.razor`.
+ * Component spec for the ForgotPassword screen (Wallow-vec7.3.1).
  *
  * THE POINT OF THIS SCREEN IS ANTI-ENUMERATION. The oracle renders one fixed
  * "if an account exists..." message and never tells the caller whether the
@@ -95,9 +94,9 @@ describe("ForgotPasswordForm", () => {
   });
 
   it("links back to sign in", async () => {
-    // The oracle's card footer. It has no testid in the Blazor original and the
-    // scout's inventory forbids inventing one for an element that shipped
-    // without it, so this asserts the link by role + href instead.
+    // The card footer. It has no testid and the scout's inventory forbids
+    // inventing one for an element that shipped without it, so this asserts the
+    // link by role + href instead.
     await renderWithClient(<ForgotPasswordForm />);
 
     await expect

@@ -71,8 +71,8 @@ export interface AuthLayoutProps {
  * a centred column with the branded logo/name/tagline above the page body and an
  * "A {fork} App" footer below it.
  *
- * The two branding layers are deliberately different, matching the Blazor
- * original: the *heading* shows the requesting client's branding (or the fork's
+ * The two branding layers are deliberately different: the *heading* shows the
+ * requesting client's branding (or the fork's
  * when no client is identified), while the *footer* always attributes the fork.
  * That is the point of the footer — on a page branded "Acme", it is what still
  * says the login is served by Wallow.

@@ -15,8 +15,7 @@ import { Route as registerRoute } from "../../../routes/register";
 import { RegisterForm } from "./RegisterForm";
 
 /**
- * Component spec for the Register screen (Wallow-vec7.3.8), ported from the
- * Blazor oracle `api/src/Wallow.Auth/Components/Pages/Register.razor`.
+ * Component spec for the Register screen (Wallow-vec7.3.8).
  *
  * Testids: `register-error`, `register-email`, `register-password`,
  * `register-confirm-password`, `register-terms`, `register-privacy`,
@@ -81,22 +80,19 @@ import { RegisterForm } from "./RegisterForm";
  * per-token tests alone would all pass under a blanket `400 -> email_taken` rule,
  * since every token here shares the 400.
  *
- * NOTE: the oracle's `"password_too_weak"` branch is DEAD CODE even in Blazor —
- * the controller never emits that string; it emits
- * `result.Errors.First().Description`. Not ported.
+ * NOTE: the oracle's `"password_too_weak"` branch is DEAD CODE — the controller
+ * never emits that string; it emits `result.Errors.First().Description`. Not
+ * ported.
  *
  * ── FINDING 2: THE MATCH ENDPOINT RETURNS A DOMAIN, NOT AN ORG NAME ──────────
  *
  * `OrganizationDomainsController.Match` (.../OrganizationDomainsController.cs:67-88)
  * returns `Ok(new { organizationId, domain })` on a verified match and **404**
- * otherwise. Blazor's `AuthApiClient.GetMatchingOrganizationByDomainAsync`
- * (api/src/Wallow.Auth/Services/AuthApiClient.cs:124-146) deserialises that into
- * `record OrganizationDomainMatchResponse(string? OrgName)` and returns
- * `body?.OrgName` — a field the endpoint NEVER sends. `OrgName` is therefore
- * always null, `_suggestedOrgName` is always null, and the oracle's interstitial
- * is UNREACHABLE in production. Its acceptance criterion nonetheless requires the
- * branch, so the port keys the suggestion on `domain` — the field actually on the
- * wire — which fixes the latent bug rather than faithfully reproducing it.
+ * otherwise — it does NOT send the org's display name, only the id and the
+ * matched `domain`. A suggestion keyed on a display name would therefore be
+ * permanently unreachable. Its acceptance criterion nonetheless requires the
+ * branch, so the screen keys the suggestion on `domain` — the field actually on
+ * the wire — which fixes the latent bug rather than faithfully reproducing it.
  *
  * Consequences pinned below: no-match is a 404 REJECTION in TS (not a `null`
  * resolve), so the screen must catch it and fall through to verify-email.
@@ -729,8 +725,8 @@ describe("RegisterForm — submission", () => {
   });
 
   it("never leaks the API's raw password-rule sentence into the banner", async () => {
-    // The oracle's `_ => result.Error` tail renders the server string VERBATIM, so
-    // a Blazor user really can be shown Identity's own prose. `code` is a machine
+    // The API's `_ => result.Error` tail renders the server string VERBATIM, so
+    // a user really can be shown Identity's own prose. `code` is a machine
     // member: matched against known tokens, never rendered. Not ported.
     const user = userEvent.setup();
     mocks.register.mockRejectedValue(rejection(400, RAW_IDENTITY_SENTENCE));
@@ -1043,9 +1039,8 @@ describe("RegisterForm — org-domain-match interstitial", () => {
 describe("RegisterForm — open-redirect guard", () => {
   it("REFUSES an unsafe returnUrl instead of sanitising it away", async () => {
     // bd memory `returnurl-guard-refuse-dont-sanitize`: on an unsafe returnUrl,
-    // route to /error?reason=invalid_redirect_uri like the Blazor oracle. Do NOT
-    // silently fall back to "/" — that is C# Sanitize() behaviour, deliberately
-    // not ported.
+    // route to /error?reason=invalid_redirect_uri. Do NOT silently fall back to
+    // "/" — sanitising the value away is deliberately not done.
     const user = userEvent.setup();
 
     await renderReadyForm({ returnUrl: "//evil.example.com/steal" });

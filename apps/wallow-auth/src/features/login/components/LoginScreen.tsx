@@ -16,8 +16,7 @@ import { OtpLoginForm } from "./OtpLoginForm";
 import { PasswordLoginForm } from "./PasswordLoginForm";
 
 /**
- * The Login screen (Wallow-vec7.3.11 / 2.8a), ported from the Blazor oracle
- * `api/src/Wallow.Auth/Components/Pages/Login.razor`.
+ * The Login screen (Wallow-vec7.3.11 / 2.8a).
  *
  * `returnUrl`, `clientId` and `error` arrive as props rather than being read from
  * the router inside the component: the route owns the query string (the oracle's

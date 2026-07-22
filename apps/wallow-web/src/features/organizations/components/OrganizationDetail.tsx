@@ -1,7 +1,7 @@
 /**
  * Organization detail (Wallow-8w1h.4.4). Drives
  * `useQuery(organizationsQueries.detail(orgId))` and renders the org heading +
- * info (mirroring the Blazor oracle `organization-detail-heading` /
+ * info (rendering `organization-detail-heading` /
  * `organization-detail-back-link` / `organization-detail-not-found`),
  * archive/reactivate actions, and the `MemberList` for `orgId`.
  *
@@ -30,7 +30,7 @@ interface BoundClient {
   name?: string;
 }
 
-/** The register-client form body, mirroring the Blazor `RegisterClientForm`. */
+/** The register-client form body. */
 interface RegisterClientInput {
   displayName: string;
   clientType: string;
@@ -131,13 +131,11 @@ function RegisterClientForm(props: { onRegister: (body: RegisterClientInput) => 
 }
 
 /**
- * Bound OAuth clients + register-client flow (Wallow-ffpq.3.6) — the React port
- * of Blazor `OrganizationDetail.razor`'s client section. Lists the org's bound
- * clients and offers an inline register-client form, reachable straight from the
- * org detail page. Testids mirror the Blazor oracle
- * (`organization-detail-clients-table`, `organization-detail-register-*`). The
- * flow is a structural port (per the epic's reachability bar), not a hardened
- * one.
+ * Bound OAuth clients + register-client flow (Wallow-ffpq.3.6). Lists the org's
+ * bound clients and offers an inline register-client form, reachable straight
+ * from the org detail page, rendering `organization-detail-clients-table` /
+ * `organization-detail-register-*` testids. The flow is a structural port (per
+ * the epic's reachability bar), not a hardened one.
  */
 function ClientsSection(props: { orgId: string }) {
   const { orgId } = props;

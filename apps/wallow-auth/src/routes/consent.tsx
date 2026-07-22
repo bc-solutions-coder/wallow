@@ -4,8 +4,7 @@ import { AuthLayout } from "../components/auth-layout";
 import { ConsentScreen } from "../features/consent/components/ConsentScreen";
 
 /**
- * The `/consent` route (Wallow-vec7.3.4) — the React port of the Blazor oracle
- * `api/src/Wallow.Auth/Components/Pages/Consent.razor`.
+ * The `/consent` route (Wallow-vec7.3.4).
  *
  * The path was pre-registered against a placeholder by Wallow-vec7.3.16 and is
  * the contract: `src/router.tsx` already binds it, so this task replaced the

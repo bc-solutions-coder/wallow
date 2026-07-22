@@ -4,8 +4,7 @@ import { AuthLayout } from "../components/auth-layout";
 import { LogoutScreen } from "../features/logout/components/LogoutScreen";
 
 /**
- * The `/logout` route (Wallow-vec7.3.5) — the React port of the Blazor oracle
- * `api/src/Wallow.Auth/Components/Pages/Logout.razor`.
+ * The `/logout` route (Wallow-vec7.3.5).
  *
  * The path was pre-registered against a placeholder by Wallow-vec7.3.16 and is
  * the contract: `src/router.tsx` already binds it, so this task replaced the
@@ -38,8 +37,8 @@ interface LogoutSearch {
 /**
  * Restore `signed_out` to the STRING the wire actually carried.
  *
- * Blazor's `[SupplyParameterFromQuery] string? SignedOut` hands the oracle the
- * raw query value, so `SignedOut == "true"` compares against a string. TanStack
+ * The wire delivers `signed_out` as a raw query string, so the intended
+ * comparison is `signed_out === "true"` against a string. TanStack
  * Router does not: its default search parser JSON-parses each value, so
  * `?signed_out=true` reaches `validateSearch` as the BOOLEAN `true` and
  * `?signed_out=1` as the NUMBER `1`. Rejecting non-strings outright would send

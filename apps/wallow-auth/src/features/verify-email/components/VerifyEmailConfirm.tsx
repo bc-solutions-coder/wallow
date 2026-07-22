@@ -6,8 +6,7 @@ import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
 import { signInHref } from "../sign-in-href";
 
 /**
- * The VerifyEmailConfirm screen (Wallow-vec7.3.3), ported from the Blazor oracle
- * `api/src/Wallow.Auth/Components/Pages/VerifyEmailConfirm.razor`.
+ * The VerifyEmailConfirm screen (Wallow-vec7.3.3).
  *
  * `email`, `token`, and `returnUrl` arrive as props rather than being read from
  * the router inside the component: the route owns the query string (the oracle's
@@ -45,10 +44,9 @@ import { signInHref } from "../sign-in-href";
  * exactly TWO failure returns (an unknown email, and a rejected
  * `ConfirmEmailAsync`) and BOTH are `400 + error: "invalid_token"`. A 400 from
  * this endpoint therefore *means* invalid_token, and the oracle's `_` arm is
- * unreachable through it. Non-400 rejections land on the oracle's `catch`
- * message rather than that unreachable arm — which is what the Blazor original
- * does for a 500 too (its `AuthApiClient` parses the error body, which throws on
- * a non-JSON 500 body and falls into `catch`).
+ * unreachable through it. Non-400 rejections land on the generic `catch`
+ * message rather than that unreachable arm — a 500 with a non-JSON body throws
+ * during error parsing and falls into `catch` too.
  *
  * ── SUCCESS IS "RESOLVED", NOT `succeeded === true` ──────────────────────────
  *

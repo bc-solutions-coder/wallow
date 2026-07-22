@@ -11,12 +11,11 @@ import { Link } from "@tanstack/react-router";
  *   settings      -> /dashboard/settings
  *   inquiries     -> /dashboard/inquiries
  *
- * `isAdmin` restores the Blazor oracle's admin gate on the Organizations link
- * (`DashboardLayout.razor`'s `<AuthorizeView Roles="admin">`). The gate hides
+ * `isAdmin` gates the Organizations link to admins. The gate hides
  * the link only when `isAdmin === false`; an unspecified `isAdmin` (the shell
  * renders `<DashboardNav />` in isolation, e.g. `DashboardLayout.test.tsx`)
  * leaves the link visible. A `dashboard-logout-link` calls the BFF logout,
- * restoring the Blazor oracle's Sign Out control (net-new for Wallow-ffpq.3.6).
+ * providing a Sign Out control (net-new for Wallow-ffpq.3.6).
  */
 const linkClass =
   "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-background/80 hover:text-background hover:bg-background/10 no-underline";

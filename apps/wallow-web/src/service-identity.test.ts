@@ -54,14 +54,14 @@ function composeServiceBlock(composeYaml: string, serviceName: string): string {
 }
 
 describe("seeded wallow-web-client identity (api/seed.json)", () => {
-  it("uses the BFF callback path /bff/callback, not Blazor's /signin-oidc", () => {
+  it("uses the BFF callback path /bff/callback, not the legacy /signin-oidc", () => {
     const client: SeededClient = seededClient("wallow-web-client");
     const redirects: string[] = client.redirectUris ?? [];
     expect(redirects.some((uri) => uri.endsWith("/bff/callback"))).toBe(true);
     expect(redirects.some((uri) => uri.includes("/signin-oidc"))).toBe(false);
   });
 
-  it("drops the Blazor /signout-callback-oidc post-logout path", () => {
+  it("drops the legacy /signout-callback-oidc post-logout path", () => {
     const client: SeededClient = seededClient("wallow-web-client");
     const postLogout: string[] = client.postLogoutRedirectUris ?? [];
     expect(postLogout.some((uri) => uri.includes("/signout-callback-oidc"))).toBe(false);
@@ -96,12 +96,12 @@ describe("docker-compose.test.yml wallow-web service", () => {
     expect(block).toMatch(/context:\s*\.\./u);
   });
 
-  it("no longer pulls the prebuilt Blazor wallow-web:test image", () => {
+  it("no longer pulls the prebuilt wallow-web:test image", () => {
     const block: string = composeServiceBlock(read("docker/docker-compose.test.yml"), "wallow-web");
     expect(block).not.toMatch(/image:\s*wallow-web:test/u);
   });
 
-  it("runs the Node app, not the Blazor .NET host (no ASPNETCORE_* env)", () => {
+  it("runs the Node app, not a .NET host (no ASPNETCORE_* env)", () => {
     const block: string = composeServiceBlock(read("docker/docker-compose.test.yml"), "wallow-web");
     expect(block).not.toMatch(/ASPNETCORE_URLS/u);
     expect(block).not.toMatch(/Oidc__ClientId/u);
@@ -130,7 +130,7 @@ describe("docker-compose.production.yml wallow-web service", () => {
     expect(block).toMatch(/image:\s*ghcr\.io\/[^\s]*wallow-web/u);
   });
 
-  it("runs the Node app, not the Blazor .NET host (no ASPNETCORE_*/Oidc__ env)", () => {
+  it("runs the Node app, not a .NET host (no ASPNETCORE_*/Oidc__ env)", () => {
     const block: string = composeServiceBlock(
       read("docker/docker-compose.production.yml"),
       "wallow-web",
@@ -141,7 +141,7 @@ describe("docker-compose.production.yml wallow-web service", () => {
 });
 
 describe("CI builds the wallow-web image from the Node Dockerfile", () => {
-  it("ci.yml no longer builds wallow-web via Blazor dotnet publish", () => {
+  it("ci.yml no longer builds wallow-web via dotnet publish", () => {
     const yaml: string = read(".github/workflows/ci.yml");
     expect(yaml).not.toMatch(/dotnet publish api\/src\/Wallow\.Web\/Wallow\.Web\.csproj/u);
   });
@@ -151,7 +151,7 @@ describe("CI builds the wallow-web image from the Node Dockerfile", () => {
     expect(yaml).toMatch(/apps\/wallow-web\/Dockerfile/u);
   });
 
-  it("deploy.yml no longer builds wallow-web via Blazor dotnet publish", () => {
+  it("deploy.yml no longer builds wallow-web via dotnet publish", () => {
     const yaml: string = read(".github/workflows/deploy.yml");
     expect(yaml).not.toMatch(/dotnet publish api\/src\/Wallow\.Web\/Wallow\.Web\.csproj/u);
   });

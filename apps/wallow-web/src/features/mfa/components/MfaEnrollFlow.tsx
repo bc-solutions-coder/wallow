@@ -1,8 +1,7 @@
 /**
  * MFA enroll flow component (Wallow-8w1h.6.4) — the multi-step TOTP enrollment
- * UX, mirroring the Blazor oracle
- * `api/src/Wallow.Auth/Components/Pages/MfaEnroll.razor` (single component, a
- * small step machine). In wallow-web the whole SPA is same-origin via the BFF
+ * UX: a single component driving a small step machine. In wallow-web the whole
+ * SPA is same-origin via the BFF
  * proxy, so there is NO cross-app EnrollToken redirect dance — this component
  * calls `postV1IdentityMfaEnrollTotp` directly through the facade.
  *

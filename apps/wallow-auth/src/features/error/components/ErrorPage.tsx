@@ -2,8 +2,7 @@ import { Card, ErrorBanner } from "@bc-solutions-coder/ui";
 import type { ReactNode } from "react";
 
 /**
- * The Error screen (Wallow-vec7.3.3), ported from the Blazor oracle
- * `api/src/Wallow.Auth/Components/Pages/Error.razor`.
+ * The Error screen (Wallow-vec7.3.3).
  *
  * This screen is the destination of every other screen's open-redirect refusal
  * (`/error?reason=invalid_redirect_uri`, per bd memory

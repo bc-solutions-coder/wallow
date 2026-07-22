@@ -27,8 +27,8 @@ vi.mock("@bc-solutions-coder/sdk", async (importOriginal) => {
 });
 
 /**
- * DashboardNav admin-gate + logout spec (Wallow-ffpq.3.6) — restores the Blazor
- * `DashboardLayout.razor` behaviour the Wallow-8w1h.8.1 port deliberately
+ * DashboardNav admin-gate + logout spec (Wallow-ffpq.3.6) — the admin-gate
+ * behaviour the Wallow-8w1h.8.1 port deliberately
  * dropped: the Organizations nav item is gated to admins, and a "Sign Out" link
  * (`dashboard-logout-link`) calls the BFF logout. The gate is driven by the
  * `isAdmin` prop the shell derives from the current user's roles.

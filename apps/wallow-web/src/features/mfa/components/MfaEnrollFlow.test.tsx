@@ -7,9 +7,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MfaEnrollFlow } from "./MfaEnrollFlow";
 
 /**
- * Component spec for the MFA enroll flow (Wallow-8w1h.6.4). Mirrors the Blazor
- * oracle `api/src/Wallow.Auth/Components/Pages/MfaEnroll.razor` step machine and
- * the C# E2E page object `MfaEnrollPage`:
+ * Component spec for the MFA enroll flow (Wallow-8w1h.6.4). Exercises the enroll
+ * step machine against the C# E2E page object `MfaEnrollPage`:
  *
  *   setup  -> `mfa-enroll-begin-setup` runs `enrollTotp`
  *   verify -> `mfa-enroll-secret` + `mfa-enroll-qr` + `mfa-enroll-code`

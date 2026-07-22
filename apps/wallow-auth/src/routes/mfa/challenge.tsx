@@ -4,8 +4,7 @@ import { AuthLayout } from "../../components/auth-layout";
 import { MfaChallengeForm } from "../../features/mfa-challenge/components/MfaChallengeForm";
 
 /**
- * The `/mfa/challenge` route (Wallow-vec7.3.6) — the React port of the Blazor
- * oracle `api/src/Wallow.Auth/Components/Pages/MfaChallenge.razor`.
+ * The `/mfa/challenge` route (Wallow-vec7.3.6).
  *
  * The path was pre-registered against a placeholder by Wallow-vec7.3.16 and is
  * the contract: `src/router.tsx` already binds it, so this task replaced the

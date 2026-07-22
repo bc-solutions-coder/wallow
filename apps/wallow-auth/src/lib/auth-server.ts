@@ -1,7 +1,7 @@
 /**
  * Reverse-proxy server bridge for wallow-auth (Wallow-vec7.1.3).
  *
- * The novel core of the Blazor -> TanStack Start auth migration: a PURE
+ * The novel core of the auth server: a PURE
  * passthrough reverse proxy (NOT a BFF token tunnel like wallow-web's
  * `bff-server.ts`). {@link createAuthServer} builds an h3 app that dispatches:
  *
@@ -12,8 +12,8 @@
  *
  * Proxying forwards the inbound method, path, query, body, and `Cookie` header
  * per request, and copies back the upstream status, body, and ALL `Set-Cookie`
- * headers verbatim — replacing the entire Blazor cookie-relay subsystem with
- * per-request cookie passthrough and no server-side session store or jar.
+ * headers verbatim — a stateless per-request cookie passthrough with no
+ * server-side session store or jar.
  *
  * Multi-cookie survival: the proxy handler returns the upstream WHATWG
  * `Response` directly, so h3's `sendWebResponse`/`toWebHandler` round-trip

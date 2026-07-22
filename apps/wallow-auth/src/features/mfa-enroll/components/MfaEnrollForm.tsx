@@ -7,8 +7,7 @@ import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
 import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
 
 /**
- * The MfaEnroll screen (Wallow-vec7.3.7), ported from the Blazor oracle
- * `api/src/Wallow.Auth/Components/Pages/MfaEnroll.razor`.
+ * The MfaEnroll screen (Wallow-vec7.3.7).
  *
  * Both query parameters arrive as props rather than being read from the router
  * inside the component: the route owns the query string (the oracle's two
@@ -72,8 +71,8 @@ import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
  *
  * Both wart and divergence:
  *
- *   - The oracle's `_` tail renders `result.Error` RAW, so a Blazor user can be
- *     shown the literal "update_failed". `code` is a machine token and is never
+ *   - The API's error tail can render `result.Error` RAW, exposing the literal
+ *     "update_failed". `code` is a machine token and is never
  *     rendered here: it is matched against KNOWN values and anything else falls
  *     to the generic message rather than guessing.
  *   - `no_auth_session` gets a SIGN-IN message, not the oracle's "try again".
@@ -90,12 +89,7 @@ import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
  * ── THE QR CODE ───────────────────────────────────────────────────────────────
  *
  * `qrUri` is an `otpauth://` URI (`MfaService.cs:38`), NOT a renderable image, so
- * the QR has to be drawn client-side. The oracle called
- * `JS.InvokeVoidAsync("qrcode.generate", …)` — but NO `qrcode.js` exists anywhere
- * in `Wallow.Auth` (wwwroot ships three files; `App.razor` loads only
- * `blazor.web.js`), so that interop ALWAYS throws and the `catch (JSException)`
- * always swallows it. The oracle's QR div renders empty every time; the shipped
- * screen is manual-entry-only. This port draws the QR for real.
+ * the QR has to be drawn client-side. This screen draws the QR for real.
  *
  * `data-qr-uri` carries the uri the API minted, which is what pins that the QR
  * encodes the API's value rather than one this screen reassembled from the

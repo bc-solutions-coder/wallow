@@ -7,8 +7,7 @@ import { Route as privacyRoute } from "../../../routes/privacy";
 import { PrivacyPage } from "./PrivacyPage";
 
 /**
- * Component spec for the Privacy Policy screen (Wallow-vec7.3.3), ported from
- * the Blazor oracle `api/src/Wallow.Auth/Components/Pages/Privacy.razor`.
+ * Component spec for the Privacy Policy screen (Wallow-vec7.3.3).
  *
  * Testids come verbatim from the oracle (scout inventory on Wallow-vec7.3):
  * `privacy-heading`, `privacy-content`, `privacy-back-button`.

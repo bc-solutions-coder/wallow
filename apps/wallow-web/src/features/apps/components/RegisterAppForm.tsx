@@ -4,7 +4,7 @@
  * registerAppMutation(queryClient))`. On top of the template it adds the
  * behaviors unique to app registration:
  *
- *   - Blazor field remap (RegisterApp.razor / AppRegistrationService.cs):
+ *   - Field remap (API request contract):
  *     DisplayName -> clientName, Scopes -> requestedScopes; `clientType`
  *     defaults to "public"; redirect URIs are a newline-separated textarea,
  *     split on `\n` with blank lines dropped.
@@ -14,9 +14,8 @@
  *   - The ONE-TIME client secret: `AppRegistrationResponse.clientSecret` comes
  *     back ONLY from the register call (GET /apps and GET /apps/{id} carry no
  *     secret), so it is rendered exactly once — in the post-success view, from
- *     `mutation.data`, never persisted beyond it, never re-fetchable. Mirrors
- *     RegisterAppResult.cs / RegisterApp.razor:37-49 ("Save your client secret
- *     now. It will not be shown again.").
+ *     `mutation.data`, never persisted beyond it, never re-fetchable, with a
+ *     "Save your client secret now. It will not be shown again." warning.
  *
  * Testids follow the apps feature's `app-*` convention: `app-display-name`
  * (input), `app-client-type` (select), `app-redirect-uris` (textarea),
@@ -32,7 +31,7 @@ import type { AppRegistrationResponse, ProblemDetails } from "@bc-solutions-code
 
 import { registerAppMutation, type RegisterAppBody } from "../api";
 
-/** Scopes a caller may request, mirroring Blazor RegisterApp.razor's list. */
+/** Scopes a caller may request. */
 const AVAILABLE_SCOPES = [
   "inquiries.read",
   "inquiries.write",
@@ -126,9 +125,8 @@ function ScopeToggles(props: { value: string[]; onChange: (value: string[]) => v
 }
 
 /**
- * Optional branding subsection (Wallow-ffpq.3.6) — the React port of the
- * "Branding" block on Blazor `RegisterApp.razor` (which calls
- * `AppService.UpsertBrandingAsync` with a display name, tagline, and logo file).
+ * Optional branding subsection (Wallow-ffpq.3.6) — a "Branding" block that
+ * upserts an app display name, tagline, and logo file.
  * It lives on the same register-app page, so the branding display-name / tagline
  * / logo inputs are reachable in the form view. Testids follow the apps feature's
  * `app-*` convention. Presentational (uncontrolled) per the epic's reachability

@@ -16,9 +16,7 @@ import { ExternalProviders } from "./ExternalProviders";
 
 /**
  * Component spec for the Login screen's EXTERNAL PROVIDER list
- * (Wallow-vec7.3.14 / 2.8d), ported from the Blazor oracle
- * `api/src/Wallow.Auth/Components/Pages/Login.razor` (the `_externalProviders`
- * block, L189-209 + `GetExternalLoginUrl` L312-317).
+ * (Wallow-vec7.3.14 / 2.8d).
  *
  * This is the fourth bead of a five-bead chain over one screen. `.3.11` fixed the
  * structure and this spec honours it: the provider list is NOT a login panel (it
@@ -26,8 +24,8 @@ import { ExternalProviders } from "./ExternalProviders";
  * is a SECTION the shell renders next to `TabPanel`, gated on `signedIn` exactly
  * as the oracle gates it inside the `else` of `if (_signedIn)`.
  *
- * Testids: the oracle tags NOTHING here — bd memory `wallow-auth-blazor-oracle-
- * testid-gaps-api-src` records the gap and mandates `{page}-{element}` names, so
+ * Testids: the oracle tags NOTHING here — the scout's inventory records the gap
+ * and mandates `{page}-{element}` names, so
  * these are INVENTED per the scout's mandate:
  *
  *     login-external-providers      the container (oracle: the whole `@if` block)

@@ -12,7 +12,7 @@
  *
  * Testids ({page}-{element} kebab-case, invented per the scout's 7.4
  * reconciliation — the C# `InquiryPage` page object only covers the public
- * submit form, so there is no Blazor oracle for the detail/comments/status flow):
+ * submit form, so there is no oracle for the detail/comments/status flow):
  * `inquiry-detail-heading`, `inquiry-detail-back-link`, `inquiry-detail-not-found`,
  * `inquiry-detail-error`, `inquiry-detail-status`, `inquiry-status-select` +
  * `inquiry-status-submit` + `inquiry-status-error`,

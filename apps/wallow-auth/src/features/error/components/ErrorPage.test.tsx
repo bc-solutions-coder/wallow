@@ -13,8 +13,7 @@ import { Route as errorRoute } from "../../../routes/error";
 import { ErrorPage } from "./ErrorPage";
 
 /**
- * Component spec for the Error screen (Wallow-vec7.3.3), ported from the Blazor
- * oracle `api/src/Wallow.Auth/Components/Pages/Error.razor`.
+ * Component spec for the Error screen (Wallow-vec7.3.3).
  *
  * Testids come verbatim from the oracle (scout inventory on Wallow-vec7.3):
  * `error-heading`, `error-message`, `error-sign-out-link`, `error-back-link`.

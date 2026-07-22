@@ -15,9 +15,8 @@ import { RegisterAppForm } from "../../../features/apps/components/RegisterAppFo
  *
  * Authored file-route style (`createFileRoute('/dashboard/apps/register')`), so
  * its `id`/`path`/parent are left unset — `src/router.tsx` binds it under the
- * `/dashboard` layout via `.update({ path, getParentRoute })`. The Blazor oracle
- * (`api/src/Wallow.Web/Components/Pages/Dashboard/RegisterApp.razor`) is
- * `@page "/dashboard/apps/register"`, confirming the path.
+ * `/dashboard` layout via `.update({ path, getParentRoute })`. The route path is
+ * `/dashboard/apps/register`.
  */
 function RegisterAppPage() {
   return (

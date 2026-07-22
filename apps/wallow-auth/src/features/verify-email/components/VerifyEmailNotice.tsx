@@ -4,8 +4,7 @@ import type { ReactNode } from "react";
 import { signInHref } from "../sign-in-href";
 
 /**
- * The VerifyEmail "check your inbox" screen (Wallow-vec7.3.3), ported from the
- * Blazor oracle `api/src/Wallow.Auth/Components/Pages/VerifyEmail.razor`.
+ * The VerifyEmail "check your inbox" screen (Wallow-vec7.3.3).
  *
  * Named `VerifyEmailNotice` rather than `VerifyEmail` to keep it distinct from
  * its token-consuming sibling `VerifyEmailConfirm` (`/verify-email/confirm`);

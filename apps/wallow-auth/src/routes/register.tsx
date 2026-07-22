@@ -4,8 +4,7 @@ import { AuthLayout } from "../components/auth-layout";
 import { RegisterForm } from "../features/register/components/RegisterForm";
 
 /**
- * The `/register` route (Wallow-vec7.3.8) — the React port of the Blazor oracle
- * `api/src/Wallow.Auth/Components/Pages/Register.razor`.
+ * The `/register` route (Wallow-vec7.3.8).
  *
  * The path was pre-registered against a placeholder by Wallow-vec7.3.16 and is
  * the contract: `src/router.tsx` already binds it, so this task replaced the
