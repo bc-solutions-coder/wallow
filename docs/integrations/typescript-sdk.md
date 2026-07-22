@@ -554,4 +554,3 @@ your BFF on port `3000` locally (or update `seed.json` and re-seed).
   SDK implements.
 - [External Auth Setup](external-auth.md) — configuring Wallow as an identity
   provider.
-- [DCR Integration](dcr-integration.md) — dynamic client registration.

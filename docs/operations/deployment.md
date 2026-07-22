@@ -184,7 +184,6 @@ This is fully idempotent.
 | Communications | `messaging.access`, `announcements.read`, `announcements.manage`, `changelog.manage`, `notifications.read`, `notifications.write` |
 | Inquiries | `inquiries.read`, `inquiries.write` |
 | Identity (API Keys) | `apikeys.read`, `apikeys.write`, `apikeys.manage` |
-| Identity (SSO/SCIM) | `sso.read`, `sso.manage`, `scim.manage` |
 | Identity (Service Accounts) | `serviceaccounts.read`, `serviceaccounts.write`, `serviceaccounts.manage` |
 | Configuration | `configuration.read`, `configuration.manage` |
 | Platform | `webhooks.manage` |
@@ -306,6 +305,4 @@ APP_TAG=1.2.3
 | **PreRegisteredClients + SeedMembers** | Every startup (sync) | OIDC clients, organizations, org memberships |
 | **Self-Registration** | Anytime (always enabled) | Users register themselves via `/api/v1/identity/auth/register` |
 | **External OAuth** (Google, Microsoft, GitHub, Apple) | Anytime (if providers configured) | Users auto-created on first external login |
-| **SSO Auto-Provisioning** | Anytime (per-org SSO config) | Users auto-created from SAML/OIDC IdP |
-| **SCIM Provisioning** | Anytime (per-org SCIM config) | Users created/updated/deactivated by external directory sync |
 | **Invitations** | Anytime | Org admins invite users by email; user account created on acceptance |

@@ -161,9 +161,6 @@ Returns scopes with `code`, `displayName`, `category`, `description`, and `isDef
 | `apikeys.read` | Read API key metadata | Yes |
 | `apikeys.write` | Create and update API keys | No |
 | `apikeys.manage` | Full API key management | No |
-| `sso.read` | Read SSO configuration | No |
-| `sso.manage` | Manage SSO configuration | No |
-| `scim.manage` | Manage SCIM directory sync | No |
 | `serviceaccounts.read` | Read service account data | Yes |
 | `serviceaccounts.write` | Create and update service accounts | No |
 | `serviceaccounts.manage` | Full service account management | No |

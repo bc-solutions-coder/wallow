@@ -66,8 +66,6 @@
   items:
     - name: External Auth Setup
       href: integrations/external-auth.md
-    - name: DCR Integration
-      href: integrations/dcr-integration.md
     - name: AsyncAPI
       href: integrations/asyncapi.md
     - name: BFF Pattern

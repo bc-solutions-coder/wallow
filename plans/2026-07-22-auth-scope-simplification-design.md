@@ -1,7 +1,8 @@
 # Auth & Tenancy Scope Simplification — Design
 
 **Date:** 2026-07-22
-**Status:** Approved (Approach A — one golden path)
+**Status:** Approved (Approach A — one golden path) — **superseded:** merged into
+`docs/plans/2026-07-22-web-auth-consolidation-plan.md` (unified team-executable plan)
 **Scope:** Identity module, TypeScript SDK/BFF, seed/config, integration docs
 
 ## Problem

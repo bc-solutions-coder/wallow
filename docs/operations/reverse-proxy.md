@@ -15,6 +15,7 @@ subdomain routing.
 4. [Forwarded Headers](#4-forwarded-headers)
 5. [Health Check Endpoints](#5-health-check-endpoints)
 6. [Proxy Configuration Examples](#6-proxy-configuration-examples)
+7. [Seeding the Production Client](#7-seeding-the-production-client)
 
 ---
 
@@ -67,7 +68,18 @@ OpenIddict__Issuer=https://example.com/api
 
 # CORS must allow the public origin of any browser client
 Cors__AllowedOrigins__0=https://example.com
+
+# Cookie domain for cross-origin auth cookies (see note below)
+Authentication__CookieDomain=example.com
 ```
+
+> **Cookie domain (`Authentication:CookieDomain`).** The API reads this key (double underscore in
+> env-var form, `Authentication:CookieDomain` in `appsettings.json`) to scope its auth cookies. For
+> **path-based routing** under one domain, set it to that bare host (`example.com`). For **subdomain
+> routing** where the API, auth, and web apps live on sibling subdomains (`api.example.com`,
+> `auth.example.com`, `example.com`), set it to a leading-dot parent domain (`.example.com`) so the
+> cookie is shared across them — this is what the committed `appsettings.json` uses (`.wallow.dev`).
+> Leave it empty for local development (`appsettings.Development.json` ships it blank).
 
 ### wallow-auth (Node — apps/wallow-auth)
 
@@ -96,9 +108,19 @@ OIDC_METADATA_URL=http://wallow-api:8080/.well-known/openid-configuration
 OIDC_CLIENT_ID=wallow-web-client
 OIDC_CLIENT_SECRET=your-secret
 OIDC_REDIRECT_URI=https://example.com/bff/callback
+# Where the browser lands after logout (must be a registered post-logout redirect URI)
+OIDC_POST_LOGOUT_REDIRECT_URI=https://example.com/
 # Downstream API for the /api reverse proxy (container-to-container)
 BFF_API_BASE_URL=http://wallow-api:8080
+# Secret (32+ chars) that seals/unseals the session and transaction cookies
+COOKIE_PASSWORD=a-32-plus-character-random-secret
 ```
+
+These are the seven required BFF variables. `OIDC_CLIENT_SECRET` and `COOKIE_PASSWORD` are
+confidential — set them from the container environment or a secrets manager, never in source
+control. The full variable reference (including the optional `OIDC_SCOPES`, `COOKIE_SECURE`, and
+`SESSION_TTL_SECONDS` knobs) lives in the
+[TypeScript SDK guide](../integrations/typescript-sdk.md#environment-variables).
 
 > **Local development:** no proxy configuration is needed. Leave `PathBase` empty on the API and
 > run the apps directly. See the [Developer Guide](../getting-started/developer-guide.md) for
@@ -233,6 +255,58 @@ example.com {
 
 > In Caddy, `handle_path` strips the matched prefix while `handle` preserves it — that is why
 > `/auth` uses `handle_path` (strip) and `/api` uses `handle` (preserve).
+
+---
+
+## 7. Seeding the Production Client
+
+The reference frontend (`apps/wallow-web`) authenticates as a **confidential** OIDC client. The
+seeder (`Wallow.SeederService`, reading `api/seed.json`) provisions that client. In production, the
+key rule is that **the issuer is the API origin** while **the login UX is served from the auth
+origin** — the client's redirect and post-logout URIs point at your public web app, and its
+`OIDC_ISSUER` (above) points at the API.
+
+Add a confidential client to the `clients` array of `api/seed.json`. `api/seed.json` already ships a
+commented `_productionExampleClients` entry (ignored by the seeder) you can copy from:
+
+```json
+{
+  "clientId": "wallow-web-client",
+  "displayName": "Wallow Web",
+  "tenantName": "Wallow",
+  "seedMembers": ["admin@example.com"],
+  "secret": "replace-with-a-strong-generated-secret",
+  "redirectUris": ["https://example.com/bff/callback"],
+  "postLogoutRedirectUris": ["https://example.com/"],
+  "scopes": [
+    "openid",
+    "email",
+    "profile",
+    "roles",
+    "offline_access",
+    "inquiries.read",
+    "inquiries.write",
+    "notifications.read",
+    "notifications.write"
+  ]
+}
+```
+
+Rules that make this a valid production client:
+
+- **`secret`** — present (the client is confidential). Use a strong, randomly generated value and
+  wire the **same** value into the BFF's `OIDC_CLIENT_SECRET`. Never commit a real secret; keep the
+  seed value a placeholder and inject the real one at deploy time.
+- **`redirectUris` / `postLogoutRedirectUris`** — absolute HTTPS URLs on your public web origin.
+  They must exactly match the BFF's `OIDC_REDIRECT_URI` and `OIDC_POST_LOGOUT_REDIRECT_URI`. Because
+  the API validates registered URIs at seed time, adding a client for a new domain needs no source
+  change.
+- **`scopes`** — `openid`, `email`, `profile`, and `offline_access` for login, plus whichever API
+  scopes the app calls.
+
+`api/seed.json` is marked `merge=ours` in `.gitattributes`, so your fork's production seed survives
+upstream merges. See the [Configuration guide](../getting-started/configuration.md) for the full
+seed schema.
 
 ---
 

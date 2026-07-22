@@ -367,6 +367,24 @@ variable names:
 --border, --input, --ring, --radius
 ```
 
+### Adding a New Design Token
+
+Adding a new semantic design token (e.g. a `warning` or `success` color) touches exactly
+**two files** — nothing per-app needs to change:
+
+1. **`api/branding.json`** — add the new key under both `theme.light` and `theme.dark` with
+   an OKLCH value.
+2. **`packages/styles/styles.css`** — add the matching `@theme` mapping (e.g.
+   `--color-warning: var(--warning);`) so Tailwind exposes it as a utility class.
+
+`packages/styles/src/branding.ts` parses `api/branding.json` and emits every `theme.light`/
+`theme.dark` key as a CSS custom property at render time, so no app-level code references the
+token directly — apps just use the Tailwind utility (`bg-warning`, `text-warning`, etc.) once
+it exists in `styles.css`. `packages/styles/src/theme-css.test.ts` guards this rule: it asserts
+every CSS variable emitted from `forkBranding.theme` has a corresponding `@theme` mapping in
+`styles.css`, so a forgotten step 2 fails the build instead of silently rendering an unstyled
+token.
+
 ## Authentication
 
 Wallow uses OpenIddict as its OIDC provider, hosted in `Wallow.Api` (wired up in
