@@ -42,7 +42,9 @@ const stylesManifestAt: number = pos(
 );
 const stylesSourceAt: number = pos(/COPY\s+packages\/styles\s+packages\/styles(?!\/)/u);
 const brandingCopyAt: number = pos(/COPY\s+api\/branding\.json\s+api\/branding\.json/u);
-const stylesBuildAt: number = pos(/pnpm\s+--filter\s+@bc-solutions-coder\/styles\s+build/u);
+const stylesBuildAt: number = pos(
+  /pnpm\s+--filter\s+(@bc-solutions-coder\/styles|['"]?\.\/packages\/\*['"]?)\s+build/u,
+);
 const appBuildAt: number = pos(/pnpm\s+--filter\s+@bc-solutions-coder\/wallow-web\s+build/u);
 
 describe("the wallow-web Dockerfile styles wiring", () => {
