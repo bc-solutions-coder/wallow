@@ -4,5 +4,6 @@ export * from "./auth-client";
 export * from "./auth-oidc";
 export * from "./csrf";
 export * from "./facade";
+export * from "./mfa-client";
 export * from "./ssr";
 export * from "./generated";

@@ -69,6 +69,23 @@ vi.mock("@bc-solutions-coder/sdk", () => ({
       return facade as TFacade;
     };
   },
+  // The shared MFA slice (Wallow-0q2s.9.3): the facade's `mfa` is now
+  // `createMfaClient(unwrap)`. This faithful passthrough re-implements the same
+  // op-selection + request-body mapping over the mocked generated ops (the real
+  // mapping is proved in the SDK's own mfa-client.test.ts), so the mfa-slice
+  // delegation assertions below hold unchanged. Mirrors the passthrough `unwrap`
+  // and `createConfiguredOnce` stubs above.
+  createMfaClient: (
+    unwrap: <T>(pending: Promise<{ data?: T; error?: unknown }>) => Promise<T>,
+  ) => ({
+    status: () => unwrap(mocks.getV1IdentityMfaStatus()),
+    enrollTotp: () => unwrap(mocks.postV1IdentityMfaEnrollTotp()),
+    confirmEnroll: (secret: string, code: string) =>
+      unwrap(mocks.postV1IdentityMfaEnrollConfirm({ body: { secret, code } })),
+    disable: (password: string) => unwrap(mocks.postV1IdentityMfaDisable({ body: { password } })),
+    regenerateBackupCodes: (password: string) =>
+      unwrap(mocks.postV1IdentityMfaBackupCodesRegenerate({ body: { password } })),
+  }),
   configureBffClient: mocks.configureBffClient,
   configureSsrClient: mocks.configureSsrClient,
   getSsrRequestContext: mocks.getSsrRequestContext,

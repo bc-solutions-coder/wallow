@@ -72,13 +72,12 @@ import {
   postV1IdentityAuthResetPassword,
   postV1IdentityInvitationsByTokenAccept,
   postV1IdentityMembershipRequests,
-  postV1IdentityMfaEnrollConfirm,
   postV1IdentityMfaEnrollExchangeToken,
-  postV1IdentityMfaEnrollTotp,
   type SendMagicLinkRequest,
   type SendOtpRequest,
   type VerifyOtpRequest,
 } from "./generated";
+import { createMfaClient } from "./mfa-client";
 import { UNKNOWN_ERROR_CODE, WallowError } from "./server/errors";
 
 /**
@@ -187,6 +186,13 @@ export interface AuthClient {
 export function createAuthClient(options?: AuthClientOptions): AuthClient {
   void options;
 
+  // The shared MFA slice (Wallow-0q2s.9.3), injected with THIS facade's
+  // WallowError-throwing `unwrap` so `MfaEnrollForm` still reads `error.code` /
+  // `error.status`. Only the op-selection + request-body shaping is shared; the
+  // error policy stays this app's. wallow-auth's mid-login flow needs only
+  // enroll+confirm from the slice; the exchange-token relay is auth-only.
+  const mfa = createMfaClient(unwrap);
+
   return {
     login: (body: AccountLoginRequest) => unwrap(postV1IdentityAuthLogin({ body })),
     register: (body: AccountRegisterRequest) => unwrap(postV1IdentityAuthRegister({ body })),
@@ -207,9 +213,8 @@ export function createAuthClient(options?: AuthClientOptions): AuthClient {
       unwrap(postV1IdentityAuthMfaVerify({ body: { code, useBackupCode: false } })),
     useBackupCode: (code: string) =>
       unwrap(postV1IdentityAuthMfaVerify({ body: { code, useBackupCode: true } })),
-    enrollTotp: () => unwrap(postV1IdentityMfaEnrollTotp()),
-    confirmEnrollment: (body: MfaConfirmRequest) =>
-      unwrap(postV1IdentityMfaEnrollConfirm({ body })),
+    enrollTotp: () => mfa.enrollTotp(),
+    confirmEnrollment: (body: MfaConfirmRequest) => mfa.confirmEnroll(body.secret, body.code),
     exchangeEnrollmentToken: (token: string) =>
       unwrap(postV1IdentityMfaEnrollExchangeToken({ query: { token } })),
     getConsentInfo: (clientId: string, scopes?: readonly string[]) =>

@@ -29,6 +29,7 @@ import {
   configureBffClient,
   configureSsrClient,
   createConfiguredOnce,
+  createMfaClient,
   deleteV1IdentityOrganizationsByIdMembersByUserId,
   getSsrRequestContext,
   getUser,
@@ -38,7 +39,6 @@ import {
   getV1IdentityOrganizations,
   getV1IdentityOrganizationsById,
   getV1IdentityOrganizationsByIdMembers,
-  getV1IdentityMfaStatus,
   getV1IdentityUsersMe,
   getV1InquiriesById,
   getV1InquiriesByIdComments,
@@ -47,10 +47,6 @@ import {
   postV1IdentityAppsByClientIdBranding,
   postV1IdentityAppsRegister,
   postV1IdentityClients,
-  postV1IdentityMfaBackupCodesRegenerate,
-  postV1IdentityMfaDisable,
-  postV1IdentityMfaEnrollConfirm,
-  postV1IdentityMfaEnrollTotp,
   postV1IdentityOrganizations,
   postV1IdentityOrganizationsByIdArchive,
   postV1IdentityOrganizationsByIdMembers,
@@ -59,6 +55,7 @@ import {
   postV1InquiriesByIdComments,
   unwrap,
   wireCsrfInterceptor,
+  type MfaClient,
   type RegisterAppRequest,
   type SsrRequestContext,
   type SubmitInquiryRequest,
@@ -163,35 +160,19 @@ export interface SettingsSlice {
 }
 
 /**
- * MFA slice (Wallow-8w1h.6.3) — the Settings-page MFA status card + enroll flow's
- * data source. Maps the five MFA ops the SPA needs.
+ * MFA slice (Wallow-8w1h.6.3, extracted to the SDK in Wallow-0q2s.9.3) — the
+ * Settings-page MFA status card + enroll flow's data source. This app no longer
+ * hand-rolls the op-selection/request-body/response-narrowing boilerplate: it is
+ * the SDK's shared {@link MfaClient}, built by `createMfaClient(unwrap)` below.
  *
- * UNTYPED-RESPONSE GAP (scout): the generated MFA ops all resolve `unknown` bodies
- * (the backend declares no `ProducesResponseType`), so every method here returns
- * `Promise<unknown>` — exactly like the apps one-time-secret slice. The feature's
- * local response interfaces (`src/features/mfa/types.ts`:
- * `MfaStatusResponse`/`MfaEnrollResponse`/`MfaConfirmResponse`/`MfaDisableResponse`/
- * `MfaRegenerateBackupCodesResponse`, mirroring the C# records) are the narrowing
- * boundary the components cast to, rather than leaking `any`.
- *
- * REQUEST-SHAPE RECONCILIATION (scout, over the bead DESIGN): the generated ops
- * REQUIRE typed bodies the terse DESIGN omitted — `confirmEnroll` sends
- * `MfaConfirmRequest{secret,code}` (not just `{code}`), and `disable`/
- * `regenerateBackupCodes` send `MfaDisableRequest`/`MfaRegenerateBackupCodesRequest`
- * `{password}` (not no-body). So those methods take those args.
+ * The slice is error-policy AGNOSTIC — it delegates envelope handling to the
+ * INJECTED `unwrap`. wallow-web injects the SDK's raw-throw `unwrap`
+ * (`@bc-solutions-coder/sdk`'s `facade.ts`), so a non-2xx response still throws
+ * the RAW `ProblemDetails`/`{ succeeded:false, error }` body BY IDENTITY and
+ * `src/features/mfa/errors.ts`'s `problemDetail()` parses it unchanged. The five
+ * shared response types (`MfaStatusResponse` etc.) now live in the SDK and are
+ * re-exported from `src/features/mfa/types.ts`.
  */
-export interface MfaSlice {
-  /** Read MFA status (returns `MfaStatusResponse`). */
-  status: () => Promise<unknown>;
-  /** Begin TOTP enrollment; returns `MfaEnrollResponse` (`{ secret, qrUri }`). */
-  enrollTotp: () => Promise<unknown>;
-  /** Confirm enrollment with the TOTP `secret` + user `code`; returns `MfaConfirmResponse`. */
-  confirmEnroll: (secret: string, code: string) => Promise<unknown>;
-  /** Disable MFA (requires the account `password`); returns `MfaDisableResponse`. */
-  disable: (password: string) => Promise<unknown>;
-  /** Regenerate backup codes (requires the account `password`); returns `MfaRegenerateBackupCodesResponse`. */
-  regenerateBackupCodes: (password: string) => Promise<unknown>;
-}
 
 /**
  * Inquiries slice (Wallow-8w1h.7.1) — the Inquiries feature's data source.
@@ -234,7 +215,7 @@ export interface WallowSdk {
   apps: AppsSlice;
   user: UserSlice;
   settings: SettingsSlice;
-  mfa: MfaSlice;
+  mfa: MfaClient;
   inquiries: InquiriesSlice;
 }
 
@@ -301,15 +282,10 @@ const sdk: WallowSdk = {
   settings: {
     getProfile: () => unwrap(getV1IdentityUsersMe()),
   },
-  mfa: {
-    status: () => unwrap(getV1IdentityMfaStatus()),
-    enrollTotp: () => unwrap(postV1IdentityMfaEnrollTotp()),
-    confirmEnroll: (secret: string, code: string) =>
-      unwrap(postV1IdentityMfaEnrollConfirm({ body: { secret, code } })),
-    disable: (password: string) => unwrap(postV1IdentityMfaDisable({ body: { password } })),
-    regenerateBackupCodes: (password: string) =>
-      unwrap(postV1IdentityMfaBackupCodesRegenerate({ body: { password } })),
-  },
+  // The SDK owns which generated op each method calls, the request-body shape,
+  // and the response type; wallow-web injects its raw-throw `unwrap` so error
+  // semantics — and thus errors.ts's parsing — stay byte-identical.
+  mfa: createMfaClient(unwrap),
   inquiries: {
     list: () => unwrap(getV1InquiriesSubmitted()),
     create: (body: SubmitInquiryRequest) => unwrap(postV1Inquiries({ body })),
