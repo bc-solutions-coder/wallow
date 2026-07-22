@@ -2,10 +2,10 @@
 
 TypeScript SDK for Wallow. It ships two entry points:
 
-| Import                           | Runs in | Contains                                                                                                   |
-| -------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------- |
+| Import                           | Runs in                                             | Contains                                                                                                                                                                                                                                                                                                                                                                        |
+| -------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `@bc-solutions-coder/sdk`        | Browser (also safe to import from a Node SSR entry) | `configureBffClient()`, `login()`, `logout()`, `getUser()`, the generated typed API operations, the CSRF module (`isSafeMethod`, `setCsrfToken`, `wireCsrfInterceptor`), the SSR request-context seam (`configureSsrClient`, `getSsrRequestContext`, `setSsrRequestContextResolver`, `wireSsrCookieInterceptor`), and the facade helpers (`unwrap()`, `createConfiguredOnce()`) |
-| `@bc-solutions-coder/sdk/server` | Node    | `createBffHandlers()`, `createApiProxy()`, `loadBffConfigFromEnv()`, the session stores, and `WallowError` |
+| `@bc-solutions-coder/sdk/server` | Node                                                | `createBffHandlers()`, `createApiProxy()`, `loadBffConfigFromEnv()`, the session stores, and `WallowError`                                                                                                                                                                                                                                                                      |
 
 The browser never holds a token. Your server runs the OIDC Authorization Code
 flow with PKCE, keeps the token set in a session (sealed cookie or Valkey), and
@@ -216,7 +216,13 @@ The SDK's `csrf` module owns the client side of this exchange, so you never
 hand-roll a request interceptor or read the companion cookie yourself:
 
 ```ts
-import { client, configureBffClient, getUser, setCsrfToken, wireCsrfInterceptor } from "@bc-solutions-coder/sdk";
+import {
+  client,
+  configureBffClient,
+  getUser,
+  setCsrfToken,
+  wireCsrfInterceptor,
+} from "@bc-solutions-coder/sdk";
 
 configureBffClient();
 wireCsrfInterceptor(client); // stamps x-csrf-token on every state-changing request, live
@@ -271,7 +277,11 @@ export function render(request: Request): Promise<Response> {
 
 ```ts
 // isomorphic facade — branches on import.meta.env.SSR (or your bundler's equivalent)
-import { configureBffClient, configureSsrClient, getSsrRequestContext } from "@bc-solutions-coder/sdk";
+import {
+  configureBffClient,
+  configureSsrClient,
+  getSsrRequestContext,
+} from "@bc-solutions-coder/sdk";
 
 function configureClient(): void {
   if (import.meta.env.SSR) {
@@ -314,7 +324,13 @@ around the generated ops — the SDK exports them so you do not reimplement
 either:
 
 ```ts
-import { createConfiguredOnce, unwrap, wireCsrfInterceptor, client, configureBffClient } from "@bc-solutions-coder/sdk";
+import {
+  createConfiguredOnce,
+  unwrap,
+  wireCsrfInterceptor,
+  client,
+  configureBffClient,
+} from "@bc-solutions-coder/sdk";
 // import { getV1Inquiries } from "@bc-solutions-coder/sdk"; // generated op
 
 function configureClient(): void {
@@ -381,9 +397,16 @@ that is inside the expiry skew window, so most requests never see a 401 at all.
 pnpm install
 pnpm test        # vitest
 pnpm typecheck   # tsc --noEmit
-pnpm build       # vite build (library mode) + tsc -> dist/
+pnpm build       # vite build (library mode) + tsc -p tsconfig.build.json -> dist/
 pnpm generate    # regenerate src/generated from openapi/v1.json
 ```
+
+`pnpm build` is a two-stage pipeline: **Vite 8 in library mode** (`vite build`,
+ESM output) emits the JavaScript bundle for both the browser (`.`) and Node
+(`./server`) entry points, then **`tsc -p tsconfig.build.json`** does a
+declaration-only pass to emit the `.d.ts` files alongside it. There is no
+separate bundler config — the build is driven entirely by `vite.config.ts` plus
+that declaration-only tsconfig.
 
 The generated client is wired to the BFF at construction time through
 `runtimeConfigPath` in `openapi-ts.config.ts`, which points at
