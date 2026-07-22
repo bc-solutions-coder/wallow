@@ -801,7 +801,11 @@ describe("ConsentScreen — error state", () => {
 function renderRouteAt(url: string) {
   const rootRoute = createRootRoute({ component: Outlet });
   const routeTree = rootRoute.addChildren([
-    consentRoute.update({ id: "/consent", path: "/consent", getParentRoute: () => rootRoute }),
+    consentRoute.update({
+      id: "/consent",
+      path: "/consent",
+      getParentRoute: () => rootRoute,
+    } as any),
   ]);
   const router = createRouter({
     routeTree,

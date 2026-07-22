@@ -391,7 +391,7 @@ function renderRouteAt(url: string) {
       id: "/reset-password",
       path: "/reset-password",
       getParentRoute: () => rootRoute,
-    }),
+    } as any),
   ]);
   const router = createRouter({
     routeTree,

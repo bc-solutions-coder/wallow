@@ -7,7 +7,7 @@
  * container runs. All host behavior lives in {@link createStandaloneHost}; this
  * file only supplies wallow-auth's proxy topology:
  *
- *  1. `/health`, `/v1/**`, `/connect/**` (`isProxyRequest`) — bridged to the h3
+ *  1. `/health`, `/v1/**`, `/connect/**`, `/.well-known/**` (`isProxyRequest`) — bridged to the h3
  *     proxy app built by {@link createAuthServer}, so `/health` returns `ready`
  *     and the API surface is reverse-proxied to Wallow.Api with per-request
  *     cookie passthrough. Auth also forwards the peer socket address via

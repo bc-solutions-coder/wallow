@@ -78,7 +78,10 @@ describe("routes/dashboard/route (router registration)", () => {
   it("reparents the dashboard children under the /dashboard layout route", () => {
     const router = createRouter();
     const child = (router.routesById as Record<string, { parentRoute?: { id?: string } }>)[
-      "/dashboard/organizations"
+      // The file-based codegen registers the index route with a trailing slash
+      // (`/dashboard/organizations/`); the old manual reparenting used the bare
+      // `/dashboard/organizations`. The parent is still the `/dashboard` shell.
+      "/dashboard/organizations/"
     ];
     expect(child?.parentRoute?.id).toBe("/dashboard");
   });

@@ -31,9 +31,11 @@ import {
   type Server,
   type ServerResponse,
 } from "node:http";
+import { join } from "node:path";
 import { Readable } from "node:stream";
 
 import { wallowStyles } from "@bc-solutions-coder/styles/vite";
+import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react";
 import { type InlineConfig, type PluginOption, type ViteDevServer } from "vite";
 
@@ -65,6 +67,13 @@ export interface DevServerConfig {
    * Both apps pass false today (whole-document hydration); kept for future apps.
    */
   reactPluginInDev?: boolean;
+  /**
+   * Optional internal seam header, stamped with the peer socket address on every
+   * proxied request (wallow-auth's `CLIENT_IP_HEADER`). Omitted for wallow-web,
+   * whose topology does not forward a client IP. Mirrors {@link ShellConfig}'s
+   * `clientIpHeader` so both hosts share one config shape.
+   */
+  clientIpHeader?: string;
 }
 
 /** Injectable dependencies, used to drive the factory in tests without a real Vite boot. */
@@ -78,8 +87,10 @@ interface SsrModule {
   render: (request: Request) => Promise<Response>;
 }
 
-/** Adapt an incoming Node request into a WHATWG `Request`. */
-function toWebRequest(req: IncomingMessage, port: number): Request {
+/** Adapt an incoming Node request into a WHATWG `Request`. When `clientIpHeader`
+ * is set, stamp it with the peer's socket address exactly as the standalone host
+ * does (standalone-host.ts:154-156). */
+function toWebRequest(req: IncomingMessage, port: number, clientIpHeader?: string): Request {
   const authority: string = req.headers.host ?? `localhost:${port}`;
   const url: URL = new URL(req.url ?? "/", `http://${authority}`);
 
@@ -92,6 +103,15 @@ function toWebRequest(req: IncomingMessage, port: number): Request {
     } else if (value !== undefined) {
       headers.set(key, value);
     }
+  }
+
+  // Stamp the immediate peer's socket address into the internal seam header so
+  // the proxy can append it to X-Forwarded-For (the WHATWG Request it hands the
+  // proxy carries no socket). Always OVERWRITTEN from the socket so this hop's
+  // entry cannot be forged by an inbound header. Only wallow-auth's topology
+  // forwards a client IP, so this is gated on `config.clientIpHeader`.
+  if (clientIpHeader !== undefined) {
+    headers.set(clientIpHeader, req.socket.remoteAddress ?? "");
   }
 
   const method: string = req.method ?? "GET";
@@ -149,6 +169,12 @@ export async function createDevServer(
   // `wallowStyles()` is ALWAYS spread in, or the `styles.css` entry is served with
   // `@import "tailwindcss"` verbatim and every screen renders unstyled.
   const plugins: PluginOption[] = [
+    tanstackRouter({
+      target: "react",
+      routesDirectory: join(config.appDir, "src", "routes"),
+      generatedRouteTree: join(config.appDir, "src", "routeTree.gen.ts"),
+      autoCodeSplitting: false,
+    }),
     ...(config.reactPluginInDev === true ? [react()] : []),
     ...wallowStyles(),
   ];
@@ -165,13 +191,13 @@ export async function createDevServer(
    * on EVERY request — the factory holds no memoization slot; the app owns that. */
   async function handleProxy(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const handler: (request: Request) => Promise<Response> = await config.loadProxyHandler(vite);
-    await writeWebResponse(res, await handler(toWebRequest(req, port)));
+    await writeWebResponse(res, await handler(toWebRequest(req, port, config.clientIpHeader)));
   }
 
   /** Server-render the router's matched route for this request. */
   async function handleSsr(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const { render }: SsrModule = (await vite.ssrLoadModule("/src/ssr.tsx")) as SsrModule;
-    await writeWebResponse(res, await render(toWebRequest(req, port)));
+    await writeWebResponse(res, await render(toWebRequest(req, port, config.clientIpHeader)));
   }
 
   function onError(res: ServerResponse, error: unknown): void {

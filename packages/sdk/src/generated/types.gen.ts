@@ -17,7 +17,6 @@ export type AccountRegisterRequest = {
     clientId?: null | string;
     loginMethod?: null | string;
     returnUrl?: null | string;
-    requestOrgMembership?: boolean;
 };
 
 export type AccountResetPasswordRequest = {
@@ -96,10 +95,6 @@ export type AppRegistrationResponse = {
     registrationAccessToken: string;
 };
 
-export type ApproveMembershipRequest = {
-    organizationId: string;
-};
-
 export type AssignRoleRequest = {
     roleName: string;
 };
@@ -160,11 +155,6 @@ export type ClientBrandingDto = {
     themeJson: null | string;
 };
 
-export type ClientRegistrationResponse = {
-    clientId: string;
-    clientSecret: null | string;
-};
-
 export type ClientResponse = {
     id: string;
     name: string;
@@ -172,25 +162,6 @@ export type ClientResponse = {
     clientSecret?: null | string;
     redirectUris: Array<string>;
     postLogoutRedirectUris: Array<string>;
-};
-
-/**
- * Request to configure OIDC SSO.
- */
-export type ConfigureOidcSsoRequest = {
-    displayName: string;
-    issuer: string;
-    clientId: string;
-    clientSecret: string;
-    scopes?: string;
-    emailAttribute?: string;
-    firstNameAttribute?: string;
-    lastNameAttribute?: string;
-    groupsAttribute?: null | string;
-    enforceForAllUsers?: boolean;
-    autoProvisionUsers?: boolean;
-    defaultRole?: null | string;
-    syncGroupsAsRoles?: boolean;
 };
 
 export type ConsentInfoResponse = {
@@ -256,11 +227,6 @@ export type CreateClientRequest = {
     tenantId?: null | string;
 };
 
-export type CreateInitialAccessTokenRequest = {
-    displayName: string;
-    expiresAt?: null | string;
-};
-
 export type CreateInvitationRequest = {
     email: string;
     expiresAt?: null | string;
@@ -269,10 +235,6 @@ export type CreateInvitationRequest = {
 export type CreateIsolatedOrgRequest = {
     requireMfa?: boolean;
     gracePeriodDays?: string;
-};
-
-export type CreateMembershipRequest = {
-    emailDomain: string;
 };
 
 export type CreateOrganizationRequest = {
@@ -341,23 +303,6 @@ export type FileMetadataResponse = {
 
 export type IFormFile = Blob | File;
 
-/**
- * Returned only once at creation time; includes the raw token value.
- */
-export type InitialAccessTokenCreatedResponse = {
-    id: string;
-    token: string;
-    displayName: string;
-    expiresAt: null | string;
-};
-
-export type InitialAccessTokenResponse = {
-    id: string;
-    displayName: string;
-    expiresAt: null | string;
-    isRevoked: boolean;
-};
-
 export type InquiryCommentResponse = {
     id: string;
     inquiryId: string;
@@ -424,15 +369,6 @@ export type NotificationResponse = {
     actionUrl: null | string;
     createdAt: string;
     updatedAt: null | string;
-};
-
-/**
- * OIDC callback information for IdP configuration.
- */
-export type OidcCallbackInfo = {
-    redirectUri: string;
-    postLogoutRedirectUri: string;
-    clientId: string;
 };
 
 export type OrganizationBrandingResponse = {
@@ -521,35 +457,12 @@ export type RegisterAppRequest = {
     requestedScopes: Array<string>;
     clientType?: null | string;
     redirectUris?: null | Array<string>;
-};
-
-export type RegisterClientRequest = {
-    clientId: string;
-    clientName: string;
-    grantTypes: Array<string>;
-    scopes: Array<string>;
-    redirectUris: null | Array<string>;
-    tenantId?: null | string;
+    postLogoutRedirectUris?: null | Array<string>;
 };
 
 export type RegisterDeviceRequest = {
     platform: PushPlatform;
     token: string;
-};
-
-export type RegisterDomainRequest = {
-    organizationId: string;
-    domain: string;
-};
-
-export type RegisterSetupClientRequest = {
-    clientId: string;
-    redirectUris: Array<string>;
-};
-
-export type RegisterSetupClientResponse = {
-    clientId: string;
-    clientSecret: string;
 };
 
 export type ResolvedSetting = {
@@ -570,249 +483,6 @@ export type ResolvedSettingsConfig = {
 export type RetentionPolicyResponse = {
     days: string;
     action: string;
-};
-
-/**
- * SCIM authentication scheme.
- */
-export type ScimAuthenticationScheme = {
-    type?: string;
-    name?: string;
-    description?: null | string;
-    primary?: boolean;
-};
-
-/**
- * SCIM bulk operation configuration.
- */
-export type ScimBulkConfig = {
-    supported?: boolean;
-    maxOperations?: string;
-    maxPayloadSize?: string;
-};
-
-/**
- * SCIM feature support indicator.
- */
-export type ScimConfigFeature = {
-    supported?: boolean;
-};
-
-/**
- * SCIM email component.
- */
-export type ScimEmail = {
-    value?: string;
-    type?: null | string;
-    primary?: boolean;
-};
-
-/**
- * SCIM error response (RFC 7644).
- */
-export type ScimError = {
-    schemas?: Array<string>;
-    scimType?: null | string;
-    detail?: null | string;
-    status?: string;
-};
-
-/**
- * SCIM filter configuration.
- */
-export type ScimFilterConfig = {
-    supported?: boolean;
-    maxResults?: string;
-};
-
-/**
- * SCIM 2.0 Group resource representation.
- */
-export type ScimGroup = {
-    schemas?: Array<string>;
-    id?: string;
-    externalId?: null | string;
-    displayName?: string;
-    members?: null | Array<ScimMember>;
-    meta?: null | ScimMeta;
-};
-
-/**
- * SCIM group reference within a user.
- */
-export type ScimGroupReference = {
-    value?: string;
-    $ref?: null | string;
-    display?: null | string;
-};
-
-/**
- * SCIM group creation/update request.
- */
-export type ScimGroupRequest = {
-    schemas?: null | Array<string>;
-    externalId?: null | string;
-    displayName?: string;
-    members?: null | Array<ScimMember>;
-};
-
-/**
- * SCIM list response with pagination.
- */
-export type ScimListResponseOfScimGroup = {
-    schemas?: Array<string>;
-    totalResults?: string;
-    startIndex?: string;
-    itemsPerPage?: string;
-    Resources?: Array<ScimGroup>;
-};
-
-/**
- * SCIM list response with pagination.
- */
-export type ScimListResponseOfScimResourceType = {
-    schemas?: Array<string>;
-    totalResults?: string;
-    startIndex?: string;
-    itemsPerPage?: string;
-    Resources?: Array<ScimResourceType>;
-};
-
-/**
- * SCIM list response with pagination.
- */
-export type ScimListResponseOfScimSchema = {
-    schemas?: Array<string>;
-    totalResults?: string;
-    startIndex?: string;
-    itemsPerPage?: string;
-    Resources?: Array<ScimSchema>;
-};
-
-/**
- * SCIM list response with pagination.
- */
-export type ScimListResponseOfScimUser = {
-    schemas?: Array<string>;
-    totalResults?: string;
-    startIndex?: string;
-    itemsPerPage?: string;
-    Resources?: Array<ScimUser>;
-};
-
-/**
- * SCIM group member reference.
- */
-export type ScimMember = {
-    value?: string;
-    $ref?: null | string;
-    display?: null | string;
-    type?: null | string;
-};
-
-/**
- * SCIM resource metadata.
- */
-export type ScimMeta = {
-    resourceType?: string;
-    created?: null | string;
-    lastModified?: null | string;
-    location?: null | string;
-    version?: null | string;
-};
-
-/**
- * SCIM name component.
- */
-export type ScimName = {
-    formatted?: null | string;
-    familyName?: null | string;
-    givenName?: null | string;
-    middleName?: null | string;
-};
-
-/**
- * Individual SCIM PATCH operation.
- */
-export type ScimPatchOperation = {
-    op?: string;
-    path?: null | string;
-    value?: unknown;
-};
-
-/**
- * SCIM PATCH request for partial updates.
- */
-export type ScimPatchRequest = {
-    schemas?: Array<string>;
-    Operations?: Array<ScimPatchOperation>;
-};
-
-/**
- * SCIM resource type definition.
- */
-export type ScimResourceType = {
-    schemas?: Array<string>;
-    id?: string;
-    name?: string;
-    description?: null | string;
-    endpoint?: string;
-    schema?: string;
-};
-
-/**
- * SCIM schema definition.
- */
-export type ScimSchema = {
-    schemas?: Array<string>;
-    id?: string;
-    name?: string;
-    description?: null | string;
-};
-
-/**
- * SCIM Service Provider configuration.
- */
-export type ScimServiceProviderConfig = {
-    schemas?: Array<string>;
-    documentationUri?: null | string;
-    patch?: null | ScimConfigFeature;
-    bulk?: null | ScimBulkConfig;
-    filter?: null | ScimFilterConfig;
-    changePassword?: null | ScimConfigFeature;
-    sort?: null | ScimConfigFeature;
-    etag?: null | ScimConfigFeature;
-    authenticationSchemes?: null | Array<ScimAuthenticationScheme>;
-};
-
-/**
- * SCIM 2.0 User resource representation.
- */
-export type ScimUser = {
-    schemas?: Array<string>;
-    id?: string;
-    externalId?: null | string;
-    userName?: string;
-    name?: null | ScimName;
-    displayName?: null | string;
-    emails?: null | Array<ScimEmail>;
-    active?: boolean;
-    groups?: null | Array<ScimGroupReference>;
-    meta?: null | ScimMeta;
-};
-
-/**
- * SCIM user creation/update request.
- */
-export type ScimUserRequest = {
-    schemas?: null | Array<string>;
-    externalId?: null | string;
-    userName?: string;
-    name?: null | ScimName;
-    displayName?: null | string;
-    emails?: null | Array<ScimEmail>;
-    active?: boolean;
-    groups?: null | Array<ScimGroupReference>;
 };
 
 export type ScopeInfo = {
@@ -892,56 +562,6 @@ export type SettingUpdateRequest = {
 
 export type SetupStatusResponse = {
     setupRequired: boolean;
-};
-
-/**
- * SSO configuration details for a tenant.
- */
-export type SsoConfigurationDto = {
-    id: null | SsoConfigurationId;
-    displayName: null | string;
-    protocol: null | SsoProtocol;
-    status: SsoStatus;
-    samlEntityId: null | string;
-    samlSsoUrl: null | string;
-    samlConfigured: boolean;
-    oidcIssuer: null | string;
-    oidcClientId: null | string;
-    oidcConfigured: boolean;
-    enforceForAllUsers: boolean;
-    autoProvisionUsers: boolean;
-    defaultRole: null | string;
-    syncGroupsAsRoles: boolean;
-    serviceProviderEntityId: string;
-    serviceProviderAcsUrl: string;
-    serviceProviderMetadataUrl: string;
-};
-
-export type SsoConfigurationId = {
-    value?: string;
-};
-
-export type SsoProtocol = number;
-
-export type SsoStatus = number;
-
-/**
- * Result of testing SSO connection.
- */
-export type SsoTestResult = {
-    success: boolean;
-    errorMessage: null | string;
-};
-
-/**
- * Result of validating IdP configuration.
- */
-export type SsoValidationResult = {
-    isValid: boolean;
-    errorMessage: null | string;
-    idpEntityId: null | string;
-    idpSsoUrl: null | string;
-    certificateExpiry: null | string;
 };
 
 export type SubmitInquiryRequest = {
@@ -1034,10 +654,6 @@ export type UserDto = {
 export type UserNotificationSettingsResponse = {
     userId: string;
     channelSettings: Array<ChannelSettingResponse>;
-};
-
-export type VerifyDomainRequest = {
-    verificationToken: string;
 };
 
 export type VerifyOtpRequest = {
@@ -1907,43 +1523,6 @@ export type GetV1IdentityAppsConsentInfoByClientIdResponses = {
 
 export type GetV1IdentityAppsConsentInfoByClientIdResponse = GetV1IdentityAppsConsentInfoByClientIdResponses[keyof GetV1IdentityAppsConsentInfoByClientIdResponses];
 
-export type PostV1IdentityRegisterData = {
-    body: RegisterClientRequest;
-    path?: never;
-    query?: never;
-    url: '/v1/identity/register';
-};
-
-export type PostV1IdentityRegisterErrors = {
-    /**
-     * Bad Request
-     */
-    400: ProblemDetails;
-    /**
-     * Unauthorized
-     */
-    401: ProblemDetails;
-    /**
-     * Forbidden
-     */
-    403: ProblemDetails;
-};
-
-export type PostV1IdentityRegisterError = PostV1IdentityRegisterErrors[keyof PostV1IdentityRegisterErrors];
-
-export type PostV1IdentityRegisterResponses = {
-    /**
-     * OK
-     */
-    200: ClientRegistrationResponse;
-    /**
-     * Created
-     */
-    201: ClientRegistrationResponse;
-};
-
-export type PostV1IdentityRegisterResponse = PostV1IdentityRegisterResponses[keyof PostV1IdentityRegisterResponses];
-
 export type GetV1IdentityClientsData = {
     body?: never;
     path?: never;
@@ -2122,6 +1701,151 @@ export type PostV1IdentityClientsByIdRotateSecretResponses = {
 
 export type PostV1IdentityClientsByIdRotateSecretResponse = PostV1IdentityClientsByIdRotateSecretResponses[keyof PostV1IdentityClientsByIdRotateSecretResponses];
 
+export type GetV1IdentityClientsServiceAccountsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/identity/clients/service-accounts';
+};
+
+export type GetV1IdentityClientsServiceAccountsResponses = {
+    /**
+     * OK
+     */
+    200: Array<ServiceAccountDto>;
+};
+
+export type GetV1IdentityClientsServiceAccountsResponse = GetV1IdentityClientsServiceAccountsResponses[keyof GetV1IdentityClientsServiceAccountsResponses];
+
+export type PostV1IdentityClientsServiceAccountsData = {
+    body: CreateServiceAccountRequest;
+    path?: never;
+    query?: never;
+    url: '/v1/identity/clients/service-accounts';
+};
+
+export type PostV1IdentityClientsServiceAccountsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ProblemDetails;
+};
+
+export type PostV1IdentityClientsServiceAccountsError = PostV1IdentityClientsServiceAccountsErrors[keyof PostV1IdentityClientsServiceAccountsErrors];
+
+export type PostV1IdentityClientsServiceAccountsResponses = {
+    /**
+     * Created
+     */
+    201: ServiceAccountCreatedResponse;
+};
+
+export type PostV1IdentityClientsServiceAccountsResponse = PostV1IdentityClientsServiceAccountsResponses[keyof PostV1IdentityClientsServiceAccountsResponses];
+
+export type DeleteV1IdentityClientsServiceAccountsByIdData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/v1/identity/clients/service-accounts/{id}';
+};
+
+export type DeleteV1IdentityClientsServiceAccountsByIdErrors = {
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+};
+
+export type DeleteV1IdentityClientsServiceAccountsByIdError = DeleteV1IdentityClientsServiceAccountsByIdErrors[keyof DeleteV1IdentityClientsServiceAccountsByIdErrors];
+
+export type DeleteV1IdentityClientsServiceAccountsByIdResponses = {
+    /**
+     * No Content
+     */
+    204: unknown;
+};
+
+export type GetV1IdentityClientsServiceAccountsByIdData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/v1/identity/clients/service-accounts/{id}';
+};
+
+export type GetV1IdentityClientsServiceAccountsByIdErrors = {
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+};
+
+export type GetV1IdentityClientsServiceAccountsByIdError = GetV1IdentityClientsServiceAccountsByIdErrors[keyof GetV1IdentityClientsServiceAccountsByIdErrors];
+
+export type GetV1IdentityClientsServiceAccountsByIdResponses = {
+    /**
+     * OK
+     */
+    200: ServiceAccountDto;
+};
+
+export type GetV1IdentityClientsServiceAccountsByIdResponse = GetV1IdentityClientsServiceAccountsByIdResponses[keyof GetV1IdentityClientsServiceAccountsByIdResponses];
+
+export type PutV1IdentityClientsServiceAccountsByIdScopesData = {
+    body: UpdateScopesRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/v1/identity/clients/service-accounts/{id}/scopes';
+};
+
+export type PutV1IdentityClientsServiceAccountsByIdScopesErrors = {
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+};
+
+export type PutV1IdentityClientsServiceAccountsByIdScopesError = PutV1IdentityClientsServiceAccountsByIdScopesErrors[keyof PutV1IdentityClientsServiceAccountsByIdScopesErrors];
+
+export type PutV1IdentityClientsServiceAccountsByIdScopesResponses = {
+    /**
+     * No Content
+     */
+    204: unknown;
+};
+
+export type PostV1IdentityClientsServiceAccountsByIdRotateSecretData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/v1/identity/clients/service-accounts/{id}/rotate-secret';
+};
+
+export type PostV1IdentityClientsServiceAccountsByIdRotateSecretErrors = {
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+};
+
+export type PostV1IdentityClientsServiceAccountsByIdRotateSecretError = PostV1IdentityClientsServiceAccountsByIdRotateSecretErrors[keyof PostV1IdentityClientsServiceAccountsByIdRotateSecretErrors];
+
+export type PostV1IdentityClientsServiceAccountsByIdRotateSecretResponses = {
+    /**
+     * OK
+     */
+    200: SecretRotatedResponse;
+};
+
+export type PostV1IdentityClientsServiceAccountsByIdRotateSecretResponse = PostV1IdentityClientsServiceAccountsByIdRotateSecretResponses[keyof PostV1IdentityClientsServiceAccountsByIdRotateSecretResponses];
+
 export type GetV1IdentityConfigData = {
     body?: never;
     path?: never;
@@ -2266,72 +1990,6 @@ export type PutV1IdentitySettingsUserResponses = {
     204: unknown;
 };
 
-export type GetV1IdentityInitialAccessTokensData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/v1/identity/initial-access-tokens';
-};
-
-export type GetV1IdentityInitialAccessTokensResponses = {
-    /**
-     * OK
-     */
-    200: Array<InitialAccessTokenResponse>;
-};
-
-export type GetV1IdentityInitialAccessTokensResponse = GetV1IdentityInitialAccessTokensResponses[keyof GetV1IdentityInitialAccessTokensResponses];
-
-export type PostV1IdentityInitialAccessTokensData = {
-    body: CreateInitialAccessTokenRequest;
-    path?: never;
-    query?: never;
-    url: '/v1/identity/initial-access-tokens';
-};
-
-export type PostV1IdentityInitialAccessTokensErrors = {
-    /**
-     * Bad Request
-     */
-    400: ProblemDetails;
-};
-
-export type PostV1IdentityInitialAccessTokensError = PostV1IdentityInitialAccessTokensErrors[keyof PostV1IdentityInitialAccessTokensErrors];
-
-export type PostV1IdentityInitialAccessTokensResponses = {
-    /**
-     * Created
-     */
-    201: InitialAccessTokenCreatedResponse;
-};
-
-export type PostV1IdentityInitialAccessTokensResponse = PostV1IdentityInitialAccessTokensResponses[keyof PostV1IdentityInitialAccessTokensResponses];
-
-export type DeleteV1IdentityInitialAccessTokensByIdData = {
-    body?: never;
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/v1/identity/initial-access-tokens/{id}';
-};
-
-export type DeleteV1IdentityInitialAccessTokensByIdErrors = {
-    /**
-     * Not Found
-     */
-    404: ProblemDetails;
-};
-
-export type DeleteV1IdentityInitialAccessTokensByIdError = DeleteV1IdentityInitialAccessTokensByIdErrors[keyof DeleteV1IdentityInitialAccessTokensByIdErrors];
-
-export type DeleteV1IdentityInitialAccessTokensByIdResponses = {
-    /**
-     * No Content
-     */
-    204: unknown;
-};
-
 export type GetV1IdentityInvitationsData = {
     body?: never;
     path?: never;
@@ -2438,121 +2096,6 @@ export type PostV1IdentityInvitationsByTokenAcceptErrors = {
 export type PostV1IdentityInvitationsByTokenAcceptError = PostV1IdentityInvitationsByTokenAcceptErrors[keyof PostV1IdentityInvitationsByTokenAcceptErrors];
 
 export type PostV1IdentityInvitationsByTokenAcceptResponses = {
-    /**
-     * No Content
-     */
-    204: unknown;
-};
-
-export type PostV1IdentityMembershipRequestsData = {
-    body: CreateMembershipRequest;
-    path?: never;
-    query?: never;
-    url: '/v1/identity/membership-requests';
-};
-
-export type PostV1IdentityMembershipRequestsErrors = {
-    /**
-     * Unauthorized
-     */
-    401: ProblemDetails;
-};
-
-export type PostV1IdentityMembershipRequestsError = PostV1IdentityMembershipRequestsErrors[keyof PostV1IdentityMembershipRequestsErrors];
-
-export type PostV1IdentityMembershipRequestsResponses = {
-    /**
-     * Created
-     */
-    201: unknown;
-};
-
-export type GetV1IdentityMembershipRequestsByIdData = {
-    body?: never;
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/v1/identity/membership-requests/{id}';
-};
-
-export type GetV1IdentityMembershipRequestsByIdErrors = {
-    /**
-     * Not Found
-     */
-    404: ProblemDetails;
-};
-
-export type GetV1IdentityMembershipRequestsByIdError = GetV1IdentityMembershipRequestsByIdErrors[keyof GetV1IdentityMembershipRequestsByIdErrors];
-
-export type GetV1IdentityMembershipRequestsByIdResponses = {
-    /**
-     * OK
-     */
-    200: unknown;
-};
-
-export type GetV1IdentityMembershipRequestsPendingData = {
-    body?: never;
-    path?: never;
-    query?: {
-        skip?: string;
-        take?: string;
-    };
-    url: '/v1/identity/membership-requests/pending';
-};
-
-export type GetV1IdentityMembershipRequestsPendingResponses = {
-    /**
-     * OK
-     */
-    200: unknown;
-};
-
-export type PostV1IdentityMembershipRequestsByIdApproveData = {
-    body: ApproveMembershipRequest;
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/v1/identity/membership-requests/{id}/approve';
-};
-
-export type PostV1IdentityMembershipRequestsByIdApproveErrors = {
-    /**
-     * Not Found
-     */
-    404: ProblemDetails;
-};
-
-export type PostV1IdentityMembershipRequestsByIdApproveError = PostV1IdentityMembershipRequestsByIdApproveErrors[keyof PostV1IdentityMembershipRequestsByIdApproveErrors];
-
-export type PostV1IdentityMembershipRequestsByIdApproveResponses = {
-    /**
-     * No Content
-     */
-    204: unknown;
-};
-
-export type PostV1IdentityMembershipRequestsByIdRejectData = {
-    body?: never;
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/v1/identity/membership-requests/{id}/reject';
-};
-
-export type PostV1IdentityMembershipRequestsByIdRejectErrors = {
-    /**
-     * Not Found
-     */
-    404: ProblemDetails;
-};
-
-export type PostV1IdentityMembershipRequestsByIdRejectError = PostV1IdentityMembershipRequestsByIdRejectErrors[keyof PostV1IdentityMembershipRequestsByIdRejectErrors];
-
-export type PostV1IdentityMembershipRequestsByIdRejectResponses = {
     /**
      * No Content
      */
@@ -2685,111 +2228,6 @@ export type PostV1IdentityMfaEnrollExchangeTokenData = {
 };
 
 export type PostV1IdentityMfaEnrollExchangeTokenResponses = {
-    /**
-     * OK
-     */
-    200: unknown;
-};
-
-export type PostV1IdentityOrganizationDomainsData = {
-    body: RegisterDomainRequest;
-    path?: never;
-    query?: never;
-    url: '/v1/identity/organization-domains';
-};
-
-export type PostV1IdentityOrganizationDomainsResponses = {
-    /**
-     * Created
-     */
-    201: unknown;
-};
-
-export type GetV1IdentityOrganizationDomainsByIdData = {
-    body?: never;
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/v1/identity/organization-domains/{id}';
-};
-
-export type GetV1IdentityOrganizationDomainsByIdErrors = {
-    /**
-     * Not Found
-     */
-    404: ProblemDetails;
-};
-
-export type GetV1IdentityOrganizationDomainsByIdError = GetV1IdentityOrganizationDomainsByIdErrors[keyof GetV1IdentityOrganizationDomainsByIdErrors];
-
-export type GetV1IdentityOrganizationDomainsByIdResponses = {
-    /**
-     * OK
-     */
-    200: unknown;
-};
-
-export type GetV1IdentityOrganizationDomainsByOrganizationByOrganizationIdData = {
-    body?: never;
-    path: {
-        organizationId: string;
-    };
-    query?: never;
-    url: '/v1/identity/organization-domains/by-organization/{organizationId}';
-};
-
-export type GetV1IdentityOrganizationDomainsByOrganizationByOrganizationIdResponses = {
-    /**
-     * OK
-     */
-    200: unknown;
-};
-
-export type PostV1IdentityOrganizationDomainsByIdVerifyData = {
-    body: VerifyDomainRequest;
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/v1/identity/organization-domains/{id}/verify';
-};
-
-export type PostV1IdentityOrganizationDomainsByIdVerifyErrors = {
-    /**
-     * Not Found
-     */
-    404: ProblemDetails;
-};
-
-export type PostV1IdentityOrganizationDomainsByIdVerifyError = PostV1IdentityOrganizationDomainsByIdVerifyErrors[keyof PostV1IdentityOrganizationDomainsByIdVerifyErrors];
-
-export type PostV1IdentityOrganizationDomainsByIdVerifyResponses = {
-    /**
-     * No Content
-     */
-    204: unknown;
-};
-
-export type GetV1IdentityOrganizationDomainsMatchData = {
-    body?: never;
-    path?: never;
-    query?: {
-        email?: string;
-    };
-    url: '/v1/identity/organization-domains/match';
-};
-
-export type GetV1IdentityOrganizationDomainsMatchErrors = {
-    /**
-     * Not Found
-     */
-    404: ProblemDetails;
-};
-
-export type GetV1IdentityOrganizationDomainsMatchError = GetV1IdentityOrganizationDomainsMatchErrors[keyof GetV1IdentityOrganizationDomainsMatchErrors];
-
-export type GetV1IdentityOrganizationDomainsMatchResponses = {
     /**
      * OK
      */
@@ -3083,344 +2521,6 @@ export type GetV1IdentityRolesByRoleNamePermissionsResponses = {
     200: unknown;
 };
 
-export type GetScimV2UsersData = {
-    body?: never;
-    path?: never;
-    query?: {
-        filter?: string;
-        startIndex?: string;
-        count?: string;
-        sortBy?: string;
-        sortOrder?: string;
-    };
-    url: '/scim/v2/Users';
-};
-
-export type GetScimV2UsersErrors = {
-    /**
-     * Unauthorized
-     */
-    401: ScimError;
-};
-
-export type GetScimV2UsersError = GetScimV2UsersErrors[keyof GetScimV2UsersErrors];
-
-export type GetScimV2UsersResponses = {
-    /**
-     * OK
-     */
-    200: ScimListResponseOfScimUser;
-};
-
-export type GetScimV2UsersResponse = GetScimV2UsersResponses[keyof GetScimV2UsersResponses];
-
-export type PostScimV2UsersData = {
-    body: ScimUserRequest;
-    path?: never;
-    query?: never;
-    url: '/scim/v2/Users';
-};
-
-export type PostScimV2UsersErrors = {
-    /**
-     * Bad Request
-     */
-    400: ScimError;
-    /**
-     * Conflict
-     */
-    409: ScimError;
-};
-
-export type PostScimV2UsersError = PostScimV2UsersErrors[keyof PostScimV2UsersErrors];
-
-export type PostScimV2UsersResponses = {
-    /**
-     * Created
-     */
-    201: ScimUser;
-};
-
-export type PostScimV2UsersResponse = PostScimV2UsersResponses[keyof PostScimV2UsersResponses];
-
-export type DeleteScimV2UsersByIdData = {
-    body?: never;
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/scim/v2/Users/{id}';
-};
-
-export type DeleteScimV2UsersByIdErrors = {
-    /**
-     * Not Found
-     */
-    404: ScimError;
-};
-
-export type DeleteScimV2UsersByIdError = DeleteScimV2UsersByIdErrors[keyof DeleteScimV2UsersByIdErrors];
-
-export type DeleteScimV2UsersByIdResponses = {
-    /**
-     * No Content
-     */
-    204: unknown;
-};
-
-export type GetScimV2UsersByIdData = {
-    body?: never;
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/scim/v2/Users/{id}';
-};
-
-export type GetScimV2UsersByIdErrors = {
-    /**
-     * Not Found
-     */
-    404: ScimError;
-};
-
-export type GetScimV2UsersByIdError = GetScimV2UsersByIdErrors[keyof GetScimV2UsersByIdErrors];
-
-export type GetScimV2UsersByIdResponses = {
-    /**
-     * OK
-     */
-    200: ScimUser;
-};
-
-export type GetScimV2UsersByIdResponse = GetScimV2UsersByIdResponses[keyof GetScimV2UsersByIdResponses];
-
-export type PatchScimV2UsersByIdData = {
-    body: ScimPatchRequest;
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/scim/v2/Users/{id}';
-};
-
-export type PatchScimV2UsersByIdErrors = {
-    /**
-     * Not Found
-     */
-    404: ScimError;
-};
-
-export type PatchScimV2UsersByIdError = PatchScimV2UsersByIdErrors[keyof PatchScimV2UsersByIdErrors];
-
-export type PatchScimV2UsersByIdResponses = {
-    /**
-     * OK
-     */
-    200: ScimUser;
-};
-
-export type PatchScimV2UsersByIdResponse = PatchScimV2UsersByIdResponses[keyof PatchScimV2UsersByIdResponses];
-
-export type PutScimV2UsersByIdData = {
-    body: ScimUserRequest;
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/scim/v2/Users/{id}';
-};
-
-export type PutScimV2UsersByIdErrors = {
-    /**
-     * Not Found
-     */
-    404: ScimError;
-};
-
-export type PutScimV2UsersByIdError = PutScimV2UsersByIdErrors[keyof PutScimV2UsersByIdErrors];
-
-export type PutScimV2UsersByIdResponses = {
-    /**
-     * OK
-     */
-    200: ScimUser;
-};
-
-export type PutScimV2UsersByIdResponse = PutScimV2UsersByIdResponses[keyof PutScimV2UsersByIdResponses];
-
-export type GetScimV2GroupsData = {
-    body?: never;
-    path?: never;
-    query?: {
-        filter?: string;
-        startIndex?: string;
-        count?: string;
-    };
-    url: '/scim/v2/Groups';
-};
-
-export type GetScimV2GroupsResponses = {
-    /**
-     * OK
-     */
-    200: ScimListResponseOfScimGroup;
-};
-
-export type GetScimV2GroupsResponse = GetScimV2GroupsResponses[keyof GetScimV2GroupsResponses];
-
-export type PostScimV2GroupsData = {
-    body: ScimGroupRequest;
-    path?: never;
-    query?: never;
-    url: '/scim/v2/Groups';
-};
-
-export type PostScimV2GroupsErrors = {
-    /**
-     * Bad Request
-     */
-    400: ScimError;
-};
-
-export type PostScimV2GroupsError = PostScimV2GroupsErrors[keyof PostScimV2GroupsErrors];
-
-export type PostScimV2GroupsResponses = {
-    /**
-     * Created
-     */
-    201: ScimGroup;
-};
-
-export type PostScimV2GroupsResponse = PostScimV2GroupsResponses[keyof PostScimV2GroupsResponses];
-
-export type DeleteScimV2GroupsByIdData = {
-    body?: never;
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/scim/v2/Groups/{id}';
-};
-
-export type DeleteScimV2GroupsByIdErrors = {
-    /**
-     * Not Found
-     */
-    404: ScimError;
-};
-
-export type DeleteScimV2GroupsByIdError = DeleteScimV2GroupsByIdErrors[keyof DeleteScimV2GroupsByIdErrors];
-
-export type DeleteScimV2GroupsByIdResponses = {
-    /**
-     * No Content
-     */
-    204: unknown;
-};
-
-export type GetScimV2GroupsByIdData = {
-    body?: never;
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/scim/v2/Groups/{id}';
-};
-
-export type GetScimV2GroupsByIdErrors = {
-    /**
-     * Not Found
-     */
-    404: ScimError;
-};
-
-export type GetScimV2GroupsByIdError = GetScimV2GroupsByIdErrors[keyof GetScimV2GroupsByIdErrors];
-
-export type GetScimV2GroupsByIdResponses = {
-    /**
-     * OK
-     */
-    200: ScimGroup;
-};
-
-export type GetScimV2GroupsByIdResponse = GetScimV2GroupsByIdResponses[keyof GetScimV2GroupsByIdResponses];
-
-export type PutScimV2GroupsByIdData = {
-    body: ScimGroupRequest;
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/scim/v2/Groups/{id}';
-};
-
-export type PutScimV2GroupsByIdErrors = {
-    /**
-     * Not Found
-     */
-    404: ScimError;
-};
-
-export type PutScimV2GroupsByIdError = PutScimV2GroupsByIdErrors[keyof PutScimV2GroupsByIdErrors];
-
-export type PutScimV2GroupsByIdResponses = {
-    /**
-     * OK
-     */
-    200: ScimGroup;
-};
-
-export type PutScimV2GroupsByIdResponse = PutScimV2GroupsByIdResponses[keyof PutScimV2GroupsByIdResponses];
-
-export type GetScimV2ServiceProviderConfigData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/scim/v2/ServiceProviderConfig';
-};
-
-export type GetScimV2ServiceProviderConfigResponses = {
-    /**
-     * OK
-     */
-    200: ScimServiceProviderConfig;
-};
-
-export type GetScimV2ServiceProviderConfigResponse = GetScimV2ServiceProviderConfigResponses[keyof GetScimV2ServiceProviderConfigResponses];
-
-export type GetScimV2SchemasData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/scim/v2/Schemas';
-};
-
-export type GetScimV2SchemasResponses = {
-    /**
-     * OK
-     */
-    200: ScimListResponseOfScimSchema;
-};
-
-export type GetScimV2SchemasResponse = GetScimV2SchemasResponses[keyof GetScimV2SchemasResponses];
-
-export type GetScimV2ResourceTypesData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/scim/v2/ResourceTypes';
-};
-
-export type GetScimV2ResourceTypesResponses = {
-    /**
-     * OK
-     */
-    200: ScimListResponseOfScimResourceType;
-};
-
-export type GetScimV2ResourceTypesResponse = GetScimV2ResourceTypesResponses[keyof GetScimV2ResourceTypesResponses];
-
 export type GetV1IdentityScopesData = {
     body?: never;
     path?: never;
@@ -3438,151 +2538,6 @@ export type GetV1IdentityScopesResponses = {
 };
 
 export type GetV1IdentityScopesResponse = GetV1IdentityScopesResponses[keyof GetV1IdentityScopesResponses];
-
-export type GetV1IdentityServiceAccountsData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/v1/identity/service-accounts';
-};
-
-export type GetV1IdentityServiceAccountsResponses = {
-    /**
-     * OK
-     */
-    200: Array<ServiceAccountDto>;
-};
-
-export type GetV1IdentityServiceAccountsResponse = GetV1IdentityServiceAccountsResponses[keyof GetV1IdentityServiceAccountsResponses];
-
-export type PostV1IdentityServiceAccountsData = {
-    body: CreateServiceAccountRequest;
-    path?: never;
-    query?: never;
-    url: '/v1/identity/service-accounts';
-};
-
-export type PostV1IdentityServiceAccountsErrors = {
-    /**
-     * Bad Request
-     */
-    400: ProblemDetails;
-};
-
-export type PostV1IdentityServiceAccountsError = PostV1IdentityServiceAccountsErrors[keyof PostV1IdentityServiceAccountsErrors];
-
-export type PostV1IdentityServiceAccountsResponses = {
-    /**
-     * Created
-     */
-    201: ServiceAccountCreatedResponse;
-};
-
-export type PostV1IdentityServiceAccountsResponse = PostV1IdentityServiceAccountsResponses[keyof PostV1IdentityServiceAccountsResponses];
-
-export type DeleteV1IdentityServiceAccountsByIdData = {
-    body?: never;
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/v1/identity/service-accounts/{id}';
-};
-
-export type DeleteV1IdentityServiceAccountsByIdErrors = {
-    /**
-     * Not Found
-     */
-    404: ProblemDetails;
-};
-
-export type DeleteV1IdentityServiceAccountsByIdError = DeleteV1IdentityServiceAccountsByIdErrors[keyof DeleteV1IdentityServiceAccountsByIdErrors];
-
-export type DeleteV1IdentityServiceAccountsByIdResponses = {
-    /**
-     * No Content
-     */
-    204: unknown;
-};
-
-export type GetV1IdentityServiceAccountsByIdData = {
-    body?: never;
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/v1/identity/service-accounts/{id}';
-};
-
-export type GetV1IdentityServiceAccountsByIdErrors = {
-    /**
-     * Not Found
-     */
-    404: ProblemDetails;
-};
-
-export type GetV1IdentityServiceAccountsByIdError = GetV1IdentityServiceAccountsByIdErrors[keyof GetV1IdentityServiceAccountsByIdErrors];
-
-export type GetV1IdentityServiceAccountsByIdResponses = {
-    /**
-     * OK
-     */
-    200: ServiceAccountDto;
-};
-
-export type GetV1IdentityServiceAccountsByIdResponse = GetV1IdentityServiceAccountsByIdResponses[keyof GetV1IdentityServiceAccountsByIdResponses];
-
-export type PutV1IdentityServiceAccountsByIdScopesData = {
-    body: UpdateScopesRequest;
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/v1/identity/service-accounts/{id}/scopes';
-};
-
-export type PutV1IdentityServiceAccountsByIdScopesErrors = {
-    /**
-     * Not Found
-     */
-    404: ProblemDetails;
-};
-
-export type PutV1IdentityServiceAccountsByIdScopesError = PutV1IdentityServiceAccountsByIdScopesErrors[keyof PutV1IdentityServiceAccountsByIdScopesErrors];
-
-export type PutV1IdentityServiceAccountsByIdScopesResponses = {
-    /**
-     * No Content
-     */
-    204: unknown;
-};
-
-export type PostV1IdentityServiceAccountsByIdRotateSecretData = {
-    body?: never;
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/v1/identity/service-accounts/{id}/rotate-secret';
-};
-
-export type PostV1IdentityServiceAccountsByIdRotateSecretErrors = {
-    /**
-     * Not Found
-     */
-    404: ProblemDetails;
-};
-
-export type PostV1IdentityServiceAccountsByIdRotateSecretError = PostV1IdentityServiceAccountsByIdRotateSecretErrors[keyof PostV1IdentityServiceAccountsByIdRotateSecretErrors];
-
-export type PostV1IdentityServiceAccountsByIdRotateSecretResponses = {
-    /**
-     * OK
-     */
-    200: SecretRotatedResponse;
-};
-
-export type PostV1IdentityServiceAccountsByIdRotateSecretResponse = PostV1IdentityServiceAccountsByIdRotateSecretResponses[keyof PostV1IdentityServiceAccountsByIdRotateSecretResponses];
 
 export type GetV1IdentitySessionsData = {
     body?: never;
@@ -3653,31 +2608,6 @@ export type PostV1IdentitySetupAdminResponses = {
     204: unknown;
 };
 
-export type PostV1IdentitySetupClientsData = {
-    body: RegisterSetupClientRequest;
-    path?: never;
-    query?: never;
-    url: '/v1/identity/setup/clients';
-};
-
-export type PostV1IdentitySetupClientsErrors = {
-    /**
-     * Conflict
-     */
-    409: ProblemDetails;
-};
-
-export type PostV1IdentitySetupClientsError = PostV1IdentitySetupClientsErrors[keyof PostV1IdentitySetupClientsErrors];
-
-export type PostV1IdentitySetupClientsResponses = {
-    /**
-     * OK
-     */
-    200: RegisterSetupClientResponse;
-};
-
-export type PostV1IdentitySetupClientsResponse = PostV1IdentitySetupClientsResponses[keyof PostV1IdentitySetupClientsResponses];
-
 export type PostV1IdentitySetupCompleteData = {
     body?: never;
     path?: never;
@@ -3700,172 +2630,6 @@ export type PostV1IdentitySetupCompleteResponses = {
      */
     204: unknown;
 };
-
-export type GetV1IdentitySsoData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/v1/identity/sso';
-};
-
-export type GetV1IdentitySsoErrors = {
-    /**
-     * Not Found
-     */
-    404: ProblemDetails;
-};
-
-export type GetV1IdentitySsoError = GetV1IdentitySsoErrors[keyof GetV1IdentitySsoErrors];
-
-export type GetV1IdentitySsoResponses = {
-    /**
-     * OK
-     */
-    200: SsoConfigurationDto;
-};
-
-export type GetV1IdentitySsoResponse = GetV1IdentitySsoResponses[keyof GetV1IdentitySsoResponses];
-
-export type PostV1IdentitySsoOidcData = {
-    body: ConfigureOidcSsoRequest;
-    path?: never;
-    query?: never;
-    url: '/v1/identity/sso/oidc';
-};
-
-export type PostV1IdentitySsoOidcErrors = {
-    /**
-     * Bad Request
-     */
-    400: ProblemDetails;
-};
-
-export type PostV1IdentitySsoOidcError = PostV1IdentitySsoOidcErrors[keyof PostV1IdentitySsoOidcErrors];
-
-export type PostV1IdentitySsoOidcResponses = {
-    /**
-     * OK
-     */
-    200: SsoConfigurationDto;
-};
-
-export type PostV1IdentitySsoOidcResponse = PostV1IdentitySsoOidcResponses[keyof PostV1IdentitySsoOidcResponses];
-
-export type PostV1IdentitySsoTestData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/v1/identity/sso/test';
-};
-
-export type PostV1IdentitySsoTestErrors = {
-    /**
-     * Not Found
-     */
-    404: ProblemDetails;
-};
-
-export type PostV1IdentitySsoTestError = PostV1IdentitySsoTestErrors[keyof PostV1IdentitySsoTestErrors];
-
-export type PostV1IdentitySsoTestResponses = {
-    /**
-     * OK
-     */
-    200: SsoTestResult;
-};
-
-export type PostV1IdentitySsoTestResponse = PostV1IdentitySsoTestResponses[keyof PostV1IdentitySsoTestResponses];
-
-export type PostV1IdentitySsoActivateData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/v1/identity/sso/activate';
-};
-
-export type PostV1IdentitySsoActivateErrors = {
-    /**
-     * Bad Request
-     */
-    400: ProblemDetails;
-    /**
-     * Not Found
-     */
-    404: ProblemDetails;
-};
-
-export type PostV1IdentitySsoActivateError = PostV1IdentitySsoActivateErrors[keyof PostV1IdentitySsoActivateErrors];
-
-export type PostV1IdentitySsoActivateResponses = {
-    /**
-     * No Content
-     */
-    204: unknown;
-};
-
-export type PostV1IdentitySsoDisableData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/v1/identity/sso/disable';
-};
-
-export type PostV1IdentitySsoDisableErrors = {
-    /**
-     * Not Found
-     */
-    404: ProblemDetails;
-};
-
-export type PostV1IdentitySsoDisableError = PostV1IdentitySsoDisableErrors[keyof PostV1IdentitySsoDisableErrors];
-
-export type PostV1IdentitySsoDisableResponses = {
-    /**
-     * No Content
-     */
-    204: unknown;
-};
-
-export type GetV1IdentitySsoOidcCallbackInfoData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/v1/identity/sso/oidc/callback-info';
-};
-
-export type GetV1IdentitySsoOidcCallbackInfoResponses = {
-    /**
-     * OK
-     */
-    200: OidcCallbackInfo;
-};
-
-export type GetV1IdentitySsoOidcCallbackInfoResponse = GetV1IdentitySsoOidcCallbackInfoResponses[keyof GetV1IdentitySsoOidcCallbackInfoResponses];
-
-export type PostV1IdentitySsoValidateData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/v1/identity/sso/validate';
-};
-
-export type PostV1IdentitySsoValidateErrors = {
-    /**
-     * Not Found
-     */
-    404: ProblemDetails;
-};
-
-export type PostV1IdentitySsoValidateError = PostV1IdentitySsoValidateErrors[keyof PostV1IdentitySsoValidateErrors];
-
-export type PostV1IdentitySsoValidateResponses = {
-    /**
-     * OK
-     */
-    200: SsoValidationResult;
-};
-
-export type PostV1IdentitySsoValidateResponse = PostV1IdentitySsoValidateResponses[keyof PostV1IdentitySsoValidateResponses];
 
 export type PostV1IdentityTestIsolatedOrgData = {
     body: CreateIsolatedOrgRequest;

@@ -12,6 +12,8 @@
 interface ImportMetaEnv {
   /** True when the module is running in Vite's SSR (server) build/runtime. */
   readonly SSR: boolean;
+  /** True on Vite's dev server, false in a production build. */
+  readonly DEV: boolean;
 }
 
 interface ImportMeta {

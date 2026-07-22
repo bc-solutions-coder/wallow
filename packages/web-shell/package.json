@@ -26,6 +26,7 @@
   "dependencies": {
     "@bc-solutions-coder/styles": "workspace:*",
     "@tanstack/react-query": "^5.101.2",
+    "@tanstack/router-plugin": "^1.168.20",
     "@vitejs/plugin-react": "^6.0.3"
   },
   "devDependencies": {

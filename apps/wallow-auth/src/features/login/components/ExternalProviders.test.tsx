@@ -455,7 +455,7 @@ function renderRouteAt(url: string) {
       id: "/login",
       path: "/login",
       getParentRoute: () => rootRoute,
-    }),
+    } as any),
   ]);
   const router = createRouter({
     routeTree,

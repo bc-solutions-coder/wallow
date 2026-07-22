@@ -24,9 +24,9 @@ import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
  *
  * Testids `register-error`, `register-email`, `register-password`,
  * `register-confirm-password`, `register-terms`, `register-privacy` and
- * `register-submit` come verbatim from the oracle. The strength meter, the
- * passwordless toggle and the org interstitial ship without testids in the
- * oracle, so those are minted under the `{page}-{element}` rule.
+ * `register-submit` come verbatim from the oracle. The strength meter and the
+ * passwordless toggle ship without testids in the oracle, so those are minted
+ * under the `{page}-{element}` rule.
  *
  * The API is reached through `getWallowAuthSdk()`, never `@bc-solutions-coder/sdk`
  * directly — that facade is this app's only permitted importer of the SDK.
@@ -71,52 +71,6 @@ import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
  * class is exported from the SDK's `./server` entry and screens may not import
  * the SDK at all. A network-level rejection carries neither `code` nor `status`
  * and must fall through to the generic message rather than throw.
- *
- * ── THE ORG-MATCH INTERSTITIAL: A DISCLOSED DIVERGENCE FROM THE ORACLE ───────
- *
- * `OrganizationDomainsController.Match` (.../OrganizationDomainsController.cs:67-88)
- * answers `Ok({ organizationId, domain })` on a VERIFIED match and a bare 404
- * otherwise — it does NOT send the org's display name, only the id and the
- * matched `domain`.
- *
- * This screen keys the suggestion on `domain`, the field actually on the wire, so
- * the interstitial this bead's acceptance mandates genuinely renders. That is a
- * DELIBERATE, disclosed divergence.
- * Its cost is that the interstitial names the DOMAIN ("example.com") rather than
- * the org's display name, which the endpoint does not expose; recovering the name
- * would need an API change, out of this bead's scope.
- *
- * Consequence: a no-match is a 404 REJECTION here, not a `null` resolve. But a
- * no-match is an ORDINARY ANSWER to "does this domain match an org?", not a
- * failure of the thing the user came here to do, so the miss is caught and the
- * registration proceeds unflagged rather than surfacing an error banner.
- *
- * ── THE INTERSTITIAL RUNS PRE-SUBMIT (Wallow-vec7.8 / Wallow-vec7.9) ─────────
- *
- * This screen used to show the interstitial AFTER register and have its ACCEPT
- * call `requestMembership`. That endpoint is `[Authorize]` and does
- * `User.GetUserId()!`, while the just-registered, unverified user is still
- * ANONYMOUS — so the call could only ever 401 and the accept path never once
- * recorded a request.
- *
- * Wallow-vec7.8 fixed that server-side WITHOUT opening the endpoint up (an
- * anonymous membership-request endpoint is a spam/enumeration surface). The
- * ALREADY-anonymous `POST /v1/identity/auth/register` opts in via a flag, and the
- * server derives the domain from the address actually registered:
- *
- *     AccountRegisterRequest(..., bool RequestOrgMembership = false)
- *
- * So the ORDER inverts, and the inversion is the point: the user's answer is an
- * INPUT to registration, not a follow-up to it. `GET .../organization-domains/match`
- * is already `[AllowAnonymous]` (OrganizationDomainsController.cs:67-68), so the
- * lookup runs on submit-click, before any account exists. ACCEPT then submits with
- * `requestOrgMembership: true`; DECLINE and no-match submit without it. The flag
- * is OPT-IN, so the client sends a FLAG and never a domain — a client-supplied
- * domain was the enumeration surface Wallow-vec7.8 refused.
- *
- * This is a DELIBERATE UX divergence from the oracle (Register.razor:358 shows the
- * interstitial after register). The oracle has the SAME 401 bug and swallows it
- * into a bool; it is not the authority here.
  *
  * ── NO ApiBaseUrl PREPEND (inherited from Wallow-vec7.3.4) ───────────────────
  *
@@ -293,11 +247,6 @@ function externalLoginUrl(provider: string): string {
   );
 }
 
-/** What a verified domain match resolves to — `domain`, never `orgName`. */
-interface DomainMatch {
-  readonly domain?: string;
-}
-
 /** What the informational client-tenant lookup resolves to. */
 interface ClientTenant {
   readonly orgName?: string;
@@ -311,23 +260,6 @@ interface RegisterRequest {
   readonly clientId?: string;
   readonly loginMethod: string | null;
   readonly returnUrl?: string;
-  /**
-   * Wallow-vec7.8's opt-in. OMITTED rather than sent `false` on the decline and
-   * no-match paths: the server defaults it false, so absence already says no.
-   */
-  readonly requestOrgMembership?: boolean;
-}
-
-/**
- * A submit the user has made that is waiting on their answer to the interstitial.
- *
- * The request is SNAPSHOT at submit-click rather than re-read from the field
- * state when they answer: the answer is an input to THIS submission, and reading
- * live state again would let the two drift apart.
- */
-interface PendingRegistration {
-  readonly request: RegisterRequest;
-  readonly domain: string;
 }
 
 /** The oracle's `BbCardHeader`. */
@@ -527,58 +459,6 @@ function AlreadyHaveAccount({ returnUrl }: { readonly returnUrl?: string }) {
   );
 }
 
-/**
- * The oracle's org-match interstitial, which REPLACES the form (the oracle
- * `return`s before rendering it).
- *
- * It names the DOMAIN rather than an org display name — see the divergence note
- * above; the endpoint sends no name.
- */
-function OrgMatchInterstitial(props: {
-  readonly domain: string;
-  readonly submitting: boolean;
-  readonly onRequest: () => void;
-  readonly onDismiss: () => void;
-}) {
-  const { domain, submitting, onRequest, onDismiss } = props;
-
-  return (
-    <div className="space-y-4">
-      <div
-        className="rounded-md border border-border bg-muted p-3"
-        data-testid="register-org-match"
-      >
-        <p className="text-sm text-foreground">
-          It looks like your team uses {domain}. Would you like to request access?
-        </p>
-      </div>
-      <div className="flex gap-2">
-        <Button
-          type="button"
-          className="flex-1"
-          // BOTH buttons are the submit now — each one creates the account, and
-          // they differ only in the flag. So "one click, one account" covers them
-          // both: neither may stay live while a registration is in flight.
-          disabled={submitting}
-          data-testid="register-org-match-accept"
-          onClick={onRequest}
-        >
-          Request access
-        </Button>
-        <button
-          type="button"
-          className="flex-1 rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground disabled:opacity-50"
-          disabled={submitting}
-          data-testid="register-org-match-dismiss"
-          onClick={onDismiss}
-        >
-          No thanks
-        </button>
-      </div>
-    </div>
-  );
-}
-
 /** The oracle's `<form>`, from the email field down to the submit. */
 function RegisterFields(props: {
   readonly email: string;
@@ -686,7 +566,6 @@ export function RegisterForm({ clientId, returnUrl }: RegisterFormProps): ReactN
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState<PendingRegistration | null>(null);
 
   // The oracle's two concurrent `OnInitializedAsync` calls. Two independent
   // `useQuery` hooks BOTH fire on mount, which is what makes them concurrent —
@@ -717,39 +596,7 @@ export function RegisterForm({ clientId, returnUrl }: RegisterFormProps): ReactN
     },
   });
 
-  /**
-   * The PRE-submit domain lookup — `[AllowAnonymous]`, so it runs before any
-   * account exists.
-   *
-   * Resolves `null` for "no org to offer". A miss is a 404 REJECTION rather than
-   * a `null` resolve, and it is caught here: a no-match is an ordinary answer,
-   * not a failure, so it must not become an error banner. A lookup that fails for
-   * any OTHER reason lands here too, and deliberately: the user's registration
-   * must not be held hostage to an advisory suggestion, so the worst case is that
-   * they register unflagged and are never offered the org.
-   */
-  const lookupMutation = useMutation({
-    mutationFn: async (request: RegisterRequest): Promise<string | null> => {
-      let match: DomainMatch | null = null;
-
-      try {
-        match = (await getWallowAuthSdk().auth.getMatchingOrgByDomain(
-          request.email,
-        )) as DomainMatch;
-      } catch {
-        return null;
-      }
-
-      const domain: string | undefined = match?.domain;
-
-      return domain === undefined || domain === "" ? null : domain;
-    },
-  });
-
-  /**
-   * Create the account. The ONLY caller of `register` — the no-match path, and
-   * both interstitial answers, differ solely in the flag on the request.
-   */
+  /** Create the account. The ONLY caller of `register`. */
   const submitRegistration = (request: RegisterRequest): void => {
     registerMutation.mutate(request, {
       // Resolution IS success: every failure this endpoint has is non-2xx, so
@@ -758,11 +605,9 @@ export function RegisterForm({ clientId, returnUrl }: RegisterFormProps): ReactN
         void navigate({ href: verifyEmailTarget(returnUrl) });
       },
       onError: (cause: unknown) => {
-        // No account was created, so — unlike the old post-register membership
-        // failure — there IS something to fix. Every reason this endpoint rejects
-        // for is actionable only on the fields, and the interstitial has none, so
-        // drop back to the form rather than strand the user on a dead-end panel.
-        setPending(null);
+        // No account was created, so there IS something to fix. Every reason this
+        // endpoint rejects for is actionable only on the fields, so drop back to
+        // the form.
         setError(registerFailureMessage(cause));
       },
     });
@@ -804,9 +649,6 @@ export function RegisterForm({ clientId, returnUrl }: RegisterFormProps): ReactN
     // failure sitting above a successful registration would be a lie.
     setError(null);
 
-    // The guards above run FIRST: asking the server about a domain the user has
-    // not validly offered would leak their address for a submit that never
-    // happened.
     const request: RegisterRequest = {
       email,
       password,
@@ -816,17 +658,7 @@ export function RegisterForm({ clientId, returnUrl }: RegisterFormProps): ReactN
       returnUrl,
     };
 
-    lookupMutation.mutate(request, {
-      onSuccess: (domain: string | null) => {
-        if (domain === null) {
-          // Nothing to ask about — register unflagged, exactly as a decline does.
-          submitRegistration(request);
-          return;
-        }
-
-        setPending({ request, domain });
-      },
-    });
+    submitRegistration(request);
   };
 
   if (providersQuery.isLoading || tenantQuery.isLoading) {
@@ -834,29 +666,6 @@ export function RegisterForm({ clientId, returnUrl }: RegisterFormProps): ReactN
     return (
       <Card spacing="p-6">
         <InitLoading />
-      </Card>
-    );
-  }
-
-  if (pending !== null) {
-    // The oracle `return`s here: the interstitial replaces the form. No account
-    // exists yet at this point — BOTH answers below are what creates one.
-    return (
-      <Card>
-        <CardHeading />
-        <OrgMatchInterstitial
-          domain={pending.domain}
-          submitting={registerMutation.isPending}
-          onRequest={() => {
-            // The flag, and ONLY the flag: the server derives the domain from the
-            // address actually registered.
-            submitRegistration({ ...pending.request, requestOrgMembership: true });
-          }}
-          onDismiss={() => {
-            // Opt-in is explicit, so a decline sends the request untouched.
-            submitRegistration(pending.request);
-          }}
-        />
       </Card>
     );
   }
@@ -879,10 +688,9 @@ export function RegisterForm({ clientId, returnUrl }: RegisterFormProps): ReactN
         isPasswordless={isPasswordless}
         termsAccepted={termsAccepted}
         privacyAccepted={privacyAccepted}
-        // The lookup now sits BETWEEN the click and the account, so "one click,
-        // one account" has to span it too — a submit left live through the lookup
-        // lets a second click race a second registration.
-        pending={lookupMutation.isPending || registerMutation.isPending}
+        // "One click, one account": the submit must not stay live while a
+        // registration is in flight.
+        pending={registerMutation.isPending}
         onEmailChange={setEmail}
         onPasswordChange={setPassword}
         onConfirmChange={setConfirmPassword}

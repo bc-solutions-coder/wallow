@@ -27,7 +27,7 @@
 import { createDevServer, type DevServerConfig } from "@bc-solutions-coder/web-shell/server";
 import { type ViteDevServer } from "vite";
 
-import { type AuthServer, type AuthServerConfig } from "./src/lib/auth-server";
+import { type AuthServer, type AuthServerConfig, CLIENT_IP_HEADER } from "./src/lib/auth-server";
 import { isProxyRequest } from "./src/lib/proxy-paths";
 
 /** Shape of the Vite-loaded proxy bridge (`src/lib/auth-server.ts`). */
@@ -44,6 +44,7 @@ const config: DevServerConfig = {
   appDir: import.meta.dirname,
   isProxyPath: isProxyRequest,
   reactPluginInDev: false,
+  clientIpHeader: CLIENT_IP_HEADER,
   loadProxyHandler: async (
     vite: ViteDevServer,
   ): Promise<(request: Request) => Promise<Response>> => {

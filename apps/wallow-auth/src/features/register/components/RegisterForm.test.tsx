@@ -20,11 +20,9 @@ import { RegisterForm } from "./RegisterForm";
  * Testids: `register-error`, `register-email`, `register-password`,
  * `register-confirm-password`, `register-terms`, `register-privacy`,
  * `register-submit` come VERBATIM from the oracle (scout inventory on
- * Wallow-vec7.3). The oracle ships no testid for the strength meter, the
- * passwordless toggle, or the org interstitial, so those are minted under the
- * `{page}-{element}` rule the scout authorised: `register-password-strength`,
- * `register-passwordless-toggle`, `register-org-match`,
- * `register-org-match-accept`, `register-org-match-dismiss`, plus
+ * Wallow-vec7.3). The oracle ships no testid for the strength meter or the
+ * passwordless toggle, so those are minted under the `{page}-{element}` rule the
+ * scout authorised: `register-password-strength`, `register-passwordless-toggle`,
  * `register-loading`, `register-org-name`, `register-external-providers`.
  *
  * MOCKING SEAM: `../../../lib/wallow-auth-sdk` — the app's own facade, never
@@ -84,56 +82,17 @@ import { RegisterForm } from "./RegisterForm";
  * never emits that string; it emits `result.Errors.First().Description`. Not
  * ported.
  *
- * ── FINDING 2: THE MATCH ENDPOINT RETURNS A DOMAIN, NOT AN ORG NAME ──────────
+ * ── THE ORG-DOMAIN-MATCH INTERSTITIAL WAS REMOVED (F6) ───────────────────────
  *
- * `OrganizationDomainsController.Match` (.../OrganizationDomainsController.cs:67-88)
- * returns `Ok(new { organizationId, domain })` on a verified match and **404**
- * otherwise — it does NOT send the org's display name, only the id and the
- * matched `domain`. A suggestion keyed on a display name would therefore be
- * permanently unreachable. Its acceptance criterion nonetheless requires the
- * branch, so the screen keys the suggestion on `domain` — the field actually on
- * the wire — which fixes the latent bug rather than faithfully reproducing it.
+ * F6 deleted the anonymous org-membership feature from the API: both the
+ * `GET /v1/identity/organization-domains/match` lookup and the register request's
+ * `RequestOrgMembership` opt-in flag are gone (regenerated OpenAPI snapshot,
+ * T7.1). With no endpoint left to consult, the pre-submit domain lookup and the
+ * interstitial it fed are removed: the form now submits straight to register.
+ * The informational client-tenant org-name banner (a separate, surviving lookup)
+ * stays.
  *
- * Consequences pinned below: no-match is a 404 REJECTION in TS (not a `null`
- * resolve), so the screen must catch it and fall through to verify-email.
- *
- * ── FINDING 3 (RESOLVED — the interstitial now runs PRE-SUBMIT) ──────────────
- *
- * This spec previously pinned a POST-submit interstitial whose ACCEPT called
- * `requestMembership` against `MembershipRequestsController` — `[Authorize]`,
- * `User.GetUserId()!` — while the just-registered user was still unverified and
- * ANONYMOUS. That call could only ever 401, so the accept path never once
- * recorded a membership request. The old spec pinned the screen's honesty about
- * that failure ('does not claim a membership request was sent') rather than the
- * feature working; those tests are RETIRED here, because the failure they
- * describe no longer has a caller.
- *
- * Wallow-vec7.8 fixed it server-side WITHOUT opening the endpoint up (an
- * anonymous membership-request endpoint is a spam/enumeration surface). The
- * ALREADY-anonymous `POST /v1/identity/auth/register` opts in via a new flag,
- * and the server derives the domain from the address the caller actually
- * registered:
- *
- *     AccountRegisterRequest(..., bool RequestOrgMembership = false)
- *     AccountController.cs:719 — `if (request.RequestOrgMembership)`
- *
- * So the ORDER inverts, and the inversion is the point: the user's answer is an
- * INPUT to registration, not a follow-up to it. `GET .../organization-domains/match`
- * is already `[AllowAnonymous]` (OrganizationDomainsController.cs:67-68), so the
- * lookup runs on submit-click, before any account exists. ACCEPT then submits
- * with `requestOrgMembership: true`; DECLINE and no-match submit without it. The
- * flag is OPT-IN and defaults false, so 'without it' is pinned as an explicit
- * `false`/absent, never a truthy accident.
- *
- * The binding test is 'never calls the anonymous requestMembership endpoint':
- * the flag assertions alone would still pass if the obsolete post-register call
- * were left in place beside them.
- *
- * NOTE this is a DELIBERATE UX divergence from the oracle
- * (Register.razor:358 shows the interstitial AFTER register). The oracle has the
- * SAME 401 bug and swallows it into a bool. It is not the authority here.
- *
- * ── FINDING 4: NO ApiBaseUrl PREPEND ────────────────────────────────────────
+ * ── FINDING 2: NO ApiBaseUrl PREPEND ────────────────────────────────────────
  *
  * The oracle builds external-login links as `{ApiBaseUrl}/v1/...` against a
  * cross-origin API. wallow-auth is same-origin behind an h3 passthrough proxy,
@@ -144,8 +103,6 @@ const mocks = vi.hoisted(() => ({
   register: vi.fn(),
   getExternalProviders: vi.fn(),
   getClientTenant: vi.fn(),
-  getMatchingOrgByDomain: vi.fn(),
-  requestMembership: vi.fn(),
   navigate: vi.fn(),
 }));
 
@@ -155,8 +112,6 @@ vi.mock("../../../lib/wallow-auth-sdk", () => ({
       register: mocks.register,
       getExternalProviders: mocks.getExternalProviders,
       getClientTenant: mocks.getClientTenant,
-      getMatchingOrgByDomain: mocks.getMatchingOrgByDomain,
-      requestMembership: mocks.requestMembership,
     },
     oidc: {
       // Faithful restatement of the real `isSafeReturnUrl`
@@ -183,9 +138,6 @@ const PASSWORD = "N3w-Passw0rd!";
 const CLIENT_ID = "wallow-web";
 const RETURN_URL = "/dashboard";
 
-/** The domain half of EMAIL — what the oracle splits out for the membership call. */
-const EMAIL_DOMAIN = "example.com";
-
 /**
  * What the facade really throws for these endpoints. `title` stays "Unknown
  * error": none of them emit problem details, so no human-readable title ever
@@ -204,8 +156,8 @@ function rejection(status: number, code: string): Error & { status: number; code
 }
 
 /**
- * `OrganizationDomainsController.Match` and the client-tenant lookup both answer
- * a miss with a bare `NotFound()` — no body, so nothing for `readCode` to find.
+ * The client-tenant lookup answers a miss with a bare `NotFound()` — no body, so
+ * nothing for `readCode` to find.
  */
 function notFoundRejection(): Error & { status: number; code: string } {
   return rejection(404, "UNKNOWN");
@@ -282,9 +234,6 @@ beforeEach(() => {
   mocks.getExternalProviders.mockResolvedValue([]);
   mocks.getClientTenant.mockResolvedValue({ tenantId: "t-1", orgName: "Acme Inc" });
   mocks.register.mockResolvedValue({ succeeded: true });
-  // Default: no verified domain match — a 404 REJECTION, not a null resolve (Finding 2).
-  mocks.getMatchingOrgByDomain.mockRejectedValue(notFoundRejection());
-  mocks.requestMembership.mockResolvedValue({ id: "req-1" });
 });
 
 describe("RegisterForm — concurrent init", () => {
@@ -800,225 +749,20 @@ describe("RegisterForm — submission", () => {
   });
 });
 
-describe("RegisterForm — org-domain-match interstitial", () => {
-  /** A verified match, shaped as the endpoint really answers it (Finding 2). */
-  const MATCH = { organizationId: "org-1", domain: EMAIL_DOMAIN };
-
-  /** A `register` that never settles, for pinning the in-flight window. */
-  function pendingRegister(): () => void {
-    let release!: () => void;
-    mocks.register.mockReturnValue(
-      new Promise((resolve) => {
-        release = () => {
-          resolve({ succeeded: true });
-        };
-      }),
-    );
-    return () => {
-      release();
-    };
-  }
-
-  it("asks for a domain match using the typed email BEFORE creating the account", async () => {
-    // The inversion this bead exists for (Finding 3). The lookup is
-    // [AllowAnonymous], so it can run pre-submit — and it MUST, because the
-    // user's answer is an input to register rather than a follow-up to it.
-    // Pinned as an ordering assertion, not a both-were-called one: the old
-    // post-register flow also called both.
+describe("RegisterForm — post-submit navigation", () => {
+  it("submits straight to register, with no org-match interstitial (F6 removed it)", async () => {
+    // F6 deleted the anonymous org-domain-match lookup and the register
+    // opt-in flag, so a passing local guard set now creates the account
+    // directly — no interstitial ever stands between the click and register.
     const user = userEvent.setup();
-    mocks.getMatchingOrgByDomain.mockResolvedValue(MATCH);
 
     await renderReadyForm();
     await fillAndSubmit(user);
-
-    await vi.waitFor(() => {
-      expect(mocks.getMatchingOrgByDomain).toHaveBeenCalledWith(EMAIL);
-    });
-    expect(mocks.register).not.toHaveBeenCalled();
-  });
-
-  it("does not look up the domain when a local guard rejects the submit", async () => {
-    // The guards still run FIRST. Asking the server about a domain the user has
-    // not validly offered leaks the address for a submit that never happened.
-    const user = userEvent.setup();
-    mocks.getMatchingOrgByDomain.mockResolvedValue(MATCH);
-
-    await renderReadyForm();
-    await fillAndSubmit(user, { terms: false });
-
-    await expect.element(page.getByTestId("register-error")).toHaveTextContent(/terms/iu);
-    expect(mocks.getMatchingOrgByDomain).not.toHaveBeenCalled();
-    expect(mocks.register).not.toHaveBeenCalled();
-  });
-
-  it("offers the interstitial when the email's domain matches an organisation", async () => {
-    // Oracle: "It looks like your team uses @_suggestedOrgName." Keyed on
-    // `domain`, the field the endpoint actually sends (Finding 2).
-    const user = userEvent.setup();
-    mocks.getMatchingOrgByDomain.mockResolvedValue(MATCH);
-
-    await renderReadyForm();
-    await fillAndSubmit(user);
-
-    await expect.element(page.getByTestId("register-org-match")).toHaveTextContent(EMAIL_DOMAIN);
-    await expect.element(page.getByTestId("register-org-match-accept")).toBeInTheDocument();
-    await expect.element(page.getByTestId("register-org-match-dismiss")).toBeInTheDocument();
-    // The interstitial REPLACES the form.
-    expect(page.getByTestId("register-submit").query()).toBeNull();
-    expect(mocks.navigate).not.toHaveBeenCalled();
-  });
-
-  it("disables the submit while the domain lookup is still in flight", async () => {
-    // The lookup now sits BETWEEN the click and the account, opening a window
-    // the old flow did not have. Leaving submit live through it means a second
-    // click races a second registration — "one click, one account" has to cover
-    // the whole path, not just the register call.
-    const user = userEvent.setup();
-    mocks.getMatchingOrgByDomain.mockReturnValue(new Promise(() => {}));
-
-    await renderReadyForm();
-    await fillAndSubmit(user);
-
-    await expect.element(page.getByTestId("register-submit")).toBeDisabled();
-    expect(mocks.register).not.toHaveBeenCalled();
-  });
-
-  it("ACCEPT: registers with requestOrgMembership true, so the server records it", async () => {
-    // Wallow-vec7.8's contract. The server derives the domain from the address
-    // actually registered, so the client sends a FLAG and no domain — a client
-    // -supplied emailDomain was the enumeration surface that bead refused.
-    const user = userEvent.setup();
-    mocks.getMatchingOrgByDomain.mockResolvedValue(MATCH);
-
-    await renderReadyForm();
-    await fillAndSubmit(user);
-    await user.click(page.getByTestId("register-org-match-accept"));
-
-    await vi.waitFor(() => {
-      expect(mocks.register).toHaveBeenCalledWith(
-        expect.objectContaining({ email: EMAIL, requestOrgMembership: true }),
-      );
-    });
-  });
-
-  it("ACCEPT: lands the user on verify-email once the account exists", async () => {
-    // Accepting is not a dead end: the account was created, so the user still
-    // owes the flow an email verification.
-    const user = userEvent.setup();
-    mocks.getMatchingOrgByDomain.mockResolvedValue(MATCH);
-
-    await renderReadyForm({ returnUrl: RETURN_URL });
-    await fillAndSubmit(user);
-    await user.click(page.getByTestId("register-org-match-accept"));
-
-    await vi.waitFor(() => {
-      expect(mocks.navigate).toHaveBeenCalledWith({
-        href: `/verify-email?returnUrl=${encodeURIComponent(RETURN_URL)}`,
-      });
-    });
-  });
-
-  it("ACCEPT: disables both interstitial buttons while the registration is in flight", async () => {
-    // Same "one click, one account" rule as the form's own submit — the accept
-    // button IS the submit now.
-    const user = userEvent.setup();
-    mocks.getMatchingOrgByDomain.mockResolvedValue(MATCH);
-    const release = pendingRegister();
-
-    await renderReadyForm();
-    await fillAndSubmit(user);
-    await user.click(page.getByTestId("register-org-match-accept"));
-
-    await expect.element(page.getByTestId("register-org-match-accept")).toBeDisabled();
-    await expect.element(page.getByTestId("register-org-match-dismiss")).toBeDisabled();
-
-    release();
-    await vi.waitFor(() => {
-      expect(mocks.navigate).toHaveBeenCalled();
-    });
-  });
-
-  it("ACCEPT: a failed registration returns the user to the form with the reason", async () => {
-    // The account does NOT exist on this path, so — unlike the old post-register
-    // membership failure — there is something for the user to fix. Every reason
-    // this endpoint rejects for (email_taken, weak password, ...) is only
-    // actionable on the fields, and the interstitial has none. Stranding them on
-    // a dead-end panel would hide a recoverable error behind a button that can
-    // never work.
-    const user = userEvent.setup();
-    mocks.getMatchingOrgByDomain.mockResolvedValue(MATCH);
-    mocks.register.mockRejectedValue(rejection(400, "email_taken"));
-
-    await renderReadyForm();
-    await fillAndSubmit(user);
-    await user.click(page.getByTestId("register-org-match-accept"));
-
-    await expect.element(page.getByTestId("register-error")).toHaveTextContent(/already exists/iu);
-    await expect.element(page.getByTestId("register-submit")).toBeInTheDocument();
-    expect(page.getByTestId("register-org-match").query()).toBeNull();
-    expect(mocks.navigate).not.toHaveBeenCalled();
-  });
-
-  it("DECLINE: registers WITHOUT the flag and still succeeds", async () => {
-    // Opt-in is EXPLICIT: the flag defaults false server-side, so declining must
-    // send false-or-absent and never a truthy accident.
-    const user = userEvent.setup();
-    mocks.getMatchingOrgByDomain.mockResolvedValue(MATCH);
-
-    await renderReadyForm();
-    await fillAndSubmit(user);
-    await user.click(page.getByTestId("register-org-match-dismiss"));
 
     await vi.waitFor(() => {
       expect(mocks.register).toHaveBeenCalledWith(expect.objectContaining({ email: EMAIL }));
     });
-    // `not.objectContaining` passes for both false and absent — either is a
-    // faithful opt-OUT — and fails only on the truthy value that would enrol a
-    // user who said no.
-    expect(mocks.register).toHaveBeenCalledWith(
-      expect.not.objectContaining({ requestOrgMembership: true }),
-    );
-    await vi.waitFor(() => {
-      expect(mocks.navigate).toHaveBeenCalledWith({ href: "/verify-email" });
-    });
-  });
-
-  it("goes straight to verify-email when no organisation matches", async () => {
-    // Finding 2: no-match is a 404 REJECTION here, not a null resolve — and per
-    // Wallow-vec7.9's design a no-match is an ORDINARY ANSWER, not a failure.
-    // Registration must proceed unflagged and no banner may appear.
-    const user = userEvent.setup();
-    mocks.getMatchingOrgByDomain.mockRejectedValue(notFoundRejection());
-
-    await renderReadyForm();
-    await fillAndSubmit(user);
-
-    await vi.waitFor(() => {
-      expect(mocks.navigate).toHaveBeenCalledWith({ href: "/verify-email" });
-    });
-    expect(mocks.register).toHaveBeenCalledWith(
-      expect.not.objectContaining({ requestOrgMembership: true }),
-    );
     expect(page.getByTestId("register-org-match").query()).toBeNull();
-    expect(page.getByTestId("register-error").query()).toBeNull();
-  });
-
-  it("never calls the anonymous requestMembership endpoint", async () => {
-    // THE BINDING TEST (Finding 3). Every flag assertion above would still pass
-    // with the obsolete post-register `requestMembership` call left in beside
-    // them — and that call is a guaranteed 401 for this anonymous caller. It has
-    // to be GONE, on the accept path and every other.
-    const user = userEvent.setup();
-    mocks.getMatchingOrgByDomain.mockResolvedValue(MATCH);
-
-    await renderReadyForm();
-    await fillAndSubmit(user);
-    await user.click(page.getByTestId("register-org-match-accept"));
-
-    await vi.waitFor(() => {
-      expect(mocks.register).toHaveBeenCalled();
-    });
-    expect(mocks.requestMembership).not.toHaveBeenCalled();
   });
 
   it("threads a safe returnUrl through to verify-email", async () => {
@@ -1091,7 +835,7 @@ function renderRouteAt(url: string) {
       id: "/register",
       path: "/register",
       getParentRoute: () => rootRoute,
-    }),
+    } as any),
   ]);
   const router = createRouter({
     routeTree,

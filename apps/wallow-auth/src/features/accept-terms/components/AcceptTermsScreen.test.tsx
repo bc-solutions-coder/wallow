@@ -652,7 +652,7 @@ function renderRouteAt(url: string) {
       id: "/accept-terms",
       path: "/accept-terms",
       getParentRoute: () => rootRoute,
-    }),
+    } as any),
   ]);
   const router = createRouter({
     routeTree,

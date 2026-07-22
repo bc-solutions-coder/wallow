@@ -49,7 +49,6 @@ import {
   type AccountResetPasswordRequest,
   type ClientBrandingDto,
   type ConsentInfoResponse,
-  type CreateMembershipRequest,
   type CurrentUserResponse,
   getV1IdentityAppsByClientIdBranding,
   getV1IdentityAppsConsentInfoByClientId,
@@ -59,7 +58,6 @@ import {
   getV1IdentityAuthRedirectUriValidate,
   getV1IdentityAuthVerifyEmail,
   getV1IdentityInvitationsVerifyByToken,
-  getV1IdentityOrganizationDomainsMatch,
   getV1IdentityUsersMe,
   type MfaConfirmRequest,
   postV1IdentityAuthForgotPassword,
@@ -71,7 +69,6 @@ import {
   postV1IdentityAuthRegister,
   postV1IdentityAuthResetPassword,
   postV1IdentityInvitationsByTokenAccept,
-  postV1IdentityMembershipRequests,
   postV1IdentityMfaEnrollExchangeToken,
   type SendMagicLinkRequest,
   type SendOtpRequest,
@@ -148,10 +145,6 @@ export interface AuthClient {
   verifyInvitation: (token: string) => Promise<unknown>;
   /** Accept an invitation by token (no body). Response body is untyped. */
   acceptInvitation: (token: string) => Promise<unknown>;
-  /** Find the organization matching an email's domain. Response body is untyped. */
-  getMatchingOrgByDomain: (email: string) => Promise<unknown>;
-  /** Request membership of a domain-matched organization. Response body is untyped. */
-  requestMembership: (body: CreateMembershipRequest) => Promise<unknown>;
   /**
    * Ask the API whether a redirect URI is registered for the current client.
    *
@@ -237,10 +230,6 @@ export function createAuthClient(options?: AuthClientOptions): AuthClient {
       unwrap(getV1IdentityInvitationsVerifyByToken({ path: { token } })),
     acceptInvitation: (token: string) =>
       unwrap(postV1IdentityInvitationsByTokenAccept({ path: { token } })),
-    getMatchingOrgByDomain: (email: string) =>
-      unwrap(getV1IdentityOrganizationDomainsMatch({ query: { email } })),
-    requestMembership: (body: CreateMembershipRequest) =>
-      unwrap(postV1IdentityMembershipRequests({ body })),
     validateRedirectUri: (uri: string) =>
       unwrap(getV1IdentityAuthRedirectUriValidate({ query: { uri } })),
     getCurrentUser,

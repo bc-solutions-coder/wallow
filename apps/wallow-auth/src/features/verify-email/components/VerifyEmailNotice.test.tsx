@@ -139,7 +139,7 @@ function renderRouteAt(url: string) {
       id: "/verify-email",
       path: "/verify-email",
       getParentRoute: () => rootRoute,
-    }),
+    } as any),
   ]);
   const router = createRouter({
     routeTree,

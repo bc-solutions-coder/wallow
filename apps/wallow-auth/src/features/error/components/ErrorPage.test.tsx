@@ -143,7 +143,7 @@ describe("ErrorPage — the not_a_member escape hatch", () => {
 function renderRouteAt(url: string) {
   const rootRoute = createRootRoute({ component: Outlet });
   const routeTree = rootRoute.addChildren([
-    errorRoute.update({ id: "/error", path: "/error", getParentRoute: () => rootRoute }),
+    errorRoute.update({ id: "/error", path: "/error", getParentRoute: () => rootRoute } as any),
   ]);
   const router = createRouter({
     routeTree,

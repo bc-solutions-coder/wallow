@@ -1,0 +1,71 @@
+name: Route Tree Drift
+
+# Keeps each app's committed src/routeTree.gen.ts in sync with its src/routes/**
+# sources. Regenerates both apps' trees exactly the way a developer would
+# (pnpm ... routes:generate) and fails if a committed tree has drifted from what
+# the generator now emits.
+#
+# Route-tree generation is pure JS/TS, so unlike openapi-drift.yml this workflow
+# boots no backend: no database, no cache, no .NET runtime.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "apps/wallow-*/src/routes/**"
+      - "apps/wallow-*/src/routeTree.gen.ts"
+      - "apps/wallow-*/tsr.config.json"
+      - "packages/web-shell/src/server/**"
+      - ".github/workflows/route-tree-drift.yml"
+  push:
+    branches: [main]
+    paths:
+      - "apps/wallow-*/src/routes/**"
+      - "apps/wallow-*/src/routeTree.gen.ts"
+      - "apps/wallow-*/tsr.config.json"
+      - "packages/web-shell/src/server/**"
+      - ".github/workflows/route-tree-drift.yml"
+
+concurrency:
+  group: route-tree-drift-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "pnpm"
+
+      - name: Install JS dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Regenerate both apps' trees the same way a developer does. The plugin and
+      # the explicit script share tsr.config.json, so this is deterministic.
+      - name: Regenerate route trees
+        run: |
+          pnpm --filter @bc-solutions-coder/wallow-auth routes:generate
+          pnpm --filter @bc-solutions-coder/wallow-web routes:generate
+
+      - name: Fail on route-tree drift
+        run: |
+          if ! git diff --exit-code -- apps/wallow-auth/src/routeTree.gen.ts apps/wallow-web/src/routeTree.gen.ts; then
+            echo "::error::A committed routeTree.gen.ts is out of date with its src/routes/** sources."
+            echo "::error::Regenerate it locally and commit the result:"
+            echo "::error::  pnpm --filter @bc-solutions-coder/wallow-auth routes:generate"
+            echo "::error::  pnpm --filter @bc-solutions-coder/wallow-web routes:generate"
+            echo "::error::  git add apps/wallow-auth/src/routeTree.gen.ts apps/wallow-web/src/routeTree.gen.ts && git commit"
+            exit 1
+          fi
+          echo "Both route trees are in sync with their sources."

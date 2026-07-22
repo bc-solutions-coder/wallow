@@ -56,6 +56,34 @@ const UNSAFE_RETURN_URLS: readonly (readonly [label: string, url: string])[] = [
   ["a scheme-only URI", "vbscript:msgbox(1)"],
   ["a path with no leading slash", "dashboard"],
   ["a backslash-relative path", String.raw`\\evil.com/steal`],
+  // Backslash-prefixed open redirects (Wallow-41ot). WHATWG URL parsing treats a
+  // backslash as an extra path separator for http/https, so each of these
+  // resolves CROSS-ORIGIN against the current origin even though the old
+  // `startsWith('/') && !startsWith('//')` rule waved them through:
+  //   new URL('/\\evil.com', 'https://good.example.com/login').href === 'https://evil.com/'
+  // The single-backslash and slash-then-backslash forms are the live gap; the
+  // scheme-prefixed mixed form is already rejected (no leading '/') and is kept
+  // here as a regression guard so it stays rejected.
+  ["a backslash-prefixed open redirect", String.raw`/\evil.com`],
+  ["a slash-then-backslash open redirect", String.raw`/\/evil.com`],
+  ["a mixed forward/backslash scheme-relative url", String.raw`https:/\evil.com`],
+  // Percent-encoded backslash: the raw string never contains a literal '\', so a
+  // bare backslash replace misses it, but a router that decodes the returnUrl
+  // query param hands the guard the decoded '/\evil.com'. The guard must reject
+  // the encoded form too (case-insensitive %5C/%5c) as defense in depth.
+  ["a percent-encoded backslash open redirect", "/%5Cevil.com"],
+  ["a lowercase percent-encoded backslash open redirect", "/%5cevil.com"],
+  ["a doubled percent-encoded backslash open redirect", "/%5c%5Cevil.com"],
+  // ASCII tab/newline/CR interspersed before the backslash. WHATWG URL parsing
+  // strips these control chars BEFORE applying backslash-as-separator logic, so
+  // the leading `/<ctrl>\` collapses to `/\` -> protocol-relative cross-origin
+  // once a browser resolves it, even though the raw string still starts with a
+  // single '/'. A router percent-decodes %09/%0A/%0D into these literal chars,
+  // so the guard must strip them too:
+  //   new URL('/\t\\evil.com', 'https://good.example.com/login').href === 'https://evil.com/'
+  ["a tab-then-backslash open redirect", "/\t\\evil.com"],
+  ["a newline-then-backslash open redirect", "/\n\\evil.com"],
+  ["a carriage-return-then-backslash open redirect", "/\r\\evil.com"],
   ["an empty string", ""],
   ["whitespace only", "   "],
 ];
@@ -68,9 +96,48 @@ describe("isSafeReturnUrl", () => {
     ["a path with a query string", "/connect/authorize?client_id=web&scope=openid"],
     ["a path with a fragment", "/dashboard#section"],
     ["a path with an encoded segment", "/apps/my%20app"],
+    // Regression guard for the backslash fix: normalizing '\\'/%5C must not newly
+    // reject a legitimate relative path that merely carries an encoded space or a
+    // nested query -- both stay same-origin.
+    ["a nested path with a query", "/settings/profile?x=1"],
   ])("accepts %s", (_label: string, url: string) => {
     expect(isSafeReturnUrl(url)).toBe(true);
   });
+
+  it.each([
+    ["a single backslash after the leading slash", String.raw`/\evil.com`],
+    ["a slash then a backslash", String.raw`/\/evil.com`],
+    ["a percent-encoded backslash", "/%5Cevil.com"],
+  ])(
+    "rejects %s -- WHATWG URL parsing normalizes it to a protocol-relative cross-origin redirect",
+    (_label: string, url: string) => {
+      // Proof the input is a real open redirect, not a hypothetical one: it
+      // resolves to a DIFFERENT origin than the page it is navigated from. The
+      // guard must reject it before any call site trusts it as a nav target.
+      expect(
+        new URL(url.replaceAll(/%5c/giu, "\\"), "https://good.example.com/login").origin,
+      ).not.toBe("https://good.example.com");
+      expect(isSafeReturnUrl(url)).toBe(false);
+    },
+  );
+
+  it.each([
+    ["a tab before the backslash", "/\t\\evil.com"],
+    ["a newline before the backslash", "/\n\\evil.com"],
+    ["a carriage return before the backslash", "/\r\\evil.com"],
+  ])(
+    "rejects %s -- WHATWG URL parsing strips the control char and normalizes to a cross-origin redirect",
+    (_label: string, url: string) => {
+      // Proof the input is a real open redirect: WHATWG URL parsing removes the
+      // ASCII tab/newline/CR itself, so this resolves to a DIFFERENT origin than
+      // the page it is navigated from. The guard must strip the same chars before
+      // the prefix check or it waves the payload through.
+      expect(new URL(url, "https://good.example.com/login").origin).not.toBe(
+        "https://good.example.com",
+      );
+      expect(isSafeReturnUrl(url)).toBe(false);
+    },
+  );
 
   it.each(UNSAFE_RETURN_URLS)("rejects %s", (_label: string, url: string) => {
     expect(isSafeReturnUrl(url)).toBe(false);

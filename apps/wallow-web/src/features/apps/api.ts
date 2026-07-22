@@ -41,6 +41,7 @@ export interface RegisterAppBody {
   requestedScopes: string[];
   clientType?: string | null;
   redirectUris?: string[] | null;
+  postLogoutRedirectUris?: string[] | null;
 }
 
 /**

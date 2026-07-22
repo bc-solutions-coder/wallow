@@ -1,5 +1,5 @@
 import { type QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { createRootRoute, Outlet } from "@tanstack/react-router";
+import { createRootRouteWithContext, Outlet } from "@tanstack/react-router";
 import { useRef } from "react";
 
 import { ReadyIndicator } from "../components/ready-indicator";
@@ -10,7 +10,7 @@ import {
   type ResolvedBranding,
 } from "../lib/branding";
 import { createQueryClient } from "@bc-solutions-coder/web-shell";
-import { FocusOnNavigate } from "@bc-solutions-coder/ui";
+import { DocumentStyles, FocusOnNavigate } from "@bc-solutions-coder/ui";
 
 /**
  * The browser bundle to load. In dev, Vite serves the entry straight out of its
@@ -72,8 +72,7 @@ function DocumentShell() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>{branding.name}</title>
         <link rel="icon" href={appIconUrl} />
-        {stylesheetHref === null ? null : <link rel="stylesheet" href={stylesheetHref} />}
-        <style>{renderThemeStyle(branding)}</style>
+        <DocumentStyles themeCss={renderThemeStyle(branding)} stylesheetHref={stylesheetHref} />
         <script type="module" src={clientEntry} />
       </head>
       <body>
@@ -106,6 +105,6 @@ function RootComponent() {
   );
 }
 
-export const Route = createRootRoute({
+export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   component: RootComponent,
 });

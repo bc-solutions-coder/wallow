@@ -1,10 +1,26 @@
 import { type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { type AddressInfo } from "node:net";
+import { join } from "node:path";
 
+import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import { type InlineConfig, type ViteDevServer } from "vite";
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createDevServer, type DevServerConfig } from "./dev-server";
+
+// The dev seam builds its own inline plugin list because `configFile: false`
+// means the app's vite.config.ts (and any tanstackRouter() in it) is never read,
+// so the codegen plugin MUST be re-declared here too. Stub it to observe the
+// wiring (presence, order-before-react, appDir-derived options) without booting
+// the real generator; the derived options are only visible via the call args.
+vi.mock("@tanstack/router-plugin/vite", () => ({
+  tanstackRouter: vi.fn((options: unknown) => ({
+    name: "tanstack:router-generator",
+    __options: options,
+  })),
+}));
+
+const tanstackRouterMock = vi.mocked(tanstackRouter);
 
 /**
  * Drives `createDevServer` end-to-end over a real ephemeral port (Wallow-0q2s.8.4).
@@ -51,6 +67,17 @@ async function collectPluginNames(plugins: unknown): Promise<string[]> {
   return [];
 }
 
+/** Index of the first plugin whose resolved name matches, or -1. */
+function firstIndex(names: string[], pattern: RegExp): number {
+  return names.findIndex((name: string): boolean => pattern.test(name));
+}
+
+/** The single `options` object the (stubbed) tanstackRouter plugin was last called with. */
+function lastRouterOptions(): Record<string, unknown> {
+  expect(tanstackRouterMock).toHaveBeenCalled();
+  return tanstackRouterMock.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+}
+
 interface FakeVite {
   vite: ViteDevServer;
   /** IDs passed to `ssrLoadModule`, in call order. */
@@ -91,6 +118,7 @@ interface StartOptions {
   reactPluginInDev?: boolean;
   proxyHandler?: (request: Request) => Promise<Response>;
   appDir?: string;
+  clientIpHeader?: string;
 }
 
 async function start(options: StartOptions = {}): Promise<Harness> {
@@ -113,6 +141,7 @@ async function start(options: StartOptions = {}): Promise<Harness> {
     ...(options.reactPluginInDev === undefined
       ? {}
       : { reactPluginInDev: options.reactPluginInDev }),
+    ...(options.clientIpHeader === undefined ? {} : { clientIpHeader: options.clientIpHeader }),
   };
 
   const server: Server = await createDevServer(config, {
@@ -140,6 +169,10 @@ beforeAll((): void => {
   originalPort = process.env.PORT;
   // ephemeral: every dev server binds a free port, no collisions
   process.env.PORT = "0";
+});
+
+beforeEach((): void => {
+  tanstackRouterMock.mockClear();
 });
 
 afterEach((): void => {
@@ -247,6 +280,37 @@ describe("createDevServer", () => {
     expect(res.headers.getSetCookie()).toHaveLength(2);
   });
 
+  it("stamps the client IP header from req.socket.remoteAddress on proxied requests when clientIpHeader is set (auth topology)", async () => {
+    const header = "x-wallow-client-ip";
+    const harness: Harness = await start({
+      clientIpHeader: header,
+      proxyHandler: (request: Request): Promise<Response> =>
+        Promise.resolve(new Response(request.headers.get(header) ?? "<absent>")),
+    });
+
+    const res: Response = await fetch(`${harness.baseUrl}/health`);
+    const body: string = await res.text();
+
+    // The socket peer over loopback is a real, non-empty address (127.0.0.1 or an
+    // IPv6 form). Assert the seam header carried it through rather than being absent.
+    expect(body).not.toBe("<absent>");
+    expect(body.length).toBeGreaterThan(0);
+    expect(body).toMatch(/(\d{1,3}\.){3}\d{1,3}|::1|::ffff:/);
+  });
+
+  it("does NOT stamp a client IP header when clientIpHeader is omitted (web topology)", async () => {
+    const header = "x-wallow-client-ip";
+    const harness: Harness = await start({
+      proxyHandler: (request: Request): Promise<Response> =>
+        Promise.resolve(new Response(request.headers.get(header) ?? "<absent>")),
+    });
+
+    const res: Response = await fetch(`${harness.baseUrl}/health`);
+    const body: string = await res.text();
+
+    expect(body).toBe("<absent>");
+  });
+
   it("server-renders non-proxy paths through Vite middlewares then the SSR entry", async () => {
     const harness: Harness = await start();
 
@@ -264,5 +328,46 @@ describe("createDevServer", () => {
     const res: Response = await fetch(`${harness.baseUrl}/missing`);
 
     expect(res.status).toBe(404);
+  });
+
+  it("wires the TanStack Router codegen plugin into the dev inline plugin list", async () => {
+    const harness: Harness = await start();
+
+    const names: string[] = await collectPluginNames(harness.inlineConfig().plugins);
+    expect(names.some((name: string): boolean => /tanstack.?router/i.test(name))).toBe(true);
+  });
+
+  it("wires the router plugin even when reactPluginInDev is false (codegen is independent of Fast Refresh)", async () => {
+    const harness: Harness = await start({ reactPluginInDev: false });
+
+    const names: string[] = await collectPluginNames(harness.inlineConfig().plugins);
+    expect(names.some((name: string): boolean => /tanstack.?router/i.test(name))).toBe(true);
+  });
+
+  it("orders the router plugin BEFORE react when react is registered in dev", async () => {
+    const harness: Harness = await start({ reactPluginInDev: true });
+
+    const names: string[] = await collectPluginNames(harness.inlineConfig().plugins);
+    const routerIndex: number = firstIndex(names, /tanstack.?router/i);
+    const reactIndex: number = firstIndex(names, /react/i);
+
+    expect(routerIndex).toBeGreaterThanOrEqual(0);
+    expect(reactIndex).toBeGreaterThanOrEqual(0);
+    expect(routerIndex).toBeLessThan(reactIndex);
+  });
+
+  it("derives the router plugin's route paths from config.appDir and targets react", async () => {
+    await start({ appDir: "/tmp/some-app-root" });
+
+    const options: Record<string, unknown> = lastRouterOptions();
+    expect(options.target).toBe("react");
+    expect(options.routesDirectory).toBe(join("/tmp/some-app-root", "src", "routes"));
+    expect(options.generatedRouteTree).toBe(join("/tmp/some-app-root", "src", "routeTree.gen.ts"));
+  });
+
+  it("keeps automatic route-based code splitting OFF in the dev seam too", async () => {
+    await start({ appDir: "/tmp/some-app-root" });
+
+    expect(lastRouterOptions().autoCodeSplitting).toBe(false);
   });
 });

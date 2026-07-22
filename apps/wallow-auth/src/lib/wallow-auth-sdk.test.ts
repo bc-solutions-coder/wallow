@@ -42,8 +42,6 @@ const AUTH_METHODS: readonly string[] = [
   "getClientBranding",
   "verifyInvitation",
   "acceptInvitation",
-  "getMatchingOrgByDomain",
-  "requestMembership",
   "validateRedirectUri",
   // The auth-state seam (Wallow-vec7.2.4). `.auth` is the SDK's AuthClient
   // wholesale, so this rides along with no wiring change — pinned here so the
@@ -86,8 +84,6 @@ const mocks = vi.hoisted(() => {
     "getClientBranding",
     "verifyInvitation",
     "acceptInvitation",
-    "getMatchingOrgByDomain",
-    "requestMembership",
     "validateRedirectUri",
     "getCurrentUser",
   ]) {

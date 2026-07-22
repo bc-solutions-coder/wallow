@@ -8,6 +8,7 @@
     "dev": "tsx dev-server.ts",
     "build": "vite build && vite build --config vite.ssr.config.ts",
     "start": "tsx server.ts",
+    "routes:generate": "tsr generate",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test",
@@ -31,6 +32,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",
+    "@tanstack/router-cli": "^1.167.21",
     "@tanstack/router-plugin": "^1.168.20",
     "@types/node": "^24.0.0",
     "@types/react": "^19.2.17",

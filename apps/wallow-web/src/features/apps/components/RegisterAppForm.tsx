@@ -31,12 +31,21 @@ import type { AppRegistrationResponse, ProblemDetails } from "@bc-solutions-code
 
 import { registerAppMutation, type RegisterAppBody } from "../api";
 
-/** Scopes a caller may request. */
+/**
+ * Scopes a caller may request: the developer-app scopes plus the OIDC login
+ * scopes the reworked AppsController now accepts (`ApiScopes.LoginScopes`). The
+ * login scopes have no dot, so their testids keep their raw name
+ * (`app-scope-offline_access`).
+ */
 const AVAILABLE_SCOPES = [
   "inquiries.read",
   "inquiries.write",
   "announcements.read",
   "storage.read",
+  "openid",
+  "profile",
+  "email",
+  "offline_access",
 ] as const;
 
 /**
@@ -91,6 +100,20 @@ function RedirectUrisField(props: { value: string; onChange: (value: string) => 
   return (
     <textarea
       data-testid="app-redirect-uris"
+      value={value}
+      onChange={(e) => {
+        onChange(e.target.value);
+      }}
+    />
+  );
+}
+
+/** Newline-separated post-logout redirect-URIs textarea. */
+function PostLogoutRedirectUrisField(props: { value: string; onChange: (value: string) => void }) {
+  const { value, onChange } = props;
+  return (
+    <textarea
+      data-testid="app-post-logout-redirect-uris"
       value={value}
       onChange={(e) => {
         onChange(e.target.value);
@@ -200,6 +223,7 @@ function RegisterAppFormFields(props: {
       displayName: "",
       clientType: "public",
       redirectUris: "",
+      postLogoutRedirectUris: "",
       scopes: ["inquiries.read"] as string[],
     },
     onSubmit: ({ value }) => {
@@ -213,6 +237,10 @@ function RegisterAppFormFields(props: {
         requestedScopes: value.scopes,
         clientType: value.clientType,
         redirectUris: value.redirectUris
+          .split("\n")
+          .map((uri) => uri.trim())
+          .filter(Boolean),
+        postLogoutRedirectUris: value.postLogoutRedirectUris
           .split("\n")
           .map((uri) => uri.trim())
           .filter(Boolean),
@@ -250,6 +278,12 @@ function RegisterAppFormFields(props: {
 
       <form.Field name="redirectUris">
         {(field) => <RedirectUrisField value={field.state.value} onChange={field.handleChange} />}
+      </form.Field>
+
+      <form.Field name="postLogoutRedirectUris">
+        {(field) => (
+          <PostLogoutRedirectUrisField value={field.state.value} onChange={field.handleChange} />
+        )}
       </form.Field>
 
       <form.Field name="scopes">

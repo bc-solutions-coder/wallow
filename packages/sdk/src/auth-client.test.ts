@@ -38,8 +38,6 @@ const mocks = vi.hoisted(() => ({
   getV1IdentityAppsByClientIdBranding: vi.fn(),
   getV1IdentityInvitationsVerifyByToken: vi.fn(),
   postV1IdentityInvitationsByTokenAccept: vi.fn(),
-  getV1IdentityOrganizationDomainsMatch: vi.fn(),
-  postV1IdentityMembershipRequests: vi.fn(),
   getV1IdentityAuthRedirectUriValidate: vi.fn(),
   getV1IdentityUsersMe: vi.fn(),
 }));
@@ -195,18 +193,6 @@ const METHOD_CASES: readonly MethodCase[] = [
     op: "postV1IdentityInvitationsByTokenAccept",
     invoke: (auth: AuthClient) => auth.acceptInvitation("inv-1"),
     expectedArg: { path: { token: "inv-1" } },
-  },
-  {
-    method: "getMatchingOrgByDomain",
-    op: "getV1IdentityOrganizationDomainsMatch",
-    invoke: (auth: AuthClient) => auth.getMatchingOrgByDomain("user@example.com"),
-    expectedArg: { query: { email: "user@example.com" } },
-  },
-  {
-    method: "requestMembership",
-    op: "postV1IdentityMembershipRequests",
-    invoke: (auth: AuthClient) => auth.requestMembership({ emailDomain: "example.com" }),
-    expectedArg: { body: { emailDomain: "example.com" } },
   },
   {
     method: "validateRedirectUri",

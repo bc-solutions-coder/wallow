@@ -1525,80 +1525,6 @@
         }
       }
     },
-    "/v1/identity/register": {
-      "post": {
-        "tags": [
-          "Client Registration"
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RegisterClientRequest"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/RegisterClientRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "description": "Created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ClientRegistrationResponse"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ClientRegistrationResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/v1/identity/clients": {
       "get": {
         "tags": [
@@ -1879,6 +1805,241 @@
         }
       }
     },
+    "/v1/identity/clients/service-accounts": {
+      "get": {
+        "tags": [
+          "Clients"
+        ],
+        "summary": "List all service accounts (client-credentials clients) for the current tenant.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ServiceAccountDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Clients"
+        ],
+        "summary": "Create a new service account. Returns the client secret which will NOT be shown again.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateServiceAccountRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateServiceAccountRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceAccountCreatedResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/identity/clients/service-accounts/{id}": {
+      "get": {
+        "tags": [
+          "Clients"
+        ],
+        "summary": "Get a specific service account by ID.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceAccountDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Clients"
+        ],
+        "summary": "Revoke and delete a service account.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content",
+            "content": {
+              "application/json": { }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/identity/clients/service-accounts/{id}/scopes": {
+      "put": {
+        "tags": [
+          "Clients"
+        ],
+        "summary": "Update the scopes assigned to a service account.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateScopesRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateScopesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content",
+            "content": {
+              "application/json": { }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/identity/clients/service-accounts/{id}/rotate-secret": {
+      "post": {
+        "tags": [
+          "Clients"
+        ],
+        "summary": "Rotate the client secret for a service account. Returns the new secret which will NOT be shown again.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecretRotatedResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/identity/config": {
       "get": {
         "tags": [
@@ -2092,105 +2253,6 @@
         }
       }
     },
-    "/v1/identity/initial-access-tokens": {
-      "post": {
-        "tags": [
-          "InitialAccessTokens"
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateInitialAccessTokenRequest"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateInitialAccessTokenRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "description": "Created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/InitialAccessTokenCreatedResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      },
-      "get": {
-        "tags": [
-          "InitialAccessTokens"
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/InitialAccessTokenResponse"
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/identity/initial-access-tokens/{id}": {
-      "delete": {
-        "tags": [
-          "InitialAccessTokens"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "No Content",
-            "content": {
-              "application/json": { }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/v1/identity/invitations": {
       "post": {
         "tags": [
@@ -2360,212 +2422,6 @@
             "required": true,
             "schema": {
               "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "No Content",
-            "content": {
-              "application/json": { }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/identity/membership-requests": {
-      "post": {
-        "tags": [
-          "Membership Requests"
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateMembershipRequest"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateMembershipRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "description": "Created",
-            "content": {
-              "application/json": { }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/identity/membership-requests/{id}": {
-      "get": {
-        "tags": [
-          "Membership Requests"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": { }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/identity/membership-requests/pending": {
-      "get": {
-        "tags": [
-          "Membership Requests"
-        ],
-        "parameters": [
-          {
-            "name": "skip",
-            "in": "query",
-            "schema": {
-              "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": [
-                "integer",
-                "string"
-              ],
-              "format": "int32",
-              "default": 0
-            }
-          },
-          {
-            "name": "take",
-            "in": "query",
-            "schema": {
-              "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": [
-                "integer",
-                "string"
-              ],
-              "format": "int32",
-              "default": 20
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": { }
-            }
-          }
-        }
-      }
-    },
-    "/v1/identity/membership-requests/{id}/approve": {
-      "post": {
-        "tags": [
-          "Membership Requests"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ApproveMembershipRequest"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/ApproveMembershipRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "204": {
-            "description": "No Content",
-            "content": {
-              "application/json": { }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/identity/membership-requests/{id}/reject": {
-      "post": {
-        "tags": [
-          "Membership Requests"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
             }
           }
         ],
@@ -2784,183 +2640,6 @@
         "responses": {
           "200": {
             "description": "OK"
-          }
-        }
-      }
-    },
-    "/v1/identity/organization-domains": {
-      "post": {
-        "tags": [
-          "Organization Domains"
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RegisterDomainRequest"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/RegisterDomainRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "description": "Created",
-            "content": {
-              "application/json": { }
-            }
-          }
-        }
-      }
-    },
-    "/v1/identity/organization-domains/{id}": {
-      "get": {
-        "tags": [
-          "Organization Domains"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": { }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/identity/organization-domains/by-organization/{organizationId}": {
-      "get": {
-        "tags": [
-          "Organization Domains"
-        ],
-        "parameters": [
-          {
-            "name": "organizationId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": { }
-            }
-          }
-        }
-      }
-    },
-    "/v1/identity/organization-domains/{id}/verify": {
-      "post": {
-        "tags": [
-          "Organization Domains"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/VerifyDomainRequest"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/VerifyDomainRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "204": {
-            "description": "No Content",
-            "content": {
-              "application/json": { }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/identity/organization-domains/match": {
-      "get": {
-        "tags": [
-          "Organization Domains"
-        ],
-        "parameters": [
-          {
-            "name": "email",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": { }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
           }
         }
       }
@@ -3544,720 +3223,6 @@
         }
       }
     },
-    "/scim/v2/Users": {
-      "get": {
-        "tags": [
-          "SCIM"
-        ],
-        "summary": "List users with optional filtering and pagination.",
-        "parameters": [
-          {
-            "name": "filter",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "startIndex",
-            "in": "query",
-            "schema": {
-              "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": [
-                "integer",
-                "string"
-              ],
-              "format": "int32",
-              "default": 1
-            }
-          },
-          {
-            "name": "count",
-            "in": "query",
-            "schema": {
-              "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": [
-                "integer",
-                "string"
-              ],
-              "format": "int32",
-              "default": 100
-            }
-          },
-          {
-            "name": "sortBy",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "sortOrder",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/scim+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScimListResponseOfScimUser"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScimListResponseOfScimUser"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/scim+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScimError"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScimError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "SCIM"
-        ],
-        "summary": "Create a new user (SCIM provisioning).",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ScimUserRequest"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/ScimUserRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "description": "Created",
-            "content": {
-              "application/scim+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScimUser"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScimUser"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/scim+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScimError"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScimError"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Conflict",
-            "content": {
-              "application/scim+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScimError"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScimError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/scim/v2/Users/{id}": {
-      "get": {
-        "tags": [
-          "SCIM"
-        ],
-        "summary": "Get a user by ID.",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/scim+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScimUser"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScimUser"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/scim+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScimError"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScimError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "put": {
-        "tags": [
-          "SCIM"
-        ],
-        "summary": "Replace a user (full update).",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ScimUserRequest"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/ScimUserRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/scim+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScimUser"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScimUser"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/scim+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScimError"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScimError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "patch": {
-        "tags": [
-          "SCIM"
-        ],
-        "summary": "Partially update a user (SCIM PATCH).",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ScimPatchRequest"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/ScimPatchRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/scim+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScimUser"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScimUser"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/scim+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScimError"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScimError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "SCIM"
-        ],
-        "summary": "Delete a user (deprovisioning).",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "No Content",
-            "content": {
-              "application/scim+json": { },
-              "application/json": { }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/scim+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScimError"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScimError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/scim/v2/Groups": {
-      "get": {
-        "tags": [
-          "SCIM"
-        ],
-        "summary": "List groups with optional filtering and pagination.",
-        "parameters": [
-          {
-            "name": "filter",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "startIndex",
-            "in": "query",
-            "schema": {
-              "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": [
-                "integer",
-                "string"
-              ],
-              "format": "int32",
-              "default": 1
-            }
-          },
-          {
-            "name": "count",
-            "in": "query",
-            "schema": {
-              "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": [
-                "integer",
-                "string"
-              ],
-              "format": "int32",
-              "default": 100
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/scim+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScimListResponseOfScimGroup"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScimListResponseOfScimGroup"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "SCIM"
-        ],
-        "summary": "Create a new group.",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ScimGroupRequest"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/ScimGroupRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "description": "Created",
-            "content": {
-              "application/scim+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScimGroup"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScimGroup"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/scim+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScimError"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScimError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/scim/v2/Groups/{id}": {
-      "get": {
-        "tags": [
-          "SCIM"
-        ],
-        "summary": "Get a group by ID.",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/scim+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScimGroup"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScimGroup"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/scim+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScimError"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScimError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "put": {
-        "tags": [
-          "SCIM"
-        ],
-        "summary": "Replace a group (full update).",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ScimGroupRequest"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/ScimGroupRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/scim+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScimGroup"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScimGroup"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/scim+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScimError"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScimError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "SCIM"
-        ],
-        "summary": "Delete a group.",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "No Content",
-            "content": {
-              "application/scim+json": { },
-              "application/json": { }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/scim+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScimError"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScimError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/scim/v2/ServiceProviderConfig": {
-      "get": {
-        "tags": [
-          "SCIM"
-        ],
-        "summary": "Get SCIM Service Provider configuration.\nDescribes the SCIM capabilities of this server.",
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/scim+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScimServiceProviderConfig"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScimServiceProviderConfig"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/scim/v2/Schemas": {
-      "get": {
-        "tags": [
-          "SCIM"
-        ],
-        "summary": "Get SCIM schemas.\nDescribes the structure of User and Group resources.",
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/scim+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScimListResponseOfScimSchema"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScimListResponseOfScimSchema"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/scim/v2/ResourceTypes": {
-      "get": {
-        "tags": [
-          "SCIM"
-        ],
-        "summary": "Get SCIM resource types.\nDescribes the available resource types (User, Group).",
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/scim+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScimListResponseOfScimResourceType"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScimListResponseOfScimResourceType"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/v1/identity/scopes": {
       "get": {
         "tags": [
@@ -4283,241 +3248,6 @@
                   "items": {
                     "$ref": "#/components/schemas/ApiScopeDto"
                   }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/identity/service-accounts": {
-      "get": {
-        "tags": [
-          "Service Accounts"
-        ],
-        "summary": "List all service accounts for the current tenant.",
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ServiceAccountDto"
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "Service Accounts"
-        ],
-        "summary": "Create a new service account.\nReturns the client secret which will NOT be shown again.",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateServiceAccountRequest"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateServiceAccountRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "description": "Created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ServiceAccountCreatedResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/identity/service-accounts/{id}": {
-      "get": {
-        "tags": [
-          "Service Accounts"
-        ],
-        "summary": "Get a specific service account by ID.",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ServiceAccountDto"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "Service Accounts"
-        ],
-        "summary": "Revoke and delete a service account.",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "No Content",
-            "content": {
-              "application/json": { }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/identity/service-accounts/{id}/scopes": {
-      "put": {
-        "tags": [
-          "Service Accounts"
-        ],
-        "summary": "Update the scopes assigned to a service account.",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateScopesRequest"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateScopesRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "204": {
-            "description": "No Content",
-            "content": {
-              "application/json": { }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/identity/service-accounts/{id}/rotate-secret": {
-      "post": {
-        "tags": [
-          "Service Accounts"
-        ],
-        "summary": "Rotate the client secret for a service account.\nReturns the new secret which will NOT be shown again.",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SecretRotatedResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -4619,50 +3349,6 @@
         }
       }
     },
-    "/v1/identity/setup/clients": {
-      "post": {
-        "tags": [
-          "Setup"
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RegisterSetupClientRequest"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/RegisterSetupClientRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RegisterSetupClientResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Conflict",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/v1/identity/setup/complete": {
       "post": {
         "tags": [
@@ -4677,216 +3363,6 @@
           },
           "409": {
             "description": "Conflict",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/identity/sso": {
-      "get": {
-        "tags": [
-          "SSO"
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SsoConfigurationDto"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/identity/sso/oidc": {
-      "post": {
-        "tags": [
-          "SSO"
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ConfigureOidcSsoRequest"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/ConfigureOidcSsoRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SsoConfigurationDto"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/identity/sso/test": {
-      "post": {
-        "tags": [
-          "SSO"
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SsoTestResult"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/identity/sso/activate": {
-      "post": {
-        "tags": [
-          "SSO"
-        ],
-        "responses": {
-          "204": {
-            "description": "No Content",
-            "content": {
-              "application/json": { }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/identity/sso/disable": {
-      "post": {
-        "tags": [
-          "SSO"
-        ],
-        "responses": {
-          "204": {
-            "description": "No Content",
-            "content": {
-              "application/json": { }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/identity/sso/oidc/callback-info": {
-      "get": {
-        "tags": [
-          "SSO"
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OidcCallbackInfo"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/identity/sso/validate": {
-      "post": {
-        "tags": [
-          "SSO"
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SsoValidationResult"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
             "content": {
               "application/json": {
                 "schema": {
@@ -6928,10 +5404,6 @@
               "null",
               "string"
             ]
-          },
-          "requestOrgMembership": {
-            "type": "boolean",
-            "default": false
           }
         }
       },
@@ -7195,18 +5667,6 @@
           }
         }
       },
-      "ApproveMembershipRequest": {
-        "required": [
-          "organizationId"
-        ],
-        "type": "object",
-        "properties": {
-          "organizationId": {
-            "type": "string",
-            "format": "uuid"
-          }
-        }
-      },
       "AssignRoleRequest": {
         "required": [
           "roleName"
@@ -7449,24 +5909,6 @@
           }
         }
       },
-      "ClientRegistrationResponse": {
-        "required": [
-          "clientId",
-          "clientSecret"
-        ],
-        "type": "object",
-        "properties": {
-          "clientId": {
-            "type": "string"
-          },
-          "clientSecret": {
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        }
-      },
       "ClientResponse": {
         "required": [
           "id",
@@ -7505,70 +5947,6 @@
             }
           }
         }
-      },
-      "ConfigureOidcSsoRequest": {
-        "required": [
-          "displayName",
-          "issuer",
-          "clientId",
-          "clientSecret"
-        ],
-        "type": "object",
-        "properties": {
-          "displayName": {
-            "type": "string"
-          },
-          "issuer": {
-            "type": "string"
-          },
-          "clientId": {
-            "type": "string"
-          },
-          "clientSecret": {
-            "type": "string"
-          },
-          "scopes": {
-            "type": "string",
-            "default": "openid profile email"
-          },
-          "emailAttribute": {
-            "type": "string",
-            "default": "email"
-          },
-          "firstNameAttribute": {
-            "type": "string",
-            "default": "given_name"
-          },
-          "lastNameAttribute": {
-            "type": "string",
-            "default": "family_name"
-          },
-          "groupsAttribute": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "enforceForAllUsers": {
-            "type": "boolean",
-            "default": false
-          },
-          "autoProvisionUsers": {
-            "type": "boolean",
-            "default": true
-          },
-          "defaultRole": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "syncGroupsAsRoles": {
-            "type": "boolean",
-            "default": false
-          }
-        },
-        "description": "Request to configure OIDC SSO."
       },
       "ConsentInfoResponse": {
         "required": [
@@ -7835,24 +6213,6 @@
           }
         }
       },
-      "CreateInitialAccessTokenRequest": {
-        "required": [
-          "displayName"
-        ],
-        "type": "object",
-        "properties": {
-          "displayName": {
-            "type": "string"
-          },
-          "expiresAt": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "date-time"
-          }
-        }
-      },
       "CreateInvitationRequest": {
         "required": [
           "email"
@@ -7886,17 +6246,6 @@
             ],
             "format": "int32",
             "default": 0
-          }
-        }
-      },
-      "CreateMembershipRequest": {
-        "required": [
-          "emailDomain"
-        ],
-        "type": "object",
-        "properties": {
-          "emailDomain": {
-            "type": "string"
           }
         }
       },
@@ -8148,61 +6497,6 @@
       "IFormFile": {
         "type": "string",
         "format": "binary"
-      },
-      "InitialAccessTokenCreatedResponse": {
-        "required": [
-          "id",
-          "token",
-          "displayName",
-          "expiresAt"
-        ],
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "token": {
-            "type": "string"
-          },
-          "displayName": {
-            "type": "string"
-          },
-          "expiresAt": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "date-time"
-          }
-        },
-        "description": "Returned only once at creation time; includes the raw token value."
-      },
-      "InitialAccessTokenResponse": {
-        "required": [
-          "id",
-          "displayName",
-          "expiresAt",
-          "isRevoked"
-        ],
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "displayName": {
-            "type": "string"
-          },
-          "expiresAt": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "date-time"
-          },
-          "isRevoked": {
-            "type": "boolean"
-          }
-        }
       },
       "InquiryCommentResponse": {
         "required": [
@@ -8463,26 +6757,6 @@
             "format": "date-time"
           }
         }
-      },
-      "OidcCallbackInfo": {
-        "required": [
-          "redirectUri",
-          "postLogoutRedirectUri",
-          "clientId"
-        ],
-        "type": "object",
-        "properties": {
-          "redirectUri": {
-            "type": "string"
-          },
-          "postLogoutRedirectUri": {
-            "type": "string"
-          },
-          "clientId": {
-            "type": "string"
-          }
-        },
-        "description": "OIDC callback information for IdP configuration."
       },
       "OrganizationBrandingResponse": {
         "required": [
@@ -8899,38 +7173,8 @@
             "items": {
               "type": "string"
             }
-          }
-        }
-      },
-      "RegisterClientRequest": {
-        "required": [
-          "clientId",
-          "clientName",
-          "grantTypes",
-          "scopes",
-          "redirectUris"
-        ],
-        "type": "object",
-        "properties": {
-          "clientId": {
-            "type": "string"
           },
-          "clientName": {
-            "type": "string"
-          },
-          "grantTypes": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "scopes": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "redirectUris": {
+          "postLogoutRedirectUris": {
             "type": [
               "null",
               "array"
@@ -8938,13 +7182,6 @@
             "items": {
               "type": "string"
             }
-          },
-          "tenantId": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "uuid"
           }
         }
       },
@@ -8959,55 +7196,6 @@
             "$ref": "#/components/schemas/PushPlatform"
           },
           "token": {
-            "type": "string"
-          }
-        }
-      },
-      "RegisterDomainRequest": {
-        "required": [
-          "organizationId",
-          "domain"
-        ],
-        "type": "object",
-        "properties": {
-          "organizationId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "domain": {
-            "type": "string"
-          }
-        }
-      },
-      "RegisterSetupClientRequest": {
-        "required": [
-          "clientId",
-          "redirectUris"
-        ],
-        "type": "object",
-        "properties": {
-          "clientId": {
-            "type": "string"
-          },
-          "redirectUris": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        }
-      },
-      "RegisterSetupClientResponse": {
-        "required": [
-          "clientId",
-          "clientSecret"
-        ],
-        "type": "object",
-        "properties": {
-          "clientId": {
-            "type": "string"
-          },
-          "clientSecret": {
             "type": "string"
           }
         }
@@ -9085,792 +7273,6 @@
             "type": "string"
           }
         }
-      },
-      "ScimAuthenticationScheme": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "description": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "primary": {
-            "type": "boolean"
-          }
-        },
-        "description": "SCIM authentication scheme."
-      },
-      "ScimBulkConfig": {
-        "type": "object",
-        "properties": {
-          "supported": {
-            "type": "boolean"
-          },
-          "maxOperations": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "maxPayloadSize": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          }
-        },
-        "description": "SCIM bulk operation configuration."
-      },
-      "ScimConfigFeature": {
-        "type": "object",
-        "properties": {
-          "supported": {
-            "type": "boolean"
-          }
-        },
-        "description": "SCIM feature support indicator."
-      },
-      "ScimEmail": {
-        "type": "object",
-        "properties": {
-          "value": {
-            "type": "string"
-          },
-          "type": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "primary": {
-            "type": "boolean"
-          }
-        },
-        "description": "SCIM email component."
-      },
-      "ScimError": {
-        "type": "object",
-        "properties": {
-          "schemas": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "scimType": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "detail": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "status": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          }
-        },
-        "description": "SCIM error response (RFC 7644)."
-      },
-      "ScimFilterConfig": {
-        "type": "object",
-        "properties": {
-          "supported": {
-            "type": "boolean"
-          },
-          "maxResults": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          }
-        },
-        "description": "SCIM filter configuration."
-      },
-      "ScimGroup": {
-        "type": "object",
-        "properties": {
-          "schemas": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "id": {
-            "type": "string"
-          },
-          "externalId": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "displayName": {
-            "type": "string"
-          },
-          "members": {
-            "type": [
-              "null",
-              "array"
-            ],
-            "items": {
-              "$ref": "#/components/schemas/ScimMember"
-            }
-          },
-          "meta": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/ScimMeta"
-              }
-            ]
-          }
-        },
-        "description": "SCIM 2.0 Group resource representation."
-      },
-      "ScimGroupReference": {
-        "type": "object",
-        "properties": {
-          "value": {
-            "type": "string"
-          },
-          "$ref": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "display": {
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        },
-        "description": "SCIM group reference within a user."
-      },
-      "ScimGroupRequest": {
-        "type": "object",
-        "properties": {
-          "schemas": {
-            "type": [
-              "null",
-              "array"
-            ],
-            "items": {
-              "type": "string"
-            }
-          },
-          "externalId": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "displayName": {
-            "type": "string"
-          },
-          "members": {
-            "type": [
-              "null",
-              "array"
-            ],
-            "items": {
-              "$ref": "#/components/schemas/ScimMember"
-            }
-          }
-        },
-        "description": "SCIM group creation/update request."
-      },
-      "ScimListResponseOfScimGroup": {
-        "type": "object",
-        "properties": {
-          "schemas": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "totalResults": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "startIndex": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "itemsPerPage": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "Resources": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ScimGroup"
-            }
-          }
-        },
-        "description": "SCIM list response with pagination."
-      },
-      "ScimListResponseOfScimResourceType": {
-        "type": "object",
-        "properties": {
-          "schemas": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "totalResults": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "startIndex": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "itemsPerPage": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "Resources": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ScimResourceType"
-            }
-          }
-        },
-        "description": "SCIM list response with pagination."
-      },
-      "ScimListResponseOfScimSchema": {
-        "type": "object",
-        "properties": {
-          "schemas": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "totalResults": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "startIndex": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "itemsPerPage": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "Resources": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ScimSchema"
-            }
-          }
-        },
-        "description": "SCIM list response with pagination."
-      },
-      "ScimListResponseOfScimUser": {
-        "type": "object",
-        "properties": {
-          "schemas": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "totalResults": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "startIndex": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "itemsPerPage": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "Resources": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ScimUser"
-            }
-          }
-        },
-        "description": "SCIM list response with pagination."
-      },
-      "ScimMember": {
-        "type": "object",
-        "properties": {
-          "value": {
-            "type": "string"
-          },
-          "$ref": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "display": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "type": {
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        },
-        "description": "SCIM group member reference."
-      },
-      "ScimMeta": {
-        "type": "object",
-        "properties": {
-          "resourceType": {
-            "type": "string"
-          },
-          "created": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "date-time"
-          },
-          "lastModified": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "date-time"
-          },
-          "location": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "version": {
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        },
-        "description": "SCIM resource metadata."
-      },
-      "ScimName": {
-        "type": "object",
-        "properties": {
-          "formatted": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "familyName": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "givenName": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "middleName": {
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        },
-        "description": "SCIM name component."
-      },
-      "ScimPatchOperation": {
-        "type": "object",
-        "properties": {
-          "op": {
-            "type": "string"
-          },
-          "path": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "value": { }
-        },
-        "description": "Individual SCIM PATCH operation."
-      },
-      "ScimPatchRequest": {
-        "type": "object",
-        "properties": {
-          "schemas": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "Operations": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ScimPatchOperation"
-            }
-          }
-        },
-        "description": "SCIM PATCH request for partial updates."
-      },
-      "ScimResourceType": {
-        "type": "object",
-        "properties": {
-          "schemas": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "id": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "description": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "endpoint": {
-            "type": "string"
-          },
-          "schema": {
-            "type": "string"
-          }
-        },
-        "description": "SCIM resource type definition."
-      },
-      "ScimSchema": {
-        "type": "object",
-        "properties": {
-          "schemas": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "id": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "description": {
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        },
-        "description": "SCIM schema definition."
-      },
-      "ScimServiceProviderConfig": {
-        "type": "object",
-        "properties": {
-          "schemas": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "documentationUri": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "patch": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/ScimConfigFeature"
-              }
-            ]
-          },
-          "bulk": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/ScimBulkConfig"
-              }
-            ]
-          },
-          "filter": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/ScimFilterConfig"
-              }
-            ]
-          },
-          "changePassword": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/ScimConfigFeature"
-              }
-            ]
-          },
-          "sort": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/ScimConfigFeature"
-              }
-            ]
-          },
-          "etag": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/ScimConfigFeature"
-              }
-            ]
-          },
-          "authenticationSchemes": {
-            "type": [
-              "null",
-              "array"
-            ],
-            "items": {
-              "$ref": "#/components/schemas/ScimAuthenticationScheme"
-            }
-          }
-        },
-        "description": "SCIM Service Provider configuration."
-      },
-      "ScimUser": {
-        "type": "object",
-        "properties": {
-          "schemas": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "id": {
-            "type": "string"
-          },
-          "externalId": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "userName": {
-            "type": "string"
-          },
-          "name": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/ScimName"
-              }
-            ]
-          },
-          "displayName": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "emails": {
-            "type": [
-              "null",
-              "array"
-            ],
-            "items": {
-              "$ref": "#/components/schemas/ScimEmail"
-            }
-          },
-          "active": {
-            "type": "boolean"
-          },
-          "groups": {
-            "type": [
-              "null",
-              "array"
-            ],
-            "items": {
-              "$ref": "#/components/schemas/ScimGroupReference"
-            }
-          },
-          "meta": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/ScimMeta"
-              }
-            ]
-          }
-        },
-        "description": "SCIM 2.0 User resource representation."
-      },
-      "ScimUserRequest": {
-        "type": "object",
-        "properties": {
-          "schemas": {
-            "type": [
-              "null",
-              "array"
-            ],
-            "items": {
-              "type": "string"
-            }
-          },
-          "externalId": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "userName": {
-            "type": "string"
-          },
-          "name": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/ScimName"
-              }
-            ]
-          },
-          "displayName": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "emails": {
-            "type": [
-              "null",
-              "array"
-            ],
-            "items": {
-              "$ref": "#/components/schemas/ScimEmail"
-            }
-          },
-          "active": {
-            "type": "boolean"
-          },
-          "groups": {
-            "type": [
-              "null",
-              "array"
-            ],
-            "items": {
-              "$ref": "#/components/schemas/ScimGroupReference"
-            }
-          }
-        },
-        "description": "SCIM user creation/update request."
       },
       "ScopeInfo": {
         "required": [
@@ -10142,189 +7544,6 @@
             "type": "boolean"
           }
         }
-      },
-      "SsoConfigurationDto": {
-        "required": [
-          "id",
-          "displayName",
-          "protocol",
-          "status",
-          "samlEntityId",
-          "samlSsoUrl",
-          "samlConfigured",
-          "oidcIssuer",
-          "oidcClientId",
-          "oidcConfigured",
-          "enforceForAllUsers",
-          "autoProvisionUsers",
-          "defaultRole",
-          "syncGroupsAsRoles",
-          "serviceProviderEntityId",
-          "serviceProviderAcsUrl",
-          "serviceProviderMetadataUrl"
-        ],
-        "type": "object",
-        "properties": {
-          "id": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/SsoConfigurationId"
-              }
-            ]
-          },
-          "displayName": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "protocol": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/SsoProtocol"
-              }
-            ]
-          },
-          "status": {
-            "$ref": "#/components/schemas/SsoStatus"
-          },
-          "samlEntityId": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "samlSsoUrl": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "samlConfigured": {
-            "type": "boolean"
-          },
-          "oidcIssuer": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "oidcClientId": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "oidcConfigured": {
-            "type": "boolean"
-          },
-          "enforceForAllUsers": {
-            "type": "boolean"
-          },
-          "autoProvisionUsers": {
-            "type": "boolean"
-          },
-          "defaultRole": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "syncGroupsAsRoles": {
-            "type": "boolean"
-          },
-          "serviceProviderEntityId": {
-            "type": "string"
-          },
-          "serviceProviderAcsUrl": {
-            "type": "string"
-          },
-          "serviceProviderMetadataUrl": {
-            "type": "string"
-          }
-        },
-        "description": "SSO configuration details for a tenant."
-      },
-      "SsoConfigurationId": {
-        "type": "object",
-        "properties": {
-          "value": {
-            "type": "string",
-            "format": "uuid"
-          }
-        }
-      },
-      "SsoProtocol": {
-        "type": "integer"
-      },
-      "SsoStatus": {
-        "type": "integer"
-      },
-      "SsoTestResult": {
-        "required": [
-          "success",
-          "errorMessage"
-        ],
-        "type": "object",
-        "properties": {
-          "success": {
-            "type": "boolean"
-          },
-          "errorMessage": {
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        },
-        "description": "Result of testing SSO connection."
-      },
-      "SsoValidationResult": {
-        "required": [
-          "isValid",
-          "errorMessage",
-          "idpEntityId",
-          "idpSsoUrl",
-          "certificateExpiry"
-        ],
-        "type": "object",
-        "properties": {
-          "isValid": {
-            "type": "boolean"
-          },
-          "errorMessage": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "idpEntityId": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "idpSsoUrl": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "certificateExpiry": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "date-time"
-          }
-        },
-        "description": "Result of validating IdP configuration."
       },
       "SubmitInquiryRequest": {
         "required": [
@@ -10711,17 +7930,6 @@
           }
         }
       },
-      "VerifyDomainRequest": {
-        "required": [
-          "verificationToken"
-        ],
-        "type": "object",
-        "properties": {
-          "verificationToken": {
-            "type": "string"
-          }
-        }
-      },
       "VerifyOtpRequest": {
         "required": [
           "email",
@@ -10782,28 +7990,16 @@
       "name": "Apps"
     },
     {
-      "name": "Client Registration"
-    },
-    {
       "name": "Clients"
     },
     {
       "name": "Identity Settings"
     },
     {
-      "name": "InitialAccessTokens"
-    },
-    {
       "name": "Invitations"
     },
     {
-      "name": "Membership Requests"
-    },
-    {
       "name": "Mfa"
-    },
-    {
-      "name": "Organization Domains"
     },
     {
       "name": "Organizations"
@@ -10812,22 +8008,13 @@
       "name": "Roles"
     },
     {
-      "name": "SCIM"
-    },
-    {
       "name": "API Scopes"
-    },
-    {
-      "name": "Service Accounts"
     },
     {
       "name": "Session"
     },
     {
       "name": "Setup"
-    },
-    {
-      "name": "SSO"
     },
     {
       "name": "Test Support"

@@ -35,10 +35,19 @@ import { RegisterAppForm } from "./RegisterAppForm";
  * Testids follow the apps feature's `app-*` convention (like `app-item`, and
  * the bead-mandated `app-client-secret`/`app-client-id`): `app-display-name`
  * (input), `app-client-type` (select), `app-redirect-uris` (textarea),
- * `app-scope-{scope-dashed}` (toggle buttons), `app-register-submit` (submit),
- * `app-display-name-error` (required-field validation), `app-register-error`
- * (server RFC 7807 ProblemDetails surface), `app-client-secret` +
- * `app-client-secret-copy` + `app-client-id` (one-time success reveal).
+ * `app-post-logout-redirect-uris` (textarea), `app-scope-{scope-dashed}` (toggle
+ * buttons), `app-register-submit` (submit), `app-display-name-error`
+ * (required-field validation), `app-register-error` (server RFC 7807
+ * ProblemDetails surface), `app-client-secret` + `app-client-secret-copy` +
+ * `app-client-id` (one-time success reveal).
+ *
+ * F7/T7.2 CONTRACT UPDATE (reworked AppsController): the regenerated
+ * `RegisterAppRequest` gained `postLogoutRedirectUris`, and the register endpoint
+ * now accepts the OIDC login scopes (`ApiScopes.LoginScopes` = openid, profile,
+ * email, offline_access) in addition to the developer-app scopes. The form must
+ * collect post-logout redirect URIs and offer the login scopes as selectable.
+ * (Secret rotation + redirect-URI management remain DESCOPED — no AppsController
+ * endpoint exists for them; tracked separately.)
  */
 
 // Hoisted so the vi.mock factory and the test bodies share the same spies.
@@ -88,6 +97,21 @@ describe("RegisterAppForm", () => {
     await expect.element(page.getByTestId("app-register-submit")).toBeInTheDocument();
   });
 
+  it("renders the post-logout redirect URIs field (reworked AppsController contract)", async () => {
+    renderWithClient(newClient(), <RegisterAppForm />);
+
+    await expect.element(page.getByTestId("app-post-logout-redirect-uris")).toBeInTheDocument();
+  });
+
+  it("offers the BFF login scopes (openid, profile, email, offline_access) as selectable", async () => {
+    renderWithClient(newClient(), <RegisterAppForm />);
+
+    await expect.element(page.getByTestId("app-scope-openid")).toBeInTheDocument();
+    await expect.element(page.getByTestId("app-scope-profile")).toBeInTheDocument();
+    await expect.element(page.getByTestId("app-scope-email")).toBeInTheDocument();
+    await expect.element(page.getByTestId("app-scope-offline_access")).toBeInTheDocument();
+  });
+
   it("does NOT reveal the client secret or client id before a successful registration", async () => {
     renderWithClient(newClient(), <RegisterAppForm />);
 
@@ -95,7 +119,7 @@ describe("RegisterAppForm", () => {
     await expect.element(page.getByTestId("app-client-id")).not.toBeInTheDocument();
   });
 
-  it("submits, calling register with the remapped body (clientName, default scope, public, parsed URIs)", async () => {
+  it("submits, calling register with the remapped body (clientName, default scope, public, parsed redirect + post-logout URIs)", async () => {
     mocks.register.mockResolvedValue(OK_RESPONSE);
 
     renderWithClient(newClient(), <RegisterAppForm />);
@@ -104,6 +128,10 @@ describe("RegisterAppForm", () => {
     await userEvent.type(
       page.getByTestId("app-redirect-uris"),
       "https://a.com/cb{enter}https://b.com/cb",
+    );
+    await userEvent.type(
+      page.getByTestId("app-post-logout-redirect-uris"),
+      "https://a.com/logout{enter}https://b.com/logout",
     );
     await userEvent.click(page.getByTestId("app-register-submit"));
 
@@ -115,7 +143,24 @@ describe("RegisterAppForm", () => {
       requestedScopes: ["inquiries.read"],
       clientType: "public",
       redirectUris: ["https://a.com/cb", "https://b.com/cb"],
+      postLogoutRedirectUris: ["https://a.com/logout", "https://b.com/logout"],
     });
+  });
+
+  it("includes a toggled-on login scope (offline_access) in the submitted requestedScopes", async () => {
+    mocks.register.mockResolvedValue(OK_RESPONSE);
+
+    renderWithClient(newClient(), <RegisterAppForm />);
+
+    await userEvent.type(page.getByTestId("app-display-name"), "My App");
+    await userEvent.click(page.getByTestId("app-scope-offline_access"));
+    await userEvent.click(page.getByTestId("app-register-submit"));
+
+    await vi.waitFor(() => {
+      expect(mocks.register).toHaveBeenCalledTimes(1);
+    });
+    const body = mocks.register.mock.calls[0]![0] as { requestedScopes: string[] };
+    expect(body.requestedScopes).toContain("offline_access");
   });
 
   it("adds a toggled-on scope to the submitted requestedScopes", async () => {

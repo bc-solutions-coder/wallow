@@ -8,6 +8,7 @@
   "ignorePatterns": [
     "**/dist/**",
     "**/generated/**",
+    "**/routeTree.gen.ts",
     "packages/sdk/src/generated/**",
     "packages/sdk/openapi/**"
   ]

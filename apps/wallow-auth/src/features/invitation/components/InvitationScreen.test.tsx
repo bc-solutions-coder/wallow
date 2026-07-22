@@ -609,7 +609,7 @@ function renderRouteAt(url: string) {
       id: "/invitation",
       path: "/invitation",
       getParentRoute: () => rootRoute,
-    }),
+    } as any),
   ]);
   const router = createRouter({
     routeTree,

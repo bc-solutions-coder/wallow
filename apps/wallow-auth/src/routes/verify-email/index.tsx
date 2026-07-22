@@ -50,7 +50,7 @@ function VerifyEmailRoute() {
   );
 }
 
-export const Route = createFileRoute("/verify-email")({
+export const Route = createFileRoute("/verify-email/")({
   validateSearch,
   component: VerifyEmailRoute,
 });

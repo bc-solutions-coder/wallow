@@ -8,6 +8,7 @@
  *   - `GET /health`      -> 200 `ready` (liveness for the E2E fixture).
  *   - `/v1/**`           -> reverse-proxied to `apiInternalUrl` verbatim.
  *   - `/connect/**`      -> reverse-proxied to `apiInternalUrl` verbatim.
+ *   - `/.well-known/**`  -> reverse-proxied to `apiInternalUrl` verbatim.
  *   - everything else    -> 404.
  *
  * Proxying forwards the inbound method, path, query, body, and `Cookie` header

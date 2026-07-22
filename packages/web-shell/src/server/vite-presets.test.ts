@@ -1,9 +1,28 @@
 import { join } from "node:path";
 
+import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import { type UserConfig } from "vite";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createClientViteConfig, createSsrViteConfig } from "./vite-presets";
+
+// The TanStack Router codegen plugin is stubbed so the seam's WIRING is what we
+// assert — that the factory calls it, orders it before react, and derives its
+// options from `appDir` — without booting the real generator. Its derived
+// options are only observable through the recorded call args (a plugin's `.name`
+// carries none), so the stub returns a single recognizably-named plugin object.
+vi.mock("@tanstack/router-plugin/vite", () => ({
+  tanstackRouter: vi.fn((options: unknown) => ({
+    name: "tanstack:router-generator",
+    __options: options,
+  })),
+}));
+
+const tanstackRouterMock = vi.mocked(tanstackRouter);
+
+beforeEach((): void => {
+  tanstackRouterMock.mockClear();
+});
 
 /**
  * Acceptance-criteria guard for Wallow-0q2s.8.5 (vite preset factories). Both
@@ -44,6 +63,17 @@ async function collectPluginNames(plugins: unknown): Promise<string[]> {
     return [String((resolved as { name: unknown }).name)];
   }
   return [];
+}
+
+/** Index of the first plugin whose resolved name matches, or -1. */
+function firstIndex(names: string[], pattern: RegExp): number {
+  return names.findIndex((name: string): boolean => pattern.test(name));
+}
+
+/** The single `options` object the (stubbed) tanstackRouter plugin was last called with. */
+function lastRouterOptions(): Record<string, unknown> {
+  expect(tanstackRouterMock).toHaveBeenCalled();
+  return tanstackRouterMock.mock.calls.at(-1)?.[0] as Record<string, unknown>;
 }
 
 describe("createClientViteConfig", () => {
@@ -90,6 +120,51 @@ describe("createClientViteConfig", () => {
 
     expect(config.build?.rollupOptions?.input).toBe(join(other, "src", "client.tsx"));
   });
+
+  it("wires the TanStack Router codegen plugin into the client build", async () => {
+    const names: string[] = await collectPluginNames(
+      createClientViteConfig({ appDir: APP_DIR }).plugins,
+    );
+
+    expect(names.some((name: string): boolean => /tanstack.?router/i.test(name))).toBe(true);
+  });
+
+  it("orders the router plugin BEFORE react (codegen must see untransformed routes)", async () => {
+    const names: string[] = await collectPluginNames(
+      createClientViteConfig({ appDir: APP_DIR }).plugins,
+    );
+
+    const routerIndex: number = firstIndex(names, /tanstack.?router/i);
+    const reactIndex: number = firstIndex(names, /react/i);
+
+    expect(routerIndex).toBeGreaterThanOrEqual(0);
+    expect(reactIndex).toBeGreaterThanOrEqual(0);
+    expect(routerIndex).toBeLessThan(reactIndex);
+  });
+
+  it("derives the router plugin's route paths from appDir and targets react", () => {
+    createClientViteConfig({ appDir: APP_DIR });
+
+    const options: Record<string, unknown> = lastRouterOptions();
+    expect(options.target).toBe("react");
+    expect(options.routesDirectory).toBe(join(APP_DIR, "src", "routes"));
+    expect(options.generatedRouteTree).toBe(join(APP_DIR, "src", "routeTree.gen.ts"));
+  });
+
+  it("keeps automatic route-based code splitting OFF (runtime-behavior change is out of scope)", () => {
+    createClientViteConfig({ appDir: APP_DIR });
+
+    expect(lastRouterOptions().autoCodeSplitting).toBe(false);
+  });
+
+  it("derives the router plugin's route paths against the given appDir (per-app seam)", () => {
+    const other = "/tmp/some-other-app";
+    createClientViteConfig({ appDir: other });
+
+    const options: Record<string, unknown> = lastRouterOptions();
+    expect(options.routesDirectory).toBe(join(other, "src", "routes"));
+    expect(options.generatedRouteTree).toBe(join(other, "src", "routeTree.gen.ts"));
+  });
 });
 
 describe("createSsrViteConfig", () => {
@@ -122,5 +197,13 @@ describe("createSsrViteConfig", () => {
     const config: UserConfig = createSsrViteConfig({ appDir: other });
 
     expect(config.build?.ssr).toBe(join(other, "src", "ssr.tsx"));
+  });
+
+  it("does NOT wire the router codegen plugin into the SSR build (it imports the generated tree)", async () => {
+    const names: string[] = await collectPluginNames(
+      createSsrViteConfig({ appDir: APP_DIR }).plugins,
+    );
+
+    expect(names.some((name: string): boolean => /tanstack.?router/i.test(name))).toBe(false);
   });
 });

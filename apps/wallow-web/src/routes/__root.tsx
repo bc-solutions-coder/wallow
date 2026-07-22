@@ -1,5 +1,5 @@
 import { type QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { createRootRoute, Outlet } from "@tanstack/react-router";
+import { createRootRouteWithContext, Outlet } from "@tanstack/react-router";
 import { useRef } from "react";
 
 import { ReadyIndicator } from "../components/ready-indicator";
@@ -10,7 +10,7 @@ import {
   type ResolvedBranding,
 } from "../lib/branding";
 import { createQueryClient } from "@bc-solutions-coder/web-shell";
-import { FocusOnNavigate } from "@bc-solutions-coder/ui";
+import { DocumentStyles, FocusOnNavigate } from "@bc-solutions-coder/ui";
 
 /**
  * The browser bundle to load. In dev, Vite serves the entry straight out of its
@@ -23,6 +23,18 @@ import { FocusOnNavigate } from "@bc-solutions-coder/ui";
  * the two can never disagree about which path this is.
  */
 const clientEntry: string = import.meta.env.DEV ? "/src/client.tsx" : "/client.js";
+
+/**
+ * The compiled stylesheet, or `null` when none should be linked. The production
+ * build extracts the entry CSS imported by `client.tsx` to `/client.css`
+ * (pinned by `assetFileNames` in `vite.config.ts`), and nothing references it
+ * from `client.js` — Vite does not auto-inject entry CSS for a JS entry — so
+ * the shell must link it or every route serves unstyled. In dev the link must
+ * NOT render: Vite injects the CSS through the JS module graph and `/client.css`
+ * does not exist on the dev server. Same build-time `import.meta.env.DEV`
+ * substitution as `clientEntry`, for the same hydration-agreement reason.
+ */
+const stylesheetHref: string | null = import.meta.env.DEV ? null : "/client.css";
 
 /**
  * The SSR document shell (Wallow-8w1h.2.2): a full `<html>/<head>/<body>`
@@ -60,7 +72,7 @@ function DocumentShell() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>{branding.name}</title>
         <link rel="icon" href={appIconUrl} />
-        <style>{renderThemeStyle(branding)}</style>
+        <DocumentStyles themeCss={renderThemeStyle(branding)} stylesheetHref={stylesheetHref} />
         <script type="module" src={clientEntry} />
       </head>
       <body>
@@ -93,6 +105,6 @@ function RootComponent() {
   );
 }
 
-export const Route = createRootRoute({
+export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   component: RootComponent,
 });

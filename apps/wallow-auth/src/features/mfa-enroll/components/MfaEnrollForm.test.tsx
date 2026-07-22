@@ -1002,7 +1002,7 @@ function renderRouteAt(url: string) {
       id: "/mfa/enroll",
       path: "/mfa/enroll",
       getParentRoute: () => rootRoute,
-    }),
+    } as any),
   ]);
   const router = createRouter({
     routeTree,

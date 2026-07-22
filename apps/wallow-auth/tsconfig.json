@@ -12,6 +12,7 @@
     "server.ts",
     "dev-server.ts",
     "src/**/*.ts",
+    "src/**/*.tsx",
     "vite.config.ts",
     "vite.ssr.config.ts",
     "vitest.config.ts"

@@ -103,6 +103,29 @@ describe("the branding palette", () => {
       expect.arrayContaining([...themedVars]),
     );
   });
+
+  // The two tests above pin one direction (every var the @theme block reaches
+  // for is defined by the palette); these pin the reverse (every var the palette
+  // *emits* is reached for by the @theme block). Without it, adding a colour to
+  // api/branding.json's theme would ship a custom property that renderThemeStyle
+  // writes onto :root but no Tailwind token ever consumes — a silently dead
+  // token. The recipe is two files in lockstep: a new semantic colour touches
+  // api/branding.json's theme AND styles.css's @theme, nothing per-app.
+  const referencesEveryEmittedVar = (mode: "light" | "dark"): void => {
+    const emitted: readonly string[] = Object.keys(toCssVars(forkBranding.theme[mode]));
+    const unmapped: readonly string[] = emitted.filter(
+      (name: string): boolean => !themedVars.includes(name),
+    );
+    expect(unmapped).toEqual([]);
+  };
+
+  it("maps every custom property forkBranding.theme emits, in light mode", () => {
+    referencesEveryEmittedVar("light");
+  });
+
+  it("maps every custom property forkBranding.theme emits, in dark mode", () => {
+    referencesEveryEmittedVar("dark");
+  });
 });
 
 describe("the package contract", () => {

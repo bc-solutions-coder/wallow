@@ -471,7 +471,7 @@ describe("LogoutScreen — the validation response is untyped and must fail clos
     await expect.element(page.getByTestId("logout-return-link")).toBeInTheDocument();
   });
 
-  it.each([
+  it.each<[unknown, string]>([
     [{ allowed: "true" }, "the STRING 'true' rather than the boolean"],
     [{ allowed: 1 }, "a truthy non-boolean"],
     [{ allowed: null }, "an explicit null"],
@@ -594,7 +594,7 @@ describe("LogoutScreen — testids", () => {
 function renderRouteAt(url: string) {
   const rootRoute = createRootRoute({ component: Outlet });
   const routeTree = rootRoute.addChildren([
-    logoutRoute.update({ id: "/logout", path: "/logout", getParentRoute: () => rootRoute }),
+    logoutRoute.update({ id: "/logout", path: "/logout", getParentRoute: () => rootRoute } as any),
   ]);
   const router = createRouter({
     routeTree,

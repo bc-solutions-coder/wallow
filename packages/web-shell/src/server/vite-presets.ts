@@ -8,6 +8,7 @@
 import { join } from "node:path";
 
 import { wallowStyles } from "@bc-solutions-coder/styles/vite";
+import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react";
 import { type UserConfig } from "vite";
 
@@ -32,7 +33,16 @@ export interface ViteConfigOptions {
  */
 export function createClientViteConfig(options: ViteConfigOptions): UserConfig {
   return {
-    plugins: [react(), ...wallowStyles()],
+    plugins: [
+      tanstackRouter({
+        target: "react",
+        routesDirectory: join(options.appDir, "src", "routes"),
+        generatedRouteTree: join(options.appDir, "src", "routeTree.gen.ts"),
+        autoCodeSplitting: false,
+      }),
+      react(),
+      ...wallowStyles(),
+    ],
     build: {
       outDir: "dist/client",
       emptyOutDir: true,

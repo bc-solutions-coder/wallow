@@ -30,7 +30,12 @@
   "env": {
     "builtin": true
   },
-  "ignorePatterns": ["**/dist/**", "**/generated/**", "packages/sdk/src/generated/**"],
+  "ignorePatterns": [
+    "**/dist/**",
+    "**/generated/**",
+    "packages/sdk/src/generated/**",
+    "**/routeTree.gen.ts"
+  ],
   "overrides": [
     {
       "files": ["apps/wallow-web/**/*.{ts,tsx}"],
@@ -41,6 +46,13 @@
     },
     {
       "files": ["apps/wallow-auth/**/*.{ts,tsx}"],
+      "rules": {
+        "unicorn/filename-case": ["error", { "cases": { "kebabCase": true, "pascalCase": true } }],
+        "no-magic-numbers": ["warn", { "ignore": [0, 1] }]
+      }
+    },
+    {
+      "files": ["examples/**/*.{ts,tsx}"],
       "rules": {
         "unicorn/filename-case": ["error", { "cases": { "kebabCase": true, "pascalCase": true } }],
         "no-magic-numbers": ["warn", { "ignore": [0, 1] }]

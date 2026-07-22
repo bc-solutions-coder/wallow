@@ -991,7 +991,7 @@ function renderRouteAt(url: string) {
       id: "/mfa/challenge",
       path: "/mfa/challenge",
       getParentRoute: () => rootRoute,
-    }),
+    } as any),
   ]);
   const router = createRouter({
     routeTree,

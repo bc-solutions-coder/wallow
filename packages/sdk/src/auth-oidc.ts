@@ -44,6 +44,17 @@ function assertSafeReturnUrl(returnUrl: string): void {
  * `data:`) by the same single rule: a value that starts with '/' but not '//'
  * can only ever resolve against the current origin.
  *
+ * Backslashes are normalized to forward slashes before the prefix check
+ * (Wallow-41ot): WHATWG URL parsing treats a backslash as an extra path
+ * separator for http/https, so `/\evil.com` resolves protocol-relative and
+ * cross-origin even though it starts with a single '/'. ASCII tab/newline/CR
+ * are stripped first because WHATWG URL parsing removes them before applying
+ * backslash-as-separator logic, so `/\t\evil.com` would otherwise slip past
+ * the prefix check yet still resolve cross-origin in a browser. A
+ * percent-encoded backslash (`%5C`) is decoded next because a router can hand
+ * the guard the decoded value; no other percent-encoding is touched, so
+ * `/apps/my%20app` stays accepted.
+ *
  * @param url Candidate return URL; nullish and blank are unsafe.
  */
 export function isSafeReturnUrl(url: string | null | undefined): boolean {
@@ -52,7 +63,12 @@ export function isSafeReturnUrl(url: string | null | undefined): boolean {
     return false;
   }
 
-  return url.startsWith("/") && !url.startsWith("//");
+  const normalized: string = url
+    .replaceAll(/[\t\n\r]/gu, "")
+    .replaceAll(/%5c/giu, "\\")
+    .replaceAll("\\", "/");
+
+  return normalized.startsWith("/") && !normalized.startsWith("//");
 }
 
 /**

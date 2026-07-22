@@ -10,3 +10,4 @@ export { ErrorBanner, type ErrorBannerProps } from "./error-banner";
 export { MutedText, type MutedTextProps } from "./muted-text";
 export { CenteredCardLayout, type CenteredCardLayoutProps } from "./centered-card-layout";
 export { ForkAttribution, type ForkAttributionProps } from "./fork-attribution";
+export { DocumentStyles, type DocumentStylesProps } from "./document-styles";
