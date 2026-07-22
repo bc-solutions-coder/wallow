@@ -50,20 +50,13 @@ const csrfMocks = vi.hoisted(() => ({
 }));
 
 // Override only the SDK ops the demo drives; keep every other export intact so
-// the rest of the route graph (built by `createRouter`) still resolves.
+// the rest of the route graph (built by `createRouter`) still resolves. The CSRF
+// token store/interceptor (now SDK-owned) is a no-op under test; `refreshUser`
+// must still arm it via `setCsrfToken(user.csrfToken)` on a non-null user.
 vi.mock("@bc-solutions-coder/sdk", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@bc-solutions-coder/sdk")>();
-  return { ...actual, ...sdkMocks };
+  return { ...actual, ...sdkMocks, ...csrfMocks };
 });
-
-// The CSRF token store/interceptor is a no-op under test; `refreshUser` must
-// still arm it via `setCsrfToken(user.csrfToken)` on a non-null user.
-vi.mock("../lib/csrf", () => ({
-  setCsrfToken: csrfMocks.setCsrfToken,
-  wireCsrfInterceptor: csrfMocks.wireCsrfInterceptor,
-  isSafeMethod: (method: string): boolean =>
-    ["GET", "HEAD", "OPTIONS"].includes(method.toUpperCase()),
-}));
 
 function newClient(): QueryClient {
   return new QueryClient({

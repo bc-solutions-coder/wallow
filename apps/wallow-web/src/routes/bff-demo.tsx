@@ -6,13 +6,13 @@ import {
   login,
   logout,
   postV1IdentityOrganizations,
+  setCsrfToken,
+  wireCsrfInterceptor,
   type ProblemDetails,
   type WallowUser,
 } from "@bc-solutions-coder/sdk";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-
-import { setCsrfToken, wireCsrfInterceptor } from "../lib/csrf";
 
 /**
  * The dedicated `/bff-demo` route (Wallow-8w1h.8.2) — the React port of the

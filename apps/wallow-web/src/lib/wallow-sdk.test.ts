@@ -16,6 +16,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // Hoisted so the vi.mock factory and the test bodies share the same spies.
 const mocks = vi.hoisted(() => ({
   configureBffClient: vi.fn(),
+  configureSsrClient: vi.fn(),
+  getSsrRequestContext: vi.fn(() => undefined),
   getV1IdentityOrganizations: vi.fn(),
   getV1IdentityOrganizationsById: vi.fn(),
   postV1IdentityOrganizations: vi.fn(),
@@ -44,7 +46,32 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@bc-solutions-coder/sdk", () => ({
+  // Real (passthrough) facade helpers: the collapsed facade imports unwrap +
+  // createConfiguredOnce from the SDK, so the mock must supply working
+  // implementations. createConfiguredOnce returns a fresh lazy singleton per
+  // module graph, which is exactly what freshFacade()'s vi.resetModules wants.
+  unwrap: async <T>(pending: Promise<{ data?: T; error?: unknown }>): Promise<T> => {
+    const { data, error } = await pending;
+    if (error !== undefined) {
+      throw error;
+    }
+    return data as T;
+  },
+  createConfiguredOnce: <TFacade>(configure: () => void, build: () => TFacade): (() => TFacade) => {
+    let facade: TFacade | undefined;
+    let ready = false;
+    return (): TFacade => {
+      if (!ready) {
+        configure();
+        facade = build();
+        ready = true;
+      }
+      return facade as TFacade;
+    };
+  },
   configureBffClient: mocks.configureBffClient,
+  configureSsrClient: mocks.configureSsrClient,
+  getSsrRequestContext: mocks.getSsrRequestContext,
   client: mocks.client,
   getV1IdentityOrganizations: mocks.getV1IdentityOrganizations,
   getV1IdentityOrganizationsById: mocks.getV1IdentityOrganizationsById,
@@ -88,23 +115,37 @@ describe("getWallowSdk", () => {
     vi.clearAllMocks();
   });
 
+  /**
+   * Singleton configuration (Wallow-0q2s.7.2). This vitest node project runs with
+   * `import.meta.env.SSR === true`, so `ensureConfigured()` takes the SSR branch:
+   * it reads the request context from the SDK's relocated
+   * `getSsrRequestContext()` seam and delegates all client wiring (absolute-origin
+   * baseUrl + the live cookie-forwarding interceptor) to the SDK's
+   * `configureSsrClient()`. The SSR wiring no longer lives in this app — it moved
+   * into `@bc-solutions-coder/sdk`, so the facade never hand-rolls the interceptor
+   * (`configureBffClient` + the CSRF path apply only in the browser branch).
+   */
   describe("singleton configuration", () => {
-    it("configures the BFF client exactly once across multiple calls", async () => {
+    it("configures the SSR client exactly once across multiple calls", async () => {
       const getWallowSdk = await freshFacade();
 
       getWallowSdk();
       getWallowSdk();
       getWallowSdk();
 
-      expect(mocks.configureBffClient).toHaveBeenCalledTimes(1);
+      expect(mocks.configureSsrClient).toHaveBeenCalledTimes(1);
     });
 
-    it("wires the CSRF interceptor onto the shared client on first use", async () => {
+    it("reads the SSR request context and delegates client wiring to configureSsrClient", async () => {
       const getWallowSdk = await freshFacade();
 
       getWallowSdk();
 
-      expect(mocks.client.interceptors.request.use).toHaveBeenCalledTimes(1);
+      expect(mocks.getSsrRequestContext).toHaveBeenCalled();
+      expect(mocks.configureSsrClient).toHaveBeenCalledTimes(1);
+      // The SSR branch delegates entirely to the SDK helper; it does not fall
+      // through to the browser-only configureBffClient path.
+      expect(mocks.configureBffClient).not.toHaveBeenCalled();
     });
   });
 

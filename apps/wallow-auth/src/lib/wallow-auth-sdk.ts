@@ -33,10 +33,10 @@ import {
   client,
   configureBffClient,
   createAuthClient,
+  createConfiguredOnce,
   isSafeReturnUrl,
+  wireCsrfInterceptor,
 } from "@bc-solutions-coder/sdk";
-
-import { wireCsrfInterceptor } from "./csrf";
 
 /**
  * The OIDC slice — the SDK's non-spec handshake helpers, re-exposed on the
@@ -64,27 +64,18 @@ export interface WallowAuthSdk {
 }
 
 /**
- * The guarded singleton. Kept at module scope and built lazily: nothing is
- * configured at import time, so merely importing this module in a test or an SSR
- * pass has no side effect on the shared client. Its null-ness is the one guard
- * for all three first-use steps (configure, wire CSRF, create the auth client).
- */
-let sdk: WallowAuthSdk | null = null;
-
-/**
  * Return the singleton facade, configuring the same-origin client and the CSRF
  * interceptor on first use. Every later call is a cheap no-op that hands back
- * the same instance.
+ * the same instance. The one-time configure-then-build guard is the SDK's shared
+ * {@link createConfiguredOnce} helper — built lazily, so merely importing this
+ * module (in a test or an SSR pass) has no side effect on the shared client.
  */
-export function getWallowAuthSdk(): WallowAuthSdk {
-  if (sdk !== null) {
-    return sdk;
-  }
-
-  configureBffClient({ baseUrl: "/" });
-  wireCsrfInterceptor(client);
-
-  sdk = {
+export const getWallowAuthSdk: () => WallowAuthSdk = createConfiguredOnce(
+  () => {
+    configureBffClient({ baseUrl: "/" });
+    wireCsrfInterceptor(client);
+  },
+  (): WallowAuthSdk => ({
     auth: createAuthClient(),
     oidc: {
       isSafeReturnUrl,
@@ -93,7 +84,5 @@ export function getWallowAuthSdk(): WallowAuthSdk {
       buildExchangeTicketUrl,
       buildConnectLogoutUrl,
     },
-  };
-
-  return sdk;
-}
+  }),
+);

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   type CsrfInterceptorClient,
@@ -8,11 +8,14 @@ import {
 } from "./csrf";
 
 /**
- * CSRF interceptor module for wallow-auth (Wallow-vec7.2.3), a 1:1 mirror of
- * `apps/wallow-web/src/lib/csrf.test.ts`. The interceptor echoes the session
- * CSRF token in the `x-csrf-token` header on state-changing requests and leaves
- * safe methods (GET/HEAD/OPTIONS) untouched. `getWallowAuthSdk()` wires it onto
- * the shared `@hey-api` client.
+ * CSRF interceptor module (Wallow-0q2s.7.1). This is the SDK-owned home of the
+ * CSRF helper, consolidated from the byte-near-identical
+ * `apps/wallow-auth/src/lib/csrf.test.ts` and
+ * `apps/wallow-web/src/lib/csrf.test.ts` copies. The interceptor echoes the
+ * session CSRF token in the `x-csrf-token` header on state-changing requests and
+ * leaves safe methods (GET/HEAD/OPTIONS) untouched. Both apps' facades
+ * (`getWallowSdk()` / `getWallowAuthSdk()`) wire it onto the shared `@hey-api`
+ * client.
  */
 
 /**
@@ -85,7 +88,7 @@ describe("wireCsrfInterceptor", () => {
     wireCsrfInterceptor(client);
     setCsrfToken("tok-123");
 
-    const request = new Request("https://example.test/v1/identity/auth/login", {
+    const request = new Request("https://example.test/api/v1/identity/organizations", {
       method: "POST",
     });
     const result = client.run(request);
@@ -98,7 +101,7 @@ describe("wireCsrfInterceptor", () => {
     wireCsrfInterceptor(client);
     setCsrfToken("tok-123");
 
-    const request = new Request("https://example.test/v1/identity/auth/external-providers", {
+    const request = new Request("https://example.test/api/v1/identity/users/me", {
       method: "GET",
     });
     const result = client.run(request);
@@ -109,10 +112,9 @@ describe("wireCsrfInterceptor", () => {
   it("does not attach the header on state-changing requests while no token is set", () => {
     const client = createFakeClient();
     wireCsrfInterceptor(client);
-    // No setCsrfToken call; the token remains null (anonymous / pre-login) —
-    // the common case for wallow-auth, whose whole job is the pre-login flow.
+    // No setCsrfToken call; the token remains null (anonymous / pre-login).
 
-    const request = new Request("https://example.test/v1/identity/auth/login", {
+    const request = new Request("https://example.test/api/v1/identity/organizations", {
       method: "POST",
     });
     const result = client.run(request);
@@ -126,7 +128,7 @@ describe("wireCsrfInterceptor", () => {
     setCsrfToken("tok-123");
     setCsrfToken(null);
 
-    const request = new Request("https://example.test/v1/identity/auth/login", {
+    const request = new Request("https://example.test/api/v1/identity/organizations", {
       method: "DELETE",
     });
     const result = client.run(request);
@@ -139,7 +141,7 @@ describe("wireCsrfInterceptor", () => {
     wireCsrfInterceptor(client);
     setCsrfToken("tok-late");
 
-    const request = new Request("https://example.test/v1/identity/auth/mfa/verify", {
+    const request = new Request("https://example.test/api/v1/identity/auth/mfa/verify", {
       method: "POST",
     });
 
@@ -151,9 +153,21 @@ describe("wireCsrfInterceptor", () => {
     wireCsrfInterceptor(client);
     setCsrfToken("tok-123");
 
-    const request = new Request("https://example.test/v1/identity/auth/login", {
+    const request = new Request("https://example.test/api/v1/identity/organizations", {
       method: "POST",
     });
     expect(client.run(request)).toBe(request);
+  });
+});
+
+describe("existing callers still resolve", () => {
+  it("keeps exporting isSafeMethod for both app facades", () => {
+    // The app facades import isSafeMethod/setCsrfToken/wireCsrfInterceptor from
+    // the SDK's browser entry; the relocation must preserve these named value
+    // exports so those imports continue to resolve.
+    expect(vi.isMockFunction(isSafeMethod)).toBe(false);
+    expect(typeof isSafeMethod).toBe("function");
+    expect(typeof setCsrfToken).toBe("function");
+    expect(typeof wireCsrfInterceptor).toBe("function");
   });
 });

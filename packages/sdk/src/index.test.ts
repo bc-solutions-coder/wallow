@@ -22,7 +22,14 @@ import * as serverEntry from "./server/index";
 // so a missing type export does not break these tests directly — it breaks the
 // `tsc --noEmit` test at the bottom of this file, which is the assertion that
 // actually pins the type surface.
-import type { BffClientOptions, WallowClientOptions, WallowUser } from "./index";
+import type {
+  BffClientOptions,
+  CsrfInterceptorClient,
+  SdkEnvelope,
+  SsrRequestContext,
+  WallowClientOptions,
+  WallowUser,
+} from "./index";
 import type {
   BffConfig,
   BffHandlers,
@@ -49,10 +56,19 @@ const BROWSER_VALUE_EXPORTS: readonly string[] = [
   "configureBffClient",
   "configureWallowClient",
   "createAuthClient",
+  "createConfiguredOnce",
   "getUser",
+  "configureSsrClient",
+  "getSsrRequestContext",
+  "isSafeMethod",
   "isSafeReturnUrl",
   "login",
   "logout",
+  "setCsrfToken",
+  "setSsrRequestContextResolver",
+  "unwrap",
+  "wireCsrfInterceptor",
+  "wireSsrCookieInterceptor",
 ];
 
 /**
@@ -164,6 +180,9 @@ describe("public type surface", () => {
   it("references every publicly required type", () => {
     type _Types = [
       BffClientOptions,
+      CsrfInterceptorClient,
+      SdkEnvelope<unknown>,
+      SsrRequestContext,
       WallowClientOptions,
       WallowUser,
       BffConfig,

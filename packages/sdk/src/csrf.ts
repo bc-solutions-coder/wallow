@@ -1,19 +1,20 @@
 /**
- * CSRF interceptor module for wallow-auth (Wallow-vec7.2.3).
+ * CSRF interceptor module.
  *
- * A 1:1 mirror of `apps/wallow-web/src/lib/csrf.ts`. The API rejects any
- * state-changing request (POST/PUT/PATCH/DELETE) that does not echo the
- * session's CSRF token in the `x-csrf-token` header, so this module owns the
- * in-memory token store and the request interceptor that stamps the header.
- * `getWallowAuthSdk()` wires it onto the shared `@hey-api` client on first use.
- *
- * Per bd memory `csrf-delivery-pattern-synchronizer-token-in-session-csrftoke`:
- * synchronizer token lives in the session, a non-HttpOnly double-submit cookie
- * carries a copy to the browser, and the `x-csrf-token` header echoes it back.
+ * The BFF rejects any state-changing request (POST/PUT/PATCH/DELETE) that does
+ * not echo the session's CSRF token in the `x-csrf-token` header. This module
+ * owns the in-memory token store and the request interceptor that stamps the
+ * header, so app-level wiring can reuse it against the shared `@hey-api` client
+ * without hand-rolling the logic.
  */
 
-/** HTTP methods the API does not gate on CSRF, per RFC 9110 safe methods. */
+/** HTTP methods the BFF does not gate on CSRF, per RFC 9110 safe methods. */
 const safeMethods: ReadonlySet<string> = new Set(["GET", "HEAD", "OPTIONS"]);
+
+/** True when the method is CSRF-exempt (safe per RFC 9110), case-insensitively. */
+export function isSafeMethod(method: string): boolean {
+  return safeMethods.has(method.toUpperCase());
+}
 
 /**
  * The subset of the generated `@hey-api` client this module wires an interceptor
@@ -28,18 +29,13 @@ export interface CsrfInterceptorClient {
   };
 }
 
-/** True when the method is CSRF-exempt (safe per RFC 9110), case-insensitively. */
-export function isSafeMethod(method: string): boolean {
-  return safeMethods.has(method.toUpperCase());
-}
-
 /**
- * The session's CSRF token.
+ * The session's CSRF token, learned from `/bff/user`.
  *
- * Holding it in module scope keeps it out of the DOM and lets the interceptor
- * read it live, so a token set after wiring still applies. wallow-auth spends
- * most of its life pre-login, where this stays `null` and mutating requests go
- * out unstamped.
+ * The BFF mints it at login, seals it inside the session, and hands the browser
+ * a copy in the `/bff/user` body. Holding it in module scope keeps it out of the
+ * DOM and lets the interceptor read it live, so a token set after wiring still
+ * applies.
  */
 let csrfToken: string | null = null;
 

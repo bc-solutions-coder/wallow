@@ -27,7 +27,10 @@ import {
   type AddInquiryCommentRequest,
   client,
   configureBffClient,
+  configureSsrClient,
+  createConfiguredOnce,
   deleteV1IdentityOrganizationsByIdMembersByUserId,
+  getSsrRequestContext,
   getUser,
   getV1IdentityApps,
   getV1IdentityAppsByClientId,
@@ -54,87 +57,33 @@ import {
   postV1IdentityOrganizationsByIdReactivate,
   postV1Inquiries,
   postV1InquiriesByIdComments,
-  type ProblemDetails,
+  unwrap,
+  wireCsrfInterceptor,
   type RegisterAppRequest,
+  type SsrRequestContext,
   type SubmitInquiryRequest,
   type WallowUser,
 } from "@bc-solutions-coder/sdk";
 
-import { type CsrfInterceptorClient, wireCsrfInterceptor } from "./csrf";
-import { getSsrRequestContext, type SsrRequestContext } from "./ssr-request-context";
-
 /**
- * Guarded singleton flag. Kept at module scope so the first `getWallowSdk()`
- * call configures the client + interceptor once and every later call is a
- * cheap no-op.
- */
-let configured = false;
-
-/**
- * Wire the SSR cookie-forwarding interceptor onto the shared client.
+ * Configure the BFF client and wire the matching request interceptor. Invoked
+ * exactly once by the {@link createConfiguredOnce} guard wrapping
+ * `getWallowSdk()`.
  *
- * During SSR the generated `/api/**` client runs on the server, where Node's
- * `fetch` has no cookie jar, so `credentials: "include"` sends an anonymous
- * request and every authenticated loader (e.g. `dashboard/apps` ->
- * `getV1IdentityApps`) 401s. The interceptor reads the in-flight request's
- * `Cookie` (the `wallow_bff` session) from the SSR request context per request
- * and stamps it, so the BFF proxy resolves the session and attaches the bearer.
- * CSRF is intentionally NOT wired for SSR: only safe GET loaders run there, and
- * the CSRF interceptor stamps nothing on safe methods.
+ * During SSR (`import.meta.env.SSR`) the SDK's {@link configureSsrClient} points
+ * the client at the request's ABSOLUTE origin (`${origin}/api`) so Node's `fetch`
+ * can parse the URL and wires the live cookie-forwarding interceptor that carries
+ * the session; in the browser the same-origin relative `/api` default and the
+ * CSRF interceptor apply. The origin is stable per host, so configuring it once
+ * on the first request is correct.
  */
-function wireSsrCookieInterceptor(target: CsrfInterceptorClient): void {
-  target.interceptors.request.use((request: Request): Request => {
-    const context: SsrRequestContext | undefined = getSsrRequestContext();
-    if (context?.cookie !== undefined) {
-      request.headers.set("cookie", context.cookie);
-    }
-    return request;
-  });
-}
-
-/**
- * Configure the BFF client and wire the request interceptor exactly once. Safe to
- * call on every `getWallowSdk()` — after the first call it returns immediately.
- *
- * During SSR (`import.meta.env.SSR`) the client is pointed at the request's
- * ABSOLUTE origin (`${origin}/api`) so Node's `fetch` can parse the URL, and the
- * cookie-forwarding interceptor carries the session; in the browser the
- * same-origin relative `/api` default and the CSRF interceptor apply. The origin
- * is stable per host, so configuring it once on the first request is correct.
- */
-function ensureConfigured(): void {
-  if (configured) {
-    return;
-  }
+function configureClient(): void {
   if (import.meta.env.SSR) {
-    const context: SsrRequestContext | undefined = getSsrRequestContext();
-    configureBffClient(context ? { baseUrl: `${context.origin}/api` } : {});
-    wireSsrCookieInterceptor(client);
+    configureSsrClient(getSsrRequestContext());
   } else {
     configureBffClient();
     wireCsrfInterceptor(client);
   }
-  configured = true;
-}
-
-/** The `{ data, error }` envelope every generated op resolves to. */
-interface Envelope<T> {
-  data?: T;
-  error?: unknown;
-}
-
-/**
- * Await a generated op and unwrap its `{ data, error }` envelope: return `data`
- * on success, THROW the `error` (as ProblemDetails) on failure. React Query
- * turns the thrown value into an error state, so slice methods never leak
- * `undefined`.
- */
-async function unwrap<T>(p: Promise<Envelope<T>>): Promise<T> {
-  const { data, error } = await p;
-  if (error !== undefined) {
-    throw error as ProblemDetails;
-  }
-  return data as T;
 }
 
 /** Organizations slice — the template every later feature slice copies. */
@@ -374,10 +323,8 @@ const sdk: WallowSdk = {
 };
 
 /**
- * Return the singleton facade, configuring the BFF client and CSRF interceptor
- * on first use.
+ * Return the singleton facade, configuring the BFF client and matching request
+ * interceptor on first use. The one-time configure-then-build guard is the SDK's
+ * shared {@link createConfiguredOnce} helper.
  */
-export function getWallowSdk(): WallowSdk {
-  ensureConfigured();
-  return sdk;
-}
+export const getWallowSdk: () => WallowSdk = createConfiguredOnce(configureClient, () => sdk);

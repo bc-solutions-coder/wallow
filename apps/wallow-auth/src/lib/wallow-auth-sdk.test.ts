@@ -13,9 +13,11 @@ import type { WallowAuthSdk } from "./wallow-auth-sdk";
  * header contract — not the wire, and not the SDK's own behaviour, which
  * .2.1/.2.2 already pin.
  *
- * The app-local `./csrf` module is deliberately NOT mocked: the acceptance
- * criterion is that the interceptor is really attached and really injects the
- * header on a mutating request, which only the real interceptor can show.
+ * The SDK's csrf module (`wireCsrfInterceptor`/`setCsrfToken`/`isSafeMethod`) is
+ * deliberately delegated to the REAL implementation inside the SDK mock: the
+ * acceptance criterion is that the interceptor is really attached and really
+ * injects the header on a mutating request, which only the real interceptor can
+ * show.
  */
 
 /** Every method the SDK's `AuthClient` exposes; `.auth` must surface them all. */
@@ -92,9 +94,38 @@ const mocks = vi.hoisted(() => {
     authClient[name] = vi.fn();
   }
 
+  // Real-behaviour CSRF store + interceptor, delegated into the SDK mock so the
+  // facade wires a GENUINELY working interceptor that reads the token live (the
+  // SDK's own `csrf.test.ts` pins the header contract in isolation; here we only
+  // need to prove the facade attaches it and keeps the store in sync). The token
+  // lives in this hoisted closure so `setCsrfToken` and the wired interceptor
+  // share one instance across `vi.resetModules()`; `resetCsrf` clears it so each
+  // `freshFacade()` starts from the anonymous, token-less state.
+  const safeMethods: ReadonlySet<string> = new Set(["GET", "HEAD", "OPTIONS"]);
+  let csrfToken: string | null = null;
+
   return {
     authClient,
     createAuthClient: vi.fn(() => authClient),
+    // Real (passthrough) guard: the collapsed facade builds getWallowAuthSdk via
+    // the SDK's createConfiguredOnce, so the mock supplies a working lazy
+    // singleton. A fresh closure per module graph is what freshFacade()'s
+    // vi.resetModules relies on for a clean singleton each test.
+    createConfiguredOnce: <TFacade>(
+      configure: () => void,
+      build: () => TFacade,
+    ): (() => TFacade) => {
+      let facade: TFacade | undefined;
+      let ready = false;
+      return (): TFacade => {
+        if (!ready) {
+          configure();
+          facade = build();
+          ready = true;
+        }
+        return facade as TFacade;
+      };
+    },
     configureBffClient: vi.fn(),
     client: { interceptors: { request: { use: vi.fn() } } },
     isSafeReturnUrl: vi.fn(),
@@ -102,11 +133,29 @@ const mocks = vi.hoisted(() => {
     buildConsentSubmitUrl: vi.fn(),
     buildExchangeTicketUrl: vi.fn(),
     buildConnectLogoutUrl: vi.fn(),
+    isSafeMethod: (method: string): boolean => safeMethods.has(method.toUpperCase()),
+    setCsrfToken: (token: string | null): void => {
+      csrfToken = token;
+    },
+    wireCsrfInterceptor: (client: {
+      interceptors: { request: { use: (interceptor: (request: Request) => Request) => void } };
+    }): void => {
+      client.interceptors.request.use((request: Request): Request => {
+        if (csrfToken !== null && !safeMethods.has(request.method.toUpperCase())) {
+          request.headers.set("x-csrf-token", csrfToken);
+        }
+        return request;
+      });
+    },
+    resetCsrf: (): void => {
+      csrfToken = null;
+    },
   };
 });
 
 vi.mock("@bc-solutions-coder/sdk", () => ({
   createAuthClient: mocks.createAuthClient,
+  createConfiguredOnce: mocks.createConfiguredOnce,
   configureBffClient: mocks.configureBffClient,
   client: mocks.client,
   isSafeReturnUrl: mocks.isSafeReturnUrl,
@@ -114,6 +163,9 @@ vi.mock("@bc-solutions-coder/sdk", () => ({
   buildConsentSubmitUrl: mocks.buildConsentSubmitUrl,
   buildExchangeTicketUrl: mocks.buildExchangeTicketUrl,
   buildConnectLogoutUrl: mocks.buildConnectLogoutUrl,
+  isSafeMethod: mocks.isSafeMethod,
+  setCsrfToken: mocks.setCsrfToken,
+  wireCsrfInterceptor: mocks.wireCsrfInterceptor,
 }));
 
 /**
@@ -121,20 +173,19 @@ vi.mock("@bc-solutions-coder/sdk", () => ({
  * then hand back the entry point AND the `setCsrfToken` from the SAME module
  * graph.
  *
- * Returning `setCsrfToken` from the fresh graph is not incidental: after
- * `vi.resetModules()` a statically imported `./csrf` would be a DIFFERENT module
- * instance than the one the re-imported facade wires, so a token set through the
- * static import would be invisible to the live interceptor (the cross-graph trap
- * in bd memory `vitest-resetmodules-breaks-instanceof-across-graphs`). Both
- * bindings must come from one `import()` after one reset.
+ * The CSRF store now lives in the SDK mock's hoisted closure (stable across
+ * `vi.resetModules()`), so `mocks.setCsrfToken` and the interceptor the facade
+ * wires always share one token instance — no cross-graph trap. Each call clears
+ * that token via `resetCsrf()` so every test starts anonymous/token-less.
  */
 async function freshFacade(): Promise<{
   getWallowAuthSdk: () => WallowAuthSdk;
   setCsrfToken: (token: string | null) => void;
 }> {
   vi.resetModules();
-  const [facade, csrf] = await Promise.all([import("./wallow-auth-sdk"), import("./csrf")]);
-  return { getWallowAuthSdk: facade.getWallowAuthSdk, setCsrfToken: csrf.setCsrfToken };
+  mocks.resetCsrf();
+  const facade = await import("./wallow-auth-sdk");
+  return { getWallowAuthSdk: facade.getWallowAuthSdk, setCsrfToken: mocks.setCsrfToken };
 }
 
 /**

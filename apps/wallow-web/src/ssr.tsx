@@ -1,8 +1,8 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 
+import { setSsrRequestContextResolver, type SsrRequestContext } from "@bc-solutions-coder/sdk";
 import { createRequestHandler, defaultRenderHandler } from "@tanstack/react-router/ssr/server";
 
-import { setSsrRequestContextResolver, type SsrRequestContext } from "./lib/ssr-request-context";
 import { createRouter } from "./router";
 
 /**

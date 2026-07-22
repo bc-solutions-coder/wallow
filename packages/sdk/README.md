@@ -4,7 +4,7 @@ TypeScript SDK for Wallow. It ships two entry points:
 
 | Import                           | Runs in | Contains                                                                                                   |
 | -------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------- |
-| `@bc-solutions-coder/sdk`        | Browser | `configureBffClient()`, `login()`, `logout()`, `getUser()`, and the generated typed API operations         |
+| `@bc-solutions-coder/sdk`        | Browser (also safe to import from a Node SSR entry) | `configureBffClient()`, `login()`, `logout()`, `getUser()`, the generated typed API operations, the CSRF module (`isSafeMethod`, `setCsrfToken`, `wireCsrfInterceptor`), the SSR request-context seam (`configureSsrClient`, `getSsrRequestContext`, `setSsrRequestContextResolver`, `wireSsrCookieInterceptor`), and the facade helpers (`unwrap()`, `createConfiguredOnce()`) |
 | `@bc-solutions-coder/sdk/server` | Node    | `createBffHandlers()`, `createApiProxy()`, `loadBffConfigFromEnv()`, the session stores, and `WallowError` |
 
 The browser never holds a token. Your server runs the OIDC Authorization Code
@@ -212,43 +212,141 @@ How the token is delivered:
   credential of its own; the session cookie remains `HttpOnly`.
 - `GET /bff/user` also returns the token as `csrfToken` in its JSON body.
 
-Echo it back in the `x-csrf-token` header on every state-changing request:
+The SDK's `csrf` module owns the client side of this exchange, so you never
+hand-roll a request interceptor or read the companion cookie yourself:
 
 ```ts
-function csrfToken(): string {
-  const match: RegExpMatchArray | null = document.cookie.match(/(?:^|;\s*)wallow_bff-csrf=([^;]*)/);
-  return match === null ? "" : decodeURIComponent(match[1]);
-}
-
-await fetch("/api/v1/inquiries", {
-  method: "POST",
-  credentials: "include",
-  headers: {
-    "content-type": "application/json",
-    "x-csrf-token": csrfToken(),
-  },
-  body: JSON.stringify({ subject: "Hello" }),
-});
-```
-
-To attach it to every generated typed operation instead of hand-rolling each
-call, register a request interceptor on the shared client:
-
-```ts
-import { client, configureBffClient } from "@bc-solutions-coder/sdk";
+import { client, configureBffClient, getUser, setCsrfToken, wireCsrfInterceptor } from "@bc-solutions-coder/sdk";
 
 configureBffClient();
+wireCsrfInterceptor(client); // stamps x-csrf-token on every state-changing request, live
 
-client.interceptors.request.use((request: Request): Request => {
-  if (request.method !== "GET" && request.method !== "HEAD") {
-    request.headers.set("x-csrf-token", csrfToken());
-  }
-  return request;
-});
+const user = await getUser();
+setCsrfToken(user === null ? null : typeof user.csrfToken === "string" ? user.csrfToken : null);
 ```
+
+- `wireCsrfInterceptor(client)` registers a request interceptor exactly once:
+  it stamps the in-memory token into `x-csrf-token` on every request whose
+  method is not CSRF-exempt, and leaves safe methods and the token-less state
+  untouched. It accepts anything shaping up like the generated client
+  (`CsrfInterceptorClient`), so it also wires onto a client instance you build
+  yourself.
+- `setCsrfToken(token)` updates the in-memory token the interceptor reads
+  live — call it once you have read `csrfToken` off the `/bff/user` response
+  (or `null` it out on logout).
+- `isSafeMethod(method)` is the RFC 9110 safe-method check
+  (`GET`/`HEAD`/`OPTIONS`) the interceptor uses internally; it is exported in
+  case a host needs the same rule elsewhere.
 
 The header name is exported server-side as `CSRF_HEADER`, and the rejection code
 as `CSRF_INVALID_CODE`. `GET`, `HEAD`, `OPTIONS`, and `TRACE` are not gated.
+
+---
+
+## Server-rendered loaders (SSR)
+
+A same-origin BFF app that server-renders authenticated routes (e.g. a TanStack
+Start `loader`) needs two things a browser tab gets for free: an ABSOLUTE
+origin (Node's `fetch` cannot resolve a relative `/api` URL) and the incoming
+request's session cookie (Node has no cookie jar, so `credentials: "include"`
+sends an anonymous request). Both are per-request, so the browser-entry `ssr`
+seam resolves them per render instead of once at startup:
+
+```ts
+// node-only SSR entry (e.g. ssr.tsx) — owns the AsyncLocalStorage
+import { AsyncLocalStorage } from "node:async_hooks";
+import { setSsrRequestContextResolver, type SsrRequestContext } from "@bc-solutions-coder/sdk";
+
+const requestContextStore = new AsyncLocalStorage<SsrRequestContext>();
+setSsrRequestContextResolver(() => requestContextStore.getStore());
+
+export function render(request: Request): Promise<Response> {
+  const context: SsrRequestContext = {
+    origin: new URL(request.url).origin,
+    cookie: request.headers.get("cookie") ?? undefined,
+  };
+  return requestContextStore.run(context, () => /* render the app */ renderApp());
+}
+```
+
+```ts
+// isomorphic facade — branches on import.meta.env.SSR (or your bundler's equivalent)
+import { configureBffClient, configureSsrClient, getSsrRequestContext } from "@bc-solutions-coder/sdk";
+
+function configureClient(): void {
+  if (import.meta.env.SSR) {
+    configureSsrClient(getSsrRequestContext());
+  } else {
+    configureBffClient();
+  }
+}
+```
+
+- `setSsrRequestContextResolver(next)` — call once, in the node-only SSR entry
+  that owns the `AsyncLocalStorage`. Never call it from browser code.
+- `getSsrRequestContext()` — reads the in-flight request's `{ origin, cookie }`,
+  or `undefined` outside a render scope (including every browser call, since
+  the resolver is never registered there).
+- `configureSsrClient(context?)` — points the shared client at
+  `${context.origin}/api` (falling back to the same-origin relative `/api` with
+  no context) and wires `wireSsrCookieInterceptor`, which reads the cookie
+  LIVE per request rather than capturing it at configure time — the client is
+  configured once per host, but every request still carries its own session.
+- `wireSsrCookieInterceptor(target)` — the interceptor itself, exported
+  separately in case you need to wire it onto a client `configureSsrClient`
+  does not manage. It intentionally does not stamp CSRF: only safe `GET`
+  loaders run during SSR.
+
+This module carries no `node:` import — the `AsyncLocalStorage` stays in your
+app's SSR entry — so it is safe to import unconditionally from an isomorphic
+facade without leaking Node-only code into the browser bundle. See
+[`apps/wallow-web/src/ssr.tsx`](../../apps/wallow-web/src/ssr.tsx) for the
+reference SSR entry and
+[`apps/wallow-web/src/lib/wallow-sdk.ts`](../../apps/wallow-web/src/lib/wallow-sdk.ts)
+for the reference isomorphic facade.
+
+---
+
+## Facade helpers: `unwrap()` and `createConfiguredOnce()`
+
+Every `getWallow*Sdk()`-style facade needs the same two pieces of boilerplate
+around the generated ops — the SDK exports them so you do not reimplement
+either:
+
+```ts
+import { createConfiguredOnce, unwrap, wireCsrfInterceptor, client, configureBffClient } from "@bc-solutions-coder/sdk";
+// import { getV1Inquiries } from "@bc-solutions-coder/sdk"; // generated op
+
+function configureClient(): void {
+  configureBffClient();
+  wireCsrfInterceptor(client);
+}
+
+function buildFacade() {
+  return {
+    inquiries: {
+      list: () => unwrap(getV1Inquiries()),
+    },
+  };
+}
+
+export const getMySdk = createConfiguredOnce(configureClient, buildFacade);
+```
+
+- `unwrap(pending)` — awaits a generated op's `{ data, error }` envelope;
+  returns `data` on success and THROWS the raw `error` (an RFC 7807
+  `ProblemDetails` object, by identity — not wrapped in a typed error) when
+  `error` is defined. Feature code reads the thrown value directly, e.g.
+  `(mutation.error as ProblemDetails).detail`.
+- `createConfiguredOnce(configure, build)` — a guarded-singleton getter: the
+  first call runs `configure()` then `build()` and memoizes the result; every
+  later call returns the same instance without re-running either. Nothing runs
+  until the getter is first invoked.
+
+Both reference facades — [`apps/wallow-web/src/lib/wallow-sdk.ts`](../../apps/wallow-web/src/lib/wallow-sdk.ts)
+and [`apps/wallow-auth/src/lib/wallow-auth-sdk.ts`](../../apps/wallow-auth/src/lib/wallow-auth-sdk.ts)
+— are built this way: they keep only their app-specific slice definitions and
+call these two helpers for the shared boilerplate.
 
 ---
 
@@ -283,7 +381,7 @@ that is inside the expiry skew window, so most requests never see a 401 at all.
 pnpm install
 pnpm test        # vitest
 pnpm typecheck   # tsc --noEmit
-pnpm build       # tsup -> dist/
+pnpm build       # vite build (library mode) + tsc -> dist/
 pnpm generate    # regenerate src/generated from openapi/v1.json
 ```
 

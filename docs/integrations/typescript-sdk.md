@@ -18,7 +18,7 @@ you.
 
 | Import | Runs in | Purpose |
 |--------|---------|---------|
-| `@bc-solutions-coder/sdk` | Browser | `login()`, `logout()`, `getUser()`, and a typed API client configured to call the same-origin `/api` proxy |
+| `@bc-solutions-coder/sdk` | Browser (also safe to import from a Node SSR entry) | `login()`, `logout()`, `getUser()`, a typed API client configured to call the same-origin `/api` proxy, the [CSRF module](#csrf-protection), the [SSR request-context seam](#ssr-request-context-for-server-rendered-loaders), and the [facade helpers](#facade-helpers-unwrap-and-createconfiguredonce) |
 | `@bc-solutions-coder/sdk/server` | Server (Node) | `createBffHandlers()`, `createApiProxy()`, `loadBffConfigFromEnv()` — the [h3](https://h3.unjs.io) route handlers that make up the BFF tunnel |
 
 The browser never holds an access token. It holds only a sealed, `httpOnly`
@@ -248,26 +248,30 @@ The SDK uses a synchronizer token with a double-submit companion cookie:
    request. The proxy compares it against the session-bound token in constant
    time before refreshing anything or forwarding anything upstream.
 
+The SDK's `csrf` module owns this exchange on the client side, so app code
+never hand-rolls a request interceptor or reads the companion cookie itself:
+
 ```ts
-import { client, configureBffClient } from "@bc-solutions-coder/sdk";
+import { client, configureBffClient, getUser, setCsrfToken, wireCsrfInterceptor } from "@bc-solutions-coder/sdk";
 
 configureBffClient();
+wireCsrfInterceptor(client); // stamps x-csrf-token on every state-changing request, live
 
-function csrfToken(): string {
-  const match: RegExpMatchArray | null = document.cookie.match(
-    /(?:^|;\s*)wallow_bff-csrf=([^;]*)/,
-  );
-  return match === null ? "" : decodeURIComponent(match[1]);
-}
-
-// Attach the token to every generated operation that mutates state.
-client.interceptors.request.use((request: Request): Request => {
-  if (request.method !== "GET" && request.method !== "HEAD") {
-    request.headers.set("x-csrf-token", csrfToken());
-  }
-  return request;
-});
+const user = await getUser();
+setCsrfToken(user === null ? null : typeof user.csrfToken === "string" ? user.csrfToken : null);
 ```
+
+- `wireCsrfInterceptor(client)` registers a request interceptor exactly once:
+  it stamps the current in-memory token into `x-csrf-token` on every request
+  whose method is not CSRF-exempt, and leaves safe methods (and the
+  token-less, pre-login state) untouched. It takes any object shaped like the
+  generated client (`CsrfInterceptorClient`), not only the SDK's own `client`.
+- `setCsrfToken(token)` sets (or, with `null`, clears) the in-memory token the
+  interceptor reads live — call it once `csrfToken` comes back on the
+  `/bff/user` response, and again with `null` on logout.
+- `isSafeMethod(method)` is the RFC 9110 safe-method check
+  (`GET`/`HEAD`/`OPTIONS`) the interceptor uses internally; it is exported for
+  hosts that need the same rule outside the interceptor.
 
 Server-side the header name is exported as `CSRF_HEADER` and the rejection code
 as `CSRF_INVALID_CODE`, so a BFF host can reuse them rather than hardcode
@@ -355,6 +359,114 @@ base URL: `configureBffClient({ baseUrl: "https://app.example.com/api" })`.
 > name is still exported as a deprecated alias to the same function (and
 > `WallowClientOptions` to `BffClientOptions`), so existing code keeps working.
 > It will be removed in a future major release — prefer `configureBffClient`.
+
+---
+
+## SSR request context for server-rendered loaders
+
+A same-origin BFF app that server-renders authenticated routes (a TanStack
+Start `loader`, for example) needs two things a browser tab gets for free: an
+ABSOLUTE origin — Node's `fetch` cannot resolve a relative `/api` URL — and the
+incoming request's session cookie — Node has no cookie jar, so
+`credentials: "include"` alone sends an anonymous request. Both are
+request-scoped, so they must be resolved per render rather than configured
+once at startup. The browser-entry `ssr` seam provides that resolution without
+pulling any `node:` import into the browser bundle:
+
+```ts
+// node-only SSR entry — owns the AsyncLocalStorage that scopes each render
+import { AsyncLocalStorage } from "node:async_hooks";
+import { setSsrRequestContextResolver, type SsrRequestContext } from "@bc-solutions-coder/sdk";
+
+const requestContextStore = new AsyncLocalStorage<SsrRequestContext>();
+setSsrRequestContextResolver(() => requestContextStore.getStore());
+
+export function render(request: Request): Promise<Response> {
+  const context: SsrRequestContext = {
+    origin: new URL(request.url).origin,
+    cookie: request.headers.get("cookie") ?? undefined,
+  };
+  return requestContextStore.run(context, () => renderApp());
+}
+```
+
+```ts
+// isomorphic facade — branches on the SSR flag your bundler exposes
+import { configureBffClient, configureSsrClient, getSsrRequestContext } from "@bc-solutions-coder/sdk";
+
+function configureClient(): void {
+  if (import.meta.env.SSR) {
+    configureSsrClient(getSsrRequestContext());
+  } else {
+    configureBffClient();
+  }
+}
+```
+
+- `setSsrRequestContextResolver(next)` — register the resolver once, from the
+  node-only SSR entry that owns the `AsyncLocalStorage`. Never call this from
+  browser code.
+- `getSsrRequestContext()` — reads the in-flight request's
+  `{ origin, cookie }`, or `undefined` outside a render scope — which is every
+  call in the browser bundle, since the resolver is never registered there.
+- `configureSsrClient(context?)` — points the shared client at
+  `${context.origin}/api` (or the same-origin relative `/api` default with no
+  context) and wires `wireSsrCookieInterceptor` onto it. The cookie is read
+  LIVE per request by the interceptor, not captured at configure time, so
+  configuring the client once per host still forwards the correct session on
+  every request.
+- `wireSsrCookieInterceptor(target)` — the interceptor itself, exported
+  separately for wiring onto a client `configureSsrClient` does not manage.
+  It intentionally does not stamp CSRF: only safe `GET` loaders run during
+  SSR, and CSRF only gates state-changing methods.
+
+`apps/wallow-web/src/ssr.tsx` is the reference SSR entry (owns the
+`AsyncLocalStorage` and calls `setSsrRequestContextResolver` once), and
+`apps/wallow-web/src/lib/wallow-sdk.ts` is the reference isomorphic facade
+that branches `configureClient()` on `import.meta.env.SSR` as shown above.
+
+---
+
+## Facade helpers: `unwrap()` and `createConfiguredOnce()`
+
+Every `getWallow*Sdk()`-style facade wraps the generated ops with the same two
+pieces of boilerplate — the SDK exports them so app facades keep only their
+slice definitions:
+
+```ts
+import { createConfiguredOnce, unwrap, wireCsrfInterceptor, client, configureBffClient } from "@bc-solutions-coder/sdk";
+// import { getV1Inquiries } from "@bc-solutions-coder/sdk"; // generated op
+
+function configureClient(): void {
+  configureBffClient();
+  wireCsrfInterceptor(client);
+}
+
+function buildFacade() {
+  return {
+    inquiries: {
+      list: () => unwrap(getV1Inquiries()),
+    },
+  };
+}
+
+export const getMySdk = createConfiguredOnce(configureClient, buildFacade);
+```
+
+- `unwrap(pending)` — awaits a generated op's `{ data, error }` envelope and
+  returns `data` on success. When `error` is defined it THROWS that raw error
+  (an RFC 7807 `ProblemDetails` object, by reference — not wrapped in a typed
+  error), so feature code reads it directly, e.g.
+  `(mutation.error as ProblemDetails).detail`.
+- `createConfiguredOnce(configure, build)` — a guarded-singleton getter. The
+  first call runs `configure()` then `build()` and memoizes the result; every
+  later call returns that same instance without re-running either. Nothing
+  runs until the getter is first invoked.
+
+Both reference apps' facades — `apps/wallow-web/src/lib/wallow-sdk.ts` and
+`apps/wallow-auth/src/lib/wallow-auth-sdk.ts` — are built this way: each keeps
+only its own namespaced slice methods and calls these two helpers for the
+shared configure-once and unwrap boilerplate.
 
 ---
 

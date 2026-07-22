@@ -281,6 +281,35 @@ Use a dedicated Valkey database or key namespace for BFF sessions. Set appropria
 
 ---
 
+## Building a TypeScript BFF? Don't hand-roll this part
+
+Everything above is the wire protocol, useful for any language or framework.
+If your BFF is TypeScript, [`@bc-solutions-coder/sdk`](typescript-sdk.md)
+already implements two pieces of it that are easy to get subtly wrong by hand:
+
+- **CSRF token wiring.** The SDK's `csrf` module (`setCsrfToken`,
+  `wireCsrfInterceptor`, `isSafeMethod`) is the client-side half of the
+  synchronizer-token gate — it stamps the current token onto every
+  state-changing request and leaves safe methods alone. See
+  [CSRF protection](typescript-sdk.md#csrf-protection).
+- **SSR cookie forwarding.** If your BFF also server-renders authenticated
+  routes, an SSR-time request runs on Node, which has no cookie jar and
+  cannot resolve a relative URL — it needs the incoming request's absolute
+  origin and session cookie forwarded explicitly, per request. The SDK's
+  `ssr` seam (`setSsrRequestContextResolver`, `configureSsrClient`,
+  `wireSsrCookieInterceptor`) resolves both without leaking a `node:` import
+  into the browser bundle. `apps/wallow-web/src/ssr.tsx` is the reference
+  consumer: it owns the `AsyncLocalStorage` that scopes each incoming
+  request and registers it with the SDK once, at module scope. See
+  [SSR request context for server-rendered loaders](typescript-sdk.md#ssr-request-context-for-server-rendered-loaders).
+
+Reach for these instead of reimplementing the interceptor and cookie-jar
+plumbing shown in the [Example Implementations](#example-implementations)
+below — they exist specifically so a TypeScript BFF does not have to
+reinvent this glue.
+
+---
+
 ## Example Implementations
 
 ### Node.js / Express BFF

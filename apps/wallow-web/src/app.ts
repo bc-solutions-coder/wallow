@@ -29,11 +29,11 @@ import {
   login,
   logout,
   postV1IdentityOrganizations,
+  setCsrfToken,
+  wireCsrfInterceptor,
   type ProblemDetails,
   type WallowUser,
 } from "@bc-solutions-coder/sdk";
-
-import { setCsrfToken, wireCsrfInterceptor } from "./lib/csrf";
 
 // Point the generated client at the same-origin `/api` BFF proxy and send the
 // httpOnly session cookie with every request. Every generated operation below
@@ -44,8 +44,8 @@ configureBffClient();
 // Echo the CSRF token on every state-changing request. Without this the proxy
 // answers 403 `CSRF_INVALID` and the request never reaches the API — which is
 // exactly what stops a cross-site form post from riding on the session cookie.
-// The token store and interceptor live in `./lib/csrf`; here we just wire it
-// onto the shared client and keep the store in sync with `/bff/user`.
+// The token store and interceptor live in `@bc-solutions-coder/sdk`; here we
+// just wire it onto the shared client and keep the store in sync with `/bff/user`.
 wireCsrfInterceptor(client);
 
 function requireElement<T extends HTMLElement>(testId: string): T {
