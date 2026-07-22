@@ -25,6 +25,7 @@ export default defineConfig({
       entry: {
         index: fileURLToPath(new URL("src/index.ts", import.meta.url)),
         assets: fileURLToPath(new URL("src/assets.ts", import.meta.url)),
+        vite: fileURLToPath(new URL("src/vite.ts", import.meta.url)),
       },
       formats: ["es"],
     },

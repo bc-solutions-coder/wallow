@@ -7,7 +7,8 @@ Wallow's frontend is two separate TanStack Start (React) applications:
 
 Both are part of the pnpm workspace and talk to `Wallow.Api` (the headless backend) for all
 backend operations. They share branding configuration via `api/branding.json` at the repository
-root, consumed through the `@bc-solutions-coder/styles` package.
+root, consumed through the `@bc-solutions-coder/styles` package, which also owns the entire
+Tailwind v4 build (see [Styling and Tailwind Setup](#styling-and-tailwind-setup)).
 
 `wallow-auth` runs a small [h3](https://h3.unjs.io/) server that same-origin reverse-proxies
 `/v1/**`, `/connect/**`, and `/.well-known/**` to the API, so the OIDC endpoints appear on the
@@ -109,6 +110,81 @@ pnpm --filter @bc-solutions-coder/wallow-web dev
 
 The TanStack apps read `PORT` from the environment and fall back to the defaults above. Keep any
 new local port clear of those and of Grafana on 3001.
+
+## Styling and Tailwind Setup
+
+`@bc-solutions-coder/styles` owns the entire Tailwind v4 pipeline: the Tailwind compiler plugin,
+the brand-assets (icon/logo) static-file wiring, and the theme token CSS emitted from
+`api/branding.json`. Bootstrapping a new TanStack Start app in this workspace needs only three
+steps:
+
+1. **Add the workspace dependency** to the app's `package.json`:
+
+   ```json
+   {
+     "dependencies": {
+       "@bc-solutions-coder/styles": "workspace:*"
+     }
+   }
+   ```
+
+   No `@tailwindcss/vite` or `tailwindcss` devDependency is needed — `@bc-solutions-coder/styles`
+   depends on both directly and re-exports the Vite plugin.
+
+2. **Register `wallowStyles()`** (from `@bc-solutions-coder/styles/vite`) in the app's Vite
+   plugin list — in `vite.config.ts`, and in `dev-server.ts` too if the app runs a custom dev
+   server:
+
+   ```ts
+   import { wallowStyles } from "@bc-solutions-coder/styles/vite";
+
+   export default defineConfig({
+     plugins: [react(), ...wallowStyles()],
+     // ...
+   });
+   ```
+
+   `wallowStyles()` returns a `PluginOption[]` containing the Tailwind compiler plugin and a
+   brand-assets plugin that points `publicDir` at the shared package's `assets/` directory
+   (brand icon, etc.) through its own `config()` hook — the app never sets `publicDir` itself.
+
+3. **Create the CSS entry** at `src/styles.css`, exactly two lines:
+
+   ```css
+   @import "@bc-solutions-coder/styles/styles.css";
+   @source "./";
+   ```
+
+   The `@import` pulls in the Tailwind base layer and the branding-driven theme tokens. The
+   `@source "./"` line is the one thing an app must always own: Tailwind v4 resolves `@source`
+   paths relative to the declaring stylesheet, so the shared package can never scan an app's own
+   component tree for utility classes on its behalf.
+
+   Import that file once, from the app's client entry point (`src/client.tsx`):
+
+   ```ts
+   import "./styles.css";
+   ```
+
+That's the entire setup — nothing else is required. No per-app `@tailwindcss/vite`
+devDependency, no manual `publicDir` wiring, no explanatory boilerplate duplicated into the
+app's own CSS file (the shared package's `styles.css` already documents the `@source`
+constraint).
+
+### Docker builds
+
+Because the app's Tailwind build depends on `@bc-solutions-coder/styles` and, transitively, on
+`api/branding.json`, an app's Dockerfile must, before building the app image:
+
+- `COPY packages/styles/package.json packages/styles/` alongside the other workspace manifests
+  (before `pnpm install --frozen-lockfile`)
+- `COPY packages/styles packages/styles` and `COPY api/branding.json api/branding.json` (before
+  the build step)
+- Build the styles package before the app, e.g.
+  `pnpm --filter @bc-solutions-coder/styles build`, since the app's Vite build imports the
+  package's built `dist/` output (brand asset paths), not its source
+
+`apps/wallow-auth/Dockerfile` and `apps/wallow-web/Dockerfile` are the reference examples.
 
 ## Branding Customization
 

@@ -24,6 +24,7 @@ WORKDIR /repo
 # locally so no NODE_AUTH_TOKEN is needed at build time.
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc tsconfig.base.json ./
 COPY packages/sdk/package.json packages/sdk/
+COPY packages/styles/package.json packages/styles/
 COPY apps/wallow-auth/package.json apps/wallow-auth/
 
 RUN pnpm install --frozen-lockfile
@@ -32,14 +33,16 @@ RUN pnpm install --frozen-lockfile
 # statically imports ../../../../api/branding.json so Vite inlines it into both
 # bundles. It lives outside apps/ (it is the one source of fork identity shared
 # with the .NET apps), so it must be copied in explicitly or `vite build` fails
-# with UNRESOLVED_IMPORT. wallow-web's Dockerfile has no equivalent line because
-# nothing in wallow-web imports it.
+# with UNRESOLVED_IMPORT. wallow-web copies it too, because @bc-solutions-coder/styles
+# statically imports api/branding.json and both apps now consume that package.
 COPY api/branding.json api/branding.json
 
-# Copy the SDK and app sources, then build the SDK dist the app imports
-# (@bc-solutions-coder/sdk -> packages/sdk/dist) followed by the app's own
+# Copy the SDK, styles, and app sources, then build the SDK + styles dist the
+# app imports (@bc-solutions-coder/sdk -> packages/sdk/dist,
+# @bc-solutions-coder/styles -> packages/styles/dist) followed by the app's own
 # client + SSR bundles.
 COPY packages/sdk packages/sdk
+COPY packages/styles packages/styles
 COPY apps/wallow-auth apps/wallow-auth
 
 # Both halves of `pnpm build` (vite build && vite build --config
@@ -49,6 +52,7 @@ COPY apps/wallow-auth apps/wallow-auth
 # gitignored, so it never arrives via the build context — it only exists if
 # built here.
 RUN pnpm --filter @bc-solutions-coder/sdk build \
+    && pnpm --filter @bc-solutions-coder/styles build \
     && pnpm --filter @bc-solutions-coder/wallow-auth build
 
 WORKDIR /repo/apps/wallow-auth

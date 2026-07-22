@@ -1,7 +1,6 @@
 import { fileURLToPath } from "node:url";
 
-import { brandAssetsDir } from "@bc-solutions-coder/styles/assets";
-import tailwindcss from "@tailwindcss/vite";
+import { wallowStyles } from "@bc-solutions-coder/styles/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
@@ -25,13 +24,13 @@ import { defineConfig } from "vite";
 // rather than Vite's html-entry app build: there is no index.html for Vite to
 // crawl — the HTML is server-rendered.
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
-  // The shared styles package owns the brand assets (piggy-icon.svg); pointing
-  // publicDir at it copies them verbatim and unhashed into build.outDir
-  // (dist/client), which server.ts already serves at the root — so `/piggy-icon.svg`
-  // resolves with no per-app copy and no new server code. This app has no
-  // public/ of its own, so nothing is displaced.
-  publicDir: brandAssetsDir,
+  // `wallowStyles()` from the shared package supplies the Tailwind compiler
+  // plugin AND the brand-assets plugin that points publicDir at the
+  // package's assets dir (piggy-icon.svg) — copied verbatim and unhashed into
+  // build.outDir (dist/client), which server.ts already serves at the root, so
+  // `/piggy-icon.svg` resolves with no per-app copy. This app has no public/ of
+  // its own, so nothing is displaced.
+  plugins: [react(), ...wallowStyles()],
   build: {
     outDir: "dist/client",
     emptyOutDir: true,

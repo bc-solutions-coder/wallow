@@ -39,8 +39,7 @@ import {
 } from "node:http";
 import { Readable } from "node:stream";
 
-import { brandAssetsDir } from "@bc-solutions-coder/styles/assets";
-import tailwindcss from "@tailwindcss/vite";
+import { wallowStyles } from "@bc-solutions-coder/styles/vite";
 import { createServer as createViteServer, type ViteDevServer } from "vite";
 
 import { isBffProxyPath } from "./src/lib/proxy-topology";
@@ -72,14 +71,13 @@ const vite: ViteDevServer = await createViteServer({
   // renders `<html>`/`<head>` itself (routes/__root.tsx) — so anything prepended
   // to `<head>` shifts the nodes React hydrates against, mismatching hydration
   // and taking the readiness signal down with it. Vite's built-in esbuild still
-  // transforms the JSX. `@tailwindcss/vite` must be wired in or the `styles.css`
+  // transforms the JSX. `wallowStyles()` must be wired in or the `styles.css`
   // entry `src/client.tsx` imports is served with `@import "tailwindcss"` left
-  // verbatim, and `pnpm dev` renders every screen unstyled (Wallow-ffpq.3.4).
-  plugins: [tailwindcss()],
-  // publicDir must be set here too or the fork icon 404s under `pnpm dev` (it
-  // would default to a nonexistent ./public). Serves the shared styles package's
-  // assets at the root.
-  publicDir: brandAssetsDir,
+  // verbatim, and `pnpm dev` renders every screen unstyled (Wallow-ffpq.3.4). It
+  // also contributes publicDir (the shared styles package's brand assets) via its
+  // brand-assets plugin's config() hook, so the fork icon resolves under
+  // `pnpm dev` instead of 404ing against a nonexistent ./public.
+  plugins: [...wallowStyles()],
 });
 
 /** Adapt an incoming Node request into a WHATWG `Request` for the router. */

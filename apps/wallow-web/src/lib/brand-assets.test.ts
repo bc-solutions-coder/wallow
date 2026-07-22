@@ -2,6 +2,7 @@ import { statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import type { ConfigEnv, ConfigPluginContext, Plugin, PluginOption, UserConfig } from "vite";
 import { describe, expect, it } from "vitest";
 
 import viteConfig from "../../vite.config";
@@ -28,10 +29,56 @@ const brandAssetsDir: string = fileURLToPath(
   new URL("../../../../packages/styles/assets/", import.meta.url),
 );
 
+/** Flatten Vite's nested plugin option tree down to the concrete plugins. */
+function flattenPlugins(options: readonly PluginOption[]): Plugin[] {
+  const plugins: Plugin[] = [];
+  for (const option of options) {
+    if (!option) {
+      // skip falsy plugin slots
+    } else if (Array.isArray(option)) {
+      plugins.push(...flattenPlugins(option));
+    } else if (typeof option === "object" && "name" in option) {
+      plugins.push(option as Plugin);
+    }
+  }
+  return plugins;
+}
+
+/** Invoke a plugin's `config()` hook the way Vite would, returning its partial config. */
+function invokeConfigHook(plugin: Plugin): UserConfig {
+  const env: ConfigEnv = { command: "serve", mode: "development" };
+  const hook = plugin.config;
+  const ctx: ConfigPluginContext = {
+    ...plugin,
+    warn: () => {},
+    error: () => {},
+    info: () => {},
+    debug: () => {},
+  } as unknown as ConfigPluginContext;
+
+  if (typeof hook === "function") {
+    return (hook.call(ctx, {}, env) as UserConfig | null | undefined) ?? {};
+  }
+  if (hook && typeof hook.handler === "function") {
+    return (hook.handler.call(ctx, {}, env) as UserConfig | null | undefined) ?? {};
+  }
+  return {};
+}
+
 describe("the wallow-web client build", () => {
-  it("takes its static assets from the shared styles package", () => {
-    expect(viteConfig.publicDir).toBeDefined();
-    expect(resolve(String(viteConfig.publicDir))).toBe(resolve(brandAssetsDir));
+  it("takes its static assets from the shared styles package via wallowStyles()", () => {
+    // publicDir is contributed by @bc-solutions-coder/styles/vite's brand-assets
+    // plugin through its config() hook — so it merges with, instead of clobbering,
+    // the rest of the app's Vite config — rather than a raw `publicDir` field this
+    // app owns. Resolve it the way Vite would: find the plugin, run its hook.
+    const brandPlugin: Plugin | undefined = flattenPlugins(
+      viteConfig.plugins as PluginOption[],
+    ).find((plugin: Plugin): boolean => plugin.name === "wallow:brand-assets");
+
+    expect(brandPlugin).toBeDefined();
+    const config: UserConfig = brandPlugin === undefined ? {} : invokeConfigHook(brandPlugin);
+    expect(config.publicDir).toBeDefined();
+    expect(resolve(String(config.publicDir))).toBe(resolve(brandAssetsDir));
   });
 
   it("keeps no brand asset copy of its own", () => {

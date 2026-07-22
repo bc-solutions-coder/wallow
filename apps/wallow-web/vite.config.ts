@@ -1,7 +1,6 @@
 import { fileURLToPath } from "node:url";
 
-import { brandAssetsDir } from "@bc-solutions-coder/styles/assets";
-import tailwindcss from "@tailwindcss/vite";
+import { wallowStyles } from "@bc-solutions-coder/styles/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
@@ -31,8 +30,7 @@ import { defineConfig } from "vite";
 // tracked public/ here is the dead BFF-demo artefact (index.html + app.js), not
 // a client static root, so nothing of value is displaced.
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
-  publicDir: brandAssetsDir,
+  plugins: [react(), ...wallowStyles()],
   build: {
     outDir: "dist/client",
     emptyOutDir: true,

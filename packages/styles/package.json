@@ -20,6 +20,10 @@
     "./assets": {
       "types": "./dist/assets.d.ts",
       "import": "./dist/assets.js"
+    },
+    "./vite": {
+      "types": "./dist/vite.d.ts",
+      "import": "./dist/vite.js"
     }
   },
   "publishConfig": {
@@ -31,6 +35,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

@@ -24,17 +24,28 @@ WORKDIR /repo
 # locally so no NODE_AUTH_TOKEN is needed at build time.
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc tsconfig.base.json ./
 COPY packages/sdk/package.json packages/sdk/
+COPY packages/styles/package.json packages/styles/
 COPY apps/wallow-web/package.json apps/wallow-web/
 
 RUN pnpm install --frozen-lockfile
 
-# Copy the SDK and example sources, then build the SDK dist the example imports
-# (@bc-solutions-coder/sdk/server -> packages/sdk/dist) followed by the example's
+# The fork's branding is a BUILD input: @bc-solutions-coder/styles statically
+# imports api/branding.json (and src/lib/branding.ts re-exports it) so Vite
+# inlines it into the bundle. It lives outside apps/ (the one source of fork
+# identity shared with the .NET apps), so it must be copied in explicitly or
+# `vite build` fails with UNRESOLVED_IMPORT.
+COPY api/branding.json api/branding.json
+
+# Copy the SDK, styles, and example sources, then build the SDK + styles dist
+# the example imports (@bc-solutions-coder/sdk/server -> packages/sdk/dist,
+# @bc-solutions-coder/styles -> packages/styles/dist) followed by the example's
 # Vite client bundle (public/app.js).
 COPY packages/sdk packages/sdk
+COPY packages/styles packages/styles
 COPY apps/wallow-web apps/wallow-web
 
 RUN pnpm --filter @bc-solutions-coder/sdk build \
+    && pnpm --filter @bc-solutions-coder/styles build \
     && pnpm --filter @bc-solutions-coder/wallow-web build
 
 WORKDIR /repo/apps/wallow-web
