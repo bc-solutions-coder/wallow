@@ -24,7 +24,7 @@ public class ServiceAccountFlowTests(WallowApiFactory factory) : IdentityIntegra
         // Step 2: Use token to call protected API
         HttpClient apiClient = Factory.CreateClient();
         apiClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {token}");
-        HttpResponseMessage response = await apiClient.GetAsync("/identity/service-accounts");
+        HttpResponseMessage response = await apiClient.GetAsync("/identity/clients/service-accounts");
 
         // Step 3: Verify successful authentication (not 401)
         response.StatusCode.Should().NotBe(HttpStatusCode.Unauthorized);

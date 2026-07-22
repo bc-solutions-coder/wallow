@@ -78,24 +78,6 @@
       "description": "Access to create, update, and revoke API keys"
     },
     {
-      "code": "sso.read",
-      "displayName": "Read SSO Configuration",
-      "category": "Identity",
-      "description": "Access to read SSO configuration data"
-    },
-    {
-      "code": "sso.manage",
-      "displayName": "Manage SSO Configuration",
-      "category": "Identity",
-      "description": "Access to create, update, and delete SSO configurations"
-    },
-    {
-      "code": "scim.manage",
-      "displayName": "Manage SCIM Provisioning",
-      "category": "Identity",
-      "description": "Access to manage SCIM directory sync configurations"
-    },
-    {
       "code": "serviceaccounts.read",
       "displayName": "Read Service Accounts",
       "category": "Identity",
@@ -234,9 +216,6 @@
         "apikeys.read",
         "apikeys.write",
         "apikeys.manage",
-        "sso.read",
-        "sso.manage",
-        "scim.manage",
         "storage.read",
         "storage.write",
         "announcements.read",
@@ -286,6 +265,28 @@
       "secret": "bcordes-bff-secret",
       "redirectUris": ["http://localhost:3000/bff/callback"],
       "postLogoutRedirectUris": ["http://localhost:3000/"],
+      "scopes": [
+        "openid",
+        "email",
+        "profile",
+        "roles",
+        "offline_access",
+        "inquiries.read",
+        "inquiries.write",
+        "notifications.read",
+        "notifications.write"
+      ]
+    }
+  ],
+  "_productionExampleClients": [
+    {
+      "_comment": "Documentation-only example (ignored by the seeder). Shows a production-shaped confidential BFF client for the reference deployment: issuer = API origin (api.wallow.dev), login UX = auth origin (auth.wallow.dev), cookie domain = .wallow.dev. Copy into the active 'clients' array and set a real secret to activate.",
+      "clientId": "bcordes-web-client",
+      "displayName": "BCordes Web (Production Example)",
+      "tenantName": "Wallow",
+      "secret": "replace-with-a-strong-generated-secret",
+      "redirectUris": ["https://bcordes.dev/bff/callback"],
+      "postLogoutRedirectUris": ["https://bcordes.dev/"],
       "scopes": [
         "openid",
         "email",

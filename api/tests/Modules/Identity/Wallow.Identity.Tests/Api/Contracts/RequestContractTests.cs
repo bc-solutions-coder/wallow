@@ -1,4 +1,3 @@
-using Wallow.Identity.Api.Contracts.Enums;
 using Wallow.Identity.Api.Contracts.Requests;
 using Wallow.Identity.Domain.Enums;
 
@@ -112,49 +111,6 @@ public class RequestContractTests
 
     #endregion
 
-    #region ConfigureSamlSsoRequest
-
-    [Fact]
-    public void ConfigureSamlSsoRequest_WithAllFields_CreatesInstance()
-    {
-        ConfigureSamlSsoRequest request = new(
-            "My IdP", "entity-id", "https://idp/sso", "https://idp/slo",
-            "cert-data", ApiSamlNameIdFormat.Persistent,
-            "mail", "firstName", "lastName", "groups",
-            true, false, "admin", true);
-
-        request.DisplayName.Should().Be("My IdP");
-        request.EntityId.Should().Be("entity-id");
-        request.SsoUrl.Should().Be("https://idp/sso");
-        request.SloUrl.Should().Be("https://idp/slo");
-        request.Certificate.Should().Be("cert-data");
-        request.NameIdFormat.Should().Be(ApiSamlNameIdFormat.Persistent);
-        request.EmailAttribute.Should().Be("mail");
-        request.GroupsAttribute.Should().Be("groups");
-        request.EnforceForAllUsers.Should().BeTrue();
-        request.AutoProvisionUsers.Should().BeFalse();
-        request.DefaultRole.Should().Be("admin");
-        request.SyncGroupsAsRoles.Should().BeTrue();
-    }
-
-    [Fact]
-    public void ConfigureSamlSsoRequest_WithDefaults_HasCorrectAttributeDefaults()
-    {
-        ConfigureSamlSsoRequest request = new(
-            "IdP", "entity", "https://sso", null, "cert", ApiSamlNameIdFormat.Email);
-
-        request.EmailAttribute.Should().Be("email");
-        request.FirstNameAttribute.Should().Be("firstName");
-        request.LastNameAttribute.Should().Be("lastName");
-        request.GroupsAttribute.Should().BeNull();
-        request.EnforceForAllUsers.Should().BeFalse();
-        request.AutoProvisionUsers.Should().BeTrue();
-        request.DefaultRole.Should().BeNull();
-        request.SyncGroupsAsRoles.Should().BeFalse();
-    }
-
-    #endregion
-
     #region UpdateOrganizationSettingsRequest
 
     [Fact]
@@ -201,47 +157,6 @@ public class RequestContractTests
         request.DisplayName.Should().BeNull();
         request.LogoUrl.Should().BeNull();
         request.PrimaryColor.Should().BeNull();
-    }
-
-    #endregion
-
-    #region ConfigureOidcSsoRequest
-
-    [Fact]
-    public void ConfigureOidcSsoRequest_WithAllFields_CreatesInstance()
-    {
-        ConfigureOidcSsoRequest request = new(
-            "Azure AD", "https://issuer", "client-id", "client-secret",
-            "openid email", "email", "given_name", "family_name", "groups",
-            true, false, "user", true);
-
-        request.DisplayName.Should().Be("Azure AD");
-        request.Issuer.Should().Be("https://issuer");
-        request.ClientId.Should().Be("client-id");
-        request.ClientSecret.Should().Be("client-secret");
-        request.Scopes.Should().Be("openid email");
-        request.GroupsAttribute.Should().Be("groups");
-        request.EnforceForAllUsers.Should().BeTrue();
-        request.AutoProvisionUsers.Should().BeFalse();
-        request.DefaultRole.Should().Be("user");
-        request.SyncGroupsAsRoles.Should().BeTrue();
-    }
-
-    [Fact]
-    public void ConfigureOidcSsoRequest_WithDefaults_HasCorrectDefaults()
-    {
-        ConfigureOidcSsoRequest request = new(
-            "IdP", "https://issuer", "cid", "csecret");
-
-        request.Scopes.Should().Be("openid profile email");
-        request.EmailAttribute.Should().Be("email");
-        request.FirstNameAttribute.Should().Be("given_name");
-        request.LastNameAttribute.Should().Be("family_name");
-        request.GroupsAttribute.Should().BeNull();
-        request.EnforceForAllUsers.Should().BeFalse();
-        request.AutoProvisionUsers.Should().BeTrue();
-        request.DefaultRole.Should().BeNull();
-        request.SyncGroupsAsRoles.Should().BeFalse();
     }
 
     #endregion

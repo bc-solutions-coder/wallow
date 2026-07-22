@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Time.Testing;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Domain.Enums;
 using Wallow.Shared.Kernel.Domain;
 using Wallow.Shared.Kernel.Identity;
 
@@ -18,11 +19,37 @@ public class OrganizationTests
         Organization org = Organization.Create(
             _tenantId, "Acme Corp", "acme-corp", _testUserId, TimeProvider.System);
 
-        org.TenantId.Should().Be(_tenantId);
+        org.TenantId.Value.Should().Be(org.Id.Value);
         org.Name.Should().Be("Acme Corp");
         org.Slug.Should().Be("acme-corp");
         org.IsActive.Should().BeTrue();
         org.Members.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Create_YieldsTenantIdEqualToId()
+    {
+        Organization org = Organization.Create(
+            _tenantId, "Acme Corp", "acme-corp", _testUserId, TimeProvider.System);
+
+        // T5.1 invariant: Organization.Create is the only place a tenant id is minted,
+        // so the org IS the tenant (org.Id == TenantId by construction).
+        org.TenantId.Value.Should().Be(org.Id.Value);
+    }
+
+    [Fact]
+    public void Create_MintsAFreshTenantIdPerOrganization()
+    {
+        Organization first = Organization.Create(
+            _tenantId, "Acme Corp", "acme-corp", _testUserId, TimeProvider.System);
+        Organization second = Organization.Create(
+            _tenantId, "Beta Corp", "beta-corp", _testUserId, TimeProvider.System);
+
+        // Each Create mints its own id/tenant equivalence; the caller-supplied value
+        // does not determine the tenant id (Create is the single mint point).
+        second.TenantId.Should().NotBe(first.TenantId);
+        first.TenantId.Value.Should().Be(first.Id.Value);
+        second.TenantId.Value.Should().Be(second.Id.Value);
     }
 
     [Fact]
@@ -50,20 +77,20 @@ public class OrganizationTests
     {
         Organization org = CreateOrganization();
 
-        org.AddMember(_memberUserId, "member", _testUserId, TimeProvider.System);
+        org.AddMember(_memberUserId, OrgMemberRole.Member, _testUserId, TimeProvider.System);
 
         org.Members.Should().HaveCount(1);
         org.Members[0].UserId.Should().Be(_memberUserId);
-        org.Members[0].Role.Should().Be("member");
+        org.Members[0].Role.Should().Be(OrgMemberRole.Member);
     }
 
     [Fact]
     public void AddMember_DuplicateUser_ThrowsBusinessRuleException()
     {
         Organization org = CreateOrganization();
-        org.AddMember(_memberUserId, "member", _testUserId, TimeProvider.System);
+        org.AddMember(_memberUserId, OrgMemberRole.Member, _testUserId, TimeProvider.System);
 
-        Action act = () => org.AddMember(_memberUserId, "admin", _testUserId, TimeProvider.System);
+        Action act = () => org.AddMember(_memberUserId, OrgMemberRole.Admin, _testUserId, TimeProvider.System);
 
         act.Should().Throw<BusinessRuleException>()
             .WithMessage("*already a member*");
@@ -73,7 +100,7 @@ public class OrganizationTests
     public void RemoveMember_ExistingUser_RemovesMemberFromList()
     {
         Organization org = CreateOrganization();
-        org.AddMember(_memberUserId, "member", _testUserId, TimeProvider.System);
+        org.AddMember(_memberUserId, OrgMemberRole.Member, _testUserId, TimeProvider.System);
 
         org.RemoveMember(_memberUserId, _testUserId, TimeProvider.System);
 
@@ -239,7 +266,7 @@ public class OrganizationTests
             _tenantId, "Acme Corp", "acme-corp", _testUserId, _timeProvider);
         _timeProvider.Advance(TimeSpan.FromHours(1));
 
-        org.AddMember(_memberUserId, "member", _testUserId, _timeProvider);
+        org.AddMember(_memberUserId, OrgMemberRole.Member, _testUserId, _timeProvider);
 
         org.UpdatedAt.Should().Be(_timeProvider.GetUtcNow().UtcDateTime);
         org.UpdatedBy.Should().Be(_testUserId);
@@ -250,7 +277,7 @@ public class OrganizationTests
     {
         Organization org = Organization.Create(
             _tenantId, "Acme Corp", "acme-corp", _testUserId, _timeProvider);
-        org.AddMember(_memberUserId, "member", _testUserId, _timeProvider);
+        org.AddMember(_memberUserId, OrgMemberRole.Member, _testUserId, _timeProvider);
         _timeProvider.Advance(TimeSpan.FromHours(1));
 
         org.RemoveMember(_memberUserId, _testUserId, _timeProvider);
@@ -265,8 +292,8 @@ public class OrganizationTests
         Organization org = CreateOrganization();
         Guid secondMember = Guid.NewGuid();
 
-        org.AddMember(_memberUserId, "member", _testUserId, TimeProvider.System);
-        org.AddMember(secondMember, "admin", _testUserId, TimeProvider.System);
+        org.AddMember(_memberUserId, OrgMemberRole.Member, _testUserId, TimeProvider.System);
+        org.AddMember(secondMember, OrgMemberRole.Admin, _testUserId, TimeProvider.System);
 
         org.Members.Should().HaveCount(2);
         org.Members.Should().Contain(m => m.UserId == _memberUserId);

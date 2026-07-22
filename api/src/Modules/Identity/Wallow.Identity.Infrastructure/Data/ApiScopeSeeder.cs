@@ -76,14 +76,6 @@ public sealed partial class ApiScopeSeeder(ILogger<ApiScopeSeeder> logger)
         yield return ApiScope.Create("apikeys.manage", "Full API Key Management", "Identity",
             "Access to create, update, and revoke API keys");
 
-        // Identity - SSO/SCIM
-        yield return ApiScope.Create("sso.read", "Read SSO Configuration", "Identity",
-            "Access to read SSO configuration data");
-        yield return ApiScope.Create("sso.manage", "Manage SSO Configuration", "Identity",
-            "Access to create, update, and delete SSO configurations");
-        yield return ApiScope.Create("scim.manage", "Manage SCIM Provisioning", "Identity",
-            "Access to manage SCIM directory sync configurations");
-
         // Identity - Service Accounts
         yield return ApiScope.Create("serviceaccounts.read", "Read Service Accounts", "Identity",
             "Access to read service account data", isDefault: true);

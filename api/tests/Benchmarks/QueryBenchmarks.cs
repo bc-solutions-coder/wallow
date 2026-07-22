@@ -1,10 +1,6 @@
 using BenchmarkDotNet.Attributes;
-using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
-using Wallow.Identity.Domain.Entities;
-using Wallow.Identity.Infrastructure.Persistence;
-using Wallow.Identity.Infrastructure.Repositories;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Storage.Domain.Entities;
@@ -18,13 +14,10 @@ namespace Wallow.Benchmarks;
 [ShortRunJob]
 public sealed class QueryBenchmarks : IDisposable
 {
-    private SqliteConnection _identityConnection = null!;
     private SqliteConnection _storageConnection = null!;
 
-    private IdentityDbContext _identityDbContext = null!;
     private StorageDbContext _storageDbContext = null!;
 
-    private ScimConfigurationRepository _scimConfigRepo = null!;
     private StorageBucketRepository _storageBucketRepo = null!;
     private StoredFileRepository _storedFileRepo = null!;
 
@@ -35,19 +28,6 @@ public sealed class QueryBenchmarks : IDisposable
     public void Setup()
     {
         BenchmarkTenantContext tenantContext = new();
-        IDataProtectionProvider dataProtectionProvider = DataProtectionProvider.Create("Wallow.Benchmarks");
-
-        // Identity
-        _identityConnection = new SqliteConnection("DataSource=:memory:");
-        _identityConnection.Open();
-        DbContextOptions<IdentityDbContext> identityOptions = new DbContextOptionsBuilder<IdentityDbContext>()
-            .UseSqlite(_identityConnection)
-            .Options;
-        _identityDbContext = new IdentityDbContext(identityOptions, dataProtectionProvider);
-        _identityDbContext.SetTenant(tenantContext.TenantId);
-        _identityDbContext.Database.EnsureCreated();
-        _scimConfigRepo = new ScimConfigurationRepository(_identityDbContext);
-
 
         // Storage
         _storageConnection = new SqliteConnection("DataSource=:memory:");
@@ -81,18 +61,9 @@ public sealed class QueryBenchmarks : IDisposable
 
     public void Dispose()
     {
-        _identityDbContext.Dispose();
-        _identityConnection.Dispose();
         _storageDbContext.Dispose();
         _storageConnection.Dispose();
         GC.SuppressFinalize(this);
-    }
-
-    [Benchmark]
-    public Task<ScimConfiguration?> ScimConfiguration_Get()
-    {
-        _identityDbContext.ChangeTracker.Clear();
-        return _scimConfigRepo.GetAsync();
     }
 
     [Benchmark]

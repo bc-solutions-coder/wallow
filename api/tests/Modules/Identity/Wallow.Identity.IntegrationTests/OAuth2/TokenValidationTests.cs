@@ -16,7 +16,7 @@ public class TokenValidationTests(WallowApiFactory factory) : IdentityIntegratio
         HttpClient unauthClient = Factory.CreateClient();
         // No Authorization header
 
-        HttpResponseMessage response = await unauthClient.GetAsync("/identity/service-accounts");
+        HttpResponseMessage response = await unauthClient.GetAsync("/identity/clients/service-accounts");
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
@@ -28,7 +28,7 @@ public class TokenValidationTests(WallowApiFactory factory) : IdentityIntegratio
         unauthClient.DefaultRequestHeaders.Add("Authorization", "Bearer invalid.token.here");
         unauthClient.DefaultRequestHeaders.Add("X-Test-Auth-Skip", "true");
 
-        HttpResponseMessage response = await unauthClient.GetAsync("/identity/service-accounts");
+        HttpResponseMessage response = await unauthClient.GetAsync("/identity/clients/service-accounts");
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
@@ -37,7 +37,7 @@ public class TokenValidationTests(WallowApiFactory factory) : IdentityIntegratio
     public async Task Should_Accept_Request_With_Valid_Test_Token()
     {
         // Client already has test auth header via base class
-        HttpResponseMessage response = await Client.GetAsync("/identity/service-accounts");
+        HttpResponseMessage response = await Client.GetAsync("/identity/clients/service-accounts");
 
         // Should not be 401 — TestAuthHandler accepts the token
         response.StatusCode.Should().NotBe(HttpStatusCode.Unauthorized);
@@ -51,7 +51,7 @@ public class TokenValidationTests(WallowApiFactory factory) : IdentityIntegratio
         unauthClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {expiredToken}");
         unauthClient.DefaultRequestHeaders.Add("X-Test-Auth-Skip", "true");
 
-        HttpResponseMessage response = await unauthClient.GetAsync("/identity/service-accounts");
+        HttpResponseMessage response = await unauthClient.GetAsync("/identity/clients/service-accounts");
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }

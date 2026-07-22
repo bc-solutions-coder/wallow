@@ -36,11 +36,11 @@ public class RevokeServiceAccountTests(ServiceAccountTestFactory factory) : Serv
 
         ServiceAccountCreatedResult created = await ServiceAccountService.CreateAsync(createRequest);
 
-        HttpResponseMessage response = await Client.DeleteAsync($"/identity/service-accounts/{created.Id.Value}");
+        HttpResponseMessage response = await Client.DeleteAsync($"/identity/clients/service-accounts/{created.Id.Value}");
 
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
-        HttpResponseMessage getResponse = await Client.GetAsync($"/identity/service-accounts/{created.Id.Value}");
+        HttpResponseMessage getResponse = await Client.GetAsync($"/identity/clients/service-accounts/{created.Id.Value}");
         getResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
@@ -49,7 +49,7 @@ public class RevokeServiceAccountTests(ServiceAccountTestFactory factory) : Serv
     {
         Guid nonExistentId = Guid.NewGuid();
 
-        HttpResponseMessage response = await Client.DeleteAsync($"/identity/service-accounts/{nonExistentId}");
+        HttpResponseMessage response = await Client.DeleteAsync($"/identity/clients/service-accounts/{nonExistentId}");
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
@@ -83,7 +83,7 @@ public class RevokeServiceAccountTests(ServiceAccountTestFactory factory) : Serv
         ServiceAccountCreatedResult created = await ServiceAccountService.CreateAsync(createRequest);
         await ServiceAccountService.RevokeAsync(created.Id);
 
-        HttpResponseMessage rotateResponse = await Client.PostAsync($"/identity/service-accounts/{created.Id.Value}/rotate-secret", null);
+        HttpResponseMessage rotateResponse = await Client.PostAsync($"/identity/clients/service-accounts/{created.Id.Value}/rotate-secret", null);
 
         rotateResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }

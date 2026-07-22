@@ -8,5 +8,5 @@ public sealed class ServiceUrlsOptions
 
     public string AuthUrl { get; set; } = "http://localhost:3002";
 
-    public string WebUrl { get; set; } = "http://localhost:5003";
+    public string WebUrl { get; set; } = "http://localhost:3000";
 }

@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Domain.Enums;
 using Wallow.Identity.Domain.Identity;
 using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Shared.Contracts.Identity.Events;
@@ -37,7 +38,7 @@ public sealed partial class OrganizationService(
 
         if (creatorUserId.HasValue)
         {
-            organization.AddMember(creatorUserId.Value, "admin", creatorUserId.Value, timeProvider);
+            organization.AddMember(creatorUserId.Value, OrgMemberRole.Admin, creatorUserId.Value, timeProvider);
         }
 
         organizationRepository.Add(organization);
@@ -110,7 +111,7 @@ public sealed partial class OrganizationService(
             throw new InvalidOperationException($"Organization {orgId} not found");
         }
 
-        organization.AddMember(userId, "member", Guid.Empty, timeProvider);
+        organization.AddMember(userId, OrgMemberRole.Member, Guid.Empty, timeProvider);
         await organizationRepository.SaveChangesAsync(ct);
 
         string email = await GetUserEmailAsync(userId, ct);
@@ -187,7 +188,7 @@ public sealed partial class OrganizationService(
                     user.FirstName,
                     user.LastName,
                     user.IsActive,
-                    [member.Role]));
+                    [member.Role.ToString()]));
             }
         }
 

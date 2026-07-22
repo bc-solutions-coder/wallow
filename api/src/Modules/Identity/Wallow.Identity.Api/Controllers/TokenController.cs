@@ -108,13 +108,13 @@ public sealed partial class TokenController(
             identity.SetClaim("org_name", orgName);
         }
 
+        ClaimsPrincipal claimsPrincipal = new(identity);
+        claimsPrincipal.SetScopes(principal.GetScopes());
+
         foreach (Claim claim in identity.Claims)
         {
             claim.SetDestinations(GetDestinations(claim));
         }
-
-        ClaimsPrincipal claimsPrincipal = new(identity);
-        claimsPrincipal.SetScopes(principal.GetScopes());
 
         string tokenScopes = string.Join(" ", principal.GetScopes());
         LogTokenIssued(subject, tokenScopes);
@@ -146,13 +146,13 @@ public sealed partial class TokenController(
             }
         }
 
+        ClaimsPrincipal claimsPrincipal = new(identity);
+        claimsPrincipal.SetScopes(request.GetScopes());
+
         foreach (Claim claim in identity.Claims)
         {
             claim.SetDestinations(GetDestinations(claim));
         }
-
-        ClaimsPrincipal claimsPrincipal = new(identity);
-        claimsPrincipal.SetScopes(request.GetScopes());
 
         return SignIn(claimsPrincipal,
             OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
@@ -177,17 +177,25 @@ public sealed partial class TokenController(
     {
         return claim.Type switch
         {
-            Claims.Name or Claims.Email or Claims.GivenName or Claims.FamilyName
-                when claim.Subject?.HasScope(Scopes.Profile) == true || claim.Subject?.HasScope(Scopes.Email) == true
+            Claims.Subject => [Destinations.AccessToken, Destinations.IdentityToken],
+
+            Claims.Name
+                when claim.Subject?.HasScope(Scopes.Profile) is true
+                => [Destinations.AccessToken, Destinations.IdentityToken],
+
+            Claims.Email
+                when claim.Subject?.HasScope(Scopes.Email) is true
+                => [Destinations.AccessToken, Destinations.IdentityToken],
+
+            Claims.GivenName or Claims.FamilyName
+                when claim.Subject?.HasScope(Scopes.Profile) is true
                 => [Destinations.AccessToken, Destinations.IdentityToken],
 
             Claims.Role
-                when claim.Subject?.HasScope(Scopes.Roles) == true
+                when claim.Subject?.HasScope(Scopes.Roles) is true
                 => [Destinations.AccessToken, Destinations.IdentityToken],
 
             "tenant_id" or "org_id" or "org_name" => [Destinations.AccessToken, Destinations.IdentityToken],
-
-            Claims.Subject => [Destinations.AccessToken, Destinations.IdentityToken],
 
             _ => [Destinations.AccessToken]
         };

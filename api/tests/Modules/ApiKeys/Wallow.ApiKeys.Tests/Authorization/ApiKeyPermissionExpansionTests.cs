@@ -87,7 +87,7 @@ public class ApiKeyPermissionExpansionTests
     [Fact]
     public void ValidScopes_ContainsExpectedCount()
     {
-        ApiScopes.ValidScopes.Should().HaveCount(30);
+        ApiScopes.ValidScopes.Should().HaveCount(27);
     }
 
     [Theory]
@@ -103,9 +103,6 @@ public class ApiKeyPermissionExpansionTests
     [InlineData("apikeys.read")]
     [InlineData("apikeys.write")]
     [InlineData("apikeys.manage")]
-    [InlineData("sso.read")]
-    [InlineData("sso.manage")]
-    [InlineData("scim.manage")]
     [InlineData("storage.read")]
     [InlineData("storage.write")]
     [InlineData("announcements.read")]
@@ -139,9 +136,6 @@ public class ApiKeyPermissionExpansionTests
     [InlineData("apikeys.read", PermissionType.ApiKeysRead)]
     [InlineData("apikeys.write", PermissionType.ApiKeysUpdate)]
     [InlineData("apikeys.manage", PermissionType.ApiKeyManage)]
-    [InlineData("sso.read", PermissionType.SsoRead)]
-    [InlineData("sso.manage", PermissionType.SsoManage)]
-    [InlineData("scim.manage", PermissionType.ScimManage)]
     [InlineData("storage.read", PermissionType.StorageRead)]
     [InlineData("storage.write", PermissionType.StorageWrite)]
     [InlineData("announcements.read", PermissionType.AnnouncementRead)]

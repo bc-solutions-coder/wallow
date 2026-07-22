@@ -138,14 +138,14 @@ public class ApiKeysControllerScopeValidationTests
             HttpContext = new DefaultHttpContext { User = user }
         };
 
-        CreateApiKeyRequest request = new("Test Key", ["sso.manage"]);
+        CreateApiKeyRequest request = new("Test Key", ["storage.write"]);
 
         IActionResult result = await _controller.CreateApiKey(request, CancellationToken.None);
 
         ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(403);
         ProblemDetails problem = objectResult.Value.Should().BeOfType<ProblemDetails>().Subject;
-        problem.Detail.Should().Contain("sso.manage");
+        problem.Detail.Should().Contain("storage.write");
     }
 
     [Fact]

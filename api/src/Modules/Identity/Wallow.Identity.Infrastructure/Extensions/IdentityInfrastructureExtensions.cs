@@ -13,7 +13,6 @@ using Microsoft.Extensions.Hosting;
 using Npgsql;
 using StackExchange.Redis;
 using Wallow.Identity.Application.Commands.BootstrapAdmin;
-using Wallow.Identity.Application.Commands.RegisterSetupClient;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Application.Queries.IsSetupRequired;
 using Wallow.Identity.Domain.Entities;
@@ -135,7 +134,6 @@ public static class IdentityInfrastructureExtensions
                     "roles.read", "roles.write", "roles.manage",
                     "organizations.read", "organizations.write", "organizations.manage",
                     "apikeys.read", "apikeys.write", "apikeys.manage",
-                    "sso.read", "sso.manage", "scim.manage",
                     "storage.read", "storage.write",
                     "messaging.access",
                     "announcements.read", "announcements.manage",
@@ -244,14 +242,8 @@ public static class IdentityInfrastructureExtensions
         services.AddScoped<IServiceAccountUnfilteredRepository>(sp =>
             (IServiceAccountUnfilteredRepository)sp.GetRequiredService<IServiceAccountRepository>());
         services.AddScoped<IApiScopeRepository, ApiScopeRepository>();
-        services.AddScoped<ISsoConfigurationRepository, SsoConfigurationRepository>();
-        services.AddScoped<IScimConfigurationRepository, ScimConfigurationRepository>();
-        services.AddScoped<IScimSyncLogRepository, ScimSyncLogRepository>();
         services.AddScoped<IOrganizationRepository, OrganizationRepository>();
-        services.AddScoped<IInitialAccessTokenRepository, InitialAccessTokenRepository>();
         services.AddScoped<IInvitationRepository, InvitationRepository>();
-        services.AddScoped<IOrganizationDomainRepository, OrganizationDomainRepository>();
-        services.AddScoped<IMembershipRequestRepository, MembershipRequestRepository>();
     }
 
     private static void AddIdentityAuthorization(this IServiceCollection services, IConfiguration configuration)
@@ -313,7 +305,6 @@ public static class IdentityInfrastructureExtensions
         }
 
         authBuilder
-            .AddScheme<AuthenticationSchemeOptions, ScimBearerAuthenticationHandler>("ScimBearer", null)
             .AddPolicyScheme("SmartScheme", "Smart cookie/bearer selector", options =>
             {
                 options.ForwardDefaultSelector = context =>
@@ -355,16 +346,11 @@ public static class IdentityInfrastructureExtensions
         services.AddScoped<IUserManagementService, UserManagementService>();
         services.AddScoped<IBootstrapAdminService, BootstrapAdminService>();
         services.AddScoped<ISetupStatusChecker, SetupStatusChecker>();
-        services.AddScoped<ISetupClientService, SetupClientService>();
         services.AddScoped<ISetupStatusProvider, SetupStatusProvider>();
         services.AddScoped<PreRegisteredClientSyncService>();
         services.AddScoped<DefaultRoleSeeder>();
 
         services.AddScoped<IServiceAccountService, OpenIddictServiceAccountService>();
-        services.AddScoped<ISsoService, OidcFederationService>();
-        services.AddScoped<ScimUserService>();
-        services.AddScoped<ScimGroupService>();
-        services.AddScoped<IScimService, ScimService>();
         services.AddScoped<IOrganizationService, OrganizationService>();
         services.AddScoped<ITestSupportService, TestSupportService>();
         services.AddScoped<IDeveloperAppService, OpenIddictDeveloperAppService>();
@@ -374,7 +360,6 @@ public static class IdentityInfrastructureExtensions
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IUserQueryService, UserQueryService>();
         services.AddScoped<IInvitationService, InvitationService>();
-        services.AddScoped<IDomainAssignmentService, DomainAssignmentService>();
 
         // Fork extension points — TryAddScoped allows forks to register their own implementations
         // before calling AddIdentityModule, which will skip these defaults.

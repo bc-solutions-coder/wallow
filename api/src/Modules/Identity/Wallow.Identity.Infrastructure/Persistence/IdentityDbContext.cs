@@ -6,7 +6,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using OpenIddict.EntityFrameworkCore.Models;
 using Wallow.Identity.Domain.Entities;
-using Wallow.Identity.Infrastructure.Persistence.Converters;
 using Wallow.Shared.Infrastructure.Settings;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
@@ -19,7 +18,10 @@ namespace Wallow.Identity.Infrastructure.Persistence;
 
 public sealed class IdentityDbContext : AspNetIdentityDbContext
 {
+    // Retained on the DI contract for forks that encrypt persisted columns; currently unread.
+#pragma warning disable IDE0052
     private readonly IDataProtectionProvider _dataProtectionProvider;
+#pragma warning restore IDE0052
 
     // ReSharper disable once InconsistentNaming — Field must be accessible for expression tree access in query filters
 #pragma warning disable SA1401, CA1051, IDE1006, IDE0052
@@ -28,17 +30,11 @@ public sealed class IdentityDbContext : AspNetIdentityDbContext
 
     public DbSet<ServiceAccountMetadata> ServiceAccountMetadata => Set<ServiceAccountMetadata>();
     public DbSet<ApiScope> ApiScopes => Set<ApiScope>();
-    public DbSet<SsoConfiguration> SsoConfigurations => Set<SsoConfiguration>();
-    public DbSet<ScimConfiguration> ScimConfigurations => Set<ScimConfiguration>();
-    public DbSet<ScimSyncLog> ScimSyncLogs => Set<ScimSyncLog>();
     public DbSet<TenantSettingEntity> TenantSettings => Set<TenantSettingEntity>();
     public DbSet<UserSettingEntity> UserSettings => Set<UserSettingEntity>();
     public DbSet<Organization> Organizations => Set<Organization>();
     public DbSet<OrganizationMember> OrganizationMembers => Set<OrganizationMember>();
-    public DbSet<InitialAccessToken> InitialAccessTokens => Set<InitialAccessToken>();
     public DbSet<Invitation> Invitations => Set<Invitation>();
-    public DbSet<OrganizationDomain> OrganizationDomains => Set<OrganizationDomain>();
-    public DbSet<MembershipRequest> MembershipRequests => Set<MembershipRequest>();
     public DbSet<OrganizationSettings> OrganizationSettings => Set<OrganizationSettings>();
     public DbSet<OrganizationBranding> OrganizationBrandings => Set<OrganizationBranding>();
     public DbSet<ActiveSession> ActiveSessions => Set<ActiveSession>();
@@ -69,13 +65,6 @@ public sealed class IdentityDbContext : AspNetIdentityDbContext
 
         builder.ApplyConfigurationsFromAssembly(typeof(IdentityDbContext).Assembly);
         builder.ApplySettingsConfigurations();
-
-        IDataProtector protector = _dataProtectionProvider.CreateProtector("Wallow.Identity.SsoSecrets");
-        EncryptedStringConverter encryptedStringConverter = new(protector);
-
-        builder.Entity<SsoConfiguration>()
-            .Property(s => s.OidcClientSecret)
-            .HasConversion(encryptedStringConverter);
 
         // Indexes for efficient token cleanup (pruning expired/revoked tokens)
         builder.Entity<OpenIddictEntityFrameworkCoreToken<Guid>>(b =>

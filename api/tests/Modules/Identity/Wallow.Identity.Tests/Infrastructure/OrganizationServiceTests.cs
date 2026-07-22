@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Domain.Enums;
 using Wallow.Identity.Domain.Identity;
 using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Identity.Infrastructure.Services;
@@ -96,7 +97,7 @@ public sealed class OrganizationServiceTests : IDisposable
 
         result.Should().NotBe(Guid.Empty);
         capturedOrganization.Should().NotBeNull();
-        capturedOrganization!.Members.Should().ContainSingle(m => m.UserId == creatorUserId && m.Role == "admin");
+        capturedOrganization!.Members.Should().ContainSingle(m => m.UserId == creatorUserId && m.Role == OrgMemberRole.Admin);
         capturedOrganization.CreatedBy.Should().Be(creatorUserId);
     }
 
@@ -203,7 +204,7 @@ public sealed class OrganizationServiceTests : IDisposable
         Guid userId = Guid.NewGuid();
         Organization organization = Organization.Create(
             new TenantId(_tenantId), "Test Org", "test-org", Guid.NewGuid(), TimeProvider.System);
-        organization.AddMember(userId, "member", Guid.NewGuid(), TimeProvider.System);
+        organization.AddMember(userId, OrgMemberRole.Member, Guid.NewGuid(), TimeProvider.System);
 
         _organizationRepository.GetByIdAsync(Arg.Any<OrganizationId>(), Arg.Any<CancellationToken>())
             .Returns(organization);

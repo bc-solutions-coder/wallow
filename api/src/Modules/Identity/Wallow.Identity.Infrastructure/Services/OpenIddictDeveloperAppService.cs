@@ -36,11 +36,15 @@ public sealed partial class OpenIddictDeveloperAppService(
             Permissions.GrantTypes.ClientCredentials
         ];
 
-        // Public clients with redirect URIs use authorization code flow
+        // Clients with redirect URIs speak the standard OIDC login flow: authorization code plus
+        // the end-session endpoint and refresh-token grant, so a BFF can complete the
+        // login/logout/silent-refresh cycle.
         if (redirectUris is { Count: > 0 })
         {
             permissions.Add(Permissions.Endpoints.Authorization);
+            permissions.Add(Permissions.Endpoints.EndSession);
             permissions.Add(Permissions.GrantTypes.AuthorizationCode);
+            permissions.Add(Permissions.GrantTypes.RefreshToken);
             permissions.Add(Permissions.ResponseTypes.Code);
         }
 

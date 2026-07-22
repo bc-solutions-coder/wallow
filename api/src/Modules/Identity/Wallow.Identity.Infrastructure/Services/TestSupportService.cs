@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Domain.Enums;
 using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Shared.Kernel.Identity;
 
@@ -34,7 +35,7 @@ public sealed partial class TestSupportService(
             .Include(o => o.Members)
             .FirstAsync(o => o.Id == org.Id, ct);
 
-        trackedOrg.AddMember(userId, "admin", userId, timeProvider);
+        trackedOrg.AddMember(userId, OrgMemberRole.Admin, userId, timeProvider);
         await dbContext.SaveChangesAsync(ct);
 
         // Move the user's TenantId to the new org (keep user in shared org for OIDC tenant resolution)

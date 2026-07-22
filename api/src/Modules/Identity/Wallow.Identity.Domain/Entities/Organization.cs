@@ -1,3 +1,4 @@
+using Wallow.Identity.Domain.Enums;
 using Wallow.Identity.Domain.Identity;
 using Wallow.Shared.Kernel.Domain;
 using Wallow.Shared.Kernel.Identity;
@@ -5,6 +6,11 @@ using Wallow.Shared.Kernel.MultiTenancy;
 
 namespace Wallow.Identity.Domain.Entities;
 
+/// <summary>
+/// An organization IS the tenant: <see cref="Create"/> is the only place a tenant id is
+/// minted, and it mints the tenant id from the freshly generated organization id so that
+/// <c>Id.Value == TenantId.Value</c> by construction. Nothing else may mint a tenant id.
+/// </summary>
 public sealed class Organization : AggregateRoot<OrganizationId>, ITenantScoped
 {
     public TenantId TenantId { get; init; }
@@ -21,20 +27,21 @@ public sealed class Organization : AggregateRoot<OrganizationId>, ITenantScoped
     private Organization() { } // EF Core
 
     private Organization(
-        TenantId tenantId,
         string name,
         string slug,
         Guid createdByUserId,
         TimeProvider timeProvider)
     {
         Id = OrganizationId.New();
-        TenantId = tenantId;
+        // The org IS the tenant: mint the tenant id from the freshly generated org id.
+        TenantId = TenantId.Create(Id.Value);
         Name = name;
         Slug = slug;
         IsActive = true;
         SetCreated(timeProvider.GetUtcNow(), createdByUserId);
     }
 
+#pragma warning disable IDE0060, RCS1163 // tenantId retained for call-site compatibility; the tenant id is minted from the new org id so Id == TenantId
     public static Organization Create(
         TenantId tenantId,
         string name,
@@ -56,10 +63,11 @@ public sealed class Organization : AggregateRoot<OrganizationId>, ITenantScoped
                 "Organization slug cannot be empty");
         }
 
-        return new Organization(tenantId, name, slug, createdByUserId, timeProvider);
+        return new Organization(name, slug, createdByUserId, timeProvider);
     }
+#pragma warning restore IDE0060, RCS1163
 
-    public void AddMember(Guid userId, string role, Guid updatedByUserId, TimeProvider timeProvider)
+    public void AddMember(Guid userId, OrgMemberRole role, Guid updatedByUserId, TimeProvider timeProvider)
     {
         if (_members.Any(m => m.UserId == userId))
         {

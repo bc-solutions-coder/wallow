@@ -105,6 +105,139 @@ public class AppsControllerTests
 
     #endregion
 
+    #region Register - golden path (T6.2)
+
+    private void StubSuccessfulRegistration()
+    {
+        _developerAppService.RegisterClientAsync(
+                Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyCollection<string>>(),
+                Arg.Any<string?>(), Arg.Any<IReadOnlyCollection<string>?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
+            .Returns(new DeveloperAppRegistrationResult("client-id", "client-secret", "reg-token"));
+    }
+
+    [Fact]
+    public async Task Register_WithBffLoginScopes_Returns201Created()
+    {
+        // The EXACT scope set docs/integrations/bff-pattern.md instructs integrators to request.
+        RegisterAppRequest request = new("app-bff", ["openid", "profile", "email", "offline_access"]);
+        StubSuccessfulRegistration();
+
+        ActionResult<AppRegistrationResponse> result = await _controller.Register(request, CancellationToken.None);
+
+        ObjectResult objectResult = result.Result.Should().BeOfType<ObjectResult>().Subject;
+        objectResult.StatusCode.Should().Be(201);
+        objectResult.Value.Should().BeOfType<AppRegistrationResponse>();
+    }
+
+    [Fact]
+    public async Task Register_WithLoginScopesPlusDeveloperScopes_Returns201Created()
+    {
+        RegisterAppRequest request = new(
+            "app-bff",
+            ["openid", "profile", "email", "offline_access", "inquiries.read", "storage.read"]);
+        StubSuccessfulRegistration();
+
+        ActionResult<AppRegistrationResponse> result = await _controller.Register(request, CancellationToken.None);
+
+        ObjectResult objectResult = result.Result.Should().BeOfType<ObjectResult>().Subject;
+        objectResult.StatusCode.Should().Be(201);
+    }
+
+    [Fact]
+    public async Task Register_WithLoginScopesAndValidHttpsUris_ReturnsOneTimeSecret()
+    {
+        RegisterAppRequest request = new(
+            "app-bff",
+            ["openid", "profile", "email", "offline_access"],
+            RedirectUris: ["https://app.example.com/callback"],
+            PostLogoutRedirectUris: ["https://app.example.com/"]);
+        StubSuccessfulRegistration();
+
+        ActionResult<AppRegistrationResponse> result = await _controller.Register(request, CancellationToken.None);
+
+        ObjectResult objectResult = result.Result.Should().BeOfType<ObjectResult>().Subject;
+        objectResult.StatusCode.Should().Be(201);
+        AppRegistrationResponse response = objectResult.Value.Should().BeOfType<AppRegistrationResponse>().Subject;
+        response.ClientSecret.Should().Be("client-secret");
+    }
+
+    [Fact]
+    public async Task Register_WithNonHttpsNonLocalhostRedirectUri_ReturnsValidationProblem()
+    {
+        RegisterAppRequest request = new(
+            "app-test",
+            ["inquiries.read"],
+            RedirectUris: ["http://app.example.com/callback"]);
+        StubSuccessfulRegistration();
+
+        ActionResult<AppRegistrationResponse> result = await _controller.Register(request, CancellationToken.None);
+
+        result.Result.Should().BeOfType<ObjectResult>()
+            .Which.Value.Should().BeOfType<ValidationProblemDetails>();
+    }
+
+    [Fact]
+    public async Task Register_WithNonHttpsNonLocalhostPostLogoutUri_ReturnsValidationProblem()
+    {
+        RegisterAppRequest request = new(
+            "app-test",
+            ["inquiries.read"],
+            PostLogoutRedirectUris: ["http://app.example.com/"]);
+        StubSuccessfulRegistration();
+
+        ActionResult<AppRegistrationResponse> result = await _controller.Register(request, CancellationToken.None);
+
+        result.Result.Should().BeOfType<ObjectResult>()
+            .Which.Value.Should().BeOfType<ValidationProblemDetails>();
+    }
+
+    [Fact]
+    public async Task Register_WithRelativeRedirectUri_ReturnsValidationProblem()
+    {
+        RegisterAppRequest request = new(
+            "app-test",
+            ["inquiries.read"],
+            RedirectUris: ["/callback"]);
+        StubSuccessfulRegistration();
+
+        ActionResult<AppRegistrationResponse> result = await _controller.Register(request, CancellationToken.None);
+
+        result.Result.Should().BeOfType<ObjectResult>()
+            .Which.Value.Should().BeOfType<ValidationProblemDetails>();
+    }
+
+    [Fact]
+    public async Task Register_WithHttpsRedirectUri_Returns201Created()
+    {
+        RegisterAppRequest request = new(
+            "app-test",
+            ["inquiries.read"],
+            RedirectUris: ["https://app.example.com/callback"]);
+        StubSuccessfulRegistration();
+
+        ActionResult<AppRegistrationResponse> result = await _controller.Register(request, CancellationToken.None);
+
+        ObjectResult objectResult = result.Result.Should().BeOfType<ObjectResult>().Subject;
+        objectResult.StatusCode.Should().Be(201);
+    }
+
+    [Fact]
+    public async Task Register_WithLocalhostHttpRedirectUri_Returns201Created()
+    {
+        RegisterAppRequest request = new(
+            "app-test",
+            ["inquiries.read"],
+            RedirectUris: ["http://localhost:3000/callback"]);
+        StubSuccessfulRegistration();
+
+        ActionResult<AppRegistrationResponse> result = await _controller.Register(request, CancellationToken.None);
+
+        ObjectResult objectResult = result.Result.Should().BeOfType<ObjectResult>().Subject;
+        objectResult.StatusCode.Should().Be(201);
+    }
+
+    #endregion
+
     #region GetUserApps
 
     [Fact]

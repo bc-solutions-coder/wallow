@@ -37,15 +37,33 @@ public class AppsController(IDeveloperAppService developerAppService) : Controll
             return ValidationProblem(ModelState);
         }
 
+        HashSet<string> allowedScopes = [.. ApiScopes.DeveloperAppScopes, .. ApiScopes.LoginScopes];
+
         HashSet<string> invalidScopes = request.RequestedScopes
-            .Where(s => !ApiScopes.DeveloperAppScopes.Contains(s))
+            .Where(s => !allowedScopes.Contains(s))
             .ToHashSet();
 
         if (invalidScopes.Count > 0)
         {
             ModelState.AddModelError(
                 nameof(request.RequestedScopes),
-                $"Invalid scopes: {string.Join(", ", invalidScopes)}. Allowed: {string.Join(", ", ApiScopes.DeveloperAppScopes)}");
+                $"Invalid scopes: {string.Join(", ", invalidScopes)}. Allowed: {string.Join(", ", allowedScopes)}");
+            return ValidationProblem(ModelState);
+        }
+
+        if (FirstInvalidUri(request.RedirectUris) is { } invalidRedirectUri)
+        {
+            ModelState.AddModelError(
+                nameof(request.RedirectUris),
+                $"Invalid redirect URI '{invalidRedirectUri}'. URIs must be absolute HTTPS (localhost may use HTTP).");
+            return ValidationProblem(ModelState);
+        }
+
+        if (FirstInvalidUri(request.PostLogoutRedirectUris) is { } invalidPostLogoutUri)
+        {
+            ModelState.AddModelError(
+                nameof(request.PostLogoutRedirectUris),
+                $"Invalid post-logout redirect URI '{invalidPostLogoutUri}'. URIs must be absolute HTTPS (localhost may use HTTP).");
             return ValidationProblem(ModelState);
         }
 
@@ -145,5 +163,41 @@ public class AppsController(IDeveloperAppService developerAppService) : Controll
             dto.RequestedScopes.Select(s => new ScopeInfo(s.Name, s.Description)).ToList());
 
         return Ok(response);
+    }
+
+    // A registered client URI must be absolute and use HTTPS, except that localhost may use HTTP
+    // for local development. Returns the first URI that violates the rule, or null when all are valid.
+    private static string? FirstInvalidUri(IReadOnlyList<string>? uris)
+    {
+        if (uris is null)
+        {
+            return null;
+        }
+
+        foreach (string uri in uris)
+        {
+            if (!IsValidClientUri(uri))
+            {
+                return uri;
+            }
+        }
+
+        return null;
+    }
+
+    private static bool IsValidClientUri(string uri)
+    {
+        if (!Uri.TryCreate(uri, UriKind.Absolute, out Uri? parsed))
+        {
+            return false;
+        }
+
+        if (string.Equals(parsed.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return string.Equals(parsed.Host, "localhost", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(parsed.Host, "127.0.0.1", StringComparison.Ordinal);
     }
 }

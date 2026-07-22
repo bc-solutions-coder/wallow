@@ -57,9 +57,8 @@ public class ApiVersioningTests
             .Inherit(typeof(ControllerBase))
             .GetTypes();
 
-        // ScimController uses /scim/v2 per SCIM RFC 7644 — its own versioning scheme
         // OpenIddict OIDC controllers use standard OAuth2/OIDC routes (connect/*)
-        string[] excludedControllers = ["ScimController", "AuthorizationController", "TokenController", "LogoutController", "UserinfoController"];
+        string[] excludedControllers = ["AuthorizationController", "TokenController", "LogoutController", "UserinfoController"];
         IEnumerable<Type> filtered = controllers.Where(c => !excludedControllers.Contains(c.Name, StringComparer.Ordinal));
 
         foreach (Type controller in filtered)
