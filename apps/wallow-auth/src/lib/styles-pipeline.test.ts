@@ -8,29 +8,36 @@ import viteConfig from "../../vite.config";
 
 /**
  * The Tailwind-pipeline half of adopting `@bc-solutions-coder/styles`
- * (Wallow-ffpq.1.2).
+ * (Wallow-ffpq.1.2), re-pointed at the shared package's `./vite` seam
+ * (Wallow-0q2s.5.2).
  *
- * The asset/icon half — `publicDir`, the root-relative `<link rel="icon">`, and
- * the branding re-export shim — is already wired (see `brand-assets.test.ts` and
- * `__root.test.tsx`). What is still missing is the part that actually makes the
- * 16 ported screens render styled: an entry CSS that pulls in the shared
- * package's Tailwind entry AND scans this app's own markup, plus the
- * `@tailwindcss/vite` plugin registered on every Vite pass that serves the app
- * (the production build in `vite.config.ts` and the dev host in `dev-server.ts`,
- * which runs Vite with `configFile: false` and therefore inherits nothing from
- * the config file).
+ * `@bc-solutions-coder/styles` now owns the whole Tailwind implementation: the
+ * `@tailwindcss/vite` plugin and the `publicDir: brandAssetsDir` wiring are both
+ * folded into a single `wallowStyles()` factory exported from the package's
+ * `./vite` subpath. The app's entire Tailwind surface collapses to two things —
+ * a `wallowStyles()` call spread into each Vite pass that serves the app (the
+ * production build in `vite.config.ts` and the `configFile: false` dev host in
+ * `dev-server.ts`), and a two-line CSS entry that pulls in the package's Tailwind
+ * entry AND declares the `@source` scan the package cannot do on the app's
+ * behalf.
  *
- * The trap these tests guard is the one the package's own header comment and the
- * task's design note both call out: a stylesheet that `@import`s Tailwind but
- * declares no `@source` for the CONSUMING app builds clean and ships CSS while
- * styling nothing — CSS living in a package cannot see this app's files. So it is
- * not enough that an entry exists and imports the package; it must also scan this
- * app's source tree, and the plugin must be present to compile it.
+ * These tests guard that new seam rather than the old raw wiring:
+ *   - the app no longer declares its own `@tailwindcss/vite` dependency,
+ *   - both Vite passes adopt `wallowStyles()` (the produced plugin list carries
+ *     the package's `wallow:brand-assets` plugin, proving the factory ran and not
+ *     just a bare `tailwindcss()`),
+ *   - the CSS entry is trimmed to exactly the two irreducible lines,
+ *   - that entry still imports the package's Tailwind entry and scans this app's
+ *     own markup (the silent-failure guard: a package-owned stylesheet cannot see
+ *     this app's files, so a missing `@source` ships CSS that styles nothing).
  */
 
 const appRoot: string = fileURLToPath(new URL("../../", import.meta.url));
 const srcDir: string = fileURLToPath(new URL("../", import.meta.url));
 const authLayout: string = join(srcDir, "components", "auth-layout.tsx");
+
+/** The name the shared package's brand-assets Vite plugin declares. */
+const BRAND_ASSETS_PLUGIN = "wallow:brand-assets";
 
 /** Directories a source scan should never have to descend into. */
 const ignoredDirs: ReadonlySet<string> = new Set(["node_modules", "dist", ".vite"]);
@@ -75,8 +82,9 @@ function pluginNames(plugins: unknown): string[] {
 
 describe("the wallow-auth Tailwind entry", () => {
   it("exists as a CSS file the app owns", () => {
-    // The app currently ships zero CSS, which is exactly why every screen renders
-    // unstyled. Adopting the shared package starts with an entry stylesheet.
+    // The irreducible app-side remainder of the Tailwind pipeline is this entry
+    // stylesheet — the one thing the package cannot own because `@source` paths
+    // resolve relative to the declaring file.
     expect(cssEntry()).toBeDefined();
   });
 
@@ -105,31 +113,80 @@ describe("the wallow-auth Tailwind entry", () => {
 
     expect(sources.some((source: string): boolean => contains(source, authLayout))).toBe(true);
   });
+
+  it("is trimmed to exactly the three-line entry with no explanatory comment", () => {
+    // The design moves the explanatory header into the package's own styles.css;
+    // the app entry collapses to the irreducible statements. As of Wallow-0q2s.6.1
+    // that is THREE lines: the shared Tailwind entry, the `@bc-solutions-coder/ui`
+    // `@source` passthrough (so Tailwind scans the ui package's component sources,
+    // which live outside this app's own scan and inside skipped node_modules), then
+    // this app's own `@source`. Any residual comment or extra rule means the trim
+    // did not happen.
+    const entry: string | undefined = cssEntry();
+    const css: string = entry === undefined ? "" : readFileSync(entry, "utf8");
+
+    expect(css).not.toMatch(/\/\*/u);
+
+    const lines: string[] = css
+      .split("\n")
+      .map((line: string): string => line.trim())
+      .filter((line: string): boolean => line.length > 0);
+
+    expect(lines).toHaveLength(3);
+    expect(lines[0]).toMatch(/^@import\s+["']@bc-solutions-coder\/styles\/styles\.css["'];$/u);
+    expect(lines[1]).toMatch(/^@import\s+["']@bc-solutions-coder\/ui\/source\.css["'];$/u);
+    expect(lines[2]).toMatch(/^@source\s+["']\.\/["'];$/u);
+  });
 });
 
 describe("the wallow-auth Vite Tailwind pipeline", () => {
-  it("depends on @tailwindcss/vite", () => {
-    const packageJson: { devDependencies?: Record<string, string> } = JSON.parse(
-      readFileSync(join(appRoot, "package.json"), "utf8"),
-    ) as { devDependencies?: Record<string, string> };
+  it("no longer declares its own @tailwindcss/vite dependency", () => {
+    // The plugin is now a transitive dependency of `@bc-solutions-coder/styles`,
+    // supplied through `wallowStyles()`. Listing it here again would let the app
+    // drift onto a second, independently-versioned copy of Tailwind.
+    const packageJson: {
+      dependencies?: Record<string, string>;
+      devDependencies?: Record<string, string>;
+    } = JSON.parse(readFileSync(join(appRoot, "package.json"), "utf8")) as {
+      dependencies?: Record<string, string>;
+      devDependencies?: Record<string, string>;
+    };
 
-    expect(packageJson.devDependencies?.["@tailwindcss/vite"]).toBeDefined();
+    expect(packageJson.dependencies?.["@tailwindcss/vite"]).toBeUndefined();
+    expect(packageJson.devDependencies?.["@tailwindcss/vite"]).toBeUndefined();
   });
 
-  it("registers the @tailwindcss/vite plugin on the production build", () => {
-    // Without the plugin, `@import "tailwindcss"` is left verbatim and no
-    // utilities are generated — the emitted CSS is inert.
+  it("adopts wallowStyles() from the shared package in the production build config", () => {
+    // The config drops the raw `@tailwindcss/vite` import + explicit
+    // `publicDir` line in favour of the single `wallowStyles()` factory from the
+    // package's `./vite` subpath.
+    const config: string = readFileSync(join(appRoot, "vite.config.ts"), "utf8");
+
+    expect(config).toMatch(/@bc-solutions-coder\/styles\/vite/u);
+    expect(config).toMatch(/wallowStyles\s*\(/u);
+    expect(config).not.toMatch(/@tailwindcss\/vite/u);
+  });
+
+  it("registers the shared brand-assets and tailwind plugins on the production build", () => {
+    // Behaviour-level proof that `wallowStyles()` actually ran: the produced
+    // plugin list carries BOTH the Tailwind compiler plugin and the package's
+    // `wallow:brand-assets` plugin. A bare `tailwindcss()` would give the former
+    // but not the latter, so this distinguishes the new seam from the old wiring.
     const names: string[] = pluginNames(viteConfig.plugins);
 
     expect(names.some((name: string): boolean => name.includes("tailwind"))).toBe(true);
+    expect(names).toContain(BRAND_ASSETS_PLUGIN);
   });
 
-  it("registers the @tailwindcss/vite plugin on the dev host", () => {
+  it("adopts wallowStyles() on the dev host instead of raw @tailwindcss/vite", () => {
     // dev-server.ts drives Vite with `configFile: false`, so it inherits nothing
-    // from vite.config.ts — it must wire the Tailwind plugin itself, the same way
-    // it already re-declares `publicDir`, or `pnpm dev` serves unstyled pages.
+    // from vite.config.ts — it must wire the Tailwind pipeline itself. After the
+    // rewire it does so through `wallowStyles()`, not a hand-rolled
+    // `tailwindcss()` + `publicDir: brandAssetsDir` pair.
     const devServer: string = readFileSync(join(appRoot, "dev-server.ts"), "utf8");
 
-    expect(devServer).toMatch(/@tailwindcss\/vite/u);
+    expect(devServer).toMatch(/@bc-solutions-coder\/styles\/vite/u);
+    expect(devServer).toMatch(/wallowStyles\s*\(/u);
+    expect(devServer).not.toMatch(/@tailwindcss\/vite/u);
   });
 });

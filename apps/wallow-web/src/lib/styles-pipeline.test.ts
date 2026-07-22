@@ -102,32 +102,76 @@ describe("the wallow-web Tailwind entry", () => {
 
     expect(sources.some((source: string): boolean => contains(source, dashboardLayout))).toBe(true);
   });
+
+  it("is exactly the three-line entry, with no per-app explanatory comment", () => {
+    // Adopting `@bc-solutions-coder/styles/vite` collapses the whole app-side
+    // Tailwind surface to its irreducible remainder: import the package's Tailwind
+    // entry, import `@bc-solutions-coder/ui`'s `@source` passthrough (added in
+    // Wallow-0q2s.6.1 so Tailwind scans the ui package's component sources, which
+    // live outside this app's own scan and inside skipped node_modules), then
+    // declare the `@source` scan the package cannot do on this app's behalf. The
+    // explanatory header moves into the shared package's own styles.css (which
+    // already carries it), so this file keeps only the three directives — nothing
+    // else.
+    const entry: string | undefined = cssEntry();
+    const css: string = entry === undefined ? "" : readFileSync(entry, "utf8");
+
+    expect(css).not.toContain("/*");
+    const lines: string[] = css
+      .split("\n")
+      .map((line: string): string => line.trim())
+      .filter((line: string): boolean => line.length > 0);
+    expect(lines).toEqual([
+      '@import "@bc-solutions-coder/styles/styles.css";',
+      '@import "@bc-solutions-coder/ui/source.css";',
+      '@source "./";',
+    ]);
+  });
 });
 
 describe("the wallow-web Vite Tailwind pipeline", () => {
-  it("depends on @tailwindcss/vite", () => {
-    const packageJson: { devDependencies?: Record<string, string> } = JSON.parse(
-      readFileSync(join(appRoot, "package.json"), "utf8"),
-    ) as { devDependencies?: Record<string, string> };
+  it("no longer owns the @tailwindcss/vite dependency", () => {
+    // The Tailwind toolchain moved into @bc-solutions-coder/styles, which now owns
+    // @tailwindcss/vite as a real dependency. The app must not re-declare it in
+    // either dependency list, or two packages pin the Tailwind version
+    // independently. The shared package that now owns the wiring stays a dep.
+    const packageJson: {
+      dependencies?: Record<string, string>;
+      devDependencies?: Record<string, string>;
+    } = JSON.parse(readFileSync(join(appRoot, "package.json"), "utf8")) as {
+      dependencies?: Record<string, string>;
+      devDependencies?: Record<string, string>;
+    };
 
-    expect(packageJson.devDependencies?.["@tailwindcss/vite"]).toBeDefined();
+    expect(packageJson.devDependencies?.["@tailwindcss/vite"]).toBeUndefined();
+    expect(packageJson.dependencies?.["@tailwindcss/vite"]).toBeUndefined();
+    expect(packageJson.dependencies?.["@bc-solutions-coder/styles"]).toBeDefined();
   });
 
-  it("registers the @tailwindcss/vite plugin on the production build", () => {
-    // Without the plugin, `@import "tailwindcss"` is left verbatim and no
-    // utilities are generated — the emitted CSS is inert.
-    const names: string[] = pluginNames(viteConfig.plugins);
+  it("registers Tailwind on the production build through wallowStyles()", () => {
+    // The plugin registration moved behind @bc-solutions-coder/styles/vite's
+    // wallowStyles() factory. vite.config.ts must call it — not import
+    // @tailwindcss/vite directly — and the flattened plugin tree it produces must
+    // still carry the Tailwind plugin, or `@import "tailwindcss"` ships inert.
+    const config: string = readFileSync(join(appRoot, "vite.config.ts"), "utf8");
 
+    expect(config).toMatch(/@bc-solutions-coder\/styles\/vite/u);
+    expect(config).toMatch(/wallowStyles\s*\(/u);
+    expect(config).not.toMatch(/@tailwindcss\/vite/u);
+
+    const names: string[] = pluginNames(viteConfig.plugins);
     expect(names.some((name: string): boolean => name.includes("tailwind"))).toBe(true);
   });
 
-  it("registers the @tailwindcss/vite plugin on the dev host", () => {
+  it("registers Tailwind on the dev host through wallowStyles()", () => {
     // dev-server.ts drives Vite with `configFile: false`, so it inherits nothing
-    // from vite.config.ts — it must wire the Tailwind plugin itself, the same way
-    // it already re-declares other Vite options, or `pnpm dev` serves unstyled
-    // pages.
+    // from vite.config.ts — it must wire styling itself. After adoption that is
+    // the same wallowStyles() call from the shared package, not a direct
+    // @tailwindcss/vite import, or `pnpm dev` serves unstyled pages.
     const devServer: string = readFileSync(join(appRoot, "dev-server.ts"), "utf8");
 
-    expect(devServer).toMatch(/@tailwindcss\/vite/u);
+    expect(devServer).toMatch(/@bc-solutions-coder\/styles\/vite/u);
+    expect(devServer).toMatch(/wallowStyles\s*\(/u);
+    expect(devServer).not.toMatch(/@tailwindcss\/vite/u);
   });
 });

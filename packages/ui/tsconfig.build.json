@@ -1,0 +1,20 @@
+{
+  // Declaration-only build config. The package `build` script runs `vite build`
+  // for the JS bundle and then `tsc -p tsconfig.build.json` for the .d.ts files.
+  //
+  // Vite 8 (Rolldown) bundles the JS but does not emit type declarations, so the
+  // native `tsc --emitDeclarationOnly` CLI generates them here. `include` is
+  // narrowed to the single public entry point; tsc transitively pulls in every
+  // real src file it imports, while *.test.ts(x) and root *.config.ts stay out of
+  // the program so no stray declaration files leak into dist/. `rootDir` is set
+  // explicitly to keep dist/ mirroring src/ (TS7 requires it when outDir is set).
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "rootDir": "src",
+    "outDir": "dist"
+  },
+  "include": ["src/index.ts"],
+  "exclude": ["**/*.test.ts", "**/*.test.tsx", "**/*.config.ts"]
+}
