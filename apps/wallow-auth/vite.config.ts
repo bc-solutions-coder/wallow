@@ -1,46 +1,15 @@
-import { fileURLToPath } from "node:url";
-
-import { wallowStyles } from "@bc-solutions-coder/styles/vite";
-import react from "@vitejs/plugin-react";
+import { createClientViteConfig } from "@bc-solutions-coder/web-shell/server";
 import { defineConfig } from "vite";
 
-// Browser bundle build for wallow-auth (Wallow-vec7.1.5).
+// Browser bundle build for wallow-auth (Wallow-vec7.1.5, migrated onto the shared
+// web-shell preset in Wallow-0q2s.8.5).
+//
+// The client-bundle preset (createClientViteConfig) owns the whole config: the
+// react() + wallowStyles() plugin set and the stable, unhashed `client.js` output
+// contract (dist/client) the document shell and standalone host depend on. The
+// only per-app knob is `appDir`, against which the `src/client.tsx` entry resolves.
 //
 // The dev server (dev-server.ts) does NOT use this file — it drives Vite in
-// middlewareMode with `configFile: false` and its own inline plugins, serving
-// the entry straight from its module graph. So this config only governs
+// middlewareMode with its own inline plugins. So this config only governs
 // `vite build`.
-//
-// Task 0.4 shipped no browser bundle (the app was an SSR shell + reverse proxy)
-// and aimed `vite build` at the SSR entry as a stand-in target. The hydration
-// entry now exists — it has to, since the readiness signal only means anything
-// once the client has hydrated — so the default build is the real client bundle
-// and the SSR build moves to vite.ssr.config.ts. `pnpm build` runs both.
-//
-// Output contract: the emitted file must be `client.js` with a STABLE, unhashed
-// name, because the document shell hardcodes `<script type="module"
-// src="/client.js">` (routes/__root.tsx) rather than reading a build manifest.
-// Hence a library-style entry build (explicit `input` + pinned `entryFileNames`)
-// rather than Vite's html-entry app build: there is no index.html for Vite to
-// crawl — the HTML is server-rendered.
-export default defineConfig({
-  // `wallowStyles()` from the shared package supplies the Tailwind compiler
-  // plugin AND the brand-assets plugin that points publicDir at the
-  // package's assets dir (piggy-icon.svg) — copied verbatim and unhashed into
-  // build.outDir (dist/client), which server.ts already serves at the root, so
-  // `/piggy-icon.svg` resolves with no per-app copy. This app has no public/ of
-  // its own, so nothing is displaced.
-  plugins: [react(), ...wallowStyles()],
-  build: {
-    outDir: "dist/client",
-    emptyOutDir: true,
-    rollupOptions: {
-      input: fileURLToPath(new URL("src/client.tsx", import.meta.url)),
-      output: {
-        entryFileNames: "client.js",
-        chunkFileNames: "[name].js",
-        assetFileNames: "[name][extname]",
-      },
-    },
-  },
-});
+export default defineConfig(createClientViteConfig({ appDir: import.meta.dirname }));

@@ -1,6 +1,6 @@
 import { createRouter as createTanStackRouter, type AnyRouter } from "@tanstack/react-router";
 
-import { createQueryClient } from "./lib/query-client";
+import { createQueryClient } from "@bc-solutions-coder/web-shell";
 import { Route as acceptTermsRoute } from "./routes/accept-terms";
 import { Route as consentRoute } from "./routes/consent";
 import { Route as errorRoute } from "./routes/error";

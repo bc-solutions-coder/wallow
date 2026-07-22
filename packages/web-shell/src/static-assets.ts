@@ -1,16 +1,18 @@
 /**
- * Built-client asset reads for the wallow-web standalone host (Wallow-ffpq.3.3).
+ * Built-client asset reads for a standalone host (moved from
+ * apps/{wallow-auth,wallow-web}/src/lib/static-assets.ts in Wallow-0q2s.8.2).
  *
  * `dev-server.ts` serves the browser bundle out of Vite's middlewares, straight
  * from its module graph. The standalone host (`server.ts`) has no Vite: it runs
  * against the PRE-BUILT `dist/client` that `pnpm build` emits, so it needs its
  * own read-file-and-name-the-type step before falling through to router SSR.
  *
- * Ports apps/wallow-auth/src/lib/static-assets.ts's containment + content-type
- * logic verbatim (it is generic — no auth-specific behaviour), returning
- * `undefined` on a miss rather than a 404 so the caller can hand the path to the
- * router, which owns the real 404-vs-200-vs-redirect decision for every app
- * route.
+ * Node-only (reads the filesystem), so it lives behind the package's `./server`
+ * subpath and never reaches a client bundle.
+ *
+ * A miss returns `undefined` rather than a 404 so the caller can hand the path
+ * to the router, which owns the real 404-vs-200-vs-redirect decision for every
+ * app route.
  */
 import type { Stats } from "node:fs";
 import { readFile, stat } from "node:fs/promises";

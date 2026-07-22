@@ -9,7 +9,7 @@ import {
   renderThemeStyle,
   type ResolvedBranding,
 } from "../lib/branding";
-import { createQueryClient } from "../lib/query-client";
+import { createQueryClient } from "@bc-solutions-coder/web-shell";
 
 /**
  * The browser bundle to load. In dev, Vite serves the entry straight out of its

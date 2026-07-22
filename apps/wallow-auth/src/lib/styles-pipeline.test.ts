@@ -159,11 +159,14 @@ describe("the wallow-auth Vite Tailwind pipeline", () => {
   it("adopts wallowStyles() from the shared package in the production build config", () => {
     // The config drops the raw `@tailwindcss/vite` import + explicit
     // `publicDir` line in favour of the single `wallowStyles()` factory from the
-    // package's `./vite` subpath.
+    // package's `./vite` subpath. Since Wallow-0q2s.8.5 that wiring is invoked
+    // through `@bc-solutions-coder/web-shell`'s `createClientViteConfig()` preset
+    // rather than directly in this file, so this delegates to the factory the
+    // same way the dev-server test below does.
     const config: string = readFileSync(join(appRoot, "vite.config.ts"), "utf8");
 
-    expect(config).toMatch(/@bc-solutions-coder\/styles\/vite/u);
-    expect(config).toMatch(/wallowStyles\s*\(/u);
+    expect(config).toMatch(/@bc-solutions-coder\/web-shell\/server/u);
+    expect(config).toMatch(/createClientViteConfig\s*\(/u);
     expect(config).not.toMatch(/@tailwindcss\/vite/u);
   });
 
@@ -178,15 +181,19 @@ describe("the wallow-auth Vite Tailwind pipeline", () => {
     expect(names).toContain(BRAND_ASSETS_PLUGIN);
   });
 
-  it("adopts wallowStyles() on the dev host instead of raw @tailwindcss/vite", () => {
-    // dev-server.ts drives Vite with `configFile: false`, so it inherits nothing
-    // from vite.config.ts — it must wire the Tailwind pipeline itself. After the
-    // rewire it does so through `wallowStyles()`, not a hand-rolled
-    // `tailwindcss()` + `publicDir: brandAssetsDir` pair.
+  it("delegates the dev host's Tailwind wiring to the shared web-shell factory", () => {
+    // dev-server.ts drives Vite with `configFile: false`, so its pass inherits
+    // nothing from vite.config.ts and must wire the Tailwind pipeline itself.
+    // Since Wallow-0q2s.8.4 that wiring lives in `@bc-solutions-coder/web-shell`'s
+    // `createDevServer` factory (which always spreads `wallowStyles()` into the
+    // dev Vite instance — proven by that package's dev-server suite), so this file
+    // delegates to the factory rather than hand-rolling `tailwindcss()` +
+    // `publicDir`. The negative guard stays: it must never grow its own raw
+    // `@tailwindcss/vite` import and drift onto a second Tailwind copy.
     const devServer: string = readFileSync(join(appRoot, "dev-server.ts"), "utf8");
 
-    expect(devServer).toMatch(/@bc-solutions-coder\/styles\/vite/u);
-    expect(devServer).toMatch(/wallowStyles\s*\(/u);
+    expect(devServer).toMatch(/@bc-solutions-coder\/web-shell\/server/u);
+    expect(devServer).toMatch(/createDevServer\s*\(/u);
     expect(devServer).not.toMatch(/@tailwindcss\/vite/u);
   });
 });

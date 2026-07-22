@@ -4,7 +4,8 @@ import { describe, expect, it } from "vitest";
 import { createQueryClient } from "./query-client";
 
 /**
- * QueryClient factory (Wallow-8w1h.3.1). `createQueryClient()` is the single
+ * QueryClient factory (moved from apps/{wallow-auth,wallow-web}/src/lib/
+ * query-client.ts in Wallow-0q2s.8.2). `createQueryClient()` is the single
  * source of the React Query client wired into the router context and the
  * `__root` `QueryClientProvider`. It must apply an explicit query policy
  * (retry disabled — deterministic tests, no silent backoff) and must mint a

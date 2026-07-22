@@ -80,7 +80,9 @@ describe("wallow-web vite.ssr.config.ts (server bundle)", () => {
 
     // The whole render tree (router, root shell, routes) is reachable from
     // src/ssr.tsx, so bundling it proves the server-render pipeline compiles.
-    expect(config.build?.ssr).toBe("src/ssr.tsx");
+    const ssrEntry = config.build?.ssr;
+    expect(typeof ssrEntry).toBe("string");
+    expect(String(ssrEntry).endsWith("/src/ssr.tsx")).toBe(true);
     expect(config.build?.outDir).toBe("dist/server");
   });
 });

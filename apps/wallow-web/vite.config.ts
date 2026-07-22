@@ -1,46 +1,15 @@
-import { fileURLToPath } from "node:url";
-
-import { wallowStyles } from "@bc-solutions-coder/styles/vite";
-import react from "@vitejs/plugin-react";
+import { createClientViteConfig } from "@bc-solutions-coder/web-shell/server";
 import { defineConfig } from "vite";
 
-// Client bundle build for wallow-web (Wallow-ffpq.3.2).
+// Client bundle build for wallow-web (Wallow-ffpq.3.2, migrated onto the shared
+// web-shell preset in Wallow-0q2s.8.5).
+//
+// The client-bundle preset (createClientViteConfig) owns the whole config: the
+// react() + wallowStyles() plugin set and the stable, unhashed `client.js` output
+// contract (dist/client) the document shell and standalone host depend on. The
+// only per-app knob is `appDir`, against which the `src/client.tsx` entry resolves.
 //
 // The dev server (dev-server.ts) does NOT use this file — it drives Vite in
-// middlewareMode with its own inline plugins, serving the entry straight from
-// its module graph. So this config only governs `vite build`.
-//
-// The previous config aimed `vite build` at the old BFF-demo entry
-// (src/app.ts -> public/app.js). The hydration entry now exists (src/client.tsx,
-// Wallow-ffpq.3.1) — it has to, since the app was inert without a client
-// bundle — so the default build is the real client bundle and the SSR build
-// moves to vite.ssr.config.ts. `pnpm build` runs both.
-//
-// Output contract: the emitted file must be `client.js` with a STABLE, unhashed
-// name, because the document shell hardcodes `<script type="module"
-// src="/client.js">` (routes/__root.tsx) rather than reading a build manifest.
-// Hence a library-style entry build (explicit `input` + pinned `entryFileNames`)
-// rather than Vite's html-entry app build: there is no index.html for Vite to
-// crawl — the HTML is server-rendered.
-//
-// The shared styles package owns the brand assets (piggy-icon.svg); pointing
-// publicDir at it copies them verbatim and unhashed into build.outDir
-// (dist/client), which server.ts already serves at the root — so `/piggy-icon.svg`
-// resolves with no per-app copy and no new server code (Wallow-ffpq.3.4). The
-// tracked public/ here is the dead BFF-demo artefact (index.html + app.js), not
-// a client static root, so nothing of value is displaced.
-export default defineConfig({
-  plugins: [react(), ...wallowStyles()],
-  build: {
-    outDir: "dist/client",
-    emptyOutDir: true,
-    rollupOptions: {
-      input: fileURLToPath(new URL("src/client.tsx", import.meta.url)),
-      output: {
-        entryFileNames: "client.js",
-        chunkFileNames: "[name].js",
-        assetFileNames: "[name][extname]",
-      },
-    },
-  },
-});
+// middlewareMode with its own inline plugins. So this config only governs
+// `vite build`.
+export default defineConfig(createClientViteConfig({ appDir: import.meta.dirname }));

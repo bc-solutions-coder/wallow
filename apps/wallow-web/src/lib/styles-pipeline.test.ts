@@ -150,28 +150,35 @@ describe("the wallow-web Vite Tailwind pipeline", () => {
 
   it("registers Tailwind on the production build through wallowStyles()", () => {
     // The plugin registration moved behind @bc-solutions-coder/styles/vite's
-    // wallowStyles() factory. vite.config.ts must call it — not import
-    // @tailwindcss/vite directly — and the flattened plugin tree it produces must
-    // still carry the Tailwind plugin, or `@import "tailwindcss"` ships inert.
+    // wallowStyles() factory. Since Wallow-0q2s.8.5 that wiring is invoked through
+    // `@bc-solutions-coder/web-shell`'s `createClientViteConfig()` preset rather
+    // than directly in this file, so vite.config.ts must delegate to that factory
+    // — not import @tailwindcss/vite directly — and the flattened plugin tree it
+    // produces must still carry the Tailwind plugin, or `@import "tailwindcss"`
+    // ships inert.
     const config: string = readFileSync(join(appRoot, "vite.config.ts"), "utf8");
 
-    expect(config).toMatch(/@bc-solutions-coder\/styles\/vite/u);
-    expect(config).toMatch(/wallowStyles\s*\(/u);
+    expect(config).toMatch(/@bc-solutions-coder\/web-shell\/server/u);
+    expect(config).toMatch(/createClientViteConfig\s*\(/u);
     expect(config).not.toMatch(/@tailwindcss\/vite/u);
 
     const names: string[] = pluginNames(viteConfig.plugins);
     expect(names.some((name: string): boolean => name.includes("tailwind"))).toBe(true);
   });
 
-  it("registers Tailwind on the dev host through wallowStyles()", () => {
-    // dev-server.ts drives Vite with `configFile: false`, so it inherits nothing
-    // from vite.config.ts — it must wire styling itself. After adoption that is
-    // the same wallowStyles() call from the shared package, not a direct
-    // @tailwindcss/vite import, or `pnpm dev` serves unstyled pages.
+  it("delegates the dev host's Tailwind wiring to the shared web-shell factory", () => {
+    // dev-server.ts drives Vite with `configFile: false`, so its pass inherits
+    // nothing from vite.config.ts and must wire styling itself. Since
+    // Wallow-0q2s.8.4 that wiring lives in `@bc-solutions-coder/web-shell`'s
+    // `createDevServer` factory (which always spreads `wallowStyles()` into the
+    // dev Vite instance — proven by that package's dev-server suite), so this file
+    // delegates to the factory rather than importing Tailwind directly. The
+    // negative guard stays: it must never grow its own `@tailwindcss/vite` import
+    // and drift onto a second Tailwind copy, or `pnpm dev` serves unstyled pages.
     const devServer: string = readFileSync(join(appRoot, "dev-server.ts"), "utf8");
 
-    expect(devServer).toMatch(/@bc-solutions-coder\/styles\/vite/u);
-    expect(devServer).toMatch(/wallowStyles\s*\(/u);
+    expect(devServer).toMatch(/@bc-solutions-coder\/web-shell\/server/u);
+    expect(devServer).toMatch(/createDevServer\s*\(/u);
     expect(devServer).not.toMatch(/@tailwindcss\/vite/u);
   });
 });

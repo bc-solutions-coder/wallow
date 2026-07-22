@@ -1,6 +1,6 @@
 import { createRouter as createTanStackRouter, type AnyRouter } from "@tanstack/react-router";
 
-import { createQueryClient } from "./lib/query-client";
+import { createQueryClient } from "@bc-solutions-coder/web-shell";
 import { Route as rootRoute } from "./routes/__root";
 import { Route as bffDemoRoute } from "./routes/bff-demo";
 import { Route as appsIndexRoute } from "./routes/dashboard/apps/index";
