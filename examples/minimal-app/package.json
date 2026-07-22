@@ -1,0 +1,44 @@
+{
+  "name": "@bc-solutions-coder/example-minimal-app",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Minimal TanStack Start reference app wiring all five @bc-solutions-coder shared packages via the web-shell host factory",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx dev-server.ts",
+    "build": "vite build && vite build --config vite.ssr.config.ts",
+    "start": "tsx server.ts",
+    "routes:generate": "tsr generate",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@bc-solutions-coder/sdk": "workspace:*",
+    "@bc-solutions-coder/styles": "workspace:*",
+    "@bc-solutions-coder/testing": "workspace:*",
+    "@bc-solutions-coder/ui": "workspace:*",
+    "@bc-solutions-coder/web-shell": "workspace:*",
+    "@tanstack/react-query": "^5.101.2",
+    "@tanstack/react-router": "^1.170.18",
+    "@tanstack/react-start": "^1.168.28",
+    "h3": "^1.13.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  },
+  "devDependencies": {
+    "@tanstack/router-cli": "^1.167.21",
+    "@tanstack/router-plugin": "^1.168.20",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.3",
+    "@vitest/browser-playwright": "^4.1.10",
+    "playwright": "^1.61.1",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vite": "^8.1.4",
+    "vitest": "^4.1.10",
+    "vitest-browser-react": "^2.2.0"
+  }
+}
