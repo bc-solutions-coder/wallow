@@ -61,6 +61,143 @@ apps/wallow-web/
 └── package.json
 ```
 
+## New App Bootstrap
+
+A new TanStack Start app in this workspace is almost entirely wiring into five
+`@bc-solutions-coder` packages. The app owns only its own routes, router, and
+backend-facing slices; everything cross-cutting (styling, components, the auth
+client, the test harness, and the host runtime) comes from the shared packages.
+
+| Package | Published | Entry points | What a new app pulls from it |
+|---------|-----------|--------------|------------------------------|
+| `@bc-solutions-coder/styles` | yes | `.`, `./styles.css`, `./vite`, `./assets` | Tailwind v4 pipeline plugin (`wallowStyles()`), theme-token CSS, brand assets, the branding schema |
+| `@bc-solutions-coder/ui` | no (`private`) | `.`, `./source.css` | Shared browser components/primitives (`Button`, `Input`, `Label`, `Field`, `Card`, `ErrorBanner`, `MutedText`, `CenteredCardLayout`, `ForkAttribution`) plus `ReadyIndicator`/`FocusOnNavigate`, and the Tailwind `@source` scan of its component tree |
+| `@bc-solutions-coder/sdk` | yes | `.`, `./server` | Browser BFF client + typed API operations (`.`); BFF handlers, API proxy, and session stores (`./server`) |
+| `@bc-solutions-coder/testing` | no (`private`) | `.`, `./render` | The `createVitestProjects` node + browser preset (`.`); the browser-mode `render` helper (`./render`) |
+| `@bc-solutions-coder/web-shell` | no (`private`) | `.`, `./server` | `createQueryClient` (`.`); the standalone host runtime and Vite/dev-server presets (`./server`): `createStandaloneHost`/`ShellConfig`, `createDevServer`/`DevServerConfig`, `createClientViteConfig`/`createSsrViteConfig`, and the static-asset reader |
+
+`wallow-auth` and `wallow-web` both depend on all five as `workspace:*` runtime
+`dependencies` (no per-app `@tailwindcss/vite`, `tailwindcss`, `vitest` preset,
+or host-runtime code of their own). Bootstrapping a new app is these steps.
+
+### 1. Depend on all five packages
+
+In the app's `package.json` `dependencies` (not `devDependencies` — the host
+runtime and Vite presets are imported by `server.ts`/`vite.config.ts` at build
+time):
+
+```json
+{
+  "dependencies": {
+    "@bc-solutions-coder/sdk": "workspace:*",
+    "@bc-solutions-coder/styles": "workspace:*",
+    "@bc-solutions-coder/testing": "workspace:*",
+    "@bc-solutions-coder/ui": "workspace:*",
+    "@bc-solutions-coder/web-shell": "workspace:*"
+  }
+}
+```
+
+### 2. CSS entry (`src/styles.css`) — three lines
+
+```css
+@import "@bc-solutions-coder/styles/styles.css";
+@import "@bc-solutions-coder/ui/source.css";
+@source "./";
+```
+
+The first line pulls in the Tailwind base layer and branding-driven theme
+tokens. The second makes Tailwind scan `@bc-solutions-coder/ui`'s component tree
+(Tailwind v4 skips `node_modules`, so the package ships its own `@source`
+declaration for the app to import). The `@source "./"` is the one line every app
+must own — Tailwind resolves `@source` relative to the declaring stylesheet, so
+the shared packages cannot scan the app's own components on its behalf. Import
+this file once from the app's client entry (`src/client.tsx`):
+`import "./styles.css";`. See [Styling and Tailwind Setup](#styling-and-tailwind-setup)
+for the full rationale.
+
+### 3. Vite config via the web-shell preset (`vite.config.ts`)
+
+The client-bundle preset owns the whole config — the `react()` + `wallowStyles()`
+plugin set and the stable unhashed `dist/client/client.js` output the host and
+document shell depend on. The only per-app knob is `appDir`:
+
+```ts
+import { createClientViteConfig } from "@bc-solutions-coder/web-shell/server";
+import { defineConfig } from "vite";
+
+export default defineConfig(createClientViteConfig({ appDir: import.meta.dirname }));
+```
+
+`createSsrViteConfig` is the matching preset for the SSR build. Because the
+preset composes `wallowStyles()`, the app never imports it directly.
+
+### 4. Vitest config via the testing preset (`vitest.config.ts`)
+
+`createVitestProjects` returns the node + headless-Chromium two-project split.
+A simple app supplies only its `nodeTsxSpecs` (the `*.test.tsx` specs that render
+via `react-dom/server` and never mount a live DOM, so they stay on the node
+project); everything else defaults from the preset:
+
+```ts
+import { createVitestProjects } from "@bc-solutions-coder/testing";
+import { defineConfig } from "vitest/config";
+
+const { node, browser } = createVitestProjects({ nodeTsxSpecs: [] });
+
+export default defineConfig({ test: { projects: [node, browser] } });
+```
+
+`createVitestProjects` also accepts `extraBrowserOptimizeDeps` and
+`nodeProjectOverrides` for apps that need them (see `apps/wallow-web/vitest.config.ts`,
+which inlines the SDK and aliases `openid-client` for its BFF specs).
+
+### 5. Host files via the web-shell factories (`server.ts`, `dev-server.ts`)
+
+Both host files are thin config objects handed to a `web-shell/server` factory;
+all host behavior lives in the factory. `server.ts` (`pnpm start`, ~30 lines) is
+the standalone SSR host the Dockerfile/E2E container runs:
+
+```ts
+import { createStandaloneHost, type ShellConfig } from "@bc-solutions-coder/web-shell/server";
+
+const config: ShellConfig = {
+  appName: "my-app",
+  defaultPort: "3010",
+  appDir: import.meta.dirname,
+  isProxyPath,        // the app's proxy topology (below)
+  handleProxy,        // web Request -> Response bridge to the app's proxy/BFF
+  // clientIpHeader?  // optional, e.g. wallow-auth forwards the peer address
+};
+
+await createStandaloneHost(config);
+```
+
+`dev-server.ts` (`pnpm dev`) hands a `DevServerConfig` to `createDevServer` — the
+same `appName`/`defaultPort`/`appDir`/`isProxyPath`, plus a `loadProxyHandler`
+that `ssrLoadModule`s the proxy bridge and `reactPluginInDev: false` (Fast
+Refresh's preamble breaks whole-document hydration). It runs a bit longer than
+`server.ts` because it wires that lazy proxy loader; `apps/wallow-auth/dev-server.ts`
+is the reference.
+
+### 6. What the app still owns
+
+The shared packages leave exactly the app-specific surface to the app:
+
+- **Router, routes, and route components** — file-based routing under `src/routes/`,
+  composing `@bc-solutions-coder/ui` primitives (`import { Button, Card } from "@bc-solutions-coder/ui";`).
+- **Proxy topology** — the `isProxyPath` predicate and `handleProxy` bridge
+  (`src/lib/proxy-*.ts`): a same-origin reverse proxy like wallow-auth's
+  `createAuthServer`, or a BFF token tunnel like wallow-web's `handleBffRequest`.
+  These are the `ShellConfig` seam the design intentionally keeps per-app.
+- **Backend-facing slices** — its own `src/features/**` calling the SDK's typed
+  operations, and its client-configuration facade (`configureBffClient` /
+  `configureSsrClient`).
+
+Branding, theme tokens, the component library, the auth client, the test harness,
+and the host/dev/Vite runtime all stay in the shared packages — no source changes
+needed to rebrand, and nothing cross-cutting is duplicated into the app.
+
 ## Testing
 
 Frontend specs run under **Vitest 4 browser mode**: any component/DOM test executes in real
@@ -147,17 +284,23 @@ steps:
    `wallowStyles()` returns a `PluginOption[]` containing the Tailwind compiler plugin and a
    brand-assets plugin that points `publicDir` at the shared package's `assets/` directory
    (brand icon, etc.) through its own `config()` hook — the app never sets `publicDir` itself.
+   In this repo the two apps do not call `wallowStyles()` by hand: the `@bc-solutions-coder/web-shell`
+   client/SSR presets (`createClientViteConfig`/`createSsrViteConfig`) compose it in for them
+   (see [New App Bootstrap](#new-app-bootstrap)).
 
-3. **Create the CSS entry** at `src/styles.css`, exactly two lines:
+3. **Create the CSS entry** at `src/styles.css`, three lines:
 
    ```css
    @import "@bc-solutions-coder/styles/styles.css";
+   @import "@bc-solutions-coder/ui/source.css";
    @source "./";
    ```
 
-   The `@import` pulls in the Tailwind base layer and the branding-driven theme tokens. The
+   The first `@import` pulls in the Tailwind base layer and the branding-driven theme tokens. The
+   second imports `@bc-solutions-coder/ui`'s own `@source` declaration so Tailwind scans the shared
+   component library's class names (omit it if the app does not use `@bc-solutions-coder/ui`). The
    `@source "./"` line is the one thing an app must always own: Tailwind v4 resolves `@source`
-   paths relative to the declaring stylesheet, so the shared package can never scan an app's own
+   paths relative to the declaring stylesheet, so a shared package can never scan an app's own
    component tree for utility classes on its behalf.
 
    Import that file once, from the app's client entry point (`src/client.tsx`):
