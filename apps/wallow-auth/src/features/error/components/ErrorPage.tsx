@@ -1,3 +1,4 @@
+import { Card, ErrorBanner } from "@bc-solutions-coder/ui";
 import type { ReactNode } from "react";
 
 /**
@@ -68,14 +69,7 @@ function CardHeading() {
 
 /** The oracle's danger `BbAlert`. */
 function ErrorMessageAlert({ reason }: { readonly reason?: string }) {
-  return (
-    <div
-      className="rounded-md border border-destructive bg-destructive/10 p-3"
-      data-testid="error-message"
-    >
-      <p className="text-sm text-destructive">{errorMessage(reason)}</p>
-    </div>
-  );
+  return <ErrorBanner data-testid="error-message">{errorMessage(reason)}</ErrorBanner>;
 }
 
 /**
@@ -122,10 +116,10 @@ export interface ErrorPageProps {
 
 export function ErrorPage({ reason }: ErrorPageProps): ReactNode {
   return (
-    <div className="rounded-lg border border-border bg-card p-6 space-y-6">
+    <Card>
       <CardHeading />
       <ErrorMessageAlert reason={reason} />
       <ErrorFooter reason={reason} />
-    </div>
+    </Card>
   );
 }

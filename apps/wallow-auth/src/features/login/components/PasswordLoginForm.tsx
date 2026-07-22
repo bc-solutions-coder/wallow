@@ -1,3 +1,4 @@
+import { Button, Field, Input, Label } from "@bc-solutions-coder/ui";
 import { useMutation } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 
@@ -34,14 +35,11 @@ function EmailField(props: { readonly value: string; readonly onChange: (v: stri
   const { value, onChange } = props;
 
   return (
-    <div className="space-y-2">
-      <label className="text-sm font-medium text-foreground" htmlFor="email">
-        Email
-      </label>
-      <input
+    <Field>
+      <Label htmlFor="email">Email</Label>
+      <Input
         id="email"
         type="email"
-        className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
         placeholder="name@example.com"
         data-testid="login-email"
         value={value}
@@ -49,7 +47,7 @@ function EmailField(props: { readonly value: string; readonly onChange: (v: stri
           onChange(e.target.value);
         }}
       />
-    </div>
+    </Field>
   );
 }
 
@@ -61,9 +59,7 @@ function EmailField(props: { readonly value: string; readonly onChange: (v: stri
 function PasswordLabelRow() {
   return (
     <div className="flex items-center justify-between">
-      <label className="text-sm font-medium text-foreground" htmlFor="password">
-        Password
-      </label>
+      <Label htmlFor="password">Password</Label>
       <a
         href="/forgot-password"
         className="text-sm text-muted-foreground hover:text-primary"
@@ -80,12 +76,11 @@ function PasswordField(props: { readonly value: string; readonly onChange: (v: s
   const { value, onChange } = props;
 
   return (
-    <div className="space-y-2">
+    <Field>
       <PasswordLabelRow />
-      <input
+      <Input
         id="password"
         type="password"
-        className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
         placeholder="Enter your password"
         data-testid="login-password"
         value={value}
@@ -93,7 +88,7 @@ function PasswordField(props: { readonly value: string; readonly onChange: (v: s
           onChange(e.target.value);
         }}
       />
-    </div>
+    </Field>
   );
 }
 
@@ -130,16 +125,15 @@ function RememberMeField(props: {
 /** The oracle's submit `BbButton`, with its `Loading`/`Disabled="_isSubmitting"`. */
 function SubmitButton({ pending }: { readonly pending: boolean }) {
   return (
-    <button
+    <Button
       type="submit"
-      className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
       // The oracle's `Disabled="_isSubmitting"` — one click, one attempt. A double
       // submit costs the user two of the five tries they get before lockout.
       disabled={pending}
       data-testid="login-submit"
     >
       {pending ? "Signing in..." : "Sign in"}
-    </button>
+    </Button>
   );
 }
 

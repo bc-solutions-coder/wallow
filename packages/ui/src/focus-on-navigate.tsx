@@ -1,12 +1,14 @@
 /**
- * Route-change focus management for wallow-auth (Wallow-ffpq.2.8) — the React
- * port of Blazor's `<FocusOnNavigate RouteData="..." Selector="h1" />` from
+ * Route-change focus management (Wallow-ffpq.2.8) — the React port of Blazor's
+ * `<FocusOnNavigate RouteData="..." Selector="h1" />` from
  * `api/src/Wallow.Auth/Components/Routes.razor`.
  *
  * The Blazor original moved keyboard/screen-reader focus to the page's `<h1>`
  * after each client-side navigation, so assistive tech announces the new screen.
  * The React port lost that; this component restores it and, like
- * `ReadyIndicator`, sits at the root so *every* auth page gets the behaviour.
+ * `ReadyIndicator`, sits at the root so *every* page gets the behaviour. It was
+ * auth-only originally and moves into `@bc-solutions-coder/ui` unchanged
+ * (Wallow-0q2s.6.3).
  */
 
 import { useRouterState } from "@tanstack/react-router";

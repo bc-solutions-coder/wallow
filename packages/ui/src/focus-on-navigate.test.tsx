@@ -1,3 +1,4 @@
+import { render } from "@bc-solutions-coder/testing/render";
 import {
   createMemoryHistory,
   createRootRoute,
@@ -8,18 +9,20 @@ import {
   type AnyRouter,
 } from "@tanstack/react-router";
 import { page } from "vitest/browser";
-import { render } from "vitest-browser-react";
 import { describe, expect, it } from "vitest";
 
 import { FocusOnNavigate, MAIN_HEADING_SELECTOR } from "./focus-on-navigate";
 
 /**
+ * The moved spec for the shared FocusOnNavigate (Wallow-0q2s.6.3). Ported
+ * verbatim from apps/wallow-auth/src/components/focus-on-navigate.test.tsx — the
+ * component was auth-only today and moves into @bc-solutions-coder/ui unchanged.
+ *
  * The React port of Blazor's `<FocusOnNavigate Selector="h1" />`
  * (Wallow-ffpq.2.8). Blazor moved focus to the page's `<h1>` on every route
  * change so screen readers announce the new screen; the port must do the same.
  *
- * Every case drives the REAL TanStack router through a memory history — the same
- * harness the screen specs use (`LogoutScreen.test.tsx` et al.) — because the
+ * Every case drives the REAL TanStack router through a memory history — the
  * behaviour under test only means anything across an actual client-side
  * navigation: mount `FocusOnNavigate` at the root next to the `<Outlet/>`, then
  * navigate and watch where focus lands. Each route renders a single `<h1>`,

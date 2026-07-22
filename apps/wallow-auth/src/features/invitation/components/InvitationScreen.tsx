@@ -1,4 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { Card, ErrorBanner } from "@bc-solutions-coder/ui";
 import type { ReactNode } from "react";
 
 import { forkBranding } from "../../../lib/branding";
@@ -232,12 +233,7 @@ export function InvitationLoading() {
 function ErrorState({ message }: { readonly message: string }) {
   return (
     <div className="space-y-4">
-      <p
-        className="rounded-md border border-destructive bg-destructive/10 p-3 text-sm text-destructive"
-        data-testid="invitation-error"
-      >
-        {message}
-      </p>
+      <ErrorBanner data-testid="invitation-error">{message}</ErrorBanner>
       <a
         href={SIGN_IN_HREF}
         className="block text-center text-sm text-muted-foreground hover:text-foreground"
@@ -266,14 +262,7 @@ function InvitationInfo({ email }: { readonly email: string }) {
 
 /** The oracle's expired `BbAlert`, which replaces BOTH action branches. */
 function ExpiredNotice() {
-  return (
-    <p
-      className="rounded-md border border-destructive bg-destructive/10 p-3 text-sm text-destructive"
-      data-testid="invitation-expired"
-    >
-      {EXPIRED_MESSAGE}
-    </p>
-  );
+  return <ErrorBanner data-testid="invitation-expired">{EXPIRED_MESSAGE}</ErrorBanner>;
 }
 
 /**
@@ -324,12 +313,7 @@ function AuthenticatedActions(props: {
     <div className="space-y-4">
       <p className="text-sm text-center">Would you like to join {forkBranding.appName}?</p>
       {acceptError === null ? null : (
-        <p
-          className="rounded-md border border-destructive bg-destructive/10 p-3 text-sm text-destructive"
-          data-testid="invitation-accept-error"
-        >
-          {acceptError}
-        </p>
+        <ErrorBanner data-testid="invitation-accept-error">{acceptError}</ErrorBanner>
       )}
       <AcceptActions isSubmitting={isSubmitting} onAccept={onAccept} />
     </div>
@@ -460,15 +444,15 @@ export function InvitationScreen({ token, isAuthenticated }: InvitationScreenPro
 
   if (!tokenIsPresent || token === undefined) {
     return (
-      <div className="rounded-lg border border-border bg-card p-6 space-y-6">
+      <Card>
         <CardHeading />
         <ErrorState message={NO_TOKEN_MESSAGE} />
-      </div>
+      </Card>
     );
   }
 
   return (
-    <div className="rounded-lg border border-border bg-card p-6 space-y-6">
+    <Card>
       <CardHeading />
       <InvitationBody
         token={token}
@@ -482,7 +466,7 @@ export function InvitationScreen({ token, isAuthenticated }: InvitationScreenPro
           acceptMutation.mutate(token);
         }}
       />
-    </div>
+    </Card>
   );
 }
 

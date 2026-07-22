@@ -3,7 +3,7 @@ import { createRequestHandler, defaultRenderHandler } from "@tanstack/react-rout
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { forkBranding } from "../lib/branding";
-import { createQueryClient } from "../lib/query-client";
+import { createQueryClient } from "@bc-solutions-coder/web-shell";
 import { render } from "../ssr";
 
 /**

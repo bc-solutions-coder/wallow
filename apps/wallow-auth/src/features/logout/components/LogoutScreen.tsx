@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Card } from "@bc-solutions-coder/ui";
 import type { ReactNode } from "react";
 
 import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
@@ -256,7 +257,7 @@ export function LogoutScreen({ postLogoutRedirectUri, signedOut }: LogoutScreenP
     validation.data === true ? postLogoutRedirectUri : undefined;
 
   return (
-    <div className="rounded-lg border border-border bg-card p-6 space-y-6">
+    <Card>
       <CardHeading signedOut={isSignedOut} />
       {isSignedOut ? (
         <SignedOutLanding returnUri={returnUri} />
@@ -264,6 +265,6 @@ export function LogoutScreen({ postLogoutRedirectUri, signedOut }: LogoutScreenP
         <ConfirmStep postLogoutRedirectUri={postLogoutRedirectUri} />
       )}
       <LogoutFooter />
-    </div>
+    </Card>
   );
 }

@@ -1,3 +1,4 @@
+import { Button, Field, Input, Label } from "@bc-solutions-coder/ui";
 import { useMutation } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 
@@ -58,14 +59,11 @@ function EmailField(props: { readonly value: string; readonly onChange: (v: stri
   const { value, onChange } = props;
 
   return (
-    <div className="space-y-2">
-      <label className="text-sm font-medium text-foreground" htmlFor="otpEmail">
-        Email
-      </label>
-      <input
+    <Field>
+      <Label htmlFor="otpEmail">Email</Label>
+      <Input
         id="otpEmail"
         type="email"
-        className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
         placeholder="name@example.com"
         data-testid="login-otp-email"
         value={value}
@@ -73,7 +71,7 @@ function EmailField(props: { readonly value: string; readonly onChange: (v: stri
           onChange(e.target.value);
         }}
       />
-    </div>
+    </Field>
   );
 }
 
@@ -82,11 +80,9 @@ function CodeField(props: { readonly value: string; readonly onChange: (v: strin
   const { value, onChange } = props;
 
   return (
-    <div className="space-y-2">
-      <label className="text-sm font-medium text-foreground" htmlFor="otpCode">
-        Enter the 6-digit code sent to your email
-      </label>
-      <input
+    <Field>
+      <Label htmlFor="otpCode">Enter the 6-digit code sent to your email</Label>
+      <Input
         id="otpCode"
         // The oracle's `Type="InputType.Text"`, NOT number: the code is
         // `ToString("D6")` (PasswordlessService.cs:141), so it is zero-PADDED, and a
@@ -96,7 +92,6 @@ function CodeField(props: { readonly value: string; readonly onChange: (v: strin
         // autocorrected; `one-time-code` is what lets the OS offer it from the inbox.
         inputMode="numeric"
         autoComplete="one-time-code"
-        className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
         placeholder="000000"
         data-testid="login-otp-code"
         value={value}
@@ -104,7 +99,7 @@ function CodeField(props: { readonly value: string; readonly onChange: (v: strin
           onChange(e.target.value);
         }}
       />
-    </div>
+    </Field>
   );
 }
 
@@ -153,9 +148,8 @@ function RememberMeField(props: {
 /** The oracle's send `BbButton`, with its `Loading`/`Disabled="_isSubmitting"`. */
 function SendButton({ pending }: { readonly pending: boolean }) {
   return (
-    <button
+    <Button
       type="submit"
-      className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
       // One click, one code. A second send OVERWRITES the Redis key
       // (PasswordlessService.cs:144), silently invalidating the code already sitting
       // in the user's inbox — so the impatient user is the one who gets locked out.
@@ -163,16 +157,15 @@ function SendButton({ pending }: { readonly pending: boolean }) {
       data-testid="login-otp-send-submit"
     >
       {pending ? "Sending..." : "Send code"}
-    </button>
+    </Button>
   );
 }
 
 /** The oracle's verify `BbButton`. */
 function VerifyButton({ pending }: { readonly pending: boolean }) {
   return (
-    <button
+    <Button
       type="submit"
-      className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
       // THE ONE-TIME-USE GUARD. `ValidateOtpAsync` DELETES the code on success
       // (PasswordlessService.cs:178), so a double submit redeems a spent code and
       // paints "Invalid or expired code" over a sign-in that just succeeded. Same
@@ -182,7 +175,7 @@ function VerifyButton({ pending }: { readonly pending: boolean }) {
       data-testid="login-otp-verify-submit"
     >
       {pending ? "Verifying..." : "Verify code"}
-    </button>
+    </Button>
   );
 }
 

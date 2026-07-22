@@ -1,3 +1,4 @@
+import { Button, Card, ErrorBanner } from "@bc-solutions-coder/ui";
 import { useId, useState, type ReactNode } from "react";
 
 /**
@@ -99,14 +100,9 @@ const ERROR_MESSAGES: ReadonlyMap<string, string> = new Map([
 /** The oracle's `data-testid="accept-terms-error"` alert block. */
 function ErrorAlert({ code }: { readonly code: string }) {
   return (
-    <div
-      className="rounded-md border border-destructive bg-destructive/10 p-3"
-      data-testid="accept-terms-error"
-    >
-      <p className="text-sm text-destructive">
-        {ERROR_MESSAGES.get(code) ?? GENERIC_ERROR_MESSAGE}
-      </p>
-    </div>
+    <ErrorBanner data-testid="accept-terms-error">
+      {ERROR_MESSAGES.get(code) ?? GENERIC_ERROR_MESSAGE}
+    </ErrorBanner>
   );
 }
 
@@ -269,7 +265,7 @@ export function AcceptTermsScreen({
   };
 
   return (
-    <div className="rounded-lg border border-border bg-card p-6 space-y-6">
+    <Card>
       <div className="space-y-1 text-center">
         <h1
           className="text-lg font-semibold text-card-foreground"
@@ -294,15 +290,14 @@ export function AcceptTermsScreen({
           onPrivacyChange={setPrivacyAccepted}
         />
 
-        <button
+        <Button
           type="button"
           data-testid="accept-terms-submit"
           disabled={!bothAccepted}
           onClick={handleAcceptTerms}
-          className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
         >
           Create Account
-        </button>
+        </Button>
       </div>
 
       {/*
@@ -317,6 +312,6 @@ export function AcceptTermsScreen({
           Back to sign in
         </a>
       </p>
-    </div>
+    </Card>
   );
 }

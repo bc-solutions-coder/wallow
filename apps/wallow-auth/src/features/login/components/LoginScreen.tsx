@@ -1,3 +1,4 @@
+import { Card, CardTitle, ErrorBanner } from "@bc-solutions-coder/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
 
@@ -108,18 +109,6 @@ function MfaEnrollmentBanner({ deadline }: { readonly deadline: string }) {
   );
 }
 
-/** The oracle's danger `BbAlert` — the ONE banner all three tabs share. */
-function ErrorBanner({ message }: { readonly message: string }) {
-  return (
-    <div
-      className="rounded-md border border-destructive bg-destructive/10 p-3"
-      data-testid="login-error"
-    >
-      <p className="text-sm text-destructive">{message}</p>
-    </div>
-  );
-}
-
 /**
  * The success acknowledgment shown after a completed password reset
  * (Wallow-xzha.1.2). `ResetPasswordForm` navigates here with
@@ -154,7 +143,7 @@ function SignedInBanner() {
 function CardHeading() {
   return (
     <div className="space-y-1 text-center">
-      <h2 className="text-lg font-semibold text-card-foreground">Sign in to your account</h2>
+      <CardTitle>Sign in to your account</CardTitle>
       <p className="text-sm text-muted-foreground">Enter your credentials to continue</p>
     </div>
   );
@@ -406,11 +395,13 @@ export function LoginScreen({
   };
 
   return (
-    <div className="rounded-lg border border-border bg-card p-6 space-y-4">
+    <Card spacing="p-6 space-y-4">
       <CardHeading />
       {isPasswordResetMessage(message) ? <PasswordResetNotice /> : null}
       {graceDeadline === null ? null : <MfaEnrollmentBanner deadline={graceDeadline} />}
-      {errorMessage === null ? null : <ErrorBanner message={errorMessage} />}
+      {errorMessage === null ? null : (
+        <ErrorBanner data-testid="login-error">{errorMessage}</ErrorBanner>
+      )}
       {signedIn ? (
         // The oracle renders the whole tab block inside the `else` of `if (_signedIn)`:
         // a sign-in form under a "you are now signed in" alert is an invitation to
@@ -441,6 +432,6 @@ export function LoginScreen({
        */}
       {signedIn ? null : <ExternalProviders returnUrl={returnUrl} />}
       <RegisterPrompt href={registerHref(clientId, returnUrl)} />
-    </div>
+    </Card>
   );
 }

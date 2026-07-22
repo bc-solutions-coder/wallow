@@ -2,7 +2,6 @@ import { type QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createRootRoute, Outlet } from "@tanstack/react-router";
 import { useRef } from "react";
 
-import { FocusOnNavigate } from "../components/focus-on-navigate";
 import { ReadyIndicator } from "../components/ready-indicator";
 import {
   appIconUrl,
@@ -10,7 +9,8 @@ import {
   renderThemeStyle,
   type ResolvedBranding,
 } from "../lib/branding";
-import { createQueryClient } from "../lib/query-client";
+import { createQueryClient } from "@bc-solutions-coder/web-shell";
+import { FocusOnNavigate } from "@bc-solutions-coder/ui";
 
 /**
  * The browser bundle to load. In dev, Vite serves the entry straight out of its

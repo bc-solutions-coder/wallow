@@ -26,6 +26,7 @@
   },
   "devDependencies": {
     "@bc-solutions-coder/testing": "workspace:*",
+    "@tanstack/react-router": "^1.170.18",
     "@types/node": "^24.0.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
@@ -36,6 +37,7 @@
     "vitest": "^4.1.10"
   },
   "peerDependencies": {
+    "@tanstack/react-router": "^1.170.18",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   }

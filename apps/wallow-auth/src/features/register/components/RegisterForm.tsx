@@ -1,3 +1,12 @@
+import {
+  Button,
+  Card,
+  CardTitle,
+  ErrorBanner,
+  Field as FieldRow,
+  Input,
+  Label,
+} from "@bc-solutions-coder/ui";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
@@ -330,20 +339,8 @@ interface PendingRegistration {
 function CardHeading() {
   return (
     <div className="space-y-1 text-center">
-      <h2 className="text-lg font-semibold text-card-foreground">Create an account</h2>
+      <CardTitle>Create an account</CardTitle>
       <p className="text-sm text-muted-foreground">Enter your details to get started</p>
-    </div>
-  );
-}
-
-/** The oracle's danger `BbAlert`. */
-function ErrorBanner({ message }: { readonly message: string }) {
-  return (
-    <div
-      className="rounded-md border border-destructive bg-destructive/10 p-3"
-      data-testid="register-error"
-    >
-      <p className="text-sm text-destructive">{message}</p>
     </div>
   );
 }
@@ -394,14 +391,11 @@ function Field(props: {
   const { id, label, type, testId, placeholder, value, onChange } = props;
 
   return (
-    <div className="space-y-2">
-      <label className="text-sm font-medium text-foreground" htmlFor={id}>
-        {label}
-      </label>
-      <input
+    <FieldRow>
+      <Label htmlFor={id}>{label}</Label>
+      <Input
         id={id}
         type={type}
-        className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
         placeholder={placeholder}
         data-testid={testId}
         value={value}
@@ -409,7 +403,7 @@ function Field(props: {
           onChange(e.target.value);
         }}
       />
-    </div>
+    </FieldRow>
   );
 }
 
@@ -564,9 +558,9 @@ function OrgMatchInterstitial(props: {
         </p>
       </div>
       <div className="flex gap-2">
-        <button
+        <Button
           type="button"
-          className="flex-1 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+          className="flex-1"
           // BOTH buttons are the submit now — each one creates the account, and
           // they differ only in the flag. So "one click, one account" covers them
           // both: neither may stay live while a registration is in flight.
@@ -575,7 +569,7 @@ function OrgMatchInterstitial(props: {
           onClick={onRequest}
         >
           Request access
-        </button>
+        </Button>
         <button
           type="button"
           className="flex-1 rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground disabled:opacity-50"
@@ -669,15 +663,14 @@ function RegisterFields(props: {
         />
       </div>
 
-      <button
+      <Button
         type="submit"
-        className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
         // The oracle's `Disabled="_isSubmitting"` — one click, one account.
         disabled={props.pending}
         data-testid="register-submit"
       >
         {props.pending ? "Creating account..." : "Create account"}
-      </button>
+      </Button>
     </form>
   );
 }
@@ -844,9 +837,9 @@ export function RegisterForm({ clientId, returnUrl }: RegisterFormProps): ReactN
   if (providersQuery.isLoading || tenantQuery.isLoading) {
     // The oracle renders nothing until both calls settle (prerender: false).
     return (
-      <div className="rounded-lg border border-border bg-card p-6">
+      <Card spacing="p-6">
         <InitLoading />
-      </div>
+      </Card>
     );
   }
 
@@ -854,7 +847,7 @@ export function RegisterForm({ clientId, returnUrl }: RegisterFormProps): ReactN
     // The oracle `return`s here: the interstitial replaces the form. No account
     // exists yet at this point — BOTH answers below are what creates one.
     return (
-      <div className="rounded-lg border border-border bg-card p-6 space-y-6">
+      <Card>
         <CardHeading />
         <OrgMatchInterstitial
           domain={pending.domain}
@@ -869,7 +862,7 @@ export function RegisterForm({ clientId, returnUrl }: RegisterFormProps): ReactN
             submitRegistration(pending.request);
           }}
         />
-      </div>
+      </Card>
     );
   }
 
@@ -880,10 +873,10 @@ export function RegisterForm({ clientId, returnUrl }: RegisterFormProps): ReactN
   const orgName: string | undefined = tenantQuery.data?.orgName;
 
   return (
-    <div className="rounded-lg border border-border bg-card p-6 space-y-6">
+    <Card>
       <CardHeading />
       {orgName === undefined || orgName === "" ? null : <OrgNameBanner orgName={orgName} />}
-      {error === null ? null : <ErrorBanner message={error} />}
+      {error === null ? null : <ErrorBanner data-testid="register-error">{error}</ErrorBanner>}
       <RegisterFields
         email={email}
         password={password}
@@ -905,6 +898,6 @@ export function RegisterForm({ clientId, returnUrl }: RegisterFormProps): ReactN
       />
       <ExternalProviders providers={providersQuery.data ?? []} />
       <AlreadyHaveAccount returnUrl={returnUrl} />
-    </div>
+    </Card>
   );
 }

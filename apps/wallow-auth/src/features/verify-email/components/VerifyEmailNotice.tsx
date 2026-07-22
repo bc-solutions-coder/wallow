@@ -1,3 +1,4 @@
+import { Card } from "@bc-solutions-coder/ui";
 import type { ReactNode } from "react";
 
 import { signInHref } from "../sign-in-href";
@@ -69,10 +70,10 @@ export interface VerifyEmailNoticeProps {
 
 export function VerifyEmailNotice({ returnUrl }: VerifyEmailNoticeProps): ReactNode {
   return (
-    <div className="rounded-lg border border-border bg-card p-6 space-y-6">
+    <Card>
       <CardHeading />
       <Instructions />
       <BackToSignIn returnUrl={returnUrl} />
-    </div>
+    </Card>
   );
 }

@@ -1,3 +1,4 @@
+import { Button, Field, Input, Label } from "@bc-solutions-coder/ui";
 import { useMutation } from "@tanstack/react-query";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 
@@ -53,14 +54,11 @@ function EmailField(props: { readonly value: string; readonly onChange: (v: stri
   const { value, onChange } = props;
 
   return (
-    <div className="space-y-2">
-      <label className="text-sm font-medium text-foreground" htmlFor="magicLinkEmail">
-        Email
-      </label>
-      <input
+    <Field>
+      <Label htmlFor="magicLinkEmail">Email</Label>
+      <Input
         id="magicLinkEmail"
         type="email"
-        className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
         placeholder="name@example.com"
         data-testid="login-magic-link-email"
         value={value}
@@ -68,16 +66,15 @@ function EmailField(props: { readonly value: string; readonly onChange: (v: stri
           onChange(e.target.value);
         }}
       />
-    </div>
+    </Field>
   );
 }
 
 /** The oracle's send `BbButton`, with its `Loading`/`Disabled="_isSubmitting"`. */
 function SubmitButton({ pending }: { readonly pending: boolean }) {
   return (
-    <button
+    <Button
       type="submit"
-      className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
       // One click, one link. A double send spends the address's rate-limit
       // allowance and the second link silently invalidates nothing — but the
       // refusal it earns is a worse experience than a disabled button.
@@ -85,7 +82,7 @@ function SubmitButton({ pending }: { readonly pending: boolean }) {
       data-testid="login-magic-link-submit"
     >
       {pending ? "Sending..." : "Send link"}
-    </button>
+    </Button>
   );
 }
 

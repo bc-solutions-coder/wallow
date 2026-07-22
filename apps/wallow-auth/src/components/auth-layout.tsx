@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import { CenteredCardLayout, ForkAttribution } from "@bc-solutions-coder/ui";
+
 import {
   appIconUrl,
   forkBranding,
@@ -7,55 +9,20 @@ import {
   type ResolvedBranding,
 } from "../lib/branding";
 
-/** The fork's icon, shown at the size the attribution footer uses. */
-function ForkIcon() {
-  return <img src={appIconUrl} alt={forkBranding.appName} className="size-8" />;
-}
-
-/** "A {fork} App" — the fork's name emphasised within the sentence. */
-function ForkAttributionText() {
-  return (
-    <span className="text-xs text-muted-foreground">
-      A <span className="font-semibold text-muted-foreground">{forkBranding.appName}</span> App
-    </span>
-  );
-}
-
 /**
- * The fork attribution, linked to the fork's repository when it publishes one.
- * Mirrors the two branches of the Blazor layout's footer.
+ * The footer rule plus the fork attribution beneath the page body. The
+ * attribution itself is `@bc-solutions-coder/ui`'s {@link ForkAttribution}, fed
+ * the fork's own branding as props — the ui primitive owns the link/plain
+ * branches and the "A {fork} App" markup that this layout used to inline.
  */
-function ForkAttribution() {
-  const repositoryUrl: string | undefined =
-    forkBranding.repositoryUrl === "" ? undefined : forkBranding.repositoryUrl;
-
-  if (repositoryUrl === undefined) {
-    return (
-      <div className="flex items-center justify-center gap-1.5">
-        <ForkIcon />
-        <ForkAttributionText />
-      </div>
-    );
-  }
-
-  return (
-    <a
-      href={repositoryUrl}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="flex items-center justify-center gap-1.5 hover:opacity-80 transition-opacity"
-    >
-      <ForkIcon />
-      <ForkAttributionText />
-    </a>
-  );
-}
-
-/** The footer rule plus the fork attribution beneath the page body. */
 function ForkFooter() {
   return (
     <div className="mt-8 pt-4 border-t border-border">
-      <ForkAttribution />
+      <ForkAttribution
+        appName={forkBranding.appName}
+        iconUrl={appIconUrl}
+        repositoryUrl={forkBranding.repositoryUrl}
+      />
     </div>
   );
 }
@@ -83,23 +50,6 @@ function BrandingHeader({ branding }: { readonly branding: ResolvedBranding }) {
       {branding.tagline !== null && (
         <p className="text-sm text-muted-foreground mt-1">{branding.tagline}</p>
       )}
-    </div>
-  );
-}
-
-/** The fixed-width column: branding above the page body, fork attribution below. */
-function AuthCard({
-  branding,
-  children,
-}: {
-  readonly branding: ResolvedBranding;
-  readonly children?: ReactNode;
-}) {
-  return (
-    <div className="w-full max-w-[420px]">
-      <BrandingHeader branding={branding} />
-      {children}
-      <ForkFooter />
     </div>
   );
 }
@@ -135,8 +85,10 @@ export function AuthLayout({ branding, children }: AuthLayoutProps): ReactNode {
   const resolved: ResolvedBranding = branding ?? forkResolvedBranding;
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4">
-      <AuthCard branding={resolved}>{children}</AuthCard>
-    </div>
+    <CenteredCardLayout>
+      <BrandingHeader branding={resolved} />
+      {children}
+      <ForkFooter />
+    </CenteredCardLayout>
   );
 }

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
+import { Card, ErrorBanner } from "@bc-solutions-coder/ui";
 import { useEffect, type ReactNode } from "react";
 
 import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
@@ -125,14 +126,7 @@ interface ConsentPrompt {
 
 /** The oracle's `data-testid="consent-error"` block. */
 function ErrorState() {
-  return (
-    <div
-      className="rounded-md border border-destructive bg-destructive/10 p-3"
-      data-testid="consent-error"
-    >
-      <p className="text-sm text-destructive">{LOAD_FAILURE_MESSAGE}</p>
-    </div>
-  );
+  return <ErrorBanner data-testid="consent-error">{LOAD_FAILURE_MESSAGE}</ErrorBanner>;
 }
 
 /**
@@ -335,7 +329,7 @@ export function ConsentScreen({ clientId, returnUrl }: ConsentScreenProps): Reac
   };
 
   return (
-    <div className="rounded-lg border border-border bg-card p-6 space-y-6">
+    <Card>
       <ConsentState
         clientIsKnown={clientIsKnown}
         returnUrlIsUnsafe={returnUrlIsUnsafe}
@@ -344,6 +338,6 @@ export function ConsentScreen({ clientId, returnUrl }: ConsentScreenProps): Reac
         isError={query.isError}
         onSubmit={submitConsent}
       />
-    </div>
+    </Card>
   );
 }

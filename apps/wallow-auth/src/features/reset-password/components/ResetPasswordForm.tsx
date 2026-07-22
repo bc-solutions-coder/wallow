@@ -1,3 +1,4 @@
+import { Button, Card, CardTitle, ErrorBanner, Field, Input, Label } from "@bc-solutions-coder/ui";
 import { useForm } from "@tanstack/react-form";
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -113,14 +114,11 @@ function PasswordField(props: {
   const { id, label, testId, errorTestId, value, error, onChange } = props;
 
   return (
-    <div className="space-y-2">
-      <label className="text-sm font-medium text-foreground" htmlFor={id}>
-        {label}
-      </label>
-      <input
+    <Field>
+      <Label htmlFor={id}>{label}</Label>
+      <Input
         id={id}
         type="password"
-        className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
         data-testid={testId}
         value={value}
         onChange={(e) => {
@@ -132,7 +130,7 @@ function PasswordField(props: {
           {error}
         </span>
       )}
-    </div>
+    </Field>
   );
 }
 
@@ -204,14 +202,9 @@ function ResetPasswordFields(props: {
         )}
       </form.Field>
 
-      <button
-        type="submit"
-        className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
-        disabled={pending}
-        data-testid="reset-password-submit"
-      >
+      <Button type="submit" disabled={pending} data-testid="reset-password-submit">
         {pending ? "Resetting..." : "Reset password"}
-      </button>
+      </Button>
     </form>
   );
 }
@@ -220,20 +213,8 @@ function ResetPasswordFields(props: {
 function CardHeading() {
   return (
     <div className="space-y-1">
-      <h2 className="text-lg font-semibold text-card-foreground">Reset your password</h2>
+      <CardTitle>Reset your password</CardTitle>
       <p className="text-sm text-muted-foreground">Enter your new password below.</p>
-    </div>
-  );
-}
-
-/** The oracle's danger `BbAlert`, shown above the fields. */
-function ErrorBanner({ message }: { readonly message: string }) {
-  return (
-    <div
-      className="rounded-md border border-destructive bg-destructive/10 p-3"
-      data-testid="reset-password-error"
-    >
-      <p className="text-sm text-destructive">{message}</p>
     </div>
   );
 }
@@ -303,11 +284,13 @@ export function ResetPasswordForm({ email, token }: ResetPasswordFormProps): Rea
   };
 
   return (
-    <div className="rounded-lg border border-border bg-card p-6 space-y-6">
+    <Card>
       <CardHeading />
-      {error === null ? null : <ErrorBanner message={error} />}
+      {error === null ? null : (
+        <ErrorBanner data-testid="reset-password-error">{error}</ErrorBanner>
+      )}
       <ResetPasswordFields pending={mutation.isPending} onSubmit={handleSubmit} />
       <BackToSignIn />
-    </div>
+    </Card>
   );
 }

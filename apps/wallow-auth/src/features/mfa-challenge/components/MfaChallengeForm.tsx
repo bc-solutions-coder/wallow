@@ -1,3 +1,4 @@
+import { Button, Card, CardTitle, ErrorBanner, Field, Input, Label } from "@bc-solutions-coder/ui";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { type ReactNode, useEffect, useState } from "react";
@@ -230,24 +231,12 @@ interface VerifyResult {
 function CardHeading({ useBackupCode }: { readonly useBackupCode: boolean }) {
   return (
     <div className="space-y-1">
-      <h2 className="text-lg font-semibold text-card-foreground">Two-factor authentication</h2>
+      <CardTitle>Two-factor authentication</CardTitle>
       <p className="text-sm text-muted-foreground">
         {useBackupCode
           ? "Enter one of your backup codes to continue."
           : "Enter the code from your authenticator app to continue."}
       </p>
-    </div>
-  );
-}
-
-/** The oracle's danger `BbAlert`. */
-function ErrorBanner({ message }: { readonly message: string }) {
-  return (
-    <div
-      className="rounded-md border border-destructive bg-destructive/10 p-3"
-      data-testid="mfa-challenge-error"
-    >
-      <p className="text-sm text-destructive">{message}</p>
     </div>
   );
 }
@@ -277,14 +266,11 @@ function CodeField(props: {
   const { useBackupCode, value, onChange } = props;
 
   return (
-    <div className="space-y-2">
-      <label className="text-sm font-medium text-foreground" htmlFor="code">
-        {useBackupCode ? "Backup code" : "Verification code"}
-      </label>
-      <input
+    <Field>
+      <Label htmlFor="code">{useBackupCode ? "Backup code" : "Verification code"}</Label>
+      <Input
         id="code"
         type="text"
-        className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
         placeholder={useBackupCode ? "Enter backup code" : "Enter 6-digit code"}
         data-testid={useBackupCode ? "mfa-challenge-backup-code" : "mfa-challenge-code"}
         value={value}
@@ -292,7 +278,7 @@ function CodeField(props: {
           onChange(e.target.value);
         }}
       />
-    </div>
+    </Field>
   );
 }
 
@@ -349,9 +335,8 @@ function ChallengeFields(props: {
       }}
     >
       <CodeField useBackupCode={useBackupCode} value={code} onChange={onCodeChange} />
-      <button
+      <Button
         type="submit"
-        className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
         // The oracle's `Disabled="_isSubmitting"` — one click, one attempt. This
         // screen is rate-limited into a 5-strike lockout, so a double submit can
         // cost the user two of their five.
@@ -359,7 +344,7 @@ function ChallengeFields(props: {
         data-testid="mfa-challenge-submit"
       >
         {pending ? "Verifying..." : "Verify"}
-      </button>
+      </Button>
       <ToggleBackupCode useBackupCode={useBackupCode} onToggle={onToggle} />
     </form>
   );
@@ -513,9 +498,9 @@ export function MfaChallengeForm({ returnUrl }: MfaChallengeFormProps): ReactNod
   }
 
   return (
-    <div className="rounded-lg border border-border bg-card p-6 space-y-6">
+    <Card>
       <CardHeading useBackupCode={useBackupCode} />
-      {error === null ? null : <ErrorBanner message={error} />}
+      {error === null ? null : <ErrorBanner data-testid="mfa-challenge-error">{error}</ErrorBanner>}
       {verified ? (
         <SuccessBanner />
       ) : (
@@ -529,6 +514,6 @@ export function MfaChallengeForm({ returnUrl }: MfaChallengeFormProps): ReactNod
         />
       )}
       <BackToSignIn />
-    </div>
+    </Card>
   );
 }

@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Card } from "@bc-solutions-coder/ui";
 import type { ReactNode } from "react";
 
 import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
@@ -268,10 +269,10 @@ export function VerifyEmailConfirm({
   returnUrl,
 }: VerifyEmailConfirmProps): ReactNode {
   return (
-    <div className="rounded-lg border border-border bg-card p-6 space-y-6">
+    <Card>
       <CardHeading />
       <VerificationState email={email} token={token} returnUrl={returnUrl} />
       <SignInLink returnUrl={returnUrl} />
-    </div>
+    </Card>
   );
 }

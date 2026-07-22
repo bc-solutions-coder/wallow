@@ -1,3 +1,4 @@
+import { Button, Card, CardTitle, ErrorBanner, Field, Input, Label } from "@bc-solutions-coder/ui";
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { QRCodeSVG } from "qrcode.react";
@@ -243,24 +244,10 @@ interface ConfirmResult {
 function CardHeading() {
   return (
     <div className="space-y-1 text-center">
-      <h2 className="text-lg font-semibold text-card-foreground">
-        Set up two-factor authentication
-      </h2>
+      <CardTitle>Set up two-factor authentication</CardTitle>
       <p className="text-sm text-muted-foreground">
         Scan the QR code with your authenticator app, then enter the code to confirm.
       </p>
-    </div>
-  );
-}
-
-/** The oracle's danger `BbAlert`. */
-function ErrorBanner({ message }: { readonly message: string }) {
-  return (
-    <div
-      className="rounded-md border border-destructive bg-destructive/10 p-3"
-      data-testid="mfa-enroll-error"
-    >
-      <p className="text-sm text-destructive">{message}</p>
     </div>
   );
 }
@@ -317,14 +304,11 @@ function ConfirmFields(props: {
         onSubmit();
       }}
     >
-      <div className="space-y-2">
-        <label className="text-sm font-medium text-foreground" htmlFor="code">
-          Verification code
-        </label>
-        <input
+      <Field>
+        <Label htmlFor="code">Verification code</Label>
+        <Input
           id="code"
           type="text"
-          className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
           placeholder="Enter 6-digit code"
           data-testid="mfa-enroll-code"
           value={code}
@@ -332,10 +316,9 @@ function ConfirmFields(props: {
             onCodeChange(e.target.value);
           }}
         />
-      </div>
-      <button
+      </Field>
+      <Button
         type="submit"
-        className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
         // The oracle's `Loading`/`Disabled="_isSubmitting"`. A double submit burns
         // the 30-second TOTP window and mints a second set of backup codes over
         // the ones the user is mid-way through writing down.
@@ -343,7 +326,7 @@ function ConfirmFields(props: {
         data-testid="mfa-enroll-submit"
       >
         {pending ? "Verifying..." : "Verify and enable MFA"}
-      </button>
+      </Button>
     </form>
   );
 }
@@ -415,22 +398,13 @@ function IntroPanel({
     <div className="space-y-4">
       <IntroCopy />
       {loading ? (
-        <button
-          type="button"
-          className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
-          disabled
-        >
+        <Button type="button" disabled>
           Preparing setup…
-        </button>
+        </Button>
       ) : (
-        <button
-          type="button"
-          className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
-          data-testid="mfa-enroll-begin-setup"
-          onClick={onBeginSetup}
-        >
+        <Button type="button" data-testid="mfa-enroll-begin-setup" onClick={onBeginSetup}>
           Begin setup
-        </button>
+        </Button>
       )}
     </div>
   );
@@ -612,9 +586,11 @@ export function MfaEnrollForm({ returnUrl, enrollToken }: MfaEnrollFormProps): R
   }
 
   return (
-    <div className="rounded-lg border border-border bg-card p-6 space-y-6">
+    <Card>
       <CardHeading />
-      {errorMessage === null ? null : <ErrorBanner message={errorMessage} />}
+      {errorMessage === null ? null : (
+        <ErrorBanner data-testid="mfa-enroll-error">{errorMessage}</ErrorBanner>
+      )}
       {renderBody({
         backupCodes,
         secret,
@@ -630,7 +606,7 @@ export function MfaEnrollForm({ returnUrl, enrollToken }: MfaEnrollFormProps): R
         },
       })}
       <CancelLink />
-    </div>
+    </Card>
   );
 }
 
@@ -657,14 +633,9 @@ function renderBody(props: {
     return (
       <>
         <BackupCodesPanel codes={props.backupCodes} />
-        <button
-          type="button"
-          className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
-          data-testid="mfa-enroll-done"
-          onClick={props.onDone}
-        >
+        <Button type="button" data-testid="mfa-enroll-done" onClick={props.onDone}>
           Done
-        </button>
+        </Button>
       </>
     );
   }

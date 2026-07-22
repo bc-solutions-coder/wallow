@@ -1,3 +1,4 @@
+import { Button, Card, CardTitle, Field, Input, Label } from "@bc-solutions-coder/ui";
 import { useForm } from "@tanstack/react-form";
 import { useMutation } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
@@ -55,15 +56,12 @@ function EmailField(props: {
   const { value, error, onChange } = props;
 
   return (
-    <div className="space-y-2">
-      <label className="text-sm font-medium text-foreground" htmlFor="forgot-email">
-        Email
-      </label>
-      <input
+    <Field>
+      <Label htmlFor="forgot-email">Email</Label>
+      <Input
         id="forgot-email"
         type="text"
         placeholder="you@example.com"
-        className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
         data-testid="forgot-password-email"
         value={value}
         onChange={(e) => {
@@ -75,7 +73,7 @@ function EmailField(props: {
           {error}
         </span>
       )}
-    </div>
+    </Field>
   );
 }
 
@@ -146,14 +144,9 @@ function RequestResetForm(props: {
         )}
       </form.Field>
 
-      <button
-        type="submit"
-        className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
-        disabled={pending}
-        data-testid="forgot-password-submit"
-      >
+      <Button type="submit" disabled={pending} data-testid="forgot-password-submit">
         {pending ? "Sending..." : "Send reset link"}
-      </button>
+      </Button>
     </form>
   );
 }
@@ -162,7 +155,7 @@ function RequestResetForm(props: {
 function CardHeading() {
   return (
     <div className="space-y-1">
-      <h2 className="text-lg font-semibold text-card-foreground">Forgot your password?</h2>
+      <CardTitle>Forgot your password?</CardTitle>
       <p className="text-sm text-muted-foreground">
         Enter your email address and we&apos;ll send you a reset link.
       </p>
@@ -207,7 +200,7 @@ export function ForgotPasswordForm(): ReactNode {
   };
 
   return (
-    <div className="rounded-lg border border-border bg-card p-6 space-y-6">
+    <Card>
       <CardHeading />
       {submitted ? (
         <SubmittedConfirmation />
@@ -215,6 +208,6 @@ export function ForgotPasswordForm(): ReactNode {
         <RequestResetForm pending={mutation.isPending} onSubmit={handleSubmit} />
       )}
       <BackToSignIn />
-    </div>
+    </Card>
   );
 }
