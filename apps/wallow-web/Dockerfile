@@ -25,6 +25,9 @@ WORKDIR /repo
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc tsconfig.base.json ./
 COPY packages/sdk/package.json packages/sdk/
 COPY packages/styles/package.json packages/styles/
+COPY packages/testing/package.json packages/testing/
+COPY packages/ui/package.json packages/ui/
+COPY packages/web-shell/package.json packages/web-shell/
 COPY apps/wallow-web/package.json apps/wallow-web/
 
 RUN pnpm install --frozen-lockfile
@@ -36,16 +39,23 @@ RUN pnpm install --frozen-lockfile
 # `vite build` fails with UNRESOLVED_IMPORT.
 COPY api/branding.json api/branding.json
 
-# Copy the SDK, styles, and example sources, then build the SDK + styles dist
-# the example imports (@bc-solutions-coder/sdk/server -> packages/sdk/dist,
-# @bc-solutions-coder/styles -> packages/styles/dist) followed by the example's
-# Vite client bundle (public/app.js).
+# Copy every workspace package plus the example sources, then build all package
+# dist output the example imports (@bc-solutions-coder/{sdk,styles,testing,ui,
+# web-shell}) followed by the example's own client + SSR bundles. The example
+# declares all five packages as `workspace:*` dependencies and its
+# vite.config.ts imports @bc-solutions-coder/web-shell/server, so every package
+# dir must be present and built or `vite build` fails with UNRESOLVED_IMPORT.
 COPY packages/sdk packages/sdk
 COPY packages/styles packages/styles
+COPY packages/testing packages/testing
+COPY packages/ui packages/ui
+COPY packages/web-shell packages/web-shell
 COPY apps/wallow-web apps/wallow-web
 
-RUN pnpm --filter @bc-solutions-coder/sdk build \
-    && pnpm --filter @bc-solutions-coder/styles build \
+# Build all packages first (`pnpm --filter './packages/*' build` runs them in
+# topological order, so @bc-solutions-coder/styles is built before
+# @bc-solutions-coder/web-shell which depends on it), then the example.
+RUN pnpm --filter './packages/*' build \
     && pnpm --filter @bc-solutions-coder/wallow-web build
 
 WORKDIR /repo/apps/wallow-web

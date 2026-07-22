@@ -25,6 +25,9 @@ WORKDIR /repo
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc tsconfig.base.json ./
 COPY packages/sdk/package.json packages/sdk/
 COPY packages/styles/package.json packages/styles/
+COPY packages/testing/package.json packages/testing/
+COPY packages/ui/package.json packages/ui/
+COPY packages/web-shell/package.json packages/web-shell/
 COPY apps/wallow-auth/package.json apps/wallow-auth/
 
 RUN pnpm install --frozen-lockfile
@@ -37,22 +40,29 @@ RUN pnpm install --frozen-lockfile
 # statically imports api/branding.json and both apps now consume that package.
 COPY api/branding.json api/branding.json
 
-# Copy the SDK, styles, and app sources, then build the SDK + styles dist the
-# app imports (@bc-solutions-coder/sdk -> packages/sdk/dist,
-# @bc-solutions-coder/styles -> packages/styles/dist) followed by the app's own
-# client + SSR bundles.
+# Copy every workspace package plus the app sources, then build all package
+# dist output the app imports (@bc-solutions-coder/{sdk,styles,testing,ui,
+# web-shell}) followed by the app's own client + SSR bundles. The app declares
+# all five packages as `workspace:*` dependencies and its vite.config.ts imports
+# @bc-solutions-coder/web-shell/server, so every package dir must be present and
+# built or `vite build` fails with UNRESOLVED_IMPORT.
 COPY packages/sdk packages/sdk
 COPY packages/styles packages/styles
+COPY packages/testing packages/testing
+COPY packages/ui packages/ui
+COPY packages/web-shell packages/web-shell
 COPY apps/wallow-auth apps/wallow-auth
 
-# Both halves of `pnpm build` (vite build && vite build --config
+# Build all packages first (`pnpm --filter './packages/*' build` runs them in
+# topological order, so @bc-solutions-coder/styles is built before
+# @bc-solutions-coder/web-shell which depends on it), then the app. Both halves
+# of the app's `pnpm build` (vite build && vite build --config
 # vite.ssr.config.ts) must land in the image and survive to run time:
 # dist/client/ is served as static assets and dist/server/ssr.js is imported
 # EAGERLY at boot by server.ts, which throws if it is absent. dist/ is
 # gitignored, so it never arrives via the build context — it only exists if
 # built here.
-RUN pnpm --filter @bc-solutions-coder/sdk build \
-    && pnpm --filter @bc-solutions-coder/styles build \
+RUN pnpm --filter './packages/*' build \
     && pnpm --filter @bc-solutions-coder/wallow-auth build
 
 WORKDIR /repo/apps/wallow-auth

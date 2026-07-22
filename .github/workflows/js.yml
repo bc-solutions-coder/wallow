@@ -61,11 +61,13 @@ jobs:
       - name: Check formatting
         run: pnpm format:check
 
-      # Workspace members resolve @bc-solutions-coder/sdk through its package.json
-      # `exports` map, which points at dist/. Build the SDK first so dependent
-      # members (apps/wallow-web) can typecheck against the emitted .d.ts files.
-      - name: Build SDK
-        run: pnpm --filter @bc-solutions-coder/sdk build
+      # Workspace members resolve @bc-solutions-coder/* packages through their
+      # package.json `exports` maps, which point at dist/. Build every package
+      # first — in topological order (styles before web-shell, which depends on
+      # it) — so dependent members (the apps) can typecheck against the emitted
+      # .d.ts files.
+      - name: Build packages
+        run: pnpm --filter './packages/*' build
 
       - name: Typecheck
         run: pnpm typecheck

@@ -35,7 +35,9 @@ async function collectPluginNames(plugins: unknown): Promise<string[]> {
     return [];
   }
   if (Array.isArray(resolved)) {
-    const nested: string[][] = await Promise.all(resolved.map(collectPluginNames));
+    const nested: string[][] = await Promise.all(
+      resolved.map((entry) => collectPluginNames(entry)),
+    );
     return nested.flat();
   }
   if (typeof resolved === "object" && "name" in resolved) {
