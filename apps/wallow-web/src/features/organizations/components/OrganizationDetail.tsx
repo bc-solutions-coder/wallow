@@ -10,6 +10,7 @@
  * lifecycle actions carry `organization-detail-archive` /
  * `organization-detail-reactivate` (`{page}-{element}` kebab-case).
  */
+import { Button, Card, ErrorBanner, Field, Input, MutedText } from "@bc-solutions-coder/ui";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -105,13 +106,15 @@ function RegisterClientForm(props: { onRegister: (body: RegisterClientInput) => 
         });
       }}
     >
-      <input
-        data-testid="organization-detail-register-display-name"
-        value={displayName}
-        onChange={(e) => {
-          setDisplayName(e.target.value);
-        }}
-      />
+      <Field>
+        <Input
+          data-testid="organization-detail-register-display-name"
+          value={displayName}
+          onChange={(e) => {
+            setDisplayName(e.target.value);
+          }}
+        />
+      </Field>
       <ClientTypeSelect value={clientType} onChange={setClientType} />
       <textarea
         data-testid="organization-detail-register-redirect-uris"
@@ -120,9 +123,9 @@ function RegisterClientForm(props: { onRegister: (body: RegisterClientInput) => 
           setRedirectUris(e.target.value);
         }}
       />
-      <button type="submit" data-testid="organization-detail-register-submit">
+      <Button type="submit" data-testid="organization-detail-register-submit">
         Register client
-      </button>
+      </Button>
     </form>
   );
 }
@@ -153,7 +156,9 @@ function ClientsSection(props: { orgId: string }) {
         <RegisterClientResult clientId={result.clientId} clientSecret={result.clientSecret} />
       ) : null}
       {register.isError ? (
-        <div data-testid="organization-detail-register-error">Failed to register client.</div>
+        <ErrorBanner data-testid="organization-detail-register-error">
+          Failed to register client.
+        </ErrorBanner>
       ) : null}
       <RegisterClientForm
         onRegister={(body) => {
@@ -172,7 +177,7 @@ export function OrganizationDetail(props: { orgId: string }) {
   const reactivate = useMutation(reactivateOrganizationMutation(queryClient, orgId));
 
   if (isPending) {
-    return <div data-testid="organization-detail-loading">Loading organization…</div>;
+    return <MutedText data-testid="organization-detail-loading">Loading organization…</MutedText>;
   }
 
   // The facade returns the detail as `unknown`; narrow to the feature view-model
@@ -181,46 +186,48 @@ export function OrganizationDetail(props: { orgId: string }) {
 
   if (org === null) {
     return (
-      <div>
+      <Card>
         <a href="/dashboard/organizations" data-testid="organization-detail-back-link">
           Back to organizations
         </a>
-        <div data-testid="organization-detail-not-found">Organization not found.</div>
-      </div>
+        <MutedText data-testid="organization-detail-not-found">Organization not found.</MutedText>
+      </Card>
     );
   }
 
   return (
-    <div>
+    <Card>
       <a href="/dashboard/organizations" data-testid="organization-detail-back-link">
         Back to organizations
       </a>
       <h1 data-testid="organization-detail-heading">{org.name}</h1>
 
       <div>
-        <button
+        <Button
           type="button"
+          variant="destructive"
           data-testid="organization-detail-archive"
           onClick={() => {
             archive.mutate();
           }}
         >
           Archive
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          variant="secondary"
           data-testid="organization-detail-reactivate"
           onClick={() => {
             reactivate.mutate();
           }}
         >
           Reactivate
-        </button>
+        </Button>
       </div>
 
       <MemberList orgId={orgId} />
 
       <ClientsSection orgId={orgId} />
-    </div>
+    </Card>
   );
 }

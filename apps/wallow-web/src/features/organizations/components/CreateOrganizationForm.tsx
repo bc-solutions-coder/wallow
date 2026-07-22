@@ -12,6 +12,7 @@
  * (required-field validation message), `organization-create-error` (server
  * ProblemDetails surface).
  */
+import { Button, Card, ErrorBanner, Field, Input } from "@bc-solutions-coder/ui";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ProblemDetails } from "@bc-solutions-coder/sdk";
@@ -31,19 +32,35 @@ function NameField(props: {
   const { value, error, onChange } = props;
   return (
     <>
-      <input
-        data-testid="organization-name"
-        value={value}
-        onChange={(e) => {
-          onChange(e.target.value);
-        }}
-      />
-      {error === undefined ? null : <span data-testid="organization-name-error">{error}</span>}
+      <Field>
+        <Input
+          data-testid="organization-name"
+          value={value}
+          onChange={(e) => {
+            onChange(e.target.value);
+          }}
+        />
+      </Field>
+      {error === undefined ? null : (
+        <ErrorBanner data-testid="organization-name-error">{error}</ErrorBanner>
+      )}
     </>
   );
 }
 
 export function CreateOrganizationForm() {
+  return (
+    <Card>
+      <CreateOrganizationFormFields />
+    </Card>
+  );
+}
+
+/**
+ * The form body, split out so the `Card` surface stays a shallow wrapper and the
+ * `form > form.Field > NameField` chain keeps within the repo's JSX nesting budget.
+ */
+function CreateOrganizationFormFields() {
   const queryClient = useQueryClient();
   const mutation = useMutation(createOrganizationMutation(queryClient));
 
@@ -91,14 +108,14 @@ export function CreateOrganizationForm() {
       </form.Field>
 
       {mutation.isError ? (
-        <span data-testid="organization-create-error">
+        <ErrorBanner data-testid="organization-create-error">
           {(mutation.error as ProblemDetails).detail}
-        </span>
+        </ErrorBanner>
       ) : null}
 
-      <button type="submit" data-testid="organization-create-submit">
+      <Button type="submit" data-testid="organization-create-submit">
         Create organization
-      </button>
+      </Button>
     </form>
   );
 }

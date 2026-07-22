@@ -15,6 +15,7 @@
  *
  * Testids mirror the C# E2E page object `SettingsMfaSection`.
  */
+import { Button, Card, ErrorBanner, Field, Input, Label, MutedText } from "@bc-solutions-coder/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -33,9 +34,9 @@ function DisabledCard(props: { onEnable: () => void }) {
   return (
     <div>
       <span data-testid="settings-mfa-status">Disabled</span>
-      <button type="button" data-testid="settings-mfa-enable" onClick={props.onEnable}>
+      <Button type="button" data-testid="settings-mfa-enable" onClick={props.onEnable}>
         Enable MFA
-      </button>
+      </Button>
     </div>
   );
 }
@@ -51,12 +52,22 @@ function EnabledCard(props: {
     <div>
       <span data-testid="settings-mfa-status">Enabled</span>
       <span data-testid="settings-mfa-backup-count">{backupCodeCount}</span>
-      <button type="button" data-testid="settings-mfa-disable" onClick={onDisable}>
+      <Button
+        type="button"
+        variant="destructive"
+        data-testid="settings-mfa-disable"
+        onClick={onDisable}
+      >
         Disable MFA
-      </button>
-      <button type="button" data-testid="settings-mfa-regenerate" onClick={onRegenerate}>
+      </Button>
+      <Button
+        type="button"
+        variant="secondary"
+        data-testid="settings-mfa-regenerate"
+        onClick={onRegenerate}
+      >
         Regenerate backup codes
-      </button>
+      </Button>
     </div>
   );
 }
@@ -70,17 +81,21 @@ function ConfirmPanel(props: {
   const { password, onPasswordChange, onSubmit } = props;
   return (
     <div>
-      <input
-        type="password"
-        data-testid="settings-mfa-confirm-password"
-        value={password}
-        onChange={(e) => {
-          onPasswordChange(e.target.value);
-        }}
-      />
-      <button type="button" data-testid="settings-mfa-confirm-submit" onClick={onSubmit}>
+      <Field>
+        <Label htmlFor="settings-mfa-confirm-password-input">Password</Label>
+        <Input
+          id="settings-mfa-confirm-password-input"
+          type="password"
+          data-testid="settings-mfa-confirm-password"
+          value={password}
+          onChange={(e) => {
+            onPasswordChange(e.target.value);
+          }}
+        />
+      </Field>
+      <Button type="button" data-testid="settings-mfa-confirm-submit" onClick={onSubmit}>
         Confirm
-      </button>
+      </Button>
     </div>
   );
 }
@@ -116,7 +131,7 @@ export function MfaSettingsSection() {
   const [regeneratedCodes, setRegeneratedCodes] = useState<string[] | null>(null);
 
   if (isPending) {
-    return <div data-testid="settings-mfa-loading">Loading MFA status…</div>;
+    return <MutedText data-testid="settings-mfa-loading">Loading MFA status…</MutedText>;
   }
 
   // The facade returns status as `unknown`; narrow at the render boundary.
@@ -173,7 +188,7 @@ export function MfaSettingsSection() {
   };
 
   return (
-    <div>
+    <Card>
       {enabled ? (
         <EnabledCard
           backupCodeCount={status?.backupCodeCount ?? 0}
@@ -202,7 +217,7 @@ export function MfaSettingsSection() {
 
       {regeneratedCodes === null ? null : <RegeneratedCodes codes={regeneratedCodes} />}
 
-      {error === null ? null : <span data-testid="settings-mfa-error">{error}</span>}
-    </div>
+      {error === null ? null : <ErrorBanner data-testid="settings-mfa-error">{error}</ErrorBanner>}
+    </Card>
   );
 }

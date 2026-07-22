@@ -23,6 +23,7 @@
  *
  * Testids mirror the C# E2E page object `MfaEnrollPage`.
  */
+import { Button, Card, CardTitle, ErrorBanner, Field, Input, Label } from "@bc-solutions-coder/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -43,9 +44,9 @@ const CONFIRM_FAILED = "That verification code is not valid.";
 /** The setup CTA (initial state): clicking it mints the one-time secret + QR. */
 function SetupStep(props: { onBegin: () => void }) {
   return (
-    <button type="button" data-testid="mfa-enroll-begin-setup" onClick={props.onBegin}>
+    <Button type="button" data-testid="mfa-enroll-begin-setup" onClick={props.onBegin}>
       Begin setup
-    </button>
+    </Button>
   );
 }
 
@@ -64,16 +65,20 @@ function VerifyStep(props: {
       <div data-testid="mfa-enroll-qr">
         <code>{qrUri}</code>
       </div>
-      <input
-        data-testid="mfa-enroll-code"
-        value={code}
-        onChange={(e) => {
-          onCodeChange(e.target.value);
-        }}
-      />
-      <button type="button" data-testid="mfa-enroll-submit" onClick={onSubmit}>
+      <Field>
+        <Label htmlFor="mfa-enroll-code-input">Verification code</Label>
+        <Input
+          id="mfa-enroll-code-input"
+          data-testid="mfa-enroll-code"
+          value={code}
+          onChange={(e) => {
+            onCodeChange(e.target.value);
+          }}
+        />
+      </Field>
+      <Button type="button" data-testid="mfa-enroll-submit" onClick={onSubmit}>
         Verify
-      </button>
+      </Button>
     </div>
   );
 }
@@ -89,9 +94,9 @@ function DoneStep(props: { codes: string[]; onDone: () => void }) {
           <li key={codeValue}>{codeValue}</li>
         ))}
       </ul>
-      <button type="button" data-testid="mfa-enroll-done" onClick={onDone}>
+      <Button type="button" data-testid="mfa-enroll-done" onClick={onDone}>
         Done
-      </button>
+      </Button>
     </div>
   );
 }
@@ -159,13 +164,19 @@ export function MfaEnrollFlow(props: MfaEnrollFlowProps) {
   };
 
   return (
-    <div>
+    <Card>
+      <CardTitle>Set up two-factor authentication</CardTitle>
       {renderStep()}
-      {error === null ? null : <span data-testid="mfa-enroll-error">{error}</span>}
-      <button type="button" data-testid="mfa-enroll-cancel" onClick={handleCancel}>
+      {error === null ? null : <ErrorBanner data-testid="mfa-enroll-error">{error}</ErrorBanner>}
+      <Button
+        type="button"
+        variant="secondary"
+        data-testid="mfa-enroll-cancel"
+        onClick={handleCancel}
+      >
         Cancel
-      </button>
-    </div>
+      </Button>
+    </Card>
   );
 
   function renderStep() {

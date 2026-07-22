@@ -20,6 +20,7 @@
  * `inquiry-comments-loading` / `inquiry-comments-empty`, `inquiry-comment-content` +
  * `inquiry-comment-internal` + `inquiry-comment-submit`, `inquiry-comment-error`.
  */
+import { Button, Card, ErrorBanner, MutedText } from "@bc-solutions-coder/ui";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import type { ProblemDetails } from "@bc-solutions-coder/sdk";
@@ -33,7 +34,7 @@ export function InquiryDetail(props: { inquiryId: string }) {
   const detailQuery = useQuery(inquiriesQueries.detail(inquiryId));
 
   if (detailQuery.isPending) {
-    return <div data-testid="inquiry-detail-loading">Loading inquiry…</div>;
+    return <MutedText data-testid="inquiry-detail-loading">Loading inquiry…</MutedText>;
   }
 
   // The facade returns the detail as `unknown`; narrow to the feature view-model
@@ -46,22 +47,24 @@ export function InquiryDetail(props: { inquiryId: string }) {
   if (inquiry === null) {
     if (detailQuery.isError) {
       return (
-        <div data-testid="inquiry-detail-error">{(detailQuery.error as ProblemDetails).detail}</div>
+        <ErrorBanner data-testid="inquiry-detail-error">
+          {(detailQuery.error as ProblemDetails).detail}
+        </ErrorBanner>
       );
     }
 
     return (
-      <div>
+      <Card>
         <a href="/dashboard/inquiries" data-testid="inquiry-detail-back-link">
           Back to inquiries
         </a>
-        <div data-testid="inquiry-detail-not-found">Inquiry not found.</div>
-      </div>
+        <MutedText data-testid="inquiry-detail-not-found">Inquiry not found.</MutedText>
+      </Card>
     );
   }
 
   return (
-    <div>
+    <Card>
       <a href="/dashboard/inquiries" data-testid="inquiry-detail-back-link">
         Back to inquiries
       </a>
@@ -76,7 +79,7 @@ export function InquiryDetail(props: { inquiryId: string }) {
       />
       <CommentThread inquiryId={inquiryId} />
       <AddCommentForm queryClient={queryClient} inquiryId={inquiryId} />
-    </div>
+    </Card>
   );
 }
 
@@ -105,7 +108,7 @@ function StatusControl(props: {
           </option>
         ))}
       </select>
-      <button
+      <Button
         type="button"
         data-testid="inquiry-status-submit"
         onClick={() => {
@@ -113,9 +116,11 @@ function StatusControl(props: {
         }}
       >
         Update status
-      </button>
+      </Button>
       {mutation.isError ? (
-        <span data-testid="inquiry-status-error">{(mutation.error as ProblemDetails).detail}</span>
+        <ErrorBanner data-testid="inquiry-status-error">
+          {(mutation.error as ProblemDetails).detail}
+        </ErrorBanner>
       ) : null}
     </>
   );
@@ -139,13 +144,13 @@ function CommentThread(props: { inquiryId: string }) {
   const { data, isPending } = useQuery(inquiriesQueries.comments(inquiryId));
 
   if (isPending) {
-    return <div data-testid="inquiry-comments-loading">Loading comments…</div>;
+    return <MutedText data-testid="inquiry-comments-loading">Loading comments…</MutedText>;
   }
 
   const comments = (data ?? []) as InquiryComment[];
 
   if (comments.length === 0) {
-    return <div data-testid="inquiry-comments-empty">No comments yet.</div>;
+    return <MutedText data-testid="inquiry-comments-empty">No comments yet.</MutedText>;
   }
 
   return (
@@ -197,11 +202,13 @@ function AddCommentForm(props: { queryClient: QueryClient; inquiryId: string }) 
         }}
       />
       {mutation.isError ? (
-        <span data-testid="inquiry-comment-error">{(mutation.error as ProblemDetails).detail}</span>
+        <ErrorBanner data-testid="inquiry-comment-error">
+          {(mutation.error as ProblemDetails).detail}
+        </ErrorBanner>
       ) : null}
-      <button type="submit" data-testid="inquiry-comment-submit">
+      <Button type="submit" data-testid="inquiry-comment-submit">
         Add comment
-      </button>
+      </Button>
     </form>
   );
 }

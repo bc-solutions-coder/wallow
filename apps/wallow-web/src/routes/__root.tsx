@@ -10,6 +10,7 @@ import {
   type ResolvedBranding,
 } from "../lib/branding";
 import { createQueryClient } from "@bc-solutions-coder/web-shell";
+import { FocusOnNavigate } from "@bc-solutions-coder/ui";
 
 /**
  * The browser bundle to load. In dev, Vite serves the entry straight out of its
@@ -63,6 +64,7 @@ function DocumentShell() {
         <script type="module" src={clientEntry} />
       </head>
       <body>
+        <FocusOnNavigate />
         <Outlet />
         <ReadyIndicator />
       </body>

@@ -13,6 +13,7 @@
  * The facade returns the profile as `unknown`; narrow to the local view-model
  * at the render boundary (scout: `CurrentUserResponse`).
  */
+import { Card, CardTitle, MutedText } from "@bc-solutions-coder/ui";
 import { useQuery } from "@tanstack/react-query";
 
 import { settingsQueries } from "../api";
@@ -30,7 +31,7 @@ export function ProfileSection() {
   const { data, isPending } = useQuery(settingsQueries.profile());
 
   if (isPending) {
-    return <div data-testid="settings-profile-loading">Loading profile…</div>;
+    return <MutedText data-testid="settings-profile-loading">Loading profile…</MutedText>;
   }
 
   const profile = (data ?? {}) as ProfileView;
@@ -39,7 +40,8 @@ export function ProfileSection() {
   const roles = profile.roles ?? [];
 
   return (
-    <div>
+    <Card>
+      <CardTitle>Profile</CardTitle>
       <div data-testid="settings-profile-name">{name}</div>
       <div data-testid="settings-profile-email">{email}</div>
 
@@ -52,8 +54,8 @@ export function ProfileSection() {
           ))}
         </div>
       ) : (
-        <div data-testid="settings-profile-no-roles">No roles assigned.</div>
+        <MutedText data-testid="settings-profile-no-roles">No roles assigned.</MutedText>
       )}
-    </div>
+    </Card>
   );
 }

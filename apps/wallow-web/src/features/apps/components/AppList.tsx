@@ -4,16 +4,27 @@
  * `useQuery(appsQueries.list())` and renders three states: loading, empty, and a
  * list of `app-item` rows.
  */
+import { Card, MutedText } from "@bc-solutions-coder/ui";
 import { useQuery } from "@tanstack/react-query";
 
 import { appsQueries } from "../api";
 import type { App } from "../types";
 
+/** A single app row (extracted to keep the list's JSX nesting shallow). */
+function AppRow({ app }: { app: App }) {
+  return (
+    <li data-testid="app-item">
+      <span>{app.displayName}</span>
+      <span>{app.clientType}</span>
+    </li>
+  );
+}
+
 export function AppList() {
   const { data, isPending } = useQuery(appsQueries.list());
 
   if (isPending) {
-    return <div data-testid="apps-loading">Loading apps…</div>;
+    return <MutedText data-testid="apps-loading">Loading apps…</MutedText>;
   }
 
   // The facade returns the list as `unknown`; narrow to the feature view-model
@@ -21,17 +32,16 @@ export function AppList() {
   const apps = (data ?? []) as App[];
 
   if (apps.length === 0) {
-    return <div data-testid="apps-empty-state">No apps yet.</div>;
+    return <MutedText data-testid="apps-empty-state">No apps yet.</MutedText>;
   }
 
   return (
-    <ul data-testid="apps-table">
-      {apps.map((app) => (
-        <li key={app.clientId} data-testid="app-item">
-          <span>{app.displayName}</span>
-          <span>{app.clientType}</span>
-        </li>
-      ))}
-    </ul>
+    <Card>
+      <ul data-testid="apps-table">
+        {apps.map((app) => (
+          <AppRow key={app.clientId} app={app} />
+        ))}
+      </ul>
+    </Card>
   );
 }

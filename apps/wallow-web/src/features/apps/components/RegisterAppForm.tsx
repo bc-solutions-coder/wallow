@@ -25,11 +25,12 @@
  * (server RFC 7807 ProblemDetails surface), and the one-time success reveal
  * `app-client-secret` + `app-client-secret-copy` + `app-client-id`.
  */
+import { Button, Card, ErrorBanner, Field, Input } from "@bc-solutions-coder/ui";
 import { useForm } from "@tanstack/react-form";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, type UseMutationResult } from "@tanstack/react-query";
 import type { AppRegistrationResponse, ProblemDetails } from "@bc-solutions-coder/sdk";
 
-import { registerAppMutation } from "../api";
+import { registerAppMutation, type RegisterAppBody } from "../api";
 
 /** Scopes a caller may request, mirroring Blazor RegisterApp.razor's list. */
 const AVAILABLE_SCOPES = [
@@ -52,14 +53,18 @@ function DisplayNameField(props: {
   const { value, error, onChange } = props;
   return (
     <>
-      <input
-        data-testid="app-display-name"
-        value={value}
-        onChange={(e) => {
-          onChange(e.target.value);
-        }}
-      />
-      {error === undefined ? null : <span data-testid="app-display-name-error">{error}</span>}
+      <Field>
+        <Input
+          data-testid="app-display-name"
+          value={value}
+          onChange={(e) => {
+            onChange(e.target.value);
+          }}
+        />
+      </Field>
+      {error === undefined ? null : (
+        <ErrorBanner data-testid="app-display-name-error">{error}</ErrorBanner>
+      )}
     </>
   );
 }
@@ -134,8 +139,12 @@ function BrandingSection() {
   return (
     <fieldset data-testid="app-branding">
       <legend>Branding (optional)</legend>
-      <input data-testid="app-branding-display-name" placeholder="Display name" />
-      <input data-testid="app-branding-tagline" placeholder="Tagline" />
+      <Field>
+        <Input data-testid="app-branding-display-name" placeholder="Display name" />
+      </Field>
+      <Field>
+        <Input data-testid="app-branding-tagline" placeholder="Tagline" />
+      </Field>
       <input data-testid="app-logo-input" type="file" accept="image/*" />
     </fieldset>
   );
@@ -145,11 +154,11 @@ function BrandingSection() {
 function SuccessView(props: { result: AppRegistrationResponse }) {
   const { result } = props;
   return (
-    <div data-testid="app-register-success">
+    <Card data-testid="app-register-success">
       <p>Save your client secret now. It will not be shown again.</p>
       <span data-testid="app-client-id">{result.clientId}</span>
       <span data-testid="app-client-secret">{result.clientSecret}</span>
-      <button
+      <Button
         type="button"
         data-testid="app-client-secret-copy"
         onClick={() => {
@@ -157,14 +166,36 @@ function SuccessView(props: { result: AppRegistrationResponse }) {
         }}
       >
         Copy secret
-      </button>
-    </div>
+      </Button>
+    </Card>
   );
 }
 
 export function RegisterAppForm() {
   const queryClient = useQueryClient();
   const mutation = useMutation(registerAppMutation(queryClient));
+
+  // One-time secret: the returned secret lives only in `mutation.data` and the
+  // success view below — never copied into long-lived component state.
+  if (mutation.isSuccess) {
+    return <SuccessView result={mutation.data as AppRegistrationResponse} />;
+  }
+
+  return (
+    <Card>
+      <RegisterAppFormFields mutation={mutation} />
+    </Card>
+  );
+}
+
+/**
+ * The form body, split out so the `Card` surface stays a shallow wrapper and the
+ * `form > form.Field > *Field` chains keep within the repo's JSX nesting budget.
+ */
+function RegisterAppFormFields(props: {
+  mutation: UseMutationResult<unknown, Error, RegisterAppBody>;
+}) {
+  const { mutation } = props;
 
   const form = useForm({
     defaultValues: {
@@ -190,12 +221,6 @@ export function RegisterAppForm() {
       });
     },
   });
-
-  // One-time secret: the returned secret lives only in `mutation.data` and the
-  // success view below — never copied into long-lived component state.
-  if (mutation.isSuccess) {
-    return <SuccessView result={mutation.data as AppRegistrationResponse} />;
-  }
 
   return (
     <form
@@ -236,12 +261,14 @@ export function RegisterAppForm() {
       <BrandingSection />
 
       {mutation.isError ? (
-        <span data-testid="app-register-error">{(mutation.error as ProblemDetails).detail}</span>
+        <ErrorBanner data-testid="app-register-error">
+          {(mutation.error as ProblemDetails).detail}
+        </ErrorBanner>
       ) : null}
 
-      <button type="submit" data-testid="app-register-submit">
+      <Button type="submit" data-testid="app-register-submit">
         Register app
-      </button>
+      </Button>
     </form>
   );
 }

@@ -15,6 +15,19 @@ vi.mock("@tanstack/react-router", async (importOriginal) => {
   };
 });
 
+// The shell mounts `<FocusOnNavigate/>` (from `@bc-solutions-coder/ui`), which
+// calls `useRouterState` — that throws under a bare `renderToString(<Shell/>)`
+// with no `RouterProvider`. Its focus behaviour is the primitive's own spec's
+// job (and `__root.focus.test.tsx`'s); here it is a render-nothing sentinel so
+// the shell renders standalone. `useRouterState` stays real above.
+vi.mock("@bc-solutions-coder/ui", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@bc-solutions-coder/ui")>();
+  return {
+    ...actual,
+    FocusOnNavigate: () => null,
+  };
+});
+
 describe("routes/__root (SSR document shell)", () => {
   it("exposes a root route component", async () => {
     const { Route } = await import("./__root");

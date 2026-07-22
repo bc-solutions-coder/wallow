@@ -10,7 +10,8 @@
  * + `organization-member-add-submit` (add form), `organization-member-remove`
  * (per-row remove).
  */
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Button, Card, Field, Input, MutedText } from "@bc-solutions-coder/ui";
+import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { addMemberMutation, organizationsQueries, removeMemberMutation } from "../api";
@@ -22,15 +23,16 @@ function MemberRow(props: { member: OrganizationMember; onRemove: (userId: strin
   return (
     <li data-testid="organization-detail-member-row">
       <span>{member.email}</span>
-      <button
+      <Button
         type="button"
+        variant="destructive"
         data-testid="organization-member-remove"
         onClick={() => {
           onRemove(member.id);
         }}
       >
         Remove
-      </button>
+      </Button>
     </li>
   );
 }
@@ -39,44 +41,14 @@ export function MemberList(props: { orgId: string }) {
   const { orgId } = props;
   const queryClient = useQueryClient();
   const { data, isPending } = useQuery(organizationsQueries.members(orgId));
-  const addMember = useMutation(addMemberMutation(queryClient, orgId));
   const removeMember = useMutation(removeMemberMutation(queryClient, orgId));
-  const [userId, setUserId] = useState("");
 
   return (
-    <section>
-      <form
-        data-testid="organization-member-add-form"
-        onSubmit={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          if (userId.trim() === "") {
-            return;
-          }
-          addMember.mutate(
-            { userId },
-            {
-              onSuccess: () => {
-                setUserId("");
-              },
-            },
-          );
-        }}
-      >
-        <input
-          data-testid="organization-member-userid"
-          value={userId}
-          onChange={(e) => {
-            setUserId(e.target.value);
-          }}
-        />
-        <button type="submit" data-testid="organization-member-add-submit">
-          Add member
-        </button>
-      </form>
+    <Card>
+      <AddMemberForm queryClient={queryClient} orgId={orgId} />
 
       {isPending ? (
-        <div data-testid="organization-members-loading">Loading members…</div>
+        <MutedText data-testid="organization-members-loading">Loading members…</MutedText>
       ) : (
         <MemberTable
           members={(data ?? []) as OrganizationMember[]}
@@ -85,7 +57,48 @@ export function MemberList(props: { orgId: string }) {
           }}
         />
       )}
-    </section>
+    </Card>
+  );
+}
+
+/** Add-member form, backed by `addMemberMutation`. */
+function AddMemberForm(props: { queryClient: QueryClient; orgId: string }) {
+  const { queryClient, orgId } = props;
+  const addMember = useMutation(addMemberMutation(queryClient, orgId));
+  const [userId, setUserId] = useState("");
+
+  return (
+    <form
+      data-testid="organization-member-add-form"
+      onSubmit={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (userId.trim() === "") {
+          return;
+        }
+        addMember.mutate(
+          { userId },
+          {
+            onSuccess: () => {
+              setUserId("");
+            },
+          },
+        );
+      }}
+    >
+      <Field>
+        <Input
+          data-testid="organization-member-userid"
+          value={userId}
+          onChange={(e) => {
+            setUserId(e.target.value);
+          }}
+        />
+      </Field>
+      <Button type="submit" data-testid="organization-member-add-submit">
+        Add member
+      </Button>
+    </form>
   );
 }
 
@@ -94,7 +107,7 @@ function MemberTable(props: { members: OrganizationMember[]; onRemove: (userId: 
   const { members, onRemove } = props;
 
   if (members.length === 0) {
-    return <div data-testid="organization-members-empty">No members yet.</div>;
+    return <MutedText data-testid="organization-members-empty">No members yet.</MutedText>;
   }
 
   return (

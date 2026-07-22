@@ -26,6 +26,19 @@ vi.mock("../components/ready-indicator", () => ({
   ReadyIndicator: () => <div data-testid="web-ready-indicator" />,
 }));
 
+// The shell also mounts `<FocusOnNavigate/>` (from `@bc-solutions-coder/ui`),
+// whose `useRouterState` call throws under a bare `renderToString(<Shell/>)`
+// with no `RouterProvider`. Its focus wiring is asserted in
+// `__root.focus.test.tsx`; here it is a render-nothing sentinel so this suite
+// keeps testing only the hydration contract.
+vi.mock("@bc-solutions-coder/ui", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@bc-solutions-coder/ui")>();
+  return {
+    ...actual,
+    FocusOnNavigate: () => null,
+  };
+});
+
 async function renderShell(): Promise<string> {
   const { Route } = await import("./__root");
   const Shell = Route.options.component!;

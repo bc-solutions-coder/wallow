@@ -26,6 +26,18 @@ vi.mock("@tanstack/react-router", async (importOriginal) => {
   };
 });
 
+// The shell also mounts `<FocusOnNavigate/>` (from `@bc-solutions-coder/ui`),
+// whose `useRouterState` call throws under a bare `renderToString(<Shell/>)`
+// with no `RouterProvider`. This suite is about the query provider only, so it
+// is a render-nothing sentinel here; its wiring lives in `__root.focus.test.tsx`.
+vi.mock("@bc-solutions-coder/ui", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@bc-solutions-coder/ui")>();
+  return {
+    ...actual,
+    FocusOnNavigate: () => null,
+  };
+});
+
 describe("routes/__root (query provider)", () => {
   it("wraps the routed outlet in a QueryClientProvider", async () => {
     const { Route } = await import("./__root");

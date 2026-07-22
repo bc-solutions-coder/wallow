@@ -22,6 +22,7 @@
  * other field blocks submit with a `{field}-error` message client-side rather
  * than letting the server reject an "apparently valid" form.
  */
+import { Button, Card, ErrorBanner, Field, Input, MutedText } from "@bc-solutions-coder/ui";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ProblemDetails } from "@bc-solutions-coder/sdk";
@@ -75,15 +76,17 @@ function TextField(props: {
   const { testId, value, onChange, error, errorTestId } = props;
   return (
     <>
-      <input
-        data-testid={testId}
-        value={value}
-        onChange={(e) => {
-          onChange(e.target.value);
-        }}
-      />
+      <Field>
+        <Input
+          data-testid={testId}
+          value={value}
+          onChange={(e) => {
+            onChange(e.target.value);
+          }}
+        />
+      </Field>
       {error === undefined || errorTestId === undefined ? null : (
-        <span data-testid={errorTestId}>{error}</span>
+        <ErrorBanner data-testid={errorTestId}>{error}</ErrorBanner>
       )}
     </>
   );
@@ -116,7 +119,7 @@ function SelectField(props: {
         ))}
       </select>
       {error === undefined || errorTestId === undefined ? null : (
-        <span data-testid={errorTestId}>{error}</span>
+        <ErrorBanner data-testid={errorTestId}>{error}</ErrorBanner>
       )}
     </>
   );
@@ -138,7 +141,9 @@ function MessageField(props: {
           onChange(e.target.value);
         }}
       />
-      {error === undefined ? null : <span data-testid="inquiry-message-error">{error}</span>}
+      {error === undefined ? null : (
+        <ErrorBanner data-testid="inquiry-message-error">{error}</ErrorBanner>
+      )}
     </>
   );
 }
@@ -147,6 +152,18 @@ const required = ({ value }: { value: string }): string | undefined =>
   value.trim() ? undefined : "This field is required";
 
 export function CreateInquiryForm() {
+  return (
+    <Card>
+      <CreateInquiryFormFields />
+    </Card>
+  );
+}
+
+/**
+ * The form body, split out so the `Card` surface stays a shallow wrapper and the
+ * `form > form.Field > TextField` chain keeps within the repo's JSX nesting budget.
+ */
+function CreateInquiryFormFields() {
   const queryClient = useQueryClient();
   const mutation = useMutation(createInquiryMutation(queryClient));
 
@@ -181,7 +198,11 @@ export function CreateInquiryForm() {
   });
 
   if (mutation.isSuccess) {
-    return <div data-testid="inquiry-success">Thank you — your inquiry has been submitted.</div>;
+    return (
+      <MutedText data-testid="inquiry-success">
+        Thank you — your inquiry has been submitted.
+      </MutedText>
+    );
   }
 
   return (
@@ -289,12 +310,14 @@ export function CreateInquiryForm() {
       </form.Field>
 
       {mutation.isError ? (
-        <span data-testid="inquiry-error">{(mutation.error as ProblemDetails).detail}</span>
+        <ErrorBanner data-testid="inquiry-error">
+          {(mutation.error as ProblemDetails).detail}
+        </ErrorBanner>
       ) : null}
 
-      <button type="submit" data-testid="inquiry-submit">
+      <Button type="submit" data-testid="inquiry-submit">
         Submit Inquiry
-      </button>
+      </Button>
     </form>
   );
 }

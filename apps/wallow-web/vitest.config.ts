@@ -47,6 +47,7 @@ const nodeTsxSpecs: string[] = [
   "src/routes/index.test.tsx",
   "src/routes/__root.test.tsx",
   "src/routes/__root.branding.test.tsx",
+  "src/routes/__root.focus.test.tsx",
   "src/routes/__root.hydration.test.tsx",
   "src/routes/__root.provider.test.tsx",
   "src/routes/dashboard/route.test.tsx",
