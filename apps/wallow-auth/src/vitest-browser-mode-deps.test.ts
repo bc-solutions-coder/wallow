@@ -90,6 +90,21 @@ describe("browser-mode devDependencies in the component-test apps", () => {
   );
 });
 
+describe("component-test apps consume the shared @bc-solutions-coder/testing preset", () => {
+  // Wallow-0q2s.1.3: wallow-auth migrates its vitest.config onto
+  // @bc-solutions-coder/testing's createVitestProjects preset and therefore
+  // depends on the workspace package. (wallow-web's equivalent dep is added by
+  // .1.4; the browser-mode devDeps above stay because component specs still
+  // import `render` from vitest-browser-react directly.)
+  it("apps/wallow-auth declares @bc-solutions-coder/testing as a workspace dependency", () => {
+    const pkg: PackageJson = readPackageJson("apps/wallow-auth");
+    const dep: string | undefined =
+      pkg.dependencies?.["@bc-solutions-coder/testing"] ??
+      pkg.devDependencies?.["@bc-solutions-coder/testing"];
+    expect(dep).toBe("workspace:*");
+  });
+});
+
 describe("pure-TS packages stay off the browser-mode stack", () => {
   it.each(pureTsPackages)("%s adds no browser-mode packages", (dir: string) => {
     const pkg: PackageJson = readPackageJson(dir);

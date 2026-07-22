@@ -1,0 +1,13 @@
+{
+  // Inherits the workspace-standard TypeScript semantics from the repo-root base
+  // config (target/lib/module/strict/verbatimModuleSyntax/...). This private
+  // package follows the workspace TS baseline; it does NOT copy packages/sdk's
+  // TS6 typescript pin (that pin exists only for the SDK's OpenAPI codegen).
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "declaration": true,
+    "outDir": "dist",
+    "types": ["node"]
+  },
+  "include": ["src", "vite.config.ts", "vitest.config.ts"]
+}
