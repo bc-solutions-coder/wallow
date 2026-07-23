@@ -32,6 +32,6 @@
     "rootDir": "src",
     "outDir": "dist"
   },
-  "include": ["src/index.ts", "src/server/index.ts"],
+  "include": ["src/index.ts", "src/server/index.ts", "src/query/index.ts"],
   "exclude": ["**/*.test.ts", "scripts", "**/*.config.ts"]
 }

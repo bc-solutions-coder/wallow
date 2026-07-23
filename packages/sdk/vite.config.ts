@@ -32,6 +32,7 @@ export default defineConfig({
       entry: {
         index: fileURLToPath(new URL("src/index.ts", import.meta.url)),
         "server/index": fileURLToPath(new URL("src/server/index.ts", import.meta.url)),
+        "query/index": fileURLToPath(new URL("src/query/index.ts", import.meta.url)),
       },
       formats: ["es"],
     },
