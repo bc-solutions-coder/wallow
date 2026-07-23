@@ -2,6 +2,9 @@ import { createRouter as createTanStackRouter, type AnyRouter } from "@tanstack/
 
 import { createQueryClient } from "@bc-solutions-coder/web-shell";
 import { routeTree } from "./routeTree.gen";
+// Side-effect import: runs wallow-sdk.ts's module-scope `registerQueryBootstrap`
+// in both the client and SSR graphs before any route fires an SDK query.
+import "./lib/wallow-sdk";
 
 /**
  * Constructs the TanStack router that boots the wallow-web Start app.

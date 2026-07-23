@@ -61,6 +61,7 @@ import {
   type SubmitInquiryRequest,
   type WallowUser,
 } from "@bc-solutions-coder/sdk";
+import { registerQueryBootstrap } from "@bc-solutions-coder/sdk/query";
 
 /**
  * Configure the BFF client and wire the matching request interceptor. Invoked
@@ -74,7 +75,7 @@ import {
  * CSRF interceptor apply. The origin is stable per host, so configuring it once
  * on the first request is correct.
  */
-function configureClient(): void {
+export function configureClient(): void {
   if (import.meta.env.SSR) {
     configureSsrClient(getSsrRequestContext());
   } else {
@@ -82,6 +83,12 @@ function configureClient(): void {
     wireCsrfInterceptor(client);
   }
 }
+
+// Register wallow-web's client configurator with the SDK query layer so its
+// `./query` factories configure the shared `@hey-api` client lazily on the first
+// query. Registration is side-effect free — nothing touches the client until a
+// query actually runs.
+registerQueryBootstrap(configureClient);
 
 /** Organizations slice — the template every later feature slice copies. */
 export interface OrganizationsSlice {
