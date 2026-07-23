@@ -50,15 +50,15 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.0.x'
 
       - name: Cache NuGet packages
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('api/Directory.Packages.props', '**/*.csproj') }}
@@ -66,7 +66,7 @@ jobs:
             nuget-${{ runner.os }}-
 
       - name: Restore previous build output
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: |
             **/bin/Release
@@ -88,7 +88,7 @@ jobs:
         run: dotnet build api/Wallow.slnx --no-restore --configuration Release --graph
 
       - name: Cache build output
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: |
             **/bin/Release
@@ -102,15 +102,15 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.0.x'
 
       - name: Cache NuGet packages
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('api/Directory.Packages.props', '**/*.csproj') }}
@@ -118,7 +118,7 @@ jobs:
             nuget-${{ runner.os }}-
 
       - name: Restore build output
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: |
             **/bin/Release
@@ -181,7 +181,7 @@ jobs:
             | gzip > /tmp/wallow-images-app.tar.gz
 
       - name: Cache app images
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: /tmp/wallow-images-app.tar.gz
           key: images-app-${{ github.sha }}
@@ -194,7 +194,7 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Build infra images
         run: |
@@ -208,7 +208,7 @@ jobs:
             | gzip > /tmp/wallow-images-infra.tar.gz
 
       - name: Cache infra images
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: /tmp/wallow-images-infra.tar.gz
           key: images-infra-${{ github.sha }}
@@ -221,17 +221,17 @@ jobs:
       packages: write
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Restore app images
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: /tmp/wallow-images-app.tar.gz
           key: images-app-${{ github.sha }}
           fail-on-cache-miss: true
 
       - name: Restore infra images
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: /tmp/wallow-images-infra.tar.gz
           key: images-infra-${{ github.sha }}
