@@ -275,9 +275,6 @@ importers:
       '@hey-api/client-fetch':
         specifier: ^0.8.4
         version: 0.8.4
-      '@tanstack/react-query':
-        specifier: ^5.101.2
-        version: 5.101.2(react@19.2.7)
       h3:
         specifier: ^1.13.0
         version: 1.15.11
@@ -291,6 +288,9 @@ importers:
       '@hey-api/openapi-ts':
         specifier: ^0.64.0
         version: 0.64.15(typescript@6.0.3)
+      '@tanstack/react-query':
+        specifier: ^5.101.2
+        version: 5.101.2(react@19.2.7)
       '@types/node':
         specifier: ^22.20.0
         version: 22.20.1
