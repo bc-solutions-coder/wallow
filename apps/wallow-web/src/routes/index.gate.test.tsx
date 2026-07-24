@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { userQueries } from "@bc-solutions-coder/sdk/query";
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -6,20 +7,22 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Route } from "./index";
 
 /**
- * Public-home reachability spec (Wallow-ffpq.3.6) — the home gate:
+ * Public-home reachability spec (Wallow-ffpq.3.6), rewired in Wallow-evd5.2.3 to
+ * the cached current-user query. The home gate:
  *   - an AUTHENTICATED visitor is redirected to the dashboard
  *     (`/dashboard/apps`),
  *   - an unauthenticated visitor is shown the marketing page only when
  *     the landing-page flag is enabled,
  *   - otherwise they are sent to the BFF login (an OIDC challenge).
  *
- * The gate runs in the route's `beforeLoad`, reading the user through the mocked
- * `getWallowSdk().user.me()` facade (like `routes/dashboard/route.test.tsx`) and
- * the landing-page flag through the mocked `../../lib/branding` shim. The
- * component itself renders inside `PublicLayout`.
+ * The gate runs in the route's `beforeLoad`, reading the user through the
+ * router-context QueryClient via
+ * `context.queryClient.ensureQueryData(userQueries.currentUser())` (the SDK query
+ * layer), NOT the retired `getWallowSdk().user.me()` facade. The landing-page flag
+ * is read through the mocked `../lib/branding` shim; the component itself renders
+ * inside `PublicLayout`.
  */
 
-const meMock = vi.hoisted(() => vi.fn());
 const loginMock = vi.hoisted(() => vi.fn());
 // Mutable branding stand-in so each test can flip `landingPage.enabled`.
 const branding = vi.hoisted(() => ({
@@ -30,10 +33,6 @@ const branding = vi.hoisted(() => ({
     landingPage: { enabled: true },
   },
   appIconUrl: "/piggy-icon.svg",
-}));
-
-vi.mock("../lib/wallow-sdk", () => ({
-  getWallowSdk: () => ({ user: { me: meMock } }),
 }));
 
 vi.mock("../lib/branding", () => branding);
@@ -63,16 +62,30 @@ vi.mock("@tanstack/react-router", async (importOriginal) => {
   };
 });
 
-/** Invoke the route's `beforeLoad` with a minimal TanStack-shaped context. */
-async function runBeforeLoad(): Promise<void> {
+/**
+ * Drive the route's `beforeLoad` with a minimal TanStack-shaped context whose
+ * `queryClient.ensureQueryData` is a spy resolving the seeded user. Returns the
+ * spy so callers can assert delegation to the cached current-user query.
+ */
+function makeContext(user: unknown): {
+  ensureQueryData: ReturnType<typeof vi.fn>;
+  invoke: () => Promise<unknown>;
+} {
+  const ensureQueryData = vi.fn().mockResolvedValue(user);
   const beforeLoad = Route.options.beforeLoad as (opts: unknown) => Promise<unknown>;
-  await beforeLoad({ location: { pathname: "/", href: "/" }, context: {} });
+  const invoke = (): Promise<unknown> =>
+    beforeLoad({
+      location: { pathname: "/", href: "/" },
+      context: { queryClient: { ensureQueryData } },
+    });
+  return { ensureQueryData, invoke };
 }
 
 /** Run `beforeLoad` and return whatever it threw (a redirect), or `undefined`. */
-async function captureThrow(): Promise<{ to?: unknown } | undefined> {
+async function captureThrow(user: unknown): Promise<{ to?: unknown } | undefined> {
+  const { invoke } = makeContext(user);
   try {
-    await runBeforeLoad();
+    await invoke();
     return undefined;
   } catch (error) {
     return error as { to?: unknown };
@@ -89,10 +102,18 @@ describe("routes/index (public-home gate)", () => {
     expect(Route.options.beforeLoad).toBeDefined();
   });
 
-  it("redirects an authenticated visitor to the dashboard", async () => {
-    meMock.mockResolvedValue({ sub: "u1", email: "user@test.local" });
+  it("reads the current user via context.queryClient.ensureQueryData(userQueries.currentUser())", async () => {
+    const { ensureQueryData, invoke } = makeContext(null);
 
-    const thrown = await captureThrow();
+    await invoke();
+
+    expect(ensureQueryData).toHaveBeenCalledTimes(1);
+    const options = ensureQueryData.mock.calls[0]?.[0] as { queryKey?: unknown };
+    expect(options.queryKey).toEqual(userQueries.currentUser().queryKey);
+  });
+
+  it("redirects an authenticated visitor to the dashboard", async () => {
+    const thrown = await captureThrow({ sub: "u1", email: "user@test.local" });
 
     expect(thrown).toBeDefined();
     expect(String(thrown?.to ?? "")).toMatch(/^\/dashboard/u);
@@ -100,20 +121,18 @@ describe("routes/index (public-home gate)", () => {
   });
 
   it("shows the page (no redirect, no login) for an unauthenticated visitor when the landing page is enabled", async () => {
-    meMock.mockResolvedValue(null);
     branding.forkBranding.landingPage.enabled = true;
 
-    const thrown = await captureThrow();
+    const thrown = await captureThrow(null);
 
     expect(thrown).toBeUndefined();
     expect(loginMock).not.toHaveBeenCalled();
   });
 
   it("sends an unauthenticated visitor to the BFF login when the landing page is disabled", async () => {
-    meMock.mockResolvedValue(null);
     branding.forkBranding.landingPage.enabled = false;
 
-    await captureThrow();
+    await captureThrow(null);
 
     expect(loginMock).toHaveBeenCalled();
   });

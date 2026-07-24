@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
 import { renderToString } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
@@ -25,5 +28,24 @@ describe("routes/index (public home SSR)", () => {
     const html = renderToString(<Home />);
     // A non-empty <h1>..<h6> element must be present in the rendered shell.
     expect(html).toMatch(/<h[1-6][^>]*>[^<]*\S[^<]*<\/h[1-6]>/u);
+  });
+});
+
+/**
+ * Cached current-user gate (Wallow-evd5.2.3): the `beforeLoad` must read the user
+ * through the SDK query layer via `context.queryClient.ensureQueryData(
+ * userQueries.currentUser())` and no longer import the retired
+ * `getWallowSdk().user.me()` facade.
+ */
+describe("routes/index (cached current-user gate wiring)", () => {
+  it("no longer imports the retired getWallowSdk facade", () => {
+    const source: string = readFileSync(
+      fileURLToPath(new URL("./index.tsx", import.meta.url)),
+      "utf8",
+    );
+
+    expect(source).not.toMatch(/getWallowSdk|lib\/wallow-sdk/u);
+    expect(source).toMatch(/userQueries/u);
+    expect(source).toMatch(/ensureQueryData/u);
   });
 });
