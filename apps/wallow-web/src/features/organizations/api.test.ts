@@ -1,233 +1,99 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { QueryClient } from "@tanstack/react-query";
+import { QueryClient } from "@tanstack/react-query";
+import { describe, expect, it } from "vitest";
 
 /**
- * Organizations feature query layer (Wallow-8w1h.4.1) — spec for the CANONICAL
- * feature-folder `api.ts` that Phases 4-6 copy. The `getWallowSdk()` facade is
- * mocked: these tests assert the query/mutation layer's KEY STABILITY and its
- * DELEGATION to the facade slice, not the wire.
+ * Organizations feature `api.ts` (Wallow-evd5.2.2) — after the SDK-query-layer
+ * adoption, `api.ts` is a THIN RE-EXPORT SEAM over `@bc-solutions-coder/sdk/query`,
+ * not a hand-rolled query layer. Route/component files still import from
+ * `./api`, so this spec pins the seam:
+ *  - every symbol `./api` exposes IS the SDK export (re-export identity), and
+ *  - the query keys + mutation invalidations still resolve to the central
+ *    `queryKeys` factory (behavior preserved across the swap).
+ * The old `vi.mock("../../lib/wallow-sdk")` delegation spec is gone: the
+ * re-exported factories no longer call the facade, so mocking it asserts nothing.
  */
 
-// Hoisted so the vi.mock factory and the test bodies share the same spies.
-const mocks = vi.hoisted(() => ({
-  list: vi.fn(),
-  get: vi.fn(),
-  create: vi.fn(),
-  members: vi.fn(),
-  addMember: vi.fn(),
-  removeMember: vi.fn(),
-  archive: vi.fn(),
-  reactivate: vi.fn(),
-}));
+import * as api from "./api";
+import { organizationsQueries } from "./api";
+import { queryKeys } from "@bc-solutions-coder/sdk/query";
+import * as query from "@bc-solutions-coder/sdk/query";
 
-// Route/component files import only from this feature's api.ts; api.ts in turn
-// imports getWallowSdk. We mock the facade module so the slice methods are spies.
-vi.mock("../../lib/wallow-sdk", () => ({
-  getWallowSdk: () => ({
-    organizations: {
-      list: mocks.list,
-      get: mocks.get,
-      create: mocks.create,
-      members: mocks.members,
-      addMember: mocks.addMember,
-      removeMember: mocks.removeMember,
-      archive: mocks.archive,
-      reactivate: mocks.reactivate,
-    },
-  }),
-}));
-
-import {
-  addMemberMutation,
-  archiveOrganizationMutation,
-  createOrganizationMutation,
-  organizationsQueries,
-  reactivateOrganizationMutation,
-  removeMemberMutation,
-} from "./api";
-
-/** Invoke a queryOptions `queryFn` while ignoring its QueryFunctionContext arg. */
-async function callQueryFn(queryFn: unknown): Promise<unknown> {
-  return (queryFn as () => Promise<unknown>)();
+/** A QueryClient whose invalidateQueries records the keys it was asked to sweep. */
+function captureInvalidations(): { client: QueryClient; keys: unknown[] } {
+  const client = new QueryClient();
+  const keys: unknown[] = [];
+  client.invalidateQueries = (filters?: { queryKey?: unknown }) => {
+    keys.push(filters?.queryKey);
+    return Promise.resolve();
+  };
+  return { client, keys };
 }
 
+describe("api.ts re-exports the SDK organizations query layer", () => {
+  it("re-exports each symbol by identity from @bc-solutions-coder/sdk/query", () => {
+    expect(api.organizationsQueries).toBe(query.organizationsQueries);
+    expect(api.createOrganizationMutation).toBe(query.createOrganizationMutation);
+    expect(api.addMemberMutation).toBe(query.addMemberMutation);
+    expect(api.removeMemberMutation).toBe(query.removeMemberMutation);
+    expect(api.archiveOrganizationMutation).toBe(query.archiveOrganizationMutation);
+    expect(api.reactivateOrganizationMutation).toBe(query.reactivateOrganizationMutation);
+    expect(api.registerClientMutation).toBe(query.registerClientMutation);
+  });
+});
+
 describe("organizationsQueries", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
+  it("keys every option from the central queryKeys factory", () => {
+    expect(organizationsQueries.list().queryKey).toEqual(queryKeys.organizations.all);
+    expect(organizationsQueries.detail("o1").queryKey).toEqual(
+      queryKeys.organizations.detail("o1"),
+    );
+    expect(organizationsQueries.members("o1").queryKey).toEqual(
+      queryKeys.organizations.members("o1"),
+    );
+    expect(organizationsQueries.clients("o1").queryKey).toEqual(
+      queryKeys.organizations.clients("o1"),
+    );
   });
 
-  describe("list", () => {
-    it("keys the list query as ['orgs']", () => {
-      expect(organizationsQueries.list().queryKey).toEqual(["orgs"]);
-    });
-
-    it("keeps the list queryKey stable across calls", () => {
-      expect(organizationsQueries.list().queryKey).toEqual(organizationsQueries.list().queryKey);
-    });
-
-    it("queryFn delegates to the facade organizations.list and returns its data", async () => {
-      const orgs = [{ id: "o1", name: "Acme" }];
-      mocks.list.mockResolvedValue(orgs);
-
-      const result = await callQueryFn(organizationsQueries.list().queryFn);
-
-      expect(mocks.list).toHaveBeenCalledTimes(1);
-      expect(result).toBe(orgs);
-    });
-  });
-
-  describe("detail", () => {
-    it("keys the detail query as ['orgs', id]", () => {
-      expect(organizationsQueries.detail("o1").queryKey).toEqual(["orgs", "o1"]);
-    });
-
-    it("queryFn delegates to the facade organizations.get with the id", async () => {
-      const org = { id: "o1", name: "Acme" };
-      mocks.get.mockResolvedValue(org);
-
-      const result = await callQueryFn(organizationsQueries.detail("o1").queryFn);
-
-      expect(mocks.get).toHaveBeenCalledWith("o1");
-      expect(result).toBe(org);
-    });
-  });
-
-  describe("members (Wallow-8w1h.4.4)", () => {
-    it("keys the members query as ['orgs', id, 'members']", () => {
-      expect(organizationsQueries.members("o1").queryKey).toEqual(["orgs", "o1", "members"]);
-    });
-
-    it("queryFn delegates to the facade organizations.members with the id", async () => {
-      const members = [{ id: "u1", email: "a@b.c", roles: ["Owner"] }];
-      mocks.members.mockResolvedValue(members);
-
-      const result = await callQueryFn(organizationsQueries.members("o1").queryFn);
-
-      expect(mocks.members).toHaveBeenCalledWith("o1");
-      expect(result).toBe(members);
-    });
+  it("keeps the list queryKey stable across calls", () => {
+    expect(organizationsQueries.list().queryKey).toEqual(organizationsQueries.list().queryKey);
   });
 });
 
-describe("member & lifecycle mutations (Wallow-8w1h.4.4)", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
+describe("organizations mutation invalidation", () => {
+  it("createOrganizationMutation sweeps the organizations list", () => {
+    const { client, keys } = captureInvalidations();
+    api.createOrganizationMutation(client).onSuccess();
+    expect(keys).toEqual([queryKeys.organizations.all]);
   });
 
-  function fakeQueryClient(): QueryClient {
-    return { invalidateQueries: vi.fn() } as unknown as QueryClient;
-  }
-
-  describe("addMemberMutation", () => {
-    it("mutationFn delegates to organizations.addMember with the org id and body", async () => {
-      const added = { id: "u2" };
-      mocks.addMember.mockResolvedValue(added);
-
-      const mutation = addMemberMutation(fakeQueryClient(), "o1");
-      const result = await mutation.mutationFn({ userId: "u2" });
-
-      expect(mocks.addMember).toHaveBeenCalledWith("o1", { userId: "u2" });
-      expect(result).toBe(added);
-    });
-
-    it("invalidates the ['orgs', id, 'members'] query on success", () => {
-      const queryClient = fakeQueryClient();
-
-      addMemberMutation(queryClient, "o1").onSuccess();
-
-      expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
-        queryKey: ["orgs", "o1", "members"],
-      });
-    });
+  it("addMemberMutation sweeps that org's members", () => {
+    const { client, keys } = captureInvalidations();
+    api.addMemberMutation(client, "o1").onSuccess();
+    expect(keys).toEqual([queryKeys.organizations.members("o1")]);
   });
 
-  describe("removeMemberMutation", () => {
-    it("mutationFn delegates to organizations.removeMember with the org id and user id", async () => {
-      mocks.removeMember.mockResolvedValue(undefined);
-
-      const mutation = removeMemberMutation(fakeQueryClient(), "o1");
-      await mutation.mutationFn("u2");
-
-      expect(mocks.removeMember).toHaveBeenCalledWith("o1", "u2");
-    });
-
-    it("invalidates the ['orgs', id, 'members'] query on success", () => {
-      const queryClient = fakeQueryClient();
-
-      removeMemberMutation(queryClient, "o1").onSuccess();
-
-      expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
-        queryKey: ["orgs", "o1", "members"],
-      });
-    });
+  it("removeMemberMutation sweeps that org's members", () => {
+    const { client, keys } = captureInvalidations();
+    api.removeMemberMutation(client, "o1").onSuccess();
+    expect(keys).toEqual([queryKeys.organizations.members("o1")]);
   });
 
-  describe("archiveOrganizationMutation", () => {
-    it("mutationFn delegates to organizations.archive with the org id", async () => {
-      mocks.archive.mockResolvedValue(undefined);
-
-      const mutation = archiveOrganizationMutation(fakeQueryClient(), "o1");
-      await mutation.mutationFn();
-
-      expect(mocks.archive).toHaveBeenCalledWith("o1");
-    });
-
-    it("invalidates the ['orgs'] list query on success", () => {
-      const queryClient = fakeQueryClient();
-
-      archiveOrganizationMutation(queryClient, "o1").onSuccess();
-
-      expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["orgs"] });
-    });
+  it("archiveOrganizationMutation sweeps the organizations list", () => {
+    const { client, keys } = captureInvalidations();
+    api.archiveOrganizationMutation(client, "o1").onSuccess();
+    expect(keys).toEqual([queryKeys.organizations.all]);
   });
 
-  describe("reactivateOrganizationMutation", () => {
-    it("mutationFn delegates to organizations.reactivate with the org id", async () => {
-      mocks.reactivate.mockResolvedValue(undefined);
-
-      const mutation = reactivateOrganizationMutation(fakeQueryClient(), "o1");
-      await mutation.mutationFn();
-
-      expect(mocks.reactivate).toHaveBeenCalledWith("o1");
-    });
-
-    it("invalidates the ['orgs'] list query on success", () => {
-      const queryClient = fakeQueryClient();
-
-      reactivateOrganizationMutation(queryClient, "o1").onSuccess();
-
-      expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["orgs"] });
-    });
-  });
-});
-
-describe("createOrganizationMutation", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
+  it("reactivateOrganizationMutation sweeps the organizations list", () => {
+    const { client, keys } = captureInvalidations();
+    api.reactivateOrganizationMutation(client, "o1").onSuccess();
+    expect(keys).toEqual([queryKeys.organizations.all]);
   });
 
-  function fakeQueryClient(): QueryClient {
-    return { invalidateQueries: vi.fn() } as unknown as QueryClient;
-  }
-
-  it("mutationFn delegates to the facade organizations.create with the body", async () => {
-    const created = { id: "o2", name: "New" };
-    mocks.create.mockResolvedValue(created);
-    const body = { name: "New", domain: null };
-
-    const mutation = createOrganizationMutation(fakeQueryClient());
-    const result = await mutation.mutationFn(body);
-
-    expect(mocks.create).toHaveBeenCalledWith(body);
-    expect(result).toBe(created);
-  });
-
-  it("invalidates the ['orgs'] list query on success", () => {
-    const queryClient = fakeQueryClient();
-
-    const mutation = createOrganizationMutation(queryClient);
-    mutation.onSuccess();
-
-    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["orgs"] });
+  it("registerClientMutation sweeps that org's clients", () => {
+    const { client, keys } = captureInvalidations();
+    api.registerClientMutation(client, "o1").onSuccess();
+    expect(keys).toEqual([queryKeys.organizations.clients("o1")]);
   });
 });
