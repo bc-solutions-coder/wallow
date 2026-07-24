@@ -1,14 +1,20 @@
-import { useQueryClient } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { renderToString } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 /**
- * Query provider wiring (Wallow-8w1h.3.1). The root route must wrap its SSR
- * document shell in a `QueryClientProvider` so every routed child can call
- * React Query hooks. We stand in for the routed subtree by mocking `<Outlet/>`
- * with a probe that consumes `useQueryClient()`: it resolves only when a
- * provider sits above it, so a shell that forgets the provider throws
- * "No QueryClient set" during `renderToString`.
+ * Single shared client (Wallow-evd5.2.4). The root route used to mint its OWN
+ * QueryClient (a `useRef` client wrapped in a `QueryClientProvider`), which meant
+ * loaders (router-context client) and components (root-route client) ran on two
+ * separate caches. That second client is removed: the router now owns the single
+ * provider via its `Wrap`, and `RootComponent` renders the document shell
+ * directly. So the standalone shell no longer establishes a client of its own —
+ * a routed subtree reads its QueryClient from whatever provider the caller (the
+ * router `Wrap`) supplies.
+ *
+ * We stand in for the routed subtree by mocking `<Outlet/>` with a probe that
+ * consumes `useQueryClient()`: it resolves only when a provider sits above it,
+ * and throws "No QueryClient set" when none does.
  *
  * Kept in a dedicated file (not `__root.test.tsx`) because this suite needs a
  * provider-consuming `Outlet` mock, whereas the shell suite mocks a plain
@@ -39,10 +45,27 @@ vi.mock("@bc-solutions-coder/ui", async (importOriginal) => {
 });
 
 describe("routes/__root (query provider)", () => {
-  it("wraps the routed outlet in a QueryClientProvider", async () => {
+  it("does not establish its own QueryClient (the router Wrap now owns it)", async () => {
     const { Route } = await import("./__root");
     const Shell = Route.options.component!;
-    const html = renderToString(<Shell />);
+
+    // With the standalone `useRef` client + provider removed, the shell renders
+    // no provider of its own, so an Outlet that reads `useQueryClient()` throws
+    // when the caller supplies none.
+    expect(() => renderToString(<Shell />)).toThrow(/No QueryClient set/u);
+  });
+
+  it("server-renders the shell when the caller supplies a QueryClientProvider", async () => {
+    const { Route } = await import("./__root");
+    const Shell = Route.options.component!;
+
+    const client = new QueryClient();
+    const html = renderToString(
+      <QueryClientProvider client={client}>
+        <Shell />
+      </QueryClientProvider>,
+    );
+
     expect(html).toContain('data-testid="outlet-with-query-client"');
   });
 });
