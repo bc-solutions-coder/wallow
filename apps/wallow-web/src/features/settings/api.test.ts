@@ -1,68 +1,30 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 /**
- * Settings (Profile) feature query layer (Wallow-8w1h.6.1) — copies the
- * Organizations api.test.ts spec: the getWallowSdk() facade is mocked and these
- * tests assert the query layer's KEY STABILITY and its DELEGATION to the
- * `settings` slice, not the wire.
- *
- * RECONCILIATION (scout CRITICAL DIVERGENCE #1): profile is READ-ONLY — the
- * bead's "profile mutation" has no backend endpoint (the generic key/value
- * settings PUT is a different concern the oracle never uses for profile), so
- * there is only a `profile()` query and no updateProfileMutation to test.
+ * Settings (Profile) feature `api.ts` (Wallow-evd5.2.2) — a THIN RE-EXPORT SEAM
+ * over `@bc-solutions-coder/sdk/query`. Profile is READ-ONLY (no mutation
+ * endpoint), so the seam exposes only `settingsQueries`. This spec pins the
+ * re-export identity and the preserved profile key. The old
+ * `vi.mock("../../lib/wallow-sdk")` delegation spec is gone.
  */
 
-// Hoisted so the vi.mock factory and the test bodies share the same spy.
-const mocks = vi.hoisted(() => ({
-  getProfile: vi.fn(),
-}));
-
-// Route/component files import only from this feature's api.ts; api.ts in turn
-// imports getWallowSdk. We mock the facade so the settings slice is a spy.
-vi.mock("../../lib/wallow-sdk", () => ({
-  getWallowSdk: () => ({
-    settings: {
-      getProfile: mocks.getProfile,
-    },
-  }),
-}));
-
+import * as api from "./api";
 import { settingsQueries } from "./api";
+import { queryKeys } from "@bc-solutions-coder/sdk/query";
+import * as query from "@bc-solutions-coder/sdk/query";
 
-/** Invoke a queryOptions `queryFn` while ignoring its QueryFunctionContext arg. */
-async function callQueryFn(queryFn: unknown): Promise<unknown> {
-  return (queryFn as () => Promise<unknown>)();
-}
+describe("api.ts re-exports the SDK settings query layer", () => {
+  it("re-exports settingsQueries by identity from @bc-solutions-coder/sdk/query", () => {
+    expect(api.settingsQueries).toBe(query.settingsQueries);
+  });
+});
 
 describe("settingsQueries", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
+  it("keys the profile query from the central queryKeys factory", () => {
+    expect(settingsQueries.profile().queryKey).toEqual(queryKeys.settings.profile());
   });
 
-  describe("profile", () => {
-    it("keys the profile query as ['settings', 'profile']", () => {
-      expect(settingsQueries.profile().queryKey).toEqual(["settings", "profile"]);
-    });
-
-    it("keeps the profile queryKey stable across calls", () => {
-      expect(settingsQueries.profile().queryKey).toEqual(settingsQueries.profile().queryKey);
-    });
-
-    it("queryFn delegates to the facade settings.getProfile and returns its data", async () => {
-      const profile = {
-        id: "u1",
-        email: "a@b.c",
-        firstName: "Ada",
-        lastName: "Lovelace",
-        roles: ["Owner"],
-        permissions: [],
-      };
-      mocks.getProfile.mockResolvedValue(profile);
-
-      const result = await callQueryFn(settingsQueries.profile().queryFn);
-
-      expect(mocks.getProfile).toHaveBeenCalledTimes(1);
-      expect(result).toBe(profile);
-    });
+  it("keeps the profile queryKey stable across calls", () => {
+    expect(settingsQueries.profile().queryKey).toEqual(settingsQueries.profile().queryKey);
   });
 });
