@@ -2,16 +2,20 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
+import { installSdkClientMock, type SdkClientMock } from "../../../test/sdk-client-mock";
 import { InquiryList } from "./InquiryList";
 
 /**
  * Component spec for the inquiries list page (Wallow-8w1h.7.2), mirroring
- * OrganizationList.test.tsx. The `getWallowSdk()` facade is mocked so the list
- * query is inert; list/empty states are driven by seeding the `['inquiries']`
- * cache with `setQueryData`, and the loading state by leaving the query to hit a
- * never-resolving facade call.
+ * OrganizationList.test.tsx. Data flows through the SDK query layer
+ * (`inquiriesQueries.list()`), so the network seam is the shared SDK client's
+ * `fetch`, overridden per test via `installSdkClientMock` (Wallow-evd5.2.6 — the
+ * retired `getWallowSdk()` facade is no longer in the path). List/empty states
+ * are driven by seeding the `['inquiries']` cache with `setQueryData`
+ * (`staleTime: Infinity` keeps the seed from refetching), and the loading state
+ * by leaving the query to hit a never-settling request (`sdk.pending()`).
  *
  * DIVERGENCE reconciliation (see bead 7.2 note): task 7 said to "copy the C# E2E
  * InquiryPage page object's testids", but InquiryPage.cs only carries the public
@@ -22,34 +26,10 @@ import { InquiryList } from "./InquiryList";
  * per inquiry" requirement, `inquiries-empty-state`, and `inquiries-loading`.
  */
 
-// Hoisted so the vi.mock factory and the test bodies share the same spies. Mocks
-// the full inquiries facade slice, though only `list` is exercised here.
-const mocks = vi.hoisted(() => ({
-  list: vi.fn(),
-  create: vi.fn(),
-  get: vi.fn(),
-  comments: vi.fn(),
-  addComment: vi.fn(),
-  setStatus: vi.fn(),
-}));
-
-// Mock the facade module the feature's api.ts imports (`../../lib/wallow-sdk`
-// from features/inquiries; `../../../lib/wallow-sdk` from here).
-vi.mock("../../../lib/wallow-sdk", () => ({
-  getWallowSdk: () => ({
-    inquiries: {
-      list: mocks.list,
-      create: mocks.create,
-      get: mocks.get,
-      comments: mocks.comments,
-      addComment: mocks.addComment,
-      setStatus: mocks.setStatus,
-    },
-  }),
-}));
-
 function newClient(): QueryClient {
-  return new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Number.POSITIVE_INFINITY } },
+  });
 }
 
 function renderWithClient(client: QueryClient, ui: ReactElement) {
@@ -57,8 +37,10 @@ function renderWithClient(client: QueryClient, ui: ReactElement) {
 }
 
 describe("InquiryList", () => {
+  let sdk: SdkClientMock;
+
   beforeEach(() => {
-    vi.clearAllMocks();
+    sdk = installSdkClientMock();
   });
 
   it("renders each seeded inquiry as an inquiry-item element", async () => {
@@ -141,9 +123,9 @@ describe("InquiryList", () => {
 
   it("renders a loading indicator while the list query is pending", async () => {
     const client = newClient();
-    // No cached data -> the query fires; the facade never resolves, so the
+    // No cached data -> the query fires; the request never settles, so the
     // component stays in its loading state.
-    mocks.list.mockReturnValue(new Promise<never>(() => {}));
+    sdk.pending();
 
     renderWithClient(client, <InquiryList />);
 

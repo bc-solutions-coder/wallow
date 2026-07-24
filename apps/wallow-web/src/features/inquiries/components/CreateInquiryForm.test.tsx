@@ -4,15 +4,19 @@ import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { installSdkClientMock, type SdkClientMock } from "../../../test/sdk-client-mock";
 import { CreateInquiryForm } from "./CreateInquiryForm";
 
 /**
  * Component spec for the create-inquiry form (Wallow-8w1h.7.3). Copies the
- * CANONICAL CreateOrganizationForm.test.tsx shape (Wallow-8w1h.4.3): the
- * `getWallowSdk()` facade is mocked so the create call is a spy; the form
- * builds its mutation from `createInquiryMutation(queryClient)` (the api.ts
- * factory), so invalidation of `['inquiries']` on success is observed by
- * spying on the live client's `invalidateQueries`.
+ * CANONICAL CreateOrganizationForm.test.tsx shape (Wallow-8w1h.4.3): the form
+ * builds its mutation from `createInquiryMutation(queryClient)` (the SDK query
+ * factory re-exported by api.ts), so the network seam is the shared SDK client's
+ * `fetch`, overridden per test via `installSdkClientMock` (Wallow-evd5.2.6 — the
+ * retired `getWallowSdk()` facade is no longer in the path). The submitted body
+ * is asserted via the recorded outgoing request (`sdk.last`); invalidation of
+ * `['inquiries']` on success is observed by spying on the live client's
+ * `invalidateQueries`; a server ProblemDetails is driven with `sdk.rejectJson`.
  *
  * Testids mirror the C# E2E `InquiryPage` page object verbatim: `inquiry-name`,
  * `inquiry-email`, `inquiry-phone`, `inquiry-company`, `inquiry-project-type`,
@@ -21,30 +25,7 @@ import { CreateInquiryForm } from "./CreateInquiryForm";
  * messages use `{field}-error` (`inquiry-name-error`, etc.).
  */
 
-// Hoisted so the vi.mock factory and the test bodies share the same spies.
-const mocks = vi.hoisted(() => ({
-  list: vi.fn(),
-  get: vi.fn(),
-  create: vi.fn(),
-  comments: vi.fn(),
-  addComment: vi.fn(),
-  setStatus: vi.fn(),
-}));
-
-// Mock the facade module the feature's api.ts imports (`../../lib/wallow-sdk`
-// from features/inquiries/api.ts; `../../../lib/wallow-sdk` from this test file).
-vi.mock("../../../lib/wallow-sdk", () => ({
-  getWallowSdk: () => ({
-    inquiries: {
-      list: mocks.list,
-      get: mocks.get,
-      create: mocks.create,
-      comments: mocks.comments,
-      addComment: mocks.addComment,
-      setStatus: mocks.setStatus,
-    },
-  }),
-}));
+let sdk: SdkClientMock;
 
 // The full SubmitInquiryBody the form must POST when every field is filled.
 const FULL_BODY = {
@@ -119,7 +100,7 @@ const SERVER_REQUIRED_SELECT_FIELDS = [
 
 describe("CreateInquiryForm", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    sdk = installSdkClientMock();
   });
 
   it("renders every inquiry field, select, and the submit button", async () => {
@@ -156,24 +137,22 @@ describe("CreateInquiryForm", () => {
     );
   });
 
-  it("submits, calling the create facade with the full SubmitInquiryBody", async () => {
-    mocks.create.mockResolvedValue({ id: "new", ...FULL_BODY, status: "New" });
-
+  it("submits, POSTing the full SubmitInquiryBody to the inquiries endpoint", async () => {
     renderWithClient(newClient(), <CreateInquiryForm />);
 
     await fillFullForm();
     await userEvent.click(page.getByTestId("inquiry-submit"));
 
     await vi.waitFor(() => {
-      expect(mocks.create).toHaveBeenCalledTimes(1);
+      expect(sdk.last?.method).toBe("POST");
     });
-    expect(mocks.create).toHaveBeenCalledWith(FULL_BODY);
+    expect(sdk.last?.path).toBe("/api/v1/inquiries");
+    expect(sdk.last?.body).toEqual(FULL_BODY);
   });
 
   it("invalidates the ['inquiries'] list query after a successful submit", async () => {
     const client = newClient();
     const invalidateSpy = vi.spyOn(client, "invalidateQueries");
-    mocks.create.mockResolvedValue({ id: "new", ...FULL_BODY, status: "New" });
 
     renderWithClient(client, <CreateInquiryForm />);
 
@@ -186,8 +165,6 @@ describe("CreateInquiryForm", () => {
   });
 
   it("shows the success state after a successful submit", async () => {
-    mocks.create.mockResolvedValue({ id: "new", ...FULL_BODY, status: "New" });
-
     renderWithClient(newClient(), <CreateInquiryForm />);
 
     await fillFullForm();
@@ -212,16 +189,19 @@ describe("CreateInquiryForm", () => {
     await expect.element(page.getByTestId("inquiry-budget-range-error")).toBeInTheDocument();
     await expect.element(page.getByTestId("inquiry-timeline-error")).toBeInTheDocument();
     await expect.element(page.getByTestId("inquiry-message-error")).toBeInTheDocument();
-    expect(mocks.create).not.toHaveBeenCalled();
+    expect(sdk.fetchMock).not.toHaveBeenCalled();
   });
 
   it("surfaces the RFC 7807 ProblemDetails detail when the submit fails", async () => {
-    mocks.create.mockRejectedValue({
-      type: "https://httpstatuses.io/400",
-      title: "Bad Request",
-      status: "400",
-      detail: "Failed to submit inquiry. Please try again.",
-    });
+    sdk.rejectJson(
+      {
+        type: "https://httpstatuses.io/400",
+        title: "Bad Request",
+        status: "400",
+        detail: "Failed to submit inquiry. Please try again.",
+      },
+      400,
+    );
 
     renderWithClient(newClient(), <CreateInquiryForm />);
 
@@ -236,35 +216,31 @@ describe("CreateInquiryForm", () => {
 
 describe("CreateInquiryForm — server-required field parity", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    sdk = installSdkClientMock();
   });
 
   it.each(SERVER_REQUIRED_SELECT_FIELDS)(
     "blocks submit and flags $errorTestId when only that server-required field is blank",
     async ({ skipTestId, errorTestId }) => {
-      mocks.create.mockResolvedValue({ id: "new", ...FULL_BODY, status: "New" });
-
       renderWithClient(newClient(), <CreateInquiryForm />);
 
       await fillAllExcept(skipTestId);
       await userEvent.click(page.getByTestId("inquiry-submit"));
 
       await expect.element(page.getByTestId(errorTestId)).toBeInTheDocument();
-      expect(mocks.create).not.toHaveBeenCalled();
+      expect(sdk.fetchMock).not.toHaveBeenCalled();
     },
   );
 
   it("still submits when only company (the sole server-optional field) is blank", async () => {
-    mocks.create.mockResolvedValue({ id: "new", ...FULL_BODY, company: "", status: "New" });
-
     renderWithClient(newClient(), <CreateInquiryForm />);
 
     await fillAllExcept("inquiry-company");
     await userEvent.click(page.getByTestId("inquiry-submit"));
 
     await vi.waitFor(() => {
-      expect(mocks.create).toHaveBeenCalledTimes(1);
+      expect(sdk.last?.method).toBe("POST");
     });
-    expect(mocks.create).toHaveBeenCalledWith({ ...FULL_BODY, company: "" });
+    expect(sdk.last?.body).toEqual({ ...FULL_BODY, company: "" });
   });
 });

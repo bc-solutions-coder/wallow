@@ -4,6 +4,7 @@ import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { installSdkClientMock, type SdkClientMock } from "../../../test/sdk-client-mock";
 import { CreateOrganizationForm } from "./CreateOrganizationForm";
 
 /**
@@ -11,31 +12,20 @@ import { CreateOrganizationForm } from "./CreateOrganizationForm";
  * TanStack Form + mutation template Phases 4-6 copy, so it is the spec of
  * record for that shape.
  *
- * The `getWallowSdk()` facade is mocked so the create call is a spy; the form
- * builds its mutation from `createOrganizationMutation(queryClient)` (the api.ts
- * factory), so invalidation of `['orgs']` on success is observed by spying on
- * the live client's `invalidateQueries`.
+ * The form builds its mutation from `createOrganizationMutation(queryClient)`
+ * (the SDK query factory re-exported by api.ts), so the network seam is the
+ * shared SDK client's `fetch`, overridden per test via `installSdkClientMock`
+ * (Wallow-evd5.2.6 — the retired `getWallowSdk()` facade is no longer in the
+ * path). The create request is asserted via the recorded outgoing request
+ * (`sdk.last`); invalidation of `['orgs']` on success is observed by spying on
+ * the live client's `invalidateQueries`; a server ProblemDetails is driven with
+ * `sdk.rejectJson`.
  *
  * Testids follow `{page}-{element}` kebab-case: `organization-name` (input,
  * bead-mandated), `organization-create-submit` (submit button),
  * `organization-name-error` (required-field validation message),
  * `organization-create-error` (server RFC 7807 ProblemDetails surface).
  */
-
-// Hoisted so the vi.mock factory and the test bodies share the same spies.
-const mocks = vi.hoisted(() => ({
-  list: vi.fn(),
-  get: vi.fn(),
-  create: vi.fn(),
-}));
-
-// Mock the facade module the feature's api.ts imports (`../../lib/wallow-sdk`
-// from features/organizations; `../../../lib/wallow-sdk` from this test file).
-vi.mock("../../../lib/wallow-sdk", () => ({
-  getWallowSdk: () => ({
-    organizations: { list: mocks.list, get: mocks.get, create: mocks.create },
-  }),
-}));
 
 function newClient(): QueryClient {
   return new QueryClient({
@@ -48,8 +38,10 @@ function renderWithClient(client: QueryClient, ui: ReactElement) {
 }
 
 describe("CreateOrganizationForm", () => {
+  let sdk: SdkClientMock;
+
   beforeEach(() => {
-    vi.clearAllMocks();
+    sdk = installSdkClientMock();
   });
 
   it("renders the name input and submit button", async () => {
@@ -59,24 +51,22 @@ describe("CreateOrganizationForm", () => {
     await expect.element(page.getByTestId("organization-create-submit")).toBeInTheDocument();
   });
 
-  it("submits, calling the create facade with { name, domain: null }", async () => {
-    mocks.create.mockResolvedValue({ id: "new", name: "Acme", domain: null, memberCount: "0" });
-
+  it("submits, POSTing { name, domain: null } to the organizations endpoint", async () => {
     renderWithClient(newClient(), <CreateOrganizationForm />);
 
     await userEvent.type(page.getByTestId("organization-name"), "Acme");
     await userEvent.click(page.getByTestId("organization-create-submit"));
 
     await vi.waitFor(() => {
-      expect(mocks.create).toHaveBeenCalledTimes(1);
+      expect(sdk.last?.method).toBe("POST");
+      expect(sdk.last?.path).toBe("/api/v1/identity/organizations");
+      expect(sdk.last?.body).toEqual({ name: "Acme", domain: null });
     });
-    expect(mocks.create).toHaveBeenCalledWith({ name: "Acme", domain: null });
   });
 
   it("invalidates the ['orgs'] list query after a successful create", async () => {
     const client = newClient();
     const invalidateSpy = vi.spyOn(client, "invalidateQueries");
-    mocks.create.mockResolvedValue({ id: "new", name: "Acme", domain: null, memberCount: "0" });
 
     renderWithClient(client, <CreateOrganizationForm />);
 
@@ -89,8 +79,6 @@ describe("CreateOrganizationForm", () => {
   });
 
   it("resets the name field after a successful create", async () => {
-    mocks.create.mockResolvedValue({ id: "new", name: "Acme", domain: null, memberCount: "0" });
-
     renderWithClient(newClient(), <CreateOrganizationForm />);
 
     const input = page.getByTestId("organization-name");
@@ -98,7 +86,7 @@ describe("CreateOrganizationForm", () => {
     await userEvent.click(page.getByTestId("organization-create-submit"));
 
     await vi.waitFor(() => {
-      expect(mocks.create).toHaveBeenCalledTimes(1);
+      expect(sdk.last?.method).toBe("POST");
     });
     await expect.element(input).toHaveValue("");
   });
@@ -109,16 +97,19 @@ describe("CreateOrganizationForm", () => {
     await userEvent.click(page.getByTestId("organization-create-submit"));
 
     await expect.element(page.getByTestId("organization-name-error")).toBeInTheDocument();
-    expect(mocks.create).not.toHaveBeenCalled();
+    expect(sdk.fetchMock).not.toHaveBeenCalled();
   });
 
   it("renders the ProblemDetails message when the create fails", async () => {
-    mocks.create.mockRejectedValue({
-      type: "https://httpstatuses.io/409",
-      title: "Conflict",
-      status: "409",
-      detail: "An organization with that name already exists.",
-    });
+    sdk.rejectJson(
+      {
+        type: "https://httpstatuses.io/409",
+        title: "Conflict",
+        status: "409",
+        detail: "An organization with that name already exists.",
+      },
+      409,
+    );
 
     renderWithClient(newClient(), <CreateOrganizationForm />);
 

@@ -4,6 +4,7 @@ import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { installSdkClientMock, type SdkClientMock } from "../../../test/sdk-client-mock";
 import { RegisterAppForm } from "./RegisterAppForm";
 
 /**
@@ -27,10 +28,15 @@ import { RegisterAppForm } from "./RegisterAppForm";
  *     RegisterApp.razor:37-49 ("Save your client secret now. It will not be
  *     shown again.").
  *
- * The `getWallowSdk()` facade is mocked so `apps.register` is a spy; the form
- * builds its mutation from `registerAppMutation(queryClient)` (the api.ts
- * factory), so invalidation of `['apps']` on success is observed by spying on
- * the live client's `invalidateQueries`.
+ * The form builds its mutation from `registerAppMutation(queryClient)` (the SDK
+ * query factory re-exported by api.ts), so the network seam is the shared SDK
+ * client's `fetch`, overridden via `installSdkClientMock` (Wallow-evd5.2.6 — the
+ * retired `getWallowSdk()` facade is no longer in the path). The register call
+ * resolves the one-time-secret response (`sdk.resolveJson(OK_RESPONSE)` in
+ * `beforeEach`); the submitted body is asserted via the recorded outgoing
+ * request (`sdk.last`); invalidation of `['apps']` on success is observed by
+ * spying on the live client's `invalidateQueries`; a server ProblemDetails is
+ * driven with `sdk.rejectJson`.
  *
  * Testids follow the apps feature's `app-*` convention (like `app-item`, and
  * the bead-mandated `app-client-secret`/`app-client-id`): `app-display-name`
@@ -50,21 +56,6 @@ import { RegisterAppForm } from "./RegisterAppForm";
  * endpoint exists for them; tracked separately.)
  */
 
-// Hoisted so the vi.mock factory and the test bodies share the same spies.
-const mocks = vi.hoisted(() => ({
-  list: vi.fn(),
-  get: vi.fn(),
-  register: vi.fn(),
-}));
-
-// Mock the facade module the feature's api.ts imports (`../../lib/wallow-sdk`
-// from features/apps; `../../../lib/wallow-sdk` from this test file).
-vi.mock("../../../lib/wallow-sdk", () => ({
-  getWallowSdk: () => ({
-    apps: { list: mocks.list, get: mocks.get, register: mocks.register },
-  }),
-}));
-
 const OK_RESPONSE = {
   clientId: "client-abc",
   clientSecret: "secret-xyz",
@@ -82,8 +73,11 @@ function renderWithClient(client: QueryClient, ui: ReactElement) {
 }
 
 describe("RegisterAppForm", () => {
+  let sdk: SdkClientMock;
+
   beforeEach(() => {
-    vi.clearAllMocks();
+    sdk = installSdkClientMock();
+    sdk.resolveJson(OK_RESPONSE);
   });
 
   it("renders the display-name, client-type, redirect-uris, scope, and submit controls", async () => {
@@ -119,9 +113,7 @@ describe("RegisterAppForm", () => {
     await expect.element(page.getByTestId("app-client-id")).not.toBeInTheDocument();
   });
 
-  it("submits, calling register with the remapped body (clientName, default scope, public, parsed redirect + post-logout URIs)", async () => {
-    mocks.register.mockResolvedValue(OK_RESPONSE);
-
+  it("submits, POSTing the remapped body (clientName, default scope, public, parsed redirect + post-logout URIs)", async () => {
     renderWithClient(newClient(), <RegisterAppForm />);
 
     await userEvent.type(page.getByTestId("app-display-name"), "My App");
@@ -136,9 +128,10 @@ describe("RegisterAppForm", () => {
     await userEvent.click(page.getByTestId("app-register-submit"));
 
     await vi.waitFor(() => {
-      expect(mocks.register).toHaveBeenCalledTimes(1);
+      expect(sdk.last?.method).toBe("POST");
     });
-    expect(mocks.register).toHaveBeenCalledWith({
+    expect(sdk.last?.path).toBe("/api/v1/identity/apps/register");
+    expect(sdk.last?.body).toEqual({
       clientName: "My App",
       requestedScopes: ["inquiries.read"],
       clientType: "public",
@@ -148,8 +141,6 @@ describe("RegisterAppForm", () => {
   });
 
   it("includes a toggled-on login scope (offline_access) in the submitted requestedScopes", async () => {
-    mocks.register.mockResolvedValue(OK_RESPONSE);
-
     renderWithClient(newClient(), <RegisterAppForm />);
 
     await userEvent.type(page.getByTestId("app-display-name"), "My App");
@@ -157,15 +148,13 @@ describe("RegisterAppForm", () => {
     await userEvent.click(page.getByTestId("app-register-submit"));
 
     await vi.waitFor(() => {
-      expect(mocks.register).toHaveBeenCalledTimes(1);
+      expect(sdk.last?.method).toBe("POST");
     });
-    const body = mocks.register.mock.calls[0]![0] as { requestedScopes: string[] };
+    const body = sdk.last?.body as { requestedScopes: string[] };
     expect(body.requestedScopes).toContain("offline_access");
   });
 
   it("adds a toggled-on scope to the submitted requestedScopes", async () => {
-    mocks.register.mockResolvedValue(OK_RESPONSE);
-
     renderWithClient(newClient(), <RegisterAppForm />);
 
     await userEvent.type(page.getByTestId("app-display-name"), "My App");
@@ -173,9 +162,9 @@ describe("RegisterAppForm", () => {
     await userEvent.click(page.getByTestId("app-register-submit"));
 
     await vi.waitFor(() => {
-      expect(mocks.register).toHaveBeenCalledTimes(1);
+      expect(sdk.last?.method).toBe("POST");
     });
-    const body = mocks.register.mock.calls[0]![0] as { requestedScopes: string[] };
+    const body = sdk.last?.body as { requestedScopes: string[] };
     expect(body.requestedScopes).toEqual(
       expect.arrayContaining(["inquiries.read", "announcements.read"]),
     );
@@ -183,8 +172,6 @@ describe("RegisterAppForm", () => {
   });
 
   it("removes a default scope when its toggle is clicked off", async () => {
-    mocks.register.mockResolvedValue(OK_RESPONSE);
-
     renderWithClient(newClient(), <RegisterAppForm />);
 
     await userEvent.type(page.getByTestId("app-display-name"), "My App");
@@ -192,15 +179,13 @@ describe("RegisterAppForm", () => {
     await userEvent.click(page.getByTestId("app-register-submit"));
 
     await vi.waitFor(() => {
-      expect(mocks.register).toHaveBeenCalledTimes(1);
+      expect(sdk.last?.method).toBe("POST");
     });
-    const body = mocks.register.mock.calls[0]![0] as { requestedScopes: string[] };
+    const body = sdk.last?.body as { requestedScopes: string[] };
     expect(body.requestedScopes).not.toContain("inquiries.read");
   });
 
   it("reveals the one-time client secret and client id after a successful registration", async () => {
-    mocks.register.mockResolvedValue(OK_RESPONSE);
-
     renderWithClient(newClient(), <RegisterAppForm />);
 
     await userEvent.type(page.getByTestId("app-display-name"), "My App");
@@ -211,7 +196,6 @@ describe("RegisterAppForm", () => {
   });
 
   it("copies the revealed client secret to the clipboard", async () => {
-    mocks.register.mockResolvedValue(OK_RESPONSE);
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", {
       value: { writeText },
@@ -232,7 +216,6 @@ describe("RegisterAppForm", () => {
   it("invalidates the ['apps'] list query after a successful registration", async () => {
     const client = newClient();
     const invalidateSpy = vi.spyOn(client, "invalidateQueries");
-    mocks.register.mockResolvedValue(OK_RESPONSE);
 
     renderWithClient(client, <RegisterAppForm />);
 
@@ -250,16 +233,19 @@ describe("RegisterAppForm", () => {
     await userEvent.click(page.getByTestId("app-register-submit"));
 
     await expect.element(page.getByTestId("app-display-name-error")).toBeInTheDocument();
-    expect(mocks.register).not.toHaveBeenCalled();
+    expect(sdk.fetchMock).not.toHaveBeenCalled();
   });
 
   it("surfaces the ProblemDetails detail when registration fails", async () => {
-    mocks.register.mockRejectedValue({
-      type: "https://httpstatuses.io/400",
-      title: "Bad Request",
-      status: "400",
-      detail: "That redirect URI is not allowed.",
-    });
+    sdk.rejectJson(
+      {
+        type: "https://httpstatuses.io/400",
+        title: "Bad Request",
+        status: "400",
+        detail: "That redirect URI is not allowed.",
+      },
+      400,
+    );
 
     renderWithClient(newClient(), <RegisterAppForm />);
 

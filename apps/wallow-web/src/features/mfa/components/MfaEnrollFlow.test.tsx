@@ -4,6 +4,7 @@ import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { installSdkClientMock, type SdkClientMock } from "../../../test/sdk-client-mock";
 import { MfaEnrollFlow } from "./MfaEnrollFlow";
 
 /**
@@ -18,35 +19,18 @@ import { MfaEnrollFlow } from "./MfaEnrollFlow";
  * `mfa-enroll-error` surfaces any step's failure (RFC 7807 `detail` or the
  * `{ succeeded: false }` confirm code); `mfa-enroll-cancel` is always visible.
  *
- * The `getWallowSdk()` facade is mocked so `mfa.enrollTotp`/`mfa.confirmEnroll`
- * are spies; the component builds its mutations from the api.ts factories, so
- * the confirm `onSuccess` invalidation of `['mfa', 'status']` is observed by
- * spying on the live client's `invalidateQueries`.
+ * Data flows through the SDK query layer (`enrollTotpMutation` /
+ * `confirmEnrollMutation`), so the network seam is the shared SDK client's
+ * `fetch`, overridden per test via `installSdkClientMock` (Wallow-evd5.2.6 — the
+ * retired `getWallowSdk()` facade is no longer in the path). The enroll begin
+ * (`POST /api/v1/identity/mfa/enroll/totp`) and confirm
+ * (`.../enroll/confirm`) requests are programmed with a path-aware responder so a
+ * begin -> confirm sequence resolves each step independently; the confirm's
+ * `onSuccess` invalidation of `['mfa', 'status']` is observed on the live client's
+ * `invalidateQueries`. Error specs replay the REAL wire shape: MFA controllers
+ * return failures as a raw `{ succeeded: false, error }` body (NOT ProblemDetails)
+ * that `unwrap()` throws raw into `onError`.
  */
-
-// Hoisted so the vi.mock factory and the test bodies share the same spies.
-const mocks = vi.hoisted(() => ({
-  status: vi.fn(),
-  enrollTotp: vi.fn(),
-  confirmEnroll: vi.fn(),
-  disable: vi.fn(),
-  regenerateBackupCodes: vi.fn(),
-}));
-
-// Mock the facade the feature's api.ts imports (`../../lib/wallow-sdk` from
-// features/mfa; `../../../lib/wallow-sdk` from this test file). Both specifiers
-// resolve to the same module id, so this single mock covers api.ts too.
-vi.mock("../../../lib/wallow-sdk", () => ({
-  getWallowSdk: () => ({
-    mfa: {
-      status: mocks.status,
-      enrollTotp: mocks.enrollTotp,
-      confirmEnroll: mocks.confirmEnroll,
-      disable: mocks.disable,
-      regenerateBackupCodes: mocks.regenerateBackupCodes,
-    },
-  }),
-}));
 
 const ENROLL_RESPONSE = {
   secret: "JBSWY3DPEHPK3PXP",
@@ -57,6 +41,38 @@ const CONFIRM_SUCCESS = {
   succeeded: true,
   backupCodes: ["aaaa-1111", "bbbb-2222", "cccc-3333"],
 };
+
+const TOTP_PATH = "/api/v1/identity/mfa/enroll/totp";
+const CONFIRM_PATH = "/api/v1/identity/mfa/enroll/confirm";
+
+function json(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body ?? null), {
+    status,
+    headers: { "content-type": "application/json" },
+  });
+}
+
+/**
+ * Program the enroll seam: `enrollTotp` always resolves the one-time secret + QR;
+ * the confirm step returns `confirmBody` at `confirmStatus` (default 200) so a
+ * begin -> confirm sequence over the single shared responder plays each step
+ * independently.
+ */
+function programFlow(
+  sdk: SdkClientMock,
+  confirmBody: unknown = CONFIRM_SUCCESS,
+  confirmStatus = 200,
+) {
+  sdk.respond((call) => {
+    if (call.path === TOTP_PATH) {
+      return json(ENROLL_RESPONSE);
+    }
+    if (call.path === CONFIRM_PATH) {
+      return json(confirmBody, confirmStatus);
+    }
+    return json({});
+  });
+}
 
 function newClient(): QueryClient {
   return new QueryClient({
@@ -70,14 +86,15 @@ function renderWithClient(client: QueryClient, ui: ReactElement) {
 
 /** Drive the flow from the initial setup CTA to the revealed secret. */
 async function beginEnrollment() {
-  mocks.enrollTotp.mockResolvedValue(ENROLL_RESPONSE);
   await userEvent.click(page.getByTestId("mfa-enroll-begin-setup"));
   await expect.element(page.getByTestId("mfa-enroll-secret")).toBeInTheDocument();
 }
 
 describe("MfaEnrollFlow", () => {
+  let sdk: SdkClientMock;
+
   beforeEach(() => {
-    vi.clearAllMocks();
+    sdk = installSdkClientMock();
   });
 
   it("renders the begin-setup CTA and the always-visible cancel affordance initially", async () => {
@@ -98,11 +115,13 @@ describe("MfaEnrollFlow", () => {
   });
 
   it("clicking begin-setup calls enrollTotp and reveals the secret, QR, code input, and submit", async () => {
+    programFlow(sdk);
     renderWithClient(newClient(), <MfaEnrollFlow />);
 
     await beginEnrollment();
 
-    expect(mocks.enrollTotp).toHaveBeenCalledTimes(1);
+    const totpCall = sdk.calls.find((c) => c.method === "POST" && c.path === TOTP_PATH);
+    expect(totpCall).toBeDefined();
     await expect
       .element(page.getByTestId("mfa-enroll-secret"))
       .toHaveTextContent("JBSWY3DPEHPK3PXP");
@@ -114,7 +133,7 @@ describe("MfaEnrollFlow", () => {
   });
 
   it("submitting the code calls confirmEnroll with the enrolled secret and the entered code", async () => {
-    mocks.confirmEnroll.mockResolvedValue(CONFIRM_SUCCESS);
+    programFlow(sdk);
     renderWithClient(newClient(), <MfaEnrollFlow />);
 
     await beginEnrollment();
@@ -122,13 +141,14 @@ describe("MfaEnrollFlow", () => {
     await userEvent.click(page.getByTestId("mfa-enroll-submit"));
 
     await vi.waitFor(() => {
-      expect(mocks.confirmEnroll).toHaveBeenCalledTimes(1);
+      const confirmCall = sdk.calls.find((c) => c.method === "POST" && c.path === CONFIRM_PATH);
+      expect(confirmCall).toBeDefined();
+      expect(confirmCall?.body).toEqual({ secret: "JBSWY3DPEHPK3PXP", code: "123456" });
     });
-    expect(mocks.confirmEnroll).toHaveBeenCalledWith("JBSWY3DPEHPK3PXP", "123456");
   });
 
   it("reveals the one-time backup codes (one child per code) after a successful confirm", async () => {
-    mocks.confirmEnroll.mockResolvedValue(CONFIRM_SUCCESS);
+    programFlow(sdk);
     renderWithClient(newClient(), <MfaEnrollFlow />);
 
     await beginEnrollment();
@@ -147,7 +167,7 @@ describe("MfaEnrollFlow", () => {
   it("invalidates ['mfa', 'status'] after a successful confirm so the card flips to Enabled", async () => {
     const client = newClient();
     const invalidateSpy = vi.spyOn(client, "invalidateQueries");
-    mocks.confirmEnroll.mockResolvedValue(CONFIRM_SUCCESS);
+    programFlow(sdk);
     renderWithClient(client, <MfaEnrollFlow />);
 
     await beginEnrollment();
@@ -161,7 +181,7 @@ describe("MfaEnrollFlow", () => {
 
   it("fires onDone when the Done action is clicked after the backup codes are shown", async () => {
     const onDone = vi.fn();
-    mocks.confirmEnroll.mockResolvedValue(CONFIRM_SUCCESS);
+    programFlow(sdk);
     renderWithClient(newClient(), <MfaEnrollFlow onDone={onDone} />);
 
     await beginEnrollment();
@@ -192,7 +212,11 @@ describe("MfaEnrollFlow", () => {
   // message instead of always falling back to the generic step text.
   it("surfaces the mapped error message in mfa-enroll-error when enrollTotp rejects with the real { succeeded:false, error } body", async () => {
     // The real thrown shape from EnrollTotp's Unauthorized branch.
-    mocks.enrollTotp.mockRejectedValue({ succeeded: false, error: "no_auth_session" });
+    sdk.respond((call) =>
+      call.path === TOTP_PATH
+        ? json({ succeeded: false, error: "no_auth_session" }, 401)
+        : json({}),
+    );
     renderWithClient(newClient(), <MfaEnrollFlow />);
 
     await userEvent.click(page.getByTestId("mfa-enroll-begin-setup"));
@@ -211,7 +235,7 @@ describe("MfaEnrollFlow", () => {
   it("surfaces the mapped error message in mfa-enroll-error when confirm rejects with the real { succeeded:false, error } body", async () => {
     // The real thrown shape from ConfirmEnrollment's Unauthorized branch (a 401
     // that unwrap() throws — NOT a resolved { succeeded:false } payload).
-    mocks.confirmEnroll.mockRejectedValue({ succeeded: false, error: "no_auth_session" });
+    programFlow(sdk, { succeeded: false, error: "no_auth_session" }, 401);
     renderWithClient(newClient(), <MfaEnrollFlow />);
 
     await beginEnrollment();
@@ -230,7 +254,7 @@ describe("MfaEnrollFlow", () => {
   it("maps a rejected confirm invalid_code to the verification-code message", async () => {
     // invalid_code is a 400 BadRequest in production, so it arrives via onError
     // (thrown), not as a resolved { succeeded:false } payload.
-    mocks.confirmEnroll.mockRejectedValue({ succeeded: false, error: "invalid_code" });
+    programFlow(sdk, { succeeded: false, error: "invalid_code" }, 400);
     renderWithClient(newClient(), <MfaEnrollFlow />);
 
     await beginEnrollment();
@@ -244,7 +268,7 @@ describe("MfaEnrollFlow", () => {
 
   it("shows an error and does NOT reveal backup codes when confirm returns { succeeded: false }", async () => {
     // The HTTP call resolves, but the enrollment was rejected (e.g. wrong code).
-    mocks.confirmEnroll.mockResolvedValue({ succeeded: false, error: "invalid_code" });
+    programFlow(sdk, { succeeded: false, error: "invalid_code" }, 200);
     renderWithClient(newClient(), <MfaEnrollFlow />);
 
     await beginEnrollment();

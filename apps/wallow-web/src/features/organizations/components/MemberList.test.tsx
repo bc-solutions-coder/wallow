@@ -4,14 +4,20 @@ import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { installSdkClientMock, type SdkClientMock } from "../../../test/sdk-client-mock";
 import { MemberList } from "./MemberList";
 
 /**
  * Component spec for the org-detail member list + management (Wallow-8w1h.4.4).
- * The `getWallowSdk()` facade is mocked so the members query is inert; the
- * seeded/empty/loading states are driven by the `['orgs', id, 'members']` cache,
- * and add/remove delegate through `addMemberMutation`/`removeMemberMutation`
- * (api.ts factories) to the mocked facade slice.
+ * Data flows through the SDK query layer (`organizationsQueries.members()` +
+ * `addMemberMutation`/`removeMemberMutation`), so the network seam is the shared
+ * SDK client's `fetch`, overridden per test via `installSdkClientMock`
+ * (Wallow-evd5.2.6 — the retired `getWallowSdk()` facade is no longer in the
+ * path). Seeded/empty states are driven by the `['orgs', id, 'members']` cache
+ * (`staleTime: Infinity` keeps the seed from refetching), loading by a
+ * never-settling request (`sdk.pending()`), and add/remove are asserted via the
+ * recorded outgoing request (`sdk.calls`) and the live client's
+ * `invalidateQueries`.
  *
  * Testids: `organization-detail-members-table` + `organization-detail-member-row`
  * (table), `organization-members-empty`/`organization-members-loading`
@@ -20,27 +26,12 @@ import { MemberList } from "./MemberList";
  * `{page}-{element}` kebab-case.
  */
 
-const mocks = vi.hoisted(() => ({
-  members: vi.fn(),
-  addMember: vi.fn(),
-  removeMember: vi.fn(),
-}));
-
-// Mock the facade module (`../../lib/wallow-sdk` from api.ts;
-// `../../../lib/wallow-sdk` from this test file's depth).
-vi.mock("../../../lib/wallow-sdk", () => ({
-  getWallowSdk: () => ({
-    organizations: {
-      members: mocks.members,
-      addMember: mocks.addMember,
-      removeMember: mocks.removeMember,
-    },
-  }),
-}));
-
 function newClient(): QueryClient {
   return new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    defaultOptions: {
+      queries: { retry: false, staleTime: Number.POSITIVE_INFINITY },
+      mutations: { retry: false },
+    },
   });
 }
 
@@ -68,8 +59,10 @@ const twoMembers = [
 ];
 
 describe("MemberList", () => {
+  let sdk: SdkClientMock;
+
   beforeEach(() => {
-    vi.clearAllMocks();
+    sdk = installSdkClientMock();
   });
 
   it("renders each seeded member as an organization-detail-member-row", async () => {
@@ -96,17 +89,18 @@ describe("MemberList", () => {
 
   it("shows a loading indicator while the members query is pending", async () => {
     const client = newClient();
-    mocks.members.mockReturnValue(new Promise<never>(() => {}));
+    sdk.pending();
 
     renderWithClient(client, <MemberList orgId="o1" />);
 
     await expect.element(page.getByTestId("organization-members-loading")).toBeInTheDocument();
   });
 
-  it("adds a member: submits the userId to organizations.addMember for the org", async () => {
+  it("adds a member: POSTs the userId to the org's members endpoint", async () => {
     const client = newClient();
     client.setQueryData(["orgs", "o1", "members"], twoMembers);
-    mocks.addMember.mockResolvedValue({ id: "u9" });
+    // The post-success invalidation refetches the members list; keep it an array.
+    sdk.resolveJson([]);
 
     renderWithClient(client, <MemberList orgId="o1" />);
 
@@ -114,15 +108,19 @@ describe("MemberList", () => {
     await userEvent.click(page.getByTestId("organization-member-add-submit"));
 
     await vi.waitFor(() => {
-      expect(mocks.addMember).toHaveBeenCalledWith("o1", { userId: "u9" });
+      const addCall = sdk.calls.find(
+        (c) => c.method === "POST" && c.path === "/api/v1/identity/organizations/o1/members",
+      );
+      expect(addCall).toBeDefined();
+      expect(addCall?.body).toEqual({ userId: "u9" });
     });
   });
 
   it("invalidates the members query after a successful add", async () => {
     const client = newClient();
     client.setQueryData(["orgs", "o1", "members"], twoMembers);
+    sdk.resolveJson([]);
     const invalidateSpy = vi.spyOn(client, "invalidateQueries");
-    mocks.addMember.mockResolvedValue({ id: "u9" });
 
     renderWithClient(client, <MemberList orgId="o1" />);
 
@@ -134,10 +132,10 @@ describe("MemberList", () => {
     });
   });
 
-  it("removes a member: calls organizations.removeMember with the org and user id", async () => {
+  it("removes a member: DELETEs the org member by user id", async () => {
     const client = newClient();
     client.setQueryData(["orgs", "o1", "members"], twoMembers);
-    mocks.removeMember.mockResolvedValue(undefined);
+    sdk.resolveJson([]);
 
     renderWithClient(client, <MemberList orgId="o1" />);
 
@@ -146,7 +144,10 @@ describe("MemberList", () => {
     await userEvent.click(removeButtons.first());
 
     await vi.waitFor(() => {
-      expect(mocks.removeMember).toHaveBeenCalledWith("o1", "u1");
+      const removeCall = sdk.calls.find(
+        (c) => c.method === "DELETE" && c.path === "/api/v1/identity/organizations/o1/members/u1",
+      );
+      expect(removeCall).toBeDefined();
     });
   });
 });

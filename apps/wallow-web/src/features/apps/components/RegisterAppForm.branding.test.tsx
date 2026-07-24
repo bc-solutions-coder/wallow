@@ -2,8 +2,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
+import { installSdkClientMock } from "../../../test/sdk-client-mock";
 import { RegisterAppForm } from "./RegisterAppForm";
 
 /**
@@ -16,26 +17,11 @@ import { RegisterAppForm } from "./RegisterAppForm";
  * form view. Testids follow the component's own `app-*` convention (the
  * `register-app-*` testids were renamed to `app-*`).
  *
- * The `getWallowSdk()` facade is mocked as in `RegisterAppForm.test.tsx`.
+ * This is a render-only reachability spec (no query/mutation fires); the SDK
+ * client mock is installed only to guard against a real network call
+ * (Wallow-evd5.2.6 — the retired `getWallowSdk()` facade is no longer in the
+ * path).
  */
-
-const mocks = vi.hoisted(() => ({
-  list: vi.fn(),
-  get: vi.fn(),
-  register: vi.fn(),
-  upsertBranding: vi.fn(),
-}));
-
-vi.mock("../../../lib/wallow-sdk", () => ({
-  getWallowSdk: () => ({
-    apps: {
-      list: mocks.list,
-      get: mocks.get,
-      register: mocks.register,
-      upsertBranding: mocks.upsertBranding,
-    },
-  }),
-}));
 
 function newClient(): QueryClient {
   return new QueryClient({
@@ -49,7 +35,7 @@ function renderWithClient(client: QueryClient, ui: ReactElement) {
 
 describe("RegisterAppForm branding/logo upsert", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    installSdkClientMock();
   });
 
   it("renders an optional branding display-name input in the form view", async () => {

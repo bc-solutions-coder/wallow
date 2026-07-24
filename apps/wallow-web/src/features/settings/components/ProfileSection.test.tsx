@@ -2,20 +2,25 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
+import { installSdkClientMock, type SdkClientMock } from "../../../test/sdk-client-mock";
 import { ProfileSection } from "./ProfileSection";
 
 /**
  * Component spec for the read-only settings profile section (Wallow-8w1h.6.2).
  *
- * The `getWallowSdk()` facade is mocked so the profile query is inert; the
- * profile state is driven by seeding the `['settings', 'profile']` cache with
- * `setQueryData` (the key that `settingsQueries.profile()` uses), and the
- * loading state by leaving the query to hit a never-resolving facade call.
+ * Data flows through the SDK query layer (`settingsQueries.profile()`), so the
+ * network seam is the shared SDK client's `fetch`, overridden per test via
+ * `installSdkClientMock` (Wallow-evd5.2.6 — the retired `getWallowSdk()` facade
+ * is no longer in the path). The profile state is driven by seeding the
+ * `['settings', 'profile']` cache with `setQueryData` (the key that
+ * `settingsQueries.profile()` uses; `staleTime: Infinity` keeps the seeded data
+ * from refetching), and the loading state by leaving the query to hit a
+ * never-settling request (`sdk.pending()`).
  *
  * Profile is READ-ONLY (scout CRITICAL DIVERGENCE #1): data comes from
- * `settings.getProfile()` -> `getV1IdentityUsersMe` ->
+ * `settingsQueries.profile()` -> `getV1IdentityUsersMe` ->
  * `CurrentUserResponse{ id, email, firstName, lastName, roles, permissions }`,
  * and there is NO edit/save affordance — the profile is display-only, rendered
  * from name/email/roles off the authenticated principal with no mutation. Testids mirror the
@@ -25,21 +30,10 @@ import { ProfileSection } from "./ProfileSection";
  *   settings-profile-no-roles (mutually exclusive), plus a loading state.
  */
 
-// Hoisted so the vi.mock factory and the test bodies share the same spy.
-const mocks = vi.hoisted(() => ({
-  getProfile: vi.fn(),
-}));
-
-// Mock the facade module the feature's api.ts imports (`../../lib/wallow-sdk`
-// from features/settings; `../../../lib/wallow-sdk` from here).
-vi.mock("../../../lib/wallow-sdk", () => ({
-  getWallowSdk: () => ({
-    settings: { getProfile: mocks.getProfile },
-  }),
-}));
-
 function newClient(): QueryClient {
-  return new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Number.POSITIVE_INFINITY } },
+  });
 }
 
 function renderWithClient(client: QueryClient, ui: ReactElement) {
@@ -56,8 +50,10 @@ const profile = {
 };
 
 describe("ProfileSection", () => {
+  let sdk: SdkClientMock;
+
   beforeEach(() => {
-    vi.clearAllMocks();
+    sdk = installSdkClientMock();
   });
 
   it("renders the profile name and email from the seeded query data", async () => {
@@ -117,8 +113,8 @@ describe("ProfileSection", () => {
 
   it("renders the loading state while the profile query is pending", async () => {
     const client = newClient();
-    // Never-resolving facade call keeps the query in the pending state.
-    mocks.getProfile.mockReturnValue(new Promise(() => {}));
+    // Never-settling request keeps the query in the pending state.
+    sdk.pending();
 
     renderWithClient(client, <ProfileSection />);
 

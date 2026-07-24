@@ -4,14 +4,20 @@ import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { installSdkClientMock, type SdkClientMock } from "../../../test/sdk-client-mock";
 import { InquiryDetail } from "./InquiryDetail";
 
 /**
- * Component spec for the inquiry-detail page body (Wallow-8w1h.7.4). The
- * `getWallowSdk()` facade is mocked so detail/comments queries are inert; the
- * detail + comment states are driven by the `['inquiries', id]` and
- * `['inquiries', id, 'comments']` cache, and add-comment/status-change delegate
- * through the api.ts mutation factories to the mocked facade slice.
+ * Component spec for the inquiry-detail page body (Wallow-8w1h.7.4). Data flows
+ * through the SDK query layer (`inquiriesQueries.detail()`/`comments()` +
+ * `setStatusMutation`/`addCommentMutation`), so the network seam is the shared
+ * SDK client's `fetch`, overridden per test via `installSdkClientMock`
+ * (Wallow-evd5.2.6 — the retired `getWallowSdk()` facade is no longer in the
+ * path). The detail + comment states are driven by seeding the
+ * `['inquiries', id]` and `['inquiries', id, 'comments']` cache; mutations are
+ * asserted via the recorded outgoing request (`sdk.calls`) and the live client's
+ * `invalidateQueries`; error branches are driven with `sdk.rejectJson` /
+ * `sdk.respond`.
  *
  * Testids follow `{page}-{element}` kebab-case. Per the scout's CRITICAL 7.4
  * reconciliation there is NO C# `InquiryPage` oracle for the
@@ -27,38 +33,19 @@ import { InquiryDetail } from "./InquiryDetail";
  * `inquiry-comment-internal` + `inquiry-comment-submit`, `inquiry-comment-error`.
  */
 
-const mocks = vi.hoisted(() => ({
-  get: vi.fn(),
-  comments: vi.fn(),
-  addComment: vi.fn(),
-  setStatus: vi.fn(),
-}));
-
-// InquiryDetail lives at src/features/inquiries/components/, so the facade module
-// (`../../lib/wallow-sdk` from api.ts) is `../../../lib/wallow-sdk` from here.
-vi.mock("../../../lib/wallow-sdk", () => ({
-  getWallowSdk: () => ({
-    inquiries: {
-      get: mocks.get,
-      comments: mocks.comments,
-      addComment: mocks.addComment,
-      setStatus: mocks.setStatus,
-    },
-  }),
-}));
+let sdk: SdkClientMock;
 
 function newClient(): QueryClient {
   // `staleTime: Infinity` keeps seeded cache entries fresh so the component reads
   // exactly the state each test plants. Without it, staleTime:0 triggers a
-  // background refetch through the (deliberately inert) facade mock, which
-  // resolves `undefined` and flips the query to `isError` — hiding the seeded
-  // not-found/comment content behind the component's error branch. jsdom's sync
-  // render masked this race; a real browser lets the refetch win. Tests that
-  // exercise a real fetch (the error case) seed nothing, so the initial fetch
-  // still fires regardless of staleTime.
+  // background refetch through the SDK client mock, which (on the default `{}`
+  // responder) resolves a non-array/empty body and flips the query — hiding the
+  // seeded not-found/comment content. jsdom's sync render masked this race; a
+  // real browser lets the refetch win. Tests that exercise a real fetch (the
+  // error case) seed nothing, so the initial fetch still fires regardless.
   return new QueryClient({
     defaultOptions: {
-      queries: { retry: false, staleTime: Infinity },
+      queries: { retry: false, staleTime: Number.POSITIVE_INFINITY },
       mutations: { retry: false },
     },
   });
@@ -66,6 +53,14 @@ function newClient(): QueryClient {
 
 function renderWithClient(client: QueryClient, ui: ReactElement) {
   return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
+}
+
+/** JSON `Response` body for a path-aware `sdk.respond` handler. */
+function jsonBody(data: unknown, status = 200): Response {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { "content-type": "application/json" },
+  });
 }
 
 const inquiry = {
@@ -107,7 +102,7 @@ function seedLoaded(client: QueryClient, comments: unknown = twoComments) {
 
 describe("InquiryDetail — inquiry fields", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    sdk = installSdkClientMock();
   });
 
   it("renders the inquiry heading, back link, email, and current status when it loads", async () => {
@@ -137,8 +132,13 @@ describe("InquiryDetail — inquiry fields", () => {
 
   it("surfaces the RFC 7807 ProblemDetails detail when the detail query errors", async () => {
     const client = newClient();
-    mocks.get.mockRejectedValue({ status: 404, detail: "Inquiry not found." });
-    mocks.comments.mockResolvedValue([]);
+    // Detail query errors (404); the comments query still resolves to an empty
+    // array so its list render never sees a non-array body.
+    sdk.respond((call) =>
+      call.path.endsWith("/comments")
+        ? jsonBody([])
+        : jsonBody({ status: 404, detail: "Inquiry not found." }, 404),
+    );
 
     renderWithClient(client, <InquiryDetail inquiryId="i1" />);
 
@@ -150,13 +150,15 @@ describe("InquiryDetail — inquiry fields", () => {
 
 describe("InquiryDetail — status change", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    sdk = installSdkClientMock();
   });
 
-  it("changes status: selects a new status and delegates to inquiries.setStatus", async () => {
+  it("changes status: selects a new status and PATCHes the inquiry status endpoint", async () => {
     const client = newClient();
     seedLoaded(client);
-    mocks.setStatus.mockResolvedValue({ ...inquiry, status: "Reviewed" });
+    // The post-success invalidation sweeps the detail subtree (detail +
+    // comments); keep those refetches array-safe.
+    sdk.resolveJson([]);
 
     renderWithClient(client, <InquiryDetail inquiryId="i1" />);
 
@@ -164,15 +166,19 @@ describe("InquiryDetail — status change", () => {
     await userEvent.click(page.getByTestId("inquiry-status-submit"));
 
     await vi.waitFor(() => {
-      expect(mocks.setStatus).toHaveBeenCalledWith("i1", "Reviewed");
+      const statusCall = sdk.calls.find(
+        (c) => c.method === "PATCH" && c.path === "/api/v1/inquiries/i1/status",
+      );
+      expect(statusCall).toBeDefined();
+      expect(statusCall?.body).toEqual({ newStatus: "Reviewed" });
     });
   });
 
   it("invalidates the detail query after a successful status change", async () => {
     const client = newClient();
     seedLoaded(client);
+    sdk.resolveJson([]);
     const invalidateSpy = vi.spyOn(client, "invalidateQueries");
-    mocks.setStatus.mockResolvedValue({ ...inquiry, status: "Reviewed" });
 
     renderWithClient(client, <InquiryDetail inquiryId="i1" />);
 
@@ -193,10 +199,7 @@ describe("InquiryDetail — status change", () => {
     // mirroring the inquiry-comment-error / inquiry-detail-error pattern.
     const client = newClient();
     seedLoaded(client);
-    mocks.setStatus.mockRejectedValue({
-      status: 422,
-      detail: "Cannot transition from New to Closed.",
-    });
+    sdk.rejectJson({ status: 422, detail: "Cannot transition from New to Closed." }, 422);
 
     renderWithClient(client, <InquiryDetail inquiryId="i1" />);
 
@@ -211,7 +214,7 @@ describe("InquiryDetail — status change", () => {
 
 describe("InquiryDetail — comment thread", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    sdk = installSdkClientMock();
   });
 
   it("renders each seeded comment as an inquiry-comment-row inside the comments table", async () => {
@@ -240,7 +243,8 @@ describe("InquiryDetail — comment thread", () => {
   it("shows a loading indicator while the comments query is pending", async () => {
     const client = newClient();
     client.setQueryData(["inquiries", "i1"], inquiry);
-    mocks.comments.mockReturnValue(new Promise<never>(() => {}));
+    // Only the comments query fires (detail is seeded); leave it never-settling.
+    sdk.pending();
 
     renderWithClient(client, <InquiryDetail inquiryId="i1" />);
 
@@ -250,13 +254,14 @@ describe("InquiryDetail — comment thread", () => {
 
 describe("InquiryDetail — add comment", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    sdk = installSdkClientMock();
   });
 
-  it("adds a public comment: delegates the content to inquiries.addComment", async () => {
+  it("adds a public comment: POSTs the content to the inquiry comments endpoint", async () => {
     const client = newClient();
     seedLoaded(client);
-    mocks.addComment.mockResolvedValue(undefined);
+    // The post-success invalidation refetches the comments thread; keep it array-safe.
+    sdk.resolveJson([]);
 
     renderWithClient(client, <InquiryDetail inquiryId="i1" />);
 
@@ -264,17 +269,18 @@ describe("InquiryDetail — add comment", () => {
     await userEvent.click(page.getByTestId("inquiry-comment-submit"));
 
     await vi.waitFor(() => {
-      expect(mocks.addComment).toHaveBeenCalledWith("i1", {
-        content: "Following up",
-        isInternal: false,
-      });
+      const addCall = sdk.calls.find(
+        (c) => c.method === "POST" && c.path === "/api/v1/inquiries/i1/comments",
+      );
+      expect(addCall).toBeDefined();
+      expect(addCall?.body).toEqual({ content: "Following up", isInternal: false });
     });
   });
 
   it("adds an internal comment when the internal checkbox is checked", async () => {
     const client = newClient();
     seedLoaded(client);
-    mocks.addComment.mockResolvedValue(undefined);
+    sdk.resolveJson([]);
 
     renderWithClient(client, <InquiryDetail inquiryId="i1" />);
 
@@ -283,18 +289,19 @@ describe("InquiryDetail — add comment", () => {
     await userEvent.click(page.getByTestId("inquiry-comment-submit"));
 
     await vi.waitFor(() => {
-      expect(mocks.addComment).toHaveBeenCalledWith("i1", {
-        content: "Private note",
-        isInternal: true,
-      });
+      const addCall = sdk.calls.find(
+        (c) => c.method === "POST" && c.path === "/api/v1/inquiries/i1/comments",
+      );
+      expect(addCall).toBeDefined();
+      expect(addCall?.body).toEqual({ content: "Private note", isInternal: true });
     });
   });
 
   it("invalidates the comments query after a successful add", async () => {
     const client = newClient();
     seedLoaded(client);
+    sdk.resolveJson([]);
     const invalidateSpy = vi.spyOn(client, "invalidateQueries");
-    mocks.addComment.mockResolvedValue(undefined);
 
     renderWithClient(client, <InquiryDetail inquiryId="i1" />);
 
@@ -311,7 +318,7 @@ describe("InquiryDetail — add comment", () => {
   it("surfaces the RFC 7807 ProblemDetails detail when add-comment fails", async () => {
     const client = newClient();
     seedLoaded(client);
-    mocks.addComment.mockRejectedValue({ status: 400, detail: "Comment must not be empty." });
+    sdk.rejectJson({ status: 400, detail: "Comment must not be empty." }, 400);
 
     renderWithClient(client, <InquiryDetail inquiryId="i1" />);
 

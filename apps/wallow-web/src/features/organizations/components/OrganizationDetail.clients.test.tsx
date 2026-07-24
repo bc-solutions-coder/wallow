@@ -2,8 +2,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
+import { installSdkClientMock, type SdkClientMock } from "../../../test/sdk-client-mock";
 import { OrganizationDetail } from "./OrganizationDetail";
 
 /**
@@ -13,40 +14,19 @@ import { OrganizationDetail } from "./OrganizationDetail";
  * register-client form (display-name / client-type / redirect-uris / submit),
  * reachable straight from the org detail page.
  *
- * The `getWallowSdk()` facade is mocked (like `OrganizationDetail.test.tsx`);
- * the `clients` / `registerClient` slice methods are stubbed so the green
- * implementation's api.ts wiring has a seam to bind to.
+ * Data flows through the SDK query layer, so the network seam is the shared SDK
+ * client's `fetch`, overridden via `installSdkClientMock` (Wallow-evd5.2.6 — the
+ * retired `getWallowSdk()` facade is no longer in the path). The org / members /
+ * clients state is seeded into the cache (`staleTime: Infinity` keeps the seed
+ * from refetching).
  */
-
-const mocks = vi.hoisted(() => ({
-  get: vi.fn(),
-  members: vi.fn(),
-  addMember: vi.fn(),
-  removeMember: vi.fn(),
-  archive: vi.fn(),
-  reactivate: vi.fn(),
-  clients: vi.fn(),
-  registerClient: vi.fn(),
-}));
-
-vi.mock("../../../lib/wallow-sdk", () => ({
-  getWallowSdk: () => ({
-    organizations: {
-      get: mocks.get,
-      members: mocks.members,
-      addMember: mocks.addMember,
-      removeMember: mocks.removeMember,
-      archive: mocks.archive,
-      reactivate: mocks.reactivate,
-      clients: mocks.clients,
-      registerClient: mocks.registerClient,
-    },
-  }),
-}));
 
 function newClient(): QueryClient {
   return new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    defaultOptions: {
+      queries: { retry: false, staleTime: Number.POSITIVE_INFINITY },
+      mutations: { retry: false },
+    },
   });
 }
 
@@ -63,9 +43,13 @@ function seedLoadedOrg(client: QueryClient): void {
 }
 
 describe("OrganizationDetail bound clients + register-client", () => {
+  // Installed so the seeded queries resolve through the mocked client rather
+  // than the real network if any refetch fires.
+  let sdk: SdkClientMock;
+
   beforeEach(() => {
-    vi.clearAllMocks();
-    mocks.clients.mockResolvedValue([]);
+    sdk = installSdkClientMock();
+    sdk.resolveJson([]);
   });
 
   it("renders the bound-clients table once the org loads", async () => {

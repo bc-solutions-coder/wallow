@@ -2,39 +2,30 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
+import { installSdkClientMock, type SdkClientMock } from "../../../test/sdk-client-mock";
 import { AppList } from "./AppList";
 
 /**
  * Component spec for the Apps list page (Wallow-8w1h.5.2), mirroring
- * OrganizationList.test.tsx. The `getWallowSdk()` facade is mocked so the list
- * query is inert; the list/empty states are driven by seeding the `['apps']`
- * cache with `setQueryData`, and the loading state by leaving the query to hit a
- * never-resolving facade call.
+ * OrganizationList.test.tsx. Data flows through the SDK query layer
+ * (`appsQueries.list()`), so the network seam is the shared SDK client's
+ * `fetch`, overridden per test via `installSdkClientMock` (Wallow-evd5.2.6 — the
+ * retired `getWallowSdk()` facade is no longer in the path). List/empty states
+ * are driven by seeding the `['apps']` cache with `setQueryData`
+ * (`staleTime: Infinity` keeps the seed from refetching), and the loading state
+ * by leaving the query to hit a never-settling request (`sdk.pending()`).
  *
  * Testids follow `{page}-{element}` kebab-case: per-row
  * `app-item` (deliberately `app-item`, not `apps-row`), empty state
  * `apps-empty-state`, loading `apps-loading`.
  */
 
-// Hoisted so the vi.mock factory and the test bodies share the same spies.
-const mocks = vi.hoisted(() => ({
-  list: vi.fn(),
-  get: vi.fn(),
-  register: vi.fn(),
-}));
-
-// Mock the facade module the feature's api.ts imports (`../../lib/wallow-sdk`
-// from features/apps; `../../../lib/wallow-sdk` from here).
-vi.mock("../../../lib/wallow-sdk", () => ({
-  getWallowSdk: () => ({
-    apps: { list: mocks.list, get: mocks.get, register: mocks.register },
-  }),
-}));
-
 function newClient(): QueryClient {
-  return new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Number.POSITIVE_INFINITY } },
+  });
 }
 
 function renderWithClient(client: QueryClient, ui: ReactElement) {
@@ -42,8 +33,10 @@ function renderWithClient(client: QueryClient, ui: ReactElement) {
 }
 
 describe("AppList", () => {
+  let sdk: SdkClientMock;
+
   beforeEach(() => {
-    vi.clearAllMocks();
+    sdk = installSdkClientMock();
   });
 
   it("renders each seeded app as an app-item element", async () => {
@@ -88,9 +81,9 @@ describe("AppList", () => {
 
   it("renders a loading indicator while the list query is pending", async () => {
     const client = newClient();
-    // No cached data -> the query fires; the facade never resolves, so the
+    // No cached data -> the query fires; the request never settles, so the
     // component stays in its loading state.
-    mocks.list.mockReturnValue(new Promise<never>(() => {}));
+    sdk.pending();
 
     renderWithClient(client, <AppList />);
 
