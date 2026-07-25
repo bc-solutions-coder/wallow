@@ -10,7 +10,7 @@ Wallow uses **EF Core Migrations** for all modules. Each module owns its own Pos
 
 1. **One schema per module** - Each module uses a separate PostgreSQL schema (e.g., `inquiries`, `identity`, `notifications`)
 2. **Isolated migration history** - Each schema has its own `__EFMigrationsHistory` table
-3. **Migrations run out-of-process** - A dedicated `Wallow.MigrationService` worker applies migrations before the API starts. The API does **not** migrate at startup (the only exception is the `Testing` environment; see [Where Migrations Run](#where-migrations-run))
+3. **Migrations run out-of-process** - A dedicated `Wallow.MigrationService` worker applies migrations before the API starts. The API does **not** migrate at startup (the only exception is the `Testing` environment; see [Where Migrations Run](#3-where-migrations-run))
 4. **Multi-tenancy support** - DbContexts derive from `TenantAwareDbContext<TContext>`, which applies tenant query filters at runtime; design-time factories construct the context without a tenant
 
 ## Architecture
