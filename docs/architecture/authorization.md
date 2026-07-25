@@ -165,7 +165,7 @@ Users with the `admin` role or operator service accounts (client ID prefixed wit
 ```bash
 curl -H "Authorization: Bearer $TOKEN" \
      -H "X-Tenant-Id: 550e8400-e29b-41d4-a716-446655440000" \
-     http://localhost:5000/api/inquiries/submissions
+     http://localhost:5001/api/inquiries/submissions
 ```
 
 This allows admins and operator service accounts to view data across tenants for support scenarios. Developer application clients (`app-` prefix) cannot use this override.

@@ -194,7 +194,7 @@ WWW-Authenticate: Bearer error="invalid_token"
 #### Diagnosis
 ```bash
 # Check that the API is running and healthy
-curl http://localhost:5000/health/ready
+curl http://localhost:5001/health/ready
 ```
 
 #### Solutions
@@ -219,14 +219,14 @@ Token expired at [timestamp]
 
 **Get a fresh token:**
 ```bash
-curl -s -X POST http://localhost:5000/api/auth/token \
+curl -s -X POST http://localhost:5001/api/auth/token \
   -H "Content-Type: application/json" \
   -d '{"email": "admin@wallow.dev", "password": "Admin123!"}'
 ```
 
 **Use refresh token:**
 ```bash
-curl -X POST http://localhost:5000/api/auth/refresh \
+curl -X POST http://localhost:5001/api/auth/refresh \
   -H "Content-Type: application/json" \
   -d '{"refreshToken": "YOUR_REFRESH_TOKEN"}'
 ```

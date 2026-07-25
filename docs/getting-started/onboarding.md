@@ -28,14 +28,14 @@ cd ..
 dotnet run --project api/src/Wallow.Api
 
 # You should see:
-# [12:34:56 INF] [Api] Now listening on: http://localhost:5000
+# [12:34:56 INF] [Api] Now listening on: http://localhost:5001
 ```
 
 ### Verify Everything Works
 
 | Service | URL | Credentials |
 |---------|-----|-------------|
-| API Docs (Scalar) | http://localhost:5000/scalar/v1 | N/A |
+| API Docs (Scalar) | http://localhost:5001/scalar/v1 | N/A |
 | Mailpit (Email Sink) | http://localhost:8025 | N/A |
 | Grafana (Observability) | http://localhost:3001 | admin / See `docker/.env` |
 
@@ -178,11 +178,11 @@ dotnet run --project api/src/Wallow.Api  # Re-runs migrations
 
 | Resource | Location |
 |----------|----------|
-| API Docs (Scalar) | http://localhost:5000/scalar/v1 |
+| API Docs (Scalar) | http://localhost:5001/scalar/v1 |
 | Mailpit | http://localhost:8025 |
 | Grafana | http://localhost:3001 |
-| Hangfire Dashboard | http://localhost:5000/hangfire |
-| AsyncAPI Viewer | http://localhost:5000/asyncapi |
+| Hangfire Dashboard | http://localhost:5001/hangfire |
+| AsyncAPI Viewer | http://localhost:5001/asyncapi |
 | Developer Guide | [developer-guide.md](developer-guide.md) |
 | Architecture Assessment | [../architecture/assessment.md](../architecture/assessment.md) |
 | Deployment Guide | [../operations/deployment.md](../operations/deployment.md) |

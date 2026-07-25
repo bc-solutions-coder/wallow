@@ -34,7 +34,7 @@ Authentication is handled by the embedded OpenIddict server (part of the Identit
 dotnet run --project api/src/Wallow.Api
 ```
 
-The API starts on `http://localhost:5000`. Interactive API documentation is available at `http://localhost:5000/scalar/v1`.
+The API starts on `http://localhost:5001`. Interactive API documentation is available at `http://localhost:5001/scalar/v1`.
 
 ### 3. Run Tests
 
@@ -57,15 +57,15 @@ Integration tests require Docker. Testcontainers spins up ephemeral Postgres and
 
 | Service | URL | Credentials |
 |---------|-----|-------------|
-| API | http://localhost:5000 | - |
-| Scalar Docs | http://localhost:5000/scalar/v1 | - |
-| OpenIddict Authorize | http://localhost:5000/connect/authorize | - |
-| OpenIddict Token | http://localhost:5000/connect/token | - |
+| API | http://localhost:5001 | - |
+| Scalar Docs | http://localhost:5001/scalar/v1 | - |
+| OpenIddict Authorize | http://localhost:5001/connect/authorize | - |
+| OpenIddict Token | http://localhost:5001/connect/token | - |
 | GarageHQ (S3 API) | http://localhost:3900 | See `docker/.env` |
 | GarageHQ (Admin API) | http://localhost:3903 | See `docker/.env` |
 | Mailpit | http://localhost:8025 | - |
 | PostgreSQL | localhost:5432 | See `docker/.env` |
-| AsyncAPI Viewer | http://localhost:5000/asyncapi | Dev only |
+| AsyncAPI Viewer | http://localhost:5001/asyncapi | Dev only |
 | ClamAV (optional) | localhost:3310 | - |
 | Grafana | http://localhost:3001 | admin / admin |
 
@@ -75,7 +75,7 @@ Use the OpenIddict token endpoint with client credentials or authorization code 
 
 ```bash
 # Client credentials (service account)
-curl -s -X POST http://localhost:5000/connect/token \
+curl -s -X POST http://localhost:5001/connect/token \
   -d "grant_type=client_credentials" \
   -d "client_id=<your-client-id>" \
   -d "client_secret=<your-client-secret>" \

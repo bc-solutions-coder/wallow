@@ -54,7 +54,7 @@ Storage options are defined in `api/src/Modules/Storage/Wallow.Storage.Infrastru
     "Provider": "Local",
     "Local": {
       "BasePath": "/var/wallow/storage",
-      "BaseUrl": "http://localhost:5000"
+      "BaseUrl": "http://localhost:5001"
     },
     "S3": {
       "Endpoint": "http://localhost:3900",
