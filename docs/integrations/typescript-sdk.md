@@ -14,12 +14,13 @@ you.
 
 ## Overview
 
-`@bc-solutions-coder/sdk` has two entrypoints:
+`@bc-solutions-coder/sdk` has three entrypoints:
 
 | Import | Runs in | Purpose |
 |--------|---------|---------|
 | `@bc-solutions-coder/sdk` | Browser (also safe to import from a Node SSR entry) | `login()`, `logout()`, `getUser()`, a typed API client configured to call the same-origin `/api` proxy, the [CSRF module](#csrf-protection), the [SSR request-context seam](#ssr-request-context-for-server-rendered-loaders), and the [facade helpers](#facade-helpers-unwrap-and-createconfiguredonce) |
 | `@bc-solutions-coder/sdk/server` | Server (Node) | `createBffHandlers()`, `createApiProxy()`, `loadBffConfigFromEnv()` — the [h3](https://h3.unjs.io) route handlers that make up the BFF tunnel |
+| `@bc-solutions-coder/sdk/query` | Browser | The TanStack Query layer — query keys plus ready-made query and mutation options for bootstrap, auth, user, organizations, apps, settings, MFA, and inquiries |
 
 The browser never holds an access token. It holds only a sealed, `httpOnly`
 session cookie. The BFF exchanges the authorization code, stores the token set
@@ -475,7 +476,7 @@ shared configure-once and unwrap boilerplate.
 The repository's `seed.json` ships a ready-to-use confidential client for local
 BFF development so you do not have to register one by hand. After running the
 [seeder](../getting-started/developer-guide.md), the following client exists in
-the `Dev` tenant:
+the `Wallow` tenant:
 
 | Setting | Value |
 |---------|-------|

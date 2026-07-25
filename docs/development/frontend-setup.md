@@ -412,7 +412,7 @@ The API seeds two development clients:
 - Scopes: `openid`, `profile`, `email`, `roles`, `offline_access`, plus module-specific scopes
 
 **wallow-web-client** (confidential, for `apps/wallow-web`):
-- Redirect URI: `http://localhost:3000/auth/callback`
+- Redirect URI: `http://localhost:3000/bff/callback`
 - Secret: `wallow-web-secret`
 - Scopes: `openid`, `email`, `profile`, `roles`, `offline_access`
 
@@ -421,19 +421,6 @@ The API seeds two development clients:
 Both apps stamp `[data-app-ready='true']` on the document once React hydration completes (emitted
 by `src/components/ready-indicator.tsx`). E2E tests wait for this marker before interacting with
 the page.
-
-## CORS
-
-The API CORS configuration is in `appsettings.Development.json`. Add your frontend origin if
-running on a non-standard port:
-
-```json
-{
-  "Cors": {
-    "AllowedOrigins": ["https://your-frontend.example.com"]
-  }
-}
-```
 
 ## Fork Adaptation
 

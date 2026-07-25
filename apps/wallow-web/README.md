@@ -194,8 +194,11 @@ pnpm dev   # SSR + BFF on http://localhost:3000
 
 ## E2E
 
-Run the full flow through the containerized stack:
+Run this app's Playwright suite (it boots the dev server itself on port 3000):
 
 ```bash
-./scripts/run-e2e.sh
+pnpm --filter ./apps/wallow-web test:e2e
 ```
+
+For the full backend-dependent flow, `./scripts/e2e.sh` brings up the containerized stack
+(infra + API + seeder), runs the suite against it, and tears down.

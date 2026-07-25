@@ -21,7 +21,7 @@ node scripts/generate-docs-theme.mjs api/branding.json
 if [[ "$BUILD_ONLY" == "true" ]]; then
   echo "Building docs site..."
   dotnet docfx docfx.json
-  echo "Site built to _site/"
+  echo "Site built to .docfx/_site"
 else
   echo "Building and serving docs site on http://localhost:${PORT}..."
   dotnet docfx docfx.json --serve --port "$PORT"

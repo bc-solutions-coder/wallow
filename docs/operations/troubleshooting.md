@@ -761,9 +761,9 @@ System.IO.FileLoadException: Could not load file or assembly 'Newtonsoft.Json, V
 #### Solutions
 
 **Check for version conflicts:**
-All package versions are centrally managed in `Directory.Packages.props`:
+All package versions are centrally managed in `api/Directory.Packages.props`:
 ```bash
-grep -r "Newtonsoft.Json" Directory.Packages.props
+grep -r "Newtonsoft.Json" api/Directory.Packages.props
 ```
 
 **Enable binding redirects:**
@@ -911,7 +911,7 @@ If you cannot resolve an issue:
 
 2. **Search the codebase:**
    ```bash
-   grep -r "error message" src/
+   grep -r "error message" api/src/
    ```
 
 3. **Check recent commits:**

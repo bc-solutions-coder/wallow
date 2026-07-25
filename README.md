@@ -62,7 +62,7 @@ dotnet run --project api/src/Wallow.Web       # Web UI     → http://localhost:
 
 ```bash
 ./scripts/run-tests.sh                    # all tests
-./scripts/run-tests.sh billing            # single module
+./scripts/run-tests.sh identity           # single module
 ```
 
 > See [Testing](docs/development/testing.md) for coverage, E2E, and CI details.

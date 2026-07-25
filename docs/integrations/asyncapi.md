@@ -75,10 +75,10 @@ Key source files:
 | File | Purpose |
 |------|---------|
 | `api/src/Wallow.Api/Extensions/AsyncApiEndpointExtensions.cs` | Endpoint registration (dev only) |
-| `api/src/Shared/Wallow.Shared.Infrastructure.Workflows/AsyncApi/EventFlowDiscovery.cs` | Reflection-based event and consumer discovery |
-| `api/src/Shared/Wallow.Shared.Infrastructure.Workflows/AsyncApi/AsyncApiDocumentGenerator.cs` | AsyncAPI 3.0 JSON document builder |
-| `api/src/Shared/Wallow.Shared.Infrastructure.Workflows/AsyncApi/MermaidFlowGenerator.cs` | Mermaid diagram generator |
-| `api/src/Shared/Wallow.Shared.Infrastructure.Workflows/AsyncApi/JsonSchemaGenerator.cs` | C# type to JSON Schema converter |
+| `api/src/Shared/Wallow.Shared.Infrastructure/AsyncApi/EventFlowDiscovery.cs` | Reflection-based event and consumer discovery |
+| `api/src/Shared/Wallow.Shared.Infrastructure/AsyncApi/AsyncApiDocumentGenerator.cs` | AsyncAPI 3.0 JSON document builder |
+| `api/src/Shared/Wallow.Shared.Infrastructure/AsyncApi/MermaidFlowGenerator.cs` | Mermaid diagram generator |
+| `api/src/Shared/Wallow.Shared.Infrastructure/AsyncApi/JsonSchemaGenerator.cs` | C# type to JSON Schema converter |
 
 ---
 
