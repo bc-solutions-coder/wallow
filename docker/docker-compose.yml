@@ -81,8 +81,8 @@ services:
     image: grafana/alloy:latest
     container_name: ${COMPOSE_PROJECT_NAME:-wallow}-alloy
     ports:
-      - "127.0.0.1:4317:4317"   # OTLP gRPC
-      - "127.0.0.1:4318:4318"   # OTLP HTTP
+      - "127.0.0.1:4317:4317" # OTLP gRPC
+      - "127.0.0.1:4318:4318" # OTLP HTTP
     volumes:
       - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
     networks:
@@ -93,7 +93,7 @@ services:
     image: grafana/otel-lgtm:0.8.1
     container_name: ${COMPOSE_PROJECT_NAME:-wallow}-grafana-lgtm
     ports:
-      - "127.0.0.1:3001:3000"   # Grafana UI
+      - "127.0.0.1:3001:3000" # Grafana UI
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=${GF_ADMIN_PASSWORD:?GF_ADMIN_PASSWORD must be set in docker/.env}
     volumes:
@@ -116,25 +116,26 @@ services:
   # ============================================
   garage:
     build:
-      context: ./garage
+      context: ./images/garage
       dockerfile: Dockerfile
     image: wallow-garage:v2.2.0
     container_name: ${COMPOSE_PROJECT_NAME:-wallow}-garage
-    entrypoint: ["/bin/sh", "/etc/garage/init-garage.sh"]
     volumes:
       - garage_meta:/var/lib/garage/meta
       - garage_data:/var/lib/garage/data
-      - ./garage/garage.toml:/etc/garage/garage.toml:ro
-      - ./garage/init-garage.sh:/etc/garage/init-garage.sh:ro
     environment:
-      GARAGE_CONFIG_FILE: /etc/garage/garage.toml
+      GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
+      GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN:-wallow-admin-token}
+      GARAGE_REGION: ${GARAGE_REGION:-us-east-1}
+      GARAGE_S3_PORT: ${GARAGE_S3_PORT:-3900}
+      GARAGE_ADMIN_PORT: ${GARAGE_ADMIN_PORT:-3903}
       GARAGE_KEY_NAME: ${GARAGE_KEY_NAME:-wallow-dev}
       GARAGE_ACCESS_KEY: ${GARAGE_ACCESS_KEY:-wallow}
       GARAGE_SECRET_KEY: ${GARAGE_SECRET_KEY:-wallowsecretkey1234567890abcdefgh}
       GARAGE_BUCKET: ${GARAGE_BUCKET:-wallow-files}
     ports:
-      - "127.0.0.1:3900:3900"   # S3 API
-      - "127.0.0.1:3903:3903"   # Admin API
+      - "127.0.0.1:3900:3900" # S3 API
+      - "127.0.0.1:3903:3903" # Admin API
     healthcheck:
       test: ["CMD", "garage", "status"]
       interval: 10s

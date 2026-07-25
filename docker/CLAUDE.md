@@ -1,7 +1,7 @@
 # docker — Compose Stacks Agent Guide
 
 Three independent compose files, each a complete stack. Always run them from **this
-directory** — the relative build contexts (`./garage`, `./images/`, `..`) depend on it.
+directory** — the relative build contexts (`./images/`, `..`) depend on it.
 
 | File | Stack |
 |------|-------|
@@ -18,8 +18,10 @@ docker compose -f docker-compose.production.yml --env-file .env.production up --
 - **Image build contexts**: app Dockerfiles live with their apps (`apps/wallow-*/Dockerfile`)
   and build from the **repo root** context so `workspace:*` deps resolve. Only the docs site
   (`docs/Dockerfile`) and the Garage images are built from here.
-- **Two Garage image dirs exist** — `garage/` (dev compose) and `images/garage/` (test compose).
-  They are not interchangeable; check which compose you are editing.
+- **One Garage image** — `images/garage/` serves all three stacks (and the Aspire AppHost).
+  It has no committed `garage.toml`: the entrypoint renders `garage.toml.template` through
+  `envsubst` at startup, so every knob (region, ports, RPC secret, admin token, key, bucket)
+  comes from env. Dev and test only differ by the tag they build it as (`:v2.2.0` / `:test`).
 - The API container entrypoint lives with its code at `api/src/Wallow.Api/entrypoint.sh` (no
   compose file references it) — `Wallow.Api.csproj` publishes it as `Content` and wires it via
   `ContainerEntrypoint`.

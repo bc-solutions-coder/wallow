@@ -241,7 +241,7 @@ on ports distinct from the dev environment, so both stacks can run at once.
 | `postgres` | `postgres:18-alpine` | 5442 | Database (dev uses 5432) |
 | `valkey` | `valkey/valkey:8-alpine` | 6389 | Cache (dev uses 6379) |
 | `mailpit` | `axllent/mailpit:v1.22` | 8035 (UI), 1035 (SMTP) | Email capture — the passwordless and reset-password E2E specs read mail back over its HTTP API |
-| `garage` | `wallow-garage:test` | 3910, 3913 | S3-compatible storage. Built from `docker/images/garage`. The tag is `:test` — the **dev** compose file uses `wallow-garage:v2.2.0`, a different image; do not conflate them. |
+| `garage` | `wallow-garage:test` | 3910, 3913 | S3-compatible storage. Built from `docker/images/garage` — the same image the dev stack builds, just tagged `:test` instead of `:v2.2.0`, with test-only credentials and bucket passed as env. |
 
 ### Migration and seed services
 

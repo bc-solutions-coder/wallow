@@ -150,7 +150,7 @@ Should return nothing.
 | `api/Directory.Build.props`, `api/Directory.Packages.props` | Any hardcoded product name or assembly prefix |
 | `.github/workflows/*.yml` | Database names, connection strings, deploy paths, image names |
 
-**There is no root `Dockerfile`.** The .NET images are produced by the .NET SDK container tooling -- `dotnet publish /t:PublishContainer` in `.github/workflows/ci.yml` and `deploy.yml` -- driven by the `<ContainerRepository>` properties in `api/src/Wallow.Api/Wallow.Api.csproj`, `Wallow.MigrationService.csproj`, and `Wallow.SeederService.csproj`. Rename those properties rather than editing a Dockerfile. The only Dockerfiles in the repository build the React apps (`apps/wallow-web/Dockerfile`, `apps/wallow-auth/Dockerfile`) and supporting infrastructure images (`docker/docs/`, `docker/garage/`, `docker/images/*/`).
+**There is no root `Dockerfile`.** The .NET images are produced by the .NET SDK container tooling -- `dotnet publish /t:PublishContainer` in `.github/workflows/ci.yml` and `deploy.yml` -- driven by the `<ContainerRepository>` properties in `api/src/Wallow.Api/Wallow.Api.csproj`, `Wallow.MigrationService.csproj`, and `Wallow.SeederService.csproj`. Rename those properties rather than editing a Dockerfile. The only Dockerfiles in the repository build the React apps (`apps/wallow-web/Dockerfile`, `apps/wallow-auth/Dockerfile`) and supporting infrastructure images (`docker/docs/`, `docker/images/*/`).
 
 ### 6. Rename the frontend workspace (optional)
 

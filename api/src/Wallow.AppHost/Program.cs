@@ -1,7 +1,7 @@
 IDistributedApplicationBuilder builder = DistributedApplication.CreateBuilder(args);
 
 // Resolve paths relative to the AppHost project
-string garageConfigDir = Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "..", "..", "..", "docker", "garage"));
+string garageImageDir = Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "..", "..", "..", "docker", "images", "garage"));
 string wallowAuthDir = Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "..", "..", "..", "apps", "wallow-auth"));
 string wallowWebDir = Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "..", "..", "..", "apps", "wallow-web"));
 
@@ -10,10 +10,13 @@ IResourceBuilder<PostgresDatabaseResource> postgres = builder.AddPostgres("postg
     .AddDatabase("wallow");
 IResourceBuilder<RedisResource> valkey = builder.AddRedis("valkey");
 
-// S3-compatible object storage (built from docker/garage/Dockerfile: Alpine + garage binary + init script)
-// Credentials must match appsettings.Development.json so the API can authenticate
-IResourceBuilder<ContainerResource> garage = builder.AddDockerfile("garage", garageConfigDir)
+// S3-compatible object storage (built from docker/images/garage/Dockerfile: Alpine + garage
+// binary + entrypoint that renders garage.toml from env). Credentials must match
+// appsettings.Development.json so the API can authenticate.
+IResourceBuilder<ContainerResource> garage = builder.AddDockerfile("garage", garageImageDir)
     .WithHttpEndpoint(targetPort: 3900, name: "s3")
+    .WithEnvironment("GARAGE_RPC_SECRET", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
+    .WithEnvironment("GARAGE_ADMIN_TOKEN", "wallow-admin-token")
     .WithEnvironment("GARAGE_KEY_NAME", "wallow-dev")
     .WithEnvironment("GARAGE_ACCESS_KEY", "GKac08a4bd9e083da18a8619d6")
     .WithEnvironment("GARAGE_SECRET_KEY", "40b1e64b357741d678d0f1ed77ec332e0f38cd59724d45a904d8ffd5dfeea943")
