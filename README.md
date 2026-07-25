@@ -137,7 +137,7 @@ Each module follows four layers: **Domain** (no dependencies) → **Application*
 | Branches | **89.5%** (2,235 / 2,497) |
 | Methods | **96.9%** (1,735 / 1,789) |
 
-> Details: [Testing Guide](docs/development/testing.md) · [Coverage](docs/development/testing-coverage.md) · [E2E Tests](docs/development/testing-e2e.md) · [CI](docs/development/testing-ci.md)
+> Details: [Testing Guide](docs/development/testing.md) — backend suites, frontend Vitest, coverage, the Docker test stack, and CI · [E2E Tests](docs/development/testing-e2e.md)
 
 ## Configuration
 
