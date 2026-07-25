@@ -21,7 +21,7 @@ Use service accounts for automated systems, background jobs, external integratio
 Send a POST request to create a service account for your tenant:
 
 ```http
-POST /api/v1/identity/service-accounts
+POST /v1/identity/clients/service-accounts
 Authorization: Bearer <user-token>
 Content-Type: application/json
 
@@ -62,7 +62,7 @@ curl -X POST https://api.yourplatform.com/connect/token \
 Use the access token in the `Authorization` header:
 
 ```bash
-curl -X GET https://api.yourplatform.com/api/v1/announcements \
+curl -X GET https://api.yourplatform.com/v1/announcements \
   -H "Authorization: Bearer <access-token>"
 ```
 
@@ -72,28 +72,62 @@ Cache tokens and refresh before expiry. Each token request counts toward rate li
 
 ## API Reference
 
-All management endpoints require user authentication (not service account authentication).
+Service accounts are managed through the **clients** controller, so every route is nested under
+`/v1/identity/clients/service-accounts`. All management endpoints require user authentication (not
+service account authentication) and the `AdminAccess` permission.
+
+| Method | Route |
+|--------|-------|
+| `GET` | `/v1/identity/clients/service-accounts` |
+| `POST` | `/v1/identity/clients/service-accounts` |
+| `GET` | `/v1/identity/clients/service-accounts/{id}` |
+| `PUT` | `/v1/identity/clients/service-accounts/{id}/scopes` |
+| `POST` | `/v1/identity/clients/service-accounts/{id}/rotate-secret` |
+| `DELETE` | `/v1/identity/clients/service-accounts/{id}` |
+| `GET` | `/v1/identity/scopes` |
+
+`{id}` is the service account metadata GUID (the `id` returned at creation), not the `clientId`.
 
 ### List Service Accounts
 
 ```http
-GET /api/v1/identity/service-accounts
+GET /v1/identity/clients/service-accounts
 Authorization: Bearer <user-token>
 ```
 
-Returns a list of `ServiceAccountDto` objects with `id`, `clientId`, `name`, `description`, `status`, `scopes`, `createdAt`, and `lastUsedAt`.
+Response (200 OK) — an array of `ServiceAccountDto`:
+
+```json
+[
+  {
+    "id": { "value": "a1b2c3d4-e5f6-7890-abcd-ef1234567890" },
+    "clientId": "sa-tenant12-production-backend",
+    "name": "Production Backend",
+    "description": "Main production server integration",
+    "status": 0,
+    "scopes": ["announcements.read", "announcements.manage", "notifications.read"],
+    "createdAt": "2026-02-06T15:30:00+00:00",
+    "lastUsedAt": null
+  }
+]
+```
+
+`id` is a strongly-typed identifier and serializes as an object with a `value` property. `status` is
+numeric: `0` = Active, `1` = Revoked. `description` and `lastUsedAt` may be `null`.
 
 ### Get Service Account
 
 ```http
-GET /api/v1/identity/service-accounts/{id}
+GET /v1/identity/clients/service-accounts/{id}
 Authorization: Bearer <user-token>
 ```
+
+Returns a single `ServiceAccountDto` in the shape above, or 404 Not Found.
 
 ### Update Scopes
 
 ```http
-PUT /api/v1/identity/service-accounts/{id}/scopes
+PUT /v1/identity/clients/service-accounts/{id}/scopes
 Authorization: Bearer <user-token>
 Content-Type: application/json
 
@@ -102,12 +136,13 @@ Content-Type: application/json
 }
 ```
 
-Returns 204 No Content on success.
+The list replaces the existing scopes wholesale. Returns 204 No Content on success, 404 Not Found if
+the service account does not exist.
 
 ### Rotate Secret
 
 ```http
-POST /api/v1/identity/service-accounts/{id}/rotate-secret
+POST /v1/identity/clients/service-accounts/{id}/rotate-secret
 Authorization: Bearer <user-token>
 ```
 
@@ -126,20 +161,35 @@ The old secret is invalidated immediately.
 ### Delete Service Account
 
 ```http
-DELETE /api/v1/identity/service-accounts/{id}
+DELETE /v1/identity/clients/service-accounts/{id}
 Authorization: Bearer <user-token>
 ```
 
-Returns 204 No Content.
+Revokes and deletes the account. Returns 204 No Content, or 404 Not Found.
 
 ### List Available Scopes
 
 ```http
-GET /api/v1/identity/scopes?category=Identity
+GET /v1/identity/scopes?category=Identity
 Authorization: Bearer <user-token>
 ```
 
-Returns scopes with `code`, `displayName`, `category`, `description`, and `isDefault` fields.
+Lives on the scopes controller rather than the clients controller, and requires the `ScopeRead`
+permission. The `category` query parameter is optional; omit it to list every scope. Response
+(200 OK):
+
+```json
+[
+  {
+    "id": { "value": "3f1a9c22-5d4e-4a1b-9f0c-71b8e2d6a904" },
+    "code": "users.read",
+    "displayName": "Read Users",
+    "category": "Identity",
+    "description": "Access to read user profiles and data",
+    "isDefault": true
+  }
+]
+```
 
 ---
 
