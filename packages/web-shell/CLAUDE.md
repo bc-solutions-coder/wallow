@@ -6,10 +6,10 @@ host, the dev-server, and the shared Vite client/SSR config factories. An app's
 
 ## Two entries — the split is load-bearing
 
-| Entry | Runs in | What it is |
-|-------|---------|-----------|
-| `.` (`src/index.ts`) | Browser | `createQueryClient` — the shared TanStack Query client factory. Must stay free of Node APIs; it is imported from client bundles. |
-| `./server` (`src/server/`) | Node | `createStandaloneHost` (+ `ShellConfig`), `createDevServer`, `createClientViteConfig` / `createSsrViteConfig`, and `createStaticAssetReader` for the built client. |
+| Entry                      | Runs in | What it is                                                                                                                                                         |
+| -------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `.` (`src/index.ts`)       | Browser | `createQueryClient` — the shared TanStack Query client factory. Must stay free of Node APIs; it is imported from client bundles.                                   |
+| `./server` (`src/server/`) | Node    | `createStandaloneHost` (+ `ShellConfig`), `createDevServer`, `createClientViteConfig` / `createSsrViteConfig`, and `createStaticAssetReader` for the built client. |
 
 - **Never move a Node-only symbol onto the root entry** — it would be pulled into every
   consuming app's client bundle. New host/build code goes behind `./server`.

@@ -6,10 +6,10 @@ rather than hand-rolling one.
 
 ## Two entries — the split is load-bearing
 
-| Entry | Imported at | What it is |
-|-------|-------------|-----------|
-| `.` (`src/index.ts`) | Vitest **config load** (plain Node) | `createVitestProjects()` → the `{ node, browser }` project pair for `defineConfig({ test: { projects } })`, plus `browserOptimizeDepsBaseline` / `mergeOptimizeDeps`. |
-| `./render` (`src/render.tsx`) | Inside a **browser-mode spec** | `render`, re-exported from `vitest-browser-react` — the single seam where shared providers/wrappers would be added. |
+| Entry                         | Imported at                         | What it is                                                                                                                                                            |
+| ----------------------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.` (`src/index.ts`)          | Vitest **config load** (plain Node) | `createVitestProjects()` → the `{ node, browser }` project pair for `defineConfig({ test: { projects } })`, plus `browserOptimizeDepsBaseline` / `mergeOptimizeDeps`. |
+| `./render` (`src/render.tsx`) | Inside a **browser-mode spec**      | `render`, re-exported from `vitest-browser-react` — the single seam where shared providers/wrappers would be added.                                                   |
 
 - **Keep `render` off the barrel.** `vitest-browser-react` evaluates `vitest/browser` at import
   and throws outside browser mode; the barrel is loaded in a plain Node process at config time,

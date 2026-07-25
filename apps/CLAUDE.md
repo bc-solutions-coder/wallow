@@ -3,11 +3,11 @@
 Every app here is a **TanStack Start** frontend consuming the five `@bc-solutions-coder`
 workspace packages (`sdk`, `styles`, `ui`, `web-shell`, `testing`) via `workspace:*`.
 
-| App | Port | What it is |
-|-----|------|-----------|
-| `wallow-web/` | 3000 | Reference dashboard demonstrating the full same-origin BFF OIDC flow. |
-| `wallow-auth/` | 3002 | Auth frontend — login / signup / MFA screens. |
-| `examples/minimal-app/` | — | Smallest app wiring all five shared packages through the web-shell host factory. |
+| App                     | Port | What it is                                                                       |
+| ----------------------- | ---- | -------------------------------------------------------------------------------- |
+| `wallow-web/`           | 3000 | Reference dashboard demonstrating the full same-origin BFF OIDC flow.            |
+| `wallow-auth/`          | 3002 | Auth frontend — login / signup / MFA screens.                                    |
+| `examples/minimal-app/` | —    | Smallest app wiring all five shared packages through the web-shell host factory. |
 
 **Build the SDK before touching an app** — apps typecheck against `packages/sdk/dist/`:
 `pnpm --filter @bc-solutions-coder/sdk build`.
