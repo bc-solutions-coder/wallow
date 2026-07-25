@@ -2,7 +2,7 @@
   // Inherits the workspace-standard TS semantics from the repo-root base config;
   // this file only layers on the app-local knobs: typecheck-only (noEmit), Node
   // types for the host files (server.ts/dev-server.ts), and the files to include.
-  "extends": "../../tsconfig.base.json",
+  "extends": "../../../tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
     "types": ["node"]
