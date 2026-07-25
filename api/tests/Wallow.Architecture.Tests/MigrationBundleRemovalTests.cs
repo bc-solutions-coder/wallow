@@ -28,7 +28,7 @@ public sealed class MigrationBundleRemovalTests
     public void Entrypoint_ShouldNotContain_EfBundleReferences()
     {
         // Arrange
-        string entrypointPath = Path.Combine(_repoRoot, "docker", "images", "api", "entrypoint.sh");
+        string entrypointPath = Path.Combine(_repoRoot, "api", "src", "Wallow.Api", "entrypoint.sh");
         string content = File.ReadAllText(entrypointPath);
 
         // Assert
@@ -40,7 +40,7 @@ public sealed class MigrationBundleRemovalTests
     public void Entrypoint_ShouldNotContain_BundleDirReferences()
     {
         // Arrange
-        string entrypointPath = Path.Combine(_repoRoot, "docker", "images", "api", "entrypoint.sh");
+        string entrypointPath = Path.Combine(_repoRoot, "api", "src", "Wallow.Api", "entrypoint.sh");
         string content = File.ReadAllText(entrypointPath);
 
         // Assert

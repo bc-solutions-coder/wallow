@@ -20,7 +20,8 @@ docker compose -f docker-compose.production.yml --env-file .env.production up --
   (`docs/Dockerfile`) and the Garage images are built from here.
 - **Two Garage image dirs exist** — `garage/` (dev compose) and `images/garage/` (test compose).
   They are not interchangeable; check which compose you are editing.
-- `images/api/entrypoint.sh` is referenced by **no** compose file — it is copied into the API
-  container by `api/src/Wallow.Api/Wallow.Api.csproj` (`ContainerEntrypoint`).
+- The API container entrypoint lives with its code at `api/src/Wallow.Api/entrypoint.sh` (no
+  compose file references it) — `Wallow.Api.csproj` publishes it as `Content` and wires it via
+  `ContainerEntrypoint`.
 - `.env`, `.env.example`, and `seed.json` are `merge=ours` in `.gitattributes` so fork values
   survive upstream merges. Never commit a real `.env` / `.env.production`.
