@@ -9,11 +9,14 @@ docs/
   index.md              # Landing page
   toc.yml               # Table of contents / sidebar navigation
   getting-started/      # Fork guide, developer guide, onboarding, configuration
-  architecture/         # Module creation, messaging, caching, authorization, etc.
-  development/          # API development, database, testing, frontend setup
-  operations/           # Deployment, versioning, observability, troubleshooting
-  integrations/         # External auth, DCR, AsyncAPI
-  api/                  # API reference docs (service accounts, etc.)
+  architecture/         # Assessment, module creation, authentication, authorization,
+                        #   background jobs, caching, file storage, messaging, realtime
+  development/          # API development, database development, database migrations,
+                        #   testing (testing.md, testing-e2e.md), frontend setup
+  operations/           # Deployment, versioning, observability, audit events,
+                        #   reverse proxy, troubleshooting
+  integrations/         # External auth, AsyncAPI, BFF pattern, TypeScript SDK
+  api/                  # API reference docs (service accounts)
 ```
 
 ## Adding a New Guide
