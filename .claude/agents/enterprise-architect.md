@@ -2,6 +2,7 @@
 name: enterprise-architect
 description: "Use for architectural decisions: new modules, dependency flows, Clean Architecture/DDD boundaries, cross-module contracts."
 model: opus
+tools: Read, Grep, Glob
 color: blue
 ---
 

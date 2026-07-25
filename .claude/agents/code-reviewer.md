@@ -2,6 +2,7 @@
 name: code-reviewer
 description: "Use after a major step is complete to review the implementation against the plan and Wallow's standards."
 model: opus
+tools: Read, Grep, Glob
 color: red
 ---
 
