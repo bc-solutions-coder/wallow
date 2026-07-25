@@ -131,13 +131,39 @@ OpenTelemetry provides distributed tracing across HTTP requests, database operat
 
 ### Configuration
 
-Tracing is configured via `AddObservability()` in `api/src/Wallow.Api/Extensions/ServiceCollectionExtensions.cs`. It reads `OpenTelemetry:ServiceName` and `OpenTelemetry:OtlpGrpcEndpoint` from configuration. In non-Development environments, `OtlpGrpcEndpoint` is required.
+Tracing and metrics are configured in one place: `ConfigureOpenTelemetry` in
+`api/src/Wallow.ServiceDefaults/Extensions.cs`, called from `AddServiceDefaults()` in the API's
+`Program.cs`.
 
-Key aspects of the tracing configuration:
-- **Sampling**: Uses `ParentBasedSampler` with `TraceIdRatioBasedSampler`. The ratio defaults to 1.0 (100%) in Development and 0.1 (10%) in production, configurable via `Observability:TraceSamplingRatio`.
-- **Instrumentation**: ASP.NET Core, EF Core, HttpClient, and Wolverine are all auto-instrumented.
-- **Source registration**: Uses `.AddSource("Wallow.*")` wildcard to capture all module activity sources.
-- **Export**: OTLP gRPC exporter sends to the configured endpoint.
+```csharp
+builder.Services.AddOpenTelemetry()
+    .WithTracing(tracing =>
+    {
+        tracing
+            .AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation();
+    })
+    .WithMetrics(metrics =>
+    {
+        metrics
+            .AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation()
+            .AddProcessInstrumentation()
+            .AddRuntimeInstrumentation();
+    });
+```
+
+Key aspects:
+- **Export**: `UseOtlpExporter()` is added only when the standard `OTEL_EXPORTER_OTLP_ENDPOINT`
+  environment variable is set. Aspire sets it automatically for `pnpm backend`; the production
+  compose file sets it to `http://alloy:4317`. With no endpoint configured, traces and metrics
+  are collected in-process and never exported.
+- **Sampling**: none is configured, so the SDK default (always-on, parent-based) applies. There is
+  no ratio-based sampler and no `Observability:TraceSamplingRatio` setting in the code.
+- **Source registration**: the SDK collects only what is explicitly registered. There is currently
+  **no `AddSource(...)` call**, so the `Wallow.*` activity sources described below are created but
+  their spans are not exported until a source is registered. See
+  [Exporting custom instruments](#exporting-custom-instruments).
 
 ### Auto-Instrumentation
 
@@ -146,21 +172,31 @@ The following are automatically instrumented:
 | Component | What's Traced |
 |-----------|--------------|
 | **ASP.NET Core** | HTTP requests, responses, status codes, route patterns |
-| **Entity Framework Core** | Database queries, execution time, SQL commands |
 | **HttpClient** | Outbound HTTP requests to external services |
-| **Wolverine** | Message handling, command/query execution |
+
+Entity Framework Core and Wolverine instrumentation are **not** registered. Database calls appear
+inside the ASP.NET Core server span rather than as their own spans, and Wolverine message handling
+produces no dedicated spans (see [Message flow](#tracing-message-flow)).
 
 ### Trace Propagation
 
-Traces are automatically propagated through:
+Traces propagate across HTTP boundaries via W3C Trace Context (`traceparent`, `tracestate`), which
+the ASP.NET Core and HttpClient instrumentation handle on both ends.
 
-- **HTTP Headers**: W3C Trace Context (`traceparent`, `tracestate`)
-- **Wolverine Messages**: Wolverine propagates trace context through in-memory message headers
-- **SignalR**: Trace context flows through WebSocket connections
+Wolverine messaging is in-memory, so there is no wire format to propagate. What Wallow does instead
+is enrich whatever activity is already current when a message is handled:
+`WolverineModuleTaggingMiddleware` (at
+`api/src/Shared/Wallow.Shared.Infrastructure.Core/Middleware/WolverineModuleTaggingMiddleware.cs`)
+tags `Activity.Current` with `wallow.module` (derived from the message's namespace) and
+`wallow.tenant_id` (from the `X-Tenant-Id` envelope header). When a message is handled inline on the
+request thread those tags land on the ASP.NET Core server span; when it is handled off a background
+queue there may be no current activity, and the tags are simply skipped.
 
 ### Adding Custom Spans
 
-Use `Diagnostics.CreateActivitySource()` from `Wallow.Shared.Kernel` to create module-scoped activity sources. All `Wallow.*` sources are captured automatically by the wildcard registration in `AddObservability()`.
+Use `Diagnostics.CreateActivitySource()` from `Wallow.Shared.Kernel` to create module-scoped activity
+sources. Creating the source is only half the job — register it with the tracer provider as well, or
+its spans go nowhere (see [Exporting custom instruments](#exporting-custom-instruments)).
 
 ```csharp
 using System.Diagnostics;
@@ -212,65 +248,88 @@ OpenTelemetry collects runtime and application metrics.
 
 ### Built-in Metrics
 
-The following metrics are automatically collected:
+These come from the four metrics instrumentations registered in `ConfigureOpenTelemetry` (ASP.NET
+Core, HttpClient, process, and runtime) and are the only metrics the pre-configured dashboards query.
+Names are shown in OpenTelemetry form; Prometheus replaces the dots with underscores and appends a
+unit and type suffix, so `dotnet.gc.collections` is queried as `dotnet_gc_collections_total`.
 
-**ASP.NET Core Metrics:**
-- `http.server.request.duration` - Request duration histogram
-- `http.server.active_requests` - Current active requests
-- `http.server.request.body.size` - Request body size
+**ASP.NET Core / HttpClient:**
+- `http.server.request.duration` — server request duration histogram
+- `http.server.active_requests` — in-flight server requests
+- `http.client.request.duration` — outbound HttpClient request duration
 
-**Runtime Metrics:**
-- `process.runtime.dotnet.gc.collections.count` - GC collection count
-- `process.runtime.dotnet.gc.heap.size` - GC heap size
-- `process.runtime.dotnet.threadpool.threads.count` - Thread pool size
-- `process.runtime.dotnet.assemblies.count` - Loaded assemblies
+**Runtime and process:**
+- `dotnet.gc.collections` — GC collections by generation
+- `dotnet.gc.pause.time` — total GC pause time
+- `dotnet.thread_pool.thread.count` — thread pool size
+- `dotnet.exceptions` — exceptions thrown
+- `dotnet.assembly.count` — loaded assemblies
+- `dotnet.process.cpu.time` — process CPU time
 
-### Custom Metrics
+### Custom Instruments in the Codebase
 
-Wallow provides a shared `Meter` for custom metrics:
+Instrumentation primitives live in the static `Diagnostics` class at
+`api/src/Shared/Wallow.Shared.Kernel/Diagnostics.cs`:
 
-The `Diagnostics` class (at `api/src/Shared/Wallow.Shared.Kernel/Diagnostics.cs`) provides:
-- `Diagnostics.Meter` -- the shared `Meter` instance (name defaults to `"Wallow"`)
-- `Diagnostics.CreateActivitySource(moduleName)` -- creates `"Wallow.{moduleName}"`
-- `Diagnostics.CreateMeter(moduleName)` -- creates a module-scoped meter
-- `Diagnostics.Initialize(prefix)` -- allows forks to change the prefix from `"Wallow"`
+- `Diagnostics.Meter` — the shared `Meter` (name defaults to `"Wallow"`)
+- `Diagnostics.CreateMeter(moduleName)` — creates `"Wallow.{moduleName}"`
+- `Diagnostics.CreateActivitySource(moduleName)` — creates `"Wallow.{moduleName}"`
+- `Diagnostics.Initialize(prefix)` — lets a fork swap `"Wallow"` for its own prefix; must be called
+  before any telemetry is emitted, and it rebuilds the messaging instruments under the new prefix
 
-Create custom metrics:
+Every custom instrument that exists in `api/src` today:
+
+| Instrument | Kind | Meter | Recorded by |
+|-----------|------|-------|-------------|
+| `wallow.messaging.messages_total` | Counter | `Wallow.Messaging` | `WolverineModuleTaggingMiddleware` |
+| `wallow.messaging.message_duration` | Histogram (ms) | `Wallow.Messaging` | `WolverineModuleTaggingMiddleware` |
+| `wallow.messaging.domain_events_published_total` | Counter | `Wallow.Messaging` | `WolverineModuleTaggingMiddleware` |
+| `wallow.cache.hits_total` | Counter | `Wallow.Cache` | `InstrumentedDistributedCache` |
+| `wallow.cache.misses_total` | Counter | `Wallow.Cache` | `InstrumentedDistributedCache` |
+| `wallow.requests_authenticated_total` | Counter | `Wallow.Identity` | `IdentityModuleTelemetry` |
+
+The messaging trio is the richest of these. `WolverineModuleTaggingMiddleware` stamps a start
+timestamp into the envelope headers on the way in and, on the way out, records the count and duration
+with three tags — `message_type`, `module`, and `status` — plus a separate counter for any message
+implementing `IDomainEvent`, tagged with `event_type`.
+
+### Exporting Custom Instruments
+
+`ConfigureOpenTelemetry` registers instrumentation libraries but **no meters or activity sources**,
+and the OpenTelemetry SDK only collects from instruments it has been told about. The instruments in
+the table above are therefore recorded in-process but never exported — they will not appear in
+Prometheus until the meters are registered.
+
+To export them, add the meters (and any activity sources you care about) in
+`api/src/Wallow.ServiceDefaults/Extensions.cs`:
 
 ```csharp
-using System.Diagnostics.Metrics;
-using Wallow.Shared.Kernel;
-
-public class AnnouncementService
-{
-    private static readonly Counter<long> AnnouncementsPublished =
-        Diagnostics.Meter.CreateCounter<long>(
-            "wallow.announcements.published_total",
-            description: "Number of announcements published");
-
-    private static readonly Histogram<double> AnnouncementReach =
-        Diagnostics.Meter.CreateHistogram<double>(
-            "wallow.announcements.reach",
-            unit: "{recipients}",
-            description: "Number of recipients per announcement");
-
-    public async Task<Announcement> PublishAnnouncementAsync(PublishAnnouncementCommand command)
+builder.Services.AddOpenTelemetry()
+    .WithTracing(tracing =>
     {
-        Announcement announcement = // ... create announcement
-
-        AnnouncementsPublished.Add(1,
-            new KeyValuePair<string, object?>("tenant", command.TenantId),
-            new KeyValuePair<string, object?>("category", command.Category));
-
-        AnnouncementReach.Record(announcement.RecipientCount,
-            new KeyValuePair<string, object?>("tenant", command.TenantId));
-
-        return announcement;
-    }
-}
+        tracing
+            .AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation()
+            .AddSource("Wallow.Identity")
+            .AddSource("Wallow.Notifications.Email");
+    })
+    .WithMetrics(metrics =>
+    {
+        metrics
+            .AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation()
+            .AddProcessInstrumentation()
+            .AddRuntimeInstrumentation()
+            .AddMeter("Wallow.Messaging")
+            .AddMeter("Wallow.Cache")
+            .AddMeter("Wallow.Identity");
+    });
 ```
 
-The `Wallow` meter and all module-scoped meters are registered in the OpenTelemetry configuration via `.AddMeter("Wallow")` and `.AddMeter("Wallow.*")`.
+Meter and source names must match exactly — `AddMeter` and `AddSource` accept a `*` wildcard suffix,
+so `AddMeter("Wallow.*")` covers every module-scoped meter at once, but note that it does **not**
+match the bare `"Wallow"` meter returned by `Diagnostics.Meter`. Register that one by name if you use
+it. A fork that calls `Diagnostics.Initialize("Contoso")` must register `"Contoso.*"` instead.
 
 ## Local Development
 
@@ -307,15 +366,21 @@ OpenTelemetry is already enabled in `appsettings.Development.json` with endpoint
 
 ### Pre-configured Dashboards
 
-Wallow includes pre-configured dashboards in `docker/grafana/dashboards/`:
+Wallow includes four pre-configured dashboards in `docker/grafana/dashboards/`, mounted into the
+`grafana-lgtm` container by `docker/grafana/provisioning/dashboards/dashboards.yml`:
 
-| Dashboard | Description |
-|-----------|-------------|
-| **ASP.NET Core OTel** | HTTP request metrics, latencies, error rates |
-| **.NET Runtime** | GC metrics, thread pool, memory usage |
-| **Module Overview** | Per-module metrics overview |
-| **SLO Monitoring** | Service level objective tracking |
-| **Multi-Region Overview** | Cross-region metrics |
+| File | Dashboard | What it shows |
+|------|-----------|---------------|
+| `aspnetcore-otel.json` | ASP.NET Core OTel | Request rate and duration, error rate, active connections, unhandled exceptions, HTTP protocol and scheme breakdowns |
+| `dotnet-runtime.json` | .NET Runtime | GC collections, pause time, heap size and fragmentation, thread pool, JIT, CPU, loaded assemblies |
+| `module-overview.json` | Module Overview | Request rate, 5xx rate, and P95 latency grouped per module, plus a recent-traces panel |
+| `slo-monitoring.json` | SLO Monitoring | Availability and latency objectives (P99 < 500ms API, P95 < 2000ms transactions, P99 < 1000ms SSO login) |
+
+All four query only the built-in ASP.NET Core and .NET runtime metrics — none depends on a custom
+Wallow instrument. Module Overview in particular does not read the `wallow.module` span tag; it
+derives its `module` label with a Prometheus `label_replace` over the `http_route` label of
+`http_server_request_duration_seconds`, matching `/v[0-9]+/([^/]+)/.*`. Only routes shaped like
+`/v1/{module}/...` are attributed to a module; anything else falls outside the grouping.
 
 Access dashboards at: **Dashboards** > **Browse** > Select dashboard
 
@@ -359,22 +424,40 @@ Example TraceQL query:
 
 ### OTLP Endpoints
 
-Configure OTLP endpoints via environment variables:
+Logs and traces/metrics are exported through two independent paths, configured separately.
+
+**Traces and metrics** use the standard OpenTelemetry environment variables, read by the SDK itself.
+`UseOtlpExporter()` is only registered when `OTEL_EXPORTER_OTLP_ENDPOINT` has a value, so leaving it
+unset disables trace and metric export entirely:
+
+```bash
+OTEL_EXPORTER_OTLP_ENDPOINT=http://alloy:4317
+OTEL_SERVICE_NAME=wallow-api
+```
+
+`docker/docker-compose.production.yml` sets exactly these for the API and web containers, pointing at
+the bundled Alloy collector.
+
+**Logs** are shipped by Serilog, gated on the `OpenTelemetry` configuration section:
 
 ```bash
 OpenTelemetry__EnableLogging=true
 OpenTelemetry__ServiceName=Wallow
 OpenTelemetry__OtlpEndpoint=https://otel-collector.yourcompany.com
-OpenTelemetry__OtlpGrpcEndpoint=https://otel-collector.yourcompany.com:4317
 ```
 
-`OtlpGrpcEndpoint` is required in non-Development environments. The API will throw on startup if it is not configured.
+When `EnableLogging` is `true`, Serilog posts to `{OtlpEndpoint}/v1/logs` over HTTP. `EnableLogging`
+defaults to `false` in `appsettings.json` and is turned on in `appsettings.Development.json`.
 
-`OtlpEndpoint` is used for Serilog log shipping (HTTP) when `EnableLogging` is `true`. `OtlpGrpcEndpoint` is used for traces and metrics.
+> **Note:** the `OpenTelemetry:OtlpGrpcEndpoint` key still present in `appsettings.json` is not read
+> by any code. Trace and metric export is driven solely by `OTEL_EXPORTER_OTLP_ENDPOINT`.
 
 ### Performance Considerations
 
-1. **Sampling**: Trace sampling is already configured in `AddObservability()`. It defaults to 10% in production. Override via `Observability:TraceSamplingRatio` configuration key.
+1. **Sampling**: no sampler is configured, so **every** trace is recorded and exported. On a busy
+   deployment this is the first thing to tune — add a `ParentBased`/`TraceIdRatioBased` sampler in
+   `ConfigureOpenTelemetry`, or set the standard `OTEL_TRACES_SAMPLER` and
+   `OTEL_TRACES_SAMPLER_ARG` environment variables.
 
 2. **Log Levels**: Use Warning or higher in production to reduce log volume.
 
@@ -394,21 +477,35 @@ OpenTelemetry__OtlpGrpcEndpoint=https://otel-collector.yourcompany.com:4317
 
 ### Tracing Message Flow
 
-Wolverine messages carry trace context automatically. To trace a message:
+Wolverine handling produces **no spans of its own** — there is no Wolverine instrumentation and no
+Wolverine `ActivitySource` registered. A message handled inline during a request is folded into that
+request's ASP.NET Core server span, carrying the `wallow.module` and `wallow.tenant_id` tags that
+`WolverineModuleTaggingMiddleware` adds; a message handled off a background queue produces no trace
+at all.
+
+The metrics are the reliable signal for message flow. `wallow.messaging.messages_total` and
+`wallow.messaging.message_duration` are recorded for every message with `message_type`, `module`, and
+`status` tags, and `wallow.messaging.domain_events_published_total` counts domain events by
+`event_type`. Both require the `Wallow.Messaging` meter to be registered before they reach Prometheus
+— see [Exporting custom instruments](#exporting-custom-instruments).
+
+To follow a message end to end today:
 
 1. Find the trace ID in the producer logs
-2. Search for that trace in Tempo
-3. The trace shows: HTTP request -> Message publish -> Message consume -> Handler execution
+2. Search for that trace in Tempo to see the originating HTTP request
+3. Correlate handler-side logs by trace ID and message type, since the handler has no span
+
+For the messaging model itself, see the [Messaging Guide](../architecture/messaging.md).
 
 ### Common Debugging Scenarios
 
 **Slow API Response:**
 1. Get trace ID from response headers or logs
 2. View trace in Tempo
-3. Check span durations for:
-   - Database queries (EF Core spans)
-   - External HTTP calls (HttpClient spans)
-   - Message handling (Wolverine spans)
+3. Check span durations for the ASP.NET Core server span and any HttpClient child spans. Database
+   and message-handling time is not broken out — it is absorbed into the server span, so a server
+   span that is slow with no slow HTTP child usually points at a query or a handler. Fall back to
+   Serilog's request log and the EF Core logs to narrow it down.
 
 **Failed Background Job:**
 1. Check Hangfire dashboard for failed job ID
@@ -441,12 +538,22 @@ private static readonly ActivitySource ActivitySource = Diagnostics.CreateActivi
 ```
 
 **Metrics:**
+
+Format is `wallow.{module}.{metric_name}` in snake_case, with `_total` on counters and an explicit
+`unit` on histograms. The instruments already in the codebase follow it:
+
 ```csharp
-// Format: wallow.{module}.{metric_name}
-// Use snake_case, be descriptive
-Diagnostics.Meter.CreateCounter<long>("wallow.notifications.dispatched_total");
-Diagnostics.Meter.CreateHistogram<double>("wallow.notifications.dispatch_duration_seconds");
-Diagnostics.Meter.CreateCounter<long>("wallow.storage.files_uploaded");
+// Wallow.Cache meter — InstrumentedDistributedCache
+Meter cacheMeter = Diagnostics.CreateMeter("Cache");
+Counter<long> hits = cacheMeter.CreateCounter<long>(
+    "wallow.cache.hits_total",
+    description: "Total number of cache hits");
+
+// Wallow.Messaging meter — Diagnostics
+Histogram<double> duration = messagingMeter.CreateHistogram<double>(
+    "wallow.messaging.message_duration",
+    unit: "ms",
+    description: "Duration of message processing in milliseconds");
 ```
 
 **Log Message Properties:**
@@ -460,7 +567,13 @@ private partial void LogOrderProcessed(Guid orderId, double durationMs, int item
 
 ### Complete Example: Adding Observability to a Service
 
-This example shows the three pillars (traces, metrics, logging) combined in a single service. Note the use of `[LoggerMessage]` source generator for logging and `Diagnostics.CreateActivitySource()` for tracing.
+This example shows the three pillars (traces, metrics, logging) combined in a single service. Note the
+use of the `[LoggerMessage]` source generator for logging and `Diagnostics.CreateActivitySource()` for
+tracing.
+
+> The service and the `wallow.notifications.dispatched_total` counter below are **illustrative** — a
+> sketch of code you would write, not something that exists in `api/src`. For the instruments that do
+> exist, see [Custom instruments in the codebase](#custom-instruments-in-the-codebase).
 
 ```csharp
 using System.Diagnostics;
@@ -503,7 +616,7 @@ public sealed partial class NotificationDispatchService(
         catch (Exception ex)
         {
             activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
-            activity?.RecordException(ex);
+            activity?.AddException(ex);
             LogNotificationError(request.RecipientId, ex);
             throw;
         }
@@ -517,7 +630,8 @@ public sealed partial class NotificationDispatchService(
 }
 ```
 
-Activity sources using `Diagnostics.CreateActivitySource()` are automatically captured by the `Wallow.*` wildcard in the tracing configuration.
+Remember to register `Wallow.Notifications` with `AddSource` and the meter behind
+`Diagnostics.Meter` with `AddMeter`, or neither the spans nor the counter will leave the process.
 
 ## Troubleshooting
 
@@ -530,15 +644,20 @@ Activity sources using `Diagnostics.CreateActivitySource()` are automatically ca
 
 ### Traces Not Appearing in Tempo
 
-1. Verify the OTLP gRPC endpoint (port 4317) is correct
-2. Check if the service is generating traces (enable debug logging)
-3. Ensure ActivitySources are registered in OpenTelemetry config
+1. Confirm `OTEL_EXPORTER_OTLP_ENDPOINT` is set — without it `UseOtlpExporter()` is never
+   registered and nothing is exported, however healthy the collector is
+2. Verify the collector is reachable on the gRPC port (4317)
+3. For spans from a `Wallow.*` activity source, confirm the source is registered with `AddSource` in
+   `ConfigureOpenTelemetry` — unregistered sources produce no spans at all
 
 ### Metrics Not Appearing in Prometheus
 
-1. Verify the OTLP endpoint configuration
-2. Check if the Meter is registered: `.AddMeter("Wallow")`
-3. Ensure metrics are being recorded (add temporary logging)
+1. Confirm `OTEL_EXPORTER_OTLP_ENDPOINT` is set
+2. Confirm the meter is registered with `AddMeter` — this is the usual cause for custom instruments,
+   since `ConfigureOpenTelemetry` ships with no `AddMeter` calls. See
+   [Exporting custom instruments](#exporting-custom-instruments)
+3. Remember the name translation: `wallow.cache.hits_total` is queried as `wallow_cache_hits_total`
+4. Ensure the code path recording the metric actually ran
 
 ### Correlation Issues
 
@@ -557,98 +676,129 @@ Wallow centralizes instrumentation primitives in `Wallow.Shared.Kernel.Diagnosti
 ```csharp
 using Wallow.Shared.Kernel;
 
-// Shared meter (already registered with OpenTelemetry as "Wallow")
+// Shared meter, named "Wallow"
 Diagnostics.Meter
 
-// Module-scoped activity source for tracing
-Diagnostics.CreateActivitySource("MyModule")  // creates "Wallow.MyModule"
+// Module-scoped meter and activity source
+Diagnostics.CreateMeter("MyModule")            // creates "Wallow.MyModule"
+Diagnostics.CreateActivitySource("MyModule")   // creates "Wallow.MyModule"
 ```
+
+Prefer a module-scoped meter over the shared `Diagnostics.Meter`: it keeps a fork's
+`Diagnostics.Initialize(prefix)` rename coherent and lets a single `AddMeter("Wallow.*")` pick up
+every module at once.
 
 ### Naming Convention
 
-| Type | Format | Example |
-|------|--------|---------|
-| **Metrics** | `wallow.{module}.{metric_name}` | `wallow.notifications.dispatched_total` |
-| **Activity Sources** | `Wallow.{Module}` | `Wallow.Notifications` |
+| Type | Format | Example (real) |
+|------|--------|----------------|
+| **Metrics** | `wallow.{module}.{metric_name}` | `wallow.messaging.messages_total` |
+| **Activity Sources** | `Wallow.{Module}` | `Wallow.Identity` |
 
-Use snake_case for metric names. Append `_total` to counters and include a `unit` parameter on histograms where applicable.
+Use snake_case for metric names. Append `_total` to counters and include a `unit` parameter on
+histograms where applicable.
 
 ### Adding Metrics to a Handler or Service
 
-Declare instruments as `static readonly` fields, then record values inside your handler:
+Declare instruments as `static readonly` fields on a module telemetry class, then record values where
+the work happens. `IdentityModuleTelemetry` (at
+`api/src/Modules/Identity/Wallow.Identity.Application/Telemetry/IdentityModuleTelemetry.cs`) is the
+smallest real example:
 
 ```csharp
-// From Notifications — NotificationSentDomainEventHandler.cs
-private static readonly Counter<long> NotificationsSentCounter =
-    Diagnostics.Meter.CreateCounter<long>("wallow.notifications.sent_total");
+using System.Diagnostics;
+using System.Diagnostics.Metrics;
+using Wallow.Shared.Kernel;
 
-private static readonly Histogram<double> NotificationLatencyHistogram =
-    Diagnostics.Meter.CreateHistogram<double>("wallow.notifications.dispatch_duration_seconds");
+namespace Wallow.Identity.Application.Telemetry;
 
-// Inside the handler method:
-NotificationsSentCounter.Add(1,
-    new KeyValuePair<string, object?>("channel", channel),
-    new KeyValuePair<string, object?>("status", status));
+public static class IdentityModuleTelemetry
+{
+    public static readonly ActivitySource ActivitySource = Diagnostics.CreateActivitySource("Identity");
+    private static readonly Meter _meter = Diagnostics.CreateMeter("Identity");
 
-NotificationLatencyHistogram.Record(dispatchDuration.TotalSeconds,
-    new KeyValuePair<string, object?>("channel", channel));
+    public static readonly Counter<long> RequestsAuthenticatedTotal =
+        _meter.CreateCounter<long>("wallow.requests_authenticated_total",
+            description: "Total authenticated requests");
+}
 ```
+
+For a tagged counter and histogram recorded together, `WolverineModuleTaggingMiddleware` builds one
+tag array and reuses it for both instruments:
 
 ```csharp
-// From Storage — StorageModuleTelemetry.cs
-private static readonly Counter<long> FilesUploaded =
-    Diagnostics.Meter.CreateCounter<long>("wallow.storage.files_uploaded_total");
+KeyValuePair<string, object?>[] tags =
+[
+    new("message_type", messageType.Name),
+    new("module", module),
+    new("status", status)
+];
 
-private static readonly Histogram<double> FileSizeBytes =
-    Diagnostics.Meter.CreateHistogram<double>("wallow.storage.file_size_bytes");
+Diagnostics.MessagesTotal.Add(1, tags);
 
-// Inside handler methods:
-FilesUploaded.Add(1);
-FileSizeBytes.Record((double)file.SizeBytes);
+double elapsedMs = Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds;
+Diagnostics.MessageDuration.Record(elapsedMs, tags);
 ```
+
+Keep tag cardinality low. `message_type`, `module`, and `status` are all bounded sets; a tenant ID or
+user ID is not, and will multiply your time series.
 
 ### Adding Custom Traces
 
-Use `Diagnostics.CreateActivitySource` for module-scoped tracing:
+Use `Diagnostics.CreateActivitySource` for module-scoped tracing. From `SmtpEmailProvider`, the one
+place in the codebase that opens a custom span:
+
+```csharp
+using Activity? activity = EmailModuleTelemetry.ActivitySource.StartActivity();
+```
+
+`StartActivity()` with no arguments names the span after the calling method. Pass an explicit name
+when you want something stable:
 
 ```csharp
 private static readonly ActivitySource StorageActivitySource =
     Diagnostics.CreateActivitySource("Storage");
 
 // Inside the method:
-using var activity = StorageActivitySource.StartActivity("Storage.GetFiles");
+using Activity? activity = StorageActivitySource.StartActivity("Storage.GetFiles");
 activity?.SetTag("storage.tenant_id", query.TenantId.ToString());
 // ... perform work ...
 activity?.SetTag("storage.file_count", fileList.Count);
 ```
 
-All `Wallow.*` activity sources are registered via a wildcard in `ServiceCollectionExtensions.cs`:
-
-```csharp
-.WithTracing(tracing => tracing
-    .AddSource("Wallow.*")
-    // ... other configuration
-```
+`StartActivity` returns `null` when no listener is subscribed to the source — which is the case for
+every `Wallow.*` source today, since none is registered with `AddSource`. The null-conditional calls
+are not optional defensive style; they are the normal path until you register the source.
 
 ### Creating Grafana Dashboard Panels
 
-With metrics flowing to Prometheus, create dashboard panels using PromQL:
+Once the meters are registered and metrics are flowing to Prometheus, build panels with PromQL.
+Prometheus converts dots to underscores, so `wallow.messaging.messages_total` is queried as
+`wallow_messaging_messages_total`, and a histogram named `wallow.messaging.message_duration` exposes
+`wallow_messaging_message_duration_bucket`, `_sum`, and `_count` series.
 
 | Panel | PromQL |
 |-------|--------|
-| Notifications sent (rate) | `rate(wallow_notifications_sent_total[5m])` |
-| Dispatch latency P95 | `histogram_quantile(0.95, rate(wallow_notifications_dispatch_duration_seconds_bucket[5m]))` |
-| Files uploaded per minute | `rate(wallow_storage_files_uploaded_total[1m]) * 60` |
-| File size distribution | `histogram_quantile(0.5, rate(wallow_storage_file_size_bytes_bucket[5m]))` |
+| Message throughput by module | `sum by (module) (rate(wallow_messaging_messages_total[5m]))` |
+| Message failure rate | `sum(rate(wallow_messaging_messages_total{status!="success"}[5m])) / sum(rate(wallow_messaging_messages_total[5m]))` |
+| Message duration P95 | `histogram_quantile(0.95, sum by (le, module) (rate(wallow_messaging_message_duration_bucket[5m])))` |
+| Domain events published | `sum by (event_type) (rate(wallow_messaging_domain_events_published_total[5m]))` |
+| Cache hit ratio | `sum(rate(wallow_cache_hits_total[5m])) / (sum(rate(wallow_cache_hits_total[5m])) + sum(rate(wallow_cache_misses_total[5m])))` |
+| Authenticated request rate | `rate(wallow_requests_authenticated_total[5m])` |
 
-> **Note:** Prometheus converts dots to underscores, so `wallow.notifications.sent_total` becomes `wallow_notifications_sent_total`.
+`wallow.messaging.message_duration` is recorded in **milliseconds** (`unit: "ms"`), so the P95 panel
+above is already in milliseconds — do not multiply by 1000 the way the HTTP-duration panels in
+`slo-monitoring.json` do, since those source metrics are in seconds.
 
-> **Current modules:** Identity, Storage, Notifications, Announcements, Inquiries, ApiKeys, Branding. Use these module names in your metrics and traces.
+To add a panel: **Grafana** > **Dashboards** > **New Dashboard** > **Add visualization** > select the
+**Prometheus** data source > enter the PromQL query > choose a visualization (Stat for counters, Time
+Series for rates, Heatmap for histograms).
 
-To add a panel: **Grafana** > **Dashboards** > **New Dashboard** > **Add visualization** > select **Prometheus** data source > enter the PromQL query > choose an appropriate visualization (Stat for counters, Time Series for rates, Heatmap for histograms).
+> **Current modules:** Identity, Storage, Notifications, Announcements, Inquiries, ApiKeys, Branding.
+> Use these module names in your metrics and traces.
 
 ## Related Documentation
 
 - [Developer Guide](../getting-started/developer-guide.md) - General development practices
 - [Deployment Guide](deployment.md) - Production deployment including observability
-- [Messaging Guide](../architecture/messaging.md) - Message tracing with Wolverine
+- [Messaging Guide](../architecture/messaging.md) - Wolverine messaging model and module tagging
