@@ -481,7 +481,7 @@ services:
       # Downstream API for the /api reverse proxy (container-to-container)
       BFF_API_BASE_URL: http://wallow-api:8080
       # Seals/encrypts the BFF session cookie (min 32 chars)
-      COOKIE_PASSWORD: ${BFF_COOKIE_PASSWORD}
+      COOKIE_PASSWORD: ${BFF_COOKIE_PASSWORD:?BFF_COOKIE_PASSWORD is required (32+ char secret; see .env.production.example)}
       # Server-side sessions in Valkey so logout truly revokes tokens
       REDIS_URL: "redis://:${VALKEY_PASSWORD}@valkey:6379"
       # OpenTelemetry
