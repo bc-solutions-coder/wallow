@@ -131,7 +131,7 @@ For regular user tokens, the middleware first expands roles to permissions, then
 | `manager` | User read, organization management, API keys, configuration, inquiries read |
 | `user` | Organization read, messaging, notifications, announcements read, storage, API key read/create, inquiries write |
 
-> **Note:** `PermissionType` is a static class with string constants (not a numeric enum). Permissions are grouped by domain area. The current active modules are: Identity, Storage, Notifications, Messaging, Announcements, and Inquiries.
+> **Note:** `PermissionType` is a static class with string constants (not a numeric enum). Permissions are grouped by domain area. The current active modules are: Identity, Storage, Notifications, Announcements, Inquiries, ApiKeys, and Branding.
 
 ---
 

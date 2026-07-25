@@ -96,7 +96,7 @@ cd docker && docker compose down -v && docker compose up -d
 
 Wallow is a modular monolith. Each module is an autonomous bounded context that follows Clean Architecture internally and communicates with other modules exclusively through integration events over Wolverine. Modules never reference each other directly.
 
-**Modules:** Identity, Branding, Storage, Notifications, Messaging, Announcements, Inquiries, ApiKeys
+**Modules:** Identity, Branding, Storage, Notifications, Announcements, Inquiries, ApiKeys
 
 **Shared libraries:**
 - `Wallow.Shared.Contracts` -- Cross-module integration events and DTOs
@@ -137,7 +137,6 @@ api/src/
     Inquiries/                        # Same four-layer pattern
     Storage/
     Notifications/
-    Messaging/
     Announcements/
     Inquiries/
   Shared/

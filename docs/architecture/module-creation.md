@@ -14,7 +14,7 @@ Before creating a new module:
 - Identify primary entities and their relationships
 - Determine if the module needs database persistence (EF Core) or is stateless
 
-> **Current modules:** Identity, Branding, Storage, Notifications, Messaging, Announcements, Inquiries, ApiKeys. New modules should complement these existing capabilities.
+> **Current modules:** Identity, Branding, Storage, Notifications, Announcements, Inquiries, ApiKeys. New modules should complement these existing capabilities.
 
 ---
 
@@ -527,4 +527,4 @@ These cross-cutting capabilities in the Shared layer are available to all module
 
 ---
 
-*Reference implementation: [Inquiries module](https://github.com/bc-solutions-coder/wallow/tree/main/api/src/Modules/Inquiries). Current modules: Identity, Branding, Storage, Notifications, Messaging, Announcements, Inquiries, ApiKeys.*
+*Reference implementation: [Inquiries module](https://github.com/bc-solutions-coder/wallow/tree/main/api/src/Modules/Inquiries). Current modules: Identity, Branding, Storage, Notifications, Announcements, Inquiries, ApiKeys.*

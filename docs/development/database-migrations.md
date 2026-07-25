@@ -174,7 +174,6 @@ dotnet ef migrations add AddSubmissionStatusField \
 | Identity | `identity` | Yes | Yes |
 | Storage | `storage` | Yes | Yes |
 | Notifications | `notifications` | Yes | Yes |
-| Messaging | `messaging` | Yes | Yes |
 | Announcements | `announcements` | Yes | Yes |
 | Inquiries | `inquiries` | Yes | Yes |
 | ApiKeys | `apikeys` | Yes | Yes |

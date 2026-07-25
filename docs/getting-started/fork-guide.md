@@ -226,9 +226,9 @@ Modules are controlled by the `FeatureManagement` section in `appsettings.json`.
 {
   "FeatureManagement": {
     "Modules.Branding": true,
+    "Modules.Identity": true,
     "Modules.Storage": true,
     "Modules.Notifications": true,
-    "Modules.Messaging": true,
     "Modules.Announcements": true,
     "Modules.Configuration": true,
     "Modules.Inquiries": true,
