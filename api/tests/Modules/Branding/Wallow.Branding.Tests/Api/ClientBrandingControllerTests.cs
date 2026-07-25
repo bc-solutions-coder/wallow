@@ -450,7 +450,7 @@ public class ClientBrandingControllerUpsertTests
         result.Result.Should().BeOfType<OkObjectResult>();
         await _storageProvider.Received(1).UploadAsync(
             Arg.Any<Stream>(),
-            Arg.Is<string>(k => k.StartsWith("client-logos/")),
+            Arg.Is<string>(k => k!.StartsWith("client-logos/")),
             "image/png",
             Arg.Any<CancellationToken>());
     }
@@ -476,7 +476,7 @@ public class ClientBrandingControllerUpsertTests
         result.Result.Should().BeOfType<OkObjectResult>();
         await _storageProvider.Received(1).UploadAsync(
             Arg.Any<Stream>(),
-            Arg.Is<string>(k => k.StartsWith("client-logos/") && k.EndsWith(".jpg")),
+            Arg.Is<string>(k => k!.StartsWith("client-logos/") && k.EndsWith(".jpg")),
             "image/jpeg",
             Arg.Any<CancellationToken>());
     }
@@ -506,7 +506,7 @@ public class ClientBrandingControllerUpsertTests
         result.Result.Should().BeOfType<OkObjectResult>();
         await _storageProvider.Received(1).UploadAsync(
             Arg.Any<Stream>(),
-            Arg.Is<string>(k => k.StartsWith("client-logos/") && k.EndsWith(".webp")),
+            Arg.Is<string>(k => k!.StartsWith("client-logos/") && k.EndsWith(".webp")),
             "image/webp",
             Arg.Any<CancellationToken>());
     }
@@ -534,7 +534,7 @@ public class ClientBrandingControllerUpsertTests
         await _storageProvider.Received(1).DeleteAsync("client-logos/old.png", Arg.Any<CancellationToken>());
         await _storageProvider.Received(1).UploadAsync(
             Arg.Any<Stream>(),
-            Arg.Is<string>(k => k.StartsWith("client-logos/") && k.EndsWith(".png")),
+            Arg.Is<string>(k => k!.StartsWith("client-logos/") && k.EndsWith(".png")),
             "image/png",
             Arg.Any<CancellationToken>());
     }
@@ -583,7 +583,7 @@ public class ClientBrandingControllerUpsertTests
         ActionResult<ClientBrandingDto> result = await _sut.UpsertBranding(TestClientId, request, null, CancellationToken.None);
 
         result.Result.Should().BeOfType<OkObjectResult>();
-        _repository.Received(1).Add(Arg.Is<ClientBranding>(b => b.Tagline == "A cool tagline"));
+        _repository.Received(1).Add(Arg.Is<ClientBranding>(b => b!.Tagline == "A cool tagline"));
     }
 
     [Fact]

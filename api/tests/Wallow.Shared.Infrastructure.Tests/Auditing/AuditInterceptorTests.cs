@@ -340,7 +340,7 @@ public class AuditInterceptorTests(AuditInterceptorFixture fixture) : IClassFixt
         int countBefore = await auditDb.AuditEntries.CountAsync();
 
         DbContextEventData eventData = Substitute.For<DbContextEventData>(
-            null, null, null);
+            null!, null!, null!);
         eventData.Context.Returns((DbContext?)null);
 
         await interceptor.SavingChangesAsync(eventData, default);
@@ -377,7 +377,7 @@ public class AuditInterceptorTests(AuditInterceptorFixture fixture) : IClassFixt
         testDb.AuditTestEntities.Add(new AuditTestEntity { Id = entityId, Name = "CatchBlock", Value = 1 });
 
         DbContextEventData eventData = Substitute.For<DbContextEventData>(
-            null, null, null);
+            null!, null!, null!);
         eventData.Context.Returns(testDb);
 
         // Should not throw — CaptureChanges catch block swallows the scope failure,
