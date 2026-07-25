@@ -26,6 +26,8 @@
       href: architecture/caching.md
     - name: File Storage
       href: architecture/file-storage.md
+    - name: Messaging
+      href: architecture/messaging.md
     - name: Realtime
       href: architecture/realtime.md
 - name: Development
