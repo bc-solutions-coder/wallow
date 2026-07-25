@@ -257,7 +257,7 @@ A user could be subject to both simultaneously. The admin clear-lockout endpoint
 Admins can clear all lockout state for a user — both password lockout and MFA lockout — via:
 
 ```
-POST /api/v1/identity/mfa/admin/{userId}/clear-lockout
+POST /v1/identity/mfa/admin/{userId}/clear-lockout
 ```
 
 Requires: `Authorization: Bearer <admin-token>` (caller must have the `admin` role).
@@ -274,7 +274,7 @@ A `UserMfaLockoutClearedEvent` is published after a successful clear, recording 
 ```bash
 curl -X POST \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
-  http://localhost:5001/api/v1/identity/mfa/admin/550e8400-e29b-41d4-a716-446655440000/clear-lockout
+  http://localhost:5001/v1/identity/mfa/admin/550e8400-e29b-41d4-a716-446655440000/clear-lockout
 ```
 
 **Response:**

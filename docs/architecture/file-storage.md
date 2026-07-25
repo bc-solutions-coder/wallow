@@ -110,20 +110,24 @@ Kestrel's global request body limit is set to 1 MB in `Program.cs`. The storage 
 
 ## API Endpoints
 
-All storage endpoints are versioned and require authorization. The base path is `/api/v1/storage`.
+All storage endpoints are versioned and require authorization. The base path is `/v1/storage`.
+
+> [!NOTE]
+> Routes are served at `/v1/...`. The `/api` prefix only exists when a reverse proxy adds
+> it via the opt-in PathBase (`api/src/Wallow.Api/Program.cs`).
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/v1/storage/buckets` | Create a storage bucket |
-| GET | `/api/v1/storage/buckets/{name}` | Get bucket by name |
-| DELETE | `/api/v1/storage/buckets/{name}` | Delete a bucket |
-| POST | `/api/v1/storage/upload` | Upload a file (multipart) |
-| GET | `/api/v1/storage/files/{id}` | Get file metadata |
-| GET | `/api/v1/storage/files/{id}/download` | Download (redirects to presigned URL) |
-| GET | `/api/v1/storage/files/{id}/presigned-url` | Get presigned download URL |
-| DELETE | `/api/v1/storage/files/{id}` | Delete a file |
-| GET | `/api/v1/storage/files?bucket=x&path=y` | List files in bucket (paginated) |
-| POST | `/api/v1/storage/presigned-upload` | Get presigned upload URL |
+| POST | `/v1/storage/buckets` | Create a storage bucket |
+| GET | `/v1/storage/buckets/{name}` | Get bucket by name |
+| DELETE | `/v1/storage/buckets/{name}` | Delete a bucket |
+| POST | `/v1/storage/upload` | Upload a file (multipart) |
+| GET | `/v1/storage/files/{id}` | Get file metadata |
+| GET | `/v1/storage/files/{id}/download` | Download (redirects to presigned URL) |
+| GET | `/v1/storage/files/{id}/presigned-url` | Get presigned download URL |
+| DELETE | `/v1/storage/files/{id}` | Delete a file |
+| GET | `/v1/storage/files?bucket=x&path=y` | List files in bucket (paginated) |
+| POST | `/v1/storage/presigned-upload` | Get presigned upload URL |
 
 The controller is at `api/src/Modules/Storage/Wallow.Storage.Api/Controllers/StorageController.cs`.
 
@@ -141,11 +145,11 @@ Files uploaded through the API are processed by `UploadFileHandler`. The handler
 
 ### Direct Client Upload (Presigned URLs)
 
-For large files, clients request a presigned upload URL via `POST /api/v1/storage/presigned-upload`, then upload directly to the storage backend, bypassing the API for the file transfer.
+For large files, clients request a presigned upload URL via `POST /v1/storage/presigned-upload`, then upload directly to the storage backend, bypassing the API for the file transfer.
 
 ### Download
 
-The download endpoint (`GET /api/v1/storage/files/{id}/download`) redirects the client to a presigned URL, offloading bandwidth from the API.
+The download endpoint (`GET /v1/storage/files/{id}/download`) redirects the client to a presigned URL, offloading bandwidth from the API.
 
 ## Multi-Tenancy
 
@@ -165,7 +169,7 @@ Storage buckets (`api/src/Modules/Storage/Wallow.Storage.Domain/Entities/Storage
 
 ## Troubleshooting
 
-**File upload fails with "Bucket not found"**: Ensure the bucket exists. Create it first via `POST /api/v1/storage/buckets`.
+**File upload fails with "Bucket not found"**: Ensure the bucket exists. Create it first via `POST /v1/storage/buckets`.
 
 **S3 upload fails with connection error**: Verify `Storage:S3:Endpoint` is correct. For self-hosted backends (GarageHQ, MinIO), ensure `UsePathStyle: true`.
 
