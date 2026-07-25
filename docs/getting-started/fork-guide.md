@@ -46,11 +46,12 @@ See the `NOTICE` file in the repository root. "Wallow" is a trademark of BC Solu
 The simplest fork strategy is to **keep all `Wallow.*` namespaces unchanged** and customize the user-facing product identity through configuration only:
 
 1. **Fork and clone** the repository
-2. **Edit `branding.json`** in the repo root to set your product name, icon, tagline, and theme colors
-3. **Edit `appsettings.json`** to configure CORS origins, connection strings, SMTP sender name, and OpenTelemetry service name
-4. **Set up the merge driver** so upstream merges don't overwrite your config (see "Merge Driver Setup" below)
+2. **Edit `api/branding.json`** to set your product name, icon, tagline, landing-page toggle, and theme colors
+3. **Edit `api/src/Wallow.Api/appsettings.json`** to configure connection strings, the SMTP sender name, and the OpenTelemetry service name
+4. **Edit `api/seed.json`** to set your bootstrap tenant, roles, and admin account
+5. **Set up the merge driver** so upstream merges don't overwrite your config (see "Merge Driver Setup" below)
 
-This approach has **zero risk of silent failures** and gives you the easiest upstream sync path. All user-facing text (page titles, login screens, emails) is driven by `BrandingOptions` which reads from `branding.json`.
+This approach has **zero risk of silent failures** and gives you the easiest upstream sync path. All fork identity in the React apps -- page titles, auth screens, theme colors -- is resolved from `api/branding.json` by `packages/styles`, so no source changes are needed. See the [Configuration Guide](configuration.md) for the full key reference.
 
 ### Merge Driver Setup
 
@@ -60,7 +61,17 @@ The repository ships a `.gitattributes` that marks fork-owned files with `merge=
 git config merge.ours.driver true
 ```
 
-This ensures that `appsettings*.json`, `branding.json`, `docker/.env`, `CLAUDE.md`, and `.claude/**` keep your fork's version during upstream merges.
+The entries it covers are:
+
+| Pattern | What it protects |
+|---------|------------------|
+| `appsettings*.json` | Every app settings file, in every project |
+| `branding.json` | Fork branding and theme (`api/branding.json`) |
+| `docker/.env` | Your local Compose credentials |
+| `docker/.env.example` | Fork-specific additions to the example env |
+| `seed.json` | Bootstrap tenant, roles, and admin (`api/seed.json`) |
+
+These files keep your fork's version during upstream merges. Anything outside this list -- including `CLAUDE.md` and `.claude/**` -- merges normally, so expect to resolve conflicts there yourself.
 
 ---
 
@@ -75,10 +86,12 @@ git clone git@github.com:your-org/YourProduct.git
 cd YourProduct
 ```
 
+The .NET side of the repository lives entirely under `api/`: the solution is `api/Wallow.slnx`, projects are under `api/src/`, and test projects under `api/tests/`. The commands below assume you run them from the repository root.
+
 ### 2. Rename the solution file
 
 ```bash
-mv Wallow.slnx YourProduct.slnx
+mv api/Wallow.slnx api/YourProduct.slnx
 ```
 
 ### 3. Rename namespaces across the codebase
@@ -88,13 +101,13 @@ Every `Wallow.*` namespace, project name, and assembly reference must become `Yo
 **Rename directories and project files:**
 
 ```bash
-# Rename project directories (src and tests)
-find src tests -type d -name 'Wallow.*' | while read dir; do
+# Rename project directories (deepest first, so parents stay valid mid-loop)
+find api/src api/tests -depth -type d -name 'Wallow.*' | while read dir; do
   mv "$dir" "$(echo "$dir" | sed 's/Wallow\./YourProduct./')"
 done
 
 # Rename .csproj files
-find src tests -name 'Wallow.*.csproj' | while read f; do
+find api/src api/tests -name 'Wallow.*.csproj' | while read f; do
   mv "$f" "$(echo "$f" | sed 's/Wallow\./YourProduct./')"
 done
 ```
@@ -102,44 +115,50 @@ done
 **Replace namespace strings in all source files:**
 
 ```bash
-find . \( -name '*.sln' -o -name '*.csproj' -o -name '*.cs' -o -name '*.json' \
-       -o -name 'Dockerfile' -o -name '*.yml' -o -name '*.yaml' \) \
-  -not -path '*/bin/*' -not -path '*/obj/*' -not -path '*/.git/*' \
+find api \( -name '*.slnx' -o -name '*.csproj' -o -name '*.props' -o -name '*.cs' \
+       -o -name '*.json' \) \
+  -not -path '*/bin/*' -not -path '*/obj/*' \
   -exec sed -i '' 's/Wallow\./YourProduct./g' {} +
 
 # Catch standalone "Wallow" references (log messages, display names, etc.)
 # Review these manually — some may be intentional:
-find . \( -name '*.cs' -o -name '*.json' -o -name '*.yml' \) \
-  -not -path '*/bin/*' -not -path '*/obj/*' -not -path '*/.git/*' \
-  -exec grep -l '"Wallow"' {} +
+grep -rl '"Wallow"' api --include='*.cs' --include='*.json' \
+  --exclude-dir=bin --exclude-dir=obj
 ```
 
 Alternatively, use your IDE's global Find and Replace. JetBrains Rider handles this well with **Edit > Find and Replace in Files**.
 
 ### 4. Update the solution file references
 
-Open `YourProduct.slnx` and verify all project paths point to the renamed `.csproj` files. The `sed` pass above should handle this, but confirm with:
+Open `api/YourProduct.slnx` and verify all project paths point to the renamed `.csproj` files. The `sed` pass above should handle this, but confirm with:
 
 ```bash
-grep 'Wallow\.' YourProduct.slnx
+grep 'Wallow\.' api/YourProduct.slnx
 ```
 
 Should return nothing.
 
-### 5. Update configuration files
+### 5. Update configuration and build files
 
 | File | What to change |
 |------|---------------|
 | `docker/.env` | `COMPOSE_PROJECT_NAME` |
 | `docker/docker-compose.yml` | Network name, container prefixes |
-| `appsettings.json` | Application name and branding |
-| `branding.json` | `appName`, `tagline`, icon |
-| `Dockerfile` | Solution file and DLL references |
+| `docker/docker-compose.production.yml` | Image names (`ghcr.io/<org>/<image>`), container names |
+| `api/src/Wallow.Api/appsettings.json` | `OpenTelemetry:ServiceName`, `Smtp:DefaultFromName` |
+| `api/branding.json` | `appName`, `tagline`, `appIcon` |
+| `api/Directory.Build.props`, `api/Directory.Packages.props` | Any hardcoded product name or assembly prefix |
 | `.github/workflows/*.yml` | Database names, connection strings, deploy paths, image names |
 
-### 6. Update Wolverine assembly scanning
+**There is no root `Dockerfile`.** The .NET images are produced by the .NET SDK container tooling -- `dotnet publish /t:PublishContainer` in `.github/workflows/ci.yml` and `deploy.yml` -- driven by the `<ContainerRepository>` properties in `api/src/Wallow.Api/Wallow.Api.csproj`, `Wallow.MigrationService.csproj`, and `Wallow.SeederService.csproj`. Rename those properties rather than editing a Dockerfile. The only Dockerfiles in the repository build the React apps (`apps/wallow-web/Dockerfile`, `apps/wallow-auth/Dockerfile`) and supporting infrastructure images (`docker/docs/`, `docker/garage/`, `docker/images/*/`).
 
-In `Program.cs`, update the assembly prefix filter to match your new namespace:
+### 6. Rename the frontend workspace (optional)
+
+Renaming the .NET namespaces does not touch the pnpm workspace. If you also want to re-scope the TypeScript packages, change the `name` fields in each `packages/*/package.json` and `apps/*/package.json` from `@bc-solutions-coder/*` to your own scope, update the matching `workspace:*` dependency keys, update `.npmrc` for your registry, and re-run `pnpm install` to regenerate the lockfile.
+
+### 7. Update Wolverine assembly scanning
+
+In `api/src/Wallow.Api/Program.cs`, update the assembly prefix filter to match your new namespace:
 
 ```csharp
 foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies()
@@ -149,21 +168,15 @@ foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies()
 }
 ```
 
-### 7. Build and verify
+### 8. Build and verify
 
 ```bash
-dotnet restore YourProduct.slnx
-dotnet build YourProduct.slnx
+dotnet restore api/YourProduct.slnx
+dotnet build api/YourProduct.slnx
 ./scripts/run-tests.sh
 ```
 
-Fix any remaining `Wallow` references the compiler surfaces. Also verify the Dockerfile:
-
-```bash
-grep -i wallow Dockerfile
-```
-
-Should return nothing.
+Fix any remaining `Wallow` references the compiler surfaces.
 
 ### Silent Failure Checklist
 
@@ -172,34 +185,19 @@ These components reference `"Wallow"` as a string literal and will **fail silent
 | Component | File | What breaks |
 |-----------|------|-------------|
 | **ModuleEnricher** | `api/src/Wallow.Api/Logging/ModuleEnricher.cs` | Log enrichment stops tagging module names |
-| **OpenTelemetry ServiceName** | `appsettings*.json` → `OpenTelemetry:ServiceName` | Traces/metrics report wrong service name |
+| **OpenTelemetry ServiceName** | `api/src/Wallow.Api/appsettings*.json` → `OpenTelemetry:ServiceName` | Traces/metrics report wrong service name |
 | **Diagnostics ActivitySource** | `api/src/Shared/Wallow.Shared.Kernel/Diagnostics.cs` | Custom traces stop appearing (`new ActivitySource("Wallow")`) |
-| **SMTP DefaultFromName** | `appsettings.json` → `Smtp:DefaultFromName` | Emails show "Wallow" as sender |
-| **branding.json** | `branding.json` → `appName` | Auth pages show "Wallow" in titles |
+| **SMTP DefaultFromName** | `api/src/Wallow.Api/appsettings.json` → `Smtp:DefaultFromName` | Emails show "Wallow" as sender |
+| **branding.json** | `api/branding.json` → `appName` | React app titles and auth screens show "Wallow" |
 | **Email templates** | `SimpleEmailTemplateService` in the Notifications module (`api/src/Modules/Notifications/Wallow.Notifications.Infrastructure/Services/`) | Email bodies may contain hardcoded product name |
+| **Container repositories** | `<ContainerRepository>` in `Wallow.Api.csproj`, `Wallow.MigrationService.csproj`, `Wallow.SeederService.csproj` | Published images keep the upstream image names |
 
 After renaming, search for remaining literal references:
 
 ```bash
-grep -r '"Wallow"' --include='*.cs' --include='*.json' --include='*.razor' \
-  --exclude-dir=bin --exclude-dir=obj .
+grep -r '"Wallow"' --include='*.cs' --include='*.json' \
+  --exclude-dir=bin --exclude-dir=obj --exclude-dir=node_modules .
 ```
-
----
-
-## CORS Cleanup
-
-After forking, remove any upstream origins from the CORS configuration. Edit `appsettings.json`:
-
-```json
-{
-  "Cors": {
-    "AllowedOrigins": ["https://your-app.example.com"]
-  }
-}
-```
-
-Only include origins that your fork actually serves.
 
 ---
 
@@ -353,10 +351,10 @@ await app.InitializeYourModuleModuleAsync();
 ### 6. Add to the solution file
 
 ```bash
-dotnet sln YourProduct.slnx add api/src/Modules/YourModule/YourProduct.YourModule.Domain
-dotnet sln YourProduct.slnx add api/src/Modules/YourModule/YourProduct.YourModule.Application
-dotnet sln YourProduct.slnx add api/src/Modules/YourModule/YourProduct.YourModule.Infrastructure
-dotnet sln YourProduct.slnx add api/src/Modules/YourModule/YourProduct.YourModule.Api
+dotnet sln api/YourProduct.slnx add api/src/Modules/YourModule/YourProduct.YourModule.Domain
+dotnet sln api/YourProduct.slnx add api/src/Modules/YourModule/YourProduct.YourModule.Application
+dotnet sln api/YourProduct.slnx add api/src/Modules/YourModule/YourProduct.YourModule.Infrastructure
+dotnet sln api/YourProduct.slnx add api/src/Modules/YourModule/YourProduct.YourModule.Api
 ```
 
 ### 7. Handler discovery (automatic)
@@ -599,7 +597,7 @@ Each module manages its own migrations through its Infrastructure project.
 ```bash
 dotnet ef migrations add InitialCreate \
     --project api/src/Modules/YourModule/YourProduct.YourModule.Infrastructure \
-    --startup-project src/YourProduct.Api \
+    --startup-project api/src/YourProduct.Api \
     --context YourModuleDbContext
 ```
 
@@ -608,7 +606,7 @@ dotnet ef migrations add InitialCreate \
 ```bash
 dotnet ef database update \
     --project api/src/Modules/YourModule/YourProduct.YourModule.Infrastructure \
-    --startup-project src/YourProduct.Api \
+    --startup-project api/src/YourProduct.Api \
     --context YourModuleDbContext
 ```
 
@@ -739,7 +737,7 @@ dotnet add reference ../../YourProduct.Tests.Common/YourProduct.Tests.Common.csp
 Add the test project to the solution:
 
 ```bash
-dotnet sln YourProduct.slnx add api/tests/Modules/YourModule/YourProduct.YourModule.Tests
+dotnet sln api/YourProduct.slnx add api/tests/Modules/YourModule/YourProduct.YourModule.Tests
 ```
 
 ### 2. Unit tests
@@ -897,10 +895,11 @@ git push origin main
 ## Checklist (Approach A)
 
 - [ ] Fork created and cloned
-- [ ] `branding.json` customized with your product identity
-- [ ] `appsettings.json` configured (CORS, SMTP, OpenTelemetry service name)
+- [ ] `api/branding.json` customized with your product identity
+- [ ] `api/src/Wallow.Api/appsettings.json` configured (SMTP, OpenTelemetry service name, connection strings)
+- [ ] `api/seed.json` configured with your bootstrap tenant and admin
 - [ ] Merge driver activated (`git config merge.ours.driver true`)
-- [ ] `dotnet build` succeeds
+- [ ] `dotnet build api/Wallow.slnx` succeeds
 - [ ] `./scripts/run-tests.sh` passes
 - [ ] Upstream remote added for future syncing
 - [ ] Module toggles configured in `FeatureManagement` section
@@ -908,10 +907,11 @@ git push origin main
 ## Checklist (Approach B -- Full Rename)
 
 - [ ] All `Wallow.*` references renamed to `YourProduct.*`
-- [ ] Solution file renamed and project paths updated
+- [ ] `api/Wallow.slnx` renamed and project paths updated
 - [ ] Docker Compose configuration updated
 - [ ] CI/CD workflows updated
-- [ ] Dockerfile updated
+- [ ] `<ContainerRepository>` properties updated in the three publishable projects
+- [ ] React app Dockerfiles checked (`apps/wallow-web/`, `apps/wallow-auth/`)
 - [ ] Wolverine assembly scanning prefix updated
-- [ ] `dotnet build` succeeds
+- [ ] `dotnet build api/YourProduct.slnx` succeeds
 - [ ] `./scripts/run-tests.sh` passes

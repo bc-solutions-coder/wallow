@@ -5,6 +5,7 @@
 ## Prerequisites
 
 - .NET 10 SDK
+- Node 24 (see `.nvmrc`) and pnpm 10.20.0, for the frontend workspace
 - Docker and Docker Compose
 - Rider or Visual Studio 2022+
 
@@ -12,7 +13,17 @@
 
 ## Getting Started
 
-### 1. Start Infrastructure
+### 1. Create the Docker environment file
+
+Docker Compose reads `docker/.env`, which is not committed. Copy the example and fill in your own values:
+
+```bash
+cp docker/.env.example docker/.env
+```
+
+`GF_ADMIN_PASSWORD` is **required** -- Compose refuses to start the Grafana LGTM service when it is unset.
+
+### 2. Start Infrastructure
 
 Wallow depends on PostgreSQL, Valkey (Redis-compatible cache), GarageHQ (S3-compatible object storage), and Mailpit. Docker Compose provisions all of them:
 
@@ -28,7 +39,7 @@ cd docker && docker compose --profile clamav up -d
 
 Authentication is handled by the embedded OpenIddict server (part of the Identity module), so no external identity provider container is needed.
 
-### 2. Run the API
+### 3. Run the API
 
 ```bash
 dotnet run --project api/src/Wallow.Api
@@ -36,7 +47,7 @@ dotnet run --project api/src/Wallow.Api
 
 The API starts on `http://localhost:5001`. Interactive API documentation is available at `http://localhost:5001/scalar/v1`.
 
-### 3. Run Tests
+### 4. Run Tests
 
 ```bash
 # All tests
@@ -49,9 +60,32 @@ The API starts on `http://localhost:5001`. Interactive API documentation is avai
 ./scripts/run-tests.sh api/tests/Modules/Inquiries/Wallow.Inquiries.Tests
 ```
 
-The script outputs structured per-assembly pass/fail counts and lists individual failed test names. Supported shorthands: `identity`, `storage`, `notifications`, `messaging`, `announcements`, `inquiries`, `branding`, `apikeys`, `auth`, `api`, `arch`, `shared`, `kernel`, `integration`.
+The script outputs structured per-assembly pass/fail counts and lists individual failed test names. Supported shorthands, as defined in `scripts/run-tests.sh`: `identity`, `storage`, `notifications`, `announcements`, `inquiries`, `branding`, `apikeys`, `api`, `arch` (or `architecture`), `shared`, `kernel`, `integration`. Anything else is passed through to `dotnet test` as a project path.
 
-Integration tests require Docker. Testcontainers spins up ephemeral Postgres and Valkey containers automatically.
+Integration tests require Docker. Testcontainers spins up ephemeral Postgres and Valkey containers automatically. They are excluded from a normal run -- only `./scripts/run-tests.sh integration` executes them.
+
+### 5. Run the Frontend
+
+The API is headless. The user interfaces are two TanStack Start React apps in the pnpm workspace: `apps/wallow-web` (dashboard) and `apps/wallow-auth` (login, signup, MFA).
+
+The workspace targets **Node 24** (pinned in `.nvmrc`) and **pnpm 10.20.0** (pinned as `packageManager` in `package.json`). Install the workspace once:
+
+```bash
+pnpm install
+```
+
+Then start everything -- infrastructure, the API, and both React apps -- through the .NET Aspire AppHost, which runs the frontends as Node resources:
+
+```bash
+pnpm backend
+```
+
+| App | URL | Package |
+|-----|-----|---------|
+| Web (dashboard) | http://localhost:3000 | `apps/wallow-web` |
+| Auth (login/signup/MFA) | http://localhost:3002 | `apps/wallow-auth` |
+
+Both ports can be overridden with `PORT`. For running an app on its own, the shared SDK build order, and the same-origin BFF setup, see the [Frontend Setup guide](../development/frontend-setup.md).
 
 ### Local Services
 
@@ -61,13 +95,15 @@ Integration tests require Docker. Testcontainers spins up ephemeral Postgres and
 | Scalar Docs | http://localhost:5001/scalar/v1 | - |
 | OpenIddict Authorize | http://localhost:5001/connect/authorize | - |
 | OpenIddict Token | http://localhost:5001/connect/token | - |
+| Web app | http://localhost:3000 | - |
+| Auth app | http://localhost:3002 | - |
 | GarageHQ (S3 API) | http://localhost:3900 | See `docker/.env` |
 | GarageHQ (Admin API) | http://localhost:3903 | See `docker/.env` |
 | Mailpit | http://localhost:8025 | - |
 | PostgreSQL | localhost:5432 | See `docker/.env` |
 | AsyncAPI Viewer | http://localhost:5001/asyncapi | Dev only |
 | ClamAV (optional) | localhost:3310 | - |
-| Grafana | http://localhost:3001 | admin / admin |
+| Grafana | http://localhost:3001 | `admin` / `GF_ADMIN_PASSWORD` from `docker/.env` |
 
 ### Getting a Test Token
 
@@ -101,7 +137,11 @@ Wallow is a modular monolith. Each module is an autonomous bounded context that 
 **Shared libraries:**
 - `Wallow.Shared.Contracts` -- Cross-module integration events and DTOs
 - `Wallow.Shared.Kernel` -- Base classes, multi-tenancy primitives, shared abstractions
-- `Wallow.Shared.Infrastructure` -- Cross-cutting infrastructure (auditing, background jobs)
+- `Wallow.Shared.Api` -- Shared API extensions, settings, and health checks
+- `Wallow.Shared.Infrastructure` -- Settings and AsyncAPI document generation
+- `Wallow.Shared.Infrastructure.Core` -- Auditing, caching, messaging, persistence, middleware
+- `Wallow.Shared.Infrastructure.BackgroundJobs` -- `IJobScheduler` over Hangfire
+- `Wallow.Shared.Infrastructure.Plugins` -- Plugin loading and lifecycle
 
 ---
 
@@ -125,42 +165,51 @@ A thin `IJobScheduler` abstraction (defined in `Shared.Kernel/BackgroundJobs/`) 
 
 ## Project Structure
 
+The solution file is `api/Wallow.slnx`; everything below is relative to the repository root.
+
 ```
 api/src/
   Wallow.Api/                        # Host -- wires all modules together
+  Wallow.AppHost/                    # .NET Aspire host (orchestrates API, infra, React apps)
+  Wallow.MigrationService/           # Applies module migrations (used outside Development)
+  Wallow.SeederService/              # Seeds tenants, roles, and the bootstrap admin
+  Wallow.ServiceDefaults/            # Shared Aspire service defaults (telemetry, health, resilience)
   Modules/
     Identity/
       Wallow.Identity.Domain/
       Wallow.Identity.Application/
       Wallow.Identity.Infrastructure/
       Wallow.Identity.Api/
-    Inquiries/                        # Same four-layer pattern
-    Storage/
-    Notifications/
-    Announcements/
+    Announcements/                    # Same four-layer pattern
+    ApiKeys/
+    Branding/
     Inquiries/
+    Notifications/
+    Storage/
   Shared/
     Wallow.Shared.Contracts/                     # Cross-module events and DTOs
     Wallow.Shared.Kernel/                        # Base classes, multi-tenancy, shared abstractions
-    Wallow.Shared.Infrastructure/                # Settings and shared infrastructure
-    Wallow.Shared.Infrastructure.Core/           # Auditing, caching, messaging middleware
+    Wallow.Shared.Api/                           # Shared API extensions, settings, health checks
+    Wallow.Shared.Infrastructure/                # Settings and AsyncAPI document generation
+    Wallow.Shared.Infrastructure.Core/           # Auditing, caching, messaging, persistence, middleware
     Wallow.Shared.Infrastructure.Plugins/        # Plugin loading and lifecycle
     Wallow.Shared.Infrastructure.BackgroundJobs/ # IJobScheduler / Hangfire
 
 
 api/tests/
   Wallow.Api.Tests/
+  Wallow.AppHost.Tests/
   Wallow.Architecture.Tests/
   Wallow.Shared.Kernel.Tests/
   Wallow.Shared.Infrastructure.Tests/
   Wallow.Tests.Common/               # Shared test utilities, fixtures, factories
+  Benchmarks/                        # BenchmarkDotNet projects
   Modules/
     {Module}/
-      {Module}.Domain.Tests/          # Unit tests for domain layer
-      {Module}.Application.Tests/     # Unit tests for application layer
-      {Module}.Infrastructure.Tests/  # Unit tests for infrastructure layer
-      Wallow.{Module}.IntegrationTests/  # Integration tests (optional)
+      Wallow.{Module}.Tests/         # One test project per module, with per-layer subfolders
 ```
+
+Each module has a **single** `Wallow.{Module}.Tests` project rather than one project per layer; domain, application, and infrastructure tests live in subfolders inside it. Identity additionally has `Wallow.Identity.IntegrationTests`, the only integration-test project in the repository.
 
 ---
 
@@ -383,10 +432,12 @@ dotnet ef migrations add InitialCreate \
 
 ### Step 8: Add Tests
 
-Create test projects under `api/tests/Modules/Tickets/`:
-- `Tickets.Domain.Tests/` -- Unit tests for domain entities and value objects
-- `Tickets.Application.Tests/` -- Unit tests for handlers and validators
-- `Tickets.Infrastructure.Tests/` -- Unit tests for repositories (optional)
+Create a single test project, `api/tests/Modules/Tickets/Wallow.Tickets.Tests/`, and organize it with one subfolder per layer:
+- `Domain/` -- Unit tests for domain entities and value objects
+- `Application/` -- Unit tests for handlers and validators
+- `Infrastructure/` -- Unit tests for repositories (optional)
+
+Then add a shorthand for the new module to the `resolve_filter` case block in `scripts/run-tests.sh` so `./scripts/run-tests.sh tickets` works.
 
 ### Handler Discovery
 

@@ -10,6 +10,7 @@ This guide gets you from zero to productive. For the full architecture reference
 
 - **Docker Desktop** (or Docker Engine + Docker Compose)
 - **.NET 10 SDK** ([download](https://dotnet.microsoft.com/download/dotnet/10.0))
+- **Node 24** (see `.nvmrc`) and **pnpm 10.20.0**, for the frontend workspace
 - **Your preferred IDE** (Rider, VS Code with C# Dev Kit, or Visual Studio)
 - **Git**
 
@@ -20,10 +21,13 @@ This guide gets you from zero to productive. For the full architecture reference
 git clone https://github.com/your-org/wallow.git
 cd wallow
 
-# 2. Start infrastructure services
+# 2. Create the Docker env file (GF_ADMIN_PASSWORD is required)
+cp docker/.env.example docker/.env
+
+# 3. Start infrastructure services
 cd docker && docker compose up -d
 
-# 3. Run the API (from repo root)
+# 4. Run the API (from repo root)
 cd ..
 dotnet run --project api/src/Wallow.Api
 
@@ -31,15 +35,24 @@ dotnet run --project api/src/Wallow.Api
 # [12:34:56 INF] [Api] Now listening on: http://localhost:5001
 ```
 
+To run the whole system -- infrastructure, API, and both React apps -- in one command instead, use the .NET Aspire host:
+
+```bash
+pnpm install
+pnpm backend
+```
+
 ### Verify Everything Works
 
 | Service | URL | Credentials |
 |---------|-----|-------------|
 | API Docs (Scalar) | http://localhost:5001/scalar/v1 | N/A |
+| Web app | http://localhost:3000 | N/A |
+| Auth app | http://localhost:3002 | N/A |
 | Mailpit (Email Sink) | http://localhost:8025 | N/A |
-| Grafana (Observability) | http://localhost:3001 | admin / See `docker/.env` |
+| Grafana (Observability) | http://localhost:3001 | `admin` / `GF_ADMIN_PASSWORD` from `docker/.env` |
 
-If all URLs load, you are ready.
+If all URLs load, you are ready. (The web and auth apps only run when you started things with `pnpm backend`.)
 
 ---
 
@@ -72,7 +85,9 @@ Dependencies point inward. Domain depends on nothing. Infrastructure and Api dep
 **Shared infrastructure.** Cross-cutting capabilities live in separate shared projects:
 - **Auditing** (`Shared.Infrastructure.Core/Auditing/`) -- EF Core `SaveChangesInterceptor` for change tracking
 - **Background Jobs** (`Shared.Infrastructure.BackgroundJobs/`) -- `IJobScheduler` abstraction over Hangfire
-- **Workflows** (`Shared.Infrastructure.Workflows/`) -- Elsa 3 workflow engine integration
+- **Plugins** (`Shared.Infrastructure.Plugins/`) -- Isolated loading and lifecycle for fork-specific plugin assemblies
+
+**Frontend.** The API is headless. The user interfaces are two TanStack Start React apps in the pnpm workspace -- `apps/wallow-web` (dashboard, port 3000) and `apps/wallow-auth` (login, signup, MFA, port 3002). See the [Frontend Setup guide](../development/frontend-setup.md).
 
 ---
 
@@ -179,11 +194,14 @@ dotnet run --project api/src/Wallow.Api  # Re-runs migrations
 | Resource | Location |
 |----------|----------|
 | API Docs (Scalar) | http://localhost:5001/scalar/v1 |
+| Web app | http://localhost:3000 |
+| Auth app | http://localhost:3002 |
 | Mailpit | http://localhost:8025 |
 | Grafana | http://localhost:3001 |
 | Hangfire Dashboard | http://localhost:5001/hangfire |
 | AsyncAPI Viewer | http://localhost:5001/asyncapi |
 | Developer Guide | [developer-guide.md](developer-guide.md) |
+| Frontend Setup | [../development/frontend-setup.md](../development/frontend-setup.md) |
 | Architecture Assessment | [../architecture/assessment.md](../architecture/assessment.md) |
 | Deployment Guide | [../operations/deployment.md](../operations/deployment.md) |
 
