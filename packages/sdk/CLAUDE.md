@@ -5,11 +5,11 @@ the OIDC session and proxies API calls with a bearer attached.
 
 ## Three entry points (exports map → `dist/`)
 
-| Entry | Runs in | What it is |
-|-------|---------|-----------|
-| `.` (`src/index.ts`) | Browser | `configureBffClient()` (`client.ts` — module-level `createClient()` singleton, `credentials:'include'`), `login`/`logout`/`getUser` (`auth.ts`), CSRF helper, MFA client, SSR helpers (`ssr.ts`), and the generated typed operations. |
+| Entry                      | Runs in   | What it is                                                                                                                                                                                                                                                                                                                                                                |
+| -------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.` (`src/index.ts`)       | Browser   | `configureBffClient()` (`client.ts` — module-level `createClient()` singleton, `credentials:'include'`), `login`/`logout`/`getUser` (`auth.ts`), CSRF helper, MFA client, SSR helpers (`ssr.ts`), and the generated typed operations.                                                                                                                                     |
 | `./server` (`src/server/`) | Node (h3) | The BFF tunnel: `loadBffConfigFromEnv` (`config.ts`), `createBffHandlers` (login/callback/logout/user), `createApiProxy` (`proxy.ts`), OIDC via **openid-client** (`oidc.ts`, auth code + PKCE, confidential client required), session sealing (`session.ts`, iron-webcrypto cookie **or** Valkey/Redis via `store/`), `WallowError`/`parseProblemDetails` (`errors.ts`). |
-| `./query` (`src/query/`) | Browser | TanStack Query layer (peer dep `@tanstack/react-query`): per-feature `queryOptions`/`mutationOptions` slices (`user`, `auth`, `mfa`, `organizations`, `apps`, `keys`, `inquiries`, `settings`, `bootstrap`) sharing one key registry. |
+| `./query` (`src/query/`)   | Browser   | TanStack Query layer (peer dep `@tanstack/react-query`): per-feature `queryOptions`/`mutationOptions` slices (`user`, `auth`, `mfa`, `organizations`, `apps`, `keys`, `inquiries`, `settings`, `bootstrap`) sharing one key registry.                                                                                                                                     |
 
 ## Session / CSRF model (server entry)
 

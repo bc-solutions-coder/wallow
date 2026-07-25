@@ -34,7 +34,7 @@ line; archive completed plans out of the repo (`~/Documents/wallow-plans-archive
 
 ## JavaScript / TypeScript Monorepo
 
-pnpm workspace (`pnpm-workspace.yaml` → `apps/*`, `packages/*`, `examples/*`). Node **24** (`.nvmrc`),
+pnpm workspace (`pnpm-workspace.yaml` → `apps/*`, `apps/examples/*`, `packages/*`). Node **24** (`.nvmrc`),
 pnpm **10.20.0** (`packageManager`). Formatter/linter is the **oxc** toolchain
 (`oxfmt` + `oxlint`), not prettier/eslint. `@bc-solutions-coder` is scoped to GitHub
 Packages (`.npmrc`, needs `NODE_AUTH_TOKEN`).
@@ -49,7 +49,7 @@ pnpm --filter @bc-solutions-coder/sdk build   # build the SDK FIRST (apps typech
 pnpm build                   # pnpm -r build   (recursive across workspace)
 pnpm test                    # pnpm -r test    (vitest per package)
 pnpm typecheck               # pnpm -r typecheck
-pnpm lint                    # oxlint apps examples packages --deny-warnings
+pnpm lint                    # oxlint apps packages --deny-warnings
 pnpm format                  # oxfmt --write ...   (format:check verifies)
 pnpm check                   # format:check + lint + typecheck + test + build — the one-command quality gate
 ```
