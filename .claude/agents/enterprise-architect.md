@@ -1,6 +1,6 @@
 ---
 name: enterprise-architect
-description: "Use this agent when you need to design, review, or implement architectural decisions that affect the scalability, maintainability, and structural integrity of the codebase. This includes creating new modules, establishing code structure, reviewing dependency flows, ensuring Clean Architecture and DDD principles are followed, and validating that cross-module boundaries are respected.\n\nExamples:\n\n- User: \"I need to create a new Payments module\"\n  Assistant: \"Let me use the enterprise-architect agent to design and scaffold the Payments module following our Clean Architecture and DDD patterns.\"\n\n- User: \"Review the dependency structure of the Inquiries module\"\n  Assistant: \"I'll use the enterprise-architect agent to audit the Inquiries module's dependency graph and ensure Clean Architecture boundaries are respected.\"\n\n- User: \"Should I put this shared logic in the Infrastructure layer or create a shared contract?\"\n  Assistant: \"I'll use the enterprise-architect agent to analyze the proper placement of this logic based on our architectural principles.\""
+description: "Use for architectural decisions: new modules, dependency flows, Clean Architecture/DDD boundaries, cross-module contracts."
 model: opus
 color: blue
 ---

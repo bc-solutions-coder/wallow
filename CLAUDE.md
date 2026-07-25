@@ -54,23 +54,16 @@ pnpm format                  # oxfmt --write ...   (format:check verifies)
 pnpm check                   # format:check + lint + typecheck + test + build — the one-command quality gate
 ```
 
-- **`packages/sdk`** — server-side **BFF** tunnel so the browser never holds a token. The
-  Node entry (`./server`) runs OIDC Authorization Code + PKCE, stores the token set in a
-  session (sealed cookie **or** Valkey/Redis), and proxies `/api/**` to the Wallow API with
-  a bearer token attached. Adds CSRF gating, RFC 7807 error parsing, and silent refresh. The
-  browser entry (`.`) exposes `configureBffClient()`, `login`/`logout`/`getUser`, and typed
-  API operations. Built with **Vite (library mode) + `tsc`** (the old `tsup.config.ts` is
-  gone; the README is stale on this). Tests via **vitest**.
+- **`packages/sdk`** — server-side **BFF** tunnel so the browser never holds a token, with
+  three entries: browser (`.`), Node BFF (`./server`), TanStack Query layer (`./query`). The
+  OpenAPI client is **generated** from the committed snapshot `packages/sdk/openapi/v1.json`
+  (CI fails on drift), and the SDK ships independently via `sdk-v*` tags. Full detail —
+  entries, session/CSRF model, regen command, build/publish, test layout — lives in
+  **`packages/sdk/CLAUDE.md`**; read it before touching the SDK.
 - **`apps/wallow-web`** — runnable TanStack Start reference frontend demonstrating the
   full same-origin BFF flow. `pnpm --filter @bc-solutions-coder/wallow-web dev` (SSR + BFF)
   or `... start` (standalone h3 host used by the E2E container). Has a Dockerfile whose
   build context is the **repo root** (needs the whole workspace to resolve `workspace:*`).
-- **OpenAPI client is generated** from the API spec. The committed snapshot is
-  `packages/sdk/openapi/v1.json`; regenerate with
-  `WALLOW_OPENAPI_URL=http://localhost:5001/openapi/v1.json pnpm --filter @bc-solutions-coder/sdk exec tsx scripts/generate.ts`
-  then commit. CI (`openapi-drift.yml`) **fails if the snapshot drifts** from a live API.
-- The SDK ships **independently** of the platform: pushing an `sdk-v*` tag runs
-  `sdk-publish.yml` (release-please handles the platform version separately).
 
 ## Backend (summary — full detail in `api/CLAUDE.md`)
 
