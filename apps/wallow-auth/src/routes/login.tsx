@@ -1,8 +1,11 @@
+import { authQueries } from "@bc-solutions-coder/sdk/query";
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { AuthLayout } from "../components/auth-layout";
 import { isPasswordResetMessage, PASSWORD_RESET_MESSAGE } from "../features/login/auth-result";
 import { LoginScreen } from "../features/login/components/LoginScreen";
+import { forkBranding, mergeClientBranding, type ResolvedBranding } from "../lib/branding";
 
 /**
  * The `/login` route (Wallow-vec7.3.11 / 2.8a).
@@ -19,10 +22,10 @@ import { LoginScreen } from "../features/login/components/LoginScreen";
  * `.3.12` (magic-link) adds `magicLinkToken` HERE, alongside these three, and
  * passes it down the same way; it is not read yet.
  *
- * `AuthLayout` supplies the branded chrome every auth page renders inside. It is
- * given no `branding` prop, so it falls back to the fork's own — the per-client
- * (`client_id`) branding overlay is not wired on any screen in this app yet, and
- * no acceptance criterion asks for it, even though this route carries a `client_id`.
+ * `AuthLayout` supplies the branded chrome every auth page renders inside, and this
+ * route is where the per-client (`client_id`) branding overlay is wired
+ * (Wallow-ffpq.2.5) — see {@link LoginRoute}. The other screens still render the
+ * fork's own branding; only `/login` has an acceptance criterion for the overlay.
  */
 interface LoginSearch {
   /** The `returnUrl` query parameter — `undefined` when the link omits it. */
@@ -109,11 +112,45 @@ function validateSearch(search: Record<string, unknown>): LoginSearch {
   };
 }
 
+/**
+ * The per-client branding overlay: `/login?client_id=acme` headlines Acme's name,
+ * tagline and logo instead of the fork's, while the layout's footer keeps
+ * attributing the fork.
+ *
+ * Branding is CHROME, so every path that is not a resolved client falls back to
+ * the fork by returning `undefined` — `AuthLayout`'s own default, which is
+ * `mergeClientBranding(fork, null)`. That covers all three: no `client_id` (the
+ * query never runs), the fetch still in flight, and a client with no branding row,
+ * which the API answers with a bare 404 and the SDK surfaces as a rejection. None
+ * of them may gate the sign-in form or show the person an error they cannot act on
+ * — hence `retry: false` and no read of `isError` here.
+ *
+ * Per-client THEME COLOURS are deliberately out of scope: the CSS variables are
+ * emitted by `__root.tsx` from the module constant `forkResolvedBranding`, and the
+ * root route has no loader to learn `client_id` in. Only the identity fields
+ * (name/tagline/logo) are overlaid.
+ */
+function useClientBranding(
+  // An absent `client_id` defaults to the empty string so the `enabled` gate and
+  // the factory agree WITHOUT a cast — the seam `RegisterForm`'s `clientTenant`
+  // read established, where "" is the one value the gate refuses.
+  clientId: string = "",
+): ResolvedBranding | undefined {
+  const { data } = useQuery({
+    ...authQueries.clientBranding(clientId),
+    enabled: clientId !== "",
+    retry: false,
+  });
+
+  return data === undefined ? undefined : mergeClientBranding(forkBranding, data);
+}
+
 function LoginRoute() {
   const { returnUrl, client_id: clientId, error, magicLinkToken, message } = Route.useSearch();
+  const branding: ResolvedBranding | undefined = useClientBranding(clientId);
 
   return (
-    <AuthLayout>
+    <AuthLayout branding={branding}>
       <LoginScreen
         returnUrl={returnUrl}
         clientId={clientId}
