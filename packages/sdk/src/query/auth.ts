@@ -14,10 +14,11 @@
  *
  * Method-name mapping (confirmed against ../auth-client): externalProviders ->
  * getExternalProviders(); clientTenant -> getClientTenant(clientId); consentInfo
- * -> getConsentInfo(clientId); invitation -> verifyInvitation(token); verifyEmail
+ * -> getConsentInfo(clientId, scopes); clientBranding -> getClientBranding(clientId);
+ * invitation -> verifyInvitation(token); verifyEmail
  * -> verifyEmail({ email, token }) (ONE object arg, unlike the 2-positional
  * `queryKeys.auth.verifyEmail(email, token)`); redirectValidation ->
- * validateRedirectUri(url).
+ * validateRedirectUri(url, clientId).
  */
 import { queryOptions } from "@tanstack/react-query";
 
@@ -53,10 +54,15 @@ export const authQueries = {
       queryKey: queryKeys.auth.clientTenant(clientId),
       queryFn: () => getAuthClient().getClientTenant(clientId),
     }),
-  consentInfo: (clientId: string) =>
+  consentInfo: (clientId: string, scopes?: readonly string[]) =>
     queryOptions({
-      queryKey: queryKeys.auth.consentInfo(clientId),
-      queryFn: () => getAuthClient().getConsentInfo(clientId),
+      queryKey: queryKeys.auth.consentInfo(clientId, scopes),
+      queryFn: () => getAuthClient().getConsentInfo(clientId, scopes),
+    }),
+  clientBranding: (clientId: string) =>
+    queryOptions({
+      queryKey: queryKeys.auth.clientBranding(clientId),
+      queryFn: () => getAuthClient().getClientBranding(clientId),
     }),
   invitation: (token: string) =>
     queryOptions({
@@ -68,9 +74,9 @@ export const authQueries = {
       queryKey: queryKeys.auth.verifyEmail(email, token),
       queryFn: () => getAuthClient().verifyEmail({ email, token }),
     }),
-  redirectValidation: (url: string) =>
+  redirectValidation: (url: string, clientId?: string) =>
     queryOptions({
-      queryKey: queryKeys.auth.redirectValidation(url),
-      queryFn: () => getAuthClient().validateRedirectUri(url),
+      queryKey: queryKeys.auth.redirectValidation(url, clientId),
+      queryFn: () => getAuthClient().validateRedirectUri(url, clientId),
     }),
 };

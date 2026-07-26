@@ -40,11 +40,27 @@ export const queryKeys = {
     currentUser: () => [...queryKeys.auth.all, "current-user"] as const,
     externalProviders: () => [...queryKeys.auth.all, "external-providers"] as const,
     clientTenant: (clientId: string) => [...queryKeys.auth.all, "client-tenant", clientId] as const,
-    consentInfo: (clientId: string) => [...queryKeys.auth.all, "consent", clientId] as const,
+    // The consent prompt's content is a function of (clientId, scopes), so the
+    // scopes are folded in as ONE space-joined segment — the delimiter the wire
+    // already uses. Appending rather than replacing keeps the scope-less key a
+    // PREFIX, so invalidating it still sweeps every scope set for the client.
+    consentInfo: (clientId: string, scopes?: readonly string[]) =>
+      scopes?.length
+        ? ([...queryKeys.auth.all, "consent", clientId, scopes.join(" ")] as const)
+        : ([...queryKeys.auth.all, "consent", clientId] as const),
+    clientBranding: (clientId: string) =>
+      [...queryKeys.auth.all, "client-branding", clientId] as const,
     invitation: (token: string) => [...queryKeys.auth.all, "invitation", token] as const,
     verifyEmail: (email: string, token: string) =>
       [...queryKeys.auth.all, "verify-email", email, token] as const,
-    redirectValidation: (url: string) =>
-      [...queryKeys.auth.all, "redirect-validation", url] as const,
+    // "Is this URI allowed?" is a question about (uri, client): with a client id
+    // the API answers against THAT client's registered origins, without one
+    // against the union of every client's. Appending rather than replacing keeps
+    // the client-less key a PREFIX, so invalidating it still sweeps every
+    // client's answer for the url — the rule the consent key follows.
+    redirectValidation: (url: string, clientId?: string) =>
+      clientId === undefined || clientId === ""
+        ? ([...queryKeys.auth.all, "redirect-validation", url] as const)
+        : ([...queryKeys.auth.all, "redirect-validation", url, clientId] as const),
   },
 };

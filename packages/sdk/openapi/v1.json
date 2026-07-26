@@ -902,6 +902,13 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "clientId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -919,6 +926,13 @@
         "parameters": [
           {
             "name": "returnUrl",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "clientId",
             "in": "query",
             "schema": {
               "type": "string"
@@ -951,6 +965,13 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "clientId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -979,6 +1000,13 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "clientId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -996,6 +1024,13 @@
         "parameters": [
           {
             "name": "uri",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "clientId",
             "in": "query",
             "schema": {
               "type": "string"
@@ -1019,11 +1054,24 @@
             "application/x-www-form-urlencoded": {
               "schema": {
                 "type": "object",
-                "properties": {
-                  "postLogoutRedirectUri": {
-                    "type": "string"
+                "allOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "postLogoutRedirectUri": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "clientId": {
+                        "type": "string"
+                      }
+                    }
                   }
-                }
+                ]
               }
             }
           },

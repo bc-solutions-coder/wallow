@@ -162,7 +162,7 @@ const METHOD_CASES: readonly MethodCase[] = [
     method: "getConsentInfo",
     op: "getV1IdentityAppsConsentInfoByClientId",
     invoke: (auth: AuthClient) => auth.getConsentInfo("client-1", ["openid", "profile"]),
-    expectedArg: { path: { clientId: "client-1" }, query: { scopes: "openid,profile" } },
+    expectedArg: { path: { clientId: "client-1" }, query: { scopes: "openid profile" } },
   },
   {
     method: "getExternalProviders",
@@ -283,6 +283,53 @@ describe.each(METHOD_CASES)("$method", ({ op, invoke, expectedArg }: MethodCase)
     const auth: AuthClient = await freshAuthClient();
 
     await expect(invoke(auth)).rejects.toBeInstanceOf(WallowError);
+  });
+});
+
+/**
+ * THE CLIENT-SCOPED REDIRECT CHECK (Wallow-nv7l.1, closing Wallow-53kr).
+ *
+ * `AccountController.ValidateRedirectUri` binds `[FromQuery] string? clientId`
+ * and hands it to `IRedirectUriValidator.IsAllowedAsync`, which answers against
+ * that ONE client's registered origins; with no id it answers against the union
+ * of every client's. The facade cannot ask the scoped question today, so every
+ * caller gets the union answer — per-client scoping that exists on the endpoint
+ * but nothing can reach. The table row above pins the unscoped call; these pin
+ * the scoped one.
+ */
+describe("validateRedirectUri client scoping", () => {
+  const URI: string = "https://app.example.com/callback";
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("sends the client id as a query parameter", async () => {
+    mocks.getV1IdentityAuthRedirectUriValidate.mockResolvedValue({ data: { allowed: true } });
+    const auth: AuthClient = await freshAuthClient();
+
+    await auth.validateRedirectUri(URI, "client-a");
+
+    expect(mocks.getV1IdentityAuthRedirectUriValidate).toHaveBeenCalledWith({
+      query: { uri: URI, clientId: "client-a" },
+    });
+  });
+
+  it("omits the client id key when the caller has none", async () => {
+    // Asserted on the KEY, not by argument equality: `toHaveBeenCalledWith`
+    // ignores explicitly-undefined members, so `{ uri, clientId: undefined }`
+    // would satisfy the table row above while still putting `clientId=` on the
+    // wire through the generated client. An unknown client fails CLOSED to the
+    // AuthUrl-only origin set, so a blank id is not the same request as no id.
+    mocks.getV1IdentityAuthRedirectUriValidate.mockResolvedValue({ data: { allowed: true } });
+    const auth: AuthClient = await freshAuthClient();
+
+    await auth.validateRedirectUri(URI);
+
+    const arg = mocks.getV1IdentityAuthRedirectUriValidate.mock.calls[0]?.[0] as {
+      query: Record<string, unknown>;
+    };
+    expect(Object.keys(arg.query)).toEqual(["uri"]);
   });
 });
 
@@ -450,7 +497,13 @@ describe("getConsentInfo scope encoding", () => {
     vi.clearAllMocks();
   });
 
-  it("comma-joins the requested scopes into a single query string", async () => {
+  it("space-joins the requested scopes into a single query string", async () => {
+    // SPACE, not comma. The API's `GET /v1/identity/apps/consent-info/{clientId}`
+    // splits this parameter on ' ' (AppsController.GetConsentInfo, pinned by its
+    // own test), which is also OAuth's scope delimiter and what the authorize
+    // endpoint itself emits. A comma-joined value arrives there as ONE unknown
+    // scope name, fails the scope lookup, and renders a garbled one-line consent
+    // list instead of the real scopes.
     mocks.getV1IdentityAppsConsentInfoByClientId.mockResolvedValue({ data: {} });
     const auth: AuthClient = await freshAuthClient();
 
@@ -458,7 +511,7 @@ describe("getConsentInfo scope encoding", () => {
 
     expect(mocks.getV1IdentityAppsConsentInfoByClientId).toHaveBeenCalledWith({
       path: { clientId: "client-1" },
-      query: { scopes: "openid,profile,email" },
+      query: { scopes: "openid profile email" },
     });
   });
 

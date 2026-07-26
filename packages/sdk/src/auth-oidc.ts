@@ -138,23 +138,40 @@ export function buildConsentSubmitUrl(
  * @param origin Origin hosting the exchange endpoint; a trailing '/' is ignored.
  * @param ticket Single-use sign-in ticket issued by the login response.
  * @param returnUrl Relative URL to forward to once the cookie is set.
+ * @param clientId Client the flow belongs to, so the endpoint can scope its
+ *   returnUrl allow-list check to it. Nullish or blank omits the parameter.
  * @throws TypeError If `ticket` is blank (message: "ticket is required"), or
  *   `returnUrl` fails {@link isSafeReturnUrl} (message: "unsafe return url").
  */
-export function buildExchangeTicketUrl(origin: string, ticket: string, returnUrl: string): string {
+export function buildExchangeTicketUrl(
+  origin: string,
+  ticket: string,
+  returnUrl: string,
+  clientId?: string,
+): string {
   // The oracle only builds this URL inside `if (!IsNullOrEmpty(SignInTicket))`;
   // a ticketless exchange-ticket URL is never a valid navigation target.
   if (ticket.trim() === "") {
     throw new TypeError("ticket is required to build an exchange-ticket url");
   }
 
+  // Guards first: the client id is cargo, not a licence. Appending it before
+  // the checks ran would build an attacker's URL for them.
   assertSafeReturnUrl(returnUrl);
 
-  return (
+  const base: string =
     `${normalizeOrigin(origin)}/v1/identity/auth/exchange-ticket` +
     `?ticket=${encodeURIComponent(ticket)}` +
-    `&returnUrl=${encodeURIComponent(returnUrl)}`
-  );
+    `&returnUrl=${encodeURIComponent(returnUrl)}`;
+
+  // A blank id is not a client: the endpoint fails an unknown one CLOSED to the
+  // AuthUrl-only origin set, so an empty `clientId=` would refuse the very
+  // returnUrl the caller is mid-journey to. Send nothing instead.
+  if (clientId === undefined || clientId.trim() === "") {
+    return base;
+  }
+
+  return `${base}&clientId=${encodeURIComponent(clientId)}`;
 }
 
 /**

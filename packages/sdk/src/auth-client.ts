@@ -152,8 +152,11 @@ export interface AuthClient {
    * redirect URIs. It is distinct from `auth-oidc`'s client-side
    * `isSafeReturnUrl` guard (Wallow-vec7.2.2), which is a pure local
    * open-redirect check with no generated-op backing. Response body is untyped.
+   *
+   * `clientId` scopes the question to one client's registered URIs; omitting it
+   * asks against the union of every client's origins.
    */
-  validateRedirectUri: (uri: string) => Promise<unknown>;
+  validateRedirectUri: (uri: string, clientId?: string) => Promise<unknown>;
   /**
    * Resolve the signed-in user, or `null` when the browser is anonymous.
    *
@@ -213,11 +216,14 @@ export function createAuthClient(options?: AuthClientOptions): AuthClient {
     getConsentInfo: (clientId: string, scopes?: readonly string[]) =>
       unwrap<ConsentInfoResponse>(
         getV1IdentityAppsConsentInfoByClientId(
-          // The API takes ONE comma-joined `scopes` string, not repeated params.
-          // Omitting the key entirely (rather than sending `scopes: undefined`)
-          // keeps the query string clean when no scopes were requested.
+          // The API takes ONE space-joined `scopes` string, not repeated params:
+          // `AppsController.GetConsentInfo` splits on ' ', which is also OAuth's
+          // scope delimiter and what the authorize endpoint emits. A comma-joined
+          // value arrives there as one unknown scope name. Omitting the key
+          // entirely (rather than sending `scopes: undefined`) keeps the query
+          // string clean when no scopes were requested.
           scopes?.length
-            ? { path: { clientId }, query: { scopes: scopes.join(",") } }
+            ? { path: { clientId }, query: { scopes: scopes.join(" ") } }
             : { path: { clientId } },
         ),
       ),
@@ -230,8 +236,15 @@ export function createAuthClient(options?: AuthClientOptions): AuthClient {
       unwrap(getV1IdentityInvitationsVerifyByToken({ path: { token } })),
     acceptInvitation: (token: string) =>
       unwrap(postV1IdentityInvitationsByTokenAccept({ path: { token } })),
-    validateRedirectUri: (uri: string) =>
-      unwrap(getV1IdentityAuthRedirectUriValidate({ query: { uri } })),
+    validateRedirectUri: (uri: string, clientId?: string) => {
+      // The KEY is omitted, not set to undefined: the generated client would put
+      // a bare `clientId=` on the wire, and an unknown client fails CLOSED to
+      // the AuthUrl-only origin set — a different question from asking unscoped.
+      const query: { uri: string; clientId?: string } =
+        clientId === undefined || clientId === "" ? { uri } : { uri, clientId };
+
+      return unwrap(getV1IdentityAuthRedirectUriValidate({ query }));
+    },
     getCurrentUser,
   };
 }

@@ -1167,6 +1167,7 @@ export type GetV1IdentityAuthExternalLoginData = {
     query?: {
         provider?: string;
         returnUrl?: string;
+        clientId?: string;
     };
     url: '/v1/identity/auth/external-login';
 };
@@ -1183,6 +1184,7 @@ export type GetV1IdentityAuthExternalLoginCallbackData = {
     path?: never;
     query?: {
         returnUrl?: string;
+        clientId?: string;
     };
     url: '/v1/identity/auth/external-login-callback';
 };
@@ -1200,6 +1202,7 @@ export type GetV1IdentityAuthCompleteExternalRegistrationData = {
     query?: {
         acceptedTerms?: boolean;
         returnUrl?: string;
+        clientId?: string;
     };
     url: '/v1/identity/auth/complete-external-registration';
 };
@@ -1217,6 +1220,7 @@ export type GetV1IdentityAuthExchangeTicketData = {
     query?: {
         ticket?: string;
         returnUrl?: string;
+        clientId?: string;
     };
     url: '/v1/identity/auth/exchange-ticket';
 };
@@ -1233,6 +1237,7 @@ export type GetV1IdentityAuthRedirectUriValidateData = {
     path?: never;
     query?: {
         uri?: string;
+        clientId?: string;
     };
     url: '/v1/identity/auth/redirect-uri/validate';
 };
@@ -1247,6 +1252,8 @@ export type GetV1IdentityAuthRedirectUriValidateResponses = {
 export type PostV1IdentityAuthSignOutData = {
     body: {
         postLogoutRedirectUri?: string;
+    } & {
+        clientId?: string;
     };
     path?: never;
     query?: never;

@@ -287,6 +287,79 @@ describe("buildExchangeTicketUrl", () => {
   });
 });
 
+/**
+ * THE FLOW'S CLIENT ID ON THE EXCHANGE (Wallow-nv7l.1, closing Wallow-53kr).
+ *
+ * `AccountController.ExchangeTicket` takes `[FromQuery] string? clientId` and
+ * scopes its returnUrl allow-list check to it (Wallow-9jab). Nothing supplies
+ * one from the auth app today, so that endpoint always falls back to the
+ * union-of-every-client origin set — the per-client scoping is correct but
+ * inert on this path. The MFA-challenge screen is the last hop of the
+ * external-login journey and the one that builds this URL, so the builder has to
+ * be able to carry the id.
+ *
+ * SPELLING: `clientId`, camelCase. This is an API endpoint, and the endpoints
+ * bind camelCase (the auth-app-facing REDIRECTS are the ones spelled
+ * `client_id`) — the same contract Wallow-53kr pinned on the accept-terms relay.
+ *
+ * ENCODING: `encodeURIComponent`, like every other parameter this builder
+ * writes. The id is attacker-influenced cargo spliced into a URL built by
+ * concatenation; unencoded it can smuggle a second `returnUrl` into the query
+ * string and hand the endpoint a destination the user never asked for.
+ */
+describe("buildExchangeTicketUrl — the flow's client id", () => {
+  it("appends the client id the flow belongs to", () => {
+    expect(buildExchangeTicketUrl(ORIGIN, "tkt", "/connect/authorize", "client-a")).toBe(
+      `${ORIGIN}/v1/identity/auth/exchange-ticket` +
+        `?ticket=tkt&returnUrl=%2Fconnect%2Fauthorize&clientId=client-a`,
+    );
+  });
+
+  it("encodes the client id so it cannot inject another parameter", () => {
+    // Unencoded, this value smuggles a SECOND returnUrl onto the query string.
+    // ASP.NET binds a duplicated `[FromQuery] string?` as "a,b", so the endpoint
+    // would resolve neither destination — and a value crafted to win instead of
+    // to break would send the freshly-signed-in browser somewhere else entirely.
+    const hostile: string = "client-a&returnUrl=/evil";
+
+    const url: string = buildExchangeTicketUrl(ORIGIN, "tkt", "/dashboard", hostile);
+
+    expect(url).toBe(
+      `${ORIGIN}/v1/identity/auth/exchange-ticket` +
+        `?ticket=tkt&returnUrl=%2Fdashboard&clientId=client-a%26returnUrl%3D%2Fevil`,
+    );
+    expect(url.match(/returnUrl=/gu)).toHaveLength(1);
+  });
+
+  it("keeps the guards it already had when a client id is present", () => {
+    // The id is cargo, not a licence: an unsafe returnUrl is still refused and a
+    // blank ticket still throws. A builder that appended the parameter before
+    // running its guards would build an attacker's URL for it.
+    expect(() => buildExchangeTicketUrl(ORIGIN, "tkt", "//evil.com", "client-a")).toThrow(
+      /unsafe return url/iu,
+    );
+    expect(() => buildExchangeTicketUrl(ORIGIN, "", "/dashboard", "client-a")).toThrow(
+      /ticket is required/iu,
+    );
+  });
+
+  it.each([
+    ["undefined", undefined],
+    ["an empty string", ""],
+  ])(
+    "omits the parameter entirely when the client id is %s",
+    (_label: string, clientId?: string) => {
+      // A flow with no client id must not grow an empty `clientId=`. The endpoint
+      // fails an unknown client CLOSED to the AuthUrl-only origin set, so a blank
+      // relay would refuse the very returnUrl the user is mid-journey to, where
+      // sending nothing falls back to the behaviour that works today.
+      expect(buildExchangeTicketUrl(ORIGIN, "tkt", "/dashboard", clientId)).toBe(
+        `${ORIGIN}/v1/identity/auth/exchange-ticket?ticket=tkt&returnUrl=%2Fdashboard`,
+      );
+    },
+  );
+});
+
 describe("buildConnectLogoutUrl", () => {
   it("builds the bare logout endpoint when no redirect URI is given", () => {
     expect(buildConnectLogoutUrl(ORIGIN)).toBe(`${ORIGIN}/connect/logout`);
