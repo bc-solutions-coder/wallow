@@ -28,7 +28,8 @@
     "h3": "^1.13.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "redis": "^4.7.0"
+    "redis": "^4.7.0",
+    "zustand": "^5.0.8"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",

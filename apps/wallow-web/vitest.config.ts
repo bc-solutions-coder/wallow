@@ -65,6 +65,7 @@ const extraBrowserOptimizeDeps: string[] = [
   "@tanstack/react-query",
   "@tanstack/react-router",
   "@tanstack/react-form",
+  "zustand",
 ];
 
 const { node, browser } = createVitestProjects({
