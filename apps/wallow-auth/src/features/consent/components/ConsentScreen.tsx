@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
+import { authQueries } from "@bc-solutions-coder/sdk/query";
 import { Card, ErrorBanner } from "@bc-solutions-coder/ui";
 import { useEffect, type ReactNode } from "react";
 
@@ -19,8 +20,9 @@ import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
  * `consent-error`, `consent-heading`, `consent-scopes`, `consent-approve`,
  * `consent-deny`.
  *
- * The API is reached through `getWallowAuthSdk()`, never `@bc-solutions-coder/sdk`
- * directly — that facade is this app's only permitted importer of the SDK.
+ * Mutations and the OIDC builders are reached through `getWallowAuthSdk()`, and
+ * reads through the SDK's `./query` factories (Wallow-evd5.3.1) — never the
+ * `@bc-solutions-coder/sdk` barrel, which only the facade may import.
  *
  * ── THE ORIGIN DIVERGENCE (the load-bearing port decision on this screen) ─────
  *
@@ -297,19 +299,12 @@ export function ConsentScreen({ clientId, returnUrl }: ConsentScreenProps): Reac
     }
   }, [returnUrlIsUnsafe, navigate]);
 
+  // One argument, the oracle's `Array.Empty<string>()`: the scopes being consented
+  // to come back FROM this call, they are not an input to it. The `?? ""` is
+  // unreachable — `enabled` gates the read on `clientIsKnown` — and is present
+  // only to narrow the prop to the `string` the factory takes, without a cast.
   const query = useQuery({
-    queryKey: ["consent-info", clientId],
-    queryFn: async (): Promise<ConsentPrompt | null> => {
-      if (clientId === undefined) {
-        // Unreachable: `enabled` gates this on `clientIsKnown`. Present only to
-        // narrow the prop to the `string` the call takes, without a cast.
-        return null;
-      }
-
-      // One argument, the oracle's `Array.Empty<string>()`: the scopes being
-      // consented to come back FROM this call, they are not an input to it.
-      return await getWallowAuthSdk().auth.getConsentInfo(clientId);
-    },
+    ...authQueries.consentInfo(clientId ?? ""),
     // Both refusals carried to React Query, so neither path reaches the network.
     enabled: clientIsKnown && !returnUrlIsUnsafe,
     // A malformed consent request will not become a well-formed one on a second

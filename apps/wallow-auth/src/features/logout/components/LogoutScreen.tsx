@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { authQueries } from "@bc-solutions-coder/sdk/query";
 import { Card } from "@bc-solutions-coder/ui";
 import type { ReactNode } from "react";
 
@@ -21,8 +22,9 @@ import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
  * component a pure function of its inputs. This is the seam `ResetPasswordForm`
  * established and `ConsentScreen` followed.
  *
- * The API is reached through `getWallowAuthSdk()`, never `@bc-solutions-coder/sdk`
- * directly — that facade is this app's only permitted importer of the SDK.
+ * Mutations and the OIDC builders are reached through `getWallowAuthSdk()`, and
+ * reads through the SDK's `./query` factories (Wallow-evd5.3.1) — never the
+ * `@bc-solutions-coder/sdk` barrel, which only the facade may import.
  *
  * ── THE ORIGIN TRAP (the load-bearing port decision on this screen) ───────────
  *
@@ -219,19 +221,14 @@ export function LogoutScreen({ postLogoutRedirectUri, signedOut }: LogoutScreenP
   const hasRedirectUri: boolean =
     postLogoutRedirectUri !== undefined && postLogoutRedirectUri !== "";
 
+  // The `?? ""` is unreachable — `enabled` gates the read on `hasRedirectUri` —
+  // and is present only to narrow the prop to the `string` the factory takes,
+  // without a cast.
   const validation = useQuery({
-    queryKey: ["post-logout-redirect-uri", postLogoutRedirectUri],
-    queryFn: async (): Promise<boolean> => {
-      if (postLogoutRedirectUri === undefined) {
-        // Unreachable: `enabled` gates this on `hasRedirectUri`. Present only to
-        // narrow the prop to the `string` the call takes, without a cast.
-        return false;
-      }
-
-      return isRedirectUriAllowed(
-        await getWallowAuthSdk().auth.validateRedirectUri(postLogoutRedirectUri),
-      );
-    },
+    ...authQueries.redirectValidation(postLogoutRedirectUri ?? ""),
+    // The factory hands back the raw body; the verdict is this screen's reading
+    // of it.
+    select: isRedirectUriAllowed,
     // The oracle's `if (SignedOut == "true" && !IsNullOrEmpty(PostLogoutRedirectUri))`.
     // Validating on the confirm step would be wasted — the API re-validates the
     // parameter on the end-session request itself — and would leak a probe on

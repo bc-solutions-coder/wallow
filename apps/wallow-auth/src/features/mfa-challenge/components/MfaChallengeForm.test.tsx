@@ -134,7 +134,6 @@ vi.mock("../../../lib/wallow-auth-sdk", () => ({
     auth: {
       verifyMfa: mocks.verifyMfa,
       useBackupCode: mocks.useBackupCode,
-      validateRedirectUri: mocks.validateRedirectUri,
     },
     oidc: {
       isSafeReturnUrl: mocks.isSafeReturnUrl,
@@ -142,6 +141,34 @@ vi.mock("../../../lib/wallow-auth-sdk", () => ({
     },
   }),
 }));
+
+/**
+ * THE READ SEAM MOVED (Wallow-evd5.3.1). The absolute-returnUrl probe is now
+ * `useQuery(authQueries.redirectValidation(returnUrl))` from the SDK query layer
+ * rather than a facade call inside inline `useQuery` options, so the facade mock
+ * above no longer carries `validateRedirectUri` and the spy hangs off the
+ * FACTORY. Code verification and the backup-code path are facade mutations and
+ * stay there.
+ *
+ * The factory is SHARED with the logout screen — both ask the same endpoint
+ * whether a URL is allowed — so `importOriginal` keeping the real `queryKey`
+ * matters: the two screens are meant to hit one cache entry per URL. The spy
+ * returns the RAW endpoint payload (the screen narrows it to a boolean), which is
+ * what these tests already feed it.
+ */
+vi.mock("@bc-solutions-coder/sdk/query", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@bc-solutions-coder/sdk/query")>();
+  return {
+    ...actual,
+    authQueries: {
+      ...actual.authQueries,
+      redirectValidation: (url: string) => ({
+        ...actual.authQueries.redirectValidation(url),
+        queryFn: async (): Promise<unknown> => await mocks.validateRedirectUri(url),
+      }),
+    },
+  };
+});
 
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tanstack/react-router")>()),

@@ -116,13 +116,40 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("../../../lib/wallow-auth-sdk", () => ({
   getWallowAuthSdk: () => ({
-    auth: { validateRedirectUri: mocks.validateRedirectUri },
+    auth: {},
     oidc: {
       buildConnectLogoutUrl: mocks.buildConnectLogoutUrl,
       isSafeReturnUrl: mocks.isSafeReturnUrl,
     },
   }),
 }));
+
+/**
+ * THE READ SEAM MOVED (Wallow-evd5.3.1). The post-logout-URI probe is now
+ * `useQuery(authQueries.redirectValidation(postLogoutRedirectUri))` from the SDK
+ * query layer rather than a facade call inside inline `useQuery` options, so the
+ * facade mock above no longer carries `validateRedirectUri` and the spy hangs off
+ * the FACTORY. Building the end-session URL is pure string work and stays on the
+ * facade's `oidc` slice.
+ *
+ * The factory is SHARED with the MFA challenge screen — same endpoint, same
+ * question — so `importOriginal` keeping the real `queryKey` is what lets the two
+ * screens share one cache entry per URL. The spy returns the RAW endpoint payload;
+ * the screen owns the fail-closed narrowing these tests pin.
+ */
+vi.mock("@bc-solutions-coder/sdk/query", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@bc-solutions-coder/sdk/query")>();
+  return {
+    ...actual,
+    authQueries: {
+      ...actual.authQueries,
+      redirectValidation: (url: string) => ({
+        ...actual.authQueries.redirectValidation(url),
+        queryFn: async (): Promise<unknown> => await mocks.validateRedirectUri(url),
+      }),
+    },
+  };
+});
 
 /** A registered post-logout URI: absolute, and another origin than this one. */
 const REDIRECT_URI = "https://app.wallow.test/signed-out";

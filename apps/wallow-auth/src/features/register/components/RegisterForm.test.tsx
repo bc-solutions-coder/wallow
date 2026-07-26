@@ -110,8 +110,6 @@ vi.mock("../../../lib/wallow-auth-sdk", () => ({
   getWallowAuthSdk: () => ({
     auth: {
       register: mocks.register,
-      getExternalProviders: mocks.getExternalProviders,
-      getClientTenant: mocks.getClientTenant,
     },
     oidc: {
       // Faithful restatement of the real `isSafeReturnUrl`
@@ -127,6 +125,38 @@ vi.mock("../../../lib/wallow-auth-sdk", () => ({
     },
   }),
 }));
+
+/**
+ * THE READ SEAM MOVED (Wallow-evd5.3.1). Both of this screen's reads — the
+ * provider list and the client-tenant lookup — are now
+ * `useQuery(authQueries.externalProviders())` / `useQuery(authQueries.clientTenant(id))`
+ * from the SDK query layer rather than facade calls inside inline `useQuery`
+ * options, so the facade mock above no longer carries them and the spies hang off
+ * the FACTORIES. Registration itself is still a facade mutation and stays there.
+ *
+ * Only `queryFn` is swapped: `importOriginal` keeps the real `queryKey`s intact.
+ * That matters most for the provider list — this screen used to key it
+ * `['auth','external-providers']` while the login screen keyed the SAME endpoint
+ * `['external-providers']`, and sharing this factory is what collapses the two
+ * onto one cache entry. A faked key would hide exactly that.
+ */
+vi.mock("@bc-solutions-coder/sdk/query", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@bc-solutions-coder/sdk/query")>();
+  return {
+    ...actual,
+    authQueries: {
+      ...actual.authQueries,
+      externalProviders: () => ({
+        ...actual.authQueries.externalProviders(),
+        queryFn: async (): Promise<unknown> => await mocks.getExternalProviders(),
+      }),
+      clientTenant: (clientId: string) => ({
+        ...actual.authQueries.clientTenant(clientId),
+        queryFn: async (): Promise<unknown> => await mocks.getClientTenant(clientId),
+      }),
+    },
+  };
+});
 
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tanstack/react-router")>()),

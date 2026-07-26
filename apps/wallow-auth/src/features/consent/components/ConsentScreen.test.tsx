@@ -146,13 +146,40 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("../../../lib/wallow-auth-sdk", () => ({
   getWallowAuthSdk: () => ({
-    auth: { getConsentInfo: mocks.getConsentInfo },
+    auth: {},
     oidc: {
       buildConsentSubmitUrl: mocks.buildConsentSubmitUrl,
       isSafeReturnUrl: mocks.isSafeReturnUrl,
     },
   }),
 }));
+
+/**
+ * THE READ SEAM MOVED (Wallow-evd5.3.1). The consent prompt is now
+ * `useQuery(authQueries.consentInfo(clientId))` from the SDK query layer rather
+ * than a facade call inside inline `useQuery` options, so the facade mock above
+ * no longer carries `getConsentInfo` and the spy hangs off the FACTORY. The
+ * submit path is pure URL building and stays on the facade's `oidc` slice.
+ *
+ * Only `queryFn` is swapped — `importOriginal` keeps the real `queryKey`
+ * (`queryKeys.auth.consentInfo(clientId)`), so the per-client cache separation
+ * these tests rely on is the shipped one, not a fixture. The clientId is
+ * forwarded to the spy so the existing call-argument assertions still pin what
+ * the screen asks for.
+ */
+vi.mock("@bc-solutions-coder/sdk/query", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@bc-solutions-coder/sdk/query")>();
+  return {
+    ...actual,
+    authQueries: {
+      ...actual.authQueries,
+      consentInfo: (clientId: string) => ({
+        ...actual.authQueries.consentInfo(clientId),
+        queryFn: async (): Promise<unknown> => await mocks.getConsentInfo(clientId),
+      }),
+    },
+  };
+});
 
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tanstack/react-router")>()),

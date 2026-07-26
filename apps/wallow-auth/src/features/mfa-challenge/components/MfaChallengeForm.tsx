@@ -1,3 +1,4 @@
+import { authQueries } from "@bc-solutions-coder/sdk/query";
 import { Button, Card, CardTitle, ErrorBanner, Field, Input, Label } from "@bc-solutions-coder/ui";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -18,8 +19,9 @@ import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
  * "Back to sign in" footer link ships without a testid in the oracle and keeps
  * it that way.
  *
- * The API is reached through `getWallowAuthSdk()`, never `@bc-solutions-coder/sdk`
- * directly — that facade is this app's only permitted importer of the SDK.
+ * Mutations and the OIDC builders are reached through `getWallowAuthSdk()`, and
+ * reads through the SDK's `./query` factories (Wallow-evd5.3.1) — never the
+ * `@bc-solutions-coder/sdk` barrel, which only the facade may import.
  *
  * ── THE ERROR BRANCHES ────────────────────────────────────────────────────────
  *
@@ -367,18 +369,14 @@ export function MfaChallengeForm({ returnUrl }: MfaChallengeFormProps): ReactNod
     returnUrl !== undefined && getWallowAuthSdk().oidc.isSafeReturnUrl(returnUrl),
   );
 
+  // The `?? ""` is unreachable — `enabled` gates the read on `local === "ask"`,
+  // and a nullish returnUrl is decided "accept" — and is present only to narrow
+  // the prop to the `string` the factory takes, without a cast.
   const validation = useQuery({
-    queryKey: ["mfa-challenge-return-url", returnUrl],
-    queryFn: async (): Promise<boolean> => {
-      if (returnUrl === undefined) {
-        // Unreachable: `enabled` gates this on `local === "ask"`, and a nullish
-        // returnUrl is decided "accept". Present only to narrow the prop to the
-        // `string` the call takes, without a cast.
-        return false;
-      }
-
-      return isRedirectUriAllowed(await getWallowAuthSdk().auth.validateRedirectUri(returnUrl));
-    },
+    ...authQueries.redirectValidation(returnUrl ?? ""),
+    // The factory hands back the raw body; the verdict is this screen's reading
+    // of it.
+    select: isRedirectUriAllowed,
     // The ONLY case that costs a request: an absolute returnUrl. The password path
     // and the direct sign-in are already decided, and must not pay for a probe
     // that would sit between the user and their code field.

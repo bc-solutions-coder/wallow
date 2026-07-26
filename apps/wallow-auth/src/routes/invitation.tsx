@@ -1,12 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 
+import { userQueries } from "@bc-solutions-coder/sdk/query";
+
 import { AuthLayout } from "../components/auth-layout";
 import {
   InvitationLoading,
   InvitationScreen,
 } from "../features/invitation/components/InvitationScreen";
-import { getWallowAuthSdk } from "../lib/wallow-auth-sdk";
 
 /**
  * The `/invitation` route (Wallow-vec7.3.9).
@@ -72,8 +73,7 @@ function InvitationRoute() {
   const { token } = Route.useSearch();
 
   const authQuery = useQuery({
-    queryKey: ["current-user"],
-    queryFn: async () => await getWallowAuthSdk().auth.getCurrentUser(),
+    ...userQueries.currentUser(),
     // A failed probe is an answer here (anonymous), not something to grind on:
     // retrying would hold the invitation behind a spinner.
     retry: false,

@@ -122,13 +122,44 @@ const mocks = vi.hoisted(() => ({
 vi.mock("../../../lib/wallow-auth-sdk", () => ({
   getWallowAuthSdk: () => ({
     auth: {
-      verifyInvitation: mocks.verifyInvitation,
       acceptInvitation: mocks.acceptInvitation,
-      getCurrentUser: mocks.getCurrentUser,
     },
     oidc: { isSafeReturnUrl: mocks.isSafeReturnUrl },
   }),
 }));
+
+/**
+ * THE READ SEAM MOVED (Wallow-evd5.3.1). Both reads exercised here now come from
+ * the SDK query layer: the screen's invitation lookup is
+ * `useQuery(authQueries.invitation(token))` and the ROUTE's signed-in probe is
+ * `useQuery(userQueries.currentUser())` — the SHARED current-user query wallow-web
+ * already uses, which is the point of moving it (one key, one cache entry, both
+ * apps). Accepting the invitation is still a facade mutation and stays above.
+ *
+ * Only `queryFn` is swapped; `importOriginal` keeps the real `queryKey`s. The
+ * token is forwarded to the spy so the existing call-argument assertions — the
+ * ones pinning that a whitespace token never reaches the endpoint — still hold.
+ */
+vi.mock("@bc-solutions-coder/sdk/query", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@bc-solutions-coder/sdk/query")>();
+  return {
+    ...actual,
+    authQueries: {
+      ...actual.authQueries,
+      invitation: (token: string) => ({
+        ...actual.authQueries.invitation(token),
+        queryFn: async (): Promise<unknown> => await mocks.verifyInvitation(token),
+      }),
+    },
+    userQueries: {
+      ...actual.userQueries,
+      currentUser: () => ({
+        ...actual.userQueries.currentUser(),
+        queryFn: async (): Promise<unknown> => await mocks.getCurrentUser(),
+      }),
+    },
+  };
+});
 
 const TOKEN = "inv-tok-123";
 const EMAIL = "invitee@example.com";

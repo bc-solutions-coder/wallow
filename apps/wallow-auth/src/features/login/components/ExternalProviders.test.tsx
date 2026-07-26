@@ -100,7 +100,6 @@ const mocks = vi.hoisted(() => ({
 vi.mock("../../../lib/wallow-auth-sdk", () => ({
   getWallowAuthSdk: () => ({
     auth: {
-      getExternalProviders: mocks.getExternalProviders,
       login: mocks.login,
     },
     oidc: {
@@ -109,6 +108,33 @@ vi.mock("../../../lib/wallow-auth-sdk", () => ({
     },
   }),
 }));
+
+/**
+ * THE DATA SEAM MOVED (Wallow-evd5.3.1). The provider list is no longer a facade
+ * call inside an inline `useQuery` — it is `useQuery(authQueries.externalProviders())`
+ * from the SDK query layer, so the facade mock above no longer carries
+ * `getExternalProviders` and the spy hangs off the FACTORY instead.
+ *
+ * Only `queryFn` is swapped: `importOriginal` keeps the real `queryKey`
+ * (`queryKeys.auth.externalProviders()`) and every other export intact. Faking the
+ * key would hide the thing this task exists to fix — this screen and
+ * `RegisterForm` used to key the SAME endpoint two different ways
+ * (`['external-providers']` vs `['auth','external-providers']`), and they now
+ * share one cache entry because they share this factory.
+ */
+vi.mock("@bc-solutions-coder/sdk/query", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@bc-solutions-coder/sdk/query")>();
+  return {
+    ...actual,
+    authQueries: {
+      ...actual.authQueries,
+      externalProviders: () => ({
+        ...actual.authQueries.externalProviders(),
+        queryFn: async (): Promise<unknown> => await mocks.getExternalProviders(),
+      }),
+    },
+  };
+});
 
 /**
  * The returnUrl `/connect/authorize` sends a DIRECT sign-in (relative by
@@ -151,8 +177,12 @@ function renderWithClient(ui: ReactElement, client: QueryClient = newClient()) {
   return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
 }
 
-/** The query key `ExternalProviders` fetches under. */
-const PROVIDERS_QUERY_KEY = ["external-providers"];
+/**
+ * The query key `ExternalProviders` fetches under — the canonical SDK factory key
+ * (`queryKeys.auth.externalProviders()`), NOT the pre-migration `['external-providers']`
+ * literal this screen used to spell inline.
+ */
+const PROVIDERS_QUERY_KEY = ["auth", "external-providers"];
 
 /**
  * Wait until the provider query has actually SETTLED.

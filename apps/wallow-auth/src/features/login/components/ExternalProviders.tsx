@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 
-import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
+import { authQueries } from "@bc-solutions-coder/sdk/query";
 
 /**
  * The Login screen's external-provider list (Wallow-vec7.3.14 / 2.8d).
@@ -156,8 +156,7 @@ export interface ExternalProvidersProps {
 
 export function ExternalProviders({ returnUrl }: ExternalProvidersProps): ReactNode {
   const query = useQuery({
-    queryKey: ["external-providers"],
-    queryFn: async (): Promise<unknown> => await getWallowAuthSdk().auth.getExternalProviders(),
+    ...authQueries.externalProviders(),
     // A provider list that failed to load will not load on a second try fast
     // enough to matter to someone staring at a sign-in form.
     retry: false,

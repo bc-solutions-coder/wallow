@@ -1,4 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { authQueries } from "@bc-solutions-coder/sdk/query";
 import { Card, ErrorBanner } from "@bc-solutions-coder/ui";
 import type { ReactNode } from "react";
 
@@ -20,8 +21,9 @@ import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
  * `invitation-expired`, `invitation-accept-error`, `invitation-accept`,
  * `invitation-decline`, `invitation-create-account`, `invitation-sign-in`.
  *
- * The API is reached through `getWallowAuthSdk()`, never `@bc-solutions-coder/sdk`
- * directly — that facade is this app's only permitted importer of the SDK.
+ * Mutations and the OIDC builders are reached through `getWallowAuthSdk()`, and
+ * reads through the SDK's `./query` factories (Wallow-evd5.3.1) — never the
+ * `@bc-solutions-coder/sdk` barrel, which only the facade may import.
  *
  * ── THE AUTHENTICATED BRANCH IS A BUG FIX, NOT A PORT ────────────────────────
  *
@@ -401,19 +403,14 @@ export function InvitationScreen({ token, isAuthenticated }: InvitationScreenPro
   // guard runs BEFORE the call, so `?token=%20` never reaches the endpoint.
   const tokenIsPresent: boolean = token !== undefined && token.trim() !== "";
 
+  // The `?? ""` is unreachable — `enabled` gates the read on `tokenIsPresent` —
+  // and is present only to narrow the prop to the `string` the factory takes,
+  // without a cast.
   const query = useQuery({
-    queryKey: ["invitation", token],
-    queryFn: async (): Promise<InvitationDetails | null> => {
-      if (token === undefined) {
-        // Unreachable: `enabled` gates this on `tokenIsPresent`. Present only to
-        // narrow the prop to the `string` the call takes, without a cast.
-        return null;
-      }
-
-      // The facade types this `Promise<unknown>` — screens narrow at their own
-      // boundary (bd memory `packages-sdk-auth-client-facade-shape`).
-      return (await getWallowAuthSdk().auth.verifyInvitation(token)) as InvitationDetails;
-    },
+    ...authQueries.invitation(token ?? ""),
+    // The factory types the payload `unknown` — screens narrow at their own
+    // boundary (bd memory `packages-sdk-auth-client-facade-shape`).
+    select: (data: unknown): InvitationDetails => data as InvitationDetails,
     // Carries the oracle's guard to React Query: a tokenless link short-circuits
     // to the error state without ever going to the network.
     enabled: tokenIsPresent,

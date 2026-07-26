@@ -9,6 +9,8 @@ import {
 } from "@bc-solutions-coder/ui";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
+
+import { authQueries } from "@bc-solutions-coder/sdk/query";
 import { type ReactNode, useState } from "react";
 
 import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
@@ -28,8 +30,9 @@ import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
  * passwordless toggle ship without testids in the oracle, so those are minted
  * under the `{page}-{element}` rule.
  *
- * The API is reached through `getWallowAuthSdk()`, never `@bc-solutions-coder/sdk`
- * directly — that facade is this app's only permitted importer of the SDK.
+ * Mutations and the OIDC builders are reached through `getWallowAuthSdk()`, and
+ * reads through the SDK's `./query` factories (Wallow-evd5.3.1) — never the
+ * `@bc-solutions-coder/sdk` barrel, which only the facade may import.
  *
  * ── THE ERROR BRANCHES (REVISED — see Wallow-vec7.7) ─────────────────────────
  *
@@ -571,10 +574,15 @@ export function RegisterForm({ clientId, returnUrl }: RegisterFormProps): ReactN
   // `useQuery` hooks BOTH fire on mount, which is what makes them concurrent —
   // an `await` chain in one query fn would collapse them back into two
   // sequential round-trips, the exact thing the oracle's comment calls out.
+  //
+  // Both this screen and the login screen read the provider list through the SAME
+  // factory, so they share one cache entry — they used to spell the key two
+  // different ways and fetch it twice.
   const providersQuery = useQuery({
-    queryKey: ["auth", "external-providers"],
-    queryFn: async (): Promise<readonly string[]> =>
-      (await getWallowAuthSdk().auth.getExternalProviders()) as readonly string[],
+    ...authQueries.externalProviders(),
+    // The factory types the payload `unknown` — screens narrow at their own
+    // boundary (bd memory `packages-sdk-auth-client-facade-shape`).
+    select: (data: unknown): readonly string[] => data as readonly string[],
   });
 
   // Collapsed to a plain string so the `enabled` gate and the query fn agree
@@ -583,11 +591,10 @@ export function RegisterForm({ clientId, returnUrl }: RegisterFormProps): ReactN
   const tenantClientId: string = clientId ?? "";
 
   const tenantQuery = useQuery({
-    queryKey: ["auth", "client-tenant", tenantClientId],
+    ...authQueries.clientTenant(tenantClientId),
     // The oracle's `if (!string.IsNullOrEmpty(ClientId))` gate.
     enabled: tenantClientId !== "",
-    queryFn: async (): Promise<ClientTenant> =>
-      (await getWallowAuthSdk().auth.getClientTenant(tenantClientId)) as ClientTenant,
+    select: (data: unknown): ClientTenant => data as ClientTenant,
   });
 
   const registerMutation = useMutation({

@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { authQueries } from "@bc-solutions-coder/sdk/query";
 import { Card } from "@bc-solutions-coder/ui";
 import type { ReactNode } from "react";
 
@@ -19,8 +20,9 @@ import { signInHref } from "../sign-in-href";
  * `verify-email-confirm-continue`, `verify-email-confirm-error`,
  * `verify-email-confirm-signin-link`.
  *
- * The API is reached through `getWallowAuthSdk()`, never `@bc-solutions-coder/sdk`
- * directly — that facade is this app's only permitted importer of the SDK.
+ * Mutations and the OIDC builders are reached through `getWallowAuthSdk()`, and
+ * reads through the SDK's `./query` factories (Wallow-evd5.3.1) — never the
+ * `@bc-solutions-coder/sdk` barrel, which only the facade may import.
  *
  * ── WHY THE ORACLE'S ERROR SWITCH IS NOT PORTED LITERALLY ─────────────────────
  *
@@ -209,21 +211,14 @@ function VerificationState(props: {
   const linkIsComplete: boolean =
     email !== undefined && email !== "" && token !== undefined && token !== "";
 
+  // The `?? ""` pair is unreachable — `enabled` gates the read on
+  // `linkIsComplete` — and is present only to narrow the props to the `string`s
+  // the factory takes, without a cast.
   const query = useQuery({
-    queryKey: ["verify-email", email, token],
-    queryFn: async (): Promise<null> => {
-      if (email === undefined || token === undefined) {
-        // Unreachable: `enabled` gates this on `linkIsComplete`. Present only to
-        // narrow the props to the `string`s the call takes, without a cast.
-        return null;
-      }
-
-      await getWallowAuthSdk().auth.verifyEmail({ email, token });
-
-      // The untyped body is deliberately discarded — see the note on success
-      // above. "Resolved" is the whole success signal.
-      return null;
-    },
+    ...authQueries.verifyEmail(email ?? "", token ?? ""),
+    // The untyped body is deliberately discarded — see the note on success
+    // above. "Resolved" is the whole success signal.
+    select: (): null => null,
     // Carries the oracle's guard to React Query: a malformed link short-circuits
     // to the error state without ever going to the network. A screen that
     // "helpfully" sent `token: undefined` would 400 and blame the user's link

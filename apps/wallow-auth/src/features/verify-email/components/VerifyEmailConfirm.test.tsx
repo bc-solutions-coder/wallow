@@ -94,10 +94,36 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("../../../lib/wallow-auth-sdk", () => ({
   getWallowAuthSdk: () => ({
-    auth: { verifyEmail: mocks.verifyEmail },
+    auth: {},
     oidc: { isSafeReturnUrl: mocks.isSafeReturnUrl },
   }),
 }));
+
+/**
+ * THE READ SEAM MOVED (Wallow-evd5.3.1). Confirming the address is now
+ * `useQuery(authQueries.verifyEmail(email, token))` from the SDK query layer
+ * rather than a facade call inside inline `useQuery` options, so the facade mock
+ * above no longer carries `verifyEmail` and the spy hangs off the FACTORY.
+ *
+ * The factory takes TWO POSITIONAL arguments while the underlying client call
+ * takes one object; the spy is invoked with the object shape the existing
+ * assertions expect, so what those tests pin — that the screen sends the email
+ * and token it was given, and sends nothing when the link is incomplete — is
+ * unchanged. `importOriginal` keeps the real `queryKey`.
+ */
+vi.mock("@bc-solutions-coder/sdk/query", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@bc-solutions-coder/sdk/query")>();
+  return {
+    ...actual,
+    authQueries: {
+      ...actual.authQueries,
+      verifyEmail: (email: string, token: string) => ({
+        ...actual.authQueries.verifyEmail(email, token),
+        queryFn: async (): Promise<unknown> => await mocks.verifyEmail({ email, token }),
+      }),
+    },
+  };
+});
 
 const EMAIL = "ada@example.com";
 const TOKEN = "verification-token";
