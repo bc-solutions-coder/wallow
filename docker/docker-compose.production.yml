@@ -371,6 +371,9 @@ services:
       # Alloy listens on the Docker network, no port mapping needed)
       OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4317
       OTEL_SERVICE_NAME: wallow-api
+      # Head-based trace sampling: parent-based ratio sampler. 1.0 would export every trace and
+      # flood the collector; a sampled upstream trace still stays sampled end-to-end.
+      OpenTelemetry__TraceSamplingRatio: ${OTEL_TRACE_SAMPLING_RATIO:-0.1}
       # Identity / JWT
       Identity__SigningKey: ${IDENTITY_SIGNING_KEY}
     depends_on:

@@ -140,6 +140,7 @@ builder.Services.AddOpenTelemetry()
     .WithTracing(tracing =>
     {
         tracing
+            .SetSampler(new ParentBasedSampler(new TraceIdRatioBasedSampler(samplingRatio)))
             .AddAspNetCoreInstrumentation()
             .AddHttpClientInstrumentation();
     })
@@ -158,8 +159,11 @@ Key aspects:
   environment variable is set. Aspire sets it automatically for `pnpm backend`; the production
   compose file sets it to `http://alloy:4317`. With no endpoint configured, traces and metrics
   are collected in-process and never exported.
-- **Sampling**: none is configured, so the SDK default (always-on, parent-based) applies. There is
-  no ratio-based sampler and no `Observability:TraceSamplingRatio` setting in the code.
+- **Sampling**: `ConfigureOpenTelemetry` installs a `ParentBased(TraceIdRatioBased(ratio))` sampler.
+  The ratio comes from `OpenTelemetry:TraceSamplingRatio` and defaults to `1.0`, so local
+  development keeps full-fidelity traces. Wrapping the ratio sampler in `ParentBased` means a trace
+  already sampled upstream stays sampled through our services, so a request is never traced in
+  fragments.
 - **Source registration**: the SDK collects only what is explicitly registered. There is currently
   **no `AddSource(...)` call**, so the `Wallow.*` activity sources described below are created but
   their spans are not exported until a source is registered. See
@@ -454,10 +458,13 @@ defaults to `false` in `appsettings.json` and is turned on in `appsettings.Devel
 
 ### Performance Considerations
 
-1. **Sampling**: no sampler is configured, so **every** trace is recorded and exported. On a busy
-   deployment this is the first thing to tune — add a `ParentBased`/`TraceIdRatioBased` sampler in
-   `ConfigureOpenTelemetry`, or set the standard `OTEL_TRACES_SAMPLER` and
-   `OTEL_TRACES_SAMPLER_ARG` environment variables.
+1. **Sampling**: `OpenTelemetry:TraceSamplingRatio` sets the fraction of traces recorded and
+   exported, through a `ParentBased`/`TraceIdRatioBased` sampler. It defaults to `1.0` (every trace)
+   for local development; `docker-compose.production.yml` lowers it to `0.1` via
+   `OpenTelemetry__TraceSamplingRatio`, tunable with the `OTEL_TRACE_SAMPLING_RATIO` variable in
+   `.env.production`. On a busy deployment this is the first knob to reach for. A value that is
+   unparseable or outside `[0,1]` falls back to full sampling or is clamped rather than failing
+   startup, so an env-var typo cannot take the host down.
 
 2. **Log Levels**: Use Warning or higher in production to reduce log volume.
 
