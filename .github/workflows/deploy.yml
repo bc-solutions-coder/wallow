@@ -18,6 +18,11 @@ on:
   push:
     branches: [main]
 
+# Default for jobs without their own permissions block (the check job);
+# jobs that need more (push-images: packages write) declare it themselves.
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
