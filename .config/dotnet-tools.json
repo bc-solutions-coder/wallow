@@ -3,31 +3,23 @@
   "isRoot": true,
   "tools": {
     "dotnet-ef": {
-      "version": "10.0.5",
-      "commands": [
-        "dotnet-ef"
-      ],
+      "version": "10.0.10",
+      "commands": ["dotnet-ef"],
       "rollForward": false
     },
     "dotnet-outdated-tool": {
-      "version": "4.7.1",
-      "commands": [
-        "dotnet-outdated"
-      ],
+      "version": "4.8.1",
+      "commands": ["dotnet-outdated"],
       "rollForward": false
     },
     "ilspycmd": {
-      "version": "9.1.0.7988",
-      "commands": [
-        "ilspycmd"
-      ],
+      "version": "10.1.1.8388",
+      "commands": ["ilspycmd"],
       "rollForward": false
     },
     "docfx": {
       "version": "2.78.5",
-      "commands": [
-        "docfx"
-      ],
+      "commands": ["docfx"],
       "rollForward": false
     }
   }
