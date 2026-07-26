@@ -1,5 +1,147 @@
 # Changelog
 
+## [4.0.0](https://github.com/bc-solutions-coder/wallow/compare/v3.2.1...v4.0.0) (2026-07-26)
+
+
+### ⚠ BREAKING CHANGES
+
+* **identity:** removes the ClientRegistration, InitialAccessTokens, MembershipRequests, OrganizationDomains, Scim, and Sso API surfaces along with their DTOs, entities, and database tables.
+* **identity:** the auth UI is now exclusively apps/wallow-auth (port 3002 in dev). The wallow-auth container image is built from apps/wallow-auth/Dockerfile. The .NET Playwright E2E suite (Wallow.E2E.Tests) and scripts/run-e2e.sh are removed; per-app @playwright/test suites replace them. Blazor behaviour remains readable in git history.
+* **deps:** upgrade WolverineFx to 6.19.0
+* **deps:** upgrade Asp.Versioning to 10.0.0
+* **deps:** upgrade StackExchange.Redis to 3.0.17
+* **sdk:** refresh under store.withRefreshLock to protect rotating tokens
+* **sdk:** inject SessionStore into createBffHandlers and destroy session on logout
+* **sdk:** route readSession/writeSession through an injected SessionStore
+* **sdk:** add sessionId, version, csrfToken, and identity fields to BffSession
+
+### Features
+
+* configurable first-party clients and @bc-solutions-coder/sdk TypeScript SDK with BFF tunnel ([#63](https://github.com/bc-solutions-coder/wallow/issues/63)) ([3fa193e](https://github.com/bc-solutions-coder/wallow/commit/3fa193e440c9838e31f34d4b30d59bfb830bb18a))
+* **examples:** add minimal-app reference scaffold ([1a3e485](https://github.com/bc-solutions-coder/wallow/commit/1a3e48550400825b2625f336c68135b550bb7bff))
+* **identity,web:** resolve oidc issuer and authority at the unified auth origin ([1bfaafa](https://github.com/bc-solutions-coder/wallow/commit/1bfaafa54b3b62d11faf401c6cecdfd23e6d7597))
+* **identity:** repoint the dev auth origin onto wallow-auth ([4455633](https://github.com/bc-solutions-coder/wallow/commit/44556335b75a9285176ed1d921662d12a6834402))
+* **sdk:** absorb csrf, ssr context, and facade helpers ([a1f64f6](https://github.com/bc-solutions-coder/wallow/commit/a1f64f608ed94d1e967bc309c86dc983319ab2b8))
+* **sdk:** add apps query module ([e020264](https://github.com/bc-solutions-coder/wallow/commit/e02026443adc91a1c0bec2196c7a74c8fb9a9541))
+* **sdk:** add auth facade and oidc helpers for tanstack auth app ([5d761ea](https://github.com/bc-solutions-coder/wallow/commit/5d761eabab40a0e4e6f1ddc99049ae3f6e4c600a))
+* **sdk:** add auth query module ([182881f](https://github.com/bc-solutions-coder/wallow/commit/182881f3788d9c72330033a7ec2e1f44f494ddf0))
+* **sdk:** add central query-key factory ([0ebad6f](https://github.com/bc-solutions-coder/wallow/commit/0ebad6fe484072c24f04b9a0631ca031aa71d4ee))
+* **sdk:** add configureBffClient and fix two-client config disconnect ([1c3577e](https://github.com/bc-solutions-coder/wallow/commit/1c3577e399b7c0b18d248e72618b7d06dc0d4a05))
+* **sdk:** add CookieSessionStore behind SessionStore interface ([0120dc1](https://github.com/bc-solutions-coder/wallow/commit/0120dc146a3e1f9916774fd1629523467a26d00e))
+* **sdk:** add CSRF protection to BFF session and proxy ([d5f3b0b](https://github.com/bc-solutions-coder/wallow/commit/d5f3b0b0f54fd7fa2a985ff5ccd1744a81ee20d2))
+* **sdk:** add getCurrentUser auth-state facade method ([ddb02f3](https://github.com/bc-solutions-coder/wallow/commit/ddb02f37da7ffc1fcf57d345e9905d68cefb3c65))
+* **sdk:** add inquiries query module ([e844369](https://github.com/bc-solutions-coder/wallow/commit/e84436918b108df8310f822f99a04d1e9ca113bd))
+* **sdk:** add lazy query-layer bootstrap seam ([565627b](https://github.com/bc-solutions-coder/wallow/commit/565627b4c39041d78cc099fa56fd3e060fb9c3e4))
+* **sdk:** add mfa query module ([fabc046](https://github.com/bc-solutions-coder/wallow/commit/fabc046a219afd92a94bb7fde3ee8cb5a5669fc9))
+* **sdk:** add organizations query module ([e1891f8](https://github.com/bc-solutions-coder/wallow/commit/e1891f80b031715e4be352cae83ec71c08636155))
+* **sdk:** add RFC 7807 error parsing and resilient BFF proxy forward ([48e41bb](https://github.com/bc-solutions-coder/wallow/commit/48e41bb0993ff5d1bd16de1e8eaf4712ef57c793))
+* **sdk:** add RP-initiated logout with connect/logout fallback ([8c9887e](https://github.com/bc-solutions-coder/wallow/commit/8c9887ee89b1f49d3a0e8e30a70b8aebd1563af5))
+* **sdk:** add session TTL and cookie secure configuration ([a37a46e](https://github.com/bc-solutions-coder/wallow/commit/a37a46e36e1b0fe3e4b4e78fc152985d2dd1e93c))
+* **sdk:** add sessionId, version, csrfToken, and identity fields to BffSession ([7cbd230](https://github.com/bc-solutions-coder/wallow/commit/7cbd23008a41da324f6373ba604db495b838d02e))
+* **sdk:** add SessionStore and RedisLike interfaces ([e61fcb2](https://github.com/bc-solutions-coder/wallow/commit/e61fcb21734e6881bded1b3b91f6704603b25471))
+* **sdk:** add settings query module ([c755ab5](https://github.com/bc-solutions-coder/wallow/commit/c755ab566f2e7af5da8a4716814d3f55abc75d29))
+* **sdk:** add user query module ([13d8d91](https://github.com/bc-solutions-coder/wallow/commit/13d8d91019f03b895e9716acfe5ea83410f3c9a6))
+* **sdk:** add ValkeySessionStore with server-side revocation and refresh lock ([a336973](https://github.com/bc-solutions-coder/wallow/commit/a336973a85e1d3ced72a993c9e900c2d9206259f))
+* **sdk:** adopt openid-client for PKCE authorize URL and code exchange ([9a503bd](https://github.com/bc-solutions-coder/wallow/commit/9a503bd31b63724012e3717e30c04f5e1916155d))
+* **sdk:** back OIDC discovery with openid-client, keep split-horizon pinning ([487989a](https://github.com/bc-solutions-coder/wallow/commit/487989af7990db71ec6abdd3c2f046338b35a711))
+* **sdk:** expose public bff auth exports with example and docs ([22ed143](https://github.com/bc-solutions-coder/wallow/commit/22ed14346e08192d731f9e498a54beda5fa3ab26))
+* **sdk:** expose query layer via ./query subpath ([ae76871](https://github.com/bc-solutions-coder/wallow/commit/ae7687136f4d332b13231277af4177170d7b1cc8))
+* **sdk:** harden session cookie with max-age and secure flag ([924246d](https://github.com/bc-solutions-coder/wallow/commit/924246d08ecfa4568d9284cc60106040ac8f916e))
+* **sdk:** inject SessionStore into createBffHandlers and destroy session on logout ([724dfc5](https://github.com/bc-solutions-coder/wallow/commit/724dfc5c515a998cb4b4bf3d16a689d200d4677b))
+* **sdk:** map userinfo claims into BffSession.user fields ([852bad0](https://github.com/bc-solutions-coder/wallow/commit/852bad09a7073dcd67ad9b9dc4aae3372dcf6547))
+* **sdk:** refresh under store.withRefreshLock to protect rotating tokens ([0b4ea50](https://github.com/bc-solutions-coder/wallow/commit/0b4ea50c444a8ae454d1e336f95e8bf5c3e4f160))
+* **sdk:** restructure sdk into pnpm monorepo with redis adapter ([b48cb7c](https://github.com/bc-solutions-coder/wallow/commit/b48cb7c6f5c3e3a746dc7b9f16183e98a76d9b19))
+* **sdk:** rotate refresh tokens via openid-client refresh grant ([e759c56](https://github.com/bc-solutions-coder/wallow/commit/e759c56d06c4f236215f4627077ba9f1c053dea7))
+* **sdk:** route readSession/writeSession through an injected SessionStore ([72c56ce](https://github.com/bc-solutions-coder/wallow/commit/72c56ce94dc574b8cc274c607f1a4ee7c40d23c5))
+* **sdk:** share mfa api-wrapper slice across apps ([5436863](https://github.com/bc-solutions-coder/wallow/commit/5436863a975f6b3c10979774dd0fdd87125772a1))
+* **styles:** own tailwind via wallowStyles() vite plugin ([2cf8749](https://github.com/bc-solutions-coder/wallow/commit/2cf87499e7d2245c5f2ce297579397f23445cf71))
+* **testing:** extract shared vitest preset into @bc-solutions-coder/testing ([8505a30](https://github.com/bc-solutions-coder/wallow/commit/8505a30b99dc58c6c5832358beb686042071c2de))
+* **ui:** add shared component library and move ready-indicator/focus-on-navigate ([36b9136](https://github.com/bc-solutions-coder/wallow/commit/36b913632e1979be5899c53ffdf43473562bdedf))
+* **ui:** scaffold @bc-solutions-coder/ui package with source.css wiring ([ff7fbd5](https://github.com/bc-solutions-coder/wallow/commit/ff7fbd5461ea680a6e7182e46e694811d59f97a1))
+* **wallow-auth:** add remember-me to the OTP login tab ([d3600ac](https://github.com/bc-solutions-coder/wallow/commit/d3600ac7eb63a24fd4200143e34a207fc37c6b13))
+* **wallow-auth:** forward the real client ip through the h3 proxy ([6fb3ce9](https://github.com/bc-solutions-coder/wallow/commit/6fb3ce9eba5a7a70beb637451339645d2636553b))
+* **wallow-auth:** port invitation, accept-terms, and login password screens ([cea6c68](https://github.com/bc-solutions-coder/wallow/commit/cea6c68fc20f07470990c422af32d4db15425487))
+* **wallow-auth:** port logout, mfa, and register screens ([d39facf](https://github.com/bc-solutions-coder/wallow/commit/d39facf9b463db3765d44e7ec6b46516494b0c4e))
+* **wallow-auth:** port magic-link, otp, and external provider login tabs ([9e4b6d2](https://github.com/bc-solutions-coder/wallow/commit/9e4b6d276d0ae11e3968ed6777087e7cbea4d397))
+* **wallow-auth:** port password reset, verify-email, and consent screens ([1d943eb](https://github.com/bc-solutions-coder/wallow/commit/1d943eb9bf9a85812a9bd89c06a8a47e2c613418))
+* **wallow-auth:** scaffold tanstack start auth app ([ac192a7](https://github.com/bc-solutions-coder/wallow/commit/ac192a7a761a32e6a182e0011546ae327ad1ab3e))
+* **wallow-auth:** serve SSR from the standalone host and containerise it ([df2d9b6](https://github.com/bc-solutions-coder/wallow/commit/df2d9b66b0340b6722ba2c4bb9022770bd5445c6))
+* **wallow-web:** add apps oauth-client feature ([ffcd30a](https://github.com/bc-solutions-coder/wallow/commit/ffcd30ad536accc002af9d2d896cb705726c6b8a))
+* **wallow-web:** add dashboard shell, auth gate, and BFF smoke route ([1479827](https://github.com/bc-solutions-coder/wallow/commit/1479827657b2ed345aa044ccf4fbc302a2e76a1d))
+* **wallow-web:** add inquiries feature with detail and comments ([3ff29f9](https://github.com/bc-solutions-coder/wallow/commit/3ff29f9db75b083ce2f814de79838db00809c934))
+* **wallow-web:** add organizations feature with crud and members ([3747edc](https://github.com/bc-solutions-coder/wallow/commit/3747edc0b8fd800afa39153809bff296050a20e1))
+* **wallow-web:** add query client core and getWallowSdk facade ([5b5a497](https://github.com/bc-solutions-coder/wallow/commit/5b5a49776c2ae14f766697a31dbb27aec6bff647))
+* **wallow-web:** add settings profile and mfa features ([af61f68](https://github.com/bc-solutions-coder/wallow/commit/af61f6810f35ce08c4de80b8137d7fe8b1c2fc36))
+* **web-shell:** add standalone host runtime and vite preset factories ([39c7c19](https://github.com/bc-solutions-coder/wallow/commit/39c7c19274ff0ba0783e74338c515d004c2a5726))
+* **web-shell:** build new workspace packages in dockerfiles and ci ([1faa40e](https://github.com/bc-solutions-coder/wallow/commit/1faa40e67e91d42902c75d8d9f3752dc03f3d858))
+* **web-shell:** scaffold @bc-solutions-coder/web-shell package ([b41b44a](https://github.com/bc-solutions-coder/wallow/commit/b41b44aa875a53472cf5e875eb665b39cd49f64a))
+* **web:** add zustand ui store for the dashboard nav ([0682d68](https://github.com/bc-solutions-coder/wallow/commit/0682d684d0afd1f6ea2f8d7feead274bd867d957))
+* **web:** adopt shared ui design language in dashboard features ([a1b3af2](https://github.com/bc-solutions-coder/wallow/commit/a1b3af298b356e28d0c9d48a877cfdccaf5733b3))
+* **web:** restore route-tree codegen, centralize styling, regenerate openapi client ([9ea6928](https://github.com/bc-solutions-coder/wallow/commit/9ea69283a1d4885f7af1484358f82fd798c842c1))
+* **web:** retire the Blazor Wallow.Web app for the React port ([01fa5ec](https://github.com/bc-solutions-coder/wallow/commit/01fa5ec07238490776b407bfd3d415d2ce5a5eb0))
+* **workspace:** normalize package scripts across root and members ([6b14121](https://github.com/bc-solutions-coder/wallow/commit/6b141218066163d25570fa812def1d1f12985c57))
+
+
+### Bug Fixes
+
+* **api:** configure parent-based ratio trace sampler ([92f8653](https://github.com/bc-solutions-coder/wallow/commit/92f86536219763ef7ee5dcb96bb381010e1888d7))
+* **api:** restore Wolverine 6 codegen and expose OpenAPI pre-setup ([fac6050](https://github.com/bc-solutions-coder/wallow/commit/fac60500feb3fac970c73e710cd1fa8365913ed0))
+* **auth:** forward requested scopes from the authorize redirect to consent ([ae11a47](https://github.com/bc-solutions-coder/wallow/commit/ae11a47f1bb12d8a11042c8e53f0cc1a530618db))
+* **auth:** relay the external-login client_id through mfa-challenge and accept-terms ([6ed8a53](https://github.com/bc-solutions-coder/wallow/commit/6ed8a533bed0721e107ea95da21f219dfa399ef8))
+* **auth:** render a not-found page for unmatched routes ([e8f3698](https://github.com/bc-solutions-coder/wallow/commit/e8f36981b6bf083893675c93be0989f4ba963452))
+* **auth:** wire the per-client branding overlay on the login screen ([ac4cbbc](https://github.com/bc-solutions-coder/wallow/commit/ac4cbbcbaf4ce54dafe7d9dd352ea1bb3da3daf6))
+* correct minimal-app tsconfig extends path after apps/ relocation ([78a4e61](https://github.com/bc-solutions-coder/wallow/commit/78a4e612b5cc868a70b1f5161df312c367f933ff))
+* **deps:** patch vulnerable direct and transitive packages ([f4856bb](https://github.com/bc-solutions-coder/wallow/commit/f4856bb207a7dc0c0196eaa9cc51462032c95336))
+* **docker:** build tanstack-min image with pnpm workspace ([442826b](https://github.com/bc-solutions-coder/wallow/commit/442826bb2000655efd5df007cdc583c8d234a550))
+* **docker:** refuse garage key reimport on placeholder key id ([c3410b2](https://github.com/bc-solutions-coder/wallow/commit/c3410b20648eb293d944dc18a1a2730d795c1ab5))
+* **docker:** require BFF_COOKIE_PASSWORD and document it in env example ([1d4d532](https://github.com/bc-solutions-coder/wallow/commit/1d4d53231702d1d7004cdd86d83531f66ca21937))
+* **hooks:** point pre-commit format check at api/Wallow.slnx ([9278cb2](https://github.com/bc-solutions-coder/wallow/commit/9278cb20b104c89d9bf9b73b54cb19fb3f94ebce))
+* **identity:** align first-party client ids with seeded clients ([f275c57](https://github.com/bc-solutions-coder/wallow/commit/f275c578956eccee4fa226f884dbf1422a21af99))
+* **identity:** carry requested scopes to the consent redirect ([a7ad1a3](https://github.com/bc-solutions-coder/wallow/commit/a7ad1a3888214d53c36babc16ca6522e34e92efb))
+* **identity:** derive MFA partial-auth cookie Secure flag from the request ([6f8d175](https://github.com/bc-solutions-coder/wallow/commit/6f8d175d3506f33be0eef676075c4aa85af41ad1))
+* **identity:** persist PostLogoutRedirectUris when provisioning apps ([8bbc2c9](https://github.com/bc-solutions-coder/wallow/commit/8bbc2c95933199c567a5988b7bf57ca2f42e9e61))
+* **identity:** preserve the allow-listed absolute returnUrl on exchange-ticket ([4076c6f](https://github.com/bc-solutions-coder/wallow/commit/4076c6f8a7ee5d1a73deb60fa1cd4e9fa018e78d))
+* **identity:** register keyed identity settings service ([8f73c2c](https://github.com/bc-solutions-coder/wallow/commit/8f73c2cd1d6104fd839b63584ed970d0d49cf60d))
+* **identity:** return the scheme name from the external provider list ([133d6f2](https://github.com/bc-solutions-coder/wallow/commit/133d6f228032520be0b44e034150a1fdbe8b9d8a))
+* **identity:** scope redirect URI validation cache per client ([63212ee](https://github.com/bc-solutions-coder/wallow/commit/63212ee42ffda104c32a7f40b8b2dc0cd31b3fb9))
+* **identity:** sign magic-link tokens through the data protection key ring ([32fc727](https://github.com/bc-solutions-coder/wallow/commit/32fc72718755e73260a63a515a0a1c4d5f082449))
+* **identity:** thread client_id through the external-login flow ([8089a7b](https://github.com/bc-solutions-coder/wallow/commit/8089a7b7c9f93aafcbb138bc46cbeefc29e54fb3))
+* **identity:** wire the React apps' env through the Aspire AppHost ([58fc29d](https://github.com/bc-solutions-coder/wallow/commit/58fc29df4a140ee3ece0966826ed275ca8cdcc39))
+* **lint-staged:** match protected sdk paths against absolute paths ([4ce6671](https://github.com/bc-solutions-coder/wallow/commit/4ce667153130eee66ca15d8d141ab1679c042baa))
+* **lint-staged:** stop passing ignored routeTree.gen.ts files to oxfmt ([7232af0](https://github.com/bc-solutions-coder/wallow/commit/7232af0787136ebc3a8076d988dad6baadeef0e4))
+* **observability:** register custom otel meters and sources ([70e94b8](https://github.com/bc-solutions-coder/wallow/commit/70e94b85b15d9437edd5faf0007720eec396b224))
+* restore example app to pnpm workspace after apps/ relocation ([33d2cdf](https://github.com/bc-solutions-coder/wallow/commit/33d2cdf1f12ea4c920deefb055058b285fd49307))
+* **scripts:** treat build failures as failures in run-tests.sh ([5341025](https://github.com/bc-solutions-coder/wallow/commit/53410252bf880af64910a5fe0e983a065471ed0e))
+* **sdk:** add SSR-safe baseUrl and headers options to getUser ([6b6dd54](https://github.com/bc-solutions-coder/wallow/commit/6b6dd54472e4621ae53476023d438ad03c2d9543))
+* **sdk:** bump @hey-api/openapi-ts to 0.99 to clear npm security alerts ([1b1ee70](https://github.com/bc-solutions-coder/wallow/commit/1b1ee7051ed65266dd1230ef04e012927abfc323))
+* **sdk:** preserve auth error code through error mapping ([d4e27e0](https://github.com/bc-solutions-coder/wallow/commit/d4e27e0921a8eaf055990e3b80482752d061c882))
+* **sdk:** scope client-facing auth queries by client_id ([ce5350d](https://github.com/bc-solutions-coder/wallow/commit/ce5350d59796d0a648013dccd90e9a5c3c2d14f0))
+* **seeder:** make admin bootstrap idempotent ([4b8165f](https://github.com/bc-solutions-coder/wallow/commit/4b8165f589d6e16f5f57d2f4092da988ce57b838))
+* **wallow-auth:** accept server-vouched absolute return url on mfa challenge ([9d5495f](https://github.com/bc-solutions-coder/wallow/commit/9d5495f42bfb846df0966bd13d2732128fb5f5f2))
+* **wallow-auth:** acknowledge password_reset on the login screen ([7f73aa3](https://github.com/bc-solutions-coder/wallow/commit/7f73aa310e82ed1c53c73e8646bdebc8b077f82c))
+* **wallow-auth:** default the h3 proxy to the local API ([a6e0467](https://github.com/bc-solutions-coder/wallow/commit/a6e0467948655d62be8bad18516ac3fd0c2edf20))
+* **wallow-auth:** link the compiled stylesheet from the production document ([4c67b24](https://github.com/bc-solutions-coder/wallow/commit/4c67b2438458181fdfebc848a279901ce16156bf))
+* **wallow-auth:** resolve the org-domain interstitial before submitting register ([0320b4d](https://github.com/bc-solutions-coder/wallow/commit/0320b4da0b9e3faa004f234f6d2c38e4c23e2a45))
+* **wallow-web:** serve the client bundle and stabilize hydration in dev-server ([0c11e43](https://github.com/bc-solutions-coder/wallow/commit/0c11e436d00f2315a3ba357798eb7a1d96959096))
+* **web-shell:** silence route-file warnings and HMR port collisions ([be03bd5](https://github.com/bc-solutions-coder/wallow/commit/be03bd561f151311c3d4c99f24dd4f0d40d46888))
+* **web:** forward SSR request origin and session cookie to BFF fetches ([423e83d](https://github.com/bc-solutions-coder/wallow/commit/423e83de947ba70111ea80bbf726553f6842e160))
+* **web:** route SSR self-fetch through an internal origin override ([43285af](https://github.com/bc-solutions-coder/wallow/commit/43285aff3b8b9dcea5639ec7d1b330c0654dd2a0))
+* **web:** stop the forced-login branch of / SSR from 500ing ([0774edf](https://github.com/bc-solutions-coder/wallow/commit/0774edf25094c5d77d41edd9812a0779b3594524))
+* **web:** stop unauthenticated /dashboard SSR from 500ing ([3340cc2](https://github.com/bc-solutions-coder/wallow/commit/3340cc204fbf9826c03ec7203fe31854c743bff9))
+
+
+### Miscellaneous Chores
+
+* **deps:** upgrade Asp.Versioning to 10.0.0 ([6dc0674](https://github.com/bc-solutions-coder/wallow/commit/6dc067450e5e816c308e4db6c2c798a3ff952a57))
+* **deps:** upgrade StackExchange.Redis to 3.0.17 ([55a7948](https://github.com/bc-solutions-coder/wallow/commit/55a7948886d9b3918b4c8b5a4c003506d02f22d5))
+* **deps:** upgrade WolverineFx to 6.19.0 ([1ed121b](https://github.com/bc-solutions-coder/wallow/commit/1ed121b9a9760d19a5ac69ed03c5ec7ec1202fe4))
+
+
+### Code Refactoring
+
+* **identity:** collapse client provisioning and simplify tenant model ([eb653d5](https://github.com/bc-solutions-coder/wallow/commit/eb653d5c5285107f3d3b8f483e6ec9f86306081e))
+* **identity:** delete Blazor Wallow.Auth and the .NET E2E suite ([9c4c940](https://github.com/bc-solutions-coder/wallow/commit/9c4c940c9423f379e1266f29994517b1659ed971))
+
 ## [3.2.1](https://github.com/bc-solutions-coder/wallow/compare/v3.2.0...v3.2.1) (2026-07-05)
 
 
