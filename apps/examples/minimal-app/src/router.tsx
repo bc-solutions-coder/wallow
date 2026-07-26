@@ -4,6 +4,11 @@ import { createQueryClient } from "@bc-solutions-coder/web-shell";
 
 import { routeTree } from "./routeTree.gen";
 
+// Side-effect import: registers the app's client configurator with the SDK query
+// bootstrap. Loaded here so BOTH the client and SSR module graphs are armed
+// before any route fires a query.
+import "./lib/sdk";
+
 /**
  * Constructs the TanStack router that boots the app. The route tree is produced
  * by TanStack Router's file-based codegen (`src/routeTree.gen.ts`, regenerated

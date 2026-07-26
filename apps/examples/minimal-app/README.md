@@ -9,7 +9,7 @@ packages, not from this app.
 
 Use it as the copy-from skeleton when bootstrapping a new app. The step-by-step
 rationale for each file lives in
-[`docs/development/frontend-setup.md` → "New App Bootstrap"](../../docs/development/frontend-setup.md);
+[`docs/development/frontend-setup.md` → "New App Bootstrap"](../../../docs/development/frontend-setup.md);
 this README is the boot recipe.
 
 ## The five packages it wires
@@ -18,7 +18,7 @@ this README is the boot recipe.
 | ------------------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `@bc-solutions-coder/styles`    | yes                | Tailwind v4 pipeline (`wallowStyles()`, via the web-shell Vite preset), brand theme tokens + assets (`src/styles.css`, `__root.tsx`)                                  |
 | `@bc-solutions-coder/ui`        | **no (`private`)** | Shared components (`Card`, `MutedText`, `CenteredCardLayout`, `ForkAttribution`, `DocumentStyles`, `FocusOnNavigate`, `ReadyIndicator`) + its Tailwind `@source` scan |
-| `@bc-solutions-coder/sdk`       | yes                | Same-origin BFF client + typed API operations (`src/lib/sdk.ts`)                                                                                                      |
+| `@bc-solutions-coder/sdk`       | yes                | Same-origin BFF client + typed API operations, and its `./query` TanStack Query layer (`src/lib/sdk.ts`)                                                              |
 | `@bc-solutions-coder/testing`   | **no (`private`)** | The `createVitestProjects` node+browser preset (`vitest.config.ts`) and the browser-mode `render` helper (`*.test.tsx`)                                               |
 | `@bc-solutions-coder/web-shell` | **no (`private`)** | `createQueryClient`, and (`./server`) the host/dev-server/Vite-preset factories (`server.ts`, `dev-server.ts`, `vite.config.ts`, `vite.ssr.config.ts`)                |
 
@@ -76,3 +76,35 @@ pnpm --filter @bc-solutions-coder/example-minimal-app test      # node + headles
   library, the test harness, and the host/dev/Vite runtime — all from the shared
   packages. Rebranding needs no source change here; it flows from
   `api/branding.json` through `@bc-solutions-coder/styles`.
+
+## Adding your first query
+
+This app renders **no live data on purpose** — `HelloCard` is static, so there is
+no demo fetch to read past. What it does ship is the wiring your first query
+needs, already in place:
+
+- `src/lib/sdk.ts` exports `configureClient()` (same-origin base URL + CSRF
+  interceptor) and hands it to the SDK's `registerQueryBootstrap` at module
+  scope. Registration is side-effect free: the shared `@hey-api` client stays
+  untouched until a query actually runs.
+- `src/router.tsx` side-effect-imports `./lib/sdk`, arming that registration in
+  both the client and SSR module graphs.
+- `createQueryClient` (from `@bc-solutions-coder/web-shell`) already supplies the
+  router's `QueryClient`.
+
+So a fork adds a read by calling an SDK query factory and nothing else:
+
+```tsx
+import { useQuery } from "@tanstack/react-query";
+import { userQueries } from "@bc-solutions-coder/sdk/query";
+
+const { data } = useQuery(userQueries.currentUser());
+```
+
+Reads come from `@bc-solutions-coder/sdk`'s **`./query`** entry — per-feature
+`queryOptions`/`mutationOptions` factories over one shared key registry. Never
+hand-write a `queryKey` literal in an app, and keep UI-only state (open/closed,
+active tab, wizard step) in a Zustand store rather than the query cache. The full
+boundary — what belongs in TanStack Query, what belongs in Zustand, and what
+belongs in neither — is
+[`docs/development/frontend-state.md`](../../../docs/development/frontend-state.md).
