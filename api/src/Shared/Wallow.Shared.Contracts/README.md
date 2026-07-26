@@ -14,20 +14,18 @@ All integration events implement `IIntegrationEvent` and extend the `Integration
 
 **Identity**: `UserRegisteredEvent`, `UserRoleChangedEvent`, `OrganizationCreatedEvent`, `OrganizationMemberAddedEvent`, `OrganizationMemberRemovedEvent`, `PasswordResetRequestedEvent`, `EmailVerificationRequestedEvent`, `EmailVerifiedEvent`, `InvitationCreatedEvent`, `MagicLinkRequestedEvent`, `OtpCodeRequestedEvent`, and others.
 
-**Billing**: `InvoiceCreatedEvent`, `InvoicePaidEvent`, `InvoiceOverdueEvent`, `PaymentReceivedEvent`.
-
-**Delivery**: `EmailSentEvent`.
+**Delivery**: `EmailSentEvent`, `PushSentEvent`, `SmsSentEvent`.
 
 **Notifications**: `NotificationCreatedEvent`.
 
-**Metering**: `QuotaThresholdReachedEvent`, `UsageFlushedEvent`.
+**Announcements**: `AnnouncementPublishedEvent`.
+
+**Inquiries**: `InquirySubmittedEvent`, `InquiryStatusChangedEvent`, `InquiryCommentAddedEvent`.
 
 ## Cross-Module Query Services
 
 Modules expose read-only interfaces implemented in their Infrastructure layer:
 - `IUserQueryService` (Identity)
-- `IInvoiceQueryService`, `ISubscriptionQueryService`, `IRevenueReportService`, `IInvoiceReportService`, `IPaymentReportService` (Billing)
-- `IMeteringQueryService`, `IUsageReportService` (Metering)
 
 ## Real-time Messaging
 
@@ -38,12 +36,12 @@ Modules expose read-only interfaces implemented in their Infrastructure layer:
 
 ## Other Contracts
 
-Additional contract subdirectories exist for: Announcements, ApiKeys, Branding, Communications, Inquiries, Messaging, Setup, Storage, and Annotations.
+Additional contract subdirectories exist for: Annotations, Announcements, ApiKeys, Communications, Delivery, Identity, Inquiries, Notifications, Realtime, Setup, and Storage.
 
 ## Conventions
 
 ### Event Design Rules
-1. **Past tense naming**: `InvoiceCreatedEvent`, not `CreateInvoiceEvent`
+1. **Past tense naming**: `UserRegisteredEvent`, not `RegisterUserEvent`
 2. **Primitive types only**: No domain entities or value objects (serialization-friendly)
 3. **Include context**: TenantId, UserId, EntityId for downstream handlers
 4. **Immutable records**: Events are facts, never modified
