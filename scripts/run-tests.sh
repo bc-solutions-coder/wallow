@@ -27,6 +27,7 @@ announcements)  echo "$REPO_ROOT/api/tests/Modules/Announcements/Wallow.Announce
         apikeys)        echo "$REPO_ROOT/api/tests/Modules/ApiKeys/Wallow.ApiKeys.Tests" ;;
         api)             echo "$REPO_ROOT/api/tests/Wallow.Api.Tests" ;;
         arch|architecture) echo "$REPO_ROOT/api/tests/Wallow.Architecture.Tests" ;;
+        seeder)          echo "$REPO_ROOT/api/tests/Wallow.SeederService.Tests" ;;
         shared)          echo "$REPO_ROOT/api/tests/Wallow.Shared.Infrastructure.Tests" ;;
         kernel)          echo "$REPO_ROOT/api/tests/Wallow.Shared.Kernel.Tests" ;;
         integration)     echo "$REPO_ROOT/api/tests/Modules/Identity/Wallow.Identity.IntegrationTests" ;;

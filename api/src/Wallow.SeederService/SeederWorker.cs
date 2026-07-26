@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Wallow.Identity.Application.Commands.BootstrapAdmin;
-using Wallow.Identity.Application.Queries.IsSetupRequired;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Identity.Infrastructure.Services;
@@ -15,6 +14,8 @@ public sealed partial class SeederWorker(
     IHostApplicationLifetime lifetime,
     ILogger<SeederWorker> logger) : BackgroundService
 {
+    private const string AdminRoleName = "admin";
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         LogSeederStarted();
@@ -106,31 +107,39 @@ public sealed partial class SeederWorker(
         LogStepCompleted("Seed API Scopes");
     }
 
-    private async Task BootstrapAdminAsync(IServiceProvider sp, CancellationToken ct)
+    internal async Task BootstrapAdminAsync(IServiceProvider sp, CancellationToken ct)
     {
         LogStepStarted("Bootstrap Admin");
 
-        ISetupStatusChecker setupStatusChecker = sp.GetRequiredService<ISetupStatusChecker>();
-        bool setupRequired = await setupStatusChecker.IsSetupRequiredAsync(ct);
-
-        if (setupRequired && seedOptions.Value.Admin is { IsConfigured: true } admin)
+        // Deliberately independent of ISetupStatusChecker: setup counts as done once ANY user holds
+        // the admin role, which would silently suppress the configured seed admin (Wallow-wd6n).
+        if (seedOptions.Value.Admin is not { IsConfigured: true } admin)
         {
-            IBootstrapAdminService bootstrapAdminService = sp.GetRequiredService<IBootstrapAdminService>();
-            await bootstrapAdminService.EnsureRoleExistsAsync("admin", ct);
-
-            bool userExists = await bootstrapAdminService.UserExistsAsync(admin.Email, ct);
-            if (!userExists)
-            {
-                Guid userId = await bootstrapAdminService.CreateUserAsync(
-                    admin.Email,
-                    admin.Password,
-                    admin.FirstName,
-                    admin.LastName,
-                    ct);
-                await bootstrapAdminService.AssignRoleAsync(userId, "admin", ct);
-                LogAdminBootstrapped(admin.Email);
-            }
+            LogSeedAdminNotConfigured();
+            LogStepCompleted("Bootstrap Admin");
+            return;
         }
+
+        IBootstrapAdminService bootstrapAdminService = sp.GetRequiredService<IBootstrapAdminService>();
+
+        bool userExists = await bootstrapAdminService.UserExistsAsync(admin.Email, ct);
+        if (userExists)
+        {
+            LogSeedAdminAlreadyExists(admin.Email);
+            LogStepCompleted("Bootstrap Admin");
+            return;
+        }
+
+        await bootstrapAdminService.EnsureRoleExistsAsync(AdminRoleName, ct);
+
+        Guid userId = await bootstrapAdminService.CreateUserAsync(
+            admin.Email,
+            admin.Password,
+            admin.FirstName,
+            admin.LastName,
+            ct);
+        await bootstrapAdminService.AssignRoleAsync(userId, AdminRoleName, ct);
+        LogAdminBootstrapped(admin.Email);
 
         LogStepCompleted("Bootstrap Admin");
     }
@@ -162,6 +171,12 @@ public sealed partial class SeederWorker(
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Seeded {Count} API scopes")]
     private partial void LogApiScopesSeeded(int count);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "No seed admin is configured (email and password required); skipping admin bootstrap")]
+    private partial void LogSeedAdminNotConfigured();
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Seed admin user {Email} already exists; leaving it untouched")]
+    private partial void LogSeedAdminAlreadyExists(string email);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Bootstrapped admin user: {Email}")]
     private partial void LogAdminBootstrapped(string email);
