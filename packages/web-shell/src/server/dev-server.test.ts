@@ -1,5 +1,9 @@
 import { type IncomingMessage, type Server, type ServerResponse } from "node:http";
-import { type AddressInfo } from "node:net";
+import {
+  type AddressInfo,
+  createServer as createNetServer,
+  type Server as NetServer,
+} from "node:net";
 import { join } from "node:path";
 
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
@@ -78,6 +82,95 @@ function lastRouterOptions(): Record<string, unknown> {
   return tanstackRouterMock.mock.calls.at(-1)?.[0] as Record<string, unknown>;
 }
 
+/** Route filenames the generator must SKIP — co-located vitest specs carry no Route export. */
+const IGNORED_ROUTE_FILES: string[] = [
+  "login.test.tsx",
+  "login.test.ts",
+  "login.spec.tsx",
+  "login.spec.ts",
+  "dashboard/index.test.tsx",
+];
+
+/** Route filenames the generator must STILL pick up. */
+const KEPT_ROUTE_FILES: string[] = [
+  "login.tsx",
+  "index.tsx",
+  "__root.tsx",
+  "dashboard/index.tsx",
+  "latest.tsx",
+  "manifest.ts",
+];
+
+/**
+ * `routeFileIgnorePattern` is a string the generator compiles to a RegExp and
+ * tests against each route filename, so the assertion compiles it the same way
+ * and returns the subset matched — a diffable list beats a per-file boolean.
+ */
+function matchesIgnorePattern(pattern: string, files: string[]): string[] {
+  const regex = new RegExp(pattern);
+  return files.filter((file: string): boolean => regex.test(file));
+}
+
+/**
+ * Ports the local dev stack already owns (root CLAUDE.md "Local Development"
+ * table plus `docker/.env.example`), and 24678 — Vite's default standalone HMR
+ * WebSocket port, the very port both apps currently fight over. The derived HMR
+ * port must land on none of them.
+ */
+const DOCUMENTED_DEV_PORTS: number[] = [
+  1025, 3000, 3001, 3002, 3900, 3903, 5001, 5004, 8025, 24678,
+];
+
+/**
+ * The port Vite was told to serve HMR on, or `undefined` when `server.hmr` is
+ * absent (or the boolean form, which carries no port). Narrowed structurally so
+ * a failure reports the value itself rather than a bare boolean.
+ */
+function hmrPortOf(config: InlineConfig): unknown {
+  const hmr: unknown = config.server?.hmr;
+  if (typeof hmr !== "object" || hmr === null || !("port" in hmr)) {
+    return undefined;
+  }
+  return hmr.port;
+}
+
+/** Resolves true when `port` is bindable right now; the probe closes immediately. */
+function canBind(port: number): Promise<boolean> {
+  return new Promise<boolean>((resolve): void => {
+    const probe: NetServer = createNetServer();
+    probe.once("error", (): void => {
+      resolve(false);
+    });
+    probe.listen(port, "127.0.0.1", (): void => {
+      probe.close((): void => {
+        resolve(true);
+      });
+    });
+  });
+}
+
+/** Ports already handed out by {@link freeAppPort} in this file. */
+const claimedPorts = new Set<number>();
+
+/**
+ * A free port in 20000-23999 to stand in for an app's `PORT`. The HMR specs
+ * cannot use the suite's usual ephemeral `PORT=0` (every server would compute
+ * the same port, so a port-derived HMR port could not be told apart from a
+ * constant), and they must not bind the real 3000/3002 a developer may be
+ * running. The range stays low enough that a derivation adding a fixed offset
+ * still lands inside the valid TCP range.
+ */
+async function freeAppPort(): Promise<number> {
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    const candidate: number = 20_000 + Math.floor(Math.random() * 4000);
+    if (!claimedPorts.has(candidate) && (await canBind(candidate))) {
+      claimedPorts.add(candidate);
+      return candidate;
+    }
+  }
+  throw new Error("no free port available in 20000-23999");
+}
+
 interface FakeVite {
   vite: ViteDevServer;
   /** IDs passed to `ssrLoadModule`, in call order. */
@@ -119,6 +212,13 @@ interface StartOptions {
   proxyHandler?: (request: Request) => Promise<Response>;
   appDir?: string;
   clientIpHeader?: string;
+  /**
+   * Concrete `PORT` for this server, overriding the suite-wide ephemeral `PORT=0`
+   * for the duration of the boot. Only the HMR specs need it — they assert on a
+   * value DERIVED from the app's port, which an ephemeral 0 cannot distinguish
+   * from a hardcoded constant.
+   */
+  port?: number;
 }
 
 async function start(options: StartOptions = {}): Promise<Harness> {
@@ -144,12 +244,27 @@ async function start(options: StartOptions = {}): Promise<Harness> {
     ...(options.clientIpHeader === undefined ? {} : { clientIpHeader: options.clientIpHeader }),
   };
 
-  const server: Server = await createDevServer(config, {
-    createViteServer: (inlineConfig: InlineConfig): Promise<ViteDevServer> => {
-      capturedConfig = inlineConfig;
-      return Promise.resolve(vite);
-    },
-  });
+  const previousPort: string | undefined = process.env.PORT;
+  if (options.port !== undefined) {
+    process.env.PORT = String(options.port);
+  }
+  let server: Server;
+  try {
+    server = await createDevServer(config, {
+      createViteServer: (inlineConfig: InlineConfig): Promise<ViteDevServer> => {
+        capturedConfig = inlineConfig;
+        return Promise.resolve(vite);
+      },
+    });
+  } finally {
+    if (options.port !== undefined) {
+      if (previousPort === undefined) {
+        delete process.env.PORT;
+      } else {
+        process.env.PORT = previousPort;
+      }
+    }
+  }
   started.push(server);
   const { port } = server.address() as AddressInfo;
   return {
@@ -369,5 +484,66 @@ describe("createDevServer", () => {
     await start({ appDir: "/tmp/some-app-root" });
 
     expect(lastRouterOptions().autoCodeSplitting).toBe(false);
+  });
+
+  it("ignores co-located test/spec route files so `pnpm dev` stops warning about missing Route exports", async () => {
+    await start();
+
+    const pattern: unknown = lastRouterOptions().routeFileIgnorePattern;
+    expect(typeof pattern).toBe("string");
+    expect(matchesIgnorePattern(pattern as string, IGNORED_ROUTE_FILES)).toEqual(
+      IGNORED_ROUTE_FILES,
+    );
+  });
+
+  it("still generates routes for real route files (the ignore pattern must not over-match)", async () => {
+    await start();
+
+    const pattern: unknown = lastRouterOptions().routeFileIgnorePattern;
+    expect(matchesIgnorePattern(pattern as string, KEPT_ROUTE_FILES)).toEqual([]);
+  });
+
+  it("leaves routeFileIgnorePrefix at the generator's default in the dev seam too", async () => {
+    await start();
+
+    expect(lastRouterOptions().routeFileIgnorePrefix).toBeUndefined();
+  });
+
+  it("pins an explicit HMR WebSocket port instead of falling back to Vite's default 24678", async () => {
+    const harness: Harness = await start({ port: await freeAppPort() });
+
+    // middlewareMode with no hmr.port makes Vite open its own HMR listener on
+    // 24678; both apps then race for that one port under `pnpm dev`.
+    expect(typeof hmrPortOf(harness.inlineConfig())).toBe("number");
+  });
+
+  it("derives the HMR port from the app's own port so two apps started in parallel get different ones", async () => {
+    const webPort: number = await freeAppPort();
+    const authPort: number = await freeAppPort();
+
+    const web: Harness = await start({ port: webPort });
+    const auth: Harness = await start({ port: authPort });
+
+    const webHmrPort: unknown = hmrPortOf(web.inlineConfig());
+    const authHmrPort: unknown = hmrPortOf(auth.inlineConfig());
+
+    expect(typeof webHmrPort).toBe("number");
+    expect(typeof authHmrPort).toBe("number");
+    // A hardcoded constant would satisfy the spec above but still collide, so
+    // the derivation must track the per-app port.
+    expect(webHmrPort).not.toBe(authHmrPort);
+  });
+
+  it("keeps the derived HMR port inside the valid TCP range and clear of the app's own port and the documented dev-stack ports", async () => {
+    const appPort: number = await freeAppPort();
+    const harness: Harness = await start({ port: appPort });
+
+    const hmrPort: number = hmrPortOf(harness.inlineConfig()) as number;
+
+    expect(Number.isInteger(hmrPort)).toBe(true);
+    expect(hmrPort).toBeGreaterThan(1023);
+    expect(hmrPort).toBeLessThan(65_536);
+    expect(hmrPort).not.toBe(appPort);
+    expect(DOCUMENTED_DEV_PORTS).not.toContain(hmrPort);
   });
 });

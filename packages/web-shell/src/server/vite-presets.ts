@@ -13,6 +13,14 @@ import react from "@vitejs/plugin-react";
 import { type UserConfig } from "vite";
 
 /**
+ * Co-located `*.test.ts(x)` / `*.spec.ts(x)` files under an app's `src/routes/` are
+ * not route modules; without this the generator scans them and warns "does not
+ * export a Route" once per file. The generator compiles the string with `new
+ * RegExp()` and matches it against the route filename.
+ */
+const ROUTE_FILE_IGNORE_PATTERN: string = String.raw`\.(test|spec)\.(ts|tsx)$`;
+
+/**
  * The per-app seam over the Vite config presets. The only real difference between
  * the apps is their filesystem root — everything else (output naming, plugin set,
  * outDir) is shared — so the sole knob is the app's absolute directory, against
@@ -39,6 +47,7 @@ export function createClientViteConfig(options: ViteConfigOptions): UserConfig {
         routesDirectory: join(options.appDir, "src", "routes"),
         generatedRouteTree: join(options.appDir, "src", "routeTree.gen.ts"),
         autoCodeSplitting: false,
+        routeFileIgnorePattern: ROUTE_FILE_IGNORE_PATTERN,
       }),
       react(),
       ...wallowStyles(),

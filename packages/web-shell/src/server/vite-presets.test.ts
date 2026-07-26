@@ -76,6 +76,35 @@ function lastRouterOptions(): Record<string, unknown> {
   return tanstackRouterMock.mock.calls.at(-1)?.[0] as Record<string, unknown>;
 }
 
+/** Route filenames the generator must SKIP — co-located vitest specs carry no Route export. */
+const IGNORED_ROUTE_FILES: string[] = [
+  "login.test.tsx",
+  "login.test.ts",
+  "login.spec.tsx",
+  "login.spec.ts",
+  "dashboard/index.test.tsx",
+];
+
+/** Route filenames the generator must STILL pick up. */
+const KEPT_ROUTE_FILES: string[] = [
+  "login.tsx",
+  "index.tsx",
+  "__root.tsx",
+  "dashboard/index.tsx",
+  "latest.tsx",
+  "manifest.ts",
+];
+
+/**
+ * `routeFileIgnorePattern` is a string the generator compiles to a RegExp and
+ * tests against each route filename, so the assertion compiles it the same way
+ * and returns the subset matched — a diffable list beats a per-file boolean.
+ */
+function matchesIgnorePattern(pattern: string, files: string[]): string[] {
+  const regex = new RegExp(pattern);
+  return files.filter((file: string): boolean => regex.test(file));
+}
+
 describe("createClientViteConfig", () => {
   it("builds the client bundle into dist/client, emptying it first", () => {
     const config: UserConfig = createClientViteConfig({ appDir: APP_DIR });
@@ -164,6 +193,29 @@ describe("createClientViteConfig", () => {
     const options: Record<string, unknown> = lastRouterOptions();
     expect(options.routesDirectory).toBe(join(other, "src", "routes"));
     expect(options.generatedRouteTree).toBe(join(other, "src", "routeTree.gen.ts"));
+  });
+
+  it("ignores co-located test/spec route files so codegen stops warning about missing Route exports", () => {
+    createClientViteConfig({ appDir: APP_DIR });
+
+    const pattern: unknown = lastRouterOptions().routeFileIgnorePattern;
+    expect(typeof pattern).toBe("string");
+    expect(matchesIgnorePattern(pattern as string, IGNORED_ROUTE_FILES)).toEqual(
+      IGNORED_ROUTE_FILES,
+    );
+  });
+
+  it("still generates routes for real route files (the ignore pattern must not over-match)", () => {
+    createClientViteConfig({ appDir: APP_DIR });
+
+    const pattern: unknown = lastRouterOptions().routeFileIgnorePattern;
+    expect(matchesIgnorePattern(pattern as string, KEPT_ROUTE_FILES)).toEqual([]);
+  });
+
+  it("leaves routeFileIgnorePrefix at the generator's default (out of scope)", () => {
+    createClientViteConfig({ appDir: APP_DIR });
+
+    expect(lastRouterOptions().routeFileIgnorePrefix).toBeUndefined();
   });
 });
 

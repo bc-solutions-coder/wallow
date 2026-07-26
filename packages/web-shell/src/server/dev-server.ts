@@ -149,6 +149,24 @@ async function bootViteServer(options: InlineConfig): Promise<ViteDevServer> {
 }
 
 /**
+ * Co-located `*.test.ts(x)` / `*.spec.ts(x)` files under an app's `src/routes/` are
+ * not route modules; without this the generator scans them and warns "does not
+ * export a Route" once per file on every `pnpm dev`. The generator compiles the
+ * string with `new RegExp()` and matches it against the route filename.
+ */
+const ROUTE_FILE_IGNORE_PATTERN: string = String.raw`\.(test|spec)\.(ts|tsx)$`;
+
+/**
+ * Added to the app's own HTTP port to get its HMR WebSocket port. In middlewareMode
+ * Vite opens a standalone HMR listener, and left unset every app in the workspace
+ * would race for Vite's single default (24678) under a parallel `pnpm dev`. Deriving
+ * from the app port keeps each one distinct without OS-assigned ports (two concurrent
+ * "find a free port" probes can still collide). 20000 puts the apps' 3000/3002 at
+ * 23000/23002 — clear of every port in the root CLAUDE.md dev table and docker/.env.
+ */
+const HMR_PORT_OFFSET: number = 20_000;
+
+/**
  * Build and start the Vite-backed SSR dev server. Resolves to the listening Node
  * HTTP server so callers can inspect its address and close it.
  */
@@ -174,6 +192,7 @@ export async function createDevServer(
       routesDirectory: join(config.appDir, "src", "routes"),
       generatedRouteTree: join(config.appDir, "src", "routeTree.gen.ts"),
       autoCodeSplitting: false,
+      routeFileIgnorePattern: ROUTE_FILE_IGNORE_PATTERN,
     }),
     ...(config.reactPluginInDev === true ? [react()] : []),
     ...wallowStyles(),
@@ -184,7 +203,7 @@ export async function createDevServer(
     root: config.appDir,
     appType: "custom",
     plugins,
-    server: { middlewareMode: true },
+    server: { middlewareMode: true, hmr: { port: port + HMR_PORT_OFFSET } },
   });
 
   /** Answer an API/BFF-surface request from the proxy bridge, loaded THROUGH Vite
