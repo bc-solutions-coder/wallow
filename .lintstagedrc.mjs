@@ -14,6 +14,9 @@ const PROTECTED_PATTERNS = [
   // lint-staged invokes filterProtected with absolute paths, so anchor with
   // a leading wildcard like the other patterns above.
   "**/pnpm-lock.yaml",
+  // Generated TanStack route trees are in oxfmt's ignorePatterns; passing
+  // them alone makes oxfmt fail the same way as the lockfile above.
+  "**/routeTree.gen.ts",
 ];
 
 /**
