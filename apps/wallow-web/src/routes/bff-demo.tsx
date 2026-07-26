@@ -41,11 +41,12 @@ import { useEffect, useState } from "react";
  * RFC 7807 problem+json, so `error` is a {@link ProblemDetails} whenever the
  * body parsed; fall back to the raw status when it did not.
  */
-function describeFailure(response: Response, error: unknown): string {
+function describeFailure(response: Response | undefined, error: unknown): string {
   const problem: ProblemDetails = (error ?? {}) as ProblemDetails;
-  const title: string = problem.title ?? response.statusText ?? "Request failed";
+  const title: string = problem.title ?? response?.statusText ?? "Request failed";
   const detail: string = problem.detail ?? "";
-  return `${response.status} ${title}${detail === "" ? "" : ` — ${detail}`}`;
+  const status: string = response === undefined ? "" : `${response.status} `;
+  return `${status}${title}${detail === "" ? "" : ` — ${detail}`}`;
 }
 
 function BffDemoComponent() {
@@ -98,7 +99,7 @@ function BffDemoComponent() {
     setApiResult("…");
 
     const { data, error, response } = await getV1IdentityUsersMe();
-    if (error !== undefined) {
+    if (error !== undefined || response === undefined) {
       setApiResult(describeFailure(response, error));
       return;
     }
@@ -118,7 +119,7 @@ function BffDemoComponent() {
     const { data, error, response } = await postV1IdentityOrganizations({
       body: { name: `tanstack-min demo ${Date.now()}`, domain: null },
     });
-    if (error !== undefined || data === undefined) {
+    if (error !== undefined || data === undefined || response === undefined) {
       setMutateResult(describeFailure(response, error));
       return;
     }

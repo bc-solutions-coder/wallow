@@ -61,11 +61,12 @@ function requireElement<T extends HTMLElement>(testId: string): T {
  * problem+json, so `error` is a {@link ProblemDetails} whenever the body parsed;
  * fall back to the raw status when it did not.
  */
-function renderFailure(target: HTMLElement, response: Response, error: unknown): void {
+function renderFailure(target: HTMLElement, response: Response | undefined, error: unknown): void {
   const problem: ProblemDetails = (error ?? {}) as ProblemDetails;
-  const title: string = problem.title ?? response.statusText ?? "Request failed";
+  const title: string = problem.title ?? response?.statusText ?? "Request failed";
   const detail: string = problem.detail ?? "";
-  target.textContent = `${response.status} ${title}${detail === "" ? "" : ` — ${detail}`}`;
+  const status: string = response === undefined ? "" : `${response.status} `;
+  target.textContent = `${status}${title}${detail === "" ? "" : ` — ${detail}`}`;
 }
 
 /** Fetch the current user, cache the CSRF token, and paint status/email. */
@@ -98,7 +99,7 @@ async function callApi(): Promise<void> {
   result.textContent = "…";
 
   const { data, error, response } = await getV1IdentityUsersMe();
-  if (error !== undefined) {
+  if (error !== undefined || response === undefined) {
     renderFailure(result, response, error);
     return;
   }
@@ -122,7 +123,7 @@ async function mutateApi(): Promise<void> {
   const { data, error, response } = await postV1IdentityOrganizations({
     body: { name: `tanstack-min demo ${Date.now()}`, domain: null },
   });
-  if (error !== undefined || data === undefined) {
+  if (error !== undefined || data === undefined || response === undefined) {
     renderFailure(result, response, error);
     return;
   }

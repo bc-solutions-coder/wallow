@@ -4,12 +4,11 @@ export default defineConfig({
   input: "./openapi/v1.json",
   output: {
     path: "./src/generated",
-    format: "prettier",
   },
   plugins: [
     {
       name: "@hey-api/client-fetch",
-      runtimeConfigPath: "./src/runtime-config.ts",
+      runtimeConfigPath: "./src/runtime-config",
     },
     "@hey-api/typescript",
     "@hey-api/sdk",
