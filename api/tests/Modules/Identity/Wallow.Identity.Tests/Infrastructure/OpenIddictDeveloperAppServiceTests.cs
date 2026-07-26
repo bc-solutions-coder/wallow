@@ -92,6 +92,70 @@ public class OpenIddictDeveloperAppServiceTests
     }
 
     [Fact]
+    public async Task RegisterClientAsync_WithPostLogoutRedirectUris_PopulatesDescriptor()
+    {
+        await _sut.RegisterClientAsync(
+            "app-logout", "Logout App", ["openid"],
+            redirectUris: ["https://app/callback"],
+            postLogoutRedirectUris: ["https://app/", "https://app/signed-out"]);
+
+        await _appManager.Received(1).CreateAsync(
+            Arg.Is<OpenIddictApplicationDescriptor>(d =>
+                d.PostLogoutRedirectUris.Count == 2 &&
+                d.PostLogoutRedirectUris.Contains(new Uri("https://app/")) &&
+                d.PostLogoutRedirectUris.Contains(new Uri("https://app/signed-out"))),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task RegisterClientAsync_WithRedirectAndPostLogoutUris_PopulatesBothCollections()
+    {
+        await _sut.RegisterClientAsync(
+            "app-bff", "BFF App", ["openid", "offline_access"],
+            redirectUris: ["https://app/callback"],
+            postLogoutRedirectUris: ["https://app/"]);
+
+        await _appManager.Received(1).CreateAsync(
+            Arg.Is<OpenIddictApplicationDescriptor>(d =>
+                d.RedirectUris.Count == 1 &&
+                d.RedirectUris.Contains(new Uri("https://app/callback")) &&
+                d.PostLogoutRedirectUris.Count == 1 &&
+                d.PostLogoutRedirectUris.Contains(new Uri("https://app/"))),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task RegisterClientAsync_NoPostLogoutRedirectUris_LeavesCollectionEmpty()
+    {
+        await _sut.RegisterClientAsync(
+            "app-nologout", "No Logout App", ["openid"],
+            redirectUris: ["https://app/callback"]);
+
+        await _appManager.Received(1).CreateAsync(
+            Arg.Is<OpenIddictApplicationDescriptor>(d => d.PostLogoutRedirectUris.Count == 0),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task RegisterClientAsync_PostLogoutUrisWithoutRedirectUris_AddsEndSessionButNotAuthorizationCode()
+    {
+        // Post-logout URIs are unusable unless the client may call the end-session endpoint, so the
+        // EndSession permission is gated on either URI collection — but the login flow stays gated
+        // on redirect URIs alone.
+        await _sut.RegisterClientAsync(
+            "app-logout-only", "Logout Only App", ["openid"],
+            postLogoutRedirectUris: ["https://app/"]);
+
+        await _appManager.Received(1).CreateAsync(
+            Arg.Is<OpenIddictApplicationDescriptor>(d =>
+                d.Permissions.Contains(Permissions.Endpoints.EndSession) &&
+                !d.Permissions.Contains(Permissions.Endpoints.Authorization) &&
+                !d.Permissions.Contains(Permissions.GrantTypes.AuthorizationCode) &&
+                d.PostLogoutRedirectUris.Count == 1),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task RegisterClientAsync_WithCreatorUserId_SetsProperty()
     {
         await _sut.RegisterClientAsync(

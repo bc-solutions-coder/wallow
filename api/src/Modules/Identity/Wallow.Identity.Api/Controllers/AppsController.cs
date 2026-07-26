@@ -75,8 +75,9 @@ public class AppsController(IDeveloperAppService developerAppService) : Controll
             request.RequestedScopes,
             request.ClientType,
             request.RedirectUris,
-            creatorUserId,
-            ct);
+            request.PostLogoutRedirectUris,
+            creatorUserId: creatorUserId,
+            cancellationToken: ct);
 
         AppRegistrationResponse response = new(
             result.ClientId,

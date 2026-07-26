@@ -10,6 +10,7 @@ public interface IDeveloperAppService
         IReadOnlyCollection<string> requestedScopes,
         string? clientType = null,
         IReadOnlyCollection<string>? redirectUris = null,
+        IReadOnlyCollection<string>? postLogoutRedirectUris = null,
         string? creatorUserId = null,
         CancellationToken cancellationToken = default);
 

@@ -19,6 +19,7 @@ public sealed partial class OpenIddictDeveloperAppService(
         IReadOnlyCollection<string> requestedScopes,
         string? clientType = null,
         IReadOnlyCollection<string>? redirectUris = null,
+        IReadOnlyCollection<string>? postLogoutRedirectUris = null,
         string? creatorUserId = null,
         CancellationToken cancellationToken = default)
     {
@@ -37,15 +38,20 @@ public sealed partial class OpenIddictDeveloperAppService(
         ];
 
         // Clients with redirect URIs speak the standard OIDC login flow: authorization code plus
-        // the end-session endpoint and refresh-token grant, so a BFF can complete the
-        // login/logout/silent-refresh cycle.
+        // the refresh-token grant, so a BFF can complete the login/silent-refresh cycle.
         if (redirectUris is { Count: > 0 })
         {
             permissions.Add(Permissions.Endpoints.Authorization);
-            permissions.Add(Permissions.Endpoints.EndSession);
             permissions.Add(Permissions.GrantTypes.AuthorizationCode);
             permissions.Add(Permissions.GrantTypes.RefreshToken);
             permissions.Add(Permissions.ResponseTypes.Code);
+        }
+
+        // Post-logout redirect URIs are unusable unless the client may call the end-session
+        // endpoint, so either URI collection grants it.
+        if (redirectUris is { Count: > 0 } || postLogoutRedirectUris is { Count: > 0 })
+        {
+            permissions.Add(Permissions.Endpoints.EndSession);
         }
 
         foreach (string scope in requestedScopes)
@@ -71,6 +77,14 @@ public sealed partial class OpenIddictDeveloperAppService(
             foreach (string uri in redirectUris)
             {
                 descriptor.RedirectUris.Add(new Uri(uri));
+            }
+        }
+
+        if (postLogoutRedirectUris is { Count: > 0 })
+        {
+            foreach (string uri in postLogoutRedirectUris)
+            {
+                descriptor.PostLogoutRedirectUris.Add(new Uri(uri));
             }
         }
 

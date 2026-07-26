@@ -62,7 +62,7 @@ public class AppsControllerTests
         DeveloperAppRegistrationResult registrationResult = new("client-id", "client-secret", "reg-token");
         _developerAppService.RegisterClientAsync(
                 "app-test", "app-test", Arg.Any<IReadOnlyCollection<string>>(),
-                null, null, "user-123", Arg.Any<CancellationToken>())
+                null, null, null, "user-123", Arg.Any<CancellationToken>())
             .Returns(registrationResult);
 
         ActionResult<AppRegistrationResponse> result = await _controller.Register(request, CancellationToken.None);
@@ -82,14 +82,15 @@ public class AppsControllerTests
         RegisterAppRequest request = new("app-test", scopes);
         _developerAppService.RegisterClientAsync(
                 Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyCollection<string>>(),
-                Arg.Any<string?>(), Arg.Any<IReadOnlyCollection<string>?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
+                Arg.Any<string?>(), Arg.Any<IReadOnlyCollection<string>?>(), Arg.Any<IReadOnlyCollection<string>?>(),
+                Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(new DeveloperAppRegistrationResult("id", "secret", "token"));
 
         await _controller.Register(request, CancellationToken.None);
 
         await _developerAppService.Received(1).RegisterClientAsync(
             "app-test", "app-test", Arg.Is<IReadOnlyList<string>>(s => s.Count == 3),
-            null, null, "user-123", Arg.Any<CancellationToken>());
+            null, null, null, "user-123", Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -111,7 +112,8 @@ public class AppsControllerTests
     {
         _developerAppService.RegisterClientAsync(
                 Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyCollection<string>>(),
-                Arg.Any<string?>(), Arg.Any<IReadOnlyCollection<string>?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
+                Arg.Any<string?>(), Arg.Any<IReadOnlyCollection<string>?>(), Arg.Any<IReadOnlyCollection<string>?>(),
+                Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(new DeveloperAppRegistrationResult("client-id", "client-secret", "reg-token"));
     }
 
@@ -234,6 +236,76 @@ public class AppsControllerTests
 
         ObjectResult objectResult = result.Result.Should().BeOfType<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(201);
+    }
+
+    #endregion
+
+    #region Register - post-logout redirect URIs
+
+    [Fact]
+    public async Task Register_WithPostLogoutRedirectUris_PassesThemToService()
+    {
+        RegisterAppRequest request = new(
+            "app-bff",
+            ["openid", "profile", "email", "offline_access"],
+            RedirectUris: ["https://app.example.com/callback"],
+            PostLogoutRedirectUris: ["https://app.example.com/"]);
+        StubSuccessfulRegistration();
+
+        await _controller.Register(request, CancellationToken.None);
+
+        await _developerAppService.Received(1).RegisterClientAsync(
+            "app-bff", "app-bff", Arg.Any<IReadOnlyCollection<string>>(),
+            null,
+            Arg.Any<IReadOnlyCollection<string>?>(),
+            Arg.Is<IReadOnlyCollection<string>?>(u =>
+                u != null && u.Count == 1 && u.Contains("https://app.example.com/")),
+            "user-123",
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Register_WithMultiplePostLogoutRedirectUris_PassesAllToService()
+    {
+        RegisterAppRequest request = new(
+            "app-bff",
+            ["openid"],
+            PostLogoutRedirectUris: ["https://app.example.com/", "http://localhost:3000/"]);
+        StubSuccessfulRegistration();
+
+        await _controller.Register(request, CancellationToken.None);
+
+        await _developerAppService.Received(1).RegisterClientAsync(
+            "app-bff", "app-bff", Arg.Any<IReadOnlyCollection<string>>(),
+            null,
+            Arg.Any<IReadOnlyCollection<string>?>(),
+            Arg.Is<IReadOnlyCollection<string>?>(u =>
+                u != null
+                && u.Count == 2
+                && u.Contains("https://app.example.com/")
+                && u.Contains("http://localhost:3000/")),
+            "user-123",
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Register_WithoutPostLogoutRedirectUris_PassesNullToService()
+    {
+        RegisterAppRequest request = new(
+            "app-test",
+            ["inquiries.read"],
+            RedirectUris: ["https://app.example.com/callback"]);
+        StubSuccessfulRegistration();
+
+        await _controller.Register(request, CancellationToken.None);
+
+        await _developerAppService.Received(1).RegisterClientAsync(
+            "app-test", "app-test", Arg.Any<IReadOnlyCollection<string>>(),
+            null,
+            Arg.Any<IReadOnlyCollection<string>?>(),
+            null,
+            "user-123",
+            Arg.Any<CancellationToken>());
     }
 
     #endregion
