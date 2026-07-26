@@ -12,6 +12,7 @@ public sealed class OpenIddictRedirectUriValidatorTests
     private readonly IOpenIddictApplicationManager _applicationManager;
     private readonly HybridCache _cache;
     private readonly IConfiguration _configuration;
+    private readonly List<object> _registeredApplications = [];
     private readonly OpenIddictRedirectUriValidator _sut;
 
     public OpenIddictRedirectUriValidatorTests()
@@ -176,6 +177,112 @@ public sealed class OpenIddictRedirectUriValidatorTests
 
         // NoOpHybridCache does not cache, so the factory is invoked on every call
         await _applicationManager.Received(2).GetRedirectUrisAsync(app, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task IsAllowedAsync_OtherClientsRedirectOrigin_IsRejectedForRequestingClient()
+    {
+        SetupClient("client-a", ["https://a.example.com/callback"], []);
+        SetupClient("client-b", ["https://b.example.com/callback"], []);
+
+        bool result = await _sut.IsAllowedAsync("https://b.example.com/callback", "client-a");
+
+        result.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task IsAllowedAsync_OwnRedirectOrigin_IsAllowedForRequestingClient()
+    {
+        SetupClient("client-a", ["https://a.example.com/callback"], []);
+        SetupClient("client-b", ["https://b.example.com/callback"], []);
+
+        bool result = await _sut.IsAllowedAsync("https://a.example.com/callback", "client-a");
+
+        result.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task IsAllowedAsync_OtherClientsPostLogoutOrigin_IsRejectedForRequestingClient()
+    {
+        SetupClient("client-a", ["https://a.example.com/callback"], ["https://a.example.com/logout"]);
+        SetupClient("client-b", [], ["https://b.example.com/logout"]);
+
+        bool result = await _sut.IsAllowedAsync("https://b.example.com/logout", "client-a");
+
+        result.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task IsAllowedAsync_WithClientId_ResolvesByClientId_WithoutListingEveryApplication()
+    {
+        SetupClient("client-a", ["https://a.example.com/callback"], []);
+
+        await _sut.IsAllowedAsync("https://a.example.com/callback", "client-a");
+
+        await _applicationManager.Received().FindByClientIdAsync("client-a", Arg.Any<CancellationToken>());
+        _applicationManager.DidNotReceive().ListAsync(Arg.Any<int?>(), Arg.Any<int?>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task IsAllowedAsync_UnknownClientId_RejectsOriginRegisteredByAnotherClient()
+    {
+        SetupClient("client-a", ["https://a.example.com/callback"], []);
+
+        bool result = await _sut.IsAllowedAsync("https://a.example.com/callback", "no-such-client");
+
+        result.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task IsAllowedAsync_UnknownClientId_StillAllowsConfiguredAuthUrlOrigin()
+    {
+        OpenIddictRedirectUriValidator sut = CreateSutWithAuthUrl("https://auth.example.com");
+        SetupClient("client-a", ["https://a.example.com/callback"], []);
+
+        bool result = await sut.IsAllowedAsync("https://auth.example.com/login", "no-such-client");
+
+        result.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task IsAllowedAsync_WithClientId_StillAllowsConfiguredAuthUrlOrigin()
+    {
+        OpenIddictRedirectUriValidator sut = CreateSutWithAuthUrl("https://auth.example.com");
+        SetupClient("client-a", ["https://a.example.com/callback"], []);
+
+        bool result = await sut.IsAllowedAsync("https://auth.example.com/login", "client-a");
+
+        result.Should().BeTrue();
+    }
+
+    private OpenIddictRedirectUriValidator CreateSutWithAuthUrl(string authUrl)
+    {
+        Dictionary<string, string?> configData = new() { { "AuthUrl", authUrl } };
+        IConfiguration config = new ConfigurationBuilder()
+            .AddInMemoryCollection(configData)
+            .Build();
+
+        return new OpenIddictRedirectUriValidator(_applicationManager, new NoOpHybridCache(), config);
+    }
+
+    /// <summary>
+    /// Registers an application under <paramref name="clientId"/> and keeps it in the global
+    /// ListAsync result as well, mirroring production where every client is enumerable. A
+    /// per-client lookup must therefore ignore the other clients' origins.
+    /// </summary>
+    private void SetupClient(string clientId, string[] redirectUris, string[] postLogoutUris)
+    {
+        object app = new object();
+        _registeredApplications.Add(app);
+
+        _applicationManager.FindByClientIdAsync(clientId, Arg.Any<CancellationToken>())
+            .Returns(app);
+        _applicationManager.GetRedirectUrisAsync(app, Arg.Any<CancellationToken>())
+            .Returns(ImmutableArray.Create(redirectUris));
+        _applicationManager.GetPostLogoutRedirectUrisAsync(app, Arg.Any<CancellationToken>())
+            .Returns(ImmutableArray.Create(postLogoutUris));
+
+        SetupApplicationList([.. _registeredApplications]);
     }
 
     private void SetupEmptyApplicationList()

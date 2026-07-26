@@ -31,7 +31,7 @@ public sealed partial class LogoutController(
 
         // Defense-in-depth: validate the post-logout redirect URI even though OpenIddict also validates
         if (!string.IsNullOrEmpty(postLogoutRedirectUri)
-            && !await redirectUriValidator.IsAllowedAsync(postLogoutRedirectUri))
+            && !await redirectUriValidator.IsAllowedAsync(postLogoutRedirectUri, request?.ClientId))
         {
             LogLogoutInvalidRedirectUri(postLogoutRedirectUri);
             string authUrl = GetRequiredAuthUrl();
