@@ -22,9 +22,14 @@ import configExport from "../vitest.config";
 
 const here: string = dirname(fileURLToPath(import.meta.url));
 
-// wallow-auth's ONE pure-logic `*.test.tsx`: `src/routes/index.test.tsx` asserts
-// a route's `beforeLoad` redirect and renders no DOM, so it runs on node.
-const nodeTsxSpec: string = "src/routes/index.test.tsx";
+// wallow-auth's pure-logic `*.test.tsx` specs: they assert a route's `beforeLoad`
+// redirect or render through `react-dom/server`, and never mount a live DOM, so
+// they run on node. Order mirrors `vitest.config.ts`'s `nodeTsxSpecs`.
+const nodeTsxSpecs: readonly string[] = [
+  "src/router.query-client.test.tsx",
+  "src/routes/index.test.tsx",
+  "src/routes/__root.provider.test.tsx",
+];
 
 // The migrated config adopts @bc-solutions-coder/testing's shared
 // `browserOptimizeDepsBaseline` (4 items). wallow-auth previously hand-rolled a
@@ -85,17 +90,20 @@ describe("wallow-auth vitest.config emits the node/browser project split", () =>
     expect(browserProject).toBeDefined();
   });
 
-  it("routes lib specs + the one pure-logic tsx onto the node project", () => {
+  it("routes lib specs + the pure-logic tsx specs onto the node project", () => {
     expect(nodeProject?.test?.environment).toBe("node");
-    expect(nodeProject?.test?.include).toEqual(["src/**/*.test.ts", nodeTsxSpec]);
+    expect(nodeProject?.test?.include).toEqual(["src/**/*.test.ts", ...nodeTsxSpecs]);
   });
 
   it("routes component specs (*.test.tsx) onto the browser project", () => {
     expect(browserProject?.test?.include).toEqual(["src/**/*.test.tsx"]);
   });
 
-  it("keeps the pure-logic tsx OUT of the browser project", () => {
-    expect(browserProject?.test?.exclude).toContain(nodeTsxSpec);
+  it("keeps the pure-logic tsx specs OUT of the browser project", () => {
+    for (const spec of nodeTsxSpecs) {
+      expect(browserProject?.test?.exclude).toContain(spec);
+    }
+
     expect(browserProject?.test?.exclude).not.toContain("src/**/*.test.tsx");
   });
 

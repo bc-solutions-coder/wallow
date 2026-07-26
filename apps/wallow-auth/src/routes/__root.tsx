@@ -1,6 +1,5 @@
-import { type QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { QueryClient } from "@tanstack/react-query";
 import { createRootRouteWithContext, Outlet } from "@tanstack/react-router";
-import { useRef } from "react";
 
 import { ReadyIndicator } from "../components/ready-indicator";
 import {
@@ -9,7 +8,6 @@ import {
   renderThemeStyle,
   type ResolvedBranding,
 } from "../lib/branding";
-import { createQueryClient } from "@bc-solutions-coder/web-shell";
 import { DocumentStyles, FocusOnNavigate } from "@bc-solutions-coder/ui";
 
 /**
@@ -85,24 +83,17 @@ function DocumentShell() {
 }
 
 /**
- * The root route wraps the document shell in a `QueryClientProvider` so every
- * routed child can call React Query hooks.
+ * The root route renders the document shell directly.
  *
- * The provider's client is sourced standalone-safely — a lazily-initialised ref
- * that mints one stable client on first render — rather than from the router
- * context, so the shell still server-renders on its own without a
- * `RouterProvider`. The router-context client (for loaders) and this
- * React-tree provider client are wired independently this phase.
+ * The `QueryClientProvider` no longer lives here: the router owns the single
+ * per-request client and supplies it through its `Wrap` render-prop
+ * (`router.tsx`), so loaders (router context) and components (React Query hooks)
+ * share ONE cache (Wallow-evd5.3.4). The shell itself establishes no client, so
+ * a standalone `renderToString(<Shell/>)` reads its `QueryClient` from whatever
+ * provider the caller supplies.
  */
 function RootComponent() {
-  const queryClientRef = useRef<QueryClient | null>(null);
-  queryClientRef.current ??= createQueryClient();
-
-  return (
-    <QueryClientProvider client={queryClientRef.current}>
-      <DocumentShell />
-    </QueryClientProvider>
-  );
+  return <DocumentShell />;
 }
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({

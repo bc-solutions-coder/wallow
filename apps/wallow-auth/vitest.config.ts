@@ -7,12 +7,19 @@ import { defineConfig } from "vitest/config";
  * `createVitestProjects` preset (Wallow-0q2s.1.3). This config only supplies the
  * app-specific knobs.
  *
- * The one pure-logic `*.test.tsx` (`src/routes/index.test.tsx`) asserts a route's
- * `beforeLoad` redirect and renders no DOM, so it runs on the node project rather
- * than in the browser. wallow-auth needs no extra browser `optimizeDeps` beyond
- * the preset baseline and no node-project overrides.
+ * The pure-logic/SSR `*.test.tsx` specs listed below render through
+ * `react-dom/server` (or assert a route's `beforeLoad` redirect) and never mount
+ * a live DOM, so they run on the node project rather than in Chromium — routing
+ * them into a browser buys nothing and costs real per-test overhead. Every OTHER
+ * `*.test.tsx` mounts a component and belongs in the browser project.
+ * wallow-auth needs no extra browser `optimizeDeps` beyond the preset baseline
+ * and no node-project overrides.
  */
-const nodeTsxSpecs = ["src/routes/index.test.tsx"];
+const nodeTsxSpecs = [
+  "src/router.query-client.test.tsx",
+  "src/routes/index.test.tsx",
+  "src/routes/__root.provider.test.tsx",
+];
 
 const { node, browser } = createVitestProjects({ nodeTsxSpecs });
 
