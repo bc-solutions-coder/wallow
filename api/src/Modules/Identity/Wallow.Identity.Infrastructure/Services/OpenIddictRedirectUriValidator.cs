@@ -11,7 +11,10 @@ public sealed class OpenIddictRedirectUriValidator(
     HybridCache cache,
     IConfiguration configuration) : IRedirectUriValidator
 {
-    private const string CacheKey = "allowed_redirect_origins";
+    private const string CacheKeyPrefix = "allowed_redirect_origins:";
+
+    // Cache slot used when no client_id is known; holds the union of every registered client's origins.
+    private const string AllClientsCacheKey = $"{CacheKeyPrefix}*";
 
     private static readonly HybridCacheEntryOptions _cacheOptions = new()
     {
@@ -19,7 +22,7 @@ public sealed class OpenIddictRedirectUriValidator(
         LocalCacheExpiration = TimeSpan.FromMinutes(2)
     };
 
-    public async Task<bool> IsAllowedAsync(string uri, CancellationToken ct = default)
+    public async Task<bool> IsAllowedAsync(string uri, string? clientId = null, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(uri) || !Uri.TryCreate(uri, UriKind.Absolute, out Uri? parsed))
         {
@@ -27,34 +30,33 @@ public sealed class OpenIddictRedirectUriValidator(
         }
 
         string origin = GetOrigin(parsed);
-        HashSet<string> allowedOrigins = await GetAllowedOriginsAsync(ct);
+        HashSet<string> allowedOrigins = await GetAllowedOriginsAsync(clientId, ct);
         return allowedOrigins.Contains(origin);
     }
 
-    private async Task<HashSet<string>> GetAllowedOriginsAsync(CancellationToken ct)
+    private async Task<HashSet<string>> GetAllowedOriginsAsync(string? clientId, CancellationToken ct)
     {
-        return await cache.GetOrCreateAsync(CacheKey, async _ =>
+        bool scopedToClient = !string.IsNullOrWhiteSpace(clientId);
+        string cacheKey = scopedToClient ? CacheKeyPrefix + clientId : AllClientsCacheKey;
+
+        return await cache.GetOrCreateAsync(cacheKey, async token =>
         {
             HashSet<string> origins = new(StringComparer.OrdinalIgnoreCase);
 
-            await foreach (object app in applicationManager.ListAsync(null, null, ct))
+            if (scopedToClient)
             {
-                ImmutableArray<string> redirectUris = await applicationManager.GetRedirectUrisAsync(app, ct);
-                foreach (string redirectUri in redirectUris)
+                // An unknown client resolves to no application, leaving only the AuthUrl origin below.
+                object? application = await applicationManager.FindByClientIdAsync(clientId!, token);
+                if (application is not null)
                 {
-                    if (Uri.TryCreate(redirectUri, UriKind.Absolute, out Uri? parsedUri))
-                    {
-                        origins.Add(GetOrigin(parsedUri));
-                    }
+                    await AddApplicationOriginsAsync(application, origins, token);
                 }
-
-                ImmutableArray<string> postLogoutUris = await applicationManager.GetPostLogoutRedirectUrisAsync(app, ct);
-                foreach (string postLogoutUri in postLogoutUris)
+            }
+            else
+            {
+                await foreach (object app in applicationManager.ListAsync(null, null, token))
                 {
-                    if (Uri.TryCreate(postLogoutUri, UriKind.Absolute, out Uri? parsedUri))
-                    {
-                        origins.Add(GetOrigin(parsedUri));
-                    }
+                    await AddApplicationOriginsAsync(app, origins, token);
                 }
             }
 
@@ -66,6 +68,26 @@ public sealed class OpenIddictRedirectUriValidator(
 
             return origins;
         }, _cacheOptions, cancellationToken: ct);
+    }
+
+    private async Task AddApplicationOriginsAsync(object application, HashSet<string> origins, CancellationToken ct)
+    {
+        ImmutableArray<string> redirectUris = await applicationManager.GetRedirectUrisAsync(application, ct);
+        AddOrigins(redirectUris, origins);
+
+        ImmutableArray<string> postLogoutUris = await applicationManager.GetPostLogoutRedirectUrisAsync(application, ct);
+        AddOrigins(postLogoutUris, origins);
+    }
+
+    private static void AddOrigins(ImmutableArray<string> uris, HashSet<string> origins)
+    {
+        foreach (string uri in uris)
+        {
+            if (Uri.TryCreate(uri, UriKind.Absolute, out Uri? parsedUri))
+            {
+                origins.Add(GetOrigin(parsedUri));
+            }
+        }
     }
 
     private static string GetOrigin(Uri uri) =>

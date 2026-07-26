@@ -194,7 +194,7 @@ WWW-Authenticate: Bearer error="invalid_token"
 #### Diagnosis
 ```bash
 # Check that the API is running and healthy
-curl http://localhost:5000/health/ready
+curl http://localhost:5001/health/ready
 ```
 
 #### Solutions
@@ -217,19 +217,33 @@ Token expired at [timestamp]
 
 #### Solutions
 
-**Get a fresh token:**
+All tokens come from the OpenIddict token endpoint, `POST /connect/token`. It takes
+`application/x-www-form-urlencoded` parameters, not JSON. There is no email/password token endpoint:
+the API supports the authorization code (with PKCE), refresh token, and client credentials grants
+only, so a browser user re-authenticates by going back through `/connect/authorize`.
+
+**Get a fresh token (service account / client credentials):**
 ```bash
-curl -s -X POST http://localhost:5000/api/auth/token \
-  -H "Content-Type: application/json" \
-  -d '{"email": "admin@wallow.dev", "password": "Admin123!"}'
+curl -s -X POST http://localhost:5001/connect/token \
+  -d "grant_type=client_credentials" \
+  -d "client_id=<your-client-id>" \
+  -d "client_secret=<your-client-secret>" \
+  -d "scope=inquiries.read inquiries.write"
 ```
 
-**Use refresh token:**
+**Use a refresh token:**
 ```bash
-curl -X POST http://localhost:5000/api/auth/refresh \
-  -H "Content-Type: application/json" \
-  -d '{"refreshToken": "YOUR_REFRESH_TOKEN"}'
+curl -s -X POST http://localhost:5001/connect/token \
+  -d "grant_type=refresh_token" \
+  -d "refresh_token=YOUR_REFRESH_TOKEN" \
+  -d "client_id=<your-client-id>" \
+  -d "client_secret=<your-client-secret>"
 ```
+
+Refresh tokens are rolling: issuing a new one revokes the old one, so a retry with an already-used
+refresh token fails. Sliding expiration is disabled, meaning the refresh window does not extend on
+use. Default lifetimes are 15 minutes for access tokens and 7 days for refresh tokens, configurable
+via `OpenIddict:AccessTokenLifetimeMinutes` and `OpenIddict:RefreshTokenLifetimeDays`.
 
 ### Missing Claims/Permissions
 
@@ -761,9 +775,9 @@ System.IO.FileLoadException: Could not load file or assembly 'Newtonsoft.Json, V
 #### Solutions
 
 **Check for version conflicts:**
-All package versions are centrally managed in `Directory.Packages.props`:
+All package versions are centrally managed in `api/Directory.Packages.props`:
 ```bash
-grep -r "Newtonsoft.Json" Directory.Packages.props
+grep -r "Newtonsoft.Json" api/Directory.Packages.props
 ```
 
 **Enable binding redirects:**
@@ -911,7 +925,7 @@ If you cannot resolve an issue:
 
 2. **Search the codebase:**
    ```bash
-   grep -r "error message" src/
+   grep -r "error message" api/src/
    ```
 
 3. **Check recent commits:**

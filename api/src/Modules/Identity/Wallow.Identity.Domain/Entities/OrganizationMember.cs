@@ -1,3 +1,4 @@
+using Wallow.Identity.Domain.Enums;
 using Wallow.Shared.Kernel.Domain;
 
 namespace Wallow.Identity.Domain.Entities;
@@ -5,27 +6,20 @@ namespace Wallow.Identity.Domain.Entities;
 public sealed class OrganizationMember : ValueObject
 {
     public Guid UserId { get; }
-    public string Role { get; }
+    public OrgMemberRole Role { get; }
 
     private OrganizationMember() // EF Core
     {
-        Role = string.Empty;
+        Role = default;
     }
 
-    public OrganizationMember(Guid userId, string role)
+    public OrganizationMember(Guid userId, OrgMemberRole role)
     {
         if (userId == Guid.Empty)
         {
             throw new BusinessRuleException(
                 "Identity.UserIdRequired",
                 "User ID cannot be empty");
-        }
-
-        if (string.IsNullOrWhiteSpace(role))
-        {
-            throw new BusinessRuleException(
-                "Identity.MemberRoleRequired",
-                "Organization member role cannot be empty");
         }
 
         UserId = userId;

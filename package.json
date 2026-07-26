@@ -6,6 +6,7 @@
     "backend": "dotnet run --project api/src/Wallow.AppHost",
     "backend:infra": "cd docker && docker compose up -d",
     "backend:infra:down": "cd docker && docker compose down",
+    "dev": "pnpm --parallel --filter @bc-solutions-coder/wallow-web --filter @bc-solutions-coder/wallow-auth dev",
     "build": "pnpm -r build",
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",

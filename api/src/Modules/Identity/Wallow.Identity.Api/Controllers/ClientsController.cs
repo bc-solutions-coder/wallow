@@ -9,6 +9,7 @@ using Wallow.Identity.Api.Contracts.Responses;
 using Wallow.Identity.Api.Extensions;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
+using Wallow.Identity.Domain.Identity;
 using Wallow.Shared.Kernel.Extensions;
 using Wallow.Shared.Kernel.Identity.Authorization;
 using static OpenIddict.Abstractions.OpenIddictConstants;
@@ -25,7 +26,8 @@ namespace Wallow.Identity.Api.Controllers;
 [Consumes("application/json")]
 public class ClientsController(
     IOpenIddictApplicationManager applicationManager,
-    IOrganizationService organizationService) : ControllerBase
+    IOrganizationService organizationService,
+    IServiceAccountService serviceAccountService) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<ClientResponse>), StatusCodes.Status200OK)]
@@ -275,6 +277,109 @@ public class ClientsController(
             RedirectUris = descriptor.RedirectUris.Select(u => u.ToString()).ToList(),
             PostLogoutRedirectUris = descriptor.PostLogoutRedirectUris.Select(u => u.ToString()).ToList()
         });
+    }
+
+    /// <summary>
+    /// List all service accounts (client-credentials clients) for the current tenant.
+    /// </summary>
+    [HttpGet("service-accounts")]
+    [ProducesResponseType(typeof(IReadOnlyList<ServiceAccountDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<ServiceAccountDto>>> ListServiceAccounts(CancellationToken ct)
+    {
+        IReadOnlyList<ServiceAccountDto> accounts = await serviceAccountService.ListAsync(ct);
+        return Ok(accounts);
+    }
+
+    /// <summary>
+    /// Create a new service account. Returns the client secret which will NOT be shown again.
+    /// </summary>
+    [HttpPost("service-accounts")]
+    [ProducesResponseType(typeof(ServiceAccountCreatedResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ServiceAccountCreatedResponse>> CreateServiceAccount(
+        [FromBody] Contracts.Requests.CreateServiceAccountRequest request,
+        CancellationToken ct)
+    {
+        Application.DTOs.CreateServiceAccountRequest appRequest = new(
+            request.Name,
+            request.Description,
+            request.Scopes);
+
+        ServiceAccountCreatedResult result = await serviceAccountService.CreateAsync(appRequest, ct);
+
+        ServiceAccountCreatedResponse response = new()
+        {
+            Id = result.Id.Value.ToString(),
+            ClientId = result.ClientId,
+            ClientSecret = result.ClientSecret,
+            TokenEndpoint = result.TokenEndpoint,
+            Scopes = result.Scopes.ToList()
+        };
+
+        return CreatedAtAction(nameof(GetServiceAccount), new { id = result.Id.Value }, response);
+    }
+
+    /// <summary>
+    /// Get a specific service account by ID.
+    /// </summary>
+    [HttpGet("service-accounts/{id:guid}")]
+    [ProducesResponseType(typeof(ServiceAccountDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ServiceAccountDto>> GetServiceAccount(Guid id, CancellationToken ct)
+    {
+        ServiceAccountDto? account = await serviceAccountService.GetAsync(ServiceAccountMetadataId.Create(id), ct);
+        return account is null ? NotFound() : Ok(account);
+    }
+
+    /// <summary>
+    /// Update the scopes assigned to a service account.
+    /// </summary>
+    [HttpPut("service-accounts/{id:guid}/scopes")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult> UpdateServiceAccountScopes(
+        Guid id,
+        [FromBody] UpdateScopesRequest request,
+        CancellationToken ct)
+    {
+        await serviceAccountService.UpdateScopesAsync(
+            ServiceAccountMetadataId.Create(id),
+            request.Scopes,
+            ct);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Rotate the client secret for a service account. Returns the new secret which will NOT be shown again.
+    /// </summary>
+    [HttpPost("service-accounts/{id:guid}/rotate-secret")]
+    [ProducesResponseType(typeof(SecretRotatedResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<SecretRotatedResponse>> RotateServiceAccountSecret(Guid id, CancellationToken ct)
+    {
+        SecretRotatedResult result = await serviceAccountService.RotateSecretAsync(
+            ServiceAccountMetadataId.Create(id),
+            ct);
+
+        return Ok(new SecretRotatedResponse
+        {
+            NewClientSecret = result.NewClientSecret,
+            RotatedAt = result.RotatedAt
+        });
+    }
+
+    /// <summary>
+    /// Revoke and delete a service account.
+    /// </summary>
+    [HttpDelete("service-accounts/{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult> RevokeServiceAccount(Guid id, CancellationToken ct)
+    {
+        await serviceAccountService.RevokeAsync(
+            ServiceAccountMetadataId.Create(id),
+            ct);
+        return NoContent();
     }
 
     private async Task<bool> IsCallerMemberOfOrgAsync(Guid orgId, CancellationToken ct)

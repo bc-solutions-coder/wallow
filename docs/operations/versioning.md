@@ -107,7 +107,7 @@ Each component gets its own changelog and its own Release PR: a `feat(sdk):` com
 
 Applications under `apps/*` are **private** and carry no semver — they are deliberately absent from the config and never receive version-bump PRs. They deploy by git SHA / CalVer instead.
 
-release-please automatically updates `Directory.Build.props` with the new .NET version via the `extra-files` config.
+release-please automatically updates `api/Directory.Build.props` with the new .NET version via the `extra-files` config.
 
 ### Trade-off: `workspace:*` bumps do not cascade
 
@@ -119,14 +119,14 @@ To release the dependent after an SDK bump lands, bump its scope manually — fo
 
 | Artifact | How | Example |
 |----------|-----|---------|
-| `Directory.Build.props` | Updated by release-please in the Release PR | `<Version>0.2.0</Version>` |
+| `api/Directory.Build.props` | Updated by release-please in the Release PR | `<Version>0.2.0</Version>` |
 | Docker image tags | Deploy pushes `:nightly` and `:sha`; publish promotes to `:latest` and semver | `0.2.0`, `0.2`, `latest`, `nightly` |
 | Git tags | Created by release-please on Release PR merge | `v0.2.0` |
 | GitHub Releases | Created by release-please with auto-generated changelog | `v0.2.0` |
 
 ## Local Development
 
-Local builds use the version from `Directory.Build.props`. The publish workflow overrides this with the tag version via `/p:Version` build arg.
+Local builds use the version from `api/Directory.Build.props`. The publish workflow overrides this with the tag version via `/p:Version` build arg.
 
 ## Troubleshooting
 

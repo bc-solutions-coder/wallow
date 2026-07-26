@@ -49,9 +49,6 @@ public class ServiceAccountIntegrationTestBase(ServiceAccountTestFactory factory
 
     private static async Task CleanupDatabaseAsync(IdentityDbContext context)
     {
-        await context.ScimSyncLogs.ExecuteDeleteAsync();
-        await context.ScimConfigurations.ExecuteDeleteAsync();
-        await context.SsoConfigurations.ExecuteDeleteAsync();
         await context.ServiceAccountMetadata.ExecuteDeleteAsync();
     }
 }

@@ -10,9 +10,9 @@ Three dev-only endpoints are available when running in the `Development` environ
 
 | Endpoint | Content-Type | Description |
 |----------|--------------|-------------|
-| `http://localhost:5000/asyncapi` | `text/html` | Interactive viewer (AsyncAPI React component) |
-| `http://localhost:5000/asyncapi/v1.json` | `application/json` | Raw AsyncAPI 3.0 JSON specification |
-| `http://localhost:5000/asyncapi/v1/flows` | `text/plain` | Mermaid diagram of event flows between modules |
+| `http://localhost:5001/asyncapi` | `text/html` | Interactive viewer (AsyncAPI React component) |
+| `http://localhost:5001/asyncapi/v1.json` | `application/json` | Raw AsyncAPI 3.0 JSON specification |
+| `http://localhost:5001/asyncapi/v1/flows` | `text/plain` | Mermaid diagram of event flows between modules |
 
 These endpoints are excluded from OpenAPI/Scalar documentation and are not available in staging or production.
 
@@ -20,7 +20,7 @@ These endpoints are excluded from OpenAPI/Scalar documentation and are not avail
 
 ## Interactive Viewer
 
-Navigate to `http://localhost:5000/asyncapi` in your browser. The viewer renders the full AsyncAPI spec using the official `@asyncapi/react-component`, showing:
+Navigate to `http://localhost:5001/asyncapi` in your browser. The viewer renders the full AsyncAPI spec using the official `@asyncapi/react-component`, showing:
 
 - All integration events grouped by module (channel)
 - Event payload schemas with property types
@@ -35,7 +35,7 @@ The `/asyncapi/v1/flows` endpoint returns a Mermaid flowchart showing which modu
 Example usage:
 
 ```bash
-curl http://localhost:5000/asyncapi/v1/flows
+curl http://localhost:5001/asyncapi/v1/flows
 ```
 
 The output is a `flowchart LR` diagram with modules as nodes and events as labeled edges.
@@ -51,7 +51,7 @@ The `/asyncapi/v1.json` endpoint returns the full AsyncAPI 3.0 document. Use it 
 - **CI validation** — diff the spec between commits to detect breaking event changes
 
 ```bash
-curl http://localhost:5000/asyncapi/v1.json | jq .
+curl http://localhost:5001/asyncapi/v1.json | jq .
 ```
 
 ---
@@ -75,10 +75,10 @@ Key source files:
 | File | Purpose |
 |------|---------|
 | `api/src/Wallow.Api/Extensions/AsyncApiEndpointExtensions.cs` | Endpoint registration (dev only) |
-| `api/src/Shared/Wallow.Shared.Infrastructure.Workflows/AsyncApi/EventFlowDiscovery.cs` | Reflection-based event and consumer discovery |
-| `api/src/Shared/Wallow.Shared.Infrastructure.Workflows/AsyncApi/AsyncApiDocumentGenerator.cs` | AsyncAPI 3.0 JSON document builder |
-| `api/src/Shared/Wallow.Shared.Infrastructure.Workflows/AsyncApi/MermaidFlowGenerator.cs` | Mermaid diagram generator |
-| `api/src/Shared/Wallow.Shared.Infrastructure.Workflows/AsyncApi/JsonSchemaGenerator.cs` | C# type to JSON Schema converter |
+| `api/src/Shared/Wallow.Shared.Infrastructure/AsyncApi/EventFlowDiscovery.cs` | Reflection-based event and consumer discovery |
+| `api/src/Shared/Wallow.Shared.Infrastructure/AsyncApi/AsyncApiDocumentGenerator.cs` | AsyncAPI 3.0 JSON document builder |
+| `api/src/Shared/Wallow.Shared.Infrastructure/AsyncApi/MermaidFlowGenerator.cs` | Mermaid diagram generator |
+| `api/src/Shared/Wallow.Shared.Infrastructure/AsyncApi/JsonSchemaGenerator.cs` | C# type to JSON Schema converter |
 
 ---
 

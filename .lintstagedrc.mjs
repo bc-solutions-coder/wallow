@@ -5,10 +5,18 @@
 
 // Protected paths that should never be reformatted
 const PROTECTED_PATTERNS = [
-  "packages/sdk/openapi/**",
+  "**/packages/sdk/openapi/**",
   "**/generated/**",
-  "packages/sdk/src/generated/**",
+  "**/packages/sdk/src/generated/**",
   "**/dist/**",
+  // oxfmt has no formatter for pnpm's lockfile and errors with "Expected at
+  // least one target file" when asked to format it - never pass it through.
+  // lint-staged invokes filterProtected with absolute paths, so anchor with
+  // a leading wildcard like the other patterns above.
+  "**/pnpm-lock.yaml",
+  // Generated TanStack route trees are in oxfmt's ignorePatterns; passing
+  // them alone makes oxfmt fail the same way as the lockfile above.
+  "**/routeTree.gen.ts",
 ];
 
 /**
@@ -16,7 +24,10 @@ const PROTECTED_PATTERNS = [
  */
 function filterProtected(files) {
   const protectedRegexes = PROTECTED_PATTERNS.map((pattern) => {
-    const escaped = pattern.replaceAll(/\./g, String.raw`\.`).replaceAll(/\*/g, ".*").replaceAll(/\?/g, ".");
+    const escaped = pattern
+      .replaceAll(".", String.raw`\.`)
+      .replaceAll("*", ".*")
+      .replaceAll("?", ".");
     return new RegExp(`^${escaped}$`);
   });
 
@@ -27,27 +38,31 @@ export default {
   // C# files: format with dotnet
   "*.cs": (files) => {
     const filtered = filterProtected(files);
-    if (filtered.length === 0) {return [];}
+    if (filtered.length === 0) {
+      return [];
+    }
     return [`dotnet format api/Wallow.slnx --include ${filtered.join(" ")} --no-restore`];
   },
 
   // TypeScript/JavaScript: format with oxfmt, lint with oxlint
   "*.{ts,tsx,js,jsx,mjs,cjs}": (files) => {
     const filtered = filterProtected(files);
-    if (filtered.length === 0) {return [];}
+    if (filtered.length === 0) {
+      return [];
+    }
     return [`oxfmt --write ${filtered.join(" ")}`, `oxlint --fix ${filtered.join(" ")}`];
   },
 
   // JSON/YAML: format with oxfmt only
   "*.{json,yml,yaml}": (files) => {
     const filtered = filterProtected(files);
-    if (filtered.length === 0) {return [];}
+    if (filtered.length === 0) {
+      return [];
+    }
     return [`oxfmt --write ${filtered.join(" ")}`];
   },
 
   // TypeScript typecheck: run once per commit (no file args)
   // This guard ensures it only runs if any TS/TSX files are staged
-  "*.{ts,tsx}": () => 
-    ["pnpm typecheck"]
-  ,
+  "*.{ts,tsx}": () => ["pnpm typecheck"],
 };

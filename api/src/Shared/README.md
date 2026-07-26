@@ -9,7 +9,6 @@ Foundational libraries providing the building blocks for all Wallow modules:
 - **Wallow.Shared.Infrastructure**: Settings framework, module registration, and shared infrastructure utilities
 - **Wallow.Shared.Infrastructure.Core**: Core middleware, caching, messaging, auditing, and services
 - **Wallow.Shared.Infrastructure.BackgroundJobs**: Hangfire job scheduling integration
-- **Wallow.Shared.Infrastructure.Workflows**: Elsa workflow engine integration
 - **Wallow.Shared.Infrastructure.Plugins**: Plugin system abstractions
 - **Wallow.Shared.Api**: Shared API utilities
 
@@ -94,7 +93,7 @@ Settings framework and module coordination.
 - Wallow.Shared.Infrastructure.BackgroundJobs
 - Wallow.Shared.Infrastructure.Workflows
 - Wallow.Shared.Infrastructure.Plugins
-- EF Core, Wolverine, Hangfire, Elsa, Serilog
+- EF Core, Wolverine, Hangfire, Serilog
 
 ## Dependency Rules
 

@@ -42,7 +42,7 @@ public sealed partial class MfaPartialAuthService : IMfaPartialAuthService
         httpContext.Response.Cookies.Append(CookieName, protectedValue, new CookieOptions
         {
             HttpOnly = true,
-            Secure = true,
+            Secure = httpContext.Request.IsHttps,
             SameSite = SameSiteMode.Lax,
             MaxAge = _cookieLifetime,
             IsEssential = true

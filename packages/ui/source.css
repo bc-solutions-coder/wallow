@@ -1,0 +1,15 @@
+/*
+ * Tailwind v4 @source declaration for @bc-solutions-coder/ui.
+ *
+ * Tailwind v4 skips node_modules when scanning, and resolves @source paths
+ * relative to the declaring stylesheet. So this package ships its own source.css
+ * (at the package root, shipped via package.json "files") pointing at its ./src
+ * component sources, and each consuming app imports it from its CSS entry
+ * (@import "@bc-solutions-coder/ui/source.css";). That makes Tailwind scan ui's
+ * component class names and emit the utilities they use.
+ *
+ * This file declares ONLY the source scan — it imports no Tailwind entry and no
+ * theme, because the app already imports @bc-solutions-coder/styles. ui depends
+ * on styles conceptually, never the reverse.
+ */
+@source "./src";

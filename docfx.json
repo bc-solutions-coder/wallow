@@ -10,9 +10,7 @@
             "api/src/Shared/**/*.csproj",
             "api/src/Wallow.Api/*.csproj"
           ],
-          "exclude": [
-            "api/src/Modules/*/*.Infrastructure/*.csproj"
-          ]
+          "exclude": ["api/src/Modules/*/*.Infrastructure/*.csproj"]
         }
       ],
       "dest": ".docfx/api",
@@ -23,6 +21,7 @@
     "content": [
       {
         "files": ["**/*.md", "toc.yml"],
+        "exclude": ["plans/**", "claude/**", "CLAUDE.md"],
         "src": "docs",
         "dest": "."
       },
@@ -32,11 +31,6 @@
       },
       {
         "files": [".docfx/api/**.yml", ".docfx/api/index.md"]
-      }
-    ],
-    "resource": [
-      {
-        "files": ["images/**"]
       }
     ],
     "globalMetadata": {

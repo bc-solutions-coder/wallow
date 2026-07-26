@@ -3,7 +3,9 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Primitives;
 using OpenIddict.Abstractions;
 using OpenIddict.Server;
 using OpenIddict.Server.AspNetCore;
@@ -265,6 +267,79 @@ public sealed class AuthorizationControllerTests : IDisposable
         // Consent-related authorization lookups should not happen for first-party clients
         _authorizationManager.DidNotReceive().FindBySubjectAsync(
             Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    #endregion
+
+    #region Redirect To Consent
+
+    [Fact]
+    public async Task Authorize_ThirdPartyClient_NoExistingAuthorization_RedirectsToConsentCarryingRequestedScopes()
+    {
+        // Arrange - a third-party client with no consent decision yet: the branch
+        // that hands the user to the consent screen. The scopes the client asked
+        // for are the entire substance of the decision the screen asks the user to
+        // make, so the redirect has to carry them.
+        OpenIddictRequest request = new()
+        {
+            ClientId = ThirdPartyClientId,
+            Scope = "openid profile"
+        };
+
+        SetupAuthenticatedHttpContext(request);
+        SetupUser();
+        SetupApplication(ThirdPartyClientId);
+        SetupNoExistingAuthorizations();
+        SetupClientTenantResolver(ThirdPartyClientId);
+
+        // Act
+        IActionResult result = await _controller.Authorize();
+
+        // Assert
+        RedirectResult redirectResult = result.Should().BeOfType<RedirectResult>().Subject;
+        redirectResult.Url.Should().StartWith("https://auth.example.com/consent?");
+
+        Dictionary<string, StringValues> query =
+            QueryHelpers.ParseQuery(new Uri(redirectResult.Url).Query);
+
+        // Space-delimited, matching OAuth's own scope convention and the
+        // space-split the consent-info endpoint already parses with.
+        query.Should().ContainKey("scope");
+        query["scope"].ToString().Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Should().BeEquivalentTo("openid", "profile");
+    }
+
+    [Fact]
+    public async Task Authorize_ThirdPartyClient_NoExistingAuthorization_KeepsReturnUrlAndClientIdOnTheConsentRedirect()
+    {
+        // Arrange - a regression guard, green before and after: the two parameters
+        // the consent screen already relies on must survive the addition of the
+        // scope parameter. The returnUrl is the authorize request verbatim, so its
+        // own escaping is carried through untouched.
+        OpenIddictRequest request = new()
+        {
+            ClientId = ThirdPartyClientId,
+            Scope = "openid profile"
+        };
+
+        SetupAuthenticatedHttpContext(request, "?client_id=" + ThirdPartyClientId + "&scope=openid%20profile");
+        SetupUser();
+        SetupApplication(ThirdPartyClientId);
+        SetupNoExistingAuthorizations();
+        SetupClientTenantResolver(ThirdPartyClientId);
+
+        // Act
+        IActionResult result = await _controller.Authorize();
+
+        // Assert
+        RedirectResult redirectResult = result.Should().BeOfType<RedirectResult>().Subject;
+
+        Dictionary<string, StringValues> query =
+            QueryHelpers.ParseQuery(new Uri(redirectResult.Url).Query);
+
+        query["client_id"].ToString().Should().Be(ThirdPartyClientId);
+        query["returnUrl"].ToString().Should().Be(
+            "/connect/authorize?client_id=" + ThirdPartyClientId + "&scope=openid%20profile");
     }
 
     #endregion

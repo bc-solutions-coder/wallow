@@ -39,7 +39,7 @@ public class RotateSecretTests(ServiceAccountTestFactory factory) : ServiceAccou
 
         ServiceAccountCreatedResult created = await ServiceAccountService.CreateAsync(createRequest);
 
-        HttpResponseMessage response = await Client.PostAsync($"/identity/service-accounts/{created.Id.Value}/rotate-secret", null);
+        HttpResponseMessage response = await Client.PostAsync($"/identity/clients/service-accounts/{created.Id.Value}/rotate-secret", null);
 
         response.IsSuccessStatusCode.Should().BeTrue();
         SecretRotatedResponse? result = await response.Content.ReadFromJsonAsync<SecretRotatedResponse>();
@@ -52,7 +52,7 @@ public class RotateSecretTests(ServiceAccountTestFactory factory) : ServiceAccou
     {
         Guid nonExistentId = Guid.NewGuid();
 
-        HttpResponseMessage response = await Client.PostAsync($"/identity/service-accounts/{nonExistentId}/rotate-secret", null);
+        HttpResponseMessage response = await Client.PostAsync($"/identity/clients/service-accounts/{nonExistentId}/rotate-secret", null);
 
         response.StatusCode.Should().Be(System.Net.HttpStatusCode.NotFound);
     }

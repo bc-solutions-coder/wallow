@@ -7,6 +7,8 @@ using Wallow.Identity.Api.Contracts.Responses;
 using Wallow.Identity.Api.Controllers;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
+using Wallow.Identity.Domain.Enums;
+using Wallow.Identity.Domain.Identity;
 using Wallow.Identity.Infrastructure.Extensions;
 
 #pragma warning disable CA2012 // Use ValueTasks correctly - NSubstitute requires ValueTask in Returns()
@@ -20,13 +22,15 @@ public class ClientsControllerTests
 
     private readonly IOpenIddictApplicationManager _applicationManager;
     private readonly IOrganizationService _organizationService;
+    private readonly IServiceAccountService _serviceAccountService;
     private readonly ClientsController _controller;
 
     public ClientsControllerTests()
     {
         _applicationManager = Substitute.For<IOpenIddictApplicationManager>();
         _organizationService = Substitute.For<IOrganizationService>();
-        _controller = new ClientsController(_applicationManager, _organizationService);
+        _serviceAccountService = Substitute.For<IServiceAccountService>();
+        _controller = new ClientsController(_applicationManager, _organizationService, _serviceAccountService);
 
         ClaimsPrincipal user = new(new ClaimsIdentity(new[]
         {
@@ -401,6 +405,145 @@ public class ClientsControllerTests
         ActionResult<ClientResponse> result = await _controller.RotateSecret("missing", CancellationToken.None);
 
         result.Result.Should().BeOfType<NotFoundResult>();
+    }
+
+    #endregion
+
+    #region Service Accounts (migrated from ServiceAccountsController)
+
+    private static readonly string[] _billingReadScope = ["billing:read"];
+    private static readonly string[] _billingReadWriteScopes = ["billing:read", "billing:write"];
+    private static readonly string[] _singleScope = ["scope1"];
+
+    [Fact]
+    public async Task ListServiceAccounts_ReturnsOkWithServiceAccounts()
+    {
+        ServiceAccountMetadataId id = ServiceAccountMetadataId.New();
+        List<ServiceAccountDto> accounts =
+        [
+            new ServiceAccountDto(id, "client-1", "Backend Service", "Desc", ServiceAccountStatus.Active,
+                _billingReadScope, DateTime.UtcNow, null)
+        ];
+        _serviceAccountService.ListAsync(Arg.Any<CancellationToken>())
+            .Returns(accounts);
+
+        ActionResult<IReadOnlyList<ServiceAccountDto>> result = await _controller.ListServiceAccounts(CancellationToken.None);
+
+        OkObjectResult ok = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        IReadOnlyList<ServiceAccountDto> response = ok.Value.Should().BeAssignableTo<IReadOnlyList<ServiceAccountDto>>().Subject;
+        response.Should().HaveCount(1);
+        response[0].ClientId.Should().Be("client-1");
+    }
+
+    [Fact]
+    public async Task CreateServiceAccount_WithValidRequest_ReturnsCreated()
+    {
+        ServiceAccountMetadataId newId = ServiceAccountMetadataId.New();
+        Wallow.Identity.Api.Contracts.Requests.CreateServiceAccountRequest request = new("Backend", "Backend service", _billingReadScope);
+        ServiceAccountCreatedResult createdResult = new(newId, "client-backend", "secret-123", "https://kc/token", _billingReadScope);
+        _serviceAccountService.CreateAsync(Arg.Any<Wallow.Identity.Application.DTOs.CreateServiceAccountRequest>(), Arg.Any<CancellationToken>())
+            .Returns(createdResult);
+
+        ActionResult<ServiceAccountCreatedResponse> result = await _controller.CreateServiceAccount(request, CancellationToken.None);
+
+        CreatedAtActionResult created = result.Result.Should().BeOfType<CreatedAtActionResult>().Subject;
+        created.ActionName.Should().Be(nameof(ClientsController.GetServiceAccount));
+        ServiceAccountCreatedResponse response = created.Value.Should().BeOfType<ServiceAccountCreatedResponse>().Subject;
+        response.ClientId.Should().Be("client-backend");
+        response.ClientSecret.Should().Be("secret-123");
+        response.TokenEndpoint.Should().Be("https://kc/token");
+        response.Id.Should().Be(newId.Value.ToString());
+    }
+
+    [Fact]
+    public async Task CreateServiceAccount_MapsApiRequestToApplicationRequest()
+    {
+        ServiceAccountMetadataId newId = ServiceAccountMetadataId.New();
+        Wallow.Identity.Api.Contracts.Requests.CreateServiceAccountRequest request = new("Svc", "Description", _singleScope);
+        ServiceAccountCreatedResult createdResult = new(newId, "c1", "s1", "t1", _singleScope);
+        Wallow.Identity.Application.DTOs.CreateServiceAccountRequest? capturedRequest = null;
+        _serviceAccountService.CreateAsync(Arg.Do<Wallow.Identity.Application.DTOs.CreateServiceAccountRequest>(r => capturedRequest = r), Arg.Any<CancellationToken>())
+            .Returns(createdResult);
+
+        await _controller.CreateServiceAccount(request, CancellationToken.None);
+
+        capturedRequest.Should().NotBeNull();
+        capturedRequest!.Name.Should().Be("Svc");
+        capturedRequest.Description.Should().Be("Description");
+        capturedRequest.Scopes.Should().Contain("scope1");
+    }
+
+    [Fact]
+    public async Task GetServiceAccount_WhenFound_ReturnsOk()
+    {
+        Guid id = Guid.NewGuid();
+        ServiceAccountDto account = new(ServiceAccountMetadataId.Create(id), "client-1", "Test", null,
+            ServiceAccountStatus.Active, _billingReadScope, DateTime.UtcNow, null);
+        _serviceAccountService.GetAsync(Arg.Is<ServiceAccountMetadataId>(x => x.Value == id), Arg.Any<CancellationToken>())
+            .Returns(account);
+
+        ActionResult<ServiceAccountDto> result = await _controller.GetServiceAccount(id, CancellationToken.None);
+
+        OkObjectResult ok = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        ServiceAccountDto response = ok.Value.Should().BeOfType<ServiceAccountDto>().Subject;
+        response.ClientId.Should().Be("client-1");
+    }
+
+    [Fact]
+    public async Task GetServiceAccount_WhenNotFound_ReturnsNotFound()
+    {
+        Guid id = Guid.NewGuid();
+        _serviceAccountService.GetAsync(Arg.Any<ServiceAccountMetadataId>(), Arg.Any<CancellationToken>())
+            .Returns((ServiceAccountDto?)null);
+
+        ActionResult<ServiceAccountDto> result = await _controller.GetServiceAccount(id, CancellationToken.None);
+
+        result.Result.Should().BeOfType<NotFoundResult>();
+    }
+
+    [Fact]
+    public async Task UpdateServiceAccountScopes_ReturnsNoContent()
+    {
+        Guid id = Guid.NewGuid();
+        UpdateScopesRequest request = new(_billingReadWriteScopes);
+
+        ActionResult result = await _controller.UpdateServiceAccountScopes(id, request, CancellationToken.None);
+
+        result.Should().BeOfType<NoContentResult>();
+        await _serviceAccountService.Received(1).UpdateScopesAsync(
+            Arg.Is<ServiceAccountMetadataId>(x => x.Value == id),
+            Arg.Is<IReadOnlyList<string>>(s => s.Count == 2),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task RotateServiceAccountSecret_ReturnsOkWithNewSecret()
+    {
+        Guid id = Guid.NewGuid();
+        DateTime rotatedAt = DateTime.UtcNow;
+        SecretRotatedResult rotateResult = new("new-secret-xyz", rotatedAt);
+        _serviceAccountService.RotateSecretAsync(Arg.Is<ServiceAccountMetadataId>(x => x.Value == id), Arg.Any<CancellationToken>())
+            .Returns(rotateResult);
+
+        ActionResult<SecretRotatedResponse> result = await _controller.RotateServiceAccountSecret(id, CancellationToken.None);
+
+        OkObjectResult ok = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        SecretRotatedResponse response = ok.Value.Should().BeOfType<SecretRotatedResponse>().Subject;
+        response.NewClientSecret.Should().Be("new-secret-xyz");
+        response.RotatedAt.Should().Be(rotatedAt);
+    }
+
+    [Fact]
+    public async Task RevokeServiceAccount_ReturnsNoContent()
+    {
+        Guid id = Guid.NewGuid();
+
+        ActionResult result = await _controller.RevokeServiceAccount(id, CancellationToken.None);
+
+        result.Should().BeOfType<NoContentResult>();
+        await _serviceAccountService.Received(1).RevokeAsync(
+            Arg.Is<ServiceAccountMetadataId>(x => x.Value == id),
+            Arg.Any<CancellationToken>());
     }
 
     #endregion

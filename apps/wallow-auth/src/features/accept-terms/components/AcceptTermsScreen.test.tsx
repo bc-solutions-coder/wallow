@@ -1,0 +1,877 @@
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRouter,
+  Outlet,
+  RouterProvider,
+} from "@tanstack/react-router";
+import { page, userEvent } from "vitest/browser";
+import { render } from "vitest-browser-react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { Route as acceptTermsRoute } from "../../../routes/accept-terms";
+import { AcceptTermsScreen } from "./AcceptTermsScreen";
+
+/**
+ * Component spec for the AcceptTerms screen (Wallow-vec7.3.10).
+ *
+ * This is the ToS/Privacy GATE in the external-login (social sign-up) flow — not
+ * the static terms document, which is the separate `/terms` route
+ * (Wallow-vec7.3.3). Testids come verbatim from the oracle (scout inventory on
+ * Wallow-vec7.3): `accept-terms-heading`, `accept-terms-error`,
+ * `accept-terms-checkbox`, `accept-terms-privacy-checkbox`,
+ * `accept-terms-submit`.
+ *
+ * ── THE FLOW THIS SCREEN SITS IN (read from the controller, not assumed) ──────
+ *
+ * `AccountController` (api/src/Modules/Identity/Wallow.Identity.Api/Controllers/
+ * AccountController.cs) drives the whole round trip:
+ *
+ *   1. `external-login`          L241-265  refuses unless `IsAllowedAsync(returnUrl)`.
+ *   2. `external-login-callback` L268-393  Path C (new user): data-protects
+ *      `provider|key|email|first|last|verified` into the **ExternalLoginState**
+ *      cookie (HttpOnly, Secure, SameSite=Lax, 10 min) and redirects to
+ *      `{authUrl}/accept-terms?returnUrl=…&email=…&name=…`.
+ *   3. THIS SCREEN navigates to `complete-external-registration`.
+ *   4. `complete-external-registration` L395+ reads the cookie back, unprotects
+ *      it, creates/links the user, signs them in, deletes the cookie, and
+ *      redirects to the validated returnUrl.
+ *
+ * The user's identity for step 4 lives ENTIRELY in that cookie. This screen is a
+ * consent gate and nothing else: it holds no state, makes no request, and its
+ * only job is to hand the browser to step 4.
+ *
+ * ── ACCEPTANCE: THE ExternalLoginState COOKIE IS PURE PROXY PASSTHROUGH ───────
+ *
+ * The cookie is `HttpOnly`, so this screen *cannot* read it even if it tried,
+ * and it must not try: `apps/wallow-auth/src/lib/auth-server.ts` is a passthrough
+ * reverse proxy mounting `/v1/**` at the ROOT and forwarding `Cookie` inbound and
+ * `Set-Cookie` outbound verbatim. The browser attaches the cookie itself on a
+ * top-level same-origin navigation (SameSite=Lax permits exactly this: a
+ * top-level GET). No relay, no session store, no token — the tests below pin
+ * that the cookie is untouched, that no fetch happens, and that the `auth`
+ * facade is never even reached for.
+ *
+ * ── DIVERGENCE 1: NO `isSafeReturnUrl` GUARD (the big one; disclosed on bead) ──
+ *
+ * The bead's DESIGN says "apply the isSafeReturnUrl open-redirect guard on any
+ * navigation". Applied to THIS screen's `returnUrl` it would refuse 100% of real
+ * traffic, so it is deliberately NOT applied. Verified, not assumed:
+ *
+ *   • `OpenIddictRedirectUriValidator.IsAllowedAsync` (Identity.Infrastructure/
+ *     Services/OpenIddictRedirectUriValidator.cs:23-32) bails unless
+ *     `Uri.TryCreate(uri, UriKind.**Absolute**, …)`, then allow-lists the ORIGIN
+ *     against every registered OIDC redirect/post-logout URI plus `AuthUrl`.
+ *     A relative path can never pass it.
+ *   • `external-login` (L257-260) REFUSES to start the flow at all unless
+ *     `IsAllowedAsync(returnUrl)` — so a relative returnUrl never reaches step 2.
+ *   • `external-login-callback` (L273-277) re-validates and falls back to
+ *     `authUrl` (also absolute) otherwise.
+ *
+ * => the `returnUrl` arriving here is ALWAYS an absolute, allow-listed URL.
+ * `isSafeReturnUrl` (packages/sdk/src/auth-oidc.ts) returns true only for a
+ * relative path starting with a single '/', so it is `false` for every value
+ * this screen can legitimately receive. Guarding here would send every social
+ * sign-up to `/error?reason=invalid_redirect_uri`.
+ *
+ * This is the `buildConnectLogoutUrl` precedent, not the `buildConsentSubmitUrl`
+ * one — that builder documents the identical reasoning for
+ * `post_logout_redirect_uri`: "deliberately NOT guarded by isSafeReturnUrl: it
+ * is an absolute URI by definition, and OpenIddict validates it server-side …
+ * Applying the relative-path guard would reject every legitimate caller."
+ *
+ * Nothing is given up by omitting it. This screen's navigation target is a
+ * SAME-ORIGIN CONSTANT path; `returnUrl` is inert cargo in a query parameter,
+ * and `complete-external-registration` re-validates it with the same allow-list
+ * "early, before any user creation" (L403-407), falling back to `authUrl`. The
+ * open-redirect decision is the API's and is made server-side. What this screen
+ * DOES owe is that the cargo cannot break out of the query string — pinned below
+ * by the percent-encoding test, which is the injection guard that actually
+ * applies here.
+ *
+ * ── DIVERGENCE 2: THE ORACLE'S ToS/PRIVACY LINKS ARE BROKEN (fixed on port) ───
+ *
+ * The consent links point at the real `/terms` and `/privacy` routes (registered
+ * by Wallow-vec7.3.16) — the two documents this gate obtains informed consent to.
+ *
+ * ── DIVERGENCE 3: `session_expired` IS NOT WIRE-REACHABLE HERE ───────────────
+ *
+ * The oracle's error switch handles `terms_required` and `session_expired`. Only
+ * the first is reachable: `complete-external-registration` sends every
+ * session-expired path to `{authUrl}/**login**?error=session_expired` (L416,
+ * L437, L444), and the ONLY redirect back to this screen is
+ * `/accept-terms?error=terms_required&returnUrl=…` (L412). The branch is kept
+ * anyway — it is static copy, it costs nothing, and `?error=` is a query string
+ * anyone can construct, so the mapping must handle it deliberately rather than
+ * by accident. Pinned below alongside the unrecognised-code fallback.
+ *
+ * ── DIVERGENCE 4: TESTID PLACEMENT ON THE CHECKBOXES ─────────────────────────
+ *
+ * The oracle puts `accept-terms-checkbox` / `accept-terms-privacy-checkbox` on
+ * the wrapping `<div>` (L44, L52), not the `<input>`. The names are preserved
+ * verbatim; the placement moves to the input, which is the element a test or an
+ * E2E `.check()` must actually reach. A testid on a div wrapping a checkbox
+ * cannot be clicked to toggle it.
+ *
+ * MOCKING SEAM: `../../../lib/wallow-auth-sdk` — the app's own facade, never
+ * `@bc-solutions-coder/sdk` directly. Per bd memory `vitest-resetmodules-breaks-
+ * instanceof-across-graphs`, this file uses a plain `vi.mock` factory +
+ * `vi.hoisted` spies and NEVER `vi.resetModules()`.
+ */
+
+const mocks = vi.hoisted(() => ({
+  /** Every property read off the `auth` facade slice, for the no-relay test. */
+  authAccess: [] as string[],
+  /**
+   * The REAL `isSafeReturnUrl` implementation (auth-oidc.ts), not a stub. It is
+   * offered so that an implementation which wires the guard in — as the bead's
+   * DESIGN literally instructs — fails the "threads the flow's real absolute
+   * returnUrl" test BEHAVIOURALLY, showing the screen breaking, rather than
+   * crashing on a missing mock. See divergence 1.
+   */
+  isSafeReturnUrl: vi.fn(
+    (url: string | null | undefined): boolean =>
+      url !== null &&
+      url !== undefined &&
+      url.trim() !== "" &&
+      url.startsWith("/") &&
+      !url.startsWith("//"),
+  ),
+}));
+
+vi.mock("../../../lib/wallow-auth-sdk", () => ({
+  getWallowAuthSdk: () => ({
+    // A trap, not a stub: this screen makes no request, so ANY reach for the
+    // auth client is a relay this port must not have.
+    auth: new Proxy(
+      {},
+      {
+        get: (_target: object, property: string | symbol) => {
+          mocks.authAccess.push(String(property));
+          return () => {
+            throw new Error(`AcceptTerms must not call auth.${String(property)}`);
+          };
+        },
+      },
+    ),
+    oidc: { isSafeReturnUrl: mocks.isSafeReturnUrl },
+  }),
+}));
+
+/** The endpoint the gate hands the browser to — same-origin, via the h3 proxy. */
+const ENDPOINT = "/v1/identity/auth/complete-external-registration";
+
+/**
+ * A real returnUrl for this flow: absolute and origin-allow-listed. Every value
+ * this screen can legitimately receive looks like this (see divergence 1).
+ */
+const RETURN_URL = "https://app.example.com/callback";
+const EMAIL = "ada@example.com";
+const NAME = "Ada Lovelace";
+
+/**
+ * The client that started the external-login flow (Wallow-53kr). Arrives on the
+ * query string as `client_id`, leaves as `clientId` — see the relay note below.
+ */
+const CLIENT_ID = "client-a";
+
+/**
+ * NAVIGATION SEAM (Wallow-xzha.3.1). The screen hands off with
+ * `globalThis.location.href = …`. Under jsdom that was observed by swapping
+ * `location` for a plain settable object; in a REAL browser `location` is
+ * `[Unforgeable]`, so `vi.stubGlobal("location", …)` cannot shadow it and the
+ * assignment navigates the Chromium iframe and tears the runner down.
+ *
+ * Instead we listen on the Navigation API `navigate` event the assignment fires,
+ * record `destination.url`, and `preventDefault()` so the navigation is cancelled
+ * and the runner stays put. The recorded array stands in for the old settable
+ * `location.href`: a hand-off appends exactly one absolute URL; a declined submit
+ * appends nothing at all. bd memory `full-navigation-seam-for-wallow-auth-screens-
+ * that`.
+ */
+interface NavigateEvent extends Event {
+  readonly destination: { readonly url: string };
+}
+interface NavigationLike {
+  addEventListener: (type: "navigate", handler: (event: NavigateEvent) => void) => void;
+  removeEventListener: (type: "navigate", handler: (event: NavigateEvent) => void) => void;
+}
+const navigationApi: NavigationLike = (globalThis as unknown as { navigation: NavigationLike })
+  .navigation;
+
+/** Listeners registered by `captureHandoff`, torn down in `afterEach`. */
+const navDisposers: Array<() => void> = [];
+
+/** Arm the navigation seam and return the array the hand-off URL lands in. */
+function captureHandoff(): { urls: string[] } {
+  const urls: string[] = [];
+  const handler = (event: NavigateEvent): void => {
+    urls.push(event.destination.url);
+    // Cancel the navigation so assigning `location.href` does not tear the
+    // Chromium runner down; the recorded URL is what we assert on.
+    event.preventDefault();
+  };
+  navigationApi.addEventListener("navigate", handler);
+  navDisposers.push(() => {
+    navigationApi.removeEventListener("navigate", handler);
+  });
+  return { urls };
+}
+
+/** The pathname + query the screen built, recovered from the cancelled navigation. */
+function handoffTarget(urls: string[]): URL {
+  return new URL(urls[0]);
+}
+
+function renderScreen(props: Partial<Parameters<typeof AcceptTermsScreen>[0]> = {}) {
+  return render(<AcceptTermsScreen returnUrl={RETURN_URL} {...props} />);
+}
+
+/** Tick both consent boxes — the only way to arm the submit button. */
+async function acceptBoth(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(page.getByTestId("accept-terms-checkbox"));
+  await user.click(page.getByTestId("accept-terms-privacy-checkbox"));
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  mocks.authAccess.length = 0;
+});
+
+afterEach(() => {
+  navDisposers.forEach((dispose) => {
+    dispose();
+  });
+  navDisposers.length = 0;
+  vi.unstubAllGlobals();
+});
+
+describe("AcceptTermsScreen", () => {
+  it("renders the gate: heading, both consent checkboxes, and submit", async () => {
+    renderScreen();
+
+    await expect
+      .element(page.getByTestId("accept-terms-heading"))
+      .toHaveTextContent(/almost there/iu);
+    await expect.element(page.getByTestId("accept-terms-checkbox")).toBeInTheDocument();
+    await expect.element(page.getByTestId("accept-terms-privacy-checkbox")).toBeInTheDocument();
+    await expect.element(page.getByTestId("accept-terms-submit")).toBeInTheDocument();
+    expect(page.getByTestId("accept-terms-error").query()).toBeNull();
+  });
+
+  it("exposes both testids on real checkbox inputs", async () => {
+    // Divergence 4: the oracle puts these testids on the wrapping div. A div
+    // cannot be clicked to toggle the box it wraps, so the port moves them onto
+    // the inputs — which is what every test and E2E `.check()` below relies on.
+    renderScreen();
+
+    await expect
+      .element(page.getByTestId("accept-terms-checkbox"))
+      .toHaveAttribute("type", "checkbox");
+    await expect
+      .element(page.getByTestId("accept-terms-privacy-checkbox"))
+      .toHaveAttribute("type", "checkbox");
+  });
+
+  it("shows who is signing up when the link carries an email and name", async () => {
+    // Oracle: `@if (!string.IsNullOrEmpty(Email))` renders "Signing up as",
+    // `@Name`, `@Email`. This is the user's only chance to notice the provider
+    // handed over the wrong account before one gets created.
+    renderScreen({ email: EMAIL, name: NAME });
+
+    await expect.element(page.getByText(EMAIL)).toBeInTheDocument();
+    await expect.element(page.getByText(NAME)).toBeInTheDocument();
+  });
+
+  it("omits the signing-up-as block when the link carries no email", async () => {
+    // Oracle: the whole block is gated on Email, so a nameless/emailless link
+    // must not render an empty identity card. Anchored on the heading so the
+    // negative cannot pass against a screen that renders nothing at all.
+    renderScreen({ name: NAME });
+
+    await expect.element(page.getByTestId("accept-terms-heading")).toBeInTheDocument();
+    expect(page.getByText(NAME).query()).toBeNull();
+    expect(page.getByText(/signing up as/iu).query()).toBeNull();
+  });
+
+  it("links to the terms and privacy documents that actually exist", async () => {
+    // Divergence 2: the oracle's `/terms-of-service` and `/privacy-policy` are
+    // 404s; the real routes are `/terms` and `/privacy`. Consent to a document
+    // the user cannot open is not informed consent.
+    renderScreen();
+
+    const terms = page.getByRole("link", { name: /terms of service/iu });
+    const privacy = page.getByRole("link", { name: /privacy policy/iu });
+
+    await expect.element(terms).toHaveAttribute("href", "/terms");
+    await expect.element(privacy).toHaveAttribute("href", "/privacy");
+    // Oracle: `target="_blank"` — reading the terms must not abandon the sign-up.
+    await expect.element(terms).toHaveAttribute("target", "_blank");
+    await expect.element(privacy).toHaveAttribute("target", "_blank");
+  });
+});
+
+describe("AcceptTermsScreen consent gating", () => {
+  it("keeps submit disabled until BOTH terms and privacy are accepted", async () => {
+    // Oracle: `Disabled="@(!_termsAccepted || !_privacyAccepted)"`. Accepting one
+    // document is not accepting both, and this is the entire point of the screen.
+    const user = userEvent.setup();
+    renderScreen();
+
+    await expect.element(page.getByTestId("accept-terms-submit")).toBeDisabled();
+
+    await user.click(page.getByTestId("accept-terms-checkbox"));
+    await expect.element(page.getByTestId("accept-terms-submit")).toBeDisabled();
+
+    await user.click(page.getByTestId("accept-terms-privacy-checkbox"));
+    await expect.element(page.getByTestId("accept-terms-submit")).toBeEnabled();
+  });
+
+  it("keeps submit disabled when only privacy is accepted", async () => {
+    // The mirror of the above: `||`, not `&&`. A port that checked either box
+    // would pass the previous test's final assertion and fail this one.
+    const user = userEvent.setup();
+    renderScreen();
+
+    await user.click(page.getByTestId("accept-terms-privacy-checkbox"));
+
+    await expect.element(page.getByTestId("accept-terms-submit")).toBeDisabled();
+  });
+
+  it("re-disables submit when a consent box is un-ticked", async () => {
+    // Consent is revocable right up to the click. The oracle's binding is
+    // two-way; a port that only ever latched the flag forward would miss this.
+    const user = userEvent.setup();
+    renderScreen();
+
+    await acceptBoth(user);
+    await expect.element(page.getByTestId("accept-terms-submit")).toBeEnabled();
+
+    await user.click(page.getByTestId("accept-terms-checkbox"));
+
+    await expect.element(page.getByTestId("accept-terms-submit")).toBeDisabled();
+  });
+
+  it("does not complete the registration while the boxes are unchecked", async () => {
+    // THE DECLINE BRANCH, part 1: declining is simply not accepting. The oracle
+    // ALSO re-checks inside the handler (`if (!_termsAccepted || !_privacyAccepted)
+    // return;`) rather than trusting the disabled attribute — so the click must
+    // be inert, not merely unclickable. Anchored on the disabled assertion.
+    const user = userEvent.setup();
+    const handoff = captureHandoff();
+    renderScreen();
+
+    await expect.element(page.getByTestId("accept-terms-submit")).toBeDisabled();
+    await user.click(page.getByTestId("accept-terms-submit"), { force: true });
+
+    expect(handoff.urls).toEqual([]);
+  });
+
+  it("never sends acceptedTerms=false", async () => {
+    // THE DECLINE BRANCH, part 2. `complete-external-registration` DOES have an
+    // `if (!acceptedTerms)` branch (L410-413) that bounces back here with
+    // error=terms_required — but this screen must never drive it. Declining means
+    // going nowhere; there is no "no thanks" round trip to the API.
+    const user = userEvent.setup();
+    const handoff = captureHandoff();
+    renderScreen();
+
+    await user.click(page.getByTestId("accept-terms-checkbox"));
+    await user.click(page.getByTestId("accept-terms-submit"), { force: true });
+
+    await expect.element(page.getByTestId("accept-terms-submit")).toBeDisabled();
+    expect(handoff.urls).toEqual([]);
+  });
+
+  it("offers a way out that does not create an account", async () => {
+    // THE DECLINE BRANCH, part 3: the oracle's card footer, "Changed your mind?
+    // Back to sign in" -> /login. Asserted by role + href because the oracle
+    // gives it no testid and the scout's inventory forbids inventing one for an
+    // element that shipped without one. Note this is an <a>: `toBeDisabled` can
+    // never match it (bd memory `jest-dom-tobedisabled-cannot-match-an-anchor`).
+    const handoff = captureHandoff();
+    renderScreen();
+
+    await expect
+      .element(page.getByRole("link", { name: /back to sign in/iu }))
+      .toHaveAttribute("href", "/login");
+    expect(handoff.urls).toEqual([]);
+    // Walking away leaves the ExternalLoginState cookie to expire on its own
+    // (10 min): no user was created, so there is nothing to clean up client-side.
+    expect(mocks.authAccess).toEqual([]);
+  });
+});
+
+describe("AcceptTermsScreen accept branch", () => {
+  it("hands the browser to complete-external-registration once both are accepted", async () => {
+    // Oracle: `Navigation.NavigateTo(completeUrl, forceLoad: true)`. A FULL
+    // navigation, never `router.navigate`: `/v1/**` is served by the h3 reverse
+    // proxy, not the client route tree, which would 404 in-app. It must also be a
+    // real top-level navigation for the browser to attach the SameSite=Lax
+    // ExternalLoginState cookie step 4 needs.
+    const user = userEvent.setup();
+    const handoff = captureHandoff();
+    renderScreen();
+
+    await acceptBoth(user);
+    await user.click(page.getByTestId("accept-terms-submit"));
+
+    await vi.waitFor(() => {
+      expect(handoff.urls).toHaveLength(1);
+    });
+    const target = handoffTarget(handoff.urls);
+    expect(target.pathname + target.search).toBe(
+      `${ENDPOINT}?acceptedTerms=true&returnUrl=${encodeURIComponent(RETURN_URL)}`,
+    );
+  });
+
+  it("keeps the handoff same-origin, never the oracle's ApiBaseUrl", async () => {
+    // THE ORIGIN DECISION. The oracle builds `{ApiBaseUrl}/v1/…` from config,
+    // defaulting to http://localhost:5001. That prepend is deliberately not
+    // ported, for the reason ConsentScreen documents at length: this origin DOES
+    // host /v1/** (auth-server.ts mounts the proxy at the root), so prepending an
+    // API origin would send the browser CROSS-ORIGIN and drop the SameSite=Lax
+    // ExternalLoginState cookie — which is the user's whole identity here, so the
+    // endpoint would bounce them to /login?error=session_expired. It would also
+    // reintroduce an ApiBaseUrl knob this app lacks: WALLOW_API_INTERNAL_URL is a
+    // SERVER-side address the browser cannot resolve at all.
+    const user = userEvent.setup();
+    const handoff = captureHandoff();
+    renderScreen();
+
+    await acceptBoth(user);
+    await user.click(page.getByTestId("accept-terms-submit"));
+
+    await vi.waitFor(() => {
+      expect(handoff.urls).toHaveLength(1);
+    });
+    const target = handoffTarget(handoff.urls);
+    // Same-origin (this app), never the oracle's cross-origin ApiBaseUrl.
+    expect(target.pathname).toBe(ENDPOINT);
+    expect(target.origin).toBe(globalThis.location.origin);
+    expect(handoff.urls[0]).not.toContain("localhost:5001");
+  });
+
+  it("threads the flow's real absolute returnUrl through untouched", async () => {
+    // THE BINDING TEST for divergence 1. Every returnUrl this screen can receive
+    // is absolute and origin-allow-listed, so `isSafeReturnUrl` is false for all
+    // of them. An implementation that wires the guard in — as the bead's DESIGN
+    // says to — refuses this, the ONLY shape real traffic has, and every social
+    // sign-up dies at /error?reason=invalid_redirect_uri. The API re-validates
+    // this value against its allow-list before honouring it (L403-407).
+    const user = userEvent.setup();
+    const handoff = captureHandoff();
+    renderScreen({ returnUrl: "https://app.example.com/connect/authorize?client_id=web" });
+
+    await acceptBoth(user);
+    await user.click(page.getByTestId("accept-terms-submit"));
+
+    await vi.waitFor(() => {
+      expect(handoff.urls).toHaveLength(1);
+    });
+    const target = handoffTarget(handoff.urls);
+    expect(target.pathname + target.search).toBe(
+      `${ENDPOINT}?acceptedTerms=true&returnUrl=${encodeURIComponent(
+        "https://app.example.com/connect/authorize?client_id=web",
+      )}`,
+    );
+  });
+
+  it("falls back to '/' when the link carries no returnUrl", async () => {
+    // Oracle: `Uri.EscapeDataString(ReturnUrl ?? "/")` — only NULLISH falls back
+    // (bd memory `returnurl-guard-refuse-dont-sanitize`). "/" fails the API's
+    // absolute-URI check, so the endpoint substitutes authUrl (L403-407): the
+    // fallback means "send me home", and the API decides where home is.
+    const user = userEvent.setup();
+    const handoff = captureHandoff();
+    renderScreen({ returnUrl: undefined });
+
+    await acceptBoth(user);
+    await user.click(page.getByTestId("accept-terms-submit"));
+
+    await vi.waitFor(() => {
+      expect(handoff.urls).toHaveLength(1);
+    });
+    const target = handoffTarget(handoff.urls);
+    expect(target.pathname + target.search).toBe(`${ENDPOINT}?acceptedTerms=true&returnUrl=%2F`);
+  });
+
+  it("percent-encodes returnUrl so it cannot inject extra query parameters", async () => {
+    // The injection guard that DOES apply here (see divergence 1). `returnUrl` is
+    // attacker-supplied cargo in a URL this screen builds by concatenation; the
+    // oracle's `Uri.EscapeDataString` is `encodeURIComponent`, not form encoding.
+    // Unencoded, this value would smuggle a second `acceptedTerms` in — and ASP.
+    // NET binds `[FromQuery] bool acceptedTerms` from a duplicated key as
+    // "true,false", which fails to parse and lands on the !acceptedTerms branch.
+    const hostile = "https://app.example.com/cb&acceptedTerms=false";
+    const user = userEvent.setup();
+    const handoff = captureHandoff();
+    renderScreen({ returnUrl: hostile });
+
+    await acceptBoth(user);
+    await user.click(page.getByTestId("accept-terms-submit"));
+
+    await vi.waitFor(() => {
+      expect(handoff.urls).toHaveLength(1);
+    });
+    const target = handoffTarget(handoff.urls);
+    const href: string = target.pathname + target.search;
+    expect(href).toBe(`${ENDPOINT}?acceptedTerms=true&returnUrl=${encodeURIComponent(hostile)}`);
+    expect(href).not.toContain("acceptedTerms=false");
+    expect(href.match(/acceptedTerms=/gu)).toHaveLength(1);
+  });
+
+  it("never reads, rewrites, or relays the ExternalLoginState cookie", async () => {
+    // THE ACCEPTANCE CRITERION: pure proxy passthrough, no relay.
+    //
+    // The cookie is HttpOnly (AccountController L376-383), so document.cookie
+    // cannot see it and the browser attaches it itself on this top-level
+    // same-origin GET. The screen must therefore do NOTHING with it: not read it,
+    // not copy it into the URL, not clear it, and not hand it to the API through
+    // the SDK. `complete-external-registration` deletes it server-side once it
+    // has been spent (L438, L445, L465).
+    //
+    // The non-HttpOnly decoy below stands in for what a misguided "relay" port
+    // would find and forward; the assertions pin that it is left exactly as it
+    // was and never leaves the browser.
+    const decoy = "ExternalLoginState=CfDJ8-protected-blob";
+    document.cookie = decoy;
+    const fetchSpy = vi.fn();
+    const user = userEvent.setup();
+    const handoff = captureHandoff();
+    vi.stubGlobal("fetch", fetchSpy);
+    renderScreen();
+
+    await acceptBoth(user);
+    await user.click(page.getByTestId("accept-terms-submit"));
+
+    // Anchor: the flow really ran, so the negatives below are not vacuous.
+    await vi.waitFor(() => {
+      expect(handoff.urls).toHaveLength(1);
+    });
+    const target = handoffTarget(handoff.urls);
+    const href: string = target.pathname + target.search;
+    expect(href).toBe(`${ENDPOINT}?acceptedTerms=true&returnUrl=${encodeURIComponent(RETURN_URL)}`);
+    // Untampered: still there, unchanged, for the browser to send.
+    expect(document.cookie).toContain(decoy);
+    // Not relayed: no cookie material in the URL the screen built.
+    expect(href).not.toContain("ExternalLoginState");
+    expect(href).not.toContain("CfDJ8");
+    // Not relayed: no request of any kind, and the auth client never touched.
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(mocks.authAccess).toEqual([]);
+
+    document.cookie = `${decoy}; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+  });
+});
+
+describe("AcceptTermsScreen error mapping", () => {
+  it("explains a terms_required bounce-back", async () => {
+    // The ONLY error the wire delivers here: `complete-external-registration`
+    // L410-413 redirects to /accept-terms?error=terms_required&returnUrl=… .
+    renderScreen({ error: "terms_required" });
+
+    await expect
+      .element(page.getByTestId("accept-terms-error"))
+      .toHaveTextContent(/must accept the terms to continue/iu);
+  });
+
+  it("explains a session_expired error", async () => {
+    // Divergence 3: kept as deliberate handling of a query string anyone can
+    // construct, though the endpoint routes real session expiry to
+    // /login?error=session_expired instead.
+    renderScreen({ error: "session_expired" });
+
+    await expect
+      .element(page.getByTestId("accept-terms-error"))
+      .toHaveTextContent(/session has expired/iu);
+  });
+
+  it("falls back to the generic message for an unrecognised error code", async () => {
+    // The oracle's `_ =>` arm, and the test that BINDS the mapping: without it a
+    // blanket "always show one message" implementation passes both tests above
+    // (bd memory `code-keyed-error-mapping-needs-an-unrecognised-code-test-to-
+    // bind`).
+    renderScreen({ error: "wat" });
+
+    const error = page.getByTestId("accept-terms-error");
+    await expect.element(error).toHaveTextContent(/an error occurred/iu);
+    await expect.element(error).not.toHaveTextContent(/must accept the terms/iu);
+    await expect.element(error).not.toHaveTextContent(/session has expired/iu);
+  });
+
+  it("does not resolve inherited Object keys as error copy", async () => {
+    // bd memory `attacker-supplied-query-key-lookups-use-map-not-record`:
+    // /accept-terms?error=toString is a URL anyone can send a victim. A Record +
+    // bracket lookup resolves Object.prototype.toString — a FUNCTION handed to
+    // the renderer. A ReadonlyMap + .get() only ever sees keys put in it. The
+    // benign "wat" case above does NOT catch this; this test is the reason the
+    // mapping must not be "simplified" back to an object literal.
+    renderScreen({ error: "toString" });
+
+    const error = page.getByTestId("accept-terms-error");
+    await expect.element(error).toHaveTextContent(/an error occurred/iu);
+    await expect.element(error).not.toHaveTextContent(/function|native code|\[object/iu);
+  });
+
+  it("renders no error block when the link carries no error", async () => {
+    // Anchored on the heading: a screen rendering nothing must not pass this.
+    renderScreen();
+
+    await expect.element(page.getByTestId("accept-terms-heading")).toBeInTheDocument();
+    expect(page.getByTestId("accept-terms-error").query()).toBeNull();
+  });
+
+  it("still lets the user accept after a terms_required bounce-back", async () => {
+    // The bounce-back is a second chance, not a dead end — the error block must
+    // not replace the gate. The returnUrl the API validated and echoed back rides
+    // through unchanged.
+    const user = userEvent.setup();
+    const handoff = captureHandoff();
+    renderScreen({ error: "terms_required" });
+
+    await acceptBoth(user);
+    await user.click(page.getByTestId("accept-terms-submit"));
+
+    await vi.waitFor(() => {
+      expect(handoff.urls).toHaveLength(1);
+    });
+    const target = handoffTarget(handoff.urls);
+    expect(target.pathname + target.search).toBe(
+      `${ENDPOINT}?acceptedTerms=true&returnUrl=${encodeURIComponent(RETURN_URL)}`,
+    );
+  });
+});
+
+/**
+ * THE client_id RELAY (Wallow-53kr).
+ *
+ * Wallow-9jab taught `complete-external-registration` to scope its redirect check
+ * to a `clientId`, but nothing on the external-login return path supplies one, so
+ * in production it still sees null and falls back to the AuthUrl-only origin set —
+ * the per-client scoping is correct but inert. Closing that gap needs the id
+ * carried the whole way: `external-login` stashes it in the challenge properties,
+ * `external-login-callback` recovers it and puts `client_id` on the redirect to
+ * THIS screen, and this screen echoes it back to the endpoint that finishes the
+ * flow. This screen is the only link in that chain that runs in the browser.
+ *
+ * The spellings differ across the hop and that is deliberate, not an oversight:
+ * the screen RECEIVES `client_id` (snake_case, the OIDC spelling
+ * `AuthorizationController` already uses on its login redirect) and SENDS
+ * `clientId` (camelCase, the `[FromQuery] string? clientId` parameter the
+ * endpoint gained in Wallow-9jab).
+ *
+ * The id is inert cargo here exactly as `returnUrl` is — the screen does not read
+ * it, validate it, or act on it — so it inherits `returnUrl`'s treatment: relay it
+ * untouched, and percent-encode it so it cannot break out of the query string.
+ */
+describe("AcceptTermsScreen client_id relay", () => {
+  it("echoes the flow's client id back to complete-external-registration", async () => {
+    const user = userEvent.setup();
+    const handoff = captureHandoff();
+    renderScreen({ clientId: CLIENT_ID });
+
+    await acceptBoth(user);
+    await user.click(page.getByTestId("accept-terms-submit"));
+
+    await vi.waitFor(() => {
+      expect(handoff.urls).toHaveLength(1);
+    });
+    const target = handoffTarget(handoff.urls);
+    // Asserted by NAME rather than by pinning the whole query string, so the
+    // parameter order stays the implementation's business. The name itself is the
+    // contract: the endpoint binds `clientId`, not `client_id`.
+    expect(target.searchParams.get("clientId")).toBe(CLIENT_ID);
+    // The relay must not cost the flow its returnUrl.
+    expect(target.searchParams.get("returnUrl")).toBe(RETURN_URL);
+  });
+
+  it("omits clientId entirely when the flow carries none", async () => {
+    // A flow with no client id must not grow an EMPTY `clientId=`. The endpoint
+    // treats a present-but-blank id as an unknown client, whose allow list is the
+    // AuthUrl origin alone — so an empty relay would refuse the very returnUrl the
+    // user is mid-journey to, where sending nothing falls back cleanly.
+    const user = userEvent.setup();
+    const handoff = captureHandoff();
+    renderScreen({ clientId: undefined });
+
+    await acceptBoth(user);
+    await user.click(page.getByTestId("accept-terms-submit"));
+
+    await vi.waitFor(() => {
+      expect(handoff.urls).toHaveLength(1);
+    });
+    const target = handoffTarget(handoff.urls);
+    expect(target.searchParams.has("clientId")).toBe(false);
+    expect(target.pathname + target.search).toBe(
+      `${ENDPOINT}?acceptedTerms=true&returnUrl=${encodeURIComponent(RETURN_URL)}`,
+    );
+  });
+
+  it("percent-encodes clientId so it cannot inject extra query parameters", async () => {
+    // The same injection guard `returnUrl` gets, for the same reason: `client_id`
+    // is attacker-supplied cargo spliced into a URL this screen builds by
+    // concatenation. Unencoded, this value smuggles a second `acceptedTerms` in,
+    // and ASP.NET binds a duplicated `[FromQuery] bool` key as "true,false", which
+    // fails to parse and drops the user on the !acceptedTerms branch — turning a
+    // completed consent into a terms_required bounce.
+    const hostile = "client-a&acceptedTerms=false";
+    const user = userEvent.setup();
+    const handoff = captureHandoff();
+    renderScreen({ clientId: hostile });
+
+    await acceptBoth(user);
+    await user.click(page.getByTestId("accept-terms-submit"));
+
+    await vi.waitFor(() => {
+      expect(handoff.urls).toHaveLength(1);
+    });
+    const target = handoffTarget(handoff.urls);
+    expect(target.searchParams.get("clientId")).toBe(hostile);
+    const href: string = target.pathname + target.search;
+    expect(href).not.toContain("acceptedTerms=false");
+    expect(href.match(/acceptedTerms=/gu)).toHaveLength(1);
+  });
+});
+
+/**
+ * Route-level spec. Rendered through a real memory router rather than by poking
+ * at `Route.options.component`, because the criterion under test — the four
+ * `[SupplyParameterFromQuery]` properties read out of the query string — only
+ * exists once a URL is parsed by a router. The root here is a throwaway: the
+ * app's real `__root.tsx` renders `<html>`, and `src/router.tsx` is off-limits to
+ * this task (Wallow-vec7.3.16 pre-registered every screen route).
+ */
+function renderRouteAt(url: string) {
+  const rootRoute = createRootRoute({ component: Outlet });
+  const routeTree = rootRoute.addChildren([
+    acceptTermsRoute.update({
+      id: "/accept-terms",
+      path: "/accept-terms",
+      getParentRoute: () => rootRoute,
+    } as any),
+  ]);
+  const router = createRouter({
+    routeTree,
+    history: createMemoryHistory({ initialEntries: [url] }),
+  });
+
+  return render(<RouterProvider router={router} />);
+}
+
+/** The redirect `external-login-callback` L392 actually issues, verbatim. */
+function callbackRedirectUrl(): string {
+  return (
+    `/accept-terms?returnUrl=${encodeURIComponent(RETURN_URL)}` +
+    `&email=${encodeURIComponent(EMAIL)}&name=${encodeURIComponent(NAME)}`
+  );
+}
+
+describe("/accept-terms route", () => {
+  it("renders the real screen in place of the pre-registration placeholder", async () => {
+    // Wallow-vec7.3.16 registered this path against a placeholder component; this
+    // task's job is to replace it. The path is the contract and is not this
+    // task's to change.
+    renderRouteAt(callbackRedirectUrl());
+
+    await expect.element(page.getByTestId("accept-terms-heading")).toBeInTheDocument();
+    expect(page.getByTestId("route-placeholder").query()).toBeNull();
+  });
+
+  it("threads returnUrl, email and name out of the real callback redirect", async () => {
+    const user = userEvent.setup();
+    const handoff = captureHandoff();
+    renderRouteAt(callbackRedirectUrl());
+
+    await expect.element(page.getByTestId("accept-terms-heading")).toBeInTheDocument();
+    await expect.element(page.getByText(EMAIL)).toBeInTheDocument();
+    await expect.element(page.getByText(NAME)).toBeInTheDocument();
+
+    await acceptBoth(user);
+    await user.click(page.getByTestId("accept-terms-submit"));
+
+    await vi.waitFor(() => {
+      expect(handoff.urls).toHaveLength(1);
+    });
+    const target = handoffTarget(handoff.urls);
+    expect(target.pathname + target.search).toBe(
+      `${ENDPOINT}?acceptedTerms=true&returnUrl=${encodeURIComponent(RETURN_URL)}`,
+    );
+  });
+
+  it("threads the error code out of the terms_required bounce-back", async () => {
+    // The other redirect that lands here: L412.
+    renderRouteAt(`/accept-terms?error=terms_required&returnUrl=${encodeURIComponent(RETURN_URL)}`);
+
+    await expect
+      .element(page.getByTestId("accept-terms-error"))
+      .toHaveTextContent(/must accept the terms to continue/iu);
+  });
+
+  it("renders without throwing when the link carries no query at all", async () => {
+    // A bare /accept-terms must still render its gate — `validateSearch` has to
+    // treat all four params as optional rather than throw. (The user has no
+    // ExternalLoginState cookie in that case, so the API will bounce them to
+    // /login?error=session_expired; that is the API's call to make, not a reason
+    // for this route to explode.)
+    renderRouteAt("/accept-terms");
+
+    await expect.element(page.getByTestId("accept-terms-heading")).toBeInTheDocument();
+    expect(page.getByTestId("accept-terms-error").query()).toBeNull();
+  });
+
+  it("threads client_id out of the callback redirect into the handoff", async () => {
+    // The whole relay, end to end at the route level: the redirect
+    // `external-login-callback` issues goes in, the URL the endpoint receives
+    // comes out, and the snake_case -> camelCase hop happens in between.
+    const user = userEvent.setup();
+    const handoff = captureHandoff();
+    renderRouteAt(`${callbackRedirectUrl()}&client_id=${encodeURIComponent(CLIENT_ID)}`);
+
+    await expect.element(page.getByTestId("accept-terms-heading")).toBeInTheDocument();
+
+    await acceptBoth(user);
+    await user.click(page.getByTestId("accept-terms-submit"));
+
+    await vi.waitFor(() => {
+      expect(handoff.urls).toHaveLength(1);
+    });
+    const target = handoffTarget(handoff.urls);
+    expect(target.searchParams.get("clientId")).toBe(CLIENT_ID);
+    expect(target.searchParams.get("returnUrl")).toBe(RETURN_URL);
+  });
+
+  it("treats a non-string client_id as absent", async () => {
+    // TanStack Router JSON-parses scalar search values, so `?client_id=42` arrives
+    // as the NUMBER 42. `validateSearch` must narrow it the same way it narrows
+    // the other four params — relaying a number here would put `clientId=42` on
+    // the endpoint's query string as a client that cannot exist, and the endpoint
+    // fails an unknown client closed to the AuthUrl-only origin set.
+    const user = userEvent.setup();
+    const handoff = captureHandoff();
+    renderRouteAt(`${callbackRedirectUrl()}&client_id=42`);
+
+    await expect.element(page.getByTestId("accept-terms-heading")).toBeInTheDocument();
+
+    await acceptBoth(user);
+    await user.click(page.getByTestId("accept-terms-submit"));
+
+    await vi.waitFor(() => {
+      expect(handoff.urls).toHaveLength(1);
+    });
+    const target = handoffTarget(handoff.urls);
+    expect(target.searchParams.has("clientId")).toBe(false);
+  });
+
+  it("treats a non-string search param as absent", async () => {
+    // TanStack Router JSON-parses scalar search values, so `?name=42` arrives as
+    // the NUMBER 42, not "42". The route must narrow with a `typeof` check (the
+    // convention /consent set) rather than trusting the type: handing a number to
+    // a `string | undefined` prop is how a port ships `.trim is not a function`.
+    renderRouteAt(`/accept-terms?email=${encodeURIComponent(EMAIL)}&name=42`);
+
+    await expect.element(page.getByTestId("accept-terms-heading")).toBeInTheDocument();
+    await expect.element(page.getByText(EMAIL)).toBeInTheDocument();
+    expect(page.getByText("42").query()).toBeNull();
+  });
+});

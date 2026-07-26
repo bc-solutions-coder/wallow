@@ -312,7 +312,9 @@ dotnet ef database update \
     --context NotificationsDbContext
 ```
 
-Migrations run automatically on startup via module initialization:
+Migrations do **not** run when the API starts. Module initialization
+(`InitializeNotificationsModuleAsync` and its siblings) is a no-op as far as the database is
+concerned:
 
 ```csharp
 public static Task<WebApplication> InitializeNotificationsModuleAsync(
@@ -321,6 +323,26 @@ public static Task<WebApplication> InitializeNotificationsModuleAsync(
     return Task.FromResult(app);
 }
 ```
+
+Migrations are applied by the separate `Wallow.MigrationService` worker
+(`api/src/Wallow.MigrationService/`), which migrates every module DbContext and then exits.
+Under Aspire (`pnpm backend`) it runs as the `wallow-migrations` resource and both the seeder
+and the API wait for it to complete; in Docker it is the `wallow-migrations` service that app
+services depend on with `condition: service_completed_successfully`.
+
+The single exception is the **`Testing`** environment, where
+`InitializeWallowModulesAsync` in `api/src/Wallow.Api/WallowModules.cs` migrates inline
+because the test factory spins up a fresh Postgres container and the migration service is not
+available:
+
+```csharp
+if (app.Environment.IsEnvironment("Testing"))
+{
+    await RunTestMigrationsAsync(app.Services);
+}
+```
+
+See [Database Migrations](database-migrations.md) for the full picture.
 
 ## Local Development Setup
 

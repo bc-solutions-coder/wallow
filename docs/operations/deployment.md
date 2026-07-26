@@ -1,17 +1,27 @@
 # Wallow Production Deployment Guide
 
-Wallow deploys as a set of Docker containers managed by a single `docker-compose.yml`. The canonical deployment configuration lives in `deploy/dockhand/` and is designed for servers running [Dockhand](https://dockhand.dev) with [Pangolin](https://pangolin.dev) handling TLS and routing.
+Wallow deploys as a set of Docker containers described by a single compose file,
+`docker/docker-compose.production.yml`. The stack is self-contained — it runs the same way on
+your laptop and on a server. TLS and routing are **not** part of the stack: you put your own
+reverse proxy in front of the published container ports.
 
-For step-by-step setup instructions (secrets generation, `.env` configuration, Pangolin routes, verification, and ongoing operations), see the **[Dockhand deployment README](https://github.com/bc-solutions-coder/wallow/blob/main/deploy/dockhand/README.md)**.
+```bash
+cd docker
+cp .env.production.example .env.production    # then edit every CHANGE_ME value
+docker compose -f docker-compose.production.yml --env-file .env.production up --build
+docker compose -f docker-compose.production.yml --env-file .env.production logs -f
+```
 
-This page provides an architecture overview, explains what happens on first boot, and covers topics that apply regardless of how you run the containers.
+This page covers the architecture, what happens on first boot, the environment variables the
+compose file actually reads, how OIDC clients get registered, and how images are built and
+promoted.
 
 ---
 
 ## Table of Contents
 
 1. [Architecture Overview](#1-architecture-overview)
-2. [Deployment Files](#2-deployment-files)
+2. [Routing Topologies](#2-routing-topologies)
 3. [First Boot Sequence](#3-first-boot-sequence)
 4. [Environment Variables](#4-environment-variables)
 5. [OIDC Client Registration](#5-oidc-client-registration)
@@ -24,93 +34,178 @@ This page provides an architecture overview, explains what happens on first boot
 ## 1. Architecture Overview
 
 ```
-                        ┌──────────────────────────────────────────────┐
+                        ┌───────────────────────────────────────────────┐
                         │  Your Server                                  │
                         │                                               │
   Users ──► HTTPS ──►   │  ┌─────────────────────────────────────┐      │
-                        │  │  Pangolin (TLS + routing)            │      │
-                        │  │  api.example.com  → :8080            │      │
-                        │  │  auth.example.com → :8081            │      │
-                        │  │  app.example.com  → :8082            │      │
+                        │  │  Your reverse proxy (TLS + routing)  │      │
+                        │  │  /api  → :8080                       │      │
+                        │  │  /auth → :8081                       │      │
+                        │  │  /     → :8082                       │      │
                         │  └─────────────────────────────────────┘      │
-                        │         │            │            │            │
-                        │  ┌──────┴──┐  ┌──────┴──┐  ┌─────┴───┐       │
-                        │  │ Wallow  │  │ Wallow  │  │ Wallow  │       │
-                        │  │ API     │  │ Auth    │  │ Web     │       │
-                        │  │ :8080   │  │ :8081   │  │ :8082   │       │
-                        │  └────┬────┘  └─────────┘  └─────────┘       │
+                        │         │            │            │           │
+                        │  ┌──────┴──┐  ┌──────┴──┐  ┌──────┴──┐        │
+                        │  │ wallow  │  │ wallow  │  │ wallow  │        │
+                        │  │ api     │  │ auth    │  │ web     │        │
+                        │  │ :8080   │  │ :8080   │  │ :8080   │        │
+                        │  └────┬────┘  └─────────┘  └─────────┘        │
                         │       │                                       │
-                        │  ┌────┴────┐  ┌─────────┐  ┌──────────┐      │
-                        │  │Postgres │  │ Valkey  │  │ GarageHQ │      │
-                        │  │ :5432   │  │ :6379   │  │ (S3)     │      │
-                        │  │+ replica│  │ (cache) │  └──────────┘      │
+                        │  ┌────┴────┐  ┌─────────┐  ┌──────────┐       │
+                        │  │Postgres │  │ Valkey  │  │ GarageHQ │       │
+                        │  │ :5432   │  │ :6379   │  │ (S3)     │       │
+                        │  │+ replica│  │ (cache) │  └──────────┘       │
                         │  └─────────┘  └─────────┘                     │
-                        └──────────────────────────────────────────────┘
+                        └───────────────────────────────────────────────┘
 ```
 
-**Services:**
+Every application container listens on **8080 inside the network**; only the host-side port
+differs (`API_PORT`, `AUTH_PORT`, `WEB_PORT`).
 
-| Service | Purpose | Required |
-|---------|---------|----------|
-| **Wallow.Api** | REST API, OIDC provider, SignalR hub, background jobs | Yes |
-| **Wallow.Auth** | Blazor Server login/register/password reset UI | Yes |
-| **Wallow.Web** | Blazor Server dashboard (OIDC client of API) | Yes |
-| **PostgreSQL** | Primary database (one schema per module) | Yes |
-| **PostgreSQL Replica** | Read replica for query scaling | Recommended |
-| **Valkey** | Cache + SignalR backplane (Redis-compatible) | Yes |
-| **GarageHQ** | S3-compatible object storage | Yes |
-| **Grafana** | Observability dashboards (optional profile) | No |
+**Long-running services:**
 
-**Image registry:** `ghcr.io/bc-solutions-coder/wallow`
+| Service | Image | Purpose |
+|---------|-------|---------|
+| `wallow-api` | `ghcr.io/bc-solutions-coder/wallow` | REST API, OIDC provider (OpenIddict), SignalR hub, background jobs |
+| `wallow-auth` | `ghcr.io/bc-solutions-coder/wallow-auth` | Node SSR login/register/MFA UI (`apps/wallow-auth`); also a pure reverse proxy for `/v1/**`, `/connect/**`, `/.well-known/**` |
+| `wallow-web` | `ghcr.io/bc-solutions-coder/wallow-web` | Node SSR dashboard + BFF, a confidential OIDC client of the API (`apps/wallow-web`) |
+| `postgres` | `postgres:18-alpine` | Primary database, one schema per module |
+| `postgres-replica` | `ghcr.io/bc-solutions-coder/wallow-postgres-replica` | Streaming read replica (`ConnectionStrings__ReadReplicaConnection`) |
+| `valkey` | `valkey/valkey:8.1-alpine` | Cache, SignalR backplane, and the wallow-web BFF session store |
+| `garage` | `ghcr.io/bc-solutions-coder/wallow-garage` | S3-compatible object storage |
+
+**One-shot services** (they run, exit, and gate the services that depend on them):
+
+| Service | Purpose |
+|---------|---------|
+| `wallow-migrations` | Applies EF Core migrations for every module schema, then exits. Idempotent — runs on every deployment. |
+| `wallow-seeder` | Seeds roles, API scopes, the bootstrap admin, and OIDC clients. Runs after migrations complete. |
+| `api-cert-init` | `chown`s the `api_certs` volume to UID 1654 so the non-root API container can write its OpenIddict certificates. |
+
+**Optional observability** — enabled with `--profile observability`:
+
+| Service | Purpose |
+|---------|---------|
+| `alloy` | Grafana Alloy OTLP collector on the compose network (`http://alloy:4317`) |
+| `grafana-lgtm` | `grafana/otel-lgtm` dashboards, published on `127.0.0.1:3001` only |
+
+```bash
+docker compose -f docker-compose.production.yml --env-file .env.production \
+  --profile observability up --build
+```
+
+The API, auth, and web containers always set `OTEL_EXPORTER_OTLP_ENDPOINT`; without the profile
+there is simply no collector listening, and the exporter fails silently.
+
+**Persistent volumes:** `postgres_data`, `postgres_replica_data`, `valkey_data`, `garage_meta`,
+`garage_data`, `api_certs`. The OpenIddict signing/encryption certificates live in `api_certs`
+and are generated on first API startup — losing that volume invalidates every issued token.
 
 ---
 
-## 2. Deployment Files
+## 2. Routing Topologies
 
-All deployment configuration lives in `deploy/dockhand/`:
+The compose file supports two shapes. Pick one and keep the URL variables consistent with it.
+
+**Path-based (the default).** Everything lives under one hostname:
+
+| Public path | Container | Proxy behaviour |
+|-------------|-----------|-----------------|
+| `wallow.dev/api/*` | `wallow-api:8080` | Forward the **full** path — the app strips `/api` itself via `PathBase`. Do not strip it in the proxy. |
+| `wallow.dev/auth/*` | `wallow-auth:8080` | **Strip** the `/auth` prefix — the Node app has no `PathBase` support and serves at root. |
+| `wallow.dev/*` | `wallow-web:8080` | Forward as-is. |
+
+**Subdomain.** Set `API_PATH_BASE=` (empty) in `.env.production` so the API serves at its
+subdomain root, and point `API_PUBLIC_URL`, `AUTH_PUBLIC_URL`, and `COOKIE_DOMAIN` at the
+subdomains:
 
 ```
-deploy/dockhand/
-├── docker-compose.yml   # Full production stack
-├── .env.example         # Template — copy to .env and fill in secrets
-└── README.md            # Step-by-step deployment instructions
+api.wallow.dev/*  -> wallow-api:8080
+auth.wallow.dev/* -> wallow-auth:8080
+wallow.dev/*      -> wallow-web:8080
 ```
 
-The compose file references shared configs from `docker/` (replica init script, GarageHQ config, Alloy collector config) via relative paths.
+Containers speak plain HTTP. TLS termination is entirely your proxy's job.
 
 ---
 
 ## 3. First Boot Sequence
 
-The compose file orchestrates startup order via `depends_on` health checks:
+Startup order is enforced by `depends_on` conditions, so a single `up` command produces a fully
+seeded system:
 
-| Step | What Happens | Triggered By |
-|------|-------------|--------------|
-| 1. Infrastructure | Postgres, Postgres replica, Valkey, and GarageHQ start and become healthy | `docker compose up -d` |
-| 2. Database migrations | `wallow-migrations` init container applies EF Core bundles for all module schemas, then exits | Every deployment (idempotent) |
-| 3. API starts | Wallow API starts after migrations succeed | `depends_on` |
-| 4. Default roles | Creates `admin`, `manager`, `user` roles | Always (idempotent) |
-| 5. Admin account | Creates the initial admin user with email confirmed and `admin` role | `AdminBootstrap__*` env vars |
-| 6. OIDC clients | Creates/updates OAuth2 client applications in OpenIddict | `PreRegisteredClients__*` env vars |
-| 7. Organizations | Auto-creates an organization for each client's `TenantName` | Client has `TenantName` set |
-| 8. Org members | Adds users listed in `SeedMembers` to the organization | Client has `SeedMembers` set |
-| 9. Auth + Web start | Wallow Auth and Web start after the API health check passes | `depends_on` |
+| Step | What happens | Gate |
+|------|--------------|------|
+| 1. Infrastructure | `postgres`, `postgres-replica`, `valkey`, and `garage` start and pass their health checks | `docker compose up` |
+| 2. Migrations | `wallow-migrations` applies EF Core migrations for all module schemas, then exits | `postgres` healthy |
+| 3. Seeding | `wallow-seeder` runs the four seed steps below, then exits | `wallow-migrations` completed successfully |
+| 4. Cert volume | `api-cert-init` fixes ownership on `api_certs` | — |
+| 5. API | `wallow-api` starts; it generates its OpenIddict certificates if the volume is empty | seeder + cert-init completed, infra healthy |
+| 6. Frontends | `wallow-auth` and `wallow-web` start | `wallow-api` healthy |
 
-First boot takes a couple minutes while migrations run and the replica syncs.
+First boot takes a couple of minutes while migrations run and the replica performs its initial
+base backup.
 
-**What happens if `AdminBootstrap__*` vars are NOT set?**
+### What the seeder does
 
-The API enters **setup mode**. A `SetupMiddleware` intercepts ALL requests (except `/health`, `/api/v1/identity/setup`, `/.well-known`, `/connect`) and returns `503 Service Unavailable` with a message directing you to the setup endpoint. The API is effectively locked until an admin is created.
+`wallow-seeder` runs `Wallow.SeederService`, which executes four idempotent steps in order:
 
-In setup mode, you must create the admin manually:
+1. **Roles** — creates any role in the seed file's `roles` array that doesn't exist (`admin`,
+   `manager`, `user`).
+2. **API scopes** — inserts any scope from `apiScopes` not already present.
+3. **Bootstrap admin** — creates the initial admin user *only if setup is still required*, i.e.
+   there is no user in the `admin` role yet. Email, password, and name come from the
+   `Admin__*` settings.
+4. **Client sync** — reconciles OIDC clients (see [section 5](#5-oidc-client-registration)).
+
+### The production seed file
+
+The seeder image ships a development `seed.json`. In production the compose file **replaces**
+it rather than layering on top of it, so localhost client definitions can never leak into a
+production database:
+
+```yaml
+volumes:
+  - ${SEED_FILE_HOST_PATH:-./seed.production.json}:/app/seed.production.json:ro
+environment:
+  SEED_FILE_PATH: /app/seed.production.json
+```
+
+`seed.production.json` matches the `seed.*.json` gitignore pattern, so it does **not** travel
+with the repo — you must place it on the server yourself and point `SEED_FILE_HOST_PATH` at it
+(an absolute path such as `/data/seed/seed.production.json` is typical; the default
+`./seed.production.json` resolves next to the compose file).
+
+The seed file is deliberately **secret-less**. Client secrets are injected as environment
+variables indexed against the `clients` array, and **the index order is load-bearing** — it must
+match the array order in your `seed.production.json`:
+
+```yaml
+Clients__0__Secret: ${OIDC_CLIENT_SECRET}
+Clients__1__Secret: ${BCORDES_CLIENT_SECRET}
+Clients__2__Secret: ${BCORDES_BFF_SECRET}
+Clients__3__Secret: ${BCORDES_BFF_AUTHCODE_SECRET}
+```
+
+Index 0 is the `wallow-web-client` dashboard client; the rest are the fork's own clients and are
+commented out in `.env.production.example` until you need them. If you add or reorder clients in
+the seed file, update these indices in the compose file to match.
+
+### Setup mode — when no admin exists
+
+If the seeder never creates an admin (no `ADMIN_EMAIL`/`ADMIN_PASSWORD`, or the seed step was
+skipped), the API comes up in **setup mode**. `SetupMiddleware` returns `503 Service
+Unavailable` for every request except `/v1/identity/setup`, `/health`, `/.well-known`,
+`/connect`, `/openapi`, and `/scalar`. The API is effectively locked until an admin exists.
+
+Recover by creating the admin over HTTP (paths shown with the default `/api` path base):
 
 ```bash
 # Check setup status
-curl https://api.yourdomain.com/api/v1/identity/setup/status
+curl https://wallow.dev/api/v1/identity/setup/status
 # → {"setupRequired": true}
 
-# Create admin account
-curl -X POST https://api.yourdomain.com/api/v1/identity/setup/admin \
+# Create the admin account
+curl -X POST https://wallow.dev/api/v1/identity/setup/admin \
   -H "Content-Type: application/json" \
   -d '{
     "email": "admin@yourdomain.com",
@@ -118,120 +213,142 @@ curl -X POST https://api.yourdomain.com/api/v1/identity/setup/admin \
     "firstName": "Admin",
     "lastName": "User"
   }'
-
-# Mark setup complete
-curl -X POST https://api.yourdomain.com/api/v1/identity/setup/complete
 ```
 
-**Recommendation:** Always set `AdminBootstrap__*` in your `.env` so the API is fully operational on first boot without manual intervention. The bootstrap is idempotent.
+Setup is considered complete as soon as a user holds the `admin` role — there is no separate
+flag to flip, and both `setup/admin` and `setup/complete` return `409 Conflict` once that is
+true.
+
+**Recommendation:** set `ADMIN_EMAIL` and `ADMIN_PASSWORD` in `.env.production` so the stack is
+operational on first boot with no manual step.
 
 ---
 
 ## 4. Environment Variables
 
-All configuration is done via the `.env` file. Copy the template and replace every `CHANGE_ME` value:
+All configuration comes from `.env.production`, which the compose file reads via `--env-file`.
+Start from the template and replace every `CHANGE_ME`:
 
 ```bash
-cp deploy/dockhand/.env.example deploy/dockhand/.env
+cd docker
+cp .env.production.example .env.production
 ```
 
-See `deploy/dockhand/.env.example` for the full list of variables with descriptions. Key categories:
+Generate secrets with:
 
-| Category | Examples |
-|----------|----------|
-| **Database** | `POSTGRES_PASSWORD` |
+```bash
+openssl rand -base64 32   # general passwords and signing keys
+openssl rand -hex 12      # Garage access key ID (must be exactly 24 hex chars)
+openssl rand -hex 32      # Garage secret key / RPC secret (must be exactly 64 hex chars)
+```
+
+`.env.production.example` documents every variable inline. The categories:
+
+| Category | Variables |
+|----------|-----------|
+| **Project** | `COMPOSE_PROJECT_NAME` |
+| **Image tag** | `VERSION` |
+| **Database** | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` |
 | **Cache** | `VALKEY_PASSWORD` |
-| **Security** | `Identity__SigningKey` |
-| **URLs** | `ServiceUrls__ApiUrl`, `ServiceUrls__AuthUrl`, `ServiceUrls__WebUrl` |
-| **CORS** | `Cors__AllowedOrigins__0`, `Cors__AllowedOrigins__1` |
-| **SMTP** | `Smtp__Host`, `Smtp__Password`, etc. |
-| **Admin** | `AdminBootstrap__Email`, `AdminBootstrap__Password` |
-| **OIDC** | `OIDC_CLIENT_SECRET`, `PreRegisteredClients__Clients__*` |
-| **Storage** | `GARAGE_ACCESS_KEY`, `GARAGE_SECRET_KEY` |
-| **Optional** | External auth providers, OpenTelemetry, feature flags |
+| **Storage** | `GARAGE_RPC_SECRET`, `GARAGE_ADMIN_TOKEN`, `GARAGE_ACCESS_KEY`, `GARAGE_SECRET_KEY`, `GARAGE_KEY_NAME`, `GARAGE_BUCKET`, `GARAGE_REGION`, `GARAGE_S3_PORT`, `GARAGE_ADMIN_PORT` |
+| **SMTP** | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USE_SSL`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS`, `SMTP_FROM_NAME` |
+| **Security** | `IDENTITY_SIGNING_KEY`, `OPENIDDICT_SIGNING_CERT_PASSWORD`, `OPENIDDICT_ENCRYPTION_CERT_PASSWORD` |
+| **Seeding** | `SEED_FILE_HOST_PATH`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_FIRST_NAME`, `ADMIN_LAST_NAME` |
+| **OIDC** | `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, plus optional per-fork client secrets |
+| **BFF session** | `BFF_COOKIE_PASSWORD` |
+| **Public URLs** | `API_PUBLIC_URL`, `AUTH_PUBLIC_URL`, `WEB_PUBLIC_URL`, `COOKIE_DOMAIN`, `API_PATH_BASE` |
+| **Ports** | `API_PORT`, `AUTH_PORT`, `WEB_PORT` |
+| **Observability** | `GF_ADMIN_PASSWORD` |
 
-The [Dockhand README](https://github.com/bc-solutions-coder/wallow/blob/main/deploy/dockhand/README.md) walks through secrets generation and configuration step by step.
+### Two variables worth calling out
+
+**`VERSION`** selects the image tag for every Wallow image in the stack
+(`ghcr.io/bc-solutions-coder/wallow:${VERSION:-latest}` and friends). Use `latest` to roll with
+releases or pin a semver tag:
+
+```ini
+VERSION=1.2.3
+```
+
+**`BFF_COOKIE_PASSWORD`** seals the wallow-web BFF session cookie (iron-webcrypto) and must be at
+least 32 characters. It is a **hard requirement** — the compose entry is written as
+
+```yaml
+COOKIE_PASSWORD: ${BFF_COOKIE_PASSWORD:?BFF_COOKIE_PASSWORD is required (32+ char secret; see .env.production.example)}
+```
+
+so `docker compose up` fails immediately with that message rather than starting a web container
+with an insecure or absent session key. Generate it with `openssl rand -base64 32`.
 
 ---
 
 ## 5. OIDC Client Registration
 
-OIDC clients are registered automatically via `PreRegisteredClients__Clients__N__*` environment variables. On every startup, the `PreRegisteredClientSyncService`:
+Clients are declared in the `clients` array of your seed file and reconciled by
+`PreRegisteredClientSyncService`, which the seeder invokes on every run. Each sync:
 
-1. **Creates or updates** each client defined in the env vars
-2. **Creates organizations** from each client's `TenantName` (if the org doesn't exist)
-3. **Adds seed members** to the organization
-4. **Removes** clients that were previously synced from config but are no longer present
+1. **Creates or updates** each client in the seed file — redirect URIs, post-logout URIs,
+   permissions, and scopes are all brought in line with the definition.
+2. **Auto-creates an organization** for a client's `TenantName` when one doesn't exist, and
+   links the client to that tenant.
+3. **Adds seed members** — users listed in the client's `SeedMembers` are added to that
+   organization (a warning is logged for any email that has no account yet).
+4. **Deletes** clients that were previously created from config (tagged `source: config`) but
+   are no longer in the seed file.
 
-This is fully idempotent.
+The whole sync is idempotent, so re-running the seeder is always safe.
 
 ### Client Types
 
 | Type | Has Secret? | Grant Type | Use Case |
 |------|-------------|------------|----------|
-| **Confidential** (e.g., Wallow.Web) | Yes | Authorization Code + PKCE | Server-side apps with a secure backend |
-| **Public** (e.g., mobile app) | No | Authorization Code + PKCE | SPAs, mobile apps, CLI tools |
-| **Service Account** (prefix `sa-`) | Yes | Client Credentials | Backend-to-backend, M2M |
+| **Confidential** (e.g. the `wallow-web` BFF) | Yes | Authorization Code + PKCE | Server-side apps with a secure backend |
+| **Public** (e.g. a mobile app) | No | Authorization Code + PKCE | SPAs, mobile apps, CLI tools |
+| **Service Account** (client id prefixed `sa-`) | Yes | Client Credentials | Backend-to-backend, M2M |
 
 ### Available Scopes
 
+Standard OIDC scopes — `openid`, `profile`, `email`, `offline_access` — plus the API scopes
+defined in `ApiScopes.ValidScopes`:
+
 | Category | Scopes |
 |----------|--------|
-| Standard | `openid`, `email`, `profile`, `roles`, `offline_access` |
-| Inquiries | `inquiries.read`, `inquiries.write` |
-| Identity | `users.read`, `users.write`, `users.manage`, `roles.read`, `roles.write`, `roles.manage`, `organizations.read`, `organizations.write`, `organizations.manage` |
+| Identity — Users | `users.read`, `users.write`, `users.manage` |
+| Identity — Roles | `roles.read`, `roles.write`, `roles.manage` |
+| Identity — Organizations | `organizations.read`, `organizations.write`, `organizations.manage` |
+| Identity — API Keys | `apikeys.read`, `apikeys.write`, `apikeys.manage` |
+| Identity — Service Accounts | `serviceaccounts.read`, `serviceaccounts.write`, `serviceaccounts.manage` |
 | Storage | `storage.read`, `storage.write` |
-| Communications | `messaging.access`, `announcements.read`, `announcements.manage`, `changelog.manage`, `notifications.read`, `notifications.write` |
+| Communications | `announcements.read`, `announcements.manage`, `changelog.manage`, `notifications.read`, `notifications.write` |
 | Inquiries | `inquiries.read`, `inquiries.write` |
-| Identity (API Keys) | `apikeys.read`, `apikeys.write`, `apikeys.manage` |
-| Identity (SSO/SCIM) | `sso.read`, `sso.manage`, `scim.manage` |
-| Identity (Service Accounts) | `serviceaccounts.read`, `serviceaccounts.write`, `serviceaccounts.manage` |
 | Configuration | `configuration.read`, `configuration.manage` |
 | Platform | `webhooks.manage` |
+
+A scope must also exist as a seeded `ApiScope` row before a client can be granted it, which is
+what the seeder's API-scope step guarantees.
 
 ---
 
 ## 6. Connecting External Clients
 
-### Token Proxy (Quick Testing)
+All examples below assume path-based routing with `API_PUBLIC_URL=https://wallow.dev/api`.
 
-```bash
-curl -X POST https://api.yourdomain.com/api/auth/token \
-  -H "Content-Type: application/json" \
-  -d '{"email": "admin@yourdomain.com", "password": "your-admin-password"}'
-```
-
-### API Keys (Backend Services)
-
-API keys don't expire and don't require token refresh — ideal for M2M integrations.
-
-```bash
-# Create an API key (requires JWT auth first)
-curl -X POST https://api.yourdomain.com/api/auth/keys \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"name": "My Backend", "scopes": ["inquiries.read"]}'
-
-# Use the API key
-curl -H "X-Api-Key: sk_live_..." \
-  https://api.yourdomain.com/api/inquiries/submissions
-```
+**Discovery endpoint:** `https://wallow.dev/api/.well-known/openid-configuration`
 
 ### OAuth2 Authorization Code Flow (SPAs / Mobile)
 
-Register your app as a pre-registered client, then use standard OIDC libraries.
-
-**Discovery endpoint:** `https://api.yourdomain.com/.well-known/openid-configuration`
+Add your app to the seed file's `clients` array, redeploy so the seeder syncs it, then use any
+standard OIDC library:
 
 ```typescript
 import { UserManager } from 'oidc-client-ts';
 
 const mgr = new UserManager({
-  authority: 'https://api.yourdomain.com',
+  authority: 'https://wallow.dev/api',
   client_id: 'my-spa-client',
   redirect_uri: 'https://myapp.com/callback',
   post_logout_redirect_uri: 'https://myapp.com/',
-  scope: 'openid email profile roles offline_access',
+  scope: 'openid email profile offline_access',
   response_type: 'code',
 });
 
@@ -239,23 +356,47 @@ await mgr.signinRedirect();
 const user = await mgr.signinRedirectCallback();
 ```
 
+For a browser app that should never hold a token, use the BFF pattern instead — see
+[BFF Pattern](../integrations/bff-pattern.md) and the
+[TypeScript SDK guide](../integrations/typescript-sdk.md).
+
 ### Client Credentials Flow (Service Accounts)
 
 ```bash
-curl -X POST https://api.yourdomain.com/connect/token \
+curl -X POST https://wallow.dev/api/connect/token \
   -d "grant_type=client_credentials" \
   -d "client_id=sa-my-backend" \
   -d "client_secret=<your-secret>" \
   -d "scope=inquiries.read inquiries.write"
 ```
 
+### API Keys (Backend Services)
+
+API keys authenticate via the `X-Api-Key` header as an alternative to a bearer token, and are
+scoped to the creating user's tenant.
+
+```bash
+# Create an API key (requires an access token)
+curl -X POST https://wallow.dev/api/v1/identity/auth/keys \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "My Backend", "scopes": ["inquiries.read"]}'
+
+# Use the API key
+curl -H "X-Api-Key: <your-key>" \
+  https://wallow.dev/api/v1/inquiries
+```
+
 ### SignalR Real-Time Updates
+
+The hub is mounted at `/hubs/realtime` (outside the versioned API prefix, but still behind the
+path base):
 
 ```typescript
 import * as signalR from '@microsoft/signalr';
 
 const connection = new signalR.HubConnectionBuilder()
-  .withUrl('https://api.yourdomain.com/hubs/realtime', {
+  .withUrl('https://wallow.dev/api/hubs/realtime', {
     accessTokenFactory: () => getAccessToken()
   })
   .withAutomaticReconnect()
@@ -272,40 +413,75 @@ await connection.start();
 
 ## 7. CI/CD Pipeline
 
-1. **Push to `main`** -- CI (`ci.yml`) builds, tests, and pushes images with `:latest` and `:sha` tags to GHCR. release-please creates/updates a Release PR with changelog.
-2. **Merge the Release PR** -- release-please creates a git tag (`v1.2.3`) and GitHub Release.
-3. **Tag push triggers `publish.yml`** -- retags the `:latest` images with semver tags (`1.2.3`, `1.2`) and scans with Trivy.
+Two workflows split the work: **deploy builds**, **publish promotes**. See
+[Versioning](versioning.md) for how release-please decides version numbers.
 
-To deploy, Dockhand pulls the new images and restarts the stack automatically. Or deploy manually:
+**1. Merge to `main` → `.github/workflows/deploy.yml`.** No tests run here (they passed on the
+PR). It builds the solution, then builds and pushes seven multi-arch (amd64 + arm64) image
+families to GHCR, each tagged `:nightly` and `:<short-sha>`:
+
+| Image | Built from |
+|-------|-----------|
+| `ghcr.io/bc-solutions-coder/wallow` | `api/src/Wallow.Api` (`PublishContainer`) |
+| `…/wallow-auth` | `apps/wallow-auth/Dockerfile` (build context = repo root) |
+| `…/wallow-web` | `apps/wallow-web/Dockerfile` (build context = repo root) |
+| `…/wallow-migrations` | `api/src/Wallow.MigrationService` |
+| `…/wallow-seeder` | `api/src/Wallow.SeederService` |
+| `…/wallow-garage` | `docker/images/garage` |
+| `…/wallow-postgres-replica` | `docker/images/postgres-replica` |
+
+Deploy skips release-please merge commits, which change only version and changelog files.
+
+**2. Merge the Release PR** — release-please creates the `vX.Y.Z` git tag and GitHub Release.
+
+**3. Tag push → `.github/workflows/publish.yml`.** This workflow **builds nothing**. It waits for
+the `:<short-sha>` images from the deploy run on the same commit (polling for up to 30 minutes),
+then retags each of the seven families to `:X.Y.Z`, `:X.Y`, and `:latest` via
+`docker buildx imagetools create`, and finally scans the API image with Trivy, failing on
+CRITICAL or HIGH findings.
+
+**Tag tiers:**
+
+| Tag | Meaning |
+|-----|---------|
+| `:nightly` | Latest `main` commit — bleeding edge, may be broken |
+| `:latest` | Current released version |
+| `:X.Y.Z` / `:X.Y` | Pinned release versions |
+| `:<short-sha>` | A specific commit (internal plumbing between the two workflows) |
+
+### Deploying an update
 
 ```bash
-cd deploy/dockhand
-docker compose pull && docker compose up -d
+cd docker
+docker compose -f docker-compose.production.yml --env-file .env.production pull
+docker compose -f docker-compose.production.yml --env-file .env.production up -d
 ```
 
-To pin a specific version, set `APP_TAG` in `.env`:
-
-```ini
-APP_TAG=1.2.3
-```
+`wallow-migrations` and `wallow-seeder` re-run on every `up` and are idempotent, so schema
+changes and new seed entries are applied as part of the restart. To pin a release, set `VERSION`
+in `.env.production` before pulling.
 
 ---
 
 ## 8. Scaling
 
-- **Database:** Use managed PostgreSQL (AWS RDS, Hetzner Cloud, Supabase)
-- **Cache:** Use managed Redis/Valkey
-- **App instances:** Run multiple API containers behind a load balancer (SignalR uses Valkey backplane for multi-instance support)
-- **Storage:** Use managed S3 (AWS, Cloudflare R2) instead of GarageHQ
+- **Database:** swap `postgres` for managed PostgreSQL (RDS, Hetzner, Supabase) and repoint
+  `ConnectionStrings__DefaultConnection` / `ConnectionStrings__ReadReplicaConnection`.
+- **Cache:** use managed Redis/Valkey; the API and the wallow-web BFF both point at it.
+- **App instances:** run multiple `wallow-api` containers behind a load balancer. SignalR uses
+  the Valkey backplane, so multi-instance fan-out works without sticky sessions. The
+  `api_certs` volume must be shared or replaced with pre-provisioned certificates so all
+  instances sign with the same key.
+- **Storage:** replace GarageHQ with managed S3 (AWS, Cloudflare R2) by changing the
+  `Storage__S3__*` values.
 
 ### Account Creation Methods
 
-| Method | When It Runs | What Gets Created |
-|--------|-------------|-------------------|
-| **AdminBootstrap** | First startup (if configured) | Admin user with confirmed email + admin role |
-| **PreRegisteredClients + SeedMembers** | Every startup (sync) | OIDC clients, organizations, org memberships |
-| **Self-Registration** | Anytime (always enabled) | Users register themselves via `/api/v1/identity/auth/register` |
-| **External OAuth** (Google, Microsoft, GitHub, Apple) | Anytime (if providers configured) | Users auto-created on first external login |
-| **SSO Auto-Provisioning** | Anytime (per-org SSO config) | Users auto-created from SAML/OIDC IdP |
-| **SCIM Provisioning** | Anytime (per-org SCIM config) | Users created/updated/deactivated by external directory sync |
-| **Invitations** | Anytime | Org admins invite users by email; user account created on acceptance |
+| Method | When it runs | What gets created |
+|--------|--------------|-------------------|
+| **Seeder admin bootstrap** | Every seeder run, but acts only while no admin user exists | Admin user with the `admin` role |
+| **Client sync + `SeedMembers`** | Every seeder run | OIDC clients, organizations, org memberships |
+| **Setup endpoint** | While the API is in setup mode | Admin user, created over HTTP |
+| **Self-registration** | Anytime | Users register themselves via `/v1/identity/auth/register` |
+| **External OAuth** (Google, Microsoft, GitHub, Apple) | Anytime, if providers are configured | Users auto-created on first external login |
+| **Invitations** | Anytime | Org admins invite by email; the account is created on acceptance |

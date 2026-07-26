@@ -38,11 +38,6 @@ public static class PermissionType
     // Webhooks
     public const string WebhooksManage = "WebhooksManage";
 
-    // SSO/SCIM
-    public const string SsoRead = "SsoRead";
-    public const string SsoManage = "SsoManage";
-    public const string ScimManage = "ScimManage";
-
     // Admin
     public const string AdminAccess = "AdminAccess";
     public const string SystemSettings = "SystemSettings";

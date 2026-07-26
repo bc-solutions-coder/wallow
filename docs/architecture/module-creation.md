@@ -14,7 +14,7 @@ Before creating a new module:
 - Identify primary entities and their relationships
 - Determine if the module needs database persistence (EF Core) or is stateless
 
-> **Current modules:** Identity, Branding, Storage, Notifications, Messaging, Announcements, Inquiries, ApiKeys. New modules should complement these existing capabilities.
+> **Current modules:** Identity, Branding, Storage, Notifications, Announcements, Inquiries, ApiKeys. New modules should complement these existing capabilities.
 
 ---
 
@@ -477,11 +477,20 @@ Modules must never reference each other directly. All cross-module communication
 
 These cross-cutting capabilities in the Shared layer are available to all modules:
 
+All of these live under `api/src/Shared/`.
+
 | Capability | Location | Description |
 |------------|----------|-------------|
 | Auditing | `Shared.Infrastructure.Core/Auditing/` | EF Core `SaveChangesInterceptor` for entity change audits |
+| Caching | `Shared.Infrastructure.Core/Cache/` | Cache abstractions over Valkey/Redis |
+| Messaging | `Shared.Infrastructure.Core/Messaging/` | Wolverine middleware and message conventions |
+| Persistence | `Shared.Infrastructure.Core/Persistence/` | Shared EF Core conventions, interceptors, and migration helpers |
+| Resilience | `Shared.Infrastructure.Core/Resilience/` | Shared retry and timeout policies |
 | Background Jobs | `Shared.Infrastructure.BackgroundJobs/` | `IJobScheduler` abstraction over Hangfire |
-| Workflows | `Shared.Infrastructure.Workflows/` | Elsa 3 workflow engine integration |
+| Plugins | `Shared.Infrastructure.Plugins/` | Isolated loading and lifecycle for plugin assemblies |
+| AsyncAPI | `Shared.Infrastructure/AsyncApi/` | AsyncAPI document generation for the event catalog |
+| Settings | `Shared.Infrastructure/Settings/` | Shared strongly-typed settings classes |
+| API helpers | `Shared.Api/` | Shared controller extensions, settings, and health checks |
 
 ---
 
@@ -527,4 +536,4 @@ These cross-cutting capabilities in the Shared layer are available to all module
 
 ---
 
-*Reference implementation: [Inquiries module](https://github.com/bc-solutions-coder/wallow/tree/main/api/src/Modules/Inquiries). Current modules: Identity, Branding, Storage, Notifications, Messaging, Announcements, Inquiries, ApiKeys.*
+*Reference implementation: [Inquiries module](https://github.com/bc-solutions-coder/wallow/tree/main/api/src/Modules/Inquiries). Current modules: Identity, Branding, Storage, Notifications, Announcements, Inquiries, ApiKeys.*

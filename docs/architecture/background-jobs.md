@@ -24,7 +24,7 @@ The Hangfire dashboard is available at `/hangfire`, protected by `HangfireDashbo
 
 | Environment | URL | Access |
 |-------------|-----|--------|
-| Development | http://localhost:5000/hangfire | Open to all |
+| Development | http://localhost:5001/hangfire | Open to all |
 | Production | https://your-domain/hangfire | Admin role required |
 
 ## IJobScheduler Abstraction
@@ -41,6 +41,7 @@ Recurring jobs are registered at startup in `Program.cs` using `IRecurringJobMan
 | `RetryFailedEmailsJob` | Every 5 minutes (feature-flagged) | `api/src/Modules/Notifications/Wallow.Notifications.Infrastructure/Jobs/RetryFailedEmailsJob.cs` |
 | `OpenIddictTokenPruningJob` | Every 4 hours | `api/src/Modules/Identity/Wallow.Identity.Infrastructure/Jobs/OpenIddictTokenPruningJob.cs` |
 | `ExpiredInvitationPruningJob` | Every hour | `api/src/Modules/Identity/Wallow.Identity.Infrastructure/Jobs/ExpiredInvitationPruningJob.cs` |
+| `SessionPruningJob` | Daily (`Cron.Daily()`) | `api/src/Modules/Identity/Wallow.Identity.Infrastructure/Jobs/SessionPruningJob.cs` |
 
 The `RetryFailedEmailsJob` is conditionally registered behind the `Modules.Notifications` feature flag.
 
@@ -61,7 +62,7 @@ Hangfire also provides helpers: `Cron.Minutely`, `Cron.Hourly`, `Cron.Daily`, `C
 
 ### Job Class Structure
 
-Jobs use constructor injection, an `ExecuteAsync` method, and structured logging via `[LoggerMessage]` source generators. The `FlushUsageJob` is a representative example: it reads Valkey counters, performs atomic get-and-reset, persists to PostgreSQL within a tenant context, and publishes a Wolverine event on completion.
+Jobs use constructor injection, an `ExecuteAsync` method, and structured logging via `[LoggerMessage]` source generators. The `SessionPruningJob` is a representative example: it takes its `DbContext`, a `TimeProvider`, and an `ILogger<T>` through the primary constructor, queries for revoked or expired `ActiveSession` rows, removes them in a single `SaveChangesAsync`, and returns the number of rows pruned.
 
 ### Error Handling
 
@@ -91,4 +92,4 @@ Job parameters are serialized to JSON and stored in PostgreSQL. Pass simple type
 | Long-running workflow/saga | Wolverine |
 | Deferred execution (run in X minutes) | Hangfire |
 
-The two systems complement each other. Hangfire jobs can publish Wolverine events upon completion (as `FlushUsageJob` does), bridging time-based triggers with event-driven processing.
+The two systems complement each other. A Hangfire job can publish a Wolverine event upon completion, bridging time-based triggers with event-driven processing.

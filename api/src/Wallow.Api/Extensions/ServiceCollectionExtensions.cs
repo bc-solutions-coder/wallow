@@ -111,16 +111,6 @@ internal static partial class ServiceCollectionExtensions
                         Window = TimeSpan.FromHours(RateLimitDefaults.UploadWindowHours)
                     }));
 
-            options.AddPolicy("scim", httpContext =>
-                RedisRateLimitPartition.GetFixedWindowRateLimiter(
-                    GetTenantPartitionKey(httpContext),
-                    _ => new RedisFixedWindowRateLimiterOptions
-                    {
-                        ConnectionMultiplexerFactory = () => httpContext.RequestServices.GetRequiredService<IConnectionMultiplexer>(),
-                        PermitLimit = RateLimitDefaults.ScimPermitLimit,
-                        Window = TimeSpan.FromMinutes(RateLimitDefaults.ScimWindowMinutes)
-                    }));
-
             options.AddPolicy("developer-app-registration", httpContext =>
                 RedisRateLimitPartition.GetFixedWindowRateLimiter(
                     GetUserPartitionKey(httpContext),

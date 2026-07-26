@@ -128,10 +128,10 @@ For regular user tokens, the middleware first expands roles to permissions, then
 | Role | Description |
 |------|-------------|
 | `admin` | All permissions (explicitly listed) |
-| `manager` | User read, organization management, API keys, SSO read, configuration, inquiries read |
+| `manager` | User read, organization management, API keys, configuration, inquiries read |
 | `user` | Organization read, messaging, notifications, announcements read, storage, API key read/create, inquiries write |
 
-> **Note:** `PermissionType` is a static class with string constants (not a numeric enum). Permissions are grouped by domain area. The current active modules are: Identity, Storage, Notifications, Messaging, Announcements, and Inquiries.
+> **Note:** `PermissionType` is a static class with string constants (not a numeric enum). Permissions are grouped by domain area. The current active modules are: Identity, Storage, Notifications, Announcements, Inquiries, ApiKeys, and Branding.
 
 ---
 
@@ -165,7 +165,7 @@ Users with the `admin` role or operator service accounts (client ID prefixed wit
 ```bash
 curl -H "Authorization: Bearer $TOKEN" \
      -H "X-Tenant-Id: 550e8400-e29b-41d4-a716-446655440000" \
-     http://localhost:5000/api/inquiries/submissions
+     http://localhost:5001/api/inquiries/submissions
 ```
 
 This allows admins and operator service accounts to view data across tenants for support scenarios. Developer application clients (`app-` prefix) cannot use this override.
@@ -257,7 +257,7 @@ A user could be subject to both simultaneously. The admin clear-lockout endpoint
 Admins can clear all lockout state for a user — both password lockout and MFA lockout — via:
 
 ```
-POST /api/v1/identity/mfa/admin/{userId}/clear-lockout
+POST /v1/identity/mfa/admin/{userId}/clear-lockout
 ```
 
 Requires: `Authorization: Bearer <admin-token>` (caller must have the `admin` role).
@@ -274,7 +274,7 @@ A `UserMfaLockoutClearedEvent` is published after a successful clear, recording 
 ```bash
 curl -X POST \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
-  http://localhost:5001/api/v1/identity/mfa/admin/550e8400-e29b-41d4-a716-446655440000/clear-lockout
+  http://localhost:5001/v1/identity/mfa/admin/550e8400-e29b-41d4-a716-446655440000/clear-lockout
 ```
 
 **Response:**

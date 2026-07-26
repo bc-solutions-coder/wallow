@@ -1,6 +1,7 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.DependencyInjection;
-using Wallow.Shared.Infrastructure.Core.Persistence;
+using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Shared.Kernel.Settings;
 
 namespace Wallow.Shared.Infrastructure.Settings;
@@ -8,7 +9,7 @@ namespace Wallow.Shared.Infrastructure.Settings;
 public static class SettingsServiceExtensions
 {
     public static IServiceCollection AddSettings<TDbContext, TRegistry>(this IServiceCollection services, string moduleKey)
-        where TDbContext : TenantAwareDbContext<TDbContext>
+        where TDbContext : DbContext, ITenantAwareContext
         where TRegistry : class, ISettingRegistry, new()
     {
         TRegistry registry = new();

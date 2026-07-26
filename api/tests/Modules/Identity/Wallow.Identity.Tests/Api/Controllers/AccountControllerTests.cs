@@ -317,7 +317,7 @@ public class AccountControllerTests
     [Fact]
     public async Task ValidateRedirectUri_WithNullUri_ReturnsFalse()
     {
-        IActionResult result = await _controller.ValidateRedirectUri(null, CancellationToken.None);
+        IActionResult result = await _controller.ValidateRedirectUri(null, null, CancellationToken.None);
 
         OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
         string json = System.Text.Json.JsonSerializer.Serialize(ok.Value);
@@ -327,10 +327,10 @@ public class AccountControllerTests
     [Fact]
     public async Task ValidateRedirectUri_WithAllowedUri_ReturnsTrue()
     {
-        _redirectUriValidator.IsAllowedAsync("http://localhost:5002", Arg.Any<CancellationToken>())
+        _redirectUriValidator.IsAllowedAsync("http://localhost:5002", Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(true);
 
-        IActionResult result = await _controller.ValidateRedirectUri("http://localhost:5002", CancellationToken.None);
+        IActionResult result = await _controller.ValidateRedirectUri("http://localhost:5002", null, CancellationToken.None);
 
         OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
         string json = System.Text.Json.JsonSerializer.Serialize(ok.Value);
@@ -340,10 +340,10 @@ public class AccountControllerTests
     [Fact]
     public async Task ValidateRedirectUri_WithDisallowedUri_ReturnsFalse()
     {
-        _redirectUriValidator.IsAllowedAsync("http://evil.com", Arg.Any<CancellationToken>())
+        _redirectUriValidator.IsAllowedAsync("http://evil.com", Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(false);
 
-        IActionResult result = await _controller.ValidateRedirectUri("http://evil.com", CancellationToken.None);
+        IActionResult result = await _controller.ValidateRedirectUri("http://evil.com", null, CancellationToken.None);
 
         OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
         string json = System.Text.Json.JsonSerializer.Serialize(ok.Value);
@@ -366,7 +366,7 @@ public class AccountControllerTests
     [Fact]
     public async Task SignOut_WithInvalidRedirectUri_RedirectsToError()
     {
-        _redirectUriValidator.IsAllowedAsync("http://evil.com", Arg.Any<CancellationToken>())
+        _redirectUriValidator.IsAllowedAsync("http://evil.com", Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(false);
 
         IActionResult result = await _controller.SignOut("http://evil.com");
@@ -378,7 +378,7 @@ public class AccountControllerTests
     [Fact]
     public async Task SignOut_WithValidRedirectUri_RedirectsWithPostLogoutUri()
     {
-        _redirectUriValidator.IsAllowedAsync("http://app.test.com", Arg.Any<CancellationToken>())
+        _redirectUriValidator.IsAllowedAsync("http://app.test.com", Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(true);
 
         IActionResult result = await _controller.SignOut("http://app.test.com");

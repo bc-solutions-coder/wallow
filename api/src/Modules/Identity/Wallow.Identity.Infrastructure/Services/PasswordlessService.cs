@@ -26,7 +26,7 @@ public sealed partial class PasswordlessService : IPasswordlessService
     private readonly IMessageBus _messageBus;
     private readonly UserManager<WallowUser> _userManager;
     private readonly ITenantContext _tenantContext;
-    private readonly byte[] _hmacKey;
+    private readonly IDataProtector _protector;
     private readonly PasswordlessOptions _options;
     private readonly ILogger<PasswordlessService> _logger;
 
@@ -46,9 +46,11 @@ public sealed partial class PasswordlessService : IPasswordlessService
         _options = options.Value;
         _logger = logger;
 
-        // Derive a stable HMAC key from Data Protection
-        IDataProtector protector = dataProtectionProvider.CreateProtector(ProtectorPurpose);
-        _hmacKey = protector.Protect(Encoding.UTF8.GetBytes(ProtectorPurpose));
+        // Sign magic-link tokens through Data Protection's shared, persisted key ring
+        // (app name "Wallow", persisted to Redis) rather than an extracted key. Deriving a
+        // raw key from protector.Protect was non-deterministic, so a token minted in the
+        // send request could never be validated in the later verify request (Wallow-gfph).
+        _protector = dataProtectionProvider.CreateProtector(ProtectorPurpose);
     }
 
     public async Task<PasswordlessResult> SendMagicLinkAsync(string email, CancellationToken ct, string? returnUrl = null, string? clientId = null)
@@ -68,7 +70,7 @@ public sealed partial class PasswordlessService : IPasswordlessService
         }
 
         string rawToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
-        string signature = ComputeHmac(rawToken);
+        string signature = _protector.Protect(rawToken);
         string signedToken = $"{rawToken}.{signature}";
 
         string redisKey = $"{MagicLinkKeyPrefix}{rawToken}";
@@ -99,10 +101,25 @@ public sealed partial class PasswordlessService : IPasswordlessService
         string rawToken = parts[0];
         string providedSignature = parts[1];
 
-        string expectedSignature = ComputeHmac(rawToken);
+        string unprotectedToken;
+        try
+        {
+            unprotectedToken = _protector.Unprotect(providedSignature);
+        }
+        catch (CryptographicException)
+        {
+            LogInvalidSignature();
+            return new PasswordlessResult(false, null, "Invalid token.");
+        }
+        catch (FormatException)
+        {
+            LogInvalidSignature();
+            return new PasswordlessResult(false, null, "Invalid token.");
+        }
+
         if (!CryptographicOperations.FixedTimeEquals(
-                Encoding.UTF8.GetBytes(expectedSignature),
-                Encoding.UTF8.GetBytes(providedSignature)))
+                Encoding.UTF8.GetBytes(unprotectedToken),
+                Encoding.UTF8.GetBytes(rawToken)))
         {
             LogInvalidSignature();
             return new PasswordlessResult(false, null, "Invalid token.");
@@ -192,12 +209,6 @@ public sealed partial class PasswordlessService : IPasswordlessService
         }
 
         return count <= _options.RateLimitMaxRequests;
-    }
-
-    private string ComputeHmac(string data)
-    {
-        byte[] hash = HMACSHA256.HashData(_hmacKey, Encoding.UTF8.GetBytes(data));
-        return Convert.ToBase64String(hash);
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Magic link sent to {Email}")]

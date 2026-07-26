@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Domain.Enums;
 using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Identity.Infrastructure.Services;
 using Wallow.Shared.Kernel.Identity;
@@ -94,7 +95,7 @@ public sealed class OrganizationMfaPolicyServiceTests : IDisposable
         await _dbContext.SaveChangesAsync();
 
         // Add membership via the organization's Members collection
-        org.AddMember(user.Id, "member", user.Id, TimeProvider.System);
+        org.AddMember(user.Id, OrgMemberRole.Member, user.Id, TimeProvider.System);
         await _dbContext.SaveChangesAsync();
 
         OrgMfaPolicyResult result = await _sut.CheckAsync(user.Id, CancellationToken.None);
@@ -105,11 +106,14 @@ public sealed class OrganizationMfaPolicyServiceTests : IDisposable
     [Fact]
     public async Task CheckAsync_OrgRequiresMfa_UserNoGrace_ReturnsRequiredNotInGrace()
     {
-        WallowUser user = WallowUser.Create(_tenantId, "Need", "Mfa", "needmfa@t.com", TimeProvider.System);
+        // org IS the tenant: the service matches the org by o.TenantId == user.TenantId,
+        // so the user's home tenant must be org.Id (minted by Organization.Create).
+        Organization org = Organization.Create(
+            TenantId.Create(_tenantId), "MFA Org", "mfa-org", Guid.NewGuid(), TimeProvider.System);
+
+        WallowUser user = WallowUser.Create(org.Id.Value, "Need", "Mfa", "needmfa@t.com", TimeProvider.System);
         _userManager.FindByIdAsync(user.Id.ToString()).Returns(user);
 
-        Organization org = Organization.Create(
-            TenantId.Create(_tenantId), "MFA Org", "mfa-org", user.Id, TimeProvider.System);
         _dbContext.Organizations.Add(org);
 
         OrganizationSettings settings = OrganizationSettings.Create(
@@ -118,7 +122,7 @@ public sealed class OrganizationMfaPolicyServiceTests : IDisposable
             user.Id, TimeProvider.System);
         _dbContext.OrganizationSettings.Add(settings);
 
-        org.AddMember(user.Id, "member", user.Id, TimeProvider.System);
+        org.AddMember(user.Id, OrgMemberRole.Member, user.Id, TimeProvider.System);
         await _dbContext.SaveChangesAsync();
 
         OrgMfaPolicyResult result = await _sut.CheckAsync(user.Id, CancellationToken.None);
@@ -130,12 +134,15 @@ public sealed class OrganizationMfaPolicyServiceTests : IDisposable
     [Fact]
     public async Task CheckAsync_OrgRequiresMfa_UserInGrace_ReturnsRequiredAndInGrace()
     {
-        WallowUser user = WallowUser.Create(_tenantId, "Grace", "Period", "grace@t.com", TimeProvider.System);
+        // org IS the tenant: the service matches the org by o.TenantId == user.TenantId,
+        // so the user's home tenant must be org.Id (minted by Organization.Create).
+        Organization org = Organization.Create(
+            TenantId.Create(_tenantId), "Grace Org", "grace-org", Guid.NewGuid(), TimeProvider.System);
+
+        WallowUser user = WallowUser.Create(org.Id.Value, "Grace", "Period", "grace@t.com", TimeProvider.System);
         user.SetMfaGraceDeadline(DateTimeOffset.UtcNow.AddDays(7));
         _userManager.FindByIdAsync(user.Id.ToString()).Returns(user);
 
-        Organization org = Organization.Create(
-            TenantId.Create(_tenantId), "Grace Org", "grace-org", user.Id, TimeProvider.System);
         _dbContext.Organizations.Add(org);
 
         OrganizationSettings settings = OrganizationSettings.Create(
@@ -144,7 +151,7 @@ public sealed class OrganizationMfaPolicyServiceTests : IDisposable
             user.Id, TimeProvider.System);
         _dbContext.OrganizationSettings.Add(settings);
 
-        org.AddMember(user.Id, "member", user.Id, TimeProvider.System);
+        org.AddMember(user.Id, OrgMemberRole.Member, user.Id, TimeProvider.System);
         await _dbContext.SaveChangesAsync();
 
         OrgMfaPolicyResult result = await _sut.CheckAsync(user.Id, CancellationToken.None);

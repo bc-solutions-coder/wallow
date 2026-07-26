@@ -58,11 +58,8 @@ Logo uploads are validated for file type (magic bytes), size (max 2MB), and cont
 
 ## Integration Events
 
-Defined in `Wallow.Shared.Contracts.Branding.Events`:
-
-| Event | Description |
-|-------|-------------|
-| `ClientBrandingUpdatedEvent` | Published when branding is updated. Consumed by Identity and Web modules. |
+The module currently publishes no integration events. Consumers needing fresh branding
+read it via the public GET endpoint (cached, anonymous).
 
 ## Dependencies
 

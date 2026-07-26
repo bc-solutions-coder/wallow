@@ -20,7 +20,7 @@ The codebase demonstrates solid foundational patterns with excellent consistency
 
 1. [Clean Architecture Implementation](#1-clean-architecture-implementation)
 2. [DDD Implementation](#2-ddd-implementation)
-3. [Three Module Patterns](#3-three-module-patterns)
+3. [Two Module Patterns](#3-two-module-patterns)
 4. [Module Maturity Assessment](#4-module-maturity-assessment)
 5. [Key Gaps & Recommendations](#5-key-gaps--recommendations)
 6. [Decision Tree: Choosing a Pattern](#6-decision-tree-choosing-a-pattern)
@@ -118,7 +118,7 @@ No explicit Domain Services layer. Cross-aggregate logic sometimes lives in Appl
 
 ---
 
-## 3. Three Module Patterns
+## 3. Two Module Patterns
 
 Wallow uses two distinct architectural patterns. Understanding these is essential before building new modules.
 
@@ -195,7 +195,6 @@ Infrastructure: Heavy services wrapping external system
 |------------|----------|-------|
 | **Auditing** | `Shared.Infrastructure.Core/Auditing/` | Custom EF Core `SaveChanges` interceptor. Cross-cutting. |
 | **Background Jobs** | `Shared.Infrastructure.BackgroundJobs/` | `IJobScheduler` over Hangfire. |
-| **Workflows** | `Shared.Infrastructure.Workflows/` | Elsa workflow engine integration. |
 
 ---
 
@@ -389,4 +388,4 @@ public interface INotificationRepository
 
 ---
 
-*This assessment covers the 7 core modules in the Wallow platform: Identity, Storage, Notifications, Announcements, Inquiries, ApiKeys, and Branding. Notifications is the gold standard for traditional DDD with strong Value Object adoption. Identity demonstrates the External Adapter pattern. Cross-cutting capabilities (Auditing, Background Jobs, Workflows) live in separate Shared.Infrastructure projects. See the [Module Creation Guide](module-creation.md) for step-by-step module creation instructions.*
+*This assessment covers the 7 core modules in the Wallow platform: Identity, Storage, Notifications, Announcements, Inquiries, ApiKeys, and Branding. Notifications is the gold standard for traditional DDD with strong Value Object adoption. Identity demonstrates the External Adapter pattern. Cross-cutting capabilities (Auditing, Background Jobs) live in separate Shared.Infrastructure projects. See the [Module Creation Guide](module-creation.md) for step-by-step module creation instructions.*

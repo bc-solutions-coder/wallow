@@ -158,11 +158,16 @@ public sealed partial class AuthorizationController(
             {
                 // No existing consent — redirect to consent screen.
                 // The consent UI will POST back to accept/deny.
+                // The requested scopes ride along space-delimited (OAuth's own
+                // delimiter, and what the consent-info endpoint splits on): they are
+                // the substance of the decision the screen asks the user to make.
                 string authUrl = GetRequiredAuthUrl();
                 string returnUrl = Request.PathBase + Request.Path + Request.QueryString;
+                string consentScopes = string.Join(" ", requestedScopes);
                 LogRedirectingToConsent(clientId, returnUrl);
                 return Redirect($"{authUrl}/consent?returnUrl={Uri.EscapeDataString(returnUrl)}" +
-                    $"&client_id={Uri.EscapeDataString(clientId ?? string.Empty)}");
+                    $"&client_id={Uri.EscapeDataString(clientId ?? string.Empty)}" +
+                    $"&scope={Uri.EscapeDataString(consentScopes)}");
             }
         }
 

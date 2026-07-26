@@ -4,6 +4,11 @@ on:
   pull_request:
     branches: [main]
 
+# Default for jobs without their own permissions block (unit-tests,
+# integration-tests, merge-coverage); other jobs declare their own.
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.head_ref }}
   cancel-in-progress: true
@@ -15,15 +20,15 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: "10.0.x"
 
       - name: Cache NuGet packages
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('api/Directory.Packages.props', '**/*.csproj') }}
@@ -31,23 +36,17 @@ jobs:
             nuget-${{ runner.os }}-
 
       - name: Restore previous build output
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: |
             **/bin/Release
             **/obj
-          key: build-v2-${{ runner.os }}-${{ github.sha }}
+          key: build-v3-${{ runner.os }}-${{ github.sha }}
           restore-keys: |
-            build-v2-${{ runner.os }}-
+            build-v3-${{ runner.os }}-
 
       - name: Restore dependencies
         run: dotnet restore api/Wallow.slnx
-
-      # Force Tailwind to regenerate on every build. dotnet build is incremental and
-      # keys Tailwind output off Styles/app.css, not the scanned razor files, so a
-      # restored (cross-commit) generated app.css would otherwise ship stale CSS.
-      - name: Clean generated Tailwind CSS
-        run: rm -f api/src/Wallow.Web/wwwroot/css/app.css api/src/Wallow.Auth/wwwroot/css/app.css
 
       - name: Build
         run: dotnet build api/Wallow.slnx --no-restore --configuration Release --graph
@@ -56,27 +55,27 @@ jobs:
         run: dotnet format api/Wallow.slnx --verify-no-changes --no-restore
 
       - name: Cache build output
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: |
             **/bin/Release
             **/obj
-          key: build-v2-${{ runner.os }}-${{ github.sha }}
+          key: build-v3-${{ runner.os }}-${{ github.sha }}
 
   unit-tests:
     needs: build
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: "10.0.x"
 
       - name: Cache NuGet packages
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('api/Directory.Packages.props', '**/*.csproj') }}
@@ -84,12 +83,12 @@ jobs:
             nuget-${{ runner.os }}-
 
       - name: Restore build output
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: |
             **/bin/Release
             **/obj
-          key: build-v2-${{ runner.os }}-${{ github.sha }}
+          key: build-v3-${{ runner.os }}-${{ github.sha }}
           fail-on-cache-miss: true
 
       - name: Restore dependencies
@@ -127,7 +126,7 @@ jobs:
           --health-retries 5
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Start Valkey with password
         run: |
@@ -147,12 +146,12 @@ jobs:
           done
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: "10.0.x"
 
       - name: Cache NuGet packages
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('api/Directory.Packages.props', '**/*.csproj') }}
@@ -160,12 +159,12 @@ jobs:
             nuget-${{ runner.os }}-
 
       - name: Restore build output
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: |
             **/bin/Release
             **/obj
-          key: build-v2-${{ runner.os }}-${{ github.sha }}
+          key: build-v3-${{ runner.os }}-${{ github.sha }}
           fail-on-cache-miss: true
 
       - name: Restore dependencies
@@ -193,15 +192,15 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: "10.0.x"
 
       - name: Cache NuGet packages
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('api/Directory.Packages.props', '**/*.csproj') }}
@@ -209,16 +208,24 @@ jobs:
             nuget-${{ runner.os }}-
 
       - name: Restore build output
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: |
             **/bin/Release
             **/obj
-          key: build-v2-${{ runner.os }}-${{ github.sha }}
+          key: build-v3-${{ runner.os }}-${{ github.sha }}
           fail-on-cache-miss: true
 
       - name: Restore dependencies
         run: dotnet restore api/Wallow.slnx
+
+      # The arm64 app images below are cross-built on the amd64 runner; register
+      # QEMU binfmt handlers so their Dockerfile RUN steps can execute arm64
+      # binaries (without this, buildx fails with "exec format error").
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+        with:
+          platforms: arm64
 
       - name: Publish app container images
         run: |
@@ -227,14 +234,18 @@ jobs:
             -c Release --no-build /t:PublishContainer \
             -p:ContainerImageTag=test \
             -p:ContainerRuntimeIdentifier=linux-x64
-          dotnet publish api/src/Wallow.Auth/Wallow.Auth.csproj \
-            -c Release --no-build /t:PublishContainer \
-            -p:ContainerImageTag=test \
-            -p:ContainerRuntimeIdentifier=linux-x64
-          dotnet publish api/src/Wallow.Web/Wallow.Web.csproj \
-            -c Release --no-build /t:PublishContainer \
-            -p:ContainerImageTag=test \
-            -p:ContainerRuntimeIdentifier=linux-x64
+          # wallow-auth is the React BFF (apps/wallow-auth/Dockerfile), not Blazor
+          # Wallow.Auth. The build context is the repo root so the Dockerfile can
+          # resolve the @bc-solutions-coder/sdk workspace dependency. Tag matches the
+          # docker-compose.test.yml wallow-auth service (wallow-auth-react:test) so the
+          # e2e job loads this image instead of rebuilding it.
+          docker build -f apps/wallow-auth/Dockerfile -t wallow-auth-react:test .
+          # wallow-web is the React BFF (apps/wallow-web/Dockerfile), not Blazor
+          # Wallow.Web. The build context is the repo root so the Dockerfile can
+          # resolve the @bc-solutions-coder/sdk workspace dependency. Tag matches the
+          # docker-compose.test.yml wallow-web service (wallow-web-react:test) so the
+          # e2e job loads this image instead of rebuilding it.
+          docker build -f apps/wallow-web/Dockerfile -t wallow-web-react:test .
           dotnet publish api/src/Wallow.MigrationService/Wallow.MigrationService.csproj \
             -c Release --no-build /t:PublishContainer \
             -p:ContainerImageTag=test \
@@ -249,14 +260,14 @@ jobs:
             -c Release --no-build /t:PublishContainer \
             -p:ContainerImageTag=test-arm64 \
             -p:ContainerRuntimeIdentifier=linux-arm64
-          dotnet publish api/src/Wallow.Auth/Wallow.Auth.csproj \
-            -c Release --no-build /t:PublishContainer \
-            -p:ContainerImageTag=test-arm64 \
-            -p:ContainerRuntimeIdentifier=linux-arm64
-          dotnet publish api/src/Wallow.Web/Wallow.Web.csproj \
-            -c Release --no-build /t:PublishContainer \
-            -p:ContainerImageTag=test-arm64 \
-            -p:ContainerRuntimeIdentifier=linux-arm64
+          # wallow-auth arm64 image via buildx (single-platform --load so the
+          # subsequent docker save can archive it alongside the .NET images).
+          docker buildx build --platform linux/arm64 --load \
+            -f apps/wallow-auth/Dockerfile -t wallow-auth-react:test-arm64 .
+          # wallow-web arm64 image via buildx (single-platform --load so the
+          # subsequent docker save can archive it alongside the .NET images).
+          docker buildx build --platform linux/arm64 --load \
+            -f apps/wallow-web/Dockerfile -t wallow-web-react:test-arm64 .
           dotnet publish api/src/Wallow.MigrationService/Wallow.MigrationService.csproj \
             -c Release --no-build /t:PublishContainer \
             -p:ContainerImageTag=test-arm64 \
@@ -270,14 +281,14 @@ jobs:
         run: |
           docker save \
             wallow-api:test wallow-api:test-arm64 \
-            wallow-auth:test wallow-auth:test-arm64 \
-            wallow-web:test wallow-web:test-arm64 \
+            wallow-auth-react:test wallow-auth-react:test-arm64 \
+            wallow-web-react:test wallow-web-react:test-arm64 \
             wallow-migrations:test wallow-migrations:test-arm64 \
             wallow-seeder:test wallow-seeder:test-arm64 \
             | gzip > /tmp/wallow-images-app.tar.gz
 
       - name: Cache app images
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: /tmp/wallow-images-app.tar.gz
           key: images-app-${{ github.sha }}
@@ -289,7 +300,7 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Build infra images
         run: |
@@ -303,141 +314,79 @@ jobs:
             | gzip > /tmp/wallow-images-infra.tar.gz
 
       - name: Cache infra images
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: /tmp/wallow-images-infra.tar.gz
           key: images-infra-${{ github.sha }}
 
-  e2e:
-    # Disabled: the containerized E2E suite is flaky in CI (Playwright navigation
-    # timeouts and Blazor-readiness races produce intermittent failures unrelated
-    # to the change under test). Run it locally with ./scripts/run-e2e.sh instead.
-    # Re-enable by removing this `if` guard once the suite is stabilized.
+  e2e-tests:
+    # Temporarily disabled while the React cutover branch stabilises.
     if: false
-    needs: [build, docker-images-app, docker-images-infra]
+    needs: [docker-images-app, docker-images-infra]
     runs-on: ubuntu-latest
     permissions:
       contents: read
 
     steps:
-      - uses: actions/checkout@v6
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: "10.0.x"
-
-      - name: Cache NuGet packages
-        uses: actions/cache@v5
-        with:
-          path: ~/.nuget/packages
-          key: nuget-${{ runner.os }}-${{ hashFiles('api/Directory.Packages.props', '**/*.csproj') }}
-          restore-keys: |
-            nuget-${{ runner.os }}-
-
-      - name: Restore build output
-        uses: actions/cache/restore@v5
-        with:
-          path: |
-            **/bin/Release
-            **/obj
-          key: build-v2-${{ runner.os }}-${{ github.sha }}
-          fail-on-cache-miss: true
+      - uses: actions/checkout@v7
 
       - name: Restore app images
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: /tmp/wallow-images-app.tar.gz
           key: images-app-${{ github.sha }}
           fail-on-cache-miss: true
 
       - name: Restore infra images
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: /tmp/wallow-images-infra.tar.gz
           key: images-infra-${{ github.sha }}
           fail-on-cache-miss: true
 
-      - name: Load container images
+      # docker-images-app / docker-images-infra already built and cached the
+      # wallow-api / wallow-auth-react / migration / seeder / garage :test images,
+      # so the e2e job loads them instead of rebuilding (E2E_SKIP_IMAGE_BUILD=1).
+      - name: Load Docker images
         run: |
-          docker load < /tmp/wallow-images-app.tar.gz
-          docker load < /tmp/wallow-images-infra.tar.gz
+          gunzip -c /tmp/wallow-images-app.tar.gz | docker load
+          gunzip -c /tmp/wallow-images-infra.tar.gz | docker load
 
-      - name: Configure host.docker.internal for OIDC
-        run: echo "127.0.0.1 host.docker.internal" | sudo tee -a /etc/hosts
+      - name: Enable corepack
+        run: corepack enable
 
-      - name: Start test environment
-        run: docker compose -f docker/docker-compose.test.yml up -d
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: ".nvmrc"
+          cache: "pnpm"
 
-      - name: Build E2E tests and install Playwright
-        run: |
-          dotnet build api/tests/Wallow.E2E.Tests -c Release --no-restore
-          pwsh api/tests/Wallow.E2E.Tests/bin/Release/net10.0/playwright.ps1 install --with-deps chromium
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
-      - name: Wait for services to be healthy
-        run: |
-          echo "Waiting for wallow-api..."
-          for i in $(seq 1 30); do
-            if curl -sf http://localhost:5050/health/ready > /dev/null 2>&1; then
-              echo "wallow-api is ready"
-              break
-            fi
-            if [ "$i" -eq 30 ]; then
-              echo "::error::wallow-api did not become healthy in time"
-              docker compose -f docker/docker-compose.test.yml logs
-              exit 1
-            fi
-            sleep 5
-          done
+      # ubuntu-latest runners have no Playwright browser cache; install Chromium
+      # (and its OS deps) before running the suite.
+      - name: Install Playwright browser
+        run: pnpm --filter ./apps/wallow-auth exec playwright install --with-deps chromium
 
-          echo "Waiting for wallow-auth..."
-          for i in $(seq 1 30); do
-            if curl -sf http://localhost:5051/health > /dev/null 2>&1; then
-              echo "wallow-auth is ready"
-              break
-            fi
-            if [ "$i" -eq 30 ]; then
-              echo "::error::wallow-auth did not become healthy in time"
-              docker compose -f docker/docker-compose.test.yml logs
-              exit 1
-            fi
-            sleep 5
-          done
-
-          echo "Waiting for wallow-web..."
-          for i in $(seq 1 30); do
-            if curl -sf http://localhost:5053/health > /dev/null 2>&1; then
-              echo "wallow-web is ready"
-              break
-            fi
-            if [ "$i" -eq 30 ]; then
-              echo "::error::wallow-web did not become healthy in time"
-              docker compose -f docker/docker-compose.test.yml logs
-              exit 1
-            fi
-            sleep 5
-          done
-
-      - name: Run E2E tests
-        run: dotnet test api/tests/Wallow.E2E.Tests --no-build --configuration Release --settings api/tests/coverage.runsettings --verbosity normal --blame-hang-timeout 5m
+      # Serve the app from the prebuilt wallow-auth container on :5051 and drive it
+      # directly (E2E_BASE_URL) — no local dev server. The runner brings up the
+      # compose stack, waits for the API + seeded admin, runs the suite, tears down.
+      - name: Run wallow-auth E2E suite
         env:
-          E2E_BASE_URL: "http://localhost:5050"
-          E2E_AUTH_URL: "http://localhost:5051"
-          E2E_WEB_URL: "http://localhost:5053"
-          E2E_MAILPIT_URL: "http://localhost:8035"
-          E2E_EXTERNAL_SERVICES: "true"
+          E2E_SKIP_IMAGE_BUILD: "1"
+          E2E_UP_SERVICE: wallow-auth
+          E2E_BASE_URL: http://localhost:5051
+        run: ./scripts/e2e.sh
 
-      - name: Upload E2E failure artifacts
-        if: failure()
+      - name: Upload Playwright report
+        if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: e2e-failure-artifacts
-          path: api/tests/Wallow.E2E.Tests/test-results/
-          retention-days: 7
-
-      - name: Tear down test environment
-        if: always()
-        run: docker compose -f docker/docker-compose.test.yml down -v
+          name: playwright-report-wallow-auth
+          path: apps/wallow-auth/playwright-report
+          if-no-files-found: ignore
+          retention-days: 5
 
   merge-coverage:
     needs: [unit-tests, integration-tests]
@@ -446,7 +395,7 @@ jobs:
 
     steps:
       - name: Setup .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: "10.0.x"
 

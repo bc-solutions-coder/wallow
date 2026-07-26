@@ -4,31 +4,31 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'apps/**'
-      - 'packages/**'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
-      - 'tsconfig.base.json'
-      - '.oxlintrc.json'
-      - '.oxfmtrc.json'
-      - '.nvmrc'
-      - '.npmrc'
-      - '.github/workflows/js.yml'
+      - "apps/**"
+      - "packages/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "tsconfig.base.json"
+      - ".oxlintrc.json"
+      - ".oxfmtrc.json"
+      - ".nvmrc"
+      - ".npmrc"
+      - ".github/workflows/js.yml"
   push:
     branches: [main]
     paths:
-      - 'apps/**'
-      - 'packages/**'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
-      - 'tsconfig.base.json'
-      - '.oxlintrc.json'
-      - '.oxfmtrc.json'
-      - '.nvmrc'
-      - '.npmrc'
-      - '.github/workflows/js.yml'
+      - "apps/**"
+      - "packages/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "tsconfig.base.json"
+      - ".oxlintrc.json"
+      - ".oxfmtrc.json"
+      - ".nvmrc"
+      - ".npmrc"
+      - ".github/workflows/js.yml"
 
 concurrency:
   group: js-${{ github.head_ref || github.ref }}
@@ -41,16 +41,16 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Enable corepack
         run: corepack enable
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version-file: '.nvmrc'
-          cache: 'pnpm'
+          node-version-file: ".nvmrc"
+          cache: "pnpm"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -61,14 +61,24 @@ jobs:
       - name: Check formatting
         run: pnpm format:check
 
-      # Workspace members resolve @bc-solutions-coder/sdk through its package.json
-      # `exports` map, which points at dist/. Build the SDK first so dependent
-      # members (apps/tanstack-min) can typecheck against the emitted .d.ts files.
-      - name: Build SDK
-        run: pnpm --filter @bc-solutions-coder/sdk build
+      # Workspace members resolve @bc-solutions-coder/* packages through their
+      # package.json `exports` maps, which point at dist/. Build every package
+      # first — in topological order (styles before web-shell, which depends on
+      # it) — so dependent members (the apps) can typecheck against the emitted
+      # .d.ts files.
+      - name: Build packages
+        run: pnpm --filter './packages/*' build
 
       - name: Typecheck
         run: pnpm typecheck
+
+      # Vitest browser-mode specs drive a real Chromium via the Playwright
+      # provider. ubuntu-latest runners have no Playwright browser cache, so
+      # install the browser (and its OS deps) before the Test step. playwright
+      # is a workspace-member devDependency (not a root one), so the install
+      # must run through a member that declares it.
+      - name: Install Playwright browser
+        run: pnpm --filter ./packages/testing exec playwright install --with-deps chromium
 
       - name: Test
         run: pnpm test

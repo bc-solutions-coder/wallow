@@ -108,32 +108,6 @@ public class ScopePermissionMapperTests
         result.Should().Be(PermissionType.ApiKeyManage);
     }
 
-    // Identity - SSO/SCIM
-
-    [Fact]
-    public void MapScopeToPermission_SsoRead_ReturnsSsoRead()
-    {
-        string? result = ScopePermissionMapper.MapScopeToPermission("sso.read");
-
-        result.Should().Be(PermissionType.SsoRead);
-    }
-
-    [Fact]
-    public void MapScopeToPermission_SsoManage_ReturnsSsoManage()
-    {
-        string? result = ScopePermissionMapper.MapScopeToPermission("sso.manage");
-
-        result.Should().Be(PermissionType.SsoManage);
-    }
-
-    [Fact]
-    public void MapScopeToPermission_ScimManage_ReturnsScimManage()
-    {
-        string? result = ScopePermissionMapper.MapScopeToPermission("scim.manage");
-
-        result.Should().Be(PermissionType.ScimManage);
-    }
-
     // Storage
 
     [Fact]

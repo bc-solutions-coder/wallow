@@ -24,11 +24,6 @@ public static class ApiScopes
         "apikeys.write",
         "apikeys.manage",
 
-        // Identity - SSO/SCIM
-        "sso.read",
-        "sso.manage",
-        "scim.manage",
-
         // Storage
         "storage.read",
         "storage.write",
@@ -63,5 +58,15 @@ public static class ApiScopes
         "inquiries.write",
         "announcements.read",
         "storage.read"
+    };
+
+    // The OIDC login scopes docs/integrations/bff-pattern.md instructs integrators to request.
+    // A self-service app may request these in addition to DeveloperAppScopes.
+    public static readonly IReadOnlySet<string> LoginScopes = new HashSet<string>
+    {
+        "openid",
+        "profile",
+        "email",
+        "offline_access"
     };
 }

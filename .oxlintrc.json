@@ -9,6 +9,7 @@
     "style": "warn"
   },
   "rules": {
+    "react/react-in-jsx-scope": "off",
     "no-ternary": "off",
     "capitalized-comments": "off",
     "unicorn/no-null": "off",
@@ -29,11 +30,38 @@
   "env": {
     "builtin": true
   },
-  "ignorePatterns": ["**/dist/**", "**/generated/**", "packages/sdk/src/generated/**"],
+  "ignorePatterns": [
+    "**/dist/**",
+    "**/generated/**",
+    "packages/sdk/src/generated/**",
+    "**/routeTree.gen.ts"
+  ],
   "overrides": [
+    {
+      "files": ["apps/wallow-web/**/*.{ts,tsx}"],
+      "rules": {
+        "unicorn/filename-case": ["error", { "cases": { "kebabCase": true, "pascalCase": true } }],
+        "no-magic-numbers": ["warn", { "ignore": [0, 1] }]
+      }
+    },
+    {
+      "files": ["apps/wallow-auth/**/*.{ts,tsx}"],
+      "rules": {
+        "unicorn/filename-case": ["error", { "cases": { "kebabCase": true, "pascalCase": true } }],
+        "no-magic-numbers": ["warn", { "ignore": [0, 1] }]
+      }
+    },
+    {
+      "files": ["apps/examples/**/*.{ts,tsx}"],
+      "rules": {
+        "unicorn/filename-case": ["error", { "cases": { "kebabCase": true, "pascalCase": true } }],
+        "no-magic-numbers": ["warn", { "ignore": [0, 1] }]
+      }
+    },
     {
       "files": ["**/*.test.*"],
       "rules": {
+        "no-await-in-loop": "off",
         "no-magic-numbers": "off",
         "sort-keys": "off",
         "require-unicode-regexp": "off",
@@ -49,7 +77,8 @@
         "unicorn/relative-url-style": "off",
         "typescript/consistent-type-imports": "off",
         "typescript/consistent-generic-constructors": "off",
-        "typescript/array-type": "off"
+        "typescript/array-type": "off",
+        "react/jsx-props-no-spreading": "off"
       }
     }
   ]

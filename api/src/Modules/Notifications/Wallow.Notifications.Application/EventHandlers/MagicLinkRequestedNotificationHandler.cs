@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Wallow.Notifications.Application.Channels.Email.Commands.SendEmail;
 using Wallow.Notifications.Application.Channels.Email.Interfaces;
 using Wallow.Shared.Contracts.Identity.Events;
+using Wallow.Shared.Kernel.Configuration;
 using Wolverine;
 
 namespace Wallow.Notifications.Application.EventHandlers;
@@ -16,7 +17,7 @@ public static class MagicLinkRequestedNotificationHandler
     {
         string authUrl = configuration["ServiceUrls:AuthUrl"]
                         ?? configuration["AuthUrl"]
-                        ?? "http://localhost:5002";
+                        ?? new ServiceUrlsOptions().AuthUrl;
 
         string verifyUrl = $"{authUrl.TrimEnd('/')}/login?magicLinkToken={Uri.EscapeDataString(message.Token)}";
 

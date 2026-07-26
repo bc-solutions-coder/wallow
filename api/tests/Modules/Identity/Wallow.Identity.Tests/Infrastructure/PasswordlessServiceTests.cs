@@ -7,6 +7,7 @@ using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Identity.Infrastructure.Options;
 using Wallow.Identity.Infrastructure.Services;
+using Wallow.Shared.Contracts.Identity.Events;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
 using Wolverine;
@@ -132,5 +133,55 @@ public sealed class PasswordlessServiceTests
         PasswordlessResult r = await _sut.ValidateOtpAsync("u@t.com", "123456", CancellationToken.None);
         r.Succeeded.Should().BeTrue();
         await _redis.Received(1).KeyDeleteAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>());
+    }
+
+    // Regression for Wallow-gfph: magic-link send and verify run in DIFFERENT DI scopes
+    // (send = POST request, verify = later GET when the user clicks the emailed link), so
+    // they resolve DIFFERENT scoped PasswordlessService instances. The HMAC signing key must
+    // be stable across instances or verification can never succeed. This reproduces the
+    // production 401 by minting a token on one instance and validating it on another that
+    // shares the same IDataProtectionProvider singleton, exactly as production DI does.
+    [Fact]
+    public async Task MagicLink_SendThenVerify_AcrossSeparateScopes_Succeeds()
+    {
+        IDataProtectionProvider sharedProvider = DataProtectionProvider.Create("Wallow.Identity.Passwordless");
+
+        IDatabase redis = Substitute.For<IDatabase>();
+        redis.StringIncrementAsync(Arg.Any<RedisKey>(), Arg.Any<long>(), Arg.Any<CommandFlags>()).Returns(1L);
+        redis.StringGetAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>()).Returns(new RedisValue("scoped@t.com"));
+
+        IMessageBus sendBus = Substitute.For<IMessageBus>();
+        MagicLinkRequestedEvent? published = null;
+        await sendBus.PublishAsync(Arg.Do<MagicLinkRequestedEvent>(e => published = e));
+
+        WallowUser user = WallowUser.Create(_tenantId, "A", "B", "scoped@t.com", TimeProvider.System);
+
+        PasswordlessService sendScope = CreateService(sharedProvider, redis, sendBus, user);
+        PasswordlessResult sendResult = await sendScope.SendMagicLinkAsync("scoped@t.com", CancellationToken.None);
+        sendResult.Succeeded.Should().BeTrue();
+        published.Should().NotBeNull();
+
+        PasswordlessService verifyScope = CreateService(sharedProvider, redis, Substitute.For<IMessageBus>(), user);
+        PasswordlessResult verifyResult = await verifyScope.ValidateMagicLinkAsync(published!.Token, CancellationToken.None);
+
+        verifyResult.Succeeded.Should().BeTrue();
+        verifyResult.Email.Should().Be("scoped@t.com");
+    }
+
+    private PasswordlessService CreateService(
+        IDataProtectionProvider dataProtectionProvider,
+        IDatabase redis,
+        IMessageBus messageBus,
+        WallowUser user)
+    {
+        IConnectionMultiplexer mux = Substitute.For<IConnectionMultiplexer>();
+        mux.GetDatabase(Arg.Any<int>(), Arg.Any<object>()).Returns(redis);
+        UserManager<WallowUser> userManager = Substitute.For<UserManager<WallowUser>>(
+            Substitute.For<IUserStore<WallowUser>>(), null, null, null, null, null, null, null, null);
+        userManager.FindByEmailAsync(user.Email!).Returns(user);
+        TenantContext tc = new();
+        tc.SetTenant(new TenantId(_tenantId));
+        PasswordlessOptions opts = new() { RateLimitMaxRequests = 3, RateLimitWindow = TimeSpan.FromMinutes(15), MagicLinkTtl = TimeSpan.FromMinutes(10), OtpTtl = TimeSpan.FromMinutes(5) };
+        return new PasswordlessService(mux, messageBus, userManager, tc, dataProtectionProvider, Options.Create(opts), NullLogger<PasswordlessService>.Instance);
     }
 }

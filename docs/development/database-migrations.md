@@ -9,134 +9,171 @@ Wallow uses **EF Core Migrations** for all modules. Each module owns its own Pos
 ### Key Principles
 
 1. **One schema per module** - Each module uses a separate PostgreSQL schema (e.g., `inquiries`, `identity`, `notifications`)
-2. **Isolated migration history** - Each EF Core schema has its own `__EFMigrationsHistory` table
-3. **Auto-migration at startup** - Migrations run automatically when the API starts
-4. **Multi-tenancy support** - Migrations use a `DesignTimeTenantContext` mock for design-time operations
+2. **Isolated migration history** - Each schema has its own `__EFMigrationsHistory` table
+3. **Migrations run out-of-process** - A dedicated `Wallow.MigrationService` worker applies migrations before the API starts. The API does **not** migrate at startup (the only exception is the `Testing` environment; see [Where Migrations Run](#3-where-migrations-run))
+4. **Multi-tenancy support** - DbContexts derive from `TenantAwareDbContext<TContext>`, which applies tenant query filters at runtime; design-time factories construct the context without a tenant
 
 ## Architecture
 
 ```
 Module Infrastructure Layer
 ├── Persistence/
-│   ├── {Module}DbContext.cs          # EF Core DbContext
-│   ├── {Module}DbContextFactory.cs   # Design-time factory for CLI
-│   ├── DesignTimeTenantContext.cs    # Mock tenant for migrations
+│   ├── {Module}DbContext.cs          # EF Core DbContext (TenantAwareDbContext<T>)
+│   ├── {Module}DbContextFactory.cs   # Design-time factory for the dotnet ef CLI
 │   └── Configurations/
 │       └── {Entity}Configuration.cs  # Entity type configurations
 └── Migrations/
-    ├── {timestamp}_{Name}.cs         # Migration code
-    ├── {timestamp}_{Name}.Designer.cs # Migration metadata
-    └── {Module}DbContextModelSnapshot.cs # Current model state
+    ├── {timestamp}_{Name}.cs              # Migration code
+    ├── {timestamp}_{Name}.Designer.cs     # Migration metadata
+    └── {Module}DbContextModelSnapshot.cs  # Current model state
 ```
 
 ## How Migrations Work
 
 ### 1. DbContext Setup
 
-Each module's DbContext sets its schema in `OnModelCreating`:
+Each module's DbContext derives from `TenantAwareDbContext<TContext>` (in
+`Wallow.Shared.Infrastructure.Core.Persistence`) and sets its schema in `OnModelCreating`.
+The base class supplies `ApplyTenantQueryFilters`, which adds a `TenantId` filter to every
+entity implementing `ITenantScoped` — modules do not hand-write query filters:
 
 ```csharp
-public sealed class InquiriesDbContext : DbContext
+public sealed class InquiriesDbContext : TenantAwareDbContext<InquiriesDbContext>
 {
-    private readonly ITenantContext _tenantContext;
+    public DbSet<Inquiry> Inquiries => Set<Inquiry>();
+    public DbSet<InquiryComment> InquiryComments => Set<InquiryComment>();
 
-    public DbSet<Submission> Submissions => Set<Submission>();
-    // ... other DbSets
+    public InquiriesDbContext(DbContextOptions<InquiriesDbContext> options)
+        : base(options)
+    {
+        ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        // Set the schema for all tables in this module
         modelBuilder.HasDefaultSchema("inquiries");
-
-        // Apply all entity configurations from this assembly
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(InquiriesDbContext).Assembly);
 
-        // Add tenant query filters
-        modelBuilder.Entity<Submission>()
-            .HasQueryFilter(e => e.TenantId == _tenantContext.TenantId);
+        ApplyTenantQueryFilters(modelBuilder);
     }
 }
 ```
 
 ### 2. DI Registration
 
-In `InfrastructureExtensions.cs`, each module registers its DbContext with a **schema-specific migration history table**:
+In `{Module}InfrastructureExtensions.cs`, each module registers a **pooled DbContext factory**
+with a **schema-specific migration history table**:
 
 ```csharp
-services.AddDbContext<InquiriesDbContext>((sp, options) =>
+services.AddPooledDbContextFactory<InquiriesDbContext>((sp, options) =>
 {
-    options.UseNpgsql(connectionString, npgsql =>
+    NpgsqlConnectionStringBuilder builder = new(defaultConnectionString)
+    {
+        MaxPoolSize = maxPoolSize,
+        MinPoolSize = minPoolSize
+    };
+    options.UseNpgsql(builder.ConnectionString, npgsql =>
     {
         // CRITICAL: Each module has its own migration history table in its schema
         npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "inquiries");
+        npgsql.EnableRetryOnFailure(
+            maxRetryCount: 5,
+            maxRetryDelay: TimeSpan.FromSeconds(30),
+            errorCodesToAdd: null);
+        npgsql.CommandTimeout(30);
     });
     options.AddInterceptors(sp.GetRequiredService<TenantSaveChangesInterceptor>());
 });
+
+services.AddTenantAwareScopedContext<InquiriesDbContext>();
 ```
 
-### 3. Auto-Migration at Startup
+The same `MigrationsHistoryTable(..., "<schema>")` call is repeated in
+`api/src/Wallow.MigrationService/Program.cs` — that project registers every DbContext
+independently, so the two registrations must agree on the schema name.
 
-In `{Module}ModuleExtensions.cs`, migrations run automatically:
+### 3. Where Migrations Run
+
+Module initialization (`InitializeInquiriesModuleAsync` and its siblings) does **not** migrate —
+those methods are effectively no-ops today. Migration is the job of `Wallow.MigrationService`.
+
+`InitializeWallowModulesAsync` in `api/src/Wallow.Api/WallowModules.cs` has exactly one
+in-process migration path, guarded by the environment:
 
 ```csharp
-public static async Task<WebApplication> UseInquiriesModuleAsync(this WebApplication app)
+// In Testing environment, run EF Core migrations inline since the separate
+// MigrationService (used in production/Aspire) is not available. The test factory
+// spins up a fresh Postgres container with no schema.
+if (app.Environment.IsEnvironment("Testing"))
 {
-    try
-    {
-        using var scope = app.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<InquiriesDbContext>();
-
-        // Apply any pending migrations
-        await db.Database.MigrateAsync();
-    }
-    catch (Exception ex)
-    {
-        var logger = app.Services.GetRequiredService<ILoggerFactory>()
-            .CreateLogger("InquiriesModule");
-        logger.LogWarning(ex, "Inquiries module startup failed.");
-    }
-    return app;
+    await RunTestMigrationsAsync(app.Services);
 }
 ```
 
-### 4. Design-Time Factory
+`RunTestMigrationsAsync` migrates the core contexts sequentially (`IdentityDbContext`,
+`AuditDbContext`, `AuthAuditDbContext` — Identity's schema must exist before seeding), then
+migrates each feature context in parallel, skipping any whose module is disabled and therefore
+not registered in DI. Outside the `Testing` environment nothing in the API touches
+`Database.MigrateAsync()`.
 
-For `dotnet ef` CLI commands to work, each module needs a **design-time factory**:
+### 4. The Migration Service
+
+`api/src/Wallow.MigrationService/` is a worker project (`Microsoft.NET.Sdk.Worker`) that:
+
+1. Reads the `DefaultConnection` connection string and throws if it is missing.
+2. Registers all nine DbContexts (Identity, Audit, AuthAudit, Branding, Notifications,
+   Announcements, Storage, ApiKeys, Inquiries), each pinned to its own migration history
+   table and schema.
+3. Groups them into `CoreMigrationRunners` (Identity, Audit, AuthAudit) and
+   `FeatureMigrationRunners` (the rest).
+4. Runs `MigrationWorker`, which migrates core contexts **sequentially**, then all feature
+   contexts **in parallel** via `Task.WhenAll`, and finally calls
+   `lifetime.StopApplication()` so the process exits.
+
+Each runner is a `DbContextMigrationRunner<TContext>` that resolves the context from a fresh
+scope and calls `Database.MigrateAsync(cancellationToken)`.
+
+Under Aspire (`pnpm backend` / `dotnet run --project api/src/Wallow.AppHost`) the ordering is
+wired explicitly in `api/src/Wallow.AppHost/Program.cs`:
 
 ```csharp
-public class InquiriesDbContextFactory : IDesignTimeDbContextFactory<InquiriesDbContext>
+IResourceBuilder<ProjectResource> migrations = builder.AddProject<Projects.Wallow_MigrationService>("wallow-migrations")
+    .WithReference(postgres, connectionName: "DefaultConnection")
+    .WaitFor(postgres);
+
+IResourceBuilder<ProjectResource> seeder = builder.AddProject<Projects.Wallow_SeederService>("wallow-seeder")
+    .WithReference(postgres, connectionName: "DefaultConnection")
+    .WaitForCompletion(migrations);
+```
+
+The API in turn uses `.WaitForCompletion(seeder)`, so the chain is
+Postgres → migrations → seeder → API.
+
+### 5. Design-Time Factory
+
+For `dotnet ef` CLI commands to work, each module needs an `IDesignTimeDbContextFactory<T>`.
+The real implementations take no tenant context — `TenantAwareDbContext` defaults its tenant
+to `default` and query filters are irrelevant at design time:
+
+```csharp
+public sealed class InquiriesDbContextFactory : IDesignTimeDbContextFactory<InquiriesDbContext>
 {
     public InquiriesDbContext CreateDbContext(string[] args)
     {
-        var optionsBuilder = new DbContextOptionsBuilder<InquiriesDbContext>();
+        DbContextOptionsBuilder<InquiriesDbContext> optionsBuilder = new();
 
-        // Hardcoded connection for design-time
+        string password = Environment.GetEnvironmentVariable("WALLOW_DB_PASSWORD") ?? "wallow";
         optionsBuilder.UseNpgsql(
-            "Host=localhost;Database=wallow;Username=postgres;Password=postgres");
+            $"Host=localhost;Database=wallow;Username=wallow;Password={password}",
+            npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "inquiries"));
 
-        // Mock tenant context (required by DbContext constructor)
-        var mockTenantContext = new DesignTimeTenantContext();
-
-        return new InquiriesDbContext(optionsBuilder.Options, mockTenantContext);
+        return new InquiriesDbContext(optionsBuilder.Options);
     }
 }
 ```
 
-### 5. Design-Time Tenant Context
-
-A mock `ITenantContext` for design-time operations:
-
-```csharp
-internal sealed class DesignTimeTenantContext : ITenantContext
-{
-    public TenantId TenantId => new(Guid.Parse("00000000-0000-0000-0000-000000000000"));
-    public string TenantName => "design-time";
-    public bool IsResolved => true;
-
-    public void SetTenant(TenantId tenantId, string tenantName = "") { }
-    public void Clear() { }
-}
-```
+Override the local password with the `WALLOW_DB_PASSWORD` environment variable when your dev
+Postgres does not use the default credentials.
 
 ## Creating Migrations
 
@@ -174,7 +211,6 @@ dotnet ef migrations add AddSubmissionStatusField \
 | Identity | `identity` | Yes | Yes |
 | Storage | `storage` | Yes | Yes |
 | Notifications | `notifications` | Yes | Yes |
-| Messaging | `messaging` | Yes | Yes |
 | Announcements | `announcements` | Yes | Yes |
 | Inquiries | `inquiries` | Yes | Yes |
 | ApiKeys | `apikeys` | Yes | Yes |
@@ -184,7 +220,8 @@ dotnet ef migrations add AddSubmissionStatusField \
 
 | Context | Schema | Has Migrations | Notes |
 |---------|--------|----------------|-------|
-| AuditDbContext | `audit` | Yes | Audit interceptor in Shared.Infrastructure.Core |
+| AuditDbContext | `audit` | Yes | Audit interceptor in `Wallow.Shared.Infrastructure.Core` |
+| AuthAuditDbContext | `auth_audit` | Yes | Authentication audit trail |
 
 ## Troubleshooting
 
@@ -197,54 +234,82 @@ The schema was created by `EnsureCreatedAsync()` but now you're trying to run mi
 
 Missing migrations folder or migration history table:
 - Run `dotnet ef migrations add InitialCreate` to generate migrations
-- Ensure `MigrationsHistoryTable()` is configured in DI registration
+- Ensure `MigrationsHistoryTable()` is configured in **both** the module's DI registration and
+  `Wallow.MigrationService/Program.cs`
 
 ### "Could not load type for DbContext"
 
 Missing `IDesignTimeDbContextFactory`:
-- Create a factory class implementing `IDesignTimeDbContextFactory<TContext>`
+- Create a factory class implementing `IDesignTimeDbContextFactory<TContext>` next to the
+  DbContext, following `InquiriesDbContextFactory`
 
-### "ITenantContext not resolved"
+### A new DbContext never gets migrated
 
-Missing design-time tenant context:
-- Create `DesignTimeTenantContext` implementing `ITenantContext`
-- Use it in your `DbContextFactory`
+`Wallow.MigrationService` has no reflection-based discovery. Adding a module means editing
+`api/src/Wallow.MigrationService/Program.cs` to register the DbContext, add a
+`DbContextMigrationRunner<T>` to `FeatureMigrationRunners`, and add a `ProjectReference` to the
+module's Infrastructure project in `Wallow.MigrationService.csproj`.
 
 ## Production Migrations
 
-In production and staging, migrations are **not** applied by the application at startup. Instead, a dedicated **init container** runs migration bundles before the app services start.
+In production and staging, migrations are **not** applied by the application. The
+`wallow-migrations` container runs `Wallow.MigrationService` to completion before the app
+services start; app services depend on it with `condition: service_completed_successfully`.
 
-### How It Works
+### How the Image Is Built
 
-The `Dockerfile` has a `migrations-runner` build target that:
+There is **no Dockerfile** for the migration service. The image comes from the .NET SDK's
+built-in container support — `Wallow.MigrationService.csproj` declares:
 
-1. Installs `dotnet-ef` tools in the SDK image
-2. Generates an EF Core migration bundle for each module DbContext
-3. Packages them with a runner script into a lightweight runtime image
+```xml
+<ContainerRepository>wallow-migrations</ContainerRepository>
+<ContainerBaseImage>mcr.microsoft.com/dotnet/aspnet:10.0</ContainerBaseImage>
+```
 
-The `wallow-migrations` service in docker-compose runs this image as an init container. App services depend on it with `condition: service_completed_successfully`.
+and `.github/workflows/deploy.yml` publishes it directly:
+
+```bash
+dotnet publish api/src/Wallow.MigrationService/Wallow.MigrationService.csproj \
+    -c Release --no-build /t:PublishContainer \
+    -p:ContainerImageTag=test \
+    -p:ContainerRuntimeIdentifier=linux-x64
+```
+
+The workflow repeats this for `linux-arm64`, then tags and pushes both architectures to
+`ghcr.io/<owner>/<repo>-migrations` and joins them into a multi-arch manifest.
 
 ### Environments
 
 | Environment | Migration Strategy |
 |-------------|-------------------|
-| Development (`dotnet run`) | Auto-migrate at startup via `MigrateAsync()` |
-| Testing (Testcontainers) | Auto-migrate at startup via `MigrateAsync()` |
-| E2E (`docker-compose.test.yml`) | Init container (`wallow-migrations`) |
-| Staging | Init container (`wallow-migrations`) |
-| Production | Init container (`wallow-migrations`) |
+| Development (Aspire, `pnpm backend`) | `wallow-migrations` project resource; seeder and API wait for its completion |
+| Development (`dotnet run --project api/src/Wallow.Api` alone) | None — run `Wallow.MigrationService` or `dotnet ef database update` yourself |
+| Testing (Testcontainers) | Inline `RunTestMigrationsAsync` in `WallowModules` |
+| E2E (`docker-compose.test.yml`) | `wallow-migrations` service (`service_completed_successfully`) |
+| Staging / Production | `wallow-migrations` service (`service_completed_successfully`) |
 
 ### Building the Migration Image Locally
 
 ```bash
-docker build --target migrations-runner -t wallow-migrations:local .
+dotnet publish api/src/Wallow.MigrationService/Wallow.MigrationService.csproj \
+    -c Release /t:PublishContainer \
+    -p:ContainerImageTag=local
 ```
 
 ### Running Migrations Manually
 
+The service reads the standard ASP.NET Core configuration key `ConnectionStrings:DefaultConnection`,
+so the environment variable is `ConnectionStrings__DefaultConnection`:
+
 ```bash
 docker run --rm --network wallow \
-    -e CONNECTION_STRING="Host=localhost;Port=5432;Database=wallow;Username=postgres;Password=postgres" \
+    -e ConnectionStrings__DefaultConnection="Host=postgres;Port=5432;Database=wallow;Username=wallow;Password=wallow" \
     wallow-migrations:local
 ```
 
+Or without containers:
+
+```bash
+ConnectionStrings__DefaultConnection="Host=localhost;Port=5432;Database=wallow;Username=wallow;Password=wallow" \
+    dotnet run --project api/src/Wallow.MigrationService
+```

@@ -26,11 +26,6 @@ public static class ScopePermissionMapper
             "apikeys.write" => PermissionType.ApiKeysUpdate,
             "apikeys.manage" => PermissionType.ApiKeyManage,
 
-            // Identity - SSO/SCIM
-            "sso.read" => PermissionType.SsoRead,
-            "sso.manage" => PermissionType.SsoManage,
-            "scim.manage" => PermissionType.ScimManage,
-
             // Storage
             "storage.read" => PermissionType.StorageRead,
             "storage.write" => PermissionType.StorageWrite,

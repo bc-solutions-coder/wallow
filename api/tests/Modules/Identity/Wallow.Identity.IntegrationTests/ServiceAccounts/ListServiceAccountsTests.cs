@@ -31,7 +31,7 @@ public class ListServiceAccountsTests(ServiceAccountTestFactory factory) : Servi
         CreateServiceAccountRequest request = new("API List Test", "Test account", _invoicesReadScope);
         await ServiceAccountService.CreateAsync(request);
 
-        HttpResponseMessage response = await Client.GetAsync("/identity/service-accounts");
+        HttpResponseMessage response = await Client.GetAsync("/identity/clients/service-accounts");
 
         response.IsSuccessStatusCode.Should().BeTrue();
         List<ServiceAccountDto>? accounts = await response.Content.ReadFromJsonAsync<List<ServiceAccountDto>>();
@@ -50,7 +50,7 @@ public class ListServiceAccountsTests(ServiceAccountTestFactory factory) : Servi
         clientForTenantB.DefaultRequestHeaders.Add("Authorization", "Bearer test-token");
         clientForTenantB.DefaultRequestHeaders.Add("X-Tenant-Id", differentTenantId.ToString());
 
-        HttpResponseMessage response = await clientForTenantB.GetAsync("/identity/service-accounts");
+        HttpResponseMessage response = await clientForTenantB.GetAsync("/identity/clients/service-accounts");
         List<ServiceAccountDto>? accounts = await response.Content.ReadFromJsonAsync<List<ServiceAccountDto>>();
 
         accounts.Should().NotBeNull();
@@ -64,7 +64,7 @@ public class ListServiceAccountsTests(ServiceAccountTestFactory factory) : Servi
         client.DefaultRequestHeaders.Add("Authorization", "Bearer test-token");
         client.DefaultRequestHeaders.Add("X-Test-User-Id", Guid.NewGuid().ToString());
 
-        HttpResponseMessage response = await client.GetAsync("/identity/service-accounts");
+        HttpResponseMessage response = await client.GetAsync("/identity/clients/service-accounts");
         List<ServiceAccountDto>? accounts = await response.Content.ReadFromJsonAsync<List<ServiceAccountDto>>();
 
         accounts.Should().NotBeNull();

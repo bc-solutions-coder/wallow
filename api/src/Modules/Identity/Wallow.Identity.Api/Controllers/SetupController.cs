@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Mvc;
 using Wallow.Identity.Api.Contracts.Requests;
 using Wallow.Identity.Api.Contracts.Responses;
 using Wallow.Identity.Application.Commands.BootstrapAdmin;
-using Wallow.Identity.Application.Commands.RegisterSetupClient;
 using Wallow.Identity.Application.Queries.IsSetupRequired;
 using Wallow.Shared.Kernel.Results;
 using Wolverine;
@@ -56,32 +55,6 @@ public class SetupController(IMessageBus messageBus) : ControllerBase
         }
 
         return NoContent();
-    }
-
-    [HttpPost("clients")]
-    [ProducesResponseType(typeof(RegisterSetupClientResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status409Conflict)]
-    public async Task<ActionResult<RegisterSetupClientResponse>> RegisterClient(
-        [FromBody] RegisterSetupClientRequest request,
-        CancellationToken ct)
-    {
-        bool setupRequired = await messageBus.InvokeAsync<bool>(new IsSetupRequiredQuery(), ct);
-        if (!setupRequired)
-        {
-            return Conflict("Setup has already been completed.");
-        }
-
-        RegisterSetupClientCommand command = new(request.ClientId, request.RedirectUris);
-
-        Result<RegisterSetupClientResult> result =
-            await messageBus.InvokeAsync<Result<RegisterSetupClientResult>>(command, ct);
-
-        if (result.IsFailure)
-        {
-            return Conflict(result.Error.Message);
-        }
-
-        return Ok(new RegisterSetupClientResponse(request.ClientId, result.Value.ClientSecret));
     }
 
     [HttpPost("complete")]

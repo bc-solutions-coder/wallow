@@ -39,7 +39,7 @@ public class CreateServiceAccountTests(ServiceAccountTestFactory factory) : Serv
             scopes = _invoicesReadScope
         };
 
-        HttpResponseMessage response = await Client.PostAsJsonAsync("/identity/service-accounts", apiRequest);
+        HttpResponseMessage response = await Client.PostAsJsonAsync("/identity/clients/service-accounts", apiRequest);
 
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         ServiceAccountCreatedResponse? content = await response.Content.ReadFromJsonAsync<ServiceAccountCreatedResponse>();

@@ -144,7 +144,7 @@ public class AccountControllerExternalLoginTests
     {
         _authSchemeProvider.GetSchemeAsync("Google")
             .Returns(new AuthenticationScheme("Google", "Google", typeof(IAuthenticationHandler)));
-        _redirectUriValidator.IsAllowedAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+        _redirectUriValidator.IsAllowedAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(false);
 
         IActionResult result = await _controller.ExternalLogin("Google", "http://evil.com");
@@ -189,7 +189,7 @@ public class AccountControllerExternalLoginTests
 
         OkObjectResult okResult = result.Should().BeOfType<OkObjectResult>().Subject;
         List<string> providers = okResult.Value.Should().BeOfType<List<string>>().Subject;
-        providers.Should().ContainSingle().Which.Should().Be("Test Provider");
+        providers.Should().ContainSingle().Which.Should().Be("TestProvider");
     }
 
     [Fact]
@@ -205,6 +205,117 @@ public class AccountControllerExternalLoginTests
         providers.Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task GetExternalProviders_WhenDisplayNameDiffersFromName_ReturnsSchemeName()
+    {
+        List<AuthenticationScheme> schemes = new()
+        {
+            new AuthenticationScheme("google-oidc", "Sign in with Google", typeof(IAuthenticationHandler))
+        };
+        _signInManager.GetExternalAuthenticationSchemesAsync()
+            .Returns(schemes);
+
+        IActionResult result = await _controller.GetExternalProviders();
+
+        OkObjectResult okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        List<string> providers = okResult.Value.Should().BeOfType<List<string>>().Subject;
+        providers.Should().ContainSingle().Which.Should().Be("google-oidc");
+    }
+
+    [Fact]
+    public async Task GetExternalProviders_WhenDisplayNameDiffersFromName_DoesNotReturnDisplayName()
+    {
+        List<AuthenticationScheme> schemes = new()
+        {
+            new AuthenticationScheme("google-oidc", "Sign in with Google", typeof(IAuthenticationHandler))
+        };
+        _signInManager.GetExternalAuthenticationSchemesAsync()
+            .Returns(schemes);
+
+        IActionResult result = await _controller.GetExternalProviders();
+
+        OkObjectResult okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        List<string> providers = okResult.Value.Should().BeOfType<List<string>>().Subject;
+        providers.Should().NotContain("Sign in with Google");
+    }
+
+    [Fact]
+    public async Task GetExternalProviders_WhenDisplayNameIsNull_ReturnsSchemeName()
+    {
+        List<AuthenticationScheme> schemes = new()
+        {
+            new AuthenticationScheme("google-oidc", null, typeof(IAuthenticationHandler))
+        };
+        _signInManager.GetExternalAuthenticationSchemesAsync()
+            .Returns(schemes);
+
+        IActionResult result = await _controller.GetExternalProviders();
+
+        OkObjectResult okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        List<string> providers = okResult.Value.Should().BeOfType<List<string>>().Subject;
+        providers.Should().ContainSingle().Which.Should().Be("google-oidc");
+    }
+
+    [Fact]
+    public async Task GetExternalProviders_ReturnsEverySchemeInOrder()
+    {
+        List<AuthenticationScheme> schemes = new()
+        {
+            new AuthenticationScheme("google-oidc", "Sign in with Google", typeof(IAuthenticationHandler)),
+            new AuthenticationScheme("Microsoft", "Microsoft", typeof(IAuthenticationHandler)),
+            new AuthenticationScheme("corp-saml", null, typeof(IAuthenticationHandler))
+        };
+        _signInManager.GetExternalAuthenticationSchemesAsync()
+            .Returns(schemes);
+
+        IActionResult result = await _controller.GetExternalProviders();
+
+        OkObjectResult okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        List<string> providers = okResult.Value.Should().BeOfType<List<string>>().Subject;
+        providers.Should().Equal("google-oidc", "Microsoft", "corp-saml");
+    }
+
+    [Fact]
+    public async Task GetExternalProviders_ReturnedProvider_IsAcceptedByExternalLogin()
+    {
+        AuthenticationScheme scheme = new("google-oidc", "Sign in with Google", typeof(IAuthenticationHandler));
+        _signInManager.GetExternalAuthenticationSchemesAsync()
+            .Returns(new List<AuthenticationScheme> { scheme });
+
+        // ExternalLogin resolves the provider by scheme NAME, so only the name resolves.
+        _authSchemeProvider.GetSchemeAsync("google-oidc").Returns(scheme);
+        _authSchemeProvider.GetSchemeAsync("Sign in with Google").Returns((AuthenticationScheme?)null);
+        _redirectUriValidator.IsAllowedAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
+            .Returns(true);
+
+        IActionResult listResult = await _controller.GetExternalProviders();
+        List<string> providers = ((OkObjectResult)listResult).Value.Should().BeOfType<List<string>>().Subject;
+
+        IActionResult loginResult = await _controller.ExternalLogin(providers[0], "http://localhost:5002");
+
+        loginResult.Should().BeOfType<ChallengeResult>();
+    }
+
+    [Fact]
+    public async Task GetExternalProviders_ReturnedProvider_IsNotRejectedAsUnsupportedProvider()
+    {
+        AuthenticationScheme scheme = new("google-oidc", "Sign in with Google", typeof(IAuthenticationHandler));
+        _signInManager.GetExternalAuthenticationSchemesAsync()
+            .Returns(new List<AuthenticationScheme> { scheme });
+
+        _authSchemeProvider.GetSchemeAsync("google-oidc").Returns(scheme);
+        _authSchemeProvider.GetSchemeAsync("Sign in with Google").Returns((AuthenticationScheme?)null);
+        _redirectUriValidator.IsAllowedAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
+            .Returns(true);
+
+        IActionResult listResult = await _controller.GetExternalProviders();
+        List<string> providers = ((OkObjectResult)listResult).Value.Should().BeOfType<List<string>>().Subject;
+
+        IActionResult loginResult = await _controller.ExternalLogin(providers[0], "http://localhost:5002");
+
+        loginResult.Should().NotBeOfType<BadRequestObjectResult>();
+    }
+
     #region ExternalLoginCallback - MFA Enforcement
 
     [Fact]
@@ -216,7 +327,7 @@ public class AccountControllerExternalLoginTests
         _signInManager.ExternalLoginSignInAsync("Google", "provider-key-123", false, true)
             .Returns(Microsoft.AspNetCore.Identity.SignInResult.Success);
         _userManager.FindByEmailAsync("test@example.com").Returns(user);
-        _redirectUriValidator.IsAllowedAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(true);
+        _redirectUriValidator.IsAllowedAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns(true);
         _mfaExemptionChecker.IsExemptAsync(user, Arg.Any<CancellationToken>()).Returns(false);
 
         IActionResult result = await _controller.ExternalLoginCallback("http://localhost:5002");
@@ -241,7 +352,7 @@ public class AccountControllerExternalLoginTests
         _signInManager.ExternalLoginSignInAsync("Google", "provider-key-123", false, true)
             .Returns(Microsoft.AspNetCore.Identity.SignInResult.Success);
         _userManager.FindByEmailAsync("test@example.com").Returns(user);
-        _redirectUriValidator.IsAllowedAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(true);
+        _redirectUriValidator.IsAllowedAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns(true);
         _orgMfaPolicyService.CheckAsync(user.Id, Arg.Any<CancellationToken>())
             .Returns(new OrgMfaPolicyResult(false, false));
 
@@ -285,7 +396,7 @@ public class AccountControllerExternalLoginTests
         _userManager.AddLoginAsync(Arg.Any<WallowUser>(), Arg.Any<UserLoginInfo>())
             .Returns(IdentityResult.Success);
 
-        _redirectUriValidator.IsAllowedAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(true);
+        _redirectUriValidator.IsAllowedAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns(true);
 
         // Org requires MFA
         _orgMfaPolicyService.CheckAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())

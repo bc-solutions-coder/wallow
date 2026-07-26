@@ -71,7 +71,6 @@ public class WallowApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         string redisConnection = _redis.GetConnectionString() + ",allowAdmin=true";
         Environment.SetEnvironmentVariable("ConnectionStrings__DefaultConnection", _postgres.GetConnectionString());
         Environment.SetEnvironmentVariable("ConnectionStrings__Redis", redisConnection);
-        Environment.SetEnvironmentVariable("Elsa__Identity__SigningKey", "wallow-test-elsa-signing-key-for-testing-only");
 
         // Generate ephemeral self-signed certificates for OpenIddict so the
         // non-development code path in IdentityInfrastructureExtensions doesn't throw.
@@ -88,7 +87,7 @@ public class WallowApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     {
         Console.WriteLine("[WallowApiFactory] DisposeAsync called");
 
-        // Stop the host gracefully to allow background services (e.g., Wolverine, Elsa)
+        // Stop the host gracefully to allow background services (e.g., Wolverine)
         // to shut down before containers are disposed
         try
         {
@@ -117,7 +116,6 @@ public class WallowApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         // Clear environment variables set in InitializeAsync
         Environment.SetEnvironmentVariable("ConnectionStrings__DefaultConnection", null);
         Environment.SetEnvironmentVariable("ConnectionStrings__Redis", null);
-        Environment.SetEnvironmentVariable("Elsa__Identity__SigningKey", null);
         Environment.SetEnvironmentVariable("OpenIddict__SigningCertPath", null);
         Environment.SetEnvironmentVariable("OpenIddict__SigningCertPassword", null);
         Environment.SetEnvironmentVariable("OpenIddict__EncryptionCertPath", null);
@@ -184,7 +182,6 @@ public class WallowApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
             {
                 ["ConnectionStrings:DefaultConnection"] = _postgres.GetConnectionString(),
                 ["ConnectionStrings:Redis"] = redisConnection,
-                ["Elsa:Identity:SigningKey"] = "wallow-test-elsa-signing-key-for-testing-only",
                 ["OpenIddict:SigningCertPath"] = _signingCertPath,
                 ["OpenIddict:SigningCertPassword"] = "test",
                 ["OpenIddict:EncryptionCertPath"] = _encryptionCertPath,

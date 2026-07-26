@@ -39,7 +39,6 @@ public class RolePermissionMappingTests
         result.Should().Contain(PermissionType.OrganizationsRead);
         result.Should().Contain(PermissionType.OrganizationsManageMembers);
         result.Should().Contain(PermissionType.ApiKeysCreate);
-        result.Should().Contain(PermissionType.SsoRead);
         result.Should().NotContain(PermissionType.UsersCreate);
         result.Should().NotContain(PermissionType.AdminAccess);
     }

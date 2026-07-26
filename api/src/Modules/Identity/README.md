@@ -13,8 +13,6 @@ The module provides:
 - Multi-tenancy support enabling tenant isolation across all modules
 - Service account lifecycle management (OpenIddict client credentials)
 - Developer app registration (OpenIddict authorization code applications)
-- Enterprise SSO federation (SAML 2.0 and OIDC)
-- SCIM 2.0 provisioning for enterprise identity provider integration
 - API key management for simple service-to-service authentication
 
 ## Key Features
@@ -46,18 +44,6 @@ The module provides:
 - **OpenIddict Authorization Code**: Developer applications via `OpenIddictDeveloperAppService`
 - **Client ID Prefix**: Developer app client IDs prefixed with `app-`
 
-### Enterprise SSO
-- **SAML 2.0**: Support for enterprise SAML identity providers
-- **OIDC**: Support for enterprise OIDC providers (Okta, Azure AD, etc.)
-- **User Provisioning**: Auto-create users on first SSO login with configurable default roles
-- **SSO Secrets**: Encrypted via `IDataProtectionProvider`
-
-### SCIM Provisioning
-- **SCIM 2.0 Compliant**: RFC 7644 implementation for enterprise provisioning
-- **User Lifecycle**: Create, update, deactivate, delete users via SCIM
-- **Group Management**: SCIM group resources mapped to roles
-- **Sync Logging**: Full audit trail of all SCIM operations
-
 ## Architecture
 
 ### Clean Architecture Layers
@@ -88,9 +74,6 @@ The following middleware executes in strict order:
 - **Organization** - Represents a tenant organization
 - **ApiScope** - System-defined OAuth2 scopes assignable to service accounts
 - **ServiceAccountMetadata** - Local reference to an OpenIddict service account application with usage tracking
-- **SsoConfiguration** - Enterprise SSO identity provider configuration per tenant
-- **ScimConfiguration** - SCIM 2.0 provisioning configuration per tenant
-- **ScimSyncLog** - Audit log of SCIM provisioning operations
 
 ## Commands and Queries
 
@@ -204,40 +187,6 @@ None. Identity is a source module, not a consumer.
 | Method | Endpoint | Description | Permission |
 |--------|----------|-------------|------------|
 | GET | `/` | List available scopes | Authenticated |
-
-### SSO (`/api/sso`)
-
-| Method | Endpoint | Description | Permission |
-|--------|----------|-------------|------------|
-| GET | `/` | Get SSO configuration | SsoRead |
-| POST | `/saml` | Configure SAML SSO | SsoManage |
-| POST | `/oidc` | Configure OIDC SSO | SsoManage |
-| POST | `/test` | Test SSO connection | SsoManage |
-| POST | `/activate` | Activate SSO | SsoManage |
-| POST | `/disable` | Disable SSO | SsoManage |
-| GET | `/saml/metadata` | Get SAML SP metadata XML | SsoRead |
-| GET | `/oidc/callback-info` | Get OIDC callback URLs | SsoRead |
-| POST | `/validate` | Validate IdP configuration | SsoManage |
-
-### SCIM (`/scim/v2`)
-
-SCIM 2.0 endpoints use Bearer token authentication (not OAuth):
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/Users` | List users |
-| GET | `/Users/{id}` | Get user |
-| POST | `/Users` | Create user |
-| PUT | `/Users/{id}` | Replace user |
-| PATCH | `/Users/{id}` | Partial update user |
-| DELETE | `/Users/{id}` | Delete user |
-| GET | `/Groups` | List groups |
-| POST | `/Groups` | Create group |
-| PUT | `/Groups/{id}` | Replace group |
-| DELETE | `/Groups/{id}` | Delete group |
-| GET | `/ServiceProviderConfig` | SCIM capabilities |
-| GET | `/Schemas` | SCIM schemas |
-| GET | `/ResourceTypes` | Available resource types |
 
 ## Configuration
 

@@ -17,68 +17,69 @@ This section documents all configuration sections used by Wallow. See the "Quick
 
 ### Branding
 
-Branding controls the user-facing identity of auth pages (login, register, password reset) and web layouts. Configuration is loaded from `branding.json` in the repository root.
+Branding controls the user-facing identity of the React apps -- auth screens (login, register, password reset), the dashboard shell, and the document head. It is **not** an `appsettings.json` section: it lives in its own file, **`api/branding.json`**.
 
-**BrandingOptions properties:**
+That file is the single source of fork identity. `packages/styles` (`@bc-solutions-coder/styles`, `src/branding.ts`) owns the canonical schema, imports `api/branding.json` statically at build time, and emits the color tokens as CSS custom properties. Both React apps (`apps/wallow-auth`, `apps/wallow-web`) consume it from there, so rebranding a fork needs no source changes -- just edit the JSON.
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `AppName` | `string` | `"Wallow"` | Application name shown in page titles and headers |
-| `AppIcon` | `string` | `"piggy-icon.svg"` | Icon filename (served from `wwwroot`) |
-| `Tagline` | `string` | `"Wallow in it"` | Tagline shown on auth pages |
-| `RepositoryUrl` | `string` | `""` | Link to source repository |
-| `Theme` | `ThemeOptions` | see below | Light/dark theme color tokens |
+**Top-level keys:**
 
-**ThemeOptions:**
+| Key | Type | Description |
+|-----|------|-------------|
+| `appName` | `string` | Product name shown in page titles, headings, and the landing page |
+| `appIcon` | `string` | Brand asset reference. A bare filename (`"piggy-icon.svg"`) is resolved to a root-relative URL so it loads from any route depth |
+| `tagline` | `string` | Sub-heading shown under the app name |
+| `landingPage` | `object` | `{ "enabled": boolean }` -- see below |
+| `theme` | `object` | `defaultMode` plus the `light` and `dark` color sets |
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `DefaultMode` | `string` | `"dark"` | Initial theme: `"light"` or `"dark"` |
-| `Light` | `ThemeColorSet` | - | OKLCH color tokens for light mode |
-| `Dark` | `ThemeColorSet` | - | OKLCH color tokens for dark mode |
+**`landingPage.enabled`** gates the public marketing page at `/` in `apps/wallow-web`. When `true`, an unauthenticated visitor sees the landing page. When `false`, they are sent straight to the BFF login (a forced OIDC challenge). Authenticated visitors are redirected to the dashboard either way.
 
-**ThemeColorSet tokens** (all use OKLCH color format):
+**`theme`:**
 
-`Background`, `Foreground`, `Card`, `CardForeground`, `Popover`, `PopoverForeground`, `Primary`, `PrimaryForeground`, `Secondary`, `SecondaryForeground`, `Muted`, `MutedForeground`, `Accent`, `AccentForeground`, `Destructive`, `DestructiveForeground`, `Border`, `Input`, `Ring`, `Radius`
+| Key | Type | Description |
+|-----|------|-------------|
+| `defaultMode` | `string` | Color scheme applied when the document does not pick one: `"light"` or `"dark"` |
+| `light` | `object` | Color tokens for light mode |
+| `dark` | `object` | Color tokens for dark mode |
 
-**Config keys** (environment variable format):
+Each color set is a map of camelCase token names to CSS values. The tokens the shipped `api/branding.json` defines are:
 
-```bash
-Branding__AppName="MyProduct"
-Branding__AppIcon="my-icon.svg"
-Branding__Tagline="Your tagline"
-Branding__RepositoryUrl="https://github.com/your-org/your-repo"
-Branding__Theme__DefaultMode="light"
-Branding__Theme__Light__Primary="oklch(0.55 0.15 250)"
-Branding__Theme__Dark__Primary="oklch(0.65 0.15 250)"
-```
+`background`, `foreground`, `card`, `cardForeground`, `popover`, `popoverForeground`, `primary`, `primaryForeground`, `secondary`, `secondaryForeground`, `muted`, `mutedForeground`, `accent`, `accentForeground`, `destructive`, `destructiveForeground`, `border`, `input`, `ring`, `radius`
 
-**branding.json** (located at repository root):
+All except `radius` are OKLCH colors; `radius` is a CSS length (`0.5rem`). The map is open-ended -- unknown keys are passed through as CSS custom properties, so a fork can add its own tokens.
+
+**Example `api/branding.json`:**
 
 ```json
 {
   "appName": "YourProduct",
   "appIcon": "your-icon.svg",
   "tagline": "Your tagline here",
+  "landingPage": {
+    "enabled": true
+  },
   "theme": {
     "defaultMode": "dark",
     "light": {
       "primary": "oklch(0.52 0.12 45)",
       "primaryForeground": "oklch(0.96 0.01 60)",
       "background": "oklch(0.96 0.01 60)",
-      "foreground": "oklch(0.20 0.03 55)"
+      "foreground": "oklch(0.20 0.03 55)",
+      "radius": "0.5rem"
     },
     "dark": {
       "primary": "oklch(0.62 0.13 45)",
       "primaryForeground": "oklch(0.14 0.015 50)",
       "background": "oklch(0.16 0.02 50)",
-      "foreground": "oklch(0.88 0.02 55)"
+      "foreground": "oklch(0.88 0.02 55)",
+      "radius": "0.5rem"
     }
   }
 }
 ```
 
-Both `Wallow.Auth` and `Wallow.Web` load `branding.json` at startup and bind it to `BrandingOptions`. The Auth boundary is the canonical owner; the Web boundary has a local copy of the options class. Color tokens are injected as CSS custom properties via the `BrandingTheme.razor` component.
+Because `api/branding.json` is imported at build time rather than read at runtime, changing it requires rebuilding (or restarting the dev server for) the frontends. There is no environment-variable override for these values.
+
+Per-OAuth-client branding is a separate, runtime concern: the Branding module serves `GET /v1/identity/apps/{clientId}/branding`, and a client's display name, tagline, logo, and theme are overlaid on top of the fork's when a `client_id` is present.
 
 ### Session Limits
 
@@ -210,11 +211,11 @@ The confirmation URL is constructed using the `AuthUrl` configuration key:
 }
 ```
 
-The `Wallow.Auth` app must serve the `/confirm-email-change` route. This page reads the `token`, `userId`, and `newEmail` query parameters and calls the confirm endpoint on the API to finalize the change.
+The auth app (`apps/wallow-auth`) must serve the email-change confirmation route. This page reads the `token`, `userId`, and `newEmail` query parameters and calls the confirm endpoint on the API to finalize the change.
 
 | Config Key | Required | Description |
 |------------|----------|-------------|
-| `AuthUrl` | Yes | Base URL of the `Wallow.Auth` app. Used to build the confirmation link sent to the user. |
+| `AuthUrl` | Yes | Base URL of the auth app (`apps/wallow-auth`). Used to build the confirmation link sent to the user. |
 
 ---
 
@@ -234,19 +235,13 @@ The `Wallow.Auth` app must serve the `/confirm-email-change` route. This page re
 | `DefaultConnection` | PostgreSQL connection string | `ConnectionStrings__DefaultConnection` |
 | `Redis` | Redis/Valkey connection string for caching and SignalR backplane | `ConnectionStrings__Redis` |
 
-### CORS
+### Why there is no CORS configuration
 
-```json
-{
-  "Cors": {
-    "AllowedOrigins": ["http://localhost:3000", "http://localhost:5173"]
-  }
-}
-```
+Wallow has no `Cors` configuration section, and the API calls neither `AddCors` nor `UseCors`. This is deliberate: the frontends use the **same-origin BFF pattern**. The browser only ever talks to its own origin, and each React app's server side proxies to the API and holds the token. No cross-origin browser request to the API is made, so there is nothing for CORS to permit.
 
-| Key | Description |
-|-----|-------------|
-| `AllowedOrigins` | Array of allowed CORS origins for API requests |
+If you add a genuinely cross-origin client to your fork, you are adding a new deployment shape rather than filling in an existing setting -- wire up ASP.NET Core CORS yourself and treat the allowed origins as fork-owned configuration.
+
+Redirect URIs are a separate mechanism: OIDC clients register their own redirect URIs, which `OpenIddictRedirectUriValidator` validates per client. Those are not CORS origins.
 
 ### SMTP (Email)
 
@@ -578,10 +573,6 @@ export Storage__S3__BucketName="my-production-bucket"
 # OpenTelemetry
 export OpenTelemetry__ServiceName="Wallow"
 export OpenTelemetry__OtlpGrpcEndpoint="http://otel-collector:4317"
-
-# CORS
-export Cors__AllowedOrigins__0="https://app.example.com"
-export Cors__AllowedOrigins__1="https://admin.example.com"
 ```
 
 ### Docker/Kubernetes

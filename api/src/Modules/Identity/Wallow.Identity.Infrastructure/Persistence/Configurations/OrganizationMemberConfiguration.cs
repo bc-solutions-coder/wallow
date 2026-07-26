@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Domain.Enums;
 
 namespace Wallow.Identity.Infrastructure.Persistence.Configurations;
 
@@ -18,7 +20,8 @@ public sealed class OrganizationMemberConfiguration : IEntityTypeConfiguration<O
 
         builder.Property(e => e.Role)
             .HasColumnName("role")
-            .HasMaxLength(100)
+            .HasConversion(new EnumToStringConverter<OrgMemberRole>())
+            .HasMaxLength(50)
             .IsRequired();
 
         builder.HasIndex("organization_id", nameof(OrganizationMember.UserId));

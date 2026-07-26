@@ -29,8 +29,6 @@ public class HasPermissionAttributeTests
     [InlineData(PermissionType.OrganizationsRead)]
     [InlineData(PermissionType.OrganizationsCreate)]
     [InlineData(PermissionType.OrganizationsManageMembers)]
-    [InlineData(PermissionType.SsoRead)]
-    [InlineData(PermissionType.SsoManage)]
     [InlineData(PermissionType.ApiKeysRead)]
     [InlineData(PermissionType.ApiKeysCreate)]
     [InlineData(PermissionType.ApiKeysUpdate)]

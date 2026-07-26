@@ -62,7 +62,7 @@ dotnet run --project api/src/Wallow.Web       # Web UI     → http://localhost:
 
 ```bash
 ./scripts/run-tests.sh                    # all tests
-./scripts/run-tests.sh billing            # single module
+./scripts/run-tests.sh identity           # single module
 ```
 
 > See [Testing](docs/development/testing.md) for coverage, E2E, and CI details.
@@ -110,7 +110,6 @@ Each module follows four layers: **Domain** (no dependencies) → **Application*
 | **Observability** | Serilog structured logging, OpenTelemetry tracing, [Grafana dashboards](docs/operations/observability.md) |
 | **Audit Trail** | Automatic entity change auditing via Audit.NET |
 | **Background Jobs** | `IJobScheduler` abstraction backed by Hangfire |
-| **Workflows** | Elsa 3 engine for long-running business processes |
 
 ## Tech Stack
 
@@ -137,7 +136,7 @@ Each module follows four layers: **Domain** (no dependencies) → **Application*
 | Branches | **89.5%** (2,235 / 2,497) |
 | Methods | **96.9%** (1,735 / 1,789) |
 
-> Details: [Testing Guide](docs/development/testing.md) · [Coverage](docs/development/testing-coverage.md) · [E2E Tests](docs/development/testing-e2e.md) · [CI](docs/development/testing-ci.md)
+> Details: [Testing Guide](docs/development/testing.md) — backend suites, frontend Vitest, coverage, the Docker test stack, and CI · [E2E Tests](docs/development/testing-e2e.md)
 
 ## Configuration
 

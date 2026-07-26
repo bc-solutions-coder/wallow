@@ -14,12 +14,13 @@ you.
 
 ## Overview
 
-`@bc-solutions-coder/sdk` has two entrypoints:
+`@bc-solutions-coder/sdk` has three entrypoints:
 
-| Import | Runs in | Purpose |
-|--------|---------|---------|
-| `@bc-solutions-coder/sdk` | Browser | `login()`, `logout()`, `getUser()`, and a typed API client configured to call the same-origin `/api` proxy |
-| `@bc-solutions-coder/sdk/server` | Server (Node) | `createBffHandlers()`, `createApiProxy()`, `loadBffConfigFromEnv()` — the [h3](https://h3.unjs.io) route handlers that make up the BFF tunnel |
+| Import                           | Runs in                                             | Purpose                                                                                                                                                                                                                                                                                                  |
+| -------------------------------- | --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@bc-solutions-coder/sdk`        | Browser (also safe to import from a Node SSR entry) | `login()`, `logout()`, `getUser()`, a typed API client configured to call the same-origin `/api` proxy, the [CSRF module](#csrf-protection), the [SSR request-context seam](#ssr-request-context-for-server-rendered-loaders), and the [facade helpers](#facade-helpers-unwrap-and-createconfiguredonce) |
+| `@bc-solutions-coder/sdk/server` | Server (Node)                                       | `createBffHandlers()`, `createApiProxy()`, `loadBffConfigFromEnv()` — the [h3](https://h3.unjs.io) route handlers that make up the BFF tunnel                                                                                                                                                            |
+| `@bc-solutions-coder/sdk/query`  | Browser                                             | The TanStack Query layer — query keys plus ready-made query and mutation options for bootstrap, auth, user, organizations, apps, settings, MFA, and inquiries                                                                                                                                            |
 
 The browser never holds an access token. It holds only a sealed, `httpOnly`
 session cookie. The BFF exchanges the authorization code, stores the token set
@@ -148,9 +149,9 @@ handler. Each of `bff.login`, `bff.callback`, `bff.user`, `bff.logout`, and
 `apiProxy` is a standard `defineEventHandler` object, so it drops directly into
 any server route that accepts an h3 `EventHandler`.
 
-A minimal, framework-agnostic reference host lives in the repository at
-`apps/tanstack-min/` — it mounts exactly these
-routes on a plain h3 app and serves a static browser bundle.
+A runnable reference host lives in the repository at
+`apps/wallow-web/` — a TanStack Start app that mounts exactly these
+routes (via `src/lib/bff-server.ts`) and consumes the proxy from its dashboard.
 
 ### The `/api` proxy and silent refresh
 
@@ -171,20 +172,20 @@ Requests that arrive without a valid session receive a `401`, which the browser
 `loadBffConfigFromEnv()` reads the following variables (it throws on startup if
 any required key is missing or empty):
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `OIDC_ISSUER` | Yes | OIDC issuer base URL, e.g. `https://auth.example.com` |
-| `OIDC_CLIENT_ID` | Yes | Confidential client identifier registered with Wallow |
-| `OIDC_CLIENT_SECRET` | Yes | Confidential client secret — server-side only, never exposed |
-| `OIDC_REDIRECT_URI` | Yes | Absolute callback URL, e.g. `http://localhost:3000/bff/callback` |
-| `OIDC_POST_LOGOUT_REDIRECT_URI` | Yes | Absolute URL to land on after logout, e.g. `http://localhost:3000/` |
-| `BFF_API_BASE_URL` | Yes | Base URL of the downstream Wallow API the proxy forwards to |
-| `COOKIE_PASSWORD` | Yes | Secret (32+ chars) used to seal/unseal the session and transaction cookies |
-| `OIDC_SCOPES` | No | Space-separated scopes. Defaults to `openid profile email offline_access` |
-| `COOKIE_NAME` | No | Session cookie name. Defaults to `wallow_bff` |
-| `OIDC_METADATA_URL` | No | Server-side discovery URL, for split-horizon DNS where the issuer is reachable under different hostnames from the browser and the server. The backchannel uses its `token_endpoint`; browser-facing redirects stay pinned to the public `OIDC_ISSUER` origin. Defaults to `${OIDC_ISSUER}/.well-known/openid-configuration` |
-| `SESSION_TTL_SECONDS` | No | Lifetime of the session cookie, written as its `Max-Age`, so a stale browser cookie cannot outlive the session it references. Must be a positive whole number — a malformed value throws at startup rather than silently falling back. Defaults to `86400` (24 hours) |
-| `COOKIE_SECURE` | No | Whether the session, transaction, and CSRF cookies carry the `Secure` flag. Fails secure: only the literal `false` clears it. Set `COOKIE_SECURE=false` for plain-HTTP local development. Defaults to `true` |
+| Variable                        | Required | Description                                                                                                                                                                                                                                                                                                                 |
+| ------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OIDC_ISSUER`                   | Yes      | OIDC issuer base URL, e.g. `https://auth.example.com`                                                                                                                                                                                                                                                                       |
+| `OIDC_CLIENT_ID`                | Yes      | Confidential client identifier registered with Wallow                                                                                                                                                                                                                                                                       |
+| `OIDC_CLIENT_SECRET`            | Yes      | Confidential client secret — server-side only, never exposed                                                                                                                                                                                                                                                                |
+| `OIDC_REDIRECT_URI`             | Yes      | Absolute callback URL, e.g. `http://localhost:3000/bff/callback`                                                                                                                                                                                                                                                            |
+| `OIDC_POST_LOGOUT_REDIRECT_URI` | Yes      | Absolute URL to land on after logout, e.g. `http://localhost:3000/`                                                                                                                                                                                                                                                         |
+| `BFF_API_BASE_URL`              | Yes      | Base URL of the downstream Wallow API the proxy forwards to                                                                                                                                                                                                                                                                 |
+| `COOKIE_PASSWORD`               | Yes      | Secret (32+ chars) used to seal/unseal the session and transaction cookies                                                                                                                                                                                                                                                  |
+| `OIDC_SCOPES`                   | No       | Space-separated scopes. Defaults to `openid profile email offline_access`                                                                                                                                                                                                                                                   |
+| `COOKIE_NAME`                   | No       | Session cookie name. Defaults to `wallow_bff`                                                                                                                                                                                                                                                                               |
+| `OIDC_METADATA_URL`             | No       | Server-side discovery URL, for split-horizon DNS where the issuer is reachable under different hostnames from the browser and the server. The backchannel uses its `token_endpoint`; browser-facing redirects stay pinned to the public `OIDC_ISSUER` origin. Defaults to `${OIDC_ISSUER}/.well-known/openid-configuration` |
+| `SESSION_TTL_SECONDS`           | No       | Lifetime of the session cookie, written as its `Max-Age`, so a stale browser cookie cannot outlive the session it references. Must be a positive whole number — a malformed value throws at startup rather than silently falling back. Defaults to `86400` (24 hours)                                                       |
+| `COOKIE_SECURE`                 | No       | Whether the session, transaction, and CSRF cookies carry the `Secure` flag. Fails secure: only the literal `false` clears it. Set `COOKIE_SECURE=false` for plain-HTTP local development. Defaults to `true`                                                                                                                |
 
 > **Confidential values:** `OIDC_CLIENT_SECRET` and `COOKIE_PASSWORD` must never
 > be shipped to the browser or committed to source control. They belong in the
@@ -200,9 +201,9 @@ second argument — pass the **same instance** to both. Omitting it defaults to 
 cookie-only store built from `COOKIE_PASSWORD`, so single-argument callers keep
 working.
 
-| Store | Where the session lives | Use it when |
-|-------|------------------------|-------------|
-| `CookieSessionStore` | Sealed into the session cookie itself | Simple apps and local development — nothing extra to run |
+| Store                | Where the session lives                                                         | Use it when                                                                                                                       |
+| -------------------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `CookieSessionStore` | Sealed into the session cookie itself                                           | Simple apps and local development — nothing extra to run                                                                          |
 | `ValkeySessionStore` | In a Redis-compatible server; the cookie holds only an opaque sealed session id | Production — small cookies, server-side revocation, and a refresh lock that serializes concurrent token refreshes for one session |
 
 ```ts
@@ -248,26 +249,36 @@ The SDK uses a synchronizer token with a double-submit companion cookie:
    request. The proxy compares it against the session-bound token in constant
    time before refreshing anything or forwarding anything upstream.
 
+The SDK's `csrf` module owns this exchange on the client side, so app code
+never hand-rolls a request interceptor or reads the companion cookie itself:
+
 ```ts
-import { client, configureBffClient } from "@bc-solutions-coder/sdk";
+import {
+  client,
+  configureBffClient,
+  getUser,
+  setCsrfToken,
+  wireCsrfInterceptor,
+} from "@bc-solutions-coder/sdk";
 
 configureBffClient();
+wireCsrfInterceptor(client); // stamps x-csrf-token on every state-changing request, live
 
-function csrfToken(): string {
-  const match: RegExpMatchArray | null = document.cookie.match(
-    /(?:^|;\s*)wallow_bff-csrf=([^;]*)/,
-  );
-  return match === null ? "" : decodeURIComponent(match[1]);
-}
-
-// Attach the token to every generated operation that mutates state.
-client.interceptors.request.use((request: Request): Request => {
-  if (request.method !== "GET" && request.method !== "HEAD") {
-    request.headers.set("x-csrf-token", csrfToken());
-  }
-  return request;
-});
+const user = await getUser();
+setCsrfToken(user === null ? null : typeof user.csrfToken === "string" ? user.csrfToken : null);
 ```
+
+- `wireCsrfInterceptor(client)` registers a request interceptor exactly once:
+  it stamps the current in-memory token into `x-csrf-token` on every request
+  whose method is not CSRF-exempt, and leaves safe methods (and the
+  token-less, pre-login state) untouched. It takes any object shaped like the
+  generated client (`CsrfInterceptorClient`), not only the SDK's own `client`.
+- `setCsrfToken(token)` sets (or, with `null`, clears) the in-memory token the
+  interceptor reads live — call it once `csrfToken` comes back on the
+  `/bff/user` response, and again with `null` on logout.
+- `isSafeMethod(method)` is the RFC 9110 safe-method check
+  (`GET`/`HEAD`/`OPTIONS`) the interceptor uses internally; it is exported for
+  hosts that need the same rule outside the interceptor.
 
 Server-side the header name is exported as `CSRF_HEADER` and the rejection code
 as `CSRF_INVALID_CODE`, so a BFF host can reuse them rather than hardcode
@@ -289,12 +300,12 @@ Before forwarding, `ensureFreshSession` proactively refreshes an access token
 already inside the expiry-skew window. Beyond that, the forward itself handles
 the following, each retried at most once:
 
-| Upstream response | What the proxy does |
-|-------------------|---------------------|
+| Upstream response                                     | What the proxy does                                                           |
+| ----------------------------------------------------- | ----------------------------------------------------------------------------- |
 | `401`, or a `3xx` redirecting to the API's login page | Forces a token refresh under the store's refresh lock and replays the request |
-| `429` | Waits for `Retry-After`, bounded by `MAX_RETRY_AFTER_MS` (5s), then replays |
-| No response within `FORWARD_TIMEOUT_MS` (30s) | Returns `503` with code `NETWORK_TIMEOUT` |
-| Transport failure | Returns `503` with code `NETWORK_ERROR` |
+| `429`                                                 | Waits for `Retry-After`, bounded by `MAX_RETRY_AFTER_MS` (5s), then replays   |
+| No response within `FORWARD_TIMEOUT_MS` (30s)         | Returns `503` with code `NETWORK_TIMEOUT`                                     |
+| Transport failure                                     | Returns `503` with code `NETWORK_ERROR`                                       |
 
 ---
 
@@ -328,27 +339,74 @@ logout();
   `401` (unauthenticated), and throws on any other error. `WallowUser` always
   carries `sub` and optionally `email`/`name` plus any additional claims.
 
-### Calling module endpoints with the typed client
+### Calling module endpoints: the TanStack Query layer
 
-`configureBffClient()` points the generated Hey API client at the `/api`
-proxy with `credentials: "include"`, so every generated call rides the sealed
-session cookie and is transparently authenticated by the BFF. Import the
-generated operation functions from `@bc-solutions-coder/sdk` and call them directly — no
-token handling in the browser:
+`@bc-solutions-coder/sdk/query` is the golden path for reading and writing module data —
+`useQuery`/`useMutation` against ready-made `queryOptions`/mutation factories, keyed from one
+central registry so every call site that reads the same data shares one cache entry. Register
+the app's client configurator once at module scope with `registerQueryBootstrap`; the SDK runs
+it lazily the first time a `queryFn`/`mutationFn` actually fires (required for SSR, where the
+request context only exists inside a per-request scope):
 
 ```ts
+// src/lib/wallow-sdk.ts — module scope, once
 import { configureBffClient } from "@bc-solutions-coder/sdk";
-// import { getInquiries } from "@bc-solutions-coder/sdk"; // generated typed operation
+import { registerQueryBootstrap } from "@bc-solutions-coder/sdk/query";
+
+function configureClient(): void {
+  configureBffClient();
+}
+
+registerQueryBootstrap(configureClient);
+```
+
+```tsx
+// a component
+import { useQuery } from "@tanstack/react-query";
+import { inquiriesQueries } from "@bc-solutions-coder/sdk/query";
+
+function InquiriesList(): React.ReactElement {
+  const { data } = useQuery(inquiriesQueries.list());
+  // data is fully typed from the OpenAPI schema; the request went
+  // browser -> /api proxy -> Wallow API with a server-attached Bearer token.
+  return (
+    <ul>
+      {data?.map((inquiry) => (
+        <li key={inquiry.id}>{inquiry.name}</li>
+      ))}
+    </ul>
+  );
+}
+```
+
+Every query key comes from `queryKeys` (`packages/sdk/src/query/keys.ts`) — never a hand-typed
+`queryKey` literal — and a mutation's `onSuccess` invalidates that same key, so definition and
+invalidation cannot drift apart. See
+[Frontend State: TanStack Query vs. Zustand](../development/frontend-state.md) for the full
+rules (including the Zustand boundary) and a worked three-step example of adding a new query.
+
+If your app is not served from the same origin as the BFF, pass an explicit
+base URL to the underlying client: `configureBffClient({ baseUrl: "https://app.example.com/api" })`.
+
+#### Escape hatch: calling a generated operation directly
+
+Outside a component render — a one-off script, a non-React host, or code that genuinely has no
+use for caching — call the generated typed operation directly instead of going through the query
+layer. `configureBffClient()` still points it at the `/api` proxy with `credentials: "include"`,
+so the call rides the sealed session cookie:
+
+```ts
+import { configureBffClient, getV1InquiriesSubmitted } from "@bc-solutions-coder/sdk";
 
 configureBffClient();
 
-// const { data } = await getInquiries();
+const { data } = await getV1InquiriesSubmitted();
 // data is fully typed from the OpenAPI schema; the request went
 // browser -> /api proxy -> Wallow API with a server-attached Bearer token.
 ```
 
-If your app is not served from the same origin as the BFF, pass an explicit
-base URL: `configureBffClient({ baseUrl: "https://app.example.com/api" })`.
+Prefer the query layer for anything rendered in a component — a bare call like this has no cache
+entry, so two screens calling it independently can disagree about the same data.
 
 > [!NOTE]
 > `configureBffClient` was previously named `configureWallowClient`. The old
@@ -358,26 +416,150 @@ base URL: `configureBffClient({ baseUrl: "https://app.example.com/api" })`.
 
 ---
 
+## SSR request context for server-rendered loaders
+
+A same-origin BFF app that server-renders authenticated routes (a TanStack
+Start `loader`, for example) needs two things a browser tab gets for free: an
+ABSOLUTE origin — Node's `fetch` cannot resolve a relative `/api` URL — and the
+incoming request's session cookie — Node has no cookie jar, so
+`credentials: "include"` alone sends an anonymous request. Both are
+request-scoped, so they must be resolved per render rather than configured
+once at startup. The browser-entry `ssr` seam provides that resolution without
+pulling any `node:` import into the browser bundle:
+
+```ts
+// node-only SSR entry — owns the AsyncLocalStorage that scopes each render
+import { AsyncLocalStorage } from "node:async_hooks";
+import { setSsrRequestContextResolver, type SsrRequestContext } from "@bc-solutions-coder/sdk";
+
+const requestContextStore = new AsyncLocalStorage<SsrRequestContext>();
+setSsrRequestContextResolver(() => requestContextStore.getStore());
+
+export function render(request: Request): Promise<Response> {
+  const context: SsrRequestContext = {
+    origin: new URL(request.url).origin,
+    cookie: request.headers.get("cookie") ?? undefined,
+  };
+  return requestContextStore.run(context, () => renderApp());
+}
+```
+
+```ts
+// isomorphic facade — branches on the SSR flag your bundler exposes
+import {
+  configureBffClient,
+  configureSsrClient,
+  getSsrRequestContext,
+} from "@bc-solutions-coder/sdk";
+
+function configureClient(): void {
+  if (import.meta.env.SSR) {
+    configureSsrClient(getSsrRequestContext());
+  } else {
+    configureBffClient();
+  }
+}
+```
+
+- `setSsrRequestContextResolver(next)` — register the resolver once, from the
+  node-only SSR entry that owns the `AsyncLocalStorage`. Never call this from
+  browser code.
+- `getSsrRequestContext()` — reads the in-flight request's
+  `{ origin, cookie }`, or `undefined` outside a render scope — which is every
+  call in the browser bundle, since the resolver is never registered there.
+- `configureSsrClient(context?)` — points the shared client at
+  `${context.origin}/api` (or the same-origin relative `/api` default with no
+  context) and wires `wireSsrCookieInterceptor` onto it. The cookie is read
+  LIVE per request by the interceptor, not captured at configure time, so
+  configuring the client once per host still forwards the correct session on
+  every request.
+- `wireSsrCookieInterceptor(target)` — the interceptor itself, exported
+  separately for wiring onto a client `configureSsrClient` does not manage.
+  It intentionally does not stamp CSRF: only safe `GET` loaders run during
+  SSR, and CSRF only gates state-changing methods.
+
+`apps/wallow-web/src/ssr.tsx` is the reference SSR entry (owns the
+`AsyncLocalStorage` and calls `setSsrRequestContextResolver` once), and
+`apps/wallow-web/src/lib/wallow-sdk.ts` is the reference isomorphic facade
+that branches `configureClient()` on `import.meta.env.SSR` as shown above.
+
+---
+
+## Facade helpers: `unwrap()` and `createConfiguredOnce()`
+
+For **cacheable module data** (organizations, apps, settings, MFA status, inquiries, the
+current user), the [query layer](#calling-module-endpoints-the-tanstack-query-layer) above is
+the golden path — its `queryOptions`/mutation factories already close over `unwrap()` and the
+client bootstrap for you. `unwrap()` and `createConfiguredOnce()` remain useful underneath that
+layer, and directly, for **action-style endpoints that are not cached reads** — login, register,
+password reset, MFA enrollment/challenge — where there is no `queryKey` to invalidate, only a
+one-shot call:
+
+```ts
+import {
+  createConfiguredOnce,
+  unwrap,
+  wireCsrfInterceptor,
+  client,
+  configureBffClient,
+} from "@bc-solutions-coder/sdk";
+// import { postV1IdentityAuthLogin } from "@bc-solutions-coder/sdk"; // generated op
+
+function configureClient(): void {
+  configureBffClient();
+  wireCsrfInterceptor(client);
+}
+
+function buildFacade() {
+  return {
+    auth: {
+      login: (body: AccountLoginRequest) => unwrap(postV1IdentityAuthLogin({ body })),
+    },
+  };
+}
+
+export const getMySdk = createConfiguredOnce(configureClient, buildFacade);
+```
+
+- `unwrap(pending)` — awaits a generated op's `{ data, error }` envelope and
+  returns `data` on success. When `error` is defined it THROWS that raw error
+  (an RFC 7807 `ProblemDetails` object, by reference — not wrapped in a typed
+  error), so feature code reads it directly, e.g.
+  `(mutation.error as ProblemDetails).detail`.
+- `createConfiguredOnce(configure, build)` — a guarded-singleton getter. The
+  first call runs `configure()` then `build()` and memoizes the result; every
+  later call returns that same instance without re-running either. Nothing
+  runs until the getter is first invoked.
+
+`apps/wallow-auth/src/lib/wallow-auth-sdk.ts` is the reference: `getWallowAuthSdk()` wraps
+`createAuthClient()` (login, register, password reset, MFA challenge — the endpoints that stay
+outside the query layer) this way, while its cacheable reads go through `./query` factories
+registered via `registerQueryBootstrap`. `apps/wallow-web/src/lib/wallow-sdk.ts` has retired its
+facade slices entirely now that its data reads live in the query layer — it keeps only
+`configureClient()` and its `registerQueryBootstrap` registration.
+
+---
+
 ## Local development: the seeded `bcordes-bff` client
 
 The repository's `seed.json` ships a ready-to-use confidential client for local
 BFF development so you do not have to register one by hand. After running the
 [seeder](../getting-started/developer-guide.md), the following client exists in
-the `Dev` tenant:
+the `Wallow` tenant:
 
-| Setting | Value |
-|---------|-------|
-| `clientId` | `bcordes-bff` |
-| `clientSecret` | `bcordes-bff-secret` |
-| Redirect URI | `http://localhost:3000/bff/callback` |
-| Post-logout redirect URI | `http://localhost:3000/` |
-| Scopes | `openid email profile roles offline_access inquiries.read inquiries.write notifications.read notifications.write` |
+| Setting                  | Value                                                                                                             |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| `clientId`               | `bcordes-bff`                                                                                                     |
+| `clientSecret`           | `bcordes-bff-secret`                                                                                              |
+| Redirect URI             | `http://localhost:3000/bff/callback`                                                                              |
+| Post-logout redirect URI | `http://localhost:3000/`                                                                                          |
+| Scopes                   | `openid email profile roles offline_access inquiries.read inquiries.write notifications.read notifications.write` |
 
 Point your BFF at it with a local `.env` (adjust the API/issuer origins to your
 running stack):
 
 ```ini
-OIDC_ISSUER=http://localhost:5002
+OIDC_ISSUER=http://localhost:5001
 OIDC_CLIENT_ID=bcordes-bff
 OIDC_CLIENT_SECRET=bcordes-bff-secret
 OIDC_REDIRECT_URI=http://localhost:3000/bff/callback
@@ -423,16 +605,16 @@ your BFF on port `3000` locally (or update `seed.json` and re-seed).
 
 ## Troubleshooting
 
-| Symptom | Likely cause | Fix |
-|---------|--------------|-----|
-| `Missing required environment variable: ...` on startup | A required env var is unset or empty | Set every required key in the [environment variables](#environment-variables) table |
-| `getUser()` always returns `null` | Session cookie not being sent | Serve the app and BFF on the same origin; confirm `configureBffClient()` runs before any call |
-| `invalid_client` on callback | `OIDC_CLIENT_ID`/`OIDC_CLIENT_SECRET` mismatch | Confirm they match the registered (or seeded) confidential client |
-| `redirect_uri` mismatch | `OIDC_REDIRECT_URI` does not match the registered URI | Register `http://localhost:3000/bff/callback` (or your value) and keep them identical |
-| `401` from `/api/**` after login | Session missing or refresh token unavailable | Ensure `offline_access` is in the requested scopes so a refresh token is issued |
-| `403` with code `CSRF_INVALID` on POST/PUT/PATCH/DELETE | The `x-csrf-token` header is missing or stale | Echo the `wallow_bff-csrf` cookie (or `/bff/user`'s `csrfToken`) in the `x-csrf-token` header — see [CSRF protection](#csrf-protection) |
-| Session cookie not set over plain HTTP locally | Cookies carry `Secure` by default | Set `COOKIE_SECURE=false` in local development only |
-| `npm install` `401 Unauthorized` | GitHub Packages token missing or lacks `read:packages` | Set `GITHUB_TOKEN` and the `@bc-solutions-coder:registry` line in `.npmrc` |
+| Symptom                                                 | Likely cause                                           | Fix                                                                                                                                     |
+| ------------------------------------------------------- | ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `Missing required environment variable: ...` on startup | A required env var is unset or empty                   | Set every required key in the [environment variables](#environment-variables) table                                                     |
+| `getUser()` always returns `null`                       | Session cookie not being sent                          | Serve the app and BFF on the same origin; confirm `configureBffClient()` runs before any call                                           |
+| `invalid_client` on callback                            | `OIDC_CLIENT_ID`/`OIDC_CLIENT_SECRET` mismatch         | Confirm they match the registered (or seeded) confidential client                                                                       |
+| `redirect_uri` mismatch                                 | `OIDC_REDIRECT_URI` does not match the registered URI  | Register `http://localhost:3000/bff/callback` (or your value) and keep them identical                                                   |
+| `401` from `/api/**` after login                        | Session missing or refresh token unavailable           | Ensure `offline_access` is in the requested scopes so a refresh token is issued                                                         |
+| `403` with code `CSRF_INVALID` on POST/PUT/PATCH/DELETE | The `x-csrf-token` header is missing or stale          | Echo the `wallow_bff-csrf` cookie (or `/bff/user`'s `csrfToken`) in the `x-csrf-token` header — see [CSRF protection](#csrf-protection) |
+| Session cookie not set over plain HTTP locally          | Cookies carry `Secure` by default                      | Set `COOKIE_SECURE=false` in local development only                                                                                     |
+| `npm install` `401 Unauthorized`                        | GitHub Packages token missing or lacks `read:packages` | Set `GITHUB_TOKEN` and the `@bc-solutions-coder:registry` line in `.npmrc`                                                              |
 
 ---
 
@@ -442,4 +624,3 @@ your BFF on port `3000` locally (or update `seed.json` and re-seed).
   SDK implements.
 - [External Auth Setup](external-auth.md) — configuring Wallow as an identity
   provider.
-- [DCR Integration](dcr-integration.md) — dynamic client registration.

@@ -1,0 +1,996 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRouter,
+  Outlet,
+  RouterProvider,
+} from "@tanstack/react-router";
+import type { ReactElement } from "react";
+import { page, userEvent } from "vitest/browser";
+import { render } from "vitest-browser-react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { Route as consentRoute } from "../../../routes/consent";
+import { ConsentScreen } from "./ConsentScreen";
+
+/**
+ * Component spec for the Consent screen (Wallow-vec7.3.4).
+ *
+ * Testids come verbatim from the oracle (scout inventory on Wallow-vec7.3):
+ * `consent-error`, `consent-heading`, `consent-scopes`, `consent-approve`,
+ * `consent-deny`. The oracle has no loading testid — see "THE MISSING LOADING
+ * STATE" below for why that is a finding, not an omission to paper over.
+ *
+ * MOCKING SEAM: `../../../lib/wallow-auth-sdk` — the app's own facade, never
+ * `@bc-solutions-coder/sdk` directly (that module is the only permitted importer
+ * of the SDK). Per bd memories `vitest-resetmodules-breaks-instanceof-across-
+ * graphs`, this file uses a plain `vi.mock` factory + `vi.hoisted` spies and
+ * NEVER `vi.resetModules()`.
+ *
+ * NAVIGATION SEAM (Wallow-xzha.3.1): the screen hands off with
+ * `globalThis.location.href = buildConsentSubmitUrl(…)`. `window.location` is
+ * `[Unforgeable]` in the real Chromium these specs now run in, so the jsdom-only
+ * `vi.stubGlobal("location", …)` hack is gone; assigning a real relative URL
+ * would navigate the runner's iframe and tear it down. Instead the builder mock
+ * returns a NON-NAVIGATING fragment sentinel (`NAV_SENTINEL`), so the assignment
+ * only changes `location.hash` and stays put, and the tests pin the assigned URL
+ * by asserting the deterministic builder seam was called with the exact
+ * `origin` + `returnUrl` + `granted` — an equivalent to pinning the string,
+ * since `buildConsentSubmitUrl` has 67 tests of its own. Where a test needs to
+ * observe that the screen actually navigated (rather than no-opped), it reads
+ * `location.hash === NAV_SENTINEL`.
+ *
+ * ── THE ORIGIN DIVERGENCE (the load-bearing port decision in this screen) ─────
+ *
+ * The oracle ends `AppendToReturnUrl` (Consent.razor:70-80) by prepending an
+ * absolute API origin:
+ *
+ *     return withParam.StartsWith('/') ? $"{ApiBaseUrl}{withParam}" : withParam;
+ *
+ * with `ApiBaseUrl = Configuration["ApiBaseUrl"] ?? "http://localhost:5001"`.
+ * Its own comment states the reason: the returnUrl is a relative path issued by
+ * the API's `/connect/authorize`, and "NavigationManager.NavigateTo resolves
+ * relative URLs against the Auth app origin, which does not host
+ * /connect/authorize".
+ *
+ * **That premise does not hold in this app, so the prepend must not be ported.**
+ * apps/wallow-auth's h3 server (`src/lib/auth-server.ts`) is a PASSTHROUGH
+ * REVERSE PROXY that mounts `/connect/**` (and `/v1/**`) at the ROOT and
+ * forwards them verbatim to the API — that is the same fact that makes the SDK
+ * facade configure `baseUrl: '/'` rather than the SDK's `/api` default (bd
+ * memory `wallow-auth-same-origin-baseurl-apps-wallow-auth`). This origin DOES
+ * host `/connect/authorize`. So the consent submit URL is same-origin, and the
+ * screen passes `""` as `buildConsentSubmitUrl`'s `origin` argument.
+ *
+ * This is not cosmetic. Hardcoding an API origin here would (a) send the browser
+ * cross-origin for a request the proxy exists to keep same-origin, dropping the
+ * `SameSite` auth cookie the authorize endpoint needs, and (b) reintroduce an
+ * `ApiBaseUrl` config knob this app deliberately does not have (the only API
+ * URL it knows, `WALLOW_API_INTERNAL_URL`, is a SERVER-side internal address —
+ * `http://wallow-api` under Aspire — and is not resolvable from the browser at
+ * all). The tests below pin the same-origin call explicitly rather than letting
+ * an implementer copy the oracle's line and quietly recreate that knob.
+ *
+ * `buildConsentSubmitUrl` (Wallow-vec7.2.2) already ports the rest of
+ * `AppendToReturnUrl` — the `ReturnUrl ?? "/"` nullish fallback, the
+ * `Contains('?')` separator, and the `consent_granted=true` /
+ * `consent_denied=true` parameter — and has 67 tests of its own. These tests
+ * therefore pin what the SCREEN owes the builder (the arguments) and that it
+ * navigates to whatever the builder returns, rather than re-deriving the
+ * builder's string algebra here.
+ *
+ * ── THE OPEN-REDIRECT GUARD (acceptance criterion; NOT in the oracle) ─────────
+ *
+ * The oracle applies NO guard to `ReturnUrl` on this screen: it appends and
+ * navigates. That is the gap this bead's acceptance criterion closes ("the
+ * open-redirect guard on the returnUrl"), and `buildConsentSubmitUrl` enforces
+ * it by THROWING a `TypeError` on a present-but-unsafe returnUrl rather than
+ * silently sanitizing (bd memory `returnurl-guard-refuse-dont-sanitize`).
+ *
+ * The screen refuses EARLY — on mount, before rendering a prompt or fetching
+ * anything — rather than waiting for the throw at click time. That is
+ * `Login.razor` L533-540's pattern, the one call site in the oracle that does
+ * check `IsSafe` before building a navigation URL: it bails to
+ * `/error?reason=invalid_redirect_uri`. Deferring the refusal to the click would
+ * mean rendering an Approve button whose destination we already know we will
+ * refuse to build — i.e. asking the user to authorize a request we have already
+ * decided is malformed, and telling them so only after they consent.
+ *
+ * The bail routes via the ROUTER (`/error` is an in-app registered route), using
+ * `href` rather than `to`+`search` — bd memory `tanstack-router-redirect-to-an-
+ * unregistered-route-use-href-not-to`, and here also because `/error`'s
+ * `validateSearch` is being written concurrently by Wallow-vec7.3.3; `href`
+ * keeps this screen from coupling to that in-flight shape.
+ *
+ * ── THE MISSING LOADING STATE (an oracle wart, deliberately not ported) ───────
+ *
+ * The oracle renders on `_consentInfo is null` alone, and `_consentInfo` is null
+ * *while the request is still in flight* — which would flash "Unable to load
+ * consent information" at every user before its own fetch resolves. The
+ * scout's testid inventory has no loading testid because the oracle has no
+ * loading state to give one to.
+ *
+ * The port renders NOTHING while the request is in flight: no error, no prompt.
+ * That fixes the flash without inventing a testid for an element the oracle does
+ * not have, and it keeps `consent-error` meaning "this failed" rather than "this
+ * failed or has not happened yet". Pinned by the tests in "loading" below.
+ *
+ * ── ERROR STATE: `null` BECOMES A REJECTION AT THIS SEAM ─────────────────────
+ *
+ * The oracle's `_consentInfo` is null in two cases, and both must land on
+ * `consent-error`:
+ *
+ *   1. No `client_id` — `OnInitializedAsync` skips the call entirely and logs a
+ *      warning, so `_consentInfo` is never assigned.
+ *   2. The request failed — `AuthApiClient.GetConsentInfoAsync`
+ *      (api/src/Wallow.Auth/Services/AuthApiClient.cs:397-416) returns `null` on
+ *      ANY non-2xx.
+ *
+ * Case 2 arrives differently through this seam but means the same thing: the
+ * facade's `unwrap()` THROWS on non-2xx instead of returning null, so a failure
+ * is a rejected promise. Either way the user sees `consent-error`. No status
+ * narrowing is needed or wanted here — unlike VerifyEmailConfirm/ResetPassword,
+ * this screen's oracle has exactly ONE error message for every failure, so the
+ * `WallowError` code-loss gotcha (bd memory `wallow-auth-auth-client-ts-
+ * wallowerror-code-loss`) costs this screen nothing.
+ */
+
+// Hoisted so the vi.mock factories and the test bodies share the same spies.
+const mocks = vi.hoisted(() => ({
+  getConsentInfo: vi.fn(),
+  buildConsentSubmitUrl: vi.fn(),
+  isSafeReturnUrl: vi.fn(),
+  navigate: vi.fn(),
+}));
+
+vi.mock("../../../lib/wallow-auth-sdk", () => ({
+  getWallowAuthSdk: () => ({
+    auth: {},
+    oidc: {
+      buildConsentSubmitUrl: mocks.buildConsentSubmitUrl,
+      isSafeReturnUrl: mocks.isSafeReturnUrl,
+    },
+  }),
+}));
+
+/**
+ * THE READ SEAM MOVED (Wallow-evd5.3.1). The consent prompt is now
+ * `useQuery(authQueries.consentInfo(clientId))` from the SDK query layer rather
+ * than a facade call inside inline `useQuery` options, so the facade mock above
+ * no longer carries `getConsentInfo` and the spy hangs off the FACTORY. The
+ * submit path is pure URL building and stays on the facade's `oidc` slice.
+ *
+ * Only `queryFn` is swapped — `importOriginal` keeps the real `queryKey`
+ * (`queryKeys.auth.consentInfo(clientId, scopes)`), so the per-client and
+ * per-scope-set cache separation these tests rely on is the shipped one, not a
+ * fixture. BOTH arguments are forwarded to the spy so the call-argument
+ * assertions pin exactly what the screen asks for.
+ */
+vi.mock("@bc-solutions-coder/sdk/query", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@bc-solutions-coder/sdk/query")>();
+  return {
+    ...actual,
+    authQueries: {
+      ...actual.authQueries,
+      consentInfo: (clientId: string, scopes?: readonly string[]) => ({
+        ...actual.authQueries.consentInfo(clientId, scopes),
+        queryFn: async (): Promise<unknown> => await mocks.getConsentInfo(clientId, scopes),
+      }),
+    },
+  };
+});
+
+vi.mock("@tanstack/react-router", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@tanstack/react-router")>()),
+  useNavigate: () => mocks.navigate,
+}));
+
+const CLIENT_ID = "wallow-web";
+const RETURN_URL = "/connect/authorize?client_id=wallow-web&scope=openid";
+const ERROR_HREF = "/error?reason=invalid_redirect_uri";
+
+/**
+ * The `scope` query parameter as the authorize endpoint sends it: ONE
+ * space-delimited string (OAuth's own delimiter, and what
+ * `AuthorizationController` builds its consent redirect with), which this screen
+ * splits into the list it asks the consent-info endpoint about.
+ */
+const SCOPE = "openid profile email";
+const SCOPE_LIST = ["openid", "profile", "email"];
+
+/**
+ * The non-navigating sentinel the mocked `buildConsentSubmitUrl` returns. It is
+ * a pure fragment, so the screen's `globalThis.location.href = …` only changes
+ * `location.hash` and never navigates the Chromium iframe (which would tear the
+ * runner down). A test that needs to observe the screen navigated reads
+ * `location.hash === NAV_SENTINEL`; grant-vs-deny is distinguished by asserting
+ * the builder's `granted` argument, not by the sentinel.
+ */
+const NAV_SENTINEL = "#consent-nav";
+
+/**
+ * The real `isSafeReturnUrl` rule (packages/sdk/src/auth-oidc.ts), restated here
+ * because the screen reaches it through the mocked facade. Restating the rule
+ * rather than stubbing `true`/`false` per test keeps these tests pinning the
+ * SCREEN's use of the guard against the guard's actual semantics — a screen that
+ * passed only because the stub said "safe" would be proving nothing.
+ */
+function isSafeReturnUrlRule(url: string | null | undefined): boolean {
+  if (url === null || url === undefined || url.trim() === "") {
+    return false;
+  }
+
+  return url.startsWith("/") && !url.startsWith("//");
+}
+
+/**
+ * The real `buildConsentSubmitUrl` behaviour (packages/sdk/src/auth-oidc.ts),
+ * restated for the same reason — in particular that a present-but-unsafe
+ * returnUrl THROWS. Stubbing this to a fixed string would let a screen that
+ * never guards its returnUrl pass the guard tests.
+ *
+ * The builder's own string algebra is pinned by its 67 tests in
+ * `packages/sdk/src/auth-oidc.test.ts`; it is reproduced here only so this
+ * screen meets a builder that behaves like the real one.
+ */
+function buildConsentSubmitUrlRule(
+  origin: string,
+  returnUrl: string | null | undefined,
+  granted: boolean,
+): string {
+  let baseUrl: string = "/";
+
+  if (returnUrl !== null && returnUrl !== undefined) {
+    if (!isSafeReturnUrlRule(returnUrl)) {
+      throw new TypeError(`unsafe return url: ${returnUrl}`);
+    }
+    baseUrl = returnUrl;
+  }
+
+  const separator: string = baseUrl.includes("?") ? "&" : "?";
+  const parameter: string = granted ? "consent_granted=true" : "consent_denied=true";
+
+  return `${origin.replace(/\/+$/u, "")}${baseUrl}${separator}${parameter}`;
+}
+
+/**
+ * The browser-mode builder mock. It exercises the real rule (so a
+ * present-but-unsafe returnUrl still THROWS — the safety contract this screen
+ * relies on), then discards the navigating URL and returns the non-navigating
+ * fragment sentinel so assigning `globalThis.location.href` stays put.
+ */
+function buildConsentSubmitUrlBrowserMock(
+  origin: string,
+  returnUrl: string | null | undefined,
+  granted: boolean,
+): string {
+  buildConsentSubmitUrlRule(origin, returnUrl, granted);
+  return NAV_SENTINEL;
+}
+
+/** A `ConsentInfoResponse`, as the generated type shapes it. */
+function consentInfo(overrides: Record<string, unknown> = {}) {
+  return {
+    clientId: CLIENT_ID,
+    displayName: "Wallow Web",
+    logoUrl: null,
+    requestedScopes: [
+      { name: "openid", description: "Sign you in" },
+      { name: "profile", description: "See your profile" },
+    ],
+    ...overrides,
+  };
+}
+
+/** A WallowError-shaped rejection, as the real facade's `unwrap()` throws. */
+function wallowErrorShaped(status: number): Error & { status: number; code: string } {
+  return Object.assign(new Error("Unknown error"), {
+    name: "WallowError",
+    status,
+    code: "UNKNOWN",
+    title: "Unknown error",
+  });
+}
+
+function newClient(): QueryClient {
+  return new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+}
+
+function renderWithClient(ui: ReactElement) {
+  return render(<QueryClientProvider client={newClient()}>{ui}</QueryClientProvider>);
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  // Clear any fragment a prior test's navigation left behind so `location.hash`
+  // reads as the empty baseline before each spec.
+  globalThis.location.hash = "";
+  mocks.isSafeReturnUrl.mockImplementation(isSafeReturnUrlRule);
+  mocks.buildConsentSubmitUrl.mockImplementation(buildConsentSubmitUrlBrowserMock);
+  mocks.getConsentInfo.mockResolvedValue(consentInfo());
+});
+
+describe("ConsentScreen — loading", () => {
+  it("requests the consent info for the client in the query string", async () => {
+    mocks.getConsentInfo.mockReturnValue(new Promise(() => {}));
+
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+
+    await vi.waitFor(() => {
+      expect(mocks.getConsentInfo).toHaveBeenCalled();
+    });
+
+    // The client id is the first argument; the scopes are the second and are
+    // pinned separately below.
+    expect(mocks.getConsentInfo.mock.calls[0]?.[0]).toBe(CLIENT_ID);
+  });
+
+  /**
+   * ── THE SCOPE LIST IS AN INPUT, NOT ONLY AN OUTPUT (Wallow-dzt4) ────────────
+   *
+   * The oracle called `GetConsentInfoAsync(ClientId, Array.Empty<string>())` and
+   * this port copied it, on the reasoning that "the scopes being consented to
+   * come back FROM this call". That reasoning was wrong, and it is the bug this
+   * bead fixes: the consent-info endpoint answers "describe THESE scopes for
+   * this client", so an empty list means an empty answer — users were asked to
+   * approve a request whose scope list rendered blank. The oracle's Blazor
+   * consent screen had the same defect; it is not a port regression, but it is
+   * not a contract to preserve either.
+   *
+   * The authorize endpoint now carries the requested scopes to `/consent` as a
+   * space-delimited `scope` parameter; the route parses it and hands it here.
+   */
+  it("forwards the requested scopes to the consent-info lookup", async () => {
+    mocks.getConsentInfo.mockReturnValue(new Promise(() => {}));
+
+    await renderWithClient(
+      <ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} scope={SCOPE} />,
+    );
+
+    // The `toHaveBeenCalled` precondition is load-bearing: without it,
+    // `calls[0]?.[1]` is `undefined` when the screen made NO call at all, and a
+    // scope assertion could pass vacuously.
+    await vi.waitFor(() => {
+      expect(mocks.getConsentInfo).toHaveBeenCalled();
+    });
+
+    expect(mocks.getConsentInfo.mock.calls[0]?.[1]).toEqual(SCOPE_LIST);
+  });
+
+  it("splits the scope parameter on whitespace rather than passing it whole", async () => {
+    // A single mangled scope name is exactly what the delimiter bug produced:
+    // the endpoint would fail to resolve it and render one garbled row.
+    mocks.getConsentInfo.mockReturnValue(new Promise(() => {}));
+
+    await renderWithClient(
+      <ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} scope="openid  profile " />,
+    );
+
+    await vi.waitFor(() => {
+      expect(mocks.getConsentInfo).toHaveBeenCalled();
+    });
+
+    // Empty segments from repeated or trailing spaces are dropped, not sent as
+    // empty scope names.
+    expect(mocks.getConsentInfo.mock.calls[0]?.[1]).toEqual(["openid", "profile"]);
+  });
+
+  it("asks with no scopes when the link carries none", async () => {
+    // A link without `scope` is malformed, not an invitation to invent a list.
+    // The screen must not fabricate scopes the relying party never asked for.
+    mocks.getConsentInfo.mockReturnValue(new Promise(() => {}));
+
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+
+    await vi.waitFor(() => {
+      expect(mocks.getConsentInfo).toHaveBeenCalled();
+    });
+
+    const scopes: unknown = mocks.getConsentInfo.mock.calls[0]?.[1];
+
+    expect(scopes === undefined || (Array.isArray(scopes) && scopes.length === 0)).toBe(true);
+  });
+
+  it("shows no error while the request is still in flight", async () => {
+    // The oracle's wart, deliberately not ported: it renders on `_consentInfo is
+    // null`, which is also true before the fetch resolves, so it flashes
+    // "Unable to load consent information" at every user. See this file's
+    // header. A port that copies the null-check literally fails HERE and only
+    // here.
+    mocks.getConsentInfo.mockReturnValue(new Promise(() => {}));
+
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+
+    // Pin that a request is genuinely IN FLIGHT before asserting the absence.
+    // Otherwise a screen that never fetched at all would satisfy "no error
+    // while fetching" by never fetching.
+    await vi.waitFor(() => {
+      expect(mocks.getConsentInfo).toHaveBeenCalled();
+    });
+    expect(page.getByTestId("consent-error").query()).toBeNull();
+  });
+
+  it("shows no consent prompt before the client is known", async () => {
+    // The other half of the same contract: nothing is rendered in flight, so the
+    // user cannot approve access for an application we have not identified yet.
+    mocks.getConsentInfo.mockReturnValue(new Promise(() => {}));
+
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+
+    await vi.waitFor(() => {
+      expect(mocks.getConsentInfo).toHaveBeenCalled();
+    });
+    expect(page.getByTestId("consent-heading").query()).toBeNull();
+    expect(page.getByTestId("consent-approve").query()).toBeNull();
+    expect(page.getByTestId("consent-deny").query()).toBeNull();
+  });
+
+  it("fires the request exactly once", async () => {
+    // The request is a side effect of mounting, not of rendering.
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+
+    await expect.element(page.getByTestId("consent-heading")).toBeInTheDocument();
+
+    expect(mocks.getConsentInfo).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("ConsentScreen — the consent prompt", () => {
+  it("names the requesting application in the heading", async () => {
+    // Oracle: `<h2>@_consentInfo.DisplayName is requesting access</h2>`.
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+
+    await expect
+      .element(page.getByTestId("consent-heading"))
+      .toHaveTextContent(/Wallow Web is requesting access/u);
+  });
+
+  it("falls back to the client id when the client has no display name", async () => {
+    // `displayName` is `null | string` on the generated `ConsentInfoResponse`.
+    // The oracle interpolates it unguarded, so a null renders the sentence
+    // " is requesting access" — a consent prompt that does not say WHO is
+    // asking. The port names the client instead; consent to an unnamed party is
+    // not consent.
+    mocks.getConsentInfo.mockResolvedValue(consentInfo({ displayName: null }));
+
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+
+    await expect.element(page.getByTestId("consent-heading")).toHaveTextContent(CLIENT_ID);
+    await expect
+      .element(page.getByTestId("consent-heading"))
+      .toHaveTextContent(/is requesting access/u);
+  });
+
+  it("lists every requested scope", async () => {
+    // Oracle: `@foreach (ConsentScopeInfo scope in _consentInfo.RequestedScopes)
+    // { <div>@scope.Name</div> }`.
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+
+    await expect.element(page.getByTestId("consent-scopes")).toHaveTextContent("openid");
+    await expect.element(page.getByTestId("consent-scopes")).toHaveTextContent("profile");
+  });
+
+  it("lists no scope the client did not request", async () => {
+    // The scope list is the whole substance of the decision — it must be the
+    // server's list, not a superset.
+    mocks.getConsentInfo.mockResolvedValue(
+      consentInfo({ requestedScopes: [{ name: "openid", description: "Sign you in" }] }),
+    );
+
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+
+    await expect.element(page.getByTestId("consent-scopes")).toHaveTextContent("openid");
+    await expect.element(page.getByTestId("consent-scopes")).not.toHaveTextContent("profile");
+  });
+
+  it("renders the prompt for a client requesting no scopes", async () => {
+    // `RequestedScopes` is non-nullable but may be empty; the oracle's foreach
+    // simply renders nothing. The prompt must still work rather than crash.
+    mocks.getConsentInfo.mockResolvedValue(consentInfo({ requestedScopes: [] }));
+
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+
+    await expect.element(page.getByTestId("consent-scopes")).toBeInTheDocument();
+    await expect.element(page.getByTestId("consent-approve")).toBeInTheDocument();
+  });
+
+  it("offers both an approve and a deny action", async () => {
+    // Oracle: two BbButtons. Deny must always be present — a consent screen with
+    // only an approve path is not a consent screen.
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+
+    await expect.element(page.getByTestId("consent-approve")).toBeInTheDocument();
+    await expect.element(page.getByTestId("consent-deny")).toBeInTheDocument();
+  });
+
+  it("shows no error alongside a loaded prompt", async () => {
+    // Oracle's if/else — the error block and the prompt are mutually exclusive.
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+
+    await expect.element(page.getByTestId("consent-heading")).toBeInTheDocument();
+
+    expect(page.getByTestId("consent-error").query()).toBeNull();
+  });
+
+  it("drops the pre-registration placeholder marker", async () => {
+    // Wallow-vec7.3.16 shipped `route-placeholder` as scaffolding; it must not
+    // survive into the real screen.
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+
+    await expect.element(page.getByTestId("consent-heading")).toBeInTheDocument();
+
+    expect(page.getByTestId("route-placeholder").query()).toBeNull();
+  });
+});
+
+describe("ConsentScreen — approve", () => {
+  it("navigates to the consent-granted URL the builder returns", async () => {
+    const user = userEvent.setup();
+
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await user.click(page.getByTestId("consent-approve"));
+
+    // A FULL navigation, not `router.navigate`: `/connect/authorize` is served
+    // by the h3 reverse proxy (src/lib/auth-server.ts), not by the client-side
+    // route tree — the router has no route for it and would 404 in-app. The
+    // assigned URL is pinned via the deterministic builder seam (args) plus the
+    // non-navigating sentinel actually landing on `location.hash`.
+    await vi.waitFor(() => {
+      expect(globalThis.location.hash).toBe(NAV_SENTINEL);
+    });
+    expect(mocks.buildConsentSubmitUrl).toHaveBeenCalledWith("", RETURN_URL, true);
+  });
+
+  it("builds the URL same-origin, granting consent", async () => {
+    const user = userEvent.setup();
+
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await user.click(page.getByTestId("consent-approve"));
+
+    // The origin divergence, pinned explicitly (see this file's header): `""`,
+    // NOT the oracle's `ApiBaseUrl`. This app's own origin hosts
+    // `/connect/**` via the passthrough proxy, and it has no browser-reachable
+    // API origin to prepend even if it wanted one.
+    await vi.waitFor(() => {
+      expect(mocks.buildConsentSubmitUrl).toHaveBeenCalledWith("", RETURN_URL, true);
+    });
+  });
+
+  it("appends to a returnUrl that has no query string of its own", async () => {
+    // Oracle: `separator = baseUrl.Contains('?') ? "&" : "?"`. Pinned through
+    // the screen so a port that hand-rolls string concatenation instead of
+    // calling the builder cannot pass by only ever being tested with a
+    // `?`-bearing returnUrl. The builder is deterministic and separately tested,
+    // so asserting its args (which produce `/connect/authorize?consent_granted=
+    // true`) is equivalent to pinning the assigned string.
+    const user = userEvent.setup();
+
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl="/connect/authorize" />);
+    await user.click(page.getByTestId("consent-approve"));
+
+    await vi.waitFor(() => {
+      expect(mocks.buildConsentSubmitUrl).toHaveBeenCalledWith("", "/connect/authorize", true);
+    });
+  });
+
+  it("falls back to the root when the link carries no returnUrl", async () => {
+    // Oracle: `string baseUrl = ReturnUrl ?? "/"`. Nullish ONLY — and an absent
+    // returnUrl must NOT be treated as the unsafe-returnUrl case: there is
+    // nothing hostile about a link that omits it, so the guard must not fire.
+    // The builder maps `undefined` to the `/` fallback, producing
+    // `/?consent_granted=true`.
+    const user = userEvent.setup();
+
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} />);
+    await user.click(page.getByTestId("consent-approve"));
+
+    await vi.waitFor(() => {
+      expect(mocks.buildConsentSubmitUrl).toHaveBeenCalledWith("", undefined, true);
+    });
+    expect(mocks.navigate).not.toHaveBeenCalled();
+  });
+
+  it("does not deny while approving", async () => {
+    const user = userEvent.setup();
+
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await user.click(page.getByTestId("consent-approve"));
+
+    // The two handlers differ by one boolean; a mis-wired button would be
+    // invisible to a test that only checked that SOME navigation happened.
+    await vi.waitFor(() => {
+      expect(mocks.buildConsentSubmitUrl).toHaveBeenCalled();
+    });
+    expect(mocks.buildConsentSubmitUrl).not.toHaveBeenCalledWith("", RETURN_URL, false);
+  });
+});
+
+describe("ConsentScreen — deny", () => {
+  it("navigates to the consent-denied URL the builder returns", async () => {
+    const user = userEvent.setup();
+
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await user.click(page.getByTestId("consent-deny"));
+
+    await vi.waitFor(() => {
+      expect(mocks.buildConsentSubmitUrl).toHaveBeenCalledWith("", RETURN_URL, false);
+    });
+  });
+
+  it("builds the URL same-origin, refusing consent", async () => {
+    const user = userEvent.setup();
+
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await user.click(page.getByTestId("consent-deny"));
+
+    await vi.waitFor(() => {
+      expect(mocks.buildConsentSubmitUrl).toHaveBeenCalledWith("", RETURN_URL, false);
+    });
+  });
+
+  it("reports the denial to the authorize endpoint rather than staying put", async () => {
+    // Oracle: Deny navigates, exactly as Approve does. A deny that silently did
+    // nothing would strand the user on a dead consent screen and leave the
+    // relying party's authorize request hanging — the denial has to be
+    // DELIVERED. Observed via the sentinel actually landing on `location.hash`
+    // (the screen assigned the builder's return) plus the deny-side args.
+    const user = userEvent.setup();
+
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await user.click(page.getByTestId("consent-deny"));
+
+    await vi.waitFor(() => {
+      expect(globalThis.location.hash).toBe(NAV_SENTINEL);
+    });
+    expect(mocks.buildConsentSubmitUrl).toHaveBeenCalledWith("", RETURN_URL, false);
+  });
+
+  it("does not grant while denying", async () => {
+    const user = userEvent.setup();
+
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+    await user.click(page.getByTestId("consent-deny"));
+
+    // The button-swap bug, from the side that matters: a Deny wired to
+    // `granted: true` would authorize the client the user just refused.
+    await vi.waitFor(() => {
+      expect(mocks.buildConsentSubmitUrl).toHaveBeenCalled();
+    });
+    expect(mocks.buildConsentSubmitUrl).not.toHaveBeenCalledWith("", RETURN_URL, true);
+  });
+});
+
+describe("ConsentScreen — the open-redirect guard", () => {
+  const UNSAFE_RETURN_URLS: readonly string[] = [
+    // Protocol-relative: looks relative, resolves off-origin. The guard's whole
+    // reason to exist.
+    "//evil.example/steal",
+    // Absolute, off-origin.
+    "https://evil.example/steal",
+    // A scheme that executes rather than navigates. The `no-script-url` lint
+    // exists to stop this string being USED as a URL; here it is the attack
+    // being tested for, and rejecting it is the whole point of the case.
+    // oxlint-disable-next-line no-script-url
+    "javascript:alert(1)",
+    // Present but blank — `IsNullOrWhiteSpace` in the C# validator, so NOT the
+    // `ReturnUrl ?? "/"` nullish-fallback case. `""` is a supplied value that
+    // fails the guard.
+    "",
+  ];
+
+  for (const returnUrl of UNSAFE_RETURN_URLS) {
+    it(`refuses to render a consent prompt for returnUrl ${JSON.stringify(returnUrl)}`, async () => {
+      await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={returnUrl} />);
+
+      await vi.waitFor(() => {
+        expect(mocks.navigate).toHaveBeenCalled();
+      });
+
+      // Refusing at CLICK time would be too late: the user would be asked to
+      // authorize a request we had already decided was malformed.
+      expect(page.getByTestId("consent-approve").query()).toBeNull();
+      expect(page.getByTestId("consent-heading").query()).toBeNull();
+    });
+
+    it(`routes to the error page for returnUrl ${JSON.stringify(returnUrl)}`, async () => {
+      await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={returnUrl} />);
+
+      // `Login.razor` L533-540's bail, and bd memory
+      // `returnurl-guard-refuse-dont-sanitize`: REFUSE, do not silently fall
+      // back to "/". `href` rather than `to`+`search` — see this file's header.
+      await vi.waitFor(() => {
+        expect(mocks.navigate).toHaveBeenCalledWith(expect.objectContaining({ href: ERROR_HREF }));
+      });
+    });
+
+    it(`never navigates to the unsafe returnUrl ${JSON.stringify(returnUrl)}`, async () => {
+      await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={returnUrl} />);
+
+      await vi.waitFor(() => {
+        expect(mocks.navigate).toHaveBeenCalled();
+      });
+
+      // The criterion itself: whatever else happens, the browser must not be
+      // sent to any submit URL. The screen never assigned `location.href`, so
+      // the navigation sentinel never landed on the hash.
+      expect(globalThis.location.hash).toBe("");
+    });
+
+    it(`does not fetch consent info for returnUrl ${JSON.stringify(returnUrl)}`, async () => {
+      await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={returnUrl} />);
+
+      await vi.waitFor(() => {
+        expect(mocks.navigate).toHaveBeenCalled();
+      });
+
+      // The link is already known to be malformed, so there is nothing to ask
+      // the server about. Bailing before the request also keeps the client's
+      // display name and scope list from being disclosed to an attacker-crafted
+      // link.
+      expect(mocks.getConsentInfo).not.toHaveBeenCalled();
+    });
+  }
+
+  it("shows no consent error for an unsafe returnUrl", async () => {
+    // The user is being sent to `/error`; flashing "Unable to load consent
+    // information" on the way out would misreport an open-redirect attempt as a
+    // transient server problem.
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl="//evil.example" />);
+
+    await vi.waitFor(() => {
+      expect(mocks.navigate).toHaveBeenCalled();
+    });
+
+    expect(page.getByTestId("consent-error").query()).toBeNull();
+  });
+
+  it("guards the returnUrl even when no client id is supplied", async () => {
+    // The two refusal paths must not mask each other: a hostile returnUrl on a
+    // link that also omits `client_id` is still a hostile returnUrl, and must
+    // reach `/error` rather than being absorbed by the missing-client branch.
+    await renderWithClient(<ConsentScreen returnUrl="//evil.example" />);
+
+    await vi.waitFor(() => {
+      expect(mocks.navigate).toHaveBeenCalledWith(expect.objectContaining({ href: ERROR_HREF }));
+    });
+  });
+
+  it("lets a safe returnUrl through untouched", async () => {
+    // The negative control: the guard must not be so eager that it breaks the
+    // ordinary flow. A screen that routed EVERY returnUrl to `/error` would pass
+    // every other test in this block.
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+
+    await expect.element(page.getByTestId("consent-approve")).toBeInTheDocument();
+
+    expect(mocks.navigate).not.toHaveBeenCalled();
+  });
+});
+
+describe("ConsentScreen — error state", () => {
+  it("shows the error when no client id is supplied", async () => {
+    // Oracle: `if (ClientId is not null) { … }` — no client id, no call, so
+    // `_consentInfo` stays null and the error block renders.
+    await renderWithClient(<ConsentScreen returnUrl={RETURN_URL} />);
+
+    await expect
+      .element(page.getByTestId("consent-error"))
+      .toHaveTextContent(/unable to load consent information/iu);
+  });
+
+  it("does not call the endpoint when no client id is supplied", async () => {
+    // A screen that "helpfully" sent `clientId: undefined` would 404 and blame
+    // the server for the link's own defect.
+    await renderWithClient(<ConsentScreen returnUrl={RETURN_URL} />);
+
+    await expect.element(page.getByTestId("consent-error")).toBeInTheDocument();
+
+    expect(mocks.getConsentInfo).not.toHaveBeenCalled();
+  });
+
+  it("treats an empty-string client id as missing", async () => {
+    // `?client_id=&returnUrl=…` is a malformed link, not a client to look up.
+    await renderWithClient(<ConsentScreen clientId="" returnUrl={RETURN_URL} />);
+
+    await expect.element(page.getByTestId("consent-error")).toBeInTheDocument();
+
+    expect(mocks.getConsentInfo).not.toHaveBeenCalled();
+  });
+
+  it("shows the error when the consent-info request fails", async () => {
+    // `AuthApiClient.GetConsentInfoAsync` returns null on any non-2xx and the
+    // oracle renders the error block. Through this seam the same failure is a
+    // rejection, because `unwrap()` throws.
+    mocks.getConsentInfo.mockRejectedValue(wallowErrorShaped(404));
+
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+
+    await expect
+      .element(page.getByTestId("consent-error"))
+      .toHaveTextContent(/unable to load consent information/iu);
+  });
+
+  it("shows the same error for a server failure", async () => {
+    // The oracle has ONE error message for every failure — no status narrowing,
+    // so the WallowError code-loss gotcha costs this screen nothing.
+    mocks.getConsentInfo.mockRejectedValue(wallowErrorShaped(500));
+
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+
+    await expect
+      .element(page.getByTestId("consent-error"))
+      .toHaveTextContent(/unable to load consent information/iu);
+  });
+
+  it("survives a rejection that is not WallowError-shaped at all", async () => {
+    // A network failure has no `status`; it must land on the same error surface
+    // rather than throwing inside the error branch.
+    mocks.getConsentInfo.mockRejectedValue(new Error("network down"));
+
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+
+    await expect.element(page.getByTestId("consent-error")).toBeInTheDocument();
+  });
+
+  it("offers no approve or deny action in the error state", async () => {
+    // Oracle's if/else. This is the important half: with no consent info there
+    // is no scope list, so an Approve button here would authorize an unknown
+    // client for unknown scopes.
+    mocks.getConsentInfo.mockRejectedValue(wallowErrorShaped(404));
+
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+
+    await expect.element(page.getByTestId("consent-error")).toBeInTheDocument();
+
+    expect(page.getByTestId("consent-approve").query()).toBeNull();
+    expect(page.getByTestId("consent-deny").query()).toBeNull();
+    expect(page.getByTestId("consent-heading").query()).toBeNull();
+    expect(page.getByTestId("consent-scopes").query()).toBeNull();
+  });
+
+  it("never leaks the raw rejection into the page", async () => {
+    // `code: "UNKNOWN"` / `title: "Unknown error"` are seam artefacts, not
+    // user-facing copy. The oracle shows one curated message.
+    mocks.getConsentInfo.mockRejectedValue(wallowErrorShaped(404));
+
+    await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
+
+    await expect.element(page.getByTestId("consent-error")).toBeInTheDocument();
+
+    expect(document.body.textContent).not.toMatch(/unknown error|UNKNOWN/u);
+  });
+});
+
+/**
+ * Route-level spec. Rendered through a real memory router rather than by poking
+ * at `Route.options.component`: this route's component reads `client_id` and
+ * `returnUrl` through `Route.useSearch()`, and every router hook dereferences a
+ * `null` router outside a `RouterProvider` (`useRouter` only warns; `useMatch`
+ * then throws on `router.stores`), so a bare render is unsatisfiable by any
+ * correct implementation. Mirrors the harness `ResetPasswordForm.test.tsx`
+ * established for the same reason.
+ *
+ * The root here is a throwaway: the app's real `__root.tsx` renders `<html>`,
+ * and `src/router.tsx` is off-limits to this task (Wallow-vec7.3.16).
+ */
+function renderRouteAt(url: string) {
+  const rootRoute = createRootRoute({ component: Outlet });
+  const routeTree = rootRoute.addChildren([
+    consentRoute.update({
+      id: "/consent",
+      path: "/consent",
+      getParentRoute: () => rootRoute,
+    } as any),
+  ]);
+  const router = createRouter({
+    routeTree,
+    history: createMemoryHistory({ initialEntries: [url] }),
+  });
+
+  return renderWithClient(<RouterProvider router={router} />);
+}
+
+describe("/consent route", () => {
+  it("renders the real screen in place of the pre-registration placeholder", async () => {
+    // Wallow-vec7.3.16 registered this path against a placeholder component;
+    // this task's job is to replace it. The path itself is the contract and is
+    // not this task's to change (router.tsx is off-limits).
+    const user = userEvent.setup();
+
+    await renderRouteAt(
+      `/consent?client_id=${CLIENT_ID}&returnUrl=${encodeURIComponent(RETURN_URL)}`,
+    );
+
+    await expect.element(page.getByTestId("consent-heading")).toBeInTheDocument();
+    expect(page.getByTestId("route-placeholder").query()).toBeNull();
+    // Both query parameters must actually reach the screen, not merely parse:
+    // `client_id` threads as far as the request...
+    expect(mocks.getConsentInfo.mock.calls[0]?.[0]).toBe(CLIENT_ID);
+
+    // ...and `returnUrl` as far as the URL approve builds. A route that dropped
+    // it would send the user to the "/" fallback instead — pinned via the
+    // deterministic builder seam plus the sentinel landing on the hash.
+    await user.click(page.getByTestId("consent-approve"));
+
+    await vi.waitFor(() => {
+      expect(globalThis.location.hash).toBe(NAV_SENTINEL);
+    });
+    expect(mocks.buildConsentSubmitUrl).toHaveBeenCalledWith("", RETURN_URL, true);
+  });
+
+  it("reads returnUrl and client_id off the query string", () => {
+    // The oracle's two `[SupplyParameterFromQuery]` properties. Note the wire
+    // name is `client_id` (snake_case, per `[SupplyParameterFromQuery(Name =
+    // "client_id")]`) — it is OpenIddict's parameter name and is not this
+    // screen's to rename, even though the prop it feeds is `clientId`.
+    const validateSearch = consentRoute.options.validateSearch as
+      | ((search: Record<string, unknown>) => unknown)
+      | undefined;
+
+    expect(validateSearch).toBeDefined();
+    expect(validateSearch?.({ returnUrl: RETURN_URL, client_id: CLIENT_ID })).toEqual({
+      returnUrl: RETURN_URL,
+      client_id: CLIENT_ID,
+    });
+  });
+
+  it("tolerates a query string with neither of them", () => {
+    const validateSearch = consentRoute.options.validateSearch as
+      | ((search: Record<string, unknown>) => unknown)
+      | undefined;
+
+    expect(validateSearch?.({})).toEqual({
+      returnUrl: undefined,
+      client_id: undefined,
+    });
+  });
+
+  it("reads the space-delimited scope off the query string", () => {
+    // The third parameter the authorize endpoint now sends (Wallow-dzt4). The
+    // wire name is `scope` (singular), matching OAuth and what
+    // `AuthorizationController` builds the consent redirect with; the value is
+    // kept as the raw string here and split by the screen.
+    const validateSearch = consentRoute.options.validateSearch as
+      | ((search: Record<string, unknown>) => unknown)
+      | undefined;
+
+    expect(validateSearch?.({ returnUrl: RETURN_URL, client_id: CLIENT_ID, scope: SCOPE })).toEqual(
+      { returnUrl: RETURN_URL, client_id: CLIENT_ID, scope: SCOPE },
+    );
+  });
+
+  it("treats a non-string scope as absent", () => {
+    // TanStack Router's default search parser JSON-parses every value BEFORE
+    // `validateSearch` sees it (bd memory `tanstack-router-default-search-parser-
+    // json-parses-values`), so `?scope=123` arrives as a NUMBER. Same rule the
+    // other two parameters already follow: anything non-string is absent.
+    const validateSearch = consentRoute.options.validateSearch as
+      | ((search: Record<string, unknown>) => unknown)
+      | undefined;
+
+    expect(validateSearch?.({ scope: 123 })).toEqual({
+      returnUrl: undefined,
+      client_id: undefined,
+      scope: undefined,
+    });
+  });
+
+  it("threads the scope from the query string all the way to the lookup", async () => {
+    // The end of the chain this bead repairs: authorize redirect -> route search
+    // -> screen -> consent-info request. Parsing `scope` without handing it down
+    // would leave the consent list just as empty as before.
+    await renderRouteAt(
+      `/consent?client_id=${CLIENT_ID}&returnUrl=${encodeURIComponent(RETURN_URL)}` +
+        `&scope=${encodeURIComponent(SCOPE)}`,
+    );
+
+    await vi.waitFor(() => {
+      expect(mocks.getConsentInfo).toHaveBeenCalled();
+    });
+
+    expect(mocks.getConsentInfo.mock.calls[0]?.[1]).toEqual(SCOPE_LIST);
+  });
+});

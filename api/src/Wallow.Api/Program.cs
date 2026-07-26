@@ -525,9 +525,6 @@ try
     // Tenant observability (sets wallow.tenant_id on Activity tag + W3C Baggage for downstream propagation)
     app.UseMiddleware<TenantBaggageMiddleware>();
 
-    // SCIM authentication (Bearer token validation for /scim/v2/* endpoints)
-    app.UseMiddleware<ScimAuthenticationMiddleware>();
-
     // Permission expansion (reads roles → expands to PermissionType claims)
     app.UseMiddleware<PermissionExpansionMiddleware>();
 

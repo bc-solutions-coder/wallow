@@ -25,7 +25,7 @@ Single-page applications can use PKCE with the Authorization Code flow, but this
 sequenceDiagram
     participant Browser
     participant BFF as Fork BFF
-    participant Auth as Wallow Auth<br/>(Wallow.Auth)
+    participant Auth as Wallow Auth<br/>(apps/wallow-auth)
     participant API as Wallow API<br/>(Wallow.Api)
 
     Browser->>BFF: GET /protected-page
@@ -37,7 +37,7 @@ sequenceDiagram
     Browser->>Auth: POST credentials
     Auth->>Browser: 302 → BFF /callback?code=...
     Browser->>BFF: GET /callback?code=...
-    BFF->>API: POST /connect/token (code + code_verifier)
+    BFF->>API: POST /connect/token (code + code_verifier + client_secret)
     API->>BFF: { access_token, refresh_token, expires_in }
     BFF->>BFF: Store tokens in Valkey, keyed by session ID
     BFF->>Browser: 302 → /protected-page (Set-Cookie: session=<opaque-id>)
@@ -57,15 +57,16 @@ Sign in to the Wallow dashboard and navigate to **Settings > Applications > Regi
 
 | Field | Value |
 |-------|-------|
-| Application name | The display name shown on the consent screen |
+| Application name | Must start with the `app-` prefix (e.g., `app-my-fork-site`). Also shown on the consent screen. |
+| Client type | **Select `Confidential`.** The form defaults to `Public`, but a BFF integration requires a confidential client so it can authenticate to the token endpoint with a `client_secret`. A public client is issued no secret and cannot complete the token exchange below. |
 | Grant type | `authorization_code` |
-| Redirect URIs | The full callback URL on your BFF (e.g., `https://myapp.example.com/callback`) |
-| Post-logout redirect URIs | Where to send the user after logout (e.g., `https://myapp.example.com/`) |
-| Scopes | The scopes your application needs (e.g., `openid profile email offline_access`) |
+| Redirect URIs | The full callback URL on your BFF (e.g., `https://myapp.example.com/callback`). Each URI must be absolute HTTPS; `localhost` may use plain HTTP for local development. |
+| Post-logout redirect URIs | Where to send the user after logout (e.g., `https://myapp.example.com/`). Same absolute-HTTPS (localhost-HTTP) rule. |
+| Scopes | The scopes your application needs. `openid`, `profile`, `email`, and `offline_access` are always available for login; you may additionally request any developer-app scope your integration uses. |
 
-After registering, Wallow generates a `client_id`. The application uses PKCE, so no `client_secret` is required for public clients.
+With `Confidential` selected, Wallow registers a **confidential client** and returns a `client_id` together with a `client_secret`. **The secret is shown exactly once, at creation time** — copy it straight into your BFF's server-side configuration (`OIDC_CLIENT_SECRET`). If you lose it, rotate the secret from the application's settings to mint a new one; the previous secret stops working immediately.
 
-> **Client ID prefix:** OAuth applications registered through the dashboard use the `app-` prefix (e.g., `app-my-fork-site`). This prefix is required — see the [DCR Integration guide](dcr-integration.md) for background.
+Because the client is confidential, your BFF authenticates to the token endpoint with its `client_secret` **in addition to** PKCE. Keep the secret in the BFF server process (or a secrets manager) only — never in the browser or in source control.
 
 ### 2. Decide Where Your BFF Runs
 
@@ -96,11 +97,11 @@ GET {WALLOW_AUTH_URL}/connect/authorize
 
 Store both `state` and `code_verifier` in the user's pre-authentication session so they can be validated in step 3.
 
-`WALLOW_AUTH_URL` is the base URL of the `Wallow.Auth` app (e.g., `https://wallow.example.com/auth` when behind a reverse proxy).
+`WALLOW_AUTH_URL` is the base URL of the auth app (`apps/wallow-auth`, e.g., `https://wallow.example.com/auth` when behind a reverse proxy).
 
 ### Step 2 — User Authenticates on Wallow
 
-Wallow.Auth presents the login page. If the user has not previously authorized your application, Wallow also displays a consent screen listing the requested scopes. The user approves or denies access.
+The auth app presents the login page. If the user has not previously authorized your application, Wallow also displays a consent screen listing the requested scopes. The user approves or denies access.
 
 ### Step 3 — Handle the Callback
 
@@ -125,10 +126,12 @@ grant_type=authorization_code
 &code={auth_code}
 &redirect_uri=https://myapp.example.com/callback
 &client_id=app-my-fork-site
+&client_secret={client_secret}
 &code_verifier={code_verifier_from_step_1}
 ```
 
 `WALLOW_API_URL` is the base URL of the `Wallow.Api` app (e.g., `https://wallow.example.com/api`).
+Send the `client_secret` from the server-side environment only; the confidential client authenticates with it alongside the PKCE `code_verifier`.
 
 Wallow responds with:
 
@@ -220,6 +223,7 @@ Content-Type: application/x-www-form-urlencoded
 grant_type=refresh_token
 &refresh_token={refresh_token}
 &client_id=app-my-fork-site
+&client_secret={client_secret}
 ```
 
 On success, Wallow returns a new `access_token` and a rotated `refresh_token`. Update the session record in Valkey with the new values and the new `expires_at`.
@@ -256,9 +260,9 @@ Wallow terminates the user's Wallow session and redirects the browser to `post_l
 
 The entire value of the BFF pattern is that tokens are handled exclusively server-side. Never return `access_token` or `refresh_token` in an API response to the browser.
 
-### PKCE is Required
+### Confidential Client + PKCE
 
-All `authorization_code` clients in Wallow must use PKCE (`code_challenge_method=S256`). Attempts to exchange a code without a valid `code_verifier` will fail with a 400 error.
+Applications registered through the dashboard are **confidential** clients: the BFF authenticates to the token endpoint with its `client_secret` **and** uses PKCE (`code_challenge_method=S256`). Attempts to exchange a code without a valid `code_verifier`, or without the matching `client_secret`, fail with a 400 error. The `client_secret` is shown once at registration — store it server-side only and rotate it if it is ever exposed.
 
 ### Session Cookie Flags
 
@@ -281,6 +285,35 @@ Use a dedicated Valkey database or key namespace for BFF sessions. Set appropria
 
 ---
 
+## Building a TypeScript BFF? Don't hand-roll this part
+
+Everything above is the wire protocol, useful for any language or framework.
+If your BFF is TypeScript, [`@bc-solutions-coder/sdk`](typescript-sdk.md)
+already implements two pieces of it that are easy to get subtly wrong by hand:
+
+- **CSRF token wiring.** The SDK's `csrf` module (`setCsrfToken`,
+  `wireCsrfInterceptor`, `isSafeMethod`) is the client-side half of the
+  synchronizer-token gate — it stamps the current token onto every
+  state-changing request and leaves safe methods alone. See
+  [CSRF protection](typescript-sdk.md#csrf-protection).
+- **SSR cookie forwarding.** If your BFF also server-renders authenticated
+  routes, an SSR-time request runs on Node, which has no cookie jar and
+  cannot resolve a relative URL — it needs the incoming request's absolute
+  origin and session cookie forwarded explicitly, per request. The SDK's
+  `ssr` seam (`setSsrRequestContextResolver`, `configureSsrClient`,
+  `wireSsrCookieInterceptor`) resolves both without leaking a `node:` import
+  into the browser bundle. `apps/wallow-web/src/ssr.tsx` is the reference
+  consumer: it owns the `AsyncLocalStorage` that scopes each incoming
+  request and registers it with the SDK once, at module scope. See
+  [SSR request context for server-rendered loaders](typescript-sdk.md#ssr-request-context-for-server-rendered-loaders).
+
+Reach for these instead of reimplementing the interceptor and cookie-jar
+plumbing shown in the [Example Implementations](#example-implementations)
+below — they exist specifically so a TypeScript BFF does not have to
+reinvent this glue.
+
+---
+
 ## Example Implementations
 
 ### Node.js / Express BFF
@@ -300,6 +333,7 @@ await redis.connect();
 const WALLOW_API_URL = process.env.WALLOW_API_URL; // e.g. https://wallow.example.com/api
 const WALLOW_AUTH_URL = process.env.WALLOW_AUTH_URL; // e.g. https://wallow.example.com/auth
 const CLIENT_ID = process.env.CLIENT_ID; // e.g. app-my-fork-site
+const CLIENT_SECRET = process.env.CLIENT_SECRET; // confidential secret, shown once at registration
 const REDIRECT_URI = process.env.REDIRECT_URI; // e.g. https://myapp.example.com/callback
 const SESSION_COOKIE = "session";
 
@@ -374,6 +408,7 @@ app.get("/callback", async (req, res) => {
       code,
       redirect_uri: REDIRECT_URI,
       client_id: CLIENT_ID,
+      client_secret: CLIENT_SECRET,
       code_verifier: codeVerifier,
     }),
   });
@@ -440,6 +475,7 @@ async function refreshTokens(refreshToken) {
       grant_type: "refresh_token",
       refresh_token: refreshToken,
       client_id: CLIENT_ID,
+      client_secret: CLIENT_SECRET,
     }),
   });
   if (!response.ok) return null;
@@ -472,7 +508,8 @@ builder.Services.AddAuthentication(options =>
     .AddOpenIdConnect(options =>
     {
         options.Authority = builder.Configuration["Wallow:ApiBaseUrl"]; // e.g. https://wallow.example.com/api
-        options.ClientId = builder.Configuration["Wallow:ClientId"];    // e.g. app-my-fork-site
+        options.ClientId = builder.Configuration["Wallow:ClientId"];        // e.g. app-my-fork-site
+        options.ClientSecret = builder.Configuration["Wallow:ClientSecret"]; // confidential secret, shown once at registration
         options.ResponseType = "code";
         options.UsePkce = true;
         options.SaveTokens = true; // Stores tokens in the encrypted cookie or session
@@ -534,7 +571,8 @@ Add the corresponding `appsettings.json` configuration:
 {
   "Wallow": {
     "ApiBaseUrl": "https://wallow.example.com/api",
-    "ClientId": "app-my-fork-site"
+    "ClientId": "app-my-fork-site",
+    "ClientSecret": "set-from-environment-or-a-secrets-manager"
   },
   "Valkey": {
     "ConnectionString": "localhost:6379"
@@ -568,7 +606,7 @@ Add the corresponding `appsettings.json` configuration:
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/connect/authorize` | GET | Start the Authorization Code flow (served by Wallow.Auth) |
+| `/connect/authorize` | GET | Start the Authorization Code flow (served by Wallow.Api; fronted same-origin by the `apps/wallow-auth` proxy) |
 | `/connect/token` | POST | Exchange code for tokens; refresh tokens (served by Wallow.Api) |
 | `/connect/userinfo` | GET | Retrieve claims for the authenticated user (served by Wallow.Api) |
 | `/connect/logout` | GET | End the Wallow session and redirect (served by Wallow.Api) |

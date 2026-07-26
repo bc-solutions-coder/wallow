@@ -29,6 +29,12 @@ internal sealed class NullMessageBus : IMessageBus
     public IAsyncEnumerable<TResponse> StreamAsync<TResponse>(object message, DeliveryOptions options, CancellationToken cancellation = default)
         => throw new NotSupportedException("NullMessageBus does not support StreamAsync.");
 
+    public Task<TResponse> StreamAsync<TRequest, TResponse>(IAsyncEnumerable<TRequest> messages, CancellationToken cancellation = default, TimeSpan? timeout = null)
+        => throw new NotSupportedException("NullMessageBus does not support StreamAsync.");
+
+    public Task<TResponse> StreamAsync<TRequest, TResponse>(IAsyncEnumerable<TRequest> messages, DeliveryOptions options, CancellationToken cancellation = default, TimeSpan? timeout = null)
+        => throw new NotSupportedException("NullMessageBus does not support StreamAsync.");
+
     // IMessageBus
     public Task InvokeForTenantAsync(string tenantId, object message, CancellationToken cancellation = default, TimeSpan? timeout = null)
         => Task.CompletedTask;

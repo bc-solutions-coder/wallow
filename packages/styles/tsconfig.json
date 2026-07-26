@@ -1,0 +1,13 @@
+{
+  // Inherits the workspace-standard semantics (target/lib/module/strict/
+  // verbatimModuleSyntax/resolveJsonModule/...) from the repo-root base config.
+  // `resolveJsonModule` in particular is load-bearing here: src/branding.ts
+  // statically imports the repo-root api/branding.json so bundlers inline it.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "declaration": true,
+    "outDir": "dist",
+    "types": ["node"]
+  },
+  "include": ["src", "vite.config.ts", "vitest.config.ts"]
+}

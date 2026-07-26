@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using OpenIddict.Abstractions;
+using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Identity.Infrastructure.Options;
@@ -16,18 +17,19 @@ namespace Wallow.Identity.Tests.Infrastructure;
 public sealed class PreRegisteredClientSyncServiceTests
 {
     private readonly IOpenIddictApplicationManager _appManager;
+    private readonly IOrganizationService _orgService;
     private readonly PreRegisteredClientSyncService _sut;
     private readonly PreRegisteredClientOptions _options;
 
     public PreRegisteredClientSyncServiceTests()
     {
         _appManager = Substitute.For<IOpenIddictApplicationManager>();
-        IOrganizationService orgService = Substitute.For<IOrganizationService>();
+        _orgService = Substitute.For<IOrganizationService>();
         UserManager<WallowUser> userManager = Substitute.For<UserManager<WallowUser>>(
             Substitute.For<IUserStore<WallowUser>>(), null, null, null, null, null, null, null, null);
         _options = new PreRegisteredClientOptions();
         _sut = new PreRegisteredClientSyncService(
-            _appManager, orgService, userManager, Options.Create(_options), NullLogger<PreRegisteredClientSyncService>.Instance);
+            _appManager, _orgService, userManager, Options.Create(_options), NullLogger<PreRegisteredClientSyncService>.Instance);
     }
 
     [Fact]
@@ -170,6 +172,35 @@ public sealed class PreRegisteredClientSyncServiceTests
             .Returns(_ => ValueTask.CompletedTask);
         await _sut.SyncAsync(CancellationToken.None);
         await _appManager.DidNotReceive().DeleteAsync(manual, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SyncAsync_TenantNameOnlyClient_RoutesOrgCreationThroughOrganizationService()
+    {
+        _options.Clients.Add(new PreRegisteredClientDefinition
+        {
+            ClientId = "tenant-client",
+            DisplayName = "Tenant Client",
+            Secret = "s",
+            RedirectUris = ["https://l/cb"],
+            PostLogoutRedirectUris = ["https://l/so"],
+            Scopes = ["openid"],
+            TenantName = "Acme"
+        });
+        _appManager.FindByClientIdAsync("tenant-client", Arg.Any<CancellationToken>())
+            .Returns(_ => new ValueTask<object?>((object?)null));
+        _orgService.GetOrganizationsAsync("Acme", Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<IReadOnlyList<OrganizationDto>>([]));
+        _orgService.CreateOrganizationAsync(
+                "Acme", Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(Guid.NewGuid()));
+
+        await _sut.SyncAsync(CancellationToken.None);
+
+        // Seed-derived orgs must be minted through Organization.Create (via CreateOrganizationAsync),
+        // never a bypass path — Organization.Create is the single tenant-id mint point (T5.1).
+        await _orgService.Received(1).CreateOrganizationAsync(
+            "Acme", Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>());
     }
 
     private static async IAsyncEnumerable<object> ToAsync(List<object> items)

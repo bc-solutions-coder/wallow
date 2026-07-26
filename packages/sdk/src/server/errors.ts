@@ -14,6 +14,10 @@
  * ASP.NET Core carries the machine-readable error code in `extensions.code`;
  * some serializer configurations flatten extension members onto the root
  * object, so both placements are tolerated by {@link parseProblemDetails}.
+ *
+ * The Identity auth endpoints are the exception: they return a bare
+ * `{ succeeded: false, error: "invalid_code" }` object instead of problem
+ * details, so `error` carries the code there. All three are probed.
  */
 export interface ProblemDetails {
   type?: string;
@@ -22,6 +26,10 @@ export interface ProblemDetails {
   detail?: string;
   instance?: string;
   code?: string;
+  /** Machine-readable code on the non-problem-details auth endpoint bodies. */
+  error?: string;
+  /** Present on the auth endpoint bodies; always `false` on a failure. */
+  succeeded?: boolean;
   extensions?: Record<string, unknown>;
   [member: string]: unknown;
 }
@@ -137,13 +145,25 @@ function tryParseProblem(bodyText: string): ProblemDetails | undefined {
   return isPlainObject(parsed) ? (parsed as ProblemDetails) : undefined;
 }
 
+/**
+ * Recover the machine-readable error code, probing the three placements the
+ * Wallow API actually uses, most authoritative first: `extensions.code` (RFC
+ * 7807 as ASP.NET Core emits it), `code` (the same, flattened), and finally
+ * `error` — the Identity auth endpoints return a bare `{ succeeded, error }`
+ * object rather than problem details. `error` is probed last so real problem
+ * details always win, and non-string members are ignored rather than coerced.
+ */
 function readCode(problem: ProblemDetails): string | undefined {
   const fromExtensions: unknown = problem.extensions?.["code"];
   if (typeof fromExtensions === "string") {
     return fromExtensions;
   }
 
-  return typeof problem.code === "string" ? problem.code : undefined;
+  if (typeof problem.code === "string") {
+    return problem.code;
+  }
+
+  return typeof problem.error === "string" ? problem.error : undefined;
 }
 
 function isSensitiveMember(member: string): boolean {

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
+using Microsoft.Net.Http.Headers;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Identity.Infrastructure.Services;
@@ -58,6 +59,61 @@ public class MfaPartialAuthServiceTests
         await _sut.IssuePartialCookieAsync(payload, CancellationToken.None);
 
         _httpContext.Response.Headers.SetCookie.ToString().Should().Contain(CookieName);
+    }
+
+    [Fact]
+    public async Task IssuePartialCookieAsync_OverHttps_MarksCookieSecure()
+    {
+        _httpContext.Request.IsHttps = true;
+
+        MfaPartialAuthPayload payload = new(
+            UserId: "user-https",
+            Email: "https@example.com",
+            AuthMethod: "password",
+            RememberMe: false,
+            IssuedAt: DateTimeOffset.UtcNow);
+
+        await _sut.IssuePartialCookieAsync(payload, CancellationToken.None);
+
+        SetCookieHeaderValue cookie = ExtractSetCookie(CookieName);
+        cookie.Secure.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task IssuePartialCookieAsync_OverPlainHttp_DoesNotMarkCookieSecure()
+    {
+        _httpContext.Request.IsHttps = false;
+
+        MfaPartialAuthPayload payload = new(
+            UserId: "user-http",
+            Email: "http@example.com",
+            AuthMethod: "password",
+            RememberMe: false,
+            IssuedAt: DateTimeOffset.UtcNow);
+
+        await _sut.IssuePartialCookieAsync(payload, CancellationToken.None);
+
+        SetCookieHeaderValue cookie = ExtractSetCookie(CookieName);
+        cookie.Secure.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task IssuePartialCookieAsync_OverPlainHttp_KeepsHttpOnlyAndSameSiteLax()
+    {
+        _httpContext.Request.IsHttps = false;
+
+        MfaPartialAuthPayload payload = new(
+            UserId: "user-http-hardening",
+            Email: "http-hardening@example.com",
+            AuthMethod: "password",
+            RememberMe: false,
+            IssuedAt: DateTimeOffset.UtcNow);
+
+        await _sut.IssuePartialCookieAsync(payload, CancellationToken.None);
+
+        SetCookieHeaderValue cookie = ExtractSetCookie(CookieName);
+        cookie.HttpOnly.Should().BeTrue();
+        cookie.SameSite.Should().Be(Microsoft.Net.Http.Headers.SameSiteMode.Lax);
     }
 
     [Fact]
@@ -174,6 +230,17 @@ public class MfaPartialAuthServiceTests
         string? setCookieHeader = _httpContext.Response.Headers.SetCookie.ToString();
         setCookieHeader.Should().Contain(CookieName);
         setCookieHeader.Should().Contain("expires=");
+    }
+
+    private SetCookieHeaderValue ExtractSetCookie(string cookieName)
+    {
+        List<string> setCookieHeaders = _httpContext.Response.Headers.SetCookie
+            .Select(header => header ?? string.Empty)
+            .ToList();
+
+        IList<SetCookieHeaderValue> cookies = SetCookieHeaderValue.ParseList(setCookieHeaders);
+
+        return cookies.Single(c => string.Equals(c.Name.ToString(), cookieName, StringComparison.Ordinal));
     }
 
     private static string ExtractCookieValue(string? setCookieHeader, string cookieName)

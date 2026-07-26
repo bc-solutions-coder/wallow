@@ -22,7 +22,13 @@ namespace Wallow.Identity.Api.Controllers;
 public class OrganizationsController(IOrganizationService orgService, ITenantContext tenantContext) : ControllerBase
 {
 
-    private bool IsCurrentTenantOrg(Guid orgId) => orgId == tenantContext.TenantId.Value;
+    // Organization IS the tenant, so a realm admin who creates an org gets back an id that
+    // never equals their own tenant_id claim. Mirror TenantResolutionMiddleware.HasRealmAdminRole:
+    // the "admin" role addresses any org by id, while ordinary tenant roles stay scoped to their
+    // own tenant so they cannot reach other tenants' orgs by guessing GUIDs.
+    private bool IsCurrentTenantOrg(Guid orgId) =>
+        orgId == tenantContext.TenantId.Value
+        || User.GetRoles().Contains("admin", StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Create a new organization.

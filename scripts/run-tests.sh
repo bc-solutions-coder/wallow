@@ -25,16 +25,9 @@ announcements)  echo "$REPO_ROOT/api/tests/Modules/Announcements/Wallow.Announce
         inquiries)      echo "$REPO_ROOT/api/tests/Modules/Inquiries/Wallow.Inquiries.Tests" ;;
         branding)       echo "$REPO_ROOT/api/tests/Modules/Branding/Wallow.Branding.Tests" ;;
         apikeys)        echo "$REPO_ROOT/api/tests/Modules/ApiKeys/Wallow.ApiKeys.Tests" ;;
-        auth)            echo "$REPO_ROOT/api/tests/Wallow.Auth.Tests" ;;
-        auth-components) echo "$REPO_ROOT/api/tests/Wallow.Auth.Component.Tests" ;;
-        web)             echo "$REPO_ROOT/api/tests/Wallow.Web.Tests" ;;
-        web-components)  echo "$REPO_ROOT/api/tests/Wallow.Web.Component.Tests" ;;
-        e2e)
-            echo "ERROR: E2E tests must be run via ./scripts/run-e2e.sh (requires live infrastructure)." >&2
-            exit 1
-            ;;
         api)             echo "$REPO_ROOT/api/tests/Wallow.Api.Tests" ;;
         arch|architecture) echo "$REPO_ROOT/api/tests/Wallow.Architecture.Tests" ;;
+        seeder)          echo "$REPO_ROOT/api/tests/Wallow.SeederService.Tests" ;;
         shared)          echo "$REPO_ROOT/api/tests/Wallow.Shared.Infrastructure.Tests" ;;
         kernel)          echo "$REPO_ROOT/api/tests/Wallow.Shared.Kernel.Tests" ;;
         integration)     echo "$REPO_ROOT/api/tests/Modules/Identity/Wallow.Identity.IntegrationTests" ;;
@@ -51,8 +44,8 @@ if [[ -n "$PROJECT_PATH" ]]; then
     CMD+=("$PROJECT_PATH")
 fi
 # Exclude E2E and Integration tests from standard runs; they require live infrastructure.
-# E2E tests must use ./scripts/run-e2e.sh; integration tests need Docker services running.
-if [[ "$MODULE_FILTER" != "e2e" && "$MODULE_FILTER" != "integration" ]]; then
+# Integration tests need Docker services running.
+if [[ "$MODULE_FILTER" != "integration" ]]; then
     CMD+=(--filter "Category!=E2E&Category!=Integration")
 fi
 
@@ -77,10 +70,13 @@ echo ""
 TOTAL_PASSED=0
 TOTAL_FAILED=0
 TOTAL_SKIPPED=0
+TRX_COUNT=0
 FAILED_TESTS=""
 
 for trx in "$TRX_DIR"/*.trx; do
     [[ -f "$trx" ]] || continue
+
+    TRX_COUNT=$((TRX_COUNT + 1))
 
     # Extract assembly name from the trx filename or content
     ASSEMBLY=$(basename "$trx" | sed 's/^results_//' | sed 's/_[0-9T].*\.trx$//')
@@ -135,10 +131,22 @@ echo ""
 echo "========================"
 printf "TOTAL: %d tests | PASSED: %d | FAILED: %d | SKIPPED: %d\n" "$TOTAL" "$TOTAL_PASSED" "$TOTAL_FAILED" "$TOTAL_SKIPPED"
 
-if [[ "$TOTAL_FAILED" -gt 0 ]]; then
-    echo ""
-    echo "=== FAILED TESTS ==="
-    echo "$FAILED_TESTS"
+# A nonzero dotnet test exit means FAIL even when no test failures were recorded:
+# a project that fails to COMPILE runs no tests and writes no TRX at all.
+if [[ "$TOTAL_FAILED" -gt 0 || "$TEST_EXIT" -ne 0 ]]; then
+    if [[ "$TOTAL_FAILED" -gt 0 ]]; then
+        echo ""
+        echo "=== FAILED TESTS ==="
+        echo "$FAILED_TESTS"
+    elif [[ "$TRX_COUNT" -eq 0 ]]; then
+        echo ""
+        echo "No TRX result files were generated (found: $TRX_COUNT). The test project likely failed"
+        echo "to build/compile - see the dotnet test output above."
+    else
+        echo ""
+        echo "No test failures were recorded, but dotnet test exited with code $TEST_EXIT."
+        echo "See the dotnet test output above."
+    fi
     echo ""
     echo "RESULT: FAIL"
 else

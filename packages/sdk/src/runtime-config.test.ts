@@ -44,7 +44,7 @@ describe("openapi-ts.config", () => {
     expect(clientPlugin).toEqual(
       expect.objectContaining({
         name: "@hey-api/client-fetch",
-        runtimeConfigPath: "./src/runtime-config.ts",
+        runtimeConfigPath: "./src/runtime-config",
       }),
     );
   });

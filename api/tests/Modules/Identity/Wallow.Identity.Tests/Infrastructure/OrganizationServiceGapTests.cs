@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Domain.Enums;
 using Wallow.Identity.Domain.Identity;
 using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Identity.Infrastructure.Services;
@@ -177,7 +178,7 @@ public sealed class OrganizationServiceGapTests : IDisposable
         typeof(WallowUser).GetProperty("Id")!.SetValue(user, uid);
         _dbContext.Users.Add(user); await _dbContext.SaveChangesAsync();
         Organization org = Organization.Create(new TenantId(_tenantId), "MO", "mo", Guid.NewGuid(), TimeProvider.System);
-        org.AddMember(uid, "member", Guid.Empty, TimeProvider.System);
+        org.AddMember(uid, OrgMemberRole.Member, Guid.Empty, TimeProvider.System);
         _orgRepo.GetByIdAsync(Arg.Any<OrganizationId>(), Arg.Any<CancellationToken>()).Returns(org);
         IReadOnlyList<UserDto> r = await _sut.GetMembersAsync(Guid.NewGuid());
         r.Should().HaveCount(1); r[0].Email.Should().Be("m@t.com");

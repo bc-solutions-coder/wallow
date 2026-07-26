@@ -274,7 +274,7 @@ public class AccountControllerAdditionalTests
     {
         _authSchemeProvider.GetSchemeAsync("Google")
             .Returns(new AuthenticationScheme("Google", "Google", typeof(IAuthenticationHandler)));
-        _redirectUriValidator.IsAllowedAsync("http://app.test.com", Arg.Any<CancellationToken>())
+        _redirectUriValidator.IsAllowedAsync("http://app.test.com", Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(true);
         _signInManager.ConfigureExternalAuthenticationProperties("Google", Arg.Any<string>())
             .Returns(new AuthenticationProperties());
@@ -321,7 +321,7 @@ public class AccountControllerAdditionalTests
         _signInManager.GetExternalLoginInfoAsync(Arg.Any<string>()).Returns(loginInfo);
         _signInManager.ExternalLoginSignInAsync("Google", "key-123", false, true)
             .Returns(Microsoft.AspNetCore.Identity.SignInResult.Success);
-        _redirectUriValidator.IsAllowedAsync("http://app.test.com", Arg.Any<CancellationToken>())
+        _redirectUriValidator.IsAllowedAsync("http://app.test.com", Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(true);
 
         IActionResult result = await _controller.ExternalLoginCallback("http://app.test.com");
@@ -358,7 +358,7 @@ public class AccountControllerAdditionalTests
         _signInManager.GetExternalLoginInfoAsync(Arg.Any<string>()).Returns(loginInfo);
         _signInManager.ExternalLoginSignInAsync("Google", "key-123", false, true)
             .Returns(Microsoft.AspNetCore.Identity.SignInResult.Failed);
-        _redirectUriValidator.IsAllowedAsync("http://app.test.com", Arg.Any<CancellationToken>())
+        _redirectUriValidator.IsAllowedAsync("http://app.test.com", Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(true);
 
         WallowUser existingUser = WallowUser.Create(Guid.Empty, "Test", "User", "existing@test.com", TimeProvider.System);
@@ -425,7 +425,7 @@ public class AccountControllerAdditionalTests
     [Fact]
     public async Task CompleteExternalRegistration_WithValidReturnUrlValidation_UsesReturnUrl()
     {
-        _redirectUriValidator.IsAllowedAsync("http://app.test.com", Arg.Any<CancellationToken>())
+        _redirectUriValidator.IsAllowedAsync("http://app.test.com", Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(true);
 
         IActionResult result = await _controller.CompleteExternalRegistration(
@@ -440,7 +440,7 @@ public class AccountControllerAdditionalTests
     [Fact]
     public async Task CompleteExternalRegistration_WithInvalidReturnUrl_FallsBackToAuthUrl()
     {
-        _redirectUriValidator.IsAllowedAsync("http://evil.com", Arg.Any<CancellationToken>())
+        _redirectUriValidator.IsAllowedAsync("http://evil.com", Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(false);
 
         IActionResult result = await _controller.CompleteExternalRegistration(
@@ -528,7 +528,7 @@ public class AccountControllerAdditionalTests
             HttpContext = httpContext
         };
 
-        _redirectUriValidator.IsAllowedAsync("http://app.test.com", Arg.Any<CancellationToken>())
+        _redirectUriValidator.IsAllowedAsync("http://app.test.com", Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(true);
 
         WallowUser existingUser = WallowUser.Create(Guid.Empty, "Jane", "Doe", "existing@test.com", TimeProvider.System);
@@ -556,7 +556,7 @@ public class AccountControllerAdditionalTests
             HttpContext = httpContext
         };
 
-        _redirectUriValidator.IsAllowedAsync("http://app.test.com", Arg.Any<CancellationToken>())
+        _redirectUriValidator.IsAllowedAsync("http://app.test.com", Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(true);
         _userManager.FindByEmailAsync("new@test.com").Returns((WallowUser?)null);
         _userManager.CreateAsync(Arg.Any<WallowUser>()).Returns(IdentityResult.Success);
@@ -636,7 +636,7 @@ public class AccountControllerAdditionalTests
             HttpContext = httpContext
         };
 
-        _redirectUriValidator.IsAllowedAsync("http://app.test.com", Arg.Any<CancellationToken>())
+        _redirectUriValidator.IsAllowedAsync("http://app.test.com", Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(true);
         _userManager.FindByEmailAsync("new@test.com").Returns((WallowUser?)null);
         _userManager.CreateAsync(Arg.Any<WallowUser>()).Returns(IdentityResult.Success);

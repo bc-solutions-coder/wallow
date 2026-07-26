@@ -1,9 +1,10 @@
-using Wallow.Shared.Infrastructure.Core.Persistence;
+using Microsoft.EntityFrameworkCore;
 using Wallow.Shared.Kernel.Identity;
+using Wallow.Shared.Kernel.MultiTenancy;
 
 namespace Wallow.Shared.Infrastructure.Settings;
 
-public interface ITenantSettingRepository<TDbContext> where TDbContext : TenantAwareDbContext<TDbContext>
+public interface ITenantSettingRepository<TDbContext> where TDbContext : DbContext, ITenantAwareContext
 {
     Task<TenantSettingEntity?> GetAsync(
         TenantId tenantId, string moduleKey, string settingKey, CancellationToken cancellationToken = default);
@@ -17,7 +18,7 @@ public interface ITenantSettingRepository<TDbContext> where TDbContext : TenantA
         TenantId tenantId, string moduleKey, string settingKey, CancellationToken cancellationToken = default);
 }
 
-public interface IUserSettingRepository<TDbContext> where TDbContext : TenantAwareDbContext<TDbContext>
+public interface IUserSettingRepository<TDbContext> where TDbContext : DbContext, ITenantAwareContext
 {
     Task<UserSettingEntity?> GetAsync(
         TenantId tenantId, string userId, string moduleKey, string settingKey,

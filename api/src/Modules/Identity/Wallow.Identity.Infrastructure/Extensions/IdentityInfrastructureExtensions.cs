@@ -13,9 +13,9 @@ using Microsoft.Extensions.Hosting;
 using Npgsql;
 using StackExchange.Redis;
 using Wallow.Identity.Application.Commands.BootstrapAdmin;
-using Wallow.Identity.Application.Commands.RegisterSetupClient;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Application.Queries.IsSetupRequired;
+using Wallow.Identity.Application.Settings;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Identity.Infrastructure.Authorization;
 using Wallow.Identity.Infrastructure.Data;
@@ -27,6 +27,7 @@ using Wallow.Identity.Infrastructure.Services.ExtensionPoints;
 using Wallow.Shared.Contracts.Identity;
 using Wallow.Shared.Contracts.Setup;
 using Wallow.Shared.Infrastructure.Core.Extensions;
+using Wallow.Shared.Infrastructure.Settings;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
 
@@ -65,12 +66,14 @@ public static class IdentityInfrastructureExtensions
                     .SetEndSessionEndpointUris("/connect/logout")
                     .SetUserInfoEndpointUris("/connect/userinfo");
 
-                // Allow explicit issuer override (needed when the API is behind a reverse proxy
-                // or when containers and browsers use different hostnames, e.g. E2E tests)
-                string? issuer = configuration["OpenIddict:Issuer"];
-                if (!string.IsNullOrEmpty(issuer))
+                // The browser reaches /connect/** through the unified auth origin's reverse
+                // proxy, so the advertised issuer must be that public origin rather than the
+                // API's own request origin. OpenIddict:Issuer still overrides it explicitly
+                // (needed when containers and browsers use different hostnames, e.g. E2E tests).
+                Uri? issuer = OpenIddictIssuerResolver.Resolve(configuration);
+                if (issuer is not null)
                 {
-                    options.SetIssuer(new Uri(issuer));
+                    options.SetIssuer(issuer);
                 }
 
                 options.AllowAuthorizationCodeFlow().RequireProofKeyForCodeExchange()
@@ -133,7 +136,6 @@ public static class IdentityInfrastructureExtensions
                     "roles.read", "roles.write", "roles.manage",
                     "organizations.read", "organizations.write", "organizations.manage",
                     "apikeys.read", "apikeys.write", "apikeys.manage",
-                    "sso.read", "sso.manage", "scim.manage",
                     "storage.read", "storage.write",
                     "messaging.access",
                     "announcements.read", "announcements.manage",
@@ -183,9 +185,7 @@ public static class IdentityInfrastructureExtensions
         services.AddMultiTenancy();
         services.AddIdentityPersistence(configuration);
         services.AddReadDbContext<IdentityDbContext>(configuration);
-        // Settings registration skipped: IdentityDbContext inherits ASP.NET Identity's IdentityDbContext,
-        // not TenantAwareDbContext<T>, so the generic AddSettings<T> constraint cannot be satisfied.
-        // TODO: Implement a non-generic settings registration path for Identity module.
+        services.AddSettings<IdentityDbContext, IdentitySettingKeys>("identity");
         services.AddIdentityServices(configuration);
 
         return services;
@@ -242,14 +242,8 @@ public static class IdentityInfrastructureExtensions
         services.AddScoped<IServiceAccountUnfilteredRepository>(sp =>
             (IServiceAccountUnfilteredRepository)sp.GetRequiredService<IServiceAccountRepository>());
         services.AddScoped<IApiScopeRepository, ApiScopeRepository>();
-        services.AddScoped<ISsoConfigurationRepository, SsoConfigurationRepository>();
-        services.AddScoped<IScimConfigurationRepository, ScimConfigurationRepository>();
-        services.AddScoped<IScimSyncLogRepository, ScimSyncLogRepository>();
         services.AddScoped<IOrganizationRepository, OrganizationRepository>();
-        services.AddScoped<IInitialAccessTokenRepository, InitialAccessTokenRepository>();
         services.AddScoped<IInvitationRepository, InvitationRepository>();
-        services.AddScoped<IOrganizationDomainRepository, OrganizationDomainRepository>();
-        services.AddScoped<IMembershipRequestRepository, MembershipRequestRepository>();
     }
 
     private static void AddIdentityAuthorization(this IServiceCollection services, IConfiguration configuration)
@@ -311,7 +305,6 @@ public static class IdentityInfrastructureExtensions
         }
 
         authBuilder
-            .AddScheme<AuthenticationSchemeOptions, ScimBearerAuthenticationHandler>("ScimBearer", null)
             .AddPolicyScheme("SmartScheme", "Smart cookie/bearer selector", options =>
             {
                 options.ForwardDefaultSelector = context =>
@@ -353,16 +346,11 @@ public static class IdentityInfrastructureExtensions
         services.AddScoped<IUserManagementService, UserManagementService>();
         services.AddScoped<IBootstrapAdminService, BootstrapAdminService>();
         services.AddScoped<ISetupStatusChecker, SetupStatusChecker>();
-        services.AddScoped<ISetupClientService, SetupClientService>();
         services.AddScoped<ISetupStatusProvider, SetupStatusProvider>();
         services.AddScoped<PreRegisteredClientSyncService>();
         services.AddScoped<DefaultRoleSeeder>();
 
         services.AddScoped<IServiceAccountService, OpenIddictServiceAccountService>();
-        services.AddScoped<ISsoService, OidcFederationService>();
-        services.AddScoped<ScimUserService>();
-        services.AddScoped<ScimGroupService>();
-        services.AddScoped<IScimService, ScimService>();
         services.AddScoped<IOrganizationService, OrganizationService>();
         services.AddScoped<ITestSupportService, TestSupportService>();
         services.AddScoped<IDeveloperAppService, OpenIddictDeveloperAppService>();
@@ -372,7 +360,6 @@ public static class IdentityInfrastructureExtensions
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IUserQueryService, UserQueryService>();
         services.AddScoped<IInvitationService, InvitationService>();
-        services.AddScoped<IDomainAssignmentService, DomainAssignmentService>();
 
         // Fork extension points — TryAddScoped allows forks to register their own implementations
         // before calling AddIdentityModule, which will skip these defaults.

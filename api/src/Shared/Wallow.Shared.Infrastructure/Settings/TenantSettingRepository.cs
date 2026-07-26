@@ -1,13 +1,13 @@
 using Microsoft.EntityFrameworkCore;
-using Wallow.Shared.Infrastructure.Core.Persistence;
 using Wallow.Shared.Kernel.Identity;
+using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Shared.Kernel.Settings;
 
 namespace Wallow.Shared.Infrastructure.Settings;
 
 public sealed class TenantSettingRepository<TDbContext>(TDbContext context)
     : ITenantSettingRepository<TDbContext>
-    where TDbContext : TenantAwareDbContext<TDbContext>
+    where TDbContext : DbContext, ITenantAwareContext
 {
     public Task<TenantSettingEntity?> GetAsync(
         TenantId tenantId, string moduleKey, string settingKey, CancellationToken cancellationToken = default)

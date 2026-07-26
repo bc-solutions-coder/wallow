@@ -44,48 +44,6 @@ public class InvitationIdTests
     }
 }
 
-public class MembershipRequestIdTests
-{
-    [Fact]
-    public void Create_WithGuid_SetsValue()
-    {
-        Guid guid = Guid.NewGuid();
-
-        MembershipRequestId id = MembershipRequestId.Create(guid);
-
-        id.Value.Should().Be(guid);
-    }
-
-    [Fact]
-    public void New_GeneratesNonEmptyGuid()
-    {
-        MembershipRequestId id = MembershipRequestId.New();
-
-        id.Value.Should().NotBe(Guid.Empty);
-    }
-
-    [Fact]
-    public void Equals_SameValue_ReturnsTrue()
-    {
-        Guid guid = Guid.NewGuid();
-        MembershipRequestId id1 = MembershipRequestId.Create(guid);
-        MembershipRequestId id2 = MembershipRequestId.Create(guid);
-
-        id1.Should().Be(id2);
-        (id1 == id2).Should().BeTrue();
-    }
-
-    [Fact]
-    public void Equals_DifferentValue_ReturnsFalse()
-    {
-        MembershipRequestId id1 = MembershipRequestId.New();
-        MembershipRequestId id2 = MembershipRequestId.New();
-
-        id1.Should().NotBe(id2);
-        (id1 != id2).Should().BeTrue();
-    }
-}
-
 public class OrganizationBrandingIdTests
 {
     [Fact]
@@ -122,48 +80,6 @@ public class OrganizationBrandingIdTests
     {
         OrganizationBrandingId id1 = OrganizationBrandingId.New();
         OrganizationBrandingId id2 = OrganizationBrandingId.New();
-
-        id1.Should().NotBe(id2);
-        (id1 != id2).Should().BeTrue();
-    }
-}
-
-public class OrganizationDomainIdTests
-{
-    [Fact]
-    public void Create_WithGuid_SetsValue()
-    {
-        Guid guid = Guid.NewGuid();
-
-        OrganizationDomainId id = OrganizationDomainId.Create(guid);
-
-        id.Value.Should().Be(guid);
-    }
-
-    [Fact]
-    public void New_GeneratesNonEmptyGuid()
-    {
-        OrganizationDomainId id = OrganizationDomainId.New();
-
-        id.Value.Should().NotBe(Guid.Empty);
-    }
-
-    [Fact]
-    public void Equals_SameValue_ReturnsTrue()
-    {
-        Guid guid = Guid.NewGuid();
-        OrganizationDomainId id1 = OrganizationDomainId.Create(guid);
-        OrganizationDomainId id2 = OrganizationDomainId.Create(guid);
-
-        id1.Should().Be(id2);
-        (id1 == id2).Should().BeTrue();
-    }
-
-    [Fact]
-    public void Equals_DifferentValue_ReturnsFalse()
-    {
-        OrganizationDomainId id1 = OrganizationDomainId.New();
-        OrganizationDomainId id2 = OrganizationDomainId.New();
 
         id1.Should().NotBe(id2);
         (id1 != id2).Should().BeTrue();
