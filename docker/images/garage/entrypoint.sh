@@ -57,6 +57,18 @@ if [ -n "$KEY_INFO" ] && [ -n "$ACCESS_KEY" ]; then
     # Key exists — verify it matches the expected access key
     EXISTING_ID=$(echo "$KEY_INFO" | grep "Key ID:" | awk '{print $NF}')
     if [ "$EXISTING_ID" != "$ACCESS_KEY" ]; then
+        # Guard: real Garage key IDs are 'GK' + 24 lowercase hex chars. Anything else
+        # (the 'changeme'/'CHANGE_ME' .env.example placeholders, the docker-compose
+        # 'wallow' dev fallback, etc.) cannot be a real key. Deleting the existing key
+        # here is unrecoverable and breaks every client already using it, so refuse on
+        # a shape mismatch instead of silently reimporting a placeholder over it.
+        if ! echo "$ACCESS_KEY" | grep -qE '^GK[0-9a-f]{24}$'; then
+            echo "ERROR: GARAGE_ACCESS_KEY='$ACCESS_KEY' is not a valid Garage key ID (expected 'GK' + 24 hex chars)."
+            echo "Refusing to delete the existing key '$GARAGE_KEY_NAME' (ID '$EXISTING_ID') — this looks like an unedited .env placeholder."
+            echo "Set GARAGE_ACCESS_KEY/GARAGE_SECRET_KEY to the real credentials for this cluster, or leave them unset to auto-generate a new key on a FRESH cluster only."
+            kill $GARAGE_PID 2>/dev/null
+            exit 1
+        fi
         echo "Key '$GARAGE_KEY_NAME' exists with ID '$EXISTING_ID' but expected '$ACCESS_KEY'. Deleting and reimporting..."
         garage key delete --yes "$GARAGE_KEY_NAME"
         KEY_INFO=""
