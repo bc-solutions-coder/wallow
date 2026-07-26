@@ -11,10 +11,11 @@ import { useId, useState, type ReactNode } from "react";
  * `accept-terms-checkbox`, `accept-terms-privacy-checkbox`,
  * `accept-terms-submit`.
  *
- * The four props are the oracle's four `[SupplyParameterFromQuery]` properties.
- * The route owns the query string and hands them down, keeping this component a
- * pure function of its inputs and testable without a router — the seam
- * `ResetPasswordForm` established and `ConsentScreen` followed.
+ * Four of the props are the oracle's `[SupplyParameterFromQuery]` properties; the
+ * fifth, `clientId`, is the relay Wallow-53kr added. The route owns the query
+ * string and hands them down, keeping this component a pure function of its
+ * inputs and testable without a router — the seam `ResetPasswordForm`
+ * established and `ConsentScreen` followed.
  *
  * ── WHAT THIS SCREEN IS ──────────────────────────────────────────────────────
  *
@@ -29,7 +30,8 @@ import { useId, useState, type ReactNode } from "react";
  * cannot read. The screen holds no state beyond its two checkboxes, makes NO
  * request, and its only job is to hand the browser to the endpoint — the browser
  * attaches the cookie itself on the top-level same-origin GET (SameSite=Lax
- * permits exactly that). No relay, no session store, no token.
+ * permits exactly that). No identity relay, no session store, no token — the only
+ * thing this screen carries onward is the flow's `client_id`, inert query cargo.
  *
  * ── NO `isSafeReturnUrl` GUARD (disclosed on the bead; adjudicated SAFE) ──────
  *
@@ -206,6 +208,18 @@ function ConsentBoxes(props: {
 export interface AcceptTermsScreenProps {
   /** The `returnUrl` query parameter — `undefined` when the link omits it. */
   readonly returnUrl?: string;
+  /**
+   * The `client_id` query parameter — the client that started the external-login
+   * flow, `undefined` when the flow carries none (Wallow-53kr).
+   *
+   * The screen is a relay for this value and nothing more: it echoes it to
+   * `complete-external-registration`, which is what lets that endpoint scope its
+   * redirect check to the requesting client instead of falling back to the
+   * AuthUrl-only origin set. Like `returnUrl` it is inert query cargo here — the
+   * API decides what it means — so what this screen owes it is the same
+   * `encodeURIComponent` the injection guard applies to `returnUrl`.
+   */
+  readonly clientId?: string;
   /** The `email` query parameter — the address the external provider vouched for. */
   readonly email?: string;
   /** The `name` query parameter — the provider's display name for the user. */
@@ -216,6 +230,7 @@ export interface AcceptTermsScreenProps {
 
 export function AcceptTermsScreen({
   returnUrl,
+  clientId,
   email,
   name,
   error,
@@ -250,13 +265,22 @@ export function AcceptTermsScreen({
     // "true,false", which fails to parse and lands on the !acceptedTerms branch.
     const encodedReturnUrl: string = encodeURIComponent(returnUrl ?? "/");
 
+    // The relay the flow's client id makes on its last hop: it arrived as
+    // `client_id` and leaves as `clientId`, the name the endpoint binds. Omitted
+    // entirely when the flow carries none — a present-but-blank id reads as an
+    // unknown client, whose allow list is the authUrl origin alone, so the
+    // endpoint would refuse the very returnUrl the user is mid-journey to. It
+    // gets `returnUrl`'s encoding for `returnUrl`'s reason.
+    const clientIdParam: string =
+      clientId === undefined || clientId === "" ? "" : `&clientId=${encodeURIComponent(clientId)}`;
+
     // A FULL navigation — the oracle's `NavigateTo(completeUrl, forceLoad: true)`,
     // never `router.navigate`: `/v1/**` is served by the h3 reverse proxy, not by
     // the client-side route tree, which would 404 in-app. It must also be a real
     // top-level navigation for the browser to attach the SameSite=Lax
     // ExternalLoginState cookie the endpoint needs (bd memory
     // `full-navigation-seam-for-wallow-auth-screens-that`).
-    globalThis.location.href = `${SAME_ORIGIN}${COMPLETE_REGISTRATION_PATH}?acceptedTerms=true&returnUrl=${encodedReturnUrl}`;
+    globalThis.location.href = `${SAME_ORIGIN}${COMPLETE_REGISTRATION_PATH}?acceptedTerms=true&returnUrl=${encodedReturnUrl}${clientIdParam}`;
   };
 
   return (

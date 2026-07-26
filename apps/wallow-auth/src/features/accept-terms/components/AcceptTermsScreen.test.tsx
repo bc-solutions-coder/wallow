@@ -170,6 +170,12 @@ const EMAIL = "ada@example.com";
 const NAME = "Ada Lovelace";
 
 /**
+ * The client that started the external-login flow (Wallow-53kr). Arrives on the
+ * query string as `client_id`, leaves as `clientId` — see the relay note below.
+ */
+const CLIENT_ID = "client-a";
+
+/**
  * NAVIGATION SEAM (Wallow-xzha.3.1). The screen hands off with
  * `globalThis.location.href = …`. Under jsdom that was observed by swapping
  * `location` for a plain settable object; in a REAL browser `location` is
@@ -638,6 +644,97 @@ describe("AcceptTermsScreen error mapping", () => {
 });
 
 /**
+ * THE client_id RELAY (Wallow-53kr).
+ *
+ * Wallow-9jab taught `complete-external-registration` to scope its redirect check
+ * to a `clientId`, but nothing on the external-login return path supplies one, so
+ * in production it still sees null and falls back to the AuthUrl-only origin set —
+ * the per-client scoping is correct but inert. Closing that gap needs the id
+ * carried the whole way: `external-login` stashes it in the challenge properties,
+ * `external-login-callback` recovers it and puts `client_id` on the redirect to
+ * THIS screen, and this screen echoes it back to the endpoint that finishes the
+ * flow. This screen is the only link in that chain that runs in the browser.
+ *
+ * The spellings differ across the hop and that is deliberate, not an oversight:
+ * the screen RECEIVES `client_id` (snake_case, the OIDC spelling
+ * `AuthorizationController` already uses on its login redirect) and SENDS
+ * `clientId` (camelCase, the `[FromQuery] string? clientId` parameter the
+ * endpoint gained in Wallow-9jab).
+ *
+ * The id is inert cargo here exactly as `returnUrl` is — the screen does not read
+ * it, validate it, or act on it — so it inherits `returnUrl`'s treatment: relay it
+ * untouched, and percent-encode it so it cannot break out of the query string.
+ */
+describe("AcceptTermsScreen client_id relay", () => {
+  it("echoes the flow's client id back to complete-external-registration", async () => {
+    const user = userEvent.setup();
+    const handoff = captureHandoff();
+    renderScreen({ clientId: CLIENT_ID });
+
+    await acceptBoth(user);
+    await user.click(page.getByTestId("accept-terms-submit"));
+
+    await vi.waitFor(() => {
+      expect(handoff.urls).toHaveLength(1);
+    });
+    const target = handoffTarget(handoff.urls);
+    // Asserted by NAME rather than by pinning the whole query string, so the
+    // parameter order stays the implementation's business. The name itself is the
+    // contract: the endpoint binds `clientId`, not `client_id`.
+    expect(target.searchParams.get("clientId")).toBe(CLIENT_ID);
+    // The relay must not cost the flow its returnUrl.
+    expect(target.searchParams.get("returnUrl")).toBe(RETURN_URL);
+  });
+
+  it("omits clientId entirely when the flow carries none", async () => {
+    // A flow with no client id must not grow an EMPTY `clientId=`. The endpoint
+    // treats a present-but-blank id as an unknown client, whose allow list is the
+    // AuthUrl origin alone — so an empty relay would refuse the very returnUrl the
+    // user is mid-journey to, where sending nothing falls back cleanly.
+    const user = userEvent.setup();
+    const handoff = captureHandoff();
+    renderScreen({ clientId: undefined });
+
+    await acceptBoth(user);
+    await user.click(page.getByTestId("accept-terms-submit"));
+
+    await vi.waitFor(() => {
+      expect(handoff.urls).toHaveLength(1);
+    });
+    const target = handoffTarget(handoff.urls);
+    expect(target.searchParams.has("clientId")).toBe(false);
+    expect(target.pathname + target.search).toBe(
+      `${ENDPOINT}?acceptedTerms=true&returnUrl=${encodeURIComponent(RETURN_URL)}`,
+    );
+  });
+
+  it("percent-encodes clientId so it cannot inject extra query parameters", async () => {
+    // The same injection guard `returnUrl` gets, for the same reason: `client_id`
+    // is attacker-supplied cargo spliced into a URL this screen builds by
+    // concatenation. Unencoded, this value smuggles a second `acceptedTerms` in,
+    // and ASP.NET binds a duplicated `[FromQuery] bool` key as "true,false", which
+    // fails to parse and drops the user on the !acceptedTerms branch — turning a
+    // completed consent into a terms_required bounce.
+    const hostile = "client-a&acceptedTerms=false";
+    const user = userEvent.setup();
+    const handoff = captureHandoff();
+    renderScreen({ clientId: hostile });
+
+    await acceptBoth(user);
+    await user.click(page.getByTestId("accept-terms-submit"));
+
+    await vi.waitFor(() => {
+      expect(handoff.urls).toHaveLength(1);
+    });
+    const target = handoffTarget(handoff.urls);
+    expect(target.searchParams.get("clientId")).toBe(hostile);
+    const href: string = target.pathname + target.search;
+    expect(href).not.toContain("acceptedTerms=false");
+    expect(href.match(/acceptedTerms=/gu)).toHaveLength(1);
+  });
+});
+
+/**
  * Route-level spec. Rendered through a real memory router rather than by poking
  * at `Route.options.component`, because the criterion under test — the four
  * `[SupplyParameterFromQuery]` properties read out of the query string — only
@@ -721,6 +818,49 @@ describe("/accept-terms route", () => {
 
     await expect.element(page.getByTestId("accept-terms-heading")).toBeInTheDocument();
     expect(page.getByTestId("accept-terms-error").query()).toBeNull();
+  });
+
+  it("threads client_id out of the callback redirect into the handoff", async () => {
+    // The whole relay, end to end at the route level: the redirect
+    // `external-login-callback` issues goes in, the URL the endpoint receives
+    // comes out, and the snake_case -> camelCase hop happens in between.
+    const user = userEvent.setup();
+    const handoff = captureHandoff();
+    renderRouteAt(`${callbackRedirectUrl()}&client_id=${encodeURIComponent(CLIENT_ID)}`);
+
+    await expect.element(page.getByTestId("accept-terms-heading")).toBeInTheDocument();
+
+    await acceptBoth(user);
+    await user.click(page.getByTestId("accept-terms-submit"));
+
+    await vi.waitFor(() => {
+      expect(handoff.urls).toHaveLength(1);
+    });
+    const target = handoffTarget(handoff.urls);
+    expect(target.searchParams.get("clientId")).toBe(CLIENT_ID);
+    expect(target.searchParams.get("returnUrl")).toBe(RETURN_URL);
+  });
+
+  it("treats a non-string client_id as absent", async () => {
+    // TanStack Router JSON-parses scalar search values, so `?client_id=42` arrives
+    // as the NUMBER 42. `validateSearch` must narrow it the same way it narrows
+    // the other four params — relaying a number here would put `clientId=42` on
+    // the endpoint's query string as a client that cannot exist, and the endpoint
+    // fails an unknown client closed to the AuthUrl-only origin set.
+    const user = userEvent.setup();
+    const handoff = captureHandoff();
+    renderRouteAt(`${callbackRedirectUrl()}&client_id=42`);
+
+    await expect.element(page.getByTestId("accept-terms-heading")).toBeInTheDocument();
+
+    await acceptBoth(user);
+    await user.click(page.getByTestId("accept-terms-submit"));
+
+    await vi.waitFor(() => {
+      expect(handoff.urls).toHaveLength(1);
+    });
+    const target = handoffTarget(handoff.urls);
+    expect(target.searchParams.has("clientId")).toBe(false);
   });
 
   it("treats a non-string search param as absent", async () => {

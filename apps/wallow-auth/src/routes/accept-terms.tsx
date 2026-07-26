@@ -14,19 +14,25 @@ import { AcceptTermsScreen } from "../features/accept-terms/components/AcceptTer
  * document is the separate `/terms` route (Wallow-vec7.3.3).
  *
  * This route owns the query string — the oracle's four
- * `[SupplyParameterFromQuery]` properties — and hands them down as props,
- * keeping the screen a pure function of its inputs and testable without a
- * router. This is the seam `/reset-password` established and `/consent`
- * followed.
+ * `[SupplyParameterFromQuery]` properties, plus the `client_id` the flow gained
+ * in Wallow-53kr — and hands them down as props, keeping the screen a pure
+ * function of its inputs and testable without a router. This is the seam
+ * `/reset-password` established and `/consent` followed.
  *
  * `AuthLayout` supplies the branded chrome every auth page renders inside. It is
- * given no `branding` prop, so it falls back to the fork's own: no `client_id`
- * reaches this screen — `external-login-callback` redirects here with
- * `returnUrl`, `email` and `name` only.
+ * given no `branding` prop, so it falls back to the fork's own: the `client_id`
+ * here is relay cargo for the endpoint, never a branding lookup.
  */
 interface AcceptTermsSearch {
   /** The `returnUrl` query parameter — `undefined` when the link omits it. */
   readonly returnUrl?: string;
+  /**
+   * The `client_id` query parameter — the client that started the external-login
+   * flow (Wallow-53kr). Snake_case on the way in, because that is the spelling
+   * `external-login-callback` redirects here with; the screen sends it on as
+   * `clientId`, the name the endpoint binds.
+   */
+  readonly clientId?: string;
   /** The `email` query parameter — the address the external provider vouched for. */
   readonly email?: string;
   /** The `name` query parameter — the provider's display name for the user. */
@@ -54,6 +60,7 @@ interface AcceptTermsSearch {
 function validateSearch(search: Record<string, unknown>): AcceptTermsSearch {
   return {
     returnUrl: typeof search.returnUrl === "string" ? search.returnUrl : undefined,
+    clientId: typeof search.client_id === "string" ? search.client_id : undefined,
     email: typeof search.email === "string" ? search.email : undefined,
     name: typeof search.name === "string" ? search.name : undefined,
     error: typeof search.error === "string" ? search.error : undefined,
@@ -61,11 +68,17 @@ function validateSearch(search: Record<string, unknown>): AcceptTermsSearch {
 }
 
 function AcceptTermsRoute() {
-  const { returnUrl, email, name, error } = Route.useSearch();
+  const { returnUrl, clientId, email, name, error } = Route.useSearch();
 
   return (
     <AuthLayout>
-      <AcceptTermsScreen returnUrl={returnUrl} email={email} name={name} error={error} />
+      <AcceptTermsScreen
+        returnUrl={returnUrl}
+        clientId={clientId}
+        email={email}
+        name={name}
+        error={error}
+      />
     </AuthLayout>
   );
 }

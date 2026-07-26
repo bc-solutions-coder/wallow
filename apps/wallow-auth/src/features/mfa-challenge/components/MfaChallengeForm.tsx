@@ -354,14 +354,28 @@ function ChallengeFields(props: {
 export interface MfaChallengeFormProps {
   /** The `returnUrl` query parameter — `undefined` on a direct (non-OIDC) sign-in. */
   readonly returnUrl?: string;
+  /**
+   * The client that started the flow, from the `client_id` the external-login
+   * callback redirects here with — `undefined` on the password path, which
+   * carries none. It scopes BOTH of this screen's uses of the returnUrl: the
+   * allow-list probe and the exchange-ticket hand-off.
+   */
+  readonly clientId?: string;
 }
 
-export function MfaChallengeForm({ returnUrl }: MfaChallengeFormProps): ReactNode {
+export function MfaChallengeForm({ returnUrl, clientId }: MfaChallengeFormProps): ReactNode {
   const navigate = useNavigate();
   const [code, setCode] = useState("");
   const [useBackupCode, setUseBackupCode] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [verified, setVerified] = useState(false);
+
+  // A present-but-blank `client_id` is not a client, and an unknown client fails
+  // CLOSED to the AuthUrl-only origin set on both endpoints — relaying "" would
+  // refuse the very returnUrl the user is mid-journey to. Normalized once here
+  // so blank is absent at BOTH hops below.
+  const scopedClientId: string | undefined =
+    clientId === undefined || clientId.trim() === "" ? undefined : clientId;
 
   // The guard, evaluated before anything else happens — see `localDecisionOf`.
   const local: LocalDecision = localDecisionOf(
@@ -373,7 +387,10 @@ export function MfaChallengeForm({ returnUrl }: MfaChallengeFormProps): ReactNod
   // and a nullish returnUrl is decided "accept" — and is present only to narrow
   // the prop to the `string` the factory takes, without a cast.
   const validation = useQuery({
-    ...authQueries.redirectValidation(returnUrl ?? ""),
+    // Scoped to the flow's own client: unscoped, the endpoint answers against
+    // the UNION of every registered client's origins, so a URI any client at all
+    // registered would pass for this one.
+    ...authQueries.redirectValidation(returnUrl ?? "", scopedClientId),
     // The factory hands back the raw body; the verdict is this screen's reading
     // of it.
     select: isRedirectUriAllowed,
@@ -438,11 +455,16 @@ export function MfaChallengeForm({ returnUrl }: MfaChallengeFormProps): ReactNod
       return;
     }
 
-    globalThis.location.href = getWallowAuthSdk().oidc.buildExchangeTicketUrl(
-      SAME_ORIGIN,
-      ticket,
-      returnUrl,
-    );
+    // The id has to survive this last hop too: `ExchangeTicket` re-validates the
+    // returnUrl before setting the cookie, and falls back to the union origin set
+    // without one. Passed only when there IS one, so a flow that carries no client
+    // asks the exact request it asks today.
+    const oidc = getWallowAuthSdk().oidc;
+
+    globalThis.location.href =
+      scopedClientId === undefined
+        ? oidc.buildExchangeTicketUrl(SAME_ORIGIN, ticket, returnUrl)
+        : oidc.buildExchangeTicketUrl(SAME_ORIGIN, ticket, returnUrl, scopedClientId);
   };
 
   const handleToggle = (): void => {

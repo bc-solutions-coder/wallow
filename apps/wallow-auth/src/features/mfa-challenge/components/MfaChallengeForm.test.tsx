@@ -155,6 +155,10 @@ vi.mock("../../../lib/wallow-auth-sdk", () => ({
  * matters: the two screens are meant to hit one cache entry per URL. The spy
  * returns the RAW endpoint payload (the screen narrows it to a boolean), which is
  * what these tests already feed it.
+ *
+ * The client id (Wallow-nv7l.1) is forwarded to the spy only when the caller
+ * supplies one, so the pre-existing single-argument assertions keep saying what
+ * they always said: an unscoped probe is one argument, a scoped one is two.
  */
 vi.mock("@bc-solutions-coder/sdk/query", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@bc-solutions-coder/sdk/query")>();
@@ -162,9 +166,12 @@ vi.mock("@bc-solutions-coder/sdk/query", async (importOriginal) => {
     ...actual,
     authQueries: {
       ...actual.authQueries,
-      redirectValidation: (url: string) => ({
-        ...actual.authQueries.redirectValidation(url),
-        queryFn: async (): Promise<unknown> => await mocks.validateRedirectUri(url),
+      redirectValidation: (url: string, clientId?: string) => ({
+        ...actual.authQueries.redirectValidation(url, clientId),
+        queryFn: async (): Promise<unknown> =>
+          clientId === undefined
+            ? await mocks.validateRedirectUri(url)
+            : await mocks.validateRedirectUri(url, clientId),
       }),
     },
   };
@@ -207,11 +214,47 @@ const EXTERNAL_RETURN_URL = "http://localhost:5002/login";
 /** An absolute returnUrl from an origin the allow-list has never heard of. */
 const EVIL_RETURN_URL = "https://evil.example.com/steal";
 
+/** The client that started the flow, as `external-login-callback` names it. */
+const CLIENT_ID = "client-a";
+
+/** A SECOND registered client — the one this flow does NOT belong to. */
+const OTHER_CLIENT_ID = "client-b";
+
 /**
- * The origins `IsAllowedAsync` would admit: every registered redirect/post-logout
- * URI, plus `AuthUrl` (OpenIddictRedirectUriValidator.cs:40-65).
+ * An absolute returnUrl registered by `client-b` and by nobody else. Allowed
+ * when `client-b` is asking and refused when `client-a` is, which is the whole
+ * point of scoping the probe.
  */
-const ALLOWED_ORIGINS = new Set(["http://localhost:5002", "https://app.example.com"]);
+const OTHER_CLIENT_RETURN_URL = "https://b.example.com/callback";
+
+/** The `AuthUrl` origin, which `IsAllowedAsync` admits for every client. */
+const AUTH_URL_ORIGIN = "http://localhost:5002";
+
+/**
+ * What each client has REGISTERED (its redirect + post-logout URIs), which is
+ * what `IsAllowedAsync` consults once it is given a client id
+ * (OpenIddictRedirectUriValidator.cs:44-52).
+ *
+ * A Map rather than a Record because the lookup key is attacker-supplied query
+ * cargo (bd memory `attacker-supplied-query-key-lookups-use-map-not-record`): a
+ * Record would answer `"constructor"` with an inherited value.
+ */
+const CLIENT_REGISTERED_ORIGINS = new Map<string, readonly string[]>([
+  [CLIENT_ID, ["https://app.example.com"]],
+  [OTHER_CLIENT_ID, ["https://b.example.com"]],
+]);
+
+/**
+ * The origins `IsAllowedAsync` admits with NO client id: the UNION of every
+ * registered client's, plus `AuthUrl` (OpenIddictRedirectUriValidator.cs:53-65).
+ *
+ * The union is the reason the unscoped probe is a hole rather than a nuisance —
+ * it answers "yes" for a URI any client at all registered, whoever is asking.
+ */
+const ALLOWED_ORIGINS = new Set([
+  AUTH_URL_ORIGIN,
+  ...[...CLIENT_REGISTERED_ORIGINS.values()].flat(),
+]);
 
 /** The bail target for an unsafe returnUrl, matching the ConsentScreen port. */
 const ERROR_HREF = "/error?reason=invalid_redirect_uri";
@@ -252,8 +295,24 @@ function isSafeReturnUrlRule(url: string | null | undefined): boolean {
  * TryCreate fails it -- and `allowedOrigins.Contains(GetOrigin(parsed))` is the
  * allow-list. The endpoint answers `Ok(new { allowed = result })`
  * (AccountController.cs:601-612).
+ *
+ * The `clientId` arm mirrors `GetAllowedOriginsAsync`: given an id, the set is
+ * THAT client's registered origins plus AuthUrl; given none, it is the union
+ * over every client. An UNKNOWN id resolves to no application and leaves only
+ * AuthUrl -- the fail-closed behaviour, not an error.
  */
-function validateRedirectUriRule(uri: string): Promise<{ readonly allowed: boolean }> {
+function allowedOriginsFor(clientId: string | undefined): ReadonlySet<string> {
+  if (clientId === undefined) {
+    return ALLOWED_ORIGINS;
+  }
+
+  return new Set([AUTH_URL_ORIGIN, ...(CLIENT_REGISTERED_ORIGINS.get(clientId) ?? [])]);
+}
+
+function validateRedirectUriRule(
+  uri: string,
+  clientId?: string,
+): Promise<{ readonly allowed: boolean }> {
   let parsed: URL;
   try {
     parsed = new URL(uri);
@@ -262,7 +321,7 @@ function validateRedirectUriRule(uri: string): Promise<{ readonly allowed: boole
     return Promise.resolve({ allowed: false });
   }
 
-  return Promise.resolve({ allowed: ALLOWED_ORIGINS.has(parsed.origin) });
+  return Promise.resolve({ allowed: allowedOriginsFor(clientId).has(parsed.origin) });
 }
 
 /**
@@ -788,6 +847,111 @@ describe("MfaChallengeForm — the open-redirect guard", () => {
   });
 });
 
+/**
+ * THE FLOW'S CLIENT ID (Wallow-nv7l.1, closing Wallow-53kr's acceptance).
+ *
+ * Wallow-9jab taught the API to scope its redirect checks to a client id, and
+ * Wallow-53kr carried that id through the external-login journey: `external-login`
+ * stashes it in the challenge properties, `external-login-callback` recovers it
+ * and puts `client_id` on the `/mfa/challenge` redirect it issues
+ * (AccountController.cs, both MFA branches). This screen is where that hand-off
+ * lands, and it is the last link that still drops the id — so the two things it
+ * does with `returnUrl` are both asked UNSCOPED today:
+ *
+ *   1. the allow-list probe, which without an id answers against the UNION of
+ *      every registered client's origins. A URI registered by any client at all
+ *      passes for every client — the bypass the scoping exists to close.
+ *   2. the exchange-ticket hand-off, where `AccountController.ExchangeTicket`
+ *      re-checks the returnUrl and falls back to the same union set.
+ *
+ * SPELLINGS, both deliberate: the id arrives on the query string as `client_id`
+ * (the OIDC spelling the API redirects with) and leaves as `clientId` (the
+ * `[FromQuery]` name the endpoint binds) — the contract Wallow-53kr pinned on the
+ * accept-terms relay, applied to the other screen on the same journey.
+ */
+describe("MfaChallengeForm — the flow's client id", () => {
+  it("carries it into the exchange-ticket hand-off", async () => {
+    // The id has to survive the last hop too: `ExchangeTicket` validates the
+    // returnUrl AGAIN before setting the cookie, and without the id it validates
+    // against the union set — so a scoped probe followed by an unscoped exchange
+    // would leave the journey's final redirect unscoped anyway.
+    const user = userEvent.setup();
+    await renderForm({ clientId: CLIENT_ID });
+
+    await submitCode(user);
+
+    await vi.waitFor(() => {
+      expect(mocks.buildExchangeTicketUrl).toHaveBeenCalledWith("", TICKET, RETURN_URL, CLIENT_ID);
+    });
+  });
+
+  it("scopes the allow-list probe to it", async () => {
+    const user = userEvent.setup();
+    await renderForm({ returnUrl: EXTERNAL_RETURN_URL, clientId: CLIENT_ID });
+
+    await vi.waitFor(() => {
+      expect(mocks.validateRedirectUri).toHaveBeenCalledWith(EXTERNAL_RETURN_URL, CLIENT_ID);
+    });
+
+    // Anchored on a positive outcome: the user still gets through on a URL their
+    // own client registered. "The probe was called with two arguments" is
+    // satisfied by a screen that then refuses everybody.
+    await expect.element(page.getByTestId("mfa-challenge-code")).toBeInTheDocument();
+    await submitCode(user);
+    await vi.waitFor(() => {
+      expect(mocks.verifyMfa).toHaveBeenCalledWith(CODE);
+    });
+  });
+
+  it("refuses a return url only ANOTHER client registered", async () => {
+    // THE ACCEPTANCE CRITERION, in the browser. `b.example.com` is registered by
+    // `client-b` alone, and this flow belongs to `client-a`. The unscoped probe
+    // says yes to it — the union contains every client's origins — so today this
+    // screen hands a client-a login to a client-b destination. Scoped, the
+    // answer is no.
+    await renderForm({ returnUrl: OTHER_CLIENT_RETURN_URL, clientId: CLIENT_ID });
+
+    await vi.waitFor(() => {
+      expect(mocks.navigate).toHaveBeenCalledWith(expect.objectContaining({ href: ERROR_HREF }));
+    });
+    expect(page.getByTestId("mfa-challenge-code").query()).toBeNull();
+    expect(mocks.verifyMfa).not.toHaveBeenCalled();
+  });
+
+  it("lets that same url through for the client that DID register it", async () => {
+    // The mirror image, and the reason the refusal above is scoping rather than
+    // a blanket tightening: `client-b`'s own users must still reach their own
+    // destination. A green phase that refused every absolute URL would pass the
+    // test above and break every external login.
+    const user = userEvent.setup();
+    await renderForm({ returnUrl: OTHER_CLIENT_RETURN_URL, clientId: OTHER_CLIENT_ID });
+
+    await expect.element(page.getByTestId("mfa-challenge-code")).toBeInTheDocument();
+    await submitCode(user);
+
+    await vi.waitFor(() => {
+      expect(mocks.verifyMfa).toHaveBeenCalledWith(CODE);
+    });
+    expect(mocks.navigate).not.toHaveBeenCalledWith(expect.objectContaining({ href: ERROR_HREF }));
+  });
+
+  it("sends no client id at all when the flow carries a blank one", async () => {
+    // A present-but-blank id is not a client. The endpoint fails an unknown
+    // client CLOSED to the AuthUrl-only origin set, so relaying "" would refuse
+    // the very returnUrl the user is mid-journey to, where sending nothing falls
+    // back to the behaviour that works today. Pinned on the exact ARITY, which
+    // is also what stops an unconditional `undefined` fourth argument.
+    const user = userEvent.setup();
+    await renderForm({ clientId: "" });
+
+    await submitCode(user);
+
+    await vi.waitFor(() => {
+      expect(mocks.buildExchangeTicketUrl).toHaveBeenCalledWith("", TICKET, RETURN_URL);
+    });
+  });
+});
+
 describe("MfaChallengeForm — a rejected code", () => {
   it("reports an invalid verification code on invalid_code", async () => {
     // The oracle's `"invalid_code" =>` branch, reached via the token the API
@@ -1042,6 +1206,44 @@ describe("/mfa/challenge route", () => {
   it("threads the return url out of the query string into the exchange", async () => {
     const user = userEvent.setup();
     await renderRouteAt(`/mfa/challenge?returnUrl=${encodeURIComponent(RETURN_URL)}`);
+
+    await expect.element(page.getByTestId("mfa-challenge-code")).toBeInTheDocument();
+    await submitCode(user);
+
+    await vi.waitFor(() => {
+      expect(mocks.buildExchangeTicketUrl).toHaveBeenCalledWith("", TICKET, RETURN_URL);
+    });
+  });
+
+  it("threads client_id out of the callback redirect into the exchange", async () => {
+    // The relay end to end at the route level: the redirect
+    // `external-login-callback` issues goes in, the arguments the exchange
+    // builder receives come out, and the snake_case -> camelCase hop happens in
+    // between. `validateSearch` has to widen for `client_id` or the id stops at
+    // the router.
+    const user = userEvent.setup();
+    await renderRouteAt(
+      `/mfa/challenge?returnUrl=${encodeURIComponent(RETURN_URL)}` +
+        `&client_id=${encodeURIComponent(CLIENT_ID)}`,
+    );
+
+    await expect.element(page.getByTestId("mfa-challenge-code")).toBeInTheDocument();
+    await submitCode(user);
+
+    await vi.waitFor(() => {
+      expect(mocks.buildExchangeTicketUrl).toHaveBeenCalledWith("", TICKET, RETURN_URL, CLIENT_ID);
+    });
+  });
+
+  it("treats a non-string client_id as absent", async () => {
+    // TanStack Router JSON-parses scalar search values, so `?client_id=42`
+    // arrives as the NUMBER 42 (bd memory
+    // `tanstack-router-default-search-parser-json-parses-values`).
+    // `validateSearch` must `typeof`-narrow it like it narrows returnUrl:
+    // relaying a number would scope the exchange to a client that cannot exist,
+    // and an unknown client fails closed to the AuthUrl-only origin set.
+    const user = userEvent.setup();
+    await renderRouteAt(`/mfa/challenge?returnUrl=${encodeURIComponent(RETURN_URL)}&client_id=42`);
 
     await expect.element(page.getByTestId("mfa-challenge-code")).toBeInTheDocument();
     await submitCode(user);

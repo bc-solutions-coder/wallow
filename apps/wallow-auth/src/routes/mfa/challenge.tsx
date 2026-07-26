@@ -23,6 +23,13 @@ import { MfaChallengeForm } from "../../features/mfa-challenge/components/MfaCha
 interface MfaChallengeSearch {
   /** The `returnUrl` query parameter — `undefined` on a direct (non-OIDC) sign-in. */
   readonly returnUrl?: string;
+  /**
+   * The client that started the flow. It arrives spelled `client_id` — the OIDC
+   * spelling `external-login-callback` redirects here with — and leaves toward
+   * the API spelled `clientId`, the `[FromQuery]` name those endpoints bind.
+   * `undefined` on the password path, which carries none.
+   */
+  readonly clientId?: string;
 }
 
 /**
@@ -38,15 +45,19 @@ interface MfaChallengeSearch {
 function validateSearch(search: Record<string, unknown>): MfaChallengeSearch {
   return {
     returnUrl: typeof search.returnUrl === "string" ? search.returnUrl : undefined,
+    // `typeof`-narrowed like returnUrl: TanStack's default parser JSON-parses
+    // scalars, so `?client_id=42` arrives as a NUMBER. Relaying it would scope
+    // the flow to a client that cannot exist, and an unknown client fails closed.
+    clientId: typeof search.client_id === "string" ? search.client_id : undefined,
   };
 }
 
 function MfaChallengeRoute() {
-  const { returnUrl } = Route.useSearch();
+  const { returnUrl, clientId } = Route.useSearch();
 
   return (
     <AuthLayout>
-      <MfaChallengeForm returnUrl={returnUrl} />
+      <MfaChallengeForm returnUrl={returnUrl} clientId={clientId} />
     </AuthLayout>
   );
 }
