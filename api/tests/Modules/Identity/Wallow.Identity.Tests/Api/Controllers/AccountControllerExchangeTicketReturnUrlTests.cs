@@ -127,7 +127,7 @@ public class AccountControllerExchangeTicketReturnUrlTests
     public async Task ExchangeTicket_WithAllowListedAbsoluteReturnUrl_RedirectsToReturnUrl()
     {
         const string absoluteReturnUrl = "https://app.example.com/dashboard";
-        _redirectUriValidator.IsAllowedAsync(absoluteReturnUrl, Arg.Any<CancellationToken>())
+        _redirectUriValidator.IsAllowedAsync(absoluteReturnUrl, Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(true);
 
         string ticket = await CreateTicketViaLogin();
@@ -142,7 +142,7 @@ public class AccountControllerExchangeTicketReturnUrlTests
     public async Task ExchangeTicket_WithAllowListedAbsoluteReturnUrl_StillSignsUserIn()
     {
         const string absoluteReturnUrl = "https://app.example.com/dashboard";
-        _redirectUriValidator.IsAllowedAsync(absoluteReturnUrl, Arg.Any<CancellationToken>())
+        _redirectUriValidator.IsAllowedAsync(absoluteReturnUrl, Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(true);
 
         string ticket = await CreateTicketViaLogin();
@@ -180,7 +180,7 @@ public class AccountControllerExchangeTicketReturnUrlTests
     [InlineData("//evil.example.com/protocol-relative")]
     public async Task ExchangeTicket_WithNonAllowListedAbsoluteReturnUrl_FallsBackToAuthUrl(string evilReturnUrl)
     {
-        _redirectUriValidator.IsAllowedAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+        _redirectUriValidator.IsAllowedAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(false);
 
         string ticket = await CreateTicketViaLogin();
@@ -216,7 +216,7 @@ public class AccountControllerExchangeTicketReturnUrlTests
         await _controller.ExchangeTicket(ticket, null);
 
         await _redirectUriValidator.DidNotReceive()
-            .IsAllowedAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+            .IsAllowedAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
     }
 
     #endregion

@@ -144,7 +144,7 @@ public class AccountControllerExternalLoginTests
     {
         _authSchemeProvider.GetSchemeAsync("Google")
             .Returns(new AuthenticationScheme("Google", "Google", typeof(IAuthenticationHandler)));
-        _redirectUriValidator.IsAllowedAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+        _redirectUriValidator.IsAllowedAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(false);
 
         IActionResult result = await _controller.ExternalLogin("Google", "http://evil.com");
@@ -285,7 +285,7 @@ public class AccountControllerExternalLoginTests
         // ExternalLogin resolves the provider by scheme NAME, so only the name resolves.
         _authSchemeProvider.GetSchemeAsync("google-oidc").Returns(scheme);
         _authSchemeProvider.GetSchemeAsync("Sign in with Google").Returns((AuthenticationScheme?)null);
-        _redirectUriValidator.IsAllowedAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+        _redirectUriValidator.IsAllowedAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(true);
 
         IActionResult listResult = await _controller.GetExternalProviders();
@@ -305,7 +305,7 @@ public class AccountControllerExternalLoginTests
 
         _authSchemeProvider.GetSchemeAsync("google-oidc").Returns(scheme);
         _authSchemeProvider.GetSchemeAsync("Sign in with Google").Returns((AuthenticationScheme?)null);
-        _redirectUriValidator.IsAllowedAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+        _redirectUriValidator.IsAllowedAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(true);
 
         IActionResult listResult = await _controller.GetExternalProviders();
@@ -327,7 +327,7 @@ public class AccountControllerExternalLoginTests
         _signInManager.ExternalLoginSignInAsync("Google", "provider-key-123", false, true)
             .Returns(Microsoft.AspNetCore.Identity.SignInResult.Success);
         _userManager.FindByEmailAsync("test@example.com").Returns(user);
-        _redirectUriValidator.IsAllowedAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(true);
+        _redirectUriValidator.IsAllowedAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns(true);
         _mfaExemptionChecker.IsExemptAsync(user, Arg.Any<CancellationToken>()).Returns(false);
 
         IActionResult result = await _controller.ExternalLoginCallback("http://localhost:5002");
@@ -352,7 +352,7 @@ public class AccountControllerExternalLoginTests
         _signInManager.ExternalLoginSignInAsync("Google", "provider-key-123", false, true)
             .Returns(Microsoft.AspNetCore.Identity.SignInResult.Success);
         _userManager.FindByEmailAsync("test@example.com").Returns(user);
-        _redirectUriValidator.IsAllowedAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(true);
+        _redirectUriValidator.IsAllowedAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns(true);
         _orgMfaPolicyService.CheckAsync(user.Id, Arg.Any<CancellationToken>())
             .Returns(new OrgMfaPolicyResult(false, false));
 
@@ -396,7 +396,7 @@ public class AccountControllerExternalLoginTests
         _userManager.AddLoginAsync(Arg.Any<WallowUser>(), Arg.Any<UserLoginInfo>())
             .Returns(IdentityResult.Success);
 
-        _redirectUriValidator.IsAllowedAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(true);
+        _redirectUriValidator.IsAllowedAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns(true);
 
         // Org requires MFA
         _orgMfaPolicyService.CheckAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())

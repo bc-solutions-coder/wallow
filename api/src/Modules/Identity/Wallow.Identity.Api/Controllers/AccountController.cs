@@ -49,6 +49,16 @@ public sealed partial class AccountController(
     TimeProvider timeProvider) : ControllerBase
 {
     private const string TicketPurpose = "SignInTicket";
+
+    /// <summary>
+    /// Key the external-login challenge stashes the requesting client id under, and the spelling the
+    /// auth app's screens receive it back as. It rides the challenge's authentication properties —
+    /// which round-trip through the provider in the OAuth state — rather than the callback URL,
+    /// because that URL is the redirect_uri presented to the third-party IdP and providers such as
+    /// Google match it exactly against the registered value.
+    /// </summary>
+    private const string ExternalLoginClientIdKey = "client_id";
+
     private static readonly TimeSpan _ticketLifetime = TimeSpan.FromSeconds(60);
 
     [HttpGet("external-providers")]
@@ -243,7 +253,10 @@ public sealed partial class AccountController(
 
     [HttpGet("external-login")]
     [AllowAnonymous]
-    public async Task<IActionResult> ExternalLogin([FromQuery] string provider, [FromQuery] string returnUrl)
+    public async Task<IActionResult> ExternalLogin(
+        [FromQuery] string provider,
+        [FromQuery] string returnUrl,
+        [FromQuery] string? clientId = null)
     {
         if (string.IsNullOrEmpty(provider))
         {
@@ -258,33 +271,56 @@ public sealed partial class AccountController(
 
         string authUrl = GetRequiredAuthUrl();
 
-        if (string.IsNullOrEmpty(returnUrl) || !await redirectUriValidator.IsAllowedAsync(returnUrl))
+        if (string.IsNullOrEmpty(returnUrl) || !await redirectUriValidator.IsAllowedAsync(returnUrl, clientId))
         {
             return Redirect($"{authUrl}/error?reason=invalid_redirect_uri");
         }
 
         string callbackUrl = Url.Action(nameof(ExternalLoginCallback), new { returnUrl })!;
-        AuthenticationProperties properties = signInManager.ConfigureExternalAuthenticationProperties(provider, callbackUrl);
+        // ConfigureExternalAuthenticationProperties is virtual, so a fork's override may hand back
+        // nothing; challenge with a bag of our own rather than one there is nowhere to stash into.
+        AuthenticationProperties properties =
+            signInManager.ConfigureExternalAuthenticationProperties(provider, callbackUrl)
+            ?? new AuthenticationProperties { RedirectUri = callbackUrl };
+
+        // Stash the client id here rather than on the callback URL: the callback URL is the
+        // redirect_uri sent to the provider and must stay byte-identical to the registered value,
+        // while these items round-trip through the provider in the OAuth state.
+        if (!string.IsNullOrEmpty(clientId))
+        {
+            properties.Items[ExternalLoginClientIdKey] = clientId;
+        }
+
         return Challenge(properties, provider);
     }
 
     [HttpGet("external-login-callback")]
     [AllowAnonymous]
-    public async Task<IActionResult> ExternalLoginCallback([FromQuery] string returnUrl)
+    public async Task<IActionResult> ExternalLoginCallback(
+        [FromQuery] string returnUrl,
+        [FromQuery] string? clientId = null)
     {
         string authUrl = GetRequiredAuthUrl();
 
-        // Validate returnUrl to prevent open redirect attacks
-        if (string.IsNullOrEmpty(returnUrl) || !await redirectUriValidator.IsAllowedAsync(returnUrl))
-        {
-            returnUrl = authUrl;
-        }
-
+        // Fetch the external login info before validating returnUrl: the client id that scopes the
+        // validation was stashed on the challenge and comes back on this info's properties.
         ExternalLoginInfo? info = await signInManager.GetExternalLoginInfoAsync();
         if (info is null)
         {
             LogExternalLoginFailed("unknown", "No external login info available");
             return Redirect($"{authUrl}/login?error=external_login_failed");
+        }
+
+        // An explicit query parameter still wins, so the auth app's own hand-offs keep working.
+        string? flowClientId = !string.IsNullOrEmpty(clientId)
+            ? clientId
+            : GetStashedClientId(info.AuthenticationProperties);
+        string clientIdQuery = BuildClientIdQuery(flowClientId);
+
+        // Validate returnUrl to prevent open redirect attacks
+        if (string.IsNullOrEmpty(returnUrl) || !await redirectUriValidator.IsAllowedAsync(returnUrl, flowClientId))
+        {
+            returnUrl = authUrl;
         }
 
         // Path A: Existing linked account — sign in directly
@@ -314,7 +350,7 @@ public sealed partial class AccountController(
                     HttpContext.RequestAborted);
 
                 string encodedReturn = Uri.EscapeDataString(returnUrl);
-                return Redirect($"{authUrl}/mfa/challenge?returnUrl={encodedReturn}");
+                return Redirect($"{authUrl}/mfa/challenge?returnUrl={encodedReturn}{clientIdQuery}");
             }
 
             // Check org-level MFA policy for users who haven't enrolled yet
@@ -336,7 +372,7 @@ public sealed partial class AccountController(
                             HttpContext.RequestAborted);
 
                         string encodedReturn = Uri.EscapeDataString(returnUrl);
-                        return Redirect($"{authUrl}/mfa/challenge?returnUrl={encodedReturn}");
+                        return Redirect($"{authUrl}/mfa/challenge?returnUrl={encodedReturn}{clientIdQuery}");
                     }
                 }
             }
@@ -393,27 +429,29 @@ public sealed partial class AccountController(
         string encodedReturnUrl = Uri.EscapeDataString(returnUrl);
         string encodedEmail = Uri.EscapeDataString(email);
         string encodedName = Uri.EscapeDataString($"{firstName} {lastName}");
-        return Redirect($"{authUrl}/accept-terms?returnUrl={encodedReturnUrl}&email={encodedEmail}&name={encodedName}");
+        return Redirect($"{authUrl}/accept-terms?returnUrl={encodedReturnUrl}&email={encodedEmail}&name={encodedName}{clientIdQuery}");
     }
 
     [HttpGet("complete-external-registration")]
     [AllowAnonymous]
     public async Task<IActionResult> CompleteExternalRegistration(
         [FromQuery] bool acceptedTerms,
-        [FromQuery] string returnUrl)
+        [FromQuery] string returnUrl,
+        [FromQuery] string? clientId = null)
     {
         string authUrl = GetRequiredAuthUrl();
 
         // Validate returnUrl early, before any user creation
         string validatedReturnUrl = authUrl;
-        if (!string.IsNullOrEmpty(returnUrl) && await redirectUriValidator.IsAllowedAsync(returnUrl))
+        if (!string.IsNullOrEmpty(returnUrl) && await redirectUriValidator.IsAllowedAsync(returnUrl, clientId))
         {
             validatedReturnUrl = returnUrl;
         }
 
         if (!acceptedTerms)
         {
-            return Redirect($"{authUrl}/accept-terms?error=terms_required&returnUrl={Uri.EscapeDataString(validatedReturnUrl)}");
+            return Redirect(
+                $"{authUrl}/accept-terms?error=terms_required&returnUrl={Uri.EscapeDataString(validatedReturnUrl)}{BuildClientIdQuery(clientId)}");
         }
 
         string? cookieValue = Request.Cookies["ExternalLoginState"];
@@ -559,7 +597,10 @@ public sealed partial class AccountController(
 
     [HttpGet("exchange-ticket")]
     [AllowAnonymous]
-    public async Task<IActionResult> ExchangeTicket([FromQuery] string ticket, [FromQuery] string? returnUrl)
+    public async Task<IActionResult> ExchangeTicket(
+        [FromQuery] string ticket,
+        [FromQuery] string? returnUrl,
+        [FromQuery] string? clientId = null)
     {
         LogExchangeTicketRequest(returnUrl);
 
@@ -596,7 +637,7 @@ public sealed partial class AccountController(
         // local URL, or an absolute one the same allow-list already approved. Anything else
         // falls through to the auth root, so this stays fail-closed against open redirects.
         if (!string.IsNullOrEmpty(returnUrl)
-            && (Url.IsLocalUrl(returnUrl) || await redirectUriValidator.IsAllowedAsync(returnUrl)))
+            && (Url.IsLocalUrl(returnUrl) || await redirectUriValidator.IsAllowedAsync(returnUrl, clientId)))
         {
             LogExchangeTicketRedirecting(returnUrl);
             return Redirect(returnUrl);
@@ -609,20 +650,25 @@ public sealed partial class AccountController(
 
     [HttpGet("redirect-uri/validate")]
     [AllowAnonymous]
-    public async Task<IActionResult> ValidateRedirectUri([FromQuery] string? uri, CancellationToken ct)
+    public async Task<IActionResult> ValidateRedirectUri(
+        [FromQuery] string? uri,
+        [FromQuery] string? clientId,
+        CancellationToken ct)
     {
         if (string.IsNullOrEmpty(uri))
         {
             return Ok(new { allowed = false });
         }
 
-        bool result = await redirectUriValidator.IsAllowedAsync(uri, ct);
+        bool result = await redirectUriValidator.IsAllowedAsync(uri, clientId, ct);
         return Ok(new { allowed = result });
     }
 
     [HttpPost("sign-out")]
     [Authorize]
-    public async Task<IActionResult> SignOut([FromForm] string? postLogoutRedirectUri)
+    public async Task<IActionResult> SignOut(
+        [FromForm] string? postLogoutRedirectUri,
+        [FromForm] string? clientId = null)
     {
         await signInManager.SignOutAsync();
 
@@ -630,7 +676,7 @@ public sealed partial class AccountController(
 
         if (!string.IsNullOrEmpty(postLogoutRedirectUri))
         {
-            bool isAllowed = await redirectUriValidator.IsAllowedAsync(postLogoutRedirectUri);
+            bool isAllowed = await redirectUriValidator.IsAllowedAsync(postLogoutRedirectUri, clientId);
             if (!isAllowed)
             {
                 return Redirect($"{authUrl}/error?reason=invalid_redirect_uri");
@@ -716,7 +762,8 @@ public sealed partial class AccountController(
         string authUrl = GetRequiredAuthUrl();
         string verifyUrl = $"{authUrl}/verify-email/confirm?token={Uri.EscapeDataString(token)}&email={Uri.EscapeDataString(user.Email!)}";
 
-        if (!string.IsNullOrEmpty(request.ReturnUrl) && await redirectUriValidator.IsAllowedAsync(request.ReturnUrl))
+        if (!string.IsNullOrEmpty(request.ReturnUrl)
+            && await redirectUriValidator.IsAllowedAsync(request.ReturnUrl, request.ClientId))
         {
             verifyUrl += $"&returnUrl={Uri.EscapeDataString(request.ReturnUrl)}";
         }
@@ -983,6 +1030,26 @@ public sealed partial class AccountController(
 
         return Ok(new { succeeded = true });
     }
+
+    /// <summary>
+    /// Recovers the client id the external-login challenge stashed, which the provider returns in the
+    /// OAuth state.
+    /// </summary>
+    private static string? GetStashedClientId(AuthenticationProperties? properties) =>
+        properties is not null && properties.Items.TryGetValue(ExternalLoginClientIdKey, out string? stashed)
+            ? stashed
+            : null;
+
+    /// <summary>
+    /// Builds the trailing <c>client_id</c> fragment for a hand-off back to the auth app, or an empty
+    /// string when the flow carries no client id. An empty parameter would be echoed back and treated
+    /// as an unknown client, which fails closed to the AuthUrl-only origin set and would refuse the
+    /// returnUrl the user is mid-journey to; sending nothing falls back cleanly instead.
+    /// </summary>
+    private static string BuildClientIdQuery(string? clientId) =>
+        string.IsNullOrEmpty(clientId)
+            ? string.Empty
+            : $"&{ExternalLoginClientIdKey}={Uri.EscapeDataString(clientId)}";
 
     private string GetRequiredAuthUrl() =>
         configuration["AuthUrl"] ?? throw new InvalidOperationException(
