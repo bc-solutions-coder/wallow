@@ -1,7 +1,9 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { createRootRouteWithContext, Outlet } from "@tanstack/react-router";
 
+import { AuthLayout } from "../components/auth-layout";
 import { ReadyIndicator } from "../components/ready-indicator";
+import { NotFoundPage } from "../features/not-found/components/NotFoundPage";
 import {
   appIconUrl,
   forkResolvedBranding,
@@ -96,6 +98,34 @@ function RootComponent() {
   return <DocumentShell />;
 }
 
+/**
+ * The screen for a URL no route claims (Wallow-ffpq.2.7).
+ *
+ * Registered on the ROOT route rather than as the router's
+ * `defaultNotFoundComponent` for two reasons. It renders in place of
+ * `DocumentShell`'s `<Outlet/>`, so a 404 keeps the head, theme,
+ * `<FocusOnNavigate/>`, and `<ReadyIndicator/>` every other page gets — the
+ * response is a page of this app, not a host fallthrough. And `src/router.tsx` is
+ * read as source TEXT by `src/router-codegen.test.ts`, which forbids any import
+ * from `./routes/` there; wiring it here keeps the component next to the layout it
+ * needs.
+ *
+ * `AuthLayout` gets no `branding` prop, so it falls back to the fork's own — the
+ * same choice as `/error` and `/reset-password`. Nothing has identified a client
+ * on a path that matched no route.
+ *
+ * The status code is not set here: TanStack's render handler derives the 404 from
+ * the router's not-found state, and the standalone host propagates it verbatim.
+ */
+function NotFoundRoute() {
+  return (
+    <AuthLayout>
+      <NotFoundPage />
+    </AuthLayout>
+  );
+}
+
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   component: RootComponent,
+  notFoundComponent: NotFoundRoute,
 });
