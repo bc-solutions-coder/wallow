@@ -162,10 +162,10 @@ vi.mock("../../../lib/wallow-auth-sdk", () => ({
  * submit path is pure URL building and stays on the facade's `oidc` slice.
  *
  * Only `queryFn` is swapped — `importOriginal` keeps the real `queryKey`
- * (`queryKeys.auth.consentInfo(clientId)`), so the per-client cache separation
- * these tests rely on is the shipped one, not a fixture. The clientId is
- * forwarded to the spy so the existing call-argument assertions still pin what
- * the screen asks for.
+ * (`queryKeys.auth.consentInfo(clientId, scopes)`), so the per-client and
+ * per-scope-set cache separation these tests rely on is the shipped one, not a
+ * fixture. BOTH arguments are forwarded to the spy so the call-argument
+ * assertions pin exactly what the screen asks for.
  */
 vi.mock("@bc-solutions-coder/sdk/query", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@bc-solutions-coder/sdk/query")>();
@@ -173,9 +173,9 @@ vi.mock("@bc-solutions-coder/sdk/query", async (importOriginal) => {
     ...actual,
     authQueries: {
       ...actual.authQueries,
-      consentInfo: (clientId: string) => ({
-        ...actual.authQueries.consentInfo(clientId),
-        queryFn: async (): Promise<unknown> => await mocks.getConsentInfo(clientId),
+      consentInfo: (clientId: string, scopes?: readonly string[]) => ({
+        ...actual.authQueries.consentInfo(clientId, scopes),
+        queryFn: async (): Promise<unknown> => await mocks.getConsentInfo(clientId, scopes),
       }),
     },
   };
@@ -189,6 +189,15 @@ vi.mock("@tanstack/react-router", async (importOriginal) => ({
 const CLIENT_ID = "wallow-web";
 const RETURN_URL = "/connect/authorize?client_id=wallow-web&scope=openid";
 const ERROR_HREF = "/error?reason=invalid_redirect_uri";
+
+/**
+ * The `scope` query parameter as the authorize endpoint sends it: ONE
+ * space-delimited string (OAuth's own delimiter, and what
+ * `AuthorizationController` builds its consent redirect with), which this screen
+ * splits into the list it asks the consent-info endpoint about.
+ */
+const SCOPE = "openid profile email";
+const SCOPE_LIST = ["openid", "profile", "email"];
 
 /**
  * The non-navigating sentinel the mocked `buildConsentSubmitUrl` returns. It is
@@ -314,26 +323,68 @@ describe("ConsentScreen — loading", () => {
       expect(mocks.getConsentInfo).toHaveBeenCalled();
     });
 
-    // Oracle: `GetConsentInfoAsync(ClientId, Array.Empty<string>())`. Asserted
-    // on the first argument alone: the facade treats an omitted `scopes` and an
-    // empty array identically (auth-client.ts:185-195, `scopes?.length ? … : …`),
-    // so pinning `toHaveBeenCalledWith(CLIENT_ID)` would fail an implementation
-    // that faithfully passed the oracle's `Array.Empty<string>()`.
+    // The client id is the first argument; the scopes are the second and are
+    // pinned separately below.
     expect(mocks.getConsentInfo.mock.calls[0]?.[0]).toBe(CLIENT_ID);
   });
 
-  it("requests no scopes, as the oracle does", async () => {
+  /**
+   * ── THE SCOPE LIST IS AN INPUT, NOT ONLY AN OUTPUT (Wallow-dzt4) ────────────
+   *
+   * The oracle called `GetConsentInfoAsync(ClientId, Array.Empty<string>())` and
+   * this port copied it, on the reasoning that "the scopes being consented to
+   * come back FROM this call". That reasoning was wrong, and it is the bug this
+   * bead fixes: the consent-info endpoint answers "describe THESE scopes for
+   * this client", so an empty list means an empty answer — users were asked to
+   * approve a request whose scope list rendered blank. The oracle's Blazor
+   * consent screen had the same defect; it is not a port regression, but it is
+   * not a contract to preserve either.
+   *
+   * The authorize endpoint now carries the requested scopes to `/consent` as a
+   * space-delimited `scope` parameter; the route parses it and hands it here.
+   */
+  it("forwards the requested scopes to the consent-info lookup", async () => {
+    mocks.getConsentInfo.mockReturnValue(new Promise(() => {}));
+
+    await renderWithClient(
+      <ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} scope={SCOPE} />,
+    );
+
+    // The `toHaveBeenCalled` precondition is load-bearing: without it,
+    // `calls[0]?.[1]` is `undefined` when the screen made NO call at all, and a
+    // scope assertion could pass vacuously.
+    await vi.waitFor(() => {
+      expect(mocks.getConsentInfo).toHaveBeenCalled();
+    });
+
+    expect(mocks.getConsentInfo.mock.calls[0]?.[1]).toEqual(SCOPE_LIST);
+  });
+
+  it("splits the scope parameter on whitespace rather than passing it whole", async () => {
+    // A single mangled scope name is exactly what the delimiter bug produced:
+    // the endpoint would fail to resolve it and render one garbled row.
+    mocks.getConsentInfo.mockReturnValue(new Promise(() => {}));
+
+    await renderWithClient(
+      <ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} scope="openid  profile " />,
+    );
+
+    await vi.waitFor(() => {
+      expect(mocks.getConsentInfo).toHaveBeenCalled();
+    });
+
+    // Empty segments from repeated or trailing spaces are dropped, not sent as
+    // empty scope names.
+    expect(mocks.getConsentInfo.mock.calls[0]?.[1]).toEqual(["openid", "profile"]);
+  });
+
+  it("asks with no scopes when the link carries none", async () => {
+    // A link without `scope` is malformed, not an invitation to invent a list.
+    // The screen must not fabricate scopes the relying party never asked for.
     mocks.getConsentInfo.mockReturnValue(new Promise(() => {}));
 
     await renderWithClient(<ConsentScreen clientId={CLIENT_ID} returnUrl={RETURN_URL} />);
 
-    // `Array.Empty<string>()` — the screen must not invent a scope list. The
-    // scopes being consented to come back FROM this call, they are not an input
-    // to it.
-    //
-    // The `toHaveBeenCalled` precondition is load-bearing: without it,
-    // `calls[0]?.[1]` is `undefined` when the screen made NO call at all, and
-    // "no scopes were passed" would pass vacuously.
     await vi.waitFor(() => {
       expect(mocks.getConsentInfo).toHaveBeenCalled();
     });
@@ -895,5 +946,51 @@ describe("/consent route", () => {
       returnUrl: undefined,
       client_id: undefined,
     });
+  });
+
+  it("reads the space-delimited scope off the query string", () => {
+    // The third parameter the authorize endpoint now sends (Wallow-dzt4). The
+    // wire name is `scope` (singular), matching OAuth and what
+    // `AuthorizationController` builds the consent redirect with; the value is
+    // kept as the raw string here and split by the screen.
+    const validateSearch = consentRoute.options.validateSearch as
+      | ((search: Record<string, unknown>) => unknown)
+      | undefined;
+
+    expect(validateSearch?.({ returnUrl: RETURN_URL, client_id: CLIENT_ID, scope: SCOPE })).toEqual(
+      { returnUrl: RETURN_URL, client_id: CLIENT_ID, scope: SCOPE },
+    );
+  });
+
+  it("treats a non-string scope as absent", () => {
+    // TanStack Router's default search parser JSON-parses every value BEFORE
+    // `validateSearch` sees it (bd memory `tanstack-router-default-search-parser-
+    // json-parses-values`), so `?scope=123` arrives as a NUMBER. Same rule the
+    // other two parameters already follow: anything non-string is absent.
+    const validateSearch = consentRoute.options.validateSearch as
+      | ((search: Record<string, unknown>) => unknown)
+      | undefined;
+
+    expect(validateSearch?.({ scope: 123 })).toEqual({
+      returnUrl: undefined,
+      client_id: undefined,
+      scope: undefined,
+    });
+  });
+
+  it("threads the scope from the query string all the way to the lookup", async () => {
+    // The end of the chain this bead repairs: authorize redirect -> route search
+    // -> screen -> consent-info request. Parsing `scope` without handing it down
+    // would leave the consent list just as empty as before.
+    await renderRouteAt(
+      `/consent?client_id=${CLIENT_ID}&returnUrl=${encodeURIComponent(RETURN_URL)}` +
+        `&scope=${encodeURIComponent(SCOPE)}`,
+    );
+
+    await vi.waitFor(() => {
+      expect(mocks.getConsentInfo).toHaveBeenCalled();
+    });
+
+    expect(mocks.getConsentInfo.mock.calls[0]?.[1]).toEqual(SCOPE_LIST);
   });
 });

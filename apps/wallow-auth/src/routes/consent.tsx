@@ -11,9 +11,10 @@ import { ConsentScreen } from "../features/consent/components/ConsentScreen";
  * placeholder component here and left the router untouched.
  *
  * This route owns the query string — the oracle's two
- * `[SupplyParameterFromQuery]` properties — and hands them down as props,
- * keeping the screen a pure function of its inputs and testable without a
- * router. This is the seam `/reset-password` established.
+ * `[SupplyParameterFromQuery]` properties, plus the `scope` the authorize
+ * endpoint now sends (Wallow-dzt4) — and hands them down as props, keeping the
+ * screen a pure function of its inputs and testable without a router. This is
+ * the seam `/reset-password` established.
  *
  * `AuthLayout` supplies the branded chrome every auth page renders inside. It is
  * given no `branding` prop, so it falls back to the fork's own — the per-client
@@ -30,6 +31,13 @@ interface ConsentSearch {
    * the prop it feeds is `clientId`.
    */
   readonly client_id?: string;
+  /**
+   * The `scope` query parameter — ONE space-delimited string, OAuth's own
+   * delimiter and what `AuthorizationController` builds its consent redirect
+   * with. Kept raw here and split by the screen; `undefined` when the link omits
+   * it.
+   */
+  readonly scope?: string;
 }
 
 /**
@@ -45,15 +53,16 @@ function validateSearch(search: Record<string, unknown>): ConsentSearch {
   return {
     returnUrl: typeof search.returnUrl === "string" ? search.returnUrl : undefined,
     client_id: typeof search.client_id === "string" ? search.client_id : undefined,
+    scope: typeof search.scope === "string" ? search.scope : undefined,
   };
 }
 
 function ConsentRoute() {
-  const { returnUrl, client_id: clientId } = Route.useSearch();
+  const { returnUrl, client_id: clientId, scope } = Route.useSearch();
 
   return (
     <AuthLayout>
-      <ConsentScreen clientId={clientId} returnUrl={returnUrl} />
+      <ConsentScreen clientId={clientId} returnUrl={returnUrl} scope={scope} />
     </AuthLayout>
   );
 }

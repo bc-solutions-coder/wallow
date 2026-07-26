@@ -2,19 +2,20 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { authQueries } from "@bc-solutions-coder/sdk/query";
 import { Card, ErrorBanner } from "@bc-solutions-coder/ui";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useMemo, type ReactNode } from "react";
 
 import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
 
 /**
  * The Consent screen (Wallow-vec7.3.4).
  *
- * `clientId` and `returnUrl` arrive as props rather than being read from the
- * router inside the component: the route owns the query string (the oracle's two
- * `[SupplyParameterFromQuery]` properties, `ReturnUrl` and `client_id`) and
- * hands them down, which keeps this component a pure function of its inputs and
- * testable without a router. This is the seam `ResetPasswordForm` established
- * and `VerifyEmailConfirm` followed.
+ * `clientId`, `returnUrl` and `scope` arrive as props rather than being read
+ * from the router inside the component: the route owns the query string (the
+ * oracle's two `[SupplyParameterFromQuery]` properties, `ReturnUrl` and
+ * `client_id`, plus the `scope` the authorize endpoint sends) and hands them
+ * down, which keeps this component a pure function of its inputs and testable
+ * without a router. This is the seam `ResetPasswordForm` established and
+ * `VerifyEmailConfirm` followed.
  *
  * Testids come verbatim from the oracle (scout inventory on Wallow-vec7.3):
  * `consent-error`, `consent-heading`, `consent-scopes`, `consent-approve`,
@@ -76,6 +77,16 @@ import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
  * without inventing a testid the oracle has no element for, and keeps
  * `consent-error` meaning "this failed" rather than "this failed or has not
  * happened yet".
+ *
+ * ── THE SCOPE LIST IS AN INPUT, NOT ONLY AN OUTPUT (Wallow-dzt4) ─────────────
+ *
+ * The oracle passes `Array.Empty<string>()` to its consent-info call, and this
+ * port copied it on the reasoning that the scopes being consented to come back
+ * FROM the call. They do not: the endpoint answers "describe THESE scopes for
+ * this client", so asking with none returns none, and the oracle's own consent
+ * screen rendered a blank list too. That defect is what this bead repairs — the
+ * authorize endpoint now carries the requested scopes to `/consent` as a
+ * space-delimited `scope` parameter, and the raw string is split here.
  *
  * ── ERROR STATE: `null` BECOMES A REJECTION AT THIS SEAM ─────────────────────
  *
@@ -276,10 +287,24 @@ export interface ConsentScreenProps {
   readonly clientId?: string;
   /** The `returnUrl` query parameter — `undefined` when the link omits it. */
   readonly returnUrl?: string;
+  /**
+   * The `scope` query parameter — ONE space-delimited string of the scopes the
+   * relying party asked for, as the authorize endpoint sends them. `undefined`
+   * when the link omits it.
+   */
+  readonly scope?: string;
 }
 
-export function ConsentScreen({ clientId, returnUrl }: ConsentScreenProps): ReactNode {
+export function ConsentScreen({ clientId, returnUrl, scope }: ConsentScreenProps): ReactNode {
   const navigate = useNavigate();
+
+  // Split on whitespace, dropping empty segments: repeated or trailing spaces in
+  // the parameter are not empty scope names. A link with no `scope` asks with
+  // none — the screen never fabricates a list the relying party did not request.
+  const requestedScopes: readonly string[] = useMemo(
+    () => (scope === undefined ? [] : scope.split(/\s+/u).filter((s: string) => s !== "")),
+    [scope],
+  );
 
   // The guard, evaluated before anything else happens. A NULLISH returnUrl is not
   // hostile — the builder's `ReturnUrl ?? "/"` covers it — so only a PRESENT value
@@ -299,12 +324,12 @@ export function ConsentScreen({ clientId, returnUrl }: ConsentScreenProps): Reac
     }
   }, [returnUrlIsUnsafe, navigate]);
 
-  // One argument, the oracle's `Array.Empty<string>()`: the scopes being consented
-  // to come back FROM this call, they are not an input to it. The `?? ""` is
-  // unreachable — `enabled` gates the read on `clientIsKnown` — and is present
-  // only to narrow the prop to the `string` the factory takes, without a cast.
+  // The requested scopes are an INPUT to this lookup — see the note above. The
+  // `?? ""` is unreachable — `enabled` gates the read on `clientIsKnown` — and is
+  // present only to narrow the prop to the `string` the factory takes, without a
+  // cast.
   const query = useQuery({
-    ...authQueries.consentInfo(clientId ?? ""),
+    ...authQueries.consentInfo(clientId ?? "", requestedScopes),
     // Both refusals carried to React Query, so neither path reaches the network.
     enabled: clientIsKnown && !returnUrlIsUnsafe,
     // A malformed consent request will not become a well-formed one on a second
