@@ -5,9 +5,9 @@
 
 // Protected paths that should never be reformatted
 const PROTECTED_PATTERNS = [
-  "packages/sdk/openapi/**",
+  "**/packages/sdk/openapi/**",
   "**/generated/**",
-  "packages/sdk/src/generated/**",
+  "**/packages/sdk/src/generated/**",
   "**/dist/**",
   // oxfmt has no formatter for pnpm's lockfile and errors with "Expected at
   // least one target file" when asked to format it - never pass it through.
@@ -22,9 +22,9 @@ const PROTECTED_PATTERNS = [
 function filterProtected(files) {
   const protectedRegexes = PROTECTED_PATTERNS.map((pattern) => {
     const escaped = pattern
-      .replaceAll('.', String.raw`\.`)
-      .replaceAll('*', ".*")
-      .replaceAll('?', ".");
+      .replaceAll(".", String.raw`\.`)
+      .replaceAll("*", ".*")
+      .replaceAll("?", ".");
     return new RegExp(`^${escaped}$`);
   });
 
