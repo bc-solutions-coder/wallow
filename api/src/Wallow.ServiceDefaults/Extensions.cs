@@ -23,6 +23,17 @@ public static class Extensions
     /// </summary>
     private const double DefaultTraceSamplingRatio = 1.0;
 
+    /// <summary>
+    /// Configuration key holding the telemetry namespace prefix a fork runs under. The same key
+    /// feeds <c>Diagnostics.Initialize</c>, which names every meter and activity source.
+    /// </summary>
+    private const string NamespacePrefixKey = "Logging:NamespacePrefix";
+
+    /// <summary>
+    /// Prefix <c>Diagnostics</c> uses when a fork configures none.
+    /// </summary>
+    private const string DefaultNamespacePrefix = "Wallow";
+
     public static IHostApplicationBuilder AddServiceDefaults(this IHostApplicationBuilder builder)
     {
         builder.Services.AddServiceDiscovery();
@@ -53,13 +64,24 @@ public static class Extensions
     {
         double samplingRatio = ResolveTraceSamplingRatio(builder.Configuration);
 
+        // The SDK only collects from meters and activity sources it has been told about, so the
+        // instruments Diagnostics creates have to be registered here or they are recorded in-process
+        // and thrown away. AddServiceDefaults runs before Diagnostics.Initialize, so the prefix comes
+        // from configuration rather than from Diagnostics state.
+        string namespacePrefix = builder.Configuration[NamespacePrefixKey] ?? DefaultNamespacePrefix;
+
+        // The wildcard is a suffix match, so it covers every module-scoped name
+        // (Wallow.Messaging, Wallow.Identity, …) but not the bare prefix itself.
+        string moduleNamespaces = $"{namespacePrefix}.*";
+
         builder.Services.AddOpenTelemetry()
             .WithTracing(tracing =>
             {
                 tracing
                     .SetSampler(new ParentBasedSampler(new TraceIdRatioBasedSampler(samplingRatio)))
                     .AddAspNetCoreInstrumentation()
-                    .AddHttpClientInstrumentation();
+                    .AddHttpClientInstrumentation()
+                    .AddSource(namespacePrefix, moduleNamespaces);
             })
             .WithMetrics(metrics =>
             {
@@ -67,7 +89,8 @@ public static class Extensions
                     .AddAspNetCoreInstrumentation()
                     .AddHttpClientInstrumentation()
                     .AddProcessInstrumentation()
-                    .AddRuntimeInstrumentation();
+                    .AddRuntimeInstrumentation()
+                    .AddMeter(namespacePrefix, moduleNamespaces);
             });
 
         string? otlpEndpoint = builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];

@@ -142,7 +142,8 @@ builder.Services.AddOpenTelemetry()
         tracing
             .SetSampler(new ParentBasedSampler(new TraceIdRatioBasedSampler(samplingRatio)))
             .AddAspNetCoreInstrumentation()
-            .AddHttpClientInstrumentation();
+            .AddHttpClientInstrumentation()
+            .AddSource(namespacePrefix, moduleNamespaces);
     })
     .WithMetrics(metrics =>
     {
@@ -150,7 +151,8 @@ builder.Services.AddOpenTelemetry()
             .AddAspNetCoreInstrumentation()
             .AddHttpClientInstrumentation()
             .AddProcessInstrumentation()
-            .AddRuntimeInstrumentation();
+            .AddRuntimeInstrumentation()
+            .AddMeter(namespacePrefix, moduleNamespaces);
     });
 ```
 
@@ -158,15 +160,16 @@ Key aspects:
 - **Export**: `UseOtlpExporter()` is added only when the standard `OTEL_EXPORTER_OTLP_ENDPOINT`
   environment variable is set. Aspire sets it automatically for `pnpm backend`; the production
   compose file sets it to `http://alloy:4317`. With no endpoint configured, traces and metrics
-  are collected in-process and never exported.
+  stay in-process and nothing leaves the host.
 - **Sampling**: `ConfigureOpenTelemetry` installs a `ParentBased(TraceIdRatioBased(ratio))` sampler.
   The ratio comes from `OpenTelemetry:TraceSamplingRatio` and defaults to `1.0`, so local
   development keeps full-fidelity traces. Wrapping the ratio sampler in `ParentBased` means a trace
   already sampled upstream stays sampled through our services, so a request is never traced in
   fragments.
-- **Source registration**: the SDK collects only what is explicitly registered. There is currently
-  **no `AddSource(...)` call**, so the `Wallow.*` activity sources described below are created but
-  their spans are not exported until a source is registered. See
+- **Source and meter registration**: the SDK collects only what is explicitly registered, so
+  `ConfigureOpenTelemetry` registers the fork's telemetry namespace on both sides —
+  `AddSource`/`AddMeter` with the bare prefix plus the `prefix.*` wildcard, where the prefix comes
+  from `Logging:NamespacePrefix`. See
   [Exporting custom instruments](#exporting-custom-instruments).
 
 ### Auto-Instrumentation
@@ -291,6 +294,7 @@ Every custom instrument that exists in `api/src` today:
 | `wallow.cache.hits_total` | Counter | `Wallow.Cache` | `InstrumentedDistributedCache` |
 | `wallow.cache.misses_total` | Counter | `Wallow.Cache` | `InstrumentedDistributedCache` |
 | `wallow.requests_authenticated_total` | Counter | `Wallow.Identity` | `IdentityModuleTelemetry` |
+| `wallow.healthcheck.status` | Gauge | `Wallow.Health` | `HealthCheckMetricsPublisher` |
 
 The messaging trio is the richest of these. `WolverineModuleTaggingMiddleware` stamps a start
 timestamp into the envelope headers on the way in and, on the way out, records the count and duration
@@ -299,23 +303,21 @@ implementing `IDomainEvent`, tagged with `event_type`.
 
 ### Exporting Custom Instruments
 
-`ConfigureOpenTelemetry` registers instrumentation libraries but **no meters or activity sources**,
-and the OpenTelemetry SDK only collects from instruments it has been told about. The instruments in
-the table above are therefore recorded in-process but never exported — they will not appear in
-Prometheus until the meters are registered.
-
-To export them, add the meters (and any activity sources you care about) in
-`api/src/Wallow.ServiceDefaults/Extensions.cs`:
+The OpenTelemetry SDK only collects from instruments it has been told about, so
+`ConfigureOpenTelemetry` in `api/src/Wallow.ServiceDefaults/Extensions.cs` registers the custom
+meters and activity sources alongside the instrumentation libraries:
 
 ```csharp
+string namespacePrefix = builder.Configuration["Logging:NamespacePrefix"] ?? "Wallow";
+string moduleNamespaces = $"{namespacePrefix}.*";
+
 builder.Services.AddOpenTelemetry()
     .WithTracing(tracing =>
     {
         tracing
             .AddAspNetCoreInstrumentation()
             .AddHttpClientInstrumentation()
-            .AddSource("Wallow.Identity")
-            .AddSource("Wallow.Notifications.Email");
+            .AddSource(namespacePrefix, moduleNamespaces);
     })
     .WithMetrics(metrics =>
     {
@@ -324,16 +326,27 @@ builder.Services.AddOpenTelemetry()
             .AddHttpClientInstrumentation()
             .AddProcessInstrumentation()
             .AddRuntimeInstrumentation()
-            .AddMeter("Wallow.Messaging")
-            .AddMeter("Wallow.Cache")
-            .AddMeter("Wallow.Identity");
+            .AddMeter(namespacePrefix, moduleNamespaces);
     });
 ```
 
-Meter and source names must match exactly — `AddMeter` and `AddSource` accept a `*` wildcard suffix,
-so `AddMeter("Wallow.*")` covers every module-scoped meter at once, but note that it does **not**
-match the bare `"Wallow"` meter returned by `Diagnostics.Meter`. Register that one by name if you use
-it. A fork that calls `Diagnostics.Initialize("Contoso")` must register `"Contoso.*"` instead.
+Two names go in on each side because `AddMeter` and `AddSource` treat `*` as a suffix wildcard.
+`Wallow.*` covers every module-scoped name — `Wallow.Messaging`, `Wallow.Cache`, `Wallow.Identity`,
+`Wallow.Health`, `Wallow.Notifications.Email` — but it does **not** match the bare `Wallow` name
+returned by `Diagnostics.Meter` and `Diagnostics.ActivitySource`, which is why the prefix itself is
+registered too. A meter or source a module adds later is picked up by the wildcard with no change
+here.
+
+The prefix comes from configuration rather than from `Diagnostics`: `AddServiceDefaults()` runs
+before `Diagnostics.Initialize()`, so the static state is not readable yet at registration time.
+Both read the same `Logging:NamespacePrefix` key, so a fork that sets it to `Contoso` gets
+`Contoso` and `Contoso.*` registered without touching any code. Registration deliberately stays
+scoped to that prefix — a blanket `AddMeter("*")` would subscribe to every third-party meter in the
+process and flood the collector.
+
+`api/tests/Wallow.Architecture.Tests/CustomInstrumentExportTests.cs` guards this: it builds a host
+through `AddServiceDefaults`, records on each meter, and asserts the metrics reach a reader (and
+that activity sources produce non-null spans), under both the default and a configured prefix.
 
 ## Local Development
 
