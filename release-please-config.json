@@ -18,7 +18,7 @@
       "package-name": "@bc-solutions-coder/sdk",
       "component": "sdk",
       "include-component-in-tag": true,
-      "changelog-path": "packages/sdk/CHANGELOG.md"
+      "changelog-path": "CHANGELOG.md"
     }
   }
 }
