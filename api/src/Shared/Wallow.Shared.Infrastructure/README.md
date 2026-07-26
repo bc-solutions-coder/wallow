@@ -33,5 +33,4 @@ Provides the settings framework for tenant- and user-scoped configuration, and s
 - Hangfire.Core
 - Serilog.AspNetCore
 - HtmlSanitizer
-- Elsa (workflow engine)
 - Audit.EntityFramework.Core

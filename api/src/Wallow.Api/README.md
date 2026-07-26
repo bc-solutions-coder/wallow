@@ -27,10 +27,6 @@ Wolverine provides the unified mediator pattern for commands and queries across 
 
 Hangfire handles scheduled and recurring background jobs. The API provides a dashboard at `/hangfire` for monitoring. Recurring jobs include system heartbeat, failed email retry, OpenIddict token pruning, and expired invitation pruning.
 
-### Workflow Engine
-
-Elsa workflow engine integration for configurable business processes. Enabled by default, disabled via `Elsa:Enabled` config or in Testing environment.
-
 ## Middleware Pipeline
 
 ```
@@ -56,9 +52,8 @@ Elsa workflow engine integration for configurable business processes. Enabled by
 20. ServiceAccountTracking    Usage tracking for service accounts
 21. HangfireDashboard
 22. Controllers
-23. Elsa Workflows            (when enabled)
-24. SignalR Hub               /hubs/realtime
-25. SSE Endpoint              /events
+23. SignalR Hub               /hubs/realtime
+24. SSE Endpoint              /events
 ```
 
 ## Key Types

@@ -110,7 +110,6 @@ Each module follows four layers: **Domain** (no dependencies) → **Application*
 | **Observability** | Serilog structured logging, OpenTelemetry tracing, [Grafana dashboards](docs/operations/observability.md) |
 | **Audit Trail** | Automatic entity change auditing via Audit.NET |
 | **Background Jobs** | `IJobScheduler` abstraction backed by Hangfire |
-| **Workflows** | Elsa 3 engine for long-running business processes |
 
 ## Tech Stack
 
