@@ -1,7 +1,8 @@
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
-using Wallow.Shared.Infrastructure.Core.Persistence;
 using Wallow.Shared.Kernel.Identity;
+using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Shared.Kernel.Settings;
 
 namespace Wallow.Shared.Infrastructure.Settings;
@@ -11,7 +12,7 @@ public sealed class CachedSettingsService<TDbContext>(
     IUserSettingRepository<TDbContext> userRepo,
     ISettingRegistry registry,
     IDistributedCache cache) : ISettingsService
-    where TDbContext : TenantAwareDbContext<TDbContext>
+    where TDbContext : DbContext, ITenantAwareContext
 {
     private static readonly TimeSpan _cacheTtl = TimeSpan.FromMinutes(5);
 

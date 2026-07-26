@@ -15,6 +15,7 @@ using StackExchange.Redis;
 using Wallow.Identity.Application.Commands.BootstrapAdmin;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Application.Queries.IsSetupRequired;
+using Wallow.Identity.Application.Settings;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Identity.Infrastructure.Authorization;
 using Wallow.Identity.Infrastructure.Data;
@@ -26,6 +27,7 @@ using Wallow.Identity.Infrastructure.Services.ExtensionPoints;
 using Wallow.Shared.Contracts.Identity;
 using Wallow.Shared.Contracts.Setup;
 using Wallow.Shared.Infrastructure.Core.Extensions;
+using Wallow.Shared.Infrastructure.Settings;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
 
@@ -183,9 +185,7 @@ public static class IdentityInfrastructureExtensions
         services.AddMultiTenancy();
         services.AddIdentityPersistence(configuration);
         services.AddReadDbContext<IdentityDbContext>(configuration);
-        // Settings registration skipped: IdentityDbContext inherits ASP.NET Identity's IdentityDbContext,
-        // not TenantAwareDbContext<T>, so the generic AddSettings<T> constraint cannot be satisfied.
-        // TODO: Implement a non-generic settings registration path for Identity module.
+        services.AddSettings<IdentityDbContext, IdentitySettingKeys>("identity");
         services.AddIdentityServices(configuration);
 
         return services;

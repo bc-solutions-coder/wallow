@@ -1,12 +1,12 @@
 using Microsoft.EntityFrameworkCore;
-using Wallow.Shared.Infrastructure.Core.Persistence;
 using Wallow.Shared.Kernel.Identity;
+using Wallow.Shared.Kernel.MultiTenancy;
 
 namespace Wallow.Shared.Infrastructure.Settings;
 
 public sealed class UserSettingRepository<TDbContext>(TDbContext context)
     : IUserSettingRepository<TDbContext>
-    where TDbContext : TenantAwareDbContext<TDbContext>
+    where TDbContext : DbContext, ITenantAwareContext
 {
     public Task<UserSettingEntity?> GetAsync(
         TenantId tenantId, string userId, string moduleKey, string settingKey,

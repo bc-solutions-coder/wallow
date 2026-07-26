@@ -16,7 +16,7 @@ using AspNetIdentityDbContext = Microsoft.AspNetCore.Identity.EntityFrameworkCor
 
 namespace Wallow.Identity.Infrastructure.Persistence;
 
-public sealed class IdentityDbContext : AspNetIdentityDbContext
+public sealed class IdentityDbContext : AspNetIdentityDbContext, ITenantAwareContext
 {
     // Retained on the DI contract for forks that encrypt persisted columns; currently unread.
 #pragma warning disable IDE0052
@@ -38,6 +38,8 @@ public sealed class IdentityDbContext : AspNetIdentityDbContext
     public DbSet<OrganizationSettings> OrganizationSettings => Set<OrganizationSettings>();
     public DbSet<OrganizationBranding> OrganizationBrandings => Set<OrganizationBranding>();
     public DbSet<ActiveSession> ActiveSessions => Set<ActiveSession>();
+
+    public TenantId CurrentTenantId => _tenantId;
 
     public IdentityDbContext(
         DbContextOptions<IdentityDbContext> options,
