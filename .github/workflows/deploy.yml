@@ -120,6 +120,14 @@ jobs:
           key: build-v2-${{ runner.os }}-${{ github.sha }}
           fail-on-cache-miss: true
 
+      # The arm64 app images below are cross-built on the amd64 runner; register
+      # QEMU binfmt handlers so their Dockerfile RUN steps can execute arm64
+      # binaries (without this, buildx fails with "exec format error").
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+        with:
+          platforms: arm64
+
       - name: Publish app container images
         run: |
           dotnet publish api/src/Wallow.Api/Wallow.Api.csproj \

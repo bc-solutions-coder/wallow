@@ -214,6 +214,14 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore api/Wallow.slnx
 
+      # The arm64 app images below are cross-built on the amd64 runner; register
+      # QEMU binfmt handlers so their Dockerfile RUN steps can execute arm64
+      # binaries (without this, buildx fails with "exec format error").
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+        with:
+          platforms: arm64
+
       - name: Publish app container images
         run: |
           # x64 images for E2E testing on ubuntu runner
