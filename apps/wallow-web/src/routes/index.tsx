@@ -1,4 +1,3 @@
-import { login } from "@bc-solutions-coder/sdk";
 import { userQueries } from "@bc-solutions-coder/sdk/query";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
@@ -14,8 +13,19 @@ import { forkBranding } from "../lib/branding";
  *     (`/dashboard/apps`) via a TanStack `redirect`,
  *   - an unauthenticated visitor is shown the marketing page only when
  *     `forkBranding.landingPage.enabled`,
- *   - otherwise they are sent to the BFF login (a forced OIDC challenge),
- *     landing back on the dashboard afterwards.
+ *   - otherwise a thrown TanStack `redirect()` sends them to the BFF login (a
+ *     forced OIDC challenge), landing back on the dashboard afterwards.
+ *
+ * That forced-login branch deliberately does NOT use the SDK's `login(returnTo)`
+ * helper: it assigns to the bare global `location`, which does not exist under
+ * Node, so a full-page SSR load of `/` would throw and the request handler would
+ * surface it as HTTP 500 instead of a redirect (Wallow-fqw9, the sibling of the
+ * `/dashboard` fix in Wallow-zyxe). A thrown `redirect()` works on both sides —
+ * the SSR request handler turns it into a 307 with a `Location` header, and the
+ * client router navigates. It is marked `reloadDocument` because `/bff/login` is
+ * a BFF endpoint rather than a route in the TanStack tree, so a relative href
+ * would otherwise be committed against the route tree and land on a not-found
+ * match.
  *
  * The component still server-renders an `<h1 data-testid="home-heading">` (the
  * SSR contract the boot smoke test asserts), now wrapped in the `PublicLayout`
@@ -49,7 +59,10 @@ export const Route = createFileRoute("/")({
       throw Object.assign(redirect({ to: "/dashboard/apps" }), { to: "/dashboard/apps" });
     }
     if (!forkBranding.landingPage.enabled) {
-      login("/dashboard/apps");
+      throw redirect({
+        href: "/bff/login?returnTo=%2Fdashboard%2Fapps",
+        reloadDocument: true,
+      });
     }
   },
   component: HomeComponent,

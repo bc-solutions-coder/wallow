@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { userQueries } from "@bc-solutions-coder/sdk/query";
+import { type AnyRedirect, isRedirect } from "@tanstack/react-router";
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -92,6 +93,14 @@ async function captureThrow(user: unknown): Promise<{ to?: unknown } | undefined
   }
 }
 
+/**
+ * Assert the caught value is a TanStack redirect, narrowing it so callers can
+ * read `options.href` without a cast.
+ */
+function assertRedirect(thrown: unknown): asserts thrown is AnyRedirect {
+  expect(isRedirect(thrown)).toBe(true);
+}
+
 describe("routes/index (public-home gate)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -129,12 +138,18 @@ describe("routes/index (public-home gate)", () => {
     expect(loginMock).not.toHaveBeenCalled();
   });
 
-  it("sends an unauthenticated visitor to the BFF login when the landing page is disabled", async () => {
+  it("throws a BFF-login redirect (not a browser-only login() call) when the landing page is disabled", async () => {
+    // The SSR half of this contract lives in `index.ssr-gate.test.ts` (node
+    // project, real SDK). Here we only assert the client-side shape: the gate
+    // must hand TanStack a redirect rather than reach for the SDK's browser-only
+    // `login()`, which would 500 the same route under SSR (Wallow-fqw9).
     branding.forkBranding.landingPage.enabled = false;
 
-    await captureThrow(null);
+    const thrown: unknown = await captureThrow(null);
 
-    expect(loginMock).toHaveBeenCalled();
+    assertRedirect(thrown);
+    expect(thrown.options.href).toBe("/bff/login?returnTo=%2Fdashboard%2Fapps");
+    expect(loginMock).not.toHaveBeenCalled();
   });
 });
 
