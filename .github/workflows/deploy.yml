@@ -76,9 +76,9 @@ jobs:
           path: |
             **/bin/Release
             **/obj
-          key: build-v2-${{ runner.os }}-${{ github.sha }}
+          key: build-v3-${{ runner.os }}-${{ github.sha }}
           restore-keys: |
-            build-v2-${{ runner.os }}-
+            build-v3-${{ runner.os }}-
 
       - name: Restore dependencies
         run: dotnet restore api/Wallow.slnx
@@ -92,7 +92,7 @@ jobs:
           path: |
             **/bin/Release
             **/obj
-          key: build-v2-${{ runner.os }}-${{ github.sha }}
+          key: build-v3-${{ runner.os }}-${{ github.sha }}
 
   docker-images-app:
     needs: build
@@ -122,7 +122,7 @@ jobs:
           path: |
             **/bin/Release
             **/obj
-          key: build-v2-${{ runner.os }}-${{ github.sha }}
+          key: build-v3-${{ runner.os }}-${{ github.sha }}
           fail-on-cache-miss: true
 
       # The arm64 app images below are cross-built on the amd64 runner; register
