@@ -70,10 +70,13 @@ echo ""
 TOTAL_PASSED=0
 TOTAL_FAILED=0
 TOTAL_SKIPPED=0
+TRX_COUNT=0
 FAILED_TESTS=""
 
 for trx in "$TRX_DIR"/*.trx; do
     [[ -f "$trx" ]] || continue
+
+    TRX_COUNT=$((TRX_COUNT + 1))
 
     # Extract assembly name from the trx filename or content
     ASSEMBLY=$(basename "$trx" | sed 's/^results_//' | sed 's/_[0-9T].*\.trx$//')
@@ -128,10 +131,22 @@ echo ""
 echo "========================"
 printf "TOTAL: %d tests | PASSED: %d | FAILED: %d | SKIPPED: %d\n" "$TOTAL" "$TOTAL_PASSED" "$TOTAL_FAILED" "$TOTAL_SKIPPED"
 
-if [[ "$TOTAL_FAILED" -gt 0 ]]; then
-    echo ""
-    echo "=== FAILED TESTS ==="
-    echo "$FAILED_TESTS"
+# A nonzero dotnet test exit means FAIL even when no test failures were recorded:
+# a project that fails to COMPILE runs no tests and writes no TRX at all.
+if [[ "$TOTAL_FAILED" -gt 0 || "$TEST_EXIT" -ne 0 ]]; then
+    if [[ "$TOTAL_FAILED" -gt 0 ]]; then
+        echo ""
+        echo "=== FAILED TESTS ==="
+        echo "$FAILED_TESTS"
+    elif [[ "$TRX_COUNT" -eq 0 ]]; then
+        echo ""
+        echo "No TRX result files were generated (found: $TRX_COUNT). The test project likely failed"
+        echo "to build/compile - see the dotnet test output above."
+    else
+        echo ""
+        echo "No test failures were recorded, but dotnet test exited with code $TEST_EXIT."
+        echo "See the dotnet test output above."
+    fi
     echo ""
     echo "RESULT: FAIL"
 else
