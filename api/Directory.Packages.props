@@ -150,11 +150,9 @@
          Testing
          ====================================== -->
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
-    <PackageVersion Include="Microsoft.Playwright" Version="1.61.0" />
     <PackageVersion Include="xunit" Version="2.9.3" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
     <PackageVersion Include="Bogus" Version="35.6.5" />
-    <PackageVersion Include="bunit" Version="2.7.2" />
     <PackageVersion Include="AwesomeAssertions" Version="9.4.0" />
     <PackageVersion Include="NSubstitute" Version="5.3.0" />
     <PackageVersion Include="Testcontainers" Version="4.13.0" />
@@ -177,17 +175,6 @@
          Architecture Testing
          ====================================== -->
     <PackageVersion Include="NetArchTest.Rules" Version="1.3.2" />
-    <!-- ======================================
-         Blazor UI Components (BlazorBlueprint)
-         ====================================== -->
-    <PackageVersion Include="BlazorBlueprint.Components" Version="3.14.0" />
-    <PackageVersion Include="BlazorBlueprint.Icons.Lucide" Version="2.0.2" />
-    <!-- ======================================
-         Tailwind CSS (NuGet-based integration)
-         ====================================== -->
-    <PackageVersion Include="Tailwind.Hosting" Version="1.2.4" />
-    <PackageVersion Include="Tailwind.Hosting.Build" Version="1.2.4" />
-    <PackageVersion Include="RichardSzalay.MockHttp" Version="7.0.0" />
     <!-- ======================================
          Annotations
          ====================================== -->
