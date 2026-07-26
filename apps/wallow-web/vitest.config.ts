@@ -44,6 +44,7 @@ const openidClientEntry: string = sdkRequire.resolve("openid-client");
 // mounts a component via `vitest-browser-react` and belongs in the browser project.
 const nodeTsxSpecs: string[] = [
   "src/router.test.tsx",
+  "src/router.dehydration.test.tsx",
   "src/routes/index.test.tsx",
   "src/routes/__root.test.tsx",
   "src/routes/__root.branding.test.tsx",
