@@ -44,6 +44,8 @@
       href: development/testing-e2e.md
     - name: Frontend Setup
       href: development/frontend-setup.md
+    - name: Frontend State
+      href: development/frontend-state.md
 - name: Operations
   items:
     - name: Deployment

@@ -12,21 +12,21 @@ This repo is a **polyglot monorepo** with two toolchains:
 
 ## Repository Layout
 
-| Path | What it is |
-|------|-----------|
-| `api/` | .NET 10 solution (`Wallow.slnx`), central build/package props, `.editorconfig`, `stylecop.json`, `seed.json`, `branding.json` |
-| `packages/sdk/` | `@bc-solutions-coder/sdk` — TypeScript BFF auth SDK + generated OpenAPI client |
-| `packages/styles/` | `@bc-solutions-coder/styles` — shared Tailwind v4 CSS entry + theme tokens emitted from `api/branding.json` |
-| `packages/ui/` | `@bc-solutions-coder/ui` — shared browser-only React component library |
-| `packages/web-shell/` | `@bc-solutions-coder/web-shell` — standalone host runtime + shared Vite/dev-server config presets |
-| `packages/testing/` | `@bc-solutions-coder/testing` — shared vitest preset + browser-mode test utilities |
-| `apps/wallow-web/` | TanStack Start + BFF OIDC reference frontend (dashboard) that consumes the SDK |
-| `apps/wallow-auth/` | TanStack Start auth frontend (login/signup/MFA screens) on port 3002 |
-| `apps/examples/` | Example apps (`minimal-app`) |
-| `docker/` | Compose files for infra, production, and the e2e test stack |
-| `docs/` | DocFX documentation site (`docfx.json` at root builds it) |
-| `scripts/` | `run-tests.sh`, `e2e.sh` (backend-dependent E2E runner), docs/theme helpers |
-| `docs/plans/` | Session/design artifacts, local-only (gitignored) — NOT part of the docs site |
+| Path                  | What it is                                                                                                                    |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `api/`                | .NET 10 solution (`Wallow.slnx`), central build/package props, `.editorconfig`, `stylecop.json`, `seed.json`, `branding.json` |
+| `packages/sdk/`       | `@bc-solutions-coder/sdk` — TypeScript BFF auth SDK + generated OpenAPI client                                                |
+| `packages/styles/`    | `@bc-solutions-coder/styles` — shared Tailwind v4 CSS entry + theme tokens emitted from `api/branding.json`                   |
+| `packages/ui/`        | `@bc-solutions-coder/ui` — shared browser-only React component library                                                        |
+| `packages/web-shell/` | `@bc-solutions-coder/web-shell` — standalone host runtime + shared Vite/dev-server config presets                             |
+| `packages/testing/`   | `@bc-solutions-coder/testing` — shared vitest preset + browser-mode test utilities                                            |
+| `apps/wallow-web/`    | TanStack Start + BFF OIDC reference frontend (dashboard) that consumes the SDK                                                |
+| `apps/wallow-auth/`   | TanStack Start auth frontend (login/signup/MFA screens) on port 3002                                                          |
+| `apps/examples/`      | Example apps (`minimal-app`)                                                                                                  |
+| `docker/`             | Compose files for infra, production, and the e2e test stack                                                                   |
+| `docs/`               | DocFX documentation site (`docfx.json` at root builds it)                                                                     |
+| `scripts/`            | `run-tests.sh`, `e2e.sh` (backend-dependent E2E runner), docs/theme helpers                                                   |
+| `docs/plans/`         | Session/design artifacts, local-only (gitignored) — NOT part of the docs site                                                 |
 
 New plans MUST be written to `docs/plans/<YYYY-MM-DD>/<HHmm>-<name>.md` (date folder =
 creation date, 24h HHmm prefix). Every plan starts with a `**status: active|completed|superseded**`
@@ -65,6 +65,12 @@ pnpm check                   # format:check + lint + typecheck + test + build �
   or `... start` (standalone h3 host used by the E2E container). Has a Dockerfile whose
   build context is the **repo root** (needs the whole workspace to resolve `workspace:*`).
 
+### Frontend state boundary
+
+TanStack Query is the only store for backend data — all query keys come from the SDK's
+`queryKeys` factory (`@bc-solutions-coder/sdk/query`); no inline key literals. Zustand holds
+UI-only global state; it never stores API data. See `docs/development/frontend-state.md`.
+
 ## Backend (summary — full detail in `api/CLAUDE.md`)
 
 - Modules: **Identity, Storage, Notifications, Announcements, Inquiries, ApiKeys, Branding**.
@@ -95,15 +101,15 @@ E2E tests are per-app `@playwright/test` suites (`apps/wallow-auth/e2e/`,
 
 ## Local Development
 
-| Service | URL | Notes |
-|---------|-----|-------|
-| API | http://localhost:5001 | |
-| Docs | http://localhost:5004 | DocFX site |
-| Web (TanStack) | http://localhost:3000 | `apps/wallow-web`; override with `PORT` |
+| Service         | URL                   | Notes                                    |
+| --------------- | --------------------- | ---------------------------------------- |
+| API             | http://localhost:5001 |                                          |
+| Docs            | http://localhost:5004 | DocFX site                               |
+| Web (TanStack)  | http://localhost:3000 | `apps/wallow-web`; override with `PORT`  |
 | Auth (TanStack) | http://localhost:3002 | `apps/wallow-auth`; override with `PORT` |
-| GarageHQ (S3) | http://localhost:3900 | admin 3903; creds in `docker/.env` |
-| Mailpit | http://localhost:8025 | SMTP 1025 |
-| Grafana | http://localhost:3001 | otel-lgtm stack |
+| GarageHQ (S3)   | http://localhost:3900 | admin 3903; creds in `docker/.env`       |
+| Mailpit         | http://localhost:8025 | SMTP 1025                                |
+| Grafana         | http://localhost:3001 | otel-lgtm stack                          |
 
 ## Fork-First Configuration
 
@@ -122,11 +128,11 @@ Automated semver via [Conventional Commits](https://www.conventionalcommits.org/
 trailing period, first line < 72 chars). Use the module name as scope when relevant
 (e.g. `feat(inquiries): add form validation`).
 
-| Prefix | Bump |
-|--------|------|
-| `fix:` | Patch |
-| `feat:` | Minor |
-| `feat!:` / `BREAKING CHANGE:` | Major |
+| Prefix                                                               | Bump       |
+| -------------------------------------------------------------------- | ---------- |
+| `fix:`                                                               | Patch      |
+| `feat:`                                                              | Minor      |
+| `feat!:` / `BREAKING CHANGE:`                                        | Major      |
 | `chore:` `refactor:` `docs:` `test:` `ci:` `style:` `perf:` `build:` | No release |
 
 Merges to `main` update a **Release PR**; merging it tags `v*`, publishes images, and (for the

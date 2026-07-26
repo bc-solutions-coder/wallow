@@ -1,11 +1,12 @@
 # @bc-solutions-coder/sdk
 
-TypeScript SDK for Wallow. It ships two entry points:
+TypeScript SDK for Wallow. It ships three entry points:
 
 | Import                           | Runs in                                             | Contains                                                                                                                                                                                                                                                                                                                                                                        |
 | -------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `@bc-solutions-coder/sdk`        | Browser (also safe to import from a Node SSR entry) | `configureBffClient()`, `login()`, `logout()`, `getUser()`, the generated typed API operations, the CSRF module (`isSafeMethod`, `setCsrfToken`, `wireCsrfInterceptor`), the SSR request-context seam (`configureSsrClient`, `getSsrRequestContext`, `setSsrRequestContextResolver`, `wireSsrCookieInterceptor`), and the facade helpers (`unwrap()`, `createConfiguredOnce()`) |
 | `@bc-solutions-coder/sdk/server` | Node                                                | `createBffHandlers()`, `createApiProxy()`, `loadBffConfigFromEnv()`, the session stores, and `WallowError`                                                                                                                                                                                                                                                                      |
+| `@bc-solutions-coder/sdk/query`  | Browser                                             | The TanStack Query layer (peer dep `@tanstack/react-query`): the `queryKeys` registry, per-domain `queryOptions`/mutation factories (`user`, `auth`, `mfa`, `organizations`, `apps`, `inquiries`, `settings`), and `registerQueryBootstrap`/`ensureQueryBootstrapped` for lazily configuring the shared client on first use                                                     |
 
 The browser never holds a token. Your server runs the OIDC Authorization Code
 flow with PKCE, keeps the token set in a session (sealed cookie or Valkey), and

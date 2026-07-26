@@ -68,13 +68,13 @@ A new TanStack Start app in this workspace is almost entirely wiring into five
 backend-facing slices; everything cross-cutting (styling, components, the auth
 client, the test harness, and the host runtime) comes from the shared packages.
 
-| Package | Published | Entry points | What a new app pulls from it |
-|---------|-----------|--------------|------------------------------|
-| `@bc-solutions-coder/styles` | yes | `.`, `./styles.css`, `./vite`, `./assets` | Tailwind v4 pipeline plugin (`wallowStyles()`), theme-token CSS, brand assets, the branding schema |
-| `@bc-solutions-coder/ui` | no (`private`) | `.`, `./source.css` | Shared browser components/primitives (`Button`, `Input`, `Label`, `Field`, `Card`, `ErrorBanner`, `MutedText`, `CenteredCardLayout`, `ForkAttribution`) plus `ReadyIndicator`/`FocusOnNavigate`, and the Tailwind `@source` scan of its component tree |
-| `@bc-solutions-coder/sdk` | yes | `.`, `./server` | Browser BFF client + typed API operations (`.`); BFF handlers, API proxy, and session stores (`./server`) |
-| `@bc-solutions-coder/testing` | no (`private`) | `.`, `./render` | The `createVitestProjects` node + browser preset (`.`); the browser-mode `render` helper (`./render`) |
-| `@bc-solutions-coder/web-shell` | no (`private`) | `.`, `./server` | `createQueryClient` (`.`); the standalone host runtime and Vite/dev-server presets (`./server`): `createStandaloneHost`/`ShellConfig`, `createDevServer`/`DevServerConfig`, `createClientViteConfig`/`createSsrViteConfig`, and the static-asset reader |
+| Package                         | Published      | Entry points                              | What a new app pulls from it                                                                                                                                                                                                                            |
+| ------------------------------- | -------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@bc-solutions-coder/styles`    | yes            | `.`, `./styles.css`, `./vite`, `./assets` | Tailwind v4 pipeline plugin (`wallowStyles()`), theme-token CSS, brand assets, the branding schema                                                                                                                                                      |
+| `@bc-solutions-coder/ui`        | no (`private`) | `.`, `./source.css`                       | Shared browser components/primitives (`Button`, `Input`, `Label`, `Field`, `Card`, `ErrorBanner`, `MutedText`, `CenteredCardLayout`, `ForkAttribution`) plus `ReadyIndicator`/`FocusOnNavigate`, and the Tailwind `@source` scan of its component tree  |
+| `@bc-solutions-coder/sdk`       | yes            | `.`, `./server`, `./query`                | Browser BFF client + typed API operations (`.`); BFF handlers, API proxy, and session stores (`./server`); the TanStack Query layer — `queryKeys`, per-domain `queryOptions`/mutation factories, and `registerQueryBootstrap` (`./query`)               |
+| `@bc-solutions-coder/testing`   | no (`private`) | `.`, `./render`                           | The `createVitestProjects` node + browser preset (`.`); the browser-mode `render` helper (`./render`)                                                                                                                                                   |
+| `@bc-solutions-coder/web-shell` | no (`private`) | `.`, `./server`                           | `createQueryClient` (`.`); the standalone host runtime and Vite/dev-server presets (`./server`): `createStandaloneHost`/`ShellConfig`, `createDevServer`/`DevServerConfig`, `createClientViteConfig`/`createSsrViteConfig`, and the static-asset reader |
 
 `wallow-auth` and `wallow-web` both depend on all five as `workspace:*` runtime
 `dependencies` (no per-app `@tailwindcss/vite`, `tailwindcss`, `vitest` preset,
@@ -165,8 +165,8 @@ const config: ShellConfig = {
   appName: "my-app",
   defaultPort: "3010",
   appDir: import.meta.dirname,
-  isProxyPath,        // the app's proxy topology (below)
-  handleProxy,        // web Request -> Response bridge to the app's proxy/BFF
+  isProxyPath, // the app's proxy topology (below)
+  handleProxy, // web Request -> Response bridge to the app's proxy/BFF
   // clientIpHeader?  // optional, e.g. wallow-auth forwards the peer address
 };
 
@@ -190,9 +190,14 @@ The shared packages leave exactly the app-specific surface to the app:
   (`src/lib/proxy-*.ts`): a same-origin reverse proxy like wallow-auth's
   `createAuthServer`, or a BFF token tunnel like wallow-web's `handleBffRequest`.
   These are the `ShellConfig` seam the design intentionally keeps per-app.
-- **Backend-facing slices** — its own `src/features/**` calling the SDK's typed
-  operations, and its client-configuration facade (`configureBffClient` /
-  `configureSsrClient`).
+- **Backend-facing slices** — its own `src/features/**`, each with an `api.ts` that
+  re-exports the SDK's `./query` layer (`queryOptions`/mutation factories keyed from the
+  shared `queryKeys` registry) so routes and components import data access from `./api` and
+  never reach into the SDK directly — and its client-configuration facade
+  (`configureBffClient` / `configureSsrClient`), registered once with the query layer via
+  `registerQueryBootstrap`. See
+  [Frontend State: TanStack Query vs. Zustand](frontend-state.md) for the query/Zustand
+  boundary and the three-step pattern for adding a new query.
 
 Branding, theme tokens, the component library, the auth client, the test harness,
 and the host/dev/Vite runtime all stay in the shared packages — no source changes
@@ -232,17 +237,17 @@ pnpm --filter @bc-solutions-coder/wallow-web dev
 
 ### Default Dev Credentials
 
-| Field | Value |
-|-------|-------|
-| Email | `admin@wallow.dev` |
-| Password | `Admin123!` |
+| Field    | Value              |
+| -------- | ------------------ |
+| Email    | `admin@wallow.dev` |
+| Password | `Admin123!`        |
 
 ### Local URLs
 
-| App | URL |
-|-----|-----|
-| API | http://localhost:5001 |
-| Web (TanStack) | http://localhost:3000 |
+| App             | URL                   |
+| --------------- | --------------------- |
+| API             | http://localhost:5001 |
+| Web (TanStack)  | http://localhost:3000 |
 | Auth (TanStack) | http://localhost:3002 |
 
 The TanStack apps read `PORT` from the environment and fall back to the defaults above. Keep any
@@ -395,23 +400,25 @@ through its BFF server.
 
 ### OIDC Endpoints (Wallow.Api)
 
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/connect/authorize` | GET | Start authorization |
-| `/connect/token` | POST | Exchange code for tokens |
-| `/connect/logout` | GET/POST | End session |
-| `/connect/userinfo` | GET/POST | Get user profile claims |
+| Endpoint             | Method   | Purpose                  |
+| -------------------- | -------- | ------------------------ |
+| `/connect/authorize` | GET      | Start authorization      |
+| `/connect/token`     | POST     | Exchange code for tokens |
+| `/connect/logout`    | GET/POST | End session              |
+| `/connect/userinfo`  | GET/POST | Get user profile claims  |
 
 ### Pre-Registered Dev Clients
 
 The API seeds two development clients:
 
 **wallow-dev-client** (public, for external frontends):
+
 - Redirect URIs: `http://localhost:5001/callback`, `http://localhost:3000/callback`, `http://localhost:3000/auth/callback`
 - PKCE required (S256)
 - Scopes: `openid`, `profile`, `email`, `roles`, `offline_access`, plus module-specific scopes
 
 **wallow-web-client** (confidential, for `apps/wallow-web`):
+
 - Redirect URI: `http://localhost:3000/bff/callback`
 - Secret: `wallow-web-secret`
 - Scopes: `openid`, `email`, `profile`, `roles`, `offline_access`

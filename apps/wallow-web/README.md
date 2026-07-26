@@ -12,9 +12,9 @@ It doubles as the copy-paste template teams fork: a dashboard with feature
 verticals (organizations, apps, settings, MFA, inquiries), each following the
 same feature-folder shape, plus a live BFF smoke route.
 
-> This app is not published. It is exercised by the .NET E2E harness
-> (`api/tests/Wallow.E2E.Tests/Flows/BffFlowTests.cs`) via
-> `docker/docker-compose.test.yml`, and serves as reference wiring for forks.
+> This app is not published. It is exercised by its own Playwright suite
+> (`e2e/`, see [E2E](#e2e)) via `docker/docker-compose.test.yml`, and serves as
+> reference wiring for forks.
 
 ## Commands
 
@@ -41,18 +41,18 @@ pnpm --filter @bc-solutions-coder/wallow-web test       # vitest run  (test:watc
 
 ## Layout
 
-| Path                   | Role                                                                                                                                                         |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `dev-server.ts`        | Dev entry (`pnpm dev`): TanStack Start SSR via Vite middleware, with `/health` + `/bff/*` + `/api/**` dispatched to the BFF bridge. See BFF wiring below.    |
-| `server.ts`            | Prod/E2E entry (`pnpm start`): standalone h3 host mounting the same BFF handlers and serving the static `public/` bundle. Containerized by the `Dockerfile`. |
-| `src/ssr.tsx`          | SSR render entry — turns a request into the server-rendered HTML shell for the matched route.                                                                |
-| `src/router.tsx`       | Manual TanStack route tree (routes are wired explicitly here, not file-based codegen).                                                                       |
-| `src/routes/`          | Route components: public `index`, the `dashboard` layout + feature routes, and the `bff-demo` BFF smoke route.                                               |
-| `src/features/<name>/` | Feature verticals (`organizations`, `apps`, `settings`, `mfa`, `inquiries`): each has `api.ts` (query/mutation layer), `types.ts`, and `components/`.        |
-| `src/lib/`             | Shared plumbing: `wallow-sdk.ts` (typed SDK facade), `bff-server.ts` (BFF bridge), `csrf.ts` (request interceptor), `query-client.ts`.                       |
-| `src/components/`      | Cross-feature UI (`DashboardLayout`, `DashboardNav`).                                                                                                        |
-| `public/`              | Built browser bundle and static assets served by `server.ts`.                                                                                                |
-| `Dockerfile`           | Containerizes the app for the E2E stack; its build context is the **repo root** (needs the whole workspace to resolve `workspace:*`).                        |
+| Path                   | Role                                                                                                                                                                                                                                                                       |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dev-server.ts`        | Dev entry (`pnpm dev`): TanStack Start SSR via Vite middleware, with `/health` + `/bff/*` + `/api/**` dispatched to the BFF bridge. See BFF wiring below.                                                                                                                  |
+| `server.ts`            | Prod/E2E entry (`pnpm start`): standalone h3 host mounting the same BFF handlers and serving the static `public/` bundle. Containerized by the `Dockerfile`.                                                                                                               |
+| `src/ssr.tsx`          | SSR render entry — turns a request into the server-rendered HTML shell for the matched route.                                                                                                                                                                              |
+| `src/router.tsx`       | Manual TanStack route tree (routes are wired explicitly here, not file-based codegen).                                                                                                                                                                                     |
+| `src/routes/`          | Route components: public `index`, the `dashboard` layout + feature routes, and the `bff-demo` BFF smoke route.                                                                                                                                                             |
+| `src/features/<name>/` | Feature verticals (`organizations`, `apps`, `settings`, `mfa`, `inquiries`): each has `api.ts` (query/mutation layer), `types.ts`, and `components/`.                                                                                                                      |
+| `src/lib/`             | Shared plumbing: `wallow-sdk.ts` (client configurator, registered with the SDK query bootstrap), `bff-server.ts` (BFF bridge), `csrf.ts` (request interceptor). The `QueryClient` factory itself lives in `@bc-solutions-coder/web-shell` (`createQueryClient`), not here. |
+| `src/components/`      | Cross-feature UI (`DashboardLayout`, `DashboardNav`).                                                                                                                                                                                                                      |
+| `public/`              | Built browser bundle and static assets served by `server.ts`.                                                                                                                                                                                                              |
+| `Dockerfile`           | Containerizes the app for the E2E stack; its build context is the **repo root** (needs the whole workspace to resolve `workspace:*`).                                                                                                                                      |
 
 ### Feature folder shape
 
@@ -60,13 +60,19 @@ Each vertical under `src/features/<name>/` follows the same template:
 
 ```
 src/features/organizations/
-  api.ts                       # TanStack Query queries + mutations over the SDK facade
+  api.ts                       # thin re-export seam over @bc-solutions-coder/sdk/query
   types.ts                     # feature-local view types
   components/
     OrganizationList.tsx       # dashboard list page body
     OrganizationDetail.tsx     # detail + member management
     CreateOrganizationForm.tsx # TanStack Form create flow
 ```
+
+`api.ts` re-exports the vertical's `queryOptions`/mutation factories from
+`@bc-solutions-coder/sdk/query` (the canonical query/mutation definitions and their keys live in
+the SDK, not the app) so routes and components keep importing data access from `./api` — see
+[Frontend State: TanStack Query vs. Zustand](../../docs/development/frontend-state.md) for
+the query/Zustand boundary and how to add a new query.
 
 Routes in `src/routes/dashboard/<name>/` render these components; new routes must
 be registered in `src/router.tsx` (the route tree is manual, not generated).
