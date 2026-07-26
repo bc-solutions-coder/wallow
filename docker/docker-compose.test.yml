@@ -139,7 +139,7 @@ services:
       # Fix OIDC issuer so browser-facing tokens match the authority clients expect (localhost)
       OpenIddict__Issuer: "http://localhost:5050"
       # Treat the seeded BFF client as first-party so the OIDC flow skips the
-      # interactive consent screen (appsettings already lists bcordes-dev-client
+      # interactive consent screen (appsettings already lists wallow-dev-client
       # at index 0; this appends the wallow-web example's client at index 1).
       Identity__FirstPartyClients__1: "bcordes-bff"
       # wallow-web is now a BFF too; treat its client as first-party so the OIDC

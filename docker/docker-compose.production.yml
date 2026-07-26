@@ -279,7 +279,7 @@ services:
       # deliberately secret-less). Index order is load-bearing and MUST match the
       # "clients" array in seed.production.json:
       #   0 = wallow-web-client   (dashboard at wallow.dev)
-      #   1 = bcordes-client      (bcordes.dev SPA login)
+      #   1 = bcordes-dev-client  (bcordes.dev SPA login)
       #   2 = sa-bcordes-bff      (bcordes.dev BFF service account)
       #   3 = bcordes-bff         (bcordes.dev BFF auth-code client)
       Clients__0__Secret: ${OIDC_CLIENT_SECRET}
