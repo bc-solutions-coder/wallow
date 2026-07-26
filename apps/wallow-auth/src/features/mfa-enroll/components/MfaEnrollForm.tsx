@@ -2,7 +2,7 @@ import { Button, Card, CardTitle, ErrorBanner, Field, Input, Label } from "@bc-s
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { QRCodeSVG } from "qrcode.react";
-import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 
 import { getWallowAuthSdk } from "../../../lib/wallow-auth-sdk";
 
@@ -432,12 +432,19 @@ export interface MfaEnrollFormProps {
 
 export function MfaEnrollForm({ returnUrl, enrollToken }: MfaEnrollFormProps): ReactNode {
   const navigate = useNavigate();
-  const [secret, setSecret] = useState<string | null>(null);
-  const [qrUri, setQrUri] = useState<string | null>(null);
   const [code, setCode] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
   const [backupCodes, setBackupCodes] = useState<readonly string[] | null>(null);
+
+  /**
+   * The token exchange's own in-flight flag — the ONE piece of start state that
+   * is still hand-rolled, because the exchange deliberately stays outside the
+   * mutation (see the effect below). Seeded from the prop so the very first paint
+   * of a token flow already reads as busy: the intro branch's `Begin setup` is a
+   * retry, and offering it before the cookie exists invites an `enroll/totp` that
+   * can only 401.
+   */
+  const [exchanging, setExchanging] = useState(enrollToken !== undefined && enrollToken !== "");
 
   // The guard, evaluated before anything else happens. A NULLISH returnUrl is not
   // hostile — it is the oracle's ordinary direct-enrollment path — so only a
@@ -454,24 +461,34 @@ export function MfaEnrollForm({ returnUrl, enrollToken }: MfaEnrollFormProps): R
    */
   const startedRef = useRef(false);
 
-  /** The oracle's `HandleStartEnroll`. Shared by the mount effect and the retry. */
-  const startEnroll = useCallback(async (): Promise<void> => {
-    // The oracle's `_errorMessage = null;` — a stale error sitting above a
-    // freshly-minted QR code is a lie.
-    setErrorMessage(null);
-    setLoading(true);
+  /**
+   * The oracle's `HandleStartEnroll`, owned by TanStack Query. `isPending` is the
+   * single source of truth for "a start request is open" — the hand-rolled pair
+   * it replaces could drift out of step — and rejection is the mutation's rather
+   * than a catch block's.
+   *
+   * The secret lives in MUTATION state and never in a query: it is minted once,
+   * is not refetchable, and a second fetch would mint a SECOND secret and
+   * silently invalidate the QR the user has already scanned.
+   */
+  const startEnrollment = useMutation({
+    mutationFn: async (): Promise<EnrollResult> =>
+      (await getWallowAuthSdk().auth.enrollTotp()) as EnrollResult,
+    // The oracle's `_errorMessage = null;`. Cleared EAGERLY at mutate time rather
+    // than derived from `error`, which would leave the dead message standing
+    // above an in-flight retry for the whole request.
+    onMutate: () => {
+      setErrorMessage(null);
+    },
+    onError: (cause: unknown) => {
+      setErrorMessage(startFailureMessage(cause));
+    },
+  });
 
-    try {
-      const result = (await getWallowAuthSdk().auth.enrollTotp()) as EnrollResult;
-
-      setSecret(result.secret ?? null);
-      setQrUri(result.qrUri ?? null);
-    } catch (error: unknown) {
-      setErrorMessage(startFailureMessage(error));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  /** Stable across renders (TanStack Query binds it), so the mount effect may depend on it. */
+  const startEnroll = startEnrollment.mutate;
+  const secret: string | null = startEnrollment.data?.secret ?? null;
+  const qrUri: string | null = startEnrollment.data?.qrUri ?? null;
 
   useEffect(() => {
     // Refused destinations never enroll: do not make a user set up a second factor
@@ -494,23 +511,26 @@ export function MfaEnrollForm({ returnUrl, enrollToken }: MfaEnrollFormProps): R
       // `Identity.MfaPartial` cookie, and an `enroll/totp` fired first has no
       // session to resolve and 401s — blaming the wrong thing.
       if (enrollToken !== undefined && enrollToken !== "") {
-        setLoading(true);
         try {
           await getWallowAuthSdk().auth.exchangeEnrollmentToken(enrollToken);
         } catch (error: unknown) {
           // Enrolling anyway would just 401 and report a session problem when the
           // real fault is the expired link.
           setErrorMessage(exchangeFailureMessage(error));
-          setLoading(false);
+          setExchanging(false);
           return;
         }
       }
 
-      await startEnroll();
+      // Opened BEFORE the exchange flag drops, so the two updates batch into one
+      // render: the busy state passes straight from the exchange to the start
+      // with no frame in between offering a live retry button.
+      startEnroll();
+      setExchanging(false);
     })();
   }, [returnUrlIsUnsafe, navigate, enrollToken, startEnroll]);
 
-  const mutation = useMutation({
+  const confirmMutation = useMutation({
     mutationFn: async (attempt: { readonly secret: string; readonly code: string }) =>
       (await getWallowAuthSdk().auth.confirmEnrollment({
         secret: attempt.secret,
@@ -541,7 +561,7 @@ export function MfaEnrollForm({ returnUrl, enrollToken }: MfaEnrollFormProps): R
     // The oracle's `_errorMessage = null;` at the top of `HandleConfirm`.
     setErrorMessage(null);
 
-    mutation.mutate(
+    confirmMutation.mutate(
       // The secret MUST be the one `enroll/totp` minted — the server re-validates
       // the TOTP against the secret in the body before storing it. Nothing else
       // rides along: the oracle needed a cookie header here, and this does not.
@@ -590,13 +610,13 @@ export function MfaEnrollForm({ returnUrl, enrollToken }: MfaEnrollFormProps): R
         secret,
         qrUri,
         code,
-        loading,
-        pending: mutation.isPending,
+        loading: exchanging || startEnrollment.isPending,
+        pending: confirmMutation.isPending,
         onCodeChange: setCode,
         onSubmit: handleSubmit,
         onDone: handleDone,
         onBeginSetup: () => {
-          void startEnroll();
+          startEnroll();
         },
       })}
       <CancelLink />
