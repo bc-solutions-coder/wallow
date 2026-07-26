@@ -228,12 +228,18 @@ pnpm backend
 # Build the SDK first (apps typecheck and run against dist/)
 pnpm --filter @bc-solutions-coder/sdk build
 
-# Start the Auth app (separate terminal)
-pnpm --filter @bc-solutions-coder/wallow-auth dev
+# Start both frontends together (wallow-web on 3000, wallow-auth on 3002)
+pnpm dev
 
-# Start the Web app (separate terminal)
+# Or start one app at a time (separate terminals):
+pnpm --filter @bc-solutions-coder/wallow-auth dev
 pnpm --filter @bc-solutions-coder/wallow-web dev
 ```
+
+`pnpm dev` (root `package.json`) runs both apps' own `dev` scripts in parallel via
+`pnpm --parallel --filter`, interleaving their output; Ctrl-C stops both. It does not start
+`apps/examples/*` and does not start the .NET backend — pair it with `pnpm backend` (or
+`pnpm backend:infra` + a manually run API) for a working stack.
 
 ### Default Dev Credentials
 
