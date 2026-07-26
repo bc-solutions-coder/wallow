@@ -3,14 +3,18 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { setSsrRequestContextResolver, type SsrRequestContext } from "@bc-solutions-coder/sdk";
 import { createRequestHandler, defaultRenderHandler } from "@tanstack/react-router/ssr/server";
 
+import { createSsrRequestContext } from "./lib/ssr-origin";
 import { createRouter } from "./router";
 
 /**
  * Per-request context store (Wallow-cqoa). The router's `beforeLoad`/`loader`
- * BFF fetches run server-side inside `render()`, so we scope the request origin
- * and session cookie with an `AsyncLocalStorage` and expose them to
- * `getWallowSdk()` through the browser-safe resolver seam. The `node:async_hooks`
- * import stays in this SSR-only entry so it never reaches the browser bundle.
+ * BFF fetches run server-side inside `render()`, so we scope the browser-facing
+ * request origin, the session cookie, and the origin this host can reach ITSELF
+ * on (Wallow-spb5 — a container published on a different port than it listens on
+ * cannot fetch its own external origin) with an `AsyncLocalStorage`, and expose
+ * them to `getWallowSdk()` through the browser-safe resolver seam. The
+ * `node:async_hooks` import stays in this SSR-only entry so it never reaches the
+ * browser bundle.
  */
 const requestContextStore = new AsyncLocalStorage<SsrRequestContext>();
 setSsrRequestContextResolver(() => requestContextStore.getStore());
@@ -36,10 +40,7 @@ setSsrRequestContextResolver(() => requestContextStore.getStore());
  * 1.3). Vite/esbuild strip the types at runtime, so this does not affect boot.
  */
 export function render(request: Request): Promise<Response> {
-  const context: SsrRequestContext = {
-    origin: new URL(request.url).origin,
-    cookie: request.headers.get("cookie") ?? undefined,
-  };
+  const context: SsrRequestContext = createSsrRequestContext(request);
   return requestContextStore.run(context, () =>
     createRequestHandler({ createRouter, request })(defaultRenderHandler),
   );

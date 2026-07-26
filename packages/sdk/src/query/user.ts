@@ -11,14 +11,16 @@
  * SSR DETECTION: the queryFn detects server rendering by the PRESENCE of an SSR
  * request context (`getSsrRequestContext()`), NOT `import.meta.env.SSR` — the
  * SDK is bundler-agnostic and must not read Vite's SSR flag. When a context is
- * present, `getUser()` is pointed at the request's absolute origin and the
- * session cookie is forwarded (Node's fetch needs both); otherwise the browser's
- * same-origin relative request with the ambient cookie is correct.
+ * present, `getUser()` is pointed at an absolute origin the host can reach ITSELF
+ * (`resolveSsrFetchOrigin`, which prefers the context's `internalOrigin` over the
+ * browser-facing one — Wallow-spb5) and the session cookie is forwarded (Node's
+ * fetch needs both); otherwise the browser's same-origin relative request with
+ * the ambient cookie is correct.
  */
 import { queryOptions } from "@tanstack/react-query";
 
 import { getUser, type WallowUser } from "../auth";
-import { getSsrRequestContext, type SsrRequestContext } from "../ssr";
+import { getSsrRequestContext, resolveSsrFetchOrigin, type SsrRequestContext } from "../ssr";
 import { ensureQueryBootstrapped } from "./bootstrap";
 import { queryKeys } from "./keys";
 
@@ -38,7 +40,7 @@ export const userQueries = {
         const context: SsrRequestContext | undefined = getSsrRequestContext();
         if (context !== undefined) {
           return getUser({
-            baseUrl: context.origin,
+            baseUrl: resolveSsrFetchOrigin(context),
             ...(context.cookie !== undefined ? { headers: { cookie: context.cookie } } : {}),
           });
         }

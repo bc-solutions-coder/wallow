@@ -121,6 +121,34 @@ describe("docker-compose.test.yml wallow-web service", () => {
   });
 });
 
+describe("docker-compose.test.yml wallow-web SSR self-fetch reachability", () => {
+  // Wallow-spb5: SSR self-fetches target `http://localhost:${PORT}` (the listener
+  // the host binds), because the container cannot reach its own PUBLISHED origin.
+  // That only holds while PORT matches the container side of the published
+  // mapping, so both halves of the topology are pinned here.
+  function webBlock(): string {
+    return composeServiceBlock(read("docker/docker-compose.test.yml"), "wallow-web");
+  }
+
+  it("publishes on 5053, the host port the cross-app journey is documented against", () => {
+    expect(webBlock()).toMatch(/ports:\s*\n\s*- "127\.0\.0\.1:5053:(\d+)"/u);
+  });
+
+  it("sets PORT to the container-side port of its published mapping", () => {
+    const block: string = webBlock();
+    const published: RegExpMatchArray | null = block.match(/- "127\.0\.0\.1:\d+:(\d+)"/u);
+    const port: RegExpMatchArray | null = block.match(/^\s*PORT:\s*"(\d+)"/mu);
+    expect(published?.[1]).toBeDefined();
+    expect(port?.[1]).toBe(published?.[1]);
+  });
+
+  it("probes liveness on that same container-side port", () => {
+    const block: string = webBlock();
+    const port: string | undefined = block.match(/^\s*PORT:\s*"(\d+)"/mu)?.[1];
+    expect(block).toContain(`fetch('http://localhost:${port}/health')`);
+  });
+});
+
 describe("docker-compose.production.yml wallow-web service", () => {
   it("keeps publishing under the ghcr wallow-web image name", () => {
     const block: string = composeServiceBlock(

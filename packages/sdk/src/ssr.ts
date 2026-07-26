@@ -27,6 +27,14 @@ export interface SsrRequestContext {
   origin: string;
   /** The incoming `Cookie` header (carries the `wallow_bff` session), if any. */
   cookie: string | undefined;
+  /**
+   * Origin the SSR host can reach ITSELF on, when that differs from the
+   * browser-facing {@link origin} (Wallow-spb5). A container published on a
+   * different port than it listens on — or a host behind a reverse proxy — cannot
+   * fetch its own external origin, so SSR self-fetches must target this instead.
+   * Unset means the request origin loops back and is safe to use.
+   */
+  internalOrigin?: string | undefined;
 }
 
 let resolver: (() => SsrRequestContext | undefined) | undefined;
@@ -46,6 +54,18 @@ export function setSsrRequestContextResolver(next: () => SsrRequestContext | und
  */
 export function getSsrRequestContext(): SsrRequestContext | undefined {
   return resolver?.();
+}
+
+/**
+ * The origin an SSR-time self-`fetch` must target for the given request context:
+ * the internally reachable origin when one is set, else the browser-facing request
+ * origin (Wallow-spb5).
+ */
+export function resolveSsrFetchOrigin(context: SsrRequestContext): string {
+  if (context.internalOrigin !== undefined && context.internalOrigin !== "") {
+    return context.internalOrigin;
+  }
+  return context.origin;
 }
 
 /**
@@ -73,15 +93,17 @@ export function wireSsrCookieInterceptor(target: CsrfInterceptorClient): void {
  * Configure the shared BFF client for SSR-time use and wire the cookie-forwarding
  * interceptor onto it.
  *
- * When a request context is supplied the client is pointed at the request's
- * ABSOLUTE origin (`${origin}/api`) so Node's `fetch` can parse the URL; with no
- * context it falls back to the same-origin relative `/api` default. Either way
- * the cookie-forwarding interceptor is wired so the per-request session `Cookie`
- * (read live from the SSR request context) rides along. The origin is stable per
- * host, so configuring it once on the first request is correct; the cookie is NOT
- * captured here — it is read live per request by the interceptor.
+ * When a request context is supplied the client is pointed at an ABSOLUTE origin
+ * (`${origin}/api`) so Node's `fetch` can parse the URL — the SELF-REACHABLE one
+ * per {@link resolveSsrFetchOrigin}, which is not always the browser-facing origin
+ * (Wallow-spb5); with no context it falls back to the same-origin relative `/api`
+ * default. Either way the cookie-forwarding interceptor is wired so the
+ * per-request session `Cookie` (read live from the SSR request context) rides
+ * along. The origin is stable per host, so configuring it once on the first
+ * request is correct; the cookie is NOT captured here — it is read live per
+ * request by the interceptor.
  */
 export function configureSsrClient(context?: SsrRequestContext): void {
-  configureBffClient(context ? { baseUrl: `${context.origin}/api` } : {});
+  configureBffClient(context ? { baseUrl: `${resolveSsrFetchOrigin(context)}/api` } : {});
   wireSsrCookieInterceptor(client);
 }

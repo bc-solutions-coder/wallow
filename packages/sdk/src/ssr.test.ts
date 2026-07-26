@@ -6,6 +6,7 @@ import { getV1IdentityUsersMe } from "./generated/sdk.gen";
 import {
   configureSsrClient,
   getSsrRequestContext,
+  resolveSsrFetchOrigin,
   setSsrRequestContextResolver,
   wireSsrCookieInterceptor,
   type SsrRequestContext,
@@ -25,6 +26,16 @@ import {
  */
 
 const ORIGIN = "http://localhost:3000";
+
+/**
+ * The two origins of the Wallow-spb5 topology split: a container that LISTENS on
+ * 3000 but is PUBLISHED on 5053 (`docker/docker-compose.test.yml`
+ * `127.0.0.1:5053:3000`). `PUBLISHED_ORIGIN` is what the browser sends as `Host`
+ * and therefore what `new URL(request.url).origin` yields during SSR;
+ * `INTERNAL_ORIGIN` is the only one the host can fetch itself on.
+ */
+const PUBLISHED_ORIGIN = "http://localhost:5053";
+const INTERNAL_ORIGIN = "http://localhost:3000";
 
 /**
  * Minimal fake of the generated `@hey-api` client interceptor surface. Captures
@@ -212,6 +223,113 @@ describe("configureSsrClient", () => {
       expect(first.url).toBe(`${ORIGIN}/api/v1/identity/users/me`);
       expect(first.headers.get("cookie")).toBe("wallow_bff=first");
       expect(second.headers.get("cookie")).toBe("wallow_bff=second");
+    });
+  });
+});
+
+/**
+ * SSR self-fetch origin (Wallow-spb5).
+ *
+ * The SSR host fetches its own BFF surface, so the origin it targets must be one
+ * IT can reach — not necessarily the one the browser used. When a container
+ * listens on 3000 but is published on 5053, self-fetching the published origin is
+ * ECONNREFUSED and the dashboard renders an error boundary instead of hydrating.
+ * `internalOrigin` is the escape hatch; when unset the request origin loops back
+ * (`pnpm dev` / Aspire) and stays the correct target.
+ */
+describe("resolveSsrFetchOrigin", () => {
+  it("targets the internal origin when the request origin is not self-reachable", () => {
+    const context: SsrRequestContext = {
+      origin: PUBLISHED_ORIGIN,
+      cookie: undefined,
+      internalOrigin: INTERNAL_ORIGIN,
+    };
+
+    expect(resolveSsrFetchOrigin(context)).toBe(INTERNAL_ORIGIN);
+  });
+
+  it("falls back to the request origin when no internal origin is set", () => {
+    expect(resolveSsrFetchOrigin({ origin: ORIGIN, cookie: undefined })).toBe(ORIGIN);
+  });
+
+  it("falls back to the request origin when the internal origin is explicitly undefined", () => {
+    expect(
+      resolveSsrFetchOrigin({ origin: ORIGIN, cookie: undefined, internalOrigin: undefined }),
+    ).toBe(ORIGIN);
+  });
+
+  it("treats an empty internal origin as unset rather than building '/api' onto nothing", () => {
+    expect(resolveSsrFetchOrigin({ origin: ORIGIN, cookie: undefined, internalOrigin: "" })).toBe(
+      ORIGIN,
+    );
+  });
+});
+
+describe("configureSsrClient with a non-self-reachable request origin", () => {
+  beforeEach(() => {
+    client.setConfig({ baseUrl: undefined, credentials: undefined });
+  });
+
+  it("points the shared client at the INTERNAL origin's /api path, not the published one", () => {
+    configureSsrClient({
+      origin: PUBLISHED_ORIGIN,
+      cookie: undefined,
+      internalOrigin: INTERNAL_ORIGIN,
+    });
+
+    expect(client.getConfig().baseUrl).toBe(`${INTERNAL_ORIGIN}/api`);
+  });
+
+  it("still keeps credentials included when the internal origin is used", () => {
+    configureSsrClient({
+      origin: PUBLISHED_ORIGIN,
+      cookie: undefined,
+      internalOrigin: INTERNAL_ORIGIN,
+    });
+
+    expect(client.getConfig().credentials).toBe("include");
+  });
+
+  it("keeps using the request origin when no internal origin is supplied", () => {
+    configureSsrClient({ origin: PUBLISHED_ORIGIN, cookie: undefined });
+
+    expect(client.getConfig().baseUrl).toBe(`${PUBLISHED_ORIGIN}/api`);
+  });
+
+  describe("the SSR-time /api request itself", () => {
+    const fetchMock = vi.fn(
+      async (_request: Request) =>
+        new Response("{}", {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+    );
+
+    beforeEach(() => {
+      fetchMock.mockClear();
+      vi.stubGlobal("fetch", fetchMock);
+      client.setConfig({ baseUrl: undefined, credentials: undefined });
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it("leaves the container's own listener as the fetch target while still forwarding the session", async () => {
+      const context: SsrRequestContext = {
+        origin: PUBLISHED_ORIGIN,
+        cookie: "wallow_bff=sess",
+        internalOrigin: INTERNAL_ORIGIN,
+      };
+      setSsrRequestContextResolver(() => context);
+      configureSsrClient(context);
+
+      await getV1IdentityUsersMe();
+
+      const request: Request = fetchMock.mock.calls[0]![0];
+      expect(request.url).toBe(`${INTERNAL_ORIGIN}/api/v1/identity/users/me`);
+      expect(request.url).not.toContain(PUBLISHED_ORIGIN);
+      expect(request.headers.get("cookie")).toBe("wallow_bff=sess");
     });
   });
 });
