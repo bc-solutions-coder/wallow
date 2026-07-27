@@ -59,7 +59,7 @@ IResourceBuilder<ProjectResource> api = builder.AddProject<Projects.Wallow_Api>(
 // explicit upstream for the h3 reverse proxy (the Aspire/Docker DNS default does not resolve locally).
 builder.AddJavaScriptApp("wallow-auth", wallowAuthDir, "dev")
     .WithPnpm()
-    .WithHttpEndpoint(port: 3002, env: "PORT")
+    .WithHttpEndpoint(port: 3002, env: "PORT", isProxied: false)
     .WithReference(valkey, connectionName: "Redis")
     .WithReference(api)
     .WithEnvironment("WALLOW_API_INTERNAL_URL", "http://localhost:5001")
@@ -73,10 +73,15 @@ builder.AddJavaScriptApp("wallow-auth", wallowAuthDir, "dev")
 // wallow-web-client/wallow-web-secret are the seeded OIDC client credentials (api/seed.json).
 builder.AddJavaScriptApp("wallow-web", wallowWebDir, "dev")
     .WithPnpm()
-    .WithHttpEndpoint(port: 3000, env: "PORT")
+    .WithHttpEndpoint(port: 3000, env: "PORT", isProxied: false)
     .WithReference(valkey, connectionName: "Redis")
     .WithReference(api)
-    .WithEnvironment("OIDC_ISSUER", "http://localhost:5001")
+    // Issuer/metadata split (mirrors docker-compose.test.yml): the API's dev issuer is the
+    // wallow-auth origin (appsettings.Development.json AuthUrl -> OpenIddictIssuerResolver),
+    // so the client must expect that issuer, while discovery is fetched from the API directly
+    // (the auth app's h3 proxy does not mount /.well-known/**).
+    .WithEnvironment("OIDC_ISSUER", "http://localhost:3002")
+    .WithEnvironment("OIDC_METADATA_URL", "http://localhost:5001/.well-known/openid-configuration")
     .WithEnvironment("OIDC_CLIENT_ID", "wallow-web-client")
     .WithEnvironment("OIDC_CLIENT_SECRET", "wallow-web-secret")
     .WithEnvironment("OIDC_REDIRECT_URI", "http://localhost:3000/bff/callback")
