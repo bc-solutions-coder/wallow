@@ -10,7 +10,7 @@
  * lifecycle actions carry `organization-detail-archive` /
  * `organization-detail-reactivate` (`{page}-{element}` kebab-case).
  */
-import { Button, Card, ErrorBanner, Field, Input, MutedText } from "@bc-solutions-coder/ui";
+import { Button, ErrorBanner, Field, Input, MutedText } from "@bc-solutions-coder/ui";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -22,6 +22,12 @@ import {
 } from "../api";
 import type { Organization } from "../types";
 import { MemberList } from "./MemberList";
+
+/** The shared list/table card surface — rows bleed to its edge, so no padding. */
+const TABLE_CARD = "bg-card rounded-lg shadow-sm border border-border overflow-hidden";
+
+/** A list row inside `TABLE_CARD`. */
+const TABLE_ROW = "flex items-center justify-between px-6 py-4 hover:bg-background/50";
 
 /** A bound OAuth client (narrowed at the render boundary). */
 interface BoundClient {
@@ -41,9 +47,9 @@ interface RegisterClientInput {
 function ClientRow(props: { client: BoundClient }) {
   const { client } = props;
   return (
-    <li data-testid="organization-detail-client-row">
-      <span>{client.name}</span>
-      <span>{client.clientId}</span>
+    <li data-testid="organization-detail-client-row" className={TABLE_ROW}>
+      <span className="text-sm font-medium text-card-foreground">{client.name}</span>
+      <span className="text-sm text-foreground/70 font-mono">{client.clientId}</span>
     </li>
   );
 }
@@ -51,11 +57,13 @@ function ClientRow(props: { client: BoundClient }) {
 /** The bound-clients list (empty until the org's clients load). */
 function ClientsTable(props: { clients: BoundClient[] }) {
   return (
-    <ul data-testid="organization-detail-clients-table">
-      {props.clients.map((client) => (
-        <ClientRow key={client.id ?? client.clientId} client={client} />
-      ))}
-    </ul>
+    <div className={TABLE_CARD}>
+      <ul data-testid="organization-detail-clients-table" className="divide-y divide-border">
+        {props.clients.map((client) => (
+          <ClientRow key={client.id ?? client.clientId} client={client} />
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -65,6 +73,7 @@ function ClientTypeSelect(props: { value: string; onChange: (value: string) => v
   return (
     <select
       data-testid="organization-detail-register-client-type"
+      className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
       value={value}
       onChange={(e) => {
         onChange(e.target.value);
@@ -79,7 +88,10 @@ function ClientTypeSelect(props: { value: string; onChange: (value: string) => v
 /** The one-time client-id/secret reveal after a successful registration. */
 function RegisterClientResult(props: { clientId?: string; clientSecret?: string | null }) {
   return (
-    <div data-testid="organization-detail-register-success">
+    <div
+      data-testid="organization-detail-register-success"
+      className="rounded-md border border-border bg-background p-4 space-y-2 font-mono text-sm text-foreground"
+    >
       <code data-testid="organization-detail-register-client-id">{props.clientId}</code>
       <code data-testid="organization-detail-register-client-secret">{props.clientSecret}</code>
     </div>
@@ -94,6 +106,8 @@ function RegisterClientForm(props: { onRegister: (body: RegisterClientInput) => 
 
   return (
     <form
+      data-testid="organization-detail-register-form"
+      className="space-y-6"
       onSubmit={(e) => {
         e.preventDefault();
         props.onRegister({
@@ -118,12 +132,17 @@ function RegisterClientForm(props: { onRegister: (body: RegisterClientInput) => 
       <ClientTypeSelect value={clientType} onChange={setClientType} />
       <textarea
         data-testid="organization-detail-register-redirect-uris"
+        className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
         value={redirectUris}
         onChange={(e) => {
           setRedirectUris(e.target.value);
         }}
       />
-      <Button type="submit" data-testid="organization-detail-register-submit">
+      <Button
+        type="submit"
+        className="rounded-full"
+        data-testid="organization-detail-register-submit"
+      >
         Register client
       </Button>
     </form>
@@ -147,8 +166,13 @@ function ClientsSection(props: { orgId: string }) {
   const result = register.data as { clientId?: string; clientSecret?: string | null } | undefined;
 
   return (
-    <section>
-      <h2>Bound Clients</h2>
+    <section className="space-y-4">
+      <h2
+        data-testid="organization-detail-clients-heading"
+        className="text-xl font-semibold text-foreground mb-4"
+      >
+        Bound Clients
+      </h2>
       <ClientsTable clients={clients} />
       {register.isSuccess && result !== undefined ? (
         <RegisterClientResult clientId={result.clientId} clientSecret={result.clientSecret} />
@@ -158,12 +182,48 @@ function ClientsSection(props: { orgId: string }) {
           Failed to register client.
         </ErrorBanner>
       ) : null}
-      <RegisterClientForm
-        onRegister={(body) => {
-          register.mutate(body);
-        }}
-      />
+      <div className="bg-card rounded-lg shadow-sm border border-border p-8">
+        <RegisterClientForm
+          onRegister={(body) => {
+            register.mutate(body);
+          }}
+        />
+      </div>
     </section>
+  );
+}
+
+/**
+ * A plain anchor, not a router `Link`, so the component renders standalone under
+ * a `QueryClientProvider` without a router context.
+ */
+function BackLink() {
+  return (
+    <a
+      href="/dashboard/organizations"
+      data-testid="organization-detail-back-link"
+      className="text-sm text-primary hover:opacity-80 no-underline inline-block"
+    >
+      Back to organizations
+    </a>
+  );
+}
+
+/**
+ * The missing-org card. It keeps the original sentence, "Organization not
+ * found.", as the card heading rather than rewriting it.
+ */
+function NotFoundCard() {
+  return (
+    <div
+      data-testid="organization-detail-not-found"
+      className="bg-card rounded-lg shadow-sm border border-border p-12 text-center"
+    >
+      <h2 className="text-xl font-semibold text-foreground mb-2">Organization not found.</h2>
+      <p className="text-foreground/60">
+        It may have been archived, or the link may point somewhere that no longer exists.
+      </p>
+    </div>
   );
 }
 
@@ -184,26 +244,27 @@ export function OrganizationDetail(props: { orgId: string }) {
 
   if (org === null) {
     return (
-      <Card>
-        <a href="/dashboard/organizations" data-testid="organization-detail-back-link">
-          Back to organizations
-        </a>
-        <MutedText data-testid="organization-detail-not-found">Organization not found.</MutedText>
-      </Card>
+      <div className="space-y-8">
+        <BackLink />
+        <NotFoundCard />
+      </div>
     );
   }
 
+  // A plain column, not one giant card: each section below owns its own card
+  // surface, so wrapping the page in a `Card` would nest card inside card.
   return (
-    <Card>
-      <a href="/dashboard/organizations" data-testid="organization-detail-back-link">
-        Back to organizations
-      </a>
-      <h1 data-testid="organization-detail-heading">{org.name}</h1>
+    <div className="space-y-8">
+      <BackLink />
+      <h1 data-testid="organization-detail-heading" className="text-3xl font-bold text-foreground">
+        {org.name}
+      </h1>
 
-      <div>
+      <div className="flex gap-3">
         <Button
           type="button"
           variant="destructive"
+          className="w-auto"
           data-testid="organization-detail-archive"
           onClick={() => {
             archive.mutate();
@@ -214,6 +275,7 @@ export function OrganizationDetail(props: { orgId: string }) {
         <Button
           type="button"
           variant="secondary"
+          className="w-auto"
           data-testid="organization-detail-reactivate"
           onClick={() => {
             reactivate.mutate();
@@ -226,6 +288,6 @@ export function OrganizationDetail(props: { orgId: string }) {
       <MemberList orgId={orgId} />
 
       <ClientsSection orgId={orgId} />
-    </Card>
+    </div>
   );
 }

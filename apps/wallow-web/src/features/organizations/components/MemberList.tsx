@@ -10,7 +10,7 @@
  * + `organization-member-add-submit` (add form), `organization-member-remove`
  * (per-row remove).
  */
-import { Button, Card, Field, Input, MutedText } from "@bc-solutions-coder/ui";
+import { Button, Field, Input, MutedText } from "@bc-solutions-coder/ui";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -21,11 +21,20 @@ import type { OrganizationMember } from "../types";
 function MemberRow(props: { member: OrganizationMember; onRemove: (userId: string) => void }) {
   const { member, onRemove } = props;
   return (
-    <li data-testid="organization-detail-member-row">
-      <span>{member.email}</span>
+    <li
+      data-testid="organization-detail-member-row"
+      className="flex items-center justify-between px-6 py-4 hover:bg-background/50"
+    >
+      <span
+        data-testid="organization-member-email"
+        className="text-sm font-medium text-card-foreground"
+      >
+        {member.email}
+      </span>
       <Button
         type="button"
         variant="destructive"
+        className="w-auto"
         data-testid="organization-member-remove"
         onClick={() => {
           onRemove(member.id);
@@ -43,12 +52,23 @@ export function MemberList(props: { orgId: string }) {
   const { data, isPending } = useQuery(organizationsQueries.members(orgId));
   const removeMember = useMutation(removeMemberMutation(queryClient, orgId));
 
+  // No ui `Card` around the section: the table's `px-6 py-4` cells must bleed to
+  // their own card's edge, which Card's fixed `p-6 space-y-6` prevents.
   return (
-    <Card>
+    <div>
+      <h2
+        data-testid="organization-members-heading"
+        className="text-xl font-semibold text-foreground mb-4"
+      >
+        Members
+      </h2>
+
       <AddMemberForm queryClient={queryClient} orgId={orgId} />
 
       {isPending ? (
-        <MutedText data-testid="organization-members-loading">Loading members…</MutedText>
+        <MutedText data-testid="organization-members-loading" className="text-center py-8">
+          Loading members…
+        </MutedText>
       ) : (
         <MemberTable
           members={(data ?? []) as OrganizationMember[]}
@@ -57,7 +77,7 @@ export function MemberList(props: { orgId: string }) {
           }}
         />
       )}
-    </Card>
+    </div>
   );
 }
 
@@ -70,6 +90,7 @@ function AddMemberForm(props: { queryClient: QueryClient; orgId: string }) {
   return (
     <form
       data-testid="organization-member-add-form"
+      className="flex items-end gap-3 mb-4"
       onSubmit={(e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -95,7 +116,7 @@ function AddMemberForm(props: { queryClient: QueryClient; orgId: string }) {
           }}
         />
       </Field>
-      <Button type="submit" data-testid="organization-member-add-submit">
+      <Button type="submit" className="w-auto" data-testid="organization-member-add-submit">
         Add member
       </Button>
     </form>
@@ -107,14 +128,25 @@ function MemberTable(props: { members: OrganizationMember[]; onRemove: (userId: 
   const { members, onRemove } = props;
 
   if (members.length === 0) {
-    return <MutedText data-testid="organization-members-empty">No members yet.</MutedText>;
+    // This empty state stays a MutedText: unlike the list/detail ones it has no
+    // block children, so a `<p>` is still legal markup.
+    return (
+      <MutedText
+        data-testid="organization-members-empty"
+        className="bg-card rounded-lg shadow-sm border border-border p-8 text-center"
+      >
+        No members yet.
+      </MutedText>
+    );
   }
 
   return (
-    <ul data-testid="organization-detail-members-table">
-      {members.map((member) => (
-        <MemberRow key={member.id} member={member} onRemove={onRemove} />
-      ))}
-    </ul>
+    <div className="bg-card rounded-lg shadow-sm border border-border overflow-hidden">
+      <ul data-testid="organization-detail-members-table" className="divide-y divide-border">
+        {members.map((member) => (
+          <MemberRow key={member.id} member={member} onRemove={onRemove} />
+        ))}
+      </ul>
+    </div>
   );
 }
