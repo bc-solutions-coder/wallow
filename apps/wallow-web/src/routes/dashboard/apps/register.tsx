@@ -20,7 +20,10 @@ import { RegisterAppForm } from "../../../features/apps/components/RegisterAppFo
  */
 function RegisterAppPage() {
   return (
-    <div data-testid="dashboard-apps-register">
+    <div data-testid="dashboard-apps-register" className="max-w-2xl mx-auto">
+      <h1 data-testid="apps-register-heading" className="text-3xl font-bold text-foreground mb-8">
+        Register New App
+      </h1>
       <RegisterAppForm />
     </div>
   );

@@ -16,12 +16,31 @@ import { AppList } from "../../../features/apps/components/AppList";
  * via `.update({ id, path, getParentRoute })` (there is no dashboard layout
  * route yet; that lands in Phase 7).
  */
-function AppsIndexPage() {
+/**
+ * Title row: page heading on the left, gold pill CTA on the right. Extracted so
+ * the page body stays within the repo's JSX nesting budget.
+ */
+function AppsHeader() {
   return (
-    <div data-testid="dashboard-apps">
-      <a data-testid="apps-register-link" href="/dashboard/apps/register">
+    <div className="flex items-center justify-between mb-8">
+      <h1 data-testid="apps-heading" className="text-3xl font-bold text-foreground">
+        My Apps
+      </h1>
+      <a
+        data-testid="apps-register-link"
+        href="/dashboard/apps/register"
+        className="bg-primary text-primary-foreground font-medium px-6 py-2.5 rounded-full hover:opacity-90 no-underline text-sm transition-colors"
+      >
         Register New App
       </a>
+    </div>
+  );
+}
+
+function AppsIndexPage() {
+  return (
+    <div data-testid="dashboard-apps" className="max-w-5xl mx-auto">
+      <AppsHeader />
       <AppList />
     </div>
   );
