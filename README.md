@@ -8,7 +8,7 @@
 
 Fork it. Add your domain modules. Deploy.
 
-[![CI](https://github.com/bc-solutions-coder/Wallow/actions/workflows/ci.yml/badge.svg)](https://github.com/bc-solutions-coder/Wallow/actions/workflows/ci.yml)
+[![CI](https://github.com/bc-solutions-coder/wallow/actions/workflows/ci.yml/badge.svg)](https://github.com/bc-solutions-coder/wallow/actions/workflows/ci.yml)
 [![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Tests](https://img.shields.io/badge/tests-6%2C078_passing-brightgreen?logo=checkmarx&logoColor=white)](#testing)
