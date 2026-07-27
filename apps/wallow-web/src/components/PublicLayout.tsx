@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { appIconUrl, forkBranding } from "../lib/branding";
+import { docsUrl, getStartedHref, repositoryUrl } from "../lib/site-links";
 
 /**
  * PublicLayout (Wallow-ffpq.3.6) — the chrome wrapped around the public
@@ -14,14 +15,6 @@ import { appIconUrl, forkBranding } from "../lib/branding";
  * back link already observe. The nav/footer are split into subcomponents to keep
  * each component's JSX nesting within the repo's `jsx-max-depth` budget.
  */
-
-// GitHub/Docs targets: prefer the fork's configured repository, else the
-// upstream default.
-const repositoryUrl: string = forkBranding.repositoryUrl ?? "https://github.com/wallowapp/wallow";
-const docsUrl = `${repositoryUrl}/tree/main/docs`;
-
-// The BFF login CTA lands the user on the dashboard after authenticating.
-const getStartedHref = "/bff/login?returnTo=/dashboard/apps";
 
 const navLinkClass = "text-foreground hover:text-primary no-underline text-sm font-medium";
 
@@ -48,7 +41,7 @@ function HomeLink() {
 function NavLinks() {
   return (
     <div className="flex items-center gap-6">
-      <a href="/features" data-testid="public-nav-features" className={navLinkClass}>
+      <a href="/#features" data-testid="public-nav-features" className={navLinkClass}>
         Features
       </a>
       <a
