@@ -14,9 +14,18 @@
  *
  * Testids mirror the C# E2E page object `SettingsMfaSection`.
  */
-import { Button, Card, ErrorBanner, Field, Input, Label, MutedText } from "@bc-solutions-coder/ui";
+import {
+  Button,
+  Card,
+  CardTitle,
+  ErrorBanner,
+  Field,
+  Input,
+  Label,
+  MutedText,
+} from "@bc-solutions-coder/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import { disableMfaMutation, mfaQueries, regenerateBackupCodesMutation } from "../api";
 import { problemDetail } from "../errors";
@@ -28,11 +37,42 @@ type ConfirmAction = "disable" | "regenerate";
 
 const CONFIRM_FAILED = "Unable to complete that action.";
 
+/** The uppercase caption above each read-only value. */
+const FIELD_LABEL = "block text-xs font-semibold text-foreground/70 uppercase tracking-wider mb-1";
+
+/** A read-only field value. */
+const FIELD_VALUE = "text-sm text-foreground";
+
+/**
+ * The shared status/type pill from the dashboard recipe. The old design tinted
+ * this by state (green when enabled); there is no success token in the theme, so
+ * the chip stays state-independent rather than reaching for a raw palette hue.
+ */
+const CHIP =
+  "inline-block bg-accent text-accent-foreground text-xs font-medium px-2.5 py-0.5 rounded-full";
+
+/** The framed sub-panels nested inside the card (confirm + codes reveal). */
+const PANEL = "rounded-md border border-border p-4";
+
+/** A captioned read-only field row (extracted to keep the card's JSX shallow). */
+function MfaField(props: { label: string; children: ReactNode }) {
+  return (
+    <div>
+      <span className={FIELD_LABEL}>{props.label}</span>
+      {props.children}
+    </div>
+  );
+}
+
 /** DISABLED-state affordances: status text + the enable CTA. */
 function DisabledCard(props: { onEnable: () => void }) {
   return (
-    <div>
-      <span data-testid="settings-mfa-status">Disabled</span>
+    <div className="space-y-4">
+      <MfaField label="Status">
+        <span data-testid="settings-mfa-status" className={CHIP}>
+          Disabled
+        </span>
+      </MfaField>
       <Button type="button" data-testid="settings-mfa-enable" onClick={props.onEnable}>
         Enable MFA
       </Button>
@@ -48,25 +88,37 @@ function EnabledCard(props: {
 }) {
   const { backupCodeCount, onDisable, onRegenerate } = props;
   return (
-    <div>
-      <span data-testid="settings-mfa-status">Enabled</span>
-      <span data-testid="settings-mfa-backup-count">{backupCodeCount}</span>
-      <Button
-        type="button"
-        variant="destructive"
-        data-testid="settings-mfa-disable"
-        onClick={onDisable}
-      >
-        Disable MFA
-      </Button>
-      <Button
-        type="button"
-        variant="secondary"
-        data-testid="settings-mfa-regenerate"
-        onClick={onRegenerate}
-      >
-        Regenerate backup codes
-      </Button>
+    <div className="space-y-4">
+      <MfaField label="Status">
+        <span data-testid="settings-mfa-status" className={CHIP}>
+          Enabled
+        </span>
+      </MfaField>
+      <MfaField label="Backup Codes Remaining">
+        <span data-testid="settings-mfa-backup-count" className={FIELD_VALUE}>
+          {backupCodeCount}
+        </span>
+      </MfaField>
+      {/* A grid, not a flex row: `ui` Button is `w-full`, so the cells size the
+          buttons instead of fighting the primitive's own width. */}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Button
+          type="button"
+          variant="destructive"
+          data-testid="settings-mfa-disable"
+          onClick={onDisable}
+        >
+          Disable MFA
+        </Button>
+        <Button
+          type="button"
+          variant="secondary"
+          data-testid="settings-mfa-regenerate"
+          onClick={onRegenerate}
+        >
+          Regenerate backup codes
+        </Button>
+      </div>
     </div>
   );
 }
@@ -79,7 +131,7 @@ function ConfirmPanel(props: {
 }) {
   const { password, onPasswordChange, onSubmit } = props;
   return (
-    <div>
+    <div className={`${PANEL} bg-background/50 space-y-3`}>
       <Field>
         <Label htmlFor="settings-mfa-confirm-password-input">Password</Label>
         <Input
@@ -106,9 +158,14 @@ function ConfirmPanel(props: {
  */
 function RegeneratedCodes(props: { codes: string[] }) {
   return (
-    <div>
-      <p>New backup codes — save these somewhere safe. They will not be shown again.</p>
-      <ul data-testid="settings-mfa-regenerated-codes">
+    <div className={PANEL}>
+      <p className="text-sm font-semibold text-foreground mb-2">
+        New backup codes — save these somewhere safe. They will not be shown again.
+      </p>
+      <ul
+        data-testid="settings-mfa-regenerated-codes"
+        className="font-mono text-sm space-y-1 text-foreground"
+      >
         {props.codes.map((codeValue) => (
           <li key={codeValue}>{codeValue}</li>
         ))}
@@ -130,7 +187,11 @@ export function MfaSettingsSection() {
   const [regeneratedCodes, setRegeneratedCodes] = useState<string[] | null>(null);
 
   if (isPending) {
-    return <MutedText data-testid="settings-mfa-loading">Loading MFA status…</MutedText>;
+    return (
+      <MutedText data-testid="settings-mfa-loading" className="text-center py-12">
+        Loading MFA status…
+      </MutedText>
+    );
   }
 
   // The facade returns status as `unknown`; narrow at the render boundary.
@@ -187,7 +248,9 @@ export function MfaSettingsSection() {
   };
 
   return (
-    <Card>
+    <Card className="mt-6">
+      <CardTitle>Multi-Factor Authentication</CardTitle>
+
       {enabled ? (
         <EnabledCard
           backupCodeCount={status?.backupCodeCount ?? 0}

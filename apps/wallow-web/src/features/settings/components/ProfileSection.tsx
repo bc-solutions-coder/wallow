@@ -13,8 +13,19 @@
  */
 import { Card, CardTitle, MutedText } from "@bc-solutions-coder/ui";
 import { useQuery } from "@tanstack/react-query";
+import type { ReactNode } from "react";
 
 import { settingsQueries } from "../api";
+
+/** The uppercase caption above each read-only value. */
+const FIELD_LABEL = "block text-xs font-semibold text-foreground/70 uppercase tracking-wider mb-1";
+
+/** A read-only field value. */
+const FIELD_VALUE = "text-sm text-foreground";
+
+/** The shared status/type pill from the dashboard recipe. */
+const CHIP =
+  "inline-block bg-accent text-accent-foreground text-xs font-medium px-2.5 py-0.5 rounded-full";
 
 interface ProfileView {
   id?: string | null;
@@ -25,11 +36,38 @@ interface ProfileView {
   permissions?: readonly string[] | null;
 }
 
+/** A captioned read-only field row (extracted to keep the card's JSX shallow). */
+function ProfileField(props: { label: string; children: ReactNode }) {
+  return (
+    <div>
+      <span className={FIELD_LABEL}>{props.label}</span>
+      {props.children}
+    </div>
+  );
+}
+
+/** The role chips (extracted so the roles field stays within the nesting budget). */
+function RoleChips(props: { roles: readonly string[] }) {
+  return (
+    <div data-testid="settings-profile-roles" className="flex flex-wrap gap-2">
+      {props.roles.map((role) => (
+        <span key={role} data-testid="settings-profile-role" className={CHIP}>
+          {role}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 export function ProfileSection() {
   const { data, isPending } = useQuery(settingsQueries.profile());
 
   if (isPending) {
-    return <MutedText data-testid="settings-profile-loading">Loading profile…</MutedText>;
+    return (
+      <MutedText data-testid="settings-profile-loading" className="text-center py-12">
+        Loading profile…
+      </MutedText>
+    );
   }
 
   const profile = (data ?? {}) as ProfileView;
@@ -40,20 +78,23 @@ export function ProfileSection() {
   return (
     <Card>
       <CardTitle>Profile</CardTitle>
-      <div data-testid="settings-profile-name">{name}</div>
-      <div data-testid="settings-profile-email">{email}</div>
-
-      {roles.length > 0 ? (
-        <div data-testid="settings-profile-roles">
-          {roles.map((role) => (
-            <span key={role} data-testid="settings-profile-role">
-              {role}
-            </span>
-          ))}
+      <ProfileField label="Name">
+        <div data-testid="settings-profile-name" className={FIELD_VALUE}>
+          {name}
         </div>
-      ) : (
-        <MutedText data-testid="settings-profile-no-roles">No roles assigned.</MutedText>
-      )}
+      </ProfileField>
+      <ProfileField label="Email">
+        <div data-testid="settings-profile-email" className={FIELD_VALUE}>
+          {email}
+        </div>
+      </ProfileField>
+      <ProfileField label="Roles">
+        {roles.length > 0 ? (
+          <RoleChips roles={roles} />
+        ) : (
+          <MutedText data-testid="settings-profile-no-roles">No roles assigned.</MutedText>
+        )}
+      </ProfileField>
     </Card>
   );
 }
