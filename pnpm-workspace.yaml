@@ -2,3 +2,9 @@ packages:
   - "apps/*"
   - "apps/examples/*"
   - "packages/*"
+
+# @hey-api/openapi-ts pins @hey-api/json-schema-ref-parser, which pins js-yaml
+# 4.2.0 — vulnerable to quadratic CPU blowup on YAML merge-key chains, patched in
+# 4.3.0. Drop this once upstream ships a ref-parser on a fixed js-yaml.
+overrides:
+  js-yaml: ^4.3.0
