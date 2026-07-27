@@ -9,22 +9,17 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
 import { Route as BffDemoRouteImport } from './routes/bff-demo'
 import { Route as DashboardRouteRouteImport } from './routes/dashboard/route'
+import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashboardSettingsRouteImport } from './routes/dashboard/settings'
-import { Route as DashboardAppsIndexRouteImport } from './routes/dashboard/apps/index'
-import { Route as DashboardAppsRegisterRouteImport } from './routes/dashboard/apps/register'
-import { Route as DashboardInquiriesIndexRouteImport } from './routes/dashboard/inquiries/index'
-import { Route as DashboardInquiriesInquiryIdRouteImport } from './routes/dashboard/inquiries/$inquiryId'
 import { Route as DashboardOrganizationsIndexRouteImport } from './routes/dashboard/organizations/index'
+import { Route as DashboardInquiriesIndexRouteImport } from './routes/dashboard/inquiries/index'
+import { Route as DashboardAppsIndexRouteImport } from './routes/dashboard/apps/index'
 import { Route as DashboardOrganizationsOrgIdRouteImport } from './routes/dashboard/organizations/$orgId'
+import { Route as DashboardInquiriesInquiryIdRouteImport } from './routes/dashboard/inquiries/$inquiryId'
+import { Route as DashboardAppsRegisterRouteImport } from './routes/dashboard/apps/register'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const BffDemoRoute = BffDemoRouteImport.update({
   id: '/bff-demo',
   path: '/bff-demo',
@@ -35,9 +30,25 @@ const DashboardRouteRoute = DashboardRouteRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardSettingsRoute = DashboardSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardOrganizationsIndexRoute =
+  DashboardOrganizationsIndexRouteImport.update({
+    id: '/organizations/',
+    path: '/organizations/',
+    getParentRoute: () => DashboardRouteRoute,
+  } as any)
+const DashboardInquiriesIndexRoute = DashboardInquiriesIndexRouteImport.update({
+  id: '/inquiries/',
+  path: '/inquiries/',
   getParentRoute: () => DashboardRouteRoute,
 } as any)
 const DashboardAppsIndexRoute = DashboardAppsIndexRouteImport.update({
@@ -45,34 +56,23 @@ const DashboardAppsIndexRoute = DashboardAppsIndexRouteImport.update({
   path: '/apps/',
   getParentRoute: () => DashboardRouteRoute,
 } as any)
-const DashboardAppsRegisterRoute = DashboardAppsRegisterRouteImport.update({
-  id: '/apps/register',
-  path: '/apps/register',
-  getParentRoute: () => DashboardRouteRoute,
-} as any)
-const DashboardInquiriesIndexRoute = DashboardInquiriesIndexRouteImport.update({
-  id: '/inquiries/',
-  path: '/inquiries/',
-  getParentRoute: () => DashboardRouteRoute,
-} as any)
-const DashboardInquiriesInquiryIdRoute =
-  DashboardInquiriesInquiryIdRouteImport.update({
-    id: '/inquiries/$inquiryId',
-    path: '/inquiries/$inquiryId',
-    getParentRoute: () => DashboardRouteRoute,
-  } as any)
-const DashboardOrganizationsIndexRoute =
-  DashboardOrganizationsIndexRouteImport.update({
-    id: '/organizations/',
-    path: '/organizations/',
-    getParentRoute: () => DashboardRouteRoute,
-  } as any)
 const DashboardOrganizationsOrgIdRoute =
   DashboardOrganizationsOrgIdRouteImport.update({
     id: '/organizations/$orgId',
     path: '/organizations/$orgId',
     getParentRoute: () => DashboardRouteRoute,
   } as any)
+const DashboardInquiriesInquiryIdRoute =
+  DashboardInquiriesInquiryIdRouteImport.update({
+    id: '/inquiries/$inquiryId',
+    path: '/inquiries/$inquiryId',
+    getParentRoute: () => DashboardRouteRoute,
+  } as any)
+const DashboardAppsRegisterRoute = DashboardAppsRegisterRouteImport.update({
+  id: '/apps/register',
+  path: '/apps/register',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -158,13 +158,6 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/bff-demo': {
       id: '/bff-demo'
       path: '/bff-demo'
@@ -179,39 +172,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard/settings': {
       id: '/dashboard/settings'
       path: '/settings'
       fullPath: '/dashboard/settings'
       preLoaderRoute: typeof DashboardSettingsRouteImport
-      parentRoute: typeof DashboardRouteRoute
-    }
-    '/dashboard/apps/': {
-      id: '/dashboard/apps/'
-      path: '/apps'
-      fullPath: '/dashboard/apps/'
-      preLoaderRoute: typeof DashboardAppsIndexRouteImport
-      parentRoute: typeof DashboardRouteRoute
-    }
-    '/dashboard/apps/register': {
-      id: '/dashboard/apps/register'
-      path: '/apps/register'
-      fullPath: '/dashboard/apps/register'
-      preLoaderRoute: typeof DashboardAppsRegisterRouteImport
-      parentRoute: typeof DashboardRouteRoute
-    }
-    '/dashboard/inquiries/': {
-      id: '/dashboard/inquiries/'
-      path: '/inquiries'
-      fullPath: '/dashboard/inquiries/'
-      preLoaderRoute: typeof DashboardInquiriesIndexRouteImport
-      parentRoute: typeof DashboardRouteRoute
-    }
-    '/dashboard/inquiries/$inquiryId': {
-      id: '/dashboard/inquiries/$inquiryId'
-      path: '/inquiries/$inquiryId'
-      fullPath: '/dashboard/inquiries/$inquiryId'
-      preLoaderRoute: typeof DashboardInquiriesInquiryIdRouteImport
       parentRoute: typeof DashboardRouteRoute
     }
     '/dashboard/organizations/': {
@@ -221,11 +193,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardOrganizationsIndexRouteImport
       parentRoute: typeof DashboardRouteRoute
     }
+    '/dashboard/inquiries/': {
+      id: '/dashboard/inquiries/'
+      path: '/inquiries'
+      fullPath: '/dashboard/inquiries/'
+      preLoaderRoute: typeof DashboardInquiriesIndexRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/apps/': {
+      id: '/dashboard/apps/'
+      path: '/apps'
+      fullPath: '/dashboard/apps/'
+      preLoaderRoute: typeof DashboardAppsIndexRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
     '/dashboard/organizations/$orgId': {
       id: '/dashboard/organizations/$orgId'
       path: '/organizations/$orgId'
       fullPath: '/dashboard/organizations/$orgId'
       preLoaderRoute: typeof DashboardOrganizationsOrgIdRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/inquiries/$inquiryId': {
+      id: '/dashboard/inquiries/$inquiryId'
+      path: '/inquiries/$inquiryId'
+      fullPath: '/dashboard/inquiries/$inquiryId'
+      preLoaderRoute: typeof DashboardInquiriesInquiryIdRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/apps/register': {
+      id: '/dashboard/apps/register'
+      path: '/apps/register'
+      fullPath: '/dashboard/apps/register'
+      preLoaderRoute: typeof DashboardAppsRegisterRouteImport
       parentRoute: typeof DashboardRouteRoute
     }
   }

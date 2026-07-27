@@ -9,71 +9,26 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as AcceptTermsRouteImport } from './routes/accept-terms'
-import { Route as ConsentRouteImport } from './routes/consent'
-import { Route as ErrorRouteImport } from './routes/error'
-import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
-import { Route as InvitationRouteImport } from './routes/invitation'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as LogoutRouteImport } from './routes/logout'
-import { Route as PrivacyRouteImport } from './routes/privacy'
-import { Route as RegisterRouteImport } from './routes/register'
-import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as TermsRouteImport } from './routes/terms'
-import { Route as MfaChallengeRouteImport } from './routes/mfa/challenge'
-import { Route as MfaEnrollRouteImport } from './routes/mfa/enroll'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as RegisterRouteImport } from './routes/register'
+import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as LogoutRouteImport } from './routes/logout'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as InvitationRouteImport } from './routes/invitation'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as ErrorRouteImport } from './routes/error'
+import { Route as ConsentRouteImport } from './routes/consent'
+import { Route as AcceptTermsRouteImport } from './routes/accept-terms'
+import { Route as IndexRouteImport } from './routes/index'
 import { Route as VerifyEmailIndexRouteImport } from './routes/verify-email/index'
 import { Route as VerifyEmailConfirmRouteImport } from './routes/verify-email/confirm'
+import { Route as MfaEnrollRouteImport } from './routes/mfa/enroll'
+import { Route as MfaChallengeRouteImport } from './routes/mfa/challenge'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AcceptTermsRoute = AcceptTermsRouteImport.update({
-  id: '/accept-terms',
-  path: '/accept-terms',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ConsentRoute = ConsentRouteImport.update({
-  id: '/consent',
-  path: '/consent',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ErrorRoute = ErrorRouteImport.update({
-  id: '/error',
-  path: '/error',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
-  id: '/forgot-password',
-  path: '/forgot-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const InvitationRoute = InvitationRouteImport.update({
-  id: '/invitation',
-  path: '/invitation',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LogoutRoute = LogoutRouteImport.update({
-  id: '/logout',
-  path: '/logout',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PrivacyRoute = PrivacyRouteImport.update({
-  id: '/privacy',
-  path: '/privacy',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RegisterRoute = RegisterRouteImport.update({
-  id: '/register',
-  path: '/register',
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -81,19 +36,54 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
   path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TermsRoute = TermsRouteImport.update({
-  id: '/terms',
-  path: '/terms',
+const RegisterRoute = RegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
   getParentRoute: () => rootRouteImport,
 } as any)
-const MfaChallengeRoute = MfaChallengeRouteImport.update({
-  id: '/mfa/challenge',
-  path: '/mfa/challenge',
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
-const MfaEnrollRoute = MfaEnrollRouteImport.update({
-  id: '/mfa/enroll',
-  path: '/mfa/enroll',
+const LogoutRoute = LogoutRouteImport.update({
+  id: '/logout',
+  path: '/logout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InvitationRoute = InvitationRouteImport.update({
+  id: '/invitation',
+  path: '/invitation',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ErrorRoute = ErrorRouteImport.update({
+  id: '/error',
+  path: '/error',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConsentRoute = ConsentRouteImport.update({
+  id: '/consent',
+  path: '/consent',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AcceptTermsRoute = AcceptTermsRouteImport.update({
+  id: '/accept-terms',
+  path: '/accept-terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const VerifyEmailIndexRoute = VerifyEmailIndexRouteImport.update({
@@ -104,6 +94,16 @@ const VerifyEmailIndexRoute = VerifyEmailIndexRouteImport.update({
 const VerifyEmailConfirmRoute = VerifyEmailConfirmRouteImport.update({
   id: '/verify-email/confirm',
   path: '/verify-email/confirm',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MfaEnrollRoute = MfaEnrollRouteImport.update({
+  id: '/mfa/enroll',
+  path: '/mfa/enroll',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MfaChallengeRoute = MfaChallengeRouteImport.update({
+  id: '/mfa/challenge',
+  path: '/mfa/challenge',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -240,74 +240,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/accept-terms': {
-      id: '/accept-terms'
-      path: '/accept-terms'
-      fullPath: '/accept-terms'
-      preLoaderRoute: typeof AcceptTermsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/consent': {
-      id: '/consent'
-      path: '/consent'
-      fullPath: '/consent'
-      preLoaderRoute: typeof ConsentRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/error': {
-      id: '/error'
-      path: '/error'
-      fullPath: '/error'
-      preLoaderRoute: typeof ErrorRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/forgot-password': {
-      id: '/forgot-password'
-      path: '/forgot-password'
-      fullPath: '/forgot-password'
-      preLoaderRoute: typeof ForgotPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/invitation': {
-      id: '/invitation'
-      path: '/invitation'
-      fullPath: '/invitation'
-      preLoaderRoute: typeof InvitationRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/logout': {
-      id: '/logout'
-      path: '/logout'
-      fullPath: '/logout'
-      preLoaderRoute: typeof LogoutRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/privacy': {
-      id: '/privacy'
-      path: '/privacy'
-      fullPath: '/privacy'
-      preLoaderRoute: typeof PrivacyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/register': {
-      id: '/register'
-      path: '/register'
-      fullPath: '/register'
-      preLoaderRoute: typeof RegisterRouteImport
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reset-password': {
@@ -317,25 +254,74 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/terms': {
-      id: '/terms'
-      path: '/terms'
-      fullPath: '/terms'
-      preLoaderRoute: typeof TermsRouteImport
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/mfa/challenge': {
-      id: '/mfa/challenge'
-      path: '/mfa/challenge'
-      fullPath: '/mfa/challenge'
-      preLoaderRoute: typeof MfaChallengeRouteImport
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/mfa/enroll': {
-      id: '/mfa/enroll'
-      path: '/mfa/enroll'
-      fullPath: '/mfa/enroll'
-      preLoaderRoute: typeof MfaEnrollRouteImport
+    '/logout': {
+      id: '/logout'
+      path: '/logout'
+      fullPath: '/logout'
+      preLoaderRoute: typeof LogoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/invitation': {
+      id: '/invitation'
+      path: '/invitation'
+      fullPath: '/invitation'
+      preLoaderRoute: typeof InvitationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/error': {
+      id: '/error'
+      path: '/error'
+      fullPath: '/error'
+      preLoaderRoute: typeof ErrorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/consent': {
+      id: '/consent'
+      path: '/consent'
+      fullPath: '/consent'
+      preLoaderRoute: typeof ConsentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/accept-terms': {
+      id: '/accept-terms'
+      path: '/accept-terms'
+      fullPath: '/accept-terms'
+      preLoaderRoute: typeof AcceptTermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/verify-email/': {
@@ -350,6 +336,20 @@ declare module '@tanstack/react-router' {
       path: '/verify-email/confirm'
       fullPath: '/verify-email/confirm'
       preLoaderRoute: typeof VerifyEmailConfirmRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mfa/enroll': {
+      id: '/mfa/enroll'
+      path: '/mfa/enroll'
+      fullPath: '/mfa/enroll'
+      preLoaderRoute: typeof MfaEnrollRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mfa/challenge': {
+      id: '/mfa/challenge'
+      path: '/mfa/challenge'
+      fullPath: '/mfa/challenge'
+      preLoaderRoute: typeof MfaChallengeRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
