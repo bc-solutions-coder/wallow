@@ -218,15 +218,21 @@ describe("forkBranding read from api/branding.json", () => {
     expect(forkBranding.tagline).toBe("Wallow in it");
   });
 
+  it("loads the fork's repository and docs links", () => {
+    expect(forkBranding.repositoryUrl).toBe("https://github.com/bc-solutions-coder/wallow");
+    expect(forkBranding.docsUrl).toBe("https://bc-solutions-coder.github.io/wallow/");
+  });
+
   it("loads both theme palettes with the fork's default mode", () => {
-    expect(forkBranding.theme.defaultMode).toBe("dark");
+    expect(forkBranding.theme.defaultMode).toBe("light");
     expect(Object.keys(forkBranding.theme.light).length).toBeGreaterThan(0);
     expect(Object.keys(forkBranding.theme.dark).length).toBeGreaterThan(0);
   });
 
   it("exposes the fork's own resolved branding for the layout to default to", () => {
     expect(forkResolvedBranding.name).toBe("Wallow");
-    expect(forkResolvedBranding.defaultMode).toBe("dark");
-    expect(forkResolvedBranding.cssVars.dark["--primary-foreground"]).toBe("oklch(0.14 0.015 50)");
+    expect(forkResolvedBranding.defaultMode).toBe("light");
+    expect(forkResolvedBranding.cssVars.light["--card"]).toBe("oklch(1 0 0)");
+    expect(forkResolvedBranding.cssVars.dark["--primary-foreground"]).toBe("oklch(0.18 0.03 45)");
   });
 });
