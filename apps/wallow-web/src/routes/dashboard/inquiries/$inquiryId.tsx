@@ -15,7 +15,7 @@ import { InquiryDetail } from "../../../features/inquiries/components/InquiryDet
 function InquiryDetailPage() {
   const { inquiryId } = Route.useParams();
   return (
-    <div data-testid="dashboard-inquiry-detail">
+    <div data-testid="dashboard-inquiry-detail" className="max-w-2xl mx-auto">
       <InquiryDetail inquiryId={inquiryId} />
     </div>
   );

@@ -28,6 +28,14 @@ import type { ProblemDetails } from "@bc-solutions-coder/sdk";
 import { addCommentMutation, inquiriesQueries, setStatusMutation } from "../api";
 import { INQUIRY_STATUSES, type Inquiry, type InquiryComment } from "../types";
 
+/** The status/marker pill shared with the inquiries list rows. */
+const CHIP =
+  "inline-block bg-accent text-accent-foreground text-xs font-medium px-2.5 py-0.5 rounded-full";
+
+/** The `ui` `Input` recipe, applied to the bare `select`/`textarea` controls. */
+const CONTROL =
+  "w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring";
+
 export function InquiryDetail(props: { inquiryId: string }) {
   const { inquiryId } = props;
   const queryClient = useQueryClient();
@@ -54,8 +62,12 @@ export function InquiryDetail(props: { inquiryId: string }) {
     }
 
     return (
-      <Card>
-        <a href="/dashboard/inquiries" data-testid="inquiry-detail-back-link">
+      <Card spacing="p-8 space-y-6" className="shadow-sm">
+        <a
+          href="/dashboard/inquiries"
+          data-testid="inquiry-detail-back-link"
+          className="inline-block text-sm text-foreground/60 hover:text-foreground no-underline mb-4"
+        >
           Back to inquiries
         </a>
         <MutedText data-testid="inquiry-detail-not-found">Inquiry not found.</MutedText>
@@ -64,13 +76,23 @@ export function InquiryDetail(props: { inquiryId: string }) {
   }
 
   return (
-    <Card>
-      <a href="/dashboard/inquiries" data-testid="inquiry-detail-back-link">
+    <Card data-testid="inquiry-detail-card" spacing="p-8 space-y-6" className="shadow-sm">
+      <a
+        href="/dashboard/inquiries"
+        data-testid="inquiry-detail-back-link"
+        className="inline-block text-sm text-foreground/60 hover:text-foreground no-underline mb-4"
+      >
         Back to inquiries
       </a>
-      <h1 data-testid="inquiry-detail-heading">{inquiry.name}</h1>
-      <div>{inquiry.email}</div>
-      <div data-testid="inquiry-detail-status">{inquiry.status}</div>
+      <h1 data-testid="inquiry-detail-heading" className="text-3xl font-bold text-foreground">
+        {inquiry.name}
+      </h1>
+      <div data-testid="inquiry-detail-email" className="text-sm text-foreground/60">
+        {inquiry.email}
+      </div>
+      <div data-testid="inquiry-detail-status" className={CHIP}>
+        {inquiry.status}
+      </div>
 
       <StatusControl
         queryClient={queryClient}
@@ -97,6 +119,7 @@ function StatusControl(props: {
     <>
       <select
         data-testid="inquiry-status-select"
+        className={CONTROL}
         value={status}
         onChange={(e) => {
           setStatus(e.target.value);
@@ -130,10 +153,21 @@ function StatusControl(props: {
 function CommentRow(props: { comment: InquiryComment }) {
   const { comment } = props;
   return (
-    <li data-testid="inquiry-comment-row">
-      <span>{comment.authorName}</span>
-      <span>{comment.content}</span>
-      {comment.isInternal ? <span>(internal)</span> : null}
+    <li
+      data-testid="inquiry-comment-row"
+      className="flex items-center gap-3 px-4 py-3 hover:bg-background/50"
+    >
+      <span data-testid="inquiry-comment-author" className="text-xs font-medium text-foreground/60">
+        {comment.authorName}
+      </span>
+      <span data-testid="inquiry-comment-body" className="text-sm text-card-foreground">
+        {comment.content}
+      </span>
+      {comment.isInternal ? (
+        <span data-testid="inquiry-comment-internal-flag" className={CHIP}>
+          (internal)
+        </span>
+      ) : null}
     </li>
   );
 }
@@ -150,11 +184,18 @@ function CommentThread(props: { inquiryId: string }) {
   const comments = (data ?? []) as InquiryComment[];
 
   if (comments.length === 0) {
-    return <MutedText data-testid="inquiry-comments-empty">No comments yet.</MutedText>;
+    return (
+      <MutedText data-testid="inquiry-comments-empty" className="text-center py-6">
+        No comments yet.
+      </MutedText>
+    );
   }
 
   return (
-    <ul data-testid="inquiry-comments-table">
+    <ul
+      data-testid="inquiry-comments-table"
+      className="divide-y divide-border rounded-md border border-border overflow-hidden"
+    >
       {comments.map((comment) => (
         <CommentRow key={comment.id} comment={comment} />
       ))}
@@ -172,6 +213,7 @@ function AddCommentForm(props: { queryClient: QueryClient; inquiryId: string }) 
   return (
     <form
       data-testid="inquiry-comment-form"
+      className="space-y-3"
       onSubmit={(e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -188,6 +230,7 @@ function AddCommentForm(props: { queryClient: QueryClient; inquiryId: string }) 
     >
       <textarea
         data-testid="inquiry-comment-content"
+        className={CONTROL}
         value={content}
         onChange={(e) => {
           setContent(e.target.value);

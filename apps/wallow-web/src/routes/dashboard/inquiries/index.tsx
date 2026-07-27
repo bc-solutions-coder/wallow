@@ -19,7 +19,10 @@ import { InquiryList } from "../../../features/inquiries/components/InquiryList"
  */
 function InquiriesIndexPage() {
   return (
-    <div data-testid="dashboard-inquiries">
+    <div data-testid="dashboard-inquiries" className="max-w-5xl mx-auto space-y-8">
+      <h1 data-testid="inquiries-heading" className="text-3xl font-bold text-foreground">
+        Inquiries
+      </h1>
       <InquiryList />
       <CreateInquiryForm />
     </div>

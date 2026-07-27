@@ -21,12 +21,20 @@
  * other field blocks submit with a `{field}-error` message client-side rather
  * than letting the server reject an "apparently valid" form.
  */
-import { Button, Card, ErrorBanner, Field, Input, MutedText } from "@bc-solutions-coder/ui";
+import { Button, Card, ErrorBanner, Field, Input } from "@bc-solutions-coder/ui";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ProblemDetails } from "@bc-solutions-coder/sdk";
 
 import { createInquiryMutation } from "../api";
+
+/**
+ * The bare `select`/`textarea` controls have no browser default that matches the
+ * token-styled `ui` `Input`, so they carry its measured recipe verbatim plus the
+ * focus ring.
+ */
+const CONTROL =
+  "w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring";
 
 /** A cosmetic select option (value is the wire value; label is display text). */
 interface SelectOption {
@@ -105,6 +113,7 @@ function SelectField(props: {
     <>
       <select
         data-testid={testId}
+        className={CONTROL}
         value={value}
         onChange={(e) => {
           onChange(e.target.value);
@@ -135,6 +144,7 @@ function MessageField(props: {
     <>
       <textarea
         data-testid="inquiry-message"
+        className={CONTROL}
         value={value}
         onChange={(e) => {
           onChange(e.target.value);
@@ -152,19 +162,75 @@ const required = ({ value }: { value: string }): string | undefined =>
 
 export function CreateInquiryForm() {
   return (
-    <Card>
+    <Card spacing="p-8 space-y-6" className="shadow-sm">
       <CreateInquiryFormFields />
     </Card>
   );
 }
 
+/** The eight submitted fields — also the `useForm` value shape. */
+interface InquiryFormValues {
+  name: string;
+  email: string;
+  phone: string;
+  company: string;
+  projectType: string;
+  budgetRange: string;
+  timeline: string;
+  message: string;
+}
+
 /**
- * The form body, split out so the `Card` surface stays a shallow wrapper and the
- * `form > form.Field > TextField` chain keeps within the repo's JSX nesting budget.
+ * The card body: heading + form, or the success state that replaces both. Split
+ * out from `CreateInquiryForm` so the `Card` surface stays a shallow wrapper and
+ * the heading and form remain siblings directly under it.
  */
 function CreateInquiryFormFields() {
   const queryClient = useQueryClient();
   const mutation = useMutation(createInquiryMutation(queryClient));
+
+  if (mutation.isSuccess) {
+    return (
+      <div data-testid="inquiry-success" className="text-center py-6">
+        <div className="text-[80px] leading-none mb-4">🐷</div>
+        <h2 className="text-xl font-semibold text-foreground mb-2">
+          Thank you — your inquiry has been submitted.
+        </h2>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <h2 data-testid="inquiry-create-heading" className="text-xl font-semibold text-foreground">
+        Submit an Inquiry
+      </h2>
+      <InquiryFormBody
+        error={mutation.isError ? (mutation.error as ProblemDetails) : null}
+        onSubmit={(value) => {
+          // Fire-and-observe: drive the mutation with `mutate` (not awaited
+          // `mutateAsync`) so a rejected submit is captured in mutation state and
+          // surfaced below rather than escaping as an unhandled rejection. The
+          // factory's own `onSuccess` invalidates `['inquiries']`; success swaps
+          // heading and form for the success state above, so no field reset is
+          // needed.
+          mutation.mutate(value);
+        }}
+      />
+    </>
+  );
+}
+
+/**
+ * The form itself. It is its own component so `<form>` stays a render root — the
+ * `form > form.Field > TextField` chain only fits the repo's JSX nesting budget
+ * when nothing wraps it.
+ */
+function InquiryFormBody(props: {
+  onSubmit: (value: InquiryFormValues) => void;
+  error: ProblemDetails | null;
+}) {
+  const { onSubmit, error } = props;
 
   const form = useForm({
     defaultValues: {
@@ -178,35 +244,14 @@ function CreateInquiryFormFields() {
       message: "",
     },
     onSubmit: ({ value }) => {
-      // Fire-and-observe: drive the mutation with `mutate` (not awaited
-      // `mutateAsync`) so a rejected submit is captured in mutation state and
-      // surfaced below rather than escaping as an unhandled rejection. The
-      // factory's own `onSuccess` invalidates `['inquiries']`; success swaps the
-      // form for the success card (below), so no in-place field reset is needed.
-      mutation.mutate({
-        name: value.name,
-        email: value.email,
-        phone: value.phone,
-        company: value.company,
-        projectType: value.projectType,
-        budgetRange: value.budgetRange,
-        timeline: value.timeline,
-        message: value.message,
-      });
+      onSubmit(value);
     },
   });
-
-  if (mutation.isSuccess) {
-    return (
-      <MutedText data-testid="inquiry-success">
-        Thank you — your inquiry has been submitted.
-      </MutedText>
-    );
-  }
 
   return (
     <form
       data-testid="inquiry-create-form"
+      className="space-y-5"
       onSubmit={(e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -308,11 +353,9 @@ function CreateInquiryFormFields() {
         )}
       </form.Field>
 
-      {mutation.isError ? (
-        <ErrorBanner data-testid="inquiry-error">
-          {(mutation.error as ProblemDetails).detail}
-        </ErrorBanner>
-      ) : null}
+      {error === null ? null : (
+        <ErrorBanner data-testid="inquiry-error">{error.detail}</ErrorBanner>
+      )}
 
       <Button type="submit" data-testid="inquiry-submit">
         Submit Inquiry
