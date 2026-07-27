@@ -7,20 +7,24 @@ import { expect, test } from "@playwright/test";
  * document). It asserts reachability, not flow correctness, and takes NO backend
  * dependency — mirroring apps/wallow-auth/e2e/routes.spec.ts.
  *
- * Only `/bff-demo` qualifies today because it is the one public route with no
- * `beforeLoad` gate: it SSRs a 200 and hydrates with the API absent (its own
- * `getUser()` call runs client-side and merely logs when the API is down, which
- * does not block the readiness marker).
+ * Both routes here render for an anonymous visitor with the API absent:
+ *   - `/` — the marketing landing. Its `beforeLoad` resolves `getUser()` during
+ *     SSR against the app's OWN h3 `/bff/user` bridge, which 401s off the absent
+ *     session cookie without ever reaching the issuer, so the gate reads "not
+ *     signed in" and falls through to `LandingPage`. That bridge only loads when
+ *     the BFF env is present, which is why playwright.config.ts supplies the
+ *     Aspire dev values to its `webServer` — without them the module throws at
+ *     import and every `/bff/*` request 500s.
+ *   - `/bff-demo` — no `beforeLoad` gate at all; its `getUser()` call runs
+ *     client-side and merely logs when the API is down, which does not block the
+ *     readiness marker.
  *
- * Deliberately excluded until their own beads land:
- *   - `/` — its `beforeLoad` runs `getUser()` during SSR against a relative
- *     `/bff/user`, which 500s regardless of backend (a separate SSR defect).
- *   - `/dashboard/**` — auth-gated: `beforeLoad` drives a real BFF login
- *     navigation (`/bff/login` -> OIDC) when unauthenticated, needing the API.
- *     That cross-app login journey is covered by the backend-dependent suite
- *     (Wallow-xzha.4.3), not this render-only gate.
+ * `/dashboard/**` stays excluded: it is auth-gated, so `beforeLoad` drives a real
+ * BFF login navigation (`/bff/login` -> OIDC) when unauthenticated, needing the
+ * API. That cross-app login journey is covered by the backend-dependent suite
+ * (Wallow-xzha.4.3), not this render-only gate.
  */
-const routes: string[] = ["/bff-demo"];
+const routes: string[] = ["/", "/bff-demo"];
 
 const FIRST_ERROR_STATUS = 400;
 

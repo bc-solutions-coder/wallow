@@ -19,6 +19,22 @@ const webServer: PlaywrightTestConfig["webServer"] = externalBaseURL
         // Outside Aspire the proxy's default target (http://wallow-api) does not
         // resolve; point it at the locally-run API unless the caller overrides.
         WALLOW_API_INTERNAL_URL: process.env.WALLOW_API_INTERNAL_URL ?? "http://localhost:5001",
+        // src/lib/bff-server.ts calls loadBffConfigFromEnv() at module load and
+        // throws on ANY missing key, so without these the whole /bff/* bridge
+        // 500s and every route whose `beforeLoad` resolves `getUser()` (notably
+        // `/`) fails the gate. Aspire injects them (api/src/Wallow.AppHost/
+        // Program.cs); mirror the same dev values here so a bare `pnpm dev` is
+        // self-sufficient. An anonymous request never reaches the issuer — it
+        // 401s off the absent session cookie — so this stays backend-free.
+        OIDC_ISSUER: process.env.OIDC_ISSUER ?? "http://localhost:5001",
+        OIDC_CLIENT_ID: process.env.OIDC_CLIENT_ID ?? "wallow-web-client",
+        OIDC_CLIENT_SECRET: process.env.OIDC_CLIENT_SECRET ?? "wallow-web-secret",
+        OIDC_REDIRECT_URI: process.env.OIDC_REDIRECT_URI ?? `http://localhost:${port}/bff/callback`,
+        OIDC_POST_LOGOUT_REDIRECT_URI:
+          process.env.OIDC_POST_LOGOUT_REDIRECT_URI ?? `http://localhost:${port}`,
+        BFF_API_BASE_URL: process.env.BFF_API_BASE_URL ?? "http://localhost:5001",
+        COOKIE_PASSWORD:
+          process.env.COOKIE_PASSWORD ?? "wallow-web-dev-cookie-seal-password-min-32-chars",
       },
     };
 
