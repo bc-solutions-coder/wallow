@@ -19,7 +19,10 @@ import { ProfileSection } from "../../features/settings/components/ProfileSectio
  */
 function SettingsPage() {
   return (
-    <div data-testid="dashboard-settings">
+    <div data-testid="dashboard-settings" className="max-w-2xl mx-auto">
+      <h1 data-testid="settings-heading" className="text-3xl font-bold text-foreground mb-8">
+        Settings
+      </h1>
       <ProfileSection />
       <MfaSettingsSection />
     </div>
