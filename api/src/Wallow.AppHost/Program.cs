@@ -88,6 +88,10 @@ builder.AddJavaScriptApp("wallow-web", wallowWebDir, "dev")
     .WithEnvironment("OIDC_POST_LOGOUT_REDIRECT_URI", "http://localhost:3000")
     .WithEnvironment("BFF_API_BASE_URL", "http://localhost:5001")
     .WithEnvironment("COOKIE_PASSWORD", "wallow-web-dev-cookie-seal-password-min-32-chars")
+    // Safari/WebKit refuses Secure cookies over plain-HTTP localhost (Chrome and Firefox
+    // allow them), so the BFF's login-transaction cookie never survives the redirect and
+    // every /bff/callback fails with a 400. Local dev is plain HTTP, so drop the flag here.
+    .WithEnvironment("COOKIE_SECURE", "false")
     .WaitFor(api)
     .WaitFor(valkey);
 
