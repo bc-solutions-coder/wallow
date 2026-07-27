@@ -66,6 +66,7 @@ const extraBrowserOptimizeDeps: string[] = [
   "@tanstack/react-router",
   "@tanstack/react-form",
   "zustand",
+  "lucide-react",
 ];
 
 const { node, browser } = createVitestProjects({

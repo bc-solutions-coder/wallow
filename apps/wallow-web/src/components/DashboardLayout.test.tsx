@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DashboardLayout } from "./DashboardLayout";
 
@@ -29,6 +29,13 @@ vi.mock("@tanstack/react-router", () => ({
  *   - a router `<Outlet/>` (the mount point for the reparented child routes).
  */
 describe("DashboardLayout", () => {
+  // Vitest browser mode defaults to a 414x896 viewport — a phone, below the `md`
+  // breakpoint at which the shell renders the nav rail rather than a mobile
+  // drawer (Wallow-0byr.2). These cases assert the desktop composition.
+  beforeEach(async () => {
+    await page.viewport(1280, 800);
+  });
+
   it("renders a shell root carrying data-testid=dashboard-welcome", async () => {
     await render(<DashboardLayout />);
     await expect.element(page.getByTestId("dashboard-welcome")).toBeInTheDocument();

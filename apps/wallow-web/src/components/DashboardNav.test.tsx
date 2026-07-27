@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DashboardNav } from "./DashboardNav";
 
@@ -29,6 +29,13 @@ vi.mock("@tanstack/react-router", () => ({
  * `DashboardNav.gate.test.tsx` rather than the unconditional loop here.
  */
 describe("DashboardNav", () => {
+  // Vitest browser mode defaults to a 414x896 viewport — a phone, below the `md`
+  // breakpoint at which the nav renders a rail at all (Wallow-0byr.2). These
+  // cases are about the desktop rail's links, so they must say so.
+  beforeEach(async () => {
+    await page.viewport(1280, 800);
+  });
+
   const links: ReadonlyArray<readonly [testid: string, href: string]> = [
     ["dashboard-nav-apps", "/dashboard/apps"],
     ["dashboard-nav-settings", "/dashboard/settings"],

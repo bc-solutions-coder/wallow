@@ -3,82 +3,167 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { useUiStore } from "./ui-store";
 
 /**
- * UI store spec (Wallow-evd5.4.1) — pure logic, so it runs on the vitest NODE
- * project (`src/**\/*.test.ts`), never in Chromium.
+ * UI store spec (Wallow-evd5.4.1, reworked for Wallow-0byr.1) — pure logic, so
+ * it runs on the vitest NODE project (`src/**\/*.test.ts`), never in Chromium.
  *
  * The store is the wallow-web side of the epic's state boundary: TanStack Query
  * owns everything fetched from the API, and this store owns UI-only state that
- * more than one component needs. The dashboard nav drawer is that state — the
- * toggle lives in `DashboardLayout`, the drawer itself in `DashboardNav`.
+ * more than one component needs. The dashboard nav is that state — the controls
+ * live in `DashboardLayout`, the nav itself in `DashboardNav`.
  *
- * The store is a module-scope singleton, so every test resets it first.
+ * The nav has TWO independent axes, and most of what follows exists to keep them
+ * that way: `isNavCollapsed` is the desktop rail's width, `isMobileNavOpen` is
+ * the mobile overlay drawer. Acting on one must leave the other exactly where it
+ * was, so each axis has a "does not disturb the other axis" test alongside its
+ * own behaviour tests.
+ *
+ * The store is a module-scope singleton, so every test resets both axes first.
  */
 describe("ui store", () => {
   beforeEach(() => {
-    useUiStore.setState({ isNavOpen: false });
+    useUiStore.setState({ isNavCollapsed: false, isMobileNavOpen: false });
   });
 
-  it("starts with the nav drawer closed", () => {
-    expect(useUiStore.getState().isNavOpen).toBe(false);
-  });
-
-  it("opens the nav drawer on toggleNav", () => {
-    useUiStore.getState().toggleNav();
-
-    expect(useUiStore.getState().isNavOpen).toBe(true);
-  });
-
-  it("returns to closed when toggleNav is called twice", () => {
-    useUiStore.getState().toggleNav();
-    useUiStore.getState().toggleNav();
-
-    expect(useUiStore.getState().isNavOpen).toBe(false);
-  });
-
-  it("closes an open nav drawer on closeNav", () => {
-    useUiStore.setState({ isNavOpen: true });
-
-    useUiStore.getState().closeNav();
-
-    expect(useUiStore.getState().isNavOpen).toBe(false);
-  });
-
-  it("leaves an already-closed nav drawer closed on closeNav", () => {
-    useUiStore.getState().closeNav();
-
-    expect(useUiStore.getState().isNavOpen).toBe(false);
-  });
-
-  it("notifies subscribers when the nav drawer changes", () => {
-    const seen: boolean[] = [];
-    const unsubscribe: () => void = useUiStore.subscribe((state) => {
-      seen.push(state.isNavOpen);
+  describe("desktop rail (isNavCollapsed)", () => {
+    it("starts expanded so labels are visible on first paint", () => {
+      expect(useUiStore.getState().isNavCollapsed).toBe(false);
     });
 
-    useUiStore.getState().toggleNav();
-    useUiStore.getState().closeNav();
-    unsubscribe();
-    useUiStore.getState().toggleNav();
+    it("collapses the rail to icons on toggleNavCollapsed", () => {
+      useUiStore.getState().toggleNavCollapsed();
 
-    expect(seen).toStrictEqual([true, false]);
+      expect(useUiStore.getState().isNavCollapsed).toBe(true);
+    });
+
+    it("returns to expanded when toggleNavCollapsed is called twice", () => {
+      useUiStore.getState().toggleNavCollapsed();
+      useUiStore.getState().toggleNavCollapsed();
+
+      expect(useUiStore.getState().isNavCollapsed).toBe(false);
+    });
+
+    it("re-expands a collapsed rail on toggleNavCollapsed", () => {
+      useUiStore.setState({ isNavCollapsed: true });
+
+      useUiStore.getState().toggleNavCollapsed();
+
+      expect(useUiStore.getState().isNavCollapsed).toBe(false);
+    });
+
+    it("does not open the mobile drawer when the rail collapses", () => {
+      useUiStore.getState().toggleNavCollapsed();
+
+      expect(useUiStore.getState().isMobileNavOpen).toBe(false);
+    });
+
+    it("leaves an open mobile drawer open when the rail collapses", () => {
+      useUiStore.setState({ isMobileNavOpen: true });
+
+      useUiStore.getState().toggleNavCollapsed();
+
+      expect(useUiStore.getState().isMobileNavOpen).toBe(true);
+    });
   });
 
-  it("shares one instance across importers rather than a per-import factory", async () => {
-    useUiStore.getState().toggleNav();
+  describe("mobile drawer (isMobileNavOpen)", () => {
+    it("starts closed so the page is not covered on first paint", () => {
+      expect(useUiStore.getState().isMobileNavOpen).toBe(false);
+    });
 
-    const reimported = await import("./ui-store");
+    it("shows the drawer on openMobileNav", () => {
+      useUiStore.getState().openMobileNav();
 
-    expect(reimported.useUiStore.getState().isNavOpen).toBe(true);
+      expect(useUiStore.getState().isMobileNavOpen).toBe(true);
+    });
+
+    it("leaves an already-open drawer open on openMobileNav", () => {
+      useUiStore.setState({ isMobileNavOpen: true });
+
+      useUiStore.getState().openMobileNav();
+
+      expect(useUiStore.getState().isMobileNavOpen).toBe(true);
+    });
+
+    it("hides an open drawer on closeMobileNav", () => {
+      useUiStore.setState({ isMobileNavOpen: true });
+
+      useUiStore.getState().closeMobileNav();
+
+      expect(useUiStore.getState().isMobileNavOpen).toBe(false);
+    });
+
+    it("leaves an already-closed drawer closed on closeMobileNav", () => {
+      useUiStore.getState().closeMobileNav();
+
+      expect(useUiStore.getState().isMobileNavOpen).toBe(false);
+    });
+
+    it("does not collapse the desktop rail when the drawer opens", () => {
+      useUiStore.getState().openMobileNav();
+
+      expect(useUiStore.getState().isNavCollapsed).toBe(false);
+    });
+
+    it("does not expand a collapsed desktop rail when the drawer closes", () => {
+      useUiStore.setState({ isNavCollapsed: true, isMobileNavOpen: true });
+
+      useUiStore.getState().closeMobileNav();
+
+      expect(useUiStore.getState().isNavCollapsed).toBe(true);
+    });
   });
 
-  it("holds UI-only state — no API data may leak into the store", () => {
-    // The state boundary, pinned: anything fetched from the backend belongs to
-    // TanStack Query. Adding a server-data key here should fail this test and
-    // force the discussion (see docs/development/frontend-state.md).
-    expect(Object.keys(useUiStore.getState()).toSorted()).toStrictEqual([
-      "closeNav",
-      "isNavOpen",
-      "toggleNav",
-    ]);
+  describe("store plumbing", () => {
+    it("notifies subscribers when the desktop rail changes", () => {
+      const seen: boolean[] = [];
+      const unsubscribe: () => void = useUiStore.subscribe((state) => {
+        seen.push(state.isNavCollapsed);
+      });
+
+      useUiStore.getState().toggleNavCollapsed();
+      useUiStore.getState().toggleNavCollapsed();
+      unsubscribe();
+      useUiStore.getState().toggleNavCollapsed();
+
+      expect(seen).toStrictEqual([true, false]);
+    });
+
+    it("notifies subscribers when the mobile drawer changes", () => {
+      const seen: boolean[] = [];
+      const unsubscribe: () => void = useUiStore.subscribe((state) => {
+        seen.push(state.isMobileNavOpen);
+      });
+
+      useUiStore.getState().openMobileNav();
+      useUiStore.getState().closeMobileNav();
+      unsubscribe();
+      useUiStore.getState().openMobileNav();
+
+      expect(seen).toStrictEqual([true, false]);
+    });
+
+    it("shares one instance across importers rather than a per-import factory", async () => {
+      useUiStore.getState().toggleNavCollapsed();
+
+      const reimported = await import("./ui-store");
+
+      expect(reimported.useUiStore.getState().isNavCollapsed).toBe(true);
+    });
+
+    it("holds UI-only state — no API data, and no re-conflated nav boolean", () => {
+      // Two things pinned at once. First the state boundary: anything fetched
+      // from the backend belongs to TanStack Query, so a server-data key here
+      // should fail and force the discussion (docs/development/frontend-state.md).
+      // Second the two-axis split: the retired single `isNavOpen`/`toggleNav`/
+      // `closeNav` trio must not reappear, since one boolean driving both the
+      // desktop rail and the mobile drawer is the bug this store was split to fix.
+      expect(Object.keys(useUiStore.getState()).toSorted()).toStrictEqual([
+        "closeMobileNav",
+        "isMobileNavOpen",
+        "isNavCollapsed",
+        "openMobileNav",
+        "toggleNavCollapsed",
+      ]);
+    });
   });
 });

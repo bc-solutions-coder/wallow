@@ -24,6 +24,11 @@ vi.mock("@tanstack/react-router", () => ({
  * state from the `useUiStore` UI store instead of a prop, because the control
  * that flips it lives in a different component (`DashboardLayout`'s nav toggle).
  *
+ * The store axis is now `isNavCollapsed`, the inverse of the `isNavOpen` this
+ * spec was written against (Wallow-0byr.1); every case below drives the same
+ * behaviour through the inverted flag. Wallow-0byr.2 rewrites this spec for the
+ * three real nav modes.
+ *
  * Contract:
  *   - the nav root carries `data-testid="dashboard-nav"` and reflects the store
  *     as `data-nav-open="true" | "false"` (styling keys off that attribute /
@@ -32,8 +37,12 @@ vi.mock("@tanstack/react-router", () => ({
  *     links keep their identity and the toggle's `aria-controls` target exists.
  */
 describe("DashboardNav drawer state", () => {
-  beforeEach(() => {
-    useUiStore.setState({ isNavOpen: false });
+  // Vitest browser mode's default viewport (414x896) is a phone, below the `md`
+  // breakpoint at which the rail exists at all (Wallow-0byr.2) — pin a desktop
+  // width so these cases keep exercising the rail they were written for.
+  beforeEach(async () => {
+    useUiStore.setState({ isNavCollapsed: true, isMobileNavOpen: false });
+    await page.viewport(1280, 800);
   });
 
   it("marks the nav closed by default", async () => {
@@ -45,7 +54,7 @@ describe("DashboardNav drawer state", () => {
   });
 
   it("marks the nav open when the store says it is open", async () => {
-    useUiStore.setState({ isNavOpen: true });
+    useUiStore.setState({ isNavCollapsed: false });
 
     await render(<DashboardNav />);
 
@@ -57,7 +66,7 @@ describe("DashboardNav drawer state", () => {
   it("follows store changes made after it mounted", async () => {
     await render(<DashboardNav />);
 
-    useUiStore.getState().toggleNav();
+    useUiStore.getState().toggleNavCollapsed();
 
     await expect
       .element(page.getByTestId("dashboard-nav"))

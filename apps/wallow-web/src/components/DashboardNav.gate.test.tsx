@@ -33,6 +33,13 @@ vi.mock("@bc-solutions-coder/sdk", async (importOriginal) => {
  * (`dashboard-logout-link`) calls the BFF logout. The gate is driven by the
  * `isAdmin` prop the shell derives from the current user's roles.
  */
+// Vitest browser mode defaults to a 414x896 viewport — a phone, below the `md`
+// breakpoint at which the nav renders a rail at all (Wallow-0byr.2). The gate is
+// a desktop-rail behaviour here, so pin a desktop width.
+beforeEach(async () => {
+  await page.viewport(1280, 800);
+});
+
 describe("DashboardNav admin gate", () => {
   beforeEach(() => {
     vi.clearAllMocks();
