@@ -38,14 +38,15 @@ export interface ForkTheme {
 
 /**
  * The fork's branding, i.e. the shape of `api/branding.json`. Mirrors the C#
- * `BrandingOptions`. `repositoryUrl` is optional here because the JSON omits it
- * when empty, where C# defaults it to `""`.
+ * `BrandingOptions`. `repositoryUrl` and `docsUrl` are optional here because the
+ * JSON omits them when empty, where C# defaults them to `""`.
  */
 export interface ForkBranding {
   readonly appName: string;
   readonly appIcon: string;
   readonly tagline: string;
   readonly repositoryUrl?: string;
+  readonly docsUrl?: string;
   readonly landingPage: { readonly enabled: boolean };
   readonly theme: ForkTheme;
 }
