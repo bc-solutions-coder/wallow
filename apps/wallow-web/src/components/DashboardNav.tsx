@@ -1,4 +1,10 @@
 import { logout } from "@bc-solutions-coder/sdk";
+// The per-component subpath, NOT the root barrel: the barrel also pulls in
+// `FocusOnNavigate`, which imports `useRouterState`, and every spec in this
+// directory stubs `@tanstack/react-router` down to `Link` alone. Bundlers
+// tree-shake that away; a dev/test module graph does not, so the barrel would
+// fail to link here.
+import { NavigationMenu } from "@bc-solutions-coder/ui/navigation-menu";
 import { Link, type LinkProps } from "@tanstack/react-router";
 import { useEffect } from "react";
 
@@ -64,10 +70,19 @@ const activeItemClass = "bg-background/15 text-background";
 const iconClass = "size-5 shrink-0";
 
 /**
- * One nav destination. The accessible name always comes from `navIconLabels`,
- * whether or not the label is also rendered, which is what makes "same icon,
- * same name in all three modes" structural rather than hand-maintained. The icon
- * is decorative (`aria-hidden`) precisely because the name is on the item.
+ * One nav destination — a `NavigationMenu.Item` (`<li>`) holding a
+ * `NavigationMenu.Link` (`<a>`), which is the flat "row that navigates" shape
+ * Base UI supports directly inside an item.
+ *
+ * The routing still belongs to TanStack: `render` hands the anchor over to the
+ * router `Link`, so `to` resolves and `activeProps` supplies active-route
+ * styling exactly as before, while the catalog contributes the list semantics
+ * and its own link recipe underneath our sidebar palette.
+ *
+ * The accessible name always comes from `navIconLabels`, whether or not the
+ * label is also rendered, which is what makes "same icon, same name in all three
+ * modes" structural rather than hand-maintained. The icon is decorative
+ * (`aria-hidden`) precisely because the name is on the item.
  */
 function NavItem(props: {
   destination: NavDestination;
@@ -77,23 +92,29 @@ function NavItem(props: {
   const Icon = navIcons[props.destination.icon];
   const label: string = navIconLabels[props.destination.icon];
   return (
-    <Link
-      to={props.destination.to}
-      data-testid={props.destination.testid}
-      aria-label={label}
-      className={props.showLabel ? itemClass : iconOnlyItemClass}
-      activeProps={{ className: activeItemClass }}
-      onClick={props.onNavigate}
-    >
-      <Icon aria-hidden="true" className={iconClass} />
-      {props.showLabel ? label : null}
-    </Link>
+    <NavigationMenu.Item>
+      <NavigationMenu.Link
+        render={<Link to={props.destination.to} activeProps={{ className: activeItemClass }} />}
+        data-testid={props.destination.testid}
+        aria-label={label}
+        className={props.showLabel ? itemClass : iconOnlyItemClass}
+        onClick={props.onNavigate}
+      >
+        <Icon aria-hidden="true" className={iconClass} />
+        {props.showLabel ? label : null}
+      </NavigationMenu.Link>
+    </NavigationMenu.Item>
   );
 }
 
 /**
  * The destination list. Extracted from both the rail and the drawer so the two
  * cannot drift, and so neither exceeds oxlint's `react/jsx-max-depth` budget.
+ *
+ * `NavigationMenu.Root` is the `<nav>` landmark and `NavigationMenu.List` the
+ * `<ul>` inside it, so the destinations announce as ONE list of N items rather
+ * than N loose links — and a gated-away destination shrinks the count instead of
+ * leaving an empty row behind, because the gate drops the whole `Item`.
  */
 function NavDestinationList(props: {
   showOrganizations: boolean;
@@ -101,18 +122,20 @@ function NavDestinationList(props: {
   onNavigate?: () => void;
 }) {
   return (
-    <nav className="flex-1 px-4 py-4 flex flex-col gap-1">
-      {destinations.map((destination: NavDestination) =>
-        destination.icon === "organizations" && !props.showOrganizations ? null : (
-          <NavItem
-            key={destination.testid}
-            destination={destination}
-            showLabel={props.showLabels}
-            onNavigate={props.onNavigate}
-          />
-        ),
-      )}
-    </nav>
+    <NavigationMenu.Root className="flex-1 flex-col px-4 py-4">
+      <NavigationMenu.List className="flex-col">
+        {destinations.map((destination: NavDestination) =>
+          destination.icon === "organizations" && !props.showOrganizations ? null : (
+            <NavItem
+              key={destination.testid}
+              destination={destination}
+              showLabel={props.showLabels}
+              onNavigate={props.onNavigate}
+            />
+          ),
+        )}
+      </NavigationMenu.List>
+    </NavigationMenu.Root>
   );
 }
 

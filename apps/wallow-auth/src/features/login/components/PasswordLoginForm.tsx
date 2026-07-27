@@ -1,4 +1,4 @@
-import { Button, Field, Input, Label } from "@bc-solutions-coder/ui";
+import { Button, Checkbox, Field, Input, Label } from "@bc-solutions-coder/ui";
 import { useMutation } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 
@@ -93,9 +93,14 @@ function PasswordField(props: { readonly value: string; readonly onChange: (v: s
 }
 
 /**
- * The oracle's `BbCheckbox` + label. The testid sits on the INPUT rather than on
- * the oracle's wrapping `<span>`: the element that carries the name is the one a
- * test — or a user — clicks.
+ * The oracle's `BbCheckbox` + label, on the catalog's `Checkbox`
+ * (Wallow-m5aq.5.2). The testid sits on `Checkbox.Root` — the element that
+ * carries the role, the name and the state — not on the hidden `<input>` Base UI
+ * renders beside it for form submission.
+ *
+ * The `id` is threaded onto the Root rather than left to the hidden input: the
+ * Root is a `<span role="checkbox">`, which a `<label htmlFor>` cannot name on
+ * its own, so Base UI matches the label to the id and stamps the pairing itself.
  */
 function RememberMeField(props: {
   readonly checked: boolean;
@@ -105,16 +110,14 @@ function RememberMeField(props: {
 
   return (
     <div className="flex items-center space-x-2">
-      <input
+      <Checkbox.Root
         id="rememberMe"
-        type="checkbox"
-        className="h-4 w-4 rounded border-border"
         data-testid="login-remember-me"
         checked={checked}
-        onChange={(e) => {
-          onChange(e.target.checked);
-        }}
-      />
+        onCheckedChange={onChange}
+      >
+        <Checkbox.Indicator>✓</Checkbox.Indicator>
+      </Checkbox.Root>
       <label className="text-sm font-normal text-foreground" htmlFor="rememberMe">
         Remember me
       </label>

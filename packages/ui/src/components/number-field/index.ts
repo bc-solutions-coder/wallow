@@ -1,0 +1,26 @@
+export {
+  NumberField,
+  type NumberFieldDecrementProps,
+  type NumberFieldGroupProps,
+  type NumberFieldIncrementProps,
+  type NumberFieldInputProps,
+  type NumberFieldRootProps,
+  type NumberFieldScrubAreaCursorProps,
+  type NumberFieldScrubAreaProps,
+} from "./number-field";
+export {
+  numberFieldDecrementRecipe,
+  type NumberFieldDecrementRecipeProps,
+  numberFieldGroupRecipe,
+  type NumberFieldGroupRecipeProps,
+  numberFieldIncrementRecipe,
+  type NumberFieldIncrementRecipeProps,
+  numberFieldInputRecipe,
+  type NumberFieldInputRecipeProps,
+  numberFieldRootRecipe,
+  type NumberFieldRootRecipeProps,
+  numberFieldScrubAreaCursorRecipe,
+  type NumberFieldScrubAreaCursorRecipeProps,
+  numberFieldScrubAreaRecipe,
+  type NumberFieldScrubAreaRecipeProps,
+} from "./number-field.styles";

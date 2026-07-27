@@ -4,6 +4,7 @@ import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { chooseOption } from "../../../test/catalog-select";
 import { installSdkClientMock, type SdkClientMock } from "../../../test/sdk-client-mock";
 import { CreateInquiryForm } from "./CreateInquiryForm";
 
@@ -53,19 +54,19 @@ function renderWithClient(client: QueryClient, ui: ReactElement) {
  * Per-field fill actions keyed by testid, so a test can fill the whole valid
  * form except a single field (`fillAllExcept`) to isolate that field's
  * required-validation behavior. `phone`/`company` are text inputs; the three
- * project selects use `selectOptions`.
+ * project selects are catalog `Select`s (Wallow-m5aq.5.3) and are driven by
+ * their option's accessible LABEL through `chooseOption` —
+ * `userEvent.selectOptions` only drives a native `HTMLSelectElement`, which
+ * these no longer are.
  */
 const FIELD_FILLERS: Record<string, () => Promise<void>> = {
   "inquiry-name": () => userEvent.type(page.getByTestId("inquiry-name"), FULL_BODY.name),
   "inquiry-email": () => userEvent.type(page.getByTestId("inquiry-email"), FULL_BODY.email),
   "inquiry-phone": () => userEvent.type(page.getByTestId("inquiry-phone"), FULL_BODY.phone),
   "inquiry-company": () => userEvent.type(page.getByTestId("inquiry-company"), FULL_BODY.company),
-  "inquiry-project-type": () =>
-    userEvent.selectOptions(page.getByTestId("inquiry-project-type"), FULL_BODY.projectType),
-  "inquiry-budget-range": () =>
-    userEvent.selectOptions(page.getByTestId("inquiry-budget-range"), FULL_BODY.budgetRange),
-  "inquiry-timeline": () =>
-    userEvent.selectOptions(page.getByTestId("inquiry-timeline"), FULL_BODY.timeline),
+  "inquiry-project-type": () => chooseOption("inquiry-project-type", "Web Application"),
+  "inquiry-budget-range": () => chooseOption("inquiry-budget-range", "$15,000 - $50,000"),
+  "inquiry-timeline": () => chooseOption("inquiry-timeline", "1 - 3 months"),
   "inquiry-message": () => userEvent.type(page.getByTestId("inquiry-message"), FULL_BODY.message),
 };
 
@@ -117,26 +118,11 @@ describe("CreateInquiryForm", () => {
     await expect.element(page.getByTestId("inquiry-submit")).toBeInTheDocument();
   });
 
-  it("exposes the expected option values on each select", async () => {
-    renderWithClient(newClient(), <CreateInquiryForm />);
-
-    await expect.element(page.getByTestId("inquiry-project-type")).toBeInTheDocument();
-    const optionValues = (testId: string) =>
-      [...page.getByTestId(testId).element().querySelectorAll("option")].map(
-        (o) => (o as HTMLOptionElement).value,
-      );
-
-    expect(optionValues("inquiry-project-type")).toEqual(
-      expect.arrayContaining(["web-app", "mobile-app", "api", "saas", "consulting", "other"]),
-    );
-    expect(optionValues("inquiry-budget-range")).toEqual(
-      expect.arrayContaining(["under-5k", "5k-15k", "15k-50k", "50k-100k", "over-100k"]),
-    );
-    expect(optionValues("inquiry-timeline")).toEqual(
-      expect.arrayContaining(["asap", "1-3-months", "3-6-months", "6-plus-months", "flexible"]),
-    );
-  });
-
+  // The per-select OPTION SET is asserted in CreateInquiryForm.catalog.test.tsx
+  // ("lists every option, by label, for each opened select"): a catalog `Select`
+  // renders no native `<option>`, so reading the set means opening the popup —
+  // catalog-Select mechanics, which live in that spec. The wire VALUES stay
+  // pinned here, by the FULL_BODY assertion in the submit case below.
   it("submits, POSTing the full SubmitInquiryBody to the inquiries endpoint", async () => {
     renderWithClient(newClient(), <CreateInquiryForm />);
 

@@ -1,0 +1,18 @@
+/*
+ * Tailwind entry for the Storybook preview iframe.
+ *
+ * This is the one place in packages/ui that pulls in the shared stylesheet:
+ * a story has no consuming app to import @bc-solutions-coder/styles for it, so
+ * the preview plays that role itself (which is why styles is a devDependency
+ * here and never a runtime one — src/ must stay free of it).
+ *
+ * The package's own ./source.css cannot serve here: Tailwind v4 resolves
+ * @source relative to the declaring stylesheet, and this file sits one
+ * directory deeper. Unlike source.css this scan deliberately KEEPS
+ * *.stories.tsx — the utilities a story uses to frame a component are exactly
+ * what the preview needs, even though no consuming app should ever emit them.
+ */
+@import "@bc-solutions-coder/styles/styles.css";
+
+@source "../src/components/**/*.tsx";
+@source "../src/components/**/*.styles.ts";

@@ -1,4 +1,4 @@
-import { Button, Field, Input, Label } from "@bc-solutions-coder/ui";
+import { Button, Checkbox, Field, Input, Label } from "@bc-solutions-coder/ui";
 import { useMutation } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 
@@ -128,16 +128,14 @@ function RememberMeField(props: {
 
   return (
     <div className="flex items-center space-x-2">
-      <input
+      <Checkbox.Root
         id="otpRememberMe"
-        type="checkbox"
-        className="h-4 w-4 rounded border-border"
         data-testid="login-otp-remember-me"
         checked={checked}
-        onChange={(e) => {
-          onChange(e.target.checked);
-        }}
-      />
+        onCheckedChange={onChange}
+      >
+        <Checkbox.Indicator>✓</Checkbox.Indicator>
+      </Checkbox.Root>
       <label className="text-sm font-normal text-foreground" htmlFor="otpRememberMe">
         Remember me
       </label>

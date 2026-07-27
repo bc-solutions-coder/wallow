@@ -1,0 +1,26 @@
+export {
+  ContextMenu,
+  type ContextMenuArrowProps,
+  type ContextMenuBackdropProps,
+  type ContextMenuCheckboxItemIndicatorProps,
+  type ContextMenuCheckboxItemProps,
+  type ContextMenuGroupLabelProps,
+  type ContextMenuGroupProps,
+  type ContextMenuItemProps,
+  type ContextMenuLinkItemProps,
+  type ContextMenuPopupProps,
+  type ContextMenuPortalProps,
+  type ContextMenuPositionerProps,
+  type ContextMenuRadioGroupProps,
+  type ContextMenuRadioItemIndicatorProps,
+  type ContextMenuRadioItemProps,
+  type ContextMenuRootProps,
+  type ContextMenuSeparatorProps,
+  type ContextMenuSubmenuRootProps,
+  type ContextMenuSubmenuTriggerProps,
+  type ContextMenuTriggerProps,
+} from "./context-menu";
+export {
+  contextMenuTriggerRecipe,
+  type ContextMenuTriggerRecipeProps,
+} from "./context-menu.styles";

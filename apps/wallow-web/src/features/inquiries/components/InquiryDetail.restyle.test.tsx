@@ -3,6 +3,7 @@ import type { ReactElement } from "react";
 import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it } from "vitest";
 
+import { expectCatalogSelect } from "../../../test/catalog-select";
 import { installSdkClientMock } from "../../../test/sdk-client-mock";
 import {
   allByTestId,
@@ -151,7 +152,16 @@ describe("InquiryDetail (restyle)", () => {
   it("styles the status select like the shared text input", async () => {
     await renderDetail(TWO_COMMENTS, "inquiry-detail-heading");
 
-    expectClasses(byTestId("inquiry-status-select"), CONTROL);
+    // Post-migration (Wallow-m5aq.5.3) the status control is a catalog `Select`,
+    // so the shared control look arrives from its trigger recipe instead of this
+    // page hand-copying the input's class string. The overlap the restyle
+    // promised is asserted; the recipe's own additions are not this spec's
+    // business.
+    expectCatalogSelect("inquiry-status-select");
+    expectClasses(
+      byTestId("inquiry-status-select"),
+      "w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground",
+    );
   });
 
   it("frames the comment thread as a bordered sub-list", async () => {

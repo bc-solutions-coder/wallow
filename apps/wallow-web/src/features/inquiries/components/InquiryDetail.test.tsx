@@ -4,6 +4,7 @@ import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { chooseOption } from "../../../test/catalog-select";
 import { installSdkClientMock, type SdkClientMock } from "../../../test/sdk-client-mock";
 import { InquiryDetail } from "./InquiryDetail";
 
@@ -31,6 +32,13 @@ import { InquiryDetail } from "./InquiryDetail";
  * `inquiry-comments-table` + `inquiry-comment-row`,
  * `inquiry-comments-loading` / `inquiry-comments-empty`, `inquiry-comment-content` +
  * `inquiry-comment-internal` + `inquiry-comment-submit`, `inquiry-comment-error`.
+ *
+ * The status control is the catalog `Select` (Wallow-m5aq.5.3), not a native
+ * `<select>`, so picking a status goes through `chooseOption` — open the
+ * combobox trigger, click the named option out of the portalled listbox —
+ * rather than `userEvent.selectOptions`, which only drives an
+ * `HTMLSelectElement`. The testid `inquiry-status-select` is unchanged; it now
+ * names the trigger.
  */
 
 let sdk: SdkClientMock;
@@ -160,9 +168,9 @@ describe("InquiryDetail — status change", () => {
     // comments); keep those refetches array-safe.
     sdk.resolveJson([]);
 
-    renderWithClient(client, <InquiryDetail inquiryId="i1" />);
+    await renderWithClient(client, <InquiryDetail inquiryId="i1" />);
 
-    await userEvent.selectOptions(page.getByTestId("inquiry-status-select"), "Reviewed");
+    await chooseOption("inquiry-status-select", "Reviewed");
     await userEvent.click(page.getByTestId("inquiry-status-submit"));
 
     await vi.waitFor(() => {
@@ -180,9 +188,9 @@ describe("InquiryDetail — status change", () => {
     sdk.resolveJson([]);
     const invalidateSpy = vi.spyOn(client, "invalidateQueries");
 
-    renderWithClient(client, <InquiryDetail inquiryId="i1" />);
+    await renderWithClient(client, <InquiryDetail inquiryId="i1" />);
 
-    await userEvent.selectOptions(page.getByTestId("inquiry-status-select"), "Reviewed");
+    await chooseOption("inquiry-status-select", "Reviewed");
     await userEvent.click(page.getByTestId("inquiry-status-submit"));
 
     await vi.waitFor(() => {
@@ -201,9 +209,9 @@ describe("InquiryDetail — status change", () => {
     seedLoaded(client);
     sdk.rejectJson({ status: 422, detail: "Cannot transition from New to Closed." }, 422);
 
-    renderWithClient(client, <InquiryDetail inquiryId="i1" />);
+    await renderWithClient(client, <InquiryDetail inquiryId="i1" />);
 
-    await userEvent.selectOptions(page.getByTestId("inquiry-status-select"), "Closed");
+    await chooseOption("inquiry-status-select", "Closed");
     await userEvent.click(page.getByTestId("inquiry-status-submit"));
 
     await expect

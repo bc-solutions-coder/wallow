@@ -26,21 +26,20 @@ import { useForm } from "@tanstack/react-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ProblemDetails } from "@bc-solutions-coder/sdk";
 
+import { SelectControl, type SelectControlOption } from "../../../components/SelectControl";
 import { createInquiryMutation } from "../api";
 
 /**
- * The bare `select`/`textarea` controls have no browser default that matches the
- * token-styled `ui` `Input`, so they carry its measured recipe verbatim plus the
- * focus ring.
+ * The bare `textarea` has no browser default that matches the token-styled `ui`
+ * `Input`, so it carries its measured recipe verbatim plus the focus ring. The
+ * three selects no longer need it: since Wallow-m5aq.5.3 they are catalog
+ * `Select`s, whose trigger recipe supplies the same look.
  */
 const CONTROL =
   "w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring";
 
 /** A cosmetic select option (value is the wire value; label is display text). */
-interface SelectOption {
-  value: string;
-  label: string;
-}
+type SelectOption = SelectControlOption;
 
 /** Cosmetic option lists — display-only, not a server-side enum. */
 const PROJECT_TYPE_OPTIONS: readonly SelectOption[] = [
@@ -111,21 +110,13 @@ function SelectField(props: {
   const { testId, value, options, onChange, error, errorTestId } = props;
   return (
     <>
-      <select
-        data-testid={testId}
-        className={CONTROL}
+      <SelectControl
+        testId={testId}
         value={value}
-        onChange={(e) => {
-          onChange(e.target.value);
-        }}
-      >
-        <option value="">Select...</option>
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+        options={options}
+        placeholder="Select..."
+        onChange={onChange}
+      />
       {error === undefined || errorTestId === undefined ? null : (
         <ErrorBanner data-testid={errorTestId}>{error}</ErrorBanner>
       )}

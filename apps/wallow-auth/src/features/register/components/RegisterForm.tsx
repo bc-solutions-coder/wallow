@@ -2,6 +2,7 @@ import {
   Button,
   Card,
   CardTitle,
+  Checkbox,
   ErrorBanner,
   Field as FieldRow,
   Input,
@@ -383,7 +384,16 @@ function PasswordBlock(props: {
   );
 }
 
-/** One consent checkbox with its inline link. */
+/**
+ * One consent checkbox with its inline link, on the catalog's `Checkbox`
+ * (Wallow-m5aq.5.2).
+ *
+ * The `id` is threaded onto `Checkbox.Root` rather than left to the hidden
+ * `<input>` Base UI renders beside it: the Root is a `<span role="checkbox">`,
+ * which a `<label htmlFor>` cannot name on its own, so Base UI matches the label
+ * to the id and stamps the pairing itself. Without it both boxes are unnamed
+ * controls differing only in DOM order.
+ */
 function ConsentCheckbox(props: {
   readonly id: string;
   readonly testId: string;
@@ -396,21 +406,54 @@ function ConsentCheckbox(props: {
 
   return (
     <div className="flex items-start space-x-2">
-      <input
+      <Checkbox.Root
         id={id}
-        type="checkbox"
         className="mt-1"
         data-testid={testId}
         checked={checked}
-        onChange={(e) => {
-          onChange(e.target.checked);
-        }}
-      />
+        onCheckedChange={onChange}
+      >
+        <Checkbox.Indicator>✓</Checkbox.Indicator>
+      </Checkbox.Root>
       <label className="text-sm font-normal leading-snug text-foreground" htmlFor={id}>
         I agree to the{" "}
         <a href={href} className="text-primary underline-offset-4 hover:underline">
           {linkText}
         </a>
+      </label>
+    </div>
+  );
+}
+
+/**
+ * The oracle's "sign up without a password" preference, on the catalog's
+ * `Checkbox` (Wallow-m5aq.5.2) — a sibling of `ConsentCheckbox` rather than
+ * markup inlined into the form, which is also what keeps the form's JSX inside
+ * the `react/jsx-max-depth` budget.
+ *
+ * `Checkbox` rather than `Switch` despite the "toggle" name: this is a form
+ * preference submitted with the rest of the fields, not a setting that takes
+ * effect the instant it is flipped, and the id/label pairing is the same one the
+ * two consent boxes need.
+ */
+function PasswordlessToggle(props: {
+  readonly checked: boolean;
+  readonly onChange: (checked: boolean) => void;
+}) {
+  const { checked, onChange } = props;
+
+  return (
+    <div className="flex items-center space-x-2">
+      <Checkbox.Root
+        id="passwordless"
+        data-testid="register-passwordless-toggle"
+        checked={checked}
+        onCheckedChange={onChange}
+      >
+        <Checkbox.Indicator>✓</Checkbox.Indicator>
+      </Checkbox.Root>
+      <label className="text-sm font-normal leading-snug text-foreground" htmlFor="passwordless">
+        Sign up without a password
       </label>
     </div>
   );
@@ -498,20 +541,7 @@ function RegisterFields(props: {
         onChange={props.onEmailChange}
       />
 
-      <div className="flex items-center space-x-2">
-        <input
-          id="passwordless"
-          type="checkbox"
-          data-testid="register-passwordless-toggle"
-          checked={props.isPasswordless}
-          onChange={(e) => {
-            props.onPasswordlessChange(e.target.checked);
-          }}
-        />
-        <label className="text-sm font-normal leading-snug text-foreground" htmlFor="passwordless">
-          Sign up without a password
-        </label>
-      </div>
+      <PasswordlessToggle checked={props.isPasswordless} onChange={props.onPasswordlessChange} />
 
       {props.isPasswordless ? null : (
         <PasswordBlock

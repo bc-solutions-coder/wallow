@@ -67,6 +67,14 @@ const extraBrowserOptimizeDeps: string[] = [
   "@tanstack/react-form",
   "zustand",
   "lucide-react",
+  // The catalog components wallow-web mounts reach Base UI through per-component
+  // SUBPATHS, and Vite pre-bundles a subpath only when it is named — the package
+  // root does not cover them.
+  "@base-ui/react/checkbox",
+  "@base-ui/react/navigation-menu",
+  "@base-ui/react/select",
+  "@base-ui/react/toggle",
+  "@base-ui/react/toggle-group",
 ];
 
 const { node, browser } = createVitestProjects({

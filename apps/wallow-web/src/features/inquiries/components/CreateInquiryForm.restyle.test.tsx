@@ -4,6 +4,7 @@ import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { beforeEach, describe, expect, it } from "vitest";
 
+import { chooseOption, expectCatalogSelect } from "../../../test/catalog-select";
 import { installSdkClientMock } from "../../../test/sdk-client-mock";
 import {
   byTestId,
@@ -51,9 +52,9 @@ const FILLERS: readonly (() => Promise<void>)[] = [
   () => userEvent.type(page.getByTestId("inquiry-email"), "ada@example.com"),
   () => userEvent.type(page.getByTestId("inquiry-phone"), "555-0100"),
   () => userEvent.type(page.getByTestId("inquiry-company"), "Analytical Engines"),
-  () => userEvent.selectOptions(page.getByTestId("inquiry-project-type"), "web-app"),
-  () => userEvent.selectOptions(page.getByTestId("inquiry-budget-range"), "15k-50k"),
-  () => userEvent.selectOptions(page.getByTestId("inquiry-timeline"), "1-3-months"),
+  () => chooseOption("inquiry-project-type", "Web Application"),
+  () => chooseOption("inquiry-budget-range", "$15,000 - $50,000"),
+  () => chooseOption("inquiry-timeline", "1 - 3 months"),
   () => userEvent.type(page.getByTestId("inquiry-message"), "We need a project dashboard."),
 ];
 
@@ -113,8 +114,19 @@ describe("CreateInquiryForm (restyle)", () => {
   it("styles every select like the shared text input", async () => {
     await renderForm();
 
+    // Post-migration (Wallow-m5aq.5.3) the selects are catalog `Select`s, so the
+    // shared control look now arrives from the component's own trigger recipe
+    // rather than from this app hand-copying the input's class string. The
+    // OVERLAP is what the restyle promised — same width, radius, border, padding,
+    // and type scale — so that is what is asserted; the recipe's own additions
+    // (`inline-flex`, `border-input`, the popup-open ring) are the component's
+    // business, not this spec's.
     for (const testId of ["inquiry-project-type", "inquiry-budget-range", "inquiry-timeline"]) {
-      expectClasses(byTestId(testId), CONTROL);
+      expectCatalogSelect(testId);
+      expectClasses(
+        byTestId(testId),
+        "w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground",
+      );
     }
   });
 

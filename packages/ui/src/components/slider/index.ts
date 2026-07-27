@@ -1,0 +1,26 @@
+export {
+  Slider,
+  type SliderControlProps,
+  type SliderIndicatorProps,
+  type SliderLabelProps,
+  type SliderRootProps,
+  type SliderThumbProps,
+  type SliderTrackProps,
+  type SliderValueProps,
+} from "./slider";
+export {
+  sliderControlRecipe,
+  type SliderControlRecipeProps,
+  sliderIndicatorRecipe,
+  type SliderIndicatorRecipeProps,
+  sliderLabelRecipe,
+  type SliderLabelRecipeProps,
+  sliderRootRecipe,
+  type SliderRootRecipeProps,
+  sliderThumbRecipe,
+  type SliderThumbRecipeProps,
+  sliderTrackRecipe,
+  type SliderTrackRecipeProps,
+  sliderValueRecipe,
+  type SliderValueRecipeProps,
+} from "./slider.styles";

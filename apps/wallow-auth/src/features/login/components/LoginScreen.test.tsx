@@ -309,6 +309,30 @@ async function submitCredentials(
   await user.click(page.getByTestId("login-submit"));
 }
 
+/**
+ * Toggle a checkbox the way a keyboard user does — focus it, press Space —
+ * rather than by clicking the box (Wallow-m5aq.5.2).
+ *
+ * A click ON THE BOX is not a stable way to say this. The catalog's `Checkbox`
+ * renders its root as a `<span role="checkbox">` sized purely by Tailwind
+ * utilities, and the browser vitest project compiles no Tailwind, so that root
+ * measures ZERO wide here: Playwright's actionability check never settles and
+ * the click times out. Space on the focused root is the same user intent,
+ * depends on no layout, and behaves identically on a raw `<input
+ * type="checkbox">` — so every assertion written through this helper reads the
+ * same before and after the migration onto the catalog.
+ */
+async function toggleCheckbox(
+  user: ReturnType<typeof userEvent.setup>,
+  testId: string,
+): Promise<void> {
+  const box = page.getByTestId(testId);
+
+  await expect.element(box).toBeInTheDocument();
+  (box.element() as HTMLElement).focus();
+  await user.keyboard(" ");
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.isSafeReturnUrl.mockImplementation(isSafeReturnUrlRule);
@@ -406,6 +430,131 @@ describe("LoginScreen tab shell", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// THE CATALOG SWEEP — Wallow-m5aq.5.2.
+//
+// Two hand-rolled primitives live on this screen: a tab strip of raw
+// `<button role="tab">` with NO panel wired to any of them, and a raw
+// `<input type="checkbox">` for remember-me. Both are covered by the ui catalog
+// (`Tabs`, `Checkbox`), and the tests below ask for the sweep in the only terms
+// a user — or a screen reader — can observe, so they keep meaning whatever the
+// markup ends up being.
+//
+// The strip already says WHICH tab is selected (`aria-selected`, pinned by the
+// tab-shell block above). What it cannot say today is what that selection
+// CONTROLS: there is no `role="tabpanel"`, so nothing associates the fields
+// below the strip with the tab that produced them, and nothing takes the two
+// unselected tabs out of the tab sequence.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("LoginScreen tab shell: the WAI-ARIA tabs contract", () => {
+  it("wires the visible panel to the tab that owns it", async () => {
+    await renderScreen();
+
+    const panel = page.getByRole("tabpanel");
+    await expect.element(panel).toBeInTheDocument();
+
+    const panelElement: HTMLElement = panel.element() as HTMLElement;
+    const selectedTab: HTMLElement = page
+      .getByTestId("login-tab-password")
+      .element() as HTMLElement;
+
+    // The association runs BOTH ways — the panel names its tab, the tab names its
+    // panel — which is what lets a screen reader move between the two.
+    expect(panelElement.getAttribute("aria-labelledby")).toBe(selectedTab.id);
+    expect(selectedTab.getAttribute("aria-controls")).toBe(panelElement.id);
+
+    // And it is the REAL panel, not an empty shell beside the fields.
+    expect(panelElement.querySelector('[data-testid="login-password"]')).not.toBeNull();
+  });
+
+  it("mounts only the selected tab's panel", async () => {
+    // One panel at a time, as the hand-rolled `if` chain does today: a second,
+    // hidden password form left in the DOM is a second form users can tab into.
+    await renderScreen();
+
+    await expect.element(page.getByRole("tabpanel")).toBeInTheDocument();
+
+    expect(page.getByRole("tabpanel").all()).toHaveLength(1);
+  });
+
+  it("keeps only the selected tab in the tab sequence", async () => {
+    // The ARIA tab pattern: Tab reaches the STRIP once, then the arrow keys move
+    // within it. Three separately tabbable buttons make the user press Tab three
+    // times to get past a control they have already answered.
+    await renderScreen();
+
+    await expect.element(page.getByTestId("login-tab-password")).toHaveAttribute("tabindex", "0");
+    await expect
+      .element(page.getByTestId("login-tab-magic-link"))
+      .toHaveAttribute("tabindex", "-1");
+    await expect.element(page.getByTestId("login-tab-otp")).toHaveAttribute("tabindex", "-1");
+  });
+
+  it("moves focus along the strip with the arrow keys and activates on Enter", async () => {
+    const user = userEvent.setup();
+    await renderScreen();
+
+    const passwordTab = page.getByTestId("login-tab-password");
+    await expect.element(passwordTab).toBeInTheDocument();
+    (passwordTab.element() as HTMLElement).focus();
+
+    await user.keyboard("{ArrowRight}");
+
+    // Focus MOVES; the selection does not follow it. A user browsing the strip
+    // with the keyboard has not yet chosen anything, and switching tabs under
+    // them would throw away whatever they had typed in the panel below.
+    await expect.element(page.getByTestId("login-tab-magic-link")).toHaveAttribute("tabindex", "0");
+    await expect
+      .element(page.getByTestId("login-tab-password"))
+      .toHaveAttribute("aria-selected", "true");
+    expect(document.activeElement).toBe(page.getByTestId("login-tab-magic-link").element());
+
+    await user.keyboard("{Enter}");
+
+    await expect
+      .element(page.getByTestId("login-tab-magic-link"))
+      .toHaveAttribute("aria-selected", "true");
+    await expect.element(page.getByTestId("login-magic-link-email")).toBeInTheDocument();
+  });
+});
+
+describe("LoginScreen password tab: the remember-me box", () => {
+  it("is reachable as a checkbox named by its label", async () => {
+    // The `htmlFor`/`id` pairing asserted through what it buys: a box whose name
+    // is its label. A migration that drops the pairing leaves an unnamed control.
+    await renderScreen();
+
+    await expect.element(page.getByRole("checkbox", { name: "Remember me" })).toBeInTheDocument();
+  });
+
+  it("publishes its checked state as aria-checked", async () => {
+    // A raw `<input type="checkbox">` keeps its state in the `checked` PROPERTY,
+    // which no attribute reflects; the catalog's Checkbox publishes it as
+    // `aria-checked`, the same way this screen's tabs publish `aria-selected`.
+    const user = userEvent.setup();
+    await renderScreen();
+
+    const box = page.getByTestId("login-remember-me");
+    await expect.element(box).toHaveAttribute("aria-checked", "false");
+
+    await toggleCheckbox(user, "login-remember-me");
+
+    await expect.element(box).toHaveAttribute("aria-checked", "true");
+    await expect.element(box).toBeChecked();
+  });
+
+  it("toggles when its label is clicked", async () => {
+    const user = userEvent.setup();
+    await renderScreen();
+
+    await expect.element(page.getByTestId("login-remember-me")).toBeInTheDocument();
+    await user.click(page.getByText("Remember me"));
+
+    await expect.element(page.getByTestId("login-remember-me")).toBeChecked();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // THE PASSWORD-RESET NOTICE — Wallow-xzha.1.2.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -499,7 +648,7 @@ describe("LoginScreen password tab", () => {
     const user = userEvent.setup();
     await renderScreen();
 
-    await user.click(page.getByTestId("login-remember-me"));
+    await toggleCheckbox(user, "login-remember-me");
     await submitCredentials(user);
 
     await vi.waitFor(() => {

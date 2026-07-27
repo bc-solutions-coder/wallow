@@ -1,4 +1,4 @@
-import { Card, CardTitle, ErrorBanner } from "@bc-solutions-coder/ui";
+import { Card, CardTitle, ErrorBanner, Tabs } from "@bc-solutions-coder/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
 
@@ -148,106 +148,108 @@ function CardHeading() {
   );
 }
 
+/** The strip, in order, with the oracle's labels. */
+const LOGIN_TABS: readonly { readonly tab: LoginTab; readonly label: string }[] = [
+  { tab: "password", label: "Password" },
+  { tab: "magic-link", label: "Magic Link" },
+  { tab: "otp", label: "OTP" },
+];
+
 /**
- * One tab button. `aria-selected` is the observable, accessible form of the
- * oracle's `TabClass(…)` styling — a tab strip that only says which tab is active
- * in a CSS class says it to nobody using a screen reader.
+ * Base UI types a tab's `value` as `any`, so the value coming back out of
+ * `onValueChange` is narrowed here rather than asserted: the shell's `activeTab`
+ * is a `LoginTab` and nothing else may set it.
  */
-function TabButton(props: {
-  readonly tab: LoginTab;
-  readonly label: string;
-  readonly active: boolean;
-  readonly onSelect: (tab: LoginTab) => void;
-}) {
-  const { tab, label, active, onSelect } = props;
-
-  return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={active}
-      className={
-        active
-          ? "flex-1 py-2 text-sm font-medium text-primary border-b-2 border-primary"
-          : "flex-1 py-2 text-sm font-medium text-muted-foreground hover:text-primary"
-      }
-      data-testid={`login-tab-${tab}`}
-      onClick={() => {
-        onSelect(tab);
-      }}
-    >
-      {label}
-    </button>
-  );
-}
-
-/** The oracle's tab strip. */
-function TabStrip(props: {
-  readonly activeTab: LoginTab;
-  readonly onSelect: (tab: LoginTab) => void;
-}) {
-  const { activeTab, onSelect } = props;
-
-  return (
-    <div className="flex border-b border-border mb-4" role="tablist">
-      <TabButton
-        tab="password"
-        label="Password"
-        active={activeTab === "password"}
-        onSelect={onSelect}
-      />
-      <TabButton
-        tab="magic-link"
-        label="Magic Link"
-        active={activeTab === "magic-link"}
-        onSelect={onSelect}
-      />
-      <TabButton tab="otp" label="OTP" active={activeTab === "otp"} onSelect={onSelect} />
-    </div>
-  );
+function isLoginTab(value: unknown): value is LoginTab {
+  return LOGIN_TABS.some((entry) => entry.tab === value);
 }
 
 /**
- * The active tab's panel — the oracle's `else if` chain, one panel at a time.
+ * The oracle's tab strip and its `else if` panel chain, on the catalog's `Tabs`
+ * (Wallow-m5aq.5.2) — Base UI's Tabs, so the WAI-ARIA tab pattern arrives whole
+ * rather than being re-derived here.
  *
- * `OtpLoginForm` (Wallow-vec7.3.13) needed no new props to host, exactly as
- * `.3.11` predicted: `SendOtpRequest` is `{ email }` and `VerifyOtpRequest` is
- * `{ email, code, rememberMe? }`, so neither `returnUrl` nor `clientId` is cargo
- * this tab carries — both halves of it are driven entirely by what the user types.
+ * What the hand-rolled version could not say, and this does: each panel is
+ * `aria-labelledby` its tab and each tab `aria-controls` its panel, and the strip
+ * carries ONE tab stop with the arrow keys moving inside it. Arrow keys move
+ * focus WITHOUT activating (Base UI's `activateOnFocus` default) — a user
+ * browsing the strip has not chosen yet, and switching tabs under them would
+ * discard whatever they had typed in the panel below.
+ *
+ * `Tabs.Panel` deliberately takes NO `keepMounted`: one panel is in the DOM at a
+ * time, as the `else if` chain did. A hidden second sign-in form is a second form
+ * users can tab into. That unmount is also what resets each panel's local state
+ * on a tab switch — `OtpLoginForm`'s `sent`/`code`/`rememberMe` and
+ * `MagicLinkLoginForm`'s redemption latch all rely on it.
+ *
+ * `Tabs.Indicator` replaces the active tab's hand-rolled `border-b-2
+ * border-primary`: the same rule, drawn once and slid, rather than a border
+ * toggled on three buttons.
  */
-function TabPanel(props: {
+function LoginTabs(props: {
   readonly activeTab: LoginTab;
   readonly magicLinkToken?: string;
   readonly returnUrl?: string;
   readonly clientId?: string;
+  readonly onSelect: (tab: LoginTab) => void;
   readonly onAuthResult: (body: unknown) => void;
   readonly onError: (message: string | null) => void;
 }) {
-  const { activeTab, magicLinkToken, returnUrl, clientId, onAuthResult, onError } = props;
+  const { activeTab, magicLinkToken, returnUrl, clientId, onSelect, onAuthResult, onError } = props;
 
-  if (activeTab === "magic-link") {
-    // `returnUrl`/`clientId` are cargo for the SEND (`SendMagicLinkRequest` carries
-    // them so the emailed link can resume this OIDC flow) — NOT a destination this
-    // panel navigates to. It never navigates; it reports up. See `../panel`.
-    return (
-      <MagicLinkLoginForm
-        token={magicLinkToken}
-        returnUrl={returnUrl}
-        clientId={clientId}
-        onAuthResult={onAuthResult}
-        onError={onError}
-      />
-    );
-  }
-
-  if (activeTab === "otp") {
-    // Like the magic-link panel, this one never navigates: `otp/verify` hands back
-    // the same `AuthResponse` shape, so it reports the RAW body up and the shell's
-    // one `authDispositionOf` decides. See `../panel`.
-    return <OtpLoginForm onAuthResult={onAuthResult} onError={onError} />;
-  }
-
-  return <PasswordLoginForm onAuthResult={onAuthResult} onError={onError} />;
+  return (
+    <Tabs.Root
+      value={activeTab}
+      onValueChange={(value: unknown) => {
+        if (isLoginTab(value)) {
+          onSelect(value);
+        }
+      }}
+    >
+      <Tabs.List>
+        {LOGIN_TABS.map((entry) => (
+          <Tabs.Tab
+            key={entry.tab}
+            value={entry.tab}
+            className="flex-1"
+            data-testid={`login-tab-${entry.tab}`}
+          >
+            {entry.label}
+          </Tabs.Tab>
+        ))}
+        <Tabs.Indicator />
+      </Tabs.List>
+      <Tabs.Panel value="password">
+        <PasswordLoginForm onAuthResult={onAuthResult} onError={onError} />
+      </Tabs.Panel>
+      <Tabs.Panel value="magic-link">
+        {/*
+         * `returnUrl`/`clientId` are cargo for the SEND (`SendMagicLinkRequest`
+         * carries them so the emailed link can resume this OIDC flow) — NOT a
+         * destination this panel navigates to. It never navigates; it reports up.
+         * See `../panel`.
+         */}
+        <MagicLinkLoginForm
+          token={magicLinkToken}
+          returnUrl={returnUrl}
+          clientId={clientId}
+          onAuthResult={onAuthResult}
+          onError={onError}
+        />
+      </Tabs.Panel>
+      <Tabs.Panel value="otp">
+        {/*
+         * `OtpLoginForm` (Wallow-vec7.3.13) needed no new props to host, exactly as
+         * `.3.11` predicted: `SendOtpRequest` is `{ email }` and `VerifyOtpRequest`
+         * is `{ email, code, rememberMe? }`, so neither `returnUrl` nor `clientId`
+         * is cargo this tab carries — both halves of it are driven entirely by what
+         * the user types. Like the magic-link panel it never navigates: it reports
+         * the RAW body up and the shell's one `authDispositionOf` decides.
+         */}
+        <OtpLoginForm onAuthResult={onAuthResult} onError={onError} />
+      </Tabs.Panel>
+    </Tabs.Root>
+  );
 }
 
 /**
@@ -404,17 +406,16 @@ export function LoginScreen({
       {signedIn ? (
         // The oracle renders the whole tab block inside the `else` of `if (_signedIn)`:
         // a sign-in form under a "you are now signed in" alert is an invitation to
-        // do it again.
+        // do it again. Strip and panels are ONE block now (the `Tabs.Root` that
+        // pairs them), so the gate that used to be written twice is written once.
         <SignedInBanner />
       ) : (
-        <TabStrip activeTab={activeTab} onSelect={handleSwitchTab} />
-      )}
-      {signedIn ? null : (
-        <TabPanel
+        <LoginTabs
           activeTab={activeTab}
           magicLinkToken={magicLinkToken}
           returnUrl={returnUrl}
           clientId={clientId}
+          onSelect={handleSwitchTab}
           onAuthResult={handleAuthResult}
           onError={setErrorMessage}
         />

@@ -227,10 +227,34 @@ function renderScreen(props: Partial<Parameters<typeof AcceptTermsScreen>[0]> = 
   return render(<AcceptTermsScreen returnUrl={RETURN_URL} {...props} />);
 }
 
+/**
+ * Toggle a checkbox the way a keyboard user does — focus it, press Space —
+ * rather than by clicking the box (Wallow-m5aq.5.2).
+ *
+ * A click ON THE BOX is not a stable way to say this. The catalog's `Checkbox`
+ * renders its root as a `<span role="checkbox">` sized purely by Tailwind
+ * utilities, and the browser vitest project compiles no Tailwind, so that root
+ * measures ZERO wide here: Playwright's actionability check never settles and
+ * the click times out. Space on the focused root is the same user intent,
+ * depends on no layout, and behaves identically on a raw `<input
+ * type="checkbox">` — so every assertion written through this helper reads the
+ * same before and after the migration onto the catalog.
+ */
+async function toggleCheckbox(
+  user: ReturnType<typeof userEvent.setup>,
+  testId: string,
+): Promise<void> {
+  const box = page.getByTestId(testId);
+
+  await expect.element(box).toBeInTheDocument();
+  (box.element() as HTMLElement).focus();
+  await user.keyboard(" ");
+}
+
 /** Tick both consent boxes — the only way to arm the submit button. */
 async function acceptBoth(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(page.getByTestId("accept-terms-checkbox"));
-  await user.click(page.getByTestId("accept-terms-privacy-checkbox"));
+  await toggleCheckbox(user, "accept-terms-checkbox");
+  await toggleCheckbox(user, "accept-terms-privacy-checkbox");
 }
 
 beforeEach(() => {
@@ -259,18 +283,25 @@ describe("AcceptTermsScreen", () => {
     expect(page.getByTestId("accept-terms-error").query()).toBeNull();
   });
 
-  it("exposes both testids on real checkbox inputs", async () => {
+  it("exposes both testids on the checkboxes themselves", async () => {
     // Divergence 4: the oracle puts these testids on the wrapping div. A div
     // cannot be clicked to toggle the box it wraps, so the port moves them onto
-    // the inputs — which is what every test and E2E `.check()` below relies on.
+    // the box itself — which is what every test and E2E `.check()` below relies on.
+    //
+    // Wallow-m5aq.5.2 restated the claim without restating the MARKUP. It used to
+    // read `type="checkbox"`, which only a raw `<input>` can satisfy; the catalog's
+    // Checkbox tags a `<span role="checkbox">` and renders the input beside it,
+    // hidden, so that assertion pinned the one implementation this bead removes.
+    // The ROLE is what the divergence was ever about: a div has none, and the
+    // element carrying it is the one a user and an E2E `.check()` act on.
     renderScreen();
 
     await expect
       .element(page.getByTestId("accept-terms-checkbox"))
-      .toHaveAttribute("type", "checkbox");
+      .toHaveAttribute("role", "checkbox");
     await expect
       .element(page.getByTestId("accept-terms-privacy-checkbox"))
-      .toHaveAttribute("type", "checkbox");
+      .toHaveAttribute("role", "checkbox");
   });
 
   it("shows who is signing up when the link carries an email and name", async () => {
@@ -320,10 +351,10 @@ describe("AcceptTermsScreen consent gating", () => {
 
     await expect.element(page.getByTestId("accept-terms-submit")).toBeDisabled();
 
-    await user.click(page.getByTestId("accept-terms-checkbox"));
+    await toggleCheckbox(user, "accept-terms-checkbox");
     await expect.element(page.getByTestId("accept-terms-submit")).toBeDisabled();
 
-    await user.click(page.getByTestId("accept-terms-privacy-checkbox"));
+    await toggleCheckbox(user, "accept-terms-privacy-checkbox");
     await expect.element(page.getByTestId("accept-terms-submit")).toBeEnabled();
   });
 
@@ -333,7 +364,7 @@ describe("AcceptTermsScreen consent gating", () => {
     const user = userEvent.setup();
     renderScreen();
 
-    await user.click(page.getByTestId("accept-terms-privacy-checkbox"));
+    await toggleCheckbox(user, "accept-terms-privacy-checkbox");
 
     await expect.element(page.getByTestId("accept-terms-submit")).toBeDisabled();
   });
@@ -347,7 +378,7 @@ describe("AcceptTermsScreen consent gating", () => {
     await acceptBoth(user);
     await expect.element(page.getByTestId("accept-terms-submit")).toBeEnabled();
 
-    await user.click(page.getByTestId("accept-terms-checkbox"));
+    await toggleCheckbox(user, "accept-terms-checkbox");
 
     await expect.element(page.getByTestId("accept-terms-submit")).toBeDisabled();
   });
@@ -376,7 +407,7 @@ describe("AcceptTermsScreen consent gating", () => {
     const handoff = captureHandoff();
     renderScreen();
 
-    await user.click(page.getByTestId("accept-terms-checkbox"));
+    await toggleCheckbox(user, "accept-terms-checkbox");
     await user.click(page.getByTestId("accept-terms-submit"), { force: true });
 
     await expect.element(page.getByTestId("accept-terms-submit")).toBeDisabled();
@@ -399,6 +430,53 @@ describe("AcceptTermsScreen consent gating", () => {
     // Walking away leaves the ExternalLoginState cookie to expire on its own
     // (10 min): no user was created, so there is nothing to clean up client-side.
     expect(mocks.authAccess).toEqual([]);
+  });
+});
+
+describe("AcceptTermsScreen consent boxes: accessible state", () => {
+  // Wallow-m5aq.5.2 — the catalog sweep. Both boxes are raw
+  // `<input type="checkbox">` today and the ui catalog covers them; these tests
+  // ask for the swap in the only terms a screen reader can observe.
+
+  it("publishes each box's checked state as aria-checked", async () => {
+    // A raw `<input type="checkbox">` keeps its state in the `checked` PROPERTY,
+    // which no attribute reflects; the catalog's Checkbox publishes it as
+    // `aria-checked`. On a consent gate that state is the whole record of what
+    // the user agreed to, so it must be legible to assistive technology.
+    const user = userEvent.setup();
+    renderScreen();
+
+    await expect
+      .element(page.getByTestId("accept-terms-checkbox"))
+      .toHaveAttribute("aria-checked", "false");
+    await expect
+      .element(page.getByTestId("accept-terms-privacy-checkbox"))
+      .toHaveAttribute("aria-checked", "false");
+
+    await toggleCheckbox(user, "accept-terms-checkbox");
+
+    await expect
+      .element(page.getByTestId("accept-terms-checkbox"))
+      .toHaveAttribute("aria-checked", "true");
+    // Ticking one document is not ticking both — the same claim the gating block
+    // makes about the submit button, restated where the state is published.
+    await expect
+      .element(page.getByTestId("accept-terms-privacy-checkbox"))
+      .toHaveAttribute("aria-checked", "false");
+  });
+
+  it("keeps each box named by its own label", async () => {
+    // The label pairing asserted through what it buys: two boxes a user can tell
+    // apart. The ids here come from `useId()`, so a migration must thread that id
+    // onto whatever element the label points at or leave both boxes unnamed.
+    renderScreen();
+
+    await expect
+      .element(page.getByRole("checkbox", { name: "I agree to the Terms of Service" }))
+      .toBeInTheDocument();
+    await expect
+      .element(page.getByRole("checkbox", { name: "I agree to the Privacy Policy" }))
+      .toBeInTheDocument();
   });
 });
 

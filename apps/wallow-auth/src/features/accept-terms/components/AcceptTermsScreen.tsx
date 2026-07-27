@@ -1,4 +1,4 @@
-import { Button, Card, ErrorBanner } from "@bc-solutions-coder/ui";
+import { Button, Card, Checkbox, ErrorBanner } from "@bc-solutions-coder/ui";
 import { useId, useState, type ReactNode } from "react";
 
 /**
@@ -126,11 +126,18 @@ function SigningUpAs({ email, name }: { readonly email: string; readonly name?: 
 }
 
 /**
- * One consent box: the oracle's `BbCheckbox` + `BbLabel` pair.
+ * One consent box: the oracle's `BbCheckbox` + `BbLabel` pair, on the catalog's
+ * `Checkbox` (Wallow-m5aq.5.2).
  *
- * The testid sits on the `<input>`. The oracle puts it on the wrapping `<div>`
- * (L44, L52), which cannot be clicked to toggle the box it wraps and which an E2E
- * `.check()` cannot reach; the NAME is preserved verbatim.
+ * The testid sits on `Checkbox.Root` — the element that carries the role, the
+ * name and the state, and the one an E2E `.check()` reaches. The oracle puts it
+ * on the wrapping `<div>` (L44, L52), which can do none of those things; the
+ * NAME is preserved verbatim.
+ *
+ * `useId()`'s id goes onto the Root rather than onto the hidden `<input>` Base UI
+ * renders beside it: the Root is a `<span role="checkbox">`, which a
+ * `<label htmlFor>` cannot name on its own, so Base UI matches the label to the
+ * id and stamps the pairing itself. Without it both boxes are unnamed.
  *
  * The document link is `target="_blank"` (the oracle's): reading the terms must
  * not abandon the sign-up.
@@ -147,16 +154,15 @@ function ConsentCheckbox(props: {
 
   return (
     <div className="flex items-start space-x-2">
-      <input
+      <Checkbox.Root
         id={inputId}
-        type="checkbox"
         data-testid={testId}
         checked={checked}
-        onChange={(event) => {
-          onChange(event.target.checked);
-        }}
-        className="mt-0.5 size-4 rounded border-border"
-      />
+        onCheckedChange={onChange}
+        className="mt-0.5"
+      >
+        <Checkbox.Indicator>✓</Checkbox.Indicator>
+      </Checkbox.Root>
       <label htmlFor={inputId} className="text-sm font-normal leading-snug text-foreground">
         I agree to the{" "}
         <a

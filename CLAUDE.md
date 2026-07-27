@@ -17,7 +17,7 @@ This repo is a **polyglot monorepo** with two toolchains:
 | `api/`                | .NET 10 solution (`Wallow.slnx`), central build/package props, `.editorconfig`, `stylecop.json`, `seed.json`, `branding.json` |
 | `packages/sdk/`       | `@bc-solutions-coder/sdk` — TypeScript BFF auth SDK + generated OpenAPI client                                                |
 | `packages/styles/`    | `@bc-solutions-coder/styles` — shared Tailwind v4 CSS entry + theme tokens emitted from `api/branding.json`                   |
-| `packages/ui/`        | `@bc-solutions-coder/ui` — shared browser-only React component library                                                        |
+| `packages/ui/`        | `@bc-solutions-coder/ui` — shared browser-only React component catalog (Base UI + CVA); see `packages/ui/CLAUDE.md`           |
 | `packages/web-shell/` | `@bc-solutions-coder/web-shell` — standalone host runtime + shared Vite/dev-server config presets                             |
 | `packages/testing/`   | `@bc-solutions-coder/testing` — shared vitest preset + browser-mode test utilities                                            |
 | `apps/wallow-web/`    | TanStack Start + BFF OIDC reference frontend (dashboard) that consumes the SDK                                                |
@@ -143,7 +143,7 @@ SDK) `sdk-v*` triggers a separate npm publish.
 - **Fork guide:** `docs/getting-started/fork-guide.md`
 - **Configuration:** `docs/getting-started/configuration.md`
 - **Developer guide:** `docs/getting-started/developer-guide.md`
-- **Frontend setup:** `docs/development/frontend-setup.md`
+- **Frontend setup:** `docs/development/frontend-setup.md` · **Component library:** `docs/development/component-library.md`
 - **Module creation:** `docs/architecture/module-creation.md`
 - **BFF pattern / TS SDK:** `docs/integrations/bff-pattern.md`, `docs/integrations/typescript-sdk.md`
 - **Deployment & CI/CD:** `docs/operations/deployment.md` · **Versioning:** `docs/operations/versioning.md`

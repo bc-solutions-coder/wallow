@@ -46,6 +46,8 @@
       href: development/frontend-setup.md
     - name: Frontend State
       href: development/frontend-state.md
+    - name: Component Library
+      href: development/component-library.md
 - name: Operations
   items:
     - name: Deployment

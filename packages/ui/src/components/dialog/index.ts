@@ -1,0 +1,28 @@
+export {
+  Dialog,
+  type DialogBackdropProps,
+  type DialogCloseProps,
+  type DialogDescriptionProps,
+  type DialogPopupProps,
+  type DialogPortalProps,
+  type DialogRootProps,
+  type DialogTitleProps,
+  type DialogTriggerProps,
+  type DialogViewportProps,
+} from "./dialog";
+export {
+  dialogBackdropRecipe,
+  type DialogBackdropRecipeProps,
+  dialogCloseRecipe,
+  type DialogCloseRecipeProps,
+  dialogDescriptionRecipe,
+  type DialogDescriptionRecipeProps,
+  dialogPopupRecipe,
+  type DialogPopupRecipeProps,
+  dialogTitleRecipe,
+  type DialogTitleRecipeProps,
+  dialogTriggerRecipe,
+  type DialogTriggerRecipeProps,
+  dialogViewportRecipe,
+  type DialogViewportRecipeProps,
+} from "./dialog.styles";

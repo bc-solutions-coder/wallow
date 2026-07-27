@@ -12,7 +12,8 @@ docs/
   architecture/         # Assessment, module creation, authentication, authorization,
                         #   background jobs, caching, file storage, messaging, realtime
   development/          # API development, database development, database migrations,
-                        #   testing (testing.md, testing-e2e.md), frontend setup
+                        #   testing (testing.md, testing-e2e.md), frontend setup,
+                        #   frontend state, component library
   operations/           # Deployment, versioning, observability, audit events,
                         #   reverse proxy, troubleshooting
   integrations/         # External auth, AsyncAPI, BFF pattern, TypeScript SDK

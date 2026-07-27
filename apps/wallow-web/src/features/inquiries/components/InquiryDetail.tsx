@@ -20,11 +20,12 @@
  * `inquiry-comments-loading` / `inquiry-comments-empty`, `inquiry-comment-content` +
  * `inquiry-comment-internal` + `inquiry-comment-submit`, `inquiry-comment-error`.
  */
-import { Button, Card, ErrorBanner, MutedText } from "@bc-solutions-coder/ui";
+import { Button, Card, Checkbox, ErrorBanner, MutedText } from "@bc-solutions-coder/ui";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import type { ProblemDetails } from "@bc-solutions-coder/sdk";
 
+import { SelectControl, type SelectControlOption } from "../../../components/SelectControl";
 import { addCommentMutation, inquiriesQueries, setStatusMutation } from "../api";
 import { INQUIRY_STATUSES, type Inquiry, type InquiryComment } from "../types";
 
@@ -32,9 +33,18 @@ import { INQUIRY_STATUSES, type Inquiry, type InquiryComment } from "../types";
 const CHIP =
   "inline-block bg-accent text-accent-foreground text-xs font-medium px-2.5 py-0.5 rounded-full";
 
-/** The `ui` `Input` recipe, applied to the bare `select`/`textarea` controls. */
+/** The `ui` `Input` recipe, applied to the bare `textarea` control. */
 const CONTROL =
   "w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring";
+
+/**
+ * The domain's statuses as catalog-`Select` options. Value and label are the
+ * same string here — the status IS the display text — so no mapping is lost.
+ */
+const STATUS_OPTIONS: readonly SelectControlOption[] = INQUIRY_STATUSES.map((status: string) => ({
+  value: status,
+  label: status,
+}));
 
 export function InquiryDetail(props: { inquiryId: string }) {
   const { inquiryId } = props;
@@ -117,20 +127,12 @@ function StatusControl(props: {
 
   return (
     <>
-      <select
-        data-testid="inquiry-status-select"
-        className={CONTROL}
+      <SelectControl
+        testId="inquiry-status-select"
         value={status}
-        onChange={(e) => {
-          setStatus(e.target.value);
-        }}
-      >
-        {INQUIRY_STATUSES.map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
-        ))}
-      </select>
+        options={STATUS_OPTIONS}
+        onChange={setStatus}
+      />
       <Button
         type="button"
         data-testid="inquiry-status-submit"
@@ -203,6 +205,30 @@ function CommentThread(props: { inquiryId: string }) {
   );
 }
 
+/**
+ * The add-comment form's public/internal flag — the catalog `Checkbox`, keeping
+ * the `inquiry-comment-internal` testid on the box a user actually clicks.
+ *
+ * The tick is `keepMounted` and hidden with `invisible` (which still reserves
+ * its space) rather than left to Base UI's default unmount, so ticking the box
+ * cannot reflow the row it sits in.
+ */
+function InternalFlag(props: { checked: boolean; onChange: (checked: boolean) => void }) {
+  const { checked, onChange } = props;
+  return (
+    <Checkbox.Root
+      data-testid="inquiry-comment-internal"
+      aria-label="Internal note"
+      checked={checked}
+      onCheckedChange={onChange}
+    >
+      <Checkbox.Indicator keepMounted className="data-[unchecked]:invisible">
+        ✓
+      </Checkbox.Indicator>
+    </Checkbox.Root>
+  );
+}
+
 /** Add-comment form with a public/internal toggle, backed by `addCommentMutation`. */
 function AddCommentForm(props: { queryClient: QueryClient; inquiryId: string }) {
   const { queryClient, inquiryId } = props;
@@ -236,12 +262,10 @@ function AddCommentForm(props: { queryClient: QueryClient; inquiryId: string }) 
           setContent(e.target.value);
         }}
       />
-      <input
-        type="checkbox"
-        data-testid="inquiry-comment-internal"
+      <InternalFlag
         checked={isInternal}
-        onChange={(e) => {
-          setIsInternal(e.target.checked);
+        onChange={(next: boolean) => {
+          setIsInternal(next);
         }}
       />
       {mutation.isError ? (

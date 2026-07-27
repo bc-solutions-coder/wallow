@@ -222,6 +222,30 @@ async function renderReadyForm(props: Partial<{ clientId?: string; returnUrl?: s
   return result;
 }
 
+/**
+ * Toggle a checkbox the way a keyboard user does — focus it, press Space —
+ * rather than by clicking the box (Wallow-m5aq.5.2).
+ *
+ * A click ON THE BOX is not a stable way to say this. The catalog's `Checkbox`
+ * renders its root as a `<span role="checkbox">` sized purely by Tailwind
+ * utilities, and the browser vitest project compiles no Tailwind, so that root
+ * measures ZERO wide here: Playwright's actionability check never settles and
+ * the click times out. Space on the focused root is the same user intent,
+ * depends on no layout, and behaves identically on a raw `<input
+ * type="checkbox">` — so every assertion written through this helper reads the
+ * same before and after the migration onto the catalog.
+ */
+async function toggleCheckbox(
+  user: ReturnType<typeof userEvent.setup>,
+  testId: string,
+): Promise<void> {
+  const box = page.getByTestId(testId);
+
+  await expect.element(box).toBeInTheDocument();
+  (box.element() as HTMLElement).focus();
+  await user.keyboard(" ");
+}
+
 /** Fill every field the oracle's guards demand, then submit. */
 async function fillAndSubmit(
   user: ReturnType<typeof userEvent.setup>,
@@ -251,10 +275,10 @@ async function fillAndSubmit(
     await user.type(page.getByTestId("register-confirm-password"), confirmPassword);
   }
   if (terms) {
-    await user.click(page.getByTestId("register-terms"));
+    await toggleCheckbox(user, "register-terms");
   }
   if (privacy) {
-    await user.click(page.getByTestId("register-privacy"));
+    await toggleCheckbox(user, "register-privacy");
   }
   await user.click(page.getByTestId("register-submit"));
 }
@@ -469,6 +493,67 @@ describe("RegisterForm — fields and validation", () => {
   });
 });
 
+describe("RegisterForm — the consent boxes' accessible state", () => {
+  // Wallow-m5aq.5.2 — the catalog sweep. Both consent boxes and the passwordless
+  // toggle are raw `<input type="checkbox">` today; the ui catalog covers them.
+  // These tests ask for the swap in the only terms a screen reader can observe.
+
+  it("publishes each consent box's checked state as aria-checked", async () => {
+    // A raw `<input type="checkbox">` keeps its state in the `checked` PROPERTY,
+    // which no attribute reflects; the catalog's Checkbox publishes it as
+    // `aria-checked`.
+    const user = userEvent.setup();
+    await renderReadyForm();
+
+    await expect
+      .element(page.getByTestId("register-terms"))
+      .toHaveAttribute("aria-checked", "false");
+    await expect
+      .element(page.getByTestId("register-privacy"))
+      .toHaveAttribute("aria-checked", "false");
+
+    await toggleCheckbox(user, "register-terms");
+
+    await expect
+      .element(page.getByTestId("register-terms"))
+      .toHaveAttribute("aria-checked", "true");
+    await expect
+      .element(page.getByTestId("register-privacy"))
+      .toHaveAttribute("aria-checked", "false");
+  });
+
+  it("publishes the passwordless toggle's checked state as aria-checked", async () => {
+    // The inventory leaves Checkbox-vs-Switch open for this one, so this pins only
+    // what BOTH publish: the toggled state, as an attribute, on the tagged element.
+    const user = userEvent.setup();
+    await renderReadyForm();
+
+    await expect
+      .element(page.getByTestId("register-passwordless-toggle"))
+      .toHaveAttribute("aria-checked", "false");
+
+    await toggleCheckbox(user, "register-passwordless-toggle");
+
+    await expect
+      .element(page.getByTestId("register-passwordless-toggle"))
+      .toHaveAttribute("aria-checked", "true");
+  });
+
+  it("keeps each consent box named by its own label", async () => {
+    // The `htmlFor`/`id` pairing asserted through what it buys: two boxes a user
+    // can tell apart. A migration that drops the pairing leaves two unnamed
+    // controls that differ only in DOM order.
+    await renderReadyForm();
+
+    await expect
+      .element(page.getByRole("checkbox", { name: "I agree to the Terms of Service" }))
+      .toBeInTheDocument();
+    await expect
+      .element(page.getByRole("checkbox", { name: "I agree to the Privacy Policy" }))
+      .toBeInTheDocument();
+  });
+});
+
 describe("RegisterForm — passwordless toggle", () => {
   it("hides the password fields when passwordless is selected", async () => {
     // Oracle: `@if (!_isPasswordless)` wraps both password blocks.
@@ -478,7 +563,7 @@ describe("RegisterForm — passwordless toggle", () => {
     // Anchor: they are on screen first, so the disappearance is real.
     await expect.element(page.getByTestId("register-password")).toBeInTheDocument();
 
-    await user.click(page.getByTestId("register-passwordless-toggle"));
+    await toggleCheckbox(user, "register-passwordless-toggle");
 
     expect(page.getByTestId("register-password").query()).toBeNull();
     expect(page.getByTestId("register-confirm-password").query()).toBeNull();
@@ -491,10 +576,10 @@ describe("RegisterForm — passwordless toggle", () => {
     const user = userEvent.setup();
     await renderReadyForm();
 
-    await user.click(page.getByTestId("register-passwordless-toggle"));
+    await toggleCheckbox(user, "register-passwordless-toggle");
     await user.type(page.getByTestId("register-email"), EMAIL);
-    await user.click(page.getByTestId("register-terms"));
-    await user.click(page.getByTestId("register-privacy"));
+    await toggleCheckbox(user, "register-terms");
+    await toggleCheckbox(user, "register-privacy");
     await user.click(page.getByTestId("register-submit"));
 
     await vi.waitFor(() => {

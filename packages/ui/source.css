@@ -11,5 +11,18 @@
  * This file declares ONLY the source scan — it imports no Tailwind entry and no
  * theme, because the app already imports @bc-solutions-coder/styles. ui depends
  * on styles conceptually, never the reverse.
+ *
+ * The scan targets the per-component folders and excludes story and spec files:
+ * their class names are demo-only, so letting Tailwind see them makes every
+ * consuming app emit utilities no shipped component actually uses.
+ *
+ * Both halves of a component are scanned. Since the CVA rebuild, most class
+ * names live in the *.styles.ts recipe beside the component rather than in its
+ * JSX, and a scan that saw only .tsx emitted nothing for them — a component
+ * whose classes are all in its recipe (Switch: h-6, w-11) then rendered
+ * unstyled in the consuming app even though its class ATTRIBUTES were correct.
  */
-@source "./src";
+@source "./src/components/**/*.tsx";
+@source "./src/components/**/*.styles.ts";
+@source not "./src/components/**/*.stories.tsx";
+@source not "./src/components/**/*.test.tsx";

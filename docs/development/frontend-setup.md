@@ -71,7 +71,7 @@ client, the test harness, and the host runtime) comes from the shared packages.
 | Package                         | Published      | Entry points                              | What a new app pulls from it                                                                                                                                                                                                                            |
 | ------------------------------- | -------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `@bc-solutions-coder/styles`    | yes            | `.`, `./styles.css`, `./vite`, `./assets` | Tailwind v4 pipeline plugin (`wallowStyles()`), theme-token CSS, brand assets, the branding schema                                                                                                                                                      |
-| `@bc-solutions-coder/ui`        | no (`private`) | `.`, `./source.css`                       | Shared browser components/primitives (`Button`, `Input`, `Label`, `Field`, `Card`, `ErrorBanner`, `MutedText`, `CenteredCardLayout`, `ForkAttribution`) plus `ReadyIndicator`/`FocusOnNavigate`, and the Tailwind `@source` scan of its component tree  |
+| `@bc-solutions-coder/ui`        | no (`private`) | `.`, `./*`, `./source.css`                | The 47-component Base UI + CVA catalog — forms, overlays, navigation, feedback — via the root barrel (`.`) or a per-component subpath (`./button`), plus the app-wiring components (`ReadyIndicator`, `FocusOnNavigate`, `DocumentStyles`, `ForkAttribution`) and the Tailwind `@source` scan of its component tree. See [Component Library](component-library.md) |
 | `@bc-solutions-coder/sdk`       | yes            | `.`, `./server`, `./query`                | Browser BFF client + typed API operations (`.`); BFF handlers, API proxy, and session stores (`./server`); the TanStack Query layer — `queryKeys`, per-domain `queryOptions`/mutation factories, and `registerQueryBootstrap` (`./query`)               |
 | `@bc-solutions-coder/testing`   | no (`private`) | `.`, `./render`                           | The `createVitestProjects` node + browser preset (`.`); the browser-mode `render` helper (`./render`)                                                                                                                                                   |
 | `@bc-solutions-coder/web-shell` | no (`private`) | `.`, `./server`                           | `createQueryClient` (`.`); the standalone host runtime and Vite/dev-server presets (`./server`): `createStandaloneHost`/`ShellConfig`, `createDevServer`/`DevServerConfig`, `createClientViteConfig`/`createSsrViteConfig`, and the static-asset reader |
@@ -185,7 +185,9 @@ is the reference.
 The shared packages leave exactly the app-specific surface to the app:
 
 - **Router, routes, and route components** — file-based routing under `src/routes/`,
-  composing `@bc-solutions-coder/ui` primitives (`import { Button, Card } from "@bc-solutions-coder/ui";`).
+  composing `@bc-solutions-coder/ui` components (`import { Button, Card, Dialog } from "@bc-solutions-coder/ui";`).
+  The app writes screens, not primitives: dialogs, menus, selects, and form controls all come from the
+  shared catalog rather than hand-rolled markup. See [Component Library](component-library.md).
 - **Proxy topology** — the `isProxyPath` predicate and `handleProxy` bridge
   (`src/lib/proxy-*.ts`): a same-origin reverse proxy like wallow-auth's
   `createAuthServer`, or a BFF token tunnel like wallow-web's `handleBffRequest`.
@@ -203,6 +205,27 @@ Branding, theme tokens, the component library, the auth client, the test harness
 and the host/dev/Vite runtime all stay in the shared packages — no source changes
 needed to rebrand, and nothing cross-cutting is duplicated into the app.
 
+## Component Library
+
+Both apps build their screens from `@bc-solutions-coder/ui`, a catalog of 47 components — each a
+headless [Base UI](https://base-ui.com/react/overview/quick-start) primitive wrapped in a CVA class
+recipe written in the theme tokens `@bc-solutions-coder/styles` emits from `api/branding.json`. Apps
+import from the root barrel by default and from a per-component subpath when they need a component's
+style recipe:
+
+```tsx
+import { Button, Card, Dialog } from "@bc-solutions-coder/ui";
+import { buttonRecipe } from "@bc-solutions-coder/ui/button";
+```
+
+Multi-part components (`Dialog`, `Select`, `Menu`, …) export one namespace object whose keys mirror
+Base UI's part names exactly, and every part merges your `className` over its recipe with
+`tailwind-merge`, so an override wins without discarding the rest of the recipe. Browse the catalog
+with `pnpm --filter @bc-solutions-coder/ui storybook`.
+
+[Component Library](component-library.md) covers the full catalog, both import styles, and the steps
+for adding a component.
+
 ## Testing
 
 Frontend specs run under **Vitest 4 browser mode**: any component/DOM test executes in real
@@ -210,6 +233,8 @@ headless Chromium via the Vitest `playwright` provider (`@vitest/browser-playwri
 `vitest-browser-react`) — **jsdom, happy-dom, and jest are not used**. `pnpm test` is the same
 command as before but now drives a real browser for component specs; each app's `vitest.config.ts`
 splits a `node` project (pure-logic `*.test.ts`) from a `browser` project (`*.test.tsx`).
+`packages/ui` adds a third `storybook` project that runs every component story as a test case, and
+neither app may mock `@bc-solutions-coder/ui` — see [Component Library](component-library.md#how-it-is-tested).
 
 End-to-end tests are per-app `@playwright/test` suites (`apps/wallow-auth/e2e/`,
 `apps/wallow-web/e2e/`), run with `pnpm --filter ./apps/<app> test:e2e` or the one-command

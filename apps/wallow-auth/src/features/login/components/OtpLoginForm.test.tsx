@@ -287,6 +287,30 @@ async function reachCodeForm(user: ReturnType<typeof userEvent.setup>) {
   await expect.element(page.getByTestId("login-otp-code")).toBeInTheDocument();
 }
 
+/**
+ * Toggle a checkbox the way a keyboard user does — focus it, press Space —
+ * rather than by clicking the box (Wallow-m5aq.5.2).
+ *
+ * A click ON THE BOX is not a stable way to say this. The catalog's `Checkbox`
+ * renders its root as a `<span role="checkbox">` sized purely by Tailwind
+ * utilities, and the browser vitest project compiles no Tailwind, so that root
+ * measures ZERO wide here: Playwright's actionability check never settles and
+ * the click times out. Space on the focused root is the same user intent,
+ * depends on no layout, and behaves identically on a raw `<input
+ * type="checkbox">` — so every assertion written through this helper reads the
+ * same before and after the migration onto the catalog.
+ */
+async function toggleCheckbox(
+  user: ReturnType<typeof userEvent.setup>,
+  testId: string,
+): Promise<void> {
+  const box = page.getByTestId(testId);
+
+  await expect.element(box).toBeInTheDocument();
+  (box.element() as HTMLElement).focus();
+  await user.keyboard(" ");
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.isSafeReturnUrl.mockImplementation(isSafeReturnUrlRule);
@@ -960,12 +984,41 @@ describe("LoginScreen OTP tab: remember me", () => {
     await expect.element(otpRememberMe()).toBeChecked();
   });
 
+  it("publishes its checked state as aria-checked", async () => {
+    // Wallow-m5aq.5.2 — the catalog sweep. A raw `<input type="checkbox">` keeps
+    // its state in the `checked` PROPERTY, which no attribute reflects; the
+    // catalog's Checkbox publishes it as `aria-checked`, the same way this
+    // screen's tabs publish `aria-selected`.
+    const user = userEvent.setup();
+    renderScreen();
+
+    await reachCodeForm(user);
+
+    await expect.element(otpRememberMe()).toHaveAttribute("aria-checked", "false");
+
+    await toggleCheckbox(user, "login-otp-remember-me");
+
+    await expect.element(otpRememberMe()).toHaveAttribute("aria-checked", "true");
+    await expect.element(otpRememberMe()).toBeChecked();
+  });
+
+  it("is reachable as a checkbox named by its label", async () => {
+    // The `htmlFor`/`id` pairing asserted through what it buys: a box whose name
+    // is its label. A migration that drops the pairing leaves an unnamed control.
+    const user = userEvent.setup();
+    renderScreen();
+
+    await reachCodeForm(user);
+
+    await expect.element(page.getByRole("checkbox", { name: "Remember me" })).toBeInTheDocument();
+  });
+
   it("sends rememberMe true when the user checks the box", async () => {
     const user = userEvent.setup();
     renderScreen();
 
     await reachCodeForm(user);
-    await user.click(otpRememberMe());
+    await toggleCheckbox(user, "login-otp-remember-me");
     await submitCode(user);
 
     await vi.waitFor(() => {
@@ -984,8 +1037,8 @@ describe("LoginScreen OTP tab: remember me", () => {
     renderScreen();
 
     await reachCodeForm(user);
-    await user.click(otpRememberMe());
-    await user.click(otpRememberMe());
+    await toggleCheckbox(user, "login-otp-remember-me");
+    await toggleCheckbox(user, "login-otp-remember-me");
 
     await expect.element(otpRememberMe()).not.toBeChecked();
 
@@ -1009,7 +1062,7 @@ describe("LoginScreen OTP tab: remember me", () => {
     await reachCodeForm(user);
     expect(mocks.sendOtp).toHaveBeenCalledTimes(1);
 
-    await user.click(otpRememberMe());
+    await toggleCheckbox(user, "login-otp-remember-me");
 
     expect(mocks.verifyOtp).not.toHaveBeenCalled();
     expect(mocks.sendOtp).toHaveBeenCalledTimes(1);
@@ -1026,7 +1079,7 @@ describe("LoginScreen OTP tab: remember me", () => {
     renderScreen();
 
     // The password tab is the landing tab, and its box is the invisible one.
-    await user.click(page.getByTestId("login-remember-me"));
+    await toggleCheckbox(user, "login-remember-me");
     await expect.element(page.getByTestId("login-remember-me")).toBeChecked();
 
     await reachCodeForm(user);
@@ -1052,7 +1105,7 @@ describe("LoginScreen OTP tab: remember me", () => {
     renderScreen();
 
     await reachCodeForm(user);
-    await user.click(otpRememberMe());
+    await toggleCheckbox(user, "login-otp-remember-me");
 
     await user.click(page.getByTestId("login-tab-password"));
     await user.type(page.getByTestId("login-email"), EMAIL);
@@ -1080,7 +1133,7 @@ describe("LoginScreen OTP tab: remember me", () => {
     renderScreen();
 
     await reachCodeForm(user);
-    await user.click(otpRememberMe());
+    await toggleCheckbox(user, "login-otp-remember-me");
     await expect.element(otpRememberMe()).toBeChecked();
 
     await user.click(page.getByTestId("login-tab-password"));

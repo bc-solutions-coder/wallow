@@ -99,5 +99,8 @@ bundles/
 node_modules/
 dist/
 
+# Storybook static build (packages/ui)
+storybook-static/
+
 # Playwright MCP debug artifacts (console logs, page snapshots)
 .playwright-mcp/

@@ -14,6 +14,7 @@ import { Button, ErrorBanner, Field, Input, MutedText } from "@bc-solutions-code
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { SelectControl, type SelectControlOption } from "../../../components/SelectControl";
 import {
   archiveOrganizationMutation,
   organizationsQueries,
@@ -67,21 +68,22 @@ function ClientsTable(props: { clients: BoundClient[] }) {
   );
 }
 
+/** The two client types the API accepts, as catalog-`Select` options. */
+const CLIENT_TYPE_OPTIONS: readonly SelectControlOption[] = [
+  { value: "public", label: "Public" },
+  { value: "confidential", label: "Confidential" },
+];
+
 /** Public/confidential client-type select (kept shallow for jsx-max-depth). */
 function ClientTypeSelect(props: { value: string; onChange: (value: string) => void }) {
   const { value, onChange } = props;
   return (
-    <select
-      data-testid="organization-detail-register-client-type"
-      className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
+    <SelectControl
+      testId="organization-detail-register-client-type"
       value={value}
-      onChange={(e) => {
-        onChange(e.target.value);
-      }}
-    >
-      <option value="public">Public</option>
-      <option value="confidential">Confidential</option>
-    </select>
+      options={CLIENT_TYPE_OPTIONS}
+      onChange={onChange}
+    />
   );
 }
 

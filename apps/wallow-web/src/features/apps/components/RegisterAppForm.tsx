@@ -24,11 +24,20 @@
  * (server RFC 7807 ProblemDetails surface), and the one-time success reveal
  * `app-client-secret` + `app-client-secret-copy` + `app-client-id`.
  */
-import { Button, Card, ErrorBanner, Field, Input } from "@bc-solutions-coder/ui";
+import {
+  Button,
+  Card,
+  ErrorBanner,
+  Field,
+  Input,
+  Toggle,
+  ToggleGroup,
+} from "@bc-solutions-coder/ui";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQueryClient, type UseMutationResult } from "@tanstack/react-query";
 import type { AppRegistrationResponse, ProblemDetails } from "@bc-solutions-coder/sdk";
 
+import { SelectControl, type SelectControlOption } from "../../../components/SelectControl";
 import { registerAppMutation, type RegisterAppBody } from "../api";
 
 /**
@@ -77,20 +86,22 @@ function DisplayNameField(props: {
   );
 }
 
+/** The two client types the API accepts, as catalog-`Select` options. */
+const CLIENT_TYPE_OPTIONS: readonly SelectControlOption[] = [
+  { value: "public", label: "Public" },
+  { value: "confidential", label: "Confidential" },
+];
+
 /** Public/confidential client-type select (defaults to "public"). */
 function ClientTypeField(props: { value: string; onChange: (value: string) => void }) {
   const { value, onChange } = props;
   return (
-    <select
-      data-testid="app-client-type"
+    <SelectControl
+      testId="app-client-type"
       value={value}
-      onChange={(e) => {
-        onChange(e.target.value);
-      }}
-    >
-      <option value="public">Public</option>
-      <option value="confidential">Confidential</option>
-    </select>
+      options={CLIENT_TYPE_OPTIONS}
+      onChange={onChange}
+    />
   );
 }
 
@@ -122,28 +133,22 @@ function PostLogoutRedirectUrisField(props: { value: string; onChange: (value: s
   );
 }
 
-/** Scope multi-select toggle buttons; clicking one adds/removes it. */
+/**
+ * Scope multi-select toggle buttons; clicking one adds/removes it. The catalog
+ * `ToggleGroup` announces the eight buttons as ONE multi-select control and owns
+ * the roving focus between them; `multiple` is what keeps every chosen scope
+ * pressed instead of releasing the previous one.
+ */
 function ScopeToggles(props: { value: string[]; onChange: (value: string[]) => void }) {
   const { value, onChange } = props;
   return (
-    <div>
-      {AVAILABLE_SCOPES.map((scope) => {
-        const selected = value.includes(scope);
-        return (
-          <button
-            key={scope}
-            type="button"
-            data-testid={`app-scope-${scope.replaceAll(".", "-")}`}
-            aria-pressed={selected}
-            onClick={() => {
-              onChange(selected ? value.filter((s) => s !== scope) : [...value, scope]);
-            }}
-          >
-            {scope}
-          </button>
-        );
-      })}
-    </div>
+    <ToggleGroup multiple value={value} onValueChange={onChange}>
+      {AVAILABLE_SCOPES.map((scope) => (
+        <Toggle key={scope} value={scope} data-testid={`app-scope-${scope.replaceAll(".", "-")}`}>
+          {scope}
+        </Toggle>
+      ))}
+    </ToggleGroup>
   );
 }
 
