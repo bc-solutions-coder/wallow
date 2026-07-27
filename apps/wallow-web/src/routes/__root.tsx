@@ -23,16 +23,20 @@ import { DocumentStyles, FocusOnNavigate } from "@bc-solutions-coder/ui";
 const clientEntry: string = import.meta.env.DEV ? "/src/client.tsx" : "/client.js";
 
 /**
- * The compiled stylesheet, or `null` when none should be linked. The production
- * build extracts the entry CSS imported by `client.tsx` to `/client.css`
- * (pinned by `assetFileNames` in `vite.config.ts`), and nothing references it
- * from `client.js` — Vite does not auto-inject entry CSS for a JS entry — so
- * the shell must link it or every route serves unstyled. In dev the link must
- * NOT render: Vite injects the CSS through the JS module graph and `/client.css`
- * does not exist on the dev server. Same build-time `import.meta.env.DEV`
- * substitution as `clientEntry`, for the same hydration-agreement reason.
+ * The stylesheet to link from the document head. The production build extracts
+ * the entry CSS imported by `client.tsx` to `/client.css` (pinned by
+ * `assetFileNames` in `vite.config.ts`), and nothing references it from
+ * `client.js` — Vite does not auto-inject entry CSS for a JS entry — so the
+ * shell must link it or every route serves unstyled. In dev the link targets
+ * the source entry with Vite's `?direct` query, which serves the compiled CSS
+ * as a plain stylesheet; without the link the first paint is unstyled until
+ * the JS module graph loads and injects the CSS (FOUC). `client.tsx` still
+ * imports the same file so CSS HMR keeps working — the HMR-injected copy is
+ * appended after this link and wins the cascade. Same build-time
+ * `import.meta.env.DEV` substitution as `clientEntry`, for the same
+ * hydration-agreement reason.
  */
-const stylesheetHref: string | null = import.meta.env.DEV ? null : "/client.css";
+const stylesheetHref: string = import.meta.env.DEV ? "/src/styles.css?direct" : "/client.css";
 
 /**
  * The SSR document shell (Wallow-8w1h.2.2): a full `<html>/<head>/<body>`
