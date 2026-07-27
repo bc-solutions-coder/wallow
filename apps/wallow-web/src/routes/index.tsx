@@ -2,6 +2,7 @@ import { userQueries } from "@bc-solutions-coder/sdk/query";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
 import { PublicLayout } from "../components/PublicLayout";
+import { LandingPage } from "../features/landing/components/LandingPage";
 import { forkBranding } from "../lib/branding";
 
 /**
@@ -27,25 +28,14 @@ import { forkBranding } from "../lib/branding";
  * would otherwise be committed against the route tree and land on a not-found
  * match.
  *
- * The component still server-renders an `<h1 data-testid="home-heading">` (the
- * SSR contract the boot smoke test asserts), now wrapped in the `PublicLayout`
- * navbar/footer chrome.
+ * The page body is `LandingPage` — the `<h1 data-testid="home-heading">` that the
+ * SSR contract asserts now lives inside that component's hero, wrapped here in
+ * the `PublicLayout` navbar/footer chrome.
  */
 function HomeComponent() {
   return (
     <PublicLayout>
-      <section className="max-w-4xl mx-auto px-6 py-24 flex flex-col items-center gap-6 text-center">
-        <h1 data-testid="home-heading" className="text-5xl font-bold text-foreground">
-          {forkBranding.appName}
-        </h1>
-        <p className="text-lg text-foreground/80">{forkBranding.tagline}</p>
-        <a
-          href="/bff/login?returnTo=/dashboard/apps"
-          className="bg-primary text-primary-foreground text-sm font-medium px-6 py-3 rounded-full no-underline"
-        >
-          Get Started
-        </a>
-      </section>
+      <LandingPage />
     </PublicLayout>
   );
 }

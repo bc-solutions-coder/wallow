@@ -32,6 +32,8 @@ describe("wallow-web ported markup carries styling hooks", () => {
   });
 
   it("styles the public home route", () => {
-    expect(source("routes/index.tsx")).toContain("className");
+    // The home route delegates its whole body to LandingPage; `routes/index.tsx`
+    // is now just the beforeLoad gate plus the PublicLayout wrapper.
+    expect(source("features/landing/components/LandingPage.tsx")).toContain("className");
   });
 });
