@@ -16,7 +16,7 @@ import { OrganizationDetail } from "../../../features/organizations/components/O
 function OrganizationDetailPage() {
   const { orgId } = Route.useParams();
   return (
-    <div data-testid="dashboard-organization-detail">
+    <div data-testid="dashboard-organization-detail" className="max-w-5xl mx-auto">
       <OrganizationDetail orgId={orgId} />
     </div>
   );

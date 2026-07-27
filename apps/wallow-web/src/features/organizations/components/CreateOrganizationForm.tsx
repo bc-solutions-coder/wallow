@@ -12,7 +12,7 @@
  * (required-field validation message), `organization-create-error` (server
  * ProblemDetails surface).
  */
-import { Button, Card, ErrorBanner, Field, Input } from "@bc-solutions-coder/ui";
+import { Button, Card, CardTitle, ErrorBanner, Field, Input } from "@bc-solutions-coder/ui";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ProblemDetails } from "@bc-solutions-coder/sdk";
@@ -49,8 +49,12 @@ function NameField(props: {
 }
 
 export function CreateOrganizationForm() {
+  // A form keeps the ui `Card` (only tables need the raw div). The card owns the
+  // top margin because this form has exactly one mount site: below the list on
+  // the organizations index page.
   return (
-    <Card>
+    <Card className="mt-8">
+      <CardTitle data-testid="organization-create-heading">Create Organization</CardTitle>
       <CreateOrganizationFormFields />
     </Card>
   );
@@ -86,6 +90,7 @@ function CreateOrganizationFormFields() {
   return (
     <form
       data-testid="organization-create-form"
+      className="space-y-6"
       onSubmit={(e) => {
         e.preventDefault();
         e.stopPropagation();

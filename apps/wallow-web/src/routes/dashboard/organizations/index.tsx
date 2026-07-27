@@ -17,9 +17,25 @@ import { OrganizationList } from "../../../features/organizations/components/Org
  * root via `.update({ id, path, getParentRoute })` (there is no dashboard layout
  * route yet; that lands in Phase 7).
  */
+/**
+ * Title row. Extracted so the page body stays within the repo's JSX nesting
+ * budget. Unlike the apps page there is no CTA beside the heading: the create
+ * form mounts inline below the list, so there is no create-page to link to.
+ */
+function OrganizationsHeader() {
+  return (
+    <div className="flex items-center justify-between mb-8">
+      <h1 data-testid="organizations-heading" className="text-3xl font-bold text-foreground">
+        Organizations
+      </h1>
+    </div>
+  );
+}
+
 function OrganizationsIndexPage() {
   return (
-    <div data-testid="dashboard-organizations">
+    <div data-testid="dashboard-organizations" className="max-w-5xl mx-auto">
+      <OrganizationsHeader />
       <OrganizationList />
       <CreateOrganizationForm />
     </div>
