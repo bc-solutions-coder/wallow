@@ -110,6 +110,14 @@ package's `@source` declaration from its CSS entry, or every component renders u
 See [Styling and Tailwind Setup](frontend-setup.md#styling-and-tailwind-setup) for the full
 rationale.
 
+### Form controls come through `@bc-solutions-coder/forms`
+
+An app rarely renders `Field`, `Input`, `Select` or `Checkbox` directly. `@bc-solutions-coder/forms`
+sits one layer above this package and ships those controls pre-bound to TanStack Form state, zod
+validation and derived testids — reach for it first, and drop to the raw parts only for a control the
+catalog has no field for. See [Forms](forms.md). The dependency runs one way: `forms` imports `ui`,
+never the reverse.
+
 ### Do not mock it
 
 App specs must never replace `@bc-solutions-coder/ui` with stubs. The components run in the same

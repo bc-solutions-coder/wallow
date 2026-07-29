@@ -18,6 +18,7 @@ This repo is a **polyglot monorepo** with two toolchains:
 | `packages/sdk/`       | `@bc-solutions-coder/sdk` — TypeScript BFF auth SDK + generated OpenAPI client                                                |
 | `packages/styles/`    | `@bc-solutions-coder/styles` — shared Tailwind v4 CSS entry + theme tokens emitted from `api/branding.json`                   |
 | `packages/ui/`        | `@bc-solutions-coder/ui` — shared browser-only React component catalog (Base UI + CVA); see `packages/ui/CLAUDE.md`           |
+| `packages/forms/`     | `@bc-solutions-coder/forms` — shared form-authoring layer (TanStack Form catalog + zod + RFC 7807 errors) bound to `@bc-solutions-coder/ui`; see `packages/forms/CLAUDE.md` |
 | `packages/web-shell/` | `@bc-solutions-coder/web-shell` — shared browser-safe frontend runtime (the TanStack Query client factory)                    |
 | `packages/testing/`   | `@bc-solutions-coder/testing` — shared vitest preset + browser-mode test utilities                                            |
 | `apps/wallow-web/`    | TanStack Start + BFF OIDC reference frontend (dashboard) that consumes the SDK                                                |
@@ -63,6 +64,11 @@ pnpm check                   # format:check + lint + typecheck + test + build + 
   (CI fails on drift), and the SDK ships independently via `sdk-v*` tags. Full detail —
   entries, session/CSRF model, regen command, build/publish, test layout — lives in
   **`packages/sdk/CLAUDE.md`**; read it before touching the SDK.
+- **`packages/forms`** — the one way a form is written: `useAppForm` (zod schema + generated
+  `{operation}Mutation` + RFC 7807 error split) rendered through the `AppForm` shell and its
+  pre-bound field catalog, with every `data-testid` DERIVED from the shell's `testIdPrefix`.
+  It consumes `@bc-solutions-coder/ui`; `ui` must never import it. Guide:
+  `docs/development/forms.md`; contributor detail: **`packages/forms/CLAUDE.md`**.
 - **`apps/wallow-web`** — runnable TanStack Start reference frontend demonstrating the
   full same-origin BFF flow. `pnpm --filter @bc-solutions-coder/wallow-web dev` (SSR + BFF)
   or `... start` (`node .output/server/index.mjs`, the Nitro bundle the E2E container runs).
@@ -153,7 +159,7 @@ SDK) `sdk-v*` triggers a separate npm publish.
 - **Fork guide:** `docs/getting-started/fork-guide.md`
 - **Configuration:** `docs/getting-started/configuration.md`
 - **Developer guide:** `docs/getting-started/developer-guide.md`
-- **Frontend setup:** `docs/development/frontend-setup.md` · **Component library:** `docs/development/component-library.md`
+- **Frontend setup:** `docs/development/frontend-setup.md` · **Component library:** `docs/development/component-library.md` · **Forms:** `docs/development/forms.md`
 - **Module creation:** `docs/architecture/module-creation.md`
 - **BFF pattern / TS SDK:** `docs/integrations/bff-pattern.md`, `docs/integrations/typescript-sdk.md`
 - **Deployment & CI/CD:** `docs/operations/deployment.md` · **Versioning:** `docs/operations/versioning.md`

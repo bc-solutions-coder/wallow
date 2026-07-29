@@ -48,6 +48,8 @@
       href: development/frontend-state.md
     - name: Component Library
       href: development/component-library.md
+    - name: Forms
+      href: development/forms.md
 - name: Operations
   items:
     - name: Deployment

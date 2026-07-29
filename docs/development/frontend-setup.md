@@ -104,7 +104,8 @@ one of them — TanStack Start and Nitro own that, per app.
 
 `wallow-auth` and `wallow-web` both depend on all five as `workspace:*` runtime
 `dependencies` (no per-app `@tailwindcss/vite`, `tailwindcss`, or `vitest` preset
-of their own). Bootstrapping a new app is these steps.
+of their own), plus `@bc-solutions-coder/forms` — see [Forms](forms.md) — which an app
+adds once it renders a form. Bootstrapping a new app is these steps.
 
 ### 1. Depend on all five packages
 
@@ -340,6 +341,27 @@ with `pnpm --filter @bc-solutions-coder/ui storybook`.
 
 [Component Library](component-library.md) covers the full catalog, both import styles, and the steps
 for adding a component.
+
+## Forms
+
+Screens do not wire form controls to state by hand. `@bc-solutions-coder/forms` is a sixth shared
+package — added to an app's `dependencies` alongside the five above when it renders forms, which
+`wallow-auth` and `wallow-web` both do and `examples/minimal-app` does not — layering TanStack Form
+state onto the `ui` catalog:
+
+```tsx
+<AppForm form={form} testIdPrefix="organization-create">
+  <form.AppField name="name">
+    {(field) => <field.TextField label="Name" testId="organization-name" />}
+  </form.AppField>
+  <FormError />
+  <SubmitButton>Create organization</SubmitButton>
+</AppForm>
+```
+
+One `useAppForm` call holds the zod schema, the generated `{operation}Mutation({ client })` and the
+success work; the shell owns the `<form>` element, the pending state and the RFC 7807 error split,
+and every `data-testid` is derived from `testIdPrefix`. See [Forms](forms.md).
 
 ## Testing
 

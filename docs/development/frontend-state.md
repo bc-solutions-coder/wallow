@@ -134,6 +134,8 @@ regenerating is what makes its query and mutation artifacts exist.
 ## See also
 
 - [Frontend Setup](frontend-setup.md) — app bootstrap, shared packages, styling, and testing.
+- [Forms](forms.md) — how a form submits through one of those generated mutation factories, and how
+  the failure it returns is split between the field messages and the form-level banner.
 - [TypeScript SDK](../integrations/typescript-sdk.md) — the SDK's four entry points and the BFF
   session model the query layer's `queryFn`s run inside.
 - [Integration Cookbook](../integrations/integration-cookbook.md) — the `features/<name>/api.ts`

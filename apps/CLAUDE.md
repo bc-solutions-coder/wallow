@@ -1,7 +1,8 @@
 # apps — Frontend Applications Agent Guide
 
-Every app here is a **TanStack Start** frontend consuming the five `@bc-solutions-coder`
-workspace packages (`sdk`, `styles`, `ui`, `web-shell`, `testing`) via `workspace:*`.
+Every app here is a **TanStack Start** frontend consuming the six `@bc-solutions-coder`
+workspace packages (`sdk`, `styles`, `ui`, `forms`, `web-shell`, `testing`) via `workspace:*`.
+`forms` is the only optional one — `examples/minimal-app` renders no form and omits it.
 
 | App                     | Port | What it is                                                               |
 | ----------------------- | ---- | ------------------------------------------------------------------------ |
