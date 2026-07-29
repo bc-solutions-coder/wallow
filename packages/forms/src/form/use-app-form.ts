@@ -85,7 +85,7 @@ export type AppFormApi<TValues> = ReturnType<
   readonly wallow: WallowFormExtras;
 };
 
-export interface UseAppFormOptions<TValues, TVariables, TData> {
+export interface UseAppFormOptions<TValues, TVariables, TData, TError = unknown> {
   /**
    * The zod schema, wired as TanStack's `validators.onSubmit`. It is typed as
    * the standard-schema interface zod implements, which is what TanStack itself
@@ -94,10 +94,22 @@ export interface UseAppFormOptions<TValues, TVariables, TData> {
   readonly schema: StandardSchemaV1<TValues, unknown>;
   readonly defaultValues: TValues;
   /**
-   * The generated SDK mutation options (`{operation}Mutation({ client })`).
-   * Omit it for the plain-`onSubmit` escape hatch.
+   * The generated SDK mutation options (`{operation}Mutation({ client })`),
+   * passed WHOLE — no destructuring, no cast. Omit it for the plain-`onSubmit`
+   * escape hatch.
+   *
+   * `TError` is inferred from whatever is handed over, which is the only way the
+   * generated factories can be accepted at all: each operation carries its own
+   * error type (`organizationsCreateMutation` is `DefaultError`,
+   * `appsRegisterMutation` is `AppsRegisterError`), and `TError` sits in the
+   * CONTRAVARIANT position of `UseMutationOptions`' optional
+   * `onError`/`onSettled`/`retry` members — so a slot pinned to any one concrete
+   * type (`unknown` included) rejects every factory that does not name exactly
+   * that type. The hook never reads `TError` itself; `splitServerError` takes the
+   * failure as `unknown` because an RFC 7807 body is only trustworthy after the
+   * runtime narrowing it does.
    */
-  readonly mutation?: UseMutationOptions<TData, unknown, TVariables>;
+  readonly mutation?: UseMutationOptions<TData, TError, TVariables>;
   /** Values -> mutation variables. Defaults to `(values) => ({ body: values })`. */
   readonly toVariables?: (values: TValues) => TVariables;
   /**
@@ -114,8 +126,8 @@ export interface UseAppFormOptions<TValues, TVariables, TData> {
 /** The banner text for a failure that carries nothing usable and no caller fallback. */
 const DEFAULT_FALLBACK_ERROR = "Something went wrong. Please try again.";
 
-export function useAppForm<TValues, TVariables = unknown, TData = unknown>(
-  options: UseAppFormOptions<TValues, TVariables, TData>,
+export function useAppForm<TValues, TVariables = unknown, TData = unknown, TError = unknown>(
+  options: UseAppFormOptions<TValues, TVariables, TData, TError>,
 ): AppFormApi<TValues> {
   const [serverError, setServerError] = useState<string | null>(null);
 
@@ -125,7 +137,7 @@ export function useAppForm<TValues, TVariables = unknown, TData = unknown>(
    * values — see `toMutationVariables` — so `pending` and the failure split
    * behave identically whether or not an operation is involved.
    */
-  const mutation = useMutation<TData, unknown, TVariables>(
+  const mutation = useMutation<TData, TError, TVariables>(
     options.mutation ?? {
       mutationFn: async (variables: TVariables): Promise<TData> => {
         await options.onSubmit?.(variables as unknown as TValues);
@@ -213,8 +225,8 @@ export function useAppForm<TValues, TVariables = unknown, TData = unknown>(
  * escape hatch the values themselves are the variables — nothing else supplies
  * them, so the stand-in `mutationFn` above can read them back as `TValues`.
  */
-function toMutationVariables<TValues, TVariables, TData>(
-  options: UseAppFormOptions<TValues, TVariables, TData>,
+function toMutationVariables<TValues, TVariables, TData, TError>(
+  options: UseAppFormOptions<TValues, TVariables, TData, TError>,
   values: TValues,
 ): TVariables {
   if (options.toVariables) {
