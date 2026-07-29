@@ -2,22 +2,34 @@
 # Wallow Production Stack
 # =============================================================================
 # Fully self-contained — runs locally or on a server with the same command.
-# Reverse proxy handles TLS + routing externally. Two topologies are supported:
+# The `caddy` service below is a REFERENCE ingress: it owns :80/:443 and is the
+# only externally reachable service. The three app containers publish their ports
+# on 127.0.0.1 only, so they stay available for local debugging (curl, a tunnel)
+# without being exposed to the network. Swap Caddy for your own ingress by
+# removing the service and re-pointing those loopback ports — see the header of
+# caddy/Caddyfile.example for the contract any replacement must honour.
+#
+# Two topologies are supported:
 #
 # Path-based routing (default):
 #   wallow.dev/api/*  -> wallow-api:8080   (forward full path, app uses PathBase=/api;
 #                                           do NOT strip the /api prefix in the proxy)
-#   wallow.dev/auth/* -> wallow-auth:8080  (Node app, apps/wallow-auth; it has no
-#                                           PathBase support and serves at root, so
-#                                           strip the /auth prefix for this service)
+#   wallow.dev/auth/* -> wallow-auth:8080  (Node app, apps/wallow-auth, BUILT with
+#                                           AUTH_BASE_PATH=/auth; it serves SSR HTML,
+#                                           assets and passthrough routes under that
+#                                           prefix, so do NOT strip /auth either)
 #   wallow.dev/*      -> wallow-web:8080
-#   Containers expose HTTP only.
+#   Containers expose HTTP only; TLS terminates at the ingress.
 #
-# Subdomain routing (set API_PATH_BASE= empty in .env.production):
+# Subdomain routing (set API_PATH_BASE= and AUTH_BASE_PATH= empty in .env.production):
 #   api.wallow.dev/*  -> wallow-api:8080   (app serves at subdomain root, PathBase empty)
 #   auth.wallow.dev/* -> wallow-auth:8080  (Node app serves at root)
 #   wallow.dev/*      -> wallow-web:8080
-#   Also align API_PUBLIC_URL / AUTH_PUBLIC_URL (and COOKIE_DOMAIN) to the subdomains.
+#   Also align API_PUBLIC_URL / AUTH_PUBLIC_URL (and COOKIE_DOMAIN) to the subdomains,
+#   and use the commented subdomain site blocks at the bottom of the Caddyfile.
+#
+# EVERY ingress, Caddy or not, must forward X-Forwarded-Proto. The API builds its
+# absolute OIDC URLs (authorize, end_session, discovery) from it.
 #
 # Usage:
 #   cd docker
@@ -332,7 +344,9 @@ services:
     volumes:
       - api_certs:/app/certs
     ports:
-      - "${API_PORT:-8080}:8080"
+      # Loopback-bound: the caddy ingress reaches this over the wallow network,
+      # not through the host. Published only so you can curl it while debugging.
+      - "127.0.0.1:${API_PORT:-8080}:8080"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:8080
@@ -422,6 +436,23 @@ services:
   # ============================================
   wallow-auth:
     image: ghcr.io/bc-solutions-coder/wallow-auth:${VERSION:-latest}
+    # HAZARD — path-based routing REQUIRES building this image locally.
+    # AUTH_BASE_PATH is a BUILD input: `vite build` bakes the prefix into every
+    # emitted asset URL and into the SSR router basepath, so it cannot be set at
+    # runtime. The published ghcr.io image is built at ROOT (the CI workflow
+    # .github/workflows/deploy.yml passes no AUTH_BASE_PATH, deliberately — the
+    # E2E stack and the subdomain topology both need a root-mounted image), which
+    # means `docker compose pull && up -d` yields an auth container that 404s
+    # behind the /auth ingress route. `up --build` is therefore the documented
+    # invocation for the default path-based topology: it rebuilds this service
+    # with the prefix and tags it over the pulled name.
+    # For subdomain routing, set AUTH_BASE_PATH= (empty) and the pulled image is
+    # correct as-is — no --build needed.
+    build:
+      context: ..
+      dockerfile: apps/wallow-auth/Dockerfile
+      args:
+        AUTH_BASE_PATH: ${AUTH_BASE_PATH-/auth}
     container_name: ${COMPOSE_PROJECT_NAME:-wallow}-auth
     restart: unless-stopped
     read_only: true
@@ -430,7 +461,8 @@ services:
     tmpfs:
       - /tmp
     ports:
-      - "${AUTH_PORT:-8081}:8080"
+      # Loopback-bound — see the wallow-api service for why.
+      - "127.0.0.1:${AUTH_PORT:-8081}:8080"
     environment:
       NODE_ENV: production
       # The Node SSR host (apps/wallow-auth) listens on PORT; keep it at 8080 so
@@ -475,7 +507,8 @@ services:
     tmpfs:
       - /tmp
     ports:
-      - "${WEB_PORT:-8082}:8080"
+      # Loopback-bound — see the wallow-api service for why.
+      - "127.0.0.1:${WEB_PORT:-8082}:8080"
     environment:
       NODE_ENV: production
       # The Node BFF listens on PORT; keep it at 8080 so the port mapping and the
@@ -523,6 +556,64 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # ============================================
+  # INGRESS (Caddy — reference reverse proxy)
+  # ============================================
+  # The only externally reachable service. Terminates TLS and does the path
+  # routing the three app services above assume (/api and /auth prefixes KEPT,
+  # everything else to wallow-web). Routing lives in caddy/Caddyfile.example;
+  # copy it to caddy/Caddyfile and point CADDYFILE_HOST_PATH at your edited copy
+  # rather than editing the committed example.
+  #
+  # Running your own ingress instead? Remove this service and target the
+  # 127.0.0.1 ports the app services publish (API_PORT / AUTH_PORT / WEB_PORT).
+  caddy:
+    image: caddy:2-alpine
+    container_name: ${COMPOSE_PROJECT_NAME:-wallow}-caddy
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "${INGRESS_HTTP_PORT:-80}:80"
+      - "${INGRESS_HTTPS_PORT:-443}:443"
+      # QUIC/HTTP3 — Caddy serves it alongside 443/tcp once TLS is on.
+      - "${INGRESS_HTTPS_PORT:-443}:443/udp"
+    volumes:
+      - ${CADDYFILE_HOST_PATH:-./caddy/Caddyfile.example}:/etc/caddy/Caddyfile:ro
+      # Persist issued certificates and OCSP staples; without this volume Caddy
+      # re-requests certificates on every restart and will hit Let's Encrypt
+      # rate limits.
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      wallow-api:
+        condition: service_healthy
+      wallow-auth:
+        condition: service_healthy
+      wallow-web:
+        condition: service_healthy
+    healthcheck:
+      # 127.0.0.1, NOT localhost: Caddy's admin API binds IPv4 only, while
+      # localhost resolves to ::1 first inside the container — the healthcheck
+      # gets ECONNREFUSED and the service never turns healthy.
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:2019/config/ >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - wallow
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 volumes:
   postgres_data:
   postgres_replica_data:
@@ -530,6 +621,8 @@ volumes:
   garage_meta:
   garage_data:
   api_certs:
+  caddy_data:
+  caddy_config:
 
 networks:
   wallow:

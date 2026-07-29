@@ -142,6 +142,15 @@ jobs:
           # wallow-auth is the React BFF (apps/wallow-auth/Dockerfile), not Blazor
           # Wallow.Auth. The build context is the repo root so the Dockerfile can
           # resolve the @bc-solutions-coder/sdk workspace dependency.
+          #
+          # AUTH_BASE_PATH is deliberately NOT passed: the published image is
+          # root-mounted, which is what the E2E stack (docker-compose.test.yml)
+          # and the subdomain topology both require. Path-based deployments
+          # (wallow.dev/auth) cannot use this image — docker-compose.production.yml
+          # carries its own build stanza that rebuilds wallow-auth with
+          # --build-arg AUTH_BASE_PATH=/auth. Passing it here instead would break
+          # every root-mounted consumer, since Vite bakes the prefix into the
+          # asset URLs at build time.
           docker build -f apps/wallow-auth/Dockerfile -t wallow-auth:test .
           # wallow-web is the React BFF (apps/wallow-web/Dockerfile), not Blazor
           # Wallow.Web. The build context is the repo root so the Dockerfile can

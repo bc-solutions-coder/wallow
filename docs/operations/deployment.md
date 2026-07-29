@@ -59,12 +59,14 @@ promoted.
 ```
 
 Every application container listens on **8080 inside the network**; only the host-side port
-differs (`API_PORT`, `AUTH_PORT`, `WEB_PORT`).
+differs (`API_PORT`, `AUTH_PORT`, `WEB_PORT`). Those host ports are bound to `127.0.0.1` for
+local debugging — the `caddy` ingress is the only externally reachable container.
 
 **Long-running services:**
 
 | Service | Image | Purpose |
 |---------|-------|---------|
+| `caddy` | `caddy:2-alpine` | Reference reverse-proxy ingress; owns `:80`/`:443` and routes `/api`, `/auth`, and the catch-all to the three apps (`docker/caddy/Caddyfile.example`) |
 | `wallow-api` | `ghcr.io/bc-solutions-coder/wallow` | REST API, OIDC provider (OpenIddict), SignalR hub, background jobs |
 | `wallow-auth` | `ghcr.io/bc-solutions-coder/wallow-auth` | Node SSR login/register/MFA UI (`apps/wallow-auth`); also a pure reverse proxy for `/v1/**`, `/connect/**`, `/.well-known/**` |
 | `wallow-web` | `ghcr.io/bc-solutions-coder/wallow-web` | Node SSR dashboard + BFF, a confidential OIDC client of the API (`apps/wallow-web`) |
@@ -111,12 +113,24 @@ The compose file supports two shapes. Pick one and keep the URL variables consis
 | Public path | Container | Proxy behaviour |
 |-------------|-----------|-----------------|
 | `wallow.dev/api/*` | `wallow-api:8080` | Forward the **full** path — the app strips `/api` itself via `PathBase`. Do not strip it in the proxy. |
-| `wallow.dev/auth/*` | `wallow-auth:8080` | **Strip** the `/auth` prefix — the Node app has no `PathBase` support and serves at root. |
+| `wallow.dev/auth/*` | `wallow-auth:8080` | Forward the **full** path — the Node app is built with `AUTH_BASE_PATH=/auth` and serves under that prefix. Do not strip it either. |
 | `wallow.dev/*` | `wallow-web:8080` | Forward as-is. |
 
-**Subdomain.** Set `API_PATH_BASE=` (empty) in `.env.production` so the API serves at its
-subdomain root, and point `API_PUBLIC_URL`, `AUTH_PUBLIC_URL`, and `COOKIE_DOMAIN` at the
-subdomains:
+The proxy strips nothing in this topology. The compose file ships a reference ingress that
+implements it — the `caddy` service, configured by `docker/caddy/Caddyfile.example`, which owns
+`:80`/`:443` while the three app containers publish only on `127.0.0.1` for debugging. Copy the
+example to `caddy/Caddyfile` and point `CADDYFILE_HOST_PATH` at your copy. Full per-service
+variables and nginx/Caddy examples are in the
+[Reverse Proxy guide](reverse-proxy.md).
+
+> `AUTH_BASE_PATH` is a **build** argument, not a runtime one — Vite bakes it into every asset
+> URL. The published `wallow-auth` image is built at root, so path-based deployments must run
+> `up --build` (which is why that is the documented invocation); a plain `pull` yields an auth
+> container whose assets 404 under `/auth`.
+
+**Subdomain.** Set `API_PATH_BASE=` and `AUTH_BASE_PATH=` (both empty) in `.env.production` so
+the API and auth app serve at their subdomain roots, and point `API_PUBLIC_URL`,
+`AUTH_PUBLIC_URL`, and `COOKIE_DOMAIN` at the subdomains:
 
 ```
 api.wallow.dev/*  -> wallow-api:8080
@@ -256,8 +270,9 @@ openssl rand -hex 32      # Garage secret key / RPC secret (must be exactly 64 h
 | **Seeding** | `SEED_FILE_HOST_PATH`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_FIRST_NAME`, `ADMIN_LAST_NAME` |
 | **OIDC** | `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, plus optional per-fork client secrets |
 | **BFF session** | `BFF_COOKIE_PASSWORD` |
-| **Public URLs** | `API_PUBLIC_URL`, `AUTH_PUBLIC_URL`, `WEB_PUBLIC_URL`, `COOKIE_DOMAIN`, `API_PATH_BASE` |
-| **Ports** | `API_PORT`, `AUTH_PORT`, `WEB_PORT` |
+| **Public URLs** | `API_PUBLIC_URL`, `AUTH_PUBLIC_URL`, `WEB_PUBLIC_URL`, `COOKIE_DOMAIN`, `API_PATH_BASE`, `AUTH_BASE_PATH` |
+| **Ingress** | `CADDYFILE_HOST_PATH`, `INGRESS_HTTP_PORT`, `INGRESS_HTTPS_PORT` |
+| **Ports** | `API_PORT`, `AUTH_PORT`, `WEB_PORT` (all bound to `127.0.0.1`) |
 | **Observability** | `GF_ADMIN_PASSWORD` |
 
 ### Three variables worth calling out

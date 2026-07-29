@@ -1,0 +1,100 @@
+# =============================================================================
+# Wallow reference ingress (Caddy)
+# =============================================================================
+# Copy to Caddyfile and edit, or point CADDYFILE_HOST_PATH at your own file:
+#
+#   cd docker
+#   cp caddy/Caddyfile.example caddy/Caddyfile
+#   # then in .env.production: CADDYFILE_HOST_PATH=./caddy/Caddyfile
+#
+# This implements the PATH-BASED topology that docker-compose.production.yml
+# defaults to. Both prefixes are KEPT when proxying — nothing is stripped here:
+#
+#   /api/*  -> wallow-api:8080   (ASP.NET Core strips it itself via PathBase=/api)
+#   /auth/* -> wallow-auth:8080  (the Node app is BUILT with AUTH_BASE_PATH=/auth
+#                                 and serves its SSR HTML, assets and passthrough
+#                                 routes under that prefix)
+#   /*      -> wallow-web:8080
+#
+# Caddy's reverse_proxy stamps X-Forwarded-For, X-Forwarded-Proto and
+# X-Forwarded-Host on every upstream request by default, which is why no
+# header_up directive appears below (adding one is redundant and Caddy warns
+# about it). If you replace Caddy with nginx/Traefik/an ALB, that is the
+# contract to reproduce, together with: forward the full path, strip no prefix.
+# The API builds absolute OIDC URLs from X-Forwarded-Proto — get it wrong and
+# every redirect leaves as http:// on an https:// site.
+#
+# GOTCHA — Caddy at the edge sets X-Forwarded-Proto from the connection it
+# actually served, and DISCARDS any value the client sent. That is the right
+# default (the header is trivially spoofable), but it means putting this Caddy
+# BEHIND another TLS terminator (Cloudflare, an ALB, an ingress controller)
+# makes it forward `http` and breaks every OIDC redirect. In that topology you
+# must declare the outer proxy trusted — see `trusted_proxies` below.
+# =============================================================================
+{
+	# Admin API stays on loopback inside the container; the compose healthcheck
+	# uses it. Set to `admin off` if you do not want it at all.
+	# Note it binds IPv4 only, so probe it as 127.0.0.1:2019, never localhost:2019.
+	admin localhost:2019
+
+	# Uncomment ONLY when this Caddy sits behind another proxy that already
+	# terminates TLS, and replace the ranges with that proxy's real source
+	# addresses. Trusting a range you do not control lets callers forge
+	# X-Forwarded-Proto and X-Forwarded-For.
+	# servers {
+	# 	trusted_proxies static 10.0.0.0/8 172.16.0.0/12
+	# }
+
+	# This reference stack terminates plain HTTP on :80 so `up --build` is
+	# immediately reachable at http://localhost. For a real deployment, replace
+	# the `:80` site address below with your domain (e.g. `wallow.dev`), drop
+	# this line, and Caddy provisions and renews TLS automatically.
+	auto_https off
+}
+
+:80 {
+	encode zstd gzip
+
+	# --- API ------------------------------------------------------------------
+	# The prefix is deliberately NOT stripped: the API runs with PathBase=/api
+	# (API_PATH_BASE) and strips it itself, and its OIDC issuer is
+	# https://<host>/api, so discovery, authorize and end_session must all keep
+	# the prefix intact end to end.
+	@api path /api /api/*
+	handle @api {
+		reverse_proxy wallow-api:8080
+	}
+
+	# --- AUTH -----------------------------------------------------------------
+	# Also NOT stripped. The wallow-auth image must be built with
+	# `--build-arg AUTH_BASE_PATH=/auth` for this route to resolve — Vite bakes
+	# the prefix into every emitted asset URL at build time, so a root-built
+	# image serves HTML here that points at /assets/* and 404s.
+	@auth path /auth /auth/*
+	handle @auth {
+		reverse_proxy wallow-auth:8080
+	}
+
+	# --- WEB (dashboard, catch-all) -------------------------------------------
+	handle {
+		reverse_proxy wallow-web:8080
+	}
+}
+
+# --- Subdomain topology (alternative) ----------------------------------------
+# Set API_PATH_BASE= and AUTH_BASE_PATH= (both empty) in .env.production, align
+# API_PUBLIC_URL / AUTH_PUBLIC_URL / COOKIE_DOMAIN to the subdomains, delete the
+# `auto_https off` line above, and use these site blocks instead of the `:80`
+# one. Every service then serves at its own root and nothing is rebased.
+#
+# api.wallow.dev {
+# 	reverse_proxy wallow-api:8080
+# }
+#
+# auth.wallow.dev {
+# 	reverse_proxy wallow-auth:8080
+# }
+#
+# wallow.dev {
+# 	reverse_proxy wallow-web:8080
+# }

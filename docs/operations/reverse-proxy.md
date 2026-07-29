@@ -26,18 +26,29 @@ subdomain routing.
 Route incoming requests to each service based on path prefix. All services expose HTTP on port
 `8080` inside the container network:
 
-| Public path | Internal target    | Prefix handling                                                                                                |
-| ----------- | ------------------ | -------------------------------------------------------------------------------------------------------------- |
-| `/api/*`    | `wallow-api:8080`  | Forward the full path; the API strips `/api` itself via `PathBase=/api`. **Do not** strip in the proxy.        |
-| `/auth/*`   | `wallow-auth:8080` | The Node auth app has no path-base support and serves at root, so the proxy **must strip** the `/auth` prefix. |
-| `/*`        | `wallow-web:8080`  | The Node web app serves at root (catch-all).                                                                   |
+| Public path | Internal target    | Prefix handling                                                                                                            |
+| ----------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| `/api/*`    | `wallow-api:8080`  | Forward the full path; the API strips `/api` itself via `PathBase=/api`. **Do not** strip in the proxy.                    |
+| `/auth/*`   | `wallow-auth:8080` | Forward the full path; the auth app is **built** with `AUTH_BASE_PATH=/auth` and serves under it. **Do not** strip either. |
+| `/*`        | `wallow-web:8080`  | The Node web app serves at root (catch-all).                                                                               |
+
+**The proxy strips nothing.** Both prefixed services rebase themselves — the API at runtime via
+`PathBase`, the auth app at build time via `AUTH_BASE_PATH` — so a proxy that removes a prefix
+breaks the service behind it.
 
 **Routing precedence:** the `/api` and `/auth` prefixes must be evaluated before the catch-all
-`/*` rule.
+`/*` rule, and prefix matches must respect segment boundaries so that `/apidocs` and
+`/authentication` fall through to the web app rather than matching `/api` or `/auth`.
+
+> **Reference implementation.** `docker/caddy/Caddyfile.example` is a working, validated
+> version of this topology, wired into `docker/docker-compose.production.yml` as the `caddy`
+> service. Copy it (`cp caddy/Caddyfile.example caddy/Caddyfile`) and point
+> `CADDYFILE_HOST_PATH` at your copy rather than starting from scratch.
 
 ### Subdomain routing
 
-Set `API_PATH_BASE=` (empty) in `.env.production` and route by host instead:
+Set **both** `API_PATH_BASE=` and `AUTH_BASE_PATH=` (empty) in `.env.production` and route by
+host instead:
 
 | Public host          | Internal target    | Notes                                            |
 | -------------------- | ------------------ | ------------------------------------------------ |
@@ -84,15 +95,25 @@ Authentication__CookieDomain=example.com
 ### wallow-auth (Node — apps/wallow-auth)
 
 The auth app is a pure same-origin reverse proxy: it holds no session and no cookie jar, and it
-reads only three environment variables (`PORT`, `HOST`, `WALLOW_API_INTERNAL_URL`). It has **no**
-path-base support and serves at root, so the proxy must strip the `/auth` prefix under path-based
-routing.
+reads only three environment variables (`PORT`, `HOST`, `WALLOW_API_INTERNAL_URL`).
 
 ```bash
 PORT=8080
 # Upstream the app reverse-proxies /v1/**, /connect/**, /.well-known/** to (container-to-container)
 WALLOW_API_INTERNAL_URL=http://wallow-api:8080
 ```
+
+Under path-based routing the app serves everything — SSR HTML, client assets, and its `/v1`,
+`/connect`, and `/.well-known` passthrough routes — under the `/auth` prefix, so the proxy
+forwards the full path unchanged.
+
+> **`AUTH_BASE_PATH` is a build input, not a runtime variable.** `vite build` bakes it into
+> every emitted asset URL, so the prefix is fixed when the image is built and setting it in the
+> container environment does nothing. Build with `--build-arg AUTH_BASE_PATH=/auth` (the
+> production compose file does this for you, which is why path-based deployments must
+> `up --build` rather than `pull`). The published `ghcr.io/bc-solutions-coder/wallow-auth`
+> image is built at root, so it suits subdomain routing as-is; served under `/auth` it returns
+> HTML pointing at `/assets/*` and every asset 404s.
 
 ### wallow-web (Node BFF — apps/wallow-web)
 
@@ -170,8 +191,10 @@ ready to serve traffic.
 
 ## 6. Proxy Configuration Examples
 
-The examples below show path-based routing. The key rules: forward `/api` unstripped (the API
-handles its own `PathBase`), and **strip** `/auth` for the Node auth app.
+The examples below show path-based routing. The key rule: **forward the full path and strip
+nothing** — the API rebases itself via `PathBase`, and the auth app is built with
+`AUTH_BASE_PATH=/auth`. `docker/caddy/Caddyfile.example` is the maintained, validated version of
+the Caddy config below.
 
 ### nginx
 
@@ -183,8 +206,10 @@ server {
     ssl_certificate     /etc/letsencrypt/live/example.com/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/example.com/privkey.pem;
 
-    # API — forward the full path (the app strips /api via PathBase)
-    location /api {
+    # API — forward the full path (the app strips /api via PathBase).
+    # The (/|$) regex keeps the match on a segment boundary, so /apidocs falls
+    # through to the web app instead of being routed here.
+    location ~ ^/api(/|$) {
         proxy_pass         http://wallow-api:8080;
         proxy_http_version 1.1;
         proxy_set_header   Host              $host;
@@ -193,9 +218,10 @@ server {
         proxy_set_header   X-Forwarded-Host  $host;
     }
 
-    # Auth — strip the /auth prefix (trailing slash on proxy_pass) for the Node app
-    location /auth/ {
-        proxy_pass         http://wallow-auth:8080/;
+    # Auth — also forwarded unstripped; the app is built with AUTH_BASE_PATH=/auth
+    # and serves its HTML, assets, and passthrough routes under that prefix.
+    location ~ ^/auth(/|$) {
+        proxy_pass         http://wallow-auth:8080;
         proxy_http_version 1.1;
         proxy_set_header   Host              $host;
         proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
@@ -226,36 +252,47 @@ server {
 
 ```caddy
 example.com {
-    # API — forward the full path
-    handle /api* {
-        reverse_proxy wallow-api:8080 {
-            header_up X-Forwarded-Proto {scheme}
-            header_up X-Forwarded-Host  {host}
-        }
-    }
+	encode zstd gzip
 
-    # Auth — strip the /auth prefix for the Node app
-    handle_path /auth* {
-        reverse_proxy wallow-auth:8080 {
-            header_up X-Forwarded-Proto {scheme}
-            header_up X-Forwarded-Host  {host}
-        }
-    }
+	# API — forward the full path (PathBase=/api strips it inside the app)
+	@api path /api /api/*
+	handle @api {
+		reverse_proxy wallow-api:8080
+	}
 
-    # Web (catch-all)
-    handle {
-        reverse_proxy wallow-web:8080 {
-            header_up X-Forwarded-Proto {scheme}
-            header_up X-Forwarded-Host  {host}
-        }
-    }
+	# Auth — also forwarded unstripped; the image is built with AUTH_BASE_PATH=/auth
+	@auth path /auth /auth/*
+	handle @auth {
+		reverse_proxy wallow-auth:8080
+	}
 
-    # Caddy handles TLS automatically via Let's Encrypt
+	# Web (catch-all)
+	handle {
+		reverse_proxy wallow-web:8080
+	}
+
+	# Caddy handles TLS automatically via Let's Encrypt
 }
 ```
 
-> In Caddy, `handle_path` strips the matched prefix while `handle` preserves it — that is why
-> `/auth` uses `handle_path` (strip) and `/api` uses `handle` (preserve).
+> **Use `handle`, never `handle_path`.** In Caddy, `handle_path` strips the matched prefix while
+> `handle` preserves it, and neither prefix may be stripped here. The `path /api /api/*` matcher
+> (rather than `/api*`) is what keeps the match on a segment boundary, so `/apidocs` and
+> `/authentication` reach the web app.
+
+> **No `header_up` needed.** Caddy's `reverse_proxy` sets `X-Forwarded-For`,
+> `X-Forwarded-Proto`, and `X-Forwarded-Host` on every upstream request by default; adding
+> explicit directives is redundant and `caddy validate` warns about it. That default is also the
+> contract any replacement proxy must reproduce — the nginx example above sets the same three
+> headers by hand. Note that Caddy at the edge sets `X-Forwarded-Proto` from the connection it
+> actually served and discards what the client sent, so putting it **behind** another TLS
+> terminator makes it forward `http` and breaks every OIDC redirect; in that topology declare
+> the outer proxy trusted with `servers { trusted_proxies static <ranges> }`.
+
+In nginx, the equivalent rule is `proxy_pass` **without** a URI part (no trailing slash, no
+path): that forwards the original request URI untouched. Adding a trailing slash —
+`proxy_pass http://wallow-auth:8080/;` — is what strips the prefix, and it must not be used
+here.
 
 ---
 
@@ -316,7 +353,8 @@ seed schema.
 | Mistake                                                  | Symptom                                      | Fix                                                                                 |
 | -------------------------------------------------------- | -------------------------------------------- | ----------------------------------------------------------------------------------- |
 | Proxy strips `/api`                                      | API routes return 404                        | Forward `/api` unstripped; the app removes it via `PathBase=/api`                   |
-| Proxy does **not** strip `/auth`                         | Auth app assets/routes 404                   | Strip the `/auth` prefix (nginx trailing slash, Caddy `handle_path`)                |
+| Proxy strips `/auth`                                     | Auth app routes 404                          | Forward `/auth` unstripped (no trailing slash on nginx `proxy_pass`; Caddy `handle`, not `handle_path`) |
+| Auth image built without `AUTH_BASE_PATH=/auth`          | Auth page loads but every asset 404s under `/auth` | Rebuild with `--build-arg AUTH_BASE_PATH=/auth` (`up --build`, not `pull`)     |
 | `ASPNETCORE_FORWARDEDHEADERS_ENABLED` missing on the API | OIDC redirects use `http://`; login fails    | Set it on the API service                                                           |
 | `OpenIddict__Issuer` / `OIDC_ISSUER` mismatch            | `redirect_uri` or issuer errors during login | Point both at the public API URL                                                    |
 | Redirect URIs not updated                                | OIDC login returns `redirect_uri mismatch`   | Update the seeded client redirect URIs to the public `https://example.com/...` URLs |
