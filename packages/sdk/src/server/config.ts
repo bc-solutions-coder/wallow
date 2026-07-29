@@ -59,6 +59,15 @@ export const DEFAULT_SESSION_TTL_SECONDS: number = 86_400;
 /** The smallest accepted `SESSION_TTL_SECONDS`; the value must be positive. */
 const MIN_SESSION_TTL_SECONDS = 1;
 
+/**
+ * The shortest `COOKIE_PASSWORD` iron-webcrypto will seal a session with.
+ *
+ * Below this the seal happens to fail inside the OIDC callback rather than at
+ * boot, surfacing as a 500 mid-login with nothing pointing at the password, so
+ * the length is part of the environment contract validated here.
+ */
+const MIN_COOKIE_PASSWORD_LENGTH = 32;
+
 /** A clean environment contract: no collected problems to report. */
 const NO_PROBLEMS = 0;
 
@@ -96,6 +105,10 @@ function defaultCookieName(hostPrefixRaw: string, cookieSecure: boolean): string
  * `BFF_API_BASE_URL`, `COOKIE_PASSWORD`. `OIDC_SCOPES` (space-separated),
  * `COOKIE_NAME`, `OIDC_METADATA_URL`, `SESSION_TTL_SECONDS`, `COOKIE_SECURE`,
  * and `COOKIE_HOST_PREFIX` are optional with defaults.
+ *
+ * `COOKIE_PASSWORD` must also be at least 32 characters — the minimum
+ * iron-webcrypto seals a session with — so a too-short secret fails here at
+ * boot instead of inside the first OIDC callback.
  *
  * A malformed `SESSION_TTL_SECONDS` throws rather than silently falling back to
  * the default, so a startup misconfiguration fails loudly. `COOKIE_SECURE` and
@@ -135,6 +148,13 @@ export function loadBffConfigFromEnv(env: NodeJS.ProcessEnv = process.env): BffC
   const postLogoutRedirectUri: string = require("OIDC_POST_LOGOUT_REDIRECT_URI");
   const apiBaseUrl: string = require("BFF_API_BASE_URL");
   const cookiePassword: string = require("COOKIE_PASSWORD");
+  // A missing password is already reported by require(), which returns ""; the
+  // length guard keeps it from being reported a second time as "too short".
+  if (cookiePassword !== "" && cookiePassword.length < MIN_COOKIE_PASSWORD_LENGTH) {
+    problems.push(
+      `Invalid environment variable COOKIE_PASSWORD: expected at least ${MIN_COOKIE_PASSWORD_LENGTH} characters, got ${cookiePassword.length}`,
+    );
+  }
 
   const ttlRaw: string = (env.SESSION_TTL_SECONDS ?? "").trim();
   let sessionTtlSeconds: number = DEFAULT_SESSION_TTL_SECONDS;

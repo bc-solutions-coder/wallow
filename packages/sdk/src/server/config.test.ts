@@ -216,6 +216,85 @@ describe("loadBffConfigFromEnv — aggregated env-contract validation", () => {
   });
 });
 
+/**
+ * `COOKIE_PASSWORD` must be at least 32 characters (finding M4).
+ *
+ * iron-webcrypto's `seal()` rejects a shorter password, and nothing else reads
+ * the length, so a 31-character secret boots cleanly and then fails with a 500
+ * in the middle of the login callback — the one code path a fork exercises last.
+ * The loader checks it at boot instead, and reports it alongside every other
+ * configuration problem in the SAME aggregated error.
+ */
+describe("loadBffConfigFromEnv — COOKIE_PASSWORD length", () => {
+  it("throws when COOKIE_PASSWORD is 31 characters", () => {
+    expect(() => loadBffConfigFromEnv(envWith({ COOKIE_PASSWORD: "0".repeat(31) }))).toThrow(
+      /COOKIE_PASSWORD/u,
+    );
+  });
+
+  it("names the 32-character minimum so the operator knows what to change", () => {
+    let caught: unknown;
+    try {
+      loadBffConfigFromEnv(envWith({ COOKIE_PASSWORD: "0".repeat(31) }));
+    } catch (error: unknown) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(Error);
+    expect((caught as Error).message).toContain("32");
+  });
+
+  it("reports the short password in the SAME aggregated error as other problems", () => {
+    const env: NodeJS.ProcessEnv = envWith({
+      COOKIE_PASSWORD: "0".repeat(31),
+      SESSION_TTL_SECONDS: "not-a-number",
+    });
+    delete env.OIDC_ISSUER;
+
+    const thrown: unknown[] = [];
+    try {
+      loadBffConfigFromEnv(env);
+    } catch (error: unknown) {
+      thrown.push(error);
+    }
+
+    expect(thrown).toHaveLength(1);
+    const message: string = (thrown[0] as Error).message;
+    expect(message).toContain("Invalid BFF environment configuration");
+    expect(message).toContain("COOKIE_PASSWORD");
+    expect(message).toContain("SESSION_TTL_SECONDS");
+    expect(message).toContain("OIDC_ISSUER");
+  });
+
+  it("accepts exactly 32 characters", () => {
+    const config: BffConfig = loadBffConfigFromEnv(envWith({ COOKIE_PASSWORD: "a".repeat(32) }));
+
+    expect(config.cookiePassword).toBe("a".repeat(32));
+  });
+
+  it("accepts a password longer than the minimum", () => {
+    const config: BffConfig = loadBffConfigFromEnv(envWith({ COOKIE_PASSWORD: "a".repeat(64) }));
+
+    expect(config.cookiePassword).toBe("a".repeat(64));
+  });
+
+  it("reports a MISSING password once, not as both missing and too short", () => {
+    const env: NodeJS.ProcessEnv = requiredEnv();
+    delete env.COOKIE_PASSWORD;
+
+    let caught: unknown;
+    try {
+      loadBffConfigFromEnv(env);
+    } catch (error: unknown) {
+      caught = error;
+    }
+
+    const message: string = (caught as Error).message;
+    expect(message).toContain("Missing required environment variable: COOKIE_PASSWORD");
+    expect(message.split("COOKIE_PASSWORD").length - 1).toBe(1);
+  });
+});
+
 describe("loadBffConfigFromEnv — existing behavior is unchanged", () => {
   it("still requires the seven required variables", () => {
     const env: NodeJS.ProcessEnv = requiredEnv();
