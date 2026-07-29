@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createWallowSdk, type CreateWallowSdkOptions, type WallowSdk } from "./create-sdk";
 import { setCsrfToken } from "./csrf";
@@ -89,6 +89,7 @@ afterEach(() => {
   // per-instance, so reset it between tests. The factory throws in the red phase;
   // this teardown must not mask that.
   setCsrfToken(null);
+  vi.unstubAllGlobals();
 });
 
 describe("(a) instances do not share state", () => {
@@ -195,6 +196,9 @@ describe("(b) the CSRF interceptor registers exactly once per instance", () => {
       fetch: transport.fetch,
     });
     setCsrfToken("token-abc");
+    // An empty jar keeps this case about the module store: the interceptor
+    // refuses to trust that store when there is no document (SSR isolation).
+    vi.stubGlobal("document", { cookie: "" });
 
     await sdk.client.post({ url: "/v1/identity/users/me" });
 

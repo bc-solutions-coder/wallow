@@ -1,9 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  CSRF_COOKIE_SUFFIX,
   type CsrfInterceptorClient,
   getCsrfToken,
   isSafeMethod,
+  readCsrfCookie,
   setCsrfToken,
   wireCsrfInterceptor,
 } from "./csrf";
@@ -51,6 +53,15 @@ function createFakeClient(): CsrfInterceptorClient & {
   };
 }
 
+/**
+ * Stub a browser cookie jar. The node vitest project has no `document` at all,
+ * which is exactly the SSR shape the interceptor must stay inert under, so every
+ * browser-path test opts in explicitly.
+ */
+function stubCookieJar(cookie: string): void {
+  vi.stubGlobal("document", { cookie });
+}
+
 beforeEach(() => {
   // Reset module-scope token state so tests do not leak into one another. The
   // stub throws in the red phase, so swallow it: the assertions below are what
@@ -60,6 +71,12 @@ beforeEach(() => {
   } catch {
     /* red phase: setCsrfToken is not implemented yet */
   }
+});
+
+afterEach(() => {
+  // Drop any stubbed `document` so the next test starts from the bare node
+  // global again — otherwise a leaked jar would mask the SSR-isolation case.
+  vi.unstubAllGlobals();
 });
 
 describe("isSafeMethod", () => {
@@ -78,6 +95,13 @@ describe("isSafeMethod", () => {
 });
 
 describe("wireCsrfInterceptor", () => {
+  // These cases all exercise the browser path, where the module token store is
+  // per-tab and safe to read. An empty jar keeps the double-submit cookie out of
+  // the picture so each case still isolates the store it is about.
+  beforeEach(() => {
+    stubCookieJar("");
+  });
+
   it("registers exactly one request interceptor on the client", () => {
     const client = createFakeClient();
     wireCsrfInterceptor(client);
@@ -158,6 +182,155 @@ describe("wireCsrfInterceptor", () => {
       method: "POST",
     });
     expect(client.run(request)).toBe(request);
+  });
+});
+
+/**
+ * Double-submit cookie fallback (Wallow-vufu.1.1).
+ *
+ * `setCsrfToken()` is called from exactly one route in the whole workspace, so
+ * every other mutation reached the BFF with no `x-csrf-token` header and came
+ * back `403 CSRF_INVALID`. The interceptor therefore cannot depend on that call
+ * having happened: it falls back to the non-HttpOnly `${cookieName}-csrf` cookie
+ * the BFF writes at the OIDC callback, which is rewritten on every login and so
+ * is always the live synchronizer token — including after a re-login that would
+ * leave the module store stale.
+ */
+describe("wireCsrfInterceptor CSRF token resolution", () => {
+  it("falls back to the double-submit cookie when no token was set", () => {
+    stubCookieJar("wallow_bff-csrf=cookie-token");
+    const client = createFakeClient();
+    wireCsrfInterceptor(client);
+    // No setCsrfToken call: this is every dashboard mutation's real state.
+
+    const request = new Request("https://example.test/api/v1/identity/organizations", {
+      method: "POST",
+    });
+
+    expect(client.run(request).headers.get("x-csrf-token")).toBe("cookie-token");
+  });
+
+  it("ignores unrelated cookies in the jar when falling back", () => {
+    stubCookieJar("theme=dark; __Host-wallow_bff=sealed-session; wallow_bff-csrf=cookie-token");
+    const client = createFakeClient();
+    wireCsrfInterceptor(client);
+
+    const request = new Request("https://example.test/api/v1/identity/organizations", {
+      method: "POST",
+    });
+
+    expect(client.run(request).headers.get("x-csrf-token")).toBe("cookie-token");
+  });
+
+  it("prefers an explicitly set token over the cookie", () => {
+    stubCookieJar("wallow_bff-csrf=cookie-token");
+    const client = createFakeClient();
+    wireCsrfInterceptor(client);
+    setCsrfToken("explicit-token");
+
+    const request = new Request("https://example.test/api/v1/identity/organizations", {
+      method: "POST",
+    });
+
+    expect(client.run(request).headers.get("x-csrf-token")).toBe("explicit-token");
+  });
+
+  it("prefers a __Host--prefixed cookie over a bare-named one when both are present", () => {
+    // A localhost jar accumulates both across runs: the Aspire (plain HTTP)
+    // stack writes the bare name, the compose stack writes the `__Host-` one.
+    // First-match-wins parsing would hand back whichever the browser lists
+    // first, which is the stale one here.
+    stubCookieJar("wallow_bff-csrf=stale-token; __Host-wallow_bff-csrf=host-token");
+    const client = createFakeClient();
+    wireCsrfInterceptor(client);
+
+    const request = new Request("https://example.test/api/v1/identity/organizations", {
+      method: "POST",
+    });
+
+    expect(client.run(request).headers.get("x-csrf-token")).toBe("host-token");
+  });
+
+  it("sends no header on a safe method even when a cookie is readable", () => {
+    stubCookieJar("wallow_bff-csrf=cookie-token");
+    const client = createFakeClient();
+    wireCsrfInterceptor(client);
+
+    const request = new Request("https://example.test/api/v1/identity/users/me", {
+      method: "GET",
+    });
+
+    expect(client.run(request).headers.get("x-csrf-token")).toBeNull();
+  });
+
+  it("sends no header when neither a token nor a cookie exists", () => {
+    stubCookieJar("theme=dark");
+    const client = createFakeClient();
+    wireCsrfInterceptor(client);
+
+    const request = new Request("https://example.test/api/v1/identity/organizations", {
+      method: "POST",
+    });
+
+    expect(client.run(request).headers.get("x-csrf-token")).toBeNull();
+  });
+
+  it("ignores the module token store outside the browser", () => {
+    // The store is module scope, which during SSR is process-global and shared
+    // by every concurrently rendered request — one user's token must never be
+    // stamped onto another's. With no `document` there is no browser to trust.
+    vi.stubGlobal("document", undefined);
+    const client = createFakeClient();
+    wireCsrfInterceptor(client);
+    setCsrfToken("other-users-token");
+
+    const request = new Request("https://example.test/api/v1/identity/organizations", {
+      method: "POST",
+    });
+
+    expect(client.run(request).headers.get("x-csrf-token")).toBeNull();
+  });
+});
+
+/**
+ * The cookie reader itself, moved here from `auth.ts` so the interceptor and
+ * `logout()` resolve the token through one implementation instead of two.
+ */
+describe("readCsrfCookie", () => {
+  it("exposes the suffix the BFF's cookie name ends with", () => {
+    expect(CSRF_COOKIE_SUFFIX).toBe("-csrf");
+  });
+
+  it("returns null outside the browser, where there is no cookie jar", () => {
+    vi.stubGlobal("document", undefined);
+
+    expect(readCsrfCookie()).toBeNull();
+  });
+
+  it("returns null when the jar holds no CSRF cookie", () => {
+    stubCookieJar("theme=dark; __Host-wallow_bff=sealed-session");
+
+    expect(readCsrfCookie()).toBeNull();
+  });
+
+  it("returns the value of the suffixed cookie", () => {
+    stubCookieJar("theme=dark; wallow_bff-csrf=cookie-token");
+
+    expect(readCsrfCookie()).toBe("cookie-token");
+  });
+
+  it("percent-decodes the cookie value", () => {
+    // The token is base64url in practice, but the BFF writes it encoded, and a
+    // value carrying `+` or `=` padding must survive the round trip intact.
+    stubCookieJar("wallow_bff-csrf=tok%2Ba%3D%3D");
+
+    expect(readCsrfCookie()).toBe("tok+a==");
+  });
+
+  it("prefers the __Host--prefixed cookie when the jar holds both", () => {
+    stubCookieJar("wallow_bff-csrf=stale-token; __Host-wallow_bff-csrf=host-token");
+
+    expect(readCsrfCookie()).toBe("host-token");
   });
 });
 

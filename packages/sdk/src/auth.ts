@@ -2,7 +2,7 @@
  * Browser auth helpers that talk to the same-origin BFF tunnel.
  */
 
-import { getCsrfToken } from "./csrf";
+import { getCsrfToken, readCsrfCookie } from "./csrf";
 
 /** HTTP 401 Unauthorized — the BFF returns this when no session is active. */
 const HTTP_UNAUTHORIZED: number = 401;
@@ -16,14 +16,6 @@ const HTTP_FIRST_ERROR: number = 400;
  * BFF into the browser bundle.
  */
 const CSRF_HEADER: string = "x-csrf-token";
-
-/**
- * Suffix of the non-HttpOnly double-submit cookie the BFF writes alongside the
- * session. Its full name is `${cookieName}-csrf`, and `cookieName` is a server
- * setting the browser never learns (it also gains a `__Host-` prefix whenever
- * the session cookie is Secure), so the suffix is the only stable handle.
- */
-const CSRF_COOKIE_SUFFIX: string = "-csrf";
 
 /**
  * A user identity resolved from the BFF `/bff/user` endpoint.
@@ -103,34 +95,6 @@ export function logout(options?: LogoutOptions): Promise<void> {
   assertBrowserNavigation("logout()");
 
   return endSession(options);
-}
-
-/**
- * Read the double-submit CSRF cookie the BFF wrote next to the session.
- *
- * Matched by the `-csrf` suffix rather than a full name, since the browser does
- * not know the configured cookie name or whether it carries a `__Host-` prefix.
- *
- * @returns The token, or `null` when there is no readable cookie (including
- *          runtimes with no `document` at all).
- */
-function readCsrfCookie(): string | null {
-  const hasDocument: boolean = typeof document !== "undefined";
-
-  if (!hasDocument) {
-    return null;
-  }
-
-  for (const entry of (document.cookie ?? "").split(";")) {
-    // Re-joined on "=", since a cookie value may itself contain padding.
-    const [name = "", ...value] = entry.split("=");
-
-    if (name.trim().endsWith(CSRF_COOKIE_SUFFIX)) {
-      return decodeURIComponent(value.join("=").trim());
-    }
-  }
-
-  return null;
 }
 
 /**

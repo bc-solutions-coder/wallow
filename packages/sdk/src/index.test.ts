@@ -64,6 +64,7 @@ const BROWSER_VALUE_EXPORTS: readonly string[] = [
   "login",
   "loginRedirect",
   "logout",
+  "readCsrfCookie",
   "requireAuth",
   "setCsrfToken",
   "validateRedirectUriArgs",
